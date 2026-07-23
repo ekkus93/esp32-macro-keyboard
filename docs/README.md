@@ -25,8 +25,8 @@ ESP32 Macro Keyboard project.
 - [`HIL_TEST_PLAN.md`](HIL_TEST_PLAN.md) contains hardware-in-the-loop procedures.
 - [`RELEASE_NOTES.md`](RELEASE_NOTES.md) records the unreleased 0.1.0 state.
 
-The `mockups/` directory currently contains the planned mockup naming and workflow
-index only. Individual SVG and PNG mockups have not been committed.
+The `mockups/` directory currently contains only the planned naming and workflow
+guidance. Individual SVG and PNG mockups have not been committed.
 
 Documentation must remain synchronized with the code. Implemented, host-tested,
 device-build-tested, and physically verified are distinct states and must not be
