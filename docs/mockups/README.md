@@ -1,32 +1,34 @@
 # Web Application Mockups
 
-This directory contains reference mockups for the ESP32 Macro Keyboard web application.
+Individual screen mockups have not been committed yet. This directory reserves the
+stable workflow names that will be used when the SVG and PNG assets are generated.
 
-## Recommended format
+## Planned files
 
-Store each screen as an individual SVG so it can be viewed directly in GitHub, scaled without quality loss, inspected by implementation tools, and updated independently.
+1. `01-login.svg`
+2. `02-choose-macro-set.svg`
+3. `03-procedures-home.svg`
+4. `04-procedure-execution.svg`
+5. `05-instruction-step.svg`
+6. `06-edit-procedure-reorder.svg`
+7. `07-macros-library.svg`
+8. `08-macro-editor.svg`
+9. `09-send-confirmation.svg`
+10. `10-execution-progress.svg`
+11. `11-step-completed.svg`
+12. `12-manage-macro-sets.svg`
+13. `13-create-macro-set.svg`
+14. `14-import-macro-set.svg`
+15. `15-export-macro-set.svg`
+16. `16-delete-macro-set.svg`
+17. `17-settings.svg`
+18. `18-storage-diagnostics.svg`
 
-Use stable, numbered filenames that follow the user workflow, for example:
+Each screen should be stored as an individual SVG plus a same-named PNG preview.
+SVG text should remain text where practical, use a consistent mobile viewport, and
+must not depend on remote fonts or assets.
 
-- `01-login.svg`
-- `02-choose-macro-set.svg`
-- `03-procedures-home.svg`
-- `04-procedure-execution.svg`
-- `05-instruction-step.svg`
-- `06-edit-procedure-reorder.svg`
-- `07-macros-library.svg`
-- `08-macro-editor.svg`
-- `09-send-confirmation.svg`
-- `10-execution-progress.svg`
-- `11-step-completed.svg`
-- `12-manage-macro-sets.svg`
-- `13-create-macro-set.svg`
-- `14-import-macro-set.svg`
-- `15-export-macro-set.svg`
-- `16-delete-macro-set.svg`
-- `17-settings.svg`
-- `18-storage-diagnostics.svg`
-
-Each SVG should represent one screen rather than one large composite image. Keep text as text where practical, use a consistent mobile viewport, and avoid embedding remote fonts or assets.
-
-A later `index.md` should show every screen in workflow order and describe its purpose, entry conditions, actions, success states, and error states.
+When the assets are added, create `index.md` with the workflow order, purpose,
+entry conditions, actions, success states, and error states for every screen. Do
+not reference an individual mockup from implementation documents until that file
+exists in this directory.
