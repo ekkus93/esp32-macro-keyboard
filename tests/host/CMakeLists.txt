@@ -106,6 +106,23 @@ target_compile_options(web_security_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME web_security COMMAND web_security_tests)
 set_tests_properties(web_security PROPERTIES LABELS "web")
 
+add_executable(storage_atomic_tests
+    test_storage_atomic.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/storage/storage_fs_ops.c
+    ../../firmware/components/storage/storage_atomic.c
+)
+target_include_directories(storage_atomic_tests PRIVATE
+    ../../firmware/components/macro_model/include
+    ../../firmware/components/storage/include
+    ../../firmware/components/storage
+)
+target_link_libraries(storage_atomic_tests PRIVATE test_support)
+target_compile_options(storage_atomic_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME storage_atomic COMMAND storage_atomic_tests)
+set_tests_properties(storage_atomic PROPERTIES LABELS "storage")
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
 
@@ -115,6 +132,7 @@ add_executable(storage_repository_tests
     ../../firmware/components/macro_model/app_uuid.c
     ../../firmware/components/macro_model/macro_model.c
     ../../firmware/components/storage/storage_atomic.c
+    ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_paths.c
     ../../firmware/components/storage/storage_transaction.c
     ../../firmware/components/storage/storage_repository_io.c
