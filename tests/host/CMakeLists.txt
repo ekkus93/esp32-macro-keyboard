@@ -89,6 +89,23 @@ target_compile_options(auth_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME auth COMMAND auth_tests)
 set_tests_properties(auth PROPERTIES LABELS "auth")
 
+add_executable(web_security_tests
+    test_web_security.c
+    ../../firmware/components/web_server/web_cookie.c
+    ../../firmware/components/web_server/web_origin.c
+    ../../firmware/components/web_server/web_static_path.c
+    ../../firmware/components/web_server/web_content.c
+)
+target_include_directories(web_security_tests PRIVATE
+    ../../firmware/components/macro_model/include
+    ../../firmware/components/auth/include
+    ../../firmware/components/web_server
+)
+target_link_libraries(web_security_tests PRIVATE test_support)
+target_compile_options(web_security_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME web_security COMMAND web_security_tests)
+set_tests_properties(web_security PROPERTIES LABELS "web")
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
 
