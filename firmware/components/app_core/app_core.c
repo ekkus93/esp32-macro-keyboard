@@ -12,6 +12,7 @@
 #include "nvs_flash.h"
 #include "sdkconfig.h"
 #include "storage.h"
+#include "storage_repository.h"
 #include "usb_keyboard.h"
 #include "web_server.h"
 #include "wifi_ap.h"
@@ -115,6 +116,11 @@ app_error_code_t app_core_start(void)
         storage_degraded = true;
         ESP_LOGW(TAG, "storage recovery requires operator review; evidence was preserved");
     } else if (stage("storage_recovery", result) != APP_ERROR_NONE) {
+        return cleanup_after_failure(web_started, wifi_started, storage_mounted, result);
+    }
+
+    result = stage("storage_repository", storage_repository_init());
+    if (result != APP_ERROR_NONE) {
         return cleanup_after_failure(web_started, wifi_started, storage_mounted, result);
     }
 

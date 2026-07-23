@@ -9,10 +9,33 @@
 #include "app_uuid.h"
 #include "macro_limits.h"
 
+#ifndef STORAGE_WEB_MOUNT
 #define STORAGE_WEB_MOUNT "/web"
+#endif
+#ifndef STORAGE_DATA_MOUNT
 #define STORAGE_DATA_MOUNT "/data"
+#endif
+#ifndef STORAGE_WEB_PARTITION
 #define STORAGE_WEB_PARTITION "webfs"
+#endif
+#ifndef STORAGE_DATA_PARTITION
 #define STORAGE_DATA_PARTITION "userdata"
+#endif
+
+#define STORAGE_QUARANTINE_REASON_MAX_BYTES 96U
+#define STORAGE_QUARANTINE_MAX_ENTRIES 64U
+
+typedef struct {
+    app_uuid_t id;
+    char source_path[APP_PATH_MAX_BYTES];
+    char evidence_path[APP_PATH_MAX_BYTES];
+    char reason[STORAGE_QUARANTINE_REASON_MAX_BYTES];
+} storage_quarantine_entry_t;
+
+typedef struct {
+    storage_quarantine_entry_t items[STORAGE_QUARANTINE_MAX_ENTRIES];
+    size_t count;
+} storage_quarantine_list_t;
 
 typedef enum {
     STORAGE_TRANSACTION_IMPORT_SET = 0,
@@ -48,7 +71,9 @@ typedef struct {
 app_error_code_t storage_mount_all(void);
 app_error_code_t storage_unmount_all(void);
 app_error_code_t storage_prepare_directories(void);
-app_error_code_t storage_make_set_path(const app_uuid_t *set_id, char *buffer, size_t buffer_size);
+app_error_code_t storage_make_set_path(const app_uuid_t *set_id,
+                                       char *buffer,
+                                       size_t buffer_size);
 app_error_code_t storage_make_macro_path(const app_uuid_t *set_id,
                                          const app_uuid_t *macro_id,
                                          char *buffer,
@@ -58,6 +83,11 @@ app_error_code_t storage_atomic_write(const char *path,
                                       size_t data_length,
                                       bool sync_required);
 app_error_code_t storage_transaction_recover_all(void);
-app_error_code_t storage_transaction_write_manifest(const storage_transaction_manifest_t *manifest);
+app_error_code_t storage_quarantine_file(const char *source_path,
+                                         const char *reason,
+                                         storage_quarantine_entry_t *out_entry);
+app_error_code_t storage_quarantine_list(storage_quarantine_list_t *out_list);
+app_error_code_t storage_transaction_write_manifest(
+    const storage_transaction_manifest_t *manifest);
 
 #endif

@@ -6,6 +6,20 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+set(STRICT_WARNINGS
+    -Wall
+    -Wextra
+    -Werror
+    -Wshadow
+    -Wconversion
+    -Wsign-conversion
+    -Wformat=2
+    -Wundef
+    -Wdouble-promotion
+    -Wmissing-declarations
+    -Wstrict-prototypes
+)
+
 add_executable(macro_parser_tests
     test_macro_parser.c
     ../../firmware/components/macro_model/app_error.c
@@ -18,9 +32,34 @@ target_include_directories(macro_parser_tests PRIVATE
     ../../firmware/components/macro_model/include
     ../../firmware/components/macro_parser/include
 )
-target_compile_options(macro_parser_tests PRIVATE
-    -Wall -Wextra -Werror -Wshadow -Wconversion -Wsign-conversion
-    -Wformat=2 -Wundef -Wdouble-promotion -Wmissing-declarations
-    -Wstrict-prototypes
-)
+target_compile_options(macro_parser_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME macro_parser COMMAND macro_parser_tests)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
+
+add_executable(storage_repository_tests
+    test_storage_repository.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/macro_model/macro_model.c
+    ../../firmware/components/storage/storage_atomic.c
+    ../../firmware/components/storage/storage_paths.c
+    ../../firmware/components/storage/storage_transaction.c
+    ../../firmware/components/storage/storage_repository_io.c
+    ../../firmware/components/storage/storage_repository_json.c
+    ../../firmware/components/storage/storage_repository_index.c
+    ../../firmware/components/storage/storage_repository_sets.c
+    ../../firmware/components/storage/storage_quarantine.c
+)
+target_include_directories(storage_repository_tests PRIVATE
+    ../../firmware/components/macro_model/include
+    ../../firmware/components/storage/include
+    ../../firmware/components/storage
+)
+target_compile_definitions(storage_repository_tests PRIVATE
+    STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-data"
+)
+target_compile_options(storage_repository_tests PRIVATE ${STRICT_WARNINGS})
+target_link_libraries(storage_repository_tests PRIVATE PkgConfig::CJSON)
+add_test(NAME storage_repository COMMAND storage_repository_tests)

@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -72,6 +73,14 @@ static app_error_code_t verify_file(const char *path, const uint8_t *expected, s
     return result;
 }
 
+static app_error_code_t cleanup_path(const char *path)
+{
+    if (unlink(path) == 0 || errno == ENOENT) {
+        return APP_ERROR_NONE;
+    }
+    return map_errno();
+}
+
 app_error_code_t storage_atomic_write(const char *path,
                                       const void *data,
                                       size_t data_length,
@@ -81,16 +90,20 @@ app_error_code_t storage_atomic_write(const char *path,
         return APP_ERROR_INVALID_ARGUMENT;
     }
 
-    app_uuid_t temporary_id = {0};
-    app_error_code_t result = app_uuid_generate(&temporary_id);
+    app_uuid_t operation_id = {0};
+    app_error_code_t result = app_uuid_generate(&operation_id);
     if (result != APP_ERROR_NONE) {
         return result;
     }
 
     char temporary[APP_PATH_MAX_BYTES];
+    char backup[APP_PATH_MAX_BYTES];
     const int temporary_length =
-        snprintf(temporary, sizeof(temporary), "%s.tmp.%s", path, temporary_id.value);
-    if (temporary_length < 0 || (size_t)temporary_length >= sizeof(temporary)) {
+        snprintf(temporary, sizeof(temporary), "%s.tmp.%s", path, operation_id.value);
+    const int backup_length =
+        snprintf(backup, sizeof(backup), "%s.bak.%s", path, operation_id.value);
+    if (temporary_length < 0 || (size_t)temporary_length >= sizeof(temporary) ||
+        backup_length < 0 || (size_t)backup_length >= sizeof(backup)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
 
@@ -100,7 +113,8 @@ app_error_code_t storage_atomic_write(const char *path,
     }
 
     result = write_all(descriptor, data, data_length);
-    if (result == APP_ERROR_NONE && sync_required && fsync(descriptor) != 0) {
+    if (result == APP_ERROR_NONE && fsync(descriptor) != 0 &&
+        (sync_required || (errno != EINVAL && errno != ENOTSUP))) {
         result = map_errno();
     }
     if (close(descriptor) != 0 && result == APP_ERROR_NONE) {
@@ -110,18 +124,42 @@ app_error_code_t storage_atomic_write(const char *path,
         result = verify_file(temporary, data, data_length);
     }
     if (result != APP_ERROR_NONE) {
-        if (unlink(temporary) != 0 && errno != ENOENT) {
-            return APP_ERROR_IO;
-        }
-        return result;
+        const app_error_code_t cleanup_result = cleanup_path(temporary);
+        return cleanup_result == APP_ERROR_NONE ? result : cleanup_result;
+    }
+
+    struct stat existing;
+    const bool destination_exists = stat(path, &existing) == 0;
+    if (!destination_exists && errno != ENOENT) {
+        const app_error_code_t stat_result = map_errno();
+        const app_error_code_t cleanup_result = cleanup_path(temporary);
+        return cleanup_result == APP_ERROR_NONE ? stat_result : cleanup_result;
+    }
+
+    if (destination_exists && rename(path, backup) != 0) {
+        const app_error_code_t rename_result = map_errno();
+        const app_error_code_t cleanup_result = cleanup_path(temporary);
+        return cleanup_result == APP_ERROR_NONE ? rename_result : cleanup_result;
     }
 
     if (rename(temporary, path) != 0) {
-        const app_error_code_t rename_result = map_errno();
-        if (unlink(temporary) != 0 && errno != ENOENT) {
-            return APP_ERROR_IO;
+        const app_error_code_t activate_result = map_errno();
+        app_error_code_t rollback_result = APP_ERROR_NONE;
+        if (destination_exists && rename(backup, path) != 0) {
+            rollback_result = map_errno();
         }
-        return rename_result;
+        const app_error_code_t cleanup_result = cleanup_path(temporary);
+        if (rollback_result != APP_ERROR_NONE) {
+            return rollback_result;
+        }
+        return cleanup_result == APP_ERROR_NONE ? activate_result : cleanup_result;
+    }
+
+    if (destination_exists) {
+        result = cleanup_path(backup);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
     }
     return APP_ERROR_NONE;
 }

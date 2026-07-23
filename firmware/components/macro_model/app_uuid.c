@@ -1,8 +1,11 @@
 #include "app_uuid.h"
 
+#include <errno.h>
+#include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifdef ESP_PLATFORM
 #include "esp_random.h"
@@ -62,7 +65,35 @@ app_error_code_t app_uuid_generate(app_uuid_t *out_uuid)
 #ifdef ESP_PLATFORM
     esp_fill_random(bytes, sizeof(bytes));
 #else
-    return APP_ERROR_INTERNAL;
+    int descriptor = open("/dev/urandom", O_RDONLY);
+    if (descriptor < 0) {
+        return APP_ERROR_INTERNAL;
+    }
+    size_t offset = 0U;
+    while (offset < sizeof(bytes)) {
+        const ssize_t count = read(descriptor, bytes + offset, sizeof(bytes) - offset);
+        if (count < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            const int close_result = close(descriptor);
+            if (close_result != 0) {
+                return APP_ERROR_INTERNAL;
+            }
+            return APP_ERROR_INTERNAL;
+        }
+        if (count == 0) {
+            const int close_result = close(descriptor);
+            if (close_result != 0) {
+                return APP_ERROR_INTERNAL;
+            }
+            return APP_ERROR_INTERNAL;
+        }
+        offset += (size_t)count;
+    }
+    if (close(descriptor) != 0) {
+        return APP_ERROR_INTERNAL;
+    }
 #endif
     bytes[6] = (uint8_t)((bytes[6] & 0x0fU) | 0x40U);
     bytes[8] = (uint8_t)((bytes[8] & 0x3fU) | 0x80U);
@@ -71,8 +102,22 @@ app_error_code_t app_uuid_generate(app_uuid_t *out_uuid)
         out_uuid->value,
         sizeof(out_uuid->value),
         "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-        bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
-        bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]);
+        bytes[0],
+        bytes[1],
+        bytes[2],
+        bytes[3],
+        bytes[4],
+        bytes[5],
+        bytes[6],
+        bytes[7],
+        bytes[8],
+        bytes[9],
+        bytes[10],
+        bytes[11],
+        bytes[12],
+        bytes[13],
+        bytes[14],
+        bytes[15]);
     if (written != (int)APP_UUID_STRING_LENGTH) {
         out_uuid->value[0] = '\0';
         return APP_ERROR_INTERNAL;
