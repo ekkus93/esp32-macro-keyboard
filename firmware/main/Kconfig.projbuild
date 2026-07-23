@@ -1,0 +1,29 @@
+menu "ESP32 Macro Keyboard"
+
+config APP_CONFIRM_BUTTON_GPIO
+    int "Confirmation button GPIO"
+    default 0
+
+config APP_CANCEL_BUTTON_GPIO
+    int "Cancellation button GPIO"
+    default 4
+
+config APP_STATUS_LED_GPIO
+    int "Status LED GPIO"
+    default 2
+
+config APP_BUTTON_ACTIVE_LEVEL
+    int "Button active level"
+    range 0 1
+    default 0
+
+config APP_LED_ACTIVE_LEVEL
+    int "LED active level"
+    range 0 1
+    default 1
+
+config APP_DEVELOPMENT_PROVISIONING_LOG
+    bool "Allow one-time provisioning credentials on UART"
+    default n
+
+endmenu
