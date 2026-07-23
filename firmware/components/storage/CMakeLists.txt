@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         "storage_mount.c"
         "storage_paths.c"
+        "storage_fs_ops.c"
         "storage_atomic.c"
         "storage_transaction.c"
         "storage_repository_io.c"
