@@ -1,6 +1,12 @@
 idf_component_register(
-    SRCS "web_server.c"
+    SRCS
+        "web_server.c"
+        "web_cookie.c"
+        "web_origin.c"
+        "web_static_path.c"
+        "web_content.c"
     INCLUDE_DIRS "include"
+    PRIV_INCLUDE_DIRS "."
     REQUIRES macro_model macro_executor usb_keyboard wifi_ap auth storage esp_http_server json
 )
 
