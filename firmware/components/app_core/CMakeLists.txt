@@ -1,6 +1,9 @@
 idf_component_register(
-    SRCS "app_core.c"
+    SRCS
+        "app_core.c"
+        "app_core_sequence.c"
     INCLUDE_DIRS "include"
+    PRIV_INCLUDE_DIRS "."
     REQUIRES macro_model storage usb_keyboard macro_executor device_controls wifi_ap auth web_server nvs_flash
 )
 
