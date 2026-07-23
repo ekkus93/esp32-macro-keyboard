@@ -1,0 +1,82 @@
+name: Device Test Build
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "**"
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: device-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-device-tests:
+    name: Build ESP32-S3 Device Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install test lint tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends clang-format
+
+      - name: Lint device-test sources
+        run: |
+          clang-format --dry-run --Werror \
+            firmware/test_app/main/test_main.c \
+            firmware/test_app/main/test_uuid.c \
+            firmware/test_app/main/test_macro_parser.c \
+            firmware/test_app/main/test_limits.c
+
+      - name: Install ESP-IDF v5.5.5
+        run: ./scripts/install-esp-idf.sh
+
+      - name: Build device-test firmware
+        shell: bash
+        run: |
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          bash ./scripts/build-device-tests.sh
+
+      - name: Package tagged device-test assets
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          readonly build_dir="firmware/test_app/build"
+          readonly output_dir="artifacts/device-tests"
+
+          mkdir -p "${output_dir}/bootloader" "${output_dir}/partition_table"
+          cp "${build_dir}/esp32_macro_keyboard_device_tests.bin" "${output_dir}/"
+          cp "${build_dir}/esp32_macro_keyboard_device_tests.elf" "${output_dir}/"
+          cp "${build_dir}/flasher_args.json" "${output_dir}/"
+          cp "${build_dir}/bootloader/bootloader.bin" "${output_dir}/bootloader/"
+          cp "${build_dir}/partition_table/partition-table.bin" \
+            "${output_dir}/partition_table/"
+
+          printf 'tag=%s\ncommit=%s\ntarget=esp32s3\nesp_idf=v5.5.5\n' \
+            "${GITHUB_REF_NAME}" \
+            "${GITHUB_SHA}" \
+            > "${output_dir}/BUILD-METADATA.txt"
+
+      - name: Upload tagged device-test assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-tests-${{ github.ref_name }}-esp32s3
+          path: artifacts/device-tests/
+          if-no-files-found: error
+          retention-days: 90
