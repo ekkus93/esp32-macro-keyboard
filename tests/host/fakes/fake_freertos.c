@@ -57,8 +57,9 @@ void fake_freertos_notify(fake_freertos_t *freertos)
     if (freertos == NULL) {
         abort();
     }
-    (void)fake_call_log_record(&freertos->calls, "notify", 0U, 0U);
-    freertos->notification_pending = true;
+    if (!fake_call_log_record(&freertos->calls, "notify", 0U, 0U)) {
+        freertos->notification_pending = true;
+    }
 }
 
 bool fake_freertos_wait(fake_freertos_t *freertos, uint32_t milliseconds)
