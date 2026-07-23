@@ -1,6 +1,9 @@
 idf_component_register(
-    SRCS "auth.c"
+    SRCS
+        "auth.c"
+        "auth_core.c"
     INCLUDE_DIRS "include"
+    PRIV_INCLUDE_DIRS "."
     REQUIRES macro_model esp_timer mbedtls freertos
 )
 
