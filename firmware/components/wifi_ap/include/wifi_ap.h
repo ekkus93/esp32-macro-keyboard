@@ -2,6 +2,7 @@
 #define WIFI_AP_H
 
 #include <stddef.h>
+
 #include "app_error.h"
 
 typedef enum {
@@ -14,6 +15,8 @@ typedef enum {
 typedef struct {
     wifi_ap_state_t state;
     size_t client_count;
+    app_error_code_t last_error;
+    app_error_code_t cleanup_error;
 } wifi_ap_status_t;
 
 app_error_code_t wifi_ap_start(const char *ssid, const char *passphrase);
