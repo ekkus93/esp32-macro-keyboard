@@ -150,6 +150,20 @@ target_compile_options(device_controls_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME device_controls COMMAND device_controls_tests)
 set_tests_properties(device_controls PROPERTIES LABELS "controls")
 
+add_executable(wifi_ap_tests
+    test_wifi_ap.c
+    ../../firmware/components/wifi_ap/wifi_ap_state.c
+)
+target_include_directories(wifi_ap_tests PRIVATE
+    ../../firmware/components/macro_model/include
+    ../../firmware/components/wifi_ap/include
+    ../../firmware/components/wifi_ap
+)
+target_link_libraries(wifi_ap_tests PRIVATE test_support)
+target_compile_options(wifi_ap_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME wifi_ap COMMAND wifi_ap_tests)
+set_tests_properties(wifi_ap PROPERTIES LABELS "wifi")
+
 add_executable(storage_atomic_tests
     test_storage_atomic.c
     ../../firmware/components/macro_model/app_error.c
