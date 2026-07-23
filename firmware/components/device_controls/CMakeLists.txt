@@ -1,6 +1,9 @@
 idf_component_register(
-    SRCS "device_controls.c"
+    SRCS
+        "device_controls.c"
+        "device_controls_logic.c"
     INCLUDE_DIRS "include"
+    PRIV_INCLUDE_DIRS "."
     REQUIRES macro_model macro_executor driver
 )
 
