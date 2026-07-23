@@ -1,8 +1,8 @@
 #include "auth.h"
 
-#include <limits.h>
-#include <string.h>
+#include <stdint.h>
 
+#include "auth_core.h"
 #include "esp_random.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -10,71 +10,63 @@
 #include "mbedtls/md.h"
 #include "mbedtls/pkcs5.h"
 
-#define AUTH_PBKDF2_ITERATIONS 120000U
-#define AUTH_SESSION_IDLE_US (15ULL * 60ULL * 1000000ULL)
-#define AUTH_MAX_FAILURES 5U
-#define AUTH_FAILURE_WINDOW_US (60ULL * 1000000ULL)
-#define AUTH_PASSWORD_MIN_BYTES 12U
-#define AUTH_PASSWORD_MAX_BYTES 128U
-
-typedef struct {
-    bool active;
-    auth_session_view_t view;
-} auth_session_entry_t;
-
 static SemaphoreHandle_t auth_mutex;
-static auth_session_entry_t sessions[APP_SESSION_TABLE_MAX];
-static uint32_t failure_count;
-static uint64_t failure_window_start_us;
+static auth_core_t auth_core;
 
-static bool lock_auth(void)
+static bool adapter_lock(void *context)
 {
+    (void)context;
     return auth_mutex != NULL && xSemaphoreTake(auth_mutex, portMAX_DELAY) == pdTRUE;
 }
 
-static bool unlock_auth(void)
+static bool adapter_unlock(void *context)
 {
-    return xSemaphoreGive(auth_mutex) == pdTRUE;
+    (void)context;
+    return auth_mutex != NULL && xSemaphoreGive(auth_mutex) == pdTRUE;
 }
 
-static bool constant_time_equal(const uint8_t *left, const uint8_t *right, size_t length)
+static bool adapter_random_fill(void *context, uint8_t *output, size_t length)
 {
-    uint8_t difference = 0U;
-    for (size_t index = 0U; index < length; ++index) {
-        difference = (uint8_t)(difference | (uint8_t)(left[index] ^ right[index]));
-    }
-    return difference == 0U;
-}
-
-static bool valid_hex_token(const char *token)
-{
-    if (token == NULL || strlen(token) != AUTH_TOKEN_HEX_BYTES - 1U) {
+    (void)context;
+    if (output == NULL && length != 0U) {
         return false;
     }
-    for (size_t index = 0U; index < AUTH_TOKEN_HEX_BYTES - 1U; ++index) {
-        if (!((token[index] >= '0' && token[index] <= '9') ||
-              (token[index] >= 'a' && token[index] <= 'f'))) {
-            return false;
-        }
-    }
+    esp_fill_random(output, length);
     return true;
 }
 
-static app_error_code_t random_hex(char *output, size_t output_size, size_t random_bytes)
+static uint64_t adapter_now_us(void *context)
 {
-    if (output == NULL || random_bytes > APP_SESSION_TOKEN_BYTES ||
-        output_size < (random_bytes * 2U) + 1U) {
-        return APP_ERROR_INVALID_ARGUMENT;
+    (void)context;
+    const int64_t now = esp_timer_get_time();
+    return now < 0 ? 0U : (uint64_t)now;
+}
+
+static int adapter_derive(void *context,
+                          const char *password,
+                          size_t password_length,
+                          const uint8_t *salt,
+                          uint32_t iterations,
+                          uint8_t *output)
+{
+    (void)context;
+    return mbedtls_pkcs5_pbkdf2_hmac_ext(MBEDTLS_MD_SHA256,
+                                         (const unsigned char *)password,
+                                         password_length,
+                                         salt,
+                                         AUTH_SALT_BYTES,
+                                         iterations,
+                                         AUTH_HASH_BYTES,
+                                         output);
+}
+
+static void adapter_secure_zero(void *context, void *memory, size_t length)
+{
+    (void)context;
+    volatile uint8_t *bytes = memory;
+    for (size_t index = 0U; index < length; ++index) {
+        bytes[index] = 0U;
     }
-    static const char digits[] = "0123456789abcdef";
-    uint8_t bytes[APP_SESSION_TOKEN_BYTES];
-    esp_fill_random(bytes, random_bytes);
-    for (size_t index = 0U; index < random_bytes; ++index) {
-        output[index * 2U] = digits[bytes[index] >> 4U];
-        output[index * 2U + 1U] = digits[bytes[index] & 0x0fU];
-    }
-    output[random_bytes * 2U] = '\0';
-    return APP_ERROR_NONE;
 }
 
 app_error_code_t auth_init(void)
@@ -86,207 +78,63 @@ app_error_code_t auth_init(void)
     if (auth_mutex == NULL) {
         return APP_ERROR_INTERNAL;
     }
-    memset(sessions, 0, sizeof(sessions));
-    failure_count = 0U;
-    failure_window_start_us = 0U;
-    return APP_ERROR_NONE;
-}
-
-static int derive(const char *password,
-                  size_t password_length,
-                  const uint8_t *salt,
-                  uint32_t iterations,
-                  uint8_t *output)
-{
-    return mbedtls_pkcs5_pbkdf2_hmac_ext(MBEDTLS_MD_SHA256,
-                                        (const unsigned char *)password,
-                                        password_length,
-                                        salt,
-                                        AUTH_SALT_BYTES,
-                                        iterations,
-                                        AUTH_HASH_BYTES,
-                                        output);
+    const auth_ops_t ops = {
+        .context = NULL,
+        .lock = adapter_lock,
+        .unlock = adapter_unlock,
+        .random_fill = adapter_random_fill,
+        .now_us = adapter_now_us,
+        .derive = adapter_derive,
+        .secure_zero = adapter_secure_zero,
+    };
+    const app_error_code_t result = auth_core_init(&auth_core, &ops);
+    if (result != APP_ERROR_NONE) {
+        vSemaphoreDelete(auth_mutex);
+        auth_mutex = NULL;
+    }
+    return result;
 }
 
 app_error_code_t auth_password_create(const char *password,
                                       size_t password_length,
                                       auth_password_record_t *out_record)
 {
-    if (password == NULL || out_record == NULL || password_length < AUTH_PASSWORD_MIN_BYTES ||
-        password_length > AUTH_PASSWORD_MAX_BYTES || memchr(password, '\0', password_length) != NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    memset(out_record, 0, sizeof(*out_record));
-    esp_fill_random(out_record->salt, sizeof(out_record->salt));
-    out_record->iterations = AUTH_PBKDF2_ITERATIONS;
-    if (derive(password, password_length, out_record->salt, out_record->iterations,
-               out_record->hash) != 0) {
-        memset(out_record, 0, sizeof(*out_record));
-        return APP_ERROR_INTERNAL;
-    }
-    return APP_ERROR_NONE;
+    return auth_core_password_create(&auth_core, password, password_length, out_record);
 }
 
 bool auth_password_verify(const char *password,
                           size_t password_length,
                           const auth_password_record_t *record)
 {
-    if (password == NULL || record == NULL || password_length < AUTH_PASSWORD_MIN_BYTES ||
-        password_length > AUTH_PASSWORD_MAX_BYTES || record->iterations < AUTH_PBKDF2_ITERATIONS ||
-        memchr(password, '\0', password_length) != NULL) {
-        return false;
-    }
-    uint8_t derived[AUTH_HASH_BYTES];
-    if (derive(password, password_length, record->salt, record->iterations, derived) != 0) {
-        return false;
-    }
-    const bool matches = constant_time_equal(derived, record->hash, sizeof(derived));
-    memset(derived, 0, sizeof(derived));
-    return matches;
+    return auth_core_password_verify(&auth_core, password, password_length, record);
 }
 
 app_error_code_t auth_session_create(auth_session_view_t *out_session)
 {
-    if (out_session == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (!lock_auth()) {
-        return APP_ERROR_INTERNAL;
-    }
-    auth_session_entry_t *slot = NULL;
-    const uint64_t now = (uint64_t)esp_timer_get_time();
-    for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
-        if (!sessions[index].active || sessions[index].view.expires_at_us <= now) {
-            slot = &sessions[index];
-            break;
-        }
-    }
-    if (slot == NULL) {
-        return unlock_auth() ? APP_ERROR_CONFLICT : APP_ERROR_INTERNAL;
-    }
-    memset(slot, 0, sizeof(*slot));
-    app_error_code_t result = random_hex(slot->view.session_token,
-                                         sizeof(slot->view.session_token),
-                                         APP_SESSION_TOKEN_BYTES);
-    if (result == APP_ERROR_NONE) {
-        result = random_hex(slot->view.csrf_token,
-                            sizeof(slot->view.csrf_token),
-                            APP_CSRF_TOKEN_BYTES);
-    }
-    if (result == APP_ERROR_NONE) {
-        slot->view.expires_at_us = now + AUTH_SESSION_IDLE_US;
-        slot->active = true;
-        *out_session = slot->view;
-    } else {
-        memset(slot, 0, sizeof(*slot));
-    }
-    if (!unlock_auth()) {
-        memset(out_session, 0, sizeof(*out_session));
-        return APP_ERROR_INTERNAL;
-    }
-    return result;
+    return auth_core_session_create(&auth_core, out_session);
 }
 
 app_error_code_t auth_session_validate(const char *session_token, const char *csrf_token)
 {
-    if (!valid_hex_token(session_token) || !valid_hex_token(csrf_token)) {
-        return APP_ERROR_AUTH_REQUIRED;
-    }
-    if (!lock_auth()) {
-        return APP_ERROR_INTERNAL;
-    }
-    const uint64_t now = (uint64_t)esp_timer_get_time();
-    app_error_code_t result = APP_ERROR_AUTH_REQUIRED;
-    for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
-        auth_session_entry_t *entry = &sessions[index];
-        if (!entry->active) {
-            continue;
-        }
-        if (entry->view.expires_at_us <= now) {
-            memset(entry, 0, sizeof(*entry));
-            continue;
-        }
-        if (constant_time_equal((const uint8_t *)entry->view.session_token,
-                                (const uint8_t *)session_token,
-                                AUTH_TOKEN_HEX_BYTES - 1U) &&
-            constant_time_equal((const uint8_t *)entry->view.csrf_token,
-                                (const uint8_t *)csrf_token,
-                                AUTH_TOKEN_HEX_BYTES - 1U)) {
-            entry->view.expires_at_us = now + AUTH_SESSION_IDLE_US;
-            result = APP_ERROR_NONE;
-            break;
-        }
-    }
-    return unlock_auth() ? result : APP_ERROR_INTERNAL;
+    return auth_core_session_validate(&auth_core, session_token, csrf_token);
 }
 
 app_error_code_t auth_session_logout(const char *session_token)
 {
-    if (!valid_hex_token(session_token)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (!lock_auth()) {
-        return APP_ERROR_INTERNAL;
-    }
-    app_error_code_t result = APP_ERROR_NOT_FOUND;
-    for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
-        if (sessions[index].active &&
-            constant_time_equal((const uint8_t *)sessions[index].view.session_token,
-                                (const uint8_t *)session_token,
-                                AUTH_TOKEN_HEX_BYTES - 1U)) {
-            memset(&sessions[index], 0, sizeof(sessions[index]));
-            result = APP_ERROR_NONE;
-            break;
-        }
-    }
-    return unlock_auth() ? result : APP_ERROR_INTERNAL;
+    return auth_core_session_logout(&auth_core, session_token);
 }
 
 app_error_code_t auth_login_attempt_allowed(uint32_t *out_retry_after_seconds)
 {
-    if (out_retry_after_seconds == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (!lock_auth()) {
-        return APP_ERROR_INTERNAL;
-    }
-    const uint64_t now = (uint64_t)esp_timer_get_time();
-    if (failure_window_start_us == 0U || now - failure_window_start_us >= AUTH_FAILURE_WINDOW_US) {
-        failure_window_start_us = now;
-        failure_count = 0U;
-    }
-    app_error_code_t result = APP_ERROR_NONE;
-    *out_retry_after_seconds = 0U;
-    if (failure_count >= AUTH_MAX_FAILURES) {
-        const uint64_t remaining = AUTH_FAILURE_WINDOW_US - (now - failure_window_start_us);
-        *out_retry_after_seconds = (uint32_t)((remaining + 999999ULL) / 1000000ULL);
-        result = APP_ERROR_RATE_LIMITED;
-    }
-    return unlock_auth() ? result : APP_ERROR_INTERNAL;
+    return auth_core_login_attempt_allowed(&auth_core, out_retry_after_seconds);
 }
 
 app_error_code_t auth_login_record_failure(void)
 {
-    if (!lock_auth()) {
-        return APP_ERROR_INTERNAL;
-    }
-    const uint64_t now = (uint64_t)esp_timer_get_time();
-    if (failure_window_start_us == 0U || now - failure_window_start_us >= AUTH_FAILURE_WINDOW_US) {
-        failure_window_start_us = now;
-        failure_count = 0U;
-    }
-    if (failure_count < UINT32_MAX) {
-        ++failure_count;
-    }
-    return unlock_auth() ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
+    return auth_core_login_record_failure(&auth_core);
 }
 
 app_error_code_t auth_login_record_success(void)
 {
-    if (!lock_auth()) {
-        return APP_ERROR_INTERNAL;
-    }
-    failure_count = 0U;
-    failure_window_start_us = 0U;
-    return unlock_auth() ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
+    return auth_core_login_record_success(&auth_core);
 }
