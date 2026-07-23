@@ -122,6 +122,20 @@ target_compile_options(app_core_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME app_core COMMAND app_core_tests)
 set_tests_properties(app_core PROPERTIES LABELS "startup")
 
+add_executable(usb_keyboard_tests
+    test_usb_keyboard.c
+    ../../firmware/components/usb_keyboard/usb_keyboard_state.c
+)
+target_include_directories(usb_keyboard_tests PRIVATE
+    ../../firmware/components/macro_model/include
+    ../../firmware/components/usb_keyboard/include
+    ../../firmware/components/usb_keyboard
+)
+target_link_libraries(usb_keyboard_tests PRIVATE test_support)
+target_compile_options(usb_keyboard_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME usb_keyboard COMMAND usb_keyboard_tests)
+set_tests_properties(usb_keyboard PROPERTIES LABELS "usb")
+
 add_executable(storage_atomic_tests
     test_storage_atomic.c
     ../../firmware/components/macro_model/app_error.c
