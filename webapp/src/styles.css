@@ -1,0 +1,198 @@
+@import "tailwindcss";
+
+:root {
+  color: #0f172a;
+  background: #e2e8f0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  min-height: 44px;
+  padding: 0.7rem 1rem;
+  color: #1e3a8a;
+  font-weight: 700;
+  background: #dbeafe;
+  border: 0;
+  border-radius: 0.75rem;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+button:disabled {
+  opacity: 0.45;
+}
+
+input,
+textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #94a3b8;
+  border-radius: 0.75rem;
+}
+
+.primary {
+  color: white;
+  background: #2563eb;
+}
+
+.danger {
+  color: white;
+  background: #dc2626;
+}
+
+.standalone,
+.app-shell {
+  width: min(100%, 48rem);
+  min-height: 100vh;
+  margin: 0 auto;
+  background: #f8fafc;
+}
+
+.standalone,
+main {
+  padding: 1rem;
+}
+
+.app-header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  color: white;
+  background: #0f172a;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.25rem;
+  color: #93c5fd;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.card {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.75rem 0;
+  padding: 1rem;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 1rem;
+  box-shadow: 0 0.25rem 1rem rgb(15 23 42 / 8%);
+}
+
+.card h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.card p {
+  margin: 0;
+  color: #475569;
+}
+
+.form-stack {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.error-message {
+  padding: 0.75rem;
+  color: #991b1b;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 0.75rem;
+}
+
+.bottom-nav {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: white;
+  border-top: 1px solid #cbd5e1;
+}
+
+.bottom-nav button.active {
+  color: white;
+  background: #2563eb;
+}
+
+.status-badge {
+  display: inline-flex;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  border-radius: 999px;
+}
+
+.status-good {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.status-warning {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.status-bad {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.status-neutral {
+  color: #334155;
+  background: #e2e8f0;
+}
+
+textarea {
+  min-height: 12rem;
+  font-family: ui-monospace, monospace;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 1rem;
+}
+
+dt {
+  font-weight: 800;
+}
+
+dd {
+  margin: 0;
+}
