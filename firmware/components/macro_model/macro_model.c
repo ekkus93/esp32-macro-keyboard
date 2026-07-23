@@ -8,7 +8,9 @@ app_error_code_t macro_model_validate_revision(uint32_t revision)
     return revision == 0U ? APP_ERROR_INVALID_ARGUMENT : APP_ERROR_NONE;
 }
 
-app_error_code_t macro_model_validate_text(const char *text, size_t length, size_t maximum)
+app_error_code_t macro_model_validate_text(const char *text,
+                                           size_t length,
+                                           size_t maximum)
 {
     if ((text == NULL && length != 0U) || length > maximum) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -34,10 +36,12 @@ void macro_model_free_procedure(procedure_t *procedure)
     if (procedure == NULL) {
         return;
     }
-    for (size_t index = 0U; index < procedure->step_count; ++index) {
-        free(procedure->steps[index].body);
-        procedure->steps[index].body = NULL;
-        procedure->steps[index].body_length = 0U;
+    if (procedure->steps != NULL) {
+        for (size_t index = 0U; index < procedure->step_count; ++index) {
+            free(procedure->steps[index].body);
+            procedure->steps[index].body = NULL;
+            procedure->steps[index].body_length = 0U;
+        }
     }
     free(procedure->steps);
     procedure->steps = NULL;
