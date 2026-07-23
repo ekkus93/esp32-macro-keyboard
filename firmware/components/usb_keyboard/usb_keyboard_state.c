@@ -45,7 +45,13 @@ app_error_code_t usb_keyboard_state_init(const usb_keyboard_ops_t *operations)
         operations->state_set(operations->context, USB_KEYBOARD_ERROR);
         return result;
     }
-    operations->state_set(operations->context, USB_KEYBOARD_DISCONNECTED);
+    if (!operations->mounted(operations->context)) {
+        operations->state_set(operations->context, USB_KEYBOARD_DISCONNECTED);
+    } else if (operations->suspended(operations->context)) {
+        operations->state_set(operations->context, USB_KEYBOARD_SUSPENDED);
+    } else {
+        operations->state_set(operations->context, USB_KEYBOARD_READY);
+    }
     return APP_ERROR_NONE;
 }
 
