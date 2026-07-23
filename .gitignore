@@ -1,55 +1,25 @@
-# Prerequisites
-*.d
+# ESP-IDF generated output
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/managed_components/
 
-# Object files
-*.o
-*.ko
-*.obj
+# Frontend generated and third-party output
+webapp/node_modules/
+webapp/dist/
+webapp/.vite/
+
+# Generated filesystem images and reports
+*.bin
 *.elf
-
-# Linker output
-*.ilk
 *.map
-*.exp
+*.uf2
+*.littlefs
+coverage/
+test-results/
 
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
-
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
-
-# debug information files
-*.dwo
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+*.swp
