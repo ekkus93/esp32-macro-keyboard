@@ -87,7 +87,7 @@ static void controls_task(void *context)
         if (update_button(&cancel,
                           button_pressed((gpio_num_t)CONFIG_APP_CANCEL_BUTTON_GPIO))) {
             const app_error_code_t result = macro_executor_cancel();
-            if (result != APP_ERROR_NONE && result != APP_ERROR_CONFLICT) {
+            if (result != APP_ERROR_NONE && result != APP_ERROR_NOT_FOUND) {
                 device_controls_set_indicator(DEVICE_INDICATOR_FATAL);
             }
         }
