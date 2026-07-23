@@ -1,0 +1,72 @@
+name: Host Tests
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "**"
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: host-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host-tests:
+    name: Host Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install host-test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            cmake \
+            libcjson-dev
+
+      - name: Run host tests
+        run: ./scripts/run-tests.sh
+
+      - name: Package tagged host-test assets
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          readonly output_dir="artifacts/host-tests"
+          readonly build_dir="tests/host/build"
+
+          mkdir -p "${output_dir}"
+          cp "${build_dir}/macro_parser_tests" "${output_dir}/"
+          cp "${build_dir}/storage_repository_tests" "${output_dir}/"
+
+          if [[ -f "${build_dir}/Testing/Temporary/LastTest.log" ]]; then
+            cp "${build_dir}/Testing/Temporary/LastTest.log" "${output_dir}/"
+          fi
+
+          printf 'tag=%s\ncommit=%s\nrunner=%s\n' \
+            "${GITHUB_REF_NAME}" \
+            "${GITHUB_SHA}" \
+            "${RUNNER_OS}" \
+            > "${output_dir}/BUILD-METADATA.txt"
+
+      - name: Upload tagged host-test assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-tests-${{ github.ref_name }}-linux-x86_64
+          path: artifacts/host-tests/
+          if-no-files-found: error
+          retention-days: 90
