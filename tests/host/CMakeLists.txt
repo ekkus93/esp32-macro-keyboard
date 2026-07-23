@@ -56,6 +56,7 @@ target_include_directories(macro_parser_tests PRIVATE
     ../../firmware/components/macro_model/include
     ../../firmware/components/macro_parser/include
 )
+target_link_libraries(macro_parser_tests PRIVATE test_support)
 target_compile_options(macro_parser_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME macro_parser COMMAND macro_parser_tests)
 set_tests_properties(macro_parser PROPERTIES LABELS "parser")
@@ -220,6 +221,6 @@ target_compile_definitions(storage_repository_tests PRIVATE
     STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-data"
 )
 target_compile_options(storage_repository_tests PRIVATE ${STRICT_WARNINGS})
-target_link_libraries(storage_repository_tests PRIVATE PkgConfig::CJSON)
+target_link_libraries(storage_repository_tests PRIVATE PkgConfig::CJSON test_support)
 add_test(NAME storage_repository COMMAND storage_repository_tests)
 set_tests_properties(storage_repository PROPERTIES LABELS "storage")

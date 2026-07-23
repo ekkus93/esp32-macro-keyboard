@@ -65,3 +65,10 @@ void test_temp_dir_remove(test_temp_dir_t *directory)
     directory->path[0] = '\0';
     directory->active = 0;
 }
+
+void test_temp_dir_remove_path(const char *path)
+{
+    TEST_CHECK(path != NULL);
+    TEST_CHECK(path[0] != '\0');
+    remove_tree(path);
+}

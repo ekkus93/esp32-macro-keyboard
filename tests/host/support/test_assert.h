@@ -83,4 +83,16 @@ void test_fail_buffer(const char *file,
         }                                                                              \
     } while (0)
 
+#define TEST_CHECK_APP_ERROR(expected_value, actual_value)                             \
+    TEST_CHECK_EQ_INT((expected_value), (actual_value))
+
+#define TEST_CHECK_EQ_UUID(expected_pointer, actual_pointer)                           \
+    do {                                                                               \
+        const void *const test_expected_pointer_ = (expected_pointer);                 \
+        const void *const test_actual_pointer_ = (actual_pointer);                     \
+        TEST_CHECK(test_expected_pointer_ != NULL);                                    \
+        TEST_CHECK(test_actual_pointer_ != NULL);                                      \
+        TEST_CHECK_EQ_STRING((expected_pointer)->value, (actual_pointer)->value);       \
+    } while (0)
+
 #endif

@@ -12,5 +12,6 @@ typedef struct {
 
 void test_temp_dir_create(test_temp_dir_t *directory);
 void test_temp_dir_remove(test_temp_dir_t *directory);
+void test_temp_dir_remove_path(const char *path);
 
 #endif
