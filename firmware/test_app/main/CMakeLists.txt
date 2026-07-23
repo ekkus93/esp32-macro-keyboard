@@ -6,6 +6,7 @@ idf_component_register(
         "test_limits.c"
         "test_macro_executor.c"
         "test_auth.c"
+        "test_usb_state.c"
     INCLUDE_DIRS "."
     REQUIRES
         unity
@@ -13,6 +14,7 @@ idf_component_register(
         macro_parser
         macro_executor
         auth
+        usb_keyboard
 )
 
 target_compile_options(${COMPONENT_LIB} PRIVATE
