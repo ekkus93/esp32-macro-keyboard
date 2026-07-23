@@ -136,6 +136,20 @@ target_compile_options(usb_keyboard_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME usb_keyboard COMMAND usb_keyboard_tests)
 set_tests_properties(usb_keyboard PROPERTIES LABELS "usb")
 
+add_executable(device_controls_tests
+    test_device_controls.c
+    ../../firmware/components/device_controls/device_controls_logic.c
+)
+target_include_directories(device_controls_tests PRIVATE
+    ../../firmware/components/macro_model/include
+    ../../firmware/components/device_controls/include
+    ../../firmware/components/device_controls
+)
+target_link_libraries(device_controls_tests PRIVATE test_support)
+target_compile_options(device_controls_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME device_controls COMMAND device_controls_tests)
+set_tests_properties(device_controls PROPERTIES LABELS "controls")
+
 add_executable(storage_atomic_tests
     test_storage_atomic.c
     ../../firmware/components/macro_model/app_error.c
