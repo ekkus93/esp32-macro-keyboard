@@ -1,0 +1,386 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/schemas/macro-set-package.schema.json",
+  "title": "ESP32 Macro Keyboard macro-set package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "format_version",
+    "set",
+    "macros",
+    "procedures",
+    "keyboard_layout",
+    "integrity"
+  ],
+  "properties": {
+    "format": {
+      "const": "esp32-macro-keyboard-set"
+    },
+    "format_version": {
+      "const": 1
+    },
+    "set": {
+      "$ref": "#/$defs/set"
+    },
+    "macros": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "$ref": "#/$defs/macro"
+      }
+    },
+    "procedures": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "$ref": "#/$defs/procedure"
+      }
+    },
+    "keyboard_layout": {
+      "const": "en-US"
+    },
+    "progress": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "$ref": "#/$defs/progress"
+      }
+    },
+    "integrity": {
+      "$ref": "#/$defs/integrity"
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "digest"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "sha256"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "id",
+        "revision",
+        "name",
+        "description",
+        "manufacturer",
+        "model",
+        "board",
+        "keyboard_layout",
+        "sort_order"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "manufacturer": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "model": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "board": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "keyboard_layout": {
+          "const": "en-US"
+        },
+        "sort_order": {
+          "type": "integer"
+        }
+      }
+    },
+    "macro": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "id",
+        "revision",
+        "scope",
+        "name",
+        "source",
+        "favorite",
+        "key_press_ms",
+        "inter_key_ms"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scope": {
+          "enum": [
+            "set",
+            "global"
+          ]
+        },
+        "set_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "source": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "favorite": {
+          "type": "boolean"
+        },
+        "key_press_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "inter_key_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "scope": {
+                "const": "set"
+              }
+            },
+            "required": [
+              "scope"
+            ]
+          },
+          "then": {
+            "required": [
+              "set_id"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "set_id"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "macro_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "title",
+        "macro_id",
+        "required",
+        "auto_complete_on_success"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "type": {
+          "const": "macro"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96
+        },
+        "macro_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "auto_complete_on_success": {
+          "type": "boolean"
+        }
+      }
+    },
+    "manual_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "title",
+        "body",
+        "required"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "type": {
+          "enum": [
+            "instruction",
+            "checkpoint"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96
+        },
+        "body": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "procedure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "id",
+        "revision",
+        "set_id",
+        "name",
+        "description",
+        "steps",
+        "sort_order"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "set_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "steps": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/macro_step"
+              },
+              {
+                "$ref": "#/$defs/manual_step"
+              }
+            ]
+          }
+        },
+        "sort_order": {
+          "type": "integer"
+        }
+      }
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "set_id",
+        "procedure_id",
+        "procedure_revision",
+        "current_step_id",
+        "completed_step_ids",
+        "skipped_step_ids"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "set_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "procedure_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "procedure_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "current_step_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "completed_step_ids": {
+          "type": "array",
+          "maxItems": 200,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/uuid"
+          }
+        },
+        "skipped_step_ids": {
+          "type": "array",
+          "maxItems": 200,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/uuid"
+          }
+        }
+      }
+    }
+  }
+}

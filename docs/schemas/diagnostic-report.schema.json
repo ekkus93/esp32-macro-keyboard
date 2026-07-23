@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/schemas/diagnostic-report.schema.json",
+  "title": "ESP32 Macro Keyboard redacted diagnostic report",
+  "$ref": "#/$defs/redactedObject",
+  "$defs": {
+    "redactedValue": {
+      "oneOf": [
+        {
+          "type": [
+            "string",
+            "number",
+            "integer",
+            "boolean",
+            "null"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/redactedValue"
+          }
+        },
+        {
+          "$ref": "#/$defs/redactedObject"
+        }
+      ]
+    },
+    "redactedObject": {
+      "type": "object",
+      "propertyNames": {
+        "not": {
+          "pattern": "(?i)(password|passphrase|secret|session[_-]?token|csrf[_-]?token|setup[_-]?code|macro[_-]?source)"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/redactedValue"
+      },
+      "required": [
+        "schema_version",
+        "firmware",
+        "usb",
+        "wifi",
+        "storage",
+        "quarantine"
+      ]
+    }
+  }
+}

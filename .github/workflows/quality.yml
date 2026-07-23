@@ -1,0 +1,39 @@
+name: Quality
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Install host lint tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clang-format clang-tidy jq shellcheck
+          python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
+          go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install ESP-IDF v5.5.5
+        run: ./scripts/install-esp-idf.sh
+      - name: Install frontend dependencies
+        working-directory: webapp
+        run: npm ci
+      # Enable automatic push/pull_request triggers only after the committed npm
+      # and ESP-IDF dependency lockfiles exist and this workflow is green.
+      - name: Run authoritative checks
+        shell: bash
+        run: |
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          ./scripts/check-all.sh

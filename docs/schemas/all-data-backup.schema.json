@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/schemas/all-data-backup.schema.json",
+  "title": "ESP32 Macro Keyboard all-data backup",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "format_version",
+    "sets",
+    "global_macros",
+    "include_progress",
+    "integrity"
+  ],
+  "properties": {
+    "format": {
+      "const": "esp32-macro-keyboard-backup"
+    },
+    "format_version": {
+      "const": 1
+    },
+    "sets": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "$ref": "macro-set-package.schema.json"
+      }
+    },
+    "global_macros": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "$ref": "macro-set-package.schema.json#/$defs/macro"
+      }
+    },
+    "include_progress": {
+      "type": "boolean"
+    },
+    "integrity": {
+      "$ref": "macro-set-package.schema.json#/$defs/integrity"
+    }
+  }
+}
