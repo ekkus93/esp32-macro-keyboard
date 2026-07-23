@@ -75,6 +75,20 @@ target_compile_options(macro_executor_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME macro_executor COMMAND macro_executor_tests)
 set_tests_properties(macro_executor PROPERTIES LABELS "executor")
 
+add_executable(auth_tests
+    test_auth.c
+    ../../firmware/components/auth/auth_core.c
+)
+target_include_directories(auth_tests PRIVATE
+    ../../firmware/components/macro_model/include
+    ../../firmware/components/auth/include
+    ../../firmware/components/auth
+)
+target_link_libraries(auth_tests PRIVATE test_support)
+target_compile_options(auth_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME auth COMMAND auth_tests)
+set_tests_properties(auth PROPERTIES LABELS "auth")
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
 
