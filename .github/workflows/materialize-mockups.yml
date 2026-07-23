@@ -20,13 +20,35 @@ jobs:
           ref: master
           fetch-depth: 0
 
-      - name: Decode and extract mockup assets
+      - name: Decode and extract SVG mockups
         shell: bash
         run: |
           set -euo pipefail
           cat docs/mockups/.payload/part-* > /tmp/mockups.tar.gz.b64
           base64 --decode /tmp/mockups.tar.gz.b64 > /tmp/mockups.tar.gz
           tar -xzf /tmp/mockups.tar.gz -C .
+
+      - name: Render PNG previews
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet cairosvg
+          python - <<'PY'
+          from pathlib import Path
+          import cairosvg
+
+          for svg in sorted(Path('docs/mockups').glob('*.svg')):
+              cairosvg.svg2png(
+                  url=str(svg),
+                  write_to=str(svg.with_suffix('.png')),
+                  output_width=390,
+                  output_height=844,
+              )
+          PY
+
+      - name: Remove one-shot materializer
+        shell: bash
+        run: |
           rm -rf docs/mockups/.payload
           rm -f .github/workflows/materialize-mockups.yml
 
