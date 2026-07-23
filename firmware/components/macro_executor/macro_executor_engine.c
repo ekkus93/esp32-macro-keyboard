@@ -74,8 +74,10 @@ static bool deadline_expired(uint32_t now, uint32_t deadline)
 static app_error_code_t validate_request(const macro_execution_request_t *request)
 {
     if (request == NULL || request->plan.actions == NULL || request->plan.action_count == 0U ||
-        request->plan.action_count > APP_COMPILED_ACTION_MAX || request->key_press_ms == 0U ||
-        request->key_press_ms > APP_DELAY_MAX_MS || request->inter_key_ms > APP_DELAY_MAX_MS ||
+        request->plan.action_count > APP_COMPILED_ACTION_MAX ||
+        request->plan.estimated_duration_ms > APP_ESTIMATED_DURATION_MAX_MS ||
+        request->key_press_ms == 0U || request->key_press_ms > APP_DELAY_MAX_MS ||
+        request->inter_key_ms > APP_DELAY_MAX_MS ||
         !app_uuid_is_valid_string(request->execution_id.value) ||
         !app_uuid_is_valid_string(request->set_id.value) ||
         !app_uuid_is_valid_string(request->macro_id.value) || request->macro_revision == 0U) {
