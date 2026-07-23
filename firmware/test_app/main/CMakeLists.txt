@@ -5,12 +5,14 @@ idf_component_register(
         "test_macro_parser.c"
         "test_limits.c"
         "test_macro_executor.c"
+        "test_auth.c"
     INCLUDE_DIRS "."
     REQUIRES
         unity
         macro_model
         macro_parser
         macro_executor
+        auth
 )
 
 target_compile_options(${COMPONENT_LIB} PRIVATE
