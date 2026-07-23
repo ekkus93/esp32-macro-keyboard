@@ -1,0 +1,35 @@
+#ifndef APP_ERROR_H
+#define APP_ERROR_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum {
+    APP_ERROR_NONE = 0,
+    APP_ERROR_INVALID_ARGUMENT,
+    APP_ERROR_NOT_FOUND,
+    APP_ERROR_CONFLICT,
+    APP_ERROR_STORAGE_UNAVAILABLE,
+    APP_ERROR_STORAGE_FULL,
+    APP_ERROR_STORAGE_CORRUPT,
+    APP_ERROR_MACRO_SYNTAX,
+    APP_ERROR_MACRO_LIMIT,
+    APP_ERROR_USB_NOT_READY,
+    APP_ERROR_EXECUTOR_BUSY,
+    APP_ERROR_EXECUTION_CANCELLED,
+    APP_ERROR_AUTH_REQUIRED,
+    APP_ERROR_AUTH_FAILED,
+    APP_ERROR_RATE_LIMITED,
+    APP_ERROR_TIMEOUT,
+    APP_ERROR_IO,
+    APP_ERROR_INTERNAL
+} app_error_code_t;
+
+const char *app_error_code_string(app_error_code_t code);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
