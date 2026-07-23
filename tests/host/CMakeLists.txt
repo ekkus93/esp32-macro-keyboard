@@ -20,6 +20,30 @@ set(STRICT_WARNINGS
     -Wstrict-prototypes
 )
 
+add_library(test_support STATIC
+    support/test_assert.c
+    support/test_memory.c
+    support/test_temp_dir.c
+    fakes/fake_call_log.c
+    fakes/fake_clock.c
+    fakes/fake_random.c
+    fakes/fake_freertos.c
+    fakes/fake_usb_backend.c
+    fakes/fake_gpio_backend.c
+    fakes/fake_wifi_backend.c
+    fakes/fake_http_backend.c
+    fakes/fake_fs_backend.c
+)
+target_include_directories(test_support PUBLIC support fakes)
+target_compile_definitions(test_support PUBLIC _POSIX_C_SOURCE=200809L)
+target_compile_options(test_support PRIVATE ${STRICT_WARNINGS})
+
+add_executable(test_support_tests test_support.c)
+target_link_libraries(test_support_tests PRIVATE test_support)
+target_compile_options(test_support_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME test_support COMMAND test_support_tests)
+set_tests_properties(test_support PROPERTIES LABELS "support")
+
 add_executable(macro_parser_tests
     test_macro_parser.c
     ../../firmware/components/macro_model/app_error.c
@@ -34,6 +58,7 @@ target_include_directories(macro_parser_tests PRIVATE
 )
 target_compile_options(macro_parser_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME macro_parser COMMAND macro_parser_tests)
+set_tests_properties(macro_parser PROPERTIES LABELS "parser")
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
@@ -63,3 +88,4 @@ target_compile_definitions(storage_repository_tests PRIVATE
 target_compile_options(storage_repository_tests PRIVATE ${STRICT_WARNINGS})
 target_link_libraries(storage_repository_tests PRIVATE PkgConfig::CJSON)
 add_test(NAME storage_repository COMMAND storage_repository_tests)
+set_tests_properties(storage_repository PROPERTIES LABELS "storage")
