@@ -60,6 +60,21 @@ target_compile_options(macro_parser_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME macro_parser COMMAND macro_parser_tests)
 set_tests_properties(macro_parser PROPERTIES LABELS "parser")
 
+add_executable(macro_executor_tests
+    test_macro_executor.c
+    ../../firmware/components/macro_executor/macro_executor_engine.c
+)
+target_include_directories(macro_executor_tests PRIVATE
+    ../../firmware/components/macro_model/include
+    ../../firmware/components/macro_parser/include
+    ../../firmware/components/macro_executor/include
+    ../../firmware/components/macro_executor
+)
+target_link_libraries(macro_executor_tests PRIVATE test_support)
+target_compile_options(macro_executor_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME macro_executor COMMAND macro_executor_tests)
+set_tests_properties(macro_executor PROPERTIES LABELS "executor")
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
 
