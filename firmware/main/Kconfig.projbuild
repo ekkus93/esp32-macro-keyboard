@@ -2,14 +2,17 @@ menu "ESP32 Macro Keyboard"
 
 config APP_CONFIRM_BUTTON_GPIO
     int "Confirmation button GPIO"
+    range 0 48
     default 0
 
 config APP_CANCEL_BUTTON_GPIO
     int "Cancellation button GPIO"
+    range 0 48
     default 4
 
 config APP_STATUS_LED_GPIO
     int "Status LED GPIO"
+    range 0 48
     default 2
 
 config APP_BUTTON_ACTIVE_LEVEL
