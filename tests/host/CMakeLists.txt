@@ -60,6 +60,18 @@ target_compile_options(macro_parser_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME macro_parser COMMAND macro_parser_tests)
 set_tests_properties(macro_parser PROPERTIES LABELS "parser")
 
+add_executable(macro_model_tests
+    test_macro_model.c
+    ../../firmware/components/macro_model/macro_model.c
+)
+target_include_directories(macro_model_tests PRIVATE
+    ../../firmware/components/macro_model/include
+)
+target_link_libraries(macro_model_tests PRIVATE test_support)
+target_compile_options(macro_model_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME macro_model COMMAND macro_model_tests)
+set_tests_properties(macro_model PROPERTIES LABELS "model")
+
 add_executable(macro_executor_tests
     test_macro_executor.c
     ../../firmware/components/macro_executor/macro_executor_engine.c
