@@ -5,8 +5,7 @@
 #include "macro_parser.h"
 #include "unity.h"
 
-static void assert_compile_failure(const char *source)
-{
+static void assert_compile_failure(const char *source) {
     macro_plan_t plan = {0};
     macro_parse_error_t error = {0};
 
@@ -18,8 +17,7 @@ static void assert_compile_failure(const char *source)
     TEST_ASSERT_TRUE(error.column >= 1U);
 }
 
-TEST_CASE("macro compiler builds a complete immutable plan", "[device][macro_parser]")
-{
+TEST_CASE("macro compiler builds a complete immutable plan", "[device][macro_parser]") {
     static const char source[] = "Hello{{world}}{ENTER}{CTRL+ALT+T}{DELAY:25}";
     const macro_compile_options_t options = {
         .key_press_ms = 8U,
@@ -42,8 +40,7 @@ TEST_CASE("macro compiler builds a complete immutable plan", "[device][macro_par
 }
 
 TEST_CASE("macro compiler rejects malformed input without a partial plan",
-          "[device][macro_parser]")
-{
+          "[device][macro_parser]") {
     assert_compile_failure("{WAIT:500}");
     assert_compile_failure("{CTRL+SHIFT}");
     assert_compile_failure("{CTRL+A+B}");
@@ -52,8 +49,7 @@ TEST_CASE("macro compiler rejects malformed input without a partial plan",
     assert_compile_failure("\xc3\xa9");
 }
 
-TEST_CASE("macro compiler accepts the maximum directive delay", "[device][macro_parser]")
-{
+TEST_CASE("macro compiler accepts the maximum directive delay", "[device][macro_parser]") {
     static const char source[] = "{DELAY:10000}";
     macro_plan_t plan = {0};
     macro_parse_error_t error = {0};

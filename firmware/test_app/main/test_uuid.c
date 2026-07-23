@@ -3,8 +3,7 @@
 #include "app_uuid.h"
 #include "unity.h"
 
-TEST_CASE("hardware RNG generates distinct UUID v4 values", "[device][uuid]")
-{
+TEST_CASE("hardware RNG generates distinct UUID v4 values", "[device][uuid]") {
     app_uuid_t first = {0};
     app_uuid_t second = {0};
     app_uuid_t parsed = {0};
@@ -21,8 +20,7 @@ TEST_CASE("hardware RNG generates distinct UUID v4 values", "[device][uuid]")
     TEST_ASSERT_TRUE(app_uuid_equal(&first, &parsed));
 }
 
-TEST_CASE("UUID parser rejects malformed and non-v4 values", "[device][uuid]")
-{
+TEST_CASE("UUID parser rejects malformed and non-v4 values", "[device][uuid]") {
     app_uuid_t parsed = {0};
 
     TEST_ASSERT_EQUAL(APP_ERROR_INVALID_ARGUMENT, app_uuid_parse("../bad", &parsed));

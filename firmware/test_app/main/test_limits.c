@@ -1,8 +1,7 @@
 #include "macro_limits.h"
 #include "unity.h"
 
-TEST_CASE("firmware hard limits match the version 0.1 contract", "[device][limits]")
-{
+TEST_CASE("firmware hard limits match the version 0.1 contract", "[device][limits]") {
     TEST_ASSERT_EQUAL_UINT32(1U, APP_SCHEMA_VERSION);
     TEST_ASSERT_EQUAL_UINT32(4096U, APP_MACRO_SOURCE_MAX_BYTES);
     TEST_ASSERT_EQUAL_UINT32(4096U, APP_COMPILED_ACTION_MAX);
