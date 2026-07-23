@@ -1,9 +1,10 @@
 #include "app_core.h"
 
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
+#include "app_core_ops.h"
+#include "app_core_sequence.h"
 #include "auth.h"
 #include "device_controls.h"
 #include "esp_log.h"
@@ -17,171 +18,216 @@
 #include "web_server.h"
 #include "wifi_ap.h"
 
-#define DEVELOPMENT_PASSWORD_BYTES 20U
-
 static const char *const TAG = "app_core";
 
-static app_error_code_t initialize_nvs(void)
+static app_core_nvs_result_t adapter_nvs_init(void *context)
 {
+    (void)context;
     const esp_err_t result = nvs_flash_init();
-    if (result == ESP_ERR_NVS_NO_FREE_PAGES || result == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_LOGE(TAG, "NVS requires explicit recovery; automatic erase is prohibited");
-        return APP_ERROR_STORAGE_CORRUPT;
+    if (result == ESP_OK) {
+        return APP_CORE_NVS_OK;
     }
-    return result == ESP_OK ? APP_ERROR_NONE : APP_ERROR_STORAGE_UNAVAILABLE;
+    if (result == ESP_ERR_NVS_NO_FREE_PAGES) {
+        return APP_CORE_NVS_NO_FREE_PAGES;
+    }
+    if (result == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        return APP_CORE_NVS_NEW_VERSION_FOUND;
+    }
+    return APP_CORE_NVS_OTHER_FAILURE;
 }
 
-static app_error_code_t stage(const char *name, app_error_code_t result)
+static app_error_code_t adapter_storage_mount(void *context)
 {
-    if (result == APP_ERROR_NONE) {
-        ESP_LOGI(TAG, "stage complete: %s", name);
-    } else {
-        ESP_LOGE(TAG, "stage failed: %s (%s)", name, app_error_code_string(result));
-    }
-    return result;
+    (void)context;
+    return storage_mount_all();
 }
 
-static app_error_code_t random_password(char *output, size_t output_size)
+static app_error_code_t adapter_storage_recover(void *context)
 {
-    static const char alphabet[] =
-        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-    if (output == NULL || output_size < DEVELOPMENT_PASSWORD_BYTES + 1U) {
+    (void)context;
+    return storage_transaction_recover_all();
+}
+
+static app_error_code_t adapter_repository_init(void *context)
+{
+    (void)context;
+    return storage_repository_init();
+}
+
+static app_error_code_t adapter_auth_init(void *context)
+{
+    (void)context;
+    return auth_init();
+}
+
+static app_error_code_t adapter_usb_init(void *context)
+{
+    (void)context;
+    return usb_keyboard_init();
+}
+
+static app_error_code_t adapter_executor_init(void *context)
+{
+    (void)context;
+    return macro_executor_init();
+}
+
+static app_error_code_t adapter_controls_init(void *context)
+{
+    (void)context;
+    return device_controls_init();
+}
+
+static app_error_code_t adapter_random_fill(void *context,
+                                            uint8_t *output,
+                                            size_t length)
+{
+    (void)context;
+    if (output == NULL && length != 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-
-    uint8_t random_bytes[DEVELOPMENT_PASSWORD_BYTES];
-    esp_fill_random(random_bytes, sizeof(random_bytes));
-    for (size_t index = 0U; index < sizeof(random_bytes); ++index) {
-        output[index] = alphabet[random_bytes[index] % (sizeof(alphabet) - 1U)];
-    }
-    output[DEVELOPMENT_PASSWORD_BYTES] = '\0';
+    esp_fill_random(output, length);
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t cleanup_after_failure(bool web_started,
-                                              bool wifi_started,
-                                              bool storage_mounted,
-                                              app_error_code_t original)
+static app_error_code_t adapter_password_create(void *context,
+                                                const char *password,
+                                                size_t password_length,
+                                                auth_password_record_t *out_record)
 {
-    app_error_code_t cleanup_error = APP_ERROR_NONE;
-    if (web_started) {
-        const app_error_code_t result = web_server_stop();
-        if (result != APP_ERROR_NONE && cleanup_error == APP_ERROR_NONE) {
-            cleanup_error = result;
-        }
+    (void)context;
+    return auth_password_create(password, password_length, out_record);
+}
+
+static app_error_code_t adapter_wifi_start(void *context,
+                                           const char *ssid,
+                                           const char *passphrase)
+{
+    (void)context;
+    return wifi_ap_start(ssid, passphrase);
+}
+
+static app_error_code_t adapter_http_start(void *context,
+                                           const web_server_config_t *configuration)
+{
+    (void)context;
+    return web_server_start(configuration);
+}
+
+static app_error_code_t adapter_http_stop(void *context)
+{
+    (void)context;
+    return web_server_stop();
+}
+
+static app_error_code_t adapter_wifi_stop(void *context)
+{
+    (void)context;
+    return wifi_ap_stop();
+}
+
+static app_error_code_t adapter_storage_unmount(void *context)
+{
+    (void)context;
+    return storage_unmount_all();
+}
+
+static app_error_code_t adapter_set_indicator(void *context,
+                                              device_indicator_state_t indicator)
+{
+    (void)context;
+    device_controls_set_indicator(indicator);
+    return APP_ERROR_NONE;
+}
+
+static void adapter_secure_zero(void *context, void *memory, size_t length)
+{
+    (void)context;
+    volatile uint8_t *bytes = memory;
+    for (size_t index = 0U; index < length; ++index) {
+        bytes[index] = 0U;
     }
-    if (wifi_started) {
-        const app_error_code_t result = wifi_ap_stop();
-        if (result != APP_ERROR_NONE && cleanup_error == APP_ERROR_NONE) {
-            cleanup_error = result;
-        }
+}
+
+static void adapter_log_event(void *context, const app_core_log_event_t *event)
+{
+    (void)context;
+    if (event == NULL) {
+        ESP_LOGE(TAG, "startup emitted a null log event");
+        return;
     }
-    if (storage_mounted) {
-        const app_error_code_t result = storage_unmount_all();
-        if (result != APP_ERROR_NONE && cleanup_error == APP_ERROR_NONE) {
-            cleanup_error = result;
+
+    switch (event->type) {
+    case APP_CORE_LOG_STAGE:
+        if (event->primary_error == APP_ERROR_NONE) {
+            ESP_LOGI(TAG, "stage complete: %s", event->stage);
+        } else {
+            ESP_LOGE(TAG,
+                     "stage failed: %s (%s)",
+                     event->stage,
+                     app_error_code_string(event->primary_error));
         }
-    }
-    if (cleanup_error != APP_ERROR_NONE) {
+        break;
+    case APP_CORE_LOG_STORAGE_DEGRADED:
+        ESP_LOGW(TAG,
+                 "storage recovery requires operator review; evidence was preserved");
+        break;
+    case APP_CORE_LOG_DEVELOPMENT_CREDENTIALS:
+        ESP_LOGW(TAG, "development-only AP SSID: %s", event->ssid);
+        ESP_LOGW(TAG,
+                 "development-only AP passphrase: %s",
+                 event->ap_passphrase);
+        ESP_LOGW(TAG,
+                 "development-only web password: %s",
+                 event->web_password);
+        break;
+    case APP_CORE_LOG_PROVISIONING_REQUIRED:
+        ESP_LOGE(TAG,
+                 "persistent encrypted provisioning is not implemented; refusing to start a network");
+        break;
+    case APP_CORE_LOG_CLEANUP_FAILED:
         ESP_LOGE(TAG,
                  "cleanup failed after %s: %s",
-                 app_error_code_string(original),
-                 app_error_code_string(cleanup_error));
+                 app_error_code_string(event->primary_error),
+                 app_error_code_string(event->secondary_error));
+        break;
+    default:
+        ESP_LOGE(TAG, "unknown startup log event");
+        break;
     }
-    device_controls_set_indicator(DEVICE_INDICATOR_FATAL);
-    return original;
 }
 
 app_error_code_t app_core_start(void)
 {
-    bool storage_mounted = false;
-    bool wifi_started = false;
-    bool web_started = false;
-    bool storage_degraded = false;
-
-    device_controls_set_indicator(DEVICE_INDICATOR_BOOTING);
-    app_error_code_t result = stage("nvs", initialize_nvs());
-    if (result != APP_ERROR_NONE) {
-        return cleanup_after_failure(web_started, wifi_started, storage_mounted, result);
-    }
-
-    result = stage("storage_mount", storage_mount_all());
-    if (result != APP_ERROR_NONE) {
-        return cleanup_after_failure(web_started, wifi_started, storage_mounted, result);
-    }
-    storage_mounted = true;
-
-    result = storage_transaction_recover_all();
-    if (result == APP_ERROR_STORAGE_CORRUPT) {
-        storage_degraded = true;
-        ESP_LOGW(TAG, "storage recovery requires operator review; evidence was preserved");
-    } else if (stage("storage_recovery", result) != APP_ERROR_NONE) {
-        return cleanup_after_failure(web_started, wifi_started, storage_mounted, result);
-    }
-
-    result = stage("storage_repository", storage_repository_init());
-    if (result != APP_ERROR_NONE) {
-        return cleanup_after_failure(web_started, wifi_started, storage_mounted, result);
-    }
-
-    result = stage("authentication", auth_init());
-    if (result != APP_ERROR_NONE) {
-        return cleanup_after_failure(web_started, wifi_started, storage_mounted, result);
-    }
-    result = stage("usb", usb_keyboard_init());
-    if (result != APP_ERROR_NONE) {
-        return cleanup_after_failure(web_started, wifi_started, storage_mounted, result);
-    }
-    result = stage("executor", macro_executor_init());
-    if (result != APP_ERROR_NONE) {
-        return cleanup_after_failure(web_started, wifi_started, storage_mounted, result);
-    }
-    result = stage("controls", device_controls_init());
-    if (result != APP_ERROR_NONE) {
-        return cleanup_after_failure(web_started, wifi_started, storage_mounted, result);
-    }
-
+    const app_core_ops_t operations = {
+        .context = NULL,
+        .nvs_init = adapter_nvs_init,
+        .storage_mount = adapter_storage_mount,
+        .storage_recover = adapter_storage_recover,
+        .repository_init = adapter_repository_init,
+        .auth_init = adapter_auth_init,
+        .usb_init = adapter_usb_init,
+        .executor_init = adapter_executor_init,
+        .controls_init = adapter_controls_init,
+        .random_fill = adapter_random_fill,
+        .password_create = adapter_password_create,
+        .wifi_start = adapter_wifi_start,
+        .http_start = adapter_http_start,
+        .http_stop = adapter_http_stop,
+        .wifi_stop = adapter_wifi_stop,
+        .storage_unmount = adapter_storage_unmount,
+        .set_indicator = adapter_set_indicator,
+        .secure_zero = adapter_secure_zero,
+        .log_event = adapter_log_event,
+    };
+    const app_core_policy_t policy = {
 #if CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG
-    char ap_passphrase[DEVELOPMENT_PASSWORD_BYTES + 1U];
-    char web_password[DEVELOPMENT_PASSWORD_BYTES + 1U];
-    result = random_password(ap_passphrase, sizeof(ap_passphrase));
-    if (result == APP_ERROR_NONE) {
-        result = random_password(web_password, sizeof(web_password));
-    }
-    web_server_config_t web_configuration = {.login_enabled = false};
-    if (result == APP_ERROR_NONE) {
-        result = auth_password_create(web_password,
-                                      DEVELOPMENT_PASSWORD_BYTES,
-                                      &web_configuration.password_record);
-    }
-    if (result != APP_ERROR_NONE) {
-        return cleanup_after_failure(web_started, wifi_started, storage_mounted, result);
-    }
-    web_configuration.login_enabled = true;
-
-    ESP_LOGW(TAG, "development-only AP SSID: ESP32-Macro-Setup");
-    ESP_LOGW(TAG, "development-only AP passphrase: %s", ap_passphrase);
-    ESP_LOGW(TAG, "development-only web password: %s", web_password);
-
-    result = stage("wifi", wifi_ap_start("ESP32-Macro-Setup", ap_passphrase));
-    if (result != APP_ERROR_NONE) {
-        return cleanup_after_failure(web_started, wifi_started, storage_mounted, result);
-    }
-    wifi_started = true;
-
-    result = stage("http", web_server_start(&web_configuration));
-    if (result != APP_ERROR_NONE) {
-        return cleanup_after_failure(web_started, wifi_started, storage_mounted, result);
-    }
-    web_started = true;
+        .development_provisioning_enabled = true,
+        .development_ssid = "ESP32-Macro-Setup",
 #else
-    ESP_LOGE(TAG,
-             "persistent encrypted provisioning is not implemented; refusing to start a network");
-    result = APP_ERROR_AUTH_REQUIRED;
-    return cleanup_after_failure(web_started, wifi_started, storage_mounted, result);
+        .development_provisioning_enabled = false,
+        .development_ssid = NULL,
 #endif
-
-    device_controls_set_indicator(storage_degraded ? DEVICE_INDICATOR_DEGRADED
-                                                    : DEVICE_INDICATOR_READY);
-    return APP_ERROR_NONE;
+    };
+    return app_core_sequence_start(&operations, &policy);
 }
