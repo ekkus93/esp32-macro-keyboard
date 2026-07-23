@@ -3,6 +3,8 @@
 
 static const char *const TAG = "app_main";
 
+void app_main(void);
+
 void app_main(void)
 {
     const app_error_code_t result = app_core_start();

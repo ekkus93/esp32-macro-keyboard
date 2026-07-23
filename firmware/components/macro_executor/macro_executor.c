@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
@@ -13,6 +14,8 @@
 
 #define EXECUTION_WATCHDOG_MARGIN_MS 1000U
 #define CANCELLATION_SLICE_MS 10U
+
+static const char *const TAG = "macro_executor";
 
 static QueueHandle_t request_queue;
 static SemaphoreHandle_t status_mutex;
@@ -26,17 +29,18 @@ static bool lock_status(void)
     return status_mutex != NULL && xSemaphoreTake(status_mutex, portMAX_DELAY) == pdTRUE;
 }
 
-static void unlock_status(void)
+static bool unlock_status(void)
 {
-    (void)xSemaphoreGive(status_mutex);
+    return status_mutex != NULL && xSemaphoreGive(status_mutex) == pdTRUE;
 }
 
-static void status_update(macro_execution_status_t next)
+static app_error_code_t status_update(macro_execution_status_t next)
 {
-    if (lock_status()) {
-        status = next;
-        unlock_status();
+    if (!lock_status()) {
+        return APP_ERROR_INTERNAL;
     }
+    status = next;
+    return unlock_status() ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
 }
 
 macro_execution_status_t macro_executor_get_status(void)
@@ -44,7 +48,10 @@ macro_execution_status_t macro_executor_get_status(void)
     macro_execution_status_t snapshot = {.state = EXECUTION_FAILED, .error = APP_ERROR_INTERNAL};
     if (lock_status()) {
         snapshot = status;
-        unlock_status();
+        if (!unlock_status()) {
+            snapshot.state = EXECUTION_FAILED;
+            snapshot.error = APP_ERROR_INTERNAL;
+        }
     }
     return snapshot;
 }
@@ -54,7 +61,9 @@ static bool cancelled(void)
     bool value = true;
     if (lock_status()) {
         value = cancellation_requested;
-        unlock_status();
+        if (!unlock_status()) {
+            value = true;
+        }
     }
     return value;
 }
@@ -75,7 +84,10 @@ static app_error_code_t cancellable_delay(uint32_t delay_ms, TickType_t deadline
             return APP_ERROR_TIMEOUT;
         }
         const uint32_t slice = remaining > CANCELLATION_SLICE_MS ? CANCELLATION_SLICE_MS : remaining;
-        (void)ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(slice));
+        const uint32_t notification_count = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(slice));
+        if (notification_count > 0U && cancelled()) {
+            return APP_ERROR_EXECUTION_CANCELLED;
+        }
         remaining -= slice;
     }
     return APP_ERROR_NONE;
@@ -88,12 +100,19 @@ static void finish(macro_execution_status_t current,
     current.release_error = usb_keyboard_release_all();
     current.state = terminal_state;
     current.error = error;
-    status_update(current);
+    const app_error_code_t status_result = status_update(current);
+    if (status_result != APP_ERROR_NONE) {
+        ESP_LOGE(TAG, "failed to publish terminal execution status");
+    }
 
-    if (lock_status()) {
-        busy = false;
-        cancellation_requested = false;
-        unlock_status();
+    if (!lock_status()) {
+        ESP_LOGE(TAG, "failed to lock executor state during terminal cleanup");
+        return;
+    }
+    busy = false;
+    cancellation_requested = false;
+    if (!unlock_status()) {
+        ESP_LOGE(TAG, "failed to unlock executor state during terminal cleanup");
     }
 }
 
@@ -107,14 +126,22 @@ static void execute_request(macro_execution_request_t *request)
         .action_index = 0U,
         .action_count = request->plan.action_count,
     };
-    status_update(current);
+    app_error_code_t result = status_update(current);
+    if (result != APP_ERROR_NONE) {
+        macro_plan_free(&request->plan);
+        finish(current, EXECUTION_FAILED, result);
+        return;
+    }
 
     const uint32_t watchdog_ms = request->plan.estimated_duration_ms + EXECUTION_WATCHDOG_MARGIN_MS;
     const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(watchdog_ms);
-    app_error_code_t result = APP_ERROR_NONE;
+    result = APP_ERROR_NONE;
     for (size_t index = 0U; index < request->plan.action_count; ++index) {
         current.action_index = index;
-        status_update(current);
+        result = status_update(current);
+        if (result != APP_ERROR_NONE) {
+            break;
+        }
         if (cancelled()) {
             result = APP_ERROR_EXECUTION_CANCELLED;
             break;
@@ -207,17 +234,23 @@ app_error_code_t macro_executor_submit(macro_execution_request_t *request)
         return APP_ERROR_INTERNAL;
     }
     if (busy) {
-        unlock_status();
+        if (!unlock_status()) {
+            return APP_ERROR_INTERNAL;
+        }
         return APP_ERROR_EXECUTOR_BUSY;
     }
     busy = true;
     cancellation_requested = false;
-    unlock_status();
+    if (!unlock_status()) {
+        return APP_ERROR_INTERNAL;
+    }
 
     if (xQueueSend(request_queue, request, 0U) != pdTRUE) {
         if (lock_status()) {
             busy = false;
-            unlock_status();
+            if (!unlock_status()) {
+                return APP_ERROR_INTERNAL;
+            }
         }
         return APP_ERROR_INTERNAL;
     }
@@ -233,11 +266,15 @@ app_error_code_t macro_executor_cancel(void)
         return APP_ERROR_INTERNAL;
     }
     if (!busy) {
-        unlock_status();
+        if (!unlock_status()) {
+            return APP_ERROR_INTERNAL;
+        }
         return APP_ERROR_NOT_FOUND;
     }
     cancellation_requested = true;
-    unlock_status();
+    if (!unlock_status()) {
+        return APP_ERROR_INTERNAL;
+    }
     if (executor_task_handle == NULL) {
         return APP_ERROR_INTERNAL;
     }

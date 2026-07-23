@@ -82,7 +82,9 @@ static void controls_task(void *context)
     while (true) {
         if (update_button(&confirm,
                           button_pressed((gpio_num_t)CONFIG_APP_CONFIRM_BUTTON_GPIO))) {
-            (void)xSemaphoreGive(confirmation_semaphore);
+            if (xSemaphoreGive(confirmation_semaphore) != pdTRUE) {
+                device_controls_set_indicator(DEVICE_INDICATOR_FATAL);
+            }
         }
         if (update_button(&cancel,
                           button_pressed((gpio_num_t)CONFIG_APP_CANCEL_BUTTON_GPIO))) {

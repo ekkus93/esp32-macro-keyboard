@@ -36,9 +36,12 @@ app_error_code_t storage_mount_all(void)
     }
     web_mounted = true;
     if (esp_vfs_littlefs_register(&data) != ESP_OK) {
-        esp_vfs_littlefs_unregister(STORAGE_WEB_PARTITION);
-        web_mounted = false;
-        return APP_ERROR_STORAGE_UNAVAILABLE;
+        const esp_err_t cleanup_result = esp_vfs_littlefs_unregister(STORAGE_WEB_PARTITION);
+        if (cleanup_result == ESP_OK) {
+            web_mounted = false;
+            return APP_ERROR_STORAGE_UNAVAILABLE;
+        }
+        return APP_ERROR_IO;
     }
     data_mounted = true;
     const app_error_code_t prepare_result = storage_prepare_directories();
