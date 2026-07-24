@@ -17,6 +17,7 @@ typedef struct {
                           const void *buffer,
                           size_t length);
     int (*sync_file)(void *context, int descriptor);
+    int (*sync_parent_path)(void *context, const char *path);
     int (*close_file)(void *context, int descriptor);
     int (*stat_path)(void *context, const char *path, struct stat *metadata);
     int (*rename_path)(void *context, const char *source, const char *destination);
