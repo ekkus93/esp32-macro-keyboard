@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly repo_root
 readonly project_dir="${repo_root}/firmware/test_app"
 readonly build_dir="${DEVICE_TEST_BUILD_DIR:-${project_dir}/build}"
 
