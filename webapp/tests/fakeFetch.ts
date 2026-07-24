@@ -14,6 +14,16 @@ type FetchHandler = (call: FetchCall) => Promise<Response> | Response;
 const handlers: FetchHandler[] = [];
 const calls: FetchCall[] = [];
 
+function requestUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
+  return input.url;
+}
+
 export function resetFakeFetch(): void {
   handlers.length = 0;
   calls.length = 0;
@@ -25,7 +35,7 @@ export function installFakeFetch(): void {
     async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const request = input instanceof Request ? input : null;
       const call: FetchCall = {
-        url: request?.url ?? String(input),
+        url: requestUrl(input),
         method: init?.method ?? request?.method ?? "GET",
         headers: new Headers(init?.headers ?? request?.headers),
         credentials: init?.credentials ?? request?.credentials,
@@ -82,6 +92,8 @@ export function getFetchCalls(): readonly FetchCall[] {
 
 export function assertNoPendingFetchPlans(): void {
   if (handlers.length !== 0) {
-    throw new Error(`${handlers.length} planned fetch call(s) were not consumed.`);
+    throw new Error(
+      `${String(handlers.length)} planned fetch call(s) were not consumed.`,
+    );
   }
 }
