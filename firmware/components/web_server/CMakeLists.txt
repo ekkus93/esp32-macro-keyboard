@@ -1,6 +1,7 @@
 idf_component_register(
     SRCS
         "web_server.c"
+        "web_server_adapter.c"
         "web_cookie.c"
         "web_origin.c"
         "web_static_path.c"
