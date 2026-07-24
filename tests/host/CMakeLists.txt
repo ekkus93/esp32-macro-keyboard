@@ -119,6 +119,25 @@ target_compile_options(web_security_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME web_security COMMAND web_security_tests)
 set_tests_properties(web_security PROPERTIES LABELS "web")
 
+add_executable(web_server_adapter_tests
+    test_web_server_adapter.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/web_server/web_server_adapter.c
+    ../../firmware/components/web_server/web_cookie.c
+    ../../firmware/components/web_server/web_origin.c
+    ../../firmware/components/web_server/web_static_path.c
+    ../../firmware/components/web_server/web_content.c
+)
+target_include_directories(web_server_adapter_tests PRIVATE
+    ../../firmware/components/macro_model/include
+    ../../firmware/components/auth/include
+    ../../firmware/components/web_server
+)
+target_link_libraries(web_server_adapter_tests PRIVATE test_support)
+target_compile_options(web_server_adapter_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME web_server_adapter COMMAND web_server_adapter_tests)
+set_tests_properties(web_server_adapter PROPERTIES LABELS "web")
+
 add_executable(app_core_tests
     test_app_core.c
     ../../firmware/components/app_core/app_core_sequence.c
