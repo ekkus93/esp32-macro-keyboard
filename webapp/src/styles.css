@@ -41,6 +41,11 @@ textarea {
   border-radius: 0.75rem;
 }
 
+textarea {
+  min-height: 12rem;
+  font-family: ui-monospace, monospace;
+}
+
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
@@ -176,11 +181,6 @@ main {
 .status-neutral {
   color: #334155;
   background: #e2e8f0;
-}
-
-textarea {
-  min-height: 12rem;
-  font-family: ui-monospace, monospace;
 }
 
 dl {
