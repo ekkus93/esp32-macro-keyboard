@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 
 #include "fake_call_log.h"
@@ -21,6 +22,7 @@ typedef enum {
     FAKE_FS_OPEN_DIR,
     FAKE_FS_READ_DIR,
     FAKE_FS_CLOSE_DIR,
+    FAKE_FS_RMDIR,
     FAKE_FS_OPERATION_COUNT
 } fake_fs_operation_t;
 
@@ -59,7 +61,15 @@ int fake_fs_close(fake_fs_backend_t *filesystem, int descriptor);
 int fake_fs_sync(fake_fs_backend_t *filesystem, int descriptor);
 int fake_fs_rename(fake_fs_backend_t *filesystem, const char *source, const char *destination);
 int fake_fs_unlink(fake_fs_backend_t *filesystem, const char *path);
-int fake_fs_stat(fake_fs_backend_t *filesystem, const char *path, void *metadata);
+int fake_fs_stat(fake_fs_backend_t *filesystem, const char *path, struct stat *metadata);
 int fake_fs_mkdir(fake_fs_backend_t *filesystem, const char *path, mode_t mode);
+void *fake_fs_open_dir(fake_fs_backend_t *filesystem, const char *path);
+int fake_fs_read_dir(fake_fs_backend_t *filesystem,
+                     void *directory,
+                     char *name,
+                     size_t name_size,
+                     bool *out_end);
+int fake_fs_close_dir(fake_fs_backend_t *filesystem, void *directory);
+int fake_fs_rmdir(fake_fs_backend_t *filesystem, const char *path);
 
 #endif
