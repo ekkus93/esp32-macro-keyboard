@@ -214,6 +214,23 @@ target_compile_options(storage_atomic_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME storage_atomic COMMAND storage_atomic_tests)
 set_tests_properties(storage_atomic PROPERTIES LABELS "storage")
 
+add_executable(storage_parent_sync_tests
+    test_storage_parent_sync.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/storage/storage_fs_ops.c
+    ../../firmware/components/storage/storage_atomic.c
+)
+target_include_directories(storage_parent_sync_tests PRIVATE
+    ../../firmware/components/macro_model/include
+    ../../firmware/components/storage/include
+    ../../firmware/components/storage
+)
+target_link_libraries(storage_parent_sync_tests PRIVATE test_support)
+target_compile_options(storage_parent_sync_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME storage_parent_sync COMMAND storage_parent_sync_tests)
+set_tests_properties(storage_parent_sync PROPERTIES LABELS "storage")
+
 add_executable(storage_repository_io_tests
     test_storage_repository_io.c
     ../../firmware/components/macro_model/app_error.c
