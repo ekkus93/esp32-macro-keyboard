@@ -449,9 +449,14 @@ static void test_success_order_and_distinct_credentials(void)
     app_core_ops_t operations = make_operations(&fixture);
     const app_core_policy_t policy = development_policy();
 
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      app_core_sequence_start(&operations, &policy));
-
+    /*
+     * Strict fake enforcement (UNIT_TESTS1 L915 proof of concept). Register the
+     * exact expected startup sequence up front and run under the fake call log's
+     * strict mode: fake_call_log_record aborts on any unexpected or out-of-order
+     * operation, and fake_call_log_verify aborts if an expected call never
+     * happens. This enforces the sequence during execution rather than
+     * re-deriving it from the recorded log afterward.
+     */
     static const char *const expected[] = {
         "indicator_booting",
         "nvs",
@@ -474,13 +479,17 @@ static void test_success_order_and_distinct_credentials(void)
         "secure_zero",
         "indicator_ready",
     };
+    fake_call_log_set_strict(&fixture.calls, true);
+    for (size_t index = 0U; index < (sizeof(expected) / sizeof(expected[0])); ++index) {
+        fake_call_log_expect(&fixture.calls, expected[index]);
+    }
+
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
+                      app_core_sequence_start(&operations, &policy));
+
+    fake_call_log_verify(&fixture.calls);
     TEST_CHECK_EQ_U64(sizeof(expected) / sizeof(expected[0]),
                       fixture.calls.call_count);
-    for (size_t index = 0U; index < (sizeof(expected) / sizeof(expected[0])); ++index) {
-        const fake_call_t *call = fake_call_log_at(&fixture.calls, index);
-        TEST_CHECK(call != NULL);
-        TEST_CHECK_EQ_STRING(expected[index], call->name);
-    }
 
     TEST_CHECK_EQ_STRING(policy.development_ssid, fixture.wifi_ssid);
     TEST_CHECK(strlen(fixture.wifi_passphrase) == APP_CORE_DEVELOPMENT_PASSWORD_BYTES);

@@ -67,11 +67,17 @@ applicable fake and suite").** Partially satisfied — left open.
 - Every fake routes its operations through `fake_call_log_record`, which in strict mode
   `abort()`s on any call that does not match the next expected call, and `fake_call_log_verify`
   `abort()`s on missing expected calls.
-- However, `fake_call_log_set_strict(...)` is currently enabled only in `test_support.c` (the
-  infrastructure's own suite). No subsystem suite enables strict call-sequence expectations, so
-  the strongest reading of the item — every suite enforces unexpected-call failure — is not yet
-  met. Enabling strict expectations per suite remains open work and is a substantial change
-  (each suite must declare its exact expected call sequence).
+- A proof of concept now enables strict enforcement in a subsystem suite:
+  `test_app_core.c` (`test_success_order_and_distinct_credentials`) registers the exact
+  20-call startup sequence, sets strict mode, runs `app_core_sequence_start`, and calls
+  `fake_call_log_verify`, so an unexpected, out-of-order, or missing operation aborts during
+  execution instead of being re-derived from the log afterward. Verified both directions:
+  the suite passes with the correct sequence and aborts when two expectations are transposed.
+- Beyond `test_support.c` and this `app_core` proof of concept, subsystem suites still do not
+  enable strict call-sequence expectations, so the strongest reading of the item — every
+  applicable suite enforces unexpected-call failure — is not yet fully met. Rolling strict
+  expectations out to the remaining suites is the open work (each suite must declare its exact
+  expected call sequence, as `app_core` now does).
 
 ### Documentation reconciliation (2026-07-24, Task 15.3)
 
