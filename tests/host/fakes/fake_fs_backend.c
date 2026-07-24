@@ -1,5 +1,6 @@
 #include "fake_fs_backend.h"
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -23,6 +24,7 @@ static const char *operation_name(fake_fs_operation_t operation)
         "fs_open_dir",
         "fs_read_dir",
         "fs_close_dir",
+        "fs_rmdir",
     };
     if (operation < 0 || operation >= FAKE_FS_OPERATION_COUNT) {
         abort();
@@ -164,7 +166,7 @@ int fake_fs_unlink(fake_fs_backend_t *filesystem, const char *path)
     return unlink(path);
 }
 
-int fake_fs_stat(fake_fs_backend_t *filesystem, const char *path, void *metadata)
+int fake_fs_stat(fake_fs_backend_t *filesystem, const char *path, struct stat *metadata)
 {
     if (path == NULL || metadata == NULL || should_fail(filesystem, FAKE_FS_STAT)) {
         return -1;
@@ -178,4 +180,58 @@ int fake_fs_mkdir(fake_fs_backend_t *filesystem, const char *path, mode_t mode)
         return -1;
     }
     return mkdir(path, mode);
+}
+
+void *fake_fs_open_dir(fake_fs_backend_t *filesystem, const char *path)
+{
+    if (path == NULL || should_fail(filesystem, FAKE_FS_OPEN_DIR)) {
+        return NULL;
+    }
+    return opendir(path);
+}
+
+int fake_fs_read_dir(fake_fs_backend_t *filesystem,
+                     void *directory,
+                     char *name,
+                     size_t name_size,
+                     bool *out_end)
+{
+    if (directory == NULL || name == NULL || name_size == 0U || out_end == NULL ||
+        should_fail(filesystem, FAKE_FS_READ_DIR)) {
+        return -1;
+    }
+    name[0] = '\0';
+    *out_end = false;
+    errno = 0;
+    const struct dirent *entry = readdir((DIR *)directory);
+    if (entry == NULL) {
+        if (errno != 0) {
+            return -1;
+        }
+        *out_end = true;
+        return 0;
+    }
+    const size_t length = strlen(entry->d_name);
+    if (length >= name_size) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    memcpy(name, entry->d_name, length + 1U);
+    return 0;
+}
+
+int fake_fs_close_dir(fake_fs_backend_t *filesystem, void *directory)
+{
+    if (directory == NULL || should_fail(filesystem, FAKE_FS_CLOSE_DIR)) {
+        return -1;
+    }
+    return closedir((DIR *)directory);
+}
+
+int fake_fs_rmdir(fake_fs_backend_t *filesystem, const char *path)
+{
+    if (path == NULL || should_fail(filesystem, FAKE_FS_RMDIR)) {
+        return -1;
+    }
+    return rmdir(path);
 }
