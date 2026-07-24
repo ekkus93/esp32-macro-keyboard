@@ -33,6 +33,19 @@ button {
   border-radius: 0.75rem;
 }
 
+input,
+textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #94a3b8;
+  border-radius: 0.75rem;
+}
+
+textarea {
+  min-height: 12rem;
+  font-family: ui-monospace, monospace;
+}
+
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
@@ -42,14 +55,6 @@ textarea:focus-visible {
 
 button:disabled {
   opacity: 0.45;
-}
-
-input,
-textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #94a3b8;
-  border-radius: 0.75rem;
 }
 
 .primary {
@@ -176,11 +181,6 @@ main {
 .status-neutral {
   color: #334155;
   background: #e2e8f0;
-}
-
-textarea {
-  min-height: 12rem;
-  font-family: ui-monospace, monospace;
 }
 
 dl {

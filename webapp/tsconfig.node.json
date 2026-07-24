@@ -1,13 +1,16 @@
 {
   "compilerOptions": {
     "composite": true,
-    "skipLibCheck": false,
+    "target": "ES2022",
+    "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
+    "allowJs": true,
+    "checkJs": true,
     "strict": true,
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "eslint.config.js", "stylelint.config.mjs"]
 }

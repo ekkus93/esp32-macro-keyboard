@@ -73,3 +73,39 @@ jobs:
           path: artifacts/host-tests/
           if-no-files-found: error
           retention-days: 90
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          show-progress: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm --prefix webapp ci --ignore-scripts --no-audit --no-fund
+
+      - name: Type-check frontend
+        run: npm --prefix webapp run typecheck
+
+      - name: Lint frontend TypeScript
+        run: npm --prefix webapp run lint
+
+      - name: Lint frontend styles
+        run: npm --prefix webapp run stylelint
+
+      - name: Check frontend formatting
+        run: npm --prefix webapp run format:check
+
+      - name: Run frontend tests
+        run: npm --prefix webapp test
