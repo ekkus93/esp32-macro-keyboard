@@ -12,10 +12,10 @@ TEST_CASE("authentication adapters create and validate secrets", "[device][auth]
     TEST_ASSERT_EQUAL(APP_ERROR_NONE,
                       auth_password_create(password, sizeof(password) - 1U, &record));
     TEST_ASSERT_TRUE(auth_password_verify(password, sizeof(password) - 1U, &record));
-    TEST_ASSERT_FALSE(auth_password_verify("incorrect password",
-                                           strlen("incorrect password"),
-                                           &record));
+    TEST_ASSERT_FALSE(auth_password_verify(
+        "incorrect password", strlen("incorrect password"), &record));
 
+    // clang-format off
     static const uint8_t vector_salt[AUTH_SALT_BYTES] = {
         0x00U, 0x01U, 0x02U, 0x03U, 0x04U, 0x05U, 0x06U, 0x07U,
         0x08U, 0x09U, 0x0aU, 0x0bU, 0x0cU, 0x0dU, 0x0eU, 0x0fU,
@@ -26,6 +26,7 @@ TEST_CASE("authentication adapters create and validate secrets", "[device][auth]
         0x36U, 0xbfU, 0xb2U, 0x15U, 0xfaU, 0xa8U, 0x54U, 0x4eU,
         0x3aU, 0x4eU, 0x2cU, 0xbcU, 0xceU, 0xc8U, 0x48U, 0x06U,
     };
+    // clang-format on
     auth_password_record_t vector = {.iterations = 120000U};
     memcpy(vector.salt, vector_salt, sizeof(vector_salt));
     memcpy(vector.hash, vector_hash, sizeof(vector_hash));
