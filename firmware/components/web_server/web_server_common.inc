@@ -13,16 +13,17 @@
 #include "web_content.h"
 #include "web_cookie.h"
 #include "web_origin.h"
+#include "web_server_adapter.h"
 #include "web_static_path.h"
 #include "wifi_ap.h"
 
 #define HTTP_HEADER_MAX_BYTES 256U
 #define LOGIN_BODY_MAX_BYTES 256U
-#define STATIC_CHUNK_BYTES 1024U
+#define STATIC_CHUNK_BYTES WEB_ADAPTER_STATIC_CHUNK_BYTES
 #define SESSION_COOKIE_NAME "MKSESSION"
 
-static httpd_handle_t server;
 static web_server_config_t server_configuration;
+static web_adapter_lifecycle_t server_lifecycle;
 
 static const char *usb_state_string(usb_keyboard_state_t state)
 {
@@ -94,74 +95,52 @@ static esp_err_t send_error(httpd_req_t *request,
                             app_error_code_t code,
                             const char *message)
 {
-    if (request == NULL || status == NULL || message == NULL) {
+    if (request == NULL) {
         return ESP_FAIL;
     }
-    cJSON *root = cJSON_CreateObject();
-    cJSON *error = cJSON_CreateObject();
-    if (root == NULL || error == NULL ||
-        cJSON_AddStringToObject(error, "code", app_error_code_string(code)) == NULL ||
-        cJSON_AddStringToObject(error, "message", message) == NULL) {
-        cJSON_Delete(error);
-        cJSON_Delete(root);
+    char response[512U];
+    if (status == NULL ||
+        web_adapter_build_error_json(code, message, response, sizeof(response)) !=
+            APP_ERROR_NONE) {
         return httpd_resp_send_err(request,
                                    HTTPD_500_INTERNAL_SERVER_ERROR,
-                                   "response allocation failed");
+                                   "response encoding failed");
     }
-    if (cJSON_AddBoolToObject(root, "ok", false) == NULL ||
-        !cJSON_AddItemToObject(root, "error", error)) {
-        cJSON_Delete(error);
-        cJSON_Delete(root);
-        return httpd_resp_send_err(request,
-                                   HTTPD_500_INTERNAL_SERVER_ERROR,
-                                   "response allocation failed");
-    }
-    char *json = cJSON_PrintUnformatted(root);
-    cJSON_Delete(root);
-    if (json == NULL) {
-        return httpd_resp_send_err(request,
-                                   HTTPD_500_INTERNAL_SERVER_ERROR,
-                                   "response allocation failed");
-    }
-    const esp_err_t result = send_json(request, json, status);
-    cJSON_free(json);
-    return result;
+    return send_json(request, response, status);
+}
+
+static int receive_body_adapter(void *context, char *buffer, size_t capacity)
+{
+    httpd_req_t *request = context;
+    const int count = httpd_req_recv(request, buffer, capacity);
+    return count == HTTPD_SOCK_ERR_TIMEOUT ? WEB_ADAPTER_RECEIVE_TIMEOUT : count;
 }
 
 static app_error_code_t read_bounded_body(httpd_req_t *request,
-                                          char *buffer,
-                                          size_t buffer_size,
-                                          size_t maximum_length)
+                                           char *buffer,
+                                           size_t buffer_size,
+                                           size_t maximum_length)
 {
-    if (buffer != NULL && buffer_size > 0U) {
-        buffer[0] = '\0';
-    }
-    if (request == NULL || buffer == NULL || buffer_size == 0U ||
-        request->content_len > maximum_length || request->content_len >= buffer_size) {
+    if (request == NULL) {
+        if (buffer != NULL && buffer_size > 0U) {
+            buffer[0] = '\0';
+        }
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    size_t received = 0U;
-    while (received < request->content_len) {
-        const int count =
-            httpd_req_recv(request, buffer + received, request->content_len - received);
-        if (count == HTTPD_SOCK_ERR_TIMEOUT) {
-            continue;
-        }
-        if (count <= 0 || (size_t)count > request->content_len - received) {
-            buffer[0] = '\0';
-            return APP_ERROR_IO;
-        }
-        received += (size_t)count;
-    }
-    buffer[received] = '\0';
-    return APP_ERROR_NONE;
+    return web_adapter_read_bounded_body(request->content_len,
+                                         buffer,
+                                         buffer_size,
+                                         maximum_length,
+                                         receive_body_adapter,
+                                         request);
 }
 
-static app_error_code_t get_header(httpd_req_t *request,
-                                   const char *name,
-                                   char *buffer,
-                                   size_t buffer_size)
+static app_error_code_t get_header_adapter(void *context,
+                                            const char *name,
+                                            char *buffer,
+                                            size_t buffer_size)
 {
+    httpd_req_t *request = context;
     if (buffer != NULL && buffer_size > 0U) {
         buffer[0] = '\0';
     }
@@ -177,27 +156,19 @@ static app_error_code_t get_header(httpd_req_t *request,
                : APP_ERROR_AUTH_REQUIRED;
 }
 
+static app_error_code_t validate_session_adapter(void *context,
+                                                  const char *session_token,
+                                                  const char *csrf_token)
+{
+    (void)context;
+    return auth_session_validate(session_token, csrf_token);
+}
+
 static app_error_code_t authorize_mutation(httpd_req_t *request, char *out_session_token)
 {
-    if (out_session_token == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    out_session_token[0] = '\0';
-    char host[HTTP_HEADER_MAX_BYTES];
-    char origin[HTTP_HEADER_MAX_BYTES];
-    char cookie[HTTP_HEADER_MAX_BYTES];
-    char csrf[AUTH_TOKEN_HEX_BYTES];
-    if (get_header(request, "Host", host, sizeof(host)) != APP_ERROR_NONE ||
-        get_header(request, "Origin", origin, sizeof(origin)) != APP_ERROR_NONE ||
-        get_header(request, "Cookie", cookie, sizeof(cookie)) != APP_ERROR_NONE ||
-        get_header(request, "X-CSRF-Token", csrf, sizeof(csrf)) != APP_ERROR_NONE ||
-        !web_origin_matches_host(origin, host)) {
-        return APP_ERROR_AUTH_REQUIRED;
-    }
-    const app_error_code_t cookie_result =
-        web_cookie_extract_session(cookie, out_session_token, AUTH_TOKEN_HEX_BYTES);
-    if (cookie_result != APP_ERROR_NONE) {
-        return cookie_result;
-    }
-    return auth_session_validate(out_session_token, csrf);
+    return web_adapter_authorize_mutation(get_header_adapter,
+                                          validate_session_adapter,
+                                          request,
+                                          out_session_token,
+                                          AUTH_TOKEN_HEX_BYTES);
 }
