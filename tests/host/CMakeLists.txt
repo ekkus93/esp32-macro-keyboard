@@ -259,6 +259,27 @@ set_tests_properties(storage_transaction PROPERTIES LABELS "storage")
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
 
+add_executable(storage_quarantine_tests
+    test_storage_quarantine.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/storage/storage_fs_ops.c
+    ../../firmware/components/storage/storage_atomic.c
+    ../../firmware/components/storage/storage_quarantine.c
+)
+target_include_directories(storage_quarantine_tests PRIVATE
+    ../../firmware/components/macro_model/include
+    ../../firmware/components/storage/include
+    ../../firmware/components/storage
+)
+target_compile_definitions(storage_quarantine_tests PRIVATE
+    STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-quarantine-data"
+)
+target_link_libraries(storage_quarantine_tests PRIVATE PkgConfig::CJSON test_support)
+target_compile_options(storage_quarantine_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME storage_quarantine COMMAND storage_quarantine_tests)
+set_tests_properties(storage_quarantine PROPERTIES LABELS "storage")
+
 add_executable(storage_repository_tests
     test_storage_repository.c
     ../../firmware/components/macro_model/app_error.c
