@@ -244,3 +244,44 @@ jobs:
     steps:
       - name: Preserve formatting failure
         run: exit 1
+
+  frontend-format-fix:
+    name: Format frontend branch
+    needs: frontend-tests
+    if: >-
+      always() &&
+      github.event_name == 'pull_request' &&
+      github.head_ref == 'ralph/frontend-tests' &&
+      needs.frontend-tests.outputs.format_status != '0'
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out frontend branch
+        uses: actions/checkout@v4
+        with:
+          ref: ralph/frontend-tests
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+
+      - name: Install frontend dependencies
+        run: npm --prefix webapp install --ignore-scripts --no-audit --no-fund
+
+      - name: Apply Prettier
+        run: npm --prefix webapp run format:write
+
+      - name: Commit deterministic formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- webapp; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add webapp
+          git commit -m "style: format frontend files"
+          git push origin HEAD:ralph/frontend-tests
