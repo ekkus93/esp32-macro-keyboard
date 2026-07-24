@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ApiError, apiRequest, setCsrfToken } from "./api/client";
 import { AppShell } from "./components/AppShell";
+import { ErrorBanner } from "./components/ErrorBanner";
 import type { ExecutionStatus } from "./types/models";
 
 const screens = [
@@ -93,24 +94,22 @@ function LoginPage({ onSuccess }: { onSuccess: () => void }): React.JSX.Element 
       <h1>ESP32 Macro Keyboard</h1>
       <form
         className="form-stack"
-        onSubmit={(event: React.FormEvent<HTMLFormElement>) => void submit(event)}
+        onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
+          void submit(event);
+        }}
       >
         <label htmlFor="password">Administrator password</label>
         <input
           autoComplete="current-password"
           id="password"
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-            setPassword(event.target.value)
-          }
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+            setPassword(event.target.value);
+          }}
           required
           type="password"
           value={password}
         />
-        {error === null ? null : (
-          <p className="error-message" role="alert">
-            {error}
-          </p>
-        )}
+        <ErrorBanner message={error} />
         <button
           className="primary"
           disabled={submitting || password.length === 0}
@@ -130,9 +129,13 @@ export default function App(): React.JSX.Element {
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
 
   useEffect(() => {
-    const onHashChange = (): void => setScreen(routeFromHash());
+    const onHashChange = (): void => {
+      setScreen(routeFromHash());
+    };
     window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
+    return () => {
+      window.removeEventListener("hashchange", onHashChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -160,7 +163,9 @@ export default function App(): React.JSX.Element {
     };
 
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 500);
+    const timer = window.setInterval(() => {
+      void refresh();
+    }, 500);
     return () => {
       active = false;
       window.clearInterval(timer);
@@ -193,21 +198,37 @@ export default function App(): React.JSX.Element {
           />
         );
       case "login":
-        return <LoginPage onSuccess={() => navigate("sets")} />;
+        return (
+          <LoginPage
+            onSuccess={() => {
+              navigate("sets");
+            }}
+          />
+        );
       case "sets":
         return (
           <section>
             <h2>Choose a macro set</h2>
             <Card
               action={
-                <button type="button" onClick={() => navigate("procedures")}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate("procedures");
+                  }}
+                >
                   Open
                 </button>
               }
               body="ChromeOS, MrChromebox, and Debian workflows"
               title="HP Chromebook 11 G6 EE"
             />
-            <button type="button" onClick={() => navigate("manage-sets")}>
+            <button
+              type="button"
+              onClick={() => {
+                navigate("manage-sets");
+              }}
+            >
               Manage sets
             </button>
           </section>
@@ -218,7 +239,12 @@ export default function App(): React.JSX.Element {
             <h2>Procedures</h2>
             <Card
               action={
-                <button type="button" onClick={() => navigate("procedure")}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate("procedure");
+                  }}
+                >
                   Continue
                 </button>
               }
@@ -233,17 +259,32 @@ export default function App(): React.JSX.Element {
             <h2>ChromeOS to Debian 13</h2>
             <Card
               action={
-                <button type="button" onClick={() => navigate("confirm")}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate("confirm");
+                  }}
+                >
                   Send
                 </button>
               }
               body="Macro step · explicit send required"
               title="Enter shell"
             />
-            <button type="button" onClick={() => navigate("instruction")}>
+            <button
+              type="button"
+              onClick={() => {
+                navigate("instruction");
+              }}
+            >
               View manual step
             </button>
-            <button type="button" onClick={() => navigate("procedure-editor")}>
+            <button
+              type="button"
+              onClick={() => {
+                navigate("procedure-editor");
+              }}
+            >
               Edit procedure
             </button>
           </section>
@@ -252,7 +293,12 @@ export default function App(): React.JSX.Element {
         return (
           <Card
             action={
-              <button type="button" onClick={() => navigate("procedure")}>
+              <button
+                type="button"
+                onClick={() => {
+                  navigate("procedure");
+                }}
+              >
                 Mark complete
               </button>
             }
@@ -274,7 +320,12 @@ export default function App(): React.JSX.Element {
             <h2>Macros</h2>
             <Card
               action={
-                <button type="button" onClick={() => navigate("macro-editor")}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate("macro-editor");
+                  }}
+                >
                   Edit
                 </button>
               }
@@ -290,9 +341,9 @@ export default function App(): React.JSX.Element {
             <label htmlFor="source">Macro source</label>
             <textarea
               id="source"
-              onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
-                setMacroSource(event.target.value)
-              }
+              onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
+                setMacroSource(event.target.value);
+              }}
               value={macroSource}
             />
             <p>{new TextEncoder().encode(macroSource).length} bytes</p>
@@ -314,7 +365,13 @@ export default function App(): React.JSX.Element {
               <dt>USB</dt>
               <dd>Ready</dd>
             </dl>
-            <button className="primary" type="button" onClick={() => navigate("execution")}>
+            <button
+              className="primary"
+              type="button"
+              onClick={() => {
+                navigate("execution");
+              }}
+            >
               Send now
             </button>
           </section>
@@ -331,7 +388,9 @@ export default function App(): React.JSX.Element {
             <button
               className="danger"
               type="button"
-              onClick={() => void cancelExecution()}
+              onClick={() => {
+                void cancelExecution();
+              }}
             >
               Cancel and release keys
             </button>
@@ -341,7 +400,12 @@ export default function App(): React.JSX.Element {
         return (
           <Card
             action={
-              <button type="button" onClick={() => navigate("procedure")}>
+              <button
+                type="button"
+                onClick={() => {
+                  navigate("procedure");
+                }}
+              >
                 Return
               </button>
             }
@@ -353,16 +417,36 @@ export default function App(): React.JSX.Element {
         return (
           <section>
             <h2>Manage macro sets</h2>
-            <button type="button" onClick={() => navigate("set-editor")}>
+            <button
+              type="button"
+              onClick={() => {
+                navigate("set-editor");
+              }}
+            >
               Create set
             </button>
-            <button type="button" onClick={() => navigate("import")}>
+            <button
+              type="button"
+              onClick={() => {
+                navigate("import");
+              }}
+            >
               Import
             </button>
-            <button type="button" onClick={() => navigate("export")}>
+            <button
+              type="button"
+              onClick={() => {
+                navigate("export");
+              }}
+            >
               Export
             </button>
-            <button type="button" onClick={() => navigate("delete-set")}>
+            <button
+              type="button"
+              onClick={() => {
+                navigate("delete-set");
+              }}
+            >
               Delete
             </button>
           </section>
@@ -406,7 +490,12 @@ export default function App(): React.JSX.Element {
             <h2>Settings</h2>
             <Card body="Always ask which macro set to use" title="Startup set selection" />
             <Card body="Require the device button before typing" title="Physical confirmation" />
-            <button type="button" onClick={() => navigate("diagnostics")}>
+            <button
+              type="button"
+              onClick={() => {
+                navigate("diagnostics");
+              }}
+            >
               Storage diagnostics
             </button>
           </section>
@@ -422,12 +511,7 @@ export default function App(): React.JSX.Element {
     }
   })();
 
-  const errorBanner =
-    runtimeError === null ? null : (
-      <p className="error-message" role="alert">
-        {runtimeError}
-      </p>
-    );
+  const errorBanner = <ErrorBanner message={runtimeError} />;
 
   if (screen === "setup" || screen === "login" || screen === "sets") {
     return (
