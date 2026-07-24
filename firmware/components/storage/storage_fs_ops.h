@@ -6,6 +6,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#define STORAGE_FS_ENTRY_NAME_MAX 256U
+
 typedef struct {
     void *context;
     int (*open_file)(void *context, const char *path, int flags, mode_t mode);
@@ -19,9 +21,19 @@ typedef struct {
     int (*stat_path)(void *context, const char *path, struct stat *metadata);
     int (*rename_path)(void *context, const char *source, const char *destination);
     int (*unlink_path)(void *context, const char *path);
+    int (*make_directory)(void *context, const char *path, mode_t mode);
+    void *(*open_directory)(void *context, const char *path);
+    int (*read_directory)(void *context,
+                          void *directory,
+                          char *name,
+                          size_t name_size,
+                          bool *out_end);
+    int (*close_directory)(void *context, void *directory);
+    int (*remove_directory)(void *context, const char *path);
 } storage_fs_ops_t;
 
 const storage_fs_ops_t *storage_fs_ops_posix(void);
 bool storage_fs_ops_is_valid(const storage_fs_ops_t *operations);
+bool storage_fs_ops_has_directory(const storage_fs_ops_t *operations);
 
 #endif
