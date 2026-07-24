@@ -36,6 +36,7 @@ static int posix_sync(void *context, int descriptor)
     return fsync(descriptor);
 }
 
+#ifndef ESP_PLATFORM
 static int copy_parent_path(const char *path, char **out_parent)
 {
     if (out_parent != NULL) {
@@ -66,14 +67,15 @@ static int copy_parent_path(const char *path, char **out_parent)
     *out_parent = parent;
     return 0;
 }
+#endif
 
-static int posix_sync_parent_path(void *context, const char *path)
+int storage_fs_sync_parent_path(void *context, const char *path)
 {
     (void)context;
 #ifdef ESP_PLATFORM
     /*
-     * LittleFS commits rename metadata atomically and does not expose a POSIX
-     * directory-fsync primitive through ESP-IDF VFS. File sync/close plus the
+     * LittleFS commits rename metadata atomically and ESP-IDF VFS does not
+     * expose a POSIX directory-fsync primitive. File sync/close plus the
      * completed rename is therefore the platform durability boundary.
      */
     if (path == NULL || path[0] == '\0') {
@@ -199,7 +201,6 @@ const storage_fs_ops_t *storage_fs_ops_posix(void)
         .read_file = posix_read,
         .write_file = posix_write,
         .sync_file = posix_sync,
-        .sync_parent_path = posix_sync_parent_path,
         .close_file = posix_close,
         .stat_path = posix_stat,
         .rename_path = posix_rename,
@@ -217,9 +218,9 @@ bool storage_fs_ops_is_valid(const storage_fs_ops_t *operations)
 {
     return operations != NULL && operations->open_file != NULL &&
            operations->read_file != NULL && operations->write_file != NULL &&
-           operations->sync_file != NULL && operations->sync_parent_path != NULL &&
-           operations->close_file != NULL && operations->stat_path != NULL &&
-           operations->rename_path != NULL && operations->unlink_path != NULL;
+           operations->sync_file != NULL && operations->close_file != NULL &&
+           operations->stat_path != NULL && operations->rename_path != NULL &&
+           operations->unlink_path != NULL;
 }
 
 bool storage_fs_ops_has_directory(const storage_fs_ops_t *operations)
