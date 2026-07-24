@@ -2,10 +2,10 @@
 
 Status: **In progress**
 
-Validated milestone: **Storage fault-injection and ESP32-S3 device-build slice complete**
+Validated milestones: **Storage fault injection, ESP32-S3 device build, and frontend test slice**
 
-This file records implementation progress against `docs/UNIT_TESTS1_TODO.md`. A passing host
-suite or successful firmware build does not imply physical device execution or
+This file records implementation progress against `docs/UNIT_TESTS1_TODO.md`. A passing host or
+frontend suite or successful firmware build does not imply physical device execution or
 hardware-in-the-loop verification.
 
 ## Implemented and validated in pull-request CI
@@ -31,7 +31,7 @@ hardware-in-the-loop verification.
 - Storage atomic writes, parent-directory durability, repository I/O, transaction recovery,
   quarantine, and the integrated storage repository suite.
 
-### Storage hardening completed by this slice
+### Storage hardening
 
 - Injectable filesystem and repository-index operations for transaction recovery.
 - Deterministic transaction recovery and compound failure injection.
@@ -43,6 +43,17 @@ hardware-in-the-loop verification.
 - ESP32 LittleFS durability policy documented in the production filesystem adapter without
   pretending unsupported POSIX directory `fsync` is available through ESP-IDF VFS.
 
+### Frontend test milestone
+
+- Deterministic fetch, location, timer, DOM, and React rendering support.
+- API-client tests for same-origin requests, headers, mutation CSRF, response envelopes,
+  malformed responses, network errors, abort timeout, and timer cleanup.
+- Application tests for all implemented routes, login and CSRF handling, execution polling,
+  completed/cancelled/failed transitions, cancellation, visible failures, and cleanup.
+- Error-banner tests that verify untrusted text is rendered as text rather than markup.
+- Strict TypeScript, ESLint, Stylelint, Prettier, and Vitest validation.
+- A committed npm lockfile and reproducible `npm ci` execution in pull-request CI.
+
 ### ESP32-S3 device-build validation
 
 - Unity sources for executor, authentication, and USB-state tests are registered.
@@ -53,6 +64,7 @@ hardware-in-the-loop verification.
 ### CI behavior
 
 - The complete configured native host suite passes.
+- The frontend typecheck, lint, formatting, and Vitest stack passes.
 - The configured ESP32-S3 device-test build passes.
 - Pull-request jobs preserve complete failure diagnostics in job logs.
 - Normal pull-request runs retain no workflow artifacts; artifact upload remains restricted to
@@ -60,25 +72,21 @@ hardware-in-the-loop verification.
 
 ## Milestone scope
 
-The storage-hardening milestone is intentionally bounded. Remaining work should continue in
-smaller branches rather than extending the completed storage slice into a repository-wide
-mega-PR.
+Completed slices remain intentionally bounded. Remaining work should continue in smaller branches
+rather than extending one pull request into a repository-wide mega-PR.
 
 ## Still open
 
 1. Split object-repository suites for macros, procedures, and progress where implementations
    exist, and reconcile their required CRUD and corruption cases.
-2. Add frontend test support plus API, routing, authentication, execution, and error-banner
-   suites.
-3. Reconcile every parser/model boundary requirement against the existing suites and add any
+2. Reconcile every parser/model boundary requirement against the existing suites and add any
    missing cases.
-4. Add AddressSanitizer and UndefinedBehaviorSanitizer builds.
-5. Add native and frontend line/branch coverage and establish gates only after the required
+3. Add AddressSanitizer and UndefinedBehaviorSanitizer builds.
+4. Add native and frontend line/branch coverage and establish gates only after the required
    suites exist.
-6. Expand CI to execute frontend, sanitizer, and coverage jobs and validate tagged artifact
-   packaging.
-7. Update the remaining repository documentation after those jobs are green.
-8. Execute the Unity suites on a physical ESP32-S3 and complete the separate HIL plan.
+5. Expand CI to execute sanitizer and coverage jobs and validate tagged artifact packaging.
+6. Update the remaining repository documentation after those jobs are green.
+7. Execute the Unity suites on a physical ESP32-S3 and complete the separate HIL plan.
 
 ## Validation boundary
 
