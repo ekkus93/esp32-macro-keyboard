@@ -15,10 +15,16 @@ The project is under active implementation. Hardware-dependent acceptance items
 remain open until they are demonstrated on an ESP32-S3 and recorded in committed
 test evidence.
 
-Host tests run automatically for pushes to `master`, pull requests targeting
-`master`, and tagged commits. Device-test firmware is linted and compiled for the
-ESP32-S3 on the same events. Compiled assets and test logs are uploaded only for
-tagged commits.
+Host tests, AddressSanitizer/UBSan, native coverage, and the frontend suite run
+automatically for pushes to `master`, pull requests targeting `master`, and tagged
+commits. Device-test firmware is linted and compiled for the ESP32-S3 on the same
+events. Compiled assets and test logs are uploaded only for tagged commits.
+
+Per-capability validation state — host-tested, sanitizer-tested, coverage-gated,
+frontend-tested, device-build-tested, device-executed, and HIL-verified — is tracked
+in [`docs/UNIT_TESTS1_PROGRESS.md`](docs/UNIT_TESTS1_PROGRESS.md) and
+[`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md). No capability is
+currently claimed device-executed or HIL-verified.
 
 ## Toolchain
 
@@ -33,8 +39,11 @@ See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
 
 The device-test application uses ESP-IDF's Unity test menu. The current suite runs
 on one ESP32-S3 and tests hardware-RNG UUID generation, UUID validation, macro
-parsing and compilation, parser failure atomicity, and the authoritative firmware
-limits.
+parsing and compilation, parser failure atomicity, the authoritative firmware
+limits, authentication adapters, the macro executor's idle/USB-not-ready behavior,
+and USB keyboard state initialization. The firmware is device-build-tested (it
+compiles for the ESP32-S3 in CI); running it on hardware and reviewing serial
+output is separate, not-yet-completed work.
 
 Install and activate the pinned toolchain:
 
@@ -69,6 +78,9 @@ Then enter one of these selectors:
 [uuid]                  Run hardware-RNG and UUID tests
 [macro_parser]          Run macro parser/compiler tests
 [limits]                Run centralized-limit tests
+[auth]                  Run authentication adapter tests
+[executor]              Run macro executor state tests
+[usb]                   Run USB keyboard state tests
 ```
 
 A successful run ends with Unity reporting zero failures. Copy the complete serial

@@ -1,6 +1,6 @@
 # Implementation status
 
-**Updated:** 2026-07-23
+**Updated:** 2026-07-24
 
 This file records implementation evidence without claiming build or hardware
 results that have not been observed.
@@ -33,24 +33,41 @@ results that have not been observed.
 
 ## Validation completed in this environment
 
-- Strict release-mode host build and tests for the macro model/parser.
-- Printable ASCII mapping coverage and malformed-directive cases.
-- Ten thousand deterministic parser fuzz inputs with the no-partial-plan check.
-- Strict first-party syntax/warning pass for ESP-IDF-facing C files using local
-  API stubs and the configured warning set.
-- Shell `bash -n`, JSON parsing, partition bounds, and standalone strict
-  TypeScript checking with local type stubs.
+Verified locally on the current `master` head using the CI-pinned toolchain
+(clang-format 18, cmakelang 0.6.13, shfmt 3.11.0, shellcheck 0.9.0, yamllint 1.38.0,
+markdownlint-cli2 0.23.1, Node 24.18.0, gcovr 8.6). These are local results; exact-head
+GitHub Actions confirmation is a separate step (see `docs/UNIT_TESTS1_PROGRESS.md`).
 
-The ESP-IDF stub pass validates first-party C syntax and warnings only. It is not
-a substitute for a real ESP-IDF build or link.
+- **Host-tested:** the full native CTest suite passes (17 suites) — macro parser and
+  model, macro executor, authentication and sessions, HTTP security and server adapter,
+  application startup and rollback, USB keyboard state, device controls, Wi-Fi AP state,
+  and storage (atomic writes, parent-directory durability, repository I/O, transaction
+  recovery, quarantine, and set CRUD with deterministic fault injection).
+- **Sanitizer-tested:** the full suite passes under AddressSanitizer and
+  UndefinedBehaviorSanitizer with no leaks.
+- **Coverage-gated:** native coverage runs over first-party code only and the pure-policy
+  gate passes (line 95.1% >= 90, branch 86.1% >= 80).
+- **Frontend-tested:** `check-webapp.sh` passes end to end — typecheck, ESLint and
+  Stylelint at zero warnings, Prettier, Vitest, the production build, and the local-only
+  asset check — from the committed `webapp/package-lock.json` via `npm ci`. Frontend
+  coverage is lockfile-reproducible.
+- The full first-party lint gate passes: `check-format.sh`, `check-scripts.sh`, and
+  `check-docs.sh`.
+
+Not validated here: a real ESP-IDF `v5.5.5` firmware build or link (no SDK in this
+environment), `check-firmware.sh` clang-tidy, tagged-artifact packaging, and any
+physical/HIL result.
 
 ## Release-blocking work still open
 
 - ESP-IDF component resolution and committed `dependencies.lock`.
-- Committed npm lockfile and clean `npm ci`/ESLint/Stylelint/Prettier/Vite run.
 - Persistent encrypted NVS provisioning and production credential reset.
-- Set, macro, procedure, progress, ordering, quarantine, and repository CRUD.
-- Operation-specific transaction roll-forward/rollback and fault injection.
+- Macro, procedure, and progress object-repository CRUD. The set repository, its
+  ordering index, and quarantine are implemented and host-tested; the macro,
+  procedure, and progress repositories do not yet exist (see Task 7.3 in
+  `docs/UNIT_TESTS1_TODO.md`).
+- Operation-specific transaction roll-forward/rollback for the object repositories
+  above.
 - Execution submission that loads and compiles server-owned persisted macros.
 - Full CRUD, import/export, backup/restore, settings, and diagnostics APIs.
 - Full frontend data workflows and accessibility/end-to-end tests.

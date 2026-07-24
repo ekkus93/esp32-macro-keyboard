@@ -2,8 +2,10 @@
 
 The repository currently defines three workflows:
 
-- `host-tests.yml` runs native host tests for pushes to `master`, pull requests,
-  tags, and manual dispatch.
+- `host-tests.yml` runs, for pushes to `master`, pull requests, tags, and manual
+  dispatch: the normal native host suite, an AddressSanitizer/UndefinedBehaviorSanitizer
+  run, native coverage with the enforced pure-policy gate, the frontend
+  typecheck/lint/stylelint/format/Vitest stack, and frontend coverage.
 - `device-tests-build.yml` formats and builds the ESP32-S3 Unity test firmware with
   ESP-IDF v5.5.5 for the same events.
 - `quality.yml` runs the complete first-party quality gate manually. It remains

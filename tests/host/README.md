@@ -21,6 +21,26 @@ Supported labels are `support`, `parser`, `storage`, `executor`, `auth`, `web`, 
 `usb`, `controls`, `wifi`, and `model`. A known label with no implemented tests returns
 CTest's normal no-tests result; an unknown label is rejected before configuring the build.
 
+## Build modes
+
+The runner selects an isolated build directory per mode so normal, sanitizer, and coverage
+builds never contaminate one another:
+
+```bash
+./scripts/run-tests.sh              # normal build (tests/host/build)
+./scripts/run-tests.sh --sanitizers # AddressSanitizer + UndefinedBehaviorSanitizer
+./scripts/run-tests.sh --coverage   # gcov instrumentation (tests/host/build-coverage)
+```
+
+Native line/branch coverage with the enforced pure-policy gate (line >= 90, branch >= 80) is
+produced by:
+
+```bash
+bash ./scripts/generate-native-coverage.sh
+```
+
+Sanitizer findings are real defects and are never suppressed; a first-party leak fails the run.
+
 ## Test infrastructure
 
 - `support/` contains release-safe assertions, temporary-directory helpers, and explicit
