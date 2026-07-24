@@ -1,8 +1,11 @@
 #include "storage_fs_ops.h"
 
+#include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 static int posix_open(void *context, const char *path, int flags, mode_t mode)
@@ -56,6 +59,65 @@ static int posix_unlink(void *context, const char *path)
     return unlink(path);
 }
 
+static int posix_mkdir(void *context, const char *path, mode_t mode)
+{
+    (void)context;
+    return mkdir(path, mode);
+}
+
+static void *posix_open_directory(void *context, const char *path)
+{
+    (void)context;
+    return opendir(path);
+}
+
+static int posix_read_directory(void *context,
+                                void *directory,
+                                char *name,
+                                size_t name_size,
+                                bool *out_end)
+{
+    (void)context;
+    if (directory == NULL || name == NULL || name_size == 0U || out_end == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+    name[0] = '\0';
+    *out_end = false;
+    errno = 0;
+    const struct dirent *entry = readdir((DIR *)directory);
+    if (entry == NULL) {
+        if (errno != 0) {
+            return -1;
+        }
+        *out_end = true;
+        return 0;
+    }
+    const size_t length = strlen(entry->d_name);
+    if (length >= name_size) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    memcpy(name, entry->d_name, length + 1U);
+    return 0;
+}
+
+static int posix_close_directory(void *context, void *directory)
+{
+    (void)context;
+    if (directory == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+    return closedir((DIR *)directory);
+}
+
+static int posix_remove_directory(void *context, const char *path)
+{
+    (void)context;
+    return rmdir(path);
+}
+
 const storage_fs_ops_t *storage_fs_ops_posix(void)
 {
     static const storage_fs_ops_t operations = {
@@ -68,6 +130,11 @@ const storage_fs_ops_t *storage_fs_ops_posix(void)
         .stat_path = posix_stat,
         .rename_path = posix_rename,
         .unlink_path = posix_unlink,
+        .make_directory = posix_mkdir,
+        .open_directory = posix_open_directory,
+        .read_directory = posix_read_directory,
+        .close_directory = posix_close_directory,
+        .remove_directory = posix_remove_directory,
     };
     return &operations;
 }
@@ -79,4 +146,11 @@ bool storage_fs_ops_is_valid(const storage_fs_ops_t *operations)
            operations->sync_file != NULL && operations->close_file != NULL &&
            operations->stat_path != NULL && operations->rename_path != NULL &&
            operations->unlink_path != NULL;
+}
+
+bool storage_fs_ops_has_directory(const storage_fs_ops_t *operations)
+{
+    return storage_fs_ops_is_valid(operations) && operations->make_directory != NULL &&
+           operations->open_directory != NULL && operations->read_directory != NULL &&
+           operations->close_directory != NULL && operations->remove_directory != NULL;
 }
