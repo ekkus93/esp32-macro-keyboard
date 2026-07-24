@@ -45,7 +45,8 @@ static app_error_code_t verify_file(const storage_fs_ops_t *operations,
 {
     int descriptor = operations->open_file(operations->context, path, O_RDONLY, 0);
     if (descriptor < 0) {
-        return map_error_number(errno);
+        const int open_error = errno;
+        return map_error_number(open_error);
     }
 
     app_error_code_t result = APP_ERROR_NONE;
@@ -76,14 +77,16 @@ static app_error_code_t verify_file(const storage_fs_ops_t *operations,
         const ssize_t count = operations->read_file(
             operations->context, descriptor, &extra, 1U);
         if (count < 0) {
-            result = map_error_number(errno);
+            const int read_error = errno;
+            result = map_error_number(read_error);
         } else if (count != 0) {
             result = APP_ERROR_IO;
         }
     }
     if (operations->close_file(operations->context, descriptor) != 0 &&
         result == APP_ERROR_NONE) {
-        result = map_error_number(errno);
+        const int close_error = errno;
+        result = map_error_number(close_error);
     }
     return result;
 }
@@ -96,6 +99,16 @@ static app_error_code_t cleanup_path(const storage_fs_ops_t *operations,
     }
     const int unlink_error = errno;
     return unlink_error == ENOENT ? APP_ERROR_NONE : map_error_number(unlink_error);
+}
+
+static app_error_code_t sync_parent(const storage_fs_ops_t *operations,
+                                    const char *path)
+{
+    if (operations->sync_parent_path(operations->context, path) == 0) {
+        return APP_ERROR_NONE;
+    }
+    const int sync_error = errno;
+    return map_error_number(sync_error);
 }
 
 static app_error_code_t production_uuid_generate(void *context, app_uuid_t *out_uuid)
@@ -159,6 +172,58 @@ static app_error_code_t create_temporary_file(const char *path,
     return APP_ERROR_CONFLICT;
 }
 
+static app_error_code_t restore_backup_after_failed_barrier(
+    const storage_fs_ops_t *operations,
+    const char *path,
+    const char *backup,
+    const char *temporary,
+    app_error_code_t original_error)
+{
+    if (operations->rename_path(operations->context, backup, path) != 0) {
+        const int rollback_error = errno;
+        return map_error_number(rollback_error);
+    }
+    app_error_code_t result = sync_parent(operations, path);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    const app_error_code_t cleanup_result = cleanup_path(operations, temporary);
+    return cleanup_result == APP_ERROR_NONE ? original_error : cleanup_result;
+}
+
+static app_error_code_t rollback_activated_destination(
+    const storage_fs_ops_t *operations,
+    const char *path,
+    const char *temporary,
+    const char *backup,
+    bool destination_existed,
+    app_error_code_t original_error)
+{
+    if (operations->rename_path(operations->context, path, temporary) != 0) {
+        const int rollback_error = errno;
+        return map_error_number(rollback_error);
+    }
+
+    app_error_code_t result = sync_parent(operations, path);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+
+    if (destination_existed) {
+        if (operations->rename_path(operations->context, backup, path) != 0) {
+            const int restore_error = errno;
+            return map_error_number(restore_error);
+        }
+        result = sync_parent(operations, path);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+    }
+
+    const app_error_code_t cleanup_result = cleanup_path(operations, temporary);
+    return cleanup_result == APP_ERROR_NONE ? original_error : cleanup_result;
+}
+
 app_error_code_t storage_atomic_write_with_ops(const char *path,
                                                const void *data,
                                                size_t data_length,
@@ -193,7 +258,8 @@ app_error_code_t storage_atomic_write_with_ops(const char *path,
     }
     if (operations->close_file(operations->context, descriptor) != 0 &&
         result == APP_ERROR_NONE) {
-        result = map_error_number(errno);
+        const int close_error = errno;
+        result = map_error_number(close_error);
     }
     if (result == APP_ERROR_NONE) {
         result = verify_file(operations, temporary, data, data_length);
@@ -215,29 +281,47 @@ app_error_code_t storage_atomic_write_with_ops(const char *path,
         }
     }
 
-    if (destination_exists &&
-        operations->rename_path(operations->context, path, backup) != 0) {
-        const app_error_code_t rename_result = map_error_number(errno);
-        const app_error_code_t cleanup_result = cleanup_path(operations, temporary);
-        return cleanup_result == APP_ERROR_NONE ? rename_result : cleanup_result;
+    if (destination_exists) {
+        if (operations->rename_path(operations->context, path, backup) != 0) {
+            const int rename_error = errno;
+            const app_error_code_t rename_result = map_error_number(rename_error);
+            const app_error_code_t cleanup_result = cleanup_path(operations, temporary);
+            return cleanup_result == APP_ERROR_NONE ? rename_result : cleanup_result;
+        }
+        result = sync_parent(operations, path);
+        if (result != APP_ERROR_NONE) {
+            return restore_backup_after_failed_barrier(
+                operations, path, backup, temporary, result);
+        }
     }
 
     if (operations->rename_path(operations->context, temporary, path) != 0) {
-        const app_error_code_t activate_result = map_error_number(errno);
-        app_error_code_t rollback_result = APP_ERROR_NONE;
-        if (destination_exists &&
-            operations->rename_path(operations->context, backup, path) != 0) {
-            rollback_result = map_error_number(errno);
+        const int activate_error = errno;
+        const app_error_code_t activate_result = map_error_number(activate_error);
+        if (destination_exists) {
+            return restore_backup_after_failed_barrier(
+                operations, path, backup, temporary, activate_result);
         }
         const app_error_code_t cleanup_result = cleanup_path(operations, temporary);
-        if (rollback_result != APP_ERROR_NONE) {
-            return rollback_result;
-        }
         return cleanup_result == APP_ERROR_NONE ? activate_result : cleanup_result;
+    }
+
+    result = sync_parent(operations, path);
+    if (result != APP_ERROR_NONE) {
+        return rollback_activated_destination(operations,
+                                              path,
+                                              temporary,
+                                              backup,
+                                              destination_exists,
+                                              result);
     }
 
     if (destination_exists) {
         result = cleanup_path(operations, backup);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+        result = sync_parent(operations, path);
         if (result != APP_ERROR_NONE) {
             return result;
         }
