@@ -3,11 +3,12 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include "tusb.h"
 
 const tusb_desc_device_t *usb_descriptors_device(void);
 const uint8_t *usb_descriptors_configuration(void);
-const char *const *usb_descriptors_strings(void);
+const char **usb_descriptors_strings(void);
 size_t usb_descriptors_string_count(void);
 
 #endif
