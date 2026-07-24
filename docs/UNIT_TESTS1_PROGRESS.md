@@ -42,6 +42,37 @@ Not verified here and still gated: exact-head GitHub Actions CI (no ESP-IDF loca
 trigger Actions), `check-firmware.sh` build + clang-tidy, tagged-artifact packaging (needs an
 authorized tag), and all physical/HIL work.
 
+### Source audits (2026-07-24)
+
+**Device-test audit (checklist item "Device tests do not print secrets or destructively recover
+storage").** Reviewed every file under `firmware/test_app/`. Result: clean.
+
+- No NVS erase, no LittleFS/partition format, no Wi-Fi or SoftAP start (the device-test app does
+  not even register the `wifi_ap` component).
+- No `printf`/`ESP_LOG`/other output in any test source. The auth test's password and PBKDF2
+  salt/hash are deterministic test vectors, asserted only through boolean verify calls, never
+  printed, and their buffers are zeroed after use.
+- The only blocking-input call is `unity_run_menu()` in `test_main.c`, the standard ESP-IDF
+  interactive runner (an operator selects tests such as `*` or `[device]` over serial); no
+  individual `TEST_CASE` blocks on input.
+
+This item is reconciled by review; physical execution remains separate HIL work.
+
+**Fake unexpected-call enforcement (checklist item "Unexpected fake calls fail tests in every
+applicable fake and suite").** Partially satisfied — left open.
+
+- Every fake (clock, freertos, fs, gpio, http, random, usb, wifi) has 3-7 unconditional
+  `abort()` guards, so a call with invalid arguments or in an invalid state fails the test in
+  every fake regardless of configuration.
+- Every fake routes its operations through `fake_call_log_record`, which in strict mode
+  `abort()`s on any call that does not match the next expected call, and `fake_call_log_verify`
+  `abort()`s on missing expected calls.
+- However, `fake_call_log_set_strict(...)` is currently enabled only in `test_support.c` (the
+  infrastructure's own suite). No subsystem suite enables strict call-sequence expectations, so
+  the strongest reading of the item — every suite enforces unexpected-call failure — is not yet
+  met. Enabling strict expectations per suite remains open work and is a substantial change
+  (each suite must declare its exact expected call sequence).
+
 ## Implemented and validated in pull-request CI
 
 ### Host-test infrastructure
