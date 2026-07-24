@@ -8,6 +8,40 @@ This file records implementation progress against `docs/UNIT_TESTS1_TODO.md`. A 
 frontend suite or successful firmware build does not imply physical device execution or
 hardware-in-the-loop verification.
 
+## 2026-07-24 — Local baseline verification and defect fixes
+
+Commits `69adee9..c7a768f` on `master`. The full software-only gate was run locally on a pinned
+toolchain (clang-format 18, cmakelang 0.6.13, shfmt 3.11.0, shellcheck 0.9.0, yamllint 1.38.0,
+markdownlint-cli2 0.23.1, Node 24.18.0, gcovr 8.6) matching the CI pins. Results:
+
+| Check | Result |
+|-------|--------|
+| Native host suite (`run-tests.sh`) | pass, 17/17 |
+| ASan + UBSan (`run-tests.sh --sanitizers`) | pass, 17/17, no leaks |
+| Native coverage pure-policy gate | pass, 95.1% line / 86.1% branch (thresholds 90/80) |
+| Frontend coverage (lockfile-only) | pass, all three reports produced |
+| `check-format.sh` | pass |
+| `check-scripts.sh` | pass |
+| `check-docs.sh` | pass |
+| `check-webapp.sh` | pass |
+
+Defects found and fixed while reaching this baseline:
+
+- Macro parser leaked an uppercase key's implicit SHIFT into chord modifiers, so `{CTRL+A}`
+  compiled to Ctrl+Shift+A. Corrected per SPEC 10.4.
+- `fake_fs_close_dir` leaked the real `DIR` when simulating a close failure, aborting three
+  storage suites under LeakSanitizer.
+- `generate-native-coverage.sh` used a gcovr flag incompatible with the pinned gcovr 8.6, so
+  the coverage run never completed.
+- Frontend coverage was made lockfile-reproducible (§7.1): `@vitest/coverage-v8@3.2.4` added to
+  `devDependencies`; dynamic install removed.
+- Repo-wide formatter and linter debt cleared: clang-format/cmake-format on firmware, shfmt and
+  shellcheck on scripts, markdownlint on docs, and a tightened `verify-no-remote-assets.sh`.
+
+Not verified here and still gated: exact-head GitHub Actions CI (no ESP-IDF locally, cannot
+trigger Actions), `check-firmware.sh` build + clang-tidy, tagged-artifact packaging (needs an
+authorized tag), and all physical/HIL work.
+
 ## Implemented and validated in pull-request CI
 
 ### Host-test infrastructure
