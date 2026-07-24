@@ -35,7 +35,9 @@ export function AppShell({
           <button
             className={route === target ? "active" : ""}
             key={target}
-            onClick={() => navigate(target)}
+            onClick={() => {
+              navigate(target);
+            }}
             type="button"
           >
             {label}
