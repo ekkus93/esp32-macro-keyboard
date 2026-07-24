@@ -67,17 +67,29 @@ applicable fake and suite").** Partially satisfied — left open.
 - Every fake routes its operations through `fake_call_log_record`, which in strict mode
   `abort()`s on any call that does not match the next expected call, and `fake_call_log_verify`
   `abort()`s on missing expected calls.
-- A proof of concept now enables strict enforcement in a subsystem suite:
-  `test_app_core.c` (`test_success_order_and_distinct_credentials`) registers the exact
+Strict enforcement is now used in subsystem suites, not only in `test_support.c`:
+
+- `test_app_core.c` (`test_success_order_and_distinct_credentials`) registers the exact
   20-call startup sequence, sets strict mode, runs `app_core_sequence_start`, and calls
   `fake_call_log_verify`, so an unexpected, out-of-order, or missing operation aborts during
-  execution instead of being re-derived from the log afterward. Verified both directions:
-  the suite passes with the correct sequence and aborts when two expectations are transposed.
-- Beyond `test_support.c` and this `app_core` proof of concept, subsystem suites still do not
-  enable strict call-sequence expectations, so the strongest reading of the item — every
-  applicable suite enforces unexpected-call failure — is not yet fully met. Rolling strict
-  expectations out to the remaining suites is the open work (each suite must declare its exact
-  expected call sequence, as `app_core` now does).
+  execution instead of being re-derived from the log afterward.
+- `test_storage_atomic.c` (`test_create_enforces_operation_sequence`) locks the atomic-write
+  durability sequence (open temp, write, fsync, close, read-back verify, rename).
+- `test_storage_parent_sync.c` (`test_parent_sync_enforces_operation_sequence`) locks the same
+  sequence plus the trailing `fs_sync_parent`, i.e. the parent-directory fsync that makes the
+  rename durable.
+
+Each was verified both directions: it passes with the correct sequence and aborts when
+expectations are transposed (for the parent-sync test, moving `fs_sync_parent` before
+`fs_rename` — a crash-safety regression — aborts with SIGABRT).
+
+- These suites strictly enforce their deterministic happy-path sequences. The many
+  fault-injection cases across the storage and other subsystem suites still run in permissive
+  (record-and-assert) mode, because their sequences vary by injection point and are not fixed;
+  those tests already assert both the returned error and the resulting ownership/state. Rolling
+  strict enforcement out to more happy-path scenarios remains straightforward open work
+  following the pattern above; blanket strict enforcement of fault-injection paths is not
+  appropriate.
 
 ### Documentation reconciliation (2026-07-24, Task 15.3)
 

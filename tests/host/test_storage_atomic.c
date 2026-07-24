@@ -367,10 +367,49 @@ static void test_uuid_failure_has_no_side_effect(void)
     test_temp_dir_remove(&directory);
 }
 
+static void test_create_enforces_operation_sequence(void)
+{
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char path[APP_PATH_MAX_BYTES];
+    make_path(path, sizeof(path), &directory, "object.json");
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    uuid_sequence_t uuids = {0};
+
+    /*
+     * Strict fake enforcement (UNIT_TESTS1 L915) for the atomic-write durability
+     * sequence: open a temp file, write it, fsync it, close it, verify it by
+     * reading it back, then rename it over the destination. Strict mode aborts
+     * on any unexpected, missing, or out-of-order filesystem operation, locking
+     * this crash-safety ordering against accidental reordering in refactors.
+     */
+    static const char *const expected[] = {
+        "fs_open",  "fs_stat", "fs_write", "fs_sync",  "fs_close", "fs_open",
+        "fs_read",  "fs_read", "fs_close", "fs_stat",  "fs_rename",
+    };
+    fake_call_log_set_strict(&filesystem.calls, true);
+    for (size_t index = 0U; index < (sizeof(expected) / sizeof(expected[0])); ++index) {
+        fake_call_log_expect(&filesystem.calls, expected[index]);
+    }
+
+    static const char payload[] = "value";
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
+                      storage_atomic_write_with_ops(path, payload, sizeof(payload) - 1U,
+                                                    true, &operations, generate_uuid,
+                                                    &uuids));
+    fake_call_log_verify(&filesystem.calls);
+
+    test_temp_dir_remove(&directory);
+}
+
 int main(void)
 {
     test_invalid_arguments();
     test_create_and_replace();
+    test_create_enforces_operation_sequence();
     test_short_io_is_completed();
     test_failures_preserve_destination();
     test_activation_failure_rolls_back();

@@ -382,10 +382,47 @@ static void test_restore_failure_compensates_with_new_destination(void)
     test_temp_dir_remove(&directory);
 }
 
+static void test_parent_sync_enforces_operation_sequence(void)
+{
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char path[APP_PATH_MAX_BYTES];
+    make_path(path, sizeof(path), &directory, "object.json");
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    uuid_sequence_t uuids = {0};
+
+    /*
+     * Strict fake enforcement (UNIT_TESTS1 L915) for the durable atomic-write
+     * sequence: the plain atomic-write ordering followed by a parent-directory
+     * fsync (fs_sync_parent) after the rename. Strict mode aborts on any
+     * unexpected, missing, or out-of-order operation, locking the crash-safety
+     * barrier that makes the rename durable. If fs_sync_parent were dropped or
+     * moved before the rename, this test would abort.
+     */
+    static const char *const expected[] = {
+        "fs_open",   "fs_stat",  "fs_write",  "fs_sync",       "fs_close",  "fs_open",
+        "fs_read",   "fs_read",  "fs_close",  "fs_stat",       "fs_rename", "fs_sync_parent",
+    };
+    fake_call_log_set_strict(&filesystem.calls, true);
+    for (size_t index = 0U; index < (sizeof(expected) / sizeof(expected[0])); ++index) {
+        fake_call_log_expect(&filesystem.calls, expected[index]);
+    }
+
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
+                      atomic_write(path, "value", &operations, &uuids, &filesystem));
+    fake_call_log_verify(&filesystem.calls);
+
+    test_temp_dir_remove(&directory);
+}
+
 int main(void)
 {
     test_missing_parent_sync_is_rejected();
     test_create_and_replace_barrier_counts();
+    test_parent_sync_enforces_operation_sequence();
     test_create_activation_barrier_failure_rolls_back();
     test_backup_barrier_failure_preserves_old_destination();
     test_activation_barrier_failure_preserves_old_destination();
