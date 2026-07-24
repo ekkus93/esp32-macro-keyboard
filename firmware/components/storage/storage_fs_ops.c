@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -33,6 +34,78 @@ static int posix_sync(void *context, int descriptor)
 {
     (void)context;
     return fsync(descriptor);
+}
+
+static int copy_parent_path(const char *path, char **out_parent)
+{
+    if (out_parent != NULL) {
+        *out_parent = NULL;
+    }
+    if (path == NULL || path[0] == '\0' || out_parent == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    const char *slash = strrchr(path, '/');
+    const char *parent_text = ".";
+    size_t parent_length = 1U;
+    if (slash == path) {
+        parent_text = "/";
+    } else if (slash != NULL) {
+        parent_text = path;
+        parent_length = (size_t)(slash - path);
+    }
+
+    char *parent = malloc(parent_length + 1U);
+    if (parent == NULL) {
+        errno = ENOMEM;
+        return -1;
+    }
+    memcpy(parent, parent_text, parent_length);
+    parent[parent_length] = '\0';
+    *out_parent = parent;
+    return 0;
+}
+
+static int posix_sync_parent_path(void *context, const char *path)
+{
+    (void)context;
+#ifdef ESP_PLATFORM
+    /*
+     * LittleFS commits rename metadata atomically and does not expose a POSIX
+     * directory-fsync primitive through ESP-IDF VFS. File sync/close plus the
+     * completed rename is therefore the platform durability boundary.
+     */
+    if (path == NULL || path[0] == '\0') {
+        errno = EINVAL;
+        return -1;
+    }
+    return 0;
+#else
+    char *parent = NULL;
+    if (copy_parent_path(path, &parent) != 0) {
+        return -1;
+    }
+
+    const int descriptor = open(parent, O_RDONLY);
+    const int open_error = errno;
+    free(parent);
+    if (descriptor < 0) {
+        errno = open_error;
+        return -1;
+    }
+
+    if (fsync(descriptor) != 0) {
+        const int sync_error = errno;
+        (void)close(descriptor);
+        errno = sync_error;
+        return -1;
+    }
+    if (close(descriptor) != 0) {
+        return -1;
+    }
+    return 0;
+#endif
 }
 
 static int posix_close(void *context, int descriptor)
@@ -126,6 +199,7 @@ const storage_fs_ops_t *storage_fs_ops_posix(void)
         .read_file = posix_read,
         .write_file = posix_write,
         .sync_file = posix_sync,
+        .sync_parent_path = posix_sync_parent_path,
         .close_file = posix_close,
         .stat_path = posix_stat,
         .rename_path = posix_rename,
@@ -143,9 +217,9 @@ bool storage_fs_ops_is_valid(const storage_fs_ops_t *operations)
 {
     return operations != NULL && operations->open_file != NULL &&
            operations->read_file != NULL && operations->write_file != NULL &&
-           operations->sync_file != NULL && operations->close_file != NULL &&
-           operations->stat_path != NULL && operations->rename_path != NULL &&
-           operations->unlink_path != NULL;
+           operations->sync_file != NULL && operations->sync_parent_path != NULL &&
+           operations->close_file != NULL && operations->stat_path != NULL &&
+           operations->rename_path != NULL && operations->unlink_path != NULL;
 }
 
 bool storage_fs_ops_has_directory(const storage_fs_ops_t *operations)
