@@ -58,6 +58,12 @@ hardware-in-the-loop verification.
 - Normal pull-request runs retain no workflow artifacts; artifact upload remains restricted to
   tagged runs.
 
+## Milestone closure
+
+This branch is intended to merge as the storage-hardening milestone after its documentation-only
+closure commits pass the same host and device-build workflows. Remaining work should continue in
+smaller branches rather than extending this pull request into a repository-wide mega-PR.
+
 ## Still open
 
 1. Split object-repository suites for macros, procedures, and progress where implementations
