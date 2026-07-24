@@ -21,7 +21,7 @@ Failure:
 ## Implemented routes
 
 | Method | Route | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | GET | `/api/v1/status` | Redacted subsystem status and versions |
 | GET | `/api/v1/limits` | Authoritative hard limits |
 | POST | `/api/v1/auth/login` | Verify password and create a RAM-only session |
@@ -36,7 +36,7 @@ CSRF, Host, and Origin validation.
 ## Required but not yet implemented
 
 | Route group | Missing behavior |
-|---|---|
+| --- | --- |
 | Setup/session | Persistent first-run provisioning and session introspection |
 | Sets | List, create, read, update, delete, duplicate, select, import, export |
 | Macros | Set/global CRUD, ordering, and validation summaries |

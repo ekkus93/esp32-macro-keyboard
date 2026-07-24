@@ -5,7 +5,7 @@ No result in this document is marked passed until observed and recorded.
 ## USB host matrix
 
 | Host | Enumeration | Reconnect | Suspend/resume | Text | Chords | Cancel | Disconnect mid-run |
-|---|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- | --- |
 | Linux | Not run | Not run | Not run | Not run | Not run | Not run | Not run |
 | ChromeOS | Not run | Not run | Not run | Not run | Not run | Not run | Not run |
 | Windows | Not run | Not run | Not run | Not run | Not run | Not run | Not run |

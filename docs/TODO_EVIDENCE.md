@@ -4,7 +4,7 @@ This ledger supplements `docs/TODO.md`; it does not redefine requirements or
 mark a completion gate passed without its required evidence.
 
 | Area | Evidence | Status |
-|---|---|---|
+| --- | --- | --- |
 | 1.1 repository structure | Tracked paths and `scripts/bootstrap-repo.sh` | Implemented; ShellCheck/shfmt gate pending installed tools |
 | 1.2 exact ESP-IDF pin | Installer, verifier, `.env.example`, development guide | Source implemented; clean recursive install not run here |
 | 1.3–1.4 skeleton/partitions | Firmware CMake, exact manifest constraints, defaults, CSV/checker | Source implemented; IDF resolution/build and lock pending |

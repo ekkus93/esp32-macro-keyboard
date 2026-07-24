@@ -66,7 +66,7 @@ These earlier milestones do **not** prove that the later sanitizer, coverage, st
 The following commits were made directly on `master` while attempting to finish the remaining software-only TODO items:
 
 | Commit | Description |
-|---|---|
+| --- | --- |
 | `9d8d5e12fdd0ef99c3f307f86b60c14f391a5fe7` | Expand and reconcile macro parser boundary tests |
 | `dad0e8b0f6949d12747e4887a2c38f5831c0255b` | Expand and reconcile macro model boundary tests |
 | `3a6cfd88f6cfa13d54f6a9bedc8c71a1a7f2cb8b` | Add a comprehensive macro-set repository test suite |
@@ -210,7 +210,7 @@ The existence of these jobs and scripts does not prove that they pass or that ta
 ## 6. Current TODO status by major area
 
 | Area | Current status | Notes |
-|---|---|---|
+| --- | --- | --- |
 | Existing host suites | Previously validated | Earlier PR CI passed before latest direct commits |
 | Frontend functional tests/lint | Previously validated | Earlier PR CI passed |
 | ESP32-S3 test firmware build | Previously validated | Build only; not physical execution |
