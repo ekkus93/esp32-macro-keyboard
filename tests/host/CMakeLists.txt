@@ -235,6 +235,27 @@ target_compile_options(storage_repository_io_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME storage_repository_io COMMAND storage_repository_io_tests)
 set_tests_properties(storage_repository_io PROPERTIES LABELS "storage")
 
+add_executable(storage_transaction_tests
+    test_storage_transactions.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/storage/storage_fs_ops.c
+    ../../firmware/components/storage/storage_atomic.c
+    ../../firmware/components/storage/storage_transaction.c
+)
+target_include_directories(storage_transaction_tests PRIVATE
+    ../../firmware/components/macro_model/include
+    ../../firmware/components/storage/include
+    ../../firmware/components/storage
+)
+target_compile_definitions(storage_transaction_tests PRIVATE
+    STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-transaction-data"
+)
+target_link_libraries(storage_transaction_tests PRIVATE test_support)
+target_compile_options(storage_transaction_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME storage_transaction COMMAND storage_transaction_tests)
+set_tests_properties(storage_transaction PROPERTIES LABELS "storage")
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
 
