@@ -4,10 +4,16 @@ firmware/sdkconfig
 firmware/sdkconfig.old
 firmware/managed_components/
 
+# Native host-test build output
+tests/host/build/
+tests/host/build-sanitizers/
+tests/host/build-coverage/
+
 # Frontend generated and third-party output
 webapp/node_modules/
 webapp/dist/
 webapp/.vite/
+*.tsbuildinfo
 
 # Generated filesystem images and reports
 *.bin
