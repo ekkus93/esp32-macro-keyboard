@@ -78,6 +78,9 @@ jobs:
     name: Frontend Tests
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    outputs:
+      test_status: ${{ steps.tests.outputs.status }}
+      test_summary: ${{ steps.tests.outputs.summary }}
 
     steps:
       - name: Check out repository
@@ -106,4 +109,53 @@ jobs:
         run: npm --prefix webapp run format:check
 
       - name: Run frontend tests
-        run: npm --prefix webapp test
+        id: tests
+        shell: bash
+        run: |
+          set +e
+          report="${RUNNER_TEMP}/vitest.json"
+          (cd webapp && ./node_modules/.bin/vitest run --reporter=json --outputFile="${report}")
+          status=$?
+          if [[ -f "${report}" ]]; then
+            cat "${report}"
+            summary="$(node - "${report}" <<'NODE'
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const failures = [];
+          for (const result of report.testResults ?? []) {
+            for (const assertion of result.assertionResults ?? []) {
+              if (assertion.status !== "failed") {
+                continue;
+              }
+              const title = [...(assertion.ancestorTitles ?? []), assertion.title]
+                .filter(Boolean)
+                .join(" > ");
+              const message = String(assertion.failureMessages?.[0] ?? "failed")
+                .replace(/\u001b\[[0-9;]*m/g, "")
+                .replace(/\s+/g, " ")
+                .trim();
+              failures.push(`${title}: ${message}`);
+            }
+          }
+          process.stdout.write(failures.slice(0, 3).join(" | "));
+          NODE
+            )"
+          else
+            summary="Vitest did not produce a JSON report."
+          fi
+          summary="${summary:0:240}"
+          printf 'status=%s\n' "${status}" >> "${GITHUB_OUTPUT}"
+          printf 'summary=%s\n' "${summary}" >> "${GITHUB_OUTPUT}"
+
+      - name: Fail on frontend test findings
+        if: steps.tests.outputs.status != '0'
+        run: exit 1
+
+  frontend-test-diagnostic:
+    name: "Vitest: ${{ needs.frontend-tests.outputs.test_summary }}"
+    needs: frontend-tests
+    if: always() && needs.frontend-tests.outputs.test_status != '0'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Preserve frontend test failure
+        run: exit 1
