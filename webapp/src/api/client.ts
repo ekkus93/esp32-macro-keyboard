@@ -82,7 +82,9 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
 
   const method = (init.method ?? "GET").toUpperCase();
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 10_000);
+  const timeout = window.setTimeout(() => {
+    controller.abort();
+  }, 10_000);
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
   if (init.body !== undefined && !headers.has("Content-Type")) {
@@ -117,7 +119,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
       const body = envelope.ok
         ? {
             code: "http_error",
-            message: `Request failed with status ${response.status}.`,
+            message: `Request failed with status ${String(response.status)}.`,
           }
         : envelope.error;
       throw new ApiError(response.status, body);
