@@ -187,9 +187,15 @@ static app_error_code_t parse_chord(char *directive,
     if (!have_key || modifiers == 0U) {
         return APP_ERROR_MACRO_SYNTAX;
     }
+    /*
+     * A chord's modifiers come only from its explicit modifier tokens. The key
+     * contributes its usage alone; any implicit shift the keymap attaches to an
+     * uppercase letter (needed when typing literal text) must not leak into the
+     * chord. Per SPEC 10.4, {CTRL+L} means Ctrl+L, not Ctrl+Shift+L.
+     */
     *out_action = (macro_action_t){
         .type = MACRO_ACTION_CHORD,
-        .modifiers = (uint8_t)(modifiers | key.modifiers),
+        .modifiers = modifiers,
         .usage = key.usage,
         .delay_ms = 0U,
     };
