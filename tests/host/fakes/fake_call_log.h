@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define FAKE_CALL_LOG_CAPACITY 128U
+#define FAKE_CALL_LOG_CAPACITY 512U
 #define FAKE_EXPECTATION_CAPACITY 128U
 
 typedef struct {
