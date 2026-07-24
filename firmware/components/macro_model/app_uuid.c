@@ -3,7 +3,14 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
+#if defined(ESP_PLATFORM) && defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wundef"
+#endif
 #include <stdio.h>
+#if defined(ESP_PLATFORM) && defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #include <string.h>
 #include <unistd.h>
 
@@ -38,7 +45,7 @@ bool app_uuid_is_valid_string(const char *text)
     }
 
     return text[14] == '4' && (text[19] == '8' || text[19] == '9' ||
-                              text[19] == 'a' || text[19] == 'b');
+                               text[19] == 'a' || text[19] == 'b');
 }
 
 app_error_code_t app_uuid_parse(const char *text, app_uuid_t *out_uuid)
