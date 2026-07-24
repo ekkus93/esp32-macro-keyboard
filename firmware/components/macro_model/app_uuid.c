@@ -3,14 +3,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
-#if defined(ESP_PLATFORM) && defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wundef"
-#endif
 #include <stdio.h>
-#if defined(ESP_PLATFORM) && defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
 #include <string.h>
 #include <unistd.h>
 
