@@ -7,6 +7,8 @@ export interface RenderResult {
   unmount: () => Promise<void>;
 }
 
+type ElementConstructor<T extends Element> = abstract new (...arguments_: never[]) => T;
+
 export async function render(element: ReactNode): Promise<RenderResult> {
   const container = document.createElement("div");
   document.body.append(container);
@@ -78,10 +80,16 @@ export async function submit(form: HTMLFormElement): Promise<void> {
   });
 }
 
-export function requiredElement<T extends Element>(selector: string): T {
-  const element = document.querySelector<T>(selector);
+export function requiredElement<T extends Element>(
+  selector: string,
+  expectedType: ElementConstructor<T>,
+): T {
+  const element = document.querySelector(selector);
   if (element === null) {
     throw new Error(`Missing element: ${selector}`);
+  }
+  if (!(element instanceof expectedType)) {
+    throw new Error(`Element ${selector} has an unexpected type.`);
   }
   return element;
 }
