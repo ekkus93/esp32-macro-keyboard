@@ -5,25 +5,18 @@
 #include <stdint.h>
 #include <string.h>
 
-bool wifi_ap_ops_is_valid(const wifi_ap_ops_t *operations)
-{
-    return operations != NULL && operations->status_get != NULL &&
-           operations->status_set != NULL && operations->netif_init != NULL &&
-           operations->event_loop_create != NULL &&
+bool wifi_ap_ops_is_valid(const wifi_ap_ops_t *operations) {
+    return operations != NULL && operations->status_get != NULL && operations->status_set != NULL &&
+           operations->netif_init != NULL && operations->event_loop_create != NULL &&
            operations->netif_create != NULL && operations->wifi_init != NULL &&
-           operations->handler_register != NULL &&
-           operations->set_mode_ap != NULL && operations->set_config != NULL &&
-           operations->wifi_start != NULL && operations->wifi_stop != NULL &&
-           operations->handler_unregister != NULL &&
+           operations->handler_register != NULL && operations->set_mode_ap != NULL &&
+           operations->set_config != NULL && operations->wifi_start != NULL &&
+           operations->wifi_stop != NULL && operations->handler_unregister != NULL &&
            operations->wifi_deinit != NULL && operations->netif_destroy != NULL;
 }
 
-static void publish_status(wifi_ap_engine_t *engine,
-                           wifi_ap_state_t state,
-                           size_t clients,
-                           app_error_code_t error,
-                           app_error_code_t cleanup_error)
-{
+static void publish_status(wifi_ap_engine_t *engine, wifi_ap_state_t state, size_t clients,
+                           app_error_code_t error, app_error_code_t cleanup_error) {
     const wifi_ap_status_t status = {
         .state = state,
         .client_count = clients,
@@ -33,8 +26,7 @@ static void publish_status(wifi_ap_engine_t *engine,
     engine->operations.status_set(engine->operations.context, &status);
 }
 
-static bool bounded_length(const char *text, size_t maximum, size_t *out_length)
-{
+static bool bounded_length(const char *text, size_t maximum, size_t *out_length) {
     if (text == NULL || out_length == NULL) {
         return false;
     }
@@ -47,20 +39,15 @@ static bool bounded_length(const char *text, size_t maximum, size_t *out_length)
     return false;
 }
 
-static app_error_code_t make_configuration(const char *ssid,
-                                           const char *passphrase,
-                                           wifi_ap_runtime_config_t *configuration)
-{
+static app_error_code_t make_configuration(const char *ssid, const char *passphrase,
+                                           wifi_ap_runtime_config_t *configuration) {
     if (configuration == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     size_t ssid_length = 0U;
     size_t passphrase_length = 0U;
-    if (!bounded_length(ssid, WIFI_AP_SSID_MAX_BYTES, &ssid_length) ||
-        ssid_length == 0U ||
-        !bounded_length(passphrase,
-                        WIFI_AP_PASSPHRASE_MAX_BYTES,
-                        &passphrase_length) ||
+    if (!bounded_length(ssid, WIFI_AP_SSID_MAX_BYTES, &ssid_length) || ssid_length == 0U ||
+        !bounded_length(passphrase, WIFI_AP_PASSPHRASE_MAX_BYTES, &passphrase_length) ||
         passphrase_length < WIFI_AP_PASSPHRASE_MIN_BYTES) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -76,8 +63,7 @@ static app_error_code_t make_configuration(const char *ssid,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t cleanup_resources(wifi_ap_engine_t *engine)
-{
+static app_error_code_t cleanup_resources(wifi_ap_engine_t *engine) {
     app_error_code_t cleanup_error = APP_ERROR_NONE;
 
     if (engine->wifi_started) {
@@ -88,8 +74,7 @@ static app_error_code_t cleanup_resources(wifi_ap_engine_t *engine)
         engine->wifi_started = false;
     }
     if (engine->handler_registered) {
-        cleanup_error =
-            engine->operations.handler_unregister(engine->operations.context);
+        cleanup_error = engine->operations.handler_unregister(engine->operations.context);
         if (cleanup_error != APP_ERROR_NONE) {
             return cleanup_error;
         }
@@ -112,43 +97,31 @@ static app_error_code_t cleanup_resources(wifi_ap_engine_t *engine)
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t fail_start(wifi_ap_engine_t *engine,
-                                   app_error_code_t original)
-{
+static app_error_code_t fail_start(wifi_ap_engine_t *engine, app_error_code_t original) {
     const app_error_code_t cleanup_error = cleanup_resources(engine);
     publish_status(engine, WIFI_AP_ERROR, 0U, original, cleanup_error);
     return original;
 }
 
-app_error_code_t wifi_ap_engine_init(wifi_ap_engine_t *engine,
-                                     const wifi_ap_ops_t *operations)
-{
+app_error_code_t wifi_ap_engine_init(wifi_ap_engine_t *engine, const wifi_ap_ops_t *operations) {
     if (engine == NULL || !wifi_ap_ops_is_valid(operations)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     memset(engine, 0, sizeof(*engine));
     engine->operations = *operations;
     engine->initialized = true;
-    publish_status(engine,
-                   WIFI_AP_STOPPED,
-                   0U,
-                   APP_ERROR_NONE,
-                   APP_ERROR_NONE);
+    publish_status(engine, WIFI_AP_STOPPED, 0U, APP_ERROR_NONE, APP_ERROR_NONE);
     return APP_ERROR_NONE;
 }
 
-app_error_code_t wifi_ap_engine_start(wifi_ap_engine_t *engine,
-                                      const char *ssid,
-                                      const char *passphrase)
-{
+app_error_code_t wifi_ap_engine_start(wifi_ap_engine_t *engine, const char *ssid,
+                                      const char *passphrase) {
     if (engine == NULL || !engine->initialized) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    const wifi_ap_status_t current =
-        engine->operations.status_get(engine->operations.context);
-    if (current.state != WIFI_AP_STOPPED || engine->netif_created ||
-        engine->wifi_initialized || engine->handler_registered ||
-        engine->wifi_started) {
+    const wifi_ap_status_t current = engine->operations.status_get(engine->operations.context);
+    if (current.state != WIFI_AP_STOPPED || engine->netif_created || engine->wifi_initialized ||
+        engine->handler_registered || engine->wifi_started) {
         return APP_ERROR_CONFLICT;
     }
 
@@ -159,14 +132,9 @@ app_error_code_t wifi_ap_engine_start(wifi_ap_engine_t *engine,
         return configuration_result;
     }
 
-    publish_status(engine,
-                   WIFI_AP_STARTING,
-                   0U,
-                   APP_ERROR_NONE,
-                   APP_ERROR_NONE);
+    publish_status(engine, WIFI_AP_STARTING, 0U, APP_ERROR_NONE, APP_ERROR_NONE);
 
-    app_error_code_t result =
-        engine->operations.netif_init(engine->operations.context);
+    app_error_code_t result = engine->operations.netif_init(engine->operations.context);
     if (result != APP_ERROR_NONE) {
         return fail_start(engine, result);
     }
@@ -199,8 +167,7 @@ app_error_code_t wifi_ap_engine_start(wifi_ap_engine_t *engine,
     if (result != APP_ERROR_NONE) {
         return fail_start(engine, result);
     }
-    result = engine->operations.set_config(engine->operations.context,
-                                           &configuration);
+    result = engine->operations.set_config(engine->operations.context, &configuration);
     if (result != APP_ERROR_NONE) {
         return fail_start(engine, result);
     }
@@ -213,42 +180,32 @@ app_error_code_t wifi_ap_engine_start(wifi_ap_engine_t *engine,
     return APP_ERROR_NONE;
 }
 
-app_error_code_t wifi_ap_engine_stop(wifi_ap_engine_t *engine)
-{
+app_error_code_t wifi_ap_engine_stop(wifi_ap_engine_t *engine) {
     if (engine == NULL || !engine->initialized) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    const wifi_ap_status_t current =
-        engine->operations.status_get(engine->operations.context);
-    if (current.state == WIFI_AP_STOPPED && !engine->netif_created &&
-        !engine->wifi_initialized && !engine->handler_registered &&
-        !engine->wifi_started) {
+    const wifi_ap_status_t current = engine->operations.status_get(engine->operations.context);
+    if (current.state == WIFI_AP_STOPPED && !engine->netif_created && !engine->wifi_initialized &&
+        !engine->handler_registered && !engine->wifi_started) {
         return APP_ERROR_NONE;
     }
 
     const app_error_code_t cleanup_error = cleanup_resources(engine);
     if (cleanup_error == APP_ERROR_NONE) {
-        publish_status(engine,
-                       WIFI_AP_STOPPED,
-                       0U,
-                       APP_ERROR_NONE,
-                       APP_ERROR_NONE);
+        publish_status(engine, WIFI_AP_STOPPED, 0U, APP_ERROR_NONE, APP_ERROR_NONE);
         return APP_ERROR_NONE;
     }
-    const app_error_code_t original = current.last_error != APP_ERROR_NONE
-                                          ? current.last_error
-                                          : cleanup_error;
+    const app_error_code_t original =
+        current.last_error != APP_ERROR_NONE ? current.last_error : cleanup_error;
     publish_status(engine, WIFI_AP_ERROR, 0U, original, cleanup_error);
     return cleanup_error;
 }
 
-void wifi_ap_engine_handle_event(wifi_ap_engine_t *engine, wifi_ap_event_t event)
-{
+void wifi_ap_engine_handle_event(wifi_ap_engine_t *engine, wifi_ap_event_t event) {
     if (engine == NULL || !engine->initialized) {
         return;
     }
-    wifi_ap_status_t current =
-        engine->operations.status_get(engine->operations.context);
+    wifi_ap_status_t current = engine->operations.status_get(engine->operations.context);
     switch (event) {
     case WIFI_AP_EVENT_STARTED:
         if (current.state == WIFI_AP_STARTING) {

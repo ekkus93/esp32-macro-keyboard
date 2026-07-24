@@ -39,14 +39,12 @@
 #define KEY_DOWN 0x51U
 #define KEY_UP 0x52U
 
-static void set_key(macro_hid_key_t *out_key, uint8_t modifiers, uint8_t usage)
-{
+static void set_key(macro_hid_key_t *out_key, uint8_t modifiers, uint8_t usage) {
     out_key->modifiers = modifiers;
     out_key->usage = usage;
 }
 
-bool macro_keymap_us_printable(char character, macro_hid_key_t *out_key)
-{
+bool macro_keymap_us_printable(char character, macro_hid_key_t *out_key) {
     if (out_key == NULL) {
         return false;
     }
@@ -71,38 +69,102 @@ bool macro_keymap_us_printable(char character, macro_hid_key_t *out_key)
     case ' ':
         set_key(out_key, 0U, KEY_SPACE);
         return true;
-    case '-': set_key(out_key, 0U, KEY_MINUS); return true;
-    case '_': set_key(out_key, MOD_LEFT_SHIFT, KEY_MINUS); return true;
-    case '=': set_key(out_key, 0U, KEY_EQUAL); return true;
-    case '+': set_key(out_key, MOD_LEFT_SHIFT, KEY_EQUAL); return true;
-    case '[': set_key(out_key, 0U, KEY_LEFT_BRACE); return true;
-    case '{': set_key(out_key, MOD_LEFT_SHIFT, KEY_LEFT_BRACE); return true;
-    case ']': set_key(out_key, 0U, KEY_RIGHT_BRACE); return true;
-    case '}': set_key(out_key, MOD_LEFT_SHIFT, KEY_RIGHT_BRACE); return true;
-    case '\\': set_key(out_key, 0U, KEY_BACKSLASH); return true;
-    case '|': set_key(out_key, MOD_LEFT_SHIFT, KEY_BACKSLASH); return true;
-    case ';': set_key(out_key, 0U, KEY_SEMICOLON); return true;
-    case ':': set_key(out_key, MOD_LEFT_SHIFT, KEY_SEMICOLON); return true;
-    case '\'': set_key(out_key, 0U, KEY_APOSTROPHE); return true;
-    case '"': set_key(out_key, MOD_LEFT_SHIFT, KEY_APOSTROPHE); return true;
-    case '`': set_key(out_key, 0U, KEY_GRAVE); return true;
-    case '~': set_key(out_key, MOD_LEFT_SHIFT, KEY_GRAVE); return true;
-    case ',': set_key(out_key, 0U, KEY_COMMA); return true;
-    case '<': set_key(out_key, MOD_LEFT_SHIFT, KEY_COMMA); return true;
-    case '.': set_key(out_key, 0U, KEY_PERIOD); return true;
-    case '>': set_key(out_key, MOD_LEFT_SHIFT, KEY_PERIOD); return true;
-    case '/': set_key(out_key, 0U, KEY_SLASH); return true;
-    case '?': set_key(out_key, MOD_LEFT_SHIFT, KEY_SLASH); return true;
-    case '!': set_key(out_key, MOD_LEFT_SHIFT, KEY_1); return true;
-    case '@': set_key(out_key, MOD_LEFT_SHIFT, 0x1fU); return true;
-    case '#': set_key(out_key, MOD_LEFT_SHIFT, 0x20U); return true;
-    case '$': set_key(out_key, MOD_LEFT_SHIFT, 0x21U); return true;
-    case '%': set_key(out_key, MOD_LEFT_SHIFT, 0x22U); return true;
-    case '^': set_key(out_key, MOD_LEFT_SHIFT, 0x23U); return true;
-    case '&': set_key(out_key, MOD_LEFT_SHIFT, 0x24U); return true;
-    case '*': set_key(out_key, MOD_LEFT_SHIFT, 0x25U); return true;
-    case '(': set_key(out_key, MOD_LEFT_SHIFT, 0x26U); return true;
-    case ')': set_key(out_key, MOD_LEFT_SHIFT, 0x27U); return true;
+    case '-':
+        set_key(out_key, 0U, KEY_MINUS);
+        return true;
+    case '_':
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_MINUS);
+        return true;
+    case '=':
+        set_key(out_key, 0U, KEY_EQUAL);
+        return true;
+    case '+':
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_EQUAL);
+        return true;
+    case '[':
+        set_key(out_key, 0U, KEY_LEFT_BRACE);
+        return true;
+    case '{':
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_LEFT_BRACE);
+        return true;
+    case ']':
+        set_key(out_key, 0U, KEY_RIGHT_BRACE);
+        return true;
+    case '}':
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_RIGHT_BRACE);
+        return true;
+    case '\\':
+        set_key(out_key, 0U, KEY_BACKSLASH);
+        return true;
+    case '|':
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_BACKSLASH);
+        return true;
+    case ';':
+        set_key(out_key, 0U, KEY_SEMICOLON);
+        return true;
+    case ':':
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_SEMICOLON);
+        return true;
+    case '\'':
+        set_key(out_key, 0U, KEY_APOSTROPHE);
+        return true;
+    case '"':
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_APOSTROPHE);
+        return true;
+    case '`':
+        set_key(out_key, 0U, KEY_GRAVE);
+        return true;
+    case '~':
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_GRAVE);
+        return true;
+    case ',':
+        set_key(out_key, 0U, KEY_COMMA);
+        return true;
+    case '<':
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_COMMA);
+        return true;
+    case '.':
+        set_key(out_key, 0U, KEY_PERIOD);
+        return true;
+    case '>':
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_PERIOD);
+        return true;
+    case '/':
+        set_key(out_key, 0U, KEY_SLASH);
+        return true;
+    case '?':
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_SLASH);
+        return true;
+    case '!':
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_1);
+        return true;
+    case '@':
+        set_key(out_key, MOD_LEFT_SHIFT, 0x1fU);
+        return true;
+    case '#':
+        set_key(out_key, MOD_LEFT_SHIFT, 0x20U);
+        return true;
+    case '$':
+        set_key(out_key, MOD_LEFT_SHIFT, 0x21U);
+        return true;
+    case '%':
+        set_key(out_key, MOD_LEFT_SHIFT, 0x22U);
+        return true;
+    case '^':
+        set_key(out_key, MOD_LEFT_SHIFT, 0x23U);
+        return true;
+    case '&':
+        set_key(out_key, MOD_LEFT_SHIFT, 0x24U);
+        return true;
+    case '*':
+        set_key(out_key, MOD_LEFT_SHIFT, 0x25U);
+        return true;
+    case '(':
+        set_key(out_key, MOD_LEFT_SHIFT, 0x26U);
+        return true;
+    case ')':
+        set_key(out_key, MOD_LEFT_SHIFT, 0x27U);
+        return true;
     default:
         return false;
     }
@@ -113,18 +175,22 @@ typedef struct {
     uint8_t usage;
 } named_key_t;
 
-bool macro_keymap_us_named(const char *name, macro_hid_key_t *out_key)
-{
+bool macro_keymap_us_named(const char *name, macro_hid_key_t *out_key) {
     static const named_key_t keys[] = {
-        {"ENTER", KEY_ENTER}, {"TAB", KEY_TAB}, {"ESC", KEY_ESCAPE},
-        {"BACKSPACE", KEY_BACKSPACE}, {"DELETE", KEY_DELETE}, {"INSERT", KEY_INSERT},
-        {"HOME", KEY_HOME}, {"END", KEY_END}, {"PAGEUP", KEY_PAGE_UP},
-        {"PAGEDOWN", KEY_PAGE_DOWN}, {"UP", KEY_UP}, {"DOWN", KEY_DOWN},
-        {"LEFT", KEY_LEFT}, {"RIGHT", KEY_RIGHT}, {"SPACE", KEY_SPACE},
-        {"F1", KEY_F1}, {"F2", KEY_F1 + 1U}, {"F3", KEY_F1 + 2U},
-        {"F4", KEY_F1 + 3U}, {"F5", KEY_F1 + 4U}, {"F6", KEY_F1 + 5U},
-        {"F7", KEY_F1 + 6U}, {"F8", KEY_F1 + 7U}, {"F9", KEY_F1 + 8U},
-        {"F10", KEY_F1 + 9U}, {"F11", KEY_F1 + 10U}, {"F12", KEY_F1 + 11U},
+        {"ENTER", KEY_ENTER},    {"TAB", KEY_TAB},
+        {"ESC", KEY_ESCAPE},     {"BACKSPACE", KEY_BACKSPACE},
+        {"DELETE", KEY_DELETE},  {"INSERT", KEY_INSERT},
+        {"HOME", KEY_HOME},      {"END", KEY_END},
+        {"PAGEUP", KEY_PAGE_UP}, {"PAGEDOWN", KEY_PAGE_DOWN},
+        {"UP", KEY_UP},          {"DOWN", KEY_DOWN},
+        {"LEFT", KEY_LEFT},      {"RIGHT", KEY_RIGHT},
+        {"SPACE", KEY_SPACE},    {"F1", KEY_F1},
+        {"F2", KEY_F1 + 1U},     {"F3", KEY_F1 + 2U},
+        {"F4", KEY_F1 + 3U},     {"F5", KEY_F1 + 4U},
+        {"F6", KEY_F1 + 5U},     {"F7", KEY_F1 + 6U},
+        {"F8", KEY_F1 + 7U},     {"F9", KEY_F1 + 8U},
+        {"F10", KEY_F1 + 9U},    {"F11", KEY_F1 + 10U},
+        {"F12", KEY_F1 + 11U},
     };
     (void)KEY_CAPS_LOCK;
     (void)KEY_PRINT_SCREEN;
@@ -144,8 +210,7 @@ bool macro_keymap_us_named(const char *name, macro_hid_key_t *out_key)
     return false;
 }
 
-bool macro_keymap_us_modifier(const char *name, uint8_t *out_modifier)
-{
+bool macro_keymap_us_modifier(const char *name, uint8_t *out_modifier) {
     if (name == NULL || out_modifier == NULL) {
         return false;
     }

@@ -16,8 +16,7 @@
 static portMUX_TYPE state_lock = portMUX_INITIALIZER_UNLOCKED;
 static usb_keyboard_state_t state = USB_KEYBOARD_UNINITIALIZED;
 
-static usb_keyboard_state_t adapter_state_get(void *context)
-{
+static usb_keyboard_state_t adapter_state_get(void *context) {
     (void)context;
     portENTER_CRITICAL(&state_lock);
     const usb_keyboard_state_t current = state;
@@ -25,16 +24,14 @@ static usb_keyboard_state_t adapter_state_get(void *context)
     return current;
 }
 
-static void adapter_state_set(void *context, usb_keyboard_state_t next)
-{
+static void adapter_state_set(void *context, usb_keyboard_state_t next) {
     (void)context;
     portENTER_CRITICAL(&state_lock);
     state = next;
     portEXIT_CRITICAL(&state_lock);
 }
 
-static app_error_code_t adapter_driver_install(void *context)
-{
+static app_error_code_t adapter_driver_install(void *context) {
     (void)context;
     const size_t string_count = usb_descriptors_string_count();
     if (string_count > (size_t)INT_MAX) {
@@ -45,23 +42,18 @@ static app_error_code_t adapter_driver_install(void *context)
     configuration.descriptor.device = usb_descriptors_device();
     configuration.descriptor.string = usb_descriptors_strings();
     configuration.descriptor.string_count = (int)string_count;
-    configuration.descriptor.full_speed_config =
-        usb_descriptors_configuration();
+    configuration.descriptor.full_speed_config = usb_descriptors_configuration();
 
-    return tinyusb_driver_install(&configuration) == ESP_OK ? APP_ERROR_NONE
-                                                              : APP_ERROR_INTERNAL;
+    return tinyusb_driver_install(&configuration) == ESP_OK ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
 }
 
-static uint32_t adapter_now_ms(void *context)
-{
+static uint32_t adapter_now_ms(void *context) {
     (void)context;
-    const uint64_t milliseconds =
-        (uint64_t)xTaskGetTickCount() * (uint64_t)portTICK_PERIOD_MS;
+    const uint64_t milliseconds = (uint64_t)xTaskGetTickCount() * (uint64_t)portTICK_PERIOD_MS;
     return (uint32_t)milliseconds;
 }
 
-static void adapter_delay_ms(void *context, uint32_t milliseconds)
-{
+static void adapter_delay_ms(void *context, uint32_t milliseconds) {
     (void)context;
     TickType_t ticks = pdMS_TO_TICKS(milliseconds);
     if (ticks == 0U) {
@@ -70,29 +62,23 @@ static void adapter_delay_ms(void *context, uint32_t milliseconds)
     vTaskDelay(ticks);
 }
 
-static bool adapter_mounted(void *context)
-{
+static bool adapter_mounted(void *context) {
     (void)context;
     return tud_mounted();
 }
 
-static bool adapter_suspended(void *context)
-{
+static bool adapter_suspended(void *context) {
     (void)context;
     return tud_suspended();
 }
 
-static bool adapter_hid_ready(void *context)
-{
+static bool adapter_hid_ready(void *context) {
     (void)context;
     return tud_hid_ready();
 }
 
-static bool adapter_send_keyboard_report(void *context,
-                                         uint8_t report_id,
-                                         uint8_t modifiers,
-                                         const uint8_t keycodes[6])
-{
+static bool adapter_send_keyboard_report(void *context, uint8_t report_id, uint8_t modifiers,
+                                         const uint8_t keycodes[6]) {
     (void)context;
     return tud_hid_keyboard_report(report_id, modifiers, keycodes);
 }
@@ -110,43 +96,35 @@ static const usb_keyboard_ops_t operations = {
     .send_keyboard_report = adapter_send_keyboard_report,
 };
 
-usb_keyboard_state_t usb_keyboard_get_state(void)
-{
+usb_keyboard_state_t usb_keyboard_get_state(void) {
     return adapter_state_get(NULL);
 }
 
-app_error_code_t usb_keyboard_init(void)
-{
+app_error_code_t usb_keyboard_init(void) {
     return usb_keyboard_state_init(&operations);
 }
 
-app_error_code_t usb_keyboard_press(uint8_t modifiers, uint8_t usage)
-{
+app_error_code_t usb_keyboard_press(uint8_t modifiers, uint8_t usage) {
     return usb_keyboard_state_press(&operations, modifiers, usage);
 }
 
-app_error_code_t usb_keyboard_release_all(void)
-{
+app_error_code_t usb_keyboard_release_all(void) {
     return usb_keyboard_state_release_all(&operations);
 }
 
-void tud_mount_cb(void)
-{
+void tud_mount_cb(void) {
     usb_keyboard_state_mount(&operations);
 }
 
-void tud_umount_cb(void)
-{
+void tud_umount_cb(void) {
     usb_keyboard_state_unmount(&operations);
 }
 
-void tud_suspend_cb(bool remote_wakeup_en)
-{
+void tud_suspend_cb(bool remote_wakeup_en) {
     (void)remote_wakeup_en;
     usb_keyboard_state_suspend(&operations);
 }
 
-void tud_resume_cb(void)
-{
+void tud_resume_cb(void) {
     usb_keyboard_state_resume(&operations);
 }

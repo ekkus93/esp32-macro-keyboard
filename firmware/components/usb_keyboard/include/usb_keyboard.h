@@ -1,8 +1,8 @@
 #ifndef USB_KEYBOARD_H
 #define USB_KEYBOARD_H
 
-#include <stdint.h>
 #include "app_error.h"
+#include <stdint.h>
 
 typedef enum {
     USB_KEYBOARD_UNINITIALIZED = 0,

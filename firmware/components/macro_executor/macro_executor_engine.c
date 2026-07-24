@@ -8,28 +8,23 @@
 #define EXECUTION_WATCHDOG_MARGIN_MS 1000U
 #define CANCELLATION_SLICE_MS 10U
 
-static bool operations_valid(const macro_executor_ops_t *ops)
-{
-    return ops != NULL && ops->lock != NULL && ops->unlock != NULL &&
-           ops->queue_send != NULL && ops->notify_executor != NULL &&
-           ops->now_ms != NULL && ops->wait_ms != NULL && ops->usb_ready != NULL &&
-           ops->usb_press != NULL && ops->usb_release_all != NULL &&
+static bool operations_valid(const macro_executor_ops_t *ops) {
+    return ops != NULL && ops->lock != NULL && ops->unlock != NULL && ops->queue_send != NULL &&
+           ops->notify_executor != NULL && ops->now_ms != NULL && ops->wait_ms != NULL &&
+           ops->usb_ready != NULL && ops->usb_press != NULL && ops->usb_release_all != NULL &&
            ops->plan_free != NULL;
 }
 
-static app_error_code_t lock_engine(macro_executor_engine_t *engine)
-{
+static app_error_code_t lock_engine(macro_executor_engine_t *engine) {
     return engine->ops.lock(engine->ops.context) ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
 }
 
-static app_error_code_t unlock_engine(macro_executor_engine_t *engine)
-{
+static app_error_code_t unlock_engine(macro_executor_engine_t *engine) {
     return engine->ops.unlock(engine->ops.context) ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
 }
 
 static app_error_code_t publish_status(macro_executor_engine_t *engine,
-                                       macro_execution_status_t status)
-{
+                                       macro_execution_status_t status) {
     app_error_code_t result = lock_engine(engine);
     if (result != APP_ERROR_NONE) {
         return result;
@@ -38,8 +33,7 @@ static app_error_code_t publish_status(macro_executor_engine_t *engine,
     return unlock_engine(engine);
 }
 
-static app_error_code_t read_cancellation(macro_executor_engine_t *engine, bool *out_cancelled)
-{
+static app_error_code_t read_cancellation(macro_executor_engine_t *engine, bool *out_cancelled) {
     if (out_cancelled == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -55,8 +49,7 @@ static app_error_code_t read_cancellation(macro_executor_engine_t *engine, bool 
     return result;
 }
 
-static app_error_code_t reset_terminal_flags(macro_executor_engine_t *engine)
-{
+static app_error_code_t reset_terminal_flags(macro_executor_engine_t *engine) {
     app_error_code_t result = lock_engine(engine);
     if (result != APP_ERROR_NONE) {
         return result;
@@ -66,13 +59,11 @@ static app_error_code_t reset_terminal_flags(macro_executor_engine_t *engine)
     return unlock_engine(engine);
 }
 
-static bool deadline_expired(uint32_t now, uint32_t deadline)
-{
+static bool deadline_expired(uint32_t now, uint32_t deadline) {
     return (int32_t)(now - deadline) >= 0;
 }
 
-static app_error_code_t validate_request(const macro_execution_request_t *request)
-{
+static app_error_code_t validate_request(const macro_execution_request_t *request) {
     if (request == NULL || request->plan.actions == NULL || request->plan.action_count == 0U ||
         request->plan.action_count > APP_COMPILED_ACTION_MAX ||
         request->plan.estimated_duration_ms > APP_ESTIMATED_DURATION_MAX_MS ||
@@ -86,10 +77,8 @@ static app_error_code_t validate_request(const macro_execution_request_t *reques
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t cancellable_delay(macro_executor_engine_t *engine,
-                                          uint32_t delay_ms,
-                                          uint32_t deadline)
-{
+static app_error_code_t cancellable_delay(macro_executor_engine_t *engine, uint32_t delay_ms,
+                                          uint32_t deadline) {
     uint32_t remaining = delay_ms;
     while (remaining > 0U) {
         bool cancelled = false;
@@ -103,9 +92,8 @@ static app_error_code_t cancellable_delay(macro_executor_engine_t *engine,
         if (deadline_expired(engine->ops.now_ms(engine->ops.context), deadline)) {
             return APP_ERROR_TIMEOUT;
         }
-        const uint32_t slice = remaining > CANCELLATION_SLICE_MS
-                                   ? CANCELLATION_SLICE_MS
-                                   : remaining;
+        const uint32_t slice =
+            remaining > CANCELLATION_SLICE_MS ? CANCELLATION_SLICE_MS : remaining;
         result = engine->ops.wait_ms(engine->ops.context, slice);
         if (result != APP_ERROR_NONE) {
             return result;
@@ -116,10 +104,8 @@ static app_error_code_t cancellable_delay(macro_executor_engine_t *engine,
 }
 
 static app_error_code_t finish_execution(macro_executor_engine_t *engine,
-                                         macro_execution_status_t status,
-                                         execution_state_t state,
-                                         app_error_code_t primary_error)
-{
+                                         macro_execution_status_t status, execution_state_t state,
+                                         app_error_code_t primary_error) {
     status.release_error = engine->ops.usb_release_all(engine->ops.context);
     status.state = state;
     status.error = primary_error;
@@ -132,8 +118,7 @@ static app_error_code_t finish_execution(macro_executor_engine_t *engine,
 }
 
 app_error_code_t macro_executor_engine_init(macro_executor_engine_t *engine,
-                                            const macro_executor_ops_t *ops)
-{
+                                            const macro_executor_ops_t *ops) {
     if (engine == NULL || !operations_valid(ops)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -144,8 +129,7 @@ app_error_code_t macro_executor_engine_init(macro_executor_engine_t *engine,
 }
 
 app_error_code_t macro_executor_engine_submit(macro_executor_engine_t *engine,
-                                              macro_execution_request_t *request)
-{
+                                              macro_execution_request_t *request) {
     if (engine == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -162,7 +146,7 @@ app_error_code_t macro_executor_engine_submit(macro_executor_engine_t *engine,
     }
     if (engine->busy) {
         return unlock_engine(engine) == APP_ERROR_NONE ? APP_ERROR_EXECUTOR_BUSY
-                                                        : APP_ERROR_INTERNAL;
+                                                       : APP_ERROR_INTERNAL;
     }
     engine->busy = true;
     engine->cancellation_requested = false;
@@ -181,8 +165,7 @@ app_error_code_t macro_executor_engine_submit(macro_executor_engine_t *engine,
     return APP_ERROR_NONE;
 }
 
-app_error_code_t macro_executor_engine_cancel(macro_executor_engine_t *engine)
-{
+app_error_code_t macro_executor_engine_cancel(macro_executor_engine_t *engine) {
     if (engine == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -191,8 +174,7 @@ app_error_code_t macro_executor_engine_cancel(macro_executor_engine_t *engine)
         return result;
     }
     if (!engine->busy) {
-        return unlock_engine(engine) == APP_ERROR_NONE ? APP_ERROR_NOT_FOUND
-                                                        : APP_ERROR_INTERNAL;
+        return unlock_engine(engine) == APP_ERROR_NONE ? APP_ERROR_NOT_FOUND : APP_ERROR_INTERNAL;
     }
     engine->cancellation_requested = true;
     result = unlock_engine(engine);
@@ -203,8 +185,7 @@ app_error_code_t macro_executor_engine_cancel(macro_executor_engine_t *engine)
     return APP_ERROR_NONE;
 }
 
-macro_execution_status_t macro_executor_engine_get_status(macro_executor_engine_t *engine)
-{
+macro_execution_status_t macro_executor_engine_get_status(macro_executor_engine_t *engine) {
     macro_execution_status_t result = {
         .state = EXECUTION_FAILED,
         .error = APP_ERROR_INTERNAL,
@@ -221,8 +202,7 @@ macro_execution_status_t macro_executor_engine_get_status(macro_executor_engine_
 }
 
 app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
-                                               macro_execution_request_t *request)
-{
+                                               macro_execution_request_t *request) {
     if (engine == NULL || validate_request(request) != APP_ERROR_NONE) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -242,8 +222,7 @@ app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
     }
 
     const uint32_t started = engine->ops.now_ms(engine->ops.context);
-    const uint32_t watchdog_ms = request->plan.estimated_duration_ms +
-                                 EXECUTION_WATCHDOG_MARGIN_MS;
+    const uint32_t watchdog_ms = request->plan.estimated_duration_ms + EXECUTION_WATCHDOG_MARGIN_MS;
     const uint32_t deadline = started + watchdog_ms;
 
     for (size_t index = 0U; index < request->plan.action_count; ++index) {
@@ -270,9 +249,7 @@ app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
         if (action.type == MACRO_ACTION_DELAY) {
             result = cancellable_delay(engine, action.delay_ms, deadline);
         } else if (action.type == MACRO_ACTION_KEY || action.type == MACRO_ACTION_CHORD) {
-            result = engine->ops.usb_press(engine->ops.context,
-                                           action.modifiers,
-                                           action.usage);
+            result = engine->ops.usb_press(engine->ops.context, action.modifiers, action.usage);
             if (result == APP_ERROR_NONE) {
                 result = cancellable_delay(engine, request->key_press_ms, deadline);
             }

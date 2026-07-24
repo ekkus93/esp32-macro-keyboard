@@ -20,8 +20,7 @@
 
 static const char *const TAG = "app_core";
 
-static app_core_nvs_result_t adapter_nvs_init(void *context)
-{
+static app_core_nvs_result_t adapter_nvs_init(void *context) {
     (void)context;
     const esp_err_t result = nvs_flash_init();
     if (result == ESP_OK) {
@@ -36,52 +35,42 @@ static app_core_nvs_result_t adapter_nvs_init(void *context)
     return APP_CORE_NVS_OTHER_FAILURE;
 }
 
-static app_error_code_t adapter_storage_mount(void *context)
-{
+static app_error_code_t adapter_storage_mount(void *context) {
     (void)context;
     return storage_mount_all();
 }
 
-static app_error_code_t adapter_storage_recover(void *context)
-{
+static app_error_code_t adapter_storage_recover(void *context) {
     (void)context;
     return storage_transaction_recover_all();
 }
 
-static app_error_code_t adapter_repository_init(void *context)
-{
+static app_error_code_t adapter_repository_init(void *context) {
     (void)context;
     return storage_repository_init();
 }
 
-static app_error_code_t adapter_auth_init(void *context)
-{
+static app_error_code_t adapter_auth_init(void *context) {
     (void)context;
     return auth_init();
 }
 
-static app_error_code_t adapter_usb_init(void *context)
-{
+static app_error_code_t adapter_usb_init(void *context) {
     (void)context;
     return usb_keyboard_init();
 }
 
-static app_error_code_t adapter_executor_init(void *context)
-{
+static app_error_code_t adapter_executor_init(void *context) {
     (void)context;
     return macro_executor_init();
 }
 
-static app_error_code_t adapter_controls_init(void *context)
-{
+static app_error_code_t adapter_controls_init(void *context) {
     (void)context;
     return device_controls_init();
 }
 
-static app_error_code_t adapter_random_fill(void *context,
-                                            uint8_t *output,
-                                            size_t length)
-{
+static app_error_code_t adapter_random_fill(void *context, uint8_t *output, size_t length) {
     (void)context;
     if (output == NULL && length != 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -90,58 +79,47 @@ static app_error_code_t adapter_random_fill(void *context,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t adapter_password_create(void *context,
-                                                const char *password,
+static app_error_code_t adapter_password_create(void *context, const char *password,
                                                 size_t password_length,
-                                                auth_password_record_t *out_record)
-{
+                                                auth_password_record_t *out_record) {
     (void)context;
     return auth_password_create(password, password_length, out_record);
 }
 
-static app_error_code_t adapter_wifi_start(void *context,
-                                           const char *ssid,
-                                           const char *passphrase)
-{
+static app_error_code_t adapter_wifi_start(void *context, const char *ssid,
+                                           const char *passphrase) {
     (void)context;
     return wifi_ap_start(ssid, passphrase);
 }
 
 static app_error_code_t adapter_http_start(void *context,
-                                           const web_server_config_t *configuration)
-{
+                                           const web_server_config_t *configuration) {
     (void)context;
     return web_server_start(configuration);
 }
 
-static app_error_code_t adapter_http_stop(void *context)
-{
+static app_error_code_t adapter_http_stop(void *context) {
     (void)context;
     return web_server_stop();
 }
 
-static app_error_code_t adapter_wifi_stop(void *context)
-{
+static app_error_code_t adapter_wifi_stop(void *context) {
     (void)context;
     return wifi_ap_stop();
 }
 
-static app_error_code_t adapter_storage_unmount(void *context)
-{
+static app_error_code_t adapter_storage_unmount(void *context) {
     (void)context;
     return storage_unmount_all();
 }
 
-static app_error_code_t adapter_set_indicator(void *context,
-                                              device_indicator_state_t indicator)
-{
+static app_error_code_t adapter_set_indicator(void *context, device_indicator_state_t indicator) {
     (void)context;
     device_controls_set_indicator(indicator);
     return APP_ERROR_NONE;
 }
 
-static void adapter_secure_zero(void *context, void *memory, size_t length)
-{
+static void adapter_secure_zero(void *context, void *memory, size_t length) {
     (void)context;
     volatile uint8_t *bytes = memory;
     for (size_t index = 0U; index < length; ++index) {
@@ -149,8 +127,7 @@ static void adapter_secure_zero(void *context, void *memory, size_t length)
     }
 }
 
-static void adapter_log_event(void *context, const app_core_log_event_t *event)
-{
+static void adapter_log_event(void *context, const app_core_log_event_t *event) {
     (void)context;
     if (event == NULL) {
         ESP_LOGE(TAG, "startup emitted a null log event");
@@ -162,33 +139,25 @@ static void adapter_log_event(void *context, const app_core_log_event_t *event)
         if (event->primary_error == APP_ERROR_NONE) {
             ESP_LOGI(TAG, "stage complete: %s", event->stage);
         } else {
-            ESP_LOGE(TAG,
-                     "stage failed: %s (%s)",
-                     event->stage,
+            ESP_LOGE(TAG, "stage failed: %s (%s)", event->stage,
                      app_error_code_string(event->primary_error));
         }
         break;
     case APP_CORE_LOG_STORAGE_DEGRADED:
-        ESP_LOGW(TAG,
-                 "storage recovery requires operator review; evidence was preserved");
+        ESP_LOGW(TAG, "storage recovery requires operator review; evidence was preserved");
         break;
     case APP_CORE_LOG_DEVELOPMENT_CREDENTIALS:
         ESP_LOGW(TAG, "development-only AP SSID: %s", event->ssid);
-        ESP_LOGW(TAG,
-                 "development-only AP passphrase: %s",
-                 event->ap_passphrase);
-        ESP_LOGW(TAG,
-                 "development-only web password: %s",
-                 event->web_password);
+        ESP_LOGW(TAG, "development-only AP passphrase: %s", event->ap_passphrase);
+        ESP_LOGW(TAG, "development-only web password: %s", event->web_password);
         break;
     case APP_CORE_LOG_PROVISIONING_REQUIRED:
-        ESP_LOGE(TAG,
-                 "persistent encrypted provisioning is not implemented; refusing to start a network");
+        ESP_LOGE(
+            TAG,
+            "persistent encrypted provisioning is not implemented; refusing to start a network");
         break;
     case APP_CORE_LOG_CLEANUP_FAILED:
-        ESP_LOGE(TAG,
-                 "cleanup failed after %s: %s",
-                 app_error_code_string(event->primary_error),
+        ESP_LOGE(TAG, "cleanup failed after %s: %s", app_error_code_string(event->primary_error),
                  app_error_code_string(event->secondary_error));
         break;
     default:
@@ -197,8 +166,7 @@ static void adapter_log_event(void *context, const app_core_log_event_t *event)
     }
 }
 
-app_error_code_t app_core_start(void)
-{
+app_error_code_t app_core_start(void) {
     const app_core_ops_t operations = {
         .context = NULL,
         .nvs_init = adapter_nvs_init,

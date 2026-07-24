@@ -1,15 +1,28 @@
 idf_component_register(
-    SRCS "app_error.c" "app_uuid.c" "macro_model.c"
-    INCLUDE_DIRS "include"
-    REQUIRES esp_hw_support
+    SRCS
+    "app_error.c"
+    "app_uuid.c"
+    "macro_model.c"
+    INCLUDE_DIRS
+    "include"
+    REQUIRES
+    esp_hw_support
 )
 
-target_include_directories(${COMPONENT_LIB} SYSTEM PRIVATE
-    "$ENV{IDF_PATH}/components/newlib/platform_include"
+target_include_directories(
+    ${COMPONENT_LIB} SYSTEM PRIVATE "$ENV{IDF_PATH}/components/newlib/platform_include"
 )
 
-target_compile_options(${COMPONENT_LIB} PRIVATE
-    -Wall -Wextra -Werror -Wshadow -Wconversion -Wsign-conversion
-    -Wformat=2 -Wdouble-promotion -Wmissing-declarations
-    -Wstrict-prototypes
+target_compile_options(
+    ${COMPONENT_LIB}
+    PRIVATE -Wall
+            -Wextra
+            -Werror
+            -Wshadow
+            -Wconversion
+            -Wsign-conversion
+            -Wformat=2
+            -Wdouble-promotion
+            -Wmissing-declarations
+            -Wstrict-prototypes
 )

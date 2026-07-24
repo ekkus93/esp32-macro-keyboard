@@ -2,16 +2,13 @@
 
 #include <string.h>
 
-static bool allowed_character(char character)
-{
-    return (character >= 'a' && character <= 'z') ||
-           (character >= 'A' && character <= 'Z') ||
-           (character >= '0' && character <= '9') || character == '/' ||
-           character == '-' || character == '_' || character == '.';
+static bool allowed_character(char character) {
+    return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') ||
+           (character >= '0' && character <= '9') || character == '/' || character == '-' ||
+           character == '_' || character == '.';
 }
 
-bool web_static_uri_normalize(const char *uri, char *normalized, size_t normalized_size)
-{
+bool web_static_uri_normalize(const char *uri, char *normalized, size_t normalized_size) {
     if (normalized != NULL && normalized_size > 0U) {
         normalized[0] = '\0';
     }

@@ -45,20 +45,14 @@ typedef struct {
     app_error_code_t (*executor_init)(void *context);
     app_error_code_t (*controls_init)(void *context);
     app_error_code_t (*random_fill)(void *context, uint8_t *output, size_t length);
-    app_error_code_t (*password_create)(void *context,
-                                        const char *password,
-                                        size_t password_length,
+    app_error_code_t (*password_create)(void *context, const char *password, size_t password_length,
                                         auth_password_record_t *out_record);
-    app_error_code_t (*wifi_start)(void *context,
-                                   const char *ssid,
-                                   const char *passphrase);
-    app_error_code_t (*http_start)(void *context,
-                                   const web_server_config_t *configuration);
+    app_error_code_t (*wifi_start)(void *context, const char *ssid, const char *passphrase);
+    app_error_code_t (*http_start)(void *context, const web_server_config_t *configuration);
     app_error_code_t (*http_stop)(void *context);
     app_error_code_t (*wifi_stop)(void *context);
     app_error_code_t (*storage_unmount)(void *context);
-    app_error_code_t (*set_indicator)(void *context,
-                                      device_indicator_state_t indicator);
+    app_error_code_t (*set_indicator)(void *context, device_indicator_state_t indicator);
     void (*secure_zero)(void *context, void *memory, size_t length);
     void (*log_event)(void *context, const app_core_log_event_t *event);
 } app_core_ops_t;

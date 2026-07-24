@@ -1,7 +1,6 @@
 #include "app_error.h"
 
-const char *app_error_code_string(app_error_code_t code)
-{
+const char *app_error_code_string(app_error_code_t code) {
     switch (code) {
     case APP_ERROR_NONE:
         return "none";

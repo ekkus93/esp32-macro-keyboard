@@ -23,10 +23,8 @@ typedef struct {
 } wifi_ap_engine_t;
 
 bool wifi_ap_ops_is_valid(const wifi_ap_ops_t *operations);
-app_error_code_t wifi_ap_engine_init(wifi_ap_engine_t *engine,
-                                     const wifi_ap_ops_t *operations);
-app_error_code_t wifi_ap_engine_start(wifi_ap_engine_t *engine,
-                                      const char *ssid,
+app_error_code_t wifi_ap_engine_init(wifi_ap_engine_t *engine, const wifi_ap_ops_t *operations);
+app_error_code_t wifi_ap_engine_start(wifi_ap_engine_t *engine, const char *ssid,
                                       const char *passphrase);
 app_error_code_t wifi_ap_engine_stop(wifi_ap_engine_t *engine);
 void wifi_ap_engine_handle_event(wifi_ap_engine_t *engine, wifi_ap_event_t event);

@@ -71,23 +71,15 @@ typedef struct {
 app_error_code_t storage_mount_all(void);
 app_error_code_t storage_unmount_all(void);
 app_error_code_t storage_prepare_directories(void);
-app_error_code_t storage_make_set_path(const app_uuid_t *set_id,
-                                       char *buffer,
-                                       size_t buffer_size);
-app_error_code_t storage_make_macro_path(const app_uuid_t *set_id,
-                                         const app_uuid_t *macro_id,
-                                         char *buffer,
-                                         size_t buffer_size);
-app_error_code_t storage_atomic_write(const char *path,
-                                      const void *data,
-                                      size_t data_length,
+app_error_code_t storage_make_set_path(const app_uuid_t *set_id, char *buffer, size_t buffer_size);
+app_error_code_t storage_make_macro_path(const app_uuid_t *set_id, const app_uuid_t *macro_id,
+                                         char *buffer, size_t buffer_size);
+app_error_code_t storage_atomic_write(const char *path, const void *data, size_t data_length,
                                       bool sync_required);
 app_error_code_t storage_transaction_recover_all(void);
-app_error_code_t storage_quarantine_file(const char *source_path,
-                                         const char *reason,
+app_error_code_t storage_quarantine_file(const char *source_path, const char *reason,
                                          storage_quarantine_entry_t *out_entry);
 app_error_code_t storage_quarantine_list(storage_quarantine_list_t *out_list);
-app_error_code_t storage_transaction_write_manifest(
-    const storage_transaction_manifest_t *manifest);
+app_error_code_t storage_transaction_write_manifest(const storage_transaction_manifest_t *manifest);
 
 #endif

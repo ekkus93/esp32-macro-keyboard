@@ -3,18 +3,15 @@
 #include <stddef.h>
 #include <string.h>
 
-static bool is_space(char value)
-{
+static bool is_space(char value) {
     return value == ' ' || value == '\t';
 }
 
-static char ascii_lower(char value)
-{
+static char ascii_lower(char value) {
     return value >= 'A' && value <= 'Z' ? (char)(value - 'A' + 'a') : value;
 }
 
-static bool token_equal_ignore_case(const char *left, size_t length, const char *right)
-{
+static bool token_equal_ignore_case(const char *left, size_t length, const char *right) {
     if (left == NULL || right == NULL || strlen(right) != length) {
         return false;
     }
@@ -26,16 +23,14 @@ static bool token_equal_ignore_case(const char *left, size_t length, const char 
     return true;
 }
 
-static bool quality_is_zero(const char *parameters, size_t length)
-{
+static bool quality_is_zero(const char *parameters, size_t length) {
     const char *cursor = parameters;
     const char *end = parameters + length;
     while (cursor < end) {
         while (cursor < end && (is_space(*cursor) || *cursor == ';')) {
             ++cursor;
         }
-        if ((size_t)(end - cursor) >= 2U && ascii_lower(cursor[0]) == 'q' &&
-            cursor[1] == '=') {
+        if ((size_t)(end - cursor) >= 2U && ascii_lower(cursor[0]) == 'q' && cursor[1] == '=') {
             cursor += 2;
             while (cursor < end && is_space(*cursor)) {
                 ++cursor;
@@ -59,8 +54,7 @@ static bool quality_is_zero(const char *parameters, size_t length)
     return false;
 }
 
-bool web_accept_encoding_gzip(const char *header)
-{
+bool web_accept_encoding_gzip(const char *header) {
     if (header == NULL) {
         return false;
     }
@@ -85,8 +79,7 @@ bool web_accept_encoding_gzip(const char *header)
     return false;
 }
 
-const char *web_content_type(const char *path)
-{
+const char *web_content_type(const char *path) {
     if (path == NULL) {
         return "application/octet-stream";
     }

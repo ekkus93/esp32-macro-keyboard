@@ -1,31 +1,33 @@
 idf_component_register(
     SRCS
-        "storage_mount.c"
-        "storage_paths.c"
-        "storage_fs_ops.c"
-        "storage_atomic.c"
-        "storage_transaction.c"
-        "storage_repository_io.c"
-        "storage_repository_json.c"
-        "storage_repository_index.c"
-        "storage_repository_sets.c"
-        "storage_quarantine.c"
-    INCLUDE_DIRS "include"
+    "storage_mount.c"
+    "storage_paths.c"
+    "storage_fs_ops.c"
+    "storage_atomic.c"
+    "storage_transaction.c"
+    "storage_repository_io.c"
+    "storage_repository_json.c"
+    "storage_repository_index.c"
+    "storage_repository_sets.c"
+    "storage_quarantine.c"
+    INCLUDE_DIRS
+    "include"
     REQUIRES
-        macro_model
-        littlefs
-        json
+    macro_model
+    littlefs
+    json
 )
 
-target_compile_options(${COMPONENT_LIB} PRIVATE
-    -Wall
-    -Wextra
-    -Werror
-    -Wshadow
-    -Wconversion
-    -Wsign-conversion
-    -Wformat=2
-    -Wdouble-promotion
-    -Wmissing-declarations
-    -Wstrict-prototypes
+target_compile_options(
+    ${COMPONENT_LIB}
+    PRIVATE -Wall
+            -Wextra
+            -Werror
+            -Wshadow
+            -Wconversion
+            -Wsign-conversion
+            -Wformat=2
+            -Wdouble-promotion
+            -Wmissing-declarations
+            -Wstrict-prototypes
 )

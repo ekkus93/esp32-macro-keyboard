@@ -17,9 +17,7 @@ typedef struct {
     bool (*mounted)(void *context);
     bool (*suspended)(void *context);
     bool (*hid_ready)(void *context);
-    bool (*send_keyboard_report)(void *context,
-                                 uint8_t report_id,
-                                 uint8_t modifiers,
+    bool (*send_keyboard_report)(void *context, uint8_t report_id, uint8_t modifiers,
                                  const uint8_t keycodes[6]);
 } usb_keyboard_ops_t;
 

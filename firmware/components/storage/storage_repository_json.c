@@ -8,12 +8,9 @@
 #include "cJSON.h"
 #include "storage.h"
 
-static app_error_code_t checked_json_string(const cJSON *object,
-                                            const char *name,
-                                            char *destination,
-                                            size_t destination_size,
-                                            bool require_nonempty)
-{
+static app_error_code_t checked_json_string(const cJSON *object, const char *name,
+                                            char *destination, size_t destination_size,
+                                            bool require_nonempty) {
     const cJSON *value = cJSON_GetObjectItemCaseSensitive(object, name);
     if (!cJSON_IsString(value) || value->valuestring == NULL) {
         return APP_ERROR_STORAGE_CORRUPT;
@@ -26,11 +23,8 @@ static app_error_code_t checked_json_string(const cJSON *object,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t checked_json_u32(const cJSON *object,
-                                         const char *name,
-                                         uint32_t minimum,
-                                         uint32_t *out_value)
-{
+static app_error_code_t checked_json_u32(const cJSON *object, const char *name, uint32_t minimum,
+                                         uint32_t *out_value) {
     const cJSON *value = cJSON_GetObjectItemCaseSensitive(object, name);
     if (!cJSON_IsNumber(value) || value->valuedouble < (double)minimum ||
         value->valuedouble > (double)UINT32_MAX ||
@@ -41,8 +35,8 @@ static app_error_code_t checked_json_u32(const cJSON *object,
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_repository_parse_set_json(const char *data, size_t length, macro_set_t *out_set)
-{
+app_error_code_t storage_repository_parse_set_json(const char *data, size_t length,
+                                                   macro_set_t *out_set) {
     if (data == NULL || out_set == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -54,8 +48,8 @@ app_error_code_t storage_repository_parse_set_json(const char *data, size_t leng
         return APP_ERROR_STORAGE_CORRUPT;
     }
 
-    app_error_code_t result = checked_json_u32(root, "schema_version", 1U,
-                                               &out_set->schema_version);
+    app_error_code_t result =
+        checked_json_u32(root, "schema_version", 1U, &out_set->schema_version);
     if (result == APP_ERROR_NONE && out_set->schema_version != APP_SCHEMA_VERSION) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
@@ -114,8 +108,8 @@ app_error_code_t storage_repository_parse_set_json(const char *data, size_t leng
     return result;
 }
 
-app_error_code_t storage_repository_serialize_set_json(const macro_set_t *set, char **out_json, size_t *out_length)
-{
+app_error_code_t storage_repository_serialize_set_json(const macro_set_t *set, char **out_json,
+                                                       size_t *out_length) {
     if (set == NULL || out_json == NULL || out_length == NULL ||
         set->schema_version != APP_SCHEMA_VERSION || set->revision == 0U ||
         !app_uuid_is_valid_string(set->id.value) || set->name[0] == '\0' ||

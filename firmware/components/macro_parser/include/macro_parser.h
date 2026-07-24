@@ -6,11 +6,7 @@
 
 #include "app_error.h"
 
-typedef enum {
-    MACRO_ACTION_KEY = 0,
-    MACRO_ACTION_CHORD,
-    MACRO_ACTION_DELAY
-} macro_action_type_t;
+typedef enum { MACRO_ACTION_KEY = 0, MACRO_ACTION_CHORD, MACRO_ACTION_DELAY } macro_action_type_t;
 
 typedef struct {
     macro_action_type_t type;
@@ -38,10 +34,8 @@ typedef struct {
     char message[96U];
 } macro_parse_error_t;
 
-app_error_code_t macro_compile(const char *source,
-                               size_t source_length,
-                               const macro_compile_options_t *options,
-                               macro_plan_t *out_plan,
+app_error_code_t macro_compile(const char *source, size_t source_length,
+                               const macro_compile_options_t *options, macro_plan_t *out_plan,
                                macro_parse_error_t *out_error);
 void macro_plan_free(macro_plan_t *plan);
 

@@ -12,10 +12,7 @@ typedef struct {
     void *context;
     int (*open_file)(void *context, const char *path, int flags, mode_t mode);
     ssize_t (*read_file)(void *context, int descriptor, void *buffer, size_t length);
-    ssize_t (*write_file)(void *context,
-                          int descriptor,
-                          const void *buffer,
-                          size_t length);
+    ssize_t (*write_file)(void *context, int descriptor, const void *buffer, size_t length);
     int (*sync_file)(void *context, int descriptor);
     int (*close_file)(void *context, int descriptor);
     int (*stat_path)(void *context, const char *path, struct stat *metadata);
@@ -23,10 +20,7 @@ typedef struct {
     int (*unlink_path)(void *context, const char *path);
     int (*make_directory)(void *context, const char *path, mode_t mode);
     void *(*open_directory)(void *context, const char *path);
-    int (*read_directory)(void *context,
-                          void *directory,
-                          char *name,
-                          size_t name_size,
+    int (*read_directory)(void *context, void *directory, char *name, size_t name_size,
                           bool *out_end);
     int (*close_directory)(void *context, void *directory);
     int (*remove_directory)(void *context, const char *path);

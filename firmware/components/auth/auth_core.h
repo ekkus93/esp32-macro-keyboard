@@ -23,18 +23,13 @@ typedef struct {
 } auth_core_t;
 
 app_error_code_t auth_core_init(auth_core_t *core, const auth_ops_t *ops);
-app_error_code_t auth_core_password_create(auth_core_t *core,
-                                           const char *password,
+app_error_code_t auth_core_password_create(auth_core_t *core, const char *password,
                                            size_t password_length,
                                            auth_password_record_t *out_record);
-bool auth_core_password_verify(auth_core_t *core,
-                               const char *password,
-                               size_t password_length,
+bool auth_core_password_verify(auth_core_t *core, const char *password, size_t password_length,
                                const auth_password_record_t *record);
-app_error_code_t auth_core_session_create(auth_core_t *core,
-                                          auth_session_view_t *out_session);
-app_error_code_t auth_core_session_validate(auth_core_t *core,
-                                            const char *session_token,
+app_error_code_t auth_core_session_create(auth_core_t *core, auth_session_view_t *out_session);
+app_error_code_t auth_core_session_validate(auth_core_t *core, const char *session_token,
                                             const char *csrf_token);
 app_error_code_t auth_core_session_logout(auth_core_t *core, const char *session_token);
 app_error_code_t auth_core_login_attempt_allowed(auth_core_t *core,

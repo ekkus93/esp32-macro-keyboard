@@ -11,8 +11,7 @@
 
 bool usb_keyboard_ops_is_valid(const usb_keyboard_ops_t *operations);
 app_error_code_t usb_keyboard_state_init(const usb_keyboard_ops_t *operations);
-app_error_code_t usb_keyboard_state_press(const usb_keyboard_ops_t *operations,
-                                          uint8_t modifiers,
+app_error_code_t usb_keyboard_state_press(const usb_keyboard_ops_t *operations, uint8_t modifiers,
                                           uint8_t usage);
 app_error_code_t usb_keyboard_state_release_all(const usb_keyboard_ops_t *operations);
 void usb_keyboard_state_mount(const usb_keyboard_ops_t *operations);

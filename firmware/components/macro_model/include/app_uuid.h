@@ -1,9 +1,9 @@
 #ifndef APP_UUID_H
 #define APP_UUID_H
 
-#include <stdbool.h>
 #include "app_error.h"
 #include "macro_limits.h"
+#include <stdbool.h>
 
 typedef struct {
     char value[APP_UUID_BUFFER_LENGTH];

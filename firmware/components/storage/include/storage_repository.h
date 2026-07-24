@@ -17,8 +17,7 @@ app_error_code_t storage_repository_init(void);
 app_error_code_t storage_set_list(storage_set_list_t *out_list);
 app_error_code_t storage_set_read(const app_uuid_t *set_id, macro_set_t *out_set);
 app_error_code_t storage_set_create(const macro_set_t *set);
-app_error_code_t storage_set_update(const macro_set_t *replacement,
-                                    uint32_t expected_revision,
+app_error_code_t storage_set_update(const macro_set_t *replacement, uint32_t expected_revision,
                                     macro_set_t *out_updated);
 app_error_code_t storage_set_delete(const app_uuid_t *set_id, uint32_t expected_revision);
 

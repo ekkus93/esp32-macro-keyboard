@@ -25,16 +25,13 @@ static const tusb_desc_device_t device_descriptor = {
     .bNumConfigurations = 0x01U,
 };
 
-static const uint8_t hid_report_descriptor[] = {
-    TUD_HID_REPORT_DESC_KEYBOARD()
-};
+static const uint8_t hid_report_descriptor[] = {TUD_HID_REPORT_DESC_KEYBOARD()};
 
 static const uint8_t configuration_descriptor[] = {
     TUD_CONFIG_DESCRIPTOR(1, INTERFACE_TOTAL, 0, CONFIGURATION_TOTAL_LENGTH,
                           TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
-    TUD_HID_DESCRIPTOR(INTERFACE_HID, 0, HID_ITF_PROTOCOL_KEYBOARD,
-                       sizeof(hid_report_descriptor), ENDPOINT_HID,
-                       CFG_TUD_HID_EP_BUFSIZE, 10),
+    TUD_HID_DESCRIPTOR(INTERFACE_HID, 0, HID_ITF_PROTOCOL_KEYBOARD, sizeof(hid_report_descriptor),
+                       ENDPOINT_HID, CFG_TUD_HID_EP_BUFSIZE, 10),
 };
 
 static const char *string_descriptors[] = {
@@ -44,38 +41,29 @@ static const char *string_descriptors[] = {
     "ESP32S3-MACRO-01",
 };
 
-const tusb_desc_device_t *usb_descriptors_device(void)
-{
+const tusb_desc_device_t *usb_descriptors_device(void) {
     return &device_descriptor;
 }
 
-const uint8_t *usb_descriptors_configuration(void)
-{
+const uint8_t *usb_descriptors_configuration(void) {
     return configuration_descriptor;
 }
 
-const char **usb_descriptors_strings(void)
-{
+const char **usb_descriptors_strings(void) {
     return string_descriptors;
 }
 
-size_t usb_descriptors_string_count(void)
-{
+size_t usb_descriptors_string_count(void) {
     return sizeof(string_descriptors) / sizeof(string_descriptors[0]);
 }
 
-uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance)
-{
+uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance) {
     (void)instance;
     return hid_report_descriptor;
 }
 
-uint16_t tud_hid_get_report_cb(uint8_t instance,
-                               uint8_t report_id,
-                               hid_report_type_t report_type,
-                               uint8_t *buffer,
-                               uint16_t requested_length)
-{
+uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type,
+                               uint8_t *buffer, uint16_t requested_length) {
     (void)instance;
     (void)report_id;
     (void)report_type;
@@ -84,12 +72,8 @@ uint16_t tud_hid_get_report_cb(uint8_t instance,
     return 0U;
 }
 
-void tud_hid_set_report_cb(uint8_t instance,
-                           uint8_t report_id,
-                           hid_report_type_t report_type,
-                           uint8_t const *buffer,
-                           uint16_t buffer_size)
-{
+void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type,
+                           uint8_t const *buffer, uint16_t buffer_size) {
     (void)instance;
     (void)report_id;
     (void)report_type;

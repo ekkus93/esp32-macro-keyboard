@@ -8,16 +8,14 @@
 static bool web_mounted;
 static bool data_mounted;
 
-static app_error_code_t mkdir_checked(const char *path)
-{
+static app_error_code_t mkdir_checked(const char *path) {
     if (mkdir(path, 0750) == 0 || errno == EEXIST) {
         return APP_ERROR_NONE;
     }
     return errno == ENOSPC ? APP_ERROR_STORAGE_FULL : APP_ERROR_IO;
 }
 
-app_error_code_t storage_mount_all(void)
-{
+app_error_code_t storage_mount_all(void) {
     const esp_vfs_littlefs_conf_t web = {
         .base_path = STORAGE_WEB_MOUNT,
         .partition_label = STORAGE_WEB_PARTITION,
@@ -52,8 +50,7 @@ app_error_code_t storage_mount_all(void)
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_unmount_all(void)
-{
+app_error_code_t storage_unmount_all(void) {
     app_error_code_t result = APP_ERROR_NONE;
     if (data_mounted) {
         if (esp_vfs_littlefs_unregister(STORAGE_DATA_PARTITION) != ESP_OK) {
@@ -72,15 +69,11 @@ app_error_code_t storage_unmount_all(void)
     return result;
 }
 
-app_error_code_t storage_prepare_directories(void)
-{
+app_error_code_t storage_prepare_directories(void) {
     static const char *const paths[] = {
-        STORAGE_DATA_MOUNT "/sets",
-        STORAGE_DATA_MOUNT "/global",
-        STORAGE_DATA_MOUNT "/global/macros",
-        STORAGE_DATA_MOUNT "/staging",
-        STORAGE_DATA_MOUNT "/trash",
-        STORAGE_DATA_MOUNT "/quarantine",
+        STORAGE_DATA_MOUNT "/sets",          STORAGE_DATA_MOUNT "/global",
+        STORAGE_DATA_MOUNT "/global/macros", STORAGE_DATA_MOUNT "/staging",
+        STORAGE_DATA_MOUNT "/trash",         STORAGE_DATA_MOUNT "/quarantine",
         STORAGE_DATA_MOUNT "/transactions",
     };
     for (size_t index = 0U; index < (sizeof(paths) / sizeof(paths[0])); ++index) {

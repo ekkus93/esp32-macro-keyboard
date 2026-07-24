@@ -9,36 +9,28 @@
 #include <string.h>
 #include <unistd.h>
 
-static int posix_open(void *context, const char *path, int flags, mode_t mode)
-{
+static int posix_open(void *context, const char *path, int flags, mode_t mode) {
     (void)context;
     return open(path, flags, mode);
 }
 
-static ssize_t posix_read(void *context, int descriptor, void *buffer, size_t length)
-{
+static ssize_t posix_read(void *context, int descriptor, void *buffer, size_t length) {
     (void)context;
     return read(descriptor, buffer, length);
 }
 
-static ssize_t posix_write(void *context,
-                           int descriptor,
-                           const void *buffer,
-                           size_t length)
-{
+static ssize_t posix_write(void *context, int descriptor, const void *buffer, size_t length) {
     (void)context;
     return write(descriptor, buffer, length);
 }
 
-static int posix_sync(void *context, int descriptor)
-{
+static int posix_sync(void *context, int descriptor) {
     (void)context;
     return fsync(descriptor);
 }
 
 #ifndef ESP_PLATFORM
-static int copy_parent_path(const char *path, char **out_parent)
-{
+static int copy_parent_path(const char *path, char **out_parent) {
     if (out_parent != NULL) {
         *out_parent = NULL;
     }
@@ -69,8 +61,7 @@ static int copy_parent_path(const char *path, char **out_parent)
 }
 #endif
 
-int storage_fs_sync_parent_path(void *context, const char *path)
-{
+int storage_fs_sync_parent_path(void *context, const char *path) {
     (void)context;
 #ifdef ESP_PLATFORM
     /*
@@ -110,48 +101,38 @@ int storage_fs_sync_parent_path(void *context, const char *path)
 #endif
 }
 
-static int posix_close(void *context, int descriptor)
-{
+static int posix_close(void *context, int descriptor) {
     (void)context;
     return close(descriptor);
 }
 
-static int posix_stat(void *context, const char *path, struct stat *metadata)
-{
+static int posix_stat(void *context, const char *path, struct stat *metadata) {
     (void)context;
     return stat(path, metadata);
 }
 
-static int posix_rename(void *context, const char *source, const char *destination)
-{
+static int posix_rename(void *context, const char *source, const char *destination) {
     (void)context;
     return rename(source, destination);
 }
 
-static int posix_unlink(void *context, const char *path)
-{
+static int posix_unlink(void *context, const char *path) {
     (void)context;
     return unlink(path);
 }
 
-static int posix_mkdir(void *context, const char *path, mode_t mode)
-{
+static int posix_mkdir(void *context, const char *path, mode_t mode) {
     (void)context;
     return mkdir(path, mode);
 }
 
-static void *posix_open_directory(void *context, const char *path)
-{
+static void *posix_open_directory(void *context, const char *path) {
     (void)context;
     return opendir(path);
 }
 
-static int posix_read_directory(void *context,
-                                void *directory,
-                                char *name,
-                                size_t name_size,
-                                bool *out_end)
-{
+static int posix_read_directory(void *context, void *directory, char *name, size_t name_size,
+                                bool *out_end) {
     (void)context;
     if (directory == NULL || name == NULL || name_size == 0U || out_end == NULL) {
         errno = EINVAL;
@@ -177,8 +158,7 @@ static int posix_read_directory(void *context,
     return 0;
 }
 
-static int posix_close_directory(void *context, void *directory)
-{
+static int posix_close_directory(void *context, void *directory) {
     (void)context;
     if (directory == NULL) {
         errno = EINVAL;
@@ -187,14 +167,12 @@ static int posix_close_directory(void *context, void *directory)
     return closedir((DIR *)directory);
 }
 
-static int posix_remove_directory(void *context, const char *path)
-{
+static int posix_remove_directory(void *context, const char *path) {
     (void)context;
     return rmdir(path);
 }
 
-const storage_fs_ops_t *storage_fs_ops_posix(void)
-{
+const storage_fs_ops_t *storage_fs_ops_posix(void) {
     static const storage_fs_ops_t operations = {
         .context = NULL,
         .open_file = posix_open,
@@ -214,17 +192,14 @@ const storage_fs_ops_t *storage_fs_ops_posix(void)
     return &operations;
 }
 
-bool storage_fs_ops_is_valid(const storage_fs_ops_t *operations)
-{
-    return operations != NULL && operations->open_file != NULL &&
-           operations->read_file != NULL && operations->write_file != NULL &&
-           operations->sync_file != NULL && operations->close_file != NULL &&
-           operations->stat_path != NULL && operations->rename_path != NULL &&
-           operations->unlink_path != NULL;
+bool storage_fs_ops_is_valid(const storage_fs_ops_t *operations) {
+    return operations != NULL && operations->open_file != NULL && operations->read_file != NULL &&
+           operations->write_file != NULL && operations->sync_file != NULL &&
+           operations->close_file != NULL && operations->stat_path != NULL &&
+           operations->rename_path != NULL && operations->unlink_path != NULL;
 }
 
-bool storage_fs_ops_has_directory(const storage_fs_ops_t *operations)
-{
+bool storage_fs_ops_has_directory(const storage_fs_ops_t *operations) {
     return storage_fs_ops_is_valid(operations) && operations->make_directory != NULL &&
            operations->open_directory != NULL && operations->read_directory != NULL &&
            operations->close_directory != NULL && operations->remove_directory != NULL;

@@ -3,15 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-app_error_code_t macro_model_validate_revision(uint32_t revision)
-{
+app_error_code_t macro_model_validate_revision(uint32_t revision) {
     return revision == 0U ? APP_ERROR_INVALID_ARGUMENT : APP_ERROR_NONE;
 }
 
-app_error_code_t macro_model_validate_text(const char *text,
-                                           size_t length,
-                                           size_t maximum)
-{
+app_error_code_t macro_model_validate_text(const char *text, size_t length, size_t maximum) {
     if ((text == NULL && length != 0U) || length > maximum) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -21,8 +17,7 @@ app_error_code_t macro_model_validate_text(const char *text,
     return APP_ERROR_NONE;
 }
 
-void macro_model_free_macro(macro_t *macro)
-{
+void macro_model_free_macro(macro_t *macro) {
     if (macro == NULL) {
         return;
     }
@@ -31,8 +26,7 @@ void macro_model_free_macro(macro_t *macro)
     macro->source_length = 0U;
 }
 
-void macro_model_free_procedure(procedure_t *procedure)
-{
+void macro_model_free_procedure(procedure_t *procedure) {
     if (procedure == NULL) {
         return;
     }

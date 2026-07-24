@@ -5,8 +5,6 @@
 
 #include "app_error.h"
 
-app_error_code_t web_cookie_extract_session(const char *cookie,
-                                            char *out_token,
-                                            size_t token_size);
+app_error_code_t web_cookie_extract_session(const char *cookie, char *out_token, size_t token_size);
 
 #endif

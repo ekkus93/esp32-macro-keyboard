@@ -13,8 +13,7 @@
 #include "cJSON.h"
 #include "storage.h"
 
-app_error_code_t storage_set_read(const app_uuid_t *set_id, macro_set_t *out_set)
-{
+app_error_code_t storage_set_read(const app_uuid_t *set_id, macro_set_t *out_set) {
     if (set_id == NULL || out_set == NULL || !app_uuid_is_valid_string(set_id->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -44,8 +43,7 @@ app_error_code_t storage_set_read(const app_uuid_t *set_id, macro_set_t *out_set
     return result;
 }
 
-app_error_code_t storage_set_list(storage_set_list_t *out_list)
-{
+app_error_code_t storage_set_list(storage_set_list_t *out_list) {
     if (out_list == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -67,13 +65,10 @@ app_error_code_t storage_set_list(storage_set_list_t *out_list)
 }
 
 static app_error_code_t storage_repository_create_set_staging(const macro_set_t *set,
-                                           const app_uuid_t *transaction_id,
-                                           char *staging,
-                                           size_t staging_size)
-{
-    const int staging_length = snprintf(staging, staging_size,
-                                        STORAGE_DATA_MOUNT "/staging/%s",
-                                        transaction_id->value);
+                                                              const app_uuid_t *transaction_id,
+                                                              char *staging, size_t staging_size) {
+    const int staging_length =
+        snprintf(staging, staging_size, STORAGE_DATA_MOUNT "/staging/%s", transaction_id->value);
     if (staging_length < 0 || (size_t)staging_length >= staging_size) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -128,8 +123,7 @@ static app_error_code_t storage_repository_create_set_staging(const macro_set_t 
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_set_create(const macro_set_t *set)
-{
+app_error_code_t storage_set_create(const macro_set_t *set) {
     if (set == NULL || set->revision != 1U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -223,10 +217,8 @@ app_error_code_t storage_set_create(const macro_set_t *set)
     return storage_repository_remove_manifest(&transaction_id);
 }
 
-app_error_code_t storage_set_update(const macro_set_t *replacement,
-                                    uint32_t expected_revision,
-                                    macro_set_t *out_updated)
-{
+app_error_code_t storage_set_update(const macro_set_t *replacement, uint32_t expected_revision,
+                                    macro_set_t *out_updated) {
     if (replacement == NULL || out_updated == NULL || expected_revision == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -262,8 +254,7 @@ app_error_code_t storage_set_update(const macro_set_t *replacement,
     return result;
 }
 
-app_error_code_t storage_set_delete(const app_uuid_t *set_id, uint32_t expected_revision)
-{
+app_error_code_t storage_set_delete(const app_uuid_t *set_id, uint32_t expected_revision) {
     if (set_id == NULL || expected_revision == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -302,8 +293,7 @@ app_error_code_t storage_set_delete(const app_uuid_t *set_id, uint32_t expected_
         return result;
     }
     char trash[APP_PATH_MAX_BYTES];
-    const int trash_length = snprintf(trash, sizeof(trash),
-                                      STORAGE_DATA_MOUNT "/trash/%s-%s",
+    const int trash_length = snprintf(trash, sizeof(trash), STORAGE_DATA_MOUNT "/trash/%s-%s",
                                       set_id->value, transaction_id.value);
     if (trash_length < 0 || (size_t)trash_length >= sizeof(trash)) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -319,8 +309,8 @@ app_error_code_t storage_set_delete(const app_uuid_t *set_id, uint32_t expected_
     };
     const int source_copy = snprintf(manifest.source, sizeof(manifest.source), "%s", source);
     const int trash_copy = snprintf(manifest.backup, sizeof(manifest.backup), "%s", trash);
-    if (source_copy < 0 || (size_t)source_copy >= sizeof(manifest.source) ||
-        trash_copy < 0 || (size_t)trash_copy >= sizeof(manifest.backup)) {
+    if (source_copy < 0 || (size_t)source_copy >= sizeof(manifest.source) || trash_copy < 0 ||
+        (size_t)trash_copy >= sizeof(manifest.backup)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     result = storage_transaction_write_manifest(&manifest);

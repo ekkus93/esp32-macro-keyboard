@@ -7,8 +7,7 @@
 
 #define SESSION_COOKIE_NAME "MKSESSION"
 
-static bool valid_token(const char *token, size_t length)
-{
+static bool valid_token(const char *token, size_t length) {
     if (token == NULL || length != AUTH_TOKEN_HEX_BYTES - 1U) {
         return false;
     }
@@ -21,10 +20,8 @@ static bool valid_token(const char *token, size_t length)
     return true;
 }
 
-app_error_code_t web_cookie_extract_session(const char *cookie,
-                                            char *out_token,
-                                            size_t token_size)
-{
+app_error_code_t web_cookie_extract_session(const char *cookie, char *out_token,
+                                            size_t token_size) {
     if (out_token != NULL && token_size > 0U) {
         out_token[0] = '\0';
     }

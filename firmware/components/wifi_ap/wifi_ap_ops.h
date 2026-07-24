@@ -40,8 +40,7 @@ typedef struct {
     app_error_code_t (*wifi_init)(void *context);
     app_error_code_t (*handler_register)(void *context);
     app_error_code_t (*set_mode_ap)(void *context);
-    app_error_code_t (*set_config)(void *context,
-                                   const wifi_ap_runtime_config_t *configuration);
+    app_error_code_t (*set_config)(void *context, const wifi_ap_runtime_config_t *configuration);
     app_error_code_t (*wifi_start)(void *context);
     app_error_code_t (*wifi_stop)(void *context);
     app_error_code_t (*handler_unregister)(void *context);

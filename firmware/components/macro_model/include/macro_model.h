@@ -9,10 +9,7 @@
 #include "app_uuid.h"
 #include "macro_limits.h"
 
-typedef enum {
-    MACRO_SCOPE_SET = 0,
-    MACRO_SCOPE_GLOBAL
-} macro_scope_t;
+typedef enum { MACRO_SCOPE_SET = 0, MACRO_SCOPE_GLOBAL } macro_scope_t;
 
 typedef enum {
     PROCEDURE_STEP_MACRO = 0,
