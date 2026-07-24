@@ -273,8 +273,19 @@ int fake_fs_read_dir(fake_fs_backend_t *filesystem,
 
 int fake_fs_close_dir(fake_fs_backend_t *filesystem, void *directory)
 {
-    if (directory == NULL ||
-        should_fail(filesystem, FAKE_FS_CLOSE_DIR)) {
+    if (directory == NULL) {
+        return -1;
+    }
+    if (should_fail(filesystem, FAKE_FS_CLOSE_DIR)) {
+        /*
+         * Simulate a close failure, but still release the real directory
+         * handle we opened via opendir(); otherwise the fake itself leaks the
+         * glibc DIR. Preserve the caller-visible errno so the injected failure
+         * maps to the same error as before.
+         */
+        const int saved_errno = errno;
+        closedir((DIR *)directory);
+        errno = saved_errno;
         return -1;
     }
     return closedir((DIR *)directory);
