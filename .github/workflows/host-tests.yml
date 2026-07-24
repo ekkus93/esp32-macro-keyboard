@@ -82,6 +82,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          show-progress: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -91,12 +93,17 @@ jobs:
       - name: Install frontend dependencies
         run: npm --prefix webapp install --ignore-scripts --no-audit --no-fund
 
-      - name: Run frontend validation
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm --prefix webapp run typecheck
-          npm --prefix webapp run lint
-          npm --prefix webapp run stylelint
-          npm --prefix webapp run format:check
-          npm --prefix webapp test
+      - name: Type-check frontend
+        run: npm --prefix webapp run typecheck
+
+      - name: Lint frontend TypeScript
+        run: npm --prefix webapp run lint
+
+      - name: Lint frontend styles
+        run: npm --prefix webapp run stylelint
+
+      - name: Check frontend formatting
+        run: npm --prefix webapp run format:check
+
+      - name: Run frontend tests
+        run: npm --prefix webapp test
