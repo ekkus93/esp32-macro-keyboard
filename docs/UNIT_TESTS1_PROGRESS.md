@@ -15,7 +15,7 @@ toolchain (clang-format 18, cmakelang 0.6.13, shfmt 3.11.0, shellcheck 0.9.0, ya
 markdownlint-cli2 0.23.1, Node 24.18.0, gcovr 8.6) matching the CI pins. Results:
 
 | Check | Result |
-|-------|--------|
+| ------- | -------- |
 | Native host suite (`run-tests.sh`) | pass, 17/17 |
 | ASan + UBSan (`run-tests.sh --sanitizers`) | pass, 17/17, no leaks |
 | Native coverage pure-policy gate | pass, 95.1% line / 86.1% branch (thresholds 90/80) |
