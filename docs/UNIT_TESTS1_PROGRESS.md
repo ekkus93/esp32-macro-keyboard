@@ -73,6 +73,19 @@ applicable fake and suite").** Partially satisfied — left open.
   met. Enabling strict expectations per suite remains open work and is a substantial change
   (each suite must declare its exact expected call sequence).
 
+### Documentation reconciliation (2026-07-24, Task 15.3)
+
+Reconciled the six required docs (`tests/README.md`, `tests/host/README.md`,
+`firmware/test_app/README.md`, `.github/workflows/README.md`, root `README.md`,
+`docs/IMPLEMENTATION_STATUS.md`) to match the implemented commands and to label each
+capability by validation state — host-tested, sanitizer-tested, coverage-gated,
+frontend-tested, device-build-tested, device-executed, HIL-verified. The `[auth]`,
+`[executor]`, and `[usb]` device-test tags are now documented in both required device-test
+docs (checklist item "New Unity tags are documented" reconciled). Nothing is labelled
+device-executed or HIL-verified. The broader "documentation matches all implemented commands
+and validation states" item is left open pending exact-head CI confirmation, since the docs
+describe locally-verified rather than CI-observed results.
+
 ## Implemented and validated in pull-request CI
 
 ### Host-test infrastructure

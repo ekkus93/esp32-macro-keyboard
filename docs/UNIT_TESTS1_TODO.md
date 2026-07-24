@@ -943,7 +943,7 @@ reviewed.
 ### Device and CI
 
 - [x] Device-test firmware compiles with ESP-IDF v5.5.5 for ESP32-S3.
-- [ ] New Unity tags are documented in all required repository documentation.
+- [x] New Unity tags are documented in all required repository documentation.
 - [x] Device tests do not print secrets or destructively recover storage; source audit reconciled 2026-07-24 (see `docs/UNIT_TESTS1_PROGRESS.md`).
 - [x] Normal pull-request CI runs retain no artifacts.
 - [ ] Tagged runs retain expected test and coverage assets.
