@@ -34,7 +34,8 @@ common_args=(
 gcovr "${common_args[@]}" \
 	--txt "${output_dir}/line-coverage.txt" \
 	--html-details "${output_dir}/index.html" \
-	--json-summary-pretty "${output_dir}/summary.json" \
+	--json-summary "${output_dir}/summary.json" \
+	--json-summary-pretty \
 	--print-summary
 
 gcovr "${common_args[@]}" \
