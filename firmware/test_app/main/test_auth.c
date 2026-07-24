@@ -12,8 +12,8 @@ TEST_CASE("authentication adapters create and validate secrets", "[device][auth]
     TEST_ASSERT_EQUAL(APP_ERROR_NONE,
                       auth_password_create(password, sizeof(password) - 1U, &record));
     TEST_ASSERT_TRUE(auth_password_verify(password, sizeof(password) - 1U, &record));
-    TEST_ASSERT_FALSE(auth_password_verify(
-        "incorrect password", strlen("incorrect password"), &record));
+    TEST_ASSERT_FALSE(
+        auth_password_verify("incorrect password", strlen("incorrect password"), &record));
 
     // clang-format off
     static const uint8_t vector_salt[AUTH_SALT_BYTES] = {
