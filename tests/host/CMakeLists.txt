@@ -112,6 +112,7 @@ add_executable(web_security_tests
 target_include_directories(web_security_tests PRIVATE
     ../../firmware/components/macro_model/include
     ../../firmware/components/auth/include
+    ../../firmware/components/storage/include
     ../../firmware/components/web_server
 )
 target_link_libraries(web_security_tests PRIVATE test_support)
