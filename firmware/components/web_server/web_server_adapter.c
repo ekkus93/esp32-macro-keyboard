@@ -1,0 +1,5 @@
+#include "web_server_adapter_common.inc"
+#include "web_server_adapter_body_auth.inc"
+#include "web_server_adapter_json.inc"
+#include "web_server_adapter_static_stream.inc"
+#include "web_server_adapter_lifecycle.inc"
