@@ -55,6 +55,7 @@ describe("execution workflow", () => {
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
       await Promise.resolve();
     });
 
