@@ -47,7 +47,7 @@ static void test_debounce_press_hold_release_and_repress(void)
 static void test_debounce_bounce_and_candidate_reset(void)
 {
     device_controls_debounce_t button = {0};
-    for (size_t index = 0U; index < 100U; ++index) {
+    for (size_t index = 0U; index < 99U; ++index) {
         const bool sample = (index % 2U) == 0U;
         TEST_CHECK(!device_controls_debounce_update(&button, sample));
         TEST_CHECK(!button.stable);

@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -33,6 +34,80 @@ static int posix_sync(void *context, int descriptor)
 {
     (void)context;
     return fsync(descriptor);
+}
+
+#ifndef ESP_PLATFORM
+static int copy_parent_path(const char *path, char **out_parent)
+{
+    if (out_parent != NULL) {
+        *out_parent = NULL;
+    }
+    if (path == NULL || path[0] == '\0' || out_parent == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    const char *slash = strrchr(path, '/');
+    const char *parent_text = ".";
+    size_t parent_length = 1U;
+    if (slash == path) {
+        parent_text = "/";
+    } else if (slash != NULL) {
+        parent_text = path;
+        parent_length = (size_t)(slash - path);
+    }
+
+    char *parent = malloc(parent_length + 1U);
+    if (parent == NULL) {
+        errno = ENOMEM;
+        return -1;
+    }
+    memcpy(parent, parent_text, parent_length);
+    parent[parent_length] = '\0';
+    *out_parent = parent;
+    return 0;
+}
+#endif
+
+int storage_fs_sync_parent_path(void *context, const char *path)
+{
+    (void)context;
+#ifdef ESP_PLATFORM
+    /*
+     * LittleFS commits rename metadata atomically and ESP-IDF VFS does not
+     * expose a POSIX directory-fsync primitive. File sync/close plus the
+     * completed rename is therefore the platform durability boundary.
+     */
+    if (path == NULL || path[0] == '\0') {
+        errno = EINVAL;
+        return -1;
+    }
+    return 0;
+#else
+    char *parent = NULL;
+    if (copy_parent_path(path, &parent) != 0) {
+        return -1;
+    }
+
+    const int descriptor = open(parent, O_RDONLY);
+    const int open_error = errno;
+    free(parent);
+    if (descriptor < 0) {
+        errno = open_error;
+        return -1;
+    }
+
+    if (fsync(descriptor) != 0) {
+        const int sync_error = errno;
+        (void)close(descriptor);
+        errno = sync_error;
+        return -1;
+    }
+    if (close(descriptor) != 0) {
+        return -1;
+    }
+    return 0;
+#endif
 }
 
 static int posix_close(void *context, int descriptor)

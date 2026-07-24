@@ -33,6 +33,7 @@ typedef struct {
 } storage_fs_ops_t;
 
 const storage_fs_ops_t *storage_fs_ops_posix(void);
+int storage_fs_sync_parent_path(void *context, const char *path);
 bool storage_fs_ops_is_valid(const storage_fs_ops_t *operations);
 bool storage_fs_ops_has_directory(const storage_fs_ops_t *operations);
 

@@ -1,5 +1,6 @@
 #include "usb_keyboard.h"
 
+#include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -7,6 +8,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "tinyusb.h"
+#include "tinyusb_default_config.h"
 #include "tusb.h"
 #include "usb_descriptors.h"
 #include "usb_keyboard_state.h"
@@ -34,15 +36,20 @@ static void adapter_state_set(void *context, usb_keyboard_state_t next)
 static app_error_code_t adapter_driver_install(void *context)
 {
     (void)context;
-    const tinyusb_config_t configuration = {
-        .device_descriptor = usb_descriptors_device(),
-        .string_descriptor = usb_descriptors_strings(),
-        .string_descriptor_count = (int)usb_descriptors_string_count(),
-        .external_phy = false,
-        .configuration_descriptor = usb_descriptors_configuration(),
-    };
+    const size_t string_count = usb_descriptors_string_count();
+    if (string_count > (size_t)INT_MAX) {
+        return APP_ERROR_INTERNAL;
+    }
+
+    tinyusb_config_t configuration = TINYUSB_DEFAULT_CONFIG();
+    configuration.descriptor.device = usb_descriptors_device();
+    configuration.descriptor.string = usb_descriptors_strings();
+    configuration.descriptor.string_count = (int)string_count;
+    configuration.descriptor.full_speed_config =
+        usb_descriptors_configuration();
+
     return tinyusb_driver_install(&configuration) == ESP_OK ? APP_ERROR_NONE
-                                                             : APP_ERROR_INTERNAL;
+                                                              : APP_ERROR_INTERNAL;
 }
 
 static uint32_t adapter_now_ms(void *context)

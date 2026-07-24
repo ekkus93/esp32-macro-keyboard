@@ -38,7 +38,7 @@ bool app_uuid_is_valid_string(const char *text)
     }
 
     return text[14] == '4' && (text[19] == '8' || text[19] == '9' ||
-                              text[19] == 'a' || text[19] == 'b');
+                               text[19] == 'a' || text[19] == 'b');
 }
 
 app_error_code_t app_uuid_parse(const char *text, app_uuid_t *out_uuid)

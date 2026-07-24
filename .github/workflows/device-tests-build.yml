@@ -37,14 +37,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          readonly log_file="${RUNNER_TEMP}/device-test-lint.log"
           mapfile -d '' sources < <(
             find firmware/test_app/main -maxdepth 1 -type f -name '*.c' -print0 | sort -z
           )
           if (( ${#sources[@]} == 0 )); then
-            echo "No device-test C sources were found." >&2
+            echo "No device-test C sources were found." | tee "${log_file}" >&2
             exit 1
           fi
-          clang-format --dry-run --Werror "${sources[@]}"
+          clang-format --dry-run --Werror "${sources[@]}" 2>&1 | tee "${log_file}"
 
       - name: Install ESP-IDF v5.5.5
         shell: bash
@@ -52,8 +53,8 @@ jobs:
           set -euo pipefail
           readonly log_file="${RUNNER_TEMP}/esp-idf-install.log"
           if ! ./scripts/install-esp-idf.sh >"${log_file}" 2>&1; then
-            echo "ESP-IDF installation failed. Relevant log tail:" >&2
-            tail -n 250 "${log_file}" >&2
+            echo "ESP-IDF installation failed. Complete log:" >&2
+            cat "${log_file}" >&2
             exit 1
           fi
           tail -n 20 "${log_file}"
@@ -65,12 +66,8 @@ jobs:
           . "$HOME/esp/esp-idf-v5.5.5/export.sh" >/dev/null
           readonly log_file="${RUNNER_TEMP}/device-test-build.log"
           if ! bash ./scripts/build-device-tests.sh >"${log_file}" 2>&1; then
-            echo "ESP32-S3 device-test build failed. Compiler diagnostics:" >&2
-            grep -E -i -n -C 2 \
-              '(^|[[:space:]])(fatal error|error:|undefined reference|FAILED:|CMake Error)' \
-              "${log_file}" >&2 || true
-            echo "Complete build log tail:" >&2
-            tail -n 300 "${log_file}" >&2
+            echo "ESP32-S3 device-test build failed. Complete build log:" >&2
+            cat "${log_file}" >&2
             exit 1
           fi
           tail -n 40 "${log_file}"
