@@ -13,76 +13,84 @@ static bool request_accepts_gzip(httpd_req_t *request)
            web_accept_encoding_gzip(encoding);
 }
 
-static esp_err_t stream_file(httpd_req_t *request, FILE *file)
+static void *open_static_adapter(void *context, const char *path)
 {
-    char buffer[STATIC_CHUNK_BYTES];
-    esp_err_t result = ESP_OK;
-    while (true) {
-        const size_t count = fread(buffer, 1U, sizeof(buffer), file);
-        if (count > 0U && httpd_resp_send_chunk(request, buffer, (ssize_t)count) != ESP_OK) {
-            result = ESP_FAIL;
-            break;
-        }
-        if (count < sizeof(buffer)) {
-            if (ferror(file) != 0) {
-                result = ESP_FAIL;
-            }
-            break;
-        }
-    }
-    const int close_result = fclose(file);
-    if (close_result != 0 && result == ESP_OK) {
-        result = ESP_FAIL;
-    }
-    if (result == ESP_OK) {
-        result = httpd_resp_send_chunk(request, NULL, 0U);
-    }
-    return result;
+    (void)context;
+    return fopen(path, "rb");
+}
+
+static int read_static_adapter(void *context,
+                               void *handle,
+                               uint8_t *buffer,
+                               size_t capacity,
+                               size_t *out_count,
+                               bool *out_eof)
+{
+    (void)context;
+    FILE *file = handle;
+    const size_t count = fread(buffer, 1U, capacity, file);
+    *out_count = count;
+    *out_eof = count < capacity;
+    return *out_eof && ferror(file) != 0 ? -1 : 0;
+}
+
+static int send_static_chunk_adapter(void *context,
+                                     const uint8_t *buffer,
+                                     size_t length)
+{
+    httpd_req_t *request = context;
+    return httpd_resp_send_chunk(request,
+                                 (const char *)buffer,
+                                 (ssize_t)length) == ESP_OK
+               ? 0
+               : -1;
+}
+
+static int close_static_adapter(void *context, void *handle)
+{
+    (void)context;
+    return fclose(handle);
 }
 
 static esp_err_t static_handler(httpd_req_t *request)
 {
-    char normalized[APP_PATH_MAX_BYTES];
-    if (request == NULL ||
-        !web_static_uri_normalize(request->uri, normalized, sizeof(normalized))) {
+    if (request == NULL) {
+        return ESP_FAIL;
+    }
+    web_adapter_static_file_t file = {0};
+    const app_error_code_t open_result = web_adapter_open_static_file(
+        request->uri,
+        request_accepts_gzip(request),
+        STORAGE_WEB_MOUNT,
+        open_static_adapter,
+        NULL,
+        &file);
+    if (open_result == APP_ERROR_INVALID_ARGUMENT) {
         return httpd_resp_send_err(request, HTTPD_400_BAD_REQUEST, "invalid path");
     }
-    const char *relative = strcmp(normalized, "/") == 0 ? "/index.html" : normalized;
-    char path[APP_PATH_MAX_BYTES];
-    const int path_length = snprintf(path, sizeof(path), STORAGE_WEB_MOUNT "%s", relative);
-    if (path_length < 0 || (size_t)path_length >= sizeof(path)) {
-        return httpd_resp_send_err(request, HTTPD_400_BAD_REQUEST, "path too long");
-    }
-
-    FILE *file = NULL;
-    bool compressed = false;
-    if (request_accepts_gzip(request)) {
-        char gzip_path[APP_PATH_MAX_BYTES];
-        const int gzip_length = snprintf(gzip_path, sizeof(gzip_path), "%s.gz", path);
-        if (gzip_length > 0 && (size_t)gzip_length < sizeof(gzip_path)) {
-            file = fopen(gzip_path, "rb");
-            compressed = file != NULL;
-        }
-    }
-    if (file == NULL) {
-        file = fopen(path, "rb");
-    }
-    if (file == NULL) {
+    if (open_result == APP_ERROR_NOT_FOUND) {
         return httpd_resp_send_err(request, HTTPD_404_NOT_FOUND, "not found");
     }
-
-    if (httpd_resp_set_type(request, web_content_type(path)) != ESP_OK ||
-        httpd_resp_set_hdr(request,
-                           "Cache-Control",
-                           strcmp(relative, "/index.html") == 0
-                               ? "no-cache"
-                               : "public, max-age=31536000, immutable") != ESP_OK ||
-        (compressed && httpd_resp_set_hdr(request, "Content-Encoding", "gzip") != ESP_OK)) {
-        if (fclose(file) != 0) {
+    if (open_result != APP_ERROR_NONE) {
+        return httpd_resp_send_err(request,
+                                   HTTPD_500_INTERNAL_SERVER_ERROR,
+                                   "static file unavailable");
+    }
+    if (httpd_resp_set_type(request, file.content_type) != ESP_OK ||
+        httpd_resp_set_hdr(request, "Cache-Control", file.cache_control) != ESP_OK ||
+        (file.compressed &&
+         httpd_resp_set_hdr(request, "Content-Encoding", "gzip") != ESP_OK)) {
+        if (fclose(file.handle) != 0) {
             return ESP_FAIL;
         }
         return ESP_FAIL;
     }
-    return stream_file(request, file);
+    const web_adapter_stream_ops_t stream_ops = {
+        .context = request,
+        .read = read_static_adapter,
+        .send_chunk = send_static_chunk_adapter,
+        .close = close_static_adapter,
+    };
+    return web_adapter_stream_file(file.handle, &stream_ops) == APP_ERROR_NONE ? ESP_OK
+                                                                               : ESP_FAIL;
 }
-
