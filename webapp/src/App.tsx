@@ -381,9 +381,13 @@ export default function App(): React.JSX.Element {
           <section>
             <h2>Typing macro</h2>
             <p>
-              {execution === null
-                ? "Waiting for device status…"
-                : `${execution.actionIndex} / ${execution.actionCount}`}
+              {execution === null ? (
+                "Waiting for device status…"
+              ) : (
+                <>
+                  {execution.actionIndex} / {execution.actionCount}
+                </>
+              )}
             </p>
             <button
               className="danger"
