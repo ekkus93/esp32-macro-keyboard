@@ -50,14 +50,19 @@ describe("execution workflow", () => {
     ["failed", "Macro failed"],
   ] as const)("navigates after %s", async (state, expectedTitle) => {
     vi.useFakeTimers();
-    const view = await renderExecution(state);
+    const view = await renderExecution("running");
+    planJsonResponse({ ok: true, data: executionStatus(state) });
+
     await act(async () => {
-      window.dispatchEvent(new HashChangeEvent("hashchange"));
+      await vi.advanceTimersByTimeAsync(500);
       await Promise.resolve();
     });
+
     expect(document.body.textContent).toContain(expectedTitle);
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(getFetchCalls()).toHaveLength(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(getFetchCalls()).toHaveLength(2);
     await view.unmount();
   });
 
