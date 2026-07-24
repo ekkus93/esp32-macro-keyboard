@@ -84,11 +84,13 @@ describe("application authentication", () => {
   });
 
   test("disables repeated submission while a request is in flight", async () => {
-    let resolveLogin: ((response: Response) => void) | null = null;
+    const deferred: { resolve: ((response: Response) => void) | null } = {
+      resolve: null,
+    };
     planFetch(
       () =>
         new Promise<Response>((resolve) => {
-          resolveLogin = resolve;
+          deferred.resolve = resolve;
         }),
     );
     const view = await renderLogin();
@@ -99,7 +101,7 @@ describe("application authentication", () => {
       requiredElement<HTMLButtonElement>("button[type='submit']").disabled,
     ).toBe(true);
 
-    const resolver = resolveLogin;
+    const resolver = deferred.resolve;
     if (resolver === null) {
       throw new Error("Login request was not started.");
     }
