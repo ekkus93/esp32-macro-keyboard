@@ -3,20 +3,32 @@
 This file records implementation progress against `docs/UNIT_TESTS1_TODO.md` without
 claiming hardware execution or HIL verification.
 
-## Current validation slice
+## Implemented and registered
 
-- HTTP security and server-adapter host suites are implemented and registered.
-- Storage atomic-write and repository-I/O fault suites are implemented and registered.
-- Transaction recovery now uses injectable filesystem and repository-index operations.
-- Transaction recovery fault tests are implemented and registered.
-- Quarantine filesystem injection and fault tests are the next storage work item.
+- HTTP security and server-adapter host suites.
+- Storage atomic-write and repository-I/O fault suites.
+- Injectable transaction-recovery filesystem and repository-index operations.
+- Deterministic transaction recovery and failure-injection tests.
+- Injectable quarantine filesystem and UUID operations.
+- Quarantine evidence, metadata, collision, cleanup, malformed-record, and limit tests.
+- ESP32-S3 Unity tests for executor, authentication, and USB state.
+- esp_tinyusb 2.2.1 driver configuration and HID descriptor integration.
 
-## Validation status
+## Validated state
 
-- Source inspection: complete for the items above.
-- Host build and test run for the transaction slice: pending pull-request CI.
-- ESP-IDF v5.5.5 device-test build: not yet revalidated for this slice.
-- Device execution and HIL: not performed.
+- The complete native host suite passed in pull-request CI after the storage additions.
+- The ESP32-S3 device-test firmware compiled successfully with ESP-IDF v5.5.5.
+- Device-test source formatting passed with zero clang-format findings.
+- Normal pull-request workflows emit complete diagnostics in job logs and retain no
+  artifacts; tagged workflows remain the only artifact-producing path.
 
-This status must be updated only when the corresponding command or CI job has completed
-successfully. A passing host suite does not imply device execution or HIL verification.
+## Still open
+
+- Atomic-write parent-directory durability and its injected failure case.
+- Remaining object-repository split suites where implementations exist.
+- Frontend API, routing, authentication, execution, and error-banner tests.
+- Native sanitizer and coverage jobs and their gates.
+- Physical ESP32-S3 device execution and hardware-in-the-loop verification.
+
+A passing host suite or device firmware build does not imply physical device execution or
+HIL verification. Those states must remain unclaimed until real serial output is reviewed.
