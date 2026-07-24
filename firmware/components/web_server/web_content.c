@@ -8,6 +8,24 @@ static bool is_space(char value)
     return value == ' ' || value == '\t';
 }
 
+static char ascii_lower(char value)
+{
+    return value >= 'A' && value <= 'Z' ? (char)(value - 'A' + 'a') : value;
+}
+
+static bool token_equal_ignore_case(const char *left, size_t length, const char *right)
+{
+    if (left == NULL || right == NULL || strlen(right) != length) {
+        return false;
+    }
+    for (size_t index = 0U; index < length; ++index) {
+        if (ascii_lower(left[index]) != ascii_lower(right[index])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool quality_is_zero(const char *parameters, size_t length)
 {
     const char *cursor = parameters;
@@ -16,7 +34,8 @@ static bool quality_is_zero(const char *parameters, size_t length)
         while (cursor < end && (is_space(*cursor) || *cursor == ';')) {
             ++cursor;
         }
-        if ((size_t)(end - cursor) >= 2U && cursor[0] == 'q' && cursor[1] == '=') {
+        if ((size_t)(end - cursor) >= 2U && ascii_lower(cursor[0]) == 'q' &&
+            cursor[1] == '=') {
             cursor += 2;
             while (cursor < end && is_space(*cursor)) {
                 ++cursor;
@@ -58,7 +77,7 @@ bool web_accept_encoding_gzip(const char *header)
         while (token_end < end && *token_end != ';' && !is_space(*token_end)) {
             ++token_end;
         }
-        if ((size_t)(token_end - cursor) == 4U && memcmp(cursor, "gzip", 4U) == 0) {
+        if (token_equal_ignore_case(cursor, (size_t)(token_end - cursor), "gzip")) {
             return !quality_is_zero(token_end, (size_t)(end - token_end));
         }
         cursor = *end == '\0' ? end : end + 1;
