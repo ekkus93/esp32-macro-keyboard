@@ -128,12 +128,22 @@ app_error_code_t storage_repository_init(void)
         if (!global_order_exists && errno != ENOENT) {
             return storage_repository_map_file_error();
         }
-        if (index_exists || global_order_exists ||
-            storage_repository_directory_has_entries(STORAGE_DATA_MOUNT "/sets") ||
-            storage_repository_directory_has_entries(STORAGE_DATA_MOUNT "/global/macros")) {
+        bool sets_have_entries = false;
+        bool global_macros_have_entries = false;
+        app_error_code_t result = storage_repository_directory_has_entries(
+            STORAGE_DATA_MOUNT "/sets", &sets_have_entries);
+        if (result == APP_ERROR_NONE) {
+            result = storage_repository_directory_has_entries(
+                STORAGE_DATA_MOUNT "/global/macros", &global_macros_have_entries);
+        }
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+        if (index_exists || global_order_exists || sets_have_entries ||
+            global_macros_have_entries) {
             return APP_ERROR_STORAGE_CORRUPT;
         }
-        app_error_code_t result = storage_repository_ensure_initial_file(STORAGE_SCHEMA_FILE_PATH, schema);
+        result = storage_repository_ensure_initial_file(STORAGE_SCHEMA_FILE_PATH, schema);
         if (result == APP_ERROR_NONE) {
             result = storage_repository_ensure_initial_file(STORAGE_SET_INDEX_FILE_PATH, empty_index);
         }
