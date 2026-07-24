@@ -17,7 +17,6 @@ typedef struct {
                           const void *buffer,
                           size_t length);
     int (*sync_file)(void *context, int descriptor);
-    int (*sync_parent_path)(void *context, const char *path);
     int (*close_file)(void *context, int descriptor);
     int (*stat_path)(void *context, const char *path, struct stat *metadata);
     int (*rename_path)(void *context, const char *source, const char *destination);
@@ -34,6 +33,7 @@ typedef struct {
 } storage_fs_ops_t;
 
 const storage_fs_ops_t *storage_fs_ops_posix(void);
+int storage_fs_sync_parent_path(void *context, const char *path);
 bool storage_fs_ops_is_valid(const storage_fs_ops_t *operations);
 bool storage_fs_ops_has_directory(const storage_fs_ops_t *operations);
 
