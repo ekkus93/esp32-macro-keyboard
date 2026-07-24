@@ -17,6 +17,7 @@ static const char *operation_name(fake_fs_operation_t operation)
         "fs_write",
         "fs_close",
         "fs_sync",
+        "fs_sync_parent",
         "fs_rename",
         "fs_unlink",
         "fs_stat",
@@ -182,6 +183,14 @@ int fake_fs_sync(fake_fs_backend_t *filesystem, int descriptor)
         return -1;
     }
     return fsync(descriptor);
+}
+
+int fake_fs_sync_parent(fake_fs_backend_t *filesystem, const char *path)
+{
+    if (path == NULL || should_fail(filesystem, FAKE_FS_SYNC_PARENT)) {
+        return -1;
+    }
+    return 0;
 }
 
 int fake_fs_rename(fake_fs_backend_t *filesystem,
