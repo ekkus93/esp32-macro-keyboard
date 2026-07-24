@@ -63,7 +63,10 @@ describe("application routing", () => {
     );
     expect(hashRegistration).toBeDefined();
     await view.unmount();
-    expect(removeListener).toHaveBeenCalledWith("hashchange", hashRegistration?.[1]);
+    expect(removeListener).toHaveBeenCalledWith(
+      "hashchange",
+      hashRegistration?.[1],
+    );
   });
 
   test("clears execution polling after route change", async () => {

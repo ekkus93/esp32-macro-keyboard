@@ -48,13 +48,22 @@ function isApiErrorBody(value: unknown): value is ApiErrorBody {
   return typeof value.code === "string" && typeof value.message === "string";
 }
 
-function parseEnvelope<T>(status: number, value: unknown): ApiSuccess<T> | ApiFailure {
+function parseEnvelope<T>(
+  status: number,
+  value: unknown,
+): ApiSuccess<T> | ApiFailure {
   if (!isRecord(value) || typeof value.ok !== "boolean") {
-    throw invalidResponse(status, "The device returned an invalid API envelope.");
+    throw invalidResponse(
+      status,
+      "The device returned an invalid API envelope.",
+    );
   }
   if (value.ok) {
     if (!Object.prototype.hasOwnProperty.call(value, "data")) {
-      throw invalidResponse(status, "The device returned an invalid success envelope.");
+      throw invalidResponse(
+        status,
+        "The device returned an invalid success envelope.",
+      );
     }
     return {
       ok: true,
@@ -62,7 +71,10 @@ function parseEnvelope<T>(status: number, value: unknown): ApiSuccess<T> | ApiFa
     };
   }
   if (!isApiErrorBody(value.error)) {
-    throw invalidResponse(status, "The device returned an invalid failure envelope.");
+    throw invalidResponse(
+      status,
+      "The device returned an invalid failure envelope.",
+    );
   }
   return {
     ok: false,
@@ -72,7 +84,10 @@ function parseEnvelope<T>(status: number, value: unknown): ApiSuccess<T> | ApiFa
 
 const mutationMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function apiRequest<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
   if (!path.startsWith("/api/")) {
     throw new Error("API requests must use same-origin /api/ paths.");
   }
@@ -104,14 +119,20 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
     });
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.toLowerCase().startsWith("application/json")) {
-      throw invalidResponse(response.status, "The device returned a non-JSON response.");
+      throw invalidResponse(
+        response.status,
+        "The device returned a non-JSON response.",
+      );
     }
 
     let value: unknown;
     try {
       value = await response.json();
     } catch {
-      throw invalidResponse(response.status, "The device returned malformed JSON.");
+      throw invalidResponse(
+        response.status,
+        "The device returned malformed JSON.",
+      );
     }
 
     const envelope = parseEnvelope<T>(response.status, value);

@@ -7,7 +7,9 @@ export interface RenderResult {
   unmount: () => Promise<void>;
 }
 
-type ElementConstructor<T extends Element> = abstract new (...arguments_: never[]) => T;
+type ElementConstructor<T extends Element> = abstract new (
+  ...arguments_: never[]
+) => T;
 
 export async function render(element: ReactNode): Promise<RenderResult> {
   const container = document.createElement("div");
@@ -42,7 +44,10 @@ export async function flushReact(): Promise<void> {
   });
 }
 
-function setNativeValue(element: HTMLInputElement | HTMLTextAreaElement, value: string): void {
+function setNativeValue(
+  element: HTMLInputElement | HTMLTextAreaElement,
+  value: string,
+): void {
   const prototype =
     element instanceof HTMLInputElement
       ? HTMLInputElement.prototype
@@ -68,14 +73,18 @@ export async function setInputValue(
 
 export async function click(element: HTMLElement): Promise<void> {
   await act(async () => {
-    element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    element.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
     await Promise.resolve();
   });
 }
 
 export async function submit(form: HTMLFormElement): Promise<void> {
   await act(async () => {
-    form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    form.dispatchEvent(
+      new SubmitEvent("submit", { bubbles: true, cancelable: true }),
+    );
     await Promise.resolve();
   });
 }

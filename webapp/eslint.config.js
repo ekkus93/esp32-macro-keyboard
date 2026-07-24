@@ -24,7 +24,10 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": ["error", { allowConstantExport: true }],
+      "react-refresh/only-export-components": [
+        "error",
+        { allowConstantExport: true },
+      ],
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/consistent-type-imports": "error",
     },

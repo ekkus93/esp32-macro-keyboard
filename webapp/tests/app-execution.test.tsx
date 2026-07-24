@@ -1,11 +1,7 @@
 import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
 import App from "../src/App";
-import {
-  getFetchCalls,
-  planFetch,
-  planJsonResponse,
-} from "./fakeFetch";
+import { getFetchCalls, planFetch, planJsonResponse } from "./fakeFetch";
 import { setHashSilently } from "./fakeLocation";
 import {
   buttonWithText,
@@ -70,9 +66,9 @@ describe("execution workflow", () => {
     planFetch(() => Promise.reject(new Error("poll unavailable")));
     const view = await render(<App />);
     await flushReact();
-    expect(requiredElement("[role='alert']", HTMLElement).textContent).toContain(
-      "poll unavailable",
-    );
+    expect(
+      requiredElement("[role='alert']", HTMLElement).textContent,
+    ).toContain("poll unavailable");
     expect(document.body.textContent).toContain("Typing macro");
     expect(document.body.textContent).not.toContain("Macro finished");
     await view.unmount();
@@ -112,9 +108,9 @@ describe("execution workflow", () => {
     );
     await click(buttonWithText("Cancel and release keys"));
     await flushReact();
-    expect(requiredElement("[role='alert']", HTMLElement).textContent).toContain(
-      "cancel_failed: Cancellation was rejected.",
-    );
+    expect(
+      requiredElement("[role='alert']", HTMLElement).textContent,
+    ).toContain("cancel_failed: Cancellation was rejected.");
     await view.unmount();
   });
 });

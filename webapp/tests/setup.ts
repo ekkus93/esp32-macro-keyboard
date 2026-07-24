@@ -42,7 +42,8 @@ afterEach(() => {
   try {
     assertNoPendingFetchPlans();
   } catch (error: unknown) {
-    pendingPlanError = error instanceof Error ? error : new Error(String(error));
+    pendingPlanError =
+      error instanceof Error ? error : new Error(String(error));
   }
 
   if (vi.isFakeTimers()) {
@@ -56,7 +57,9 @@ afterEach(() => {
     throw pendingPlanError;
   }
   if (consoleErrors.length !== 0) {
-    throw new Error(`Unexpected console.error: ${String(consoleErrors[0]?.[0])}`);
+    throw new Error(
+      `Unexpected console.error: ${String(consoleErrors[0]?.[0])}`,
+    );
   }
   if (unhandledRejections.length !== 0) {
     throw new Error(`Unhandled rejection: ${String(unhandledRejections[0])}`);

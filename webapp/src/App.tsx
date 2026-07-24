@@ -65,12 +65,18 @@ function Card({ title, body, action }: CardProps): React.JSX.Element {
   );
 }
 
-function LoginPage({ onSuccess }: { onSuccess: () => void }): React.JSX.Element {
+function LoginPage({
+  onSuccess,
+}: {
+  onSuccess: () => void;
+}): React.JSX.Element {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
+  const submit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ): Promise<void> => {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
@@ -146,7 +152,9 @@ export default function App(): React.JSX.Element {
     let active = true;
     const refresh = async (): Promise<void> => {
       try {
-        const current = await apiRequest<ExecutionStatus>("/api/v1/executions/current");
+        const current = await apiRequest<ExecutionStatus>(
+          "/api/v1/executions/current",
+        );
         if (!active) {
           return;
         }
@@ -180,9 +188,12 @@ export default function App(): React.JSX.Element {
   const cancelExecution = async (): Promise<void> => {
     setRuntimeError(null);
     try {
-      await apiRequest<{ cancelRequested: boolean }>("/api/v1/executions/current/cancel", {
-        method: "POST",
-      });
+      await apiRequest<{ cancelRequested: boolean }>(
+        "/api/v1/executions/current/cancel",
+        {
+          method: "POST",
+        },
+      );
     } catch (cancelError: unknown) {
       setRuntimeError(errorText(cancelError));
     }
@@ -310,7 +321,9 @@ export default function App(): React.JSX.Element {
         return (
           <section>
             <h2>Edit procedure</h2>
-            <p>Drag steps or use Move Up, Move Down, Move First, and Move Last.</p>
+            <p>
+              Drag steps or use Move Up, Move Down, Move First, and Move Last.
+            </p>
             <button type="button">Add step</button>
           </section>
         );
@@ -414,7 +427,9 @@ export default function App(): React.JSX.Element {
               </button>
             }
             body="The next procedure step is ready but will not execute automatically."
-            title={execution?.state === "failed" ? "Macro failed" : "Macro finished"}
+            title={
+              execution?.state === "failed" ? "Macro failed" : "Macro finished"
+            }
           />
         );
       case "manage-sets":
@@ -492,8 +507,14 @@ export default function App(): React.JSX.Element {
         return (
           <section>
             <h2>Settings</h2>
-            <Card body="Always ask which macro set to use" title="Startup set selection" />
-            <Card body="Require the device button before typing" title="Physical confirmation" />
+            <Card
+              body="Always ask which macro set to use"
+              title="Startup set selection"
+            />
+            <Card
+              body="Require the device button before typing"
+              title="Physical confirmation"
+            />
             <button
               type="button"
               onClick={() => {
@@ -509,7 +530,10 @@ export default function App(): React.JSX.Element {
           <section>
             <h2>Diagnostics</h2>
             <Card body="Mounted · no automatic formatting" title="Storage" />
-            <Card body="Corrupt evidence is preserved and listed here" title="Quarantine" />
+            <Card
+              body="Corrupt evidence is preserved and listed here"
+              title="Quarantine"
+            />
           </section>
         );
     }
@@ -526,7 +550,11 @@ export default function App(): React.JSX.Element {
     );
   }
   return (
-    <AppShell activeSet="HP Chromebook 11 G6 EE" navigate={navigate} route={screen}>
+    <AppShell
+      activeSet="HP Chromebook 11 G6 EE"
+      navigate={navigate}
+      route={screen}
+    >
       {errorBanner}
       {content}
     </AppShell>

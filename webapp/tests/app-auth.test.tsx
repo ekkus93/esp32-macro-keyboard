@@ -69,9 +69,9 @@ describe("application authentication", () => {
     const view = await renderLogin();
     await submit(requiredElement("form", HTMLFormElement));
     await flushReact();
-    expect(requiredElement("[role='alert']", HTMLElement).textContent).toContain(
-      "invalid_password: Password is incorrect.",
-    );
+    expect(
+      requiredElement("[role='alert']", HTMLElement).textContent,
+    ).toContain("invalid_password: Password is incorrect.");
     await view.unmount();
   });
 
@@ -80,9 +80,9 @@ describe("application authentication", () => {
     const view = await renderLogin();
     await submit(requiredElement("form", HTMLFormElement));
     await flushReact();
-    expect(requiredElement("[role='alert']", HTMLElement).textContent).toContain(
-      "network offline",
-    );
+    expect(
+      requiredElement("[role='alert']", HTMLElement).textContent,
+    ).toContain("network offline");
     await view.unmount();
   });
 

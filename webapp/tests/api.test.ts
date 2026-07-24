@@ -42,7 +42,9 @@ describe("apiRequest", () => {
       method: "POST",
       body: "{}",
     });
-    expect(getFetchCalls()[0]?.headers.get("Content-Type")).toBe("application/json");
+    expect(getFetchCalls()[0]?.headers.get("Content-Type")).toBe(
+      "application/json",
+    );
 
     planJsonResponse(success({}));
     await apiRequest("/api/v1/items", {
@@ -74,13 +76,16 @@ describe("apiRequest", () => {
   });
 
   test("returns successful envelopes including JSON with a charset", async () => {
-    planFetch(() =>
-      new Response(JSON.stringify(success({ value: "ok" })), {
-        status: 200,
-        headers: { "Content-Type": "application/json; charset=utf-8" },
-      }),
+    planFetch(
+      () =>
+        new Response(JSON.stringify(success({ value: "ok" })), {
+          status: 200,
+          headers: { "Content-Type": "application/json; charset=utf-8" },
+        }),
     );
-    await expect(apiRequest("/api/v1/status")).resolves.toEqual({ value: "ok" });
+    await expect(apiRequest("/api/v1/status")).resolves.toEqual({
+      value: "ok",
+    });
   });
 
   test("uses an API failure body for HTTP failures", async () => {
@@ -129,11 +134,12 @@ describe("apiRequest", () => {
       },
     });
 
-    planFetch(() =>
-      new Response("{", {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
+    planFetch(
+      () =>
+        new Response("{", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
     );
     await expect(apiRequest("/api/v1/status")).rejects.toMatchObject({
       status: 200,
@@ -173,7 +179,9 @@ describe("apiRequest", () => {
             return;
           }
           const rejectAbort = (): void => {
-            reject(new DOMException("The operation was aborted.", "AbortError"));
+            reject(
+              new DOMException("The operation was aborted.", "AbortError"),
+            );
           };
           if (signal.aborted) {
             rejectAbort();
@@ -184,7 +192,9 @@ describe("apiRequest", () => {
     );
 
     const request = apiRequest("/api/v1/status");
-    const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
+    const rejection = expect(request).rejects.toMatchObject({
+      name: "AbortError",
+    });
     await vi.advanceTimersByTimeAsync(10_000);
     await rejection;
     expect(getFetchCalls()[0]?.signal?.aborted).toBe(true);
