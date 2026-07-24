@@ -83,6 +83,8 @@ jobs:
       typecheck_summary: ${{ steps.typecheck.outputs.summary }}
       lint_status: ${{ steps.lint.outputs.status }}
       lint_summary: ${{ steps.lint.outputs.summary }}
+      stylelint_status: ${{ steps.stylelint.outputs.status }}
+      stylelint_summary: ${{ steps.stylelint.outputs.summary }}
 
     steps:
       - name: Check out repository
@@ -151,7 +153,39 @@ jobs:
         run: exit 1
 
       - name: Lint frontend styles
-        run: npm --prefix webapp run stylelint
+        id: stylelint
+        shell: bash
+        run: |
+          set +e
+          output="$(cd webapp && ./node_modules/.bin/stylelint 'src/**/*.css' --max-warnings=0 --formatter json 2>&1)"
+          status=$?
+          printf '%s\n' "${output}"
+          summary="$(printf '%s' "${output}" | node -e '
+            let input = "";
+            process.stdin.setEncoding("utf8");
+            process.stdin.on("data", (chunk) => { input += chunk; });
+            process.stdin.on("end", () => {
+              try {
+                const results = JSON.parse(input);
+                const findings = results.flatMap((result) =>
+                  result.warnings.map((warning) => {
+                    const path = result.source.split("/webapp/").pop() ?? result.source;
+                    return `${path}:${warning.line}:${warning.column} ${warning.text}`;
+                  }),
+                );
+                process.stdout.write(findings.slice(0, 3).join(" | "));
+              } catch {
+                process.stdout.write("Stylelint output could not be summarized");
+              }
+            });
+          ')"
+          summary="${summary:0:240}"
+          printf 'status=%s\n' "${status}" >> "${GITHUB_OUTPUT}"
+          printf 'summary=%s\n' "${summary}" >> "${GITHUB_OUTPUT}"
+
+      - name: Fail on style findings
+        if: steps.stylelint.outputs.status != '0'
+        run: exit 1
 
       - name: Check frontend formatting
         run: npm --prefix webapp run format:check
@@ -175,4 +209,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Preserve lint failure
+        run: exit 1
+
+  frontend-stylelint-diagnostic:
+    name: "Stylelint: ${{ needs.frontend-tests.outputs.stylelint_summary }}"
+    needs: frontend-tests
+    if: always() && needs.frontend-tests.outputs.stylelint_status != '0'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Preserve stylelint failure
         run: exit 1
