@@ -20,7 +20,8 @@ set(STRICT_WARNINGS
     -Wstrict-prototypes
 )
 
-add_library(test_support STATIC
+add_library(
+    test_support STATIC
     support/test_assert.c
     support/test_memory.c
     support/test_temp_dir.c
@@ -44,7 +45,8 @@ target_compile_options(test_support_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME test_support COMMAND test_support_tests)
 set_tests_properties(test_support PROPERTIES LABELS "support")
 
-add_executable(macro_parser_tests
+add_executable(
+    macro_parser_tests
     test_macro_parser.c
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/macro_model/app_uuid.c
@@ -52,75 +54,70 @@ add_executable(macro_parser_tests
     ../../firmware/components/macro_parser/macro_parser.c
     ../../firmware/components/macro_parser/macro_keymap_us.c
 )
-target_include_directories(macro_parser_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/macro_parser/include
+target_include_directories(
+    macro_parser_tests PRIVATE ../../firmware/components/macro_model/include
+                               ../../firmware/components/macro_parser/include
 )
 target_link_libraries(macro_parser_tests PRIVATE test_support)
 target_compile_options(macro_parser_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME macro_parser COMMAND macro_parser_tests)
 set_tests_properties(macro_parser PROPERTIES LABELS "parser")
 
-add_executable(macro_model_tests
-    test_macro_model.c
-    ../../firmware/components/macro_model/macro_model.c
+add_executable(
+    macro_model_tests test_macro_model.c ../../firmware/components/macro_model/macro_model.c
 )
-target_include_directories(macro_model_tests PRIVATE
-    ../../firmware/components/macro_model/include
-)
+target_include_directories(macro_model_tests PRIVATE ../../firmware/components/macro_model/include)
 target_link_libraries(macro_model_tests PRIVATE test_support)
 target_compile_options(macro_model_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME macro_model COMMAND macro_model_tests)
 set_tests_properties(macro_model PROPERTIES LABELS "model")
 
-add_executable(macro_executor_tests
-    test_macro_executor.c
-    ../../firmware/components/macro_executor/macro_executor_engine.c
+add_executable(
+    macro_executor_tests test_macro_executor.c
+                         ../../firmware/components/macro_executor/macro_executor_engine.c
 )
-target_include_directories(macro_executor_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/macro_parser/include
-    ../../firmware/components/macro_executor/include
-    ../../firmware/components/macro_executor
+target_include_directories(
+    macro_executor_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/macro_executor
 )
 target_link_libraries(macro_executor_tests PRIVATE test_support)
 target_compile_options(macro_executor_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME macro_executor COMMAND macro_executor_tests)
 set_tests_properties(macro_executor PROPERTIES LABELS "executor")
 
-add_executable(auth_tests
-    test_auth.c
-    ../../firmware/components/auth/auth_core.c
-)
-target_include_directories(auth_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/auth/include
-    ../../firmware/components/auth
+add_executable(auth_tests test_auth.c ../../firmware/components/auth/auth_core.c)
+target_include_directories(
+    auth_tests PRIVATE ../../firmware/components/macro_model/include
+                       ../../firmware/components/auth/include ../../firmware/components/auth
 )
 target_link_libraries(auth_tests PRIVATE test_support)
 target_compile_options(auth_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME auth COMMAND auth_tests)
 set_tests_properties(auth PROPERTIES LABELS "auth")
 
-add_executable(web_security_tests
+add_executable(
+    web_security_tests
     test_web_security.c
     ../../firmware/components/web_server/web_cookie.c
     ../../firmware/components/web_server/web_origin.c
     ../../firmware/components/web_server/web_static_path.c
     ../../firmware/components/web_server/web_content.c
 )
-target_include_directories(web_security_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/auth/include
-    ../../firmware/components/storage/include
-    ../../firmware/components/web_server
+target_include_directories(
+    web_security_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/auth/include
+            ../../firmware/components/storage/include ../../firmware/components/web_server
 )
 target_link_libraries(web_security_tests PRIVATE test_support)
 target_compile_options(web_security_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME web_security COMMAND web_security_tests)
 set_tests_properties(web_security PROPERTIES LABELS "web")
 
-add_executable(web_server_adapter_tests
+add_executable(
+    web_server_adapter_tests
     test_web_server_adapter.c
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/web_server/web_server_adapter.c
@@ -129,109 +126,108 @@ add_executable(web_server_adapter_tests
     ../../firmware/components/web_server/web_static_path.c
     ../../firmware/components/web_server/web_content.c
 )
-target_include_directories(web_server_adapter_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/auth/include
-    ../../firmware/components/web_server
+target_include_directories(
+    web_server_adapter_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/auth/include
+            ../../firmware/components/web_server
 )
 target_link_libraries(web_server_adapter_tests PRIVATE test_support)
 target_compile_options(web_server_adapter_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME web_server_adapter COMMAND web_server_adapter_tests)
 set_tests_properties(web_server_adapter PROPERTIES LABELS "web")
 
-add_executable(app_core_tests
-    test_app_core.c
-    ../../firmware/components/app_core/app_core_sequence.c
+add_executable(
+    app_core_tests test_app_core.c ../../firmware/components/app_core/app_core_sequence.c
 )
-target_include_directories(app_core_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/auth/include
-    ../../firmware/components/device_controls/include
-    ../../firmware/components/web_server/include
-    ../../firmware/components/app_core
+target_include_directories(
+    app_core_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/auth/include
+            ../../firmware/components/device_controls/include
+            ../../firmware/components/web_server/include ../../firmware/components/app_core
 )
 target_link_libraries(app_core_tests PRIVATE test_support)
 target_compile_options(app_core_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME app_core COMMAND app_core_tests)
 set_tests_properties(app_core PROPERTIES LABELS "startup")
 
-add_executable(usb_keyboard_tests
-    test_usb_keyboard.c
-    ../../firmware/components/usb_keyboard/usb_keyboard_state.c
+add_executable(
+    usb_keyboard_tests test_usb_keyboard.c
+                       ../../firmware/components/usb_keyboard/usb_keyboard_state.c
 )
-target_include_directories(usb_keyboard_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/usb_keyboard/include
-    ../../firmware/components/usb_keyboard
+target_include_directories(
+    usb_keyboard_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/usb_keyboard/include ../../firmware/components/usb_keyboard
 )
 target_link_libraries(usb_keyboard_tests PRIVATE test_support)
 target_compile_options(usb_keyboard_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME usb_keyboard COMMAND usb_keyboard_tests)
 set_tests_properties(usb_keyboard PROPERTIES LABELS "usb")
 
-add_executable(device_controls_tests
-    test_device_controls.c
-    ../../firmware/components/device_controls/device_controls_logic.c
+add_executable(
+    device_controls_tests test_device_controls.c
+                          ../../firmware/components/device_controls/device_controls_logic.c
 )
-target_include_directories(device_controls_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/device_controls/include
-    ../../firmware/components/device_controls
+target_include_directories(
+    device_controls_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/device_controls/include
+            ../../firmware/components/device_controls
 )
 target_link_libraries(device_controls_tests PRIVATE test_support)
 target_compile_options(device_controls_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME device_controls COMMAND device_controls_tests)
 set_tests_properties(device_controls PROPERTIES LABELS "controls")
 
-add_executable(wifi_ap_tests
-    test_wifi_ap.c
-    ../../firmware/components/wifi_ap/wifi_ap_state.c
-)
-target_include_directories(wifi_ap_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/wifi_ap/include
-    ../../firmware/components/wifi_ap
+add_executable(wifi_ap_tests test_wifi_ap.c ../../firmware/components/wifi_ap/wifi_ap_state.c)
+target_include_directories(
+    wifi_ap_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/wifi_ap/include
+            ../../firmware/components/wifi_ap
 )
 target_link_libraries(wifi_ap_tests PRIVATE test_support)
 target_compile_options(wifi_ap_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME wifi_ap COMMAND wifi_ap_tests)
 set_tests_properties(wifi_ap PROPERTIES LABELS "wifi")
 
-add_executable(storage_atomic_tests
+add_executable(
+    storage_atomic_tests
     test_storage_atomic.c
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/macro_model/app_uuid.c
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_atomic.c
 )
-target_include_directories(storage_atomic_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/storage/include
-    ../../firmware/components/storage
+target_include_directories(
+    storage_atomic_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
+            ../../firmware/components/storage
 )
 target_link_libraries(storage_atomic_tests PRIVATE test_support)
 target_compile_options(storage_atomic_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME storage_atomic COMMAND storage_atomic_tests)
 set_tests_properties(storage_atomic PROPERTIES LABELS "storage")
 
-add_executable(storage_parent_sync_tests
+add_executable(
+    storage_parent_sync_tests
     test_storage_parent_sync.c
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/macro_model/app_uuid.c
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_atomic.c
 )
-target_include_directories(storage_parent_sync_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/storage/include
-    ../../firmware/components/storage
+target_include_directories(
+    storage_parent_sync_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
+            ../../firmware/components/storage
 )
 target_link_libraries(storage_parent_sync_tests PRIVATE test_support)
 target_compile_options(storage_parent_sync_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME storage_parent_sync COMMAND storage_parent_sync_tests)
 set_tests_properties(storage_parent_sync PROPERTIES LABELS "storage")
 
-add_executable(storage_repository_io_tests
+add_executable(
+    storage_repository_io_tests
     test_storage_repository_io.c
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/macro_model/app_uuid.c
@@ -240,20 +236,22 @@ add_executable(storage_repository_io_tests
     ../../firmware/components/storage/storage_paths.c
     ../../firmware/components/storage/storage_repository_io.c
 )
-target_include_directories(storage_repository_io_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/storage/include
-    ../../firmware/components/storage
+target_include_directories(
+    storage_repository_io_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
+            ../../firmware/components/storage
 )
-target_compile_definitions(storage_repository_io_tests PRIVATE
-    STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-io-data"
+target_compile_definitions(
+    storage_repository_io_tests
+    PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-io-data"
 )
 target_link_libraries(storage_repository_io_tests PRIVATE test_support)
 target_compile_options(storage_repository_io_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME storage_repository_io COMMAND storage_repository_io_tests)
 set_tests_properties(storage_repository_io PROPERTIES LABELS "storage")
 
-add_executable(storage_transaction_tests
+add_executable(
+    storage_transaction_tests
     test_storage_transactions.c
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/macro_model/app_uuid.c
@@ -261,13 +259,14 @@ add_executable(storage_transaction_tests
     ../../firmware/components/storage/storage_atomic.c
     ../../firmware/components/storage/storage_transaction.c
 )
-target_include_directories(storage_transaction_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/storage/include
-    ../../firmware/components/storage
+target_include_directories(
+    storage_transaction_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
+            ../../firmware/components/storage
 )
-target_compile_definitions(storage_transaction_tests PRIVATE
-    STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-transaction-data"
+target_compile_definitions(
+    storage_transaction_tests
+    PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-transaction-data"
 )
 target_link_libraries(storage_transaction_tests PRIVATE test_support)
 target_compile_options(storage_transaction_tests PRIVATE ${STRICT_WARNINGS})
@@ -277,7 +276,8 @@ set_tests_properties(storage_transaction PROPERTIES LABELS "storage")
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
 
-add_executable(storage_quarantine_tests
+add_executable(
+    storage_quarantine_tests
     test_storage_quarantine.c
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/macro_model/app_uuid.c
@@ -285,20 +285,22 @@ add_executable(storage_quarantine_tests
     ../../firmware/components/storage/storage_atomic.c
     ../../firmware/components/storage/storage_quarantine.c
 )
-target_include_directories(storage_quarantine_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/storage/include
-    ../../firmware/components/storage
+target_include_directories(
+    storage_quarantine_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
+            ../../firmware/components/storage
 )
-target_compile_definitions(storage_quarantine_tests PRIVATE
-    STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-quarantine-data"
+target_compile_definitions(
+    storage_quarantine_tests
+    PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-quarantine-data"
 )
 target_link_libraries(storage_quarantine_tests PRIVATE PkgConfig::CJSON test_support)
 target_compile_options(storage_quarantine_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME storage_quarantine COMMAND storage_quarantine_tests)
 set_tests_properties(storage_quarantine PROPERTIES LABELS "storage")
 
-add_executable(storage_repository_tests
+add_executable(
+    storage_repository_tests
     test_storage_repository.c
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/macro_model/app_uuid.c
@@ -313,13 +315,13 @@ add_executable(storage_repository_tests
     ../../firmware/components/storage/storage_repository_sets.c
     ../../firmware/components/storage/storage_quarantine.c
 )
-target_include_directories(storage_repository_tests PRIVATE
-    ../../firmware/components/macro_model/include
-    ../../firmware/components/storage/include
-    ../../firmware/components/storage
+target_include_directories(
+    storage_repository_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
+            ../../firmware/components/storage
 )
-target_compile_definitions(storage_repository_tests PRIVATE
-    STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-data"
+target_compile_definitions(
+    storage_repository_tests PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-data"
 )
 target_compile_options(storage_repository_tests PRIVATE ${STRICT_WARNINGS})
 target_link_libraries(storage_repository_tests PRIVATE PkgConfig::CJSON test_support)
