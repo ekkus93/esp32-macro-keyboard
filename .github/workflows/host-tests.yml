@@ -78,6 +78,9 @@ jobs:
     name: Frontend Tests
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    outputs:
+      typecheck_status: ${{ steps.typecheck.outputs.status }}
+      typecheck_summary: ${{ steps.typecheck.outputs.summary }}
 
     steps:
       - name: Check out repository
@@ -94,7 +97,21 @@ jobs:
         run: npm --prefix webapp install --ignore-scripts --no-audit --no-fund
 
       - name: Type-check frontend
-        run: npm --prefix webapp run typecheck
+        id: typecheck
+        shell: bash
+        run: |
+          set +e
+          output="$(npm --prefix webapp run typecheck 2>&1)"
+          status=$?
+          printf '%s\n' "${output}"
+          summary="$(printf '%s\n' "${output}" | grep -E 'error TS[0-9]+:' | head -n 3 | tr '\n' ' ')"
+          summary="${summary:0:240}"
+          printf 'status=%s\n' "${status}" >> "${GITHUB_OUTPUT}"
+          printf 'summary=%s\n' "${summary}" >> "${GITHUB_OUTPUT}"
+
+      - name: Fail on type-check findings
+        if: steps.typecheck.outputs.status != '0'
+        run: exit 1
 
       - name: Lint frontend TypeScript
         run: npm --prefix webapp run lint
@@ -107,3 +124,12 @@ jobs:
 
       - name: Run frontend tests
         run: npm --prefix webapp test
+
+  frontend-typecheck-diagnostic:
+    name: "TypeScript: ${{ needs.frontend-tests.outputs.typecheck_summary }}"
+    needs: frontend-tests
+    if: always() && needs.frontend-tests.outputs.typecheck_status != '0'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Preserve type-check failure
+        run: exit 1
