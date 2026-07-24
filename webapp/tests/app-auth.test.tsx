@@ -20,7 +20,10 @@ import {
 async function renderLogin(): Promise<Awaited<ReturnType<typeof render>>> {
   setHashSilently("/login");
   const view = await render(<App />);
-  await setInputValue(requiredElement<HTMLInputElement>("#password"), "correct horse");
+  await setInputValue(
+    requiredElement("#password", HTMLInputElement),
+    "correct horse",
+  );
   return view;
 }
 
@@ -28,7 +31,7 @@ describe("application authentication", () => {
   test("submits the password and stores the returned CSRF token", async () => {
     planJsonResponse({ ok: true, data: { csrfToken: "csrf-123" } });
     const view = await renderLogin();
-    await submit(requiredElement<HTMLFormElement>("form"));
+    await submit(requiredElement("form", HTMLFormElement));
     await flushReact();
 
     const loginCall = getFetchCalls()[0];
@@ -45,7 +48,7 @@ describe("application authentication", () => {
   test("navigates to sets after successful login", async () => {
     planJsonResponse({ ok: true, data: { csrfToken: "csrf-123" } });
     const view = await renderLogin();
-    await submit(requiredElement<HTMLFormElement>("form"));
+    await submit(requiredElement("form", HTMLFormElement));
     await flushReact();
     await act(async () => {
       window.dispatchEvent(new HashChangeEvent("hashchange"));
@@ -64,9 +67,9 @@ describe("application authentication", () => {
       401,
     );
     const view = await renderLogin();
-    await submit(requiredElement<HTMLFormElement>("form"));
+    await submit(requiredElement("form", HTMLFormElement));
     await flushReact();
-    expect(requiredElement<HTMLElement>("[role='alert']").textContent).toContain(
+    expect(requiredElement("[role='alert']", HTMLElement).textContent).toContain(
       "invalid_password: Password is incorrect.",
     );
     await view.unmount();
@@ -75,9 +78,9 @@ describe("application authentication", () => {
   test("shows network failures", async () => {
     planFetch(() => Promise.reject(new Error("network offline")));
     const view = await renderLogin();
-    await submit(requiredElement<HTMLFormElement>("form"));
+    await submit(requiredElement("form", HTMLFormElement));
     await flushReact();
-    expect(requiredElement<HTMLElement>("[role='alert']").textContent).toContain(
+    expect(requiredElement("[role='alert']", HTMLElement).textContent).toContain(
       "network offline",
     );
     await view.unmount();
@@ -94,11 +97,11 @@ describe("application authentication", () => {
         }),
     );
     const view = await renderLogin();
-    await submit(requiredElement<HTMLFormElement>("form"));
+    await submit(requiredElement("form", HTMLFormElement));
 
     expect(getFetchCalls()).toHaveLength(1);
     expect(
-      requiredElement<HTMLButtonElement>("button[type='submit']").disabled,
+      requiredElement("button[type='submit']", HTMLButtonElement).disabled,
     ).toBe(true);
 
     const resolver = deferred.resolve;
