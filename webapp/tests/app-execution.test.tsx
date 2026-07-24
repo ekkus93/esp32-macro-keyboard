@@ -70,7 +70,7 @@ describe("execution workflow", () => {
     planFetch(() => Promise.reject(new Error("poll unavailable")));
     const view = await render(<App />);
     await flushReact();
-    expect(requiredElement<HTMLElement>("[role='alert']").textContent).toContain(
+    expect(requiredElement("[role='alert']", HTMLElement).textContent).toContain(
       "poll unavailable",
     );
     expect(document.body.textContent).toContain("Typing macro");
@@ -112,7 +112,7 @@ describe("execution workflow", () => {
     );
     await click(buttonWithText("Cancel and release keys"));
     await flushReact();
-    expect(requiredElement<HTMLElement>("[role='alert']").textContent).toContain(
+    expect(requiredElement("[role='alert']", HTMLElement).textContent).toContain(
       "cancel_failed: Cancellation was rejected.",
     );
     await view.unmount();
