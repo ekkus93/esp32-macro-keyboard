@@ -194,10 +194,10 @@ jobs:
         shell: bash
         run: |
           set +e
-          output="$(npm --prefix webapp run format:check 2>&1)"
+          output="$(cd webapp && ./node_modules/.bin/prettier --list-different . 2>&1)"
           status=$?
           printf '%s\n' "${output}"
-          summary="$(printf '%s\n' "${output}" | grep '^\[warn\]' | head -n 5 | tr '\n' ' ')"
+          summary="$(printf '%s\n' "${output}" | head -n 8 | tr '\n' ' ')"
           summary="${summary:0:240}"
           printf 'status=%s\n' "${status}" >> "${GITHUB_OUTPUT}"
           printf 'summary=%s\n' "${summary}" >> "${GITHUB_OUTPUT}"
