@@ -509,9 +509,7 @@ static app_error_code_t recover_delete(
 
 static int compare_paths(const void *left, const void *right)
 {
-    const char *const *left_path = left;
-    const char *const *right_path = right;
-    return strcmp(*left_path, *right_path);
+    return strcmp((const char *)left, (const char *)right);
 }
 
 static app_error_code_t collect_manifest_paths_with_ops(
