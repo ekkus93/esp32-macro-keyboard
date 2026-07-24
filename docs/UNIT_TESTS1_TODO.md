@@ -1,10 +1,16 @@
 # Unit Test Expansion 1 — Authoritative TODO
 
-Status: **Not started**
+Status: **In progress**
+
+Current validated milestone: **Storage fault-injection and ESP32-S3 device-build slice complete**
 
 Target repository: `ekkus93/esp32-macro-keyboard`
 
 Target branch: `master`
+
+Implementation and CI evidence are tracked in `docs/UNIT_TESTS1_PROGRESS.md`. Checked acceptance
+items below are limited to capabilities observed in the configured pull-request CI. Unchecked
+items remain open or require requirement-by-requirement reconciliation.
 
 This document defines the implementation plan for expanding unit-test coverage beyond the
 existing macro-parser and macro-set repository tests. It is subordinate to `docs/SPEC.md`
@@ -904,22 +910,22 @@ reviewed.
 
 ### Infrastructure
 
-- [ ] Shared assertions, temporary directories, and leak tracking exist.
-- [ ] Deterministic clock, random, FreeRTOS, USB, GPIO, Wi-Fi, HTTP, and filesystem fakes exist.
-- [ ] Unexpected fake calls fail tests.
-- [ ] Test labels and focused commands work.
+- [x] Shared assertions, temporary directories, and leak tracking exist.
+- [x] Deterministic clock, random, FreeRTOS, USB, GPIO, Wi-Fi, HTTP, and filesystem fakes exist.
+- [ ] Unexpected fake calls fail tests in every applicable fake and suite.
+- [x] Test labels and focused commands work.
 
 ### Firmware host tests
 
-- [ ] Macro executor tests pass.
-- [ ] Authentication/session tests pass.
-- [ ] HTTP security and adapter tests pass.
-- [ ] Storage fault-injection tests pass.
-- [ ] Startup/rollback tests pass.
-- [ ] USB keyboard tests pass.
-- [ ] Device-control tests pass.
-- [ ] Wi-Fi AP tests pass.
-- [ ] Expanded parser/model tests pass.
+- [x] Macro executor tests pass.
+- [x] Authentication/session tests pass.
+- [x] HTTP security and adapter tests pass.
+- [x] Storage fault-injection tests pass.
+- [x] Startup/rollback tests pass.
+- [x] USB keyboard tests pass.
+- [x] Device-control tests pass.
+- [x] Wi-Fi AP tests pass.
+- [ ] Expanded parser/model requirements are fully reconciled and pass.
 
 ### Frontend
 
@@ -930,18 +936,18 @@ reviewed.
 ### Runtime quality
 
 - [ ] AddressSanitizer and UndefinedBehaviorSanitizer are clean.
-- [ ] Leak tracking is clean.
+- [ ] Leak tracking is clean across every required suite.
 - [ ] Coverage contains only first-party production code.
 - [ ] Coverage gates pass without ignore directives.
 
 ### Device and CI
 
-- [ ] Device-test firmware compiles with ESP-IDF v5.5.5 for ESP32-S3.
-- [ ] New Unity tags are documented.
-- [ ] Device tests do not print secrets or destructively recover storage.
-- [ ] Normal CI runs retain no artifacts.
+- [x] Device-test firmware compiles with ESP-IDF v5.5.5 for ESP32-S3.
+- [ ] New Unity tags are documented in all required repository documentation.
+- [ ] Device tests do not print secrets or destructively recover storage; source audit remains to be reconciled.
+- [x] Normal pull-request CI runs retain no artifacts.
 - [ ] Tagged runs retain expected test and coverage assets.
-- [ ] Documentation matches implemented commands and validation state.
+- [ ] Documentation matches all implemented commands and validation states.
 
 ## 17. Required implementation order
 
