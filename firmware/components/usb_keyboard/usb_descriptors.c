@@ -37,7 +37,7 @@ static const uint8_t configuration_descriptor[] = {
                        CFG_TUD_HID_EP_BUFSIZE, 10),
 };
 
-static const char *const string_descriptors[] = {
+static const char *string_descriptors[] = {
     (const char[]){0x09, 0x04},
     "ESP32 Macro Keyboard Project",
     "ESP32 Macro Keyboard",
@@ -54,7 +54,7 @@ const uint8_t *usb_descriptors_configuration(void)
     return configuration_descriptor;
 }
 
-const char *const *usb_descriptors_strings(void)
+const char **usb_descriptors_strings(void)
 {
     return string_descriptors;
 }
