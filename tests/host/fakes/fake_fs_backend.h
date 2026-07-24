@@ -17,6 +17,7 @@ typedef enum {
     FAKE_FS_WRITE,
     FAKE_FS_CLOSE,
     FAKE_FS_SYNC,
+    FAKE_FS_SYNC_PARENT,
     FAKE_FS_RENAME,
     FAKE_FS_UNLINK,
     FAKE_FS_STAT,
@@ -66,6 +67,7 @@ ssize_t fake_fs_write(fake_fs_backend_t *filesystem,
                       size_t length);
 int fake_fs_close(fake_fs_backend_t *filesystem, int descriptor);
 int fake_fs_sync(fake_fs_backend_t *filesystem, int descriptor);
+int fake_fs_sync_parent(fake_fs_backend_t *filesystem, const char *path);
 int fake_fs_rename(fake_fs_backend_t *filesystem,
                    const char *source,
                    const char *destination);
