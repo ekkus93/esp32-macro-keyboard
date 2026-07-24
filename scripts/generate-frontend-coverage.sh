@@ -4,7 +4,6 @@ set -euo pipefail
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly repo_root
 readonly webapp_dir="${repo_root}/webapp"
-readonly coverage_provider_version="3.2.4"
 
 if ! command -v npm >/dev/null 2>&1; then
 	printf 'npm is required for frontend coverage generation\n' >&2
@@ -13,14 +12,9 @@ fi
 
 rm -rf -- "${webapp_dir}/coverage"
 
-npm --prefix "${webapp_dir}" ci --ignore-scripts --no-audit --no-fund
-npm --prefix "${webapp_dir}" install \
-	--no-save \
-	--package-lock=false \
-	--ignore-scripts \
-	--no-audit \
-	--no-fund \
-	"@vitest/coverage-v8@${coverage_provider_version}"
+# The coverage provider (@vitest/coverage-v8) is a committed devDependency, so a
+# plain lockfile-reproducible install is sufficient — no dynamic add step.
+npm --prefix "${webapp_dir}" ci --no-audit --no-fund
 npm --prefix "${webapp_dir}" run test:coverage
 
 readonly required_reports=(
