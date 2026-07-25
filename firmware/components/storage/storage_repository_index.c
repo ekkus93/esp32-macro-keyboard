@@ -18,8 +18,10 @@ static app_error_code_t storage_repository_parse_index(const char *data, size_t 
     const cJSON *version =
         root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "schema_version");
     const cJSON *ids = root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "ids");
-    if (!cJSON_IsObject(root) || !cJSON_IsNumber(version) || version->valueint != 1 ||
-        !cJSON_IsArray(ids)) {
+    /* version == NULL is redundant with cJSON_IsNumber but makes the guard
+     * visible to the static analyzer before the ->valueint access. */
+    if (!cJSON_IsObject(root) || !cJSON_IsNumber(version) || version == NULL ||
+        version->valueint != 1 || !cJSON_IsArray(ids)) {
         cJSON_Delete(root);
         return APP_ERROR_STORAGE_CORRUPT;
     }
@@ -174,7 +176,10 @@ app_error_code_t storage_repository_init(void) {
     const cJSON *schema_version =
         schema_root == NULL ? NULL
                             : cJSON_GetObjectItemCaseSensitive(schema_root, "schema_version");
+    /* schema_version != NULL is redundant with cJSON_IsNumber but makes the
+     * guard visible to the static analyzer before the ->valueint access. */
     const bool schema_valid = cJSON_IsObject(schema_root) && cJSON_IsNumber(schema_version) &&
+                              schema_version != NULL &&
                               schema_version->valueint == (int)APP_SCHEMA_VERSION;
     cJSON_Delete(schema_root);
     if (!schema_valid) {

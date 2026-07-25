@@ -9,6 +9,15 @@
 #define MOD_LEFT_GUI 0x08U
 #define KEY_A 0x04U
 #define KEY_1 0x1eU
+#define KEY_2 0x1fU
+#define KEY_3 0x20U
+#define KEY_4 0x21U
+#define KEY_5 0x22U
+#define KEY_6 0x23U
+#define KEY_7 0x24U
+#define KEY_8 0x25U
+#define KEY_9 0x26U
+#define KEY_0 0x27U
 #define KEY_ENTER 0x28U
 #define KEY_ESCAPE 0x29U
 #define KEY_BACKSPACE 0x2aU
@@ -61,7 +70,7 @@ bool macro_keymap_us_printable(char character, macro_hid_key_t *out_key) {
         return true;
     }
     if (character == '0') {
-        set_key(out_key, 0U, 0x27U);
+        set_key(out_key, 0U, KEY_0);
         return true;
     }
 
@@ -139,31 +148,31 @@ bool macro_keymap_us_printable(char character, macro_hid_key_t *out_key) {
         set_key(out_key, MOD_LEFT_SHIFT, KEY_1);
         return true;
     case '@':
-        set_key(out_key, MOD_LEFT_SHIFT, 0x1fU);
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_2);
         return true;
     case '#':
-        set_key(out_key, MOD_LEFT_SHIFT, 0x20U);
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_3);
         return true;
     case '$':
-        set_key(out_key, MOD_LEFT_SHIFT, 0x21U);
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_4);
         return true;
     case '%':
-        set_key(out_key, MOD_LEFT_SHIFT, 0x22U);
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_5);
         return true;
     case '^':
-        set_key(out_key, MOD_LEFT_SHIFT, 0x23U);
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_6);
         return true;
     case '&':
-        set_key(out_key, MOD_LEFT_SHIFT, 0x24U);
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_7);
         return true;
     case '*':
-        set_key(out_key, MOD_LEFT_SHIFT, 0x25U);
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_8);
         return true;
     case '(':
-        set_key(out_key, MOD_LEFT_SHIFT, 0x26U);
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_9);
         return true;
     case ')':
-        set_key(out_key, MOD_LEFT_SHIFT, 0x27U);
+        set_key(out_key, MOD_LEFT_SHIFT, KEY_0);
         return true;
     default:
         return false;

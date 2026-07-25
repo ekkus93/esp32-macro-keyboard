@@ -9,6 +9,13 @@
 #include "macro_keymap_us.h"
 #include "macro_limits.h"
 
+#define ASCII_SPACE 0x20U     /* first printable character */
+#define ASCII_TILDE 0x7eU     /* last printable character */
+#define ASCII_DELETE 0x7fU    /* first non-printable code above the ASCII range */
+#define DECIMAL_BASE 10U      /* base for parsing decimal directive values */
+#define HID_USAGE_ENTER 0x28U /* US HID usage for Enter (mirrors the keymap) */
+#define HID_USAGE_TAB 0x2bU   /* US HID usage for Tab (mirrors the keymap) */
+
 static void clear_plan(macro_plan_t *plan) {
     if (plan != NULL) {
         plan->actions = NULL;
@@ -80,7 +87,8 @@ static app_error_code_t append_action(macro_plan_t *plan, macro_action_t action,
 static bool directive_has_invalid_character(const char *text, size_t length) {
     for (size_t index = 0U; index < length; ++index) {
         const unsigned char value = (unsigned char)text[index];
-        if (value <= 0x20U || value >= 0x7fU || text[index] == '{' || text[index] == '}') {
+        if (value <= ASCII_SPACE || value >= ASCII_DELETE || text[index] == '{' ||
+            text[index] == '}') {
             return true;
         }
     }
@@ -100,10 +108,10 @@ static app_error_code_t parse_delay(const char *directive, size_t length,
             return APP_ERROR_MACRO_SYNTAX;
         }
         const uint32_t digit = (uint32_t)(character - '0');
-        if (value > (UINT32_MAX - digit) / 10U) {
+        if (value > (UINT32_MAX - digit) / DECIMAL_BASE) {
             return APP_ERROR_MACRO_LIMIT;
         }
-        value = value * 10U + digit;
+        value = value * DECIMAL_BASE + digit;
     }
     if (value == 0U || value > APP_DELAY_MAX_MS) {
         return APP_ERROR_MACRO_LIMIT;
@@ -177,7 +185,7 @@ static app_error_code_t parse_directive(const char *source, size_t offset, const
     memcpy(buffer, directive, length);
     buffer[length] = '\0';
 
-    if (strncmp(buffer, "DELAY:", 6U) == 0) {
+    if (strncmp(buffer, "DELAY:", sizeof("DELAY:") - 1U) == 0) {
         const app_error_code_t result = parse_delay(buffer, length, out_action);
         if (result != APP_ERROR_NONE) {
             return fail(source, offset, result, "invalid delay directive", error);
@@ -253,7 +261,7 @@ app_error_code_t macro_compile(const char *source, size_t source_length,
                 ++offset;
                 action = (macro_action_t){
                     .type = MACRO_ACTION_KEY,
-                    .usage = 0x28U,
+                    .usage = HID_USAGE_ENTER,
                 };
                 result = append_action(&working, action, effective, source, offset, out_error);
                 ++offset;
@@ -267,7 +275,7 @@ app_error_code_t macro_compile(const char *source, size_t source_length,
         } else if (source[offset] == '\n') {
             action = (macro_action_t){
                 .type = MACRO_ACTION_KEY,
-                .usage = 0x28U,
+                .usage = HID_USAGE_ENTER,
             };
             result = append_action(&working, action, effective, source, offset, out_error);
             ++offset;
@@ -277,7 +285,7 @@ app_error_code_t macro_compile(const char *source, size_t source_length,
         } else if (source[offset] == '\t') {
             action = (macro_action_t){
                 .type = MACRO_ACTION_KEY,
-                .usage = 0x2bU,
+                .usage = HID_USAGE_TAB,
             };
             result = append_action(&working, action, effective, source, offset, out_error);
             ++offset;
@@ -336,7 +344,7 @@ app_error_code_t macro_compile(const char *source, size_t source_length,
                 result = fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unmatched closing brace",
                               out_error);
             }
-        } else if (byte < 0x20U || byte > 0x7eU) {
+        } else if (byte < ASCII_SPACE || byte > ASCII_TILDE) {
             result = fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unsupported control character",
                           out_error);
         } else {

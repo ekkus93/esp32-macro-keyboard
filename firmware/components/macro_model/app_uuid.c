@@ -11,6 +11,16 @@
 #include "esp_random.h"
 #endif
 
+/* Positions and bit patterns for an RFC 4122 version-4 UUID. */
+#define UUID_VERSION_CHAR_INDEX 14U
+#define UUID_VARIANT_CHAR_INDEX 19U
+#define UUID_VERSION_BYTE_INDEX 6U
+#define UUID_VARIANT_BYTE_INDEX 8U
+#define UUID_VERSION_NIBBLE_MASK 0x0fU
+#define UUID_VERSION_4 0x40U
+#define UUID_VARIANT_BITS_MASK 0x3fU
+#define UUID_VARIANT_RFC4122 0x80U
+
 static bool is_lower_hex(char value) {
     return (value >= '0' && value <= '9') || (value >= 'a' && value <= 'f');
 }
@@ -35,8 +45,9 @@ bool app_uuid_is_valid_string(const char *text) {
         }
     }
 
-    return text[14] == '4' &&
-           (text[19] == '8' || text[19] == '9' || text[19] == 'a' || text[19] == 'b');
+    return text[UUID_VERSION_CHAR_INDEX] == '4' &&
+           (text[UUID_VARIANT_CHAR_INDEX] == '8' || text[UUID_VARIANT_CHAR_INDEX] == '9' ||
+            text[UUID_VARIANT_CHAR_INDEX] == 'a' || text[UUID_VARIANT_CHAR_INDEX] == 'b');
 }
 
 app_error_code_t app_uuid_parse(const char *text, app_uuid_t *out_uuid) {
@@ -91,8 +102,10 @@ app_error_code_t app_uuid_generate(app_uuid_t *out_uuid) {
         return APP_ERROR_INTERNAL;
     }
 #endif
-    bytes[6] = (uint8_t)((bytes[6] & 0x0fU) | 0x40U);
-    bytes[8] = (uint8_t)((bytes[8] & 0x3fU) | 0x80U);
+    bytes[UUID_VERSION_BYTE_INDEX] =
+        (uint8_t)((bytes[UUID_VERSION_BYTE_INDEX] & UUID_VERSION_NIBBLE_MASK) | UUID_VERSION_4);
+    bytes[UUID_VARIANT_BYTE_INDEX] =
+        (uint8_t)((bytes[UUID_VARIANT_BYTE_INDEX] & UUID_VARIANT_BITS_MASK) | UUID_VARIANT_RFC4122);
 
     const int written =
         snprintf(out_uuid->value, sizeof(out_uuid->value),
