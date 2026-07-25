@@ -6,6 +6,8 @@
 
 #include "app_error.h"
 
+#define MACRO_PARSE_MESSAGE_BYTES 96U
+
 typedef enum { MACRO_ACTION_KEY = 0, MACRO_ACTION_CHORD, MACRO_ACTION_DELAY } macro_action_type_t;
 
 typedef struct {
@@ -31,7 +33,7 @@ typedef struct {
     size_t byte_offset;
     size_t line;
     size_t column;
-    char message[96U];
+    char message[MACRO_PARSE_MESSAGE_BYTES];
 } macro_parse_error_t;
 
 app_error_code_t macro_compile(const char *source, size_t source_length,

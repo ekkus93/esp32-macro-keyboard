@@ -1,3 +1,5 @@
+#define LOGIN_COOKIE_BYTES 160U
+#define LOGIN_RESPONSE_BYTES 192U
     const app_error_code_t session_result = auth_session_create(&session);
     if (session_result != APP_ERROR_NONE) {
         return send_error(request,
@@ -6,7 +8,7 @@
                           session_result,
                           "could not create session");
     }
-    char cookie[160U];
+    char cookie[LOGIN_COOKIE_BYTES];
     const int cookie_length = snprintf(cookie,
                                        sizeof(cookie),
                                        SESSION_COOKIE_NAME "=%s; HttpOnly; SameSite=Strict; Path=/",
@@ -19,7 +21,7 @@
                           logout_result == APP_ERROR_NONE ? APP_ERROR_INTERNAL : logout_result,
                           "could not create login response");
     }
-    char response[192U];
+    char response[LOGIN_RESPONSE_BYTES];
     const int response_length = snprintf(response,
                                          sizeof(response),
                                          "{\"ok\":true,\"data\":{\"csrfToken\":\"%s\"}}",

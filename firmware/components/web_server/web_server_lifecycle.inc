@@ -1,3 +1,4 @@
+#define WEB_MAX_URI_HANDLERS 24U
 static const httpd_uri_t server_routes[] = {
     {.uri = "/api/v1/status", .method = HTTP_GET, .handler = status_handler},
     {.uri = "/api/v1/limits", .method = HTTP_GET, .handler = limits_handler},
@@ -14,7 +15,7 @@ static int start_server_adapter(void *context, void **out_handle)
 {
     (void)context;
     httpd_config_t configuration = HTTPD_DEFAULT_CONFIG();
-    configuration.max_uri_handlers = 24U;
+    configuration.max_uri_handlers = WEB_MAX_URI_HANDLERS;
     configuration.stack_size = 8192U;
     configuration.uri_match_fn = httpd_uri_match_wildcard;
     httpd_handle_t handle = NULL;

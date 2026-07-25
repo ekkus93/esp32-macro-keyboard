@@ -1,3 +1,4 @@
+#define LOGOUT_RESPONSE_BYTES 384U
 static esp_err_t logout_handler(httpd_req_t *request)
 {
     char session_token[AUTH_TOKEN_HEX_BYTES];
@@ -27,7 +28,7 @@ static esp_err_t logout_handler(httpd_req_t *request)
 static esp_err_t execution_handler(httpd_req_t *request)
 {
     const macro_execution_status_t execution = macro_executor_get_status();
-    char response[384U];
+    char response[LOGOUT_RESPONSE_BYTES];
     const int length = snprintf(
         response,
         sizeof(response),

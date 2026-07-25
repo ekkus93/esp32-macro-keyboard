@@ -1,3 +1,4 @@
+#define LOW_NIBBLE_MASK 0x0fU
 #include "web_server_adapter.h"
 
 #include <stdio.h>
@@ -81,7 +82,7 @@ static void writer_append_escaped(json_writer_t *writer, const char *text)
             if (*cursor < 0x20U) {
                 writer_append_text(writer, "\\u00");
                 writer_append_byte(writer, hexadecimal[*cursor >> 4U]);
-                writer_append_byte(writer, hexadecimal[*cursor & 0x0fU]);
+                writer_append_byte(writer, hexadecimal[*cursor & LOW_NIBBLE_MASK]);
             } else {
                 writer_append_byte(writer, (char)*cursor);
             }

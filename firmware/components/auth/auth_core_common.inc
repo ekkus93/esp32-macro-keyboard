@@ -1,3 +1,4 @@
+#define LOW_NIBBLE_MASK 0x0fU
 #include "auth_core.h"
 
 #include <string.h>
@@ -80,7 +81,7 @@ static app_error_code_t random_hex(auth_core_t *core,
     }
     for (size_t index = 0U; index < random_bytes; ++index) {
         output[index * 2U] = digits[bytes[index] >> 4U];
-        output[index * 2U + 1U] = digits[bytes[index] & 0x0fU];
+        output[index * 2U + 1U] = digits[bytes[index] & LOW_NIBBLE_MASK];
     }
     output[random_bytes * 2U] = '\0';
     core->ops.secure_zero(core->ops.context, bytes, sizeof(bytes));

@@ -5,11 +5,14 @@
 
 #include "esp_littlefs.h"
 
+/* rwxr-x--- for storage directories we create. */
+#define STORAGE_DIR_MODE 0750
+
 static bool web_mounted;
 static bool data_mounted;
 
 static app_error_code_t mkdir_checked(const char *path) {
-    if (mkdir(path, 0750) == 0 || errno == EEXIST) {
+    if (mkdir(path, STORAGE_DIR_MODE) == 0 || errno == EEXIST) {
         return APP_ERROR_NONE;
     }
     return errno == ENOSPC ? APP_ERROR_STORAGE_FULL : APP_ERROR_IO;

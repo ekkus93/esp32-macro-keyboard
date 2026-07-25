@@ -10,6 +10,9 @@
 
 #include "storage.h"
 
+/* rwxr-x--- for storage directories we create. */
+#define STORAGE_DIR_MODE 0750
+
 app_error_code_t storage_repository_map_error_number(int error_number) {
     if (error_number == ENOENT) {
         return APP_ERROR_NOT_FOUND;
@@ -236,7 +239,7 @@ app_error_code_t storage_repository_make_directory_with_ops(const char *path,
     if (path == NULL || !storage_fs_ops_has_directory(operations)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    if (operations->make_directory(operations->context, path, 0750) == 0) {
+    if (operations->make_directory(operations->context, path, STORAGE_DIR_MODE) == 0) {
         return APP_ERROR_NONE;
     }
     const int mkdir_error = errno;

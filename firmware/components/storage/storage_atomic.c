@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <string.h>
 
+/* rw------- for storage files we create. */
+#define STORAGE_FILE_MODE 0600
 #define STORAGE_ATOMIC_NAME_ATTEMPTS 4U
 
 static app_error_code_t map_error_number(int error_number) {
@@ -125,7 +127,7 @@ static app_error_code_t create_temporary_file(const char *path, const storage_fs
         }
 
         int descriptor = operations->open_file(operations->context, temporary,
-                                               O_WRONLY | O_CREAT | O_EXCL, 0600);
+                                               O_WRONLY | O_CREAT | O_EXCL, STORAGE_FILE_MODE);
         if (descriptor < 0) {
             const int open_error = errno;
             if (open_error == EEXIST) {

@@ -34,8 +34,10 @@ static const uint8_t configuration_descriptor[] = {
                        ENDPOINT_HID, CFG_TUD_HID_EP_BUFSIZE, 10),
 };
 
+/* Low byte of USB LANGID 0x0409 = English (United States). */
+#define USB_LANGID_EN_US_LO 0x09
 static const char *string_descriptors[] = {
-    (const char[]){0x09, 0x04},
+    (const char[]){USB_LANGID_EN_US_LO, 0x04},
     "ESP32 Macro Keyboard Project",
     "ESP32 Macro Keyboard",
     "ESP32S3-MACRO-01",

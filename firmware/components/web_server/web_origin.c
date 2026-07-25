@@ -2,13 +2,16 @@
 
 #include <string.h>
 
+#define ASCII_SPACE 0x20U
+#define ASCII_DELETE 0x7fU
+
 static bool valid_authority(const char *authority) {
     if (authority == NULL || authority[0] == '\0') {
         return false;
     }
     for (const unsigned char *cursor = (const unsigned char *)authority; *cursor != '\0';
          ++cursor) {
-        if (*cursor <= 0x20U || *cursor >= 0x7fU || *cursor == '/' || *cursor == '?' ||
+        if (*cursor <= ASCII_SPACE || *cursor >= ASCII_DELETE || *cursor == '/' || *cursor == '?' ||
             *cursor == '#' || *cursor == '@') {
             return false;
         }

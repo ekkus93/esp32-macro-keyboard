@@ -88,7 +88,7 @@ static bool adapter_hid_ready(void *context) {
 }
 
 static bool adapter_send_keyboard_report(void *context, uint8_t report_id, uint8_t modifiers,
-                                         const uint8_t keycodes[6]) {
+                                         const uint8_t keycodes[USB_KEYBOARD_KEYCODE_COUNT]) {
     (void)context;
     return tud_hid_keyboard_report(report_id, modifiers, keycodes);
 }

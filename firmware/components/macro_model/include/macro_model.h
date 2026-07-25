@@ -9,6 +9,9 @@
 #include "app_uuid.h"
 #include "macro_limits.h"
 
+/* Keyboard-layout code buffer, e.g. "en-US" plus a terminator. */
+#define MACRO_KEYBOARD_LAYOUT_BYTES 6U
+
 typedef enum { MACRO_SCOPE_SET = 0, MACRO_SCOPE_GLOBAL } macro_scope_t;
 
 typedef enum {
@@ -26,7 +29,7 @@ typedef struct {
     char manufacturer[APP_MANUFACTURER_MAX_BYTES + 1U];
     char model[APP_MODEL_MAX_BYTES + 1U];
     char board[APP_BOARD_MAX_BYTES + 1U];
-    char keyboard_layout[6U];
+    char keyboard_layout[MACRO_KEYBOARD_LAYOUT_BYTES];
     int32_t sort_order;
 } macro_set_t;
 

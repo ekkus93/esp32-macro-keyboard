@@ -15,8 +15,8 @@ bool web_static_uri_normalize(const char *uri, char *normalized, size_t normaliz
     if (uri == NULL || normalized == NULL || normalized_size < 2U || uri[0] != '/') {
         return false;
     }
-    if (strncmp(uri, "/api/", 5U) == 0 || strcmp(uri, "/api") == 0 ||
-        strncmp(uri, "/api?", 5U) == 0) {
+    if (strncmp(uri, "/api/", sizeof("/api/") - 1U) == 0 || strcmp(uri, "/api") == 0 ||
+        strncmp(uri, "/api?", sizeof("/api?") - 1U) == 0) {
         return false;
     }
 

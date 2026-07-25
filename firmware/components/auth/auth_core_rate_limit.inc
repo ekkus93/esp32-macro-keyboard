@@ -1,3 +1,4 @@
+#define MICROSECONDS_PER_SECOND 1000000ULL
 #include "auth_core.h"
 
 #include <limits.h>
@@ -38,7 +39,7 @@ app_error_code_t auth_core_login_attempt_allowed(
                 AUTH_CORE_FAILURE_WINDOW_US -
                 (now - core->failure_window_start_us);
             *out_retry_after_seconds =
-                (uint32_t)((remaining + 999999ULL) / 1000000ULL);
+                (uint32_t)((remaining + MICROSECONDS_PER_SECOND - 1ULL) / MICROSECONDS_PER_SECOND);
             result = APP_ERROR_RATE_LIMITED;
         }
     }

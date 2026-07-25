@@ -12,6 +12,7 @@
 #include "sdkconfig.h"
 
 #define CONTROL_POLL_MS 20U
+#define CONTROLS_TASK_PRIORITY 5U
 
 static SemaphoreHandle_t confirmation_semaphore;
 static portMUX_TYPE indicator_lock = portMUX_INITIALIZER_UNLOCKED;
@@ -101,7 +102,8 @@ app_error_code_t device_controls_init(void) {
     if (confirmation_semaphore == NULL) {
         return APP_ERROR_INTERNAL;
     }
-    if (xTaskCreate(controls_task, "controls", 2048U, NULL, 5U, NULL) != pdPASS) {
+    if (xTaskCreate(controls_task, "controls", 2048U, NULL, CONTROLS_TASK_PRIORITY, NULL) !=
+        pdPASS) {
         vSemaphoreDelete(confirmation_semaphore);
         confirmation_semaphore = NULL;
         return APP_ERROR_INTERNAL;

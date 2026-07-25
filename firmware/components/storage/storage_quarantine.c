@@ -12,6 +12,7 @@
 #include "cJSON.h"
 #include "storage_quarantine_internal.h"
 
+#define ASCII_DELETE 0x7fU
 #define QUARANTINE_RECORD_MAX_BYTES 1024U
 #define QUARANTINE_ID_ATTEMPTS 4U
 #define QUARANTINE_JSON_SUFFIX ".json"
@@ -42,7 +43,7 @@ static bool safe_source_path(const char *path) {
         return false;
     }
     for (const unsigned char *cursor = (const unsigned char *)path; *cursor != 0U; ++cursor) {
-        if (*cursor < 0x20U || *cursor == 0x7FU) {
+        if (*cursor < 0x20U || *cursor == ASCII_DELETE) {
             return false;
         }
     }
