@@ -692,8 +692,46 @@ static void test_entry_limit_is_enforced(void)
     TEST_CHECK_EQ_U64(0U, list.count);
 }
 
+static void test_quarantine_enforces_operation_sequence(void)
+{
+    reset_storage();
+    char source[APP_PATH_MAX_BYTES];
+    make_source_path(source, sizeof(source), "bad.json");
+    write_text(source, "bad data");
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    uuid_sequence_t uuids = {.failure = APP_ERROR_INTERNAL};
+    storage_quarantine_entry_t entry = {0};
+
+    /*
+     * Strict fake enforcement (UNIT_TESTS1 L915) for the quarantine happy path:
+     * probe the source and quarantine directories, write the metadata record
+     * durably (open, write, fsync, close, read-back verify, rename), then move
+     * the evidence file into quarantine. Strict mode aborts on any unexpected,
+     * missing, or out-of-order operation, so a refactor that dropped the
+     * metadata fsync or reordered the evidence move would fail here.
+     */
+    static const char *const expected[] = {
+        "fs_stat",  "fs_stat",  "fs_stat",  "fs_open",   "fs_stat",  "fs_write",
+        "fs_sync",  "fs_close", "fs_open",  "fs_read",   "fs_read",  "fs_read",
+        "fs_close", "fs_stat",  "fs_rename", "fs_rename",
+    };
+    fake_call_log_set_strict(&filesystem.calls, true);
+    for (size_t index = 0U; index < (sizeof(expected) / sizeof(expected[0])); ++index) {
+        fake_call_log_expect(&filesystem.calls, expected[index]);
+    }
+
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
+                      storage_quarantine_file_with_ops(source, "invalid metadata", &entry,
+                                                       &operations, generate_uuid, &uuids));
+    fake_call_log_verify(&filesystem.calls);
+}
+
 int main(void)
 {
+    test_quarantine_enforces_operation_sequence();
     test_success_and_list();
     test_invalid_arguments_and_boundaries();
     test_metadata_failures_preserve_source();

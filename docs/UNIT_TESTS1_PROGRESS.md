@@ -78,18 +78,26 @@ Strict enforcement is now used in subsystem suites, not only in `test_support.c`
 - `test_storage_parent_sync.c` (`test_parent_sync_enforces_operation_sequence`) locks the same
   sequence plus the trailing `fs_sync_parent`, i.e. the parent-directory fsync that makes the
   rename durable.
+- `test_storage_quarantine.c` (`test_quarantine_enforces_operation_sequence`) locks the
+  quarantine happy path: probe the directories, write the metadata record durably (open,
+  write, fsync, close, read-back verify, rename), then move the evidence file into quarantine.
 
 Each was verified both directions: it passes with the correct sequence and aborts when
-expectations are transposed (for the parent-sync test, moving `fs_sync_parent` before
-`fs_rename` — a crash-safety regression — aborts with SIGABRT).
+expectations are transposed (moving `fs_sync_parent` before `fs_rename`, or swapping the
+metadata `fs_sync`/`fs_close`, aborts with SIGABRT).
 
 - These suites strictly enforce their deterministic happy-path sequences. The many
   fault-injection cases across the storage and other subsystem suites still run in permissive
   (record-and-assert) mode, because their sequences vary by injection point and are not fixed;
-  those tests already assert both the returned error and the resulting ownership/state. Rolling
-  strict enforcement out to more happy-path scenarios remains straightforward open work
-  following the pattern above; blanket strict enforcement of fault-injection paths is not
-  appropriate.
+  those tests already assert both the returned error and the resulting ownership/state.
+- `test_storage_transactions.c` recovery was evaluated but deliberately left in permissive
+  mode: a single recovery emits ~54 filesystem operations (directory scans plus index
+  read-backs whose read count tracks index size), so a hardcoded strict sequence would be
+  brittle and low-value rather than locking a meaningful ordering invariant. Its existing
+  ordering and count assertions remain the right tool there.
+- Rolling strict enforcement out to more short, deterministic happy-path scenarios remains
+  straightforward open work following the pattern above; blanket strict enforcement of
+  fault-injection or long scan-driven paths is not appropriate.
 
 ### Documentation reconciliation (2026-07-24, Task 15.3)
 
