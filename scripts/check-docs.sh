@@ -5,8 +5,10 @@ repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly repo_root
 cd "${repo_root}"
 
+# Ignore third-party (node_modules, fetched managed_components at any depth,
+# including under firmware/test_app/) and generated build trees.
 ./webapp/node_modules/.bin/markdownlint-cli2 \
-	'**/*.md' '#webapp/node_modules' '#firmware/managed_components' '#tests/host/build'
+	'**/*.md' '#**/node_modules' '#**/managed_components' '#tests/host/build'
 yamllint .github firmware/main/idf_component.yml
 for schema in docs/schemas/*.json; do
 	jq empty "${schema}"
