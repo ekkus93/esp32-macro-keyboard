@@ -514,8 +514,39 @@ static void test_stop_when_already_stopped(void)
                       wifi_ap_engine_stop(&uninitialized));
 }
 
+static void test_start_enforces_operation_sequence(void)
+{
+    wifi_fixture_t fixture;
+    reset_fixture(&fixture);
+    wifi_ap_engine_t engine;
+    initialize_engine(&fixture, &engine);
+    fake_wifi_backend_reset(&fixture.backend);
+
+    /*
+     * Strict fake enforcement (UNIT_TESTS1 L915) for the AP bring-up ordering:
+     * init the netif and event loop, create the AP netif, init Wi-Fi, register
+     * the event handler, set AP mode, apply the configuration, and only then
+     * start the radio. Strict mode aborts on any unexpected, missing, or
+     * out-of-order operation, so e.g. starting the radio before the config or
+     * mode were applied would fail here.
+     */
+    static const char *const expected[] = {
+        "wifi_netif_init",      "wifi_event_loop", "wifi_create_ap",
+        "wifi_init",            "wifi_register_handler", "wifi_set_mode",
+        "wifi_capture_config",  "wifi_set_config", "wifi_start",
+    };
+    fake_call_log_set_strict(&fixture.backend.calls, true);
+    for (size_t index = 0U; index < (sizeof(expected) / sizeof(expected[0])); ++index) {
+        fake_call_log_expect(&fixture.backend.calls, expected[index]);
+    }
+
+    start_successfully(&fixture, &engine);
+    fake_call_log_verify(&fixture.backend.calls);
+}
+
 int main(void)
 {
+    test_start_enforces_operation_sequence();
     test_operation_validation();
     test_credentials_and_configuration();
     test_minimum_credentials_and_existing_event_loop();

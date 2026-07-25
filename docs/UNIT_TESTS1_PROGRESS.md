@@ -81,10 +81,14 @@ Strict enforcement is now used in subsystem suites, not only in `test_support.c`
 - `test_storage_quarantine.c` (`test_quarantine_enforces_operation_sequence`) locks the
   quarantine happy path: probe the directories, write the metadata record durably (open,
   write, fsync, close, read-back verify, rename), then move the evidence file into quarantine.
+- `test_wifi_ap.c` (`test_start_enforces_operation_sequence`) locks the AP bring-up ordering:
+  netif init, event loop, create AP, Wi-Fi init, register handler, set mode, capture and set
+  config, then start the radio — so starting the radio before the mode or config were applied
+  fails here.
 
 Each was verified both directions: it passes with the correct sequence and aborts when
-expectations are transposed (moving `fs_sync_parent` before `fs_rename`, or swapping the
-metadata `fs_sync`/`fs_close`, aborts with SIGABRT).
+expectations are transposed (moving `fs_sync_parent` before `fs_rename`, swapping the metadata
+`fs_sync`/`fs_close`, or starting the Wi-Fi radio before its config, aborts with SIGABRT).
 
 - These suites strictly enforce their deterministic happy-path sequences. The many
   fault-injection cases across the storage and other subsystem suites still run in permissive
@@ -95,9 +99,14 @@ metadata `fs_sync`/`fs_close`, aborts with SIGABRT).
   read-backs whose read count tracks index size), so a hardcoded strict sequence would be
   brittle and low-value rather than locking a meaningful ordering invariant. Its existing
   ordering and count assertions remain the right tool there.
-- Rolling strict enforcement out to more short, deterministic happy-path scenarios remains
-  straightforward open work following the pattern above; blanket strict enforcement of
-  fault-injection or long scan-driven paths is not appropriate.
+- The remaining subsystem suites do not drive a call-log-backed fake, so `fake_call_log`
+  strict mode does not apply to them: `test_usb_keyboard`, `test_device_controls`,
+  `test_macro_executor`, `test_web_security`, and `test_web_server_adapter` use pure-logic or
+  state-op fixtures and already assert their resulting state directly. Enforcing "unexpected
+  call" there would require a different mechanism, not strict call-sequence expectations.
+- Rolling strict enforcement out to more short, deterministic happy-path scenarios in the
+  call-log suites remains straightforward open work following the pattern above; blanket strict
+  enforcement of fault-injection or long scan-driven paths is not appropriate.
 
 ### Documentation reconciliation (2026-07-24, Task 15.3)
 
