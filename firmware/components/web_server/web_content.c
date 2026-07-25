@@ -23,6 +23,26 @@ static bool token_equal_ignore_case(const char *left, size_t length, const char 
     return true;
 }
 
+static void skip_spaces(const char **cursor, const char *end) {
+    while (*cursor < end && is_space(**cursor)) {
+        ++(*cursor);
+    }
+}
+
+/* cursor points just past "q="; returns whether the quality value is zero. */
+static bool q_value_is_zero(const char **cursor, const char *end) {
+    skip_spaces(cursor, end);
+    if (*cursor >= end || **cursor != '0') {
+        return false;
+    }
+    ++(*cursor);
+    while (*cursor < end && (**cursor == '0' || **cursor == '.')) {
+        ++(*cursor);
+    }
+    skip_spaces(cursor, end);
+    return *cursor == end || **cursor == ';';
+}
+
 static bool quality_is_zero(const char *parameters, size_t length) {
     const char *cursor = parameters;
     const char *end = parameters + length;
@@ -32,20 +52,7 @@ static bool quality_is_zero(const char *parameters, size_t length) {
         }
         if ((size_t)(end - cursor) >= 2U && ascii_lower(cursor[0]) == 'q' && cursor[1] == '=') {
             cursor += 2;
-            while (cursor < end && is_space(*cursor)) {
-                ++cursor;
-            }
-            if (cursor < end && *cursor == '0') {
-                ++cursor;
-                while (cursor < end && (*cursor == '0' || *cursor == '.')) {
-                    ++cursor;
-                }
-                while (cursor < end && is_space(*cursor)) {
-                    ++cursor;
-                }
-                return cursor == end || *cursor == ';';
-            }
-            return false;
+            return q_value_is_zero(&cursor, end);
         }
         while (cursor < end && *cursor != ';') {
             ++cursor;
