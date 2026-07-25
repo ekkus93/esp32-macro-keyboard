@@ -1,3 +1,13 @@
+# Curated for this codebase. Two checks are disabled because they are
+# empirically un-actionable here, not because they are unwanted:
+#   - misc-include-cleaner: demands IWYU-style direct includes for every symbol,
+#     against the deliberate transitive-include structure of the ESP-IDF code.
+#   - clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling:
+#     flags every memset/memcpy and demands the C11 Annex K *_s functions
+#     (memset_s), which ESP-IDF/newlib does not provide.
+# cognitive-complexity and magic-numbers are kept, tuned with IgnoreMacros so
+# they measure first-party source rather than ESP_LOG/HW-register macro
+# expansions.
 Checks: >
   -*,
   bugprone-*,
@@ -8,7 +18,13 @@ Checks: >
   misc-*,
   performance-*,
   portability-*,
-  readability-*
+  readability-*,
+  -misc-include-cleaner,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
 WarningsAsErrors: '*'
-HeaderFilterRegex: '^(firmware/main|firmware/components|firmware/test_app)/'
+HeaderFilterRegex: '/firmware/(main|components|test_app)/'
 FormatStyle: file
+CheckOptions:
+  readability-function-cognitive-complexity.IgnoreMacros: 'true'
+  readability-magic-numbers.IgnoreMacros: 'true'
+  readability-magic-numbers.IgnorePowersOf2IntegerValues: 'true'
