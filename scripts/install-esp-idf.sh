@@ -30,4 +30,9 @@ if [[ "${actual}" != "${expected_tag}" ]]; then
 fi
 
 "${destination}/install.sh" esp32s3
+# The default install provides only the GCC toolchain. clang-tidy, which
+# check-firmware.sh runs against a clang-built compile database, needs the
+# separate esp-clang toolchain (its clang/run-clang-tidy land on PATH via
+# export.sh once installed).
+IDF_PATH="${destination}" python3 "${destination}/tools/idf_tools.py" install esp-clang
 printf 'ESP-IDF %s installed at %s\n' "${expected_tag}" "${destination}"
