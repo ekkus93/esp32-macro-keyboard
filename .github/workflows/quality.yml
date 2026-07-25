@@ -1,10 +1,22 @@
 name: Quality
 
 on:
+  push:
+    branches:
+      - master
+    tags:
+      - "**"
+  pull_request:
+    branches:
+      - master
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
@@ -30,8 +42,6 @@ jobs:
       - name: Install frontend dependencies
         working-directory: webapp
         run: npm ci
-      # Enable automatic push/pull_request triggers only after the committed npm
-      # and ESP-IDF dependency lockfiles exist and this workflow is green.
       - name: Run authoritative checks
         shell: bash
         run: |
