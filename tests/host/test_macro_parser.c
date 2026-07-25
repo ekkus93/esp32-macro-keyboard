@@ -296,6 +296,8 @@ static void test_error_locations_and_directive_boundaries(void)
 {
     const macro_parse_error_t multiline =
         expect_failure_length("A\n{BAD}", 7U, NULL, APP_ERROR_MACRO_SYNTAX);
+    /* SPEC 10.6: the error record itself must carry the code, not only the return. */
+    TEST_CHECK_APP_ERROR(APP_ERROR_MACRO_SYNTAX, multiline.code);
     TEST_CHECK_EQ_U64(2U, multiline.byte_offset);
     TEST_CHECK_EQ_U64(2U, multiline.line);
     TEST_CHECK_EQ_U64(1U, multiline.column);
@@ -402,9 +404,46 @@ static void test_printable_ascii(void)
     TEST_CHECK(!macro_keymap_us_printable('a', NULL));
 }
 
+static void test_named_key_usages(void)
+{
+    /*
+     * SPEC 10.3: each named key must compile to its canonical US HID usage.
+     * test_named_keys_and_modifiers only checks the action count, so a keymap
+     * regression that swapped two usages (e.g. HOME and END) would pass there;
+     * this pins every named key to its exact usage.
+     */
+    static const struct {
+        const char *source;
+        uint8_t usage;
+    } cases[] = {
+        {"{ENTER}", 0x28U},    {"{TAB}", 0x2bU},      {"{ESC}", 0x29U},
+        {"{BACKSPACE}", 0x2aU}, {"{DELETE}", 0x4cU},  {"{INSERT}", 0x49U},
+        {"{HOME}", 0x4aU},     {"{END}", 0x4dU},      {"{PAGEUP}", 0x4bU},
+        {"{PAGEDOWN}", 0x4eU}, {"{UP}", 0x52U},       {"{DOWN}", 0x51U},
+        {"{LEFT}", 0x50U},     {"{RIGHT}", 0x4fU},    {"{SPACE}", 0x2cU},
+        {"{F1}", 0x3aU},       {"{F2}", 0x3bU},       {"{F3}", 0x3cU},
+        {"{F4}", 0x3dU},       {"{F5}", 0x3eU},       {"{F6}", 0x3fU},
+        {"{F7}", 0x40U},       {"{F8}", 0x41U},       {"{F9}", 0x42U},
+        {"{F10}", 0x43U},      {"{F11}", 0x44U},      {"{F12}", 0x45U},
+    };
+    for (size_t index = 0U; index < (sizeof(cases) / sizeof(cases[0])); ++index) {
+        macro_plan_t plan = {0};
+        TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                             compile_explicit(cases[index].source,
+                                              strlen(cases[index].source), NULL, &plan,
+                                              NULL));
+        TEST_CHECK_EQ_U64(1U, plan.action_count);
+        TEST_CHECK_EQ_U64(MACRO_ACTION_KEY, plan.actions[0].type);
+        TEST_CHECK_EQ_U64(cases[index].usage, plan.actions[0].usage);
+        TEST_CHECK_EQ_U64(0U, plan.actions[0].modifiers);
+        macro_plan_free(&plan);
+    }
+}
+
 int main(void)
 {
     test_uuid_and_revision_validation();
+    test_named_key_usages();
     test_null_empty_and_output_arguments();
     test_source_and_action_limits();
     test_timing_boundaries();

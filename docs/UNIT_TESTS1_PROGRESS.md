@@ -121,6 +121,31 @@ device-executed or HIL-verified. The broader "documentation matches all implemen
 and validation states" item is left open pending exact-head CI confirmation, since the docs
 describe locally-verified rather than CI-observed results.
 
+### Parser/model requirement reconciliation (2026-07-24, Tasks 13.1/13.2, L928)
+
+Mapped every SPEC section 10 macro-grammar rule and the macro-model API to a host test:
+
+- Character support (10.1): printable ASCII, LF to Enter, tab to Tab, CRLF normalization,
+  non-ASCII/invalid-UTF-8 rejection with position — covered.
+- Escaping (10.2), named keys (10.3), chords (10.4 incl. duplicate/modifier-only/multi-key/
+  unknown errors and exact modifier bitmasks), delay range (10.5), grammar rules (10.6:
+  case, whitespace, unknown directive, error location fields, no partial plan), and limits
+  (10.7: source, action, delay, estimated-duration boundaries) — all covered.
+- All four public model validators (`validate_revision`, `validate_text`, `free_macro`,
+  `free_procedure`) are tested at their boundaries; the 64-byte name limit is a fixed struct
+  buffer, not a runtime validator.
+
+Two genuine gaps were found and closed in `test_macro_parser.c`:
+
+- `test_named_key_usages` pins every one of the 27 named keys to its canonical US HID usage.
+  The existing `test_named_keys_and_modifiers` only checked the action count, so a keymap
+  regression that swapped two usages passed; the new test was proven to catch a `KEY_HOME`/
+  `KEY_END` swap.
+- The multiline error test now asserts the error record's `code` field (SPEC 10.6 requires the
+  code in the record, not only in the return value).
+
+Parser and model suites pass locally, including under ASan/UBSan.
+
 ## Implemented and validated in pull-request CI
 
 ### Host-test infrastructure

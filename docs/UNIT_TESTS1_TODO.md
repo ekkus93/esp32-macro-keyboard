@@ -925,7 +925,7 @@ reviewed.
 - [x] USB keyboard tests pass.
 - [x] Device-control tests pass.
 - [x] Wi-Fi AP tests pass.
-- [ ] Expanded parser/model requirements are fully reconciled and pass.
+- [x] Expanded parser/model requirements are fully reconciled and pass (SPEC 10 mapped to tests 2026-07-24; named-key usage and error-code gaps closed — see `docs/UNIT_TESTS1_PROGRESS.md`).
 
 ### Frontend
 
