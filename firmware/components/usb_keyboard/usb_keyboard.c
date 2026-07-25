@@ -31,6 +31,15 @@ static void adapter_state_set(void *context, usb_keyboard_state_t next) {
     portEXIT_CRITICAL(&state_lock);
 }
 
+/*
+ * esp_tinyusb 2.x owns tud_mount_cb/tud_umount_cb and reports attach/detach
+ * through this event callback; defining those symbols in the application would
+ * clash at link time. Suspend/resume are still delivered through TinyUSB's weak
+ * tud_suspend_cb/tud_resume_cb below, which esp_tinyusb does not override unless
+ * the corresponding Kconfig callbacks are enabled.
+ */
+static void usb_event_handler(tinyusb_event_t *event, void *arg);
+
 static app_error_code_t adapter_driver_install(void *context) {
     (void)context;
     const size_t string_count = usb_descriptors_string_count();
@@ -43,6 +52,7 @@ static app_error_code_t adapter_driver_install(void *context) {
     configuration.descriptor.string = usb_descriptors_strings();
     configuration.descriptor.string_count = (int)string_count;
     configuration.descriptor.full_speed_config = usb_descriptors_configuration();
+    configuration.event_cb = usb_event_handler;
 
     return tinyusb_driver_install(&configuration) == ESP_OK ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
 }
@@ -112,12 +122,21 @@ app_error_code_t usb_keyboard_release_all(void) {
     return usb_keyboard_state_release_all(&operations);
 }
 
-void tud_mount_cb(void) {
-    usb_keyboard_state_mount(&operations);
-}
-
-void tud_umount_cb(void) {
-    usb_keyboard_state_unmount(&operations);
+static void usb_event_handler(tinyusb_event_t *event, void *arg) {
+    (void)arg;
+    if (event == NULL) {
+        return;
+    }
+    switch (event->id) {
+    case TINYUSB_EVENT_ATTACHED:
+        usb_keyboard_state_mount(&operations);
+        break;
+    case TINYUSB_EVENT_DETACHED:
+        usb_keyboard_state_unmount(&operations);
+        break;
+    default:
+        break;
+    }
 }
 
 void tud_suspend_cb(bool remote_wakeup_en) {

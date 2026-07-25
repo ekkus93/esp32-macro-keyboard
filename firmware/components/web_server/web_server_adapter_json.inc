@@ -40,7 +40,8 @@ app_error_code_t web_adapter_build_status_json(const char *version,
         return APP_ERROR_INVALID_ARGUMENT;
     }
     char clients[16U];
-    const int client_length = snprintf(clients, sizeof(clients), "%u", wifi_clients);
+    const int client_length =
+        snprintf(clients, sizeof(clients), "%lu", (unsigned long)wifi_clients);
     if (client_length < 0 || (size_t)client_length >= sizeof(clients)) {
         return APP_ERROR_INTERNAL;
     }

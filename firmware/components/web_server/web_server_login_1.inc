@@ -10,7 +10,8 @@ static esp_err_t login_handler(httpd_req_t *request)
     const app_error_code_t allowed = auth_login_attempt_allowed(&retry_after);
     if (allowed == APP_ERROR_RATE_LIMITED) {
         char retry_value[16U];
-        const int written = snprintf(retry_value, sizeof(retry_value), "%u", retry_after);
+        const int written =
+            snprintf(retry_value, sizeof(retry_value), "%lu", (unsigned long)retry_after);
         if (written < 0 || (size_t)written >= sizeof(retry_value) ||
             httpd_resp_set_hdr(request, "Retry-After", retry_value) != ESP_OK) {
             return ESP_FAIL;
