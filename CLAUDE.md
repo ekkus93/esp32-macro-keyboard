@@ -19,6 +19,17 @@ Monorepo, no root build file. Work happens in these areas:
 - npm uses `save-exact=true` — **never add caret/tilde version ranges**; pin exact versions.
 - On first dependency resolution, commit `package-lock.json`; don't run `npm ci` without a committed lockfile or fabricate one (see `docs/DEVELOPMENT.md`).
 
+### Host lint/test tooling (pin to CI versions)
+
+The lint/test scripts assume the exact versions CI installs (see `.github/workflows/{quality,host-tests}.yml`). Mismatched versions produce spurious format/lint diffs. On Ubuntu 24.04 ("noble"):
+
+- apt (`clang-format` 18, `clang-tidy` 18, `shellcheck` 0.9.0, `libcjson-dev`, `jq`): `sudo apt-get install --yes clang-format clang-tidy shellcheck libcjson-dev jq`
+- pip: `python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0 gcovr==8.6` (`cmakelang` provides `cmake-format`/`cmake-lint`)
+- go: `go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0`
+- `markdownlint-cli2` 0.23.1 comes from `npm --prefix webapp ci` (it's a pinned devDependency); `check-docs.sh` runs the local `webapp/node_modules/.bin` copy, not a global one.
+
+`clang-format`/`shellcheck` are distro apt packages, so their versions track the runner's Ubuntu release; build on 24.04 to match CI.
+
 ## Commands
 
 Run scripts from the repo root. All frontend commands go through `npm --prefix webapp` (or the wrapper scripts).
