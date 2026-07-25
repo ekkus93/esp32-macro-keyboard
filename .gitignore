@@ -1,8 +1,13 @@
-# ESP-IDF generated output
+# ESP-IDF generated output (project build dirs, resolved managed components, and
+# local sdkconfig). dependencies.lock is intentionally committed and NOT ignored.
 firmware/build/
 firmware/sdkconfig
 firmware/sdkconfig.old
 firmware/managed_components/
+firmware/test_app/build/
+firmware/test_app/sdkconfig
+firmware/test_app/sdkconfig.old
+firmware/test_app/managed_components/
 
 # Native host-test build output
 tests/host/build/
