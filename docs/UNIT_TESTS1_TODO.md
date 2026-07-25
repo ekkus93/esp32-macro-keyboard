@@ -952,7 +952,11 @@ reviewed.
 - [x] New Unity tags are documented in all required repository documentation.
 - [x] Device tests do not print secrets or destructively recover storage; source audit reconciled 2026-07-24 (see `docs/UNIT_TESTS1_PROGRESS.md`).
 - [x] Normal pull-request CI runs retain no artifacts.
-- [ ] Tagged runs retain expected test and coverage assets.
+- [x] Tagged runs retain expected test and coverage assets. Verified with a
+  throwaway `ci-asset-check` tag: the `Host Tests` workflow packaged, ran
+  `validate-tagged-test-assets.sh` over, and uploaded all four asset sets
+  (host-tests, host-sanitizers, native-coverage, frontend-coverage) with 90-day
+  retention. Artifacts persist independent of the tag, which was then deleted.
 - [x] Documentation matches all implemented commands and validation states.
   Reconciled after the clang-tidy enforcement and CI changes: the `Quality`
   workflow trigger (now push/PR/tags, not `workflow_dispatch`-only) in
