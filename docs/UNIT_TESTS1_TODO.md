@@ -935,16 +935,16 @@ reviewed.
 
 ### Frontend
 
-- [ ] API-client tests pass.
-- [ ] Routing, login, execution, and error-banner tests pass.
-- [ ] TypeScript, ESLint, Stylelint, Prettier, and Vitest report zero warnings and errors.
+- [x] API-client tests pass. (`webapp/tests/api.test.ts`; Vitest green locally and in the CI Frontend Tests job.)
+- [x] Routing, login, execution, and error-banner tests pass. (`app-routing`, `app-auth`, `app-execution`, `error-banner` test files; green.)
+- [x] TypeScript, ESLint, Stylelint, Prettier, and Vitest report zero warnings and errors. (`check-webapp.sh`; green in the CI Quality and Frontend Tests jobs.)
 
 ### Runtime quality
 
-- [ ] AddressSanitizer and UndefinedBehaviorSanitizer are clean.
-- [ ] Leak tracking is clean across every required suite.
-- [ ] Coverage contains only first-party production code.
-- [ ] Coverage gates pass without ignore directives.
+- [x] AddressSanitizer and UndefinedBehaviorSanitizer are clean. (`run-tests.sh --sanitizers` 17/17; green in the CI Host ASan and UBSan job.)
+- [x] Leak tracking is clean across every required suite. (LeakSanitizer runs with the ASan suite; no leaks reported.)
+- [x] Coverage contains only first-party production code. (The native-coverage report lists only `firmware/components/*` policy files.)
+- [x] Coverage gates pass without ignore directives. (`generate-native-coverage.sh` at 95%; no `GCOVR_EXCL`/`LCOV_EXCL` markers in first-party source.)
 
 ### Device and CI
 
