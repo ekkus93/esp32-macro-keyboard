@@ -733,9 +733,47 @@ static void test_orphaned_staging_is_visible(void)
                       recover(&operations, &uuids, &index));
 }
 
+static void test_strict_manifest_write_sequence(void)
+{
+    reset_storage();
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    uuid_sequence_t uuids = {0};
+    storage_transaction_manifest_t manifest = make_create_manifest(
+        "00000000-0000-4000-8000-000000000090",
+        "10000000-0000-4000-8000-000000000090",
+        STORAGE_TRANSACTION_STAGED);
+    create_directory(manifest.staging);
+
+    /*
+     * Strict fake enforcement (UNIT_TESTS1 L915) for the manifest durability
+     * sequence: stage the manifest into a temp file (open, check the backup does
+     * not exist, write, fsync, close), verify it by reading it back, then rename
+     * it into place. Strict mode aborts on any unexpected, missing, or
+     * out-of-order filesystem operation, locking the crash-safe write ordering.
+     */
+    static const char *const expected[] = {
+        "fs_open", "fs_stat", "fs_write", "fs_sync",  "fs_close",
+        "fs_open", "fs_read", "fs_read",  "fs_read",  "fs_read",
+        "fs_read", "fs_read", "fs_close", "fs_stat",  "fs_rename",
+    };
+    fake_call_log_set_strict(&filesystem.calls, true);
+    for (size_t index = 0U; index < (sizeof(expected) / sizeof(expected[0])); ++index) {
+        fake_call_log_expect(&filesystem.calls, expected[index]);
+    }
+
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
+                      storage_transaction_write_manifest_with_ops(&manifest, &operations,
+                                                                  generate_uuid, &uuids));
+    fake_call_log_verify(&filesystem.calls);
+    reset_storage();
+}
+
 int main(void)
 {
     test_invalid_arguments();
+    test_strict_manifest_write_sequence();
     test_create_recovery_is_idempotent();
     test_delete_recovery_is_idempotent();
     test_conflicting_create_paths_are_preserved();

@@ -115,8 +115,32 @@ static void test_submission_ownership_and_recovery(void)
     TEST_CHECK_EQ_U64(2U, fake.free_count);
 }
 
+static void test_strict_get_status_sequence(void)
+{
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+
+    /*
+     * Strict fake enforcement (UNIT_TESTS1 L915): reading engine status must take
+     * exactly one lock/unlock pair on the executor's operations and touch nothing
+     * else. Strict mode aborts on any unexpected, missing, or out-of-order call.
+     */
+    static const char *const expected[] = {"lock", "unlock"};
+    fake_call_log_set_strict(&fake.calls, true);
+    for (size_t index = 0U; index < (sizeof(expected) / sizeof(expected[0])); ++index) {
+        fake_call_log_expect(&fake.calls, expected[index]);
+    }
+
+    const macro_execution_status_t status = macro_executor_engine_get_status(&engine);
+    fake_call_log_verify(&fake.calls);
+    TEST_CHECK(status.state == EXECUTION_IDLE);
+}
+
 void executor_run_validation_tests(void)
 {
     test_engine_and_request_validation();
     test_submission_ownership_and_recovery();
+    test_strict_get_status_sequence();
 }

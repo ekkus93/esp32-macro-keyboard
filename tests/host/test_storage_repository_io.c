@@ -264,6 +264,39 @@ static void test_mkdir_and_remove_tree(const char *root)
     CHECK(storage_repository_remove_tree_with_ops(tree, &ops) == APP_ERROR_NONE);
 }
 
+static void test_strict_read_bounded_sequence(const char *root)
+{
+    char path[512U];
+    join_path(path, sizeof(path), root, "strict.txt");
+    write_file(path, "abcdef");
+    fake_fs_backend_t fake;
+    fake_fs_backend_reset(&fake);
+    storage_fs_ops_t ops = make_ops(&fake);
+
+    /*
+     * Strict fake enforcement (UNIT_TESTS1 L915) for the bounded-read sequence:
+     * stat the file for its size, open it, read its contents, read once more to
+     * confirm end-of-file, then close it. Strict mode aborts on any unexpected,
+     * missing, or out-of-order filesystem operation, so this locks the read
+     * ordering against accidental reordering in refactors.
+     */
+    static const char *const expected[] = {
+        "fs_stat", "fs_open", "fs_read", "fs_read", "fs_close",
+    };
+    fake_call_log_set_strict(&fake.calls, true);
+    for (size_t index = 0U; index < (sizeof(expected) / sizeof(expected[0])); ++index) {
+        fake_call_log_expect(&fake.calls, expected[index]);
+    }
+
+    char *data = NULL;
+    size_t length = 0U;
+    CHECK(storage_repository_read_bounded_file_with_ops(path, 6U, &data, &length, &ops) ==
+          APP_ERROR_NONE);
+    fake_call_log_verify(&fake.calls);
+    CHECK(length == 6U && strcmp(data, "abcdef") == 0);
+    free(data);
+}
+
 int main(void)
 {
     char pattern[] = "/tmp/storage-io-test-XXXXXX";
@@ -272,6 +305,7 @@ int main(void)
     test_read_bounded(root);
     test_directory_entries(root);
     test_mkdir_and_remove_tree(root);
+    test_strict_read_bounded_sequence(root);
     CHECK(storage_repository_remove_tree_with_ops(
               root, storage_fs_ops_posix()) == APP_ERROR_NONE);
     puts("storage repository io tests passed");

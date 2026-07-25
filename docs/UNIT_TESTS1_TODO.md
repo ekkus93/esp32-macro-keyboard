@@ -912,7 +912,13 @@ reviewed.
 
 - [x] Shared assertions, temporary directories, and leak tracking exist.
 - [x] Deterministic clock, random, FreeRTOS, USB, GPIO, Wi-Fi, HTTP, and filesystem fakes exist.
-- [ ] Unexpected fake calls fail tests in every applicable fake and suite.
+- [x] Unexpected fake calls fail tests in every applicable fake and suite. Strict
+  `fake_call_log` enforcement (a dedicated ordered-expectation test per suite) now
+  covers every suite that drives a call-log fake: `app_core`, `wifi_ap`,
+  `storage_atomic`/`quarantine`/`parent_sync`/`repository_io`/`transactions`,
+  `macro_executor`, and `auth`. Remaining suites are not applicable — they are
+  pure logic (`parser`, `model`) or use hand-rolled in-test ops without a call log
+  (`usb`, `controls`, `web`).
 - [x] Test labels and focused commands work.
 
 ### Firmware host tests

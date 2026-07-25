@@ -148,8 +148,36 @@ static void test_rate_limit(void)
     TEST_CHECK(auth_core_login_attempt_allowed(&core, &retry) == APP_ERROR_INTERNAL);
 }
 
+static void test_strict_password_create_sequence(void)
+{
+    auth_fake_t fake;
+    fake_reset(&fake);
+    auth_core_t core;
+    init_core(&core, &fake);
+    char password[13U];
+    memset(password, 'a', 12U);
+    password[12] = '\0';
+    auth_password_record_t record;
+
+    /*
+     * Strict fake enforcement (UNIT_TESTS1 L915): creating a password record
+     * draws salt bytes from the random source, then derives the hash -- exactly
+     * one "random" followed by one "derive" and nothing else. Strict mode aborts
+     * on any unexpected, missing, or out-of-order operation.
+     */
+    fake_call_log_reset(&fake.calls);
+    static const char *const expected[] = {"random", "derive"};
+    fake_call_log_set_strict(&fake.calls, true);
+    for (size_t index = 0U; index < (sizeof(expected) / sizeof(expected[0])); ++index) {
+        fake_call_log_expect(&fake.calls, expected[index]);
+    }
+    TEST_CHECK(auth_core_password_create(&core, password, 12U, &record) == APP_ERROR_NONE);
+    fake_call_log_verify(&fake.calls);
+}
+
 static void auth_run_existing_tests(void)
 {
+    test_strict_password_create_sequence();
     test_password_boundaries();
     test_derive_failures_zero_outputs();
     test_sessions();
