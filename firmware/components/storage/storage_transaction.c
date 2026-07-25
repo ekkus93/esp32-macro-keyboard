@@ -257,6 +257,54 @@ static app_error_code_t write_recovery_manifest(const storage_transaction_manife
     return result == APP_ERROR_INVALID_ARGUMENT ? APP_ERROR_STORAGE_CORRUPT : result;
 }
 
+static app_error_code_t recover_create_stage(storage_transaction_manifest_t *manifest,
+                                             const storage_fs_ops_t *operations,
+                                             storage_uuid_generate_fn generate_uuid,
+                                             void *uuid_context) {
+    bool staging_exists = false;
+    bool destination_exists = false;
+    app_error_code_t result = path_exists_with_ops(manifest->staging, operations, &staging_exists);
+    if (result == APP_ERROR_NONE) {
+        result = path_exists_with_ops(manifest->destination, operations, &destination_exists);
+    }
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    if (staging_exists == destination_exists) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    if (staging_exists && operations->rename_path(operations->context, manifest->staging,
+                                                  manifest->destination) != 0) {
+        const int rename_error = errno;
+        return map_error_number(rename_error);
+    }
+    manifest->phase = STORAGE_TRANSACTION_ACTIVATED;
+    return write_recovery_manifest(manifest, operations, generate_uuid, uuid_context);
+}
+
+static app_error_code_t
+recover_create_activate(storage_transaction_manifest_t *manifest,
+                        const storage_fs_ops_t *operations, storage_uuid_generate_fn generate_uuid,
+                        void *uuid_context,
+                        storage_transaction_set_index_presence_fn set_index_presence,
+                        void *index_context, const app_uuid_t *set_id) {
+    bool destination_exists = false;
+    app_error_code_t result =
+        path_exists_with_ops(manifest->destination, operations, &destination_exists);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    if (!destination_exists) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    result = set_index_presence(index_context, set_id, true);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    manifest->phase = STORAGE_TRANSACTION_INDEXED;
+    return write_recovery_manifest(manifest, operations, generate_uuid, uuid_context);
+}
+
 static app_error_code_t recover_create(storage_transaction_manifest_t *manifest,
                                        const storage_fs_ops_t *operations,
                                        storage_uuid_generate_fn generate_uuid, void *uuid_context,
@@ -279,44 +327,14 @@ static app_error_code_t recover_create(storage_transaction_manifest_t *manifest,
     }
 
     if (manifest->phase == STORAGE_TRANSACTION_STAGED) {
-        bool staging_exists = false;
-        bool destination_exists = false;
-        result = path_exists_with_ops(manifest->staging, operations, &staging_exists);
-        if (result == APP_ERROR_NONE) {
-            result = path_exists_with_ops(manifest->destination, operations, &destination_exists);
-        }
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        if (staging_exists == destination_exists) {
-            return APP_ERROR_STORAGE_CORRUPT;
-        }
-        if (staging_exists && operations->rename_path(operations->context, manifest->staging,
-                                                      manifest->destination) != 0) {
-            const int rename_error = errno;
-            return map_error_number(rename_error);
-        }
-        manifest->phase = STORAGE_TRANSACTION_ACTIVATED;
-        result = write_recovery_manifest(manifest, operations, generate_uuid, uuid_context);
+        result = recover_create_stage(manifest, operations, generate_uuid, uuid_context);
         if (result != APP_ERROR_NONE) {
             return result;
         }
     }
     if (manifest->phase == STORAGE_TRANSACTION_ACTIVATED) {
-        bool destination_exists = false;
-        result = path_exists_with_ops(manifest->destination, operations, &destination_exists);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        if (!destination_exists) {
-            return APP_ERROR_STORAGE_CORRUPT;
-        }
-        result = set_index_presence(index_context, &set_id, true);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        manifest->phase = STORAGE_TRANSACTION_INDEXED;
-        result = write_recovery_manifest(manifest, operations, generate_uuid, uuid_context);
+        result = recover_create_activate(manifest, operations, generate_uuid, uuid_context,
+                                         set_index_presence, index_context, &set_id);
         if (result != APP_ERROR_NONE) {
             return result;
         }
@@ -326,6 +344,56 @@ static app_error_code_t recover_create(storage_transaction_manifest_t *manifest,
         return result == APP_ERROR_NONE ? remove_manifest_with_ops(manifest, operations) : result;
     }
     return APP_ERROR_STORAGE_CORRUPT;
+}
+
+static app_error_code_t recover_delete_backup(storage_transaction_manifest_t *manifest,
+                                              const storage_fs_ops_t *operations,
+                                              storage_uuid_generate_fn generate_uuid,
+                                              void *uuid_context) {
+    bool source_exists = false;
+    bool backup_exists = false;
+    app_error_code_t result = path_exists_with_ops(manifest->source, operations, &source_exists);
+    if (result == APP_ERROR_NONE) {
+        result = path_exists_with_ops(manifest->backup, operations, &backup_exists);
+    }
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    if (source_exists == backup_exists) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    if (source_exists &&
+        operations->rename_path(operations->context, manifest->source, manifest->backup) != 0) {
+        const int rename_error = errno;
+        return map_error_number(rename_error);
+    }
+    manifest->phase = STORAGE_TRANSACTION_BACKED_UP;
+    return write_recovery_manifest(manifest, operations, generate_uuid, uuid_context);
+}
+
+static app_error_code_t
+recover_delete_index(storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
+                     storage_uuid_generate_fn generate_uuid, void *uuid_context,
+                     storage_transaction_set_index_presence_fn set_index_presence,
+                     void *index_context, const app_uuid_t *set_id) {
+    bool backup_exists = false;
+    bool source_exists = false;
+    app_error_code_t result = path_exists_with_ops(manifest->backup, operations, &backup_exists);
+    if (result == APP_ERROR_NONE) {
+        result = path_exists_with_ops(manifest->source, operations, &source_exists);
+    }
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    if (!backup_exists || source_exists) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    result = set_index_presence(index_context, set_id, false);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    manifest->phase = STORAGE_TRANSACTION_INDEXED;
+    return write_recovery_manifest(manifest, operations, generate_uuid, uuid_context);
 }
 
 static app_error_code_t recover_delete(storage_transaction_manifest_t *manifest,
@@ -352,48 +420,14 @@ static app_error_code_t recover_delete(storage_transaction_manifest_t *manifest,
     }
 
     if (manifest->phase == STORAGE_TRANSACTION_PREPARED) {
-        bool source_exists = false;
-        bool backup_exists = false;
-        result = path_exists_with_ops(manifest->source, operations, &source_exists);
-        if (result == APP_ERROR_NONE) {
-            result = path_exists_with_ops(manifest->backup, operations, &backup_exists);
-        }
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        if (source_exists == backup_exists) {
-            return APP_ERROR_STORAGE_CORRUPT;
-        }
-        if (source_exists &&
-            operations->rename_path(operations->context, manifest->source, manifest->backup) != 0) {
-            const int rename_error = errno;
-            return map_error_number(rename_error);
-        }
-        manifest->phase = STORAGE_TRANSACTION_BACKED_UP;
-        result = write_recovery_manifest(manifest, operations, generate_uuid, uuid_context);
+        result = recover_delete_backup(manifest, operations, generate_uuid, uuid_context);
         if (result != APP_ERROR_NONE) {
             return result;
         }
     }
     if (manifest->phase == STORAGE_TRANSACTION_BACKED_UP) {
-        bool backup_exists = false;
-        bool source_exists = false;
-        result = path_exists_with_ops(manifest->backup, operations, &backup_exists);
-        if (result == APP_ERROR_NONE) {
-            result = path_exists_with_ops(manifest->source, operations, &source_exists);
-        }
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        if (!backup_exists || source_exists) {
-            return APP_ERROR_STORAGE_CORRUPT;
-        }
-        result = set_index_presence(index_context, &set_id, false);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        manifest->phase = STORAGE_TRANSACTION_INDEXED;
-        result = write_recovery_manifest(manifest, operations, generate_uuid, uuid_context);
+        result = recover_delete_index(manifest, operations, generate_uuid, uuid_context,
+                                      set_index_presence, index_context, &set_id);
         if (result != APP_ERROR_NONE) {
             return result;
         }
