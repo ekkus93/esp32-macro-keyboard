@@ -38,8 +38,8 @@ All first-party warnings and lint findings are defects. Do not suppress them.
 The checks intentionally exclude ESP-IDF, managed components, `node_modules`,
 and generated build output.
 
-The manual `Quality` workflow remains `workflow_dispatch`-only until both npm and
-ESP-IDF lockfiles exist and the entire workflow is green.
+The `Quality` workflow runs the full gate (`check-all.sh`) on pushes to `master`,
+pull requests, tags, and manual dispatch.
 
 ## Build
 

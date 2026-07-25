@@ -953,7 +953,12 @@ reviewed.
 - [x] Device tests do not print secrets or destructively recover storage; source audit reconciled 2026-07-24 (see `docs/UNIT_TESTS1_PROGRESS.md`).
 - [x] Normal pull-request CI runs retain no artifacts.
 - [ ] Tagged runs retain expected test and coverage assets.
-- [ ] Documentation matches all implemented commands and validation states.
+- [x] Documentation matches all implemented commands and validation states.
+  Reconciled after the clang-tidy enforcement and CI changes: the `Quality`
+  workflow trigger (now push/PR/tags, not `workflow_dispatch`-only) in
+  `.github/workflows/README.md` and `docs/DEVELOPMENT.md`, the CI-validated
+  firmware-build/clang-tidy state in `docs/IMPLEMENTATION_STATUS.md`, and the
+  esp-clang toolchain source for `check-firmware.sh` clang-tidy in `CLAUDE.md`.
 
 ## 17. Required implementation order
 

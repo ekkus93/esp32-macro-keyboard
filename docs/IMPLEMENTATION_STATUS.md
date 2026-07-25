@@ -54,9 +54,10 @@ GitHub Actions confirmation is a separate step (see `docs/UNIT_TESTS1_PROGRESS.m
 - The full first-party lint gate passes: `check-format.sh`, `check-scripts.sh`, and
   `check-docs.sh`.
 
-Not validated here: a real ESP-IDF `v5.5.5` firmware build or link (no SDK in this
-environment), `check-firmware.sh` clang-tidy, tagged-artifact packaging, and any
-physical/HIL result.
+Not validated in this local environment (no SDK): a real ESP-IDF `v5.5.5` firmware
+build or link and `check-firmware.sh` clang-tidy — both now run green in CI via the
+`Quality` workflow (which runs `check-all.sh` on every push and pull request).
+Tagged-artifact packaging and any physical/HIL result remain unverified.
 
 ## Release-blocking work still open
 

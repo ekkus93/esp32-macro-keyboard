@@ -30,6 +30,8 @@ The lint/test scripts assume the exact versions CI installs (see `.github/workfl
 
 `clang-format`/`shellcheck` are distro apt packages, so their versions track the runner's Ubuntu release; build on 24.04 to match CI.
 
+`check-firmware.sh` runs **clang-tidy from the ESP-IDF clang toolchain** (esp-clang, LLVM 19), installed by `scripts/install-esp-idf.sh` and put on `PATH` by sourcing `export.sh` — not the apt `clang-tidy`. It must parse xtensa targets, which needs a clang-built compile database (`build-clang`); the apt clang-tidy and the GCC build database cannot (`clang: error: unsupported option '-mcpu='`).
+
 ## Commands
 
 Run scripts from the repo root. All frontend commands go through `npm --prefix webapp` (or the wrapper scripts).
