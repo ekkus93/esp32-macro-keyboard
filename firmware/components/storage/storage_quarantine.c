@@ -423,6 +423,78 @@ static int compare_ids(const void *left, const void *right) {
     return strcmp(left_id->value, right_id->value);
 }
 
+static bool has_suffix(const char *name, size_t name_length, const char *suffix,
+                       size_t suffix_length) {
+    return name_length >= suffix_length && strcmp(name + name_length - suffix_length, suffix) == 0;
+}
+
+static app_error_code_t list_add_record(const char *name, storage_quarantine_list_t *out_list,
+                                        const storage_fs_ops_t *operations) {
+    if (out_list->count >= STORAGE_QUARANTINE_MAX_ENTRIES) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    app_uuid_t id = {0};
+    app_error_code_t result = id_from_filename(name, QUARANTINE_JSON_SUFFIX, &id);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    char path[APP_PATH_MAX_BYTES];
+    result = record_path(&id, QUARANTINE_JSON_SUFFIX, path, sizeof(path));
+    if (result == APP_ERROR_NONE) {
+        result = read_record_with_ops(path, &id, &out_list->items[out_list->count], operations);
+    }
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    ++out_list->count;
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t list_add_evidence(const char *name, app_uuid_t *evidence_ids,
+                                          size_t *evidence_count,
+                                          const storage_fs_ops_t *operations) {
+    if (*evidence_count >= STORAGE_QUARANTINE_MAX_ENTRIES) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    app_error_code_t result =
+        id_from_filename(name, QUARANTINE_EVIDENCE_SUFFIX, &evidence_ids[*evidence_count]);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    char path[APP_PATH_MAX_BYTES];
+    result =
+        record_path(&evidence_ids[*evidence_count], QUARANTINE_EVIDENCE_SUFFIX, path, sizeof(path));
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    struct stat metadata;
+    if (operations->stat_path(operations->context, path, &metadata) != 0) {
+        const int stat_error = errno;
+        return map_error_number(stat_error);
+    }
+    if (!S_ISREG(metadata.st_mode)) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    ++(*evidence_count);
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t correlate_records_and_evidence(storage_quarantine_list_t *out_list,
+                                                       app_uuid_t *evidence_ids,
+                                                       size_t evidence_count) {
+    qsort(out_list->items, out_list->count, sizeof(out_list->items[0]), compare_entries);
+    qsort(evidence_ids, evidence_count, sizeof(evidence_ids[0]), compare_ids);
+    if (out_list->count != evidence_count) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    for (size_t index = 0U; index < out_list->count; ++index) {
+        if (!app_uuid_equal(&out_list->items[index].id, &evidence_ids[index])) {
+            return APP_ERROR_STORAGE_CORRUPT;
+        }
+    }
+    return APP_ERROR_NONE;
+}
+
 app_error_code_t storage_quarantine_list_with_ops(storage_quarantine_list_t *out_list,
                                                   const storage_fs_ops_t *operations) {
     if (out_list != NULL) {
@@ -459,65 +531,18 @@ app_error_code_t storage_quarantine_list_with_ops(storage_quarantine_list_t *out
         }
 
         const size_t name_length = strlen(name);
-        if (name_length >= sizeof(QUARANTINE_JSON_SUFFIX) - 1U &&
-            strcmp(name + name_length - (sizeof(QUARANTINE_JSON_SUFFIX) - 1U),
-                   QUARANTINE_JSON_SUFFIX) == 0) {
-            if (out_list->count >= STORAGE_QUARANTINE_MAX_ENTRIES) {
-                result = APP_ERROR_STORAGE_CORRUPT;
-                break;
-            }
-            app_uuid_t id = {0};
-            result = id_from_filename(name, QUARANTINE_JSON_SUFFIX, &id);
-            if (result != APP_ERROR_NONE) {
-                break;
-            }
-            char path[APP_PATH_MAX_BYTES];
-            result = record_path(&id, QUARANTINE_JSON_SUFFIX, path, sizeof(path));
-            if (result == APP_ERROR_NONE) {
-                result =
-                    read_record_with_ops(path, &id, &out_list->items[out_list->count], operations);
-            }
-            if (result != APP_ERROR_NONE) {
-                break;
-            }
-            ++out_list->count;
-            continue;
+        if (has_suffix(name, name_length, QUARANTINE_JSON_SUFFIX,
+                       sizeof(QUARANTINE_JSON_SUFFIX) - 1U)) {
+            result = list_add_record(name, out_list, operations);
+        } else if (has_suffix(name, name_length, QUARANTINE_EVIDENCE_SUFFIX,
+                              sizeof(QUARANTINE_EVIDENCE_SUFFIX) - 1U)) {
+            result = list_add_evidence(name, evidence_ids, &evidence_count, operations);
+        } else {
+            result = APP_ERROR_STORAGE_CORRUPT;
         }
-
-        if (name_length >= sizeof(QUARANTINE_EVIDENCE_SUFFIX) - 1U &&
-            strcmp(name + name_length - (sizeof(QUARANTINE_EVIDENCE_SUFFIX) - 1U),
-                   QUARANTINE_EVIDENCE_SUFFIX) == 0) {
-            if (evidence_count >= STORAGE_QUARANTINE_MAX_ENTRIES) {
-                result = APP_ERROR_STORAGE_CORRUPT;
-                break;
-            }
-            result =
-                id_from_filename(name, QUARANTINE_EVIDENCE_SUFFIX, &evidence_ids[evidence_count]);
-            if (result != APP_ERROR_NONE) {
-                break;
-            }
-            char path[APP_PATH_MAX_BYTES];
-            result = record_path(&evidence_ids[evidence_count], QUARANTINE_EVIDENCE_SUFFIX, path,
-                                 sizeof(path));
-            if (result != APP_ERROR_NONE) {
-                break;
-            }
-            struct stat metadata;
-            if (operations->stat_path(operations->context, path, &metadata) != 0) {
-                const int stat_error = errno;
-                result = map_error_number(stat_error);
-                break;
-            }
-            if (!S_ISREG(metadata.st_mode)) {
-                result = APP_ERROR_STORAGE_CORRUPT;
-                break;
-            }
-            ++evidence_count;
-            continue;
+        if (result != APP_ERROR_NONE) {
+            break;
         }
-
-        result = APP_ERROR_STORAGE_CORRUPT;
-        break;
     }
 
     if (operations->close_directory(operations->context, directory) != 0 &&
@@ -526,19 +551,7 @@ app_error_code_t storage_quarantine_list_with_ops(storage_quarantine_list_t *out
         result = map_error_number(close_error);
     }
     if (result == APP_ERROR_NONE) {
-        qsort(out_list->items, out_list->count, sizeof(out_list->items[0]), compare_entries);
-        qsort(evidence_ids, evidence_count, sizeof(evidence_ids[0]), compare_ids);
-        if (out_list->count != evidence_count) {
-            result = APP_ERROR_STORAGE_CORRUPT;
-        }
-    }
-    if (result == APP_ERROR_NONE) {
-        for (size_t index = 0U; index < out_list->count; ++index) {
-            if (!app_uuid_equal(&out_list->items[index].id, &evidence_ids[index])) {
-                result = APP_ERROR_STORAGE_CORRUPT;
-                break;
-            }
-        }
+        result = correlate_records_and_evidence(out_list, evidence_ids, evidence_count);
     }
     if (result != APP_ERROR_NONE) {
         memset(out_list, 0, sizeof(*out_list));
