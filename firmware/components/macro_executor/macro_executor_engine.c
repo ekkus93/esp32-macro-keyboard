@@ -201,6 +201,30 @@ macro_execution_status_t macro_executor_engine_get_status(macro_executor_engine_
     return result;
 }
 
+static app_error_code_t execute_action(macro_executor_engine_t *engine, macro_action_t action,
+                                       uint32_t key_press_ms, uint32_t inter_key_ms,
+                                       uint32_t deadline) {
+    if (action.type == MACRO_ACTION_DELAY) {
+        return cancellable_delay(engine, action.delay_ms, deadline);
+    }
+    if (action.type != MACRO_ACTION_KEY && action.type != MACRO_ACTION_CHORD) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    app_error_code_t result =
+        engine->ops.usb_press(engine->ops.context, action.modifiers, action.usage);
+    if (result == APP_ERROR_NONE) {
+        result = cancellable_delay(engine, key_press_ms, deadline);
+    }
+    const app_error_code_t release_result = engine->ops.usb_release_all(engine->ops.context);
+    if (result == APP_ERROR_NONE) {
+        result = release_result;
+    }
+    if (result == APP_ERROR_NONE) {
+        result = cancellable_delay(engine, inter_key_ms, deadline);
+    }
+    return result;
+}
+
 app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
                                                macro_execution_request_t *request) {
     if (engine == NULL || validate_request(request) != APP_ERROR_NONE) {
@@ -245,25 +269,8 @@ app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
             break;
         }
 
-        const macro_action_t action = request->plan.actions[index];
-        if (action.type == MACRO_ACTION_DELAY) {
-            result = cancellable_delay(engine, action.delay_ms, deadline);
-        } else if (action.type == MACRO_ACTION_KEY || action.type == MACRO_ACTION_CHORD) {
-            result = engine->ops.usb_press(engine->ops.context, action.modifiers, action.usage);
-            if (result == APP_ERROR_NONE) {
-                result = cancellable_delay(engine, request->key_press_ms, deadline);
-            }
-            const app_error_code_t release_result =
-                engine->ops.usb_release_all(engine->ops.context);
-            if (result == APP_ERROR_NONE) {
-                result = release_result;
-            }
-            if (result == APP_ERROR_NONE) {
-                result = cancellable_delay(engine, request->inter_key_ms, deadline);
-            }
-        } else {
-            result = APP_ERROR_INVALID_ARGUMENT;
-        }
+        result = execute_action(engine, request->plan.actions[index], request->key_press_ms,
+                                request->inter_key_ms, deadline);
         if (result != APP_ERROR_NONE) {
             break;
         }

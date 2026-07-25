@@ -123,36 +123,43 @@ static app_error_code_t storage_repository_create_set_staging(const macro_set_t 
     return APP_ERROR_NONE;
 }
 
+static app_error_code_t prepare_set_create(const macro_set_t *set, storage_set_index_t *index,
+                                           char *destination, size_t destination_size) {
+    app_error_code_t result = storage_repository_load_index(index);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    if (index->count >= APP_MACRO_SETS_MAX) {
+        return APP_ERROR_STORAGE_FULL;
+    }
+    for (size_t item = 0U; item < index->count; ++item) {
+        if (app_uuid_equal(&index->ids[item], &set->id)) {
+            return APP_ERROR_CONFLICT;
+        }
+    }
+    result = storage_make_set_path(&set->id, destination, destination_size);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    struct stat metadata;
+    if (stat(destination, &metadata) == 0) {
+        return APP_ERROR_CONFLICT;
+    }
+    if (errno != ENOENT) {
+        return storage_repository_map_file_error();
+    }
+    return APP_ERROR_NONE;
+}
+
 app_error_code_t storage_set_create(const macro_set_t *set) {
     if (set == NULL || set->revision != 1U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     storage_set_index_t index = {0};
-    app_error_code_t result = storage_repository_load_index(&index);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    if (index.count >= APP_MACRO_SETS_MAX) {
-        return APP_ERROR_STORAGE_FULL;
-    }
-    for (size_t item = 0U; item < index.count; ++item) {
-        if (app_uuid_equal(&index.ids[item], &set->id)) {
-            return APP_ERROR_CONFLICT;
-        }
-    }
-
     char destination[APP_PATH_MAX_BYTES];
-    result = storage_make_set_path(&set->id, destination, sizeof(destination));
+    app_error_code_t result = prepare_set_create(set, &index, destination, sizeof(destination));
     if (result != APP_ERROR_NONE) {
         return result;
-    }
-    struct stat metadata;
-    const int destination_stat = stat(destination, &metadata);
-    if (destination_stat == 0) {
-        return APP_ERROR_CONFLICT;
-    }
-    if (errno != ENOENT) {
-        return storage_repository_map_file_error();
     }
 
     app_uuid_t transaction_id = {0};

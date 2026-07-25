@@ -35,19 +35,18 @@ static app_error_code_t checked_json_u32(const cJSON *object, const char *name, 
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_repository_parse_set_json(const char *data, size_t length,
-                                                   macro_set_t *out_set) {
-    if (data == NULL || out_set == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    memset(out_set, 0, sizeof(*out_set));
-
-    cJSON *root = cJSON_ParseWithLength(data, length);
-    if (root == NULL || !cJSON_IsObject(root)) {
-        cJSON_Delete(root);
+static app_error_code_t parse_sort_order(const cJSON *root, int32_t *out_sort_order) {
+    const cJSON *sort_order = cJSON_GetObjectItemCaseSensitive(root, "sort_order");
+    if (!cJSON_IsNumber(sort_order) || sort_order->valuedouble < (double)INT32_MIN ||
+        sort_order->valuedouble > (double)INT32_MAX ||
+        sort_order->valuedouble != (double)(int32_t)sort_order->valuedouble) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
+    *out_sort_order = (int32_t)sort_order->valuedouble;
+    return APP_ERROR_NONE;
+}
 
+static app_error_code_t parse_set_fields(const cJSON *root, macro_set_t *out_set) {
     app_error_code_t result =
         checked_json_u32(root, "schema_version", 1U, &out_set->schema_version);
     if (result == APP_ERROR_NONE && out_set->schema_version != APP_SCHEMA_VERSION) {
@@ -91,15 +90,25 @@ app_error_code_t storage_repository_parse_set_json(const char *data, size_t leng
         }
     }
     if (result == APP_ERROR_NONE) {
-        const cJSON *sort_order = cJSON_GetObjectItemCaseSensitive(root, "sort_order");
-        if (!cJSON_IsNumber(sort_order) || sort_order->valuedouble < (double)INT32_MIN ||
-            sort_order->valuedouble > (double)INT32_MAX ||
-            sort_order->valuedouble != (double)(int32_t)sort_order->valuedouble) {
-            result = APP_ERROR_STORAGE_CORRUPT;
-        } else {
-            out_set->sort_order = (int32_t)sort_order->valuedouble;
-        }
+        result = parse_sort_order(root, &out_set->sort_order);
     }
+    return result;
+}
+
+app_error_code_t storage_repository_parse_set_json(const char *data, size_t length,
+                                                   macro_set_t *out_set) {
+    if (data == NULL || out_set == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    memset(out_set, 0, sizeof(*out_set));
+
+    cJSON *root = cJSON_ParseWithLength(data, length);
+    if (root == NULL || !cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+
+    const app_error_code_t result = parse_set_fields(root, out_set);
 
     cJSON_Delete(root);
     if (result != APP_ERROR_NONE) {

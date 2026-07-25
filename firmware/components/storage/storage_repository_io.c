@@ -251,6 +251,28 @@ app_error_code_t storage_repository_make_directory(const char *path) {
     return storage_repository_make_directory_with_ops(path, storage_fs_ops_posix());
 }
 
+static app_error_code_t remove_tree_entry(const char *path, const char *name,
+                                          const storage_fs_ops_t *operations) {
+    char child[APP_PATH_MAX_BYTES];
+    const int written = snprintf(child, sizeof(child), "%s/%s", path, name);
+    if (written < 0 || (size_t)written >= sizeof(child)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    struct stat metadata;
+    if (operations->stat_path(operations->context, child, &metadata) != 0) {
+        const int stat_error = errno;
+        return storage_repository_map_error_number(stat_error);
+    }
+    if (S_ISDIR(metadata.st_mode)) {
+        return storage_repository_remove_tree_with_ops(child, operations);
+    }
+    if (operations->unlink_path(operations->context, child) != 0) {
+        const int unlink_error = errno;
+        return storage_repository_map_error_number(unlink_error);
+    }
+    return APP_ERROR_NONE;
+}
+
 app_error_code_t storage_repository_remove_tree_with_ops(const char *path,
                                                          const storage_fs_ops_t *operations) {
     if (path == NULL || !storage_fs_ops_has_directory(operations)) {
@@ -278,24 +300,7 @@ app_error_code_t storage_repository_remove_tree_with_ops(const char *path,
         if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
             continue;
         }
-        char child[APP_PATH_MAX_BYTES];
-        const int written = snprintf(child, sizeof(child), "%s/%s", path, name);
-        if (written < 0 || (size_t)written >= sizeof(child)) {
-            result = APP_ERROR_INVALID_ARGUMENT;
-            break;
-        }
-        struct stat metadata;
-        if (operations->stat_path(operations->context, child, &metadata) != 0) {
-            const int stat_error = errno;
-            result = storage_repository_map_error_number(stat_error);
-            break;
-        }
-        if (S_ISDIR(metadata.st_mode)) {
-            result = storage_repository_remove_tree_with_ops(child, operations);
-        } else if (operations->unlink_path(operations->context, child) != 0) {
-            const int unlink_error = errno;
-            result = storage_repository_map_error_number(unlink_error);
-        }
+        result = remove_tree_entry(path, name, operations);
         if (result != APP_ERROR_NONE) {
             break;
         }
