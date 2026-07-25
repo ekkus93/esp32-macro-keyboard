@@ -213,6 +213,107 @@ static app_error_code_t parse_directive(const char *source, size_t offset, const
     return APP_ERROR_NONE;
 }
 
+static macro_action_t key_action(uint8_t modifiers, uint8_t usage) {
+    return (macro_action_t){
+        .type = MACRO_ACTION_KEY,
+        .modifiers = modifiers,
+        .usage = usage,
+    };
+}
+
+static app_error_code_t parse_open_brace(const char *source, size_t source_length, size_t offset,
+                                         macro_action_t *out_action, size_t *out_consumed,
+                                         macro_parse_error_t *out_error) {
+    if (offset + 1U < source_length && source[offset + 1U] == '{') {
+        macro_hid_key_t key = {0U, 0U};
+        (void)macro_keymap_us_printable('{', &key);
+        *out_action = key_action(key.modifiers, key.usage);
+        *out_consumed = 2U;
+        return APP_ERROR_NONE;
+    }
+    const char *closing = memchr(source + offset + 1U, '}', source_length - offset - 1U);
+    if (closing == NULL) {
+        return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unmatched opening brace", out_error);
+    }
+    const size_t closing_offset = (size_t)(closing - source);
+    const app_error_code_t result = parse_directive(
+        source, offset, source + offset + 1U, closing_offset - offset - 1U, out_action, out_error);
+    *out_consumed = closing_offset + 1U - offset;
+    return result;
+}
+
+static app_error_code_t parse_close_brace(const char *source, size_t source_length, size_t offset,
+                                          macro_action_t *out_action, size_t *out_consumed,
+                                          macro_parse_error_t *out_error) {
+    if (offset + 1U < source_length && source[offset + 1U] == '}') {
+        macro_hid_key_t key = {0U, 0U};
+        (void)macro_keymap_us_printable('}', &key);
+        *out_action = key_action(key.modifiers, key.usage);
+        *out_consumed = 2U;
+        return APP_ERROR_NONE;
+    }
+    return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unmatched closing brace", out_error);
+}
+
+static app_error_code_t parse_printable(const char *source, size_t offset,
+                                        macro_action_t *out_action, size_t *out_consumed,
+                                        macro_parse_error_t *out_error) {
+    macro_hid_key_t key = {0U, 0U};
+    if (!macro_keymap_us_printable(source[offset], &key)) {
+        return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unmappable character", out_error);
+    }
+    *out_action = key_action(key.modifiers, key.usage);
+    *out_consumed = 1U;
+    return APP_ERROR_NONE;
+}
+
+/*
+ * Parse one token at source[offset]: fill *out_action, the source span it
+ * consumes (*out_consumed), and the offset used for an append error location
+ * (*out_action_offset, which follows a CR/LF pair to the LF like a bare LF).
+ */
+static app_error_code_t parse_next_token(const char *source, size_t source_length, size_t offset,
+                                         macro_action_t *out_action, size_t *out_action_offset,
+                                         size_t *out_consumed, macro_parse_error_t *out_error) {
+    const unsigned char byte = (unsigned char)source[offset];
+    *out_action_offset = offset;
+    if (byte >= 0x80U || byte == 0U) {
+        return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unsupported character", out_error);
+    }
+    const char character = source[offset];
+    if (character == '\r') {
+        if (offset + 1U < source_length && source[offset + 1U] == '\n') {
+            *out_action = key_action(0U, HID_USAGE_ENTER);
+            *out_action_offset = offset + 1U;
+            *out_consumed = 2U;
+            return APP_ERROR_NONE;
+        }
+        return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "lone carriage return", out_error);
+    }
+    if (character == '\n') {
+        *out_action = key_action(0U, HID_USAGE_ENTER);
+        *out_consumed = 1U;
+        return APP_ERROR_NONE;
+    }
+    if (character == '\t') {
+        *out_action = key_action(0U, HID_USAGE_TAB);
+        *out_consumed = 1U;
+        return APP_ERROR_NONE;
+    }
+    if (character == '{') {
+        return parse_open_brace(source, source_length, offset, out_action, out_consumed, out_error);
+    }
+    if (character == '}') {
+        return parse_close_brace(source, source_length, offset, out_action, out_consumed,
+                                 out_error);
+    }
+    if (byte < ASCII_SPACE || byte > ASCII_TILDE) {
+        return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unsupported control character",
+                    out_error);
+    }
+    return parse_printable(source, offset, out_action, out_consumed, out_error);
+}
+
 app_error_code_t macro_compile(const char *source, size_t source_length,
                                const macro_compile_options_t *options, macro_plan_t *out_plan,
                                macro_parse_error_t *out_error) {
@@ -249,126 +350,20 @@ app_error_code_t macro_compile(const char *source, size_t source_length,
     };
 
     for (size_t offset = 0U; offset < source_length;) {
-        const unsigned char byte = (unsigned char)source[offset];
         macro_action_t action = {0};
-        app_error_code_t result = APP_ERROR_NONE;
-
-        if (byte >= 0x80U || byte == 0U) {
-            result =
-                fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unsupported character", out_error);
-        } else if (source[offset] == '\r') {
-            if (offset + 1U < source_length && source[offset + 1U] == '\n') {
-                ++offset;
-                action = (macro_action_t){
-                    .type = MACRO_ACTION_KEY,
-                    .usage = HID_USAGE_ENTER,
-                };
-                result = append_action(&working, action, effective, source, offset, out_error);
-                ++offset;
-                if (result == APP_ERROR_NONE) {
-                    continue;
-                }
-            } else {
-                result =
-                    fail(source, offset, APP_ERROR_MACRO_SYNTAX, "lone carriage return", out_error);
-            }
-        } else if (source[offset] == '\n') {
-            action = (macro_action_t){
-                .type = MACRO_ACTION_KEY,
-                .usage = HID_USAGE_ENTER,
-            };
-            result = append_action(&working, action, effective, source, offset, out_error);
-            ++offset;
-            if (result == APP_ERROR_NONE) {
-                continue;
-            }
-        } else if (source[offset] == '\t') {
-            action = (macro_action_t){
-                .type = MACRO_ACTION_KEY,
-                .usage = HID_USAGE_TAB,
-            };
-            result = append_action(&working, action, effective, source, offset, out_error);
-            ++offset;
-            if (result == APP_ERROR_NONE) {
-                continue;
-            }
-        } else if (source[offset] == '{') {
-            if (offset + 1U < source_length && source[offset + 1U] == '{') {
-                macro_hid_key_t key = {0U, 0U};
-                (void)macro_keymap_us_printable('{', &key);
-                action = (macro_action_t){
-                    .type = MACRO_ACTION_KEY,
-                    .modifiers = key.modifiers,
-                    .usage = key.usage,
-                };
-                result = append_action(&working, action, effective, source, offset, out_error);
-                offset += 2U;
-                if (result == APP_ERROR_NONE) {
-                    continue;
-                }
-            } else {
-                const char *closing =
-                    memchr(source + offset + 1U, '}', source_length - offset - 1U);
-                if (closing == NULL) {
-                    result = fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unmatched opening brace",
-                                  out_error);
-                } else {
-                    const size_t closing_offset = (size_t)(closing - source);
-                    result = parse_directive(source, offset, source + offset + 1U,
-                                             closing_offset - offset - 1U, &action, out_error);
-                    if (result == APP_ERROR_NONE) {
-                        result =
-                            append_action(&working, action, effective, source, offset, out_error);
-                    }
-                    offset = closing_offset + 1U;
-                    if (result == APP_ERROR_NONE) {
-                        continue;
-                    }
-                }
-            }
-        } else if (source[offset] == '}') {
-            if (offset + 1U < source_length && source[offset + 1U] == '}') {
-                macro_hid_key_t key = {0U, 0U};
-                (void)macro_keymap_us_printable('}', &key);
-                action = (macro_action_t){
-                    .type = MACRO_ACTION_KEY,
-                    .modifiers = key.modifiers,
-                    .usage = key.usage,
-                };
-                result = append_action(&working, action, effective, source, offset, out_error);
-                offset += 2U;
-                if (result == APP_ERROR_NONE) {
-                    continue;
-                }
-            } else {
-                result = fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unmatched closing brace",
-                              out_error);
-            }
-        } else if (byte < ASCII_SPACE || byte > ASCII_TILDE) {
-            result = fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unsupported control character",
-                          out_error);
-        } else {
-            macro_hid_key_t key = {0U, 0U};
-            if (!macro_keymap_us_printable(source[offset], &key)) {
-                result =
-                    fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unmappable character", out_error);
-            } else {
-                action = (macro_action_t){
-                    .type = MACRO_ACTION_KEY,
-                    .modifiers = key.modifiers,
-                    .usage = key.usage,
-                };
-                result = append_action(&working, action, effective, source, offset, out_error);
-                ++offset;
-                if (result == APP_ERROR_NONE) {
-                    continue;
-                }
-            }
+        size_t action_offset = offset;
+        size_t consumed = 0U;
+        app_error_code_t result = parse_next_token(source, source_length, offset, &action,
+                                                   &action_offset, &consumed, out_error);
+        if (result == APP_ERROR_NONE) {
+            result = append_action(&working, action, effective, source, action_offset, out_error);
         }
-
-        free(working.actions);
-        clear_plan(out_plan);
-        return result;
+        if (result != APP_ERROR_NONE) {
+            free(working.actions);
+            clear_plan(out_plan);
+            return result;
+        }
+        offset += consumed;
     }
 
     if (working.action_count == 0U) {
