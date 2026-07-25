@@ -1,8 +1,11 @@
 #include "auth.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
+#include "app_error.h"
 #include "auth_core.h"
+#include "auth_ops.h"
 #include "esp_random.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"

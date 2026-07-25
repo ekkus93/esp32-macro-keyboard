@@ -5,6 +5,11 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "app_core_ops.h"
+#include "app_error.h"
+#include "device_controls.h"
+#include "web_server.h"
+
 static bool operations_valid(const app_core_ops_t *operations) {
     return operations != NULL && operations->nvs_init != NULL &&
            operations->storage_mount != NULL && operations->storage_recover != NULL &&

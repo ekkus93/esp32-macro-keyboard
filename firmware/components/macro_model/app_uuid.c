@@ -7,6 +7,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "app_error.h"
+#include "macro_limits.h"
+
 #ifdef ESP_PLATFORM
 #include "esp_random.h"
 #endif

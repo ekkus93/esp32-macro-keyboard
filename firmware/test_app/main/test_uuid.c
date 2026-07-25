@@ -1,5 +1,6 @@
 #include <string.h>
 
+#include "app_error.h"
 #include "app_uuid.h"
 #include "unity.h"
 

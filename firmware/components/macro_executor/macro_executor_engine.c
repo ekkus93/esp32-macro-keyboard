@@ -3,7 +3,12 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "app_error.h"
+#include "app_uuid.h"
+#include "macro_executor.h"
+#include "macro_executor_ops.h"
 #include "macro_limits.h"
+#include "macro_parser.h"
 
 #define EXECUTION_WATCHDOG_MARGIN_MS 1000U
 #define CANCELLATION_SLICE_MS 10U

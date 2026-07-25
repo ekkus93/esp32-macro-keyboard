@@ -1,5 +1,4 @@
 #include "storage_repository.h"
-#include "storage_repository_internal.h"
 
 #include <errno.h>
 #include <stdbool.h>
@@ -8,8 +7,12 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "app_error.h"
+#include "app_uuid.h"
 #include "cJSON.h"
+#include "macro_limits.h"
 #include "storage.h"
+#include "storage_repository_internal.h"
 
 static app_error_code_t storage_repository_parse_index(const char *data, size_t length,
                                                        storage_set_index_t *out_index) {

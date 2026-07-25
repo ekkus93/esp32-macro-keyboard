@@ -1,5 +1,8 @@
 #include "usb_descriptors.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #define USB_VID 0x303aU
 #define USB_PID 0x4001U
 #define USB_BCD 0x0100U

@@ -1,6 +1,7 @@
 #include "macro_keymap_us.h"
 
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 #define MOD_LEFT_CTRL 0x01U

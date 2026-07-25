@@ -5,8 +5,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "app_error.h"
+#include "app_uuid.h"
 #include "cJSON.h"
-#include "storage.h"
+#include "macro_limits.h"
+#include "macro_model.h"
 
 static app_error_code_t checked_json_string(const cJSON *object, const char *name,
                                             char *destination, size_t destination_size,

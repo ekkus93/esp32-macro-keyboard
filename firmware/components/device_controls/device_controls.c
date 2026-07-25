@@ -1,8 +1,10 @@
 #include "device_controls.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
+#include "app_error.h"
 #include "device_controls_logic.h"
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"

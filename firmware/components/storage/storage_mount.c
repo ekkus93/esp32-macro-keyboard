@@ -1,8 +1,10 @@
 #include "storage.h"
 
 #include <errno.h>
+#include <stddef.h>
 #include <sys/stat.h>
 
+#include "app_error.h"
 #include "esp_littlefs.h"
 
 /* rwxr-x--- for storage directories we create. */

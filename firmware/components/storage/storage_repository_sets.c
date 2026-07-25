@@ -1,5 +1,4 @@
 #include "storage_repository.h"
-#include "storage_repository_internal.h"
 
 #include <errno.h>
 #include <stdbool.h>
@@ -10,8 +9,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "app_error.h"
+#include "app_uuid.h"
 #include "cJSON.h"
+#include "macro_limits.h"
+#include "macro_model.h"
 #include "storage.h"
+#include "storage_repository_internal.h"
 
 app_error_code_t storage_set_read(const app_uuid_t *set_id, macro_set_t *out_set) {
     if (set_id == NULL || out_set == NULL || !app_uuid_is_valid_string(set_id->value)) {

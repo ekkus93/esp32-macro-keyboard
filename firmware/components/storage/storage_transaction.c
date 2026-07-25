@@ -8,7 +8,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
+#include "app_error.h"
+#include "app_uuid.h"
+#include "macro_limits.h"
+#include "storage_atomic_internal.h"
+#include "storage_fs_ops.h"
 #include "storage_repository_internal.h"
 #include "storage_transaction_internal.h"
 

@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "app_error.h"
 #include "auth.h"
 
 #define SESSION_COOKIE_NAME "MKSESSION"

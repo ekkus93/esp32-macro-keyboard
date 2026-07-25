@@ -2,6 +2,9 @@
 
 #include <stdio.h>
 
+#include "app_error.h"
+#include "app_uuid.h"
+
 app_error_code_t storage_make_set_path(const app_uuid_t *set_id, char *buffer, size_t buffer_size) {
     if (set_id == NULL || buffer == NULL || buffer_size == 0U ||
         !app_uuid_is_valid_string(set_id->value)) {

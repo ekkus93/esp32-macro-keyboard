@@ -3,12 +3,19 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
+#include "app_error.h"
+#include "app_uuid.h"
+#include "macro_limits.h"
 #include "storage.h"
+#include "storage_atomic_internal.h"
+#include "storage_fs_ops.h"
 
 /* rwxr-x--- for storage directories we create. */
 #define STORAGE_DIR_MODE 0750

@@ -1,4 +1,6 @@
 #include "unity.h"
+
+#include "app_error.h"
 #include "usb_keyboard.h"
 
 TEST_CASE("USB keyboard initializes without emitting a key", "[device][usb]") {

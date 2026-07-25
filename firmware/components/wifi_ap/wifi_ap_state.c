@@ -5,6 +5,10 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "app_error.h"
+#include "wifi_ap.h"
+#include "wifi_ap_ops.h"
+
 bool wifi_ap_ops_is_valid(const wifi_ap_ops_t *operations) {
     return operations != NULL && operations->status_get != NULL && operations->status_set != NULL &&
            operations->netif_init != NULL && operations->event_loop_create != NULL &&

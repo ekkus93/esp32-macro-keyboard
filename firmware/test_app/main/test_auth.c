@@ -1,5 +1,8 @@
 #include <string.h>
 
+#include <stdint.h>
+
+#include "app_error.h"
 #include "auth.h"
 #include "unity.h"
 

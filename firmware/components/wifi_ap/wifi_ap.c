@@ -5,10 +5,12 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "app_error.h"
 #include "esp_event.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
+#include "wifi_ap_ops.h"
 #include "wifi_ap_state.h"
 
 static portMUX_TYPE status_lock = portMUX_INITIALIZER_UNLOCKED;

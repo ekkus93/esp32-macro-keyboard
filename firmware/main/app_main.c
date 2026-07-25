@@ -1,4 +1,6 @@
 #include "app_core.h"
+
+#include "app_error.h"
 #include "esp_log.h"
 
 static const char *const TAG = "app_main";

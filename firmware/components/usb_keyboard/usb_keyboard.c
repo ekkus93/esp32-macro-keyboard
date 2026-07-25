@@ -5,12 +5,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "app_error.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "tinyusb.h"
 #include "tinyusb_default_config.h"
 #include "tusb.h"
 #include "usb_descriptors.h"
+#include "usb_keyboard_ops.h"
 #include "usb_keyboard_state.h"
 
 static portMUX_TYPE state_lock = portMUX_INITIALIZER_UNLOCKED;

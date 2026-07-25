@@ -1,11 +1,19 @@
 #include "storage.h"
-#include "storage_atomic_internal.h"
 
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include "app_error.h"
+#include "app_uuid.h"
+#include "macro_limits.h"
+#include "storage_atomic_internal.h"
+#include "storage_fs_ops.h"
 
 /* rw------- for storage files we create. */
 #define STORAGE_FILE_MODE 0600

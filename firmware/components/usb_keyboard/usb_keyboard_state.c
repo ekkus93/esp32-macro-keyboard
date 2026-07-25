@@ -3,6 +3,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "app_error.h"
+#include "usb_keyboard.h"
+#include "usb_keyboard_ops.h"
+
 bool usb_keyboard_ops_is_valid(const usb_keyboard_ops_t *operations) {
     return operations != NULL && operations->state_get != NULL && operations->state_set != NULL &&
            operations->driver_install != NULL && operations->now_ms != NULL &&

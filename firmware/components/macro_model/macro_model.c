@@ -1,7 +1,10 @@
 #include "macro_model.h"
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "app_error.h"
 
 app_error_code_t macro_model_validate_revision(uint32_t revision) {
     return revision == 0U ? APP_ERROR_INVALID_ARGUMENT : APP_ERROR_NONE;

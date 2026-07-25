@@ -1,14 +1,18 @@
 #include "macro_executor.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
+#include "app_error.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "macro_executor_engine.h"
+#include "macro_executor_ops.h"
+#include "macro_parser.h"
 #include "usb_keyboard.h"
 
 static const char *const TAG = "macro_executor";

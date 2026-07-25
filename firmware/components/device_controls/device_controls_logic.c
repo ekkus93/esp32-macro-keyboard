@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "device_controls.h"
+
 bool device_controls_level_is_pressed(int level, int active_level) {
     return (active_level == 0 || active_level == 1) && level == active_level;
 }

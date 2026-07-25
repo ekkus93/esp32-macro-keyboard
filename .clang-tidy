@@ -1,10 +1,26 @@
-# Curated for this codebase. Two checks are disabled because they are
-# empirically un-actionable here, not because they are unwanted:
-#   - misc-include-cleaner: demands IWYU-style direct includes for every symbol,
-#     against the deliberate transitive-include structure of the ESP-IDF code.
+# Curated for this codebase. One check is disabled because it is empirically
+# un-actionable here, not because it is unwanted:
 #   - clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling:
 #     flags every memset/memcpy and demands the C11 Annex K *_s functions
-#     (memset_s), which ESP-IDF/newlib does not provide.
+#     (memset_s), which newlib/ESP-IDF does not provide, so the demanded fix
+#     cannot be written on this toolchain.
+# misc-include-cleaner is enabled and enforced on all first-party and public
+# standard-library symbols. Its IgnoreHeaders acts as a mapping list (the role
+# IWYU mapping files play; ESP-IDF/newlib ship none): include-cleaner keys off
+# the physical *defining* header, but ESP-IDF and newlib deliberately expose
+# public umbrella headers over internal ones. Each ignore entry redirects the
+# check from an internal header to its public umbrella, which stays enforced:
+#   - esp-idf, managed_components: framework headers (public umbrella e.g.
+#     esp_wifi.h, not internal esp_wifi_types_generic.h / portmacro.h).
+#   - sys/_*, machine, sys/dirent.h: newlib private headers behind public
+#     <fcntl.h> / <dirent.h> (which stay enforced via directly-declared symbols).
+#   - unistd.h, errno.h: this tree also compiles on the glibc host (tests/host),
+#     but include-cleaner analyses the xtensa/newlib DB, where these symbols are
+#     attributed to internal/framework headers. The public <unistd.h>/<errno.h>
+#     are required by the host build yet look unused to the check; ignore the
+#     families so the required includes are kept, not flagged unused.
+#   - cstddef, cstdint: the tool suggests C++ wrapper spellings for C stdlib
+#     symbols; the C headers <stddef.h> / <stdint.h> are enforced instead.
 # cognitive-complexity and magic-numbers are kept, tuned with IgnoreMacros so
 # they measure first-party source rather than ESP_LOG/HW-register macro
 # expansions.
@@ -19,12 +35,12 @@ Checks: >
   performance-*,
   portability-*,
   readability-*,
-  -misc-include-cleaner,
   -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
 WarningsAsErrors: '*'
 HeaderFilterRegex: '/firmware/(main|components|test_app)/'
 FormatStyle: file
 CheckOptions:
+  misc-include-cleaner.IgnoreHeaders: '.*esp-idf.*;.*managed_components.*;.*/machine/.*;.*/sys/_.*;.*/sys/dirent\.h;.*/unistd\.h;.*/errno\.h;cstddef;cstdint'
   readability-function-cognitive-complexity.IgnoreMacros: 'true'
   readability-magic-numbers.IgnoreMacros: 'true'
   readability-magic-numbers.IgnorePowersOf2IntegerValues: 'true'

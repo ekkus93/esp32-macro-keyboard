@@ -1,7 +1,9 @@
 #include <stddef.h>
+
 #include <stdint.h>
 #include <string.h>
 
+#include "app_error.h"
 #include "macro_parser.h"
 #include "unity.h"
 

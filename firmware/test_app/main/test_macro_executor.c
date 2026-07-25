@@ -1,7 +1,10 @@
 #include <stdlib.h>
+
 #include <string.h>
 
+#include "app_error.h"
 #include "macro_executor.h"
+#include "macro_parser.h"
 #include "unity.h"
 
 TEST_CASE("executor initializes idle and rejects unavailable USB", "[device][executor]") {
