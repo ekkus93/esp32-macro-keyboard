@@ -56,13 +56,13 @@ static bool safe_source_path(const char *path) {
     return true;
 }
 
-static app_error_code_t record_path(const app_uuid_t *id, const char *suffix, char *path,
+static app_error_code_t record_path(const app_uuid_t *uuid, const char *suffix, char *path,
                                     size_t path_size) {
-    if (id == NULL || suffix == NULL || path == NULL || !app_uuid_is_valid_string(id->value)) {
+    if (uuid == NULL || suffix == NULL || path == NULL || !app_uuid_is_valid_string(uuid->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     const int written =
-        snprintf(path, path_size, STORAGE_DATA_MOUNT "/quarantine/%s%s", id->value, suffix);
+        snprintf(path, path_size, STORAGE_DATA_MOUNT "/quarantine/%s%s", uuid->value, suffix);
     return written >= 0 && (size_t)written < path_size ? APP_ERROR_NONE
                                                        : APP_ERROR_INVALID_ARGUMENT;
 }
@@ -208,7 +208,7 @@ static app_error_code_t parse_entry(const char *data, size_t length, const app_u
     cJSON *root = cJSON_ParseWithLengthOpts(data, length + 1U, &parse_end, true);
     const cJSON *version =
         root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "schema_version");
-    const cJSON *id = root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "id");
+    const cJSON *id_field = root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "id");
     const cJSON *source =
         root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "source_path");
     const cJSON *evidence =
@@ -218,8 +218,9 @@ static app_error_code_t parse_entry(const char *data, size_t length, const app_u
     app_uuid_t parsed_id = {0};
     const bool valid =
         cJSON_IsObject(root) && object_has_exact_fields(root) && parse_end == data + length &&
-        cJSON_IsNumber(version) && version->valuedouble == 1.0 && cJSON_IsString(id) &&
-        id->valuestring != NULL && app_uuid_parse(id->valuestring, &parsed_id) == APP_ERROR_NONE &&
+        cJSON_IsNumber(version) && version->valuedouble == 1.0 && cJSON_IsString(id_field) &&
+        id_field->valuestring != NULL &&
+        app_uuid_parse(id_field->valuestring, &parsed_id) == APP_ERROR_NONE &&
         app_uuid_equal(&parsed_id, expected_id) && cJSON_IsString(source) &&
         source->valuestring != NULL && safe_source_path(source->valuestring) &&
         cJSON_IsString(evidence) && evidence->valuestring != NULL && cJSON_IsString(reason) &&
@@ -417,16 +418,16 @@ static app_error_code_t id_from_filename(const char *name, const char *suffix, a
                                                            : APP_ERROR_STORAGE_CORRUPT;
 }
 
-static int compare_entries(const void *left, const void *right) {
-    const storage_quarantine_entry_t *left_entry = left;
-    const storage_quarantine_entry_t *right_entry = right;
-    return strcmp(left_entry->id.value, right_entry->id.value);
+static int compare_entries(const void *lhs, const void *rhs) {
+    const storage_quarantine_entry_t *lhs_entry = lhs;
+    const storage_quarantine_entry_t *rhs_entry = rhs;
+    return strcmp(lhs_entry->id.value, rhs_entry->id.value);
 }
 
-static int compare_ids(const void *left, const void *right) {
-    const app_uuid_t *left_id = left;
-    const app_uuid_t *right_id = right;
-    return strcmp(left_id->value, right_id->value);
+static int compare_ids(const void *lhs, const void *rhs) {
+    const app_uuid_t *lhs_id = lhs;
+    const app_uuid_t *rhs_id = rhs;
+    return strcmp(lhs_id->value, rhs_id->value);
 }
 
 static bool has_suffix(const char *name, size_t name_length, const char *suffix,
@@ -439,15 +440,15 @@ static app_error_code_t list_add_record(const char *name, storage_quarantine_lis
     if (out_list->count >= STORAGE_QUARANTINE_MAX_ENTRIES) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
-    app_uuid_t id = {0};
-    app_error_code_t result = id_from_filename(name, QUARANTINE_JSON_SUFFIX, &id);
+    app_uuid_t uuid = {0};
+    app_error_code_t result = id_from_filename(name, QUARANTINE_JSON_SUFFIX, &uuid);
     if (result != APP_ERROR_NONE) {
         return result;
     }
     char path[APP_PATH_MAX_BYTES];
-    result = record_path(&id, QUARANTINE_JSON_SUFFIX, path, sizeof(path));
+    result = record_path(&uuid, QUARANTINE_JSON_SUFFIX, path, sizeof(path));
     if (result == APP_ERROR_NONE) {
-        result = read_record_with_ops(path, &id, &out_list->items[out_list->count], operations);
+        result = read_record_with_ops(path, &uuid, &out_list->items[out_list->count], operations);
     }
     if (result != APP_ERROR_NONE) {
         return result;

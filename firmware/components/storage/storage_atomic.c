@@ -177,52 +177,61 @@ static app_error_code_t compensate_with_new_destination(const storage_fs_ops_t *
     return sync_result == APP_ERROR_NONE ? original_error : sync_result;
 }
 
+/* The three paths threaded through an atomic-write rollback: the final
+ * destination, the staging temporary, and the pre-existing backup. */
+typedef struct {
+    const char *path;
+    const char *temporary;
+    const char *backup;
+} atomic_write_paths_t;
+
 static app_error_code_t restore_backup_after_failed_barrier(const storage_fs_ops_t *operations,
-                                                            const char *path, const char *backup,
-                                                            const char *temporary,
+                                                            atomic_write_paths_t paths,
                                                             storage_parent_sync_fn sync_parent_path,
                                                             void *parent_sync_context,
                                                             app_error_code_t original_error) {
-    if (operations->rename_path(operations->context, backup, path) != 0) {
+    if (operations->rename_path(operations->context, paths.backup, paths.path) != 0) {
         const int restore_error = errno;
-        return compensate_with_new_destination(operations, path, temporary, sync_parent_path,
-                                               parent_sync_context,
+        return compensate_with_new_destination(operations, paths.path, paths.temporary,
+                                               sync_parent_path, parent_sync_context,
                                                map_error_number(restore_error));
     }
 
-    const app_error_code_t cleanup_result = cleanup_path(operations, temporary);
-    const app_error_code_t sync_result = sync_parent(sync_parent_path, parent_sync_context, path);
+    const app_error_code_t cleanup_result = cleanup_path(operations, paths.temporary);
+    const app_error_code_t sync_result =
+        sync_parent(sync_parent_path, parent_sync_context, paths.path);
     if (sync_result != APP_ERROR_NONE) {
         return sync_result;
     }
     return cleanup_result == APP_ERROR_NONE ? original_error : cleanup_result;
 }
 
-static app_error_code_t rollback_activated_destination(const storage_fs_ops_t *operations,
-                                                       const char *path, const char *temporary,
-                                                       const char *backup, bool destination_existed,
-                                                       storage_parent_sync_fn sync_parent_path,
-                                                       void *parent_sync_context,
-                                                       app_error_code_t original_error) {
-    if (operations->rename_path(operations->context, path, temporary) != 0) {
+static app_error_code_t
+rollback_activated_destination(const storage_fs_ops_t *operations, atomic_write_paths_t paths,
+                               bool destination_existed, storage_parent_sync_fn sync_parent_path,
+                               void *parent_sync_context, app_error_code_t original_error) {
+    if (operations->rename_path(operations->context, paths.path, paths.temporary) != 0) {
         const int rollback_error = errno;
         return map_error_number(rollback_error);
     }
 
-    if (destination_existed && operations->rename_path(operations->context, backup, path) != 0) {
+    if (destination_existed &&
+        operations->rename_path(operations->context, paths.backup, paths.path) != 0) {
         const int restore_error = errno;
-        return compensate_with_new_destination(operations, path, temporary, sync_parent_path,
-                                               parent_sync_context,
+        return compensate_with_new_destination(operations, paths.path, paths.temporary,
+                                               sync_parent_path, parent_sync_context,
                                                map_error_number(restore_error));
     }
 
-    const app_error_code_t cleanup_result = cleanup_path(operations, temporary);
+    const app_error_code_t cleanup_result = cleanup_path(operations, paths.temporary);
     if (!destination_existed && cleanup_result != APP_ERROR_NONE) {
-        return compensate_with_new_destination(operations, path, temporary, sync_parent_path,
-                                               parent_sync_context, cleanup_result);
+        return compensate_with_new_destination(operations, paths.path, paths.temporary,
+                                               sync_parent_path, parent_sync_context,
+                                               cleanup_result);
     }
 
-    const app_error_code_t sync_result = sync_parent(sync_parent_path, parent_sync_context, path);
+    const app_error_code_t sync_result =
+        sync_parent(sync_parent_path, parent_sync_context, paths.path);
     if (sync_result != APP_ERROR_NONE) {
         return sync_result;
     }
@@ -291,7 +300,9 @@ static app_error_code_t activate_temporary_file(const char *path,
         const app_error_code_t result = sync_parent(sync_parent_path, parent_sync_context, path);
         if (result != APP_ERROR_NONE) {
             return restore_backup_after_failed_barrier(
-                operations, path, backup, temporary, sync_parent_path, parent_sync_context, result);
+                operations,
+                (atomic_write_paths_t){.path = path, .temporary = temporary, .backup = backup},
+                sync_parent_path, parent_sync_context, result);
         }
     }
 
@@ -299,9 +310,10 @@ static app_error_code_t activate_temporary_file(const char *path,
         const int activate_error = errno;
         const app_error_code_t activate_result = map_error_number(activate_error);
         if (destination_exists) {
-            return restore_backup_after_failed_barrier(operations, path, backup, temporary,
-                                                       sync_parent_path, parent_sync_context,
-                                                       activate_result);
+            return restore_backup_after_failed_barrier(
+                operations,
+                (atomic_write_paths_t){.path = path, .temporary = temporary, .backup = backup},
+                sync_parent_path, parent_sync_context, activate_result);
         }
         const app_error_code_t cleanup_result = cleanup_path(operations, temporary);
         return cleanup_result == APP_ERROR_NONE ? activate_result : cleanup_result;
@@ -309,9 +321,10 @@ static app_error_code_t activate_temporary_file(const char *path,
 
     app_error_code_t result = sync_parent(sync_parent_path, parent_sync_context, path);
     if (result != APP_ERROR_NONE) {
-        return rollback_activated_destination(operations, path, temporary, backup,
-                                              destination_exists, sync_parent_path,
-                                              parent_sync_context, result);
+        return rollback_activated_destination(
+            operations,
+            (atomic_write_paths_t){.path = path, .temporary = temporary, .backup = backup},
+            destination_exists, sync_parent_path, parent_sync_context, result);
     }
 
     if (destination_exists) {

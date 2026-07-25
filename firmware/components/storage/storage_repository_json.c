@@ -56,10 +56,10 @@ static app_error_code_t parse_set_fields(const cJSON *root, macro_set_t *out_set
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     if (result == APP_ERROR_NONE) {
-        char id[APP_UUID_BUFFER_LENGTH];
-        result = checked_json_string(root, "id", id, sizeof(id), true);
+        char uuid_text[APP_UUID_BUFFER_LENGTH];
+        result = checked_json_string(root, "id", uuid_text, sizeof(uuid_text), true);
         if (result == APP_ERROR_NONE) {
-            result = app_uuid_parse(id, &out_set->id);
+            result = app_uuid_parse(uuid_text, &out_set->id);
             if (result != APP_ERROR_NONE) {
                 result = APP_ERROR_STORAGE_CORRUPT;
             }

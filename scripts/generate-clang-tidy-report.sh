@@ -7,8 +7,9 @@ readonly output_file="${1:-${repo_root}/firmware/clang-tidy-report.txt}"
 
 # Absolute-path anchored so it matches the compile database's absolute file
 # paths and excludes ESP-IDF core components and managed_components (third-party
-# code must not be linted).
-readonly first_party='/firmware/(main|components|test_app)/'
+# code must not be linted). Trailing slashes exclude the managed_components
+# nested under firmware/test_app/ (matched by test_app/main/, not test_app/).
+readonly first_party='/firmware/(main/|components/|test_app/main/)'
 
 if ! command -v idf.py >/dev/null 2>&1 || ! command -v run-clang-tidy >/dev/null 2>&1; then
 	printf 'idf.py and run-clang-tidy are required; source the ESP-IDF environment first\n' >&2

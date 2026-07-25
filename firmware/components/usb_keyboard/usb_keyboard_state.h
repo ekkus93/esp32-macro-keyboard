@@ -9,10 +9,16 @@
 
 #define USB_KEYBOARD_READY_TIMEOUT_MS 100U
 
+/* A single HID keystroke: modifier bitmap plus the key usage code. */
+typedef struct {
+    uint8_t modifiers;
+    uint8_t usage;
+} usb_keyboard_key_t;
+
 bool usb_keyboard_ops_is_valid(const usb_keyboard_ops_t *operations);
 app_error_code_t usb_keyboard_state_init(const usb_keyboard_ops_t *operations);
-app_error_code_t usb_keyboard_state_press(const usb_keyboard_ops_t *operations, uint8_t modifiers,
-                                          uint8_t usage);
+app_error_code_t usb_keyboard_state_press(const usb_keyboard_ops_t *operations,
+                                          usb_keyboard_key_t key);
 app_error_code_t usb_keyboard_state_release_all(const usb_keyboard_ops_t *operations);
 void usb_keyboard_state_mount(const usb_keyboard_ops_t *operations);
 void usb_keyboard_state_unmount(const usb_keyboard_ops_t *operations);

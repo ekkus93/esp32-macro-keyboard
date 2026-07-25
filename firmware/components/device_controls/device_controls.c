@@ -52,8 +52,9 @@ static void controls_task(void *context) {
         }
 
         const uint64_t elapsed = (uint64_t)xTaskGetTickCount() * (uint64_t)portTICK_PERIOD_MS;
-        const bool on = device_controls_indicator_on(get_indicator_state(), (uint32_t)elapsed);
-        const int level = on ? CONFIG_APP_LED_ACTIVE_LEVEL : !CONFIG_APP_LED_ACTIVE_LEVEL;
+        const bool led_on = device_controls_indicator_on((device_indicator_phase_t){
+            .state = get_indicator_state(), .elapsed_ms = (uint32_t)elapsed});
+        const int level = led_on ? CONFIG_APP_LED_ACTIVE_LEVEL : !CONFIG_APP_LED_ACTIVE_LEVEL;
         if (gpio_set_level((gpio_num_t)CONFIG_APP_STATUS_LED_GPIO, (uint32_t)level) != ESP_OK) {
             portENTER_CRITICAL(&indicator_lock);
             indicator_state = DEVICE_INDICATOR_FATAL;
@@ -64,7 +65,7 @@ static void controls_task(void *context) {
 }
 
 static bool valid_gpio_number(int gpio) {
-    return gpio >= 0 && gpio < (int)GPIO_NUM_MAX;
+    return gpio >= 0 && gpio < GPIO_NUM_MAX;
 }
 
 app_error_code_t device_controls_init(void) {

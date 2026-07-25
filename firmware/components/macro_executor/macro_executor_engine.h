@@ -2,6 +2,7 @@
 #define MACRO_EXECUTOR_ENGINE_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "macro_executor.h"
 #include "macro_executor_ops.h"
@@ -11,6 +12,8 @@ typedef struct {
     macro_execution_status_t status;
     bool busy;
     bool cancellation_requested;
+    /* Absolute watchdog deadline for the in-flight execution (ms). */
+    uint32_t deadline;
 } macro_executor_engine_t;
 
 app_error_code_t macro_executor_engine_init(macro_executor_engine_t *engine,

@@ -117,7 +117,8 @@ app_error_code_t usb_keyboard_init(void) {
 }
 
 app_error_code_t usb_keyboard_press(uint8_t modifiers, uint8_t usage) {
-    return usb_keyboard_state_press(&operations, modifiers, usage);
+    return usb_keyboard_state_press(&operations,
+                                    (usb_keyboard_key_t){.modifiers = modifiers, .usage = usage});
 }
 
 app_error_code_t usb_keyboard_release_all(void) {

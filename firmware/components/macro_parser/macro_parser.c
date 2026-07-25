@@ -25,25 +25,32 @@ static void clear_plan(macro_plan_t *plan) {
     }
 }
 
-static void locate(const char *source, size_t offset, size_t *line, size_t *column) {
-    *line = 1U;
-    *column = 1U;
+typedef struct {
+    size_t line;
+    size_t column;
+} source_position_t;
+
+static source_position_t locate(const char *source, size_t offset) {
+    source_position_t position = {.line = 1U, .column = 1U};
     for (size_t index = 0U; index < offset; ++index) {
         if (source[index] == '\n') {
-            ++(*line);
-            *column = 1U;
+            ++position.line;
+            position.column = 1U;
         } else {
-            ++(*column);
+            ++position.column;
         }
     }
+    return position;
 }
 
-static app_error_code_t fail(const char *source, size_t offset, app_error_code_t code,
-                             const char *message, macro_parse_error_t *error) {
+static app_error_code_t fail(const char *source, size_t offset, const char *message,
+                             app_error_code_t code, macro_parse_error_t *error) {
     if (error != NULL) {
         error->code = code;
         error->byte_offset = offset;
-        locate(source, offset, &error->line, &error->column);
+        const source_position_t position = locate(source, offset);
+        error->line = position.line;
+        error->column = position.column;
         const int written = snprintf(error->message, sizeof(error->message), "%s", message);
         if (written < 0) {
             error->message[0] = '\0';
@@ -64,20 +71,20 @@ static app_error_code_t append_action(macro_plan_t *plan, macro_action_t action,
                                       const macro_compile_options_t *options, const char *source,
                                       size_t offset, macro_parse_error_t *error) {
     if (plan->action_count >= APP_COMPILED_ACTION_MAX) {
-        return fail(source, offset, APP_ERROR_MACRO_LIMIT, "compiled action limit exceeded", error);
+        return fail(source, offset, "compiled action limit exceeded", APP_ERROR_MACRO_LIMIT, error);
     }
 
     uint32_t duration = 0U;
     if (action.type == MACRO_ACTION_DELAY) {
         duration = action.delay_ms;
     } else if (!safe_add_u32(options->key_press_ms, options->inter_key_ms, &duration)) {
-        return fail(source, offset, APP_ERROR_MACRO_LIMIT, "action duration overflow", error);
+        return fail(source, offset, "action duration overflow", APP_ERROR_MACRO_LIMIT, error);
     }
 
     uint32_t total = 0U;
     if (!safe_add_u32(plan->estimated_duration_ms, duration, &total) ||
         total > APP_ESTIMATED_DURATION_MAX_MS) {
-        return fail(source, offset, APP_ERROR_MACRO_LIMIT, "estimated duration limit exceeded",
+        return fail(source, offset, "estimated duration limit exceeded", APP_ERROR_MACRO_LIMIT,
                     error);
     }
     plan->actions[plan->action_count++] = action;
@@ -180,7 +187,7 @@ static app_error_code_t parse_directive(const char *source, size_t offset, const
                                         size_t length, macro_action_t *out_action,
                                         macro_parse_error_t *error) {
     if (length == 0U || length >= 64U || directive_has_invalid_character(directive, length)) {
-        return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "invalid directive", error);
+        return fail(source, offset, "invalid directive", APP_ERROR_MACRO_SYNTAX, error);
     }
     char buffer[64U];
     memcpy(buffer, directive, length);
@@ -189,21 +196,21 @@ static app_error_code_t parse_directive(const char *source, size_t offset, const
     if (strncmp(buffer, "DELAY:", sizeof("DELAY:") - 1U) == 0) {
         const app_error_code_t result = parse_delay(buffer, length, out_action);
         if (result != APP_ERROR_NONE) {
-            return fail(source, offset, result, "invalid delay directive", error);
+            return fail(source, offset, "invalid delay directive", result, error);
         }
         return APP_ERROR_NONE;
     }
 
     if (strchr(buffer, '+') != NULL) {
         if (parse_chord(buffer, out_action) != APP_ERROR_NONE) {
-            return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "invalid chord directive", error);
+            return fail(source, offset, "invalid chord directive", APP_ERROR_MACRO_SYNTAX, error);
         }
         return APP_ERROR_NONE;
     }
 
     macro_hid_key_t key = {0U, 0U};
     if (!macro_keymap_us_named(buffer, &key)) {
-        return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unknown key directive", error);
+        return fail(source, offset, "unknown key directive", APP_ERROR_MACRO_SYNTAX, error);
     }
     *out_action = (macro_action_t){
         .type = MACRO_ACTION_KEY,
@@ -234,7 +241,7 @@ static app_error_code_t parse_open_brace(const char *source, size_t source_lengt
     }
     const char *closing = memchr(source + offset + 1U, '}', source_length - offset - 1U);
     if (closing == NULL) {
-        return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unmatched opening brace", out_error);
+        return fail(source, offset, "unmatched opening brace", APP_ERROR_MACRO_SYNTAX, out_error);
     }
     const size_t closing_offset = (size_t)(closing - source);
     const app_error_code_t result = parse_directive(
@@ -253,7 +260,7 @@ static app_error_code_t parse_close_brace(const char *source, size_t source_leng
         *out_consumed = 2U;
         return APP_ERROR_NONE;
     }
-    return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unmatched closing brace", out_error);
+    return fail(source, offset, "unmatched closing brace", APP_ERROR_MACRO_SYNTAX, out_error);
 }
 
 static app_error_code_t parse_printable(const char *source, size_t offset,
@@ -261,7 +268,7 @@ static app_error_code_t parse_printable(const char *source, size_t offset,
                                         macro_parse_error_t *out_error) {
     macro_hid_key_t key = {0U, 0U};
     if (!macro_keymap_us_printable(source[offset], &key)) {
-        return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unmappable character", out_error);
+        return fail(source, offset, "unmappable character", APP_ERROR_MACRO_SYNTAX, out_error);
     }
     *out_action = key_action(key.modifiers, key.usage);
     *out_consumed = 1U;
@@ -274,12 +281,12 @@ static app_error_code_t parse_printable(const char *source, size_t offset,
  * (*out_action_offset, which follows a CR/LF pair to the LF like a bare LF).
  */
 static app_error_code_t parse_next_token(const char *source, size_t source_length, size_t offset,
-                                         macro_action_t *out_action, size_t *out_action_offset,
+                                         size_t *out_action_offset, macro_action_t *out_action,
                                          size_t *out_consumed, macro_parse_error_t *out_error) {
     const unsigned char byte = (unsigned char)source[offset];
     *out_action_offset = offset;
     if (byte >= 0x80U || byte == 0U) {
-        return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unsupported character", out_error);
+        return fail(source, offset, "unsupported character", APP_ERROR_MACRO_SYNTAX, out_error);
     }
     const char character = source[offset];
     if (character == '\r') {
@@ -289,7 +296,7 @@ static app_error_code_t parse_next_token(const char *source, size_t source_lengt
             *out_consumed = 2U;
             return APP_ERROR_NONE;
         }
-        return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "lone carriage return", out_error);
+        return fail(source, offset, "lone carriage return", APP_ERROR_MACRO_SYNTAX, out_error);
     }
     if (character == '\n') {
         *out_action = key_action(0U, HID_USAGE_ENTER);
@@ -309,7 +316,7 @@ static app_error_code_t parse_next_token(const char *source, size_t source_lengt
                                  out_error);
     }
     if (byte < ASCII_SPACE || byte > ASCII_TILDE) {
-        return fail(source, offset, APP_ERROR_MACRO_SYNTAX, "unsupported control character",
+        return fail(source, offset, "unsupported control character", APP_ERROR_MACRO_SYNTAX,
                     out_error);
     }
     return parse_printable(source, offset, out_action, out_consumed, out_error);
@@ -354,8 +361,8 @@ app_error_code_t macro_compile(const char *source, size_t source_length,
         macro_action_t action = {0};
         size_t action_offset = offset;
         size_t consumed = 0U;
-        app_error_code_t result = parse_next_token(source, source_length, offset, &action,
-                                                   &action_offset, &consumed, out_error);
+        app_error_code_t result = parse_next_token(source, source_length, offset, &action_offset,
+                                                   &action, &consumed, out_error);
         if (result == APP_ERROR_NONE) {
             result = append_action(&working, action, effective, source, action_offset, out_error);
         }

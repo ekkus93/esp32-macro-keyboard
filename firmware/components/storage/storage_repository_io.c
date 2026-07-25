@@ -258,31 +258,22 @@ app_error_code_t storage_repository_make_directory(const char *path) {
     return storage_repository_make_directory_with_ops(path, storage_fs_ops_posix());
 }
 
-static app_error_code_t remove_tree_entry(const char *path, const char *name,
-                                          const storage_fs_ops_t *operations) {
-    char child[APP_PATH_MAX_BYTES];
-    const int written = snprintf(child, sizeof(child), "%s/%s", path, name);
-    if (written < 0 || (size_t)written >= sizeof(child)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    struct stat metadata;
-    if (operations->stat_path(operations->context, child, &metadata) != 0) {
-        const int stat_error = errno;
-        return storage_repository_map_error_number(stat_error);
-    }
-    if (S_ISDIR(metadata.st_mode)) {
-        return storage_repository_remove_tree_with_ops(child, operations);
-    }
-    if (operations->unlink_path(operations->context, child) != 0) {
-        const int unlink_error = errno;
-        return storage_repository_map_error_number(unlink_error);
-    }
-    return APP_ERROR_NONE;
-}
+/* Maximum directory nesting storage_repository_remove_tree unwinds. The
+ * repository layout never nests beyond a few levels; the explicit stack below
+ * replaces recursion so traversal depth cannot grow the C call stack. */
+#define STORAGE_REMOVE_TREE_MAX_DEPTH 16U
 
-app_error_code_t storage_repository_remove_tree_with_ops(const char *path,
-                                                         const storage_fs_ops_t *operations) {
-    if (path == NULL || !storage_fs_ops_has_directory(operations)) {
+typedef struct {
+    void *directory;
+    char path[APP_PATH_MAX_BYTES];
+} remove_tree_frame_t;
+
+/* Open `path` and push it as a new frame. A missing directory is not an error
+ * (nothing to remove): the frame is simply not pushed, leaving depth unchanged. */
+static app_error_code_t push_tree_frame(remove_tree_frame_t *stack, size_t *depth, const char *path,
+                                        const storage_fs_ops_t *operations) {
+    const size_t length = strlen(path);
+    if (*depth >= STORAGE_REMOVE_TREE_MAX_DEPTH || length >= APP_PATH_MAX_BYTES) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     void *directory = operations->open_directory(operations->context, path);
@@ -291,36 +282,95 @@ app_error_code_t storage_repository_remove_tree_with_ops(const char *path,
         return open_error == ENOENT ? APP_ERROR_NONE
                                     : storage_repository_map_error_number(open_error);
     }
+    remove_tree_frame_t *frame = &stack[*depth];
+    frame->directory = directory;
+    memcpy(frame->path, path, length + 1U);
+    ++(*depth);
+    return APP_ERROR_NONE;
+}
+
+/* Advance the top frame by one entry: unlink a file, descend into a
+ * subdirectory (pushing a frame), or report end-of-directory via *out_end. */
+static app_error_code_t step_tree_frame(remove_tree_frame_t *stack, size_t *depth,
+                                        const storage_fs_ops_t *operations, bool *out_end) {
+    *out_end = false;
+    remove_tree_frame_t *frame = &stack[*depth - 1U];
+    char name[STORAGE_FS_ENTRY_NAME_MAX];
+    bool end = false;
+    if (operations->read_directory(operations->context, frame->directory, name, sizeof(name),
+                                   &end) != 0) {
+        return storage_repository_map_error_number(errno);
+    }
+    if (end) {
+        *out_end = true;
+        return APP_ERROR_NONE;
+    }
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+        return APP_ERROR_NONE;
+    }
+    char child[APP_PATH_MAX_BYTES];
+    const int written = snprintf(child, sizeof(child), "%s/%s", frame->path, name);
+    if (written < 0 || (size_t)written >= sizeof(child)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    struct stat metadata;
+    if (operations->stat_path(operations->context, child, &metadata) != 0) {
+        return storage_repository_map_error_number(errno);
+    }
+    if (S_ISDIR(metadata.st_mode)) {
+        return push_tree_frame(stack, depth, child, operations);
+    }
+    if (operations->unlink_path(operations->context, child) != 0) {
+        return storage_repository_map_error_number(errno);
+    }
+    return APP_ERROR_NONE;
+}
+
+/* Close and remove the exhausted top directory, then pop it. */
+static app_error_code_t pop_tree_frame(remove_tree_frame_t *stack, size_t *depth,
+                                       const storage_fs_ops_t *operations) {
+    remove_tree_frame_t *frame = &stack[*depth - 1U];
     app_error_code_t result = APP_ERROR_NONE;
-    while (true) {
-        char name[STORAGE_FS_ENTRY_NAME_MAX];
+    if (operations->close_directory(operations->context, frame->directory) != 0) {
+        result = storage_repository_map_error_number(errno);
+    }
+    if (result == APP_ERROR_NONE &&
+        operations->remove_directory(operations->context, frame->path) != 0) {
+        result = storage_repository_map_error_number(errno);
+    }
+    --(*depth);
+    return result;
+}
+
+static void close_open_frames(remove_tree_frame_t *stack, size_t depth,
+                              const storage_fs_ops_t *operations) {
+    for (size_t index = 0U; index < depth; ++index) {
+        (void)operations->close_directory(operations->context, stack[index].directory);
+    }
+}
+
+app_error_code_t storage_repository_remove_tree_with_ops(const char *path,
+                                                         const storage_fs_ops_t *operations) {
+    if (path == NULL || !storage_fs_ops_has_directory(operations)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    remove_tree_frame_t *stack = calloc(STORAGE_REMOVE_TREE_MAX_DEPTH, sizeof(*stack));
+    if (stack == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
+    size_t depth = 0U;
+    app_error_code_t result = push_tree_frame(stack, &depth, path, operations);
+    while (result == APP_ERROR_NONE && depth > 0U) {
         bool end = false;
-        if (operations->read_directory(operations->context, directory, name, sizeof(name), &end) !=
-            0) {
-            const int read_error = errno;
-            result = storage_repository_map_error_number(read_error);
-            break;
-        }
-        if (end) {
-            break;
-        }
-        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
-            continue;
-        }
-        result = remove_tree_entry(path, name, operations);
-        if (result != APP_ERROR_NONE) {
-            break;
+        result = step_tree_frame(stack, &depth, operations, &end);
+        if (result == APP_ERROR_NONE && end) {
+            result = pop_tree_frame(stack, &depth, operations);
         }
     }
-    if (operations->close_directory(operations->context, directory) != 0 &&
-        result == APP_ERROR_NONE) {
-        const int close_error = errno;
-        result = storage_repository_map_error_number(close_error);
+    if (result != APP_ERROR_NONE) {
+        close_open_frames(stack, depth, operations);
     }
-    if (result == APP_ERROR_NONE && operations->remove_directory(operations->context, path) != 0) {
-        const int remove_error = errno;
-        result = storage_repository_map_error_number(remove_error);
-    }
+    free(stack);
     return result;
 }
 

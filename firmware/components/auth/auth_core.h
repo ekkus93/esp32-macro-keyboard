@@ -22,7 +22,7 @@ typedef struct {
     bool clock_initialized;
 } auth_core_t;
 
-app_error_code_t auth_core_init(auth_core_t *core, const auth_ops_t *ops);
+app_error_code_t auth_core_init(auth_core_t *core, const auth_ops_t *operations);
 app_error_code_t auth_core_password_create(auth_core_t *core, const char *password,
                                            size_t password_length,
                                            auth_password_record_t *out_record);

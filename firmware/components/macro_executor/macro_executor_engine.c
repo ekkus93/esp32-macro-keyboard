@@ -82,8 +82,7 @@ static app_error_code_t validate_request(const macro_execution_request_t *reques
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t cancellable_delay(macro_executor_engine_t *engine, uint32_t delay_ms,
-                                          uint32_t deadline) {
+static app_error_code_t cancellable_delay(macro_executor_engine_t *engine, uint32_t delay_ms) {
     uint32_t remaining = delay_ms;
     while (remaining > 0U) {
         bool cancelled = false;
@@ -94,7 +93,7 @@ static app_error_code_t cancellable_delay(macro_executor_engine_t *engine, uint3
         if (cancelled) {
             return APP_ERROR_EXECUTION_CANCELLED;
         }
-        if (deadline_expired(engine->ops.now_ms(engine->ops.context), deadline)) {
+        if (deadline_expired(engine->ops.now_ms(engine->ops.context), engine->deadline)) {
             return APP_ERROR_TIMEOUT;
         }
         const uint32_t slice =
@@ -207,10 +206,9 @@ macro_execution_status_t macro_executor_engine_get_status(macro_executor_engine_
 }
 
 static app_error_code_t execute_action(macro_executor_engine_t *engine, macro_action_t action,
-                                       uint32_t key_press_ms, uint32_t inter_key_ms,
-                                       uint32_t deadline) {
+                                       uint32_t key_press_ms, uint32_t inter_key_ms) {
     if (action.type == MACRO_ACTION_DELAY) {
-        return cancellable_delay(engine, action.delay_ms, deadline);
+        return cancellable_delay(engine, action.delay_ms);
     }
     if (action.type != MACRO_ACTION_KEY && action.type != MACRO_ACTION_CHORD) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -218,14 +216,14 @@ static app_error_code_t execute_action(macro_executor_engine_t *engine, macro_ac
     app_error_code_t result =
         engine->ops.usb_press(engine->ops.context, action.modifiers, action.usage);
     if (result == APP_ERROR_NONE) {
-        result = cancellable_delay(engine, key_press_ms, deadline);
+        result = cancellable_delay(engine, key_press_ms);
     }
     const app_error_code_t release_result = engine->ops.usb_release_all(engine->ops.context);
     if (result == APP_ERROR_NONE) {
         result = release_result;
     }
     if (result == APP_ERROR_NONE) {
-        result = cancellable_delay(engine, inter_key_ms, deadline);
+        result = cancellable_delay(engine, inter_key_ms);
     }
     return result;
 }
@@ -252,7 +250,7 @@ app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
 
     const uint32_t started = engine->ops.now_ms(engine->ops.context);
     const uint32_t watchdog_ms = request->plan.estimated_duration_ms + EXECUTION_WATCHDOG_MARGIN_MS;
-    const uint32_t deadline = started + watchdog_ms;
+    engine->deadline = started + watchdog_ms;
 
     for (size_t index = 0U; index < request->plan.action_count; ++index) {
         status.action_index = index;
@@ -269,13 +267,13 @@ app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
             result = APP_ERROR_EXECUTION_CANCELLED;
             break;
         }
-        if (deadline_expired(engine->ops.now_ms(engine->ops.context), deadline)) {
+        if (deadline_expired(engine->ops.now_ms(engine->ops.context), engine->deadline)) {
             result = APP_ERROR_TIMEOUT;
             break;
         }
 
         result = execute_action(engine, request->plan.actions[index], request->key_press_ms,
-                                request->inter_key_ms, deadline);
+                                request->inter_key_ms);
         if (result != APP_ERROR_NONE) {
             break;
         }

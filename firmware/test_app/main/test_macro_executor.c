@@ -7,6 +7,9 @@
 #include "macro_parser.h"
 #include "unity.h"
 
+#define TEST_INTER_KEY_MS 15U
+#define TEST_ESTIMATED_DURATION_MS 23U
+
 TEST_CASE("executor initializes idle and rejects unavailable USB", "[device][executor]") {
     TEST_ASSERT_EQUAL(APP_ERROR_NONE, macro_executor_init());
     const macro_execution_status_t initial = macro_executor_get_status();
@@ -22,7 +25,7 @@ TEST_CASE("executor initializes idle and rejects unavailable USB", "[device][exe
     memcpy(request.macro_id.value, macro_id, sizeof(macro_id));
     request.macro_revision = 1U;
     request.key_press_ms = 8U;
-    request.inter_key_ms = 15U;
+    request.inter_key_ms = TEST_INTER_KEY_MS;
     request.plan.actions = calloc(1U, sizeof(*request.plan.actions));
     TEST_ASSERT_NOT_NULL(request.plan.actions);
     request.plan.actions[0] = (macro_action_t){
@@ -30,7 +33,7 @@ TEST_CASE("executor initializes idle and rejects unavailable USB", "[device][exe
         .usage = 4U,
     };
     request.plan.action_count = 1U;
-    request.plan.estimated_duration_ms = 23U;
+    request.plan.estimated_duration_ms = TEST_ESTIMATED_DURATION_MS;
 
     TEST_ASSERT_EQUAL(APP_ERROR_USB_NOT_READY, macro_executor_submit(&request));
     TEST_ASSERT_NOT_NULL(request.plan.actions);

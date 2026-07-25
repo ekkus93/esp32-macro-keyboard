@@ -49,131 +49,129 @@
 #define KEY_DOWN 0x51U
 #define KEY_UP 0x52U
 
-static void set_key(macro_hid_key_t *out_key, uint8_t modifiers, uint8_t usage) {
-    out_key->modifiers = modifiers;
-    out_key->usage = usage;
-}
-
 bool macro_keymap_us_printable(char character, macro_hid_key_t *out_key) {
     if (out_key == NULL) {
         return false;
     }
     if (character >= 'a' && character <= 'z') {
-        set_key(out_key, 0U, (uint8_t)(KEY_A + (uint8_t)(character - 'a')));
+        *out_key = (macro_hid_key_t){.modifiers = 0U,
+                                     .usage = (uint8_t)(KEY_A + (uint8_t)(character - 'a'))};
         return true;
     }
     if (character >= 'A' && character <= 'Z') {
-        set_key(out_key, MOD_LEFT_SHIFT, (uint8_t)(KEY_A + (uint8_t)(character - 'A')));
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT,
+                                     .usage = (uint8_t)(KEY_A + (uint8_t)(character - 'A'))};
         return true;
     }
     if (character >= '1' && character <= '9') {
-        set_key(out_key, 0U, (uint8_t)(KEY_1 + (uint8_t)(character - '1')));
+        *out_key = (macro_hid_key_t){.modifiers = 0U,
+                                     .usage = (uint8_t)(KEY_1 + (uint8_t)(character - '1'))};
         return true;
     }
     if (character == '0') {
-        set_key(out_key, 0U, KEY_0);
+        *out_key = (macro_hid_key_t){.modifiers = 0U, .usage = KEY_0};
         return true;
     }
 
     switch (character) {
     case ' ':
-        set_key(out_key, 0U, KEY_SPACE);
+        *out_key = (macro_hid_key_t){.modifiers = 0U, .usage = KEY_SPACE};
         return true;
     case '-':
-        set_key(out_key, 0U, KEY_MINUS);
+        *out_key = (macro_hid_key_t){.modifiers = 0U, .usage = KEY_MINUS};
         return true;
     case '_':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_MINUS);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_MINUS};
         return true;
     case '=':
-        set_key(out_key, 0U, KEY_EQUAL);
+        *out_key = (macro_hid_key_t){.modifiers = 0U, .usage = KEY_EQUAL};
         return true;
     case '+':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_EQUAL);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_EQUAL};
         return true;
     case '[':
-        set_key(out_key, 0U, KEY_LEFT_BRACE);
+        *out_key = (macro_hid_key_t){.modifiers = 0U, .usage = KEY_LEFT_BRACE};
         return true;
     case '{':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_LEFT_BRACE);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_LEFT_BRACE};
         return true;
     case ']':
-        set_key(out_key, 0U, KEY_RIGHT_BRACE);
+        *out_key = (macro_hid_key_t){.modifiers = 0U, .usage = KEY_RIGHT_BRACE};
         return true;
     case '}':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_RIGHT_BRACE);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_RIGHT_BRACE};
         return true;
     case '\\':
-        set_key(out_key, 0U, KEY_BACKSLASH);
+        *out_key = (macro_hid_key_t){.modifiers = 0U, .usage = KEY_BACKSLASH};
         return true;
     case '|':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_BACKSLASH);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_BACKSLASH};
         return true;
     case ';':
-        set_key(out_key, 0U, KEY_SEMICOLON);
+        *out_key = (macro_hid_key_t){.modifiers = 0U, .usage = KEY_SEMICOLON};
         return true;
     case ':':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_SEMICOLON);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_SEMICOLON};
         return true;
     case '\'':
-        set_key(out_key, 0U, KEY_APOSTROPHE);
+        *out_key = (macro_hid_key_t){.modifiers = 0U, .usage = KEY_APOSTROPHE};
         return true;
     case '"':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_APOSTROPHE);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_APOSTROPHE};
         return true;
     case '`':
-        set_key(out_key, 0U, KEY_GRAVE);
+        *out_key = (macro_hid_key_t){.modifiers = 0U, .usage = KEY_GRAVE};
         return true;
     case '~':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_GRAVE);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_GRAVE};
         return true;
     case ',':
-        set_key(out_key, 0U, KEY_COMMA);
+        *out_key = (macro_hid_key_t){.modifiers = 0U, .usage = KEY_COMMA};
         return true;
     case '<':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_COMMA);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_COMMA};
         return true;
     case '.':
-        set_key(out_key, 0U, KEY_PERIOD);
+        *out_key = (macro_hid_key_t){.modifiers = 0U, .usage = KEY_PERIOD};
         return true;
     case '>':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_PERIOD);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_PERIOD};
         return true;
     case '/':
-        set_key(out_key, 0U, KEY_SLASH);
+        *out_key = (macro_hid_key_t){.modifiers = 0U, .usage = KEY_SLASH};
         return true;
     case '?':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_SLASH);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_SLASH};
         return true;
     case '!':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_1);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_1};
         return true;
     case '@':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_2);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_2};
         return true;
     case '#':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_3);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_3};
         return true;
     case '$':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_4);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_4};
         return true;
     case '%':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_5);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_5};
         return true;
     case '^':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_6);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_6};
         return true;
     case '&':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_7);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_7};
         return true;
     case '*':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_8);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_8};
         return true;
     case '(':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_9);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_9};
         return true;
     case ')':
-        set_key(out_key, MOD_LEFT_SHIFT, KEY_0);
+        *out_key = (macro_hid_key_t){.modifiers = MOD_LEFT_SHIFT, .usage = KEY_0};
         return true;
     default:
         return false;
@@ -210,7 +208,7 @@ bool macro_keymap_us_named(const char *name, macro_hid_key_t *out_key) {
     }
     for (size_t index = 0U; index < (sizeof(keys) / sizeof(keys[0])); ++index) {
         if (strcmp(name, keys[index].name) == 0) {
-            set_key(out_key, 0U, keys[index].usage);
+            *out_key = (macro_hid_key_t){.modifiers = 0U, .usage = keys[index].usage};
             return true;
         }
     }

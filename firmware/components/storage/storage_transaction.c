@@ -76,12 +76,12 @@ static app_error_code_t manifest_id_from_path(const char *path, app_uuid_t *out_
                                                            : APP_ERROR_STORAGE_CORRUPT;
 }
 
-static app_error_code_t manifest_path(const app_uuid_t *id, char *path, size_t path_size) {
-    if (id == NULL || path == NULL || !app_uuid_is_valid_string(id->value)) {
+static app_error_code_t manifest_path(const app_uuid_t *uuid, char *path, size_t path_size) {
+    if (uuid == NULL || path == NULL || !app_uuid_is_valid_string(uuid->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     const int written =
-        snprintf(path, path_size, STORAGE_DATA_MOUNT "/transactions/%s.bin", id->value);
+        snprintf(path, path_size, STORAGE_DATA_MOUNT "/transactions/%s.bin", uuid->value);
     if (written < 0 || (size_t)written >= path_size || !safe_manifest_path(path)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }

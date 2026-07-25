@@ -14,8 +14,15 @@ typedef struct {
     uint8_t candidate_count;
 } device_controls_debounce_t;
 
+/* Inputs to the indicator blink computation: the current indicator state and
+ * how long (ms) it has been active. */
+typedef struct {
+    device_indicator_state_t state;
+    uint32_t elapsed_ms;
+} device_indicator_phase_t;
+
 bool device_controls_level_is_pressed(int level, int active_level);
 bool device_controls_debounce_update(device_controls_debounce_t *button, bool sample);
-bool device_controls_indicator_on(device_indicator_state_t state, uint32_t elapsed_ms);
+bool device_controls_indicator_on(device_indicator_phase_t phase);
 
 #endif

@@ -41,7 +41,9 @@ bool device_controls_debounce_update(device_controls_debounce_t *button, bool sa
 #define INDICATOR_FATAL_PERIOD_MS 500U
 #define INDICATOR_FATAL_ON_MS 250U
 
-bool device_controls_indicator_on(device_indicator_state_t state, uint32_t elapsed_ms) {
+bool device_controls_indicator_on(device_indicator_phase_t phase) {
+    const device_indicator_state_t state = phase.state;
+    const uint32_t elapsed_ms = phase.elapsed_ms;
     switch (state) {
     case DEVICE_INDICATOR_READY:
         return true;

@@ -6,6 +6,9 @@
 #include "auth.h"
 #include "unity.h"
 
+/* PBKDF2 iteration count baked into the fixed known-answer vector below. */
+#define TEST_VECTOR_ITERATIONS 120000U
+
 TEST_CASE("authentication adapters create and validate secrets", "[device][auth]") {
     const app_error_code_t init_result = auth_init();
     TEST_ASSERT_TRUE(init_result == APP_ERROR_NONE || init_result == APP_ERROR_CONFLICT);
@@ -30,7 +33,7 @@ TEST_CASE("authentication adapters create and validate secrets", "[device][auth]
         0x3aU, 0x4eU, 0x2cU, 0xbcU, 0xceU, 0xc8U, 0x48U, 0x06U,
     };
     // clang-format on
-    auth_password_record_t vector = {.iterations = 120000U};
+    auth_password_record_t vector = {.iterations = TEST_VECTOR_ITERATIONS};
     memcpy(vector.salt, vector_salt, sizeof(vector_salt));
     memcpy(vector.hash, vector_hash, sizeof(vector_hash));
     TEST_ASSERT_TRUE(auth_password_verify(password, sizeof(password) - 1U, &vector));
