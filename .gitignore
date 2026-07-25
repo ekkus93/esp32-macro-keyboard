@@ -8,6 +8,9 @@ firmware/test_app/build/
 firmware/test_app/sdkconfig
 firmware/test_app/sdkconfig.old
 firmware/test_app/managed_components/
+firmware/build-clang/
+firmware/test_app/build-clang/
+firmware/clang-tidy-report.txt
 
 # Native host-test build output
 tests/host/build/
