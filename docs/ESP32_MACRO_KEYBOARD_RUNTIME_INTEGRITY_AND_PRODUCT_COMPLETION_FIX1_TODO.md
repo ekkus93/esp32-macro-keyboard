@@ -233,9 +233,9 @@ Preferred change:
 - list every new `.c` file in the component `CMakeLists.txt`;
 - remove all first-party `clang-format off` and `clang-format on` comments.
 
-- [ ] Ensure no duplicate non-static symbol is introduced.
-- [ ] Ensure coverage includes the new source files.
-- [ ] Ensure host tests compile the same production translation units.
+- [x] Ensure no duplicate non-static symbol is introduced.
+- [x] Ensure coverage includes the new source files.
+- [x] Ensure host tests compile the same production translation units.
 
 ### 2.4 Phase 2 gate
 

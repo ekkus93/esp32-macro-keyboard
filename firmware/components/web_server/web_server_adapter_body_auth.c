@@ -1,15 +1,20 @@
-app_error_code_t web_adapter_read_bounded_body(size_t content_length,
-                                                char *buffer,
-                                                size_t buffer_size,
-                                                size_t maximum_length,
-                                                web_adapter_receive_fn receive,
-                                                void *context)
-{
+#include "web_server_adapter.h"
+
+#include <stddef.h>
+
+#include "app_error.h"
+#include "auth.h"
+#include "web_cookie.h"
+#include "web_origin.h"
+
+app_error_code_t web_adapter_read_bounded_body(size_t content_length, char *buffer,
+                                               size_t buffer_size, size_t maximum_length,
+                                               web_adapter_receive_fn receive, void *context) {
     if (buffer != NULL && buffer_size > 0U) {
         buffer[0] = '\0';
     }
-    if (buffer == NULL || buffer_size == 0U || receive == NULL ||
-        content_length > maximum_length || content_length >= buffer_size) {
+    if (buffer == NULL || buffer_size == 0U || receive == NULL || content_length > maximum_length ||
+        content_length >= buffer_size) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     size_t received = 0U;
@@ -36,11 +41,9 @@ app_error_code_t web_adapter_read_bounded_body(size_t content_length,
 }
 
 app_error_code_t web_adapter_authorize_mutation(web_adapter_get_header_fn get_header,
-                                                 web_adapter_validate_session_fn validate,
-                                                 void *context,
-                                                 char *out_session_token,
-                                                 size_t token_size)
-{
+                                                web_adapter_validate_session_fn validate,
+                                                void *context, char *out_session_token,
+                                                size_t token_size) {
     if (out_session_token != NULL && token_size > 0U) {
         out_session_token[0] = '\0';
     }

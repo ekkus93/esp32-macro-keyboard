@@ -1,10 +1,19 @@
-app_error_code_t web_adapter_open_static_file(const char *uri,
-                                               bool accept_gzip,
-                                               const char *mount,
-                                               web_adapter_open_fn open_file,
-                                               void *context,
-                                               web_adapter_static_file_t *out_file)
-{
+#include "web_server_adapter.h"
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "app_error.h"
+#include "macro_limits.h"
+#include "web_content.h"
+#include "web_static_path.h"
+
+app_error_code_t web_adapter_open_static_file(const char *uri, bool accept_gzip, const char *mount,
+                                              web_adapter_open_fn open_file, void *context,
+                                              web_adapter_static_file_t *out_file) {
     if (out_file != NULL) {
         memset(out_file, 0, sizeof(*out_file));
     }
@@ -16,11 +25,8 @@ app_error_code_t web_adapter_open_static_file(const char *uri,
         return APP_ERROR_INVALID_ARGUMENT;
     }
     const char *relative = strcmp(normalized, "/") == 0 ? "/index.html" : normalized;
-    const int base_length = snprintf(out_file->path,
-                                     sizeof(out_file->path),
-                                     "%s%s",
-                                     mount,
-                                     relative);
+    const int base_length =
+        snprintf(out_file->path, sizeof(out_file->path), "%s%s", mount, relative);
     if (base_length < 0 || (size_t)base_length >= sizeof(out_file->path)) {
         out_file->path[0] = '\0';
         return APP_ERROR_INVALID_ARGUMENT;
@@ -28,10 +34,8 @@ app_error_code_t web_adapter_open_static_file(const char *uri,
     char base_path[sizeof(out_file->path)];
     memcpy(base_path, out_file->path, (size_t)base_length + 1U);
     if (accept_gzip) {
-        const int gzip_length = snprintf(out_file->path,
-                                         sizeof(out_file->path),
-                                         "%s.gz",
-                                         base_path);
+        const int gzip_length =
+            snprintf(out_file->path, sizeof(out_file->path), "%s.gz", base_path);
         if (gzip_length > 0 && (size_t)gzip_length < sizeof(out_file->path)) {
             out_file->handle = open_file(context, out_file->path);
             out_file->compressed = out_file->handle != NULL;
@@ -47,17 +51,14 @@ app_error_code_t web_adapter_open_static_file(const char *uri,
         return APP_ERROR_NOT_FOUND;
     }
     out_file->content_type = web_content_type(base_path);
-    out_file->cache_control = strcmp(relative, "/index.html") == 0
-                                  ? "no-cache"
-                                  : "public, max-age=31536000, immutable";
+    out_file->cache_control =
+        strcmp(relative, "/index.html") == 0 ? "no-cache" : "public, max-age=31536000, immutable";
     return APP_ERROR_NONE;
 }
 
-app_error_code_t web_adapter_stream_file(void *handle,
-                                         const web_adapter_stream_ops_t *ops)
-{
-    if (handle == NULL || ops == NULL || ops->read == NULL ||
-        ops->send_chunk == NULL || ops->close == NULL) {
+app_error_code_t web_adapter_stream_file(void *handle, const web_adapter_stream_ops_t *ops) {
+    if (handle == NULL || ops == NULL || ops->read == NULL || ops->send_chunk == NULL ||
+        ops->close == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     uint8_t buffer[WEB_ADAPTER_STATIC_CHUNK_BYTES];

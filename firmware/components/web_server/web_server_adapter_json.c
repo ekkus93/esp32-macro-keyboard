@@ -1,8 +1,14 @@
-app_error_code_t web_adapter_build_error_json(app_error_code_t code,
-                                               const char *message,
-                                               char *output,
-                                               size_t output_size)
-{
+#include "web_server_adapter_internal.h"
+
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "app_error.h"
+#include "macro_limits.h"
+
+app_error_code_t web_adapter_build_error_json(app_error_code_t code, const char *message,
+                                              char *output, size_t output_size) {
     if (output != NULL && output_size > 0U) {
         output[0] = '\0';
     }
@@ -22,21 +28,15 @@ app_error_code_t web_adapter_build_error_json(app_error_code_t code,
     return result;
 }
 
-app_error_code_t web_adapter_build_status_json(const char *version,
-                                                const char *idf_version,
-                                                const char *usb_state,
-                                                const char *wifi_state,
-                                                uint32_t wifi_clients,
-                                                const char *execution_state,
-                                                char *output,
-                                                size_t output_size)
-{
+app_error_code_t web_adapter_build_status_json(const char *version, const char *idf_version,
+                                               const char *usb_state, const char *wifi_state,
+                                               uint32_t wifi_clients, const char *execution_state,
+                                               char *output, size_t output_size) {
     if (output != NULL && output_size > 0U) {
         output[0] = '\0';
     }
-    if (version == NULL || idf_version == NULL || usb_state == NULL ||
-        wifi_state == NULL || execution_state == NULL || output == NULL ||
-        output_size == 0U) {
+    if (version == NULL || idf_version == NULL || usb_state == NULL || wifi_state == NULL ||
+        execution_state == NULL || output == NULL || output_size == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     char clients[16U];
@@ -66,31 +66,23 @@ app_error_code_t web_adapter_build_status_json(const char *version,
     return result;
 }
 
-app_error_code_t web_adapter_build_limits_json(char *output, size_t output_size)
-{
+app_error_code_t web_adapter_build_limits_json(char *output, size_t output_size) {
     if (output != NULL && output_size > 0U) {
         output[0] = '\0';
     }
     if (output == NULL || output_size == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    const int length = snprintf(
-        output,
-        output_size,
-        "{\"ok\":true,\"data\":{\"macroNameBytes\":%u,\"macroSourceBytes\":%u,"
-        "\"compiledActions\":%u,\"delayMs\":%u,\"durationMs\":%u,"
-        "\"macrosPerSet\":%u,\"proceduresPerSet\":%u,\"stepsPerProcedure\":%u,"
-        "\"macroSets\":%u,\"importBytes\":%u}}",
-        APP_MACRO_NAME_MAX_BYTES,
-        APP_MACRO_SOURCE_MAX_BYTES,
-        APP_COMPILED_ACTION_MAX,
-        APP_DELAY_MAX_MS,
-        APP_ESTIMATED_DURATION_MAX_MS,
-        APP_MACROS_PER_SET_MAX,
-        APP_PROCEDURES_PER_SET_MAX,
-        APP_STEPS_PER_PROCEDURE_MAX,
-        APP_MACRO_SETS_MAX,
-        APP_IMPORT_PACKAGE_MAX_BYTES);
+    const int length =
+        snprintf(output, output_size,
+                 "{\"ok\":true,\"data\":{\"macroNameBytes\":%u,\"macroSourceBytes\":%u,"
+                 "\"compiledActions\":%u,\"delayMs\":%u,\"durationMs\":%u,"
+                 "\"macrosPerSet\":%u,\"proceduresPerSet\":%u,\"stepsPerProcedure\":%u,"
+                 "\"macroSets\":%u,\"importBytes\":%u}}",
+                 APP_MACRO_NAME_MAX_BYTES, APP_MACRO_SOURCE_MAX_BYTES, APP_COMPILED_ACTION_MAX,
+                 APP_DELAY_MAX_MS, APP_ESTIMATED_DURATION_MAX_MS, APP_MACROS_PER_SET_MAX,
+                 APP_PROCEDURES_PER_SET_MAX, APP_STEPS_PER_PROCEDURE_MAX, APP_MACRO_SETS_MAX,
+                 APP_IMPORT_PACKAGE_MAX_BYTES);
     if (length < 0 || (size_t)length >= output_size) {
         output[0] = '\0';
         return APP_ERROR_INTERNAL;

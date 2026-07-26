@@ -1,14 +1,20 @@
-void web_adapter_lifecycle_reset(web_adapter_lifecycle_t *lifecycle)
-{
+#include "web_server_adapter_internal.h"
+
+#include <stddef.h>
+#include <string.h>
+
+#include "app_error.h"
+#include "web_server_adapter.h"
+
+void web_adapter_lifecycle_reset(web_adapter_lifecycle_t *lifecycle) {
     if (lifecycle != NULL) {
         memset(lifecycle, 0, sizeof(*lifecycle));
     }
 }
 
 app_error_code_t web_adapter_lifecycle_start(web_adapter_lifecycle_t *lifecycle,
-                                              const web_adapter_lifecycle_ops_t *ops,
-                                              size_t route_count)
-{
+                                             const web_adapter_lifecycle_ops_t *ops,
+                                             size_t route_count) {
     if (lifecycle == NULL || !valid_lifecycle_ops(ops) || route_count == 0U ||
         lifecycle->handle != NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -35,8 +41,7 @@ app_error_code_t web_adapter_lifecycle_start(web_adapter_lifecycle_t *lifecycle,
 }
 
 app_error_code_t web_adapter_lifecycle_stop(web_adapter_lifecycle_t *lifecycle,
-                                             const web_adapter_lifecycle_ops_t *ops)
-{
+                                            const web_adapter_lifecycle_ops_t *ops) {
     if (lifecycle == NULL || !valid_lifecycle_ops(ops)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }

@@ -30,7 +30,7 @@ esp_err_t send_json(httpd_req_t *request, const char *json, const char *status);
 esp_err_t send_error(httpd_req_t *request, const char *status, app_error_code_t code,
                      const char *message);
 app_error_code_t read_bounded_body(httpd_req_t *request, char *buffer, size_t buffer_size,
-                                    size_t maximum_length);
+                                   size_t maximum_length);
 app_error_code_t authorize_mutation(httpd_req_t *request, char *out_session_token);
 
 esp_err_t status_handler(httpd_req_t *request);

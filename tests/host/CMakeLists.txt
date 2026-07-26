@@ -127,7 +127,11 @@ add_executable(
     web_server_adapter_tests
     test_web_server_adapter.c
     ../../firmware/components/macro_model/app_error.c
-    ../../firmware/components/web_server/web_server_adapter.c
+    ../../firmware/components/web_server/web_server_adapter_common.c
+    ../../firmware/components/web_server/web_server_adapter_body_auth.c
+    ../../firmware/components/web_server/web_server_adapter_json.c
+    ../../firmware/components/web_server/web_server_adapter_static_stream.c
+    ../../firmware/components/web_server/web_server_adapter_lifecycle.c
     ../../firmware/components/web_server/web_cookie.c
     ../../firmware/components/web_server/web_origin.c
     ../../firmware/components/web_server/web_static_path.c

@@ -78,23 +78,35 @@
   (wired into `check-all.sh`); 6/6 policy tests pass. TODO §2.1 wording synced to
   the implemented mechanism.
 
-### 2.3 progress
+### 2.3 progress — complete
 
-- `auth_core` amalgamation split into four `.c` units (`eccf7ce`). No static
-  crossed a fragment boundary, so no new externs were needed; auth host tests
-  pass, firmware builds, clang-format / cmake-format+lint / include-cleaner clean.
+All three source amalgamations are now normal `.c` translation units; no
+first-party `clang-format off` / `.inc` amalgamation remains (the only surviving
+`clang-format off` are in third-party `managed_components` and one legitimate
+key-table exemption in `test_app/main/test_auth.c`, both out of scope).
+
+- `auth_core` → four `.c` units (`eccf7ce`). No static crossed a fragment
+  boundary, so no new externs were needed.
+- `web_server` → seven `.c` units + `web_server_internal.h` (`638a75e`). Shared
+  state (`server_configuration`, `server_lifecycle`) became single-definition
+  `extern`; ~7 shared helpers + 7 handlers became non-static.
+- `web_server_adapter` → five `.c` units + `web_server_adapter_internal.h`.
+  `json_writer_t` and the cross-fragment helpers (`writer_append_text` /
+  `writer_append_escaped` / `writer_finish` used by the json unit,
+  `valid_lifecycle_ops` used by the lifecycle unit) moved to the internal header
+  and gained external linkage; `writer_append_byte` stays static (common-only).
+  Both the component `CMakeLists.txt` and the `web_server_adapter_tests` host
+  target list the five units.
+
+Verified: firmware builds and links (no duplicate symbols), fail-closed
+clang-tidy 0 (include-cleaner clean), `check-format.sh` clean, `web` host tests
+2/2, native coverage gate 95%.
 
 ### Open in Phase 2
 
-- 2.3 (`web_server.c`, `web_server_adapter.c`): the harder split — `common.inc`
-  holds shared static state (`server_configuration`, `server_lifecycle`) and ~7
-  shared helpers used across all fragments, with no internal header yet. Requires
-  a new `web_server_internal.h` converting the shared state to a single-definition
-  `extern` and the shared helpers to non-static, then per-unit include fixes and
-  updating the `web`/adapter host-test CMake sources.
 - 2.4: full-gate verification (break analyzer → fail; first-party warning → fail;
-  restore → pass) — the deterministic cases are covered by the 2.2 regression
-  tests; the manual full-gate pass will be recorded when 2.3 fully lands.
+  restore → pass) — the deterministic analyzer/warning cases are covered by the
+  2.2 regression suite; the manual full-gate pass is recorded next.
 
 ## Environment-blocked (hardware / HIL) items
 
