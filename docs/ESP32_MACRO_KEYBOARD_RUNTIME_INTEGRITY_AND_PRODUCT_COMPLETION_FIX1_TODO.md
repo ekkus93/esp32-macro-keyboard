@@ -716,10 +716,10 @@ Parse only suffixes of the exact form:
 .bak.<lowercase-rfc4122-v4-uuid>
 ```
 
-- [ ] Reject path traversal.
-- [ ] Reject empty destination.
-- [ ] Reject duplicate artifact paths.
-- [ ] Reject cross-directory destination reconstruction.
+- [x] Reject path traversal.
+- [x] Reject empty destination.
+- [x] Reject duplicate artifact paths.
+- [x] Reject cross-directory destination reconstruction.
 
 ### 7.2 Add validator callbacks
 

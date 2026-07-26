@@ -49,7 +49,7 @@
 | 4 | Correct application lifecycle ownership | done (persistent-provisioning load + setup mode deferred to Phase 14) |
 | 5 | Correct HTTP partial-start lifecycle | done |
 | 6 | Correct filesystem mount ownership and topology | done (LittleFS permission verification is device-observable) |
-| 7 | Atomic-write artifact recovery | not started |
+| 7 | Atomic-write artifact recovery | in progress (7.1 done; 7.2-7.5 open) |
 | 8 | Make quarantine recoverable | not started |
 | 9 | Serialize repository operations | not started |
 | 10 | Separate password mismatch from crypto failure | not started |
@@ -85,6 +85,18 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 7.1 (atomic-write artifact parsing): new `storage_atomic_recovery.{c,h}`
+  parsing leftover `<destination>.tmp.<uuid>` / `.bak.<uuid>` artifacts back into
+  their destination, operation id, and kind. The trailing 36 chars must be a valid
+  RFC-4122 v4 UUID (which also guarantees the suffix has no separator, so the
+  destination cannot escape the artifact's directory); an empty destination, a
+  destination ending in `/`, or any `..` component is rejected; a
+  deduplicating list rejects duplicate artifact paths and a full list. Distinguishes
+  "not an artifact" (skip) from "malformed artifact" (reject). New
+  `storage_atomic_recovery_tests` (storage label). storage 8/8, full host suite
+  20/20, ASan/UBSan clean, firmware builds, fail-closed clang-tidy 0, format clean.
+  §7.2 (object validators), §7.3 (reconciliation rules), §7.4 (startup ordering),
+  and §7.5 (fault injection) remain.
 - Phase 6 (filesystem mount ownership and topology): two commits.
   (1) Storage side: replaced the two loose `web_mounted`/`data_mounted` booleans
   with an explicit `storage_mount_state_t` + public `storage_mount_state()`
