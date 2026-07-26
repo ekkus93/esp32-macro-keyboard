@@ -64,6 +64,18 @@ typedef struct {
     app_error_code_t (*http_stop)(void *context);
     app_error_code_t (*wifi_stop)(void *context);
     app_error_code_t (*storage_unmount)(void *context);
+    /* Reverse-teardown operations and residual-ownership queries used by the
+     * exhaustive failure cleanup. http/wifi ownership can outlive a failed start
+     * (a partial start still owns resources), so cleanup consults these queries in
+     * addition to the tracked "started" flags. */
+    app_error_code_t (*repository_deinit)(void *context);
+    app_error_code_t (*auth_deinit)(void *context);
+    app_error_code_t (*usb_deinit)(void *context);
+    app_error_code_t (*executor_deinit)(void *context);
+    app_error_code_t (*controls_deinit)(void *context);
+    app_error_code_t (*nvs_deinit)(void *context);
+    bool (*http_owns_resources)(void *context);
+    bool (*wifi_owns_resources)(void *context);
     app_error_code_t (*set_indicator)(void *context, device_indicator_state_t indicator);
     void (*secure_zero)(void *context, void *memory, size_t length);
     void (*log_event)(void *context, const app_core_log_event_t *event);

@@ -162,12 +162,16 @@ set_tests_properties(web_server_adapter PROPERTIES LABELS "web")
 
 add_executable(
     app_core_tests test_app_core.c ../../firmware/components/app_core/app_core_sequence.c
+                   ../../firmware/components/support/app_operation_result.c
 )
 target_include_directories(
     app_core_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/auth/include
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/auth/include
             ../../firmware/components/device_controls/include
-            ../../firmware/components/web_server/include ../../firmware/components/app_core
+            ../../firmware/components/web_server/include
+            ../../firmware/components/app_core
+            ../../firmware/components/support/include
 )
 target_link_libraries(app_core_tests PRIVATE test_support)
 target_compile_options(app_core_tests PRIVATE ${STRICT_WARNINGS})

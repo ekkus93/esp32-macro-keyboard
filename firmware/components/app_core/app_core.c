@@ -1,5 +1,6 @@
 #include "app_core.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -113,6 +114,51 @@ static app_error_code_t adapter_storage_unmount(void *context) {
     return storage_unmount_all();
 }
 
+static app_error_code_t adapter_repository_deinit(void *context) {
+    (void)context;
+    return storage_repository_deinit();
+}
+
+static app_error_code_t adapter_auth_deinit(void *context) {
+    (void)context;
+    return auth_deinit();
+}
+
+static app_error_code_t adapter_usb_deinit(void *context) {
+    (void)context;
+    return usb_keyboard_deinit();
+}
+
+static app_error_code_t adapter_executor_deinit(void *context) {
+    (void)context;
+    return macro_executor_deinit();
+}
+
+static app_error_code_t adapter_controls_deinit(void *context) {
+    (void)context;
+    return device_controls_deinit();
+}
+
+static app_error_code_t adapter_nvs_deinit(void *context) {
+    (void)context;
+    return nvs_flash_deinit() == ESP_OK ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
+}
+
+static bool adapter_http_owns_resources(void *context) {
+    (void)context;
+    /* Phase 5 (§5.1) replaces this with web_server_owns_resources(); until the
+     * partial-start ownership query exists, report no residual ownership so
+     * cleanup relies on the tracked http_started flag. */
+    return false;
+}
+
+static bool adapter_wifi_owns_resources(void *context) {
+    (void)context;
+    /* Wired to a wifi_ap ownership query when it lands; conservative default so
+     * cleanup relies on the tracked wifi_started flag until then. */
+    return false;
+}
+
 static app_error_code_t adapter_set_indicator(void *context, device_indicator_state_t indicator) {
     (void)context;
     device_controls_set_indicator(indicator);
@@ -186,6 +232,14 @@ app_error_code_t app_core_start(void) {
         .http_stop = adapter_http_stop,
         .wifi_stop = adapter_wifi_stop,
         .storage_unmount = adapter_storage_unmount,
+        .repository_deinit = adapter_repository_deinit,
+        .auth_deinit = adapter_auth_deinit,
+        .usb_deinit = adapter_usb_deinit,
+        .executor_deinit = adapter_executor_deinit,
+        .controls_deinit = adapter_controls_deinit,
+        .nvs_deinit = adapter_nvs_deinit,
+        .http_owns_resources = adapter_http_owns_resources,
+        .wifi_owns_resources = adapter_wifi_owns_resources,
         .set_indicator = adapter_set_indicator,
         .secure_zero = adapter_secure_zero,
         .log_event = adapter_log_event,

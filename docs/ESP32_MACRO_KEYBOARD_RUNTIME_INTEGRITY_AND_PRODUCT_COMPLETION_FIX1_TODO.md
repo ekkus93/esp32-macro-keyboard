@@ -517,16 +517,20 @@ Do not return from the middle of this cleanup function.
 
 Before initializing USB, executor, or controls:
 
-- [ ] initialize NVS;
-- [ ] mount and recover storage;
-- [ ] initialize repositories;
-- [ ] initialize authentication;
+- [x] initialize NVS;
+- [x] mount and recover storage;
+- [x] initialize repositories;
+- [x] initialize authentication;
 - [ ] load and validate persistent provisioning state.
+      (Ordering established — the provisioning decision now runs here, before
+      USB/executor/controls. The persistent encrypted-NVS load/validate itself
+      lands in Phase 14; only its position is fixed in Phase 4.)
 
 If production provisioning is incomplete:
 
 - [ ] enter the explicit setup mode; or
-- [ ] cleanly stop and report provisioning required.
+      (Explicit setup mode is implemented in Phase 14.)
+- [x] cleanly stop and report provisioning required.
 
 Do not initialize normal-operation tasks and then return
 `APP_ERROR_AUTH_REQUIRED`.
@@ -541,13 +545,13 @@ tests/host/test_app_core.c
 
 For every startup stage:
 
-- [ ] inject primary failure;
-- [ ] assert exact cleanup order;
-- [ ] inject cleanup failure at each later stage;
-- [ ] assert all remaining stages are still attempted;
-- [ ] assert primary and cleanup errors are both retained;
-- [ ] assert no owned resource remains when cleanup succeeds;
-- [ ] assert residual ownership is visible when cleanup fails.
+- [x] inject primary failure;
+- [x] assert exact cleanup order;
+- [x] inject cleanup failure at each later stage;
+- [x] assert all remaining stages are still attempted;
+- [x] assert primary and cleanup errors are both retained;
+- [x] assert no owned resource remains when cleanup succeeds;
+- [x] assert residual ownership is visible when cleanup fails.
 
 ### 4.7 Phase 4 gate
 

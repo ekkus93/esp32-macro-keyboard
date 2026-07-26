@@ -46,7 +46,7 @@
 | 1 | Establish the FIX1 baseline | done |
 | 2 | Make the quality gate fail closed | done |
 | 3 | Structured failure and ownership reporting | done |
-| 4 | Correct application lifecycle ownership | in progress (4.1 done; 4.2-4.7 open) |
+| 4 | Correct application lifecycle ownership | done (persistent-provisioning load + setup mode deferred to Phase 14) |
 | 5 | Correct HTTP partial-start lifecycle | not started |
 | 6 | Correct filesystem mount ownership and topology | not started |
 | 7 | Atomic-write artifact recovery | not started |
@@ -85,6 +85,30 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 4.2–4.6 (application lifecycle ownership): extended `app_core_ops_t`
+  with the six `*_deinit` teardown callbacks plus `http_owns_resources` /
+  `wifi_owns_resources` residual-ownership queries (all checked by
+  `operations_valid`); added an `app_core_owned_t` stage tracker; replaced the
+  three-flag cleanup with an exhaustive reverse teardown driven by a
+  `teardown_stage` helper and `app_operation_result_t` (first primary error and
+  first cleanup error preserved separately, `cleanup_incomplete` tracked, every
+  remaining stage attempted, an owned flag cleared only when its teardown
+  succeeds). Reordered startup so the provisioning decision runs after auth and
+  **before** USB/executor/controls — an unprovisioned production device now stops
+  cleanly instead of initializing normal-operation tasks and only then returning
+  `APP_ERROR_AUTH_REQUIRED` (§4.5). The `*_owns_resources` firmware adapters are
+  conservative placeholders (return false) until Phase 5 wires
+  `web_server_owns_resources`; the ownership/partial-start logic is fully
+  host-tested via fakes. Tests (§4.6): full primary-failure matrix asserting the
+  exact reverse teardown of every owned stage; a per-stage cleanup-failure loop
+  proving all remaining stages are still attempted and the primary+cleanup errors
+  are both retained with `cleanup_incomplete` set; a partial-HTTP-ownership test
+  exercising the `owns_resources` branch; and the reordered production-refusal
+  test proving USB/executor/controls are never initialized. `cleanup_after_failure`
+  was refactored through `teardown_stage` to stay under the clang-tidy
+  cognitive-complexity limit. §4.7 gate: `run-tests startup` pass,
+  `run-tests --sanitizers startup` pass, `check-firmware` clean; full host suite
+  18/18, check-format clean.
 - Phase 4.1 (subsystem deinitialization APIs): added `auth_deinit`,
   `usb_keyboard_deinit`, `macro_executor_deinit`, `device_controls_deinit`, and
   `storage_repository_deinit`, each reversing its component's init. `auth_deinit`

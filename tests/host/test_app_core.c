@@ -40,6 +40,14 @@ typedef struct {
     app_error_code_t http_stop_result;
     app_error_code_t wifi_stop_result;
     app_error_code_t storage_unmount_result;
+    app_error_code_t repository_deinit_result;
+    app_error_code_t auth_deinit_result;
+    app_error_code_t usb_deinit_result;
+    app_error_code_t executor_deinit_result;
+    app_error_code_t controls_deinit_result;
+    app_error_code_t nvs_deinit_result;
+    bool http_owns_resources;
+    bool wifi_owns_resources;
     device_indicator_state_t indicator_failure_state;
     app_error_code_t indicator_failure_result;
     size_t random_fail_on;
@@ -277,6 +285,54 @@ static void fake_log_event(void *context, const app_core_log_event_t *event) {
     copy_text(record->web_password, sizeof(record->web_password), event->web_password);
 }
 
+static app_error_code_t fake_repository_deinit(void *context) {
+    app_core_fixture_t *fixture = context;
+    record_call(fixture, "repository_deinit");
+    return fixture->repository_deinit_result;
+}
+
+static app_error_code_t fake_auth_deinit(void *context) {
+    app_core_fixture_t *fixture = context;
+    record_call(fixture, "auth_deinit");
+    return fixture->auth_deinit_result;
+}
+
+static app_error_code_t fake_usb_deinit(void *context) {
+    app_core_fixture_t *fixture = context;
+    record_call(fixture, "usb_deinit");
+    return fixture->usb_deinit_result;
+}
+
+static app_error_code_t fake_executor_deinit(void *context) {
+    app_core_fixture_t *fixture = context;
+    record_call(fixture, "executor_deinit");
+    return fixture->executor_deinit_result;
+}
+
+static app_error_code_t fake_controls_deinit(void *context) {
+    app_core_fixture_t *fixture = context;
+    record_call(fixture, "controls_deinit");
+    return fixture->controls_deinit_result;
+}
+
+static app_error_code_t fake_nvs_deinit(void *context) {
+    app_core_fixture_t *fixture = context;
+    record_call(fixture, "nvs_deinit");
+    return fixture->nvs_deinit_result;
+}
+
+static bool fake_http_owns_resources(void *context) {
+    const app_core_fixture_t *fixture = context;
+    TEST_CHECK(fixture != NULL);
+    return fixture->http_owns_resources;
+}
+
+static bool fake_wifi_owns_resources(void *context) {
+    const app_core_fixture_t *fixture = context;
+    TEST_CHECK(fixture != NULL);
+    return fixture->wifi_owns_resources;
+}
+
 static app_core_ops_t make_operations(app_core_fixture_t *fixture) {
     return (app_core_ops_t){
         .context = fixture,
@@ -295,6 +351,14 @@ static app_core_ops_t make_operations(app_core_fixture_t *fixture) {
         .http_stop = fake_http_stop,
         .wifi_stop = fake_wifi_stop,
         .storage_unmount = fake_storage_unmount,
+        .repository_deinit = fake_repository_deinit,
+        .auth_deinit = fake_auth_deinit,
+        .usb_deinit = fake_usb_deinit,
+        .executor_deinit = fake_executor_deinit,
+        .controls_deinit = fake_controls_deinit,
+        .nvs_deinit = fake_nvs_deinit,
+        .http_owns_resources = fake_http_owns_resources,
+        .wifi_owns_resources = fake_wifi_owns_resources,
         .set_indicator = fake_set_indicator,
         .secure_zero = fake_secure_zero,
         .log_event = fake_log_event,
@@ -387,6 +451,14 @@ static void test_invalid_arguments_and_missing_callbacks(void) {
     CHECK_MISSING_CALLBACK(http_stop);
     CHECK_MISSING_CALLBACK(wifi_stop);
     CHECK_MISSING_CALLBACK(storage_unmount);
+    CHECK_MISSING_CALLBACK(repository_deinit);
+    CHECK_MISSING_CALLBACK(auth_deinit);
+    CHECK_MISSING_CALLBACK(usb_deinit);
+    CHECK_MISSING_CALLBACK(executor_deinit);
+    CHECK_MISSING_CALLBACK(controls_deinit);
+    CHECK_MISSING_CALLBACK(nvs_deinit);
+    CHECK_MISSING_CALLBACK(http_owns_resources);
+    CHECK_MISSING_CALLBACK(wifi_owns_resources);
     CHECK_MISSING_CALLBACK(set_indicator);
     CHECK_MISSING_CALLBACK(secure_zero);
     CHECK_MISSING_CALLBACK(log_event);
@@ -503,10 +575,27 @@ static void test_production_refuses_unprovisioned_network(void) {
     };
 
     TEST_CHECK_EQ_INT(APP_ERROR_AUTH_REQUIRED, app_core_sequence_start(&operations, &policy));
+    /* FIX1 §4.5: an unprovisioned production device must stop right after
+     * authentication, before any normal-operation subsystem is initialized. */
+    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "usb_init"));
+    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "executor_init"));
+    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "controls_init"));
     TEST_CHECK_EQ_U64(0U, call_count(&fixture, "random_fill"));
     TEST_CHECK_EQ_U64(0U, call_count(&fixture, "wifi_start"));
     TEST_CHECK_EQ_U64(0U, call_count(&fixture, "http_start"));
+    /* The stages that did complete (nvs, storage, repository, auth) are reversed
+     * in order, and none of the un-run normal-operation subsystems are torn down. */
+    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "auth_deinit"));
+    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "repository_deinit"));
     TEST_CHECK_EQ_U64(1U, call_count(&fixture, "storage_unmount"));
+    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "nvs_deinit"));
+    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "usb_deinit"));
+    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "executor_deinit"));
+    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "controls_deinit"));
+    assert_order(&fixture, "auth_deinit", "repository_deinit");
+    assert_order(&fixture, "repository_deinit", "storage_unmount");
+    assert_order(&fixture, "storage_unmount", "nvs_deinit");
+    assert_order(&fixture, "nvs_deinit", "indicator_fatal");
     TEST_CHECK_EQ_U64(1U, call_count(&fixture, "indicator_fatal"));
     TEST_CHECK_EQ_U64(1U, log_count(&fixture, APP_CORE_LOG_PROVISIONING_REQUIRED));
 }
@@ -597,21 +686,37 @@ static void test_failure_matrix_and_cleanup(void) {
         TEST_CHECK_EQ_INT(expected, app_core_sequence_start(&operations, &policy));
         TEST_CHECK_EQ_U64(1U, call_count(&fixture, "indicator_fatal"));
 
-        const bool storage_owned = point > FAILURE_STORAGE_MOUNT;
-        const bool wifi_owned = point > FAILURE_WIFI;
-        const bool web_owned = point > FAILURE_HTTP;
-        TEST_CHECK_EQ_U64(storage_owned ? 1U : 0U, call_count(&fixture, "storage_unmount"));
-        TEST_CHECK_EQ_U64(wifi_owned ? 1U : 0U, call_count(&fixture, "wifi_stop"));
-        TEST_CHECK_EQ_U64(web_owned ? 1U : 0U, call_count(&fixture, "http_stop"));
-
-        if (web_owned) {
-            assert_order(&fixture, "http_stop", "wifi_stop");
+        /* Ownership of each stage is determined by whether it completed before the
+         * failure, not by the final return code. Cleanup must reverse exactly the
+         * owned stages, in the opposite order they were acquired, and attempt every
+         * one of them before the fatal indicator (FIX1 §4.4/§4.6). With teardown
+         * succeeding, no owned resource remains afterward. */
+        const struct {
+            const char *name;
+            bool owned;
+        } chain[] = {
+            {"http_stop", point > FAILURE_HTTP},
+            {"wifi_stop", point > FAILURE_WIFI},
+            {"controls_deinit", point > FAILURE_CONTROLS},
+            {"executor_deinit", point > FAILURE_EXECUTOR},
+            {"usb_deinit", point > FAILURE_USB},
+            {"auth_deinit", point > FAILURE_AUTH},
+            {"repository_deinit", point > FAILURE_REPOSITORY},
+            {"storage_unmount", point > FAILURE_STORAGE_MOUNT},
+            {"nvs_deinit", point > FAILURE_NVS},
+        };
+        const char *previous = NULL;
+        for (size_t i = 0U; i < sizeof(chain) / sizeof(chain[0]); ++i) {
+            TEST_CHECK_EQ_U64(chain[i].owned ? 1U : 0U, call_count(&fixture, chain[i].name));
+            if (chain[i].owned) {
+                if (previous != NULL) {
+                    assert_order(&fixture, previous, chain[i].name);
+                }
+                previous = chain[i].name;
+            }
         }
-        if (wifi_owned) {
-            assert_order(&fixture, "wifi_stop", "storage_unmount");
-        }
-        if (storage_owned) {
-            assert_order(&fixture, "storage_unmount", "indicator_fatal");
+        if (previous != NULL) {
+            assert_order(&fixture, previous, "indicator_fatal");
         }
 
         if (point == FAILURE_RANDOM_AP || point == FAILURE_RANDOM_WEB ||
@@ -696,6 +801,64 @@ static void test_nvs_recovery_states_never_continue(void) {
     }
 }
 
+static void test_cleanup_failure_at_each_stage_still_reverses_all(void) {
+    static const char *const stages[] = {
+        "http_stop",   "wifi_stop",         "controls_deinit", "executor_deinit", "usb_deinit",
+        "auth_deinit", "repository_deinit", "storage_unmount", "nvs_deinit",
+    };
+    const size_t stage_count = sizeof(stages) / sizeof(stages[0]);
+
+    /* Inject a cleanup failure at each teardown stage in turn. In every case the
+     * primary error must survive, every remaining stage must still be attempted,
+     * the first cleanup error must be preserved, and the event must report that
+     * cleanup did not complete (residual ownership stays visible). */
+    for (size_t target = 0U; target < stage_count; ++target) {
+        app_core_fixture_t fixture;
+        reset_fixture(&fixture);
+        /* Fail the final READY indicator so every stage is owned; only that step
+         * fails as a primary, and the fatal indicator still succeeds. */
+        fixture.indicator_failure_state = DEVICE_INDICATOR_READY;
+        fixture.indicator_failure_result = APP_ERROR_TIMEOUT;
+        app_error_code_t *const results[] = {
+            &fixture.http_stop_result,         &fixture.wifi_stop_result,
+            &fixture.controls_deinit_result,   &fixture.executor_deinit_result,
+            &fixture.usb_deinit_result,        &fixture.auth_deinit_result,
+            &fixture.repository_deinit_result, &fixture.storage_unmount_result,
+            &fixture.nvs_deinit_result,
+        };
+        *results[target] = APP_ERROR_IO;
+        app_core_ops_t operations = make_operations(&fixture);
+        const app_core_policy_t policy = development_policy();
+
+        TEST_CHECK_EQ_INT(APP_ERROR_TIMEOUT, app_core_sequence_start(&operations, &policy));
+
+        for (size_t index = 0U; index < stage_count; ++index) {
+            TEST_CHECK_EQ_U64(1U, call_count(&fixture, stages[index]));
+        }
+        const recorded_log_t *cleanup = first_log(&fixture, APP_CORE_LOG_CLEANUP_FAILED);
+        TEST_CHECK(cleanup != NULL);
+        TEST_CHECK_EQ_INT(APP_ERROR_TIMEOUT, cleanup->primary_error);
+        TEST_CHECK_EQ_INT(APP_ERROR_IO, cleanup->cleanup_error);
+        TEST_CHECK(cleanup->cleanup_incomplete);
+    }
+}
+
+static void test_partial_http_ownership_is_reclaimed(void) {
+    app_core_fixture_t fixture;
+    reset_fixture(&fixture);
+    fixture.wifi_result = APP_ERROR_IO; /* fail before http_start runs */
+    fixture.http_owns_resources = true; /* but http left residual resources */
+    app_core_ops_t operations = make_operations(&fixture);
+    const app_core_policy_t policy = development_policy();
+
+    TEST_CHECK_EQ_INT(APP_ERROR_IO, app_core_sequence_start(&operations, &policy));
+    /* http_start never succeeded, but the ownership query reports residual
+     * resources, so cleanup still stops the server. Wi-Fi was never owned. */
+    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "http_start"));
+    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "http_stop"));
+    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "wifi_stop"));
+}
+
 int main(void) {
     test_nvs_mapping();
     test_invalid_arguments_and_missing_callbacks();
@@ -706,6 +869,8 @@ int main(void) {
     test_failure_matrix_and_cleanup();
     test_equal_credentials_retry_and_exhaustion();
     test_cleanup_errors_do_not_replace_original();
+    test_cleanup_failure_at_each_stage_still_reverses_all();
+    test_partial_http_ownership_is_reclaimed();
     test_nvs_recovery_states_never_continue();
     puts("app core tests passed");
     return EXIT_SUCCESS;
