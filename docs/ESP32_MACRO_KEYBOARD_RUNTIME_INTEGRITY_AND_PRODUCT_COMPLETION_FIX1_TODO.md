@@ -47,12 +47,12 @@ add the matching header declaration, CMake source entry, host fake, and tests.
 
 ### 1.1 Confirm repository state
 
-- [ ] Confirm `master` contains baseline commit
+- [x] Confirm `master` contains baseline commit
       `992f2a018aff97e5b167c98d6a0d469d6a7c84ff` or a documented descendant.
-- [ ] Confirm both FIX1 documents exist under `docs/`.
-- [ ] Create a dedicated implementation branch unless the operator explicitly
+- [x] Confirm both FIX1 documents exist under `docs/`.
+- [x] Create a dedicated implementation branch unless the operator explicitly
       instructs direct work on `master`.
-- [ ] Record the actual starting commit in the first implementation commit.
+- [x] Record the actual starting commit in the first implementation commit.
 
 ### 1.2 Add a FIX1 progress document
 
@@ -87,10 +87,10 @@ Run:
 ./scripts/build-device-tests.sh
 ```
 
-- [ ] Record all baseline results without changing them to green by suppression.
-- [ ] Record the current firmware binary size, webapp build size, and test
+- [x] Record all baseline results without changing them to green by suppression.
+- [x] Record the current firmware binary size, webapp build size, and test
       counts.
-- [ ] Record any check that cannot run locally and the exact missing dependency.
+- [x] Record any check that cannot run locally and the exact missing dependency.
 
 ## 2. Make the quality gate fail closed
 
@@ -173,8 +173,17 @@ run_first_party_clang_tidy() {
 }
 ```
 
-- [ ] Call `run_first_party_clang_tidy` for both firmware projects.
-- [ ] Add cleanup through `trap` or explicit removal for temporary report files.
+- [x] Call `run_first_party_clang_tidy` for both firmware projects.
+- [x] Add cleanup through `trap` or explicit removal for temporary report files.
+
+**Implemented (RESPONSES Q1):** the snippet above is refined so `run-clang-tidy`'s
+exit status is trustworthy without post-filtering. Third-party header diagnostics
+are excluded *before* emission: `run-clang-tidy -exclude-header-filter='(esp-idf|managed_components)'`
+for most checks, plus `misc-header-include-cycle.IgnoredFilesList` in `.clang-tidy`
+for the FreeRTOS include cycle in `idf_additions.h` (which `-exclude-header-filter`
+does not cover). Both options are verified supported on the pinned esp-clang
+LLVM 19.1.2. The grep of the report is only an additional assertion after a
+successful analyzer run. See `scripts/check-firmware.sh`.
 
 ### 2.2 Add script regression tests
 
@@ -188,14 +197,14 @@ tests/scripts/fakes/idf.py
 
 Test at least:
 
-- [ ] analyzer executable missing;
-- [ ] analyzer exits nonzero with no warning-shaped output;
-- [ ] analyzer exits zero with a first-party warning;
-- [ ] analyzer exits zero with only third-party warnings;
-- [ ] compile database missing;
-- [ ] compile database invalid;
-- [ ] zero selected first-party translation units;
-- [ ] valid clean run.
+- [x] analyzer executable missing;
+- [x] analyzer exits nonzero with no warning-shaped output;
+- [x] analyzer exits zero with a first-party warning;
+- [x] analyzer exits zero with only third-party warnings;
+- [x] compile database missing;
+- [x] compile database invalid;
+- [x] zero selected first-party translation units;
+- [x] valid clean run.
 
 Update:
 

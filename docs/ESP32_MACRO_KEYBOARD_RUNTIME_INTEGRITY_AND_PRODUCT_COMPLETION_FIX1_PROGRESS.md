@@ -43,8 +43,8 @@
 
 | Phase | Title | Status |
 | --- | --- | --- |
-| 1 | Establish the FIX1 baseline | in progress |
-| 2 | Make the quality gate fail closed | not started |
+| 1 | Establish the FIX1 baseline | done |
+| 2 | Make the quality gate fail closed | in progress (2.1, 2.2, Q2 done; 2.3, 2.4 open) |
 | 3 | Structured failure and ownership reporting | not started |
 | 4 | Correct application lifecycle ownership | not started |
 | 5 | Correct HTTP partial-start lifecycle | not started |
@@ -67,7 +67,24 @@
 
 ## Completed tasks (commit evidence)
 
-- Phase 1.1–1.3 (baseline, this document): pending commit.
+- Phase 1.1–1.3 (baseline + this document): `7cf917a`, `4a17aeb`.
+- Phase 2.1 / 2.2 (fail-closed clang-tidy gate + regression tests): `9e0498c`.
+  `check-firmware.sh` preserves run-clang-tidy's exit status; third-party
+  diagnostics are excluded before emission (`-exclude-header-filter` +
+  `misc-header-include-cycle.IgnoredFilesList`). 8/8 regression tests pass; the
+  real gate passes end to end.
+- RESPONSES Q2 (static-analysis exception register + policy gate): `0dc0e03`.
+  `docs/STATIC_ANALYSIS_EXCEPTIONS.md` + `scripts/check-static-analysis-policy.sh`
+  (wired into `check-all.sh`); 6/6 policy tests pass. TODO §2.1 wording synced to
+  the implemented mechanism.
+
+### Open in Phase 2
+
+- 2.3: convert the `clang-format off` `.inc` amalgamation in `auth_core.c`,
+  `web_server.c`, `web_server_adapter.c` into normal `.c` translation units.
+- 2.4: full-gate verification (break analyzer → fail; first-party warning → fail;
+  restore → pass) — the deterministic cases are covered by the 2.2 regression
+  tests; the manual full-gate pass will be recorded when 2.3 lands.
 
 ## Environment-blocked (hardware / HIL) items
 
