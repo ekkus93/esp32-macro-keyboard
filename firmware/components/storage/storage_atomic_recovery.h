@@ -98,7 +98,7 @@ app_error_code_t storage_atomic_recover_all_with_ops(const storage_fs_ops_t *ope
                                                      storage_uuid_generate_fn generate_uuid,
                                                      void *uuid_context);
 
-/* Production entry point: reconcile using the POSIX filesystem backend. */
-app_error_code_t storage_atomic_recover_all(void);
+/* Production entry point (declared in storage.h): reconcile using the POSIX
+ * filesystem backend. */
 
 #endif

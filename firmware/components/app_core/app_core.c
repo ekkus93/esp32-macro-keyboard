@@ -43,6 +43,13 @@ static app_error_code_t adapter_storage_mount(void *context) {
 
 static app_error_code_t adapter_storage_recover(void *context) {
     (void)context;
+    /* FIX1 §7.4: reconcile leftover atomic-write artifacts before transaction
+     * manifest recovery, so a manifest's own interrupted write (and any staging
+     * artifact) is resolved before transaction recovery enumerates it. */
+    const app_error_code_t atomic = storage_atomic_recover_all();
+    if (atomic != APP_ERROR_NONE) {
+        return atomic;
+    }
     return storage_transaction_recover_all();
 }
 

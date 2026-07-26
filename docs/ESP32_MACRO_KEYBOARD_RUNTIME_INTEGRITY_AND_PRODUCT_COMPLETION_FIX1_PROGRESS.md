@@ -49,7 +49,7 @@
 | 4 | Correct application lifecycle ownership | done (persistent-provisioning load + setup mode deferred to Phase 14) |
 | 5 | Correct HTTP partial-start lifecycle | done |
 | 6 | Correct filesystem mount ownership and topology | done (LittleFS permission verification is device-observable) |
-| 7 | Atomic-write artifact recovery | in progress (7.1 done; 7.2-7.5 open) |
+| 7 | Atomic-write artifact recovery | in progress (7.1-7.4 done; 7.5 open) |
 | 8 | Make quarantine recoverable | not started |
 | 9 | Serialize repository operations | not started |
 | 10 | Separate password mismatch from crypto failure | not started |
@@ -85,6 +85,12 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 7.4 (startup ordering): `app_core`'s storage-recovery step now runs
+  `storage_atomic_recover_all()` (public entry added to `storage.h`) **before**
+  `storage_transaction_recover_all()`, so a manifest's own interrupted write and
+  any staging artifact are reconciled before transaction recovery enumerates the
+  strict `<uuid>.bin` manifest filenames. Firmware builds, fail-closed clang-tidy
+  0, startup host suite passes. §7.5 (fault injection) remains.
 - Phase 7.3 (atomic-recovery reconciliation): two commits. Part 1 added the pure
   `storage_atomic_reconcile_decide` decision (exhaustive combinatorial tests).
   Part 2 adds the executor `storage_atomic_recover_all[_with_ops]`: it enumerates
