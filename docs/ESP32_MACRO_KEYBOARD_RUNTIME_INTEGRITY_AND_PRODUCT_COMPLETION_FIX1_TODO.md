@@ -248,9 +248,9 @@ Run:
 ./scripts/run-tests.sh
 ```
 
-- [ ] Deliberately break the analyzer command and verify the gate fails.
-- [ ] Deliberately emit one first-party warning and verify the gate fails.
-- [ ] Restore the tree and verify all checks pass.
+- [x] Deliberately break the analyzer command and verify the gate fails.
+- [x] Deliberately emit one first-party warning and verify the gate fails.
+- [x] Restore the tree and verify all checks pass.
 
 ## 3. Introduce structured failure and ownership reporting
 

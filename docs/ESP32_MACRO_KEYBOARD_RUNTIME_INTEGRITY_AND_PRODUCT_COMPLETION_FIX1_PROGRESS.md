@@ -44,7 +44,7 @@
 | Phase | Title | Status |
 | --- | --- | --- |
 | 1 | Establish the FIX1 baseline | done |
-| 2 | Make the quality gate fail closed | in progress (2.1, 2.2, Q2 done; 2.3, 2.4 open) |
+| 2 | Make the quality gate fail closed | done |
 | 3 | Structured failure and ownership reporting | not started |
 | 4 | Correct application lifecycle ownership | not started |
 | 5 | Correct HTTP partial-start lifecycle | not started |
@@ -77,6 +77,14 @@
   `docs/STATIC_ANALYSIS_EXCEPTIONS.md` + `scripts/check-static-analysis-policy.sh`
   (wired into `check-all.sh`); 6/6 policy tests pass. TODO §2.1 wording synced to
   the implemented mechanism.
+- Phase 2.3 (remove first-party formatting suppression / source amalgamation):
+  `eccf7ce` (auth_core → 4 TUs), `638a75e` (web_server → 7 TUs +
+  `web_server_internal.h`), `9e539fb` (web_server_adapter → 5 TUs +
+  `web_server_adapter_internal.h`). No first-party `clang-format off` / `.inc`
+  amalgamation remains.
+- Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
+  (broken analyzer → fail, first-party warning → fail, restored tree → all four
+  gate commands pass); see the 2.4 progress section above for evidence.
 
 ### 2.3 progress — complete
 
@@ -102,11 +110,25 @@ Verified: firmware builds and links (no duplicate symbols), fail-closed
 clang-tidy 0 (include-cleaner clean), `check-format.sh` clean, `web` host tests
 2/2, native coverage gate 95%.
 
-### Open in Phase 2
+### 2.4 progress — complete (Phase 2 gate verification)
 
-- 2.4: full-gate verification (break analyzer → fail; first-party warning → fail;
-  restore → pass) — the deterministic analyzer/warning cases are covered by the
-  2.2 regression suite; the manual full-gate pass is recorded next.
+Fail-closed behavior demonstrated three ways:
+
+- **Analyzer command broken → gate fails.** The 2.2 regression suite exercises
+  the real `check-firmware.sh` logic against a fake analyzer:
+  `analyzer executable missing fails`, `analyzer nonzero exit with no warnings
+  fails`, `missing compile database fails`, `invalid compile database fails`,
+  `zero first-party translation units fails` — 8/8 pass.
+- **First-party warning → gate fails (on the real tree).** Injected an unused
+  `#include "macro_limits.h"` into `web_server/web_origin.c`; the real
+  `check-firmware.sh` emitted `misc-include-cleaner … not used directly` and
+  exited 1 (`run-clang-tidy failed … with status 1`). Reverted.
+- **Restored tree → all checks pass.** The four §2.4 gate commands all exit 0:
+  `check-format.sh` (0), `check-firmware.sh` (0), `check-scripts.sh` (0),
+  `run-tests.sh` (17/17 suites, 0 failed). Script regression suites: 8/0
+  (`test-check-firmware.sh`) and 6/0 (`test-static-analysis-policy.sh`).
+
+Phase 2 (make the quality gate fail closed) is complete.
 
 ## Environment-blocked (hardware / HIL) items
 
