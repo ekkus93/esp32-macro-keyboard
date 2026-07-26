@@ -68,8 +68,17 @@ typedef struct {
     uint32_t replacement_revision;
 } storage_transaction_manifest_t;
 
+/* Explicit mount ownership. app_core consults this during cleanup so a partition
+ * that is still mounted after a partial or failed storage_mount_all() is unmounted
+ * rather than leaked. */
+typedef struct {
+    bool web_mounted;
+    bool data_mounted;
+} storage_mount_state_t;
+
 app_error_code_t storage_mount_all(void);
 app_error_code_t storage_unmount_all(void);
+storage_mount_state_t storage_mount_state(void);
 app_error_code_t storage_prepare_directories(void);
 app_error_code_t storage_make_set_path(const app_uuid_t *set_id, char *buffer, size_t buffer_size);
 app_error_code_t storage_make_macro_path(const app_uuid_t *set_id, const app_uuid_t *macro_id,

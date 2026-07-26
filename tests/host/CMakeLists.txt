@@ -219,6 +219,25 @@ add_test(NAME wifi_ap COMMAND wifi_ap_tests)
 set_tests_properties(wifi_ap PROPERTIES LABELS "wifi")
 
 add_executable(
+    storage_mount_tests
+    test_storage_mount.c ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/storage/storage_mount_core.c
+    ../../firmware/components/storage/storage_mount_topology.c
+)
+target_include_directories(
+    storage_mount_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
+            ../../firmware/components/storage
+)
+target_compile_definitions(
+    storage_mount_tests PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-mount-data"
+)
+target_link_libraries(storage_mount_tests PRIVATE test_support)
+target_compile_options(storage_mount_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME storage_mount COMMAND storage_mount_tests)
+set_tests_properties(storage_mount PROPERTIES LABELS "storage")
+
+add_executable(
     storage_atomic_tests
     test_storage_atomic.c
     ../../firmware/components/macro_model/app_error.c
