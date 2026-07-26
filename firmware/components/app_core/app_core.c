@@ -159,6 +159,15 @@ static bool adapter_wifi_owns_resources(void *context) {
     return false;
 }
 
+static bool adapter_storage_owns_mount(void *context) {
+    (void)context;
+    /* Either partition still being mounted -- including after a failed or partial
+     * storage_mount_all() -- means storage is still owned and must be unmounted
+     * during cleanup even though storage_mounted was never set. */
+    const storage_mount_state_t state = storage_mount_state();
+    return state.web_mounted || state.data_mounted;
+}
+
 static app_error_code_t adapter_set_indicator(void *context, device_indicator_state_t indicator) {
     (void)context;
     device_controls_set_indicator(indicator);
@@ -240,6 +249,7 @@ app_error_code_t app_core_start(void) {
         .nvs_deinit = adapter_nvs_deinit,
         .http_owns_resources = adapter_http_owns_resources,
         .wifi_owns_resources = adapter_wifi_owns_resources,
+        .storage_owns_mount = adapter_storage_owns_mount,
         .set_indicator = adapter_set_indicator,
         .secure_zero = adapter_secure_zero,
         .log_event = adapter_log_event,

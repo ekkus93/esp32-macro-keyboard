@@ -666,18 +666,21 @@ static app_error_code_t ensure_directory(const char *path) {
 ```
 
 - [ ] Verify permissions where supported by LittleFS.
-- [ ] Reject symlink-like or unsupported types in host tests.
+      (Directories are created 0750; LittleFS permission support is limited, so a
+      full permission assertion is a device-observable item. The host filesystem
+      does not preserve the mode identically, so it is not asserted on host.)
+- [x] Reject symlink-like or unsupported types in host tests.
 
 ### 6.3 Add mount rollback tests
 
 Test:
 
-- [ ] web mount fails;
-- [ ] data mount fails and web unmount succeeds;
-- [ ] data mount fails and web unmount fails;
-- [ ] directory creation fails after both mounts;
-- [ ] unmount continues for both partitions after one failure;
-- [ ] regular file collides with every required directory.
+- [x] web mount fails;
+- [x] data mount fails and web unmount succeeds;
+- [x] data mount fails and web unmount fails;
+- [x] directory creation fails after both mounts;
+- [x] unmount continues for both partitions after one failure;
+- [x] regular file collides with every required directory.
 
 ## 7. Add atomic-write artifact recovery
 

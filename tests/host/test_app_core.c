@@ -48,6 +48,7 @@ typedef struct {
     app_error_code_t nvs_deinit_result;
     bool http_owns_resources;
     bool wifi_owns_resources;
+    bool storage_owns_mount;
     device_indicator_state_t indicator_failure_state;
     app_error_code_t indicator_failure_result;
     size_t random_fail_on;
@@ -333,6 +334,12 @@ static bool fake_wifi_owns_resources(void *context) {
     return fixture->wifi_owns_resources;
 }
 
+static bool fake_storage_owns_mount(void *context) {
+    const app_core_fixture_t *fixture = context;
+    TEST_CHECK(fixture != NULL);
+    return fixture->storage_owns_mount;
+}
+
 static app_core_ops_t make_operations(app_core_fixture_t *fixture) {
     return (app_core_ops_t){
         .context = fixture,
@@ -359,6 +366,7 @@ static app_core_ops_t make_operations(app_core_fixture_t *fixture) {
         .nvs_deinit = fake_nvs_deinit,
         .http_owns_resources = fake_http_owns_resources,
         .wifi_owns_resources = fake_wifi_owns_resources,
+        .storage_owns_mount = fake_storage_owns_mount,
         .set_indicator = fake_set_indicator,
         .secure_zero = fake_secure_zero,
         .log_event = fake_log_event,
@@ -459,6 +467,7 @@ static void test_invalid_arguments_and_missing_callbacks(void) {
     CHECK_MISSING_CALLBACK(nvs_deinit);
     CHECK_MISSING_CALLBACK(http_owns_resources);
     CHECK_MISSING_CALLBACK(wifi_owns_resources);
+    CHECK_MISSING_CALLBACK(storage_owns_mount);
     CHECK_MISSING_CALLBACK(set_indicator);
     CHECK_MISSING_CALLBACK(secure_zero);
     CHECK_MISSING_CALLBACK(log_event);
@@ -843,6 +852,24 @@ static void test_cleanup_failure_at_each_stage_still_reverses_all(void) {
     }
 }
 
+static void test_partial_storage_ownership_is_unmounted(void) {
+    app_core_fixture_t fixture;
+    reset_fixture(&fixture);
+    fixture.storage_mount_result = APP_ERROR_STORAGE_UNAVAILABLE; /* mount fails... */
+    fixture.storage_owns_mount = true; /* ...but a partition is still mounted */
+    app_core_ops_t operations = make_operations(&fixture);
+    const app_core_policy_t policy = development_policy();
+
+    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_UNAVAILABLE, app_core_sequence_start(&operations, &policy));
+    /* storage_mounted was never set, but the residual-mount query reports ownership
+     * so cleanup unmounts anyway. NVS (which did initialize) is also torn down. */
+    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "storage_unmount"));
+    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "nvs_deinit"));
+    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "indicator_fatal"));
+    assert_order(&fixture, "storage_unmount", "nvs_deinit");
+    assert_order(&fixture, "nvs_deinit", "indicator_fatal");
+}
+
 static void test_partial_http_ownership_is_reclaimed(void) {
     app_core_fixture_t fixture;
     reset_fixture(&fixture);
@@ -870,6 +897,7 @@ int main(void) {
     test_equal_credentials_retry_and_exhaustion();
     test_cleanup_errors_do_not_replace_original();
     test_cleanup_failure_at_each_stage_still_reverses_all();
+    test_partial_storage_ownership_is_unmounted();
     test_partial_http_ownership_is_reclaimed();
     test_nvs_recovery_states_never_continue();
     puts("app core tests passed");

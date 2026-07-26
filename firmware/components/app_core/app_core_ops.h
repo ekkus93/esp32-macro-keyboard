@@ -76,6 +76,7 @@ typedef struct {
     app_error_code_t (*nvs_deinit)(void *context);
     bool (*http_owns_resources)(void *context);
     bool (*wifi_owns_resources)(void *context);
+    bool (*storage_owns_mount)(void *context);
     app_error_code_t (*set_indicator)(void *context, device_indicator_state_t indicator);
     void (*secure_zero)(void *context, void *memory, size_t length);
     void (*log_event)(void *context, const app_core_log_event_t *event);

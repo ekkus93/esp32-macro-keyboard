@@ -48,7 +48,7 @@
 | 3 | Structured failure and ownership reporting | done |
 | 4 | Correct application lifecycle ownership | done (persistent-provisioning load + setup mode deferred to Phase 14) |
 | 5 | Correct HTTP partial-start lifecycle | done |
-| 6 | Correct filesystem mount ownership and topology | not started |
+| 6 | Correct filesystem mount ownership and topology | done (LittleFS permission verification is device-observable) |
 | 7 | Atomic-write artifact recovery | not started |
 | 8 | Make quarantine recoverable | not started |
 | 9 | Serialize repository operations | not started |
@@ -85,6 +85,24 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 6 (filesystem mount ownership and topology): two commits.
+  (1) Storage side: replaced the two loose `web_mounted`/`data_mounted` booleans
+  with an explicit `storage_mount_state_t` + public `storage_mount_state()`
+  query; moved the mount/rollback/ownership orchestration into a host-testable
+  `storage_mount_core` behind an ops seam, leaving `storage_mount.c` a thin
+  littlefs wrapper that owns the state; replaced `mkdir_checked()` with
+  `ensure_directory()` (`storage_mount_topology.c`) which accepts a pre-existing
+  path only when it is genuinely a directory and rejects a regular file / symlink
+  to a non-directory as `APP_ERROR_STORAGE_CORRUPT`. New `storage_mount_tests`
+  cover all six §6.3 rollback scenarios plus the symlink/regular-file rejection.
+  (2) app_core side: added a `storage_owns_mount` op wired to `storage_mount_state`
+  so cleanup unmounts a partition that is still mounted after a partial/failed
+  `storage_mount_all()` even though `storage_mounted` was never set — same
+  residual-ownership pattern as http. Host test proves a failed mount that leaves
+  a partition mounted is still unmounted during cleanup. storage 7/7, startup 1/1,
+  full host suite 19/19, ASan/UBSan clean, firmware builds, fail-closed clang-tidy
+  0, check-format clean. (LittleFS directory-permission verification is a
+  device-observable item — modes are set 0750 but not asserted on host.)
 - Phase 5 (HTTP partial-start lifecycle): added
   `web_adapter_lifecycle_owns_resources()` (a retained handle == still-owned) and
   the public `web_server_owns_resources()`, and wired the latter into app_core's

@@ -24,8 +24,8 @@ static bool operations_valid(const app_core_ops_t *operations) {
            operations->usb_deinit != NULL && operations->executor_deinit != NULL &&
            operations->controls_deinit != NULL && operations->nvs_deinit != NULL &&
            operations->http_owns_resources != NULL && operations->wifi_owns_resources != NULL &&
-           operations->set_indicator != NULL && operations->secure_zero != NULL &&
-           operations->log_event != NULL;
+           operations->storage_owns_mount != NULL && operations->set_indicator != NULL &&
+           operations->secure_zero != NULL && operations->log_event != NULL;
 }
 
 static void log_stage(const app_core_ops_t *operations, const char *stage,
@@ -149,8 +149,9 @@ static app_operation_result_t cleanup_after_failure(const app_core_ops_t *operat
                    operations->auth_deinit);
     teardown_stage(operations, &result, owned->repository_initialized,
                    &owned->repository_initialized, operations->repository_deinit);
-    teardown_stage(operations, &result, owned->storage_mounted, &owned->storage_mounted,
-                   operations->storage_unmount);
+    teardown_stage(operations, &result,
+                   owned->storage_mounted || operations->storage_owns_mount(operations->context),
+                   &owned->storage_mounted, operations->storage_unmount);
     teardown_stage(operations, &result, owned->nvs_initialized, &owned->nvs_initialized,
                    operations->nvs_deinit);
 
