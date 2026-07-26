@@ -1,6 +1,12 @@
 idf_component_register(
     SRCS
-    "web_server.c"
+    "web_server_common.c"
+    "web_server_status_limits.c"
+    "web_server_login.c"
+    "web_server_logout_execution.c"
+    "web_server_cancel.c"
+    "web_server_static.c"
+    "web_server_lifecycle.c"
     "web_server_adapter.c"
     "web_cookie.c"
     "web_origin.c"
