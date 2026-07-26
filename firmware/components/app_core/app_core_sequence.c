@@ -29,7 +29,9 @@ static void log_stage(const app_core_ops_t *operations, const char *stage,
         .type = APP_CORE_LOG_STAGE,
         .stage = stage,
         .primary_error = result,
-        .secondary_error = APP_ERROR_NONE,
+        .cleanup_error = APP_ERROR_NONE,
+        .cleanup_incomplete = false,
+        .operation_id = 0U,
         .ssid = NULL,
         .ap_passphrase = NULL,
         .web_password = NULL,
@@ -38,12 +40,15 @@ static void log_stage(const app_core_ops_t *operations, const char *stage,
 }
 
 static void log_simple(const app_core_ops_t *operations, app_core_log_type_t type,
-                       app_error_code_t primary, app_error_code_t secondary) {
+                       app_error_code_t primary, app_error_code_t cleanup,
+                       bool cleanup_incomplete) {
     const app_core_log_event_t event = {
         .type = type,
         .stage = NULL,
         .primary_error = primary,
-        .secondary_error = secondary,
+        .cleanup_error = cleanup,
+        .cleanup_incomplete = cleanup_incomplete,
+        .operation_id = 0U,
         .ssid = NULL,
         .ap_passphrase = NULL,
         .web_password = NULL,
@@ -57,7 +62,9 @@ static void log_credentials(const app_core_ops_t *operations, const char *ssid,
         .type = APP_CORE_LOG_DEVELOPMENT_CREDENTIALS,
         .stage = NULL,
         .primary_error = APP_ERROR_NONE,
-        .secondary_error = APP_ERROR_NONE,
+        .cleanup_error = APP_ERROR_NONE,
+        .cleanup_incomplete = false,
+        .operation_id = 0U,
         .ssid = ssid,
         .ap_passphrase = ap_passphrase,
         .web_password = web_password,
@@ -106,7 +113,7 @@ static app_error_code_t cleanup_after_failure(const app_core_ops_t *operations, 
         cleanup_error = indicator_result;
     }
     if (cleanup_error != APP_ERROR_NONE) {
-        log_simple(operations, APP_CORE_LOG_CLEANUP_FAILED, original, cleanup_error);
+        log_simple(operations, APP_CORE_LOG_CLEANUP_FAILED, original, cleanup_error, true);
     }
     return original;
 }
@@ -202,7 +209,7 @@ app_error_code_t app_core_sequence_start(const app_core_ops_t *operations,
     if (result == APP_ERROR_STORAGE_CORRUPT) {
         storage_degraded = true;
         log_simple(operations, APP_CORE_LOG_STORAGE_DEGRADED, APP_ERROR_STORAGE_CORRUPT,
-                   APP_ERROR_NONE);
+                   APP_ERROR_NONE, false);
     } else {
         log_stage(operations, "storage_recovery", result);
         if (result != APP_ERROR_NONE) {
@@ -248,7 +255,7 @@ app_error_code_t app_core_sequence_start(const app_core_ops_t *operations,
 
     if (!policy->development_provisioning_enabled) {
         log_simple(operations, APP_CORE_LOG_PROVISIONING_REQUIRED, APP_ERROR_AUTH_REQUIRED,
-                   APP_ERROR_NONE);
+                   APP_ERROR_NONE, false);
         return cleanup_after_failure(operations, web_started, wifi_started, storage_mounted,
                                      APP_ERROR_AUTH_REQUIRED);
     }

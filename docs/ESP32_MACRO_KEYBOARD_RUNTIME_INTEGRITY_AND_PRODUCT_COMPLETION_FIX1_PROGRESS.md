@@ -45,7 +45,7 @@
 | --- | --- | --- |
 | 1 | Establish the FIX1 baseline | done |
 | 2 | Make the quality gate fail closed | done |
-| 3 | Structured failure and ownership reporting | in progress (3.1 done; 3.2 open) |
+| 3 | Structured failure and ownership reporting | done |
 | 4 | Correct application lifecycle ownership | not started |
 | 5 | Correct HTTP partial-start lifecycle | not started |
 | 6 | Correct filesystem mount ownership and topology | not started |
@@ -85,6 +85,18 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 3.2 (structured startup log events): extended `app_core_log_event_t`
+  with `cleanup_error` (renamed from `secondary_error`), `cleanup_incomplete`,
+  and `operation_id`; the existing `stage` field is the affected-subsystem
+  indicator required by SPEC §3.2 (documented in the header). The console adapter
+  reports cleanup completeness; the cleanup path marks `cleanup_incomplete`.
+  Structured events never carry credentials/tokens/cookies/macro source (only the
+  development-only credentials event carries the dev AP/web strings). Host tests
+  add an exact ordered-stage assertion for a clean startup, a no-secret-leak
+  assertion across every structured event, and `cleanup_incomplete`/`operation_id`
+  checks on the cleanup event. `startup` suite passes, ASan/UBSan clean, full host
+  suite 18/18, firmware builds, fail-closed clang-tidy 0, check-format clean.
+  Phase 3 complete.
 - Phase 3.1 (structured operation result): new `support` component with
   `app_operation_result_t` (first primary error preserved; first cleanup error
   preserved separately; `cleanup_incomplete` flag), `app_operation_success` /

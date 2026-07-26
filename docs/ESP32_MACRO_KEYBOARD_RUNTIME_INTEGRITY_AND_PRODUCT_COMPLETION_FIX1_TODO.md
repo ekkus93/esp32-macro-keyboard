@@ -347,8 +347,8 @@ Add log fields for:
 - cleanup incomplete;
 - operation ID when available.
 
-- [ ] Ensure logs never include credentials, tokens, cookies, or macro source.
-- [ ] Add exact host assertions for event ordering and contents.
+- [x] Ensure logs never include credentials, tokens, cookies, or macro source.
+- [x] Add exact host assertions for event ordering and contents.
 
 ## 4. Correct application lifecycle ownership
 

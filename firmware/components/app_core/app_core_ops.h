@@ -1,6 +1,7 @@
 #ifndef APP_CORE_OPS_H
 #define APP_CORE_OPS_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -24,11 +25,22 @@ typedef enum {
     APP_CORE_LOG_CLEANUP_FAILED
 } app_core_log_type_t;
 
+/* Structured startup log event. The error fields mirror app_operation_result_t
+ * causality (see the support component): the primary error is never overwritten
+ * by a later cleanup error, the first cleanup error is preserved separately, and
+ * cleanup_incomplete records whether teardown ran to completion. Per FIX1 SPEC
+ * §3.2 the event also carries the affected subsystem (stage) and a stable
+ * operation identifier when one exists (0 when none, as during startup). These
+ * structured fields must never carry credentials, tokens, cookies, or macro
+ * source; the ssid/ap_passphrase/web_password fields are populated only for the
+ * development-only DEVELOPMENT_CREDENTIALS event. */
 typedef struct {
     app_core_log_type_t type;
     const char *stage;
     app_error_code_t primary_error;
-    app_error_code_t secondary_error;
+    app_error_code_t cleanup_error;
+    bool cleanup_incomplete;
+    uint32_t operation_id;
     const char *ssid;
     const char *ap_passphrase;
     const char *web_password;

@@ -157,8 +157,10 @@ static void adapter_log_event(void *context, const app_core_log_event_t *event) 
             "persistent encrypted provisioning is not implemented; refusing to start a network");
         break;
     case APP_CORE_LOG_CLEANUP_FAILED:
-        ESP_LOGE(TAG, "cleanup failed after %s: %s", app_error_code_string(event->primary_error),
-                 app_error_code_string(event->secondary_error));
+        ESP_LOGE(TAG, "cleanup failed after %s: %s (cleanup %s)",
+                 app_error_code_string(event->primary_error),
+                 app_error_code_string(event->cleanup_error),
+                 event->cleanup_incomplete ? "incomplete" : "complete");
         break;
     default:
         ESP_LOGE(TAG, "unknown startup log event");
