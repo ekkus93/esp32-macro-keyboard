@@ -92,7 +92,68 @@ static void test_list_full_is_rejected(void) {
                          storage_atomic_recovery_list_add(&list, "/data/overflow.tmp." VALID_UUID));
 }
 
+static storage_atomic_reconcile_action_t decide(bool canonical, size_t temporary_count,
+                                                bool temporary_valid, size_t backup_count,
+                                                bool backup_valid, bool roll_forward_proven) {
+    const storage_atomic_reconcile_state_t state = {
+        .canonical_present = canonical,
+        .temporary_count = temporary_count,
+        .temporary_valid = temporary_valid,
+        .backup_count = backup_count,
+        .backup_valid = backup_valid,
+        .roll_forward_proven = roll_forward_proven,
+    };
+    return storage_atomic_reconcile_decide(&state);
+}
+
+static void test_reconcile_decision(void) {
+    /* No artifacts. */
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_NOTHING, decide(false, 0U, false, 0U, false, false));
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_NOTHING, decide(true, 0U, false, 0U, false, false));
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_NOTHING, storage_atomic_reconcile_decide(NULL));
+
+    /* Conflicting: more than one temporary or backup, even with a canonical. */
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE,
+                      decide(false, 2U, true, 0U, false, false));
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE,
+                      decide(false, 0U, false, 2U, true, false));
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE, decide(true, 2U, true, 1U, true, false));
+
+    /* Canonical present is authoritative; stragglers are cleaned regardless of
+     * their validity. */
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_KEEP_CANONICAL,
+                      decide(true, 1U, true, 0U, false, false));
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_KEEP_CANONICAL,
+                      decide(true, 0U, false, 1U, true, false));
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_KEEP_CANONICAL,
+                      decide(true, 1U, false, 1U, false, false));
+
+    /* Canonical absent with a valid backup: restore it. The backup (old committed
+     * state) is preferred over any temporary, even a roll-forward-proven one. */
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_RESTORE_BACKUP,
+                      decide(false, 0U, false, 1U, true, false));
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_RESTORE_BACKUP,
+                      decide(false, 1U, true, 1U, true, true));
+
+    /* Canonical absent with a corrupt backup: nothing safe to restore. */
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE,
+                      decide(false, 0U, false, 1U, false, false));
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE,
+                      decide(false, 1U, true, 1U, false, false));
+
+    /* Canonical absent, only a temporary: activate only when roll-forward is
+     * proven, otherwise roll the interrupted write back; a malformed temporary is
+     * quarantined. */
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_DISCARD_TEMPORARY,
+                      decide(false, 1U, true, 0U, false, false));
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_ACTIVATE_TEMPORARY,
+                      decide(false, 1U, true, 0U, false, true));
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE,
+                      decide(false, 1U, false, 0U, false, false));
+}
+
 int main(void) {
+    test_reconcile_decision();
     test_parse_temporary();
     test_parse_backup();
     test_non_artifacts_are_skipped();

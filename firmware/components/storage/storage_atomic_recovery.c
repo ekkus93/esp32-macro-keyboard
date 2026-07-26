@@ -117,3 +117,42 @@ app_error_code_t storage_atomic_recovery_list_add(storage_atomic_artifact_list_t
     list->items[list->count++] = artifact;
     return APP_ERROR_NONE;
 }
+
+storage_atomic_reconcile_action_t
+storage_atomic_reconcile_decide(const storage_atomic_reconcile_state_t *state) {
+    if (state == NULL) {
+        return STORAGE_ATOMIC_RECONCILE_NOTHING;
+    }
+    /* More than one temporary or backup for a single destination is two
+     * interrupted writes racing: conflicting, quarantine the evidence. */
+    if (state->temporary_count > 1U || state->backup_count > 1U) {
+        return STORAGE_ATOMIC_RECONCILE_QUARANTINE;
+    }
+    if (state->canonical_present) {
+        /* The canonical file is fully written (the atomic barrier only publishes
+         * it once complete), so it is authoritative; any leftover temporary or
+         * backup is a straggler to remove. */
+        if (state->temporary_count == 0U && state->backup_count == 0U) {
+            return STORAGE_ATOMIC_RECONCILE_NOTHING;
+        }
+        return STORAGE_ATOMIC_RECONCILE_KEEP_CANONICAL;
+    }
+    /* Canonical is absent. A backup is the previous committed state: restore it
+     * when it is valid, otherwise there is nothing safe to activate -- quarantine
+     * the corrupt backup rather than resurrect bad state. */
+    if (state->backup_count == 1U) {
+        return state->backup_valid ? STORAGE_ATOMIC_RECONCILE_RESTORE_BACKUP
+                                   : STORAGE_ATOMIC_RECONCILE_QUARANTINE;
+    }
+    /* Only a temporary remains. A malformed temporary is quarantined; a valid one
+     * is activated only when the owning transaction proves roll-forward, and
+     * otherwise discarded (the interrupted write is rolled back). */
+    if (state->temporary_count == 1U) {
+        if (!state->temporary_valid) {
+            return STORAGE_ATOMIC_RECONCILE_QUARANTINE;
+        }
+        return state->roll_forward_proven ? STORAGE_ATOMIC_RECONCILE_ACTIVATE_TEMPORARY
+                                          : STORAGE_ATOMIC_RECONCILE_DISCARD_TEMPORARY;
+    }
+    return STORAGE_ATOMIC_RECONCILE_NOTHING;
+}
