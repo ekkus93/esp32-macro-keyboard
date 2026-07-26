@@ -1,7 +1,10 @@
 idf_component_register(
     SRCS
     "auth.c"
-    "auth_core.c"
+    "auth_core_common.c"
+    "auth_core_password.c"
+    "auth_core_session.c"
+    "auth_core_rate_limit.c"
     INCLUDE_DIRS
     "include"
     PRIV_INCLUDE_DIRS

@@ -1,9 +1,15 @@
-#define LOW_NIBBLE_MASK 0x0fU
 #include "auth_core.h"
 
+#include <stdint.h>
 #include <string.h>
 
+#include "app_error.h"
+#include "auth.h"
 #include "auth_core_internal.h"
+#include "auth_ops.h"
+#include "macro_limits.h"
+
+#define LOW_NIBBLE_MASK 0x0fU
 
 static bool operations_valid(const auth_ops_t *operations) {
     return operations != NULL && operations->lock != NULL && operations->unlock != NULL &&

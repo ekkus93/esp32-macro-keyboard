@@ -1,12 +1,14 @@
 #include "auth_core.h"
 
+#include <stdint.h>
 #include <string.h>
 
+#include "app_error.h"
+#include "auth.h"
 #include "auth_core_internal.h"
+#include "macro_limits.h"
 
-app_error_code_t auth_core_session_create(auth_core_t *core,
-                                          auth_session_view_t *out_session)
-{
+app_error_code_t auth_core_session_create(auth_core_t *core, auth_session_view_t *out_session) {
     if (core == NULL || out_session == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -22,8 +24,7 @@ app_error_code_t auth_core_session_create(auth_core_t *core,
     auth_session_entry_t *slot = NULL;
     if (result == APP_ERROR_NONE) {
         for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
-            if (!core->sessions[index].active ||
-                core->sessions[index].view.expires_at_us <= now) {
+            if (!core->sessions[index].active || core->sessions[index].view.expires_at_us <= now) {
                 slot = &core->sessions[index];
                 break;
             }
@@ -35,8 +36,7 @@ app_error_code_t auth_core_session_create(auth_core_t *core,
     if (result == APP_ERROR_NONE) {
         memset(slot, 0, sizeof(*slot));
         result = auth_core_generate_session_tokens(core, &slot->view);
-        if (result == APP_ERROR_NONE &&
-            UINT64_MAX - now < AUTH_CORE_SESSION_IDLE_US) {
+        if (result == APP_ERROR_NONE && UINT64_MAX - now < AUTH_CORE_SESSION_IDLE_US) {
             result = APP_ERROR_INTERNAL;
         }
         if (result == APP_ERROR_NONE) {
@@ -56,10 +56,8 @@ app_error_code_t auth_core_session_create(auth_core_t *core,
     return result;
 }
 
-app_error_code_t auth_core_session_validate(auth_core_t *core,
-                                            const char *session_token,
-                                            const char *csrf_token)
-{
+app_error_code_t auth_core_session_validate(auth_core_t *core, const char *session_token,
+                                            const char *csrf_token) {
     if (core == NULL || !auth_core_valid_hex_token(session_token) ||
         !auth_core_valid_hex_token(csrf_token)) {
         return APP_ERROR_AUTH_REQUIRED;
@@ -83,14 +81,12 @@ app_error_code_t auth_core_session_validate(auth_core_t *core,
                 memset(entry, 0, sizeof(*entry));
                 continue;
             }
-            if (auth_core_constant_time_equal(
-                    (const uint8_t *)entry->view.session_token,
-                    (const uint8_t *)session_token,
-                    AUTH_TOKEN_HEX_BYTES - 1U) &&
-                auth_core_constant_time_equal(
-                    (const uint8_t *)entry->view.csrf_token,
-                    (const uint8_t *)csrf_token,
-                    AUTH_TOKEN_HEX_BYTES - 1U)) {
+            if (auth_core_constant_time_equal((const uint8_t *)entry->view.session_token,
+                                              (const uint8_t *)session_token,
+                                              AUTH_TOKEN_HEX_BYTES - 1U) &&
+                auth_core_constant_time_equal((const uint8_t *)entry->view.csrf_token,
+                                              (const uint8_t *)csrf_token,
+                                              AUTH_TOKEN_HEX_BYTES - 1U)) {
                 if (UINT64_MAX - now < AUTH_CORE_SESSION_IDLE_US) {
                     result = APP_ERROR_INTERNAL;
                 } else {
@@ -108,9 +104,7 @@ app_error_code_t auth_core_session_validate(auth_core_t *core,
     return result;
 }
 
-app_error_code_t auth_core_session_logout(auth_core_t *core,
-                                          const char *session_token)
-{
+app_error_code_t auth_core_session_logout(auth_core_t *core, const char *session_token) {
     if (core == NULL || !auth_core_valid_hex_token(session_token)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -123,10 +117,9 @@ app_error_code_t auth_core_session_logout(auth_core_t *core,
     result = APP_ERROR_NOT_FOUND;
     for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
         if (core->sessions[index].active &&
-            auth_core_constant_time_equal(
-                (const uint8_t *)core->sessions[index].view.session_token,
-                (const uint8_t *)session_token,
-                AUTH_TOKEN_HEX_BYTES - 1U)) {
+            auth_core_constant_time_equal((const uint8_t *)core->sessions[index].view.session_token,
+                                          (const uint8_t *)session_token,
+                                          AUTH_TOKEN_HEX_BYTES - 1U)) {
             memset(&core->sessions[index], 0, sizeof(core->sessions[index]));
             result = APP_ERROR_NONE;
             break;

@@ -1,21 +1,22 @@
-#define MICROSECONDS_PER_SECOND 1000000ULL
 #include "auth_core.h"
 
 #include <limits.h>
+#include <stddef.h>
+#include <stdint.h>
 
+#include "app_error.h"
 #include "auth_core_internal.h"
 
-static void reset_window(auth_core_t *core, uint64_t now)
-{
+#define MICROSECONDS_PER_SECOND 1000000ULL
+
+static void reset_window(auth_core_t *core, uint64_t now) {
     core->failure_window_start_us = now;
     core->failure_count = 0U;
     core->failure_window_active = true;
 }
 
-app_error_code_t auth_core_login_attempt_allowed(
-    auth_core_t *core,
-    uint32_t *out_retry_after_seconds)
-{
+app_error_code_t auth_core_login_attempt_allowed(auth_core_t *core,
+                                                 uint32_t *out_retry_after_seconds) {
     if (core == NULL || out_retry_after_seconds == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -30,14 +31,12 @@ app_error_code_t auth_core_login_attempt_allowed(
     result = auth_core_read_now(core, &now);
     if (result == APP_ERROR_NONE) {
         if (!core->failure_window_active ||
-            now - core->failure_window_start_us >=
-                AUTH_CORE_FAILURE_WINDOW_US) {
+            now - core->failure_window_start_us >= AUTH_CORE_FAILURE_WINDOW_US) {
             reset_window(core, now);
         }
         if (core->failure_count >= AUTH_CORE_MAX_FAILURES) {
             const uint64_t remaining =
-                AUTH_CORE_FAILURE_WINDOW_US -
-                (now - core->failure_window_start_us);
+                AUTH_CORE_FAILURE_WINDOW_US - (now - core->failure_window_start_us);
             *out_retry_after_seconds =
                 (uint32_t)((remaining + MICROSECONDS_PER_SECOND - 1ULL) / MICROSECONDS_PER_SECOND);
             result = APP_ERROR_RATE_LIMITED;
@@ -51,8 +50,7 @@ app_error_code_t auth_core_login_attempt_allowed(
     return result;
 }
 
-app_error_code_t auth_core_login_record_failure(auth_core_t *core)
-{
+app_error_code_t auth_core_login_record_failure(auth_core_t *core) {
     if (core == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -66,8 +64,7 @@ app_error_code_t auth_core_login_record_failure(auth_core_t *core)
     result = auth_core_read_now(core, &now);
     if (result == APP_ERROR_NONE) {
         if (!core->failure_window_active ||
-            now - core->failure_window_start_us >=
-                AUTH_CORE_FAILURE_WINDOW_US) {
+            now - core->failure_window_start_us >= AUTH_CORE_FAILURE_WINDOW_US) {
             reset_window(core, now);
         }
         if (core->failure_count < UINT32_MAX) {
@@ -81,8 +78,7 @@ app_error_code_t auth_core_login_record_failure(auth_core_t *core)
     return result;
 }
 
-app_error_code_t auth_core_login_record_success(auth_core_t *core)
-{
+app_error_code_t auth_core_login_record_success(auth_core_t *core) {
     if (core == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }

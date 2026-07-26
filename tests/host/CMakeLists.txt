@@ -88,7 +88,14 @@ target_compile_options(macro_executor_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME macro_executor COMMAND macro_executor_tests)
 set_tests_properties(macro_executor PROPERTIES LABELS "executor")
 
-add_executable(auth_tests test_auth.c ../../firmware/components/auth/auth_core.c)
+add_executable(
+    auth_tests
+    test_auth.c
+    ../../firmware/components/auth/auth_core_common.c
+    ../../firmware/components/auth/auth_core_password.c
+    ../../firmware/components/auth/auth_core_session.c
+    ../../firmware/components/auth/auth_core_rate_limit.c
+)
 target_include_directories(
     auth_tests PRIVATE ../../firmware/components/macro_model/include
                        ../../firmware/components/auth/include ../../firmware/components/auth
