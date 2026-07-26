@@ -9,5 +9,7 @@ shellcheck "${shell_files[@]}"
 shfmt -d "${shell_files[@]}"
 bash -n "${shell_files[@]}"
 
-# Regression tests for the fail-closed clang-tidy gate (FIX1 Phase 2.2).
+# Regression tests for the fail-closed clang-tidy gate (FIX1 Phase 2.2) and the
+# static-analysis exception policy (FIX1 RESPONSES Q2).
 bash tests/scripts/test-check-firmware.sh
+bash tests/scripts/test-static-analysis-policy.sh

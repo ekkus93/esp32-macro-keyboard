@@ -7,6 +7,7 @@ cd "${repo_root}"
 
 ./scripts/verify-toolchain.sh
 ./scripts/check-format.sh
+./scripts/check-static-analysis-policy.sh
 ./scripts/check-firmware.sh
 ./scripts/check-webapp.sh
 ./scripts/check-scripts.sh
