@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Fake run-clang-tidy for the check-firmware.sh regression tests. Emits the
+# controlled report on FAKE_RCT_STDOUT and exits with FAKE_RCT_STATUS, ignoring
+# all real arguments. This lets the fail-closed logic be exercised deterministically
+# without a real analyzer or firmware build.
+set -euo pipefail
+
+if [[ -n "${FAKE_RCT_STDOUT:-}" ]]; then
+	printf '%s\n' "${FAKE_RCT_STDOUT}"
+fi
+exit "${FAKE_RCT_STATUS:-0}"

@@ -31,6 +31,12 @@
 #     families so the required includes are kept, not flagged unused.
 #   - cstddef, cstdint: the tool suggests C++ wrapper spellings for C stdlib
 #     symbols; the C headers <stddef.h> / <stdint.h> are enforced instead.
+# misc-header-include-cycle is enforced on first-party headers. Its
+# IgnoredFilesList excludes only ESP-IDF and managed-component roots, where a
+# real include cycle exists in FreeRTOS's idf_additions.h that we cannot fix.
+# Excluding it before diagnostics are emitted lets check-firmware.sh preserve
+# run-clang-tidy's exit status (fail closed) rather than post-filtering by
+# finding location; a genuine first-party include cycle is still reported.
 # cognitive-complexity and magic-numbers are kept, tuned with IgnoreMacros so
 # they measure first-party source rather than ESP_LOG/HW-register macro
 # expansions.
@@ -61,6 +67,7 @@ HeaderFilterRegex: '/firmware/(main/|components/|test_app/main/)'
 FormatStyle: file
 CheckOptions:
   misc-include-cleaner.IgnoreHeaders: '.*esp-idf.*;.*managed_components.*;.*/machine/.*;.*/sys/_.*;.*/sys/dirent\.h;.*/unistd\.h;.*/errno\.h;cstddef;cstdint'
+  misc-header-include-cycle.IgnoredFilesList: '.*esp-idf.*;.*managed_components.*'
   bugprone-easily-swappable-parameters.IgnoredParameterNames: '"";iterator;Iterator;begin;Begin;end;End;first;First;last;Last;lhs;LHS;rhs;RHS;context;instance;report_id;report_type'
   readability-function-cognitive-complexity.IgnoreMacros: 'true'
   readability-magic-numbers.IgnoreMacros: 'true'

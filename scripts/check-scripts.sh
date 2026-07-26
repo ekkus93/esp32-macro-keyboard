@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-shellcheck scripts/*.sh
-shfmt -d scripts/*.sh
-bash -n scripts/*.sh
+# First-party shell sources: the authoritative scripts, the script regression
+# tests, and their fakes (the fake analyzer has a bash shebang but no extension).
+shell_files=(scripts/*.sh tests/scripts/*.sh tests/scripts/fakes/run-clang-tidy)
+
+shellcheck "${shell_files[@]}"
+shfmt -d "${shell_files[@]}"
+bash -n "${shell_files[@]}"
+
+# Regression tests for the fail-closed clang-tidy gate (FIX1 Phase 2.2).
+bash tests/scripts/test-check-firmware.sh
