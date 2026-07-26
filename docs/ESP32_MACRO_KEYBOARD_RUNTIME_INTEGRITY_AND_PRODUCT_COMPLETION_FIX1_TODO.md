@@ -764,12 +764,21 @@ Add deterministic tests for all canonical/temporary/backup combinations.
 
 Required conservative behavior:
 
-- [ ] restore a valid backup when canonical is absent;
-- [ ] preserve the old committed state when operation intent is ambiguous;
-- [ ] activate a temporary only when the owning transaction proves roll-forward;
-- [ ] quarantine malformed or conflicting artifacts;
-- [ ] check every rename, unlink, close, and parent sync;
-- [ ] retain recovery evidence when cleanup fails.
+- [x] restore a valid backup when canonical is absent;
+- [x] preserve the old committed state when operation intent is ambiguous;
+- [x] activate a temporary only when the owning transaction proves roll-forward;
+- [x] quarantine malformed or conflicting artifacts;
+- [x] check every rename, unlink, close, and parent sync;
+- [x] retain recovery evidence when cleanup fails.
+
+Note: the executor scans the mount root, `global/`, `transactions/`, and every
+`sets/` and `staging/` subdirectory. `quarantine/` is intentionally not scanned
+for reconciliation (its own atomic artifacts cannot be re-quarantined, since
+`safe_source_path` excludes the quarantine root); handling quarantine-record
+artifacts is tracked as a small residual. At the atomic layer roll-forward is
+never proven (the barrier only publishes a canonical name once fully written), so
+the executor always rolls interrupted writes back; transaction-level completion
+is handled by transaction recovery, which runs after (§7.4).
 
 ### 7.4 Run atomic recovery before transaction recovery
 

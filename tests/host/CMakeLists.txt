@@ -239,16 +239,32 @@ set_tests_properties(storage_mount PROPERTIES LABELS "storage")
 
 add_executable(
     storage_atomic_recovery_tests
-    test_storage_atomic_recovery.c ../../firmware/components/macro_model/app_error.c
+    test_storage_atomic_recovery.c
+    ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/macro_model/macro_model.c
+    ../../firmware/components/storage/storage_atomic.c
     ../../firmware/components/storage/storage_atomic_recovery.c
+    ../../firmware/components/storage/storage_atomic_validators.c
+    ../../firmware/components/storage/storage_fs_ops.c
+    ../../firmware/components/storage/storage_paths.c
+    ../../firmware/components/storage/storage_transaction.c
+    ../../firmware/components/storage/storage_repository_io.c
+    ../../firmware/components/storage/storage_repository_json.c
+    ../../firmware/components/storage/storage_repository_index.c
+    ../../firmware/components/storage/storage_repository_sets.c
+    ../../firmware/components/storage/storage_quarantine.c
 )
 target_include_directories(
     storage_atomic_recovery_tests
     PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
             ../../firmware/components/storage
 )
-target_link_libraries(storage_atomic_recovery_tests PRIVATE test_support)
+target_compile_definitions(
+    storage_atomic_recovery_tests
+    PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-recovery-data"
+)
+target_link_libraries(storage_atomic_recovery_tests PRIVATE PkgConfig::CJSON test_support)
 target_compile_options(storage_atomic_recovery_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME storage_atomic_recovery COMMAND storage_atomic_recovery_tests)
 set_tests_properties(storage_atomic_recovery PROPERTIES LABELS "storage")

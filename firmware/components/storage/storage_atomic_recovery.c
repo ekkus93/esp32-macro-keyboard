@@ -1,12 +1,21 @@
 #include "storage_atomic_recovery.h"
 
+#include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "app_error.h"
 #include "app_uuid.h"
 #include "macro_limits.h"
+#include "storage.h"
+#include "storage_atomic_internal.h"
+#include "storage_atomic_validators.h"
+#include "storage_fs_ops.h"
+#include "storage_quarantine_internal.h"
 
 /* ".tmp." / ".bak." marker (5 chars) + a 36-char UUID. */
 #define ARTIFACT_MARKER_LENGTH 5U
@@ -144,15 +153,353 @@ storage_atomic_reconcile_decide(const storage_atomic_reconcile_state_t *state) {
         return state->backup_valid ? STORAGE_ATOMIC_RECONCILE_RESTORE_BACKUP
                                    : STORAGE_ATOMIC_RECONCILE_QUARANTINE;
     }
-    /* Only a temporary remains. A malformed temporary is quarantined; a valid one
-     * is activated only when the owning transaction proves roll-forward, and
-     * otherwise discarded (the interrupted write is rolled back). */
+    /* Only a temporary remains. A temporary is by definition an incomplete write
+     * (the barrier would have published the canonical name otherwise), so when the
+     * owning transaction does not prove roll-forward it is simply discarded and its
+     * content-validity is irrelevant. It is activated only when roll-forward is
+     * proven AND the bytes are valid; a proven-but-corrupt temporary is
+     * quarantined as evidence. */
     if (state->temporary_count == 1U) {
-        if (!state->temporary_valid) {
-            return STORAGE_ATOMIC_RECONCILE_QUARANTINE;
+        if (state->roll_forward_proven) {
+            return state->temporary_valid ? STORAGE_ATOMIC_RECONCILE_ACTIVATE_TEMPORARY
+                                          : STORAGE_ATOMIC_RECONCILE_QUARANTINE;
         }
-        return state->roll_forward_proven ? STORAGE_ATOMIC_RECONCILE_ACTIVATE_TEMPORARY
-                                          : STORAGE_ATOMIC_RECONCILE_DISCARD_TEMPORARY;
+        return STORAGE_ATOMIC_RECONCILE_DISCARD_TEMPORARY;
     }
     return STORAGE_ATOMIC_RECONCILE_NOTHING;
+}
+
+/* ---- Executor: enumerate, group by destination, decide, and apply. ---- */
+
+typedef struct {
+    const char *temporary_path;
+    const char *backup_path;
+} destination_artifacts_t;
+
+static app_error_code_t recovery_map_errno(int error_number) {
+    return error_number == ENOSPC ? APP_ERROR_STORAGE_FULL : APP_ERROR_IO;
+}
+
+static app_error_code_t sync_parent(const storage_fs_ops_t *operations, const char *path) {
+    if (storage_fs_sync_parent_path(operations->context, path) != 0) {
+        return recovery_map_errno(errno);
+    }
+    return APP_ERROR_NONE;
+}
+
+/* Add every artifact file in one directory to the list. Non-artifact and
+ * unparseable names are skipped; a missing directory is not an error. */
+static app_error_code_t scan_directory(const storage_fs_ops_t *operations, const char *directory,
+                                       storage_atomic_artifact_list_t *list) {
+    void *handle = operations->open_directory(operations->context, directory);
+    if (handle == NULL) {
+        const int open_error = errno;
+        return (open_error == ENOENT || open_error == ENOTDIR) ? APP_ERROR_NONE
+                                                               : recovery_map_errno(open_error);
+    }
+    app_error_code_t result = APP_ERROR_NONE;
+    while (true) {
+        char name[STORAGE_FS_ENTRY_NAME_MAX];
+        bool end = false;
+        if (operations->read_directory(operations->context, handle, name, sizeof(name), &end) !=
+            0) {
+            result = recovery_map_errno(errno);
+            break;
+        }
+        if (end) {
+            break;
+        }
+        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+            continue;
+        }
+        char path[APP_PATH_MAX_BYTES];
+        const int written = snprintf(path, sizeof(path), "%s/%s", directory, name);
+        if (written < 0 || (size_t)written >= sizeof(path)) {
+            result = APP_ERROR_IO;
+            break;
+        }
+        const app_error_code_t add = storage_atomic_recovery_list_add(list, path);
+        if (add == APP_ERROR_STORAGE_FULL) {
+            result = add;
+            break;
+        }
+        /* NOT_FOUND (not an artifact), INVALID_ARGUMENT (malformed name), and
+         * CONFLICT (duplicate) are all simply not added. */
+    }
+    if (operations->close_directory(operations->context, handle) != 0 && result == APP_ERROR_NONE) {
+        result = recovery_map_errno(errno);
+    }
+    return result;
+}
+
+/* Scan every immediate subdirectory of `parent` for artifacts (used for sets/ and
+ * staging/, whose children are per-set / per-transaction directories). */
+static app_error_code_t scan_subdirectories(const storage_fs_ops_t *operations, const char *parent,
+                                            storage_atomic_artifact_list_t *list) {
+    void *handle = operations->open_directory(operations->context, parent);
+    if (handle == NULL) {
+        const int open_error = errno;
+        return open_error == ENOENT ? APP_ERROR_NONE : recovery_map_errno(open_error);
+    }
+    app_error_code_t result = APP_ERROR_NONE;
+    while (true) {
+        char name[STORAGE_FS_ENTRY_NAME_MAX];
+        bool end = false;
+        if (operations->read_directory(operations->context, handle, name, sizeof(name), &end) !=
+            0) {
+            result = recovery_map_errno(errno);
+            break;
+        }
+        if (end) {
+            break;
+        }
+        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+            continue;
+        }
+        char path[APP_PATH_MAX_BYTES];
+        const int written = snprintf(path, sizeof(path), "%s/%s", parent, name);
+        if (written < 0 || (size_t)written >= sizeof(path)) {
+            result = APP_ERROR_IO;
+            break;
+        }
+        result = scan_directory(operations, path, list);
+        if (result != APP_ERROR_NONE) {
+            break;
+        }
+    }
+    if (operations->close_directory(operations->context, handle) != 0 && result == APP_ERROR_NONE) {
+        result = recovery_map_errno(errno);
+    }
+    return result;
+}
+
+static app_error_code_t collect_all_artifacts(const storage_fs_ops_t *operations,
+                                              storage_atomic_artifact_list_t *list) {
+    app_error_code_t result = scan_directory(operations, STORAGE_DATA_MOUNT, list);
+    if (result == APP_ERROR_NONE) {
+        result = scan_directory(operations, STORAGE_DATA_MOUNT "/global", list);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = scan_directory(operations, STORAGE_DATA_MOUNT "/transactions", list);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = scan_subdirectories(operations, STORAGE_DATA_MOUNT "/sets", list);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = scan_subdirectories(operations, STORAGE_DATA_MOUNT "/staging", list);
+    }
+    return result;
+}
+
+static void gather_destination(const storage_atomic_artifact_list_t *list, const char *destination,
+                               storage_atomic_reconcile_state_t *state,
+                               destination_artifacts_t *artifacts) {
+    memset(state, 0, sizeof(*state));
+    artifacts->temporary_path = NULL;
+    artifacts->backup_path = NULL;
+    for (size_t index = 0U; index < list->count; ++index) {
+        const storage_atomic_artifact_t *artifact = &list->items[index];
+        if (strcmp(artifact->destination, destination) != 0) {
+            continue;
+        }
+        if (artifact->kind == STORAGE_ATOMIC_ARTIFACT_TEMPORARY) {
+            ++state->temporary_count;
+            artifacts->temporary_path = artifact->artifact_path;
+        } else {
+            ++state->backup_count;
+            artifacts->backup_path = artifact->artifact_path;
+        }
+    }
+}
+
+/* Unlink the destination's artifacts (all, or only temporaries). A missing file is
+ * not an error; the first genuine failure is returned so the artifacts are left in
+ * place for a retry rather than silently lost. */
+static app_error_code_t remove_destination_artifacts(const storage_fs_ops_t *operations,
+                                                     const storage_atomic_artifact_list_t *list,
+                                                     const char *destination,
+                                                     bool temporaries_only) {
+    app_error_code_t result = APP_ERROR_NONE;
+    for (size_t index = 0U; index < list->count; ++index) {
+        const storage_atomic_artifact_t *artifact = &list->items[index];
+        if (strcmp(artifact->destination, destination) != 0) {
+            continue;
+        }
+        if (temporaries_only && artifact->kind != STORAGE_ATOMIC_ARTIFACT_TEMPORARY) {
+            continue;
+        }
+        if (operations->unlink_path(operations->context, artifact->artifact_path) != 0) {
+            const int unlink_error = errno;
+            if (unlink_error != ENOENT && result == APP_ERROR_NONE) {
+                result = recovery_map_errno(unlink_error);
+            }
+        }
+    }
+    return result;
+}
+
+static app_error_code_t quarantine_destination_artifacts(const storage_fs_ops_t *operations,
+                                                         storage_uuid_generate_fn generate_uuid,
+                                                         void *uuid_context,
+                                                         const storage_atomic_artifact_list_t *list,
+                                                         const char *destination) {
+    app_error_code_t result = APP_ERROR_NONE;
+    for (size_t index = 0U; index < list->count; ++index) {
+        const storage_atomic_artifact_t *artifact = &list->items[index];
+        if (strcmp(artifact->destination, destination) != 0) {
+            continue;
+        }
+        storage_quarantine_entry_t entry;
+        const app_error_code_t quarantine_result = storage_quarantine_file_with_ops(
+            artifact->artifact_path, "unreconcilable atomic-write artifact", &entry, operations,
+            generate_uuid, uuid_context);
+        /* Retain evidence: on failure the artifact stays in place and the error is
+         * reported so recovery is retried rather than the evidence lost. */
+        if (quarantine_result != APP_ERROR_NONE && result == APP_ERROR_NONE) {
+            result = quarantine_result;
+        }
+    }
+    return result;
+}
+
+static app_error_code_t restore_backup(const storage_fs_ops_t *operations,
+                                       const storage_atomic_artifact_list_t *list,
+                                       const char *destination,
+                                       const destination_artifacts_t *artifacts) {
+    if (operations->rename_path(operations->context, artifacts->backup_path, destination) != 0) {
+        return recovery_map_errno(errno);
+    }
+    app_error_code_t result = sync_parent(operations, destination);
+    const app_error_code_t remove_result =
+        remove_destination_artifacts(operations, list, destination, true);
+    if (result == APP_ERROR_NONE) {
+        result = remove_result;
+    }
+    const app_error_code_t sync_result = sync_parent(operations, destination);
+    return result == APP_ERROR_NONE ? sync_result : result;
+}
+
+static app_error_code_t activate_temporary(const storage_fs_ops_t *operations,
+                                           const storage_atomic_artifact_list_t *list,
+                                           const char *destination,
+                                           const destination_artifacts_t *artifacts) {
+    if (operations->rename_path(operations->context, artifacts->temporary_path, destination) != 0) {
+        return recovery_map_errno(errno);
+    }
+    app_error_code_t result = sync_parent(operations, destination);
+    /* The temporary is now the canonical file; remove any leftover backup. */
+    const app_error_code_t remove_result =
+        remove_destination_artifacts(operations, list, destination, false);
+    if (result == APP_ERROR_NONE) {
+        result = remove_result;
+    }
+    const app_error_code_t sync_result = sync_parent(operations, destination);
+    return result == APP_ERROR_NONE ? sync_result : result;
+}
+
+static app_error_code_t
+execute_reconcile_action(const storage_fs_ops_t *operations, storage_uuid_generate_fn generate_uuid,
+                         void *uuid_context, const storage_atomic_artifact_list_t *list,
+                         const char *destination, storage_atomic_reconcile_action_t action,
+                         const destination_artifacts_t *artifacts) {
+    switch (action) {
+    case STORAGE_ATOMIC_RECONCILE_NOTHING:
+        return APP_ERROR_NONE;
+    case STORAGE_ATOMIC_RECONCILE_KEEP_CANONICAL: {
+        const app_error_code_t result =
+            remove_destination_artifacts(operations, list, destination, false);
+        return result == APP_ERROR_NONE ? sync_parent(operations, destination) : result;
+    }
+    case STORAGE_ATOMIC_RECONCILE_RESTORE_BACKUP:
+        return restore_backup(operations, list, destination, artifacts);
+    case STORAGE_ATOMIC_RECONCILE_ACTIVATE_TEMPORARY:
+        return activate_temporary(operations, list, destination, artifacts);
+    case STORAGE_ATOMIC_RECONCILE_DISCARD_TEMPORARY: {
+        const app_error_code_t result =
+            remove_destination_artifacts(operations, list, destination, true);
+        return result == APP_ERROR_NONE ? sync_parent(operations, destination) : result;
+    }
+    case STORAGE_ATOMIC_RECONCILE_QUARANTINE:
+        return quarantine_destination_artifacts(operations, generate_uuid, uuid_context, list,
+                                                destination);
+    default:
+        return APP_ERROR_INTERNAL;
+    }
+}
+
+static app_error_code_t reconcile_destination(const storage_fs_ops_t *operations,
+                                              storage_uuid_generate_fn generate_uuid,
+                                              void *uuid_context,
+                                              const storage_atomic_artifact_list_t *list,
+                                              const char *destination) {
+    storage_atomic_reconcile_state_t state;
+    destination_artifacts_t artifacts;
+    gather_destination(list, destination, &state, &artifacts);
+
+    struct stat metadata;
+    state.canonical_present =
+        operations->stat_path(operations->context, destination, &metadata) == 0;
+    /* Validate the backup only when it is the restore source (canonical absent).
+     * A temporary is never validated: it is discarded unless roll-forward is
+     * proven, which never happens at the atomic layer. */
+    if (!state.canonical_present && state.backup_count == 1U) {
+        state.backup_valid = storage_atomic_validate_candidate(
+                                 operations, destination, artifacts.backup_path) == APP_ERROR_NONE;
+    }
+    state.roll_forward_proven = false;
+
+    const storage_atomic_reconcile_action_t action = storage_atomic_reconcile_decide(&state);
+    return execute_reconcile_action(operations, generate_uuid, uuid_context, list, destination,
+                                    action, &artifacts);
+}
+
+static bool destination_already_seen(const storage_atomic_artifact_list_t *list, size_t upto) {
+    for (size_t prior = 0U; prior < upto; ++prior) {
+        if (strcmp(list->items[prior].destination, list->items[upto].destination) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+app_error_code_t storage_atomic_recover_all_with_ops(const storage_fs_ops_t *operations,
+                                                     storage_uuid_generate_fn generate_uuid,
+                                                     void *uuid_context) {
+    if (!storage_fs_ops_has_directory(operations) || generate_uuid == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    /* The artifact list is large; allocate it rather than place it on the task
+     * stack. Recovery is single-threaded at startup. */
+    storage_atomic_artifact_list_t *list = calloc(1U, sizeof(*list));
+    if (list == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
+    app_error_code_t result = collect_all_artifacts(operations, list);
+    /* Reconcile each distinct destination once. Every destination is attempted
+     * even if one fails; the first error is kept. Skipped when enumeration failed
+     * (the list may be incomplete). */
+    if (result == APP_ERROR_NONE) {
+        for (size_t index = 0U; index < list->count; ++index) {
+            if (destination_already_seen(list, index)) {
+                continue;
+            }
+            const app_error_code_t reconcile_result = reconcile_destination(
+                operations, generate_uuid, uuid_context, list, list->items[index].destination);
+            if (reconcile_result != APP_ERROR_NONE && result == APP_ERROR_NONE) {
+                result = reconcile_result;
+            }
+        }
+    }
+    free(list);
+    return result;
+}
+
+static app_error_code_t production_uuid_generate(void *context, app_uuid_t *out_uuid) {
+    (void)context;
+    return app_uuid_generate(out_uuid);
+}
+
+app_error_code_t storage_atomic_recover_all(void) {
+    return storage_atomic_recover_all_with_ops(storage_fs_ops_posix(), production_uuid_generate,
+                                               NULL);
 }

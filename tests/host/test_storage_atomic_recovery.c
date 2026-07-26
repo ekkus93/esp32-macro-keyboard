@@ -1,12 +1,25 @@
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
+#include "app_uuid.h"
+#include "storage.h"
 #include "storage_atomic_recovery.h"
+#include "storage_fs_ops.h"
 #include "test_assert.h"
+#include "test_temp_dir.h"
 
 /* A canonical lowercase RFC-4122 v4 UUID (version nibble 4, variant nibble 8). */
 #define VALID_UUID "0a1b2c3d-0000-4000-8000-000000000001"
+#define OP_UUID "0a1b2c3d-0000-4000-8000-0000000000aa"
+#define OP_UUID_2 "0a1b2c3d-0000-4000-8000-0000000000ab"
+#define VALID_INDEX "{\"schema_version\":1,\"ids\":[]}"
 
 static void test_parse_temporary(void) {
     storage_atomic_artifact_t artifact;
@@ -141,19 +154,160 @@ static void test_reconcile_decision(void) {
     TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE,
                       decide(false, 1U, true, 1U, false, false));
 
-    /* Canonical absent, only a temporary: activate only when roll-forward is
-     * proven, otherwise roll the interrupted write back; a malformed temporary is
-     * quarantined. */
+    /* Canonical absent, only a temporary: an interrupted write is rolled back
+     * (discarded) whether or not its bytes are valid, unless the owning
+     * transaction proves roll-forward. */
     TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_DISCARD_TEMPORARY,
                       decide(false, 1U, true, 0U, false, false));
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_DISCARD_TEMPORARY,
+                      decide(false, 1U, false, 0U, false, false));
+    /* Roll-forward proven: activate a valid temporary, quarantine a corrupt one. */
     TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_ACTIVATE_TEMPORARY,
                       decide(false, 1U, true, 0U, false, true));
     TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE,
-                      decide(false, 1U, false, 0U, false, false));
+                      decide(false, 1U, false, 0U, false, true));
+}
+
+/* ---- Executor tests (real POSIX filesystem under STORAGE_DATA_MOUNT). ---- */
+
+static size_t g_uuid_counter = 0U;
+
+static app_error_code_t test_generate_uuid(void *context, app_uuid_t *out_uuid) {
+    (void)context;
+    ++g_uuid_counter;
+    char text[APP_UUID_BUFFER_LENGTH];
+    const int written =
+        snprintf(text, sizeof(text), "0a1b2c3d-0000-4000-8000-%012zx", g_uuid_counter);
+    TEST_CHECK(written == (int)APP_UUID_STRING_LENGTH);
+    return app_uuid_parse(text, out_uuid);
+}
+
+static bool path_exists(const char *path) {
+    struct stat metadata;
+    return stat(path, &metadata) == 0;
+}
+
+static void make_directory(const char *path) {
+    TEST_CHECK(mkdir(path, 0750) == 0 || errno == EEXIST);
+}
+
+static void write_text_file(const char *path, const char *text) {
+    const int descriptor = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0640);
+    TEST_CHECK(descriptor >= 0);
+    const size_t length = strlen(text);
+    size_t written = 0U;
+    while (written < length) {
+        const ssize_t count = write(descriptor, text + written, length - written);
+        TEST_CHECK(count > 0);
+        written += (size_t)count;
+    }
+    TEST_CHECK(close(descriptor) == 0);
+}
+
+static size_t directory_entry_count(const char *path) {
+    DIR *directory = opendir(path);
+    TEST_CHECK(directory != NULL);
+    size_t count = 0U;
+    while (true) {
+        errno = 0;
+        const struct dirent *entry = readdir(directory);
+        if (entry == NULL) {
+            TEST_CHECK(errno == 0);
+            break;
+        }
+        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+            ++count;
+        }
+    }
+    TEST_CHECK(closedir(directory) == 0);
+    return count;
+}
+
+static void recovery_reset_store(void) {
+    test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
+    make_directory(STORAGE_DATA_MOUNT);
+    make_directory(STORAGE_DATA_MOUNT "/global");
+    make_directory(STORAGE_DATA_MOUNT "/sets");
+    make_directory(STORAGE_DATA_MOUNT "/transactions");
+    make_directory(STORAGE_DATA_MOUNT "/quarantine");
+    make_directory(STORAGE_DATA_MOUNT "/staging");
+}
+
+static app_error_code_t run_recovery(void) {
+    return storage_atomic_recover_all_with_ops(storage_fs_ops_posix(), test_generate_uuid, NULL);
+}
+
+static void test_executor_keep_canonical(void) {
+    recovery_reset_store();
+    const char *canonical = STORAGE_DATA_MOUNT "/set-index.json";
+    const char *temporary = STORAGE_DATA_MOUNT "/set-index.json.tmp." OP_UUID;
+    write_text_file(canonical, VALID_INDEX);
+    write_text_file(temporary, "partial write");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, run_recovery());
+    /* Canonical is authoritative; the straggler temporary is removed. */
+    TEST_CHECK(path_exists(canonical));
+    TEST_CHECK(!path_exists(temporary));
+}
+
+static void test_executor_restore_backup(void) {
+    recovery_reset_store();
+    const char *canonical = STORAGE_DATA_MOUNT "/set-index.json";
+    const char *backup = STORAGE_DATA_MOUNT "/set-index.json.bak." OP_UUID;
+    const char *temporary = STORAGE_DATA_MOUNT "/set-index.json.tmp." OP_UUID_2;
+    write_text_file(backup, VALID_INDEX);
+    write_text_file(temporary, "partial write");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, run_recovery());
+    /* Canonical absent + valid backup: restore it and discard the temporary. */
+    TEST_CHECK(path_exists(canonical));
+    TEST_CHECK(!path_exists(backup));
+    TEST_CHECK(!path_exists(temporary));
+}
+
+static void test_executor_discard_temporary(void) {
+    recovery_reset_store();
+    const char *canonical = STORAGE_DATA_MOUNT "/set-index.json";
+    const char *temporary = STORAGE_DATA_MOUNT "/set-index.json.tmp." OP_UUID;
+    write_text_file(temporary, "partial write");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, run_recovery());
+    /* Canonical absent, no backup: the interrupted write is rolled back. */
+    TEST_CHECK(!path_exists(canonical));
+    TEST_CHECK(!path_exists(temporary));
+}
+
+static void test_executor_quarantine_conflict(void) {
+    recovery_reset_store();
+    const char *first = STORAGE_DATA_MOUNT "/set-index.json.tmp." OP_UUID;
+    const char *second = STORAGE_DATA_MOUNT "/set-index.json.tmp." OP_UUID_2;
+    write_text_file(first, "one");
+    write_text_file(second, "two");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, run_recovery());
+    /* Two temporaries for one destination conflict: both are quarantined (each
+     * leaves an evidence file plus a record). */
+    TEST_CHECK(!path_exists(first));
+    TEST_CHECK(!path_exists(second));
+    TEST_CHECK_EQ_U64(4U, directory_entry_count(STORAGE_DATA_MOUNT "/quarantine"));
+}
+
+static void test_executor_quarantine_corrupt_backup(void) {
+    recovery_reset_store();
+    const char *canonical = STORAGE_DATA_MOUNT "/set-index.json";
+    const char *backup = STORAGE_DATA_MOUNT "/set-index.json.bak." OP_UUID;
+    write_text_file(backup, "not a valid index");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, run_recovery());
+    /* Canonical absent + corrupt backup: nothing safe to restore, so quarantine. */
+    TEST_CHECK(!path_exists(canonical));
+    TEST_CHECK(!path_exists(backup));
+    TEST_CHECK_EQ_U64(2U, directory_entry_count(STORAGE_DATA_MOUNT "/quarantine"));
 }
 
 int main(void) {
     test_reconcile_decision();
+    test_executor_keep_canonical();
+    test_executor_restore_backup();
+    test_executor_discard_temporary();
+    test_executor_quarantine_conflict();
+    test_executor_quarantine_corrupt_backup();
+    test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     test_parse_temporary();
     test_parse_backup();
     test_non_artifacts_are_skipped();

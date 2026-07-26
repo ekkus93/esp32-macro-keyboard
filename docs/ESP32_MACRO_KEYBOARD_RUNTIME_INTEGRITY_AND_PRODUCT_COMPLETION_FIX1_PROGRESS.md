@@ -85,6 +85,27 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 7.3 (atomic-recovery reconciliation): two commits. Part 1 added the pure
+  `storage_atomic_reconcile_decide` decision (exhaustive combinatorial tests).
+  Part 2 adds the executor `storage_atomic_recover_all[_with_ops]`: it enumerates
+  every leftover `.tmp`/`.bak` artifact across the mount root, `global/`,
+  `transactions/`, and each `sets/`/`staging/` subdirectory, groups them by
+  destination, gathers on-disk state (canonical presence via stat; backup validity
+  via the §7.2 validators; temporaries are never validated because they are always
+  discarded unless roll-forward is proven, which never happens at the atomic
+  layer), applies the decision, and executes with every rename/unlink/parent-sync
+  checked. Malformed/conflicting artifacts are quarantined (evidence retained: on
+  any failure the artifact is left in place and the error returned for retry). The
+  large artifact list is heap-allocated (recovery is single-threaded at startup).
+  A decision refinement (recorded): a temporary's content-validity is consulted
+  only in the roll-forward-proven activation path, so unclassifiable transient
+  staging temporaries are cleanly discarded rather than wrongly quarantined.
+  `quarantine/` is not scanned (its artifacts can't be re-quarantined) — a tracked
+  residual. End-to-end executor tests cover keep-canonical, restore-backup,
+  discard-temporary, quarantine-conflict, and quarantine-corrupt-backup on a real
+  filesystem. storage 9/9, full host suite 21/21, ASan/UBSan clean, firmware
+  builds, fail-closed clang-tidy 0, check-format clean. §7.4 (startup ordering)
+  and §7.5 (fault injection) remain.
 - Phase 7.2 (atomic-recovery validators): new `storage_atomic_validators.{c,h}`
   with a destination classifier (10 object types + unknown), an object-specific
   validator dispatch, and validators for the six types that have serialization
