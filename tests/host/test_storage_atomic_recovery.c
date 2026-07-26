@@ -300,8 +300,85 @@ static void test_executor_quarantine_corrupt_backup(void) {
     TEST_CHECK_EQ_U64(2U, directory_entry_count(STORAGE_DATA_MOUNT "/quarantine"));
 }
 
+/* ---- §7.5 crash-consistency matrix: interrupt after each atomic-write step. ----
+ *
+ * An atomic write of NEW over OLD proceeds: create+write+sync+close+readback the
+ * temporary, rename destination->backup, parent sync, rename temporary->destination,
+ * parent sync, unlink backup, parent sync. For each step, the on-disk state a crash
+ * would leave is constructed here and reconciled; the destination must always end as
+ * OLD-complete or NEW-complete, never a partial/ambiguous active state, with no
+ * leftover artifacts. */
+
+#define OLD_INDEX VALID_INDEX
+#define NEW_INDEX "{\"schema_version\":1,\"ids\":[\"" VALID_UUID "\"]}"
+
+static void read_text_file(const char *path, char *buffer, size_t size) {
+    const int descriptor = open(path, O_RDONLY);
+    TEST_CHECK(descriptor >= 0);
+    ssize_t count = read(descriptor, buffer, size - 1U);
+    TEST_CHECK(count >= 0);
+    buffer[count] = '\0';
+    TEST_CHECK(close(descriptor) == 0);
+}
+
+typedef struct {
+    const char *label;
+    const char *canonical; /* NULL = absent */
+    const char *temporary; /* NULL = absent, "" = present-empty */
+    const char *backup;    /* NULL = absent */
+    const char *expected;  /* expected canonical content, NULL = absent */
+} crash_case_t;
+
+static void test_crash_consistency_matrix(void) {
+    static const crash_case_t cases[] = {
+        {"after temporary open", OLD_INDEX, "", NULL, OLD_INDEX},
+        {"after partial write", OLD_INDEX, "partial", NULL, OLD_INDEX},
+        {"after file sync", OLD_INDEX, NEW_INDEX, NULL, OLD_INDEX},
+        {"after close", OLD_INDEX, NEW_INDEX, NULL, OLD_INDEX},
+        {"after readback", OLD_INDEX, NEW_INDEX, NULL, OLD_INDEX},
+        {"after destination-to-backup rename", NULL, NEW_INDEX, OLD_INDEX, OLD_INDEX},
+        {"after first parent sync", NULL, NEW_INDEX, OLD_INDEX, OLD_INDEX},
+        {"after temporary-to-destination rename", NEW_INDEX, NULL, OLD_INDEX, NEW_INDEX},
+        {"after second parent sync", NEW_INDEX, NULL, OLD_INDEX, NEW_INDEX},
+        {"after backup removal", NEW_INDEX, NULL, NULL, NEW_INDEX},
+        {"after final parent sync", NEW_INDEX, NULL, NULL, NEW_INDEX},
+    };
+    const char *canonical = STORAGE_DATA_MOUNT "/set-index.json";
+    const char *temporary = STORAGE_DATA_MOUNT "/set-index.json.tmp." OP_UUID;
+    const char *backup = STORAGE_DATA_MOUNT "/set-index.json.bak." OP_UUID_2;
+
+    for (size_t index = 0U; index < (sizeof(cases) / sizeof(cases[0])); ++index) {
+        const crash_case_t *scenario = &cases[index];
+        recovery_reset_store();
+        if (scenario->canonical != NULL) {
+            write_text_file(canonical, scenario->canonical);
+        }
+        if (scenario->temporary != NULL) {
+            write_text_file(temporary, scenario->temporary);
+        }
+        if (scenario->backup != NULL) {
+            write_text_file(backup, scenario->backup);
+        }
+
+        TEST_CHECK_APP_ERROR(APP_ERROR_NONE, run_recovery());
+
+        /* Old-or-new complete, never a partial active state. */
+        if (scenario->expected != NULL) {
+            char content[256];
+            read_text_file(canonical, content, sizeof(content));
+            TEST_CHECK_EQ_STRING(scenario->expected, content);
+        } else {
+            TEST_CHECK(!path_exists(canonical));
+        }
+        /* No leftover artifacts. */
+        TEST_CHECK(!path_exists(temporary));
+        TEST_CHECK(!path_exists(backup));
+    }
+}
+
 int main(void) {
     test_reconcile_decision();
+    test_crash_consistency_matrix();
     test_executor_keep_canonical();
     test_executor_restore_backup();
     test_executor_discard_temporary();

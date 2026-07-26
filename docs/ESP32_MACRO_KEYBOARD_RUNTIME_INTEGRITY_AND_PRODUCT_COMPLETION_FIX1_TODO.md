@@ -806,19 +806,28 @@ tests/host/test_storage_transactions.c
 
 Inject interruption/failure after:
 
-- [ ] temporary open;
-- [ ] partial write;
-- [ ] file sync;
-- [ ] close;
-- [ ] readback;
-- [ ] destination-to-backup rename;
-- [ ] first parent sync;
-- [ ] temporary-to-destination rename;
-- [ ] second parent sync;
-- [ ] backup removal;
-- [ ] final parent sync.
+- [x] temporary open;
+- [x] partial write;
+- [x] file sync;
+- [x] close;
+- [x] readback;
+- [x] destination-to-backup rename;
+- [x] first parent sync;
+- [x] temporary-to-destination rename;
+- [x] second parent sync;
+- [x] backup removal;
+- [x] final parent sync.
 
 Assert old or new complete state, never ambiguous active state.
+
+Implemented as a deterministic crash-consistency matrix in
+`tests/host/test_storage_atomic_recovery.c`: the exact on-disk state a crash after
+each of the eleven steps would leave is constructed and reconciled, asserting the
+destination ends OLD-complete or NEW-complete with no leftover artifacts. (This
+uses a constructed post-step state rather than an aborted live write, because a
+mid-write fault triggers the write's own graceful rollback rather than the crash
+state recovery must handle; the file location differs from the §7.5 sketch, which
+named test_storage_atomic.c / test_storage_transactions.c.)
 
 ## 8. Make quarantine recoverable
 

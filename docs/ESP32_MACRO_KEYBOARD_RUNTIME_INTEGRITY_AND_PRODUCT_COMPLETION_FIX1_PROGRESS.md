@@ -49,7 +49,7 @@
 | 4 | Correct application lifecycle ownership | done (persistent-provisioning load + setup mode deferred to Phase 14) |
 | 5 | Correct HTTP partial-start lifecycle | done |
 | 6 | Correct filesystem mount ownership and topology | done (LittleFS permission verification is device-observable) |
-| 7 | Atomic-write artifact recovery | in progress (7.1-7.4 done; 7.5 open) |
+| 7 | Atomic-write artifact recovery | done (4 object validators deferred to Phase 15; quarantine-dir scan a tracked residual) |
 | 8 | Make quarantine recoverable | not started |
 | 9 | Serialize repository operations | not started |
 | 10 | Separate password mismatch from crypto failure | not started |
@@ -85,6 +85,19 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 7.5 (fault injection) — Phase 7 complete. Added a deterministic
+  crash-consistency matrix: for each of the eleven atomic-write steps (temporary
+  open, partial write, file sync, close, readback, destination-to-backup rename,
+  first parent sync, temporary-to-destination rename, second parent sync, backup
+  removal, final parent sync) the exact on-disk state a crash would leave is
+  constructed and reconciled, asserting the destination ends OLD-complete or
+  NEW-complete with no leftover artifacts — never an ambiguous partial state.
+  Steps 1-7 recover to OLD (keep-canonical or restore-backup), 8-11 to NEW.
+  storage 9/9, full host suite 21/21, ASan/UBSan clean, check-format clean; no
+  firmware change (test-only). Recorded deviation: implemented in
+  test_storage_atomic_recovery.c using constructed post-step states, because a
+  mid-write fault triggers the write's own rollback rather than the crash state
+  recovery handles.
 - Phase 7.4 (startup ordering): `app_core`'s storage-recovery step now runs
   `storage_atomic_recover_all()` (public entry added to `storage.h`) **before**
   `storage_transaction_recover_all()`, so a manifest's own interrupted write and
