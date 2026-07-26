@@ -95,6 +95,7 @@ app_error_code_t storage_transaction_recover_all(void);
 app_error_code_t storage_quarantine_file(const char *source_path, const char *reason,
                                          storage_quarantine_entry_t *out_entry);
 app_error_code_t storage_quarantine_list(storage_quarantine_list_t *out_list);
+app_error_code_t storage_quarantine_recover_all(void);
 app_error_code_t storage_transaction_write_manifest(const storage_transaction_manifest_t *manifest);
 
 #endif

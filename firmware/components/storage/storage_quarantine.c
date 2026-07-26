@@ -31,7 +31,6 @@
  *   staging:   /data/staging/quarantine-<id>/{record.json,evidence}
  * The evidence path is fully determined by the entry id, so it is derived rather
  * than stored in the record. */
-#define QUARANTINE_STAGING_PREFIX "quarantine-"
 #define QUARANTINE_RECORD_NAME "record.json"
 #define QUARANTINE_EVIDENCE_NAME "evidence"
 
@@ -82,9 +81,9 @@ static app_error_code_t staging_dir_path(const app_uuid_t *entry_id, char *path,
     if (entry_id == NULL || path == NULL || !app_uuid_is_valid_string(entry_id->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    const int written =
-        snprintf(path, path_size, STORAGE_DATA_MOUNT "/staging/" QUARANTINE_STAGING_PREFIX "%s",
-                 entry_id->value);
+    const int written = snprintf(
+        path, path_size, STORAGE_DATA_MOUNT "/staging/" STORAGE_QUARANTINE_STAGING_PREFIX "%s",
+        entry_id->value);
     return written >= 0 && (size_t)written < path_size ? APP_ERROR_NONE
                                                        : APP_ERROR_INVALID_ARGUMENT;
 }
@@ -764,4 +763,206 @@ app_error_code_t storage_quarantine_list_with_ops(storage_quarantine_list_t *out
 
 app_error_code_t storage_quarantine_list(storage_quarantine_list_t *out_list) {
     return storage_quarantine_list_with_ops(out_list, storage_fs_ops_posix());
+}
+
+typedef enum {
+    EVIDENCE_ABSENT,
+    EVIDENCE_REGULAR,
+    EVIDENCE_IRREGULAR,
+} evidence_state_t;
+
+static bool has_staging_prefix(const char *name) {
+    static const char prefix[] = STORAGE_QUARANTINE_STAGING_PREFIX;
+    return strncmp(name, prefix, sizeof(prefix) - 1U) == 0;
+}
+
+static app_error_code_t staging_name_to_id(const char *name, app_uuid_t *out_id) {
+    static const char prefix[] = STORAGE_QUARANTINE_STAGING_PREFIX;
+    if (name == NULL || out_id == NULL || !has_staging_prefix(name)) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    const char *uuid_text = name + sizeof(prefix) - 1U;
+    if (strlen(uuid_text) != APP_UUID_STRING_LENGTH || !app_uuid_is_valid_string(uuid_text)) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    return app_uuid_parse(uuid_text, out_id) == APP_ERROR_NONE ? APP_ERROR_NONE
+                                                               : APP_ERROR_STORAGE_CORRUPT;
+}
+
+static app_error_code_t probe_evidence(const char *path, const storage_fs_ops_t *operations,
+                                       evidence_state_t *out_state) {
+    *out_state = EVIDENCE_ABSENT;
+    struct stat metadata;
+    if (operations->stat_path(operations->context, path, &metadata) != 0) {
+        const int stat_error = errno;
+        return stat_error == ENOENT ? APP_ERROR_NONE : map_error_number(stat_error);
+    }
+    *out_state = S_ISREG(metadata.st_mode) ? EVIDENCE_REGULAR : EVIDENCE_IRREGULAR;
+    return APP_ERROR_NONE;
+}
+
+/* Rule 1: commit a provably complete staged entry by atomically renaming its
+ * directory into the quarantine root. A pre-existing committed directory is an
+ * anomaly (rename is atomic, so both cannot normally exist) -- treat it as
+ * ambiguous and preserve the staging rather than clobber. */
+static app_error_code_t finish_staged(const char *staging_dir, const char *committed_dir,
+                                      const storage_fs_ops_t *operations) {
+    if (operations->rename_path(operations->context, staging_dir, committed_dir) != 0) {
+        const int rename_error = errno;
+        if (rename_error == EEXIST || rename_error == ENOTEMPTY) {
+            return APP_ERROR_STORAGE_CORRUPT;
+        }
+        return map_error_number(rename_error);
+    }
+    if (storage_fs_sync_parent_path(operations->context, committed_dir) != 0) {
+        const int sync_error = errno;
+        return map_error_number(sync_error);
+    }
+    return APP_ERROR_NONE;
+}
+
+/* Rule 2: the source was never durably moved (no evidence, no record), so it is
+ * still in the active tree -- restoration is automatic and the empty staging
+ * directory is simply removed. Unexpected residue is preserved, not force-removed. */
+static app_error_code_t discard_empty_staging(const char *staging_dir,
+                                              const storage_fs_ops_t *operations) {
+    if (operations->remove_directory(operations->context, staging_dir) != 0) {
+        const int rmdir_error = errno;
+        if (rmdir_error == ENOENT) {
+            return APP_ERROR_NONE;
+        }
+        if (rmdir_error == ENOTEMPTY || rmdir_error == EEXIST) {
+            return APP_ERROR_STORAGE_CORRUPT;
+        }
+        return map_error_number(rmdir_error);
+    }
+    return APP_ERROR_NONE;
+}
+
+/* Reconcile one staged quarantine directory (FIX1 §8.3). Returns APP_ERROR_NONE
+ * when finished or cleanly discarded, APP_ERROR_STORAGE_CORRUPT when the staging
+ * is ambiguous and preserved as evidence (a health signal, not a fault), or a
+ * filesystem error on a genuine I/O fault. */
+static app_error_code_t recover_one_staging(const app_uuid_t *entry_id,
+                                            const storage_fs_ops_t *operations) {
+    char staging_dir[APP_PATH_MAX_BYTES];
+    char staging_record[APP_PATH_MAX_BYTES];
+    char staging_evidence[APP_PATH_MAX_BYTES];
+    char committed_dir[APP_PATH_MAX_BYTES];
+    if (staging_dir_path(entry_id, staging_dir, sizeof(staging_dir)) != APP_ERROR_NONE ||
+        child_path(staging_dir, QUARANTINE_RECORD_NAME, staging_record, sizeof(staging_record)) !=
+            APP_ERROR_NONE ||
+        child_path(staging_dir, QUARANTINE_EVIDENCE_NAME, staging_evidence,
+                   sizeof(staging_evidence)) != APP_ERROR_NONE ||
+        committed_dir_path(entry_id, committed_dir, sizeof(committed_dir)) != APP_ERROR_NONE) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+
+    evidence_state_t evidence = EVIDENCE_ABSENT;
+    const app_error_code_t evidence_result =
+        probe_evidence(staging_evidence, operations, &evidence);
+    if (evidence_result != APP_ERROR_NONE) {
+        return evidence_result;
+    }
+    storage_quarantine_entry_t entry;
+    const app_error_code_t record_result =
+        read_record_at(staging_record, entry_id, &entry, operations);
+    if (record_result != APP_ERROR_NONE && record_result != APP_ERROR_NOT_FOUND &&
+        record_result != APP_ERROR_STORAGE_CORRUPT) {
+        return record_result;
+    }
+
+    if (record_result == APP_ERROR_NONE && evidence == EVIDENCE_REGULAR) {
+        return finish_staged(staging_dir, committed_dir, operations);
+    }
+    if (record_result == APP_ERROR_NOT_FOUND && evidence == EVIDENCE_ABSENT) {
+        return discard_empty_staging(staging_dir, operations);
+    }
+    /* Evidence present but the record is absent/corrupt (or vice versa): the
+     * quarantine cannot be proven complete and its source is unknown, so the
+     * evidence is preserved untouched and a health error is surfaced. */
+    return APP_ERROR_STORAGE_CORRUPT;
+}
+
+static app_error_code_t collect_staging_ids(app_uuid_t *ids, size_t capacity, size_t *out_count,
+                                            bool *out_had_malformed,
+                                            const storage_fs_ops_t *operations) {
+    *out_count = 0U;
+    *out_had_malformed = false;
+    void *directory =
+        operations->open_directory(operations->context, STORAGE_DATA_MOUNT "/staging");
+    if (directory == NULL) {
+        const int open_error = errno;
+        return open_error == ENOENT ? APP_ERROR_STORAGE_UNAVAILABLE : map_error_number(open_error);
+    }
+    app_error_code_t result = APP_ERROR_NONE;
+    while (true) {
+        char name[STORAGE_FS_ENTRY_NAME_MAX];
+        bool end = false;
+        if (operations->read_directory(operations->context, directory, name, sizeof(name), &end) !=
+            0) {
+            result = map_error_number(errno);
+            break;
+        }
+        if (end) {
+            break;
+        }
+        if (!has_staging_prefix(name)) {
+            continue;
+        }
+        app_uuid_t entry_id;
+        if (staging_name_to_id(name, &entry_id) != APP_ERROR_NONE) {
+            *out_had_malformed = true;
+            continue;
+        }
+        if (*out_count >= capacity) {
+            result = APP_ERROR_STORAGE_CORRUPT;
+            break;
+        }
+        ids[*out_count] = entry_id;
+        ++(*out_count);
+    }
+    if (operations->close_directory(operations->context, directory) != 0 &&
+        result == APP_ERROR_NONE) {
+        result = map_error_number(errno);
+    }
+    if (result != APP_ERROR_NONE) {
+        *out_count = 0U;
+    }
+    return result;
+}
+
+app_error_code_t storage_quarantine_recover_all_with_ops(const storage_fs_ops_t *operations) {
+    if (!storage_fs_ops_has_directory(operations)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    /* Snapshot the staging ids before mutating the directory: reconciling one
+     * entry renames or removes a child of the directory being scanned. */
+    app_uuid_t ids[STORAGE_QUARANTINE_MAX_ENTRIES];
+    size_t count = 0U;
+    bool had_malformed = false;
+    const app_error_code_t collect_result = collect_staging_ids(ids, STORAGE_QUARANTINE_MAX_ENTRIES,
+                                                                &count, &had_malformed, operations);
+    if (collect_result != APP_ERROR_NONE) {
+        return collect_result;
+    }
+
+    app_error_code_t first_error = had_malformed ? APP_ERROR_STORAGE_CORRUPT : APP_ERROR_NONE;
+    for (size_t index = 0U; index < count; ++index) {
+        const app_error_code_t result = recover_one_staging(&ids[index], operations);
+        if (result == APP_ERROR_NONE) {
+            continue;
+        }
+        if (result != APP_ERROR_STORAGE_CORRUPT) {
+            return result;
+        }
+        if (first_error == APP_ERROR_NONE) {
+            first_error = result;
+        }
+    }
+    return first_error;
+}
+
+app_error_code_t storage_quarantine_recover_all(void) {
+    return storage_quarantine_recover_all_with_ops(storage_fs_ops_posix());
 }

@@ -602,6 +602,215 @@ static void test_quarantine_enforces_operation_sequence(void) {
     fake_call_log_verify(&filesystem.calls);
 }
 
+static void make_staging_dir(char *output, size_t output_size, const char *id) {
+    const int written =
+        snprintf(output, output_size, STORAGE_DATA_MOUNT "/staging/quarantine-%s", id);
+    TEST_CHECK(written > 0);
+    TEST_CHECK((size_t)written < output_size);
+}
+
+static void write_staging_record(const char *id, const char *source_path, const char *reason) {
+    char record[APP_PATH_MAX_BYTES];
+    make_staging_child(record, sizeof(record), id, "record.json");
+    char json[1024U];
+    const int written = snprintf(json, sizeof(json),
+                                 "{\"schema_version\":1,\"id\":\"%s\","
+                                 "\"source_path\":\"%s\",\"reason\":\"%s\"}",
+                                 id, source_path, reason);
+    TEST_CHECK(written > 0);
+    TEST_CHECK((size_t)written < sizeof(json));
+    write_file(record, json, (size_t)written);
+}
+
+/* Rule 1: a provably complete staged entry (valid record + evidence) is finished
+ * into the quarantine root and becomes listable. */
+static void test_recover_finishes_complete_staging(void) {
+    reset_storage();
+    const char *id = "00000000-0000-4000-8000-000000000010";
+    char staging_dir[APP_PATH_MAX_BYTES];
+    char staging_evidence[APP_PATH_MAX_BYTES];
+    make_staging_dir(staging_dir, sizeof(staging_dir), id);
+    make_staging_child(staging_evidence, sizeof(staging_evidence), id, "evidence");
+    create_directory(staging_dir);
+    write_staging_record(id, STORAGE_DATA_MOUNT "/sets/bad.json", "invalid set metadata");
+    write_text(staging_evidence, "evidence-bytes");
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_quarantine_recover_all_with_ops(&operations));
+    TEST_CHECK(!path_exists(staging_dir));
+
+    char committed_dir[APP_PATH_MAX_BYTES];
+    char committed_record[APP_PATH_MAX_BYTES];
+    char committed_evidence[APP_PATH_MAX_BYTES];
+    make_committed_dir(committed_dir, sizeof(committed_dir), id);
+    make_committed_child(committed_record, sizeof(committed_record), id, "record.json");
+    make_committed_child(committed_evidence, sizeof(committed_evidence), id, "evidence");
+    TEST_CHECK(path_exists(committed_dir));
+    TEST_CHECK(path_exists(committed_record));
+    TEST_CHECK(path_exists(committed_evidence));
+
+    fake_fs_backend_reset(&filesystem);
+    storage_quarantine_list_t list = {0};
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_quarantine_list_with_ops(&list, &operations));
+    TEST_CHECK_EQ_U64(1U, list.count);
+    TEST_CHECK_EQ_U64(0U, list.damaged_count);
+    TEST_CHECK_EQ_STRING(id, list.items[0].id.value);
+}
+
+/* Rule 2: staging with no durably-moved evidence (empty directory) means the
+ * source was never taken, so the staging is simply removed. */
+static void test_recover_discards_empty_staging(void) {
+    reset_storage();
+    const char *id = "00000000-0000-4000-8000-000000000011";
+    char staging_dir[APP_PATH_MAX_BYTES];
+    make_staging_dir(staging_dir, sizeof(staging_dir), id);
+    create_directory(staging_dir);
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_quarantine_recover_all_with_ops(&operations));
+    TEST_CHECK(!path_exists(staging_dir));
+}
+
+/* Rules 3 and 4: ambiguous staging (evidence present but the record is missing or
+ * corrupt, or the evidence is orphaned) is preserved untouched and surfaced as a
+ * health error; an unmatched evidence file is never deleted. */
+static void test_recover_preserves_ambiguous_staging(void) {
+    const char *ids[] = {
+        "00000000-0000-4000-8000-000000000012",
+        "00000000-0000-4000-8000-000000000013",
+        "00000000-0000-4000-8000-000000000014",
+    };
+    for (size_t index = 0U; index < sizeof(ids) / sizeof(ids[0]); ++index) {
+        reset_storage();
+        const char *id = ids[index];
+        char staging_dir[APP_PATH_MAX_BYTES];
+        char staging_record[APP_PATH_MAX_BYTES];
+        char staging_evidence[APP_PATH_MAX_BYTES];
+        make_staging_dir(staging_dir, sizeof(staging_dir), id);
+        make_staging_child(staging_record, sizeof(staging_record), id, "record.json");
+        make_staging_child(staging_evidence, sizeof(staging_evidence), id, "evidence");
+        create_directory(staging_dir);
+
+        if (index == 0U) {
+            write_text(staging_evidence, "orphan-evidence"); /* evidence, no record */
+        } else if (index == 1U) {
+            write_text(staging_evidence, "orphan-evidence"); /* evidence + corrupt record */
+            write_text(staging_record, "{not-json");
+        } else {
+            write_staging_record(id, STORAGE_DATA_MOUNT "/sets/bad.json",
+                                 "reason"); /* record, no evidence */
+        }
+
+        fake_fs_backend_t filesystem;
+        fake_fs_backend_reset(&filesystem);
+        storage_fs_ops_t operations = make_operations(&filesystem);
+        TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT,
+                          storage_quarantine_recover_all_with_ops(&operations));
+        TEST_CHECK(path_exists(staging_dir));
+        char committed_dir[APP_PATH_MAX_BYTES];
+        make_committed_dir(committed_dir, sizeof(committed_dir), id);
+        TEST_CHECK(!path_exists(committed_dir));
+        if (index != 2U) {
+            TEST_CHECK(path_exists(staging_evidence));
+        }
+    }
+}
+
+/* A quarantine-prefixed staging name whose id is unparseable is preserved and
+ * reported, never processed. */
+static void test_recover_malformed_staging_name_is_health_error(void) {
+    reset_storage();
+    const char *malformed = STORAGE_DATA_MOUNT "/staging/quarantine-not-a-uuid";
+    create_directory(malformed);
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT,
+                      storage_quarantine_recover_all_with_ops(&operations));
+    TEST_CHECK(path_exists(malformed));
+}
+
+/* Transaction staging directories (no quarantine- prefix) are not quarantine's to
+ * reconcile and are left untouched. */
+static void test_recover_ignores_non_quarantine_staging(void) {
+    reset_storage();
+    const char *transaction_staging =
+        STORAGE_DATA_MOUNT "/staging/00000000-0000-4000-8000-000000000099";
+    create_directory(transaction_staging);
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_quarantine_recover_all_with_ops(&operations));
+    TEST_CHECK(path_exists(transaction_staging));
+}
+
+/* One complete entry is finished even when another is ambiguous; the health error
+ * still surfaces. */
+static void test_recover_processes_all_entries(void) {
+    reset_storage();
+    const char *good = "00000000-0000-4000-8000-000000000020";
+    const char *bad = "00000000-0000-4000-8000-000000000021";
+    char good_dir[APP_PATH_MAX_BYTES];
+    char good_evidence[APP_PATH_MAX_BYTES];
+    make_staging_dir(good_dir, sizeof(good_dir), good);
+    make_staging_child(good_evidence, sizeof(good_evidence), good, "evidence");
+    create_directory(good_dir);
+    write_staging_record(good, STORAGE_DATA_MOUNT "/sets/bad.json", "reason");
+    write_text(good_evidence, "evidence");
+
+    char bad_dir[APP_PATH_MAX_BYTES];
+    char bad_evidence[APP_PATH_MAX_BYTES];
+    make_staging_dir(bad_dir, sizeof(bad_dir), bad);
+    make_staging_child(bad_evidence, sizeof(bad_evidence), bad, "evidence");
+    create_directory(bad_dir);
+    write_text(bad_evidence, "orphan-evidence");
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT,
+                      storage_quarantine_recover_all_with_ops(&operations));
+
+    char good_committed[APP_PATH_MAX_BYTES];
+    make_committed_dir(good_committed, sizeof(good_committed), good);
+    TEST_CHECK(path_exists(good_committed));
+    TEST_CHECK(!path_exists(good_dir));
+    TEST_CHECK(path_exists(bad_dir));
+    TEST_CHECK(path_exists(bad_evidence));
+}
+
+static void test_recover_io_faults_and_invalid_args(void) {
+    reset_storage();
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    fake_fs_backend_fail_on(&filesystem, FAKE_FS_OPEN_DIR, 1U, EIO);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    TEST_CHECK_EQ_INT(APP_ERROR_IO, storage_quarantine_recover_all_with_ops(&operations));
+
+    reset_storage();
+    const char *id = "00000000-0000-4000-8000-000000000030";
+    char staging_dir[APP_PATH_MAX_BYTES];
+    char staging_evidence[APP_PATH_MAX_BYTES];
+    make_staging_dir(staging_dir, sizeof(staging_dir), id);
+    make_staging_child(staging_evidence, sizeof(staging_evidence), id, "evidence");
+    create_directory(staging_dir);
+    write_staging_record(id, STORAGE_DATA_MOUNT "/sets/bad.json", "reason");
+    write_text(staging_evidence, "evidence");
+    fake_fs_backend_reset(&filesystem);
+    fake_fs_backend_fail_on(&filesystem, FAKE_FS_RENAME, 1U, EIO);
+    TEST_CHECK_EQ_INT(APP_ERROR_IO, storage_quarantine_recover_all_with_ops(&operations));
+    TEST_CHECK(path_exists(staging_dir));
+
+    storage_fs_ops_t empty = {0};
+    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, storage_quarantine_recover_all_with_ops(&empty));
+}
+
 int main(void) {
     test_quarantine_enforces_operation_sequence();
     test_success_and_list();
@@ -613,6 +822,13 @@ int main(void) {
     test_list_io_failures_are_visible();
     test_damaged_entries_are_counted();
     test_entry_limit_is_counted_as_damage();
+    test_recover_finishes_complete_staging();
+    test_recover_discards_empty_staging();
+    test_recover_preserves_ambiguous_staging();
+    test_recover_malformed_staging_name_is_health_error();
+    test_recover_ignores_non_quarantine_staging();
+    test_recover_processes_all_entries();
+    test_recover_io_faults_and_invalid_args();
     reset_storage();
     puts("storage quarantine tests passed");
     return EXIT_SUCCESS;

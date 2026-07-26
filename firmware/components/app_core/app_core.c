@@ -43,14 +43,21 @@ static app_error_code_t adapter_storage_mount(void *context) {
 
 static app_error_code_t adapter_storage_recover(void *context) {
     (void)context;
-    /* FIX1 §7.4: reconcile leftover atomic-write artifacts before transaction
-     * manifest recovery, so a manifest's own interrupted write (and any staging
-     * artifact) is resolved before transaction recovery enumerates it. */
+    /* FIX1 §7.4 recovery order: atomic-write artifacts, then transaction
+     * manifests, then quarantine staging -- each resolved before repository init.
+     * A manifest's own interrupted write (and any staging artifact) is reconciled
+     * before transaction recovery enumerates it; quarantine staging is finished or
+     * rolled back last (FIX1 §8.3), after transaction recovery has cleared its own
+     * staging entries. */
     const app_error_code_t atomic = storage_atomic_recover_all();
     if (atomic != APP_ERROR_NONE) {
         return atomic;
     }
-    return storage_transaction_recover_all();
+    const app_error_code_t transactions = storage_transaction_recover_all();
+    if (transactions != APP_ERROR_NONE) {
+        return transactions;
+    }
+    return storage_quarantine_recover_all();
 }
 
 static app_error_code_t adapter_repository_init(void *context) {
