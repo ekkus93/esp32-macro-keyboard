@@ -1,5 +1,6 @@
 #include "web_server_adapter_internal.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -54,4 +55,11 @@ app_error_code_t web_adapter_lifecycle_stop(web_adapter_lifecycle_t *lifecycle,
     }
     web_adapter_lifecycle_reset(lifecycle);
     return APP_ERROR_NONE;
+}
+
+bool web_adapter_lifecycle_owns_resources(const web_adapter_lifecycle_t *lifecycle) {
+    /* A retained handle means the server still owns resources — including after a
+     * partial start whose stop also failed — so the caller must attempt stop
+     * again rather than treat the failed start as fully cleaned up. */
+    return lifecycle != NULL && lifecycle->handle != NULL;
 }

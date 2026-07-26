@@ -146,10 +146,10 @@ static app_error_code_t adapter_nvs_deinit(void *context) {
 
 static bool adapter_http_owns_resources(void *context) {
     (void)context;
-    /* Phase 5 (§5.1) replaces this with web_server_owns_resources(); until the
-     * partial-start ownership query exists, report no residual ownership so
-     * cleanup relies on the tracked http_started flag. */
-    return false;
+    /* A retained server handle (including after a partial start whose stop failed)
+     * means the HTTP server still owns resources, so cleanup must stop it again
+     * even when http_start returned an error and http_started was never set. */
+    return web_server_owns_resources();
 }
 
 static bool adapter_wifi_owns_resources(void *context) {

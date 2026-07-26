@@ -81,5 +81,6 @@ app_error_code_t web_adapter_lifecycle_start(web_adapter_lifecycle_t *lifecycle,
                                              size_t route_count);
 app_error_code_t web_adapter_lifecycle_stop(web_adapter_lifecycle_t *lifecycle,
                                             const web_adapter_lifecycle_ops_t *ops);
+bool web_adapter_lifecycle_owns_resources(const web_adapter_lifecycle_t *lifecycle);
 
 #endif

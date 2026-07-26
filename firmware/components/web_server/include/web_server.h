@@ -13,5 +13,6 @@ typedef struct {
 
 app_error_code_t web_server_start(const web_server_config_t *configuration);
 app_error_code_t web_server_stop(void);
+bool web_server_owns_resources(void);
 
 #endif

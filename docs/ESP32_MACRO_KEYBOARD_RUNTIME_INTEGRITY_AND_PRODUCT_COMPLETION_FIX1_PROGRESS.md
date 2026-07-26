@@ -47,7 +47,7 @@
 | 2 | Make the quality gate fail closed | done |
 | 3 | Structured failure and ownership reporting | done |
 | 4 | Correct application lifecycle ownership | done (persistent-provisioning load + setup mode deferred to Phase 14) |
-| 5 | Correct HTTP partial-start lifecycle | not started |
+| 5 | Correct HTTP partial-start lifecycle | done |
 | 6 | Correct filesystem mount ownership and topology | not started |
 | 7 | Atomic-write artifact recovery | not started |
 | 8 | Make quarantine recoverable | not started |
@@ -85,6 +85,21 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 5 (HTTP partial-start lifecycle): added
+  `web_adapter_lifecycle_owns_resources()` (a retained handle == still-owned) and
+  the public `web_server_owns_resources()`, and wired the latter into app_core's
+  `adapter_http_owns_resources` — **closing the Phase 4 http placeholder**. The
+  adapter lifecycle already preserved partial-start state (on a route-registration
+  failure whose stop also fails it keeps the handle, retains the registered-route
+  count and cleanup error, returns the stable `APP_ERROR_IO`, and rejects a new
+  start while the residual handle exists) and made stop idempotent (no handle →
+  success; success clears config + lifecycle; failure retains state for retry);
+  Phase 5 verifies these with the six §5.4 scenarios plus `owns_resources`
+  coverage in the `web` suite. With the query wired in, app_core cleanup now
+  stops a partially-started server again via the `owns_resources` branch even when
+  `http_started` was never set. web suite 2/2, ASan/UBSan clean, firmware builds,
+  fail-closed clang-tidy 0, check-format clean. (The wifi ownership adapter
+  remains a documented placeholder pending the Wi-Fi cleanup phase.)
 - Phase 4.2–4.6 (application lifecycle ownership): extended `app_core_ops_t`
   with the six `*_deinit` teardown callbacks plus `http_owns_resources` /
   `wifi_owns_resources` residual-ownership queries (all checked by

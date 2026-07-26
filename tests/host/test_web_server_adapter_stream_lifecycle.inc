@@ -11,13 +11,8 @@ typedef struct {
     size_t final_calls;
 } stream_fake_t;
 
-static int read_stream(void *context,
-                       void *handle,
-                       uint8_t *output,
-                       size_t capacity,
-                       size_t *out_count,
-                       bool *out_eof)
-{
+static int read_stream(void *context, void *handle, uint8_t *output, size_t capacity,
+                       size_t *out_count, bool *out_eof) {
     stream_fake_t *fake = context;
     TEST_CHECK(fake != NULL);
     TEST_CHECK(handle != NULL);
@@ -40,8 +35,7 @@ static int read_stream(void *context,
     return 0;
 }
 
-static int send_stream_chunk(void *context, const uint8_t *buffer, size_t length)
-{
+static int send_stream_chunk(void *context, const uint8_t *buffer, size_t length) {
     stream_fake_t *fake = context;
     TEST_CHECK(fake != NULL);
     if (buffer == NULL && length == 0U) {
@@ -52,8 +46,7 @@ static int send_stream_chunk(void *context, const uint8_t *buffer, size_t length
     return (int)fake->send_calls == fake->send_failure_index ? -1 : 0;
 }
 
-static int close_stream(void *context, void *handle)
-{
+static int close_stream(void *context, void *handle) {
     stream_fake_t *fake = context;
     TEST_CHECK(fake != NULL);
     TEST_CHECK(handle != NULL);
@@ -61,8 +54,7 @@ static int close_stream(void *context, void *handle)
     return fake->close_result;
 }
 
-static web_adapter_stream_ops_t stream_ops(stream_fake_t *fake)
-{
+static web_adapter_stream_ops_t stream_ops(stream_fake_t *fake) {
     return (web_adapter_stream_ops_t){
         .context = fake,
         .read = read_stream,
@@ -71,8 +63,7 @@ static web_adapter_stream_ops_t stream_ops(stream_fake_t *fake)
     };
 }
 
-static void test_static_streaming(void)
-{
+static void test_static_streaming(void) {
     static const uint8_t data[] = "abcdef";
     int handle = 0;
     stream_fake_t fake = {.data = data, .length = 6U, .chunk_size = 2U};
@@ -111,8 +102,7 @@ typedef struct {
     int handle;
 } lifecycle_fake_t;
 
-static int start_server(void *context, void **out_handle)
-{
+static int start_server(void *context, void **out_handle) {
     lifecycle_fake_t *fake = context;
     TEST_CHECK(fake != NULL);
     if (fake->start_result != 0) {
@@ -122,8 +112,7 @@ static int start_server(void *context, void **out_handle)
     return 0;
 }
 
-static int register_route(void *context, void *handle, size_t route_index)
-{
+static int register_route(void *context, void *handle, size_t route_index) {
     lifecycle_fake_t *fake = context;
     TEST_CHECK(fake != NULL);
     TEST_CHECK(handle == &fake->handle);
@@ -131,8 +120,7 @@ static int register_route(void *context, void *handle, size_t route_index)
     return route_index == fake->failed_route ? -1 : 0;
 }
 
-static int stop_server(void *context, void *handle)
-{
+static int stop_server(void *context, void *handle) {
     lifecycle_fake_t *fake = context;
     TEST_CHECK(fake != NULL);
     TEST_CHECK(handle == &fake->handle);
@@ -140,8 +128,7 @@ static int stop_server(void *context, void *handle)
     return fake->stop_result;
 }
 
-static web_adapter_lifecycle_ops_t lifecycle_ops(lifecycle_fake_t *fake)
-{
+static web_adapter_lifecycle_ops_t lifecycle_ops(lifecycle_fake_t *fake) {
     return (web_adapter_lifecycle_ops_t){
         .context = fake,
         .start = start_server,
@@ -150,35 +137,55 @@ static web_adapter_lifecycle_ops_t lifecycle_ops(lifecycle_fake_t *fake)
     };
 }
 
-static void test_server_lifecycle(void)
-{
+static void test_server_lifecycle(void) {
     web_adapter_lifecycle_t lifecycle;
     web_adapter_lifecycle_reset(&lifecycle);
+    TEST_CHECK(!web_adapter_lifecycle_owns_resources(&lifecycle));
+    TEST_CHECK(!web_adapter_lifecycle_owns_resources(NULL));
+
+    /* Clean start then stop: ownership tracks the handle. */
     lifecycle_fake_t fake = {.failed_route = SIZE_MAX};
     web_adapter_lifecycle_ops_t ops = lifecycle_ops(&fake);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_adapter_lifecycle_start(&lifecycle, &ops, 3U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_adapter_lifecycle_start(&lifecycle, &ops, 3U));
     TEST_CHECK_EQ_U64(3U, lifecycle.registered_routes);
     TEST_CHECK(lifecycle.handle != NULL);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_adapter_lifecycle_stop(&lifecycle, &ops));
+    TEST_CHECK(web_adapter_lifecycle_owns_resources(&lifecycle));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_adapter_lifecycle_stop(&lifecycle, &ops));
     TEST_CHECK(lifecycle.handle == NULL);
+    TEST_CHECK(!web_adapter_lifecycle_owns_resources(&lifecycle));
 
+    /* Start failure before a handle is created: no resources are owned. */
+    fake = (lifecycle_fake_t){.start_result = -1, .failed_route = SIZE_MAX};
+    ops = lifecycle_ops(&fake);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, web_adapter_lifecycle_start(&lifecycle, &ops, 3U));
+    TEST_CHECK(lifecycle.handle == NULL);
+    TEST_CHECK(!web_adapter_lifecycle_owns_resources(&lifecycle));
+    TEST_CHECK_EQ_U64(0U, fake.stop_calls);
+
+    /* Registration failure plus a successful stop: fully cleaned up. */
     fake = (lifecycle_fake_t){.failed_route = 1U};
     ops = lifecycle_ops(&fake);
-    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL,
-                         web_adapter_lifecycle_start(&lifecycle, &ops, 3U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, web_adapter_lifecycle_start(&lifecycle, &ops, 3U));
     TEST_CHECK(lifecycle.handle == NULL);
+    TEST_CHECK(!web_adapter_lifecycle_owns_resources(&lifecycle));
     TEST_CHECK_EQ_U64(1U, fake.stop_calls);
 
+    /* Registration failure plus a failed stop: the partial start is preserved --
+     * the handle, the registered-route count, and the cleanup error are retained,
+     * ownership stays visible, and a new start is rejected while it remains. */
     fake = (lifecycle_fake_t){.failed_route = 1U, .stop_result = -1};
     ops = lifecycle_ops(&fake);
-    TEST_CHECK_APP_ERROR(APP_ERROR_IO,
-                         web_adapter_lifecycle_start(&lifecycle, &ops, 3U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, web_adapter_lifecycle_start(&lifecycle, &ops, 3U));
     TEST_CHECK(lifecycle.handle != NULL);
+    TEST_CHECK_EQ_U64(1U, lifecycle.registered_routes);
     TEST_CHECK_APP_ERROR(APP_ERROR_IO, lifecycle.cleanup_error);
+    TEST_CHECK(web_adapter_lifecycle_owns_resources(&lifecycle));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_adapter_lifecycle_start(&lifecycle, &ops, 3U));
+
+    /* Retrying stop after the partial start succeeds and clears all state. */
     fake.stop_result = 0;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_adapter_lifecycle_stop(&lifecycle, &ops));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_adapter_lifecycle_stop(&lifecycle, &ops));
     TEST_CHECK(lifecycle.handle == NULL);
+    TEST_CHECK(!web_adapter_lifecycle_owns_resources(&lifecycle));
 }

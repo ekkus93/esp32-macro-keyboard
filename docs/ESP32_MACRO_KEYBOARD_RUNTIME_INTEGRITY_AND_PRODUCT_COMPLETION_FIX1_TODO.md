@@ -593,29 +593,29 @@ bool web_server_owns_resources(void) {
 
 When route registration fails and `httpd_stop()` also fails:
 
-- [ ] keep the handle;
-- [ ] retain the registered-route count;
-- [ ] retain cleanup error;
-- [ ] return a structured or stable failure;
-- [ ] ensure `app_core` sees ownership and calls stop again.
+- [x] keep the handle;
+- [x] retain the registered-route count;
+- [x] retain cleanup error;
+- [x] return a structured or stable failure;
+- [x] ensure `app_core` sees ownership and calls stop again.
 
 ### 5.3 Make stop idempotent
 
-- [ ] `web_server_stop()` returns success when no handle exists.
-- [ ] A successful stop clears configuration and lifecycle state.
-- [ ] A failed stop retains all state needed for retry.
-- [ ] No later start is allowed while a residual handle exists.
+- [x] `web_server_stop()` returns success when no handle exists.
+- [x] A successful stop clears configuration and lifecycle state.
+- [x] A failed stop retains all state needed for retry.
+- [x] No later start is allowed while a residual handle exists.
 
 ### 5.4 Add tests
 
 Test:
 
-- [ ] start failure before handle creation;
-- [ ] registration failure plus successful stop;
-- [ ] registration failure plus failed stop;
-- [ ] retry stop after partial start;
-- [ ] successful retry clears state;
-- [ ] start rejected while residual state remains.
+- [x] start failure before handle creation;
+- [x] registration failure plus successful stop;
+- [x] registration failure plus failed stop;
+- [x] retry stop after partial start;
+- [x] successful retry clears state;
+- [x] start rejected while residual state remains.
 
 ## 6. Correct filesystem mount ownership and topology
 

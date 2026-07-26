@@ -1,5 +1,6 @@
 #include "web_server_internal.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -77,4 +78,8 @@ app_error_code_t web_server_stop(void) {
         memset(&server_configuration, 0, sizeof(server_configuration));
     }
     return result;
+}
+
+bool web_server_owns_resources(void) {
+    return web_adapter_lifecycle_owns_resources(&server_lifecycle);
 }
