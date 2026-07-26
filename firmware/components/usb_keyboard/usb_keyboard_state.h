@@ -17,6 +17,7 @@ typedef struct {
 
 bool usb_keyboard_ops_is_valid(const usb_keyboard_ops_t *operations);
 app_error_code_t usb_keyboard_state_init(const usb_keyboard_ops_t *operations);
+app_error_code_t usb_keyboard_state_deinit(const usb_keyboard_ops_t *operations);
 app_error_code_t usb_keyboard_state_press(const usb_keyboard_ops_t *operations,
                                           usb_keyboard_key_t key);
 app_error_code_t usb_keyboard_state_release_all(const usb_keyboard_ops_t *operations);

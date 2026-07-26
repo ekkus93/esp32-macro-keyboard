@@ -11,6 +11,8 @@
 typedef struct {
     usb_keyboard_state_t state;
     app_error_code_t install_result;
+    app_error_code_t uninstall_result;
+    size_t uninstall_calls;
     bool install_observed_enumerating;
     bool mounted;
     bool suspended;
@@ -52,6 +54,13 @@ static app_error_code_t fake_driver_install(void *context) {
     TEST_CHECK(fixture != NULL);
     fixture->install_observed_enumerating = fixture->state == USB_KEYBOARD_ENUMERATING;
     return fixture->install_result;
+}
+
+static app_error_code_t fake_driver_uninstall(void *context) {
+    usb_fixture_t *fixture = context;
+    TEST_CHECK(fixture != NULL);
+    ++fixture->uninstall_calls;
+    return fixture->uninstall_result;
 }
 
 static uint32_t fake_now_ms(void *context) {
@@ -111,6 +120,7 @@ static usb_keyboard_ops_t make_operations(usb_fixture_t *fixture) {
         .state_get = fake_state_get,
         .state_set = fake_state_set,
         .driver_install = fake_driver_install,
+        .driver_uninstall = fake_driver_uninstall,
         .now_ms = fake_now_ms,
         .delay_ms = fake_delay_ms,
         .mounted = fake_mounted,
@@ -144,6 +154,7 @@ static void test_operation_validation(void) {
     CHECK_MISSING(state_get);
     CHECK_MISSING(state_set);
     CHECK_MISSING(driver_install);
+    CHECK_MISSING(driver_uninstall);
     CHECK_MISSING(now_ms);
     CHECK_MISSING(delay_ms);
     CHECK_MISSING(mounted);
@@ -337,9 +348,36 @@ static void test_release_all(void) {
     TEST_CHECK_EQ_INT(APP_ERROR_IO, usb_keyboard_state_release_all(&operations));
 }
 
+static void test_deinit(void) {
+    usb_fixture_t fixture;
+    reset_fixture(&fixture);
+    usb_keyboard_ops_t operations = make_operations(&fixture);
+
+    /* Deinit on an uninitialized state is a no-op that does not touch the driver. */
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, usb_keyboard_state_deinit(&operations));
+    TEST_CHECK_EQ_U64(0U, fixture.uninstall_calls);
+
+    /* After a successful init, deinit uninstalls the driver and returns to the
+     * uninitialized state. */
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, usb_keyboard_state_init(&operations));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, usb_keyboard_state_deinit(&operations));
+    TEST_CHECK_EQ_U64(1U, fixture.uninstall_calls);
+    TEST_CHECK_EQ_INT(USB_KEYBOARD_UNINITIALIZED, fixture.state);
+
+    /* A failed uninstall leaves residual ownership visible (a non-uninitialized
+     * state) and reports the error so the caller can retry. */
+    reset_fixture(&fixture);
+    operations = make_operations(&fixture);
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, usb_keyboard_state_init(&operations));
+    fixture.uninstall_result = APP_ERROR_INTERNAL;
+    TEST_CHECK_EQ_INT(APP_ERROR_INTERNAL, usb_keyboard_state_deinit(&operations));
+    TEST_CHECK_EQ_INT(USB_KEYBOARD_ERROR, fixture.state);
+}
+
 int main(void) {
     test_operation_validation();
     test_initialization();
+    test_deinit();
     test_callbacks_and_resume();
     test_press_rejects_invalid_states();
     test_press_reports_and_waits();

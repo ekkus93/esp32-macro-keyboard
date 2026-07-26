@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "app_error.h"
 #include "esp_log.h"
@@ -131,6 +132,28 @@ app_error_code_t macro_executor_init(void) {
         status_mutex = NULL;
         return APP_ERROR_INTERNAL;
     }
+    return APP_ERROR_NONE;
+}
+
+app_error_code_t macro_executor_deinit(void) {
+    if (status_mutex == NULL && request_queue == NULL && executor_task_handle == NULL) {
+        return APP_ERROR_NONE;
+    }
+    /* Delete the worker task before the queue it blocks on so it cannot observe a
+     * freed handle, then release the queue and mutex and clear the engine. */
+    if (executor_task_handle != NULL) {
+        vTaskDelete(executor_task_handle);
+        executor_task_handle = NULL;
+    }
+    if (request_queue != NULL) {
+        vQueueDelete(request_queue);
+        request_queue = NULL;
+    }
+    if (status_mutex != NULL) {
+        vSemaphoreDelete(status_mutex);
+        status_mutex = NULL;
+    }
+    memset(&engine, 0, sizeof(engine));
     return APP_ERROR_NONE;
 }
 

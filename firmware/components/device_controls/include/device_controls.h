@@ -12,6 +12,7 @@ typedef enum {
 } device_indicator_state_t;
 
 app_error_code_t device_controls_init(void);
+app_error_code_t device_controls_deinit(void);
 void device_controls_set_indicator(device_indicator_state_t state);
 app_error_code_t device_controls_wait_for_confirmation(unsigned int timeout_ms);
 

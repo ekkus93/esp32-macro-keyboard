@@ -14,6 +14,7 @@ typedef struct {
 } storage_set_list_t;
 
 app_error_code_t storage_repository_init(void);
+app_error_code_t storage_repository_deinit(void);
 app_error_code_t storage_set_list(storage_set_list_t *out_list);
 app_error_code_t storage_set_read(const app_uuid_t *set_id, macro_set_t *out_set);
 app_error_code_t storage_set_create(const macro_set_t *set);

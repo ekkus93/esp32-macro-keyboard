@@ -15,6 +15,7 @@ typedef struct {
     usb_keyboard_state_t (*state_get)(void *context);
     void (*state_set)(void *context, usb_keyboard_state_t state);
     app_error_code_t (*driver_install)(void *context);
+    app_error_code_t (*driver_uninstall)(void *context);
     uint32_t (*now_ms)(void *context);
     void (*delay_ms)(void *context, uint32_t milliseconds);
     bool (*mounted)(void *context);

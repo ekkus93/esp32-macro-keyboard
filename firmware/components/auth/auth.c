@@ -82,6 +82,18 @@ app_error_code_t auth_init(void) {
     return result;
 }
 
+app_error_code_t auth_deinit(void) {
+    if (auth_mutex == NULL) {
+        return APP_ERROR_NONE;
+    }
+    vSemaphoreDelete(auth_mutex);
+    auth_mutex = NULL;
+    /* Zero the credential/session state so nothing sensitive lingers after
+     * teardown. */
+    adapter_secure_zero(NULL, &auth_core, sizeof(auth_core));
+    return APP_ERROR_NONE;
+}
+
 app_error_code_t auth_password_create(const char *password, size_t password_length,
                                       auth_password_record_t *out_record) {
     return auth_core_password_create(&auth_core, password, password_length, out_record);

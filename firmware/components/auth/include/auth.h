@@ -25,6 +25,7 @@ typedef struct {
 } auth_session_view_t;
 
 app_error_code_t auth_init(void);
+app_error_code_t auth_deinit(void);
 app_error_code_t auth_password_create(const char *password, size_t password_length,
                                       auth_password_record_t *out_record);
 bool auth_password_verify(const char *password, size_t password_length,

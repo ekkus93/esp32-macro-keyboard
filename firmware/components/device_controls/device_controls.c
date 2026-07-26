@@ -17,6 +17,7 @@
 #define CONTROLS_TASK_PRIORITY 5U
 
 static SemaphoreHandle_t confirmation_semaphore;
+static TaskHandle_t controls_task_handle;
 static portMUX_TYPE indicator_lock = portMUX_INITIALIZER_UNLOCKED;
 static device_indicator_state_t indicator_state = DEVICE_INDICATOR_BOOTING;
 
@@ -105,13 +106,37 @@ app_error_code_t device_controls_init(void) {
     if (confirmation_semaphore == NULL) {
         return APP_ERROR_INTERNAL;
     }
-    if (xTaskCreate(controls_task, "controls", 2048U, NULL, CONTROLS_TASK_PRIORITY, NULL) !=
-        pdPASS) {
+    if (xTaskCreate(controls_task, "controls", 2048U, NULL, CONTROLS_TASK_PRIORITY,
+                    &controls_task_handle) != pdPASS) {
+        controls_task_handle = NULL;
         vSemaphoreDelete(confirmation_semaphore);
         confirmation_semaphore = NULL;
         return APP_ERROR_INTERNAL;
     }
     return APP_ERROR_NONE;
+}
+
+app_error_code_t device_controls_deinit(void) {
+    if (confirmation_semaphore == NULL) {
+        return APP_ERROR_NONE;
+    }
+    /* Stop the polling task before deleting the semaphore and resetting the GPIOs
+     * it uses, so it cannot touch a freed handle or a released pin. */
+    if (controls_task_handle != NULL) {
+        vTaskDelete(controls_task_handle);
+        controls_task_handle = NULL;
+    }
+    vSemaphoreDelete(confirmation_semaphore);
+    confirmation_semaphore = NULL;
+
+    app_error_code_t result = APP_ERROR_NONE;
+    if (gpio_reset_pin((gpio_num_t)CONFIG_APP_CONFIRM_BUTTON_GPIO) != ESP_OK ||
+        gpio_reset_pin((gpio_num_t)CONFIG_APP_CANCEL_BUTTON_GPIO) != ESP_OK ||
+        gpio_reset_pin((gpio_num_t)CONFIG_APP_STATUS_LED_GPIO) != ESP_OK) {
+        result = APP_ERROR_INTERNAL;
+    }
+    device_controls_set_indicator(DEVICE_INDICATOR_BOOTING);
+    return result;
 }
 
 void device_controls_set_indicator(device_indicator_state_t state) {

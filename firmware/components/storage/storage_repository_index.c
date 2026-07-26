@@ -211,6 +211,15 @@ app_error_code_t storage_repository_init(void) {
     return storage_repository_load_index_path(STORAGE_GLOBAL_ORDER_FILE_PATH, &global_order);
 }
 
+app_error_code_t storage_repository_deinit(void) {
+    /* The repository layer holds no in-memory resources: every index and object is
+     * read from and written to the mounted filesystem on demand, and there is no
+     * file-scope state, handle, or "initialized" flag to release. Its durable state
+     * is released when the caller unmounts the filesystem (storage_unmount_all).
+     * The function exists so app_core can reverse the init step uniformly. */
+    return APP_ERROR_NONE;
+}
+
 app_error_code_t storage_repository_set_index_presence(const app_uuid_t *set_id,
                                                        bool should_be_present) {
     if (set_id == NULL || !app_uuid_is_valid_string(set_id->value)) {

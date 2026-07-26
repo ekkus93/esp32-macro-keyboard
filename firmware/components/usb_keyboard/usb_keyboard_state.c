@@ -9,10 +9,10 @@
 
 bool usb_keyboard_ops_is_valid(const usb_keyboard_ops_t *operations) {
     return operations != NULL && operations->state_get != NULL && operations->state_set != NULL &&
-           operations->driver_install != NULL && operations->now_ms != NULL &&
-           operations->delay_ms != NULL && operations->mounted != NULL &&
-           operations->suspended != NULL && operations->hid_ready != NULL &&
-           operations->send_keyboard_report != NULL;
+           operations->driver_install != NULL && operations->driver_uninstall != NULL &&
+           operations->now_ms != NULL && operations->delay_ms != NULL &&
+           operations->mounted != NULL && operations->suspended != NULL &&
+           operations->hid_ready != NULL && operations->send_keyboard_report != NULL;
 }
 
 static app_error_code_t wait_until_ready(const usb_keyboard_ops_t *operations) {
@@ -52,6 +52,24 @@ app_error_code_t usb_keyboard_state_init(const usb_keyboard_ops_t *operations) {
     } else {
         operations->state_set(operations->context, USB_KEYBOARD_READY);
     }
+    return APP_ERROR_NONE;
+}
+
+app_error_code_t usb_keyboard_state_deinit(const usb_keyboard_ops_t *operations) {
+    if (!usb_keyboard_ops_is_valid(operations)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (operations->state_get(operations->context) == USB_KEYBOARD_UNINITIALIZED) {
+        return APP_ERROR_NONE;
+    }
+    const app_error_code_t result = operations->driver_uninstall(operations->context);
+    if (result != APP_ERROR_NONE) {
+        /* The driver is still owned; leave a non-uninitialized state so the caller
+         * can see the residual ownership and retry. */
+        operations->state_set(operations->context, USB_KEYBOARD_ERROR);
+        return result;
+    }
+    operations->state_set(operations->context, USB_KEYBOARD_UNINITIALIZED);
     return APP_ERROR_NONE;
 }
 

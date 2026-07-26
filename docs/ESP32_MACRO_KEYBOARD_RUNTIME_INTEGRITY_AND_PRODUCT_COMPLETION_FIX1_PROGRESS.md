@@ -46,7 +46,7 @@
 | 1 | Establish the FIX1 baseline | done |
 | 2 | Make the quality gate fail closed | done |
 | 3 | Structured failure and ownership reporting | done |
-| 4 | Correct application lifecycle ownership | not started |
+| 4 | Correct application lifecycle ownership | in progress (4.1 done; 4.2-4.7 open) |
 | 5 | Correct HTTP partial-start lifecycle | not started |
 | 6 | Correct filesystem mount ownership and topology | not started |
 | 7 | Atomic-write artifact recovery | not started |
@@ -85,6 +85,23 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 4.1 (subsystem deinitialization APIs): added `auth_deinit`,
+  `usb_keyboard_deinit`, `macro_executor_deinit`, `device_controls_deinit`, and
+  `storage_repository_deinit`, each reversing its component's init. `auth_deinit`
+  deletes the mutex and zeroes the core; `macro_executor_deinit` deletes the
+  worker task before the queue it blocks on, then the queue and mutex;
+  `device_controls_init` now captures its task handle so `device_controls_deinit`
+  can stop the polling task before freeing the semaphore and resetting the GPIOs;
+  `usb_keyboard_deinit` routes through a new host-tested state-machine
+  `usb_keyboard_state_deinit` + `driver_uninstall` op (a failed uninstall leaves a
+  non-uninitialized state so residual ownership stays visible);
+  `storage_repository_deinit` is a documented no-op (the repository holds no
+  in-memory state). Host coverage: usb state-machine deinit test (success,
+  uninitialized no-op, failed-uninstall residual-ownership) and a
+  storage-repository deinit no-op test; the four ESP-IDF wrappers are
+  firmware-build + clang-tidy verified (they are not host-compiled, matching how
+  their inits are structured). Full host suite 18/18, ASan/UBSan clean, firmware
+  builds, fail-closed clang-tidy 0, check-format clean.
 - Phase 3.2 (structured startup log events): extended `app_core_log_event_t`
   with `cleanup_error` (renamed from `secondary_error`), `cleanup_incomplete`,
   and `operation_id`; the existing `stage` field is the affected-subsystem

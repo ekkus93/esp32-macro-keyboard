@@ -36,6 +36,7 @@ typedef struct {
 } macro_execution_status_t;
 
 app_error_code_t macro_executor_init(void);
+app_error_code_t macro_executor_deinit(void);
 app_error_code_t macro_executor_submit(macro_execution_request_t *request);
 app_error_code_t macro_executor_cancel(void);
 macro_execution_status_t macro_executor_get_status(void);

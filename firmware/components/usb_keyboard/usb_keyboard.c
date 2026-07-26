@@ -59,6 +59,11 @@ static app_error_code_t adapter_driver_install(void *context) {
     return tinyusb_driver_install(&configuration) == ESP_OK ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
 }
 
+static app_error_code_t adapter_driver_uninstall(void *context) {
+    (void)context;
+    return tinyusb_driver_uninstall() == ESP_OK ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
+}
+
 static uint32_t adapter_now_ms(void *context) {
     (void)context;
     const uint64_t milliseconds = (uint64_t)xTaskGetTickCount() * (uint64_t)portTICK_PERIOD_MS;
@@ -100,6 +105,7 @@ static const usb_keyboard_ops_t operations = {
     .state_get = adapter_state_get,
     .state_set = adapter_state_set,
     .driver_install = adapter_driver_install,
+    .driver_uninstall = adapter_driver_uninstall,
     .now_ms = adapter_now_ms,
     .delay_ms = adapter_delay_ms,
     .mounted = adapter_mounted,
@@ -114,6 +120,10 @@ usb_keyboard_state_t usb_keyboard_get_state(void) {
 
 app_error_code_t usb_keyboard_init(void) {
     return usb_keyboard_state_init(&operations);
+}
+
+app_error_code_t usb_keyboard_deinit(void) {
+    return usb_keyboard_state_deinit(&operations);
 }
 
 app_error_code_t usb_keyboard_press(uint8_t modifiers, uint8_t usage) {
