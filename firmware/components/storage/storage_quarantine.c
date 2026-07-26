@@ -330,9 +330,10 @@ app_error_code_t storage_quarantine_file(const char *source_path, const char *re
                                             production_uuid_generate, NULL);
 }
 
-static app_error_code_t read_record_with_ops(const char *path, const app_uuid_t *expected_id,
-                                             storage_quarantine_entry_t *out_entry,
-                                             const storage_fs_ops_t *operations) {
+app_error_code_t storage_quarantine_read_record_with_ops(const char *path,
+                                                         const app_uuid_t *expected_id,
+                                                         storage_quarantine_entry_t *out_entry,
+                                                         const storage_fs_ops_t *operations) {
     struct stat metadata;
     if (operations->stat_path(operations->context, path, &metadata) != 0) {
         const int stat_error = errno;
@@ -448,7 +449,8 @@ static app_error_code_t list_add_record(const char *name, storage_quarantine_lis
     char path[APP_PATH_MAX_BYTES];
     result = record_path(&uuid, QUARANTINE_JSON_SUFFIX, path, sizeof(path));
     if (result == APP_ERROR_NONE) {
-        result = read_record_with_ops(path, &uuid, &out_list->items[out_list->count], operations);
+        result = storage_quarantine_read_record_with_ops(
+            path, &uuid, &out_list->items[out_list->count], operations);
     }
     if (result != APP_ERROR_NONE) {
         return result;

@@ -17,6 +17,14 @@ app_error_code_t storage_transaction_write_manifest_with_ops(
     const storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
     storage_uuid_generate_fn generate_uuid, void *uuid_context);
 
+/* Read and validate a transaction manifest at `path` (raw binary, exactly
+ * sizeof(manifest) bytes, shape-valid), requiring its id to equal `expected_id`.
+ * Reads via `operations` and modifies no file. */
+app_error_code_t
+storage_transaction_read_manifest_with_ops(const char *path, const app_uuid_t *expected_id,
+                                           storage_transaction_manifest_t *out_manifest,
+                                           const storage_fs_ops_t *operations);
+
 app_error_code_t storage_transaction_recover_all_with_ops(
     const storage_fs_ops_t *operations, storage_uuid_generate_fn generate_uuid, void *uuid_context,
     storage_transaction_set_index_presence_fn set_index_presence, void *index_context);

@@ -48,6 +48,8 @@ app_error_code_t storage_repository_remove_tree_with_ops(const char *path,
 app_error_code_t storage_repository_remove_tree(const char *path);
 app_error_code_t storage_repository_parse_set_json(const char *data, size_t length,
                                                    macro_set_t *out_set);
+app_error_code_t storage_repository_parse_index(const char *data, size_t length,
+                                                storage_set_index_t *out_index);
 app_error_code_t storage_repository_serialize_set_json(const macro_set_t *set, char **out_json,
                                                        size_t *out_length);
 app_error_code_t storage_repository_load_index(storage_set_index_t *out_index);

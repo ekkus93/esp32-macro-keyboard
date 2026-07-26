@@ -4,6 +4,7 @@ idf_component_register(
     "storage_mount_core.c"
     "storage_mount_topology.c"
     "storage_atomic_recovery.c"
+    "storage_atomic_validators.c"
     "storage_paths.c"
     "storage_fs_ops.c"
     "storage_atomic.c"

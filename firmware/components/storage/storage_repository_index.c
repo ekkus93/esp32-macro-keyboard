@@ -14,8 +14,8 @@
 #include "storage.h"
 #include "storage_repository_internal.h"
 
-static app_error_code_t storage_repository_parse_index(const char *data, size_t length,
-                                                       storage_set_index_t *out_index) {
+app_error_code_t storage_repository_parse_index(const char *data, size_t length,
+                                                storage_set_index_t *out_index) {
     memset(out_index, 0, sizeof(*out_index));
     cJSON *root = cJSON_ParseWithLength(data, length);
     const cJSON *version =

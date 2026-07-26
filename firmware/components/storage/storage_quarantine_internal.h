@@ -14,4 +14,12 @@ app_error_code_t storage_quarantine_file_with_ops(const char *source_path, const
 app_error_code_t storage_quarantine_list_with_ops(storage_quarantine_list_t *out_list,
                                                   const storage_fs_ops_t *operations);
 
+/* Read and validate a single quarantine record at `path`, requiring its JSON id
+ * to equal `expected_id`. Reads via `operations` and does not move or modify any
+ * file. */
+app_error_code_t storage_quarantine_read_record_with_ops(const char *path,
+                                                         const app_uuid_t *expected_id,
+                                                         storage_quarantine_entry_t *out_entry,
+                                                         const storage_fs_ops_t *operations);
+
 #endif

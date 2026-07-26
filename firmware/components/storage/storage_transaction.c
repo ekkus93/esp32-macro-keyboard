@@ -145,18 +145,18 @@ storage_transaction_write_manifest(const storage_transaction_manifest_t *manifes
 
 static app_error_code_t read_manifest_with_ops(const char *path,
                                                storage_transaction_manifest_t *out_manifest,
-                                               const storage_fs_ops_t *operations) {
+                                               const storage_fs_ops_t *operations);
+
+app_error_code_t
+storage_transaction_read_manifest_with_ops(const char *path, const app_uuid_t *expected_id,
+                                           storage_transaction_manifest_t *out_manifest,
+                                           const storage_fs_ops_t *operations) {
     if (out_manifest != NULL) {
         memset(out_manifest, 0, sizeof(*out_manifest));
     }
-    if (path == NULL || out_manifest == NULL || !storage_fs_ops_is_valid(operations)) {
+    if (path == NULL || expected_id == NULL || out_manifest == NULL ||
+        !storage_fs_ops_is_valid(operations)) {
         return APP_ERROR_INVALID_ARGUMENT;
-    }
-
-    app_uuid_t path_id = {0};
-    app_error_code_t result = manifest_id_from_path(path, &path_id);
-    if (result != APP_ERROR_NONE) {
-        return result;
     }
 
     struct stat metadata;
@@ -175,7 +175,7 @@ static app_error_code_t read_manifest_with_ops(const char *path,
     }
 
     size_t offset = 0U;
-    result = APP_ERROR_NONE;
+    app_error_code_t result = APP_ERROR_NONE;
     while (offset < sizeof(*out_manifest)) {
         const ssize_t count =
             operations->read_file(operations->context, descriptor, (uint8_t *)out_manifest + offset,
@@ -202,11 +202,25 @@ static app_error_code_t read_manifest_with_ops(const char *path,
         memset(out_manifest, 0, sizeof(*out_manifest));
         return result;
     }
-    if (!manifest_shape_valid(out_manifest) || !app_uuid_equal(&path_id, &out_manifest->id)) {
+    if (!manifest_shape_valid(out_manifest) || !app_uuid_equal(expected_id, &out_manifest->id)) {
         memset(out_manifest, 0, sizeof(*out_manifest));
         return APP_ERROR_STORAGE_CORRUPT;
     }
     return APP_ERROR_NONE;
+}
+
+static app_error_code_t read_manifest_with_ops(const char *path,
+                                               storage_transaction_manifest_t *out_manifest,
+                                               const storage_fs_ops_t *operations) {
+    app_uuid_t path_id = {0};
+    const app_error_code_t result = manifest_id_from_path(path, &path_id);
+    if (result != APP_ERROR_NONE) {
+        if (out_manifest != NULL) {
+            memset(out_manifest, 0, sizeof(*out_manifest));
+        }
+        return result;
+    }
+    return storage_transaction_read_manifest_with_ops(path, &path_id, out_manifest, operations);
 }
 
 static app_error_code_t path_exists_with_ops(const char *path, const storage_fs_ops_t *operations,

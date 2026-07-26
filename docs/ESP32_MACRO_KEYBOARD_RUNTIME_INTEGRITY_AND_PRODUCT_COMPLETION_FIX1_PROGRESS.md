@@ -85,6 +85,28 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 7.2 (atomic-recovery validators): new `storage_atomic_validators.{c,h}`
+  with a destination classifier (10 object types + unknown), an object-specific
+  validator dispatch, and validators for the six types that have serialization
+  today: schema marker, set index, global macro index, set metadata (id must
+  match the destination's set), transaction manifest (binary shape + id), and
+  quarantine record (id must match). The dispatch **fail-closed refuses**
+  (`APP_ERROR_NOT_FOUND`) any type without a validator — the macro/procedure/
+  progress/settings object types (deferred to Phase 15) and unknown paths — so
+  recovery can never activate a candidate it cannot validate. To reuse the
+  canonical validation logic, three previously-static readers were exposed:
+  `storage_repository_parse_index`, `storage_quarantine_read_record_with_ops`,
+  and a new id-parameterized `storage_transaction_read_manifest_with_ops` (the
+  existing path-derived reader now delegates to it). New
+  `storage_atomic_validators_tests` cover the classifier, all six validators
+  (valid + id-mismatch + malformed), and the refuse-without-validator path.
+  storage 9/9, full host suite 21/21, ASan/UBSan clean, firmware builds,
+  fail-closed clang-tidy 0, check-format clean.
+  **Deviation (recorded per RESPONSES §8):** the §7.2 validator typedef's two
+  adjacent `const char *` parameters are folded into one `storage_atomic_candidate_t`
+  struct to satisfy `bugprone-easily-swappable-parameters` (no first-party
+  exemptions); semantics unchanged. §7.3-7.5 (reconciliation, startup ordering,
+  fault injection) remain.
 - Phase 7.1 (atomic-write artifact parsing): new `storage_atomic_recovery.{c,h}`
   parsing leftover `<destination>.tmp.<uuid>` / `.bak.<uuid>` artifacts back into
   their destination, operation id, and kind. The trailing 36 chars must be a valid
@@ -277,5 +299,13 @@ policy) is **not** hardware-blocked and is implemented in its phase.
 
 ## Deviations from the TODO
 
-- None yet. Any deviation will be recorded here with rationale and the FIX1 decision
-  reference, per RESPONSES §8.
+- **§7.2 validator typedef signature.** The FIX1 §7.2 sketch declared
+  `storage_atomic_validate_fn` with two separate adjacent `const char *`
+  parameters (`destination`, `candidate_path`). Those are folded into one
+  `storage_atomic_candidate_t` struct because the first-party
+  `bugprone-easily-swappable-parameters` policy (RESPONSES Q2 / FIX1 §3.4)
+  forbids exempting swappable parameters we control — the `.clang-tidy` comment
+  requires restructuring, not `IgnoredParameterNames`. Semantics are unchanged;
+  the validator still receives the destination and candidate path. Recorded per
+  RESPONSES §8 (the TODO is an implementation plan, not an authority above the
+  no-suppression rule).

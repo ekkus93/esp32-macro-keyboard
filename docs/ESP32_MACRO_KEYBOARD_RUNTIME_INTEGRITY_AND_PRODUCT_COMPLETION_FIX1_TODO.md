@@ -736,16 +736,27 @@ Recovery must never activate a candidate without an object-specific validator.
 
 Provide validators for:
 
-- [ ] transaction manifest;
-- [ ] schema marker;
-- [ ] set index;
-- [ ] global macro index;
-- [ ] set metadata;
+- [x] transaction manifest;
+- [x] schema marker;
+- [x] set index;
+- [x] global macro index;
+- [x] set metadata;
 - [ ] macro object;
 - [ ] procedure object;
 - [ ] progress object;
 - [ ] settings object;
-- [ ] quarantine record.
+- [x] quarantine record.
+
+The macro / procedure / progress / settings object validators are deferred to
+Phase 15 (their object repositories are not yet implemented — settings has no
+storage representation at all). Until then the dispatch classifies those
+destinations but has **no validator**, so recovery refuses to activate their
+candidates — the fail-closed behavior the invariant requires.
+
+The FIX1 §7.2 validator typedef sketch used two separate `const char *` parameters
+(destination, candidate_path). Those are folded into one `storage_atomic_candidate_t`
+struct to satisfy the first-party `bugprone-easily-swappable-parameters` policy
+(which forbids exempting parameters we control); the semantics are unchanged.
 
 ### 7.3 Implement reconciliation rules
 
