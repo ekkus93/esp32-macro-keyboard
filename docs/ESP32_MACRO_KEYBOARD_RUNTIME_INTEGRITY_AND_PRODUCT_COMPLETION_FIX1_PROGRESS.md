@@ -49,8 +49,8 @@
 | 4 | Correct application lifecycle ownership | done (persistent-provisioning load + setup mode deferred to Phase 14) |
 | 5 | Correct HTTP partial-start lifecycle | done |
 | 6 | Correct filesystem mount ownership and topology | done (LittleFS permission verification is device-observable) |
-| 7 | Atomic-write artifact recovery | done (4 object validators deferred to Phase 15; quarantine-dir scan a tracked residual) |
-| 8 | Make quarantine recoverable | not started |
+| 7 | Atomic-write artifact recovery | done (4 object validators deferred to Phase 15; quarantine-dir scan residual resolved by Phase 8's staged-dir layout) |
+| 8 | Make quarantine recoverable | done |
 | 9 | Serialize repository operations | not started |
 | 10 | Separate password mismatch from crypto failure | not started |
 | 11–13 | Wi-Fi / executor / controls cleanup and visibility | not started |
@@ -85,6 +85,38 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 8 (make quarantine recoverable) — complete. Three commits.
+  - **§8.1–8.2 (layout + staged creation): `d72e997`.** Replaced the flat
+    two-files-per-entry quarantine layout with a directory-per-entry layout —
+    committed `/data/quarantine/<id>/{record.json,evidence}`, staging
+    `/data/staging/quarantine-<id>/{record.json,evidence}` — and a rename-based
+    staged 9-step creation (mkdir staging → rename source into evidence → write
+    record → fsync evidence+record → validate read-back → fsync staging dir →
+    rename directory into quarantine → fsync parent). The record dropped
+    `evidence_path` (now 4 fields, derived from the id); `storage_quarantine_list`
+    gained `damaged_count` resilience. The obsolete Phase 7 atomic-write
+    QUARANTINE_RECORD classifier/validator (and `storage_quarantine_read_record_with_ops`)
+    were removed. storage 9/9 + ASan/UBSan, fail-closed clang-tidy 0, check-format
+    clean.
+  - **§8.3 (startup recovery + wiring): `23fe6e7`.** Added
+    `storage_quarantine_recover_all[_with_ops]` implementing the five recovery
+    rules (finish provably-complete staging; discard staging whose source was
+    never durably moved; preserve ambiguous staging as evidence; never delete an
+    unmatched evidence file; a filesystem fault fails closed while a preserved
+    ambiguous entry is a non-fatal-to-other-entries health error). Wired into
+    `app_core` after transaction recovery (FIX1 §7.4 order); the transaction
+    staging-empty assertion now skips `quarantine-<id>` directories via the shared
+    `STORAGE_QUARANTINE_STAGING_PREFIX`. storage 9/9 + ASan/UBSan + startup 1/1,
+    fail-closed clang-tidy 0.
+  - **§8.4 (tests): this commit.** Added the power-loss-after-each-phase matrix
+    (the nine phase boundaries collapse to four crash-recoverable states: empty
+    staging → discard, evidence-only → preserve, complete staging → finish,
+    committed → no-op-and-listable) and the seven corruption cases (record only,
+    evidence only, directory name, record id mismatch, unsafe source path, empty
+    reason, duplicate committed id). Constructed post-step on-disk states (per the
+    §7.5 precedent), because a mid-write fault triggers the create's own rollback
+    rather than the crash state recovery handles. storage 9/9 + ASan/UBSan;
+    test-only (no firmware change since `23fe6e7`).
 - Phase 7.5 (fault injection) — Phase 7 complete. Added a deterministic
   crash-consistency matrix: for each of the eleven atomic-write steps (temporary
   open, partial write, file sync, close, readback, destination-to-backup rename,
@@ -349,3 +381,47 @@ policy) is **not** hardware-blocked and is implemented in its phase.
   the validator still receives the destination and candidate path. Recorded per
   RESPONSES §8 (the TODO is an implementation plan, not an authority above the
   no-suppression rule).
+- **§8.1 and §8.2 landed as one commit.** The TODO lists the layout change (§8.1)
+  and the staged creation (§8.2) as separate steps, but the staged 9-step
+  creation *is* the new create — a layout-only intermediate would ship a
+  throwaway non-staged create plus throwaway tests. They were implemented
+  together in `d72e997` so every committed state is internally consistent and
+  gate-green.
+- **Quarantine source ownership uses rename, not copy (§8.2 offered "copy or
+  rename").** The source is atomically renamed into staged evidence, matching the
+  nine-step list (which has no explicit source-removal step) and LittleFS/POSIX
+  atomic-rename semantics. **Documented rollback behavior:** a step-7 directory
+  rename is atomic, so an interrupted create leaves *either* the staging
+  directory *or* the committed directory, never a half-committed both; a failure
+  during steps 3–6 (record write, syncs, validation) renames the evidence back to
+  the source and removes the staging directory, so the source is restored; a
+  failure at step 1/2 leaves the source untouched. Recovery's rule-2 "restore the
+  source when activation never occurred" is therefore automatic: an interrupt
+  before durable evidence never moved the source, so reconciliation only removes
+  the empty staging directory.
+- **Record dropped `evidence_path`; list gained `damaged_count`.** Under the
+  dir-per-entry layout the evidence path is fully determined by the entry id, so
+  storing it is redundant; the record is four fields (`schema_version`, `id`,
+  `source_path`, `reason`) and the struct's `evidence_path` is derived. To satisfy
+  §8.3's "return valid entries plus a health error", `storage_quarantine_list_t`
+  gained a `damaged_count`: a corrupt/missing record, missing evidence, or bad
+  directory name is counted rather than failing the whole list. Both are safe for
+  the unreleased `0.1` format (no migration; no production consumer of the struct
+  yet). Operator decisions confirmed in-session.
+- **Transaction staging-empty assertion now skips quarantine staging.** Not in
+  the TODO, but required for correctness: quarantine staging shares
+  `/data/staging` with transaction staging, and quarantine recovery runs *after*
+  transaction recovery (FIX1 §7.4 order). The transaction staging-empty check in
+  `storage_transaction.c` therefore skips `quarantine-<id>` directories (shared
+  `STORAGE_QUARANTINE_STAGING_PREFIX`) so a leftover in-progress quarantine
+  staging is not misreported as a stray transaction staging entry before
+  quarantine recovery reconciles it.
+- **Phase 7 quarantine atomic validator removed.** The dir-per-entry staged
+  creation writes the record with a plain durable write inside staging and
+  commits by directory rename, so there are no per-file `.tmp/.bak` quarantine
+  artifacts. The Phase 7 `STORAGE_ATOMIC_OBJECT_QUARANTINE_RECORD` classifier and
+  `validate_quarantine_record` (and their only helper,
+  `storage_quarantine_read_record_with_ops`) are obsolete and were removed; the
+  atomic-validators classifier test now asserts a flat
+  `/data/quarantine/<uuid>.json` classifies as UNKNOWN, and the atomic-recovery
+  quarantine-count tests expect one committed subdirectory per artifact.

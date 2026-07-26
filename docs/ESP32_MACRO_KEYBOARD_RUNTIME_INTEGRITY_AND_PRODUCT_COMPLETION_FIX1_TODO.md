@@ -869,24 +869,24 @@ document the exact rollback behavior.
 
 At startup:
 
-- [ ] finish a provably complete staged quarantine;
-- [ ] restore the source when activation never occurred and restoration is safe;
-- [ ] preserve ambiguous staging as evidence;
-- [ ] never delete an unmatched evidence file;
-- [ ] never make the entire quarantine list unreadable because one entry is
+- [x] finish a provably complete staged quarantine;
+- [x] restore the source when activation never occurred and restoration is safe;
+- [x] preserve ambiguous staging as evidence;
+- [x] never delete an unmatched evidence file;
+- [x] never make the entire quarantine list unreadable because one entry is
       damaged; return valid entries plus a health error.
 
 ### 8.4 Add tests
 
 Test power loss after every quarantine phase and corruption of:
 
-- [ ] record only;
-- [ ] evidence only;
-- [ ] directory name;
-- [ ] record ID;
-- [ ] source path;
-- [ ] reason;
-- [ ] duplicate quarantine ID.
+- [x] record only;
+- [x] evidence only;
+- [x] directory name;
+- [x] record ID;
+- [x] source path;
+- [x] reason;
+- [x] duplicate quarantine ID.
 
 ## 9. Serialize repository operations
 

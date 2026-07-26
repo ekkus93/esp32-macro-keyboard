@@ -811,6 +811,165 @@ static void test_recover_io_faults_and_invalid_args(void) {
     TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, storage_quarantine_recover_all_with_ops(&empty));
 }
 
+static void write_staging_record_fields(const char *dir_id, const char *record_id,
+                                        const char *source_path, const char *reason) {
+    char record[APP_PATH_MAX_BYTES];
+    make_staging_child(record, sizeof(record), dir_id, "record.json");
+    char json[1024U];
+    const int written = snprintf(json, sizeof(json),
+                                 "{\"schema_version\":1,\"id\":\"%s\","
+                                 "\"source_path\":\"%s\",\"reason\":\"%s\"}",
+                                 record_id, source_path, reason);
+    TEST_CHECK(written > 0);
+    TEST_CHECK((size_t)written < sizeof(json));
+    write_file(record, json, (size_t)written);
+}
+
+/* FIX1 §8.4: power loss after every staged-creation phase. Rename-based creation
+ * has four distinct crash-recoverable states, and each of the nine phase
+ * boundaries lands in one of them. */
+static void test_recover_power_loss_after_each_phase(void) {
+    /* Phase 1 (mkdir staging): empty staging directory -> discarded, because the
+     * source was never moved out of the active tree. */
+    reset_storage();
+    const char *phase1 = "00000000-0000-4000-8000-0000000000a1";
+    char dir[APP_PATH_MAX_BYTES];
+    make_staging_dir(dir, sizeof(dir), phase1);
+    create_directory(dir);
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_quarantine_recover_all_with_ops(&operations));
+    TEST_CHECK(!path_exists(dir));
+
+    /* Phase 2 (rename source -> evidence): evidence present, no record yet ->
+     * preserved as ambiguous evidence. */
+    reset_storage();
+    const char *phase2 = "00000000-0000-4000-8000-0000000000a2";
+    char evidence[APP_PATH_MAX_BYTES];
+    make_staging_dir(dir, sizeof(dir), phase2);
+    make_staging_child(evidence, sizeof(evidence), phase2, "evidence");
+    create_directory(dir);
+    write_text(evidence, "evidence");
+    fake_fs_backend_reset(&filesystem);
+    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT,
+                      storage_quarantine_recover_all_with_ops(&operations));
+    TEST_CHECK(path_exists(evidence));
+
+    /* Phases 3-6 (record written, evidence+record synced, validated, staging dir
+     * synced): a complete staged entry -> finished into the quarantine root. The
+     * pending fsyncs affect only durability, not the record/evidence content
+     * recovery inspects, so all four phases land in the same finish-able state. */
+    reset_storage();
+    const char *phase3 = "00000000-0000-4000-8000-0000000000a3";
+    char committed[APP_PATH_MAX_BYTES];
+    make_staging_dir(dir, sizeof(dir), phase3);
+    make_staging_child(evidence, sizeof(evidence), phase3, "evidence");
+    make_committed_dir(committed, sizeof(committed), phase3);
+    create_directory(dir);
+    write_staging_record(phase3, STORAGE_DATA_MOUNT "/sets/bad.json", "reason");
+    write_text(evidence, "evidence");
+    fake_fs_backend_reset(&filesystem);
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_quarantine_recover_all_with_ops(&operations));
+    TEST_CHECK(!path_exists(dir));
+    TEST_CHECK(path_exists(committed));
+
+    /* Phases 7-9 (staging renamed into quarantine, parent synced, done): the entry
+     * is already committed and there is nothing left in staging to reconcile. */
+    reset_storage();
+    const char *phase7 = "00000000-0000-4000-8000-0000000000a4";
+    write_committed_entry(phase7, STORAGE_DATA_MOUNT "/sets/bad.json", "reason");
+    make_committed_dir(committed, sizeof(committed), phase7);
+    fake_fs_backend_reset(&filesystem);
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_quarantine_recover_all_with_ops(&operations));
+    TEST_CHECK(path_exists(committed));
+    storage_quarantine_list_t list = {0};
+    fake_fs_backend_reset(&filesystem);
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_quarantine_list_with_ops(&list, &operations));
+    TEST_CHECK_EQ_U64(1U, list.count);
+    TEST_CHECK_EQ_STRING(phase7, list.items[0].id.value);
+}
+
+/* FIX1 §8.4 corruption cases: a staged record whose content is invalid (id
+ * disagreeing with the directory, an unsafe source path, or an empty reason)
+ * cannot be proven, so recovery preserves the staging as ambiguous evidence
+ * rather than committing or deleting it. */
+static void test_recover_corrupt_record_variants(void) {
+    typedef struct {
+        const char *dir_id;
+        const char *record_id;
+        const char *source_path;
+        const char *reason;
+    } corrupt_case_t;
+    static const corrupt_case_t cases[] = {
+        /* Record id disagrees with the directory id. */
+        {"00000000-0000-4000-8000-0000000000b1", "00000000-0000-4000-8000-0000000000ff",
+         STORAGE_DATA_MOUNT "/sets/bad.json", "reason"},
+        /* Source path is outside the allowed tree / contains traversal. */
+        {"00000000-0000-4000-8000-0000000000b2", "00000000-0000-4000-8000-0000000000b2",
+         STORAGE_DATA_MOUNT "/sets/../secret", "reason"},
+        /* Reason is empty. */
+        {"00000000-0000-4000-8000-0000000000b3", "00000000-0000-4000-8000-0000000000b3",
+         STORAGE_DATA_MOUNT "/sets/bad.json", ""},
+    };
+
+    for (size_t index = 0U; index < sizeof(cases) / sizeof(cases[0]); ++index) {
+        reset_storage();
+        const corrupt_case_t *entry = &cases[index];
+        char dir[APP_PATH_MAX_BYTES];
+        char evidence[APP_PATH_MAX_BYTES];
+        char committed[APP_PATH_MAX_BYTES];
+        make_staging_dir(dir, sizeof(dir), entry->dir_id);
+        make_staging_child(evidence, sizeof(evidence), entry->dir_id, "evidence");
+        make_committed_dir(committed, sizeof(committed), entry->dir_id);
+        create_directory(dir);
+        write_text(evidence, "evidence");
+        write_staging_record_fields(entry->dir_id, entry->record_id, entry->source_path,
+                                    entry->reason);
+
+        fake_fs_backend_t filesystem;
+        fake_fs_backend_reset(&filesystem);
+        storage_fs_ops_t operations = make_operations(&filesystem);
+        TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT,
+                          storage_quarantine_recover_all_with_ops(&operations));
+        TEST_CHECK(path_exists(dir));
+        TEST_CHECK(path_exists(evidence));
+        TEST_CHECK(!path_exists(committed));
+    }
+}
+
+/* FIX1 §8.4: a staged entry whose committed id already holds a populated
+ * directory cannot be finished (the atomic rename refuses to clobber) and is
+ * preserved untouched. */
+static void test_recover_duplicate_committed_id(void) {
+    reset_storage();
+    const char *id = "00000000-0000-4000-8000-0000000000c1";
+    write_committed_entry(id, STORAGE_DATA_MOUNT "/sets/first.json", "already here");
+
+    char dir[APP_PATH_MAX_BYTES];
+    char evidence[APP_PATH_MAX_BYTES];
+    make_staging_dir(dir, sizeof(dir), id);
+    make_staging_child(evidence, sizeof(evidence), id, "evidence");
+    create_directory(dir);
+    write_staging_record(id, STORAGE_DATA_MOUNT "/sets/second.json", "duplicate");
+    write_text(evidence, "evidence");
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT,
+                      storage_quarantine_recover_all_with_ops(&operations));
+    TEST_CHECK(path_exists(dir));
+    TEST_CHECK(path_exists(evidence));
+    /* The pre-existing committed entry is untouched and still lists as the one
+     * valid entry. */
+    fake_fs_backend_reset(&filesystem);
+    storage_quarantine_list_t list = {0};
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_quarantine_list_with_ops(&list, &operations));
+    TEST_CHECK_EQ_U64(1U, list.count);
+    TEST_CHECK_EQ_STRING("already here", list.items[0].reason);
+}
+
 int main(void) {
     test_quarantine_enforces_operation_sequence();
     test_success_and_list();
@@ -829,6 +988,9 @@ int main(void) {
     test_recover_ignores_non_quarantine_staging();
     test_recover_processes_all_entries();
     test_recover_io_faults_and_invalid_args();
+    test_recover_power_loss_after_each_phase();
+    test_recover_corrupt_record_variants();
+    test_recover_duplicate_committed_id();
     reset_storage();
     puts("storage quarantine tests passed");
     return EXIT_SUCCESS;
