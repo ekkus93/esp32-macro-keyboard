@@ -110,17 +110,19 @@
 ## Residual items to close (tracked, not hidden)
 
 - **Phase 2 / RESPONSES Q1 — explicit first-party include-cycle regression
-  test.** Q1's required-regression list includes "a first-party include cycle
-  fails". The current 2.2 suite (`test-check-firmware.sh`) proves the fail-closed
-  gate on analyzer failure, first-party warnings, third-party exclusion, missing/
-  invalid compile DB, and zero-TU — but does not yet include a dedicated crafted
-  two-header first-party cycle fixture run through the real analyzer.
-  `misc-header-include-cycle` remains enabled for first-party code (only the
-  ESP-IDF/managed-component roots are in `IgnoredFilesList`), so first-party
-  cycles are still detected, and every green `check-firmware.sh` empirically
-  proves the third-party cycle is excluded while the check stays active. The
-  explicit crafted-header regression test is still owed; to be added as a small
-  Phase 2 amendment.
+  test. CLOSED.** Added `tests/scripts/test-clang-tidy-include-cycle.sh`, a
+  real-analyzer regression test that builds crafted fixtures and runs the pinned
+  clang-tidy (esp-clang 19 when the ESP-IDF toolchain is on PATH; otherwise the
+  CI-pinned apt clang-tidy 18 — both honor `IgnoredFilesList` identically) with
+  the repo `.clang-tidy`. It proves a genuine first-party header cycle is
+  reported and fails, the same cycle under a `managed_components` root is excluded
+  cleanly (no finding, zero exit), and a no-cycle unit passes (negative control) —
+  5/5. A matching fake-suite case (`zero exit with a first-party include-cycle
+  finding fails`) was added to `test-check-firmware.sh` (now 9/9). Wired into
+  `check-scripts.sh`. With this, all six of RESPONSES Q1's required regression
+  cases are covered: first-party warning, first-party include cycle, third-party
+  cycle excluded, analyzer crash/nonzero exit, zero first-party TUs, and clean
+  run.
 
 ### 2.3 progress — complete
 

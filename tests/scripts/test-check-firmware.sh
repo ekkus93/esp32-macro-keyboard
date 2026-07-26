@@ -92,6 +92,15 @@ check fail \
 	"$(run_case "${project_ok}" 0 "/x/firmware/components/foo/a.c:10:5: warning: bad thing [some-check]")" \
 	"zero exit with a first-party warning fails"
 
+# 3b. Analyzer exits zero but reports a first-party include-cycle finding (an
+#     `error:`-worded misc-header-include-cycle diagnostic) -> fail closed. Proves
+#     the post-success assertion catches first-party include cycles, not just
+#     `warning:`-worded findings (FIX1 RESPONSES Q1).
+check fail \
+	"$(run_case "${project_ok}" 0 \
+		"/x/firmware/components/foo/a.h:3:10: error: circular header file dependency detected while including 'b.h' [misc-header-include-cycle]")" \
+	"zero exit with a first-party include-cycle finding fails"
+
 # 4. Analyzer exits zero with only third-party warnings -> pass (not our code).
 check pass \
 	"$(run_case "${project_ok}" 0 "/x/esp-idf/components/freertos/x.h:1:1: warning: cycle [misc]")" \
