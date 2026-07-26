@@ -325,9 +325,9 @@ void app_operation_record_cleanup(app_operation_result_t *result,
 }
 ```
 
-- [ ] Add host unit tests.
-- [ ] Add support component CMake entries.
-- [ ] Do not use this as an excuse to collapse stable API errors.
+- [x] Add host unit tests.
+- [x] Add support component CMake entries.
+- [x] Do not use this as an excuse to collapse stable API errors.
 
 ### 3.2 Extend application log events
 

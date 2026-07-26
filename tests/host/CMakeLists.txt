@@ -46,6 +46,19 @@ add_test(NAME test_support COMMAND test_support_tests)
 set_tests_properties(test_support PROPERTIES LABELS "support")
 
 add_executable(
+    app_operation_result_tests test_app_operation_result.c
+                               ../../firmware/components/support/app_operation_result.c
+)
+target_include_directories(
+    app_operation_result_tests PRIVATE ../../firmware/components/support/include
+                                       ../../firmware/components/macro_model/include
+)
+target_link_libraries(app_operation_result_tests PRIVATE test_support)
+target_compile_options(app_operation_result_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME app_operation_result COMMAND app_operation_result_tests)
+set_tests_properties(app_operation_result PROPERTIES LABELS "support")
+
+add_executable(
     macro_parser_tests
     test_macro_parser.c
     ../../firmware/components/macro_model/app_error.c

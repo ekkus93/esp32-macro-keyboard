@@ -45,7 +45,7 @@
 | --- | --- | --- |
 | 1 | Establish the FIX1 baseline | done |
 | 2 | Make the quality gate fail closed | done |
-| 3 | Structured failure and ownership reporting | not started |
+| 3 | Structured failure and ownership reporting | in progress (3.1 done; 3.2 open) |
 | 4 | Correct application lifecycle ownership | not started |
 | 5 | Correct HTTP partial-start lifecycle | not started |
 | 6 | Correct filesystem mount ownership and topology | not started |
@@ -85,6 +85,30 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 3.1 (structured operation result): new `support` component with
+  `app_operation_result_t` (first primary error preserved; first cleanup error
+  preserved separately; `cleanup_incomplete` flag), `app_operation_success` /
+  `app_operation_result_ok` / `app_operation_record_primary` /
+  `app_operation_record_cleanup`. Additive only — no existing `app_error_code_t`
+  API collapsed. 8 host tests under the `support` label (first-primary-wins,
+  first-cleanup-wins, primary+cleanup coexist, NONE no-ops, NULL-safe); host
+  tests pass, ASan/UBSan clean, firmware builds, fail-closed clang-tidy 0,
+  check-format clean.
+
+## Residual items to close (tracked, not hidden)
+
+- **Phase 2 / RESPONSES Q1 — explicit first-party include-cycle regression
+  test.** Q1's required-regression list includes "a first-party include cycle
+  fails". The current 2.2 suite (`test-check-firmware.sh`) proves the fail-closed
+  gate on analyzer failure, first-party warnings, third-party exclusion, missing/
+  invalid compile DB, and zero-TU — but does not yet include a dedicated crafted
+  two-header first-party cycle fixture run through the real analyzer.
+  `misc-header-include-cycle` remains enabled for first-party code (only the
+  ESP-IDF/managed-component roots are in `IgnoredFilesList`), so first-party
+  cycles are still detected, and every green `check-firmware.sh` empirically
+  proves the third-party cycle is excluded while the check stays active. The
+  explicit crafted-header regression test is still owed; to be added as a small
+  Phase 2 amendment.
 
 ### 2.3 progress — complete
 
