@@ -78,13 +78,23 @@
   (wired into `check-all.sh`); 6/6 policy tests pass. TODO §2.1 wording synced to
   the implemented mechanism.
 
+### 2.3 progress
+
+- `auth_core` amalgamation split into four `.c` units (`eccf7ce`). No static
+  crossed a fragment boundary, so no new externs were needed; auth host tests
+  pass, firmware builds, clang-format / cmake-format+lint / include-cleaner clean.
+
 ### Open in Phase 2
 
-- 2.3: convert the `clang-format off` `.inc` amalgamation in `auth_core.c`,
-  `web_server.c`, `web_server_adapter.c` into normal `.c` translation units.
+- 2.3 (`web_server.c`, `web_server_adapter.c`): the harder split — `common.inc`
+  holds shared static state (`server_configuration`, `server_lifecycle`) and ~7
+  shared helpers used across all fragments, with no internal header yet. Requires
+  a new `web_server_internal.h` converting the shared state to a single-definition
+  `extern` and the shared helpers to non-static, then per-unit include fixes and
+  updating the `web`/adapter host-test CMake sources.
 - 2.4: full-gate verification (break analyzer → fail; first-party warning → fail;
   restore → pass) — the deterministic cases are covered by the 2.2 regression
-  tests; the manual full-gate pass will be recorded when 2.3 lands.
+  tests; the manual full-gate pass will be recorded when 2.3 fully lands.
 
 ## Environment-blocked (hardware / HIL) items
 
