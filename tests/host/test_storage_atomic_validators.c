@@ -109,8 +109,11 @@ static void test_classifier(void) {
     TEST_CHECK_EQ_INT(
         STORAGE_ATOMIC_OBJECT_TRANSACTION_MANIFEST,
         storage_atomic_classify_destination(STORAGE_DATA_MOUNT "/transactions/" SET_UUID ".bin"));
+    /* The dir-per-entry quarantine layout (FIX1 §8) has no per-file quarantine
+     * artifacts, so a flat /data/quarantine/<uuid>.json path is no longer a
+     * recognized atomic-write object. */
     TEST_CHECK_EQ_INT(
-        STORAGE_ATOMIC_OBJECT_QUARANTINE_RECORD,
+        STORAGE_ATOMIC_OBJECT_UNKNOWN,
         storage_atomic_classify_destination(STORAGE_DATA_MOUNT "/quarantine/" SET_UUID ".json"));
     TEST_CHECK_EQ_INT(
         STORAGE_ATOMIC_OBJECT_SET_METADATA,
@@ -191,27 +194,6 @@ static void test_transaction_manifest_validator(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, validate(destination, candidate));
 }
 
-static void test_quarantine_record_validator(void) {
-    reset_store();
-    const char *destination = STORAGE_DATA_MOUNT "/quarantine/" SET_UUID ".json";
-    const char *candidate = STORAGE_DATA_MOUNT "/quarantine/" SET_UUID ".json.tmp." OP_UUID;
-
-    write_text(candidate,
-               "{\"schema_version\":1,\"id\":\"" SET_UUID "\",\"source_path\":\"" STORAGE_DATA_MOUNT
-               "/sets/broken.json\",\"evidence_path\":\"" STORAGE_DATA_MOUNT "/quarantine/" SET_UUID
-               ".evidence\","
-               "\"reason\":\"test\"}");
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, validate(destination, candidate));
-
-    /* An id that disagrees with the destination is rejected. */
-    write_text(candidate, "{\"schema_version\":1,\"id\":\"" OTHER_UUID
-                          "\",\"source_path\":\"" STORAGE_DATA_MOUNT
-                          "/sets/broken.json\",\"evidence_path\":\"" STORAGE_DATA_MOUNT
-                          "/quarantine/" OTHER_UUID ".evidence\","
-                          "\"reason\":\"test\"}");
-    TEST_CHECK(validate(destination, candidate) != APP_ERROR_NONE);
-}
-
 static void test_dispatch_refuses_without_validator(void) {
     reset_store();
     /* Macro/procedure/progress/settings objects have no validator yet (Phase 15);
@@ -232,7 +214,6 @@ int main(void) {
     test_index_validators();
     test_set_metadata_validator();
     test_transaction_manifest_validator();
-    test_quarantine_record_validator();
     test_dispatch_refuses_without_validator();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     puts("storage atomic validators tests passed");

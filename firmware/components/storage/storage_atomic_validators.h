@@ -36,7 +36,6 @@ typedef enum {
     STORAGE_ATOMIC_OBJECT_PROCEDURE,
     STORAGE_ATOMIC_OBJECT_PROGRESS,
     STORAGE_ATOMIC_OBJECT_SETTINGS,
-    STORAGE_ATOMIC_OBJECT_QUARANTINE_RECORD,
 } storage_atomic_object_type_t;
 
 /* Classify a canonical destination path into its storage object type

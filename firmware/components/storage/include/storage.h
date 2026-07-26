@@ -35,6 +35,11 @@ typedef struct {
 typedef struct {
     storage_quarantine_entry_t items[STORAGE_QUARANTINE_MAX_ENTRIES];
     size_t count;
+    /* Entries skipped because their committed directory was damaged (unparseable
+     * name, corrupt/missing record, missing evidence, or over the entry limit).
+     * A single damaged entry never makes the whole list unreadable (FIX1 §8.3):
+     * `count` valid entries are still returned alongside this health signal. */
+    size_t damaged_count;
 } storage_quarantine_list_t;
 
 typedef enum {

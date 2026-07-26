@@ -12,7 +12,6 @@
 #include "macro_model.h"
 #include "storage.h"
 #include "storage_fs_ops.h"
-#include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
 #include "storage_transaction_internal.h"
 
@@ -65,9 +64,6 @@ storage_atomic_object_type_t storage_atomic_classify_destination(const char *des
     }
     if (match_prefixed_uuid(destination, STORAGE_DATA_MOUNT "/transactions/", ".bin", NULL)) {
         return STORAGE_ATOMIC_OBJECT_TRANSACTION_MANIFEST;
-    }
-    if (match_prefixed_uuid(destination, STORAGE_DATA_MOUNT "/quarantine/", ".json", NULL)) {
-        return STORAGE_ATOMIC_OBJECT_QUARANTINE_RECORD;
     }
     if (match_prefixed_uuid(destination, STORAGE_DATA_MOUNT "/sets/", "/set.json", NULL)) {
         return STORAGE_ATOMIC_OBJECT_SET_METADATA;
@@ -159,19 +155,6 @@ static app_error_code_t validate_transaction_manifest(void *context,
                                                       &manifest, ctx->ops);
 }
 
-static app_error_code_t validate_quarantine_record(void *context,
-                                                   const storage_atomic_candidate_t *candidate) {
-    const validate_context_t *ctx = context;
-    app_uuid_t expected_id;
-    if (!match_prefixed_uuid(candidate->destination, STORAGE_DATA_MOUNT "/quarantine/", ".json",
-                             &expected_id)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    storage_quarantine_entry_t entry;
-    return storage_quarantine_read_record_with_ops(candidate->candidate_path, &expected_id, &entry,
-                                                   ctx->ops);
-}
-
 static storage_atomic_validate_fn validator_for_type(storage_atomic_object_type_t type) {
     switch (type) {
     case STORAGE_ATOMIC_OBJECT_SCHEMA_MARKER:
@@ -183,8 +166,6 @@ static storage_atomic_validate_fn validator_for_type(storage_atomic_object_type_
         return validate_set_metadata;
     case STORAGE_ATOMIC_OBJECT_TRANSACTION_MANIFEST:
         return validate_transaction_manifest;
-    case STORAGE_ATOMIC_OBJECT_QUARANTINE_RECORD:
-        return validate_quarantine_record;
     case STORAGE_ATOMIC_OBJECT_UNKNOWN:
     case STORAGE_ATOMIC_OBJECT_MACRO:
     case STORAGE_ATOMIC_OBJECT_PROCEDURE:

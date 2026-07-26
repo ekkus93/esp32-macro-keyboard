@@ -281,11 +281,11 @@ static void test_executor_quarantine_conflict(void) {
     write_text_file(first, "one");
     write_text_file(second, "two");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, run_recovery());
-    /* Two temporaries for one destination conflict: both are quarantined (each
-     * leaves an evidence file plus a record). */
+    /* Two temporaries for one destination conflict: both are quarantined. The
+     * dir-per-entry layout (FIX1 §8) stores each as one committed subdirectory. */
     TEST_CHECK(!path_exists(first));
     TEST_CHECK(!path_exists(second));
-    TEST_CHECK_EQ_U64(4U, directory_entry_count(STORAGE_DATA_MOUNT "/quarantine"));
+    TEST_CHECK_EQ_U64(2U, directory_entry_count(STORAGE_DATA_MOUNT "/quarantine"));
 }
 
 static void test_executor_quarantine_corrupt_backup(void) {
@@ -294,10 +294,11 @@ static void test_executor_quarantine_corrupt_backup(void) {
     const char *backup = STORAGE_DATA_MOUNT "/set-index.json.bak." OP_UUID;
     write_text_file(backup, "not a valid index");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, run_recovery());
-    /* Canonical absent + corrupt backup: nothing safe to restore, so quarantine. */
+    /* Canonical absent + corrupt backup: nothing safe to restore, so quarantine.
+     * One committed subdirectory holds the quarantined artifact (FIX1 §8). */
     TEST_CHECK(!path_exists(canonical));
     TEST_CHECK(!path_exists(backup));
-    TEST_CHECK_EQ_U64(2U, directory_entry_count(STORAGE_DATA_MOUNT "/quarantine"));
+    TEST_CHECK_EQ_U64(1U, directory_entry_count(STORAGE_DATA_MOUNT "/quarantine"));
 }
 
 /* ---- §7.5 crash-consistency matrix: interrupt after each atomic-write step. ----

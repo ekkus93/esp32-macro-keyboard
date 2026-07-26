@@ -21,8 +21,19 @@
 #define ASCII_DELETE 0x7fU
 #define QUARANTINE_RECORD_MAX_BYTES 1024U
 #define QUARANTINE_ID_ATTEMPTS 4U
-#define QUARANTINE_JSON_SUFFIX ".json"
-#define QUARANTINE_EVIDENCE_SUFFIX ".evidence"
+/* rwxr-x--- for the per-entry directories we create (matches storage topology). */
+#define QUARANTINE_DIR_MODE 0750
+/* rw------- for the record file we create. */
+#define QUARANTINE_FILE_MODE 0600
+
+/* Directory-per-entry layout (FIX1 §7.4 / §8):
+ *   committed: /data/quarantine/<id>/{record.json,evidence}
+ *   staging:   /data/staging/quarantine-<id>/{record.json,evidence}
+ * The evidence path is fully determined by the entry id, so it is derived rather
+ * than stored in the record. */
+#define QUARANTINE_STAGING_PREFIX "quarantine-"
+#define QUARANTINE_RECORD_NAME "record.json"
+#define QUARANTINE_EVIDENCE_NAME "evidence"
 
 static app_error_code_t map_error_number(int error_number) {
     if (error_number == ENOENT) {
@@ -56,15 +67,46 @@ static bool safe_source_path(const char *path) {
     return true;
 }
 
-static app_error_code_t record_path(const app_uuid_t *uuid, const char *suffix, char *path,
-                                    size_t path_size) {
-    if (uuid == NULL || suffix == NULL || path == NULL || !app_uuid_is_valid_string(uuid->value)) {
+static app_error_code_t committed_dir_path(const app_uuid_t *entry_id, char *path,
+                                           size_t path_size) {
+    if (entry_id == NULL || path == NULL || !app_uuid_is_valid_string(entry_id->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     const int written =
-        snprintf(path, path_size, STORAGE_DATA_MOUNT "/quarantine/%s%s", uuid->value, suffix);
+        snprintf(path, path_size, STORAGE_DATA_MOUNT "/quarantine/%s", entry_id->value);
     return written >= 0 && (size_t)written < path_size ? APP_ERROR_NONE
                                                        : APP_ERROR_INVALID_ARGUMENT;
+}
+
+static app_error_code_t staging_dir_path(const app_uuid_t *entry_id, char *path, size_t path_size) {
+    if (entry_id == NULL || path == NULL || !app_uuid_is_valid_string(entry_id->value)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const int written =
+        snprintf(path, path_size, STORAGE_DATA_MOUNT "/staging/" QUARANTINE_STAGING_PREFIX "%s",
+                 entry_id->value);
+    return written >= 0 && (size_t)written < path_size ? APP_ERROR_NONE
+                                                       : APP_ERROR_INVALID_ARGUMENT;
+}
+
+static app_error_code_t child_path(const char *directory, const char *child, char *path,
+                                   size_t path_size) {
+    if (directory == NULL || child == NULL || path == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const int written = snprintf(path, path_size, "%s/%s", directory, child);
+    return written >= 0 && (size_t)written < path_size ? APP_ERROR_NONE
+                                                       : APP_ERROR_INVALID_ARGUMENT;
+}
+
+static app_error_code_t committed_evidence_path(const app_uuid_t *entry_id, char *path,
+                                                size_t path_size) {
+    char directory[APP_PATH_MAX_BYTES];
+    const app_error_code_t result = committed_dir_path(entry_id, directory, sizeof(directory));
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    return child_path(directory, QUARANTINE_EVIDENCE_NAME, path, path_size);
 }
 
 static app_error_code_t path_exists_with_ops(const char *path, const storage_fs_ops_t *operations,
@@ -84,42 +126,6 @@ static app_error_code_t path_exists_with_ops(const char *path, const storage_fs_
     return stat_error == ENOENT ? APP_ERROR_NONE : map_error_number(stat_error);
 }
 
-static app_error_code_t create_unique_entry_paths(storage_quarantine_entry_t *entry, char *record,
-                                                  size_t record_size,
-                                                  const storage_fs_ops_t *operations,
-                                                  storage_uuid_generate_fn generate_uuid,
-                                                  void *uuid_context) {
-    for (size_t attempt = 0U; attempt < QUARANTINE_ID_ATTEMPTS; ++attempt) {
-        memset(&entry->id, 0, sizeof(entry->id));
-        app_error_code_t result = generate_uuid(uuid_context, &entry->id);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        result = record_path(&entry->id, QUARANTINE_EVIDENCE_SUFFIX, entry->evidence_path,
-                             sizeof(entry->evidence_path));
-        if (result == APP_ERROR_NONE) {
-            result = record_path(&entry->id, QUARANTINE_JSON_SUFFIX, record, record_size);
-        }
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-
-        bool record_exists = false;
-        bool evidence_exists = false;
-        result = path_exists_with_ops(record, operations, &record_exists);
-        if (result == APP_ERROR_NONE) {
-            result = path_exists_with_ops(entry->evidence_path, operations, &evidence_exists);
-        }
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        if (!record_exists && !evidence_exists) {
-            return APP_ERROR_NONE;
-        }
-    }
-    return APP_ERROR_CONFLICT;
-}
-
 static app_error_code_t serialize_entry(const storage_quarantine_entry_t *entry, char **out_json,
                                         size_t *out_length) {
     if (out_json != NULL) {
@@ -136,7 +142,6 @@ static app_error_code_t serialize_entry(const storage_quarantine_entry_t *entry,
     if (root == NULL || cJSON_AddNumberToObject(root, "schema_version", 1.0) == NULL ||
         cJSON_AddStringToObject(root, "id", entry->id.value) == NULL ||
         cJSON_AddStringToObject(root, "source_path", entry->source_path) == NULL ||
-        cJSON_AddStringToObject(root, "evidence_path", entry->evidence_path) == NULL ||
         cJSON_AddStringToObject(root, "reason", entry->reason) == NULL) {
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;
@@ -158,7 +163,10 @@ static app_error_code_t serialize_entry(const storage_quarantine_entry_t *entry,
 
 static bool object_has_exact_fields(const cJSON *root) {
     static const char *const names[] = {
-        "schema_version", "id", "source_path", "evidence_path", "reason",
+        "schema_version",
+        "id",
+        "source_path",
+        "reason",
     };
     bool found[sizeof(names) / sizeof(names[0])] = {false};
     size_t count = 0U;
@@ -211,8 +219,6 @@ static app_error_code_t parse_entry(const char *data, size_t length, const app_u
     const cJSON *id_field = root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "id");
     const cJSON *source =
         root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "source_path");
-    const cJSON *evidence =
-        root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "evidence_path");
     const cJSON *reason = root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "reason");
 
     app_uuid_t parsed_id = {0};
@@ -223,20 +229,10 @@ static app_error_code_t parse_entry(const char *data, size_t length, const app_u
         app_uuid_parse(id_field->valuestring, &parsed_id) == APP_ERROR_NONE &&
         app_uuid_equal(&parsed_id, expected_id) && cJSON_IsString(source) &&
         source->valuestring != NULL && safe_source_path(source->valuestring) &&
-        cJSON_IsString(evidence) && evidence->valuestring != NULL && cJSON_IsString(reason) &&
-        reason->valuestring != NULL && reason->valuestring[0] != '\0' &&
+        cJSON_IsString(reason) && reason->valuestring != NULL && reason->valuestring[0] != '\0' &&
         strlen(source->valuestring) < sizeof(out_entry->source_path) &&
-        strlen(evidence->valuestring) < sizeof(out_entry->evidence_path) &&
         strlen(reason->valuestring) < sizeof(out_entry->reason);
     if (!valid) {
-        cJSON_Delete(root);
-        return APP_ERROR_STORAGE_CORRUPT;
-    }
-
-    char expected_evidence[APP_PATH_MAX_BYTES];
-    if (record_path(&parsed_id, QUARANTINE_EVIDENCE_SUFFIX, expected_evidence,
-                    sizeof(expected_evidence)) != APP_ERROR_NONE ||
-        strcmp(evidence->valuestring, expected_evidence) != 0) {
         cJSON_Delete(root);
         return APP_ERROR_STORAGE_CORRUPT;
     }
@@ -244,96 +240,25 @@ static app_error_code_t parse_entry(const char *data, size_t length, const app_u
     out_entry->id = parsed_id;
     const int source_length =
         snprintf(out_entry->source_path, sizeof(out_entry->source_path), "%s", source->valuestring);
-    const int evidence_length = snprintf(out_entry->evidence_path, sizeof(out_entry->evidence_path),
-                                         "%s", evidence->valuestring);
     const int reason_length =
         snprintf(out_entry->reason, sizeof(out_entry->reason), "%s", reason->valuestring);
+    const app_error_code_t evidence_result = committed_evidence_path(
+        &parsed_id, out_entry->evidence_path, sizeof(out_entry->evidence_path));
     cJSON_Delete(root);
     if (source_length < 0 || (size_t)source_length >= sizeof(out_entry->source_path) ||
-        evidence_length < 0 || (size_t)evidence_length >= sizeof(out_entry->evidence_path) ||
-        reason_length < 0 || (size_t)reason_length >= sizeof(out_entry->reason)) {
+        reason_length < 0 || (size_t)reason_length >= sizeof(out_entry->reason) ||
+        evidence_result != APP_ERROR_NONE) {
         memset(out_entry, 0, sizeof(*out_entry));
         return APP_ERROR_STORAGE_CORRUPT;
     }
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_quarantine_file_with_ops(const char *source_path, const char *reason,
-                                                  storage_quarantine_entry_t *out_entry,
-                                                  const storage_fs_ops_t *operations,
-                                                  storage_uuid_generate_fn generate_uuid,
-                                                  void *uuid_context) {
-    if (out_entry != NULL) {
-        memset(out_entry, 0, sizeof(*out_entry));
-    }
-    if (!safe_source_path(source_path) || reason == NULL || reason[0] == '\0' ||
-        strlen(reason) >= STORAGE_QUARANTINE_REASON_MAX_BYTES || out_entry == NULL ||
-        !storage_fs_ops_is_valid(operations) || generate_uuid == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-
-    struct stat metadata;
-    if (operations->stat_path(operations->context, source_path, &metadata) != 0) {
-        const int stat_error = errno;
-        return map_error_number(stat_error);
-    }
-    if (!S_ISREG(metadata.st_mode)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-
-    storage_quarantine_entry_t entry = {0};
-    const int source_length =
-        snprintf(entry.source_path, sizeof(entry.source_path), "%s", source_path);
-    const int reason_length = snprintf(entry.reason, sizeof(entry.reason), "%s", reason);
-    if (source_length < 0 || (size_t)source_length >= sizeof(entry.source_path) ||
-        reason_length < 0 || (size_t)reason_length >= sizeof(entry.reason)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-
-    char record[APP_PATH_MAX_BYTES];
-    app_error_code_t result = create_unique_entry_paths(&entry, record, sizeof(record), operations,
-                                                        generate_uuid, uuid_context);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-
-    char *json = NULL;
-    size_t json_length = 0U;
-    result = serialize_entry(&entry, &json, &json_length);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    result = storage_atomic_write_with_ops(record, json, json_length, true, operations,
-                                           generate_uuid, uuid_context);
-    cJSON_free(json);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-
-    if (operations->rename_path(operations->context, source_path, entry.evidence_path) != 0) {
-        const int rename_error = errno;
-        const app_error_code_t rename_result = map_error_number(rename_error);
-        if (operations->unlink_path(operations->context, record) != 0) {
-            const int unlink_error = errno;
-            return unlink_error == ENOENT ? rename_result : map_error_number(unlink_error);
-        }
-        return rename_result;
-    }
-
-    *out_entry = entry;
-    return APP_ERROR_NONE;
-}
-
-app_error_code_t storage_quarantine_file(const char *source_path, const char *reason,
-                                         storage_quarantine_entry_t *out_entry) {
-    return storage_quarantine_file_with_ops(source_path, reason, out_entry, storage_fs_ops_posix(),
-                                            production_uuid_generate, NULL);
-}
-
-app_error_code_t storage_quarantine_read_record_with_ops(const char *path,
-                                                         const app_uuid_t *expected_id,
-                                                         storage_quarantine_entry_t *out_entry,
-                                                         const storage_fs_ops_t *operations) {
+/* Read and validate a single quarantine record at `path`, requiring its JSON id to
+ * equal `expected_id`. Does not move or modify any file. */
+static app_error_code_t read_record_at(const char *path, const app_uuid_t *expected_id,
+                                       storage_quarantine_entry_t *out_entry,
+                                       const storage_fs_ops_t *operations) {
     struct stat metadata;
     if (operations->stat_path(operations->context, path, &metadata) != 0) {
         const int stat_error = errno;
@@ -399,24 +324,316 @@ app_error_code_t storage_quarantine_read_record_with_ops(const char *path,
     return result;
 }
 
-static app_error_code_t id_from_filename(const char *name, const char *suffix, app_uuid_t *out_id) {
-    if (out_id != NULL) {
+static app_error_code_t write_all(const storage_fs_ops_t *operations, int descriptor,
+                                  const char *data, size_t length) {
+    size_t written = 0U;
+    while (written < length) {
+        const ssize_t count = operations->write_file(operations->context, descriptor,
+                                                     data + written, length - written);
+        if (count < 0) {
+            const int write_error = errno;
+            if (write_error == EINTR) {
+                continue;
+            }
+            return map_error_number(write_error);
+        }
+        if (count == 0) {
+            return APP_ERROR_IO;
+        }
+        written += (size_t)count;
+    }
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t unlink_if_present(const char *path, const storage_fs_ops_t *operations) {
+    if (operations->unlink_path(operations->context, path) == 0) {
+        return APP_ERROR_NONE;
+    }
+    const int unlink_error = errno;
+    return unlink_error == ENOENT ? APP_ERROR_NONE : map_error_number(unlink_error);
+}
+
+/* The paths a staged quarantine threads through creation and rollback. */
+typedef struct {
+    const char *source;
+    const char *staging_dir;
+    const char *staging_record;
+    const char *staging_evidence;
+    const char *committed_dir;
+} staged_paths_t;
+
+/* Step 3: write the record durably into the staging directory (plain create, not
+ * the atomic .tmp/.bak dance -- the staging directory itself is the atomicity
+ * boundary, committed by the directory rename in step 7). */
+static app_error_code_t write_record_file(const staged_paths_t *paths, const char *json,
+                                          size_t json_length, const storage_fs_ops_t *operations) {
+    const int descriptor = operations->open_file(operations->context, paths->staging_record,
+                                                 O_WRONLY | O_CREAT | O_EXCL, QUARANTINE_FILE_MODE);
+    if (descriptor < 0) {
+        const int open_error = errno;
+        return map_error_number(open_error);
+    }
+    app_error_code_t result = write_all(operations, descriptor, json, json_length);
+    if (result == APP_ERROR_NONE && operations->sync_file(operations->context, descriptor) != 0) {
+        const int sync_error = errno;
+        result = map_error_number(sync_error);
+    }
+    if (operations->close_file(operations->context, descriptor) != 0 && result == APP_ERROR_NONE) {
+        const int close_error = errno;
+        result = map_error_number(close_error);
+    }
+    if (result != APP_ERROR_NONE) {
+        const app_error_code_t cleanup = unlink_if_present(paths->staging_record, operations);
+        return cleanup == APP_ERROR_NONE ? result : cleanup;
+    }
+    return APP_ERROR_NONE;
+}
+
+/* Step 4 (evidence half): flush the moved evidence file's data to stable storage.
+ * On platforms without a directory-fsync primitive this file sync, together with
+ * the completed rename in step 7, is the durability boundary. */
+static app_error_code_t sync_evidence_file(const char *path, const storage_fs_ops_t *operations) {
+    const int descriptor = operations->open_file(operations->context, path, O_RDONLY, 0);
+    if (descriptor < 0) {
+        const int open_error = errno;
+        return map_error_number(open_error);
+    }
+    app_error_code_t result = APP_ERROR_NONE;
+    if (operations->sync_file(operations->context, descriptor) != 0) {
+        const int sync_error = errno;
+        if (sync_error != EINVAL && sync_error != ENOTSUP) {
+            result = map_error_number(sync_error);
+        }
+    }
+    if (operations->close_file(operations->context, descriptor) != 0 && result == APP_ERROR_NONE) {
+        const int close_error = errno;
+        result = map_error_number(close_error);
+    }
+    return result;
+}
+
+/* Step 5: prove the staged entry is complete before committing it -- the record
+ * parses and matches its id, and the evidence is a regular file. */
+static app_error_code_t validate_staged_entry(const staged_paths_t *paths,
+                                              const app_uuid_t *entry_id,
+                                              const storage_fs_ops_t *operations) {
+    storage_quarantine_entry_t parsed;
+    const app_error_code_t record_result =
+        read_record_at(paths->staging_record, entry_id, &parsed, operations);
+    if (record_result != APP_ERROR_NONE) {
+        return record_result;
+    }
+    struct stat metadata;
+    if (operations->stat_path(operations->context, paths->staging_evidence, &metadata) != 0) {
+        const int stat_error = errno;
+        return map_error_number(stat_error);
+    }
+    return S_ISREG(metadata.st_mode) ? APP_ERROR_NONE : APP_ERROR_STORAGE_CORRUPT;
+}
+
+/* Undo a staged creation once the source has already been renamed into the staging
+ * evidence (steps 3-6 failed). Restore the source and remove the staging entry;
+ * never delete the evidence without first putting the source back. Returns the
+ * original error unless a rollback step itself fails (that is surfaced instead). */
+static app_error_code_t rollback_after_move(const staged_paths_t *paths,
+                                            const storage_fs_ops_t *operations,
+                                            app_error_code_t original_error) {
+    const app_error_code_t record_cleanup = unlink_if_present(paths->staging_record, operations);
+    if (operations->rename_path(operations->context, paths->staging_evidence, paths->source) != 0) {
+        const int restore_error = errno;
+        return map_error_number(restore_error);
+    }
+    app_error_code_t result = record_cleanup;
+    if (operations->remove_directory(operations->context, paths->staging_dir) != 0 &&
+        result == APP_ERROR_NONE) {
+        const int rmdir_error = errno;
+        result = map_error_number(rmdir_error);
+    }
+    return result == APP_ERROR_NONE ? original_error : result;
+}
+
+/* Steps 3-6: populate the staging directory (record + evidence, synced and
+ * validated) after the source has been moved in. On any failure the source is
+ * restored and the staging directory removed. */
+static app_error_code_t populate_staging(const staged_paths_t *paths, const app_uuid_t *entry_id,
+                                         const char *json, size_t json_length,
+                                         const storage_fs_ops_t *operations) {
+    app_error_code_t result = write_record_file(paths, json, json_length, operations);
+    if (result == APP_ERROR_NONE) {
+        result = sync_evidence_file(paths->staging_evidence, operations);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = validate_staged_entry(paths, entry_id, operations);
+    }
+    if (result == APP_ERROR_NONE &&
+        storage_fs_sync_parent_path(operations->context, paths->staging_record) != 0) {
+        const int sync_error = errno;
+        result = map_error_number(sync_error);
+    }
+    if (result != APP_ERROR_NONE) {
+        return rollback_after_move(paths, operations, result);
+    }
+    return APP_ERROR_NONE;
+}
+
+/* The staged 9-step creation (FIX1 §8.2), rename-based: the source is moved into
+ * the staging evidence and only put back if the entry never commits.
+ *
+ * LittleFS/POSIX rename is atomic, so step 7 leaves EITHER the staging directory
+ * OR the committed directory, never both -- an interrupted create is always
+ * reconcilable at startup (FIX1 §8.3). */
+static app_error_code_t create_staged_entry(const staged_paths_t *paths, const app_uuid_t *entry_id,
+                                            const char *json, size_t json_length,
+                                            const storage_fs_ops_t *operations) {
+    if (operations->make_directory(operations->context, paths->staging_dir, QUARANTINE_DIR_MODE) !=
+        0) {
+        const int mkdir_error = errno;
+        return map_error_number(mkdir_error);
+    }
+    if (operations->rename_path(operations->context, paths->source, paths->staging_evidence) != 0) {
+        const int rename_error = errno;
+        const app_error_code_t rename_result = map_error_number(rename_error);
+        if (operations->remove_directory(operations->context, paths->staging_dir) != 0) {
+            const int rmdir_error = errno;
+            return rmdir_error == ENOENT ? rename_result : map_error_number(rmdir_error);
+        }
+        return rename_result;
+    }
+    const app_error_code_t populate_result =
+        populate_staging(paths, entry_id, json, json_length, operations);
+    if (populate_result != APP_ERROR_NONE) {
+        return populate_result;
+    }
+    if (operations->rename_path(operations->context, paths->staging_dir, paths->committed_dir) !=
+        0) {
+        const int rename_error = errno;
+        return rollback_after_move(paths, operations, map_error_number(rename_error));
+    }
+    if (storage_fs_sync_parent_path(operations->context, paths->committed_dir) != 0) {
+        const int sync_error = errno;
+        return map_error_number(sync_error);
+    }
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t find_unique_id(app_uuid_t *out_id, char *committed_dir,
+                                       size_t committed_size, char *staging_dir,
+                                       size_t staging_size, const storage_fs_ops_t *operations,
+                                       storage_uuid_generate_fn generate_uuid, void *uuid_context) {
+    for (size_t attempt = 0U; attempt < QUARANTINE_ID_ATTEMPTS; ++attempt) {
         memset(out_id, 0, sizeof(*out_id));
+        app_error_code_t result = generate_uuid(uuid_context, out_id);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+        result = committed_dir_path(out_id, committed_dir, committed_size);
+        if (result == APP_ERROR_NONE) {
+            result = staging_dir_path(out_id, staging_dir, staging_size);
+        }
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+
+        bool committed_exists = false;
+        bool staging_exists = false;
+        result = path_exists_with_ops(committed_dir, operations, &committed_exists);
+        if (result == APP_ERROR_NONE) {
+            result = path_exists_with_ops(staging_dir, operations, &staging_exists);
+        }
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+        if (!committed_exists && !staging_exists) {
+            return APP_ERROR_NONE;
+        }
     }
-    if (name == NULL || suffix == NULL || out_id == NULL) {
-        return APP_ERROR_STORAGE_CORRUPT;
+    return APP_ERROR_CONFLICT;
+}
+
+app_error_code_t storage_quarantine_file_with_ops(const char *source_path, const char *reason,
+                                                  storage_quarantine_entry_t *out_entry,
+                                                  const storage_fs_ops_t *operations,
+                                                  storage_uuid_generate_fn generate_uuid,
+                                                  void *uuid_context) {
+    if (out_entry != NULL) {
+        memset(out_entry, 0, sizeof(*out_entry));
     }
-    const size_t suffix_length = strlen(suffix);
-    const size_t name_length = strlen(name);
-    if (name_length != APP_UUID_STRING_LENGTH + suffix_length ||
-        strcmp(name + APP_UUID_STRING_LENGTH, suffix) != 0) {
-        return APP_ERROR_STORAGE_CORRUPT;
+    if (!safe_source_path(source_path) || reason == NULL || reason[0] == '\0' ||
+        strlen(reason) >= STORAGE_QUARANTINE_REASON_MAX_BYTES || out_entry == NULL ||
+        !storage_fs_ops_has_directory(operations) || generate_uuid == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
     }
-    char value[APP_UUID_STRING_LENGTH + 1U];
-    memcpy(value, name, APP_UUID_STRING_LENGTH);
-    value[APP_UUID_STRING_LENGTH] = '\0';
-    return app_uuid_parse(value, out_id) == APP_ERROR_NONE ? APP_ERROR_NONE
-                                                           : APP_ERROR_STORAGE_CORRUPT;
+
+    struct stat metadata;
+    if (operations->stat_path(operations->context, source_path, &metadata) != 0) {
+        const int stat_error = errno;
+        return map_error_number(stat_error);
+    }
+    if (!S_ISREG(metadata.st_mode)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+
+    storage_quarantine_entry_t entry = {0};
+    const int source_length =
+        snprintf(entry.source_path, sizeof(entry.source_path), "%s", source_path);
+    const int reason_length = snprintf(entry.reason, sizeof(entry.reason), "%s", reason);
+    if (source_length < 0 || (size_t)source_length >= sizeof(entry.source_path) ||
+        reason_length < 0 || (size_t)reason_length >= sizeof(entry.reason)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+
+    char committed_dir[APP_PATH_MAX_BYTES];
+    char staging_dir[APP_PATH_MAX_BYTES];
+    app_error_code_t result =
+        find_unique_id(&entry.id, committed_dir, sizeof(committed_dir), staging_dir,
+                       sizeof(staging_dir), operations, generate_uuid, uuid_context);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+
+    char staging_record[APP_PATH_MAX_BYTES];
+    char staging_evidence[APP_PATH_MAX_BYTES];
+    result =
+        child_path(staging_dir, QUARANTINE_RECORD_NAME, staging_record, sizeof(staging_record));
+    if (result == APP_ERROR_NONE) {
+        result = child_path(staging_dir, QUARANTINE_EVIDENCE_NAME, staging_evidence,
+                            sizeof(staging_evidence));
+    }
+    if (result == APP_ERROR_NONE) {
+        result =
+            committed_evidence_path(&entry.id, entry.evidence_path, sizeof(entry.evidence_path));
+    }
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+
+    char *json = NULL;
+    size_t json_length = 0U;
+    result = serialize_entry(&entry, &json, &json_length);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    const staged_paths_t paths = {
+        .source = source_path,
+        .staging_dir = staging_dir,
+        .staging_record = staging_record,
+        .staging_evidence = staging_evidence,
+        .committed_dir = committed_dir,
+    };
+    result = create_staged_entry(&paths, &entry.id, json, json_length, operations);
+    cJSON_free(json);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+
+    *out_entry = entry;
+    return APP_ERROR_NONE;
+}
+
+app_error_code_t storage_quarantine_file(const char *source_path, const char *reason,
+                                         storage_quarantine_entry_t *out_entry) {
+    return storage_quarantine_file_with_ops(source_path, reason, out_entry, storage_fs_ops_posix(),
+                                            production_uuid_generate, NULL);
 }
 
 static int compare_entries(const void *lhs, const void *rhs) {
@@ -425,82 +642,72 @@ static int compare_entries(const void *lhs, const void *rhs) {
     return strcmp(lhs_entry->id.value, rhs_entry->id.value);
 }
 
-static int compare_ids(const void *lhs, const void *rhs) {
-    const app_uuid_t *lhs_id = lhs;
-    const app_uuid_t *rhs_id = rhs;
-    return strcmp(lhs_id->value, rhs_id->value);
-}
-
-static bool has_suffix(const char *name, size_t name_length, const char *suffix,
-                       size_t suffix_length) {
-    return name_length >= suffix_length && strcmp(name + name_length - suffix_length, suffix) == 0;
-}
-
-static app_error_code_t list_add_record(const char *name, storage_quarantine_list_t *out_list,
-                                        const storage_fs_ops_t *operations) {
-    if (out_list->count >= STORAGE_QUARANTINE_MAX_ENTRIES) {
+static app_error_code_t entry_name_to_id(const char *name, app_uuid_t *out_id) {
+    if (name == NULL || out_id == NULL || strlen(name) != APP_UUID_STRING_LENGTH ||
+        !app_uuid_is_valid_string(name)) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
-    app_uuid_t uuid = {0};
-    app_error_code_t result = id_from_filename(name, QUARANTINE_JSON_SUFFIX, &uuid);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    char path[APP_PATH_MAX_BYTES];
-    result = record_path(&uuid, QUARANTINE_JSON_SUFFIX, path, sizeof(path));
-    if (result == APP_ERROR_NONE) {
-        result = storage_quarantine_read_record_with_ops(
-            path, &uuid, &out_list->items[out_list->count], operations);
-    }
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    ++out_list->count;
-    return APP_ERROR_NONE;
+    return app_uuid_parse(name, out_id) == APP_ERROR_NONE ? APP_ERROR_NONE
+                                                          : APP_ERROR_STORAGE_CORRUPT;
 }
 
-static app_error_code_t list_add_evidence(const char *name, app_uuid_t *evidence_ids,
-                                          size_t *evidence_count,
-                                          const storage_fs_ops_t *operations) {
-    if (*evidence_count >= STORAGE_QUARANTINE_MAX_ENTRIES) {
-        return APP_ERROR_STORAGE_CORRUPT;
+/* Read one committed directory into the list. A per-entry defect (bad name, not a
+ * directory, corrupt/missing record, missing evidence, or over the entry limit) is
+ * counted as damaged and skipped rather than failing the whole list (FIX1 §8.3
+ * rule 5). Only genuine I/O faults are returned as errors. */
+static app_error_code_t list_add_committed(const char *name, storage_quarantine_list_t *out_list,
+                                           const storage_fs_ops_t *operations) {
+    app_uuid_t entry_id;
+    if (entry_name_to_id(name, &entry_id) != APP_ERROR_NONE) {
+        ++out_list->damaged_count;
+        return APP_ERROR_NONE;
     }
-    app_error_code_t result =
-        id_from_filename(name, QUARANTINE_EVIDENCE_SUFFIX, &evidence_ids[*evidence_count]);
-    if (result != APP_ERROR_NONE) {
-        return result;
+    char directory[APP_PATH_MAX_BYTES];
+    char record[APP_PATH_MAX_BYTES];
+    char evidence[APP_PATH_MAX_BYTES];
+    if (committed_dir_path(&entry_id, directory, sizeof(directory)) != APP_ERROR_NONE ||
+        child_path(directory, QUARANTINE_RECORD_NAME, record, sizeof(record)) != APP_ERROR_NONE ||
+        child_path(directory, QUARANTINE_EVIDENCE_NAME, evidence, sizeof(evidence)) !=
+            APP_ERROR_NONE) {
+        ++out_list->damaged_count;
+        return APP_ERROR_NONE;
     }
-    char path[APP_PATH_MAX_BYTES];
-    result =
-        record_path(&evidence_ids[*evidence_count], QUARANTINE_EVIDENCE_SUFFIX, path, sizeof(path));
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
+
     struct stat metadata;
-    if (operations->stat_path(operations->context, path, &metadata) != 0) {
+    if (operations->stat_path(operations->context, directory, &metadata) != 0) {
         const int stat_error = errno;
+        return stat_error == ENOENT ? APP_ERROR_NONE : map_error_number(stat_error);
+    }
+    if (!S_ISDIR(metadata.st_mode)) {
+        ++out_list->damaged_count;
+        return APP_ERROR_NONE;
+    }
+
+    storage_quarantine_entry_t entry;
+    const app_error_code_t record_result = read_record_at(record, &entry_id, &entry, operations);
+    if (record_result == APP_ERROR_STORAGE_CORRUPT || record_result == APP_ERROR_NOT_FOUND) {
+        /* Corrupt or missing record: the entry is incomplete, not a filesystem
+         * fault -- count it as damaged and keep listing the rest. */
+        ++out_list->damaged_count;
+        return APP_ERROR_NONE;
+    }
+    if (record_result != APP_ERROR_NONE) {
+        return record_result;
+    }
+    if (operations->stat_path(operations->context, evidence, &metadata) != 0) {
+        const int stat_error = errno;
+        if (stat_error == ENOENT) {
+            ++out_list->damaged_count;
+            return APP_ERROR_NONE;
+        }
         return map_error_number(stat_error);
     }
-    if (!S_ISREG(metadata.st_mode)) {
-        return APP_ERROR_STORAGE_CORRUPT;
+    if (!S_ISREG(metadata.st_mode) || out_list->count >= STORAGE_QUARANTINE_MAX_ENTRIES) {
+        ++out_list->damaged_count;
+        return APP_ERROR_NONE;
     }
-    ++(*evidence_count);
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t correlate_records_and_evidence(storage_quarantine_list_t *out_list,
-                                                       app_uuid_t *evidence_ids,
-                                                       size_t evidence_count) {
-    qsort(out_list->items, out_list->count, sizeof(out_list->items[0]), compare_entries);
-    qsort(evidence_ids, evidence_count, sizeof(evidence_ids[0]), compare_ids);
-    if (out_list->count != evidence_count) {
-        return APP_ERROR_STORAGE_CORRUPT;
-    }
-    for (size_t index = 0U; index < out_list->count; ++index) {
-        if (!app_uuid_equal(&out_list->items[index].id, &evidence_ids[index])) {
-            return APP_ERROR_STORAGE_CORRUPT;
-        }
-    }
+    out_list->items[out_list->count] = entry;
+    ++out_list->count;
     return APP_ERROR_NONE;
 }
 
@@ -520,8 +727,6 @@ app_error_code_t storage_quarantine_list_with_ops(storage_quarantine_list_t *out
         return open_error == ENOENT ? APP_ERROR_STORAGE_UNAVAILABLE : map_error_number(open_error);
     }
 
-    app_uuid_t evidence_ids[STORAGE_QUARANTINE_MAX_ENTRIES];
-    size_t evidence_count = 0U;
     app_error_code_t result = APP_ERROR_NONE;
     while (true) {
         char name[STORAGE_FS_ENTRY_NAME_MAX];
@@ -538,17 +743,7 @@ app_error_code_t storage_quarantine_list_with_ops(storage_quarantine_list_t *out
         if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
             continue;
         }
-
-        const size_t name_length = strlen(name);
-        if (has_suffix(name, name_length, QUARANTINE_JSON_SUFFIX,
-                       sizeof(QUARANTINE_JSON_SUFFIX) - 1U)) {
-            result = list_add_record(name, out_list, operations);
-        } else if (has_suffix(name, name_length, QUARANTINE_EVIDENCE_SUFFIX,
-                              sizeof(QUARANTINE_EVIDENCE_SUFFIX) - 1U)) {
-            result = list_add_evidence(name, evidence_ids, &evidence_count, operations);
-        } else {
-            result = APP_ERROR_STORAGE_CORRUPT;
-        }
+        result = list_add_committed(name, out_list, operations);
         if (result != APP_ERROR_NONE) {
             break;
         }
@@ -559,13 +754,12 @@ app_error_code_t storage_quarantine_list_with_ops(storage_quarantine_list_t *out
         const int close_error = errno;
         result = map_error_number(close_error);
     }
-    if (result == APP_ERROR_NONE) {
-        result = correlate_records_and_evidence(out_list, evidence_ids, evidence_count);
-    }
     if (result != APP_ERROR_NONE) {
         memset(out_list, 0, sizeof(*out_list));
+        return result;
     }
-    return result;
+    qsort(out_list->items, out_list->count, sizeof(out_list->items[0]), compare_entries);
+    return APP_ERROR_NONE;
 }
 
 app_error_code_t storage_quarantine_list(storage_quarantine_list_t *out_list) {
