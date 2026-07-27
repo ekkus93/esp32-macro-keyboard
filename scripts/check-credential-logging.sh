@@ -52,7 +52,12 @@ def manufacturing_region(text: str, path: Path) -> tuple[int, int]:
     guard_end = text.find("#else", guard_start)
     if guard_end < 0:
         fail(f"{path}: manufacturing credential guard has no #else")
-    if MANUFACTURING_BANNER not in text[guard_start:guard_end]:
+    guarded_text = text[guard_start:guard_end]
+    banner_present = any(
+        MANUFACTURING_BANNER in joined_literals(match.group(0))
+        for match in OUTPUT_CALL.finditer(guarded_text)
+    )
+    if not banner_present:
         fail(f"{path}: missing permanent manufacturing warning banner")
     return guard_start, guard_end
 
