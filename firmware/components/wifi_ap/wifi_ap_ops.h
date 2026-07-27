@@ -8,12 +8,6 @@
 #include "app_error.h"
 #include "wifi_ap.h"
 
-#define WIFI_AP_SSID_MAX_BYTES 32U
-#define WIFI_AP_PASSPHRASE_MIN_BYTES 12U
-#define WIFI_AP_PASSPHRASE_MAX_BYTES 63U
-#define WIFI_AP_MAX_CLIENTS 4U
-#define WIFI_AP_DEFAULT_CHANNEL 1U
-
 typedef enum {
     WIFI_AP_EVENT_LOOP_CREATED = 0,
     WIFI_AP_EVENT_LOOP_ALREADY_EXISTS,
