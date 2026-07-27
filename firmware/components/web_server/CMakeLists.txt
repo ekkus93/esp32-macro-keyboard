@@ -6,6 +6,7 @@ idf_component_register(
     "web_server_logout_execution.c"
     "web_server_cancel.c"
     "web_server_static.c"
+    "web_server_setup.c"
     "web_server_lifecycle.c"
     "web_server_adapter_common.c"
     "web_server_adapter_body_auth.c"
@@ -16,6 +17,7 @@ idf_component_register(
     "web_origin.c"
     "web_static_path.c"
     "web_content.c"
+    "web_setup_core.c"
     INCLUDE_DIRS
     "include"
     PRIV_INCLUDE_DIRS
@@ -26,8 +28,12 @@ idf_component_register(
     usb_keyboard
     wifi_ap
     auth
+    provisioning
+    device_controls
     storage
     esp_http_server
+    esp_timer
+    esp_system
     json
 )
 
