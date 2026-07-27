@@ -53,7 +53,8 @@
 | 8 | Make quarantine recoverable | done |
 | 9 | Serialize repository operations | done (import/restore serialization deferred with Phase 18) |
 | 10 | Separate password mismatch from crypto failure | done |
-| 11–13 | Wi-Fi / executor / controls cleanup and visibility | not started |
+| 11 | Fix Wi-Fi cleanup | done |
+| 12–13 | Executor / controls cleanup and visibility | not started |
 | 14 | Encrypted persistent provisioning | not started |
 | 15 | Complete storage object repositories | not started |
 | 16 | Complete the HTTP API | not started |
@@ -85,6 +86,22 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 11 (fix Wi-Fi cleanup) — complete. One commit. `cleanup_resources`
+  (`wifi_ap_state.c`) no longer returns early on the first failing teardown step;
+  it records the first error and continues through all four steps (wifi_stop,
+  handler_unregister, wifi_deinit, netif_destroy), clearing each ownership flag
+  only when its own step succeeds, and returns the first error. A stuck resource
+  therefore no longer strands the others, and a retry reattempts exactly the
+  resources still held. Added `wifi_ap_engine_owns_resources` (true when any of
+  netif_created/wifi_initialized/handler_registered/wifi_started is set) and the
+  public `wifi_ap_owns_resources`, and wired `app_core`'s
+  `adapter_wifi_owns_resources` (previously a conservative `return false`
+  placeholder) to it. Host tests updated to the accumulate semantics and extended
+  to the §11.3 matrix: for each cleanup step, fail it and assert the later steps
+  still run, that only the failing step keeps its ownership flag, that a retry
+  clears the residual ownership, and that the original start error stays visible
+  when a cleanup step also fails. wifi host suite green + ASan/UBSan + startup,
+  fail-closed clang-tidy 0, check-format clean.
 - Phase 10 (separate password mismatch from crypto failure) — complete. One
   commit. `auth_password_verify` / `auth_core_password_verify` now return
   `app_error_code_t` with a `bool *out_matches` instead of a bare `bool`, so the

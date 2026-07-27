@@ -195,3 +195,7 @@ app_error_code_t wifi_ap_stop(void) {
     const app_error_code_t init_result = ensure_engine();
     return init_result == APP_ERROR_NONE ? wifi_ap_engine_stop(&engine) : init_result;
 }
+
+bool wifi_ap_owns_resources(void) {
+    return engine_initialized && wifi_ap_engine_owns_resources(&engine);
+}

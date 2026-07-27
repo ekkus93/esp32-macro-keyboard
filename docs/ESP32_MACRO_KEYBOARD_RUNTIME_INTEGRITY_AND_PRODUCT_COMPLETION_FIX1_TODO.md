@@ -1173,11 +1173,11 @@ Return true when any engine resource flag is set.
 
 For each cleanup operation:
 
-- [ ] fail it;
-- [ ] assert later cleanup operations still run;
-- [ ] assert only successful ownership flags clear;
-- [ ] assert retry cleans residual ownership;
-- [ ] assert original start error remains visible.
+- [x] fail it;
+- [x] assert later cleanup operations still run;
+- [x] assert only successful ownership flags clear;
+- [x] assert retry cleans residual ownership;
+- [x] assert original start error remains visible.
 
 ## 12. Fix executor shutdown and terminal integrity
 

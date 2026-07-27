@@ -15,112 +15,90 @@ typedef struct {
     wifi_ap_runtime_config_t configuration;
 } wifi_fixture_t;
 
-static void reset_fixture(wifi_fixture_t *fixture)
-{
+static void reset_fixture(wifi_fixture_t *fixture) {
     TEST_CHECK(fixture != NULL);
     memset(fixture, 0, sizeof(*fixture));
     fake_wifi_backend_reset(&fixture->backend);
     fixture->status.state = WIFI_AP_STOPPED;
 }
 
-static app_error_code_t operation_result(wifi_fixture_t *fixture,
-                                         fake_wifi_operation_t operation)
-{
+static app_error_code_t operation_result(wifi_fixture_t *fixture, fake_wifi_operation_t operation) {
     return (app_error_code_t)fake_wifi_backend_call(&fixture->backend, operation);
 }
 
-static wifi_ap_status_t fake_status_get(void *context)
-{
+static wifi_ap_status_t fake_status_get(void *context) {
     const wifi_fixture_t *fixture = context;
     TEST_CHECK(fixture != NULL);
     return fixture->status;
 }
 
-static void fake_status_set(void *context, const wifi_ap_status_t *status)
-{
+static void fake_status_set(void *context, const wifi_ap_status_t *status) {
     wifi_fixture_t *fixture = context;
     TEST_CHECK(fixture != NULL);
     TEST_CHECK(status != NULL);
     fixture->status = *status;
 }
 
-static app_error_code_t fake_netif_init(void *context)
-{
+static app_error_code_t fake_netif_init(void *context) {
     return operation_result(context, FAKE_WIFI_NETIF_INIT);
 }
 
-static wifi_ap_event_loop_result_t fake_event_loop_create(void *context)
-{
+static wifi_ap_event_loop_result_t fake_event_loop_create(void *context) {
     wifi_fixture_t *fixture = context;
     const int result = fake_wifi_backend_call(&fixture->backend, FAKE_WIFI_EVENT_LOOP);
     if (result == 0) {
         return WIFI_AP_EVENT_LOOP_CREATED;
     }
-    return result == 1 ? WIFI_AP_EVENT_LOOP_ALREADY_EXISTS
-                       : WIFI_AP_EVENT_LOOP_FAILED;
+    return result == 1 ? WIFI_AP_EVENT_LOOP_ALREADY_EXISTS : WIFI_AP_EVENT_LOOP_FAILED;
 }
 
-static app_error_code_t fake_netif_create(void *context)
-{
+static app_error_code_t fake_netif_create(void *context) {
     return operation_result(context, FAKE_WIFI_CREATE_AP);
 }
 
-static app_error_code_t fake_wifi_init(void *context)
-{
+static app_error_code_t fake_wifi_init(void *context) {
     return operation_result(context, FAKE_WIFI_INIT);
 }
 
-static app_error_code_t fake_handler_register(void *context)
-{
+static app_error_code_t fake_handler_register(void *context) {
     return operation_result(context, FAKE_WIFI_REGISTER_HANDLER);
 }
 
-static app_error_code_t fake_set_mode_ap(void *context)
-{
+static app_error_code_t fake_set_mode_ap(void *context) {
     return operation_result(context, FAKE_WIFI_SET_MODE);
 }
 
-static app_error_code_t fake_set_config(
-    void *context,
-    const wifi_ap_runtime_config_t *configuration)
-{
+static app_error_code_t fake_set_config(void *context,
+                                        const wifi_ap_runtime_config_t *configuration) {
     wifi_fixture_t *fixture = context;
     TEST_CHECK(configuration != NULL);
     fixture->configuration = *configuration;
-    fake_wifi_backend_capture_config(&fixture->backend,
-                                     configuration->ssid,
-                                     configuration->passphrase,
-                                     configuration->maximum_clients);
+    fake_wifi_backend_capture_config(&fixture->backend, configuration->ssid,
+                                     configuration->passphrase, configuration->maximum_clients);
     return operation_result(fixture, FAKE_WIFI_SET_CONFIG);
 }
 
-static app_error_code_t fake_wifi_start(void *context)
-{
+static app_error_code_t fake_wifi_start(void *context) {
     return operation_result(context, FAKE_WIFI_START);
 }
 
-static app_error_code_t fake_wifi_stop(void *context)
-{
+static app_error_code_t fake_wifi_stop(void *context) {
     return operation_result(context, FAKE_WIFI_STOP);
 }
 
-static app_error_code_t fake_handler_unregister(void *context)
-{
+static app_error_code_t fake_handler_unregister(void *context) {
     return operation_result(context, FAKE_WIFI_UNREGISTER_HANDLER);
 }
 
-static app_error_code_t fake_wifi_deinit(void *context)
-{
+static app_error_code_t fake_wifi_deinit(void *context) {
     return operation_result(context, FAKE_WIFI_DEINIT);
 }
 
-static app_error_code_t fake_netif_destroy(void *context)
-{
+static app_error_code_t fake_netif_destroy(void *context) {
     return operation_result(context, FAKE_WIFI_DESTROY_AP);
 }
 
-static wifi_ap_ops_t make_operations(wifi_fixture_t *fixture)
-{
+static wifi_ap_ops_t make_operations(wifi_fixture_t *fixture) {
     return (wifi_ap_ops_t){
         .context = fixture,
         .status_get = fake_status_get,
@@ -140,8 +118,7 @@ static wifi_ap_ops_t make_operations(wifi_fixture_t *fixture)
     };
 }
 
-static size_t call_count(const wifi_fixture_t *fixture, const char *name)
-{
+static size_t call_count(const wifi_fixture_t *fixture, const char *name) {
     size_t count = 0U;
     for (size_t index = 0U; index < fixture->backend.calls.call_count; ++index) {
         const fake_call_t *call = fake_call_log_at(&fixture->backend.calls, index);
@@ -152,8 +129,7 @@ static size_t call_count(const wifi_fixture_t *fixture, const char *name)
     return count;
 }
 
-static size_t call_index(const wifi_fixture_t *fixture, const char *name)
-{
+static size_t call_index(const wifi_fixture_t *fixture, const char *name) {
     for (size_t index = 0U; index < fixture->backend.calls.call_count; ++index) {
         const fake_call_t *call = fake_call_log_at(&fixture->backend.calls, index);
         if (call != NULL && strcmp(call->name, name) == 0) {
@@ -163,10 +139,7 @@ static size_t call_index(const wifi_fixture_t *fixture, const char *name)
     return SIZE_MAX;
 }
 
-static void assert_order(const wifi_fixture_t *fixture,
-                         const char *before,
-                         const char *after)
-{
+static void assert_order(const wifi_fixture_t *fixture, const char *before, const char *after) {
     const size_t before_index = call_index(fixture, before);
     const size_t after_index = call_index(fixture, after);
     TEST_CHECK(before_index != SIZE_MAX);
@@ -174,8 +147,7 @@ static void assert_order(const wifi_fixture_t *fixture,
     TEST_CHECK(before_index < after_index);
 }
 
-static void initialize_engine(wifi_fixture_t *fixture, wifi_ap_engine_t *engine)
-{
+static void initialize_engine(wifi_fixture_t *fixture, wifi_ap_engine_t *engine) {
     const wifi_ap_ops_t operations = make_operations(fixture);
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, wifi_ap_engine_init(engine, &operations));
     TEST_CHECK_EQ_INT(WIFI_AP_STOPPED, fixture->status.state);
@@ -184,33 +156,27 @@ static void initialize_engine(wifi_fixture_t *fixture, wifi_ap_engine_t *engine)
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, fixture->status.cleanup_error);
 }
 
-static void start_successfully(wifi_fixture_t *fixture, wifi_ap_engine_t *engine)
-{
+static void start_successfully(wifi_fixture_t *fixture, wifi_ap_engine_t *engine) {
     TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      wifi_ap_engine_start(engine,
-                                           "ESP32-Macro-Setup",
-                                           "correct horse battery"));
+                      wifi_ap_engine_start(engine, "ESP32-Macro-Setup", "correct horse battery"));
     TEST_CHECK_EQ_INT(WIFI_AP_STARTING, fixture->status.state);
 }
 
-static void test_operation_validation(void)
-{
+static void test_operation_validation(void) {
     wifi_fixture_t fixture;
     reset_fixture(&fixture);
     wifi_ap_engine_t engine;
     wifi_ap_ops_t operations = make_operations(&fixture);
     TEST_CHECK(wifi_ap_ops_is_valid(&operations));
     TEST_CHECK(!wifi_ap_ops_is_valid(NULL));
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      wifi_ap_engine_init(NULL, &operations));
+    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, wifi_ap_engine_init(NULL, &operations));
 
-#define CHECK_MISSING(member)                                                          \
-    do {                                                                               \
-        operations = make_operations(&fixture);                                        \
-        operations.member = NULL;                                                      \
-        TEST_CHECK(!wifi_ap_ops_is_valid(&operations));                                \
-        TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,                                  \
-                          wifi_ap_engine_init(&engine, &operations));                   \
+#define CHECK_MISSING(member)                                                                      \
+    do {                                                                                           \
+        operations = make_operations(&fixture);                                                    \
+        operations.member = NULL;                                                                  \
+        TEST_CHECK(!wifi_ap_ops_is_valid(&operations));                                            \
+        TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, wifi_ap_engine_init(&engine, &operations));  \
     } while (0)
 
     CHECK_MISSING(status_get);
@@ -231,8 +197,7 @@ static void test_operation_validation(void)
 #undef CHECK_MISSING
 }
 
-static void test_credentials_and_configuration(void)
-{
+static void test_credentials_and_configuration(void) {
     wifi_fixture_t fixture;
     reset_fixture(&fixture);
     wifi_ap_engine_t engine;
@@ -242,8 +207,7 @@ static void test_credentials_and_configuration(void)
                       wifi_ap_engine_start(&engine, NULL, "123456789012"));
     TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
                       wifi_ap_engine_start(&engine, "", "123456789012"));
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      wifi_ap_engine_start(&engine, "ssid", NULL));
+    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, wifi_ap_engine_start(&engine, "ssid", NULL));
     TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
                       wifi_ap_engine_start(&engine, "ssid", "12345678901"));
 
@@ -251,9 +215,7 @@ static void test_credentials_and_configuration(void)
     memset(long_ssid, 's', sizeof(long_ssid) - 1U);
     long_ssid[sizeof(long_ssid) - 1U] = '\0';
     TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      wifi_ap_engine_start(&engine,
-                                           long_ssid,
-                                           "123456789012"));
+                      wifi_ap_engine_start(&engine, long_ssid, "123456789012"));
 
     char long_passphrase[WIFI_AP_PASSPHRASE_MAX_BYTES + 2U];
     memset(long_passphrase, 'p', sizeof(long_passphrase) - 1U);
@@ -270,46 +232,33 @@ static void test_credentials_and_configuration(void)
     maximum_passphrase[sizeof(maximum_passphrase) - 1U] = '\0';
 
     TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      wifi_ap_engine_start(&engine,
-                                           maximum_ssid,
-                                           maximum_passphrase));
-    TEST_CHECK_EQ_U64(WIFI_AP_SSID_MAX_BYTES,
-                      fixture.configuration.ssid_length);
+                      wifi_ap_engine_start(&engine, maximum_ssid, maximum_passphrase));
+    TEST_CHECK_EQ_U64(WIFI_AP_SSID_MAX_BYTES, fixture.configuration.ssid_length);
     TEST_CHECK_EQ_STRING(maximum_ssid, fixture.configuration.ssid);
     TEST_CHECK_EQ_STRING(maximum_passphrase, fixture.configuration.passphrase);
     TEST_CHECK_EQ_INT(WIFI_AP_DEFAULT_CHANNEL, fixture.configuration.channel);
-    TEST_CHECK_EQ_INT(WIFI_AP_MAX_CLIENTS,
-                      fixture.configuration.maximum_clients);
+    TEST_CHECK_EQ_INT(WIFI_AP_MAX_CLIENTS, fixture.configuration.maximum_clients);
     TEST_CHECK(fixture.configuration.wpa2_wpa3_psk);
     TEST_CHECK(fixture.configuration.pmf_required);
-    TEST_CHECK_EQ_INT('\0',
-                      fixture.configuration.ssid[WIFI_AP_SSID_MAX_BYTES]);
-    TEST_CHECK_EQ_INT('\0',
-                      fixture.configuration
-                          .passphrase[WIFI_AP_PASSPHRASE_MAX_BYTES]);
-    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT,
-                      wifi_ap_engine_start(&engine,
-                                           "second",
-                                           "123456789012"));
+    TEST_CHECK_EQ_INT('\0', fixture.configuration.ssid[WIFI_AP_SSID_MAX_BYTES]);
+    TEST_CHECK_EQ_INT('\0', fixture.configuration.passphrase[WIFI_AP_PASSPHRASE_MAX_BYTES]);
+    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT, wifi_ap_engine_start(&engine, "second", "123456789012"));
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, wifi_ap_engine_stop(&engine));
 }
 
-static void test_minimum_credentials_and_existing_event_loop(void)
-{
+static void test_minimum_credentials_and_existing_event_loop(void) {
     wifi_fixture_t fixture;
     reset_fixture(&fixture);
     fake_wifi_backend_set_result(&fixture.backend, FAKE_WIFI_EVENT_LOOP, 1);
     wifi_ap_engine_t engine;
     initialize_engine(&fixture, &engine);
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      wifi_ap_engine_start(&engine, "s", "123456789012"));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, wifi_ap_engine_start(&engine, "s", "123456789012"));
     TEST_CHECK_EQ_STRING("s", fixture.configuration.ssid);
     TEST_CHECK_EQ_STRING("123456789012", fixture.configuration.passphrase);
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, wifi_ap_engine_stop(&engine));
 }
 
-static void test_events_and_client_saturation(void)
-{
+static void test_events_and_client_saturation(void) {
     wifi_fixture_t fixture;
     reset_fixture(&fixture);
     wifi_ap_engine_t engine;
@@ -323,8 +272,7 @@ static void test_events_and_client_saturation(void)
     }
     TEST_CHECK_EQ_U64(WIFI_AP_MAX_CLIENTS, fixture.status.client_count);
     for (size_t index = 0U; index < WIFI_AP_MAX_CLIENTS + 3U; ++index) {
-        wifi_ap_engine_handle_event(&engine,
-                                    WIFI_AP_EVENT_CLIENT_DISCONNECTED);
+        wifi_ap_engine_handle_event(&engine, WIFI_AP_EVENT_CLIENT_DISCONNECTED);
     }
     TEST_CHECK_EQ_U64(0U, fixture.status.client_count);
 
@@ -347,58 +295,34 @@ typedef struct {
     const char *forbidden_later_call;
 } start_failure_case_t;
 
-static void test_start_failure_matrix(void)
-{
+static void test_start_failure_matrix(void) {
     static const start_failure_case_t cases[] = {
-        {FAKE_WIFI_NETIF_INIT,
-         (int)APP_ERROR_STORAGE_UNAVAILABLE,
-         APP_ERROR_STORAGE_UNAVAILABLE,
+        {FAKE_WIFI_NETIF_INIT, (int)APP_ERROR_STORAGE_UNAVAILABLE, APP_ERROR_STORAGE_UNAVAILABLE,
          "wifi_event_loop"},
         {FAKE_WIFI_EVENT_LOOP, 2, APP_ERROR_INTERNAL, "wifi_create_ap"},
-        {FAKE_WIFI_CREATE_AP,
-         (int)APP_ERROR_INTERNAL,
-         APP_ERROR_INTERNAL,
-         "wifi_init"},
-        {FAKE_WIFI_INIT,
-         (int)APP_ERROR_INTERNAL,
-         APP_ERROR_INTERNAL,
-         "wifi_register_handler"},
-        {FAKE_WIFI_REGISTER_HANDLER,
-         (int)APP_ERROR_INTERNAL,
-         APP_ERROR_INTERNAL,
-         "wifi_set_mode"},
-        {FAKE_WIFI_SET_MODE,
-         (int)APP_ERROR_IO,
-         APP_ERROR_IO,
-         "wifi_capture_config"},
-        {FAKE_WIFI_SET_CONFIG,
-         (int)APP_ERROR_IO,
-         APP_ERROR_IO,
-         "wifi_start"},
+        {FAKE_WIFI_CREATE_AP, (int)APP_ERROR_INTERNAL, APP_ERROR_INTERNAL, "wifi_init"},
+        {FAKE_WIFI_INIT, (int)APP_ERROR_INTERNAL, APP_ERROR_INTERNAL, "wifi_register_handler"},
+        {FAKE_WIFI_REGISTER_HANDLER, (int)APP_ERROR_INTERNAL, APP_ERROR_INTERNAL, "wifi_set_mode"},
+        {FAKE_WIFI_SET_MODE, (int)APP_ERROR_IO, APP_ERROR_IO, "wifi_capture_config"},
+        {FAKE_WIFI_SET_CONFIG, (int)APP_ERROR_IO, APP_ERROR_IO, "wifi_start"},
         {FAKE_WIFI_START, (int)APP_ERROR_IO, APP_ERROR_IO, NULL},
     };
 
     for (size_t index = 0U; index < (sizeof(cases) / sizeof(cases[0])); ++index) {
         wifi_fixture_t fixture;
         reset_fixture(&fixture);
-        fake_wifi_backend_set_result(&fixture.backend,
-                                     cases[index].operation,
+        fake_wifi_backend_set_result(&fixture.backend, cases[index].operation,
                                      cases[index].fake_result);
         wifi_ap_engine_t engine;
         initialize_engine(&fixture, &engine);
 
         TEST_CHECK_EQ_INT(cases[index].expected_error,
-                          wifi_ap_engine_start(&engine,
-                                               "ssid",
-                                               "123456789012"));
+                          wifi_ap_engine_start(&engine, "ssid", "123456789012"));
         TEST_CHECK_EQ_INT(WIFI_AP_ERROR, fixture.status.state);
-        TEST_CHECK_EQ_INT(cases[index].expected_error,
-                          fixture.status.last_error);
+        TEST_CHECK_EQ_INT(cases[index].expected_error, fixture.status.last_error);
         TEST_CHECK_EQ_INT(APP_ERROR_NONE, fixture.status.cleanup_error);
         if (cases[index].forbidden_later_call != NULL) {
-            TEST_CHECK_EQ_U64(0U,
-                              call_count(&fixture,
-                                         cases[index].forbidden_later_call));
+            TEST_CHECK_EQ_U64(0U, call_count(&fixture, cases[index].forbidden_later_call));
         }
 
         if (cases[index].operation == FAKE_WIFI_INIT) {
@@ -409,16 +333,12 @@ static void test_start_failure_matrix(void)
         }
         if (cases[index].operation == FAKE_WIFI_SET_MODE ||
             cases[index].operation == FAKE_WIFI_SET_CONFIG) {
-            assert_order(&fixture,
-                         "wifi_unregister_handler",
-                         "wifi_deinit");
+            assert_order(&fixture, "wifi_unregister_handler", "wifi_deinit");
             assert_order(&fixture, "wifi_deinit", "wifi_destroy_ap");
         }
         if (cases[index].operation == FAKE_WIFI_START) {
             assert_order(&fixture, "wifi_stop", "wifi_unregister_handler");
-            assert_order(&fixture,
-                         "wifi_unregister_handler",
-                         "wifi_deinit");
+            assert_order(&fixture, "wifi_unregister_handler", "wifi_deinit");
             assert_order(&fixture, "wifi_deinit", "wifi_destroy_ap");
         }
 
@@ -427,58 +347,55 @@ static void test_start_failure_matrix(void)
     }
 }
 
-static void test_start_cleanup_failure_is_visible_and_retriable(void)
-{
+static void test_start_cleanup_failure_is_visible_and_retriable(void) {
     wifi_fixture_t fixture;
     reset_fixture(&fixture);
-    fake_wifi_backend_set_result(&fixture.backend,
-                                 FAKE_WIFI_SET_MODE,
-                                 (int)APP_ERROR_IO);
-    fake_wifi_backend_set_result(&fixture.backend,
-                                 FAKE_WIFI_UNREGISTER_HANDLER,
+    fake_wifi_backend_set_result(&fixture.backend, FAKE_WIFI_SET_MODE, (int)APP_ERROR_IO);
+    fake_wifi_backend_set_result(&fixture.backend, FAKE_WIFI_UNREGISTER_HANDLER,
                                  (int)APP_ERROR_INTERNAL);
     wifi_ap_engine_t engine;
     initialize_engine(&fixture, &engine);
 
-    TEST_CHECK_EQ_INT(APP_ERROR_IO,
-                      wifi_ap_engine_start(&engine,
-                                           "ssid",
-                                           "123456789012"));
+    TEST_CHECK_EQ_INT(APP_ERROR_IO, wifi_ap_engine_start(&engine, "ssid", "123456789012"));
     TEST_CHECK_EQ_INT(WIFI_AP_ERROR, fixture.status.state);
+    /* The original start error (set-mode IO) stays visible even though a later
+     * cleanup step (handler-unregister) also failed (FIX1 §11.1). */
     TEST_CHECK_EQ_INT(APP_ERROR_IO, fixture.status.last_error);
     TEST_CHECK_EQ_INT(APP_ERROR_INTERNAL, fixture.status.cleanup_error);
+    /* Only the failing handler-unregister keeps its ownership flag; the later
+     * deinit and netif-destroy still ran and cleared theirs. */
     TEST_CHECK(engine.handler_registered);
-    TEST_CHECK(engine.wifi_initialized);
-    TEST_CHECK(engine.netif_created);
+    TEST_CHECK(!engine.wifi_initialized);
+    TEST_CHECK(!engine.netif_created);
+    TEST_CHECK(call_count(&fixture, "wifi_deinit") >= 1U);
+    TEST_CHECK(call_count(&fixture, "wifi_destroy_ap") >= 1U);
+    TEST_CHECK(wifi_ap_engine_owns_resources(&engine));
 
-    fake_wifi_backend_set_result(&fixture.backend,
-                                 FAKE_WIFI_UNREGISTER_HANDLER,
+    fake_wifi_backend_set_result(&fixture.backend, FAKE_WIFI_UNREGISTER_HANDLER,
                                  (int)APP_ERROR_NONE);
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, wifi_ap_engine_stop(&engine));
     TEST_CHECK_EQ_INT(WIFI_AP_STOPPED, fixture.status.state);
     TEST_CHECK(!engine.handler_registered);
     TEST_CHECK(!engine.wifi_initialized);
     TEST_CHECK(!engine.netif_created);
+    TEST_CHECK(!wifi_ap_engine_owns_resources(&engine));
 }
 
-static void test_stop_failure_matrix_and_retry(void)
-{
+static void test_stop_failure_matrix_and_retry(void) {
     static const fake_wifi_operation_t cleanup_operations[] = {
         FAKE_WIFI_STOP,
         FAKE_WIFI_UNREGISTER_HANDLER,
         FAKE_WIFI_DEINIT,
         FAKE_WIFI_DESTROY_AP,
     };
-    for (size_t index = 0U;
-         index < (sizeof(cleanup_operations) / sizeof(cleanup_operations[0]));
+    for (size_t index = 0U; index < (sizeof(cleanup_operations) / sizeof(cleanup_operations[0]));
          ++index) {
         wifi_fixture_t fixture;
         reset_fixture(&fixture);
         wifi_ap_engine_t engine;
         initialize_engine(&fixture, &engine);
         start_successfully(&fixture, &engine);
-        fake_wifi_backend_set_result(&fixture.backend,
-                                     cleanup_operations[index],
+        fake_wifi_backend_set_result(&fixture.backend, cleanup_operations[index],
                                      (int)APP_ERROR_INTERNAL);
 
         TEST_CHECK_EQ_INT(APP_ERROR_INTERNAL, wifi_ap_engine_stop(&engine));
@@ -486,18 +403,33 @@ static void test_stop_failure_matrix_and_retry(void)
         TEST_CHECK_EQ_INT(APP_ERROR_INTERNAL, fixture.status.last_error);
         TEST_CHECK_EQ_INT(APP_ERROR_INTERNAL, fixture.status.cleanup_error);
 
-        fake_wifi_backend_set_result(&fixture.backend,
-                                     cleanup_operations[index],
+        /* Every teardown step runs despite the failure, so no later resource is
+         * stranded (FIX1 §11.1). */
+        TEST_CHECK(call_count(&fixture, "wifi_stop") >= 1U);
+        TEST_CHECK(call_count(&fixture, "wifi_unregister_handler") >= 1U);
+        TEST_CHECK(call_count(&fixture, "wifi_deinit") >= 1U);
+        TEST_CHECK(call_count(&fixture, "wifi_destroy_ap") >= 1U);
+
+        /* Exactly the failing step keeps its ownership flag; every other flag was
+         * cleared by its own successful teardown. */
+        TEST_CHECK(engine.wifi_started == (index == 0U));
+        TEST_CHECK(engine.handler_registered == (index == 1U));
+        TEST_CHECK(engine.wifi_initialized == (index == 2U));
+        TEST_CHECK(engine.netif_created == (index == 3U));
+        TEST_CHECK(wifi_ap_engine_owns_resources(&engine));
+
+        fake_wifi_backend_set_result(&fixture.backend, cleanup_operations[index],
                                      (int)APP_ERROR_NONE);
         TEST_CHECK_EQ_INT(APP_ERROR_NONE, wifi_ap_engine_stop(&engine));
         TEST_CHECK_EQ_INT(WIFI_AP_STOPPED, fixture.status.state);
         TEST_CHECK_EQ_INT(APP_ERROR_NONE, fixture.status.last_error);
         TEST_CHECK_EQ_INT(APP_ERROR_NONE, fixture.status.cleanup_error);
+        /* The retry cleaned the residual ownership. */
+        TEST_CHECK(!wifi_ap_engine_owns_resources(&engine));
     }
 }
 
-static void test_stop_when_already_stopped(void)
-{
+static void test_stop_when_already_stopped(void) {
     wifi_fixture_t fixture;
     reset_fixture(&fixture);
     wifi_ap_engine_t engine;
@@ -507,15 +439,11 @@ static void test_stop_when_already_stopped(void)
 
     wifi_ap_engine_t uninitialized = {0};
     TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      wifi_ap_engine_start(&uninitialized,
-                                           "ssid",
-                                           "123456789012"));
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      wifi_ap_engine_stop(&uninitialized));
+                      wifi_ap_engine_start(&uninitialized, "ssid", "123456789012"));
+    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, wifi_ap_engine_stop(&uninitialized));
 }
 
-static void test_start_enforces_operation_sequence(void)
-{
+static void test_start_enforces_operation_sequence(void) {
     wifi_fixture_t fixture;
     reset_fixture(&fixture);
     wifi_ap_engine_t engine;
@@ -531,9 +459,9 @@ static void test_start_enforces_operation_sequence(void)
      * mode were applied would fail here.
      */
     static const char *const expected[] = {
-        "wifi_netif_init",      "wifi_event_loop", "wifi_create_ap",
-        "wifi_init",            "wifi_register_handler", "wifi_set_mode",
-        "wifi_capture_config",  "wifi_set_config", "wifi_start",
+        "wifi_netif_init",     "wifi_event_loop",       "wifi_create_ap",
+        "wifi_init",           "wifi_register_handler", "wifi_set_mode",
+        "wifi_capture_config", "wifi_set_config",       "wifi_start",
     };
     fake_call_log_set_strict(&fixture.backend.calls, true);
     for (size_t index = 0U; index < (sizeof(expected) / sizeof(expected[0])); ++index) {
@@ -544,8 +472,7 @@ static void test_start_enforces_operation_sequence(void)
     fake_call_log_verify(&fixture.backend.calls);
 }
 
-int main(void)
-{
+int main(void) {
     test_start_enforces_operation_sequence();
     test_operation_validation();
     test_credentials_and_configuration();

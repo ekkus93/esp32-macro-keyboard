@@ -180,9 +180,7 @@ static bool adapter_http_owns_resources(void *context) {
 
 static bool adapter_wifi_owns_resources(void *context) {
     (void)context;
-    /* Wired to a wifi_ap ownership query when it lands; conservative default so
-     * cleanup relies on the tracked wifi_started flag until then. */
-    return false;
+    return wifi_ap_owns_resources();
 }
 
 static bool adapter_storage_owns_mount(void *context) {

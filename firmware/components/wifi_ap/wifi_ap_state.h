@@ -27,6 +27,9 @@ app_error_code_t wifi_ap_engine_init(wifi_ap_engine_t *engine, const wifi_ap_ops
 app_error_code_t wifi_ap_engine_start(wifi_ap_engine_t *engine, const char *ssid,
                                       const char *passphrase);
 app_error_code_t wifi_ap_engine_stop(wifi_ap_engine_t *engine);
+/* True when the engine still holds any acquired resource (netif, wifi init,
+ * event handler, or a started radio) and therefore must be cleaned up. */
+bool wifi_ap_engine_owns_resources(const wifi_ap_engine_t *engine);
 void wifi_ap_engine_handle_event(wifi_ap_engine_t *engine, wifi_ap_event_t event);
 
 #endif

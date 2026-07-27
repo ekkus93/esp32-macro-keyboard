@@ -67,38 +67,51 @@ static app_error_code_t make_configuration(const char *ssid, const char *passphr
     return APP_ERROR_NONE;
 }
 
+static void record_first_error(app_error_code_t candidate, app_error_code_t *first_error) {
+    if (candidate != APP_ERROR_NONE && *first_error == APP_ERROR_NONE) {
+        *first_error = candidate;
+    }
+}
+
+/* Tear down every acquired resource, continuing past a failing step instead of
+ * returning early, so one stuck resource never strands the others (FIX1 §11.1).
+ * Each ownership flag clears only when its teardown succeeds, so a retry
+ * reattempts exactly the resources that are still held; the first error is
+ * returned. */
 static app_error_code_t cleanup_resources(wifi_ap_engine_t *engine) {
-    app_error_code_t cleanup_error = APP_ERROR_NONE;
+    app_error_code_t first_error = APP_ERROR_NONE;
 
     if (engine->wifi_started) {
-        cleanup_error = engine->operations.wifi_stop(engine->operations.context);
-        if (cleanup_error != APP_ERROR_NONE) {
-            return cleanup_error;
+        const app_error_code_t result = engine->operations.wifi_stop(engine->operations.context);
+        record_first_error(result, &first_error);
+        if (result == APP_ERROR_NONE) {
+            engine->wifi_started = false;
         }
-        engine->wifi_started = false;
     }
     if (engine->handler_registered) {
-        cleanup_error = engine->operations.handler_unregister(engine->operations.context);
-        if (cleanup_error != APP_ERROR_NONE) {
-            return cleanup_error;
+        const app_error_code_t result =
+            engine->operations.handler_unregister(engine->operations.context);
+        record_first_error(result, &first_error);
+        if (result == APP_ERROR_NONE) {
+            engine->handler_registered = false;
         }
-        engine->handler_registered = false;
     }
     if (engine->wifi_initialized) {
-        cleanup_error = engine->operations.wifi_deinit(engine->operations.context);
-        if (cleanup_error != APP_ERROR_NONE) {
-            return cleanup_error;
+        const app_error_code_t result = engine->operations.wifi_deinit(engine->operations.context);
+        record_first_error(result, &first_error);
+        if (result == APP_ERROR_NONE) {
+            engine->wifi_initialized = false;
         }
-        engine->wifi_initialized = false;
     }
     if (engine->netif_created) {
-        cleanup_error = engine->operations.netif_destroy(engine->operations.context);
-        if (cleanup_error != APP_ERROR_NONE) {
-            return cleanup_error;
+        const app_error_code_t result =
+            engine->operations.netif_destroy(engine->operations.context);
+        record_first_error(result, &first_error);
+        if (result == APP_ERROR_NONE) {
+            engine->netif_created = false;
         }
-        engine->netif_created = false;
     }
-    return APP_ERROR_NONE;
+    return first_error;
 }
 
 static app_error_code_t fail_start(wifi_ap_engine_t *engine, app_error_code_t original) {
@@ -203,6 +216,11 @@ app_error_code_t wifi_ap_engine_stop(wifi_ap_engine_t *engine) {
         current.last_error != APP_ERROR_NONE ? current.last_error : cleanup_error;
     publish_status(engine, WIFI_AP_ERROR, 0U, original, cleanup_error);
     return cleanup_error;
+}
+
+bool wifi_ap_engine_owns_resources(const wifi_ap_engine_t *engine) {
+    return engine != NULL && (engine->netif_created || engine->wifi_initialized ||
+                              engine->handler_registered || engine->wifi_started);
 }
 
 void wifi_ap_engine_handle_event(wifi_ap_engine_t *engine, wifi_ap_event_t event) {
