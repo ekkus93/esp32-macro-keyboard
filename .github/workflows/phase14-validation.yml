@@ -1,109 +1,46 @@
-name: Apply Phase 14 analyzer fixes
+name: Phase 14 final validation
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply:
+  validate:
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          ref: master
+          node-version-file: .nvmrc
       - name: Install host validation tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes clang-format libcjson-dev
-      - name: Apply reviewed analyzer fixes
+          sudo apt-get install --yes clang-format clang-tidy jq libcjson-dev shellcheck
+          python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0 gcovr==8.6
+          go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install authoritative ESP-IDF toolchains
+        run: ./scripts/install-esp-idf.sh
+      - name: Install frontend dependencies
+        working-directory: webapp
+        run: npm ci
+      - name: Run authoritative gate
+        shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("firmware/components/web_server/web_setup_json.c")
-          source = path.read_text(encoding="utf-8")
-          old = '''static void wipe_json_tree(const web_setup_json_ops_t *operations, cJSON *item) {
-              for (cJSON *current = item; current != NULL; current = current->next) {
-                  if (current->string != NULL) {
-                      operations->secure_zero(operations->context, current->string,
-                                              strlen(current->string) + 1U);
-                  }
-                  if (cJSON_IsString(current) && current->valuestring != NULL) {
-                      operations->secure_zero(operations->context, current->valuestring,
-                                              strlen(current->valuestring) + 1U);
-                  }
-                  if (current->child != NULL) {
-                      wipe_json_tree(operations, current->child);
-                  }
-              }
-          }
-          '''
-          new = '''static void wipe_json_tree(const web_setup_json_ops_t *operations, cJSON *item) {
-              for (cJSON *current = item; current != NULL; current = current->next) {
-                  if (current->string != NULL) {
-                      operations->secure_zero(operations->context, current->string,
-                                              strlen(current->string) + 1U);
-                  }
-                  if (cJSON_IsString(current) && current->valuestring != NULL) {
-                      operations->secure_zero(operations->context, current->valuestring,
-                                              strlen(current->valuestring) + 1U);
-                  }
-                  if (current->child != NULL) {
-                      cJSON *child = current->child;
-                      cJSON *child_tail = child;
-                      while (child_tail->next != NULL) {
-                          child_tail = child_tail->next;
-                      }
-                      child_tail->next = current->next;
-                      if (current->next != NULL) {
-                          current->next->prev = child_tail;
-                      }
-                      current->next = child;
-                      child->prev = current;
-                      current->child = NULL;
-                  }
-              }
-          }
-          '''
-          if source.count(old) != 1:
-              raise SystemExit("expected exactly one recursive wipe helper")
-          path.write_text(source.replace(old, new), encoding="utf-8")
-
-          path = Path("firmware/components/device_controls/device_controls_logic.c")
-          source = path.read_text(encoding="utf-8")
-          needle = '#include "device_controls.h"\n'
-          if source.count(needle) != 1 or '#include "app_error.h"' in source:
-              raise SystemExit("unexpected device-controls include state")
-          path.write_text(source.replace(needle, '#include "app_error.h"\n' + needle), encoding="utf-8")
-
-          path = Path("firmware/components/web_server/web_server_setup.c")
-          source = path.read_text(encoding="utf-8")
-          needle = '#include "web_origin.h"\n'
-          if source.count(needle) != 1 or '#include "web_server.h"' in source:
-              raise SystemExit("unexpected setup-server include state")
-          path.write_text(source.replace(needle, needle + '#include "web_server.h"\n'), encoding="utf-8")
-          PY
-          clang-format -i \
-            firmware/components/web_server/web_setup_json.c \
-            firmware/components/device_controls/device_controls_logic.c \
-            firmware/components/web_server/web_server_setup.c
-          git diff --check
-      - name: Run affected host suites
+          source "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          ./scripts/check-all.sh
+      - name: Run sanitizers and coverage
         run: |
-          ./scripts/run-tests.sh web
-          ./scripts/run-tests.sh controls
-          ./scripts/run-tests.sh --sanitizers web
-          ./scripts/run-tests.sh --sanitizers controls
-      - name: Commit analyzer fixes
+          ./scripts/run-tests.sh --sanitizers
+          ./scripts/generate-native-coverage.sh
+          ./scripts/generate-frontend-coverage.sh
+      - name: Build device tests
+        shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            firmware/components/web_server/web_setup_json.c \
-            firmware/components/device_controls/device_controls_logic.c \
-            firmware/components/web_server/web_server_setup.c
-          git commit -m "fix(phase14): satisfy strict production analysis"
-          git push origin HEAD:master
+          source "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          ./scripts/build-device-tests.sh
