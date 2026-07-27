@@ -18,36 +18,63 @@ jobs:
           node-version: 24.18.0
           cache: npm
           cache-dependency-path: webapp/package-lock.json
-      - name: Install host validation tools
+      - name: Install authoritative check dependencies
         run: |
           sudo apt-get update
           sudo apt-get install --yes \
-            build-essential cmake ninja-build libcjson-dev git flex bison gperf \
-            python3 python3-pip python3-venv ccache libffi-dev libssl-dev \
-            dfu-util libusb-1.0-0
-          python3 -m pip install --break-system-packages gcovr
-      - name: Validate source policies
-        run: |
-          bash ./scripts/check-partitions.sh
-          bash ./scripts/check-production-config.sh
-          bash ./scripts/check-credential-logging.sh
-          bash ./scripts/check-setup-route-isolation.sh
-      - name: Validate host code
-        run: |
-          ./scripts/run-tests.sh
-          ./scripts/run-tests.sh --sanitizers
-          ./scripts/generate-native-coverage.sh
-      - name: Validate web application
-        run: ./scripts/check-webapp.sh
+            build-essential clang clang-format clang-tidy cmake curl git jq \
+            libcjson-dev ninja-build shellcheck unzip
+          python3 -m pip install --user \
+            cmakelang==0.6.13 \
+            gcovr==8.6 \
+            yamllint==1.38.0
+          go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          npm ci --prefix webapp
       - name: Install ESP-IDF v5.5.5
         run: |
           git clone --depth 1 --branch v5.5.5 --recursive \
             https://github.com/espressif/esp-idf.git "${RUNNER_TEMP}/esp-idf"
           "${RUNNER_TEMP}/esp-idf/install.sh" esp32s3
-      - name: Build ESP32-S3 firmware
+      - name: Verify pinned toolchain
         shell: bash
         run: |
           source "${RUNNER_TEMP}/esp-idf/export.sh"
-          cd firmware
-          idf.py set-target esp32s3
-          idf.py build
+          ./scripts/verify-toolchain.sh
+      - name: Validate formatting
+        if: always()
+        run: ./scripts/check-format.sh
+      - name: Validate static-analysis policy
+        if: always()
+        run: ./scripts/check-static-analysis-policy.sh
+      - name: Validate partition policy
+        if: always()
+        run: bash ./scripts/check-partitions.sh
+      - name: Validate production configuration policy
+        if: always()
+        run: bash ./scripts/check-production-config.sh
+      - name: Validate credential logging policy
+        if: always()
+        run: bash ./scripts/check-credential-logging.sh
+      - name: Validate setup route isolation policy
+        if: always()
+        run: bash ./scripts/check-setup-route-isolation.sh
+      - name: Validate firmware analysis and build
+        if: always()
+        shell: bash
+        run: |
+          source "${RUNNER_TEMP}/esp-idf/export.sh"
+          ./scripts/check-firmware.sh
+      - name: Validate web application
+        if: always()
+        run: ./scripts/check-webapp.sh
+      - name: Validate scripts
+        if: always()
+        run: ./scripts/check-scripts.sh
+      - name: Validate documentation
+        if: always()
+        run: ./scripts/check-docs.sh
+      - name: Validate host tests
+        if: always()
+        run: ./scripts/run-tests.sh
