@@ -60,12 +60,46 @@ jobs:
       - name: Validate setup route isolation policy
         if: always()
         run: bash ./scripts/check-setup-route-isolation.sh
-      - name: Validate firmware analysis and build
+      - name: Build production firmware with GCC
         if: always()
         shell: bash
         run: |
           source "${RUNNER_TEMP}/esp-idf/export.sh"
-          ./scripts/check-firmware.sh
+          idf.py -C firmware -B firmware/build set-target esp32s3
+          idf.py -C firmware -B firmware/build build
+      - name: Configure production clang database
+        if: always()
+        shell: bash
+        run: |
+          source "${RUNNER_TEMP}/esp-idf/export.sh"
+          IDF_TOOLCHAIN=clang idf.py -C firmware -B firmware/build-clang set-target esp32s3
+      - name: Run production clang-tidy
+        if: always()
+        shell: bash
+        run: |
+          source "${RUNNER_TEMP}/esp-idf/export.sh"
+          source ./scripts/check-firmware.sh
+          run_first_party_clang_tidy "${GITHUB_WORKSPACE}/firmware"
+      - name: Build device-test firmware with GCC
+        if: always()
+        shell: bash
+        run: |
+          source "${RUNNER_TEMP}/esp-idf/export.sh"
+          idf.py -C firmware/test_app -B firmware/test_app/build set-target esp32s3
+          idf.py -C firmware/test_app -B firmware/test_app/build build
+      - name: Configure device-test clang database
+        if: always()
+        shell: bash
+        run: |
+          source "${RUNNER_TEMP}/esp-idf/export.sh"
+          IDF_TOOLCHAIN=clang idf.py -C firmware/test_app -B firmware/test_app/build-clang set-target esp32s3
+      - name: Run device-test clang-tidy
+        if: always()
+        shell: bash
+        run: |
+          source "${RUNNER_TEMP}/esp-idf/export.sh"
+          source ./scripts/check-firmware.sh
+          run_first_party_clang_tidy "${GITHUB_WORKSPACE}/firmware/test_app"
       - name: Validate web application
         if: always()
         run: ./scripts/check-webapp.sh
