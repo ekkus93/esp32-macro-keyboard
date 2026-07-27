@@ -1,0 +1,117 @@
+*** Begin Patch
+*** Update File: firmware/components/provisioning/provisioning_core.c
+@@
+-#define WIRE_MAGIC_OFFSET 0U
++#define WIRE_UINT32_BYTES 4U
++#define WIRE_BOOLEAN_COUNT 4U
++#define WIRE_MAGIC_OFFSET 0U
+@@
+-#define WIRE_SSID_OFFSET 20U
++#define WIRE_SSID_OFFSET (WIRE_FLAGS_OFFSET + WIRE_BOOLEAN_COUNT)
+@@
+-#define WIRE_ACTIVE_SET_OFFSET (WIRE_ITERATIONS_OFFSET + 4U)
++#define WIRE_ACTIVE_SET_OFFSET (WIRE_ITERATIONS_OFFSET + WIRE_UINT32_BYTES)
++#define U32_BYTE_MASK UINT32_C(0xff)
++#define U32_BYTE_ONE_SHIFT 8U
++#define U32_BYTE_TWO_SHIFT 16U
++#define U32_BYTE_THREE_SHIFT 24U
++
++_Static_assert(WIRE_ACTIVE_SET_OFFSET + APP_UUID_BUFFER_LENGTH ==
++                   PROVISIONING_RECORD_BYTES,
++               "provisioning wire layout must match the fixed record size");
+@@
+-static const uint8_t RECORD_MAGIC[4] = {'P', 'R', 'O', 'V'};
++static const uint8_t RECORD_MAGIC[WIRE_UINT32_BYTES] = {'P', 'R', 'O', 'V'};
+@@
+-    output[offset] = (uint8_t)(value & 0xffU);
+-    output[offset + 1U] = (uint8_t)((value >> 8U) & 0xffU);
+-    output[offset + 2U] = (uint8_t)((value >> 16U) & 0xffU);
+-    output[offset + 3U] = (uint8_t)((value >> 24U) & 0xffU);
++    output[offset] = (uint8_t)(value & U32_BYTE_MASK);
++    output[offset + 1U] =
++        (uint8_t)((value >> U32_BYTE_ONE_SHIFT) & U32_BYTE_MASK);
++    output[offset + 2U] =
++        (uint8_t)((value >> U32_BYTE_TWO_SHIFT) & U32_BYTE_MASK);
++    output[offset + 3U] =
++        (uint8_t)((value >> U32_BYTE_THREE_SHIFT) & U32_BYTE_MASK);
+@@
+-           ((uint32_t)input[offset + 1U] << 8U) |
+-           ((uint32_t)input[offset + 2U] << 16U) |
+-           ((uint32_t)input[offset + 3U] << 24U);
++           ((uint32_t)input[offset + 1U] << U32_BYTE_ONE_SHIFT) |
++           ((uint32_t)input[offset + 2U] << U32_BYTE_TWO_SHIFT) |
++           ((uint32_t)input[offset + 3U] << U32_BYTE_THREE_SHIFT);
+@@
+-static bool bounded_length(const char *text, size_t maximum, size_t *out_length) {
+-    if (text == NULL || out_length == NULL) {
++static bool canonical_string(const char *text,
++                             size_t capacity,
++                             size_t *out_length) {
++    if (text == NULL || out_length == NULL || capacity == 0U) {
+         return false;
+     }
+-    for (size_t index = 0U; index <= maximum; ++index) {
++    for (size_t index = 0U; index < capacity; ++index) {
+         if (text[index] == '\0') {
++            const size_t trailing_size = capacity - index - 1U;
++            if (!all_zero(text + index + 1U, trailing_size)) {
++                return false;
++            }
+             *out_length = index;
+             return true;
+@@
+-    return configuration->ap_ssid[0] == '\0' &&
+-           configuration->ap_passphrase[0] == '\0' &&
++    return all_zero(configuration->ap_ssid, sizeof(configuration->ap_ssid)) &&
++           all_zero(configuration->ap_passphrase,
++                    sizeof(configuration->ap_passphrase)) &&
+@@
+-    if (!bounded_length(configuration->ap_ssid,
+-                        WIFI_AP_SSID_MAX_BYTES,
+-                        &ssid_length) ||
+-        !bounded_length(configuration->ap_passphrase,
+-                        WIFI_AP_PASSPHRASE_MAX_BYTES,
+-                        &passphrase_length)) {
++    if (!canonical_string(configuration->ap_ssid,
++                          sizeof(configuration->ap_ssid),
++                          &ssid_length) ||
++        !canonical_string(configuration->ap_passphrase,
++                          sizeof(configuration->ap_passphrase),
++                          &passphrase_length)) {
+@@
+-    if (!bounded_length(configuration->ap_ssid,
+-                        WIFI_AP_SSID_MAX_BYTES,
+-                        &length)) {
++    if (!canonical_string(configuration->ap_ssid,
++                          sizeof(configuration->ap_ssid),
++                          &length)) {
+@@
+-    if (!bounded_length(configuration->ap_passphrase,
+-                        WIFI_AP_PASSPHRASE_MAX_BYTES,
+-                        &length)) {
++    if (!canonical_string(configuration->ap_passphrase,
++                          sizeof(configuration->ap_passphrase),
++                          &length)) {
+@@
+     if (!provisioning_config_is_valid(&configuration)) {
++        core->operations.secure_zero(core->operations.context,
++                                     &configuration,
++                                     sizeof(configuration));
+         return APP_ERROR_STORAGE_CORRUPT;
+     }
+ 
+-    uint8_t canonical[PROVISIONING_RECORD_BYTES];
++    uint8_t canonical[PROVISIONING_RECORD_BYTES] = {0};
+@@
+     if (!exact) {
++        core->operations.secure_zero(core->operations.context,
++                                     &configuration,
++                                     sizeof(configuration));
+         return APP_ERROR_STORAGE_CORRUPT;
+     }
+     *out_configuration = configuration;
++    core->operations.secure_zero(core->operations.context,
++                                 &configuration,
++                                 sizeof(configuration));
+     return APP_ERROR_NONE;
+*** End Patch
