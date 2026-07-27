@@ -39,14 +39,10 @@ typedef struct {
 
 typedef struct {
     void *context;
-    app_error_code_t (*provisioning_load)(void *context,
-                                          provisioning_config_t *out_configuration);
-    app_error_code_t (*password_create)(void *context,
-                                        const char *password,
-                                        size_t password_length,
+    app_error_code_t (*provisioning_load)(void *context, provisioning_config_t *out_configuration);
+    app_error_code_t (*password_create)(void *context, const char *password, size_t password_length,
                                         auth_password_record_t *out_record);
-    app_error_code_t (*provisioning_commit)(void *context,
-                                            const provisioning_config_t *replacement,
+    app_error_code_t (*provisioning_commit)(void *context, const provisioning_config_t *replacement,
                                             uint32_t expected_revision,
                                             provisioning_config_t *out_committed);
     app_error_code_t (*wait_for_confirmation)(void *context, uint32_t timeout_ms);
@@ -61,12 +57,10 @@ typedef struct {
     bool completed;
 } web_setup_core_t;
 
-app_error_code_t web_setup_core_init(web_setup_core_t *core,
-                                     const web_setup_ops_t *operations,
+app_error_code_t web_setup_core_init(web_setup_core_t *core, const web_setup_ops_t *operations,
                                      const web_setup_configuration_t *configuration);
 web_setup_state_t web_setup_core_get_state(const web_setup_core_t *core);
-app_error_code_t web_setup_core_submit(web_setup_core_t *core,
-                                       web_setup_submission_t *submission,
+app_error_code_t web_setup_core_submit(web_setup_core_t *core, web_setup_submission_t *submission,
                                        provisioning_config_t *out_committed);
 app_error_code_t web_setup_core_restart(web_setup_core_t *core);
 app_error_code_t web_setup_core_deinit(web_setup_core_t *core);

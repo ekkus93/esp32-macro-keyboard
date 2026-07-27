@@ -103,9 +103,8 @@ app_error_code_t device_controls_engine_record_failure(device_controls_engine_t 
                                                        device_controls_failure_t failure,
                                                        bool cleanup_failure);
 app_error_code_t device_controls_engine_task_started(device_controls_engine_t *engine);
-device_controls_poll_result_t device_controls_engine_poll(
-    device_controls_engine_t *engine,
-    device_controls_poll_input_t input);
+device_controls_poll_result_t device_controls_engine_poll(device_controls_engine_t *engine,
+                                                          device_controls_poll_input_t input);
 app_error_code_t device_controls_engine_set_indicator(device_controls_engine_t *engine,
                                                       device_indicator_state_t state);
 device_controls_health_t device_controls_engine_get_health(device_controls_engine_t *engine);

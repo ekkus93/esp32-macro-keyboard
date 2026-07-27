@@ -42,16 +42,14 @@ static app_error_code_t adapter_provisioning_init(void *context) {
     return provisioning_init();
 }
 
-static app_error_code_t adapter_provisioning_load(
-    void *context,
-    provisioning_config_t *out_configuration) {
+static app_error_code_t adapter_provisioning_load(void *context,
+                                                  provisioning_config_t *out_configuration) {
     (void)context;
     return provisioning_load(out_configuration);
 }
 
-static app_error_code_t adapter_bootstrap_derive(
-    void *context,
-    provisioning_bootstrap_t *out_bootstrap) {
+static app_error_code_t adapter_bootstrap_derive(void *context,
+                                                 provisioning_bootstrap_t *out_bootstrap) {
     (void)context;
     return provisioning_bootstrap_derive(out_bootstrap);
 }
@@ -106,16 +104,14 @@ static app_error_code_t adapter_controls_init(void *context) {
     return device_controls_init();
 }
 
-static app_error_code_t adapter_wifi_start(void *context,
-                                           const char *ssid,
+static app_error_code_t adapter_wifi_start(void *context, const char *ssid,
                                            const char *passphrase) {
     (void)context;
     return wifi_ap_start(ssid, passphrase);
 }
 
-static app_error_code_t adapter_http_start(
-    void *context,
-    const web_server_config_t *configuration) {
+static app_error_code_t adapter_http_start(void *context,
+                                           const web_server_config_t *configuration) {
     (void)context;
     return web_server_start(configuration);
 }
@@ -193,9 +189,7 @@ static bool adapter_provisioning_owns_resources(void *context) {
     return provisioning_owns_resources();
 }
 
-static app_error_code_t adapter_set_indicator(
-    void *context,
-    device_indicator_state_t indicator) {
+static app_error_code_t adapter_set_indicator(void *context, device_indicator_state_t indicator) {
     (void)context;
     device_controls_set_indicator(indicator);
     return APP_ERROR_NONE;
@@ -209,8 +203,7 @@ static void adapter_secure_zero(void *context, void *memory, size_t length) {
     }
 }
 
-static void adapter_log_event(void *context,
-                              const app_core_log_event_t *event) {
+static void adapter_log_event(void *context, const app_core_log_event_t *event) {
     (void)context;
     if (event == NULL) {
         ESP_LOGE(TAG, "startup emitted a null log event");
@@ -222,40 +215,29 @@ static void adapter_log_event(void *context,
         if (event->primary_error == APP_ERROR_NONE) {
             ESP_LOGI(TAG, "stage complete: %s", event->stage);
         } else {
-            ESP_LOGE(TAG,
-                     "stage failed: %s (%s)",
-                     event->stage,
+            ESP_LOGE(TAG, "stage failed: %s (%s)", event->stage,
                      app_error_code_string(event->primary_error));
         }
         break;
     case APP_CORE_LOG_STORAGE_DEGRADED:
-        ESP_LOGW(TAG,
-                 "storage recovery requires operator review; evidence was preserved");
+        ESP_LOGW(TAG, "storage recovery requires operator review; evidence was preserved");
         break;
     case APP_CORE_LOG_MANUFACTURING_CREDENTIALS:
 #if CONFIG_APP_MANUFACTURING_PROVISIONING_LOG
-        ESP_LOGE(TAG,
-                 "MANUFACTURING MODE ENABLED: plaintext one-time credentials follow; "
-                 "never deploy this build");
+        ESP_LOGE(TAG, "MANUFACTURING MODE ENABLED: plaintext one-time credentials follow; "
+                      "never deploy this build");
         ESP_LOGW(TAG, "manufacturing-only AP SSID: %s", event->ssid);
-        ESP_LOGW(TAG,
-                 "manufacturing-only AP passphrase: %s",
-                 event->ap_passphrase);
-        ESP_LOGW(TAG,
-                 "manufacturing-only setup code: %s",
-                 event->setup_code);
+        ESP_LOGW(TAG, "manufacturing-only AP passphrase: %s", event->ap_passphrase);
+        ESP_LOGW(TAG, "manufacturing-only setup code: %s", event->setup_code);
 #else
-        ESP_LOGE(TAG,
-                 "manufacturing credential event rejected by production build");
+        ESP_LOGE(TAG, "manufacturing credential event rejected by production build");
 #endif
         break;
     case APP_CORE_LOG_PROVISIONING_REQUIRED:
-        ESP_LOGW(TAG,
-                 "device is unprovisioned; starting protected setup-only service");
+        ESP_LOGW(TAG, "device is unprovisioned; starting protected setup-only service");
         break;
     case APP_CORE_LOG_CLEANUP_FAILED:
-        ESP_LOGE(TAG,
-                 "cleanup failed after %s: %s (cleanup %s)",
+        ESP_LOGE(TAG, "cleanup failed after %s: %s (cleanup %s)",
                  app_error_code_string(event->primary_error),
                  app_error_code_string(event->cleanup_error),
                  event->cleanup_incomplete ? "incomplete" : "complete");
@@ -295,8 +277,7 @@ app_error_code_t app_core_start(void) {
         .http_owns_resources = adapter_http_owns_resources,
         .wifi_owns_resources = adapter_wifi_owns_resources,
         .storage_owns_mount = adapter_storage_owns_mount,
-        .provisioning_owns_resources =
-            adapter_provisioning_owns_resources,
+        .provisioning_owns_resources = adapter_provisioning_owns_resources,
         .set_indicator = adapter_set_indicator,
         .secure_zero = adapter_secure_zero,
         .log_event = adapter_log_event,

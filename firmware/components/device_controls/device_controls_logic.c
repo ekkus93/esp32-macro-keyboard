@@ -81,8 +81,7 @@ static void record_first_error(app_error_code_t error, app_error_code_t *first_e
     }
 }
 
-static void set_failure_flag(device_controls_health_t *health,
-                             device_controls_failure_t failure,
+static void set_failure_flag(device_controls_health_t *health, device_controls_failure_t failure,
                              app_error_code_t error) {
     switch (failure) {
     case DEVICE_CONTROLS_FAILURE_INDICATOR:
@@ -246,12 +245,11 @@ device_controls_poll_result_t device_controls_engine_poll(device_controls_engine
 
     result.continue_running = true;
     if (input.gpio_read_error != APP_ERROR_NONE) {
-        const app_error_code_t failure = record_runtime_failure(
-            engine, input.gpio_read_error, DEVICE_CONTROLS_FAILURE_GPIO_READ);
+        const app_error_code_t failure = record_runtime_failure(engine, input.gpio_read_error,
+                                                                DEVICE_CONTROLS_FAILURE_GPIO_READ);
         record_first_error(failure, &result.error);
     } else {
-        if (device_controls_debounce_update(&engine->confirmation,
-                                            input.confirmation_pressed) &&
+        if (device_controls_debounce_update(&engine->confirmation, input.confirmation_pressed) &&
             !engine->operations.signal_confirmation(engine->operations.context)) {
             const app_error_code_t failure = record_runtime_failure(
                 engine, APP_ERROR_INTERNAL, DEVICE_CONTROLS_FAILURE_CONFIRMATION);
@@ -261,8 +259,8 @@ device_controls_poll_result_t device_controls_engine_poll(device_controls_engine
             const app_error_code_t cancel =
                 engine->operations.cancel_execution(engine->operations.context);
             if (cancel != APP_ERROR_NONE && cancel != APP_ERROR_NOT_FOUND) {
-                const app_error_code_t failure = record_runtime_failure(
-                    engine, cancel, DEVICE_CONTROLS_FAILURE_CANCEL);
+                const app_error_code_t failure =
+                    record_runtime_failure(engine, cancel, DEVICE_CONTROLS_FAILURE_CANCEL);
                 record_first_error(failure, &result.error);
             }
         }
@@ -328,17 +326,16 @@ device_controls_health_t device_controls_engine_get_health(device_controls_engin
 }
 
 bool device_controls_engine_owns_resources(const device_controls_engine_t *engine) {
-    return engine != NULL && (engine->confirmation_signal_owned || engine->stopped_signal_owned ||
-                              engine->confirm_pin_owned || engine->cancel_pin_owned ||
-                              engine->status_pin_owned);
+    return engine != NULL &&
+           (engine->confirmation_signal_owned || engine->stopped_signal_owned ||
+            engine->confirm_pin_owned || engine->cancel_pin_owned || engine->status_pin_owned);
 }
 
 bool device_controls_engine_task_stop_confirmed(const device_controls_engine_t *engine) {
     return engine != NULL && engine->task_stop_confirmed;
 }
 
-static app_error_code_t cleanup_pin(device_controls_engine_t *engine,
-                                    device_controls_pin_t pin,
+static app_error_code_t cleanup_pin(device_controls_engine_t *engine, device_controls_pin_t pin,
                                     bool *owned) {
     if (!*owned) {
         return APP_ERROR_NONE;
@@ -350,8 +347,7 @@ static app_error_code_t cleanup_pin(device_controls_engine_t *engine,
     return result;
 }
 
-static void record_cleanup_failure(device_controls_engine_t *engine,
-                                   app_error_code_t error,
+static void record_cleanup_failure(device_controls_engine_t *engine, app_error_code_t error,
                                    device_controls_failure_t failure,
                                    app_error_code_t *first_error) {
     record_first_error(error, first_error);
@@ -367,12 +363,11 @@ static app_error_code_t cleanup_resources(device_controls_engine_t *engine) {
     if (engine->status_pin_owned) {
         const app_error_code_t safe =
             engine->operations.set_safe_output(engine->operations.context);
-        record_cleanup_failure(
-            engine, safe, DEVICE_CONTROLS_FAILURE_INDICATOR, &first_error);
+        record_cleanup_failure(engine, safe, DEVICE_CONTROLS_FAILURE_INDICATOR, &first_error);
     }
 
-    app_error_code_t result = cleanup_pin(
-        engine, DEVICE_CONTROLS_PIN_CONFIRM, &engine->confirm_pin_owned);
+    app_error_code_t result =
+        cleanup_pin(engine, DEVICE_CONTROLS_PIN_CONFIRM, &engine->confirm_pin_owned);
     record_cleanup_failure(engine, result, DEVICE_CONTROLS_FAILURE_GENERIC, &first_error);
 
     result = cleanup_pin(engine, DEVICE_CONTROLS_PIN_CANCEL, &engine->cancel_pin_owned);
@@ -404,7 +399,7 @@ static app_error_code_t record_stop_wait_failure(device_controls_engine_t *engin
 }
 
 static app_error_code_t finalize_deinit(device_controls_engine_t *engine,
-                                       app_error_code_t cleanup_error) {
+                                        app_error_code_t cleanup_error) {
     if (device_controls_engine_owns_resources(engine)) {
         return cleanup_error;
     }
@@ -439,14 +434,13 @@ app_error_code_t device_controls_engine_deinit(device_controls_engine_t *engine,
         engine->task_stop_confirmed = true;
         const app_error_code_t running_result = set_task_running(engine, false);
         if (running_result != APP_ERROR_NONE) {
-            return device_controls_engine_record_failure(
-                engine, running_result, DEVICE_CONTROLS_FAILURE_TASK_STOP, true);
+            return device_controls_engine_record_failure(engine, running_result,
+                                                         DEVICE_CONTROLS_FAILURE_TASK_STOP, true);
         }
     }
 
     if (!engine->task_stop_confirmed && device_controls_engine_owns_resources(engine)) {
-        const device_controls_health_t failed_health =
-            device_controls_engine_get_health(engine);
+        const device_controls_health_t failed_health = device_controls_engine_get_health(engine);
         return failed_health.cleanup_error != APP_ERROR_NONE ? failed_health.cleanup_error
                                                              : APP_ERROR_INTERNAL;
     }
