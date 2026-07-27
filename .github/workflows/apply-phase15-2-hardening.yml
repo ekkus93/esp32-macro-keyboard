@@ -22,7 +22,7 @@ jobs:
           base64 --decode docs/review-source/PHASE15_2_HARDENING.patch.gz.b64 \
             | gzip --decompress >"${RUNNER_TEMP}/phase15-2-hardening.patch"
           printf '%s  %s\n' \
-            '1b41f13f0efb705c90e1f8c0004c289dab757a9b49d26dc45e34e88edfbe9dcf' \
+            '12c8eb7c27852a502ba8e9a2966c6c0c900d5fd5ee24cf47d7db72864f6bb58f' \
             "${RUNNER_TEMP}/phase15-2-hardening.patch" \
             | sha256sum --check
 
