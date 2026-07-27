@@ -23,16 +23,16 @@
 #define KEY_PRESS_STORAGE_MAX_MS 1000U
 
 static const char *const MACRO_FIELDS[MACRO_FIELD_COUNT] = {
-    "schema_version", "id",          "revision",     "scope",      "name",
-    "source",         "favorite",    "key_press_ms", "inter_key_ms", "set_id",
+    "schema_version", "id",       "revision",     "scope",        "name",
+    "source",         "favorite", "key_press_ms", "inter_key_ms", "set_id",
 };
 static const char *const PROCEDURE_FIELDS[PROCEDURE_FIELD_COUNT] = {
-    "schema_version", "id", "revision", "set_id", "name", "description", "steps",
-    "sort_order",
+    "schema_version", "id", "revision", "set_id", "name", "description", "steps", "sort_order",
 };
 static const char *const PROGRESS_FIELDS[PROGRESS_FIELD_COUNT] = {
-    "schema_version", "set_id",          "procedure_id",      "procedure_revision",
-    "current_step_id", "completed_step_ids", "skipped_step_ids",
+    "schema_version",     "set_id",          "procedure_id",
+    "procedure_revision", "current_step_id", "completed_step_ids",
+    "skipped_step_ids",
 };
 static const char *const ORDER_FIELDS[ORDER_FIELD_COUNT] = {"schema_version", "ids"};
 static const char *const MACRO_STEP_FIELDS[MACRO_STEP_FIELD_COUNT] = {
@@ -71,8 +71,7 @@ static bool macro_shape_valid(const macro_t *macro) {
         macro->source_length > APP_MACRO_SOURCE_MAX_BYTES ||
         macro->source[macro->source_length] != '\0' ||
         strlen(macro->source) != macro->source_length || macro->key_press_ms == 0U ||
-        macro->key_press_ms > KEY_PRESS_STORAGE_MAX_MS ||
-        macro->inter_key_ms > APP_DELAY_MAX_MS) {
+        macro->key_press_ms > KEY_PRESS_STORAGE_MAX_MS || macro->inter_key_ms > APP_DELAY_MAX_MS) {
         return false;
     }
     size_t name_length = 0U;
@@ -107,7 +106,7 @@ static app_error_code_t parse_scope(const cJSON *root, macro_t *out_macro) {
 }
 
 app_error_code_t storage_repository_parse_macro_json(const char *data, size_t length,
-                                                      macro_t *out_macro) {
+                                                     macro_t *out_macro) {
     if (out_macro != NULL) {
         memset(out_macro, 0, sizeof(*out_macro));
     }
@@ -131,13 +130,13 @@ app_error_code_t storage_repository_parse_macro_json(const char *data, size_t le
         result = parse_scope(root, out_macro);
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_json_get_string(root, "name", out_macro->name, sizeof(out_macro->name),
-                                         true);
+        result =
+            storage_json_get_string(root, "name", out_macro->name, sizeof(out_macro->name), true);
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_json_get_allocated_string(root, "source", APP_MACRO_SOURCE_MAX_BYTES,
-                                                   false, &out_macro->source,
-                                                   &out_macro->source_length);
+        result =
+            storage_json_get_allocated_string(root, "source", APP_MACRO_SOURCE_MAX_BYTES, false,
+                                              &out_macro->source, &out_macro->source_length);
     }
     if (result == APP_ERROR_NONE) {
         result = storage_json_get_bool(root, "favorite", &out_macro->favorite);
@@ -199,7 +198,7 @@ static app_error_code_t print_bounded_json(cJSON *root, size_t maximum, char **o
 }
 
 app_error_code_t storage_repository_serialize_macro_json(const macro_t *macro, char **out_json,
-                                                          size_t *out_length) {
+                                                         size_t *out_length) {
     if (out_json != NULL) {
         *out_json = NULL;
     }
@@ -286,8 +285,8 @@ static app_error_code_t parse_step(const cJSON *item, procedure_step_t *out_step
     }
     app_error_code_t result = storage_json_get_uuid(item, "id", &out_step->id);
     if (result == APP_ERROR_NONE) {
-        result = storage_json_get_string(item, "title", out_step->title, sizeof(out_step->title),
-                                         true);
+        result =
+            storage_json_get_string(item, "title", out_step->title, sizeof(out_step->title), true);
     }
     if (result == APP_ERROR_NONE) {
         result = storage_json_get_bool(item, "required", &out_step->required);
@@ -315,11 +314,8 @@ static app_error_code_t parse_steps(const cJSON *root, procedure_t *out_procedur
         return APP_ERROR_STORAGE_CORRUPT;
     }
     const int count = cJSON_GetArraySize(steps);
-    if (count < 0 || count > (int)APP_STEPS_PER_PROCEDURE_MAX) {
+    if (count <= 0 || count > (int)APP_STEPS_PER_PROCEDURE_MAX) {
         return APP_ERROR_STORAGE_CORRUPT;
-    }
-    if (count == 0) {
-        return APP_ERROR_NONE;
     }
     out_procedure->steps = calloc((size_t)count, sizeof(*out_procedure->steps));
     if (out_procedure->steps == NULL) {
@@ -339,9 +335,8 @@ static app_error_code_t parse_steps(const cJSON *root, procedure_t *out_procedur
 static bool procedure_shape_valid(const procedure_t *procedure) {
     if (procedure == NULL || procedure->schema_version != APP_SCHEMA_VERSION ||
         procedure->revision == 0U || !app_uuid_is_valid_string(procedure->id.value) ||
-        !app_uuid_is_valid_string(procedure->set_id.value) ||
-        procedure->step_count > APP_STEPS_PER_PROCEDURE_MAX ||
-        (procedure->step_count > 0U && procedure->steps == NULL) ||
+        !app_uuid_is_valid_string(procedure->set_id.value) || procedure->step_count == 0U ||
+        procedure->step_count > APP_STEPS_PER_PROCEDURE_MAX || procedure->steps == NULL ||
         !procedure_step_ids_unique(procedure)) {
         return false;
     }
@@ -370,8 +365,8 @@ static bool procedure_shape_valid(const procedure_t *procedure) {
                    step->type == PROCEDURE_STEP_CHECKPOINT) {
             if (step->has_macro_id || !uuid_zero(&step->macro_id) || step->body == NULL ||
                 step->body_length > APP_STEP_BODY_MAX_BYTES ||
-                step->body[step->body_length] != '\0' ||
-                strlen(step->body) != step->body_length || step->auto_complete_on_success) {
+                step->body[step->body_length] != '\0' || strlen(step->body) != step->body_length ||
+                step->auto_complete_on_success) {
                 return false;
             }
         } else {
@@ -382,7 +377,7 @@ static bool procedure_shape_valid(const procedure_t *procedure) {
 }
 
 app_error_code_t storage_repository_parse_procedure_json(const char *data, size_t length,
-                                                          procedure_t *out_procedure) {
+                                                         procedure_t *out_procedure) {
     if (out_procedure != NULL) {
         memset(out_procedure, 0, sizeof(*out_procedure));
     }
@@ -390,8 +385,8 @@ app_error_code_t storage_repository_parse_procedure_json(const char *data, size_
         return APP_ERROR_INVALID_ARGUMENT;
     }
     cJSON *root = NULL;
-    app_error_code_t result = storage_json_parse_exact_object(
-        data, length, PROCEDURE_FIELDS, PROCEDURE_FIELD_COUNT, &root);
+    app_error_code_t result = storage_json_parse_exact_object(data, length, PROCEDURE_FIELDS,
+                                                              PROCEDURE_FIELD_COUNT, &root);
     if (result == APP_ERROR_NONE) {
         result = storage_json_get_u32(root, "schema_version", APP_SCHEMA_VERSION,
                                       APP_SCHEMA_VERSION, &out_procedure->schema_version);
@@ -400,8 +395,7 @@ app_error_code_t storage_repository_parse_procedure_json(const char *data, size_
         result = storage_json_get_uuid(root, "id", &out_procedure->id);
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_json_get_u32(root, "revision", 1U, UINT32_MAX,
-                                      &out_procedure->revision);
+        result = storage_json_get_u32(root, "revision", 1U, UINT32_MAX, &out_procedure->revision);
     }
     if (result == APP_ERROR_NONE) {
         result = storage_json_get_uuid(root, "set_id", &out_procedure->set_id);
@@ -446,7 +440,8 @@ static app_error_code_t add_step(cJSON *steps, const procedure_step_t *step) {
     bool added = cJSON_AddStringToObject(object, "type", type) != NULL &&
                  cJSON_AddStringToObject(object, "title", step->title) != NULL;
     if (step->type == PROCEDURE_STEP_MACRO) {
-        added = added && cJSON_AddStringToObject(object, "macro_id", step->macro_id.value) != NULL &&
+        added = added &&
+                cJSON_AddStringToObject(object, "macro_id", step->macro_id.value) != NULL &&
                 cJSON_AddBoolToObject(object, "required", step->required) != NULL &&
                 cJSON_AddBoolToObject(object, "auto_complete_on_success",
                                       step->auto_complete_on_success) != NULL;
@@ -462,8 +457,7 @@ static app_error_code_t add_step(cJSON *steps, const procedure_step_t *step) {
 }
 
 app_error_code_t storage_repository_serialize_procedure_json(const procedure_t *procedure,
-                                                              char **out_json,
-                                                              size_t *out_length) {
+                                                             char **out_json, size_t *out_length) {
     if (out_json != NULL) {
         *out_json = NULL;
     }
@@ -476,7 +470,8 @@ app_error_code_t storage_repository_serialize_procedure_json(const procedure_t *
     cJSON *root = cJSON_CreateObject();
     cJSON *steps = cJSON_CreateArray();
     if (root == NULL || steps == NULL ||
-        cJSON_AddNumberToObject(root, "schema_version", (double)procedure->schema_version) == NULL ||
+        cJSON_AddNumberToObject(root, "schema_version", (double)procedure->schema_version) ==
+            NULL ||
         cJSON_AddStringToObject(root, "id", procedure->id.value) == NULL ||
         cJSON_AddNumberToObject(root, "revision", (double)procedure->revision) == NULL ||
         cJSON_AddStringToObject(root, "set_id", procedure->set_id.value) == NULL ||
@@ -530,8 +525,7 @@ static app_error_code_t parse_uuid_array(const cJSON *root, const char *name, ap
 
 static bool progress_shape_valid(const procedure_progress_t *progress) {
     if (progress == NULL || progress->schema_version != APP_SCHEMA_VERSION ||
-        progress->procedure_revision == 0U ||
-        !app_uuid_is_valid_string(progress->set_id.value) ||
+        progress->procedure_revision == 0U || !app_uuid_is_valid_string(progress->set_id.value) ||
         !app_uuid_is_valid_string(progress->procedure_id.value) ||
         !app_uuid_is_valid_string(progress->current_step_id.value) ||
         progress->completed_step_count > APP_STEPS_PER_PROCEDURE_MAX ||
@@ -570,7 +564,7 @@ static bool progress_shape_valid(const procedure_progress_t *progress) {
 }
 
 app_error_code_t storage_repository_parse_progress_json(const char *data, size_t length,
-                                                         procedure_progress_t *out_progress) {
+                                                        procedure_progress_t *out_progress) {
     if (out_progress != NULL) {
         memset(out_progress, 0, sizeof(*out_progress));
     }
@@ -578,8 +572,8 @@ app_error_code_t storage_repository_parse_progress_json(const char *data, size_t
         return APP_ERROR_INVALID_ARGUMENT;
     }
     cJSON *root = NULL;
-    app_error_code_t result = storage_json_parse_exact_object(
-        data, length, PROGRESS_FIELDS, PROGRESS_FIELD_COUNT, &root);
+    app_error_code_t result =
+        storage_json_parse_exact_object(data, length, PROGRESS_FIELDS, PROGRESS_FIELD_COUNT, &root);
     if (result == APP_ERROR_NONE) {
         result = storage_json_get_u32(root, "schema_version", APP_SCHEMA_VERSION,
                                       APP_SCHEMA_VERSION, &out_progress->schema_version);
@@ -630,8 +624,8 @@ static app_error_code_t add_uuid_array(cJSON *root, const char *name, const app_
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_repository_serialize_progress_json(
-    const procedure_progress_t *progress, char **out_json, size_t *out_length) {
+app_error_code_t storage_repository_serialize_progress_json(const procedure_progress_t *progress,
+                                                            char **out_json, size_t *out_length) {
     if (out_json != NULL) {
         *out_json = NULL;
     }
@@ -646,15 +640,14 @@ app_error_code_t storage_repository_serialize_progress_json(
         cJSON_AddNumberToObject(root, "schema_version", (double)progress->schema_version) == NULL ||
         cJSON_AddStringToObject(root, "set_id", progress->set_id.value) == NULL ||
         cJSON_AddStringToObject(root, "procedure_id", progress->procedure_id.value) == NULL ||
-        cJSON_AddNumberToObject(root, "procedure_revision",
-                               (double)progress->procedure_revision) == NULL ||
+        cJSON_AddNumberToObject(root, "procedure_revision", (double)progress->procedure_revision) ==
+            NULL ||
         cJSON_AddStringToObject(root, "current_step_id", progress->current_step_id.value) == NULL) {
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;
     }
-    app_error_code_t result = add_uuid_array(root, "completed_step_ids",
-                                             progress->completed_step_ids,
-                                             progress->completed_step_count);
+    app_error_code_t result = add_uuid_array(
+        root, "completed_step_ids", progress->completed_step_ids, progress->completed_step_count);
     if (result == APP_ERROR_NONE) {
         result = add_uuid_array(root, "skipped_step_ids", progress->skipped_step_ids,
                                 progress->skipped_step_count);
@@ -667,8 +660,8 @@ app_error_code_t storage_repository_serialize_progress_json(
 }
 
 app_error_code_t storage_repository_parse_order_json(const char *data, size_t length,
-                                                      size_t maximum_count,
-                                                      storage_uuid_order_t *out_order) {
+                                                     size_t maximum_count,
+                                                     storage_uuid_order_t *out_order) {
     if (out_order != NULL) {
         memset(out_order, 0, sizeof(*out_order));
     }
@@ -699,8 +692,7 @@ app_error_code_t storage_repository_parse_order_json(const char *data, size_t le
             break;
         }
         for (int prior = 0; prior < index; ++prior) {
-            if (app_uuid_equal(&out_order->ids[(size_t)prior],
-                               &out_order->ids[(size_t)index])) {
+            if (app_uuid_equal(&out_order->ids[(size_t)prior], &out_order->ids[(size_t)index])) {
                 result = APP_ERROR_STORAGE_CORRUPT;
                 break;
             }
@@ -717,8 +709,8 @@ app_error_code_t storage_repository_parse_order_json(const char *data, size_t le
 }
 
 app_error_code_t storage_repository_serialize_order_json(const storage_uuid_order_t *order,
-                                                          size_t maximum_count, char **out_json,
-                                                          size_t *out_length) {
+                                                         size_t maximum_count, char **out_json,
+                                                         size_t *out_length) {
     if (out_json != NULL) {
         *out_json = NULL;
     }
@@ -740,7 +732,8 @@ app_error_code_t storage_repository_serialize_order_json(const storage_uuid_orde
         }
     }
     cJSON *root = cJSON_CreateObject();
-    if (root == NULL || cJSON_AddNumberToObject(root, "schema_version", APP_SCHEMA_VERSION) == NULL) {
+    if (root == NULL ||
+        cJSON_AddNumberToObject(root, "schema_version", APP_SCHEMA_VERSION) == NULL) {
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;
     }

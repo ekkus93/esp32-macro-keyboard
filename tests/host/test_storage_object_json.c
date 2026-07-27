@@ -80,8 +80,8 @@ static void test_macro_rejects_noncanonical_json(void) {
         "{\"schema_version\":1,\"id\":\"00000001-0000-4000-8000-000000000001\","
         "\"revision\":1,\"scope\":\"global\",\"name\":\"x\",\"name\":\"y\","
         "\"source\":\"\",\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15}";
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
-                         storage_repository_parse_macro_json(duplicate, strlen(duplicate), &output));
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_repository_parse_macro_json(
+                                                        duplicate, strlen(duplicate), &output));
 
     static const char trailing[] =
         "{\"schema_version\":1,\"id\":\"00000001-0000-4000-8000-000000000001\","
@@ -102,9 +102,8 @@ static void test_macro_rejects_noncanonical_json(void) {
         "{\"schema_version\":1,\"id\":\"00000001-0000-4000-8000-000000000001\","
         "\"revision\":1,\"scope\":\"set\",\"name\":\"x\",\"source\":\"\","
         "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15}";
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
-                         storage_repository_parse_macro_json(wrong_scope, strlen(wrong_scope),
-                                                             &output));
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_repository_parse_macro_json(
+                                                        wrong_scope, strlen(wrong_scope), &output));
 }
 
 static procedure_t procedure_value(void) {
@@ -117,7 +116,8 @@ static procedure_t procedure_value(void) {
         .sort_order = -4,
     };
     TEST_CHECK_EQ_INT(9, snprintf(procedure.name, sizeof(procedure.name), "%s", "Provision"));
-    TEST_CHECK_EQ_INT(4, snprintf(procedure.description, sizeof(procedure.description), "%s", "Test"));
+    TEST_CHECK_EQ_INT(4,
+                      snprintf(procedure.description, sizeof(procedure.description), "%s", "Test"));
     procedure.steps = calloc(procedure.step_count, sizeof(*procedure.steps));
     TEST_CHECK(procedure.steps != NULL);
     procedure.steps[0] = (procedure_step_t){
@@ -128,8 +128,8 @@ static procedure_t procedure_value(void) {
         .has_macro_id = true,
         .macro_id = uuid_value(1U),
     };
-    TEST_CHECK_EQ_INT(4, snprintf(procedure.steps[0].title,
-                                  sizeof(procedure.steps[0].title), "%s", "Type"));
+    TEST_CHECK_EQ_INT(
+        4, snprintf(procedure.steps[0].title, sizeof(procedure.steps[0].title), "%s", "Type"));
     procedure.steps[1] = (procedure_step_t){
         .id = uuid_value(12U),
         .type = PROCEDURE_STEP_CHECKPOINT,
@@ -138,8 +138,8 @@ static procedure_t procedure_value(void) {
         .body_length = 14U,
     };
     TEST_CHECK(procedure.steps[1].body != NULL);
-    TEST_CHECK_EQ_INT(7, snprintf(procedure.steps[1].title,
-                                  sizeof(procedure.steps[1].title), "%s", "Confirm"));
+    TEST_CHECK_EQ_INT(
+        7, snprintf(procedure.steps[1].title, sizeof(procedure.steps[1].title), "%s", "Confirm"));
     return procedure;
 }
 
@@ -171,6 +171,51 @@ static void test_procedure_rejects_duplicate_steps(void) {
                          storage_repository_serialize_procedure_json(&input, &json, &length));
     TEST_CHECK(json == NULL);
     macro_model_free_procedure(&input);
+}
+
+static void test_procedure_rejects_unknown_and_duplicate_fields(void) {
+    procedure_t input = procedure_value();
+    char *json = NULL;
+    size_t length = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_repository_serialize_procedure_json(&input, &json, &length));
+    TEST_CHECK(length > 1U);
+    static const char extra[] = ",\"unexpected\":true}";
+    char *with_extra = malloc(length + sizeof(extra));
+    TEST_CHECK(with_extra != NULL);
+    memcpy(with_extra, json, length - 1U);
+    memcpy(with_extra + length - 1U, extra, sizeof(extra));
+    procedure_t output = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
+                         storage_repository_parse_procedure_json(
+                             with_extra, (length - 1U) + sizeof(extra) - 1U, &output));
+    TEST_CHECK(output.steps == NULL);
+    free(with_extra);
+
+    static const char duplicate[] = ",\"name\":\"duplicate\"}";
+    char *with_duplicate = malloc(length + sizeof(duplicate));
+    TEST_CHECK(with_duplicate != NULL);
+    memcpy(with_duplicate, json, length - 1U);
+    memcpy(with_duplicate + length - 1U, duplicate, sizeof(duplicate));
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
+                         storage_repository_parse_procedure_json(
+                             with_duplicate, (length - 1U) + sizeof(duplicate) - 1U, &output));
+    TEST_CHECK(output.steps == NULL);
+    free(with_duplicate);
+    cJSON_free(json);
+    macro_model_free_procedure(&input);
+}
+
+static void test_procedure_rejects_empty_steps(void) {
+    procedure_t input = procedure_value();
+    macro_model_free_procedure(&input);
+    input.steps = NULL;
+    input.step_count = 0U;
+    char *json = NULL;
+    size_t length = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         storage_repository_serialize_procedure_json(&input, &json, &length));
+    TEST_CHECK(json == NULL);
 }
 
 static procedure_progress_t progress_value(void) {
@@ -227,6 +272,8 @@ int main(void) {
     test_macro_rejects_noncanonical_json();
     test_procedure_round_trip();
     test_procedure_rejects_duplicate_steps();
+    test_procedure_rejects_unknown_and_duplicate_fields();
+    test_procedure_rejects_empty_steps();
     test_progress_and_order_round_trip();
     puts("storage object JSON tests passed");
     return EXIT_SUCCESS;

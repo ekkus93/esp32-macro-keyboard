@@ -33,6 +33,11 @@ typedef struct {
     bool truncated;
 } storage_reference_list_t;
 
+typedef struct {
+    procedure_t *items;
+    size_t count;
+} storage_procedure_list_t;
+
 /* Repository mutation lock lifecycle (FIX1 §9). Must be initialized before any
  * repository operation, including startup recovery, and torn down after the last
  * one. The take/give mechanism and test operations seam remain private. */
@@ -67,5 +72,18 @@ app_error_code_t storage_macro_duplicate(const storage_macro_location_t *locatio
                                          macro_t *out_duplicate);
 app_error_code_t storage_macro_reorder(const storage_macro_location_t *location,
                                        const app_uuid_t *ordered_ids, size_t count);
+
+app_error_code_t storage_procedure_list(const app_uuid_t *set_id,
+                                        storage_procedure_list_t *out_list);
+void storage_procedure_list_free(storage_procedure_list_t *list);
+app_error_code_t storage_procedure_create(const app_uuid_t *set_id, const procedure_t *procedure);
+app_error_code_t storage_procedure_read(const app_uuid_t *set_id, const app_uuid_t *procedure_id,
+                                        procedure_t *out_procedure);
+app_error_code_t storage_procedure_update(const app_uuid_t *set_id, const procedure_t *replacement,
+                                          uint32_t expected_revision, procedure_t *out_updated);
+app_error_code_t storage_procedure_delete(const app_uuid_t *set_id, const app_uuid_t *procedure_id,
+                                          uint32_t expected_revision);
+app_error_code_t storage_procedure_reorder(const app_uuid_t *set_id, const app_uuid_t *ordered_ids,
+                                           size_t count);
 
 #endif

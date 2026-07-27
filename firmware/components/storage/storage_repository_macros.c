@@ -20,6 +20,7 @@
 #include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
+#include "storage_repository_macros_internal.h"
 #include "storage_repository_objects_json.h"
 #include "storage_repository_order.h"
 
@@ -35,8 +36,7 @@ static bool location_valid(const storage_macro_location_t *location) {
            memcmp(&location->set_id, &zero, sizeof(zero)) == 0;
 }
 
-static bool macro_matches_location(const macro_t *macro,
-                                   const storage_macro_location_t *location) {
+static bool macro_matches_location(const macro_t *macro, const storage_macro_location_t *location) {
     if (macro == NULL || !location_valid(location) || macro->scope != location->scope ||
         macro->has_set_id != location->has_set_id) {
         return false;
@@ -58,8 +58,7 @@ static app_error_code_t macro_order_path(const storage_macro_location_t *locatio
 }
 
 static app_error_code_t macro_file_path(const storage_macro_location_t *location,
-                                        const app_uuid_t *macro_id, char *path,
-                                        size_t path_size) {
+                                        const app_uuid_t *macro_id, char *path, size_t path_size) {
     if (!location_valid(location) || macro_id == NULL || path == NULL || path_size == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -89,8 +88,8 @@ static app_error_code_t verify_set_location(const storage_macro_location_t *loca
     return errno == ENOENT ? APP_ERROR_NOT_FOUND : storage_repository_map_file_error();
 }
 
-static app_error_code_t macro_read_locked(const storage_macro_location_t *location,
-                                          const app_uuid_t *macro_id, macro_t *out_macro) {
+app_error_code_t storage_macro_read_locked(const storage_macro_location_t *location,
+                                           const app_uuid_t *macro_id, macro_t *out_macro) {
     if (!location_valid(location) || macro_id == NULL || out_macro == NULL ||
         !app_uuid_is_valid_string(macro_id->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -103,15 +102,14 @@ static app_error_code_t macro_read_locked(const storage_macro_location_t *locati
     }
     char *data = NULL;
     size_t length = 0U;
-    result = storage_repository_read_bounded_file(path, STORAGE_MACRO_FILE_MAX_BYTES, &data,
-                                                   &length);
+    result =
+        storage_repository_read_bounded_file(path, STORAGE_MACRO_FILE_MAX_BYTES, &data, &length);
     if (result == APP_ERROR_NONE) {
         result = storage_repository_parse_macro_json(data, length, out_macro);
     }
     free(data);
-    if (result == APP_ERROR_NONE &&
-        (!app_uuid_equal(macro_id, &out_macro->id) ||
-         !macro_matches_location(out_macro, location))) {
+    if (result == APP_ERROR_NONE && (!app_uuid_equal(macro_id, &out_macro->id) ||
+                                     !macro_matches_location(out_macro, location))) {
         macro_model_free_macro(out_macro);
         memset(out_macro, 0, sizeof(*out_macro));
         result = APP_ERROR_STORAGE_CORRUPT;
@@ -160,7 +158,7 @@ static app_error_code_t macro_list_locked(const storage_macro_location_t *locati
     }
     size_t loaded = 0U;
     for (; loaded < order.count; ++loaded) {
-        result = macro_read_locked(location, &order.ids[loaded], &items[loaded]);
+        result = storage_macro_read_locked(location, &order.ids[loaded], &items[loaded]);
         if (result != APP_ERROR_NONE) {
             break;
         }
@@ -238,15 +236,15 @@ static app_error_code_t macro_create_locked(const storage_macro_location_t *loca
 }
 
 static app_error_code_t macro_update_locked(const storage_macro_location_t *location,
-                                            const macro_t *replacement,
-                                            uint32_t expected_revision, macro_t *out_updated) {
+                                            const macro_t *replacement, uint32_t expected_revision,
+                                            macro_t *out_updated) {
     if (!macro_matches_location(replacement, location) || out_updated == NULL ||
         expected_revision == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     memset(out_updated, 0, sizeof(*out_updated));
     macro_t current = {0};
-    app_error_code_t result = macro_read_locked(location, &replacement->id, &current);
+    app_error_code_t result = storage_macro_read_locked(location, &replacement->id, &current);
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -260,7 +258,7 @@ static app_error_code_t macro_update_locked(const storage_macro_location_t *loca
     result = write_macro_object(location, &updated);
     macro_model_free_macro(&current);
     if (result == APP_ERROR_NONE) {
-        result = macro_read_locked(location, &updated.id, out_updated);
+        result = storage_macro_read_locked(location, &updated.id, out_updated);
     }
     return result;
 }
@@ -280,8 +278,8 @@ static void add_reference(storage_reference_list_t *references, const app_uuid_t
 }
 
 static app_error_code_t scan_set_procedure_references(const app_uuid_t *set_id,
-                                                       const app_uuid_t *macro_id,
-                                                       storage_reference_list_t *references) {
+                                                      const app_uuid_t *macro_id,
+                                                      storage_reference_list_t *references) {
     char directory_path[APP_PATH_MAX_BYTES];
     const int written = snprintf(directory_path, sizeof(directory_path),
                                  STORAGE_DATA_MOUNT "/sets/%s/procedures", set_id->value);
@@ -312,8 +310,8 @@ static app_error_code_t scan_set_procedure_references(const app_uuid_t *set_id,
         char *data = NULL;
         size_t length = 0U;
         if (result == APP_ERROR_NONE) {
-            result = storage_repository_read_bounded_file(
-                path, STORAGE_PROCEDURE_FILE_MAX_BYTES, &data, &length);
+            result = storage_repository_read_bounded_file(path, STORAGE_PROCEDURE_FILE_MAX_BYTES,
+                                                          &data, &length);
         }
         procedure_t procedure = {0};
         if (result == APP_ERROR_NONE) {
@@ -322,9 +320,8 @@ static app_error_code_t scan_set_procedure_references(const app_uuid_t *set_id,
         free(data);
         if (result == APP_ERROR_STORAGE_CORRUPT) {
             storage_quarantine_entry_t quarantine_entry = {0};
-            const app_error_code_t quarantine =
-                storage_quarantine_file_locked(path, "invalid procedure during reference scan",
-                                               &quarantine_entry);
+            const app_error_code_t quarantine = storage_quarantine_file_locked(
+                path, "invalid procedure during reference scan", &quarantine_entry);
             if (quarantine != APP_ERROR_NONE) {
                 result = quarantine;
             }
@@ -348,8 +345,8 @@ static app_error_code_t scan_set_procedure_references(const app_uuid_t *set_id,
 }
 
 static app_error_code_t find_macro_references(const storage_macro_location_t *location,
-                                               const app_uuid_t *macro_id,
-                                               storage_reference_list_t *references) {
+                                              const app_uuid_t *macro_id,
+                                              storage_reference_list_t *references) {
     memset(references, 0, sizeof(*references));
     if (location->scope == MACRO_SCOPE_SET) {
         return scan_set_procedure_references(&location->set_id, macro_id, references);
@@ -363,8 +360,7 @@ static app_error_code_t find_macro_references(const storage_macro_location_t *lo
 }
 
 static app_error_code_t macro_delete_locked(const storage_macro_location_t *location,
-                                            const app_uuid_t *macro_id,
-                                            uint32_t expected_revision,
+                                            const app_uuid_t *macro_id, uint32_t expected_revision,
                                             storage_reference_list_t *out_references) {
     if (!location_valid(location) || macro_id == NULL || expected_revision == 0U ||
         out_references == NULL) {
@@ -372,7 +368,7 @@ static app_error_code_t macro_delete_locked(const storage_macro_location_t *loca
     }
     memset(out_references, 0, sizeof(*out_references));
     macro_t current = {0};
-    app_error_code_t result = macro_read_locked(location, macro_id, &current);
+    app_error_code_t result = storage_macro_read_locked(location, macro_id, &current);
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -410,8 +406,7 @@ static app_error_code_t macro_delete_locked(const storage_macro_location_t *loca
 static app_error_code_t macro_duplicate_locked(const storage_macro_location_t *location,
                                                const app_uuid_t *source_id,
                                                const app_uuid_t *duplicate_id,
-                                               const char *duplicate_name,
-                                               macro_t *out_duplicate) {
+                                               const char *duplicate_name, macro_t *out_duplicate) {
     if (!location_valid(location) || source_id == NULL || duplicate_id == NULL ||
         duplicate_name == NULL || out_duplicate == NULL ||
         !app_uuid_is_valid_string(duplicate_id->value)) {
@@ -419,7 +414,7 @@ static app_error_code_t macro_duplicate_locked(const storage_macro_location_t *l
     }
     memset(out_duplicate, 0, sizeof(*out_duplicate));
     macro_t source = {0};
-    app_error_code_t result = macro_read_locked(location, source_id, &source);
+    app_error_code_t result = storage_macro_read_locked(location, source_id, &source);
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -466,8 +461,8 @@ static app_error_code_t macro_reorder_locked(const storage_macro_location_t *loc
     }
     char *probe = NULL;
     size_t probe_length = 0U;
-    result = storage_repository_serialize_order_json(&replacement, APP_MACROS_PER_SET_MAX,
-                                                     &probe, &probe_length);
+    result = storage_repository_serialize_order_json(&replacement, APP_MACROS_PER_SET_MAX, &probe,
+                                                     &probe_length);
     cJSON_free(probe);
     if (result != APP_ERROR_NONE) {
         return result;
@@ -517,7 +512,7 @@ app_error_code_t storage_macro_read(const storage_macro_location_t *location,
     if (lock != APP_ERROR_NONE) {
         return lock;
     }
-    const app_error_code_t result = macro_read_locked(location, macro_id, out_macro);
+    const app_error_code_t result = storage_macro_read_locked(location, macro_id, out_macro);
     const app_error_code_t unlock = storage_repository_lock_give();
     return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }
@@ -550,15 +545,14 @@ app_error_code_t storage_macro_delete(const storage_macro_location_t *location,
 
 app_error_code_t storage_macro_duplicate(const storage_macro_location_t *location,
                                          const app_uuid_t *source_id,
-                                         const app_uuid_t *duplicate_id,
-                                         const char *duplicate_name,
+                                         const app_uuid_t *duplicate_id, const char *duplicate_name,
                                          macro_t *out_duplicate) {
     const app_error_code_t lock = storage_repository_lock_take();
     if (lock != APP_ERROR_NONE) {
         return lock;
     }
-    const app_error_code_t result = macro_duplicate_locked(
-        location, source_id, duplicate_id, duplicate_name, out_duplicate);
+    const app_error_code_t result =
+        macro_duplicate_locked(location, source_id, duplicate_id, duplicate_name, out_duplicate);
     const app_error_code_t unlock = storage_repository_lock_give();
     return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }
