@@ -10,7 +10,6 @@
 #include "test_assert.h"
 
 #define RECORDED_LOG_CAPACITY 64U
-#define RANDOM_PLAN_CAPACITY 8U
 
 typedef struct {
     app_core_log_type_t type;
@@ -19,14 +18,17 @@ typedef struct {
     bool cleanup_incomplete;
     uint32_t operation_id;
     char stage[32U];
-    char ssid[64U];
-    char ap_passphrase[APP_CORE_DEVELOPMENT_PASSWORD_BYTES + 1U];
-    char web_password[APP_CORE_DEVELOPMENT_PASSWORD_BYTES + 1U];
+    char ssid[WIFI_AP_SSID_MAX_BYTES + 1U];
+    char ap_passphrase[WIFI_AP_PASSPHRASE_MAX_BYTES + 1U];
+    char setup_code[PROVISIONING_SETUP_SECRET_BUFFER_BYTES];
 } recorded_log_t;
 
 typedef struct {
     fake_call_log_t calls;
     app_core_nvs_result_t nvs_result;
+    app_error_code_t provisioning_init_result;
+    app_error_code_t provisioning_load_result;
+    app_error_code_t bootstrap_result;
     app_error_code_t storage_mount_result;
     app_error_code_t storage_recover_result;
     app_error_code_t repository_result;
@@ -34,7 +36,6 @@ typedef struct {
     app_error_code_t usb_result;
     app_error_code_t executor_result;
     app_error_code_t controls_result;
-    app_error_code_t password_result;
     app_error_code_t wifi_result;
     app_error_code_t http_result;
     app_error_code_t http_stop_result;
@@ -45,26 +46,27 @@ typedef struct {
     app_error_code_t usb_deinit_result;
     app_error_code_t executor_deinit_result;
     app_error_code_t controls_deinit_result;
+    app_error_code_t provisioning_deinit_result;
     app_error_code_t nvs_deinit_result;
     bool http_owns_resources;
     bool wifi_owns_resources;
     bool storage_owns_mount;
+    bool provisioning_owns_resources;
     device_indicator_state_t indicator_failure_state;
     app_error_code_t indicator_failure_result;
-    size_t random_fail_on;
-    app_error_code_t random_failure_result;
-    uint8_t random_plan[RANDOM_PLAN_CAPACITY];
-    size_t random_plan_count;
-    size_t random_call_count;
+    provisioning_config_t provisioning;
+    provisioning_bootstrap_t bootstrap;
+    web_server_config_t observed_web_configuration;
+    char wifi_ssid[WIFI_AP_SSID_MAX_BYTES + 1U];
+    char wifi_passphrase[WIFI_AP_PASSPHRASE_MAX_BYTES + 1U];
     size_t secure_zero_count;
     recorded_log_t logs[RECORDED_LOG_CAPACITY];
     size_t log_count;
-    char wifi_ssid[64U];
-    char wifi_passphrase[APP_CORE_DEVELOPMENT_PASSWORD_BYTES + 1U];
-    web_server_config_t observed_web_configuration;
 } app_core_fixture_t;
 
-static void copy_text(char *destination, size_t destination_size, const char *source) {
+static void copy_text(char *destination,
+                      size_t destination_size,
+                      const char *source) {
     TEST_CHECK(destination != NULL);
     TEST_CHECK(destination_size > 0U);
     if (source == NULL) {
@@ -110,7 +112,8 @@ static size_t call_count(const app_core_fixture_t *fixture, const char *name) {
     return count;
 }
 
-static size_t first_call_index(const app_core_fixture_t *fixture, const char *name) {
+static size_t first_call_index(const app_core_fixture_t *fixture,
+                               const char *name) {
     for (size_t index = 0U; index < fixture->calls.call_count; ++index) {
         const fake_call_t *call = fake_call_log_at(&fixture->calls, index);
         if (call != NULL && strcmp(call->name, name) == 0) {
@@ -120,6 +123,68 @@ static size_t first_call_index(const app_core_fixture_t *fixture, const char *na
     return SIZE_MAX;
 }
 
+static void assert_order(const app_core_fixture_t *fixture,
+                         const char *before,
+                         const char *after) {
+    const size_t before_index = first_call_index(fixture, before);
+    const size_t after_index = first_call_index(fixture, after);
+    TEST_CHECK(before_index != SIZE_MAX);
+    TEST_CHECK(after_index != SIZE_MAX);
+    TEST_CHECK(before_index < after_index);
+}
+
+static void initialize_bootstrap(provisioning_bootstrap_t *bootstrap) {
+    TEST_CHECK_EQ_INT(12,
+                      snprintf(bootstrap->device_id,
+                               sizeof(bootstrap->device_id),
+                               "%s",
+                               "102030A0B0C0"));
+    TEST_CHECK_EQ_INT(18,
+                      snprintf(bootstrap->ap_ssid,
+                               sizeof(bootstrap->ap_ssid),
+                               "%s",
+                               "ESP32-Macro-A0B0C0"));
+    TEST_CHECK_EQ_INT(24,
+                      snprintf(bootstrap->ap_passphrase,
+                               sizeof(bootstrap->ap_passphrase),
+                               "%s",
+                               "0665630870D7FE643BA4B540"));
+    TEST_CHECK_EQ_INT(24,
+                      snprintf(bootstrap->setup_code,
+                               sizeof(bootstrap->setup_code),
+                               "%s",
+                               "45175C9BB39D8BE5FC7EF773"));
+}
+
+static void configure_normal_provisioning(provisioning_config_t *configuration) {
+    *configuration = (provisioning_config_t){
+        .schema_version = APP_SCHEMA_VERSION,
+        .revision = 4U,
+        .credential_version = 2U,
+        .provisioned = true,
+        .require_physical_confirmation = true,
+        .always_select_set = true,
+        .has_active_set = false,
+    };
+    TEST_CHECK_EQ_INT(14,
+                      snprintf(configuration->ap_ssid,
+                               sizeof(configuration->ap_ssid),
+                               "%s",
+                               "Macro Keyboard"));
+    TEST_CHECK_EQ_INT(21,
+                      snprintf(configuration->ap_passphrase,
+                               sizeof(configuration->ap_passphrase),
+                               "%s",
+                               "correct-horse-battery"));
+    memset(configuration->password_record.salt,
+           0x11,
+           sizeof(configuration->password_record.salt));
+    memset(configuration->password_record.hash,
+           0x22,
+           sizeof(configuration->password_record.hash));
+    configuration->password_record.iterations = AUTH_PBKDF2_ITERATIONS;
+}
+
 static void reset_fixture(app_core_fixture_t *fixture) {
     TEST_CHECK(fixture != NULL);
     memset(fixture, 0, sizeof(*fixture));
@@ -127,16 +192,50 @@ static void reset_fixture(app_core_fixture_t *fixture) {
     fixture->nvs_result = APP_CORE_NVS_OK;
     fixture->indicator_failure_state = (device_indicator_state_t)-1;
     fixture->indicator_failure_result = APP_ERROR_INTERNAL;
-    fixture->random_failure_result = APP_ERROR_INTERNAL;
-    fixture->random_plan[0] = 0U;
-    fixture->random_plan[1] = 1U;
-    fixture->random_plan_count = 2U;
+    fixture->provisioning = (provisioning_config_t){
+        .schema_version = APP_SCHEMA_VERSION,
+        .revision = 0U,
+        .credential_version = 0U,
+        .provisioned = false,
+        .require_physical_confirmation = true,
+        .always_select_set = true,
+        .has_active_set = false,
+    };
+    initialize_bootstrap(&fixture->bootstrap);
 }
 
 static app_core_nvs_result_t fake_nvs_init(void *context) {
     app_core_fixture_t *fixture = context;
     record_call(fixture, "nvs");
     return fixture->nvs_result;
+}
+
+static app_error_code_t fake_provisioning_init(void *context) {
+    app_core_fixture_t *fixture = context;
+    record_call(fixture, "provisioning_init");
+    return fixture->provisioning_init_result;
+}
+
+static app_error_code_t fake_provisioning_load(
+    void *context,
+    provisioning_config_t *out_configuration) {
+    app_core_fixture_t *fixture = context;
+    record_call(fixture, "provisioning_load");
+    if (fixture->provisioning_load_result == APP_ERROR_NONE) {
+        *out_configuration = fixture->provisioning;
+    }
+    return fixture->provisioning_load_result;
+}
+
+static app_error_code_t fake_bootstrap_derive(
+    void *context,
+    provisioning_bootstrap_t *out_bootstrap) {
+    app_core_fixture_t *fixture = context;
+    record_call(fixture, "bootstrap_derive");
+    if (fixture->bootstrap_result == APP_ERROR_NONE) {
+        *out_bootstrap = fixture->bootstrap;
+    }
+    return fixture->bootstrap_result;
 }
 
 static app_error_code_t fake_storage_mount(void *context) {
@@ -181,52 +280,21 @@ static app_error_code_t fake_controls_init(void *context) {
     return fixture->controls_result;
 }
 
-static app_error_code_t fake_random_fill(void *context, uint8_t *output, size_t length) {
-    app_core_fixture_t *fixture = context;
-    record_call(fixture, "random_fill");
-    ++fixture->random_call_count;
-    if (fixture->random_fail_on != 0U && fixture->random_call_count == fixture->random_fail_on) {
-        return fixture->random_failure_result;
-    }
-    TEST_CHECK(output != NULL || length == 0U);
-    size_t plan_index = fixture->random_call_count - 1U;
-    if (fixture->random_plan_count == 0U) {
-        plan_index = 0U;
-    } else if (plan_index >= fixture->random_plan_count) {
-        plan_index = fixture->random_plan_count - 1U;
-    }
-    const uint8_t value = fixture->random_plan_count == 0U ? 0U : fixture->random_plan[plan_index];
-    memset(output, value, length);
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t fake_password_create(void *context, const char *password,
-                                             size_t password_length,
-                                             auth_password_record_t *out_record) {
-    app_core_fixture_t *fixture = context;
-    record_call(fixture, "password_create");
-    TEST_CHECK(password != NULL);
-    TEST_CHECK_EQ_U64(APP_CORE_DEVELOPMENT_PASSWORD_BYTES, password_length);
-    TEST_CHECK_EQ_U64(password_length, strlen(password));
-    TEST_CHECK(out_record != NULL);
-    if (fixture->password_result == APP_ERROR_NONE) {
-        memset(out_record, 0, sizeof(*out_record));
-        out_record->iterations = 120000U;
-        out_record->salt[0] = 0x11U;
-        out_record->hash[0] = 0x22U;
-    }
-    return fixture->password_result;
-}
-
-static app_error_code_t fake_wifi_start(void *context, const char *ssid, const char *passphrase) {
+static app_error_code_t fake_wifi_start(void *context,
+                                        const char *ssid,
+                                        const char *passphrase) {
     app_core_fixture_t *fixture = context;
     record_call(fixture, "wifi_start");
     copy_text(fixture->wifi_ssid, sizeof(fixture->wifi_ssid), ssid);
-    copy_text(fixture->wifi_passphrase, sizeof(fixture->wifi_passphrase), passphrase);
+    copy_text(fixture->wifi_passphrase,
+              sizeof(fixture->wifi_passphrase),
+              passphrase);
     return fixture->wifi_result;
 }
 
-static app_error_code_t fake_http_start(void *context, const web_server_config_t *configuration) {
+static app_error_code_t fake_http_start(
+    void *context,
+    const web_server_config_t *configuration) {
     app_core_fixture_t *fixture = context;
     record_call(fixture, "http_start");
     TEST_CHECK(configuration != NULL);
@@ -234,29 +302,54 @@ static app_error_code_t fake_http_start(void *context, const web_server_config_t
     return fixture->http_result;
 }
 
-static app_error_code_t fake_http_stop(void *context) {
-    app_core_fixture_t *fixture = context;
-    record_call(fixture, "http_stop");
-    return fixture->http_stop_result;
+#define DEFINE_TEARDOWN_FAKE(name, field)                                    \
+    static app_error_code_t fake_##name(void *context) {                     \
+        app_core_fixture_t *fixture = context;                               \
+        record_call(fixture, #name);                                         \
+        return fixture->field;                                               \
+    }
+
+DEFINE_TEARDOWN_FAKE(http_stop, http_stop_result)
+DEFINE_TEARDOWN_FAKE(wifi_stop, wifi_stop_result)
+DEFINE_TEARDOWN_FAKE(storage_unmount, storage_unmount_result)
+DEFINE_TEARDOWN_FAKE(repository_deinit, repository_deinit_result)
+DEFINE_TEARDOWN_FAKE(auth_deinit, auth_deinit_result)
+DEFINE_TEARDOWN_FAKE(usb_deinit, usb_deinit_result)
+DEFINE_TEARDOWN_FAKE(executor_deinit, executor_deinit_result)
+DEFINE_TEARDOWN_FAKE(controls_deinit, controls_deinit_result)
+DEFINE_TEARDOWN_FAKE(provisioning_deinit, provisioning_deinit_result)
+DEFINE_TEARDOWN_FAKE(nvs_deinit, nvs_deinit_result)
+
+#undef DEFINE_TEARDOWN_FAKE
+
+static bool fake_http_owns_resources(void *context) {
+    const app_core_fixture_t *fixture = context;
+    return fixture->http_owns_resources;
 }
 
-static app_error_code_t fake_wifi_stop(void *context) {
-    app_core_fixture_t *fixture = context;
-    record_call(fixture, "wifi_stop");
-    return fixture->wifi_stop_result;
+static bool fake_wifi_owns_resources(void *context) {
+    const app_core_fixture_t *fixture = context;
+    return fixture->wifi_owns_resources;
 }
 
-static app_error_code_t fake_storage_unmount(void *context) {
-    app_core_fixture_t *fixture = context;
-    record_call(fixture, "storage_unmount");
-    return fixture->storage_unmount_result;
+static bool fake_storage_owns_mount(void *context) {
+    const app_core_fixture_t *fixture = context;
+    return fixture->storage_owns_mount;
 }
 
-static app_error_code_t fake_set_indicator(void *context, device_indicator_state_t indicator) {
+static bool fake_provisioning_owns_resources(void *context) {
+    const app_core_fixture_t *fixture = context;
+    return fixture->provisioning_owns_resources;
+}
+
+static app_error_code_t fake_set_indicator(
+    void *context,
+    device_indicator_state_t indicator) {
     app_core_fixture_t *fixture = context;
     record_call(fixture, indicator_call_name(indicator));
-    return indicator == fixture->indicator_failure_state ? fixture->indicator_failure_result
-                                                         : APP_ERROR_NONE;
+    return indicator == fixture->indicator_failure_state
+               ? fixture->indicator_failure_result
+               : APP_ERROR_NONE;
 }
 
 static void fake_secure_zero(void *context, void *memory, size_t length) {
@@ -269,7 +362,8 @@ static void fake_secure_zero(void *context, void *memory, size_t length) {
     ++fixture->secure_zero_count;
 }
 
-static void fake_log_event(void *context, const app_core_log_event_t *event) {
+static void fake_log_event(void *context,
+                           const app_core_log_event_t *event) {
     app_core_fixture_t *fixture = context;
     TEST_CHECK(event != NULL);
     TEST_CHECK(fixture->log_count < RECORDED_LOG_CAPACITY);
@@ -282,68 +376,21 @@ static void fake_log_event(void *context, const app_core_log_event_t *event) {
     record->operation_id = event->operation_id;
     copy_text(record->stage, sizeof(record->stage), event->stage);
     copy_text(record->ssid, sizeof(record->ssid), event->ssid);
-    copy_text(record->ap_passphrase, sizeof(record->ap_passphrase), event->ap_passphrase);
-    copy_text(record->web_password, sizeof(record->web_password), event->web_password);
-}
-
-static app_error_code_t fake_repository_deinit(void *context) {
-    app_core_fixture_t *fixture = context;
-    record_call(fixture, "repository_deinit");
-    return fixture->repository_deinit_result;
-}
-
-static app_error_code_t fake_auth_deinit(void *context) {
-    app_core_fixture_t *fixture = context;
-    record_call(fixture, "auth_deinit");
-    return fixture->auth_deinit_result;
-}
-
-static app_error_code_t fake_usb_deinit(void *context) {
-    app_core_fixture_t *fixture = context;
-    record_call(fixture, "usb_deinit");
-    return fixture->usb_deinit_result;
-}
-
-static app_error_code_t fake_executor_deinit(void *context) {
-    app_core_fixture_t *fixture = context;
-    record_call(fixture, "executor_deinit");
-    return fixture->executor_deinit_result;
-}
-
-static app_error_code_t fake_controls_deinit(void *context) {
-    app_core_fixture_t *fixture = context;
-    record_call(fixture, "controls_deinit");
-    return fixture->controls_deinit_result;
-}
-
-static app_error_code_t fake_nvs_deinit(void *context) {
-    app_core_fixture_t *fixture = context;
-    record_call(fixture, "nvs_deinit");
-    return fixture->nvs_deinit_result;
-}
-
-static bool fake_http_owns_resources(void *context) {
-    const app_core_fixture_t *fixture = context;
-    TEST_CHECK(fixture != NULL);
-    return fixture->http_owns_resources;
-}
-
-static bool fake_wifi_owns_resources(void *context) {
-    const app_core_fixture_t *fixture = context;
-    TEST_CHECK(fixture != NULL);
-    return fixture->wifi_owns_resources;
-}
-
-static bool fake_storage_owns_mount(void *context) {
-    const app_core_fixture_t *fixture = context;
-    TEST_CHECK(fixture != NULL);
-    return fixture->storage_owns_mount;
+    copy_text(record->ap_passphrase,
+              sizeof(record->ap_passphrase),
+              event->ap_passphrase);
+    copy_text(record->setup_code,
+              sizeof(record->setup_code),
+              event->setup_code);
 }
 
 static app_core_ops_t make_operations(app_core_fixture_t *fixture) {
     return (app_core_ops_t){
         .context = fixture,
         .nvs_init = fake_nvs_init,
+        .provisioning_init = fake_provisioning_init,
+        .provisioning_load = fake_provisioning_load,
+        .bootstrap_derive = fake_bootstrap_derive,
         .storage_mount = fake_storage_mount,
         .storage_recover = fake_storage_recover,
         .repository_init = fake_repository_init,
@@ -351,8 +398,6 @@ static app_core_ops_t make_operations(app_core_fixture_t *fixture) {
         .usb_init = fake_usb_init,
         .executor_init = fake_executor_init,
         .controls_init = fake_controls_init,
-        .random_fill = fake_random_fill,
-        .password_create = fake_password_create,
         .wifi_start = fake_wifi_start,
         .http_start = fake_http_start,
         .http_stop = fake_http_stop,
@@ -363,24 +408,26 @@ static app_core_ops_t make_operations(app_core_fixture_t *fixture) {
         .usb_deinit = fake_usb_deinit,
         .executor_deinit = fake_executor_deinit,
         .controls_deinit = fake_controls_deinit,
+        .provisioning_deinit = fake_provisioning_deinit,
         .nvs_deinit = fake_nvs_deinit,
         .http_owns_resources = fake_http_owns_resources,
         .wifi_owns_resources = fake_wifi_owns_resources,
         .storage_owns_mount = fake_storage_owns_mount,
+        .provisioning_owns_resources = fake_provisioning_owns_resources,
         .set_indicator = fake_set_indicator,
         .secure_zero = fake_secure_zero,
         .log_event = fake_log_event,
     };
 }
 
-static app_core_policy_t development_policy(void) {
+static app_core_policy_t production_policy(void) {
     return (app_core_policy_t){
-        .development_provisioning_enabled = true,
-        .development_ssid = "ESP32-Macro-Setup",
+        .manufacturing_provisioning_enabled = false,
     };
 }
 
-static size_t log_count(const app_core_fixture_t *fixture, app_core_log_type_t type) {
+static size_t log_count(const app_core_fixture_t *fixture,
+                        app_core_log_type_t type) {
     size_t count = 0U;
     for (size_t index = 0U; index < fixture->log_count; ++index) {
         if (fixture->logs[index].type == type) {
@@ -400,51 +447,48 @@ static const recorded_log_t *first_log(const app_core_fixture_t *fixture,
     return NULL;
 }
 
-static void assert_order(const app_core_fixture_t *fixture, const char *before, const char *after) {
-    const size_t before_index = first_call_index(fixture, before);
-    const size_t after_index = first_call_index(fixture, after);
-    TEST_CHECK(before_index != SIZE_MAX);
-    TEST_CHECK(after_index != SIZE_MAX);
-    TEST_CHECK(before_index < after_index);
-}
-
 static void test_nvs_mapping(void) {
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, app_core_map_nvs_result(APP_CORE_NVS_OK));
-    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT,
-                      app_core_map_nvs_result(APP_CORE_NVS_NO_FREE_PAGES));
-    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT,
-                      app_core_map_nvs_result(APP_CORE_NVS_NEW_VERSION_FOUND));
-    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_UNAVAILABLE,
-                      app_core_map_nvs_result(APP_CORE_NVS_OTHER_FAILURE));
-    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_UNAVAILABLE,
-                      app_core_map_nvs_result((app_core_nvs_result_t)99));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         app_core_map_nvs_result(APP_CORE_NVS_OK));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_STORAGE_CORRUPT,
+        app_core_map_nvs_result(APP_CORE_NVS_NO_FREE_PAGES));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_STORAGE_CORRUPT,
+        app_core_map_nvs_result(APP_CORE_NVS_NEW_VERSION_FOUND));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_STORAGE_UNAVAILABLE,
+        app_core_map_nvs_result(APP_CORE_NVS_OTHER_FAILURE));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_STORAGE_UNAVAILABLE,
+        app_core_map_nvs_result((app_core_nvs_result_t)99));
 }
 
 static void test_invalid_arguments_and_missing_callbacks(void) {
     app_core_fixture_t fixture;
     reset_fixture(&fixture);
     app_core_ops_t operations = make_operations(&fixture);
-    app_core_policy_t policy = development_policy();
+    const app_core_policy_t policy = production_policy();
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         app_core_sequence_start(NULL, &policy));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         app_core_sequence_start(&operations, NULL));
 
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, app_core_sequence_start(NULL, &policy));
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, app_core_sequence_start(&operations, NULL));
-    policy.development_ssid = NULL;
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, app_core_sequence_start(&operations, &policy));
-    policy.development_ssid = "";
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, app_core_sequence_start(&operations, &policy));
-
-#define CHECK_MISSING_CALLBACK(member)                                                             \
-    do {                                                                                           \
-        reset_fixture(&fixture);                                                                   \
-        operations = make_operations(&fixture);                                                    \
-        policy = development_policy();                                                             \
-        operations.member = NULL;                                                                  \
-        TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,                                              \
-                          app_core_sequence_start(&operations, &policy));                          \
-        TEST_CHECK_EQ_U64(0U, fixture.calls.call_count);                                           \
+#define CHECK_MISSING_CALLBACK(member)                                      \
+    do {                                                                    \
+        reset_fixture(&fixture);                                            \
+        operations = make_operations(&fixture);                             \
+        operations.member = NULL;                                           \
+        TEST_CHECK_APP_ERROR(                                               \
+            APP_ERROR_INVALID_ARGUMENT,                                     \
+            app_core_sequence_start(&operations, &policy));                 \
+        TEST_CHECK_EQ_U64(0U, fixture.calls.call_count);                    \
     } while (0)
 
     CHECK_MISSING_CALLBACK(nvs_init);
+    CHECK_MISSING_CALLBACK(provisioning_init);
+    CHECK_MISSING_CALLBACK(provisioning_load);
+    CHECK_MISSING_CALLBACK(bootstrap_derive);
     CHECK_MISSING_CALLBACK(storage_mount);
     CHECK_MISSING_CALLBACK(storage_recover);
     CHECK_MISSING_CALLBACK(repository_init);
@@ -452,8 +496,6 @@ static void test_invalid_arguments_and_missing_callbacks(void) {
     CHECK_MISSING_CALLBACK(usb_init);
     CHECK_MISSING_CALLBACK(executor_init);
     CHECK_MISSING_CALLBACK(controls_init);
-    CHECK_MISSING_CALLBACK(random_fill);
-    CHECK_MISSING_CALLBACK(password_create);
     CHECK_MISSING_CALLBACK(wifi_start);
     CHECK_MISSING_CALLBACK(http_start);
     CHECK_MISSING_CALLBACK(http_stop);
@@ -464,10 +506,12 @@ static void test_invalid_arguments_and_missing_callbacks(void) {
     CHECK_MISSING_CALLBACK(usb_deinit);
     CHECK_MISSING_CALLBACK(executor_deinit);
     CHECK_MISSING_CALLBACK(controls_deinit);
+    CHECK_MISSING_CALLBACK(provisioning_deinit);
     CHECK_MISSING_CALLBACK(nvs_deinit);
     CHECK_MISSING_CALLBACK(http_owns_resources);
     CHECK_MISSING_CALLBACK(wifi_owns_resources);
     CHECK_MISSING_CALLBACK(storage_owns_mount);
+    CHECK_MISSING_CALLBACK(provisioning_owns_resources);
     CHECK_MISSING_CALLBACK(set_indicator);
     CHECK_MISSING_CALLBACK(secure_zero);
     CHECK_MISSING_CALLBACK(log_event);
@@ -475,430 +519,446 @@ static void test_invalid_arguments_and_missing_callbacks(void) {
 #undef CHECK_MISSING_CALLBACK
 }
 
-static void test_success_order_and_distinct_credentials(void) {
+static void test_setup_success_isolated_from_normal_services(void) {
     app_core_fixture_t fixture;
     reset_fixture(&fixture);
     app_core_ops_t operations = make_operations(&fixture);
-    const app_core_policy_t policy = development_policy();
-
-    /*
-     * Strict fake enforcement (UNIT_TESTS1 L915 proof of concept). Register the
-     * exact expected startup sequence up front and run under the fake call log's
-     * strict mode: fake_call_log_record aborts on any unexpected or out-of-order
-     * operation, and fake_call_log_verify aborts if an expected call never
-     * happens. This enforces the sequence during execution rather than
-     * re-deriving it from the recorded log afterward.
-     */
+    const app_core_policy_t policy = production_policy();
     static const char *const expected[] = {
-        "indicator_booting", "nvs",         "storage_mount", "storage_recover", "repository_init",
-        "auth_init",         "usb_init",    "executor_init", "controls_init",   "random_fill",
-        "secure_zero",       "random_fill", "secure_zero",   "password_create", "wifi_start",
-        "http_start",        "secure_zero", "secure_zero",   "secure_zero",     "indicator_ready",
+        "indicator_booting",
+        "nvs",
+        "provisioning_init",
+        "provisioning_load",
+        "storage_mount",
+        "auth_init",
+        "controls_init",
+        "bootstrap_derive",
+        "wifi_start",
+        "http_start",
+        "secure_zero",
+        "indicator_ready",
     };
     fake_call_log_set_strict(&fixture.calls, true);
-    for (size_t index = 0U; index < (sizeof(expected) / sizeof(expected[0])); ++index) {
+    for (size_t index = 0U;
+         index < sizeof(expected) / sizeof(expected[0]);
+         ++index) {
         fake_call_log_expect(&fixture.calls, expected[index]);
     }
 
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, app_core_sequence_start(&operations, &policy));
-
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        app_core_sequence_start(&operations, &policy));
     fake_call_log_verify(&fixture.calls);
-    TEST_CHECK_EQ_U64(sizeof(expected) / sizeof(expected[0]), fixture.calls.call_count);
-
-    TEST_CHECK_EQ_STRING(policy.development_ssid, fixture.wifi_ssid);
-    TEST_CHECK(strlen(fixture.wifi_passphrase) == APP_CORE_DEVELOPMENT_PASSWORD_BYTES);
-    TEST_CHECK(fixture.observed_web_configuration.login_enabled);
-    TEST_CHECK(fixture.observed_web_configuration.password_record.iterations == 120000U);
-    TEST_CHECK_EQ_U64(1U, log_count(&fixture, APP_CORE_LOG_DEVELOPMENT_CREDENTIALS));
-    const recorded_log_t *credentials = first_log(&fixture, APP_CORE_LOG_DEVELOPMENT_CREDENTIALS);
-    TEST_CHECK(credentials != NULL);
-    TEST_CHECK_EQ_STRING(policy.development_ssid, credentials->ssid);
-    TEST_CHECK(strcmp(credentials->ap_passphrase, credentials->web_password) != 0);
-    TEST_CHECK_EQ_STRING(credentials->ap_passphrase, fixture.wifi_passphrase);
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "http_stop"));
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "wifi_stop"));
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "storage_unmount"));
+    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "storage_recover"));
+    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "repository_init"));
+    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "usb_init"));
+    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "executor_init"));
+    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "secure_zero"));
+    TEST_CHECK_EQ_STRING(fixture.bootstrap.ap_ssid, fixture.wifi_ssid);
+    TEST_CHECK_EQ_STRING(fixture.bootstrap.ap_passphrase,
+                         fixture.wifi_passphrase);
+    TEST_CHECK_EQ_INT(WEB_SERVER_MODE_SETUP,
+                      fixture.observed_web_configuration.mode);
+    TEST_CHECK(!fixture.observed_web_configuration.login_enabled);
+    TEST_CHECK_EQ_STRING(
+        fixture.bootstrap.device_id,
+        fixture.observed_web_configuration.setup_device_id);
+    TEST_CHECK_EQ_STRING(
+        fixture.bootstrap.setup_code,
+        fixture.observed_web_configuration.setup_code);
+    TEST_CHECK(
+        fixture.observed_web_configuration.setup_physical_confirmation_required);
+    TEST_CHECK(!fixture.observed_web_configuration.setup_manufacturing_bypass);
+    TEST_CHECK_EQ_U64(1U,
+                      log_count(&fixture,
+                                APP_CORE_LOG_PROVISIONING_REQUIRED));
+    TEST_CHECK_EQ_U64(
+        0U,
+        log_count(&fixture,
+                  APP_CORE_LOG_MANUFACTURING_CREDENTIALS));
 }
 
-static void test_stage_events_are_ordered_and_carry_no_secrets(void) {
-    app_core_fixture_t fixture;
-    reset_fixture(&fixture);
-    app_core_ops_t operations = make_operations(&fixture);
-    const app_core_policy_t policy = development_policy();
-
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, app_core_sequence_start(&operations, &policy));
-
-    /* Exact ordered subsystem/stage labels for a clean development startup. */
-    static const char *const expected_stages[] = {
-        "nvs",  "storage_mount", "storage_recovery", "storage_repository",    "authentication",
-        "usb",  "executor",      "controls",         "credential_generation", "password_record",
-        "wifi", "http",
-    };
-    const size_t expected_count = sizeof(expected_stages) / sizeof(expected_stages[0]);
-    size_t stage_index = 0U;
-    for (size_t index = 0U; index < fixture.log_count; ++index) {
-        const recorded_log_t *record = &fixture.logs[index];
-
-        /* Structured events must never carry credential material; only the
-         * development-only credentials event may. */
-        if (record->type != APP_CORE_LOG_DEVELOPMENT_CREDENTIALS) {
-            TEST_CHECK_EQ_U64(0U, strlen(record->ssid));
-            TEST_CHECK_EQ_U64(0U, strlen(record->ap_passphrase));
-            TEST_CHECK_EQ_U64(0U, strlen(record->web_password));
-        }
-        /* No stable operation identifier exists during startup. */
-        TEST_CHECK_EQ_U64(0U, record->operation_id);
-
-        if (record->type == APP_CORE_LOG_STAGE) {
-            TEST_CHECK(stage_index < expected_count);
-            TEST_CHECK_EQ_STRING(expected_stages[stage_index], record->stage);
-            /* A successful stage reports success and complete cleanup. */
-            TEST_CHECK_APP_ERROR(APP_ERROR_NONE, record->primary_error);
-            TEST_CHECK(!record->cleanup_incomplete);
-            ++stage_index;
-        }
-    }
-    TEST_CHECK_EQ_U64(expected_count, stage_index);
-}
-
-static void test_degraded_storage_reaches_degraded_indicator(void) {
-    app_core_fixture_t fixture;
-    reset_fixture(&fixture);
-    fixture.storage_recover_result = APP_ERROR_STORAGE_CORRUPT;
-    app_core_ops_t operations = make_operations(&fixture);
-    const app_core_policy_t policy = development_policy();
-
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, app_core_sequence_start(&operations, &policy));
-    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "indicator_degraded"));
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "indicator_ready"));
-    TEST_CHECK_EQ_U64(1U, log_count(&fixture, APP_CORE_LOG_STORAGE_DEGRADED));
-}
-
-static void test_production_refuses_unprovisioned_network(void) {
+static void test_manufacturing_mode_logs_once_and_bypasses_confirmation(void) {
     app_core_fixture_t fixture;
     reset_fixture(&fixture);
     app_core_ops_t operations = make_operations(&fixture);
     const app_core_policy_t policy = {
-        .development_provisioning_enabled = false,
-        .development_ssid = NULL,
+        .manufacturing_provisioning_enabled = true,
     };
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        app_core_sequence_start(&operations, &policy));
+    TEST_CHECK(
+        fixture.observed_web_configuration.setup_manufacturing_bypass);
+    TEST_CHECK_EQ_U64(
+        1U,
+        log_count(&fixture,
+                  APP_CORE_LOG_MANUFACTURING_CREDENTIALS));
+    const recorded_log_t *credentials = first_log(
+        &fixture, APP_CORE_LOG_MANUFACTURING_CREDENTIALS);
+    TEST_CHECK(credentials != NULL);
+    TEST_CHECK_EQ_STRING(fixture.bootstrap.ap_ssid, credentials->ssid);
+    TEST_CHECK_EQ_STRING(fixture.bootstrap.ap_passphrase,
+                         credentials->ap_passphrase);
+    TEST_CHECK_EQ_STRING(fixture.bootstrap.setup_code,
+                         credentials->setup_code);
+}
 
-    TEST_CHECK_EQ_INT(APP_ERROR_AUTH_REQUIRED, app_core_sequence_start(&operations, &policy));
-    /* FIX1 §4.5: an unprovisioned production device must stop right after
-     * authentication, before any normal-operation subsystem is initialized. */
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "usb_init"));
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "executor_init"));
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "controls_init"));
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "random_fill"));
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "wifi_start"));
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "http_start"));
-    /* The stages that did complete (nvs, storage, repository, auth) are reversed
-     * in order, and none of the un-run normal-operation subsystems are torn down. */
-    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "auth_deinit"));
-    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "repository_deinit"));
-    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "storage_unmount"));
-    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "nvs_deinit"));
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "usb_deinit"));
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "executor_deinit"));
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "controls_deinit"));
-    assert_order(&fixture, "auth_deinit", "repository_deinit");
-    assert_order(&fixture, "repository_deinit", "storage_unmount");
-    assert_order(&fixture, "storage_unmount", "nvs_deinit");
-    assert_order(&fixture, "nvs_deinit", "indicator_fatal");
-    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "indicator_fatal"));
-    TEST_CHECK_EQ_U64(1U, log_count(&fixture, APP_CORE_LOG_PROVISIONING_REQUIRED));
+static void test_normal_success_uses_persisted_credentials(void) {
+    app_core_fixture_t fixture;
+    reset_fixture(&fixture);
+    configure_normal_provisioning(&fixture.provisioning);
+    app_core_ops_t operations = make_operations(&fixture);
+    const app_core_policy_t policy = production_policy();
+    static const char *const expected[] = {
+        "indicator_booting",
+        "nvs",
+        "provisioning_init",
+        "provisioning_load",
+        "storage_mount",
+        "storage_recover",
+        "repository_init",
+        "auth_init",
+        "usb_init",
+        "executor_init",
+        "controls_init",
+        "wifi_start",
+        "http_start",
+        "secure_zero",
+        "indicator_ready",
+    };
+    fake_call_log_set_strict(&fixture.calls, true);
+    for (size_t index = 0U;
+         index < sizeof(expected) / sizeof(expected[0]);
+         ++index) {
+        fake_call_log_expect(&fixture.calls, expected[index]);
+    }
+
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        app_core_sequence_start(&operations, &policy));
+    fake_call_log_verify(&fixture.calls);
+    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "bootstrap_derive"));
+    TEST_CHECK_EQ_STRING(fixture.provisioning.ap_ssid,
+                         fixture.wifi_ssid);
+    TEST_CHECK_EQ_STRING(fixture.provisioning.ap_passphrase,
+                         fixture.wifi_passphrase);
+    TEST_CHECK_EQ_INT(WEB_SERVER_MODE_NORMAL,
+                      fixture.observed_web_configuration.mode);
+    TEST_CHECK(fixture.observed_web_configuration.login_enabled);
+    TEST_CHECK_EQ_U64(
+        AUTH_PBKDF2_ITERATIONS,
+        fixture.observed_web_configuration.password_record.iterations);
+    TEST_CHECK_EQ_U64(
+        0U,
+        log_count(&fixture, APP_CORE_LOG_PROVISIONING_REQUIRED));
+}
+
+static void test_normal_degraded_storage_reaches_degraded_indicator(void) {
+    app_core_fixture_t fixture;
+    reset_fixture(&fixture);
+    configure_normal_provisioning(&fixture.provisioning);
+    fixture.storage_recover_result = APP_ERROR_STORAGE_CORRUPT;
+    app_core_ops_t operations = make_operations(&fixture);
+    const app_core_policy_t policy = production_policy();
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        app_core_sequence_start(&operations, &policy));
+    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "indicator_degraded"));
+    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "indicator_ready"));
+    TEST_CHECK_EQ_U64(
+        1U,
+        log_count(&fixture, APP_CORE_LOG_STORAGE_DEGRADED));
 }
 
 typedef enum {
-    FAILURE_BOOT_INDICATOR = 0,
-    FAILURE_NVS,
-    FAILURE_STORAGE_MOUNT,
-    FAILURE_STORAGE_RECOVERY,
-    FAILURE_REPOSITORY,
-    FAILURE_AUTH,
-    FAILURE_USB,
-    FAILURE_EXECUTOR,
-    FAILURE_CONTROLS,
-    FAILURE_RANDOM_AP,
-    FAILURE_RANDOM_WEB,
-    FAILURE_PASSWORD,
-    FAILURE_WIFI,
-    FAILURE_HTTP,
-    FAILURE_READY_INDICATOR
-} failure_point_t;
+    SETUP_FAILURE_BOOT = 0,
+    SETUP_FAILURE_NVS,
+    SETUP_FAILURE_PROVISIONING_INIT,
+    SETUP_FAILURE_PROVISIONING_LOAD,
+    SETUP_FAILURE_STORAGE_MOUNT,
+    SETUP_FAILURE_AUTH,
+    SETUP_FAILURE_CONTROLS,
+    SETUP_FAILURE_BOOTSTRAP,
+    SETUP_FAILURE_WIFI,
+    SETUP_FAILURE_HTTP,
+    SETUP_FAILURE_READY
+} setup_failure_t;
 
-static app_error_code_t configure_failure(app_core_fixture_t *fixture, failure_point_t point) {
+static app_error_code_t configure_setup_failure(
+    app_core_fixture_t *fixture,
+    setup_failure_t point) {
     switch (point) {
-    case FAILURE_BOOT_INDICATOR:
+    case SETUP_FAILURE_BOOT:
         fixture->indicator_failure_state = DEVICE_INDICATOR_BOOTING;
         fixture->indicator_failure_result = APP_ERROR_IO;
         return APP_ERROR_IO;
-    case FAILURE_NVS:
+    case SETUP_FAILURE_NVS:
         fixture->nvs_result = APP_CORE_NVS_OTHER_FAILURE;
         return APP_ERROR_STORAGE_UNAVAILABLE;
-    case FAILURE_STORAGE_MOUNT:
+    case SETUP_FAILURE_PROVISIONING_INIT:
+        fixture->provisioning_init_result = APP_ERROR_STORAGE_UNAVAILABLE;
+        return APP_ERROR_STORAGE_UNAVAILABLE;
+    case SETUP_FAILURE_PROVISIONING_LOAD:
+        fixture->provisioning_load_result = APP_ERROR_STORAGE_CORRUPT;
+        return APP_ERROR_STORAGE_CORRUPT;
+    case SETUP_FAILURE_STORAGE_MOUNT:
         fixture->storage_mount_result = APP_ERROR_STORAGE_UNAVAILABLE;
         return APP_ERROR_STORAGE_UNAVAILABLE;
-    case FAILURE_STORAGE_RECOVERY:
-        fixture->storage_recover_result = APP_ERROR_IO;
-        return APP_ERROR_IO;
-    case FAILURE_REPOSITORY:
-        fixture->repository_result = APP_ERROR_STORAGE_CORRUPT;
-        return APP_ERROR_STORAGE_CORRUPT;
-    case FAILURE_AUTH:
-        fixture->auth_result = APP_ERROR_AUTH_FAILED;
-        return APP_ERROR_AUTH_FAILED;
-    case FAILURE_USB:
-        fixture->usb_result = APP_ERROR_USB_NOT_READY;
-        return APP_ERROR_USB_NOT_READY;
-    case FAILURE_EXECUTOR:
-        fixture->executor_result = APP_ERROR_INTERNAL;
+    case SETUP_FAILURE_AUTH:
+        fixture->auth_result = APP_ERROR_INTERNAL;
         return APP_ERROR_INTERNAL;
-    case FAILURE_CONTROLS:
+    case SETUP_FAILURE_CONTROLS:
         fixture->controls_result = APP_ERROR_IO;
         return APP_ERROR_IO;
-    case FAILURE_RANDOM_AP:
-        fixture->random_fail_on = 1U;
-        fixture->random_failure_result = APP_ERROR_INTERNAL;
+    case SETUP_FAILURE_BOOTSTRAP:
+        fixture->bootstrap_result = APP_ERROR_INTERNAL;
         return APP_ERROR_INTERNAL;
-    case FAILURE_RANDOM_WEB:
-        fixture->random_fail_on = 2U;
-        fixture->random_failure_result = APP_ERROR_INTERNAL;
-        return APP_ERROR_INTERNAL;
-    case FAILURE_PASSWORD:
-        fixture->password_result = APP_ERROR_INTERNAL;
-        return APP_ERROR_INTERNAL;
-    case FAILURE_WIFI:
+    case SETUP_FAILURE_WIFI:
         fixture->wifi_result = APP_ERROR_IO;
         return APP_ERROR_IO;
-    case FAILURE_HTTP:
+    case SETUP_FAILURE_HTTP:
         fixture->http_result = APP_ERROR_INTERNAL;
         return APP_ERROR_INTERNAL;
-    case FAILURE_READY_INDICATOR:
+    case SETUP_FAILURE_READY:
         fixture->indicator_failure_state = DEVICE_INDICATOR_READY;
-        fixture->indicator_failure_result = APP_ERROR_IO;
-        return APP_ERROR_IO;
+        fixture->indicator_failure_result = APP_ERROR_TIMEOUT;
+        return APP_ERROR_TIMEOUT;
     default:
         return APP_ERROR_INTERNAL;
     }
 }
 
-static void test_failure_matrix_and_cleanup(void) {
-    for (failure_point_t point = FAILURE_BOOT_INDICATOR; point <= FAILURE_READY_INDICATOR;
-         point = (failure_point_t)((int)point + 1)) {
+static void test_setup_failure_matrix(void) {
+    for (setup_failure_t point = SETUP_FAILURE_BOOT;
+         point <= SETUP_FAILURE_READY;
+         point = (setup_failure_t)((int)point + 1)) {
         app_core_fixture_t fixture;
         reset_fixture(&fixture);
-        const app_error_code_t expected = configure_failure(&fixture, point);
+        const app_error_code_t expected =
+            configure_setup_failure(&fixture, point);
         app_core_ops_t operations = make_operations(&fixture);
-        const app_core_policy_t policy = development_policy();
-
-        TEST_CHECK_EQ_INT(expected, app_core_sequence_start(&operations, &policy));
+        const app_core_policy_t policy = production_policy();
+        TEST_CHECK_APP_ERROR(
+            expected,
+            app_core_sequence_start(&operations, &policy));
+        TEST_CHECK_EQ_U64(1U, call_count(&fixture, "secure_zero"));
         TEST_CHECK_EQ_U64(1U, call_count(&fixture, "indicator_fatal"));
-
-        /* Ownership of each stage is determined by whether it completed before the
-         * failure, not by the final return code. Cleanup must reverse exactly the
-         * owned stages, in the opposite order they were acquired, and attempt every
-         * one of them before the fatal indicator (FIX1 §4.4/§4.6). With teardown
-         * succeeding, no owned resource remains afterward. */
-        const struct {
-            const char *name;
-            bool owned;
-        } chain[] = {
-            {"http_stop", point > FAILURE_HTTP},
-            {"wifi_stop", point > FAILURE_WIFI},
-            {"controls_deinit", point > FAILURE_CONTROLS},
-            {"executor_deinit", point > FAILURE_EXECUTOR},
-            {"usb_deinit", point > FAILURE_USB},
-            {"auth_deinit", point > FAILURE_AUTH},
-            {"repository_deinit", point > FAILURE_REPOSITORY},
-            {"storage_unmount", point > FAILURE_STORAGE_MOUNT},
-            {"nvs_deinit", point > FAILURE_NVS},
-        };
-        const char *previous = NULL;
-        for (size_t i = 0U; i < sizeof(chain) / sizeof(chain[0]); ++i) {
-            TEST_CHECK_EQ_U64(chain[i].owned ? 1U : 0U, call_count(&fixture, chain[i].name));
-            if (chain[i].owned) {
-                if (previous != NULL) {
-                    assert_order(&fixture, previous, chain[i].name);
-                }
-                previous = chain[i].name;
-            }
-        }
-        if (previous != NULL) {
-            assert_order(&fixture, previous, "indicator_fatal");
-        }
-
-        if (point == FAILURE_RANDOM_AP || point == FAILURE_RANDOM_WEB ||
-            point == FAILURE_PASSWORD) {
-            TEST_CHECK_EQ_U64(0U, log_count(&fixture, APP_CORE_LOG_DEVELOPMENT_CREDENTIALS));
-            TEST_CHECK_EQ_U64(0U, call_count(&fixture, "wifi_start"));
-        }
-        if (point == FAILURE_WIFI) {
+        TEST_CHECK_EQ_U64(0U, call_count(&fixture, "usb_init"));
+        TEST_CHECK_EQ_U64(0U, call_count(&fixture, "executor_init"));
+        TEST_CHECK_EQ_U64(0U, call_count(&fixture, "repository_init"));
+        if (point == SETUP_FAILURE_WIFI) {
             TEST_CHECK_EQ_U64(0U, call_count(&fixture, "http_start"));
+        }
+        if (point == SETUP_FAILURE_HTTP || point == SETUP_FAILURE_READY) {
+            TEST_CHECK_EQ_U64(1U, call_count(&fixture, "wifi_stop"));
+        }
+        if (point == SETUP_FAILURE_READY) {
+            TEST_CHECK_EQ_U64(1U, call_count(&fixture, "http_stop"));
+            assert_order(&fixture, "http_stop", "wifi_stop");
+            assert_order(&fixture, "wifi_stop", "controls_deinit");
+            assert_order(&fixture, "controls_deinit", "auth_deinit");
+            assert_order(&fixture, "auth_deinit", "storage_unmount");
+            assert_order(&fixture,
+                         "storage_unmount",
+                         "provisioning_deinit");
+            assert_order(&fixture,
+                         "provisioning_deinit",
+                         "nvs_deinit");
         }
     }
 }
 
-static void test_equal_credentials_retry_and_exhaustion(void) {
-    app_core_fixture_t fixture;
-    reset_fixture(&fixture);
-    fixture.random_plan[0] = 7U;
-    fixture.random_plan[1] = 7U;
-    fixture.random_plan[2] = 8U;
-    fixture.random_plan_count = 3U;
-    app_core_ops_t operations = make_operations(&fixture);
-    const app_core_policy_t policy = development_policy();
+typedef enum {
+    NORMAL_FAILURE_RECOVERY = 0,
+    NORMAL_FAILURE_REPOSITORY,
+    NORMAL_FAILURE_AUTH,
+    NORMAL_FAILURE_USB,
+    NORMAL_FAILURE_EXECUTOR,
+    NORMAL_FAILURE_CONTROLS,
+    NORMAL_FAILURE_WIFI,
+    NORMAL_FAILURE_HTTP
+} normal_failure_t;
 
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, app_core_sequence_start(&operations, &policy));
-    TEST_CHECK_EQ_U64(3U, fixture.random_call_count);
-    const recorded_log_t *credentials = first_log(&fixture, APP_CORE_LOG_DEVELOPMENT_CREDENTIALS);
-    TEST_CHECK(credentials != NULL);
-    TEST_CHECK(strcmp(credentials->ap_passphrase, credentials->web_password) != 0);
-
-    reset_fixture(&fixture);
-    fixture.random_plan[0] = 7U;
-    fixture.random_plan_count = 1U;
-    operations = make_operations(&fixture);
-    TEST_CHECK_EQ_INT(APP_ERROR_INTERNAL, app_core_sequence_start(&operations, &policy));
-    TEST_CHECK_EQ_U64(1U + APP_CORE_CREDENTIAL_RETRY_LIMIT, fixture.random_call_count);
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "password_create"));
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "wifi_start"));
-    TEST_CHECK_EQ_U64(0U, log_count(&fixture, APP_CORE_LOG_DEVELOPMENT_CREDENTIALS));
-    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "storage_unmount"));
+static app_error_code_t configure_normal_failure(
+    app_core_fixture_t *fixture,
+    normal_failure_t point) {
+    switch (point) {
+    case NORMAL_FAILURE_RECOVERY:
+        fixture->storage_recover_result = APP_ERROR_IO;
+        return APP_ERROR_IO;
+    case NORMAL_FAILURE_REPOSITORY:
+        fixture->repository_result = APP_ERROR_STORAGE_CORRUPT;
+        return APP_ERROR_STORAGE_CORRUPT;
+    case NORMAL_FAILURE_AUTH:
+        fixture->auth_result = APP_ERROR_INTERNAL;
+        return APP_ERROR_INTERNAL;
+    case NORMAL_FAILURE_USB:
+        fixture->usb_result = APP_ERROR_USB_NOT_READY;
+        return APP_ERROR_USB_NOT_READY;
+    case NORMAL_FAILURE_EXECUTOR:
+        fixture->executor_result = APP_ERROR_INTERNAL;
+        return APP_ERROR_INTERNAL;
+    case NORMAL_FAILURE_CONTROLS:
+        fixture->controls_result = APP_ERROR_IO;
+        return APP_ERROR_IO;
+    case NORMAL_FAILURE_WIFI:
+        fixture->wifi_result = APP_ERROR_IO;
+        return APP_ERROR_IO;
+    case NORMAL_FAILURE_HTTP:
+        fixture->http_result = APP_ERROR_INTERNAL;
+        return APP_ERROR_INTERNAL;
+    default:
+        return APP_ERROR_INTERNAL;
+    }
 }
 
-static void test_cleanup_errors_do_not_replace_original(void) {
+static void test_normal_failure_matrix(void) {
+    for (normal_failure_t point = NORMAL_FAILURE_RECOVERY;
+         point <= NORMAL_FAILURE_HTTP;
+         point = (normal_failure_t)((int)point + 1)) {
+        app_core_fixture_t fixture;
+        reset_fixture(&fixture);
+        configure_normal_provisioning(&fixture.provisioning);
+        const app_error_code_t expected =
+            configure_normal_failure(&fixture, point);
+        app_core_ops_t operations = make_operations(&fixture);
+        const app_core_policy_t policy = production_policy();
+        TEST_CHECK_APP_ERROR(
+            expected,
+            app_core_sequence_start(&operations, &policy));
+        TEST_CHECK_EQ_U64(1U, call_count(&fixture, "secure_zero"));
+        TEST_CHECK_EQ_U64(1U, call_count(&fixture, "indicator_fatal"));
+        TEST_CHECK_EQ_U64(0U, call_count(&fixture, "bootstrap_derive"));
+        if (point == NORMAL_FAILURE_WIFI) {
+            TEST_CHECK_EQ_U64(0U, call_count(&fixture, "http_start"));
+        }
+        if (point == NORMAL_FAILURE_HTTP) {
+            TEST_CHECK_EQ_U64(1U, call_count(&fixture, "wifi_stop"));
+        }
+    }
+}
+
+static void test_cleanup_errors_preserve_primary_and_continue(void) {
     app_core_fixture_t fixture;
     reset_fixture(&fixture);
+    configure_normal_provisioning(&fixture.provisioning);
     fixture.indicator_failure_state = DEVICE_INDICATOR_READY;
-    fixture.indicator_failure_result = APP_ERROR_INTERNAL;
+    fixture.indicator_failure_result = APP_ERROR_TIMEOUT;
     fixture.http_stop_result = APP_ERROR_IO;
     fixture.wifi_stop_result = APP_ERROR_STORAGE_UNAVAILABLE;
     fixture.storage_unmount_result = APP_ERROR_STORAGE_CORRUPT;
     app_core_ops_t operations = make_operations(&fixture);
-    const app_core_policy_t policy = development_policy();
-
-    TEST_CHECK_EQ_INT(APP_ERROR_INTERNAL, app_core_sequence_start(&operations, &policy));
+    const app_core_policy_t policy = production_policy();
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_TIMEOUT,
+        app_core_sequence_start(&operations, &policy));
     assert_order(&fixture, "http_stop", "wifi_stop");
-    assert_order(&fixture, "wifi_stop", "storage_unmount");
-    assert_order(&fixture, "storage_unmount", "indicator_fatal");
-    TEST_CHECK_EQ_U64(1U, log_count(&fixture, APP_CORE_LOG_CLEANUP_FAILED));
-    const recorded_log_t *cleanup = first_log(&fixture, APP_CORE_LOG_CLEANUP_FAILED);
+    assert_order(&fixture, "wifi_stop", "controls_deinit");
+    assert_order(&fixture, "storage_unmount", "provisioning_deinit");
+    assert_order(&fixture, "provisioning_deinit", "nvs_deinit");
+    const recorded_log_t *cleanup =
+        first_log(&fixture, APP_CORE_LOG_CLEANUP_FAILED);
     TEST_CHECK(cleanup != NULL);
-    TEST_CHECK_EQ_INT(APP_ERROR_INTERNAL, cleanup->primary_error);
-    TEST_CHECK_EQ_INT(APP_ERROR_IO, cleanup->cleanup_error);
-    /* The primary error survives, the first cleanup error is preserved, and the
-     * event reports that cleanup did not complete. */
+    TEST_CHECK_APP_ERROR(APP_ERROR_TIMEOUT, cleanup->primary_error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, cleanup->cleanup_error);
     TEST_CHECK(cleanup->cleanup_incomplete);
-    TEST_CHECK_EQ_U64(0U, cleanup->operation_id);
+}
+
+static void test_residual_ownership_queries_trigger_cleanup(void) {
+    app_core_fixture_t fixture;
+    app_core_ops_t operations;
+    const app_core_policy_t policy = production_policy();
+
+    reset_fixture(&fixture);
+    fixture.provisioning_init_result = APP_ERROR_STORAGE_UNAVAILABLE;
+    fixture.provisioning_owns_resources = true;
+    operations = make_operations(&fixture);
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_STORAGE_UNAVAILABLE,
+        app_core_sequence_start(&operations, &policy));
+    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "provisioning_deinit"));
+
+    reset_fixture(&fixture);
+    fixture.storage_mount_result = APP_ERROR_STORAGE_UNAVAILABLE;
+    fixture.storage_owns_mount = true;
+    operations = make_operations(&fixture);
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_STORAGE_UNAVAILABLE,
+        app_core_sequence_start(&operations, &policy));
+    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "storage_unmount"));
+
+    reset_fixture(&fixture);
+    fixture.wifi_result = APP_ERROR_IO;
+    fixture.wifi_owns_resources = true;
+    operations = make_operations(&fixture);
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_IO,
+        app_core_sequence_start(&operations, &policy));
+    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "wifi_stop"));
+
+    reset_fixture(&fixture);
+    fixture.http_result = APP_ERROR_INTERNAL;
+    fixture.http_owns_resources = true;
+    operations = make_operations(&fixture);
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INTERNAL,
+        app_core_sequence_start(&operations, &policy));
+    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "http_stop"));
+    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "wifi_stop"));
+}
+
+static void test_stage_logs_are_redacted(void) {
+    app_core_fixture_t fixture;
+    reset_fixture(&fixture);
+    app_core_ops_t operations = make_operations(&fixture);
+    const app_core_policy_t policy = production_policy();
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        app_core_sequence_start(&operations, &policy));
+    for (size_t index = 0U; index < fixture.log_count; ++index) {
+        const recorded_log_t *record = &fixture.logs[index];
+        if (record->type != APP_CORE_LOG_MANUFACTURING_CREDENTIALS) {
+            TEST_CHECK_EQ_STRING("", record->ssid);
+            TEST_CHECK_EQ_STRING("", record->ap_passphrase);
+            TEST_CHECK_EQ_STRING("", record->setup_code);
+        }
+        TEST_CHECK_EQ_U64(0U, record->operation_id);
+    }
 }
 
 static void test_nvs_recovery_states_never_continue(void) {
-    static const app_core_nvs_result_t results[] = {
+    const app_core_nvs_result_t results[] = {
         APP_CORE_NVS_NO_FREE_PAGES,
         APP_CORE_NVS_NEW_VERSION_FOUND,
     };
-    for (size_t index = 0U; index < (sizeof(results) / sizeof(results[0])); ++index) {
+    const app_core_policy_t policy = production_policy();
+    for (size_t index = 0U; index < sizeof(results) / sizeof(results[0]); ++index) {
         app_core_fixture_t fixture;
         reset_fixture(&fixture);
         fixture.nvs_result = results[index];
         app_core_ops_t operations = make_operations(&fixture);
-        const app_core_policy_t policy = development_policy();
-        TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT, app_core_sequence_start(&operations, &policy));
-        TEST_CHECK_EQ_U64(0U, call_count(&fixture, "storage_mount"));
+        TEST_CHECK_APP_ERROR(
+            APP_ERROR_STORAGE_CORRUPT,
+            app_core_sequence_start(&operations, &policy));
+        TEST_CHECK_EQ_U64(0U,
+                          call_count(&fixture, "provisioning_init"));
         TEST_CHECK_EQ_U64(1U, call_count(&fixture, "indicator_fatal"));
     }
-}
-
-static void test_cleanup_failure_at_each_stage_still_reverses_all(void) {
-    static const char *const stages[] = {
-        "http_stop",   "wifi_stop",         "controls_deinit", "executor_deinit", "usb_deinit",
-        "auth_deinit", "repository_deinit", "storage_unmount", "nvs_deinit",
-    };
-    const size_t stage_count = sizeof(stages) / sizeof(stages[0]);
-
-    /* Inject a cleanup failure at each teardown stage in turn. In every case the
-     * primary error must survive, every remaining stage must still be attempted,
-     * the first cleanup error must be preserved, and the event must report that
-     * cleanup did not complete (residual ownership stays visible). */
-    for (size_t target = 0U; target < stage_count; ++target) {
-        app_core_fixture_t fixture;
-        reset_fixture(&fixture);
-        /* Fail the final READY indicator so every stage is owned; only that step
-         * fails as a primary, and the fatal indicator still succeeds. */
-        fixture.indicator_failure_state = DEVICE_INDICATOR_READY;
-        fixture.indicator_failure_result = APP_ERROR_TIMEOUT;
-        app_error_code_t *const results[] = {
-            &fixture.http_stop_result,         &fixture.wifi_stop_result,
-            &fixture.controls_deinit_result,   &fixture.executor_deinit_result,
-            &fixture.usb_deinit_result,        &fixture.auth_deinit_result,
-            &fixture.repository_deinit_result, &fixture.storage_unmount_result,
-            &fixture.nvs_deinit_result,
-        };
-        *results[target] = APP_ERROR_IO;
-        app_core_ops_t operations = make_operations(&fixture);
-        const app_core_policy_t policy = development_policy();
-
-        TEST_CHECK_EQ_INT(APP_ERROR_TIMEOUT, app_core_sequence_start(&operations, &policy));
-
-        for (size_t index = 0U; index < stage_count; ++index) {
-            TEST_CHECK_EQ_U64(1U, call_count(&fixture, stages[index]));
-        }
-        const recorded_log_t *cleanup = first_log(&fixture, APP_CORE_LOG_CLEANUP_FAILED);
-        TEST_CHECK(cleanup != NULL);
-        TEST_CHECK_EQ_INT(APP_ERROR_TIMEOUT, cleanup->primary_error);
-        TEST_CHECK_EQ_INT(APP_ERROR_IO, cleanup->cleanup_error);
-        TEST_CHECK(cleanup->cleanup_incomplete);
-    }
-}
-
-static void test_partial_storage_ownership_is_unmounted(void) {
-    app_core_fixture_t fixture;
-    reset_fixture(&fixture);
-    fixture.storage_mount_result = APP_ERROR_STORAGE_UNAVAILABLE; /* mount fails... */
-    fixture.storage_owns_mount = true; /* ...but a partition is still mounted */
-    app_core_ops_t operations = make_operations(&fixture);
-    const app_core_policy_t policy = development_policy();
-
-    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_UNAVAILABLE, app_core_sequence_start(&operations, &policy));
-    /* storage_mounted was never set, but the residual-mount query reports ownership
-     * so cleanup unmounts anyway. NVS (which did initialize) is also torn down. */
-    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "storage_unmount"));
-    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "nvs_deinit"));
-    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "indicator_fatal"));
-    assert_order(&fixture, "storage_unmount", "nvs_deinit");
-    assert_order(&fixture, "nvs_deinit", "indicator_fatal");
-}
-
-static void test_partial_http_ownership_is_reclaimed(void) {
-    app_core_fixture_t fixture;
-    reset_fixture(&fixture);
-    fixture.wifi_result = APP_ERROR_IO; /* fail before http_start runs */
-    fixture.http_owns_resources = true; /* but http left residual resources */
-    app_core_ops_t operations = make_operations(&fixture);
-    const app_core_policy_t policy = development_policy();
-
-    TEST_CHECK_EQ_INT(APP_ERROR_IO, app_core_sequence_start(&operations, &policy));
-    /* http_start never succeeded, but the ownership query reports residual
-     * resources, so cleanup still stops the server. Wi-Fi was never owned. */
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "http_start"));
-    TEST_CHECK_EQ_U64(1U, call_count(&fixture, "http_stop"));
-    TEST_CHECK_EQ_U64(0U, call_count(&fixture, "wifi_stop"));
 }
 
 int main(void) {
     test_nvs_mapping();
     test_invalid_arguments_and_missing_callbacks();
-    test_success_order_and_distinct_credentials();
-    test_stage_events_are_ordered_and_carry_no_secrets();
-    test_degraded_storage_reaches_degraded_indicator();
-    test_production_refuses_unprovisioned_network();
-    test_failure_matrix_and_cleanup();
-    test_equal_credentials_retry_and_exhaustion();
-    test_cleanup_errors_do_not_replace_original();
-    test_cleanup_failure_at_each_stage_still_reverses_all();
-    test_partial_storage_ownership_is_unmounted();
-    test_partial_http_ownership_is_reclaimed();
+    test_setup_success_isolated_from_normal_services();
+    test_manufacturing_mode_logs_once_and_bypasses_confirmation();
+    test_normal_success_uses_persisted_credentials();
+    test_normal_degraded_storage_reaches_degraded_indicator();
+    test_setup_failure_matrix();
+    test_normal_failure_matrix();
+    test_cleanup_errors_preserve_primary_and_continue();
+    test_residual_ownership_queries_trigger_cleanup();
+    test_stage_logs_are_redacted();
     test_nvs_recovery_states_never_continue();
     puts("app core tests passed");
     return EXIT_SUCCESS;
