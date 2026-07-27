@@ -24,7 +24,7 @@ jobs:
           sudo apt-get install --yes \
             build-essential cmake ninja-build libcjson-dev git flex bison gperf \
             python3 python3-pip python3-venv ccache libffi-dev libssl-dev \
-            dfu-util libusb-1.0-0
+            dfu-util libusb-1.0-0 shellcheck shfmt clang-format clang-tidy
           python3 -m pip install --break-system-packages gcovr
       - name: Validate source policies
         run: |
@@ -44,10 +44,24 @@ jobs:
           git clone --depth 1 --branch v5.5.5 --recursive \
             https://github.com/espressif/esp-idf.git "${RUNNER_TEMP}/esp-idf"
           "${RUNNER_TEMP}/esp-idf/install.sh" esp32s3
-      - name: Build ESP32-S3 firmware
+      - name: Verify pinned toolchain
         shell: bash
         run: |
           source "${RUNNER_TEMP}/esp-idf/export.sh"
-          cd firmware
-          idf.py set-target esp32s3
-          idf.py build
+          ./scripts/verify-toolchain.sh
+      - name: Validate formatting
+        shell: bash
+        run: |
+          source "${RUNNER_TEMP}/esp-idf/export.sh"
+          ./scripts/check-format.sh
+      - name: Validate static-analysis policy
+        run: ./scripts/check-static-analysis-policy.sh
+      - name: Validate firmware analysis and build
+        shell: bash
+        run: |
+          source "${RUNNER_TEMP}/esp-idf/export.sh"
+          ./scripts/check-firmware.sh
+      - name: Validate scripts
+        run: ./scripts/check-scripts.sh
+      - name: Validate documentation
+        run: ./scripts/check-docs.sh
