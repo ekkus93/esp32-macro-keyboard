@@ -58,6 +58,7 @@ pure_policy_args=(
 	--filter '^firmware/components/app_core/app_core_sequence\.c$'
 	--filter '^firmware/components/device_controls/device_controls_logic\.c$'
 	--filter '^firmware/components/wifi_ap/wifi_ap_state\.c$'
+	--filter '^firmware/components/provisioning/provisioning_bootstrap_core\.c$'
 	--filter '^firmware/components/provisioning/provisioning_core\.c$'
 )
 
