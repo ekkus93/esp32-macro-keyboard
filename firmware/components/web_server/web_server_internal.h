@@ -9,6 +9,7 @@
 #include "usb_keyboard.h"
 #include "web_server.h"
 #include "web_server_adapter.h"
+#include "web_setup_core.h"
 #include "wifi_ap.h"
 
 /* Component-private declarations shared across the web_server translation units.
@@ -22,6 +23,7 @@
 
 extern web_server_config_t server_configuration;
 extern web_adapter_lifecycle_t server_lifecycle;
+extern web_setup_core_t server_setup_core;
 
 const char *usb_state_string(usb_keyboard_state_t state);
 const char *wifi_state_string(wifi_ap_state_t state);
@@ -40,5 +42,12 @@ esp_err_t logout_handler(httpd_req_t *request);
 esp_err_t execution_handler(httpd_req_t *request);
 esp_err_t cancel_handler(httpd_req_t *request);
 esp_err_t static_handler(httpd_req_t *request);
+esp_err_t setup_state_handler(httpd_req_t *request);
+esp_err_t setup_credentials_handler(httpd_req_t *request);
+esp_err_t setup_complete_handler(httpd_req_t *request);
+esp_err_t setup_restart_handler(httpd_req_t *request);
+
+app_error_code_t web_server_setup_init(const web_server_config_t *configuration);
+app_error_code_t web_server_setup_deinit(void);
 
 #endif
