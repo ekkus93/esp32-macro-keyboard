@@ -222,7 +222,7 @@ app_error_code_t provisioning_factory_reset(void) {
 }
 
 app_error_code_t provisioning_deinit(void) {
-    if (provisioning_mutex == NULL && !namespace_open && !core.initialized) {
+    if (!provisioning_owns_resources()) {
         return APP_ERROR_NONE;
     }
     if (provisioning_mutex == NULL) {
@@ -250,4 +250,8 @@ app_error_code_t provisioning_deinit(void) {
     provisioning_mutex = NULL;
     shutting_down = false;
     return result;
+}
+
+bool provisioning_owns_resources(void) {
+    return provisioning_mutex != NULL || namespace_open || core.initialized;
 }
