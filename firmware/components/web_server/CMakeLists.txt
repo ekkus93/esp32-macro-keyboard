@@ -18,6 +18,7 @@ idf_component_register(
     "web_static_path.c"
     "web_content.c"
     "web_setup_core.c"
+    "web_setup_json.c"
     INCLUDE_DIRS
     "include"
     PRIV_INCLUDE_DIRS
