@@ -27,7 +27,7 @@ OUTPUT_CALL = re.compile(
     re.DOTALL,
 )
 SENSITIVE_WORD = re.compile(
-    r"(?:password|passphrase|ssid|session[_ -]?token|csrf[_ -]?token|setup[_ -]?code)",
+    r"(?:password|passphrase|ssid|(?:session|csrf|api|access)[_ -]?token|setup[_ -]?code)",
     re.IGNORECASE,
 )
 FORMAT_VALUE = re.compile(r"%(?:\.\*)?[a-zA-Z]")
