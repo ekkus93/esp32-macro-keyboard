@@ -13,6 +13,7 @@ idf_component_register(
     "storage_repository_json.c"
     "storage_repository_index.c"
     "storage_repository_sets.c"
+    "storage_repository_lock.c"
     "storage_quarantine.c"
     INCLUDE_DIRS
     "include"
@@ -20,6 +21,7 @@ idf_component_register(
     macro_model
     littlefs
     json
+    freertos
 )
 
 target_compile_options(

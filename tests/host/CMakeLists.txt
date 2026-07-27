@@ -319,6 +319,21 @@ add_test(NAME storage_atomic COMMAND storage_atomic_tests)
 set_tests_properties(storage_atomic PROPERTIES LABELS "storage")
 
 add_executable(
+    storage_repository_lock_tests
+    test_storage_repository_lock.c ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/storage/storage_repository_lock.c
+)
+target_include_directories(
+    storage_repository_lock_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
+            ../../firmware/components/storage
+)
+target_link_libraries(storage_repository_lock_tests PRIVATE test_support)
+target_compile_options(storage_repository_lock_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME storage_repository_lock COMMAND storage_repository_lock_tests)
+set_tests_properties(storage_repository_lock PROPERTIES LABELS "storage")
+
+add_executable(
     storage_parent_sync_tests
     test_storage_parent_sync.c
     ../../firmware/components/macro_model/app_error.c
