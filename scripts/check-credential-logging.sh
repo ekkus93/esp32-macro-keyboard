@@ -23,7 +23,7 @@ LEGACY_OPTION = "CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG"
 STRING_LITERAL_SOURCE = r'"(?:\\.|[^"\\])*"'
 STRING_LITERAL = re.compile(STRING_LITERAL_SOURCE)
 OUTPUT_CALL = re.compile(
-    rf"(?:ESP_LOG[A-Z]+|printf|fprintf)\s*\((?:{STRING_LITERAL_SOURCE}|[^\";])*\);",
+    rf"(?<![A-Za-z0-9_])(?:ESP_LOG[A-Z]+|printf|fprintf)\s*\((?:{STRING_LITERAL_SOURCE}|[^\";])*\);",
     re.DOTALL,
 )
 SENSITIVE_WORD = re.compile(
