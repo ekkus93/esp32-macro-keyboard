@@ -1,4 +1,4 @@
-name: Phase 14 clang configuration diagnostic
+name: Phase 14 clang-tidy diagnostic
 
 on:
   pull_request:
@@ -13,23 +13,62 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install ESP-IDF v5.5.5
+      - name: Install required host tools
         run: |
-          git clone --depth 1 --branch v5.5.5 --recursive \
-            https://github.com/espressif/esp-idf.git "${RUNNER_TEMP}/esp-idf"
-          "${RUNNER_TEMP}/esp-idf/install.sh" esp32s3
-      - name: Diagnose production clang configuration
+          sudo apt-get update >/dev/null
+          sudo apt-get install --yes jq libcjson-dev >/dev/null
+      - name: Install authoritative ESP-IDF toolchains
         shell: bash
         run: |
-          source "${RUNNER_TEMP}/esp-idf/export.sh"
-          printf 'IDF version: '
-          idf.py --version
-          printf 'IDF_TOOLCHAIN before command: %s\n' "${IDF_TOOLCHAIN-<unset>}"
+          set +e
+          ./scripts/install-esp-idf.sh >"${RUNNER_TEMP}/idf-install.log" 2>&1
+          status=$?
+          set -e
+          if ((status != 0)); then
+            tail -n 250 "${RUNNER_TEMP}/idf-install.log"
+            exit "${status}"
+          fi
+          tail -n 20 "${RUNNER_TEMP}/idf-install.log"
+      - name: Configure production clang database
+        shell: bash
+        run: |
+          source "$HOME/esp/esp-idf-v5.5.5/export.sh"
           set +e
           IDF_TOOLCHAIN=clang idf.py -C firmware -B firmware/build-clang \
             set-target esp32s3 >"${RUNNER_TEMP}/clang-config.log" 2>&1
           status=$?
           set -e
-          tail -n 250 "${RUNNER_TEMP}/clang-config.log"
-          printf 'clang configuration status: %d\n' "${status}"
-          exit "${status}"
+          if ((status != 0)); then
+            cat "${RUNNER_TEMP}/clang-config.log"
+            exit "${status}"
+          fi
+          tail -n 40 "${RUNNER_TEMP}/clang-config.log"
+      - name: Run production clang-tidy
+        shell: bash
+        run: |
+          source "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          source ./scripts/check-firmware.sh
+          run_first_party_clang_tidy "${GITHUB_WORKSPACE}/firmware"
+      - name: Configure device-test clang database
+        shell: bash
+        run: |
+          source "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          set +e
+          IDF_TOOLCHAIN=clang idf.py -C firmware/test_app \
+            -B firmware/test_app/build-clang set-target esp32s3 \
+            >"${RUNNER_TEMP}/test-clang-config.log" 2>&1
+          status=$?
+          set -e
+          if ((status != 0)); then
+            cat "${RUNNER_TEMP}/test-clang-config.log"
+            exit "${status}"
+          fi
+          tail -n 40 "${RUNNER_TEMP}/test-clang-config.log"
+      - name: Run device-test clang-tidy
+        shell: bash
+        run: |
+          source "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          source ./scripts/check-firmware.sh
+          run_first_party_clang_tidy "${GITHUB_WORKSPACE}/firmware/test_app"
+      - name: Run script regression gate
+        run: ./scripts/check-scripts.sh
