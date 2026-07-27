@@ -1,0 +1,33 @@
+---
+name: Export Phase 15.2 base files
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - name: Package exact base files
+        run: |
+          mkdir -p "${RUNNER_TEMP}/phase15-2-base/firmware/components/storage"
+          mkdir -p "${RUNNER_TEMP}/phase15-2-base/tests/host"
+          cp firmware/components/storage/storage_repository_procedures.c \
+            "${RUNNER_TEMP}/phase15-2-base/firmware/components/storage/"
+          cp tests/host/test_storage_procedures.c \
+            "${RUNNER_TEMP}/phase15-2-base/tests/host/"
+          tar -C "${RUNNER_TEMP}" -czf "${RUNNER_TEMP}/phase15-2-base.tar.gz" \
+            phase15-2-base
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase15-2-base-files
+          path: ${{ runner.temp }}/phase15-2-base.tar.gz
+          if-no-files-found: error
+          retention-days: 1
