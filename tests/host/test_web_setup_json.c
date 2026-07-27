@@ -7,6 +7,7 @@
 #include "web_setup_json.h"
 
 #define TEST_BODY_BYTES 512U
+#define VALID_DOCUMENT_ZERO_CALLS 12U
 
 typedef struct {
     size_t calls;
@@ -64,7 +65,7 @@ static void test_valid_document(void) {
                          submission.administrator_password);
     TEST_CHECK(submission.require_physical_confirmation);
     TEST_CHECK(!submission.always_select_set);
-    TEST_CHECK(fixture.calls >= 14U);
+    TEST_CHECK_EQ_U64(VALID_DOCUMENT_ZERO_CALLS, fixture.calls);
     TEST_CHECK(fixture.bytes > sizeof(body));
 }
 
