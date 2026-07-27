@@ -219,6 +219,25 @@ add_test(NAME wifi_ap COMMAND wifi_ap_tests)
 set_tests_properties(wifi_ap PROPERTIES LABELS "wifi")
 
 add_executable(
+    provisioning_tests
+    test_provisioning.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/provisioning/provisioning_core.c
+)
+target_include_directories(
+    provisioning_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/provisioning/include
+            ../../firmware/components/provisioning
+)
+target_link_libraries(provisioning_tests PRIVATE test_support)
+target_compile_options(provisioning_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME provisioning COMMAND provisioning_tests)
+set_tests_properties(provisioning PROPERTIES LABELS "storage")
+
+add_executable(
     storage_mount_tests
     test_storage_mount.c ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/storage/storage_mount_core.c
