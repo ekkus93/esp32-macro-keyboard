@@ -1,3 +1,9 @@
+target_include_directories(
+    app_core_tests
+    PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/wifi_ap/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/provisioning/include"
+)
+
 add_executable(
     provisioning_bootstrap_tests
     "${CMAKE_SOURCE_DIR}/test_provisioning_bootstrap.c"
