@@ -1,0 +1,30 @@
+name: Validation source snapshot
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create source snapshot
+        run: |
+          tar \
+            --exclude=.git \
+            --exclude='*/build' \
+            --exclude='*/build-*' \
+            --exclude='*/node_modules' \
+            --exclude='*/dist' \
+            --exclude='*/coverage' \
+            -czf "${RUNNER_TEMP}/esp32-macro-keyboard-source.tar.gz" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: validation-source-snapshot
+          path: ${{ runner.temp }}/esp32-macro-keyboard-source.tar.gz
+          if-no-files-found: error
+          retention-days: 1
