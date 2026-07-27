@@ -1,0 +1,309 @@
+---
+name: Apply Phase 15.2 hardening
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install authoritative validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clang-format clang-tidy jq libcjson-dev shellcheck
+          python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
+          go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          ./scripts/install-esp-idf.sh
+
+      - name: Apply reviewed repository hardening
+        run: |
+          cat > firmware/components/storage/storage_repository_procedures_internal.h <<'EOF'
+          #ifndef STORAGE_REPOSITORY_PROCEDURES_INTERNAL_H
+          #define STORAGE_REPOSITORY_PROCEDURES_INTERNAL_H
+
+          #include <stdint.h>
+
+          #include "app_error.h"
+          #include "app_uuid.h"
+          #include "storage_fs_ops.h"
+
+          app_error_code_t storage_procedure_delete_with_ops(const app_uuid_t *set_id,
+                                                             const app_uuid_t *procedure_id,
+                                                             uint32_t expected_revision,
+                                                             const storage_fs_ops_t *operations);
+
+          #endif
+          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source_path = Path("firmware/components/storage/storage_repository_procedures.c")
+          source = source_path.read_text(encoding="utf-8")
+          replacements = [
+              (
+                  '#include "storage_repository_order.h"\n',
+                  '#include "storage_repository_order.h"\n'
+                  '#include "storage_repository_procedures_internal.h"\n',
+              ),
+              (
+                  '''    if (result == APP_ERROR_NONE) {
+                      result = validate_procedure_references_locked(out_procedure);
+                      if (result == APP_ERROR_NOT_FOUND || result == APP_ERROR_CONFLICT ||
+                          result == APP_ERROR_STORAGE_CORRUPT) {
+                          macro_model_free_procedure(out_procedure);
+                          memset(out_procedure, 0, sizeof(*out_procedure));
+                          return quarantine_procedure(path, "invalid procedure macro reference");
+                      }
+                  }
+                  if (result == APP_ERROR_STORAGE_CORRUPT) {
+                      macro_model_free_procedure(out_procedure);
+                      memset(out_procedure, 0, sizeof(*out_procedure));
+                      return quarantine_procedure(path, "invalid procedure object");
+                  }
+                  return result;
+                  ''',
+                  '''    if (result == APP_ERROR_NONE) {
+                      result = validate_procedure_references_locked(out_procedure);
+                      if (result == APP_ERROR_NOT_FOUND || result == APP_ERROR_CONFLICT ||
+                          result == APP_ERROR_STORAGE_CORRUPT) {
+                          result = quarantine_procedure(path, "invalid procedure macro reference");
+                      }
+                  } else if (result == APP_ERROR_STORAGE_CORRUPT) {
+                      result = quarantine_procedure(path, "invalid procedure object");
+                  }
+                  if (result != APP_ERROR_NONE) {
+                      macro_model_free_procedure(out_procedure);
+                      memset(out_procedure, 0, sizeof(*out_procedure));
+                  }
+                  return result;
+                  ''',
+              ),
+              (
+                  '''static app_error_code_t procedure_delete_locked(const app_uuid_t *set_id,
+                                                                  const app_uuid_t *procedure_id,
+                                                                  uint32_t expected_revision) {
+                      if (set_id == NULL || procedure_id == NULL || expected_revision == 0U ||
+                          !app_uuid_is_valid_string(set_id->value) ||
+                          !app_uuid_is_valid_string(procedure_id->value)) {
+                          return APP_ERROR_INVALID_ARGUMENT;
+                      }
+                      procedure_t current = {0};
+                      app_error_code_t result = procedure_read_locked(set_id, procedure_id, &current);
+                      if (result != APP_ERROR_NONE) {
+                          return result;
+                      }
+                      if (current.revision != expected_revision) {
+                          macro_model_free_procedure(&current);
+                          return APP_ERROR_CONFLICT;
+                      }
+                      macro_model_free_procedure(&current);
+                      storage_uuid_order_t order = {0};
+                      result = load_procedure_order(set_id, &order);
+                      if (result == APP_ERROR_NONE) {
+                          result = storage_repository_order_remove(&order, procedure_id);
+                      }
+                      if (result == APP_ERROR_NONE) {
+                          result = write_procedure_order(set_id, &order);
+                      }
+                      char path[APP_PATH_MAX_BYTES];
+                      if (result == APP_ERROR_NONE) {
+                          result = procedure_file_path(set_id, procedure_id, path, sizeof(path));
+                      }
+                      if (result == APP_ERROR_NONE && unlink(path) != 0) {
+                          result = storage_repository_map_file_error();
+                      }
+                      return result;
+                  }
+                  ''',
+                  '''static app_error_code_t procedure_delete_locked(const app_uuid_t *set_id,
+                                                                  const app_uuid_t *procedure_id,
+                                                                  uint32_t expected_revision,
+                                                                  const storage_fs_ops_t *operations) {
+                      if (set_id == NULL || procedure_id == NULL || expected_revision == 0U ||
+                          operations == NULL || operations->unlink_path == NULL ||
+                          !app_uuid_is_valid_string(set_id->value) ||
+                          !app_uuid_is_valid_string(procedure_id->value)) {
+                          return APP_ERROR_INVALID_ARGUMENT;
+                      }
+                      procedure_t current = {0};
+                      app_error_code_t result = procedure_read_locked(set_id, procedure_id, &current);
+                      if (result != APP_ERROR_NONE) {
+                          return result;
+                      }
+                      if (current.revision != expected_revision) {
+                          macro_model_free_procedure(&current);
+                          return APP_ERROR_CONFLICT;
+                      }
+                      macro_model_free_procedure(&current);
+                      storage_uuid_order_t original_order = {0};
+                      result = load_procedure_order(set_id, &original_order);
+                      storage_uuid_order_t updated_order = original_order;
+                      if (result == APP_ERROR_NONE) {
+                          result = storage_repository_order_remove(&updated_order, procedure_id);
+                      }
+                      if (result == APP_ERROR_NONE) {
+                          result = write_procedure_order(set_id, &updated_order);
+                      }
+                      char path[APP_PATH_MAX_BYTES];
+                      if (result == APP_ERROR_NONE) {
+                          result = procedure_file_path(set_id, procedure_id, path, sizeof(path));
+                      }
+                      if (result == APP_ERROR_NONE &&
+                          operations->unlink_path(operations->context, path) != 0) {
+                          const app_error_code_t delete_error = storage_repository_map_file_error();
+                          const app_error_code_t rollback = write_procedure_order(set_id, &original_order);
+                          return rollback == APP_ERROR_NONE ? delete_error : APP_ERROR_INTERNAL;
+                      }
+                      return result;
+                  }
+                  ''',
+              ),
+              (
+                  '''app_error_code_t storage_procedure_delete(const app_uuid_t *set_id, const app_uuid_t *procedure_id,
+                                                            uint32_t expected_revision) {
+                      const app_error_code_t lock = storage_repository_lock_take();
+                      if (lock != APP_ERROR_NONE) {
+                          return lock;
+                      }
+                      const app_error_code_t result =
+                          procedure_delete_locked(set_id, procedure_id, expected_revision);
+                      const app_error_code_t unlock = storage_repository_lock_give();
+                      return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
+                  }
+                  ''',
+                  '''app_error_code_t storage_procedure_delete_with_ops(const app_uuid_t *set_id,
+                                                                     const app_uuid_t *procedure_id,
+                                                                     uint32_t expected_revision,
+                                                                     const storage_fs_ops_t *operations) {
+                      const app_error_code_t lock = storage_repository_lock_take();
+                      if (lock != APP_ERROR_NONE) {
+                          return lock;
+                      }
+                      const app_error_code_t result =
+                          procedure_delete_locked(set_id, procedure_id, expected_revision, operations);
+                      const app_error_code_t unlock = storage_repository_lock_give();
+                      return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
+                  }
+
+                  app_error_code_t storage_procedure_delete(const app_uuid_t *set_id,
+                                                            const app_uuid_t *procedure_id,
+                                                            uint32_t expected_revision) {
+                      return storage_procedure_delete_with_ops(set_id, procedure_id, expected_revision,
+                                                               storage_fs_ops_posix());
+                  }
+                  ''',
+              ),
+          ]
+          for old, new in replacements:
+              if source.count(old) != 1:
+                  raise SystemExit(f"procedure source replacement count was {source.count(old)}")
+              source = source.replace(old, new)
+          source_path.write_text(source, encoding="utf-8")
+
+          test_path = Path("tests/host/test_storage_procedures.c")
+          test = test_path.read_text(encoding="utf-8")
+          test_replacements = [
+              (
+                  '#include "storage_repository_objects_json.h"\n',
+                  '#include "storage_repository_objects_json.h"\n'
+                  '#include "storage_repository_procedures_internal.h"\n',
+              ),
+              (
+                  'static app_uuid_t make_uuid(uint32_t value) {',
+                  '''static int fail_unlink(void *context, const char *path) {
+                      (void)context;
+                      (void)path;
+                      errno = EIO;
+                      return -1;
+                  }
+
+                  static app_uuid_t make_uuid(uint32_t value) {''',
+              ),
+              (
+                  '''    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
+                                           storage_procedure_delete(&set.id, &second.id, 2U));
+                      TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                                           storage_procedure_delete(&set.id, &second.id, 1U));
+                  ''',
+                  '''    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
+                                           storage_procedure_delete(&set.id, &second.id, 2U));
+                      storage_fs_ops_t failing_operations = *storage_fs_ops_posix();
+                      failing_operations.unlink_path = fail_unlink;
+                      TEST_CHECK_APP_ERROR(
+                          APP_ERROR_IO,
+                          storage_procedure_delete_with_ops(&set.id, &second.id, 1U,
+                                                            &failing_operations));
+                      TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                                           storage_procedure_read(&set.id, &second.id, &readback));
+                      TEST_CHECK_EQ_U64(1U, readback.revision);
+                      macro_model_free_procedure(&readback);
+                      TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_list(&set.id, &list));
+                      TEST_CHECK_EQ_U64(2U, list.count);
+                      TEST_CHECK_EQ_UUID(&second.id, &list.items[0].id);
+                      TEST_CHECK_EQ_UUID(&first.id, &list.items[1].id);
+                      storage_procedure_list_free(&list);
+                      TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                                           storage_procedure_delete(&set.id, &second.id, 1U));
+                  ''',
+              ),
+          ]
+          for old, new in test_replacements:
+              if test.count(old) != 1:
+                  raise SystemExit(f"procedure test replacement count was {test.count(old)}")
+              test = test.replace(old, new)
+          test_path.write_text(test, encoding="utf-8")
+          PY
+          clang-format -i \
+            firmware/components/storage/storage_repository_procedures.c \
+            firmware/components/storage/storage_repository_procedures_internal.h \
+            tests/host/test_storage_procedures.c
+          git diff --check
+
+      - name: Run storage tests
+        run: |
+          ./scripts/run-tests.sh storage
+          ./scripts/run-tests.sh --sanitizers storage
+
+      - name: Run authoritative firmware gate
+        shell: bash
+        run: |
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          ./scripts/verify-toolchain.sh
+          set +e
+          ./scripts/check-firmware.sh >"$RUNNER_TEMP/check-firmware.log" 2>&1
+          status=$?
+          set -e
+          if ((status != 0)); then
+            grep -E '/firmware/(main/|components/|test_app/main/).*:[0-9]+:[0-9]+: (warning|error):' \
+              "$RUNNER_TEMP/check-firmware.log" \
+              | head -n 250 || tail -n 300 "$RUNNER_TEMP/check-firmware.log"
+          fi
+          exit "$status"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            firmware/components/storage/storage_repository_procedures.c \
+            firmware/components/storage/storage_repository_procedures_internal.h \
+            tests/host/test_storage_procedures.c
+          git commit -m "fix(storage): harden procedure deletion consistency"
+          git push origin HEAD:master
