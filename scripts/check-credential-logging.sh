@@ -20,15 +20,16 @@ APPROVED_MESSAGES = {
     "manufacturing-only web password: %s",
 }
 LEGACY_OPTION = "CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG"
+STRING_LITERAL_SOURCE = r'"(?:\\.|[^"\\])*"'
+STRING_LITERAL = re.compile(STRING_LITERAL_SOURCE)
 OUTPUT_CALL = re.compile(
-    r"(?:ESP_LOG[A-Z]+|printf|fprintf)\s*\([^;]*?\);",
+    rf"(?:ESP_LOG[A-Z]+|printf|fprintf)\s*\((?:{STRING_LITERAL_SOURCE}|[^\";])*\);",
     re.DOTALL,
 )
 SENSITIVE_WORD = re.compile(
     r"(?:password|passphrase|ssid|session[_ -]?token|csrf[_ -]?token|setup[_ -]?code)",
     re.IGNORECASE,
 )
-STRING_LITERAL = re.compile(r'"(?:\\.|[^"\\])*"')
 FORMAT_VALUE = re.compile(r"%(?:\.\*)?[a-zA-Z]")
 SOURCE_SUFFIXES = {".c", ".h", ".cc", ".cpp", ".hpp"}
 
