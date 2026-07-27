@@ -61,6 +61,14 @@ expect_pass 'guarded manufacturing output'
 
 write_valid_fixture
 cat >"${temporary_dir}/firmware/components/ordinary.c" <<'SOURCE'
+int encode_state(char *output, unsigned long output_size, const char *ssid) {
+    return snprintf(output, output_size, "{\"apSsid\":\"%s\"}", ssid);
+}
+SOURCE
+expect_pass 'snprintf state encoding is not a log sink'
+
+write_valid_fixture
+cat >"${temporary_dir}/firmware/components/ordinary.c" <<'SOURCE'
 void leak(const char *password) {
     ESP_LOGI(TAG, "administrator password: %s", password);
 }
