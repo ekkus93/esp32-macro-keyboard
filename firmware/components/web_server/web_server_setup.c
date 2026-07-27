@@ -8,7 +8,6 @@
 
 #include "app_error.h"
 #include "auth.h"
-#include "cJSON.h"
 #include "device_controls.h"
 #include "esp_http_server.h"
 #include "esp_system.h"
@@ -16,23 +15,15 @@
 #include "provisioning.h"
 #include "web_origin.h"
 #include "web_setup_core.h"
+#include "web_setup_json.h"
 
 #define SETUP_BODY_MAX_BYTES 512U
 #define SETUP_RESPONSE_MAX_BYTES 256U
+#define SETUP_CONTENT_TYPE_BYTES 64U
 #define SETUP_RESTART_DELAY_US 500000ULL
-#define SETUP_FIELD_COUNT 6U
 
 web_setup_core_t server_setup_core;
 static esp_timer_handle_t setup_restart_timer;
-
-static const char *const SETUP_FIELDS[SETUP_FIELD_COUNT] = {
-    "setupCode",
-    "apSsid",
-    "apPassphrase",
-    "administratorPassword",
-    "requirePhysicalConfirmation",
-    "alwaysSelectSet",
-};
 
 static void secure_zero_bytes(void *memory, size_t size) {
     volatile uint8_t *bytes = memory;
@@ -190,7 +181,7 @@ static bool setup_origin_allowed(httpd_req_t *request) {
 }
 
 static bool setup_json_content_type(httpd_req_t *request) {
-    char content_type[64U];
+    char content_type[SETUP_CONTENT_TYPE_BYTES];
     if (!get_header(request, "Content-Type", content_type, sizeof(content_type))) {
         return false;
     }
@@ -253,111 +244,6 @@ esp_err_t setup_state_handler(httpd_req_t *request) {
     return send_setup_state(request, &state, "200 OK");
 }
 
-static bool exact_setup_fields(const cJSON *root) {
-    if (!cJSON_IsObject(root)) {
-        return false;
-    }
-    bool seen[SETUP_FIELD_COUNT] = {false};
-    size_t field_count = 0U;
-    for (const cJSON *item = root->child; item != NULL; item = item->next) {
-        if (item->string == NULL) {
-            return false;
-        }
-        bool matched = false;
-        for (size_t index = 0U; index < SETUP_FIELD_COUNT; ++index) {
-            if (strcmp(item->string, SETUP_FIELDS[index]) == 0) {
-                if (seen[index]) {
-                    return false;
-                }
-                seen[index] = true;
-                matched = true;
-                break;
-            }
-        }
-        if (!matched) {
-            return false;
-        }
-        ++field_count;
-    }
-    if (field_count != SETUP_FIELD_COUNT) {
-        return false;
-    }
-    for (size_t index = 0U; index < SETUP_FIELD_COUNT; ++index) {
-        if (!seen[index]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-static bool copy_json_text(const cJSON *item, char *output, size_t output_size) {
-    if (!cJSON_IsString(item) || item->valuestring == NULL || output == NULL ||
-        output_size == 0U) {
-        return false;
-    }
-    const size_t length = strlen(item->valuestring);
-    if (length >= output_size) {
-        return false;
-    }
-    memset(output, 0, output_size);
-    memcpy(output, item->valuestring, length + 1U);
-    return true;
-}
-
-static void wipe_json_strings(cJSON *root) {
-    if (root == NULL) {
-        return;
-    }
-    for (cJSON *item = root->child; item != NULL; item = item->next) {
-        if (cJSON_IsString(item) && item->valuestring != NULL) {
-            secure_zero_bytes(item->valuestring, strlen(item->valuestring));
-        }
-    }
-}
-
-static bool parse_setup_submission(const char *body,
-                                   web_setup_submission_t *submission) {
-    cJSON *root = cJSON_ParseWithLength(body, strlen(body));
-    if (root == NULL) {
-        return false;
-    }
-    bool valid = exact_setup_fields(root);
-    if (valid) {
-        const cJSON *setup_code =
-            cJSON_GetObjectItemCaseSensitive(root, "setupCode");
-        const cJSON *ap_ssid = cJSON_GetObjectItemCaseSensitive(root, "apSsid");
-        const cJSON *ap_passphrase =
-            cJSON_GetObjectItemCaseSensitive(root, "apPassphrase");
-        const cJSON *administrator_password =
-            cJSON_GetObjectItemCaseSensitive(root, "administratorPassword");
-        const cJSON *require_confirmation =
-            cJSON_GetObjectItemCaseSensitive(root, "requirePhysicalConfirmation");
-        const cJSON *always_select =
-            cJSON_GetObjectItemCaseSensitive(root, "alwaysSelectSet");
-        valid = copy_json_text(setup_code,
-                               submission->setup_code,
-                               sizeof(submission->setup_code)) &&
-                copy_json_text(ap_ssid,
-                               submission->ap_ssid,
-                               sizeof(submission->ap_ssid)) &&
-                copy_json_text(ap_passphrase,
-                               submission->ap_passphrase,
-                               sizeof(submission->ap_passphrase)) &&
-                copy_json_text(administrator_password,
-                               submission->administrator_password,
-                               sizeof(submission->administrator_password)) &&
-                cJSON_IsBool(require_confirmation) && cJSON_IsBool(always_select);
-        if (valid) {
-            submission->require_physical_confirmation =
-                cJSON_IsTrue(require_confirmation);
-            submission->always_select_set = cJSON_IsTrue(always_select);
-        }
-    }
-    wipe_json_strings(root);
-    cJSON_Delete(root);
-    return valid;
-}
-
 esp_err_t setup_credentials_handler(httpd_req_t *request) {
     if (!server_setup_core.initialized) {
         return send_error(request,
@@ -388,14 +274,18 @@ esp_err_t setup_credentials_handler(httpd_req_t *request) {
                           body_result,
                           "invalid setup request body");
     }
+
     web_setup_submission_t submission = {0};
-    const bool parsed = parse_setup_submission(body, &submission);
-    secure_zero_bytes(body, sizeof(body));
-    if (!parsed) {
-        secure_zero_bytes(&submission, sizeof(submission));
+    const web_setup_json_ops_t json_operations = {
+        .context = NULL,
+        .secure_zero = setup_secure_zero,
+    };
+    const app_error_code_t parse_result = web_setup_json_parse(
+        body, sizeof(body), &json_operations, &submission);
+    if (parse_result != APP_ERROR_NONE) {
         return send_error(request,
                           "400 Bad Request",
-                          APP_ERROR_INVALID_ARGUMENT,
+                          parse_result,
                           "invalid setup request");
     }
 
