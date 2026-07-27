@@ -33,5 +33,6 @@ app_error_code_t provisioning_commit(const provisioning_config_t *replacement,
 app_error_code_t provisioning_clear_credentials(void);
 app_error_code_t provisioning_factory_reset(void);
 app_error_code_t provisioning_deinit(void);
+bool provisioning_owns_resources(void);
 
 #endif
