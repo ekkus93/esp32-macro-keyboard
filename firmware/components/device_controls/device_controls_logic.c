@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "app_error.h"
 #include "device_controls.h"
 
 bool device_controls_level_is_pressed(int level, int active_level) {

@@ -14,6 +14,7 @@
 #include "esp_timer.h"
 #include "provisioning.h"
 #include "web_origin.h"
+#include "web_server.h"
 #include "web_setup_core.h"
 #include "web_setup_json.h"
 

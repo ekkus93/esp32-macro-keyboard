@@ -134,7 +134,18 @@ static void wipe_json_tree(const web_setup_json_ops_t *operations, cJSON *item) 
                                     strlen(current->valuestring) + 1U);
         }
         if (current->child != NULL) {
-            wipe_json_tree(operations, current->child);
+            cJSON *child = current->child;
+            cJSON *child_tail = child;
+            while (child_tail->next != NULL) {
+                child_tail = child_tail->next;
+            }
+            child_tail->next = current->next;
+            if (current->next != NULL) {
+                current->next->prev = child_tail;
+            }
+            current->next = child;
+            child->prev = current;
+            current->child = NULL;
         }
     }
 }
