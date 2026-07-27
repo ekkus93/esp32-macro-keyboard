@@ -16,30 +16,31 @@ jobs:
       - name: Check out staging branch
         uses: actions/checkout@v4
 
-      - name: Reconstruct reviewed patch
+      - name: Assemble reviewed patch transport
         shell: bash
         run: |
           cat docs/review-source/phase15-2-full-analysis-v3.part.* \
-            | base64 --decode \
-            | gzip --decompress >"${RUNNER_TEMP}/phase15-2-hardening.patch"
-          sha256sum "${RUNNER_TEMP}/phase15-2-hardening.patch" \
-            >"${RUNNER_TEMP}/phase15-2-hardening.sha256"
+            >"${RUNNER_TEMP}/phase15-2-hardening.b64"
+          sha256sum "${RUNNER_TEMP}/phase15-2-hardening.b64" \
+            >"${RUNNER_TEMP}/phase15-2-hardening.b64.sha256"
 
-      - name: Preserve reconstructed patch digest
+      - name: Preserve assembled transport
         uses: actions/upload-artifact@v4
         with:
-          name: phase15-2-reconstructed-patch
+          name: phase15-2-assembled-transport
           path: |
-            ${{ runner.temp }}/phase15-2-hardening.patch
-            ${{ runner.temp }}/phase15-2-hardening.sha256
+            ${{ runner.temp }}/phase15-2-hardening.b64
+            ${{ runner.temp }}/phase15-2-hardening.b64.sha256
           if-no-files-found: error
           retention-days: 1
 
-      - name: Verify reviewed patch digest
+      - name: Decode and verify reviewed patch
         shell: bash
         run: |
+          base64 --decode "${RUNNER_TEMP}/phase15-2-hardening.b64" \
+            | gzip --decompress >"${RUNNER_TEMP}/phase15-2-hardening.patch"
           expected='b26fa9fff431b772b8db8996295956cdc0f252d3310da42a2dce28844fff34c5'
-          actual="$(cut -d' ' -f1 "${RUNNER_TEMP}/phase15-2-hardening.sha256")"
+          actual="$(sha256sum "${RUNNER_TEMP}/phase15-2-hardening.patch" | cut -d' ' -f1)"
           printf 'expected patch SHA-256: %s\n' "${expected}"
           printf 'actual patch SHA-256:   %s\n' "${actual}"
           [[ "${actual}" == "${expected}" ]]
