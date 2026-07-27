@@ -19,6 +19,12 @@ app_error_code_t storage_quarantine_file_with_ops(const char *source_path, const
 app_error_code_t storage_quarantine_list_with_ops(storage_quarantine_list_t *out_list,
                                                   const storage_fs_ops_t *operations);
 
+/* Quarantine a source file without acquiring the repository mutation lock, for
+ * callers that already hold it (the repository read/load and recovery paths).
+ * The public storage_quarantine_file wraps this with lock acquisition. */
+app_error_code_t storage_quarantine_file_locked(const char *source_path, const char *reason,
+                                                storage_quarantine_entry_t *out_entry);
+
 /* Reconcile interrupted staged quarantine entries under /data/staging (FIX1
  * §8.3): finish provably complete entries into the quarantine root, discard
  * staging whose source was never durably moved, and preserve ambiguous staging

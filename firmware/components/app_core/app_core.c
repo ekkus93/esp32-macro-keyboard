@@ -38,7 +38,14 @@ static app_core_nvs_result_t adapter_nvs_init(void *context) {
 
 static app_error_code_t adapter_storage_mount(void *context) {
     (void)context;
-    return storage_mount_all();
+    /* Initialize the repository mutation lock as part of bringing storage online,
+     * so it exists before startup recovery (which serializes behind it, FIX1
+     * §7.5) and every later repository operation. */
+    const app_error_code_t mount = storage_mount_all();
+    if (mount != APP_ERROR_NONE) {
+        return mount;
+    }
+    return storage_repository_lock_init();
 }
 
 static app_error_code_t adapter_storage_recover(void *context) {
@@ -125,7 +132,12 @@ static app_error_code_t adapter_wifi_stop(void *context) {
 
 static app_error_code_t adapter_storage_unmount(void *context) {
     (void)context;
-    return storage_unmount_all();
+    /* Reverse of the mount step: release the lock, then unmount. Unmount runs even
+     * if lock teardown fails so the filesystem is always released; the first error
+     * is surfaced. */
+    const app_error_code_t lock = storage_repository_lock_deinit();
+    const app_error_code_t unmount = storage_unmount_all();
+    return unmount != APP_ERROR_NONE ? unmount : lock;
 }
 
 static app_error_code_t adapter_repository_deinit(void *context) {

@@ -17,6 +17,7 @@
 #include "storage_fs_ops.h"
 #include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
+#include "storage_repository_lock.h"
 #include "storage_transaction_internal.h"
 
 #define STORAGE_TRANSACTION_MAX_ACTIVE 16U
@@ -626,7 +627,13 @@ app_error_code_t storage_transaction_recover_all_with_ops(
 }
 
 app_error_code_t storage_transaction_recover_all(void) {
-    return storage_transaction_recover_all_with_ops(storage_fs_ops_posix(),
-                                                    production_uuid_generate, NULL,
-                                                    production_set_index_presence, NULL);
+    const app_error_code_t lock = storage_repository_lock_take();
+    if (lock != APP_ERROR_NONE) {
+        return lock;
+    }
+    const app_error_code_t result =
+        storage_transaction_recover_all_with_ops(storage_fs_ops_posix(), production_uuid_generate,
+                                                 NULL, production_set_index_presence, NULL);
+    const app_error_code_t unlock = storage_repository_lock_give();
+    return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }

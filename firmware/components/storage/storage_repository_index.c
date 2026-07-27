@@ -12,7 +12,9 @@
 #include "cJSON.h"
 #include "macro_limits.h"
 #include "storage.h"
+#include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
+#include "storage_repository_lock.h"
 
 app_error_code_t storage_repository_parse_index(const char *data, size_t length,
                                                 storage_set_index_t *out_index) {
@@ -68,7 +70,7 @@ app_error_code_t storage_repository_load_index_path(const char *path,
     if (parse_result == APP_ERROR_STORAGE_CORRUPT) {
         storage_quarantine_entry_t entry = {0};
         const app_error_code_t quarantine_result =
-            storage_quarantine_file(path, "invalid ordering index", &entry);
+            storage_quarantine_file_locked(path, "invalid ordering index", &entry);
         return quarantine_result == APP_ERROR_NONE ? parse_result : quarantine_result;
     }
     return parse_result;
@@ -181,12 +183,12 @@ static app_error_code_t validate_schema_marker(void) {
         return APP_ERROR_NONE;
     }
     storage_quarantine_entry_t entry = {0};
-    const app_error_code_t quarantine_result =
-        storage_quarantine_file(STORAGE_SCHEMA_FILE_PATH, "invalid storage schema marker", &entry);
+    const app_error_code_t quarantine_result = storage_quarantine_file_locked(
+        STORAGE_SCHEMA_FILE_PATH, "invalid storage schema marker", &entry);
     return quarantine_result == APP_ERROR_NONE ? APP_ERROR_STORAGE_CORRUPT : quarantine_result;
 }
 
-app_error_code_t storage_repository_init(void) {
+static app_error_code_t storage_repository_init_locked(void) {
     struct stat schema_metadata;
     const int schema_stat = stat(STORAGE_SCHEMA_FILE_PATH, &schema_metadata);
     if (schema_stat != 0 && errno != ENOENT) {
@@ -209,6 +211,16 @@ app_error_code_t storage_repository_init(void) {
     }
     storage_set_index_t global_order = {0};
     return storage_repository_load_index_path(STORAGE_GLOBAL_ORDER_FILE_PATH, &global_order);
+}
+
+app_error_code_t storage_repository_init(void) {
+    const app_error_code_t lock = storage_repository_lock_take();
+    if (lock != APP_ERROR_NONE) {
+        return lock;
+    }
+    const app_error_code_t result = storage_repository_init_locked();
+    const app_error_code_t unlock = storage_repository_lock_give();
+    return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }
 
 app_error_code_t storage_repository_deinit(void) {

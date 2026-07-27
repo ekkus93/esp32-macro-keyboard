@@ -254,6 +254,7 @@ add_executable(
     ../../firmware/components/storage/storage_repository_index.c
     ../../firmware/components/storage/storage_repository_sets.c
     ../../firmware/components/storage/storage_quarantine.c
+    ../../firmware/components/storage/storage_repository_lock.c
 )
 target_include_directories(
     storage_atomic_recovery_tests
@@ -285,6 +286,7 @@ add_executable(
     ../../firmware/components/storage/storage_repository_index.c
     ../../firmware/components/storage/storage_repository_sets.c
     ../../firmware/components/storage/storage_quarantine.c
+    ../../firmware/components/storage/storage_repository_lock.c
 )
 target_include_directories(
     storage_atomic_validators_tests
@@ -383,6 +385,7 @@ add_executable(
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_atomic.c
     ../../firmware/components/storage/storage_transaction.c
+    ../../firmware/components/storage/storage_repository_lock.c
 )
 target_include_directories(
     storage_transaction_tests
@@ -409,6 +412,7 @@ add_executable(
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_atomic.c
     ../../firmware/components/storage/storage_quarantine.c
+    ../../firmware/components/storage/storage_repository_lock.c
 )
 target_include_directories(
     storage_quarantine_tests
@@ -438,6 +442,7 @@ add_executable(
     ../../firmware/components/storage/storage_repository_json.c
     ../../firmware/components/storage/storage_repository_index.c
     ../../firmware/components/storage/storage_repository_sets.c
+    ../../firmware/components/storage/storage_repository_lock.c
     ../../firmware/components/storage/storage_quarantine.c
 )
 target_include_directories(

@@ -15,9 +15,75 @@
 #include "macro_limits.h"
 #include "macro_model.h"
 #include "storage.h"
+#include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
+#include "storage_repository_lock.h"
+
+/* Public set functions serialize their whole read-check-write transaction behind
+ * the repository mutation lock (FIX1 §7.5); the `_locked` helpers below do the
+ * work and must be called only with the lock held, never reacquiring it. */
+static app_error_code_t storage_set_read_locked(const app_uuid_t *set_id, macro_set_t *out_set);
+static app_error_code_t storage_set_list_locked(storage_set_list_t *out_list);
+static app_error_code_t storage_set_create_locked(const macro_set_t *set);
+static app_error_code_t storage_set_update_locked(const macro_set_t *replacement,
+                                                  uint32_t expected_revision,
+                                                  macro_set_t *out_updated);
+static app_error_code_t storage_set_delete_locked(const app_uuid_t *set_id,
+                                                  uint32_t expected_revision);
 
 app_error_code_t storage_set_read(const app_uuid_t *set_id, macro_set_t *out_set) {
+    const app_error_code_t lock = storage_repository_lock_take();
+    if (lock != APP_ERROR_NONE) {
+        return lock;
+    }
+    const app_error_code_t result = storage_set_read_locked(set_id, out_set);
+    const app_error_code_t unlock = storage_repository_lock_give();
+    return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
+}
+
+app_error_code_t storage_set_list(storage_set_list_t *out_list) {
+    const app_error_code_t lock = storage_repository_lock_take();
+    if (lock != APP_ERROR_NONE) {
+        return lock;
+    }
+    const app_error_code_t result = storage_set_list_locked(out_list);
+    const app_error_code_t unlock = storage_repository_lock_give();
+    return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
+}
+
+app_error_code_t storage_set_create(const macro_set_t *set) {
+    const app_error_code_t lock = storage_repository_lock_take();
+    if (lock != APP_ERROR_NONE) {
+        return lock;
+    }
+    const app_error_code_t result = storage_set_create_locked(set);
+    const app_error_code_t unlock = storage_repository_lock_give();
+    return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
+}
+
+app_error_code_t storage_set_update(const macro_set_t *replacement, uint32_t expected_revision,
+                                    macro_set_t *out_updated) {
+    const app_error_code_t lock = storage_repository_lock_take();
+    if (lock != APP_ERROR_NONE) {
+        return lock;
+    }
+    const app_error_code_t result =
+        storage_set_update_locked(replacement, expected_revision, out_updated);
+    const app_error_code_t unlock = storage_repository_lock_give();
+    return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
+}
+
+app_error_code_t storage_set_delete(const app_uuid_t *set_id, uint32_t expected_revision) {
+    const app_error_code_t lock = storage_repository_lock_take();
+    if (lock != APP_ERROR_NONE) {
+        return lock;
+    }
+    const app_error_code_t result = storage_set_delete_locked(set_id, expected_revision);
+    const app_error_code_t unlock = storage_repository_lock_give();
+    return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
+}
+
+static app_error_code_t storage_set_read_locked(const app_uuid_t *set_id, macro_set_t *out_set) {
     if (set_id == NULL || out_set == NULL || !app_uuid_is_valid_string(set_id->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -41,13 +107,13 @@ app_error_code_t storage_set_read(const app_uuid_t *set_id, macro_set_t *out_set
     if (result == APP_ERROR_STORAGE_CORRUPT) {
         storage_quarantine_entry_t entry = {0};
         const app_error_code_t quarantine_result =
-            storage_quarantine_file(path, "invalid set metadata", &entry);
+            storage_quarantine_file_locked(path, "invalid set metadata", &entry);
         return quarantine_result == APP_ERROR_NONE ? result : quarantine_result;
     }
     return result;
 }
 
-app_error_code_t storage_set_list(storage_set_list_t *out_list) {
+static app_error_code_t storage_set_list_locked(storage_set_list_t *out_list) {
     if (out_list == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -58,7 +124,7 @@ app_error_code_t storage_set_list(storage_set_list_t *out_list) {
         return result;
     }
     for (size_t item = 0U; item < index.count; ++item) {
-        result = storage_set_read(&index.ids[item], &out_list->items[item]);
+        result = storage_set_read_locked(&index.ids[item], &out_list->items[item]);
         if (result != APP_ERROR_NONE) {
             memset(out_list, 0, sizeof(*out_list));
             return result;
@@ -155,7 +221,7 @@ static app_error_code_t prepare_set_create(const macro_set_t *set, storage_set_i
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_set_create(const macro_set_t *set) {
+static app_error_code_t storage_set_create_locked(const macro_set_t *set) {
     if (set == NULL || set->revision != 1U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -228,13 +294,14 @@ app_error_code_t storage_set_create(const macro_set_t *set) {
     return storage_repository_remove_manifest(&transaction_id);
 }
 
-app_error_code_t storage_set_update(const macro_set_t *replacement, uint32_t expected_revision,
-                                    macro_set_t *out_updated) {
+static app_error_code_t storage_set_update_locked(const macro_set_t *replacement,
+                                                  uint32_t expected_revision,
+                                                  macro_set_t *out_updated) {
     if (replacement == NULL || out_updated == NULL || expected_revision == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     macro_set_t current = {0};
-    app_error_code_t result = storage_set_read(&replacement->id, &current);
+    app_error_code_t result = storage_set_read_locked(&replacement->id, &current);
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -265,12 +332,13 @@ app_error_code_t storage_set_update(const macro_set_t *replacement, uint32_t exp
     return result;
 }
 
-app_error_code_t storage_set_delete(const app_uuid_t *set_id, uint32_t expected_revision) {
+static app_error_code_t storage_set_delete_locked(const app_uuid_t *set_id,
+                                                  uint32_t expected_revision) {
     if (set_id == NULL || expected_revision == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     macro_set_t current = {0};
-    app_error_code_t result = storage_set_read(set_id, &current);
+    app_error_code_t result = storage_set_read_locked(set_id, &current);
     if (result != APP_ERROR_NONE) {
         return result;
     }

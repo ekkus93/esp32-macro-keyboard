@@ -16,6 +16,7 @@
 #include "storage_atomic_validators.h"
 #include "storage_fs_ops.h"
 #include "storage_quarantine_internal.h"
+#include "storage_repository_lock.h"
 
 /* ".tmp." / ".bak." marker (5 chars) + a 36-char UUID. */
 #define ARTIFACT_MARKER_LENGTH 5U
@@ -500,6 +501,12 @@ static app_error_code_t production_uuid_generate(void *context, app_uuid_t *out_
 }
 
 app_error_code_t storage_atomic_recover_all(void) {
-    return storage_atomic_recover_all_with_ops(storage_fs_ops_posix(), production_uuid_generate,
-                                               NULL);
+    const app_error_code_t lock = storage_repository_lock_take();
+    if (lock != APP_ERROR_NONE) {
+        return lock;
+    }
+    const app_error_code_t result =
+        storage_atomic_recover_all_with_ops(storage_fs_ops_posix(), production_uuid_generate, NULL);
+    const app_error_code_t unlock = storage_repository_lock_give();
+    return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }

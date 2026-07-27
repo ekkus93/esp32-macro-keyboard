@@ -435,6 +435,10 @@ static void test_repository_deinit_is_a_safe_noop(void) {
 }
 
 int main(void) {
+    /* The public set/quarantine/recovery functions serialize behind the repository
+     * mutation lock (FIX1 §9); the default host backend must be initialized before
+     * any of them is exercised. */
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
     test_argument_validation();
     test_repository_deinit_is_a_safe_noop();
     test_crud_ordering_revisions_and_cleanup();
@@ -448,6 +452,7 @@ int main(void) {
     test_unknown_transaction_is_preserved();
     test_missing_initialized_index_is_not_recreated();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
     puts("storage set repository tests passed");
     return EXIT_SUCCESS;
 }

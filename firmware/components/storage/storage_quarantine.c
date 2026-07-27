@@ -17,6 +17,7 @@
 #include "storage_atomic_internal.h"
 #include "storage_fs_ops.h"
 #include "storage_quarantine_internal.h"
+#include "storage_repository_lock.h"
 
 #define ASCII_DELETE 0x7fU
 #define QUARANTINE_RECORD_MAX_BYTES 1024U
@@ -629,10 +630,24 @@ app_error_code_t storage_quarantine_file_with_ops(const char *source_path, const
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_quarantine_file(const char *source_path, const char *reason,
-                                         storage_quarantine_entry_t *out_entry) {
+app_error_code_t storage_quarantine_file_locked(const char *source_path, const char *reason,
+                                                storage_quarantine_entry_t *out_entry) {
     return storage_quarantine_file_with_ops(source_path, reason, out_entry, storage_fs_ops_posix(),
                                             production_uuid_generate, NULL);
+}
+
+app_error_code_t storage_quarantine_file(const char *source_path, const char *reason,
+                                         storage_quarantine_entry_t *out_entry) {
+    const app_error_code_t lock = storage_repository_lock_take();
+    if (lock != APP_ERROR_NONE) {
+        if (out_entry != NULL) {
+            memset(out_entry, 0, sizeof(*out_entry));
+        }
+        return lock;
+    }
+    const app_error_code_t result = storage_quarantine_file_locked(source_path, reason, out_entry);
+    const app_error_code_t unlock = storage_repository_lock_give();
+    return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }
 
 static int compare_entries(const void *lhs, const void *rhs) {
@@ -762,7 +777,17 @@ app_error_code_t storage_quarantine_list_with_ops(storage_quarantine_list_t *out
 }
 
 app_error_code_t storage_quarantine_list(storage_quarantine_list_t *out_list) {
-    return storage_quarantine_list_with_ops(out_list, storage_fs_ops_posix());
+    const app_error_code_t lock = storage_repository_lock_take();
+    if (lock != APP_ERROR_NONE) {
+        if (out_list != NULL) {
+            memset(out_list, 0, sizeof(*out_list));
+        }
+        return lock;
+    }
+    const app_error_code_t result =
+        storage_quarantine_list_with_ops(out_list, storage_fs_ops_posix());
+    const app_error_code_t unlock = storage_repository_lock_give();
+    return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }
 
 typedef enum {
@@ -964,5 +989,11 @@ app_error_code_t storage_quarantine_recover_all_with_ops(const storage_fs_ops_t 
 }
 
 app_error_code_t storage_quarantine_recover_all(void) {
-    return storage_quarantine_recover_all_with_ops(storage_fs_ops_posix());
+    const app_error_code_t lock = storage_repository_lock_take();
+    if (lock != APP_ERROR_NONE) {
+        return lock;
+    }
+    const app_error_code_t result = storage_quarantine_recover_all_with_ops(storage_fs_ops_posix());
+    const app_error_code_t unlock = storage_repository_lock_give();
+    return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }
