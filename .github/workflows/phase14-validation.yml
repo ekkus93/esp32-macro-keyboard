@@ -1,68 +1,53 @@
 name: Phase 14 integration validation
 
 on:
-  push:
-    paths:
-      - .github/workflows/phase14-validation.yml
+  pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          ref: master
-      - name: Validate host policies and ESP-IDF build
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Install host validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            build-essential cmake ninja-build libcjson-dev git flex bison gperf \
+            python3 python3-pip python3-venv ccache libffi-dev libssl-dev \
+            dfu-util libusb-1.0-0
+          python3 -m pip install --break-system-packages gcovr
+      - name: Validate source policies
+        run: |
+          bash ./scripts/check-partitions.sh
+          bash ./scripts/check-production-config.sh
+          bash ./scripts/check-credential-logging.sh
+          bash ./scripts/check-setup-route-isolation.sh
+      - name: Validate host code
+        run: |
+          ./scripts/run-tests.sh
+          ./scripts/run-tests.sh --sanitizers
+          ./scripts/generate-native-coverage.sh
+      - name: Validate web application
+        run: ./scripts/check-webapp.sh
+      - name: Install ESP-IDF v5.5.5
+        run: |
+          git clone --depth 1 --branch v5.5.5 --recursive \
+            https://github.com/espressif/esp-idf.git "${RUNNER_TEMP}/esp-idf"
+          "${RUNNER_TEMP}/esp-idf/install.sh" esp32s3
+      - name: Build ESP32-S3 firmware
         shell: bash
         run: |
-          set +e
-          validation_log="${RUNNER_TEMP}/phase14-validation.log"
-          status=0
-          {
-            set -x
-            sudo apt-get update
-            sudo apt-get install --yes \
-              build-essential cmake ninja-build libcjson-dev git flex bison gperf \
-              python3 python3-pip python3-venv ccache libffi-dev libssl-dev \
-              dfu-util libusb-1.0-0
-            python3 -m pip install --break-system-packages gcovr
-            ./scripts/run-tests.sh
-            ./scripts/run-tests.sh --sanitizers
-            ./scripts/generate-native-coverage.sh
-            git clone --depth 1 --branch v5.5.5 --recursive \
-              https://github.com/espressif/esp-idf.git "${RUNNER_TEMP}/esp-idf"
-            "${RUNNER_TEMP}/esp-idf/install.sh" esp32s3
-            source "${RUNNER_TEMP}/esp-idf/export.sh"
-            cd firmware
-            idf.py set-target esp32s3
-            idf.py build
-          } >"${validation_log}" 2>&1 || status=$?
-          set -e
-
-          if [[ "${status}" -eq 0 ]]; then
-            result="PASS"
-          else
-            result="FAIL"
-          fi
-          mkdir -p docs/review-source
-          {
-            printf '# Phase 14 integration validation\n\n'
-            printf -- '- Result: **%s**\n' "${result}"
-            printf -- '- Source commit: `%s`\n' "${GITHUB_SHA}"
-            printf -- '- Host tests: normal, ASan/UBSan, and strict coverage\n'
-            printf -- '- Firmware: ESP-IDF `v5.5.5`, target `esp32s3`\n'
-            printf '\n## Validation log tail\n\n```text\n'
-            tail -n 240 "${validation_log}"
-            printf '\n```\n'
-          } >docs/review-source/PHASE14_INTEGRATION_VALIDATION.md
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/review-source/PHASE14_INTEGRATION_VALIDATION.md
-          git commit -m "test(phase14): record integration validation"
-          git push origin HEAD:master
-          exit "${status}"
+          source "${RUNNER_TEMP}/esp-idf/export.sh"
+          cd firmware
+          idf.py set-target esp32s3
+          idf.py build
