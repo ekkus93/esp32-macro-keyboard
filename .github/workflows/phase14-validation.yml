@@ -26,12 +26,14 @@ jobs:
             python3 python3-pip python3-venv ccache libffi-dev libssl-dev \
             dfu-util libusb-1.0-0
           python3 -m pip install --break-system-packages gcovr
-      - name: Validate source policies
-        run: |
-          bash ./scripts/check-partitions.sh
-          bash ./scripts/check-production-config.sh
-          bash ./scripts/check-credential-logging.sh
-          bash ./scripts/check-setup-route-isolation.sh
+      - name: Validate partition policy
+        run: bash ./scripts/check-partitions.sh
+      - name: Validate production configuration policy
+        run: bash ./scripts/check-production-config.sh
+      - name: Validate credential logging policy
+        run: bash ./scripts/check-credential-logging.sh
+      - name: Validate setup route isolation policy
+        run: bash ./scripts/check-setup-route-isolation.sh
       - name: Validate host code
         run: |
           ./scripts/run-tests.sh
