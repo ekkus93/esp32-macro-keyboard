@@ -95,8 +95,11 @@ static app_error_code_t setup_schedule_restart(void *context) {
     }
     if (esp_timer_start_once(setup_restart_timer, SETUP_RESTART_DELAY_US) != ESP_OK) {
         const esp_err_t delete_result = esp_timer_delete(setup_restart_timer);
-        setup_restart_timer = NULL;
-        return delete_result == ESP_OK ? APP_ERROR_INTERNAL : APP_ERROR_IO;
+        if (delete_result == ESP_OK) {
+            setup_restart_timer = NULL;
+            return APP_ERROR_INTERNAL;
+        }
+        return APP_ERROR_IO;
     }
     return APP_ERROR_NONE;
 }
@@ -120,7 +123,7 @@ static web_setup_ops_t setup_operations(void) {
 
 app_error_code_t web_server_setup_init(const web_server_config_t *configuration) {
     if (configuration == NULL || configuration->mode != WEB_SERVER_MODE_SETUP ||
-        server_setup_core.initialized || setup_restart_timer != NULL) {
+        web_server_setup_owns_resources()) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     web_setup_configuration_t setup_configuration = {
@@ -145,20 +148,25 @@ app_error_code_t web_server_setup_init(const web_server_config_t *configuration)
 }
 
 app_error_code_t web_server_setup_deinit(void) {
-    app_error_code_t result = web_setup_core_deinit(&server_setup_core);
+    app_error_code_t result = APP_ERROR_NONE;
     if (setup_restart_timer != NULL) {
-        esp_err_t timer_result = ESP_OK;
-        if (esp_timer_is_active(setup_restart_timer)) {
-            timer_result = esp_timer_stop(setup_restart_timer);
+        if (esp_timer_is_active(setup_restart_timer) &&
+            esp_timer_stop(setup_restart_timer) != ESP_OK) {
+            result = APP_ERROR_IO;
         }
-        const esp_err_t delete_result = esp_timer_delete(setup_restart_timer);
-        setup_restart_timer = NULL;
-        if (result == APP_ERROR_NONE &&
-            (timer_result != ESP_OK || delete_result != ESP_OK)) {
+        if (esp_timer_delete(setup_restart_timer) == ESP_OK) {
+            setup_restart_timer = NULL;
+        } else if (result == APP_ERROR_NONE) {
             result = APP_ERROR_IO;
         }
     }
-    return result;
+    const app_error_code_t core_result =
+        web_setup_core_deinit(&server_setup_core);
+    return result != APP_ERROR_NONE ? result : core_result;
+}
+
+bool web_server_setup_owns_resources(void) {
+    return server_setup_core.initialized || setup_restart_timer != NULL;
 }
 
 static bool get_header(httpd_req_t *request,
