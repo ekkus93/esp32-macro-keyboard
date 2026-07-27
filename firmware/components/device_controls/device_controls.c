@@ -7,6 +7,7 @@
 #include "app_error.h"
 #include "device_controls_logic.h"
 #include "driver/gpio.h"
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -15,72 +16,247 @@
 
 #define CONTROL_POLL_MS 20U
 #define CONTROLS_TASK_PRIORITY 5U
+#define CONTROLS_SHUTDOWN_WAIT_MS 2000U
+
+static const char *const TAG = "device_controls";
 
 static SemaphoreHandle_t confirmation_semaphore;
+static SemaphoreHandle_t controls_stopped;
 static TaskHandle_t controls_task_handle;
-static portMUX_TYPE indicator_lock = portMUX_INITIALIZER_UNLOCKED;
-static device_indicator_state_t indicator_state = DEVICE_INDICATOR_BOOTING;
+static portMUX_TYPE controls_lock = portMUX_INITIALIZER_UNLOCKED;
+static volatile bool controls_stop_requested;
+static device_indicator_state_t requested_indicator_state = DEVICE_INDICATOR_BOOTING;
+static device_controls_engine_t engine;
 
-static bool button_pressed(gpio_num_t gpio) {
-    return device_controls_level_is_pressed(gpio_get_level(gpio), CONFIG_APP_BUTTON_ACTIVE_LEVEL);
+static bool adapter_lock(void *context) {
+    (void)context;
+    portENTER_CRITICAL(&controls_lock);
+    return true;
 }
 
-static device_indicator_state_t get_indicator_state(void) {
-    portENTER_CRITICAL(&indicator_lock);
-    const device_indicator_state_t state = indicator_state;
-    portEXIT_CRITICAL(&indicator_lock);
-    return state;
+static bool adapter_unlock(void *context) {
+    (void)context;
+    portEXIT_CRITICAL(&controls_lock);
+    return true;
+}
+
+static bool adapter_signal_confirmation(void *context) {
+    (void)context;
+    return confirmation_semaphore != NULL && xSemaphoreGive(confirmation_semaphore) == pdTRUE;
+}
+
+static bool adapter_signal_stopped(void *context) {
+    (void)context;
+    return controls_stopped != NULL && xSemaphoreGive(controls_stopped) == pdTRUE;
+}
+
+static app_error_code_t adapter_cancel_execution(void *context) {
+    (void)context;
+    return macro_executor_cancel();
+}
+
+static app_error_code_t adapter_write_indicator(void *context, bool enabled) {
+    (void)context;
+    const int level = enabled ? CONFIG_APP_LED_ACTIVE_LEVEL : !CONFIG_APP_LED_ACTIVE_LEVEL;
+    return gpio_set_level((gpio_num_t)CONFIG_APP_STATUS_LED_GPIO, (uint32_t)level) == ESP_OK
+               ? APP_ERROR_NONE
+               : APP_ERROR_INTERNAL;
+}
+
+static void adapter_request_stop(void *context) {
+    (void)context;
+    portENTER_CRITICAL(&controls_lock);
+    controls_stop_requested = true;
+    portEXIT_CRITICAL(&controls_lock);
+}
+
+static void adapter_clear_stop_request(void *context) {
+    (void)context;
+    portENTER_CRITICAL(&controls_lock);
+    controls_stop_requested = false;
+    portEXIT_CRITICAL(&controls_lock);
+}
+
+static app_error_code_t adapter_wait_stopped(void *context, uint32_t timeout_ms) {
+    (void)context;
+    if (controls_stopped == NULL || timeout_ms == 0U) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    return xSemaphoreTake(controls_stopped, pdMS_TO_TICKS(timeout_ms)) == pdTRUE
+               ? APP_ERROR_NONE
+               : APP_ERROR_TIMEOUT;
+}
+
+static app_error_code_t adapter_set_safe_output(void *context) {
+    (void)context;
+    /* The documented shutdown-safe state is an inactive status LED. The pin is
+     * driven inactive before all three controls pins are reset to their default
+     * high-impedance GPIO state. */
+    const int inactive_level = !CONFIG_APP_LED_ACTIVE_LEVEL;
+    return gpio_set_level((gpio_num_t)CONFIG_APP_STATUS_LED_GPIO,
+                          (uint32_t)inactive_level) == ESP_OK
+               ? APP_ERROR_NONE
+               : APP_ERROR_INTERNAL;
+}
+
+static gpio_num_t pin_number(device_controls_pin_t pin) {
+    switch (pin) {
+    case DEVICE_CONTROLS_PIN_CONFIRM:
+        return (gpio_num_t)CONFIG_APP_CONFIRM_BUTTON_GPIO;
+    case DEVICE_CONTROLS_PIN_CANCEL:
+        return (gpio_num_t)CONFIG_APP_CANCEL_BUTTON_GPIO;
+    case DEVICE_CONTROLS_PIN_STATUS:
+    default:
+        return (gpio_num_t)CONFIG_APP_STATUS_LED_GPIO;
+    }
+}
+
+static app_error_code_t adapter_reset_pin(void *context, device_controls_pin_t pin) {
+    (void)context;
+    if (pin < DEVICE_CONTROLS_PIN_CONFIRM || pin > DEVICE_CONTROLS_PIN_STATUS) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    return gpio_reset_pin(pin_number(pin)) == ESP_OK ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
+}
+
+static void adapter_delete_confirmation_signal(void *context) {
+    (void)context;
+    if (confirmation_semaphore != NULL) {
+        vSemaphoreDelete(confirmation_semaphore);
+        confirmation_semaphore = NULL;
+    }
+}
+
+static void adapter_delete_stopped_signal(void *context) {
+    (void)context;
+    if (controls_stopped != NULL) {
+        vSemaphoreDelete(controls_stopped);
+        controls_stopped = NULL;
+    }
+}
+
+static device_controls_ops_t controls_operations(void) {
+    return (device_controls_ops_t){
+        .context = NULL,
+        .lock = adapter_lock,
+        .unlock = adapter_unlock,
+        .signal_confirmation = adapter_signal_confirmation,
+        .signal_stopped = adapter_signal_stopped,
+        .cancel_execution = adapter_cancel_execution,
+        .write_indicator = adapter_write_indicator,
+        .request_stop = adapter_request_stop,
+        .clear_stop_request = adapter_clear_stop_request,
+        .wait_stopped = adapter_wait_stopped,
+        .set_safe_output = adapter_set_safe_output,
+        .reset_pin = adapter_reset_pin,
+        .delete_confirmation_signal = adapter_delete_confirmation_signal,
+        .delete_stopped_signal = adapter_delete_stopped_signal,
+    };
+}
+
+static bool stop_requested(void) {
+    portENTER_CRITICAL(&controls_lock);
+    const bool requested = controls_stop_requested;
+    portEXIT_CRITICAL(&controls_lock);
+    return requested;
+}
+
+typedef struct {
+    bool confirmation_pressed;
+    bool cancel_pressed;
+} button_state_t;
+
+static app_error_code_t read_buttons(button_state_t *out_buttons) {
+    if (out_buttons == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const int confirmation_level =
+        gpio_get_level((gpio_num_t)CONFIG_APP_CONFIRM_BUTTON_GPIO);
+    const int cancel_level = gpio_get_level((gpio_num_t)CONFIG_APP_CANCEL_BUTTON_GPIO);
+    if ((confirmation_level != 0 && confirmation_level != 1) ||
+        (cancel_level != 0 && cancel_level != 1)) {
+        return APP_ERROR_IO;
+    }
+    out_buttons->confirmation_pressed =
+        device_controls_level_is_pressed(confirmation_level, CONFIG_APP_BUTTON_ACTIVE_LEVEL);
+    out_buttons->cancel_pressed =
+        device_controls_level_is_pressed(cancel_level, CONFIG_APP_BUTTON_ACTIVE_LEVEL);
+    return APP_ERROR_NONE;
+}
+
+static void log_controls_error(const char *operation, app_error_code_t error) {
+    ESP_LOGE(TAG, "%s failed: %s", operation, app_error_code_string(error));
 }
 
 static void controls_task(void *context) {
     (void)context;
-    device_controls_debounce_t confirm = {0};
-    device_controls_debounce_t cancel = {0};
-
     while (true) {
-        if (device_controls_debounce_update(
-                &confirm, button_pressed((gpio_num_t)CONFIG_APP_CONFIRM_BUTTON_GPIO))) {
-            if (xSemaphoreGive(confirmation_semaphore) != pdTRUE) {
-                device_controls_set_indicator(DEVICE_INDICATOR_FATAL);
-            }
+        button_state_t buttons = {0};
+        const app_error_code_t read_result = read_buttons(&buttons);
+        const uint64_t elapsed =
+            (uint64_t)xTaskGetTickCount() * (uint64_t)portTICK_PERIOD_MS;
+        const device_controls_poll_result_t result = device_controls_engine_poll(
+            &engine,
+            (device_controls_poll_input_t){
+                .confirmation_pressed = buttons.confirmation_pressed,
+                .cancel_pressed = buttons.cancel_pressed,
+                .stop_requested = stop_requested(),
+                .gpio_read_error = read_result,
+                .elapsed_ms = (uint32_t)elapsed,
+            });
+        if (result.error != APP_ERROR_NONE) {
+            log_controls_error("controls poll", result.error);
         }
-        if (device_controls_debounce_update(
-                &cancel, button_pressed((gpio_num_t)CONFIG_APP_CANCEL_BUTTON_GPIO))) {
-            const app_error_code_t result = macro_executor_cancel();
-            if (result != APP_ERROR_NONE && result != APP_ERROR_NOT_FOUND) {
-                device_controls_set_indicator(DEVICE_INDICATOR_FATAL);
-            }
-        }
-
-        const uint64_t elapsed = (uint64_t)xTaskGetTickCount() * (uint64_t)portTICK_PERIOD_MS;
-        const bool led_on = device_controls_indicator_on((device_indicator_phase_t){
-            .state = get_indicator_state(), .elapsed_ms = (uint32_t)elapsed});
-        const int level = led_on ? CONFIG_APP_LED_ACTIVE_LEVEL : !CONFIG_APP_LED_ACTIVE_LEVEL;
-        if (gpio_set_level((gpio_num_t)CONFIG_APP_STATUS_LED_GPIO, (uint32_t)level) != ESP_OK) {
-            portENTER_CRITICAL(&indicator_lock);
-            indicator_state = DEVICE_INDICATOR_FATAL;
-            portEXIT_CRITICAL(&indicator_lock);
+        if (!result.continue_running) {
+            break;
         }
         vTaskDelay(pdMS_TO_TICKS(CONTROL_POLL_MS));
     }
+    vTaskDelete(NULL);
 }
 
 static bool valid_gpio_number(int gpio) {
     return gpio >= 0 && gpio < GPIO_NUM_MAX;
 }
 
-app_error_code_t device_controls_init(void) {
-    if (!valid_gpio_number(CONFIG_APP_CONFIRM_BUTTON_GPIO) ||
-        !valid_gpio_number(CONFIG_APP_CANCEL_BUTTON_GPIO) ||
-        !valid_gpio_number(CONFIG_APP_STATUS_LED_GPIO) ||
-        (CONFIG_APP_BUTTON_ACTIVE_LEVEL != 0 && CONFIG_APP_BUTTON_ACTIVE_LEVEL != 1) ||
-        (CONFIG_APP_LED_ACTIVE_LEVEL != 0 && CONFIG_APP_LED_ACTIVE_LEVEL != 1) ||
-        CONFIG_APP_CONFIRM_BUTTON_GPIO == CONFIG_APP_CANCEL_BUTTON_GPIO ||
-        CONFIG_APP_CONFIRM_BUTTON_GPIO == CONFIG_APP_STATUS_LED_GPIO ||
-        CONFIG_APP_CANCEL_BUTTON_GPIO == CONFIG_APP_STATUS_LED_GPIO) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
+static bool configuration_valid(void) {
+    return valid_gpio_number(CONFIG_APP_CONFIRM_BUTTON_GPIO) &&
+           valid_gpio_number(CONFIG_APP_CANCEL_BUTTON_GPIO) &&
+           valid_gpio_number(CONFIG_APP_STATUS_LED_GPIO) &&
+           (CONFIG_APP_BUTTON_ACTIVE_LEVEL == 0 || CONFIG_APP_BUTTON_ACTIVE_LEVEL == 1) &&
+           (CONFIG_APP_LED_ACTIVE_LEVEL == 0 || CONFIG_APP_LED_ACTIVE_LEVEL == 1) &&
+           CONFIG_APP_CONFIRM_BUTTON_GPIO != CONFIG_APP_CANCEL_BUTTON_GPIO &&
+           CONFIG_APP_CONFIRM_BUTTON_GPIO != CONFIG_APP_STATUS_LED_GPIO &&
+           CONFIG_APP_CANCEL_BUTTON_GPIO != CONFIG_APP_STATUS_LED_GPIO;
+}
 
+static app_error_code_t acquire_resource(device_controls_resource_t resource) {
+    return device_controls_engine_acquire_resource(&engine, resource);
+}
+
+static app_error_code_t record_init_failure(app_error_code_t primary,
+                                            device_controls_failure_t failure) {
+    const app_error_code_t record =
+        device_controls_engine_record_failure(&engine, primary, failure, false);
+    if (record != primary) {
+        log_controls_error("record controls health", record);
+    }
+    const app_error_code_t cleanup =
+        device_controls_engine_deinit(&engine, CONTROLS_SHUTDOWN_WAIT_MS);
+    if (cleanup != APP_ERROR_NONE) {
+        log_controls_error("controls init cleanup", cleanup);
+    }
+    return primary;
+}
+
+static app_error_code_t configure_input_pins(void) {
+    app_error_code_t result = acquire_resource(DEVICE_CONTROLS_RESOURCE_CONFIRM_PIN);
+    if (result == APP_ERROR_NONE) {
+        result = acquire_resource(DEVICE_CONTROLS_RESOURCE_CANCEL_PIN);
+    }
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
     const uint64_t input_mask = (1ULL << (unsigned int)CONFIG_APP_CONFIRM_BUTTON_GPIO) |
                                 (1ULL << (unsigned int)CONFIG_APP_CANCEL_BUTTON_GPIO);
     const gpio_config_t input = {
@@ -92,6 +268,14 @@ app_error_code_t device_controls_init(void) {
             CONFIG_APP_BUTTON_ACTIVE_LEVEL == 1 ? GPIO_PULLDOWN_ENABLE : GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
+    return gpio_config(&input) == ESP_OK ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
+}
+
+static app_error_code_t configure_output_pin(void) {
+    app_error_code_t result = acquire_resource(DEVICE_CONTROLS_RESOURCE_STATUS_PIN);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
     const gpio_config_t output = {
         .pin_bit_mask = 1ULL << (unsigned int)CONFIG_APP_STATUS_LED_GPIO,
         .mode = GPIO_MODE_OUTPUT,
@@ -99,57 +283,140 @@ app_error_code_t device_controls_init(void) {
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
-    if (gpio_config(&input) != ESP_OK || gpio_config(&output) != ESP_OK) {
-        return APP_ERROR_INTERNAL;
-    }
+    return gpio_config(&output) == ESP_OK ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
+}
+
+static app_error_code_t create_signals(void) {
     confirmation_semaphore = xSemaphoreCreateBinary();
     if (confirmation_semaphore == NULL) {
         return APP_ERROR_INTERNAL;
     }
-    if (xTaskCreate(controls_task, "controls", 2048U, NULL, CONTROLS_TASK_PRIORITY,
-                    &controls_task_handle) != pdPASS) {
-        controls_task_handle = NULL;
+    app_error_code_t result = acquire_resource(DEVICE_CONTROLS_RESOURCE_CONFIRM_SIGNAL);
+    if (result != APP_ERROR_NONE) {
         vSemaphoreDelete(confirmation_semaphore);
         confirmation_semaphore = NULL;
+        return result;
+    }
+
+    controls_stopped = xSemaphoreCreateBinary();
+    if (controls_stopped == NULL) {
         return APP_ERROR_INTERNAL;
+    }
+    result = acquire_resource(DEVICE_CONTROLS_RESOURCE_STOPPED_SIGNAL);
+    if (result != APP_ERROR_NONE) {
+        vSemaphoreDelete(controls_stopped);
+        controls_stopped = NULL;
+    }
+    return result;
+}
+
+static device_indicator_state_t pending_indicator(void) {
+    portENTER_CRITICAL(&controls_lock);
+    const device_indicator_state_t state = requested_indicator_state;
+    portEXIT_CRITICAL(&controls_lock);
+    return state;
+}
+
+app_error_code_t device_controls_init(void) {
+    if (controls_task_handle != NULL || confirmation_semaphore != NULL ||
+        controls_stopped != NULL || engine.initialized ||
+        device_controls_engine_owns_resources(&engine)) {
+        return APP_ERROR_CONFLICT;
+    }
+
+    const device_controls_ops_t operations = controls_operations();
+    app_error_code_t result = device_controls_engine_init(&engine, &operations);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    if (!configuration_valid()) {
+        return record_init_failure(
+            APP_ERROR_INVALID_ARGUMENT, DEVICE_CONTROLS_FAILURE_GPIO_CONFIGURATION);
+    }
+
+    result = configure_input_pins();
+    if (result != APP_ERROR_NONE) {
+        return record_init_failure(result, DEVICE_CONTROLS_FAILURE_GPIO_CONFIGURATION);
+    }
+    result = configure_output_pin();
+    if (result != APP_ERROR_NONE) {
+        return record_init_failure(result, DEVICE_CONTROLS_FAILURE_GPIO_CONFIGURATION);
+    }
+    result = adapter_set_safe_output(NULL);
+    if (result != APP_ERROR_NONE) {
+        return record_init_failure(result, DEVICE_CONTROLS_FAILURE_INDICATOR);
+    }
+    result = create_signals();
+    if (result != APP_ERROR_NONE) {
+        return record_init_failure(result, DEVICE_CONTROLS_FAILURE_GENERIC);
+    }
+    result = device_controls_engine_set_indicator(&engine, pending_indicator());
+    if (result != APP_ERROR_NONE) {
+        return record_init_failure(result, DEVICE_CONTROLS_FAILURE_GENERIC);
+    }
+
+    if (xTaskCreate(controls_task,
+                    "controls",
+                    2048U,
+                    NULL,
+                    CONTROLS_TASK_PRIORITY,
+                    &controls_task_handle) != pdPASS) {
+        controls_task_handle = NULL;
+        return record_init_failure(APP_ERROR_INTERNAL, DEVICE_CONTROLS_FAILURE_TASK_START);
+    }
+    result = device_controls_engine_task_started(&engine);
+    if (result != APP_ERROR_NONE) {
+        return record_init_failure(result, DEVICE_CONTROLS_FAILURE_TASK_START);
     }
     return APP_ERROR_NONE;
 }
 
 app_error_code_t device_controls_deinit(void) {
-    if (confirmation_semaphore == NULL) {
+    if (!engine.initialized && !device_controls_engine_owns_resources(&engine) &&
+        controls_task_handle == NULL && confirmation_semaphore == NULL &&
+        controls_stopped == NULL) {
         return APP_ERROR_NONE;
     }
-    /* Stop the polling task before deleting the semaphore and resetting the GPIOs
-     * it uses, so it cannot touch a freed handle or a released pin. */
-    if (controls_task_handle != NULL) {
-        vTaskDelete(controls_task_handle);
+    const app_error_code_t result =
+        device_controls_engine_deinit(&engine, CONTROLS_SHUTDOWN_WAIT_MS);
+    if (device_controls_engine_task_stop_confirmed(&engine)) {
         controls_task_handle = NULL;
     }
-    vSemaphoreDelete(confirmation_semaphore);
-    confirmation_semaphore = NULL;
-
-    app_error_code_t result = APP_ERROR_NONE;
-    if (gpio_reset_pin((gpio_num_t)CONFIG_APP_CONFIRM_BUTTON_GPIO) != ESP_OK ||
-        gpio_reset_pin((gpio_num_t)CONFIG_APP_CANCEL_BUTTON_GPIO) != ESP_OK ||
-        gpio_reset_pin((gpio_num_t)CONFIG_APP_STATUS_LED_GPIO) != ESP_OK) {
-        result = APP_ERROR_INTERNAL;
+    if (result != APP_ERROR_NONE) {
+        log_controls_error("controls deinit", result);
     }
-    device_controls_set_indicator(DEVICE_INDICATOR_BOOTING);
     return result;
 }
 
 void device_controls_set_indicator(device_indicator_state_t state) {
-    portENTER_CRITICAL(&indicator_lock);
-    indicator_state = state;
-    portEXIT_CRITICAL(&indicator_lock);
+    if (state < DEVICE_INDICATOR_BOOTING || state > DEVICE_INDICATOR_FATAL) {
+        ESP_LOGE(TAG, "invalid indicator state: %d", (int)state);
+        return;
+    }
+    portENTER_CRITICAL(&controls_lock);
+    requested_indicator_state = state;
+    portEXIT_CRITICAL(&controls_lock);
+    if (engine.initialized) {
+        const app_error_code_t result = device_controls_engine_set_indicator(&engine, state);
+        if (result != APP_ERROR_NONE) {
+            log_controls_error("set indicator", result);
+        }
+    }
 }
 
 app_error_code_t device_controls_wait_for_confirmation(unsigned int timeout_ms) {
     if (confirmation_semaphore == NULL || timeout_ms == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
+    const device_controls_health_t health = device_controls_engine_get_health(&engine);
+    if (!health.task_running || stop_requested()) {
+        return APP_ERROR_CONFLICT;
+    }
     return xSemaphoreTake(confirmation_semaphore, pdMS_TO_TICKS(timeout_ms)) == pdTRUE
                ? APP_ERROR_NONE
                : APP_ERROR_TIMEOUT;
+}
+
+device_controls_health_t device_controls_get_health(void) {
+    return device_controls_engine_get_health(&engine);
 }
