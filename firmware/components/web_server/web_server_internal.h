@@ -1,6 +1,7 @@
 #ifndef WEB_SERVER_INTERNAL_H
 #define WEB_SERVER_INTERNAL_H
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #include "app_error.h"
@@ -49,5 +50,6 @@ esp_err_t setup_restart_handler(httpd_req_t *request);
 
 app_error_code_t web_server_setup_init(const web_server_config_t *configuration);
 app_error_code_t web_server_setup_deinit(void);
+bool web_server_setup_owns_resources(void);
 
 #endif
