@@ -38,6 +38,7 @@ jobs:
           git apply "${RUNNER_TEMP}/phase14-evidence.patch"
           git diff --check
       - name: Validate documentation with concise diagnostics
+        id: docs
         shell: bash
         run: |
           set +e
@@ -46,6 +47,14 @@ jobs:
           set -e
           cat "${RUNNER_TEMP}/docs-check.log"
           exit "${status}"
+      - name: Preserve documentation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase14-evidence-docs-check
+          path: ${{ runner.temp }}/docs-check.log
+          if-no-files-found: warn
+          retention-days: 1
       - name: Commit evidence
         run: |
           git config user.name "github-actions[bot]"
