@@ -43,7 +43,8 @@ expect_fail() {
 valid_config='CONFIG_IDF_TARGET="esp32s3"
 CONFIG_NVS_ENCRYPTION=y
 CONFIG_NVS_SEC_KEY_PROTECT_USING_HMAC=y
-CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID=0'
+CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID=0
+# CONFIG_APP_MANUFACTURING_PROVISIONING_LOG is not set'
 
 write_fixture "${valid_config}"
 expect_pass 'valid HMAC configuration'
@@ -70,5 +71,13 @@ expect_fail 'invalid key block' "must be '0'"
 
 write_fixture "${valid_config}"$'\nCONFIG_NVS_ENCRYPTION=y'
 expect_fail 'duplicate setting' 'duplicate setting CONFIG_NVS_ENCRYPTION'
+
+manufacturing_config="${valid_config/# CONFIG_APP_MANUFACTURING_PROVISIONING_LOG is not set/"
+manufacturing_config+="CONFIG_APP_MANUFACTURING_PROVISIONING_LOG=y}"
+write_fixture "${manufacturing_config}"
+expect_fail 'manufacturing credential logging' 'is forbidden in production configuration'
+
+write_fixture "${valid_config}"$'\nCONFIG_APP_DEVELOPMENT_PROVISIONING_LOG=y'
+expect_fail 'legacy credential logging' 'is forbidden in production configuration'
 
 printf 'check-production-config regression tests passed: %d\n' "${pass_count}"
