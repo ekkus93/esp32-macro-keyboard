@@ -1,0 +1,36 @@
+name: Phase 14 quality diagnosis
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Install lint dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clang-format jq libcjson-dev shellcheck
+          python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
+          go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          npm ci --prefix webapp
+      - name: Validate formatting
+        run: ./scripts/check-format.sh
+      - name: Validate static-analysis policy
+        run: ./scripts/check-static-analysis-policy.sh
+      - name: Validate scripts
+        run: ./scripts/check-scripts.sh
+      - name: Validate documentation
+        run: ./scripts/check-docs.sh
