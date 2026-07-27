@@ -6,7 +6,6 @@
 #include "storage_repository.h"
 
 app_error_code_t storage_macro_read_locked(const storage_macro_location_t *location,
-                                           const app_uuid_t *macro_id,
-                                           macro_t *out_macro);
+                                           const app_uuid_t *macro_id, macro_t *out_macro);
 
 #endif

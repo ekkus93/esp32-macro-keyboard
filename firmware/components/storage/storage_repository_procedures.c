@@ -48,14 +48,12 @@ static app_error_code_t verify_set_exists(const app_uuid_t *set_id) {
 }
 
 static app_error_code_t procedure_file_path(const app_uuid_t *set_id,
-                                            const app_uuid_t *procedure_id,
-                                            char *path,
+                                            const app_uuid_t *procedure_id, char *path,
                                             size_t path_size) {
     return storage_make_procedure_path(set_id, procedure_id, path, path_size);
 }
 
-static app_error_code_t procedure_order_path(const app_uuid_t *set_id,
-                                             char *path,
+static app_error_code_t procedure_order_path(const app_uuid_t *set_id, char *path,
                                              size_t path_size) {
     return storage_make_procedure_order_path(set_id, path, path_size);
 }
@@ -79,8 +77,7 @@ static app_error_code_t write_procedure_order(const app_uuid_t *set_id,
 }
 
 static app_error_code_t read_macro_candidate(const storage_macro_location_t *location,
-                                             const app_uuid_t *macro_id,
-                                             bool *out_exists) {
+                                             const app_uuid_t *macro_id, bool *out_exists) {
     macro_t macro = {0};
     const app_error_code_t result = storage_macro_read_locked(location, macro_id, &macro);
     if (result == APP_ERROR_NONE) {
@@ -158,21 +155,19 @@ static app_error_code_t procedure_read_object_locked(const app_uuid_t *set_id,
     }
     memset(out_procedure, 0, sizeof(*out_procedure));
     char path[APP_PATH_MAX_BYTES];
-    app_error_code_t result =
-        procedure_file_path(set_id, procedure_id, path, sizeof(path));
+    app_error_code_t result = procedure_file_path(set_id, procedure_id, path, sizeof(path));
     char *data = NULL;
     size_t length = 0U;
     if (result == APP_ERROR_NONE) {
-        result = storage_repository_read_bounded_file(
-            path, STORAGE_PROCEDURE_FILE_MAX_BYTES, &data, &length);
+        result = storage_repository_read_bounded_file(path, STORAGE_PROCEDURE_FILE_MAX_BYTES, &data,
+                                                      &length);
     }
     if (result == APP_ERROR_NONE) {
         result = storage_repository_parse_procedure_json(data, length, out_procedure);
     }
     free(data);
-    if (result == APP_ERROR_NONE &&
-        (!app_uuid_equal(procedure_id, &out_procedure->id) ||
-         !procedure_matches_set(out_procedure, set_id))) {
+    if (result == APP_ERROR_NONE && (!app_uuid_equal(procedure_id, &out_procedure->id) ||
+                                     !procedure_matches_set(out_procedure, set_id))) {
         macro_model_free_procedure(out_procedure);
         memset(out_procedure, 0, sizeof(*out_procedure));
         result = APP_ERROR_STORAGE_CORRUPT;
@@ -195,8 +190,7 @@ static app_error_code_t procedure_read_object_locked(const app_uuid_t *set_id,
 }
 
 static app_error_code_t procedure_order_index(const app_uuid_t *set_id,
-                                              const app_uuid_t *procedure_id,
-                                              size_t *out_index) {
+                                              const app_uuid_t *procedure_id, size_t *out_index) {
     storage_uuid_order_t order = {0};
     const app_error_code_t result = load_procedure_order(set_id, &order);
     if (result != APP_ERROR_NONE) {
@@ -213,8 +207,7 @@ static app_error_code_t procedure_read_locked(const app_uuid_t *set_id,
     if (out_procedure == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    app_error_code_t result =
-        procedure_read_object_locked(set_id, procedure_id, out_procedure);
+    app_error_code_t result = procedure_read_object_locked(set_id, procedure_id, out_procedure);
     size_t index = 0U;
     if (result == APP_ERROR_NONE) {
         result = procedure_order_index(set_id, procedure_id, &index);
@@ -318,8 +311,7 @@ static app_error_code_t procedure_create_locked(const app_uuid_t *set_id,
     if (errno != ENOENT) {
         return storage_repository_map_file_error();
     }
-    result = storage_repository_order_append(&order, APP_PROCEDURES_PER_SET_MAX,
-                                             &procedure->id);
+    result = storage_repository_order_append(&order, APP_PROCEDURES_PER_SET_MAX, &procedure->id);
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -346,8 +338,7 @@ static app_error_code_t procedure_update_locked(const app_uuid_t *set_id,
     }
     memset(out_updated, 0, sizeof(*out_updated));
     procedure_t current = {0};
-    app_error_code_t result =
-        procedure_read_locked(set_id, &replacement->id, &current);
+    app_error_code_t result = procedure_read_locked(set_id, &replacement->id, &current);
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -412,8 +403,7 @@ static app_error_code_t procedure_delete_locked(const app_uuid_t *set_id,
 }
 
 static app_error_code_t procedure_reorder_locked(const app_uuid_t *set_id,
-                                                 const app_uuid_t *ordered_ids,
-                                                 size_t count) {
+                                                 const app_uuid_t *ordered_ids, size_t count) {
     if (set_id == NULL || !app_uuid_is_valid_string(set_id->value) ||
         (ordered_ids == NULL && count != 0U) || count > APP_PROCEDURES_PER_SET_MAX) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -429,8 +419,8 @@ static app_error_code_t procedure_reorder_locked(const app_uuid_t *set_id,
     }
     char *probe = NULL;
     size_t probe_length = 0U;
-    result = storage_repository_serialize_order_json(
-        &replacement, APP_PROCEDURES_PER_SET_MAX, &probe, &probe_length);
+    result = storage_repository_serialize_order_json(&replacement, APP_PROCEDURES_PER_SET_MAX,
+                                                     &probe, &probe_length);
     cJSON_free(probe);
     if (result != APP_ERROR_NONE) {
         return result;
@@ -463,8 +453,7 @@ void storage_procedure_list_free(storage_procedure_list_t *list) {
     memset(list, 0, sizeof(*list));
 }
 
-app_error_code_t storage_procedure_create(const app_uuid_t *set_id,
-                                          const procedure_t *procedure) {
+app_error_code_t storage_procedure_create(const app_uuid_t *set_id, const procedure_t *procedure) {
     const app_error_code_t lock = storage_repository_lock_take();
     if (lock != APP_ERROR_NONE) {
         return lock;
@@ -474,23 +463,19 @@ app_error_code_t storage_procedure_create(const app_uuid_t *set_id,
     return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }
 
-app_error_code_t storage_procedure_read(const app_uuid_t *set_id,
-                                        const app_uuid_t *procedure_id,
+app_error_code_t storage_procedure_read(const app_uuid_t *set_id, const app_uuid_t *procedure_id,
                                         procedure_t *out_procedure) {
     const app_error_code_t lock = storage_repository_lock_take();
     if (lock != APP_ERROR_NONE) {
         return lock;
     }
-    const app_error_code_t result =
-        procedure_read_locked(set_id, procedure_id, out_procedure);
+    const app_error_code_t result = procedure_read_locked(set_id, procedure_id, out_procedure);
     const app_error_code_t unlock = storage_repository_lock_give();
     return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }
 
-app_error_code_t storage_procedure_update(const app_uuid_t *set_id,
-                                          const procedure_t *replacement,
-                                          uint32_t expected_revision,
-                                          procedure_t *out_updated) {
+app_error_code_t storage_procedure_update(const app_uuid_t *set_id, const procedure_t *replacement,
+                                          uint32_t expected_revision, procedure_t *out_updated) {
     const app_error_code_t lock = storage_repository_lock_take();
     if (lock != APP_ERROR_NONE) {
         return lock;
@@ -501,8 +486,7 @@ app_error_code_t storage_procedure_update(const app_uuid_t *set_id,
     return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }
 
-app_error_code_t storage_procedure_delete(const app_uuid_t *set_id,
-                                          const app_uuid_t *procedure_id,
+app_error_code_t storage_procedure_delete(const app_uuid_t *set_id, const app_uuid_t *procedure_id,
                                           uint32_t expected_revision) {
     const app_error_code_t lock = storage_repository_lock_take();
     if (lock != APP_ERROR_NONE) {
@@ -514,8 +498,7 @@ app_error_code_t storage_procedure_delete(const app_uuid_t *set_id,
     return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }
 
-app_error_code_t storage_procedure_reorder(const app_uuid_t *set_id,
-                                           const app_uuid_t *ordered_ids,
+app_error_code_t storage_procedure_reorder(const app_uuid_t *set_id, const app_uuid_t *ordered_ids,
                                            size_t count) {
     const app_error_code_t lock = storage_repository_lock_take();
     if (lock != APP_ERROR_NONE) {

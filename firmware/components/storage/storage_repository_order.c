@@ -13,14 +13,14 @@
 #include "storage_repository_objects_json.h"
 
 app_error_code_t storage_repository_load_order_locked(const char *path, size_t maximum_count,
-                                                       storage_uuid_order_t *out_order) {
+                                                      storage_uuid_order_t *out_order) {
     if (path == NULL || out_order == NULL || maximum_count > STORAGE_ORDER_MAX_IDS) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     char *data = NULL;
     size_t length = 0U;
-    app_error_code_t result = storage_repository_read_bounded_file(
-        path, STORAGE_ORDER_FILE_MAX_BYTES, &data, &length);
+    app_error_code_t result =
+        storage_repository_read_bounded_file(path, STORAGE_ORDER_FILE_MAX_BYTES, &data, &length);
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -36,7 +36,7 @@ app_error_code_t storage_repository_load_order_locked(const char *path, size_t m
 }
 
 app_error_code_t storage_repository_write_order_locked(const char *path, size_t maximum_count,
-                                                        const storage_uuid_order_t *order) {
+                                                       const storage_uuid_order_t *order) {
     if (path == NULL || order == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -71,7 +71,7 @@ bool storage_repository_order_contains(const storage_uuid_order_t *order, const 
 }
 
 app_error_code_t storage_repository_order_append(storage_uuid_order_t *order, size_t maximum_count,
-                                                  const app_uuid_t *id) {
+                                                 const app_uuid_t *id) {
     if (order == NULL || id == NULL || maximum_count > STORAGE_ORDER_MAX_IDS ||
         !app_uuid_is_valid_string(id->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -88,7 +88,7 @@ app_error_code_t storage_repository_order_append(storage_uuid_order_t *order, si
 }
 
 app_error_code_t storage_repository_order_remove(storage_uuid_order_t *order,
-                                                  const app_uuid_t *id) {
+                                                 const app_uuid_t *id) {
     if (order == NULL || id == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }

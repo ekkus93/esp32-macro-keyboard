@@ -12,7 +12,6 @@
 
 #define STORAGE_JSON_MAX_FIELDS 64U
 
-
 static bool contains_embedded_nul_escape(const char *data, size_t length) {
     static const char NUL_ESCAPE[] = "\\u0000";
     const size_t escape_length = sizeof(NUL_ESCAPE) - 1U;
@@ -27,8 +26,8 @@ static bool contains_embedded_nul_escape(const char *data, size_t length) {
     return false;
 }
 
-static bool field_name_allowed(const char *name, const char *const *field_names,
-                               size_t field_count, size_t *out_index) {
+static bool field_name_allowed(const char *name, const char *const *field_names, size_t field_count,
+                               size_t *out_index) {
     if (name == NULL) {
         return false;
     }
@@ -95,8 +94,8 @@ app_error_code_t storage_json_parse_object_fields(const char *data, size_t lengt
 }
 
 app_error_code_t storage_json_parse_exact_object(const char *data, size_t length,
-                                                 const char *const *field_names,
-                                                 size_t field_count, cJSON **out_root) {
+                                                 const char *const *field_names, size_t field_count,
+                                                 cJSON **out_root) {
     return storage_json_parse_object_fields(data, length, field_names, field_count, field_count,
                                             out_root);
 }

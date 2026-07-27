@@ -18,23 +18,22 @@ typedef struct {
 } storage_uuid_order_t;
 
 app_error_code_t storage_repository_parse_macro_json(const char *data, size_t length,
-                                                      macro_t *out_macro);
+                                                     macro_t *out_macro);
 app_error_code_t storage_repository_serialize_macro_json(const macro_t *macro, char **out_json,
-                                                          size_t *out_length);
+                                                         size_t *out_length);
 app_error_code_t storage_repository_parse_procedure_json(const char *data, size_t length,
-                                                          procedure_t *out_procedure);
+                                                         procedure_t *out_procedure);
 app_error_code_t storage_repository_serialize_procedure_json(const procedure_t *procedure,
-                                                              char **out_json,
-                                                              size_t *out_length);
+                                                             char **out_json, size_t *out_length);
 app_error_code_t storage_repository_parse_progress_json(const char *data, size_t length,
-                                                         procedure_progress_t *out_progress);
-app_error_code_t storage_repository_serialize_progress_json(
-    const procedure_progress_t *progress, char **out_json, size_t *out_length);
+                                                        procedure_progress_t *out_progress);
+app_error_code_t storage_repository_serialize_progress_json(const procedure_progress_t *progress,
+                                                            char **out_json, size_t *out_length);
 app_error_code_t storage_repository_parse_order_json(const char *data, size_t length,
-                                                      size_t maximum_count,
-                                                      storage_uuid_order_t *out_order);
+                                                     size_t maximum_count,
+                                                     storage_uuid_order_t *out_order);
 app_error_code_t storage_repository_serialize_order_json(const storage_uuid_order_t *order,
-                                                          size_t maximum_count, char **out_json,
-                                                          size_t *out_length);
+                                                         size_t maximum_count, char **out_json,
+                                                         size_t *out_length);
 
 #endif

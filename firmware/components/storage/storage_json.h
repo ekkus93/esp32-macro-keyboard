@@ -14,8 +14,8 @@ app_error_code_t storage_json_parse_object_fields(const char *data, size_t lengt
                                                   size_t field_count, size_t required_count,
                                                   cJSON **out_root);
 app_error_code_t storage_json_parse_exact_object(const char *data, size_t length,
-                                                 const char *const *field_names,
-                                                 size_t field_count, cJSON **out_root);
+                                                 const char *const *field_names, size_t field_count,
+                                                 cJSON **out_root);
 app_error_code_t storage_json_get_string(const cJSON *object, const char *name, char *destination,
                                          size_t destination_size, bool require_nonempty);
 app_error_code_t storage_json_get_allocated_string(const cJSON *object, const char *name,
