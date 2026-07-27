@@ -1,0 +1,110 @@
+name: Apply Phase 14 analyzer fixes
+
+on:
+  push:
+    paths:
+      - .github/workflows/apply-phase14-analyzer-fixes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - name: Install host validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clang-format libcjson-dev
+      - name: Apply reviewed analyzer fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("firmware/components/web_server/web_setup_json.c")
+          source = path.read_text(encoding="utf-8")
+          old = '''static void wipe_json_tree(const web_setup_json_ops_t *operations, cJSON *item) {
+              for (cJSON *current = item; current != NULL; current = current->next) {
+                  if (current->string != NULL) {
+                      operations->secure_zero(operations->context, current->string,
+                                              strlen(current->string) + 1U);
+                  }
+                  if (cJSON_IsString(current) && current->valuestring != NULL) {
+                      operations->secure_zero(operations->context, current->valuestring,
+                                              strlen(current->valuestring) + 1U);
+                  }
+                  if (current->child != NULL) {
+                      wipe_json_tree(operations, current->child);
+                  }
+              }
+          }
+          '''
+          new = '''static void wipe_json_tree(const web_setup_json_ops_t *operations, cJSON *item) {
+              for (cJSON *current = item; current != NULL; current = current->next) {
+                  if (current->string != NULL) {
+                      operations->secure_zero(operations->context, current->string,
+                                              strlen(current->string) + 1U);
+                  }
+                  if (cJSON_IsString(current) && current->valuestring != NULL) {
+                      operations->secure_zero(operations->context, current->valuestring,
+                                              strlen(current->valuestring) + 1U);
+                  }
+                  if (current->child != NULL) {
+                      cJSON *child = current->child;
+                      cJSON *child_tail = child;
+                      while (child_tail->next != NULL) {
+                          child_tail = child_tail->next;
+                      }
+                      child_tail->next = current->next;
+                      if (current->next != NULL) {
+                          current->next->prev = child_tail;
+                      }
+                      current->next = child;
+                      child->prev = current;
+                      current->child = NULL;
+                  }
+              }
+          }
+          '''
+          if source.count(old) != 1:
+              raise SystemExit("expected exactly one recursive wipe helper")
+          path.write_text(source.replace(old, new), encoding="utf-8")
+
+          path = Path("firmware/components/device_controls/device_controls_logic.c")
+          source = path.read_text(encoding="utf-8")
+          needle = '#include "device_controls.h"\n'
+          if source.count(needle) != 1 or '#include "app_error.h"' in source:
+              raise SystemExit("unexpected device-controls include state")
+          path.write_text(source.replace(needle, '#include "app_error.h"\n' + needle), encoding="utf-8")
+
+          path = Path("firmware/components/web_server/web_server_setup.c")
+          source = path.read_text(encoding="utf-8")
+          needle = '#include "web_origin.h"\n'
+          if source.count(needle) != 1 or '#include "web_server.h"' in source:
+              raise SystemExit("unexpected setup-server include state")
+          path.write_text(source.replace(needle, needle + '#include "web_server.h"\n'), encoding="utf-8")
+          PY
+          clang-format -i \
+            firmware/components/web_server/web_setup_json.c \
+            firmware/components/device_controls/device_controls_logic.c \
+            firmware/components/web_server/web_server_setup.c
+          git diff --check
+      - name: Run affected host suites
+        run: |
+          ./scripts/run-tests.sh web
+          ./scripts/run-tests.sh controls
+          ./scripts/run-tests.sh --sanitizers web
+          ./scripts/run-tests.sh --sanitizers controls
+      - name: Commit analyzer fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            firmware/components/web_server/web_setup_json.c \
+            firmware/components/device_controls/device_controls_logic.c \
+            firmware/components/web_server/web_server_setup.c
+          git commit -m "fix(phase14): satisfy strict production analysis"
+          git push origin HEAD:master
