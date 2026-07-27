@@ -19,7 +19,8 @@ jobs:
       - name: Reconstruct and verify reviewed patch
         shell: bash
         run: |
-          base64 --decode docs/review-source/PHASE15_2_HARDENING.patch.gz.b64 \
+          cat docs/review-source/phase15-2-hardening-v2.part.* \
+            | base64 --decode \
             | gzip --decompress >"${RUNNER_TEMP}/phase15-2-hardening.patch"
           printf '%s  %s\n' \
             '496e74e01e7fe1adc5210390f05638c767a8d648313b951e93969f6180460b95' \
