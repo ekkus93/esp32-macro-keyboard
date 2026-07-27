@@ -25,8 +25,13 @@ config APP_LED_ACTIVE_LEVEL
     range 0 1
     default 1
 
-config APP_DEVELOPMENT_PROVISIONING_LOG
-    bool "Allow one-time provisioning credentials on UART"
+config APP_MANUFACTURING_PROVISIONING_LOG
+    bool "MANUFACTURING ONLY: print one-time provisioning credentials"
     default n
+    help
+        Enables an irreversible-warning UART banner followed by one-time AP and
+        administrator credentials for controlled factory bring-up. Production
+        and ordinary development builds must leave this disabled. The release
+        configuration gate rejects any build with this option enabled.
 
 endmenu
