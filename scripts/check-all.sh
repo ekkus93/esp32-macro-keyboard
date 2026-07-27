@@ -11,6 +11,7 @@ cd "${repo_root}"
 ./scripts/check-partitions.sh
 bash ./scripts/check-production-config.sh
 bash ./scripts/check-credential-logging.sh
+bash ./scripts/check-setup-route-isolation.sh
 ./scripts/check-firmware.sh
 ./scripts/check-webapp.sh
 ./scripts/check-scripts.sh
