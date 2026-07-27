@@ -16,14 +16,14 @@ write_valid_fixture() {
 	cat >"${temporary_dir}/firmware/components/app_core/app_core.c" <<'SOURCE'
 static void log_credentials(const char *ssid,
                             const char *passphrase,
-                            const char *password) {
+                            const char *setup_code) {
 #if CONFIG_APP_MANUFACTURING_PROVISIONING_LOG
     ESP_LOGE(TAG,
              "MANUFACTURING MODE ENABLED: plaintext one-time credentials follow; "
              "never deploy this build");
     ESP_LOGW(TAG, "manufacturing-only AP SSID: %s", ssid);
     ESP_LOGW(TAG, "manufacturing-only AP passphrase: %s", passphrase);
-    ESP_LOGW(TAG, "manufacturing-only web password: %s", password);
+    ESP_LOGW(TAG, "manufacturing-only setup code: %s", setup_code);
 #else
     ESP_LOGE(TAG, "credential log event rejected outside manufacturing mode");
 #endif
@@ -91,12 +91,12 @@ sed -i 's/MANUFACTURING MODE ENABLED/FACTORY MODE/' \
 expect_fail 'missing warning' 'missing permanent manufacturing warning banner'
 
 write_valid_fixture
-sed -i 's/manufacturing-only web password/manufacturing-only API token/' \
+sed -i 's/manufacturing-only setup code/manufacturing-only API token/' \
 	"${temporary_dir}/firmware/components/app_core/app_core.c"
 expect_fail 'unapproved message' 'unapproved manufacturing credential output'
 
 write_valid_fixture
-printf '%s\n' 'ESP_LOGI(TAG, "web password: %s", password);' \
+printf '%s\n' 'ESP_LOGI(TAG, "setup code: %s", setup_code);' \
 	>>"${temporary_dir}/firmware/components/app_core/app_core.c"
 expect_fail 'output outside guard' 'credential-bearing output exists outside manufacturing guard'
 
