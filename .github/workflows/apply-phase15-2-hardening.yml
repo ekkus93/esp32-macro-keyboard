@@ -19,7 +19,7 @@ jobs:
       - name: Assemble reviewed patch transport
         shell: bash
         run: |
-          cat docs/review-source/phase15-2-full-analysis-v3.part.* \
+          cat docs/review-source/phase15-2-analysis-final.part.* \
             >"${RUNNER_TEMP}/phase15-2-hardening.b64"
           sha256sum "${RUNNER_TEMP}/phase15-2-hardening.b64" \
             >"${RUNNER_TEMP}/phase15-2-hardening.b64.sha256"
