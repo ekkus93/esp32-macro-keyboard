@@ -12,19 +12,29 @@
 #include "provisioning.h"
 #include "wifi_ap.h"
 
+#define WIRE_UINT32_BYTES 4U
+#define WIRE_BOOLEAN_COUNT 4U
 #define WIRE_MAGIC_OFFSET 0U
 #define WIRE_SCHEMA_OFFSET 4U
 #define WIRE_REVISION_OFFSET 8U
 #define WIRE_CREDENTIAL_VERSION_OFFSET 12U
 #define WIRE_FLAGS_OFFSET 16U
-#define WIRE_SSID_OFFSET 20U
+#define WIRE_SSID_OFFSET (WIRE_FLAGS_OFFSET + WIRE_BOOLEAN_COUNT)
 #define WIRE_PASSPHRASE_OFFSET (WIRE_SSID_OFFSET + WIFI_AP_SSID_MAX_BYTES + 1U)
 #define WIRE_SALT_OFFSET (WIRE_PASSPHRASE_OFFSET + WIFI_AP_PASSPHRASE_MAX_BYTES + 1U)
 #define WIRE_HASH_OFFSET (WIRE_SALT_OFFSET + AUTH_SALT_BYTES)
 #define WIRE_ITERATIONS_OFFSET (WIRE_HASH_OFFSET + AUTH_HASH_BYTES)
-#define WIRE_ACTIVE_SET_OFFSET (WIRE_ITERATIONS_OFFSET + 4U)
+#define WIRE_ACTIVE_SET_OFFSET (WIRE_ITERATIONS_OFFSET + WIRE_UINT32_BYTES)
+#define U32_BYTE_MASK UINT32_C(0xff)
+#define U32_BYTE_ONE_SHIFT 8U
+#define U32_BYTE_TWO_SHIFT 16U
+#define U32_BYTE_THREE_SHIFT 24U
 
-static const uint8_t RECORD_MAGIC[4] = {'P', 'R', 'O', 'V'};
+_Static_assert(WIRE_ACTIVE_SET_OFFSET + APP_UUID_BUFFER_LENGTH ==
+                   PROVISIONING_RECORD_BYTES,
+               "provisioning wire layout must match the fixed record size");
+
+static const uint8_t RECORD_MAGIC[WIRE_UINT32_BYTES] = {'P', 'R', 'O', 'V'};
 
 static bool operations_valid(const provisioning_ops_t *operations) {
     return operations != NULL && operations->read_blob != NULL &&
@@ -33,30 +43,20 @@ static bool operations_valid(const provisioning_ops_t *operations) {
 }
 
 static void put_u32(uint8_t *output, size_t offset, uint32_t value) {
-    output[offset] = (uint8_t)(value & 0xffU);
-    output[offset + 1U] = (uint8_t)((value >> 8U) & 0xffU);
-    output[offset + 2U] = (uint8_t)((value >> 16U) & 0xffU);
-    output[offset + 3U] = (uint8_t)((value >> 24U) & 0xffU);
+    output[offset] = (uint8_t)(value & U32_BYTE_MASK);
+    output[offset + 1U] =
+        (uint8_t)((value >> U32_BYTE_ONE_SHIFT) & U32_BYTE_MASK);
+    output[offset + 2U] =
+        (uint8_t)((value >> U32_BYTE_TWO_SHIFT) & U32_BYTE_MASK);
+    output[offset + 3U] =
+        (uint8_t)((value >> U32_BYTE_THREE_SHIFT) & U32_BYTE_MASK);
 }
 
 static uint32_t get_u32(const uint8_t *input, size_t offset) {
     return (uint32_t)input[offset] |
-           ((uint32_t)input[offset + 1U] << 8U) |
-           ((uint32_t)input[offset + 2U] << 16U) |
-           ((uint32_t)input[offset + 3U] << 24U);
-}
-
-static bool bounded_length(const char *text, size_t maximum, size_t *out_length) {
-    if (text == NULL || out_length == NULL) {
-        return false;
-    }
-    for (size_t index = 0U; index <= maximum; ++index) {
-        if (text[index] == '\0') {
-            *out_length = index;
-            return true;
-        }
-    }
-    return false;
+           ((uint32_t)input[offset + 1U] << U32_BYTE_ONE_SHIFT) |
+           ((uint32_t)input[offset + 2U] << U32_BYTE_TWO_SHIFT) |
+           ((uint32_t)input[offset + 3U] << U32_BYTE_THREE_SHIFT);
 }
 
 static bool all_zero(const void *memory, size_t size) {
@@ -69,6 +69,25 @@ static bool all_zero(const void *memory, size_t size) {
     return true;
 }
 
+static bool canonical_string(const char *text,
+                             size_t capacity,
+                             size_t *out_length) {
+    if (text == NULL || out_length == NULL || capacity == 0U) {
+        return false;
+    }
+    for (size_t index = 0U; index < capacity; ++index) {
+        if (text[index] == '\0') {
+            const size_t trailing_size = capacity - index - 1U;
+            if (!all_zero(text + index + 1U, trailing_size)) {
+                return false;
+            }
+            *out_length = index;
+            return true;
+        }
+    }
+    return false;
+}
+
 static bool password_record_valid(const auth_password_record_t *record) {
     return record->iterations == AUTH_PBKDF2_ITERATIONS &&
            !all_zero(record->salt, sizeof(record->salt)) &&
@@ -76,8 +95,9 @@ static bool password_record_valid(const auth_password_record_t *record) {
 }
 
 static bool credentials_empty(const provisioning_config_t *configuration) {
-    return configuration->ap_ssid[0] == '\0' &&
-           configuration->ap_passphrase[0] == '\0' &&
+    return all_zero(configuration->ap_ssid, sizeof(configuration->ap_ssid)) &&
+           all_zero(configuration->ap_passphrase,
+                    sizeof(configuration->ap_passphrase)) &&
            all_zero(&configuration->password_record,
                     sizeof(configuration->password_record));
 }
@@ -88,12 +108,12 @@ bool provisioning_config_is_valid(const provisioning_config_t *configuration) {
     }
     size_t ssid_length = 0U;
     size_t passphrase_length = 0U;
-    if (!bounded_length(configuration->ap_ssid,
-                        WIFI_AP_SSID_MAX_BYTES,
-                        &ssid_length) ||
-        !bounded_length(configuration->ap_passphrase,
-                        WIFI_AP_PASSPHRASE_MAX_BYTES,
-                        &passphrase_length)) {
+    if (!canonical_string(configuration->ap_ssid,
+                          sizeof(configuration->ap_ssid),
+                          &ssid_length) ||
+        !canonical_string(configuration->ap_passphrase,
+                          sizeof(configuration->ap_passphrase),
+                          &passphrase_length)) {
         return false;
     }
     if (configuration->has_active_set) {
@@ -146,15 +166,15 @@ static app_error_code_t encode_configuration(
     output[WIRE_FLAGS_OFFSET + 3U] = configuration->has_active_set ? 1U : 0U;
 
     size_t length = 0U;
-    if (!bounded_length(configuration->ap_ssid,
-                        WIFI_AP_SSID_MAX_BYTES,
-                        &length)) {
+    if (!canonical_string(configuration->ap_ssid,
+                          sizeof(configuration->ap_ssid),
+                          &length)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     memcpy(output + WIRE_SSID_OFFSET, configuration->ap_ssid, length + 1U);
-    if (!bounded_length(configuration->ap_passphrase,
-                        WIFI_AP_PASSPHRASE_MAX_BYTES,
-                        &length)) {
+    if (!canonical_string(configuration->ap_passphrase,
+                          sizeof(configuration->ap_passphrase),
+                          &length)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     memcpy(output + WIRE_PASSPHRASE_OFFSET,
@@ -220,10 +240,13 @@ static app_error_code_t decode_configuration(
            input + WIRE_ACTIVE_SET_OFFSET,
            APP_UUID_BUFFER_LENGTH);
     if (!provisioning_config_is_valid(&configuration)) {
+        core->operations.secure_zero(core->operations.context,
+                                     &configuration,
+                                     sizeof(configuration));
         return APP_ERROR_STORAGE_CORRUPT;
     }
 
-    uint8_t canonical[PROVISIONING_RECORD_BYTES];
+    uint8_t canonical[PROVISIONING_RECORD_BYTES] = {0};
     const app_error_code_t encode =
         encode_configuration(&configuration, canonical);
     const bool exact = encode == APP_ERROR_NONE &&
@@ -232,9 +255,15 @@ static app_error_code_t decode_configuration(
                                  canonical,
                                  sizeof(canonical));
     if (!exact) {
+        core->operations.secure_zero(core->operations.context,
+                                     &configuration,
+                                     sizeof(configuration));
         return APP_ERROR_STORAGE_CORRUPT;
     }
     *out_configuration = configuration;
+    core->operations.secure_zero(core->operations.context,
+                                 &configuration,
+                                 sizeof(configuration));
     return APP_ERROR_NONE;
 }
 
