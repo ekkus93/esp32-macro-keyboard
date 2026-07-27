@@ -2,7 +2,6 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <string.h>
 
 #include "app_core_ops.h"
@@ -126,6 +125,12 @@ typedef struct {
     provisioning_bootstrap_t bootstrap;
     web_server_config_t web;
 } app_core_startup_secrets_t;
+
+typedef struct {
+    const char *ssid;
+    const char *passphrase;
+    const web_server_config_t *web_configuration;
+} app_core_network_start_t;
 
 static void teardown_stage(const app_core_ops_t *operations,
                            app_operation_result_t *result,
@@ -277,11 +282,9 @@ static void configure_normal_server(
 static app_error_code_t start_network(
     const app_core_ops_t *operations,
     app_core_owned_t *owned,
-    const char *ssid,
-    const char *passphrase,
-    const web_server_config_t *web_configuration) {
+    const app_core_network_start_t *network) {
     app_error_code_t result = operations->wifi_start(
-        operations->context, ssid, passphrase);
+        operations->context, network->ssid, network->passphrase);
     log_stage(operations, "wifi", result);
     if (result != APP_ERROR_NONE) {
         return result;
@@ -289,12 +292,121 @@ static app_error_code_t start_network(
     owned->wifi_started = true;
 
     result = operations->http_start(
-        operations->context, web_configuration);
+        operations->context, network->web_configuration);
     log_stage(operations, "http", result);
     if (result == APP_ERROR_NONE) {
         owned->http_started = true;
     }
     return result;
+}
+
+static app_error_code_t start_normal_mode(
+    const app_core_ops_t *operations,
+    app_core_owned_t *owned,
+    app_core_startup_secrets_t *secrets,
+    bool *out_storage_degraded) {
+    app_error_code_t result =
+        operations->storage_recover(operations->context);
+    if (result == APP_ERROR_STORAGE_CORRUPT) {
+        *out_storage_degraded = true;
+        log_simple(operations,
+                   APP_CORE_LOG_STORAGE_DEGRADED,
+                   APP_ERROR_STORAGE_CORRUPT,
+                   APP_ERROR_NONE,
+                   false);
+    } else {
+        log_stage(operations, "storage_recovery", result);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+    }
+
+    result = operations->repository_init(operations->context);
+    log_stage(operations, "storage_repository", result);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    owned->repository_initialized = true;
+
+    result = operations->auth_init(operations->context);
+    log_stage(operations, "authentication", result);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    owned->auth_initialized = true;
+
+    result = operations->usb_init(operations->context);
+    log_stage(operations, "usb", result);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    owned->usb_initialized = true;
+
+    result = operations->executor_init(operations->context);
+    log_stage(operations, "executor", result);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    owned->executor_initialized = true;
+
+    result = operations->controls_init(operations->context);
+    log_stage(operations, "controls", result);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    owned->controls_initialized = true;
+
+    configure_normal_server(&secrets->provisioning, &secrets->web);
+    const app_core_network_start_t network = {
+        .ssid = secrets->provisioning.ap_ssid,
+        .passphrase = secrets->provisioning.ap_passphrase,
+        .web_configuration = &secrets->web,
+    };
+    return start_network(operations, owned, &network);
+}
+
+static app_error_code_t start_setup_mode(
+    const app_core_ops_t *operations,
+    const app_core_policy_t *policy,
+    app_core_owned_t *owned,
+    app_core_startup_secrets_t *secrets) {
+    log_simple(operations,
+               APP_CORE_LOG_PROVISIONING_REQUIRED,
+               APP_ERROR_AUTH_REQUIRED,
+               APP_ERROR_NONE,
+               false);
+
+    app_error_code_t result = operations->auth_init(operations->context);
+    log_stage(operations, "authentication", result);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    owned->auth_initialized = true;
+
+    result = operations->controls_init(operations->context);
+    log_stage(operations, "controls", result);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    owned->controls_initialized = true;
+
+    result = operations->bootstrap_derive(
+        operations->context, &secrets->bootstrap);
+    log_stage(operations, "setup_bootstrap", result);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+
+    configure_setup_server(policy, &secrets->bootstrap, &secrets->web);
+    if (policy->manufacturing_provisioning_enabled) {
+        log_manufacturing_credentials(operations, &secrets->bootstrap);
+    }
+    const app_core_network_start_t network = {
+        .ssid = secrets->bootstrap.ap_ssid,
+        .passphrase = secrets->bootstrap.ap_passphrase,
+        .web_configuration = &secrets->web,
+    };
+    return start_network(operations, owned, &network);
 }
 
 app_error_code_t app_core_sequence_start(const app_core_ops_t *operations,
@@ -343,92 +455,10 @@ app_error_code_t app_core_sequence_start(const app_core_ops_t *operations,
     owned.storage_mounted = true;
 
     if (secrets.provisioning.provisioned) {
-        result = operations->storage_recover(operations->context);
-        if (result == APP_ERROR_STORAGE_CORRUPT) {
-            storage_degraded = true;
-            log_simple(operations,
-                       APP_CORE_LOG_STORAGE_DEGRADED,
-                       APP_ERROR_STORAGE_CORRUPT,
-                       APP_ERROR_NONE,
-                       false);
-        } else {
-            log_stage(operations, "storage_recovery", result);
-            if (result != APP_ERROR_NONE) {
-                return fail_with_secrets(
-                    operations, &owned, &secrets, result);
-            }
-        }
-
-        result = operations->repository_init(operations->context);
-        log_stage(operations, "storage_repository", result);
-        if (result != APP_ERROR_NONE) {
-            return fail_with_secrets(
-                operations, &owned, &secrets, result);
-        }
-        owned.repository_initialized = true;
+        result = start_normal_mode(
+            operations, &owned, &secrets, &storage_degraded);
     } else {
-        log_simple(operations,
-                   APP_CORE_LOG_PROVISIONING_REQUIRED,
-                   APP_ERROR_AUTH_REQUIRED,
-                   APP_ERROR_NONE,
-                   false);
-    }
-
-    result = operations->auth_init(operations->context);
-    log_stage(operations, "authentication", result);
-    if (result != APP_ERROR_NONE) {
-        return fail_with_secrets(operations, &owned, &secrets, result);
-    }
-    owned.auth_initialized = true;
-
-    if (secrets.provisioning.provisioned) {
-        result = operations->usb_init(operations->context);
-        log_stage(operations, "usb", result);
-        if (result != APP_ERROR_NONE) {
-            return fail_with_secrets(
-                operations, &owned, &secrets, result);
-        }
-        owned.usb_initialized = true;
-
-        result = operations->executor_init(operations->context);
-        log_stage(operations, "executor", result);
-        if (result != APP_ERROR_NONE) {
-            return fail_with_secrets(
-                operations, &owned, &secrets, result);
-        }
-        owned.executor_initialized = true;
-    }
-
-    result = operations->controls_init(operations->context);
-    log_stage(operations, "controls", result);
-    if (result != APP_ERROR_NONE) {
-        return fail_with_secrets(operations, &owned, &secrets, result);
-    }
-    owned.controls_initialized = true;
-
-    if (secrets.provisioning.provisioned) {
-        configure_normal_server(&secrets.provisioning, &secrets.web);
-        result = start_network(operations,
-                               &owned,
-                               secrets.provisioning.ap_ssid,
-                               secrets.provisioning.ap_passphrase,
-                               &secrets.web);
-    } else {
-        result = operations->bootstrap_derive(
-            operations->context, &secrets.bootstrap);
-        log_stage(operations, "setup_bootstrap", result);
-        if (result == APP_ERROR_NONE) {
-            configure_setup_server(policy, &secrets.bootstrap, &secrets.web);
-            if (policy->manufacturing_provisioning_enabled) {
-                log_manufacturing_credentials(
-                    operations, &secrets.bootstrap);
-            }
-            result = start_network(operations,
-                                   &owned,
-                                   secrets.bootstrap.ap_ssid,
-                                   secrets.bootstrap.ap_passphrase,
-                                   &secrets.web);
-        }
+        result = start_setup_mode(operations, policy, &owned, &secrets);
     }
     if (result != APP_ERROR_NONE) {
         return fail_with_secrets(operations, &owned, &secrets, result);
