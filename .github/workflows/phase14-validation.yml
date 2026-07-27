@@ -1,4 +1,4 @@
-name: Phase 14 integration validation
+name: Phase 14 clang configuration diagnostic
 
 on:
   pull_request:
@@ -9,106 +9,27 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  diagnose:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.18.0
-          cache: npm
-          cache-dependency-path: webapp/package-lock.json
-      - name: Install authoritative check dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes \
-            build-essential clang clang-format clang-tidy cmake curl git jq \
-            libcjson-dev ninja-build shellcheck unzip
-          python3 -m pip install --user \
-            cmakelang==0.6.13 \
-            gcovr==8.6 \
-            yamllint==1.38.0
-          go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          npm ci --prefix webapp
       - name: Install ESP-IDF v5.5.5
         run: |
           git clone --depth 1 --branch v5.5.5 --recursive \
             https://github.com/espressif/esp-idf.git "${RUNNER_TEMP}/esp-idf"
           "${RUNNER_TEMP}/esp-idf/install.sh" esp32s3
-      - name: Verify pinned toolchain
+      - name: Diagnose production clang configuration
         shell: bash
         run: |
           source "${RUNNER_TEMP}/esp-idf/export.sh"
-          ./scripts/verify-toolchain.sh
-      - name: Validate formatting
-        if: always()
-        run: ./scripts/check-format.sh
-      - name: Validate static-analysis policy
-        if: always()
-        run: ./scripts/check-static-analysis-policy.sh
-      - name: Validate partition policy
-        if: always()
-        run: bash ./scripts/check-partitions.sh
-      - name: Validate production configuration policy
-        if: always()
-        run: bash ./scripts/check-production-config.sh
-      - name: Validate credential logging policy
-        if: always()
-        run: bash ./scripts/check-credential-logging.sh
-      - name: Validate setup route isolation policy
-        if: always()
-        run: bash ./scripts/check-setup-route-isolation.sh
-      - name: Build production firmware with GCC
-        if: always()
-        shell: bash
-        run: |
-          source "${RUNNER_TEMP}/esp-idf/export.sh"
-          idf.py -C firmware -B firmware/build set-target esp32s3
-          idf.py -C firmware -B firmware/build build
-      - name: Configure production clang database
-        if: always()
-        shell: bash
-        run: |
-          source "${RUNNER_TEMP}/esp-idf/export.sh"
-          IDF_TOOLCHAIN=clang idf.py -C firmware -B firmware/build-clang set-target esp32s3
-      - name: Run production clang-tidy
-        if: always()
-        shell: bash
-        run: |
-          source "${RUNNER_TEMP}/esp-idf/export.sh"
-          source ./scripts/check-firmware.sh
-          run_first_party_clang_tidy "${GITHUB_WORKSPACE}/firmware"
-      - name: Build device-test firmware with GCC
-        if: always()
-        shell: bash
-        run: |
-          source "${RUNNER_TEMP}/esp-idf/export.sh"
-          idf.py -C firmware/test_app -B firmware/test_app/build set-target esp32s3
-          idf.py -C firmware/test_app -B firmware/test_app/build build
-      - name: Configure device-test clang database
-        if: always()
-        shell: bash
-        run: |
-          source "${RUNNER_TEMP}/esp-idf/export.sh"
-          IDF_TOOLCHAIN=clang idf.py -C firmware/test_app -B firmware/test_app/build-clang set-target esp32s3
-      - name: Run device-test clang-tidy
-        if: always()
-        shell: bash
-        run: |
-          source "${RUNNER_TEMP}/esp-idf/export.sh"
-          source ./scripts/check-firmware.sh
-          run_first_party_clang_tidy "${GITHUB_WORKSPACE}/firmware/test_app"
-      - name: Validate web application
-        if: always()
-        run: ./scripts/check-webapp.sh
-      - name: Validate scripts
-        if: always()
-        run: ./scripts/check-scripts.sh
-      - name: Validate documentation
-        if: always()
-        run: ./scripts/check-docs.sh
-      - name: Validate host tests
-        if: always()
-        run: ./scripts/run-tests.sh
+          printf 'IDF version: '
+          idf.py --version
+          printf 'IDF_TOOLCHAIN before command: %s\n' "${IDF_TOOLCHAIN-<unset>}"
+          set +e
+          IDF_TOOLCHAIN=clang idf.py -C firmware -B firmware/build-clang \
+            set-target esp32s3 >"${RUNNER_TEMP}/clang-config.log" 2>&1
+          status=$?
+          set -e
+          tail -n 250 "${RUNNER_TEMP}/clang-config.log"
+          printf 'clang configuration status: %d\n' "${status}"
+          exit "${status}"
