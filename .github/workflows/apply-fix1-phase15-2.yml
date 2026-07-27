@@ -1,0 +1,73 @@
+---
+name: Apply FIX1 Phase 15.2 procedure repository
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out staging branch
+        uses: actions/checkout@v4
+
+      - name: Reconstruct and verify reviewed patch
+        shell: bash
+        run: |
+          base64 --decode docs/review-source/PHASE15_2_PROCEDURES.patch.gz.b64 \
+            | gzip --decompress >"${RUNNER_TEMP}/phase15-2.patch"
+          printf '%s  %s\n' \
+            'a72a81eea9049ef0368c61c23e21800142d21e3ccd00882717a208f8d332033f' \
+            "${RUNNER_TEMP}/phase15-2.patch" \
+            | sha256sum --check
+
+      - name: Check out current master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          clean: true
+
+      - name: Install validation tools
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install --yes clang-format libcjson-dev >/dev/null
+          python3 -m pip install --user cmakelang==0.6.13 >/dev/null
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Apply and format reviewed patch
+        shell: bash
+        run: |
+          git apply --check "${RUNNER_TEMP}/phase15-2.patch"
+          git apply "${RUNNER_TEMP}/phase15-2.patch"
+          mapfile -t changed_c < <(
+            git diff --name-only --diff-filter=ACM \
+              | grep -E '\.(c|h)$'
+          )
+          clang-format -i "${changed_c[@]}"
+          cmake-format -i \
+            firmware/components/storage/CMakeLists.txt \
+            tests/host/cmake/extra_tests.cmake
+          git diff --check
+
+      - name: Run procedure and storage tests
+        run: |
+          ./scripts/run-tests.sh storage
+          ./scripts/run-tests.sh --sanitizers storage
+
+      - name: Commit and push Phase 15.2
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            firmware/components/storage \
+            tests/host/cmake/extra_tests.cmake \
+            tests/host/test_storage_object_json.c \
+            tests/host/test_storage_procedures.c
+          git commit -m "feat(storage): add strict procedure repository"
+          git push origin HEAD:master
