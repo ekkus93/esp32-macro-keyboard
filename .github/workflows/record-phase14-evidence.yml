@@ -20,6 +20,18 @@ jobs:
         with:
           ref: master
           clean: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Install documentation validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes jq
+          python3 -m pip install --user yamllint==1.38.0
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          npm ci --prefix webapp
       - name: Apply and validate evidence
         run: |
           git apply --check "${RUNNER_TEMP}/phase14-evidence.patch"
