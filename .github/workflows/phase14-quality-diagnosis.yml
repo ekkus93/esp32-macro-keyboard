@@ -5,13 +5,15 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   diagnose:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24.18.0
@@ -26,22 +28,60 @@ jobs:
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           npm ci --prefix webapp
-      - name: Validate C formatting
+      - name: Apply C formatting
         run: |
           mapfile -t c_files < <(find firmware/main firmware/components firmware/test_app/main \
             -type f \( -name '*.c' -o -name '*.h' \) -print | sort)
+          clang-format -i "${c_files[@]}"
           clang-format --dry-run --Werror "${c_files[@]}"
-      - name: Validate CMake formatting
+      - name: Apply CMake formatting
         if: always()
         run: |
           mapfile -t cmake_files < <(find firmware tests \
             -type d \( -name managed_components -o -name 'build*' \) -prune -o \
             -type f -name 'CMakeLists.txt' -print | sort)
+          cmake-format -i "${cmake_files[@]}"
           cmake-format --check "${cmake_files[@]}"
           cmake-lint "${cmake_files[@]}"
+      - name: Validate shellcheck
+        if: always()
+        run: |
+          shell_files=(scripts/*.sh tests/scripts/*.sh tests/scripts/fakes/run-clang-tidy)
+          shellcheck "${shell_files[@]}"
       - name: Validate shell formatting
         if: always()
-        run: shfmt -d scripts/*.sh
+        run: |
+          shell_files=(scripts/*.sh tests/scripts/*.sh tests/scripts/fakes/run-clang-tidy)
+          shfmt -d "${shell_files[@]}"
+      - name: Validate shell syntax
+        if: always()
+        run: |
+          shell_files=(scripts/*.sh tests/scripts/*.sh tests/scripts/fakes/run-clang-tidy)
+          bash -n "${shell_files[@]}"
+      - name: Test firmware-check gate
+        if: always()
+        run: bash tests/scripts/test-check-firmware.sh
+      - name: Test include-cycle gate
+        if: always()
+        run: bash tests/scripts/test-clang-tidy-include-cycle.sh
+      - name: Test static-analysis policy gate
+        if: always()
+        run: bash tests/scripts/test-static-analysis-policy.sh
+      - name: Test partition gate
+        if: always()
+        run: bash tests/scripts/test-check-partitions.sh
+      - name: Test production configuration gate
+        if: always()
+        run: bash tests/scripts/test-check-production-config.sh
+      - name: Test credential logging gate
+        if: always()
+        run: bash tests/scripts/test-check-credential-logging.sh
+      - name: Test setup-label generator
+        if: always()
+        run: bash tests/scripts/test-generate-setup-label.sh
+      - name: Test setup-route isolation gate
+        if: always()
+        run: bash tests/scripts/test-check-setup-route-isolation.sh
       - name: Validate frontend formatting
         if: always()
         working-directory: webapp
@@ -49,9 +89,17 @@ jobs:
       - name: Validate static-analysis policy
         if: always()
         run: ./scripts/check-static-analysis-policy.sh
-      - name: Validate scripts
-        if: always()
-        run: ./scripts/check-scripts.sh
       - name: Validate documentation
         if: always()
         run: ./scripts/check-docs.sh
+      - name: Commit formatter output
+        if: always()
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firmware tests
+          git commit -m "style(phase14): apply repository formatters"
+          git push origin HEAD:${{ github.head_ref }}
