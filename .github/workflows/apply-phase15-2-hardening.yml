@@ -16,14 +16,30 @@ jobs:
       - name: Check out staging branch
         uses: actions/checkout@v4
 
-      - name: Reconstruct and verify reviewed patch
+      - name: Reconstruct reviewed patch
         shell: bash
         run: |
           cat docs/review-source/phase15-2-full-analysis-v3.part.* \
             | base64 --decode \
             | gzip --decompress >"${RUNNER_TEMP}/phase15-2-hardening.patch"
+          sha256sum "${RUNNER_TEMP}/phase15-2-hardening.patch" \
+            >"${RUNNER_TEMP}/phase15-2-hardening.sha256"
+
+      - name: Preserve reconstructed patch digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase15-2-reconstructed-patch
+          path: |
+            ${{ runner.temp }}/phase15-2-hardening.patch
+            ${{ runner.temp }}/phase15-2-hardening.sha256
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Verify reviewed patch digest
+        shell: bash
+        run: |
           expected='b26fa9fff431b772b8db8996295956cdc0f252d3310da42a2dce28844fff34c5'
-          actual="$(sha256sum "${RUNNER_TEMP}/phase15-2-hardening.patch" | cut -d' ' -f1)"
+          actual="$(cut -d' ' -f1 "${RUNNER_TEMP}/phase15-2-hardening.sha256")"
           printf 'expected patch SHA-256: %s\n' "${expected}"
           printf 'actual patch SHA-256:   %s\n' "${actual}"
           [[ "${actual}" == "${expected}" ]]
