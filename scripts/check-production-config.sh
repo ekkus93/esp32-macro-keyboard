@@ -13,9 +13,12 @@ REQUIRED_VALUES = {
     "CONFIG_NVS_SEC_KEY_PROTECT_USING_HMAC": "y",
     "CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID": "0",
 }
-FORBIDDEN_ENABLED = {
+FORBIDDEN_NVS_SCHEMES = {
     "CONFIG_NVS_SEC_KEY_PROTECT_USING_FLASH_ENC",
     "CONFIG_NVS_SEC_KEY_PROTECT_NONE",
+}
+FORBIDDEN_PRODUCTION_OPTIONS = {
+    "CONFIG_APP_MANUFACTURING_PROVISIONING_LOG",
 }
 ASSIGNMENT = re.compile(r"^(CONFIG_[A-Z0-9_]+)=(.*)$")
 NOT_SET = re.compile(r"^# (CONFIG_[A-Z0-9_]+) is not set$")
@@ -58,9 +61,12 @@ def validate(values: dict[str, str]) -> None:
         if actual != expected:
             rendered = "missing" if actual is None else repr(actual)
             fail(f"{name} must be {expected!r}; found {rendered}")
-    for name in FORBIDDEN_ENABLED:
+    for name in FORBIDDEN_NVS_SCHEMES:
         if values.get(name) == "y":
             fail(f"{name}=y conflicts with the required HMAC NVS scheme")
+    for name in FORBIDDEN_PRODUCTION_OPTIONS:
+        if values.get(name) == "y":
+            fail(f"{name}=y is forbidden in production configuration")
 
     raw_key_id = values["CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID"]
     try:
