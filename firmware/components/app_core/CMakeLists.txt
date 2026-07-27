@@ -9,6 +9,7 @@ idf_component_register(
     REQUIRES
     macro_model
     support
+    provisioning
     storage
     usb_keyboard
     macro_executor
