@@ -1,0 +1,59 @@
+name: Apply Phase 15 macro foundation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preserve reviewed patch
+        run: |
+          base64 --decode docs/review-source/PHASE15_MACRO_FOUNDATION.patch.gz.b64 \
+            | gzip --decompress >"${RUNNER_TEMP}/phase15-macro.patch"
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          clean: true
+      - name: Install validation tools
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install --yes clang-format libcjson-dev >/dev/null
+          python3 -m pip install --user cmakelang==0.6.13 >/dev/null
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Apply and format reviewed patch
+        shell: bash
+        run: |
+          git apply --check "${RUNNER_TEMP}/phase15-macro.patch"
+          git apply "${RUNNER_TEMP}/phase15-macro.patch"
+          mapfile -t changed_c < <(
+            git diff --name-only --diff-filter=ACM \
+              | grep -E '\.(c|h)$'
+          )
+          clang-format -i "${changed_c[@]}"
+          cmake-format -i \
+            firmware/components/storage/CMakeLists.txt \
+            tests/host/CMakeLists.txt \
+            tests/host/cmake/extra_tests.cmake
+          git diff --check
+      - name: Run storage host tests
+        run: |
+          ./scripts/run-tests.sh storage
+          ./scripts/run-tests.sh --sanitizers storage
+      - name: Commit Phase 15 foundation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            firmware/components/storage \
+            tests/host/CMakeLists.txt \
+            tests/host/cmake/extra_tests.cmake \
+            tests/host/test_storage_macros.c \
+            tests/host/test_storage_object_json.c
+          git commit -m "feat(storage): add strict macro object repository"
+          git push origin HEAD:master
