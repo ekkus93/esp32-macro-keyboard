@@ -22,10 +22,11 @@ jobs:
           cat docs/review-source/phase15-2-full-analysis-v3.part.* \
             | base64 --decode \
             | gzip --decompress >"${RUNNER_TEMP}/phase15-2-hardening.patch"
-          printf '%s  %s\n' \
-            'b26fa9fff431b772b8db8996295956cdc0f252d3310da42a2dce28844fff34c5' \
-            "${RUNNER_TEMP}/phase15-2-hardening.patch" \
-            | sha256sum --check
+          expected='b26fa9fff431b772b8db8996295956cdc0f252d3310da42a2dce28844fff34c5'
+          actual="$(sha256sum "${RUNNER_TEMP}/phase15-2-hardening.patch" | cut -d' ' -f1)"
+          printf 'expected patch SHA-256: %s\n' "${expected}"
+          printf 'actual patch SHA-256:   %s\n' "${actual}"
+          [[ "${actual}" == "${expected}" ]]
 
       - name: Check out current master
         uses: actions/checkout@v4
