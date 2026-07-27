@@ -99,9 +99,9 @@ app_error_code_t auth_password_create(const char *password, size_t password_leng
     return auth_core_password_create(&auth_core, password, password_length, out_record);
 }
 
-bool auth_password_verify(const char *password, size_t password_length,
-                          const auth_password_record_t *record) {
-    return auth_core_password_verify(&auth_core, password, password_length, record);
+app_error_code_t auth_password_verify(const char *password, size_t password_length,
+                                      const auth_password_record_t *record, bool *out_matches) {
+    return auth_core_password_verify(&auth_core, password, password_length, record, out_matches);
 }
 
 app_error_code_t auth_session_create(auth_session_view_t *out_session) {

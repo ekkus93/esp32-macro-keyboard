@@ -17,9 +17,14 @@ TEST_CASE("authentication adapters create and validate secrets", "[device][auth]
     auth_password_record_t record = {0};
     TEST_ASSERT_EQUAL(APP_ERROR_NONE,
                       auth_password_create(password, sizeof(password) - 1U, &record));
-    TEST_ASSERT_TRUE(auth_password_verify(password, sizeof(password) - 1U, &record));
-    TEST_ASSERT_FALSE(
-        auth_password_verify("incorrect password", strlen("incorrect password"), &record));
+    bool matches = false;
+    TEST_ASSERT_EQUAL(APP_ERROR_NONE,
+                      auth_password_verify(password, sizeof(password) - 1U, &record, &matches));
+    TEST_ASSERT_TRUE(matches);
+    TEST_ASSERT_EQUAL(APP_ERROR_NONE,
+                      auth_password_verify("incorrect password", strlen("incorrect password"),
+                                           &record, &matches));
+    TEST_ASSERT_FALSE(matches);
 
     // clang-format off
     static const uint8_t vector_salt[AUTH_SALT_BYTES] = {
@@ -36,7 +41,9 @@ TEST_CASE("authentication adapters create and validate secrets", "[device][auth]
     auth_password_record_t vector = {.iterations = TEST_VECTOR_ITERATIONS};
     memcpy(vector.salt, vector_salt, sizeof(vector_salt));
     memcpy(vector.hash, vector_hash, sizeof(vector_hash));
-    TEST_ASSERT_TRUE(auth_password_verify(password, sizeof(password) - 1U, &vector));
+    TEST_ASSERT_EQUAL(APP_ERROR_NONE,
+                      auth_password_verify(password, sizeof(password) - 1U, &vector, &matches));
+    TEST_ASSERT_TRUE(matches);
 
     auth_session_view_t session = {0};
     TEST_ASSERT_EQUAL(APP_ERROR_NONE, auth_session_create(&session));

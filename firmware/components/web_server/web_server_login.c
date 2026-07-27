@@ -12,11 +12,11 @@
 #define LOGIN_COOKIE_BYTES 160U
 #define LOGIN_RESPONSE_BYTES 192U
 
-esp_err_t login_handler(httpd_req_t *request) {
-    if (!server_configuration.login_enabled) {
-        return send_error(request, "503 Service Unavailable", APP_ERROR_AUTH_REQUIRED,
-                          "login is not provisioned");
-    }
+/* Enforce the login throttle. Sets *out_proceed to true when the attempt is
+ * allowed; otherwise sends the throttled/failed response and returns its result
+ * (which the caller returns directly). */
+static esp_err_t enforce_login_rate_limit(httpd_req_t *request, bool *out_proceed) {
+    *out_proceed = false;
     uint32_t retry_after = 0U;
     const app_error_code_t allowed = auth_login_attempt_allowed(&retry_after);
     if (allowed == APP_ERROR_RATE_LIMITED) {
@@ -34,6 +34,20 @@ esp_err_t login_handler(httpd_req_t *request) {
         return send_error(request, "500 Internal Server Error", allowed,
                           "login throttle unavailable");
     }
+    *out_proceed = true;
+    return ESP_OK;
+}
+
+esp_err_t login_handler(httpd_req_t *request) {
+    if (!server_configuration.login_enabled) {
+        return send_error(request, "503 Service Unavailable", APP_ERROR_AUTH_REQUIRED,
+                          "login is not provisioned");
+    }
+    bool proceed = false;
+    const esp_err_t throttle = enforce_login_rate_limit(request, &proceed);
+    if (!proceed) {
+        return throttle;
+    }
 
     char body[LOGIN_BODY_MAX_BYTES + 1U];
     const app_error_code_t body_result =
@@ -47,13 +61,26 @@ esp_err_t login_handler(httpd_req_t *request) {
         return send_error(request, "400 Bad Request", APP_ERROR_INVALID_ARGUMENT, "invalid JSON");
     }
     const cJSON *password = cJSON_GetObjectItemCaseSensitive(root, "password");
-    const bool valid_password =
-        cJSON_IsString(password) && password->valuestring != NULL &&
+    if (!cJSON_IsString(password) || password->valuestring == NULL) {
+        cJSON_Delete(root);
+        memset(body, 0, sizeof(body));
+        return send_error(request, "400 Bad Request", APP_ERROR_INVALID_ARGUMENT,
+                          "invalid credentials");
+    }
+    bool password_matches = false;
+    const app_error_code_t verify_result =
         auth_password_verify(password->valuestring, strlen(password->valuestring),
-                             &server_configuration.password_record);
+                             &server_configuration.password_record, &password_matches);
     cJSON_Delete(root);
     memset(body, 0, sizeof(body));
-    if (!valid_password) {
+    if (verify_result != APP_ERROR_NONE) {
+        /* A PBKDF2 failure or a corrupt password record is a subsystem problem,
+         * not a wrong password: do not count a login failure and do not answer 401
+         * (FIX1 §10.2). */
+        return send_error(request, "500 Internal Server Error", verify_result,
+                          "authentication subsystem unavailable");
+    }
+    if (!password_matches) {
         const app_error_code_t failure_result = auth_login_record_failure();
         if (failure_result != APP_ERROR_NONE) {
             return send_error(request, "500 Internal Server Error", failure_result,

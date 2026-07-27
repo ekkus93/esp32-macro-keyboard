@@ -35,18 +35,31 @@ static void test_null_inputs_and_known_vector(void)
                                                    password,
                                                    sizeof(password) - 1U,
                                                    NULL));
-    TEST_CHECK(!auth_core_password_verify(NULL,
-                                          password,
-                                          sizeof(password) - 1U,
-                                          &record));
-    TEST_CHECK(!auth_core_password_verify(&core,
-                                          NULL,
-                                          sizeof(password) - 1U,
-                                          &record));
-    TEST_CHECK(!auth_core_password_verify(&core,
-                                          password,
-                                          sizeof(password) - 1U,
-                                          NULL));
+    bool matches = false;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         auth_core_password_verify(NULL,
+                                                   password,
+                                                   sizeof(password) - 1U,
+                                                   &record,
+                                                   &matches));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         auth_core_password_verify(&core,
+                                                   NULL,
+                                                   sizeof(password) - 1U,
+                                                   &record,
+                                                   &matches));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         auth_core_password_verify(&core,
+                                                   password,
+                                                   sizeof(password) - 1U,
+                                                   NULL,
+                                                   &matches));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         auth_core_password_verify(&core,
+                                                   password,
+                                                   sizeof(password) - 1U,
+                                                   &record,
+                                                   NULL));
 
     memset(&record, 0xa5, sizeof(record));
     fake.random_fail = true;
@@ -73,10 +86,13 @@ static void test_null_inputs_and_known_vector(void)
     memcpy(record.hash, vector_hash, sizeof(vector_hash));
     record.iterations = 120000U;
     fake.known_vector_derive = true;
-    TEST_CHECK(auth_core_password_verify(&core,
-                                         password,
-                                         sizeof(password) - 1U,
-                                         &record));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         auth_core_password_verify(&core,
+                                                   password,
+                                                   sizeof(password) - 1U,
+                                                   &record,
+                                                   &matches));
+    TEST_CHECK(matches);
 }
 
 static void test_password_verification_boundaries(void)
@@ -90,12 +106,62 @@ static void test_password_verification_boundaries(void)
     auth_password_record_t record = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          auth_core_password_create(&core, password, 12U, &record));
-    TEST_CHECK(!auth_core_password_verify(&core, password, 11U, &record));
-    TEST_CHECK(!auth_core_password_verify(&core, password, 129U, &record));
+    /* A submitted password outside the length bounds or with an embedded NUL, and
+     * a record whose iteration count is below the policy floor, are all reported as
+     * INVALID_ARGUMENT -- never a silent mismatch (FIX1 §10). */
+    bool matches = false;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         auth_core_password_verify(&core, password, 11U, &record, &matches));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         auth_core_password_verify(&core, password, 129U, &record, &matches));
     password[5] = '\0';
-    TEST_CHECK(!auth_core_password_verify(&core, password, 12U, &record));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         auth_core_password_verify(&core, password, 12U, &record, &matches));
     password[5] = 'p';
     record.iterations = 119999U;
-    TEST_CHECK(!auth_core_password_verify(&core, password, 12U, &record));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         auth_core_password_verify(&core, password, 12U, &record, &matches));
+}
+
+/* FIX1 §10.2: every result combination of the verify API is distinct -- match,
+ * genuine mismatch (not an error), key-derivation failure, and a corrupt record. */
+static void test_password_verify_result_matrix(void)
+{
+    auth_fake_t fake;
+    fake_reset(&fake);
+    auth_core_t core;
+    init_core(&core, &fake);
+
+    static const char password[] = "abcdefghijkl";
+    auth_password_record_t record = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         auth_core_password_create(&core, password, sizeof(password) - 1U, &record));
+
+    bool matches = false;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         auth_core_password_verify(&core, password, sizeof(password) - 1U, &record,
+                                                   &matches));
+    TEST_CHECK(matches);
+
+    static const char wrong[] = "xxxxxxxxxxxx";
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_password_verify(&core, wrong, sizeof(wrong) - 1U,
+                                                                   &record, &matches));
+    TEST_CHECK(!matches);
+
+    matches = true;
+    fake.derive_fail = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL,
+                         auth_core_password_verify(&core, password, sizeof(password) - 1U, &record,
+                                                   &matches));
+    TEST_CHECK(!matches);
+    fake.derive_fail = false;
+
+    auth_password_record_t corrupt = record;
+    corrupt.iterations = 119999U;
+    matches = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         auth_core_password_verify(&core, password, sizeof(password) - 1U, &corrupt,
+                                                   &matches));
+    TEST_CHECK(!matches);
 }
 

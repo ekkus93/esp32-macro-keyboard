@@ -1093,9 +1093,9 @@ if (!password_matches) {
 }
 ```
 
-- [ ] Do not increment failure count on PBKDF2 failure.
-- [ ] Do not return 401 on password-record corruption.
-- [ ] Add tests for all result combinations.
+- [x] Do not increment failure count on PBKDF2 failure.
+- [x] Do not return 401 on password-record corruption.
+- [x] Add tests for all result combinations.
 
 ## 11. Fix Wi-Fi cleanup
 

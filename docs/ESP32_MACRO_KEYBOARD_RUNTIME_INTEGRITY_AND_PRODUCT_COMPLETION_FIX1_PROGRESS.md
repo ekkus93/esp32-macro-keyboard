@@ -52,7 +52,7 @@
 | 7 | Atomic-write artifact recovery | done (4 object validators deferred to Phase 15; quarantine-dir scan residual resolved by Phase 8's staged-dir layout) |
 | 8 | Make quarantine recoverable | done |
 | 9 | Serialize repository operations | done (import/restore serialization deferred with Phase 18) |
-| 10 | Separate password mismatch from crypto failure | not started |
+| 10 | Separate password mismatch from crypto failure | done |
 | 11–13 | Wi-Fi / executor / controls cleanup and visibility | not started |
 | 14 | Encrypted persistent provisioning | not started |
 | 15 | Complete storage object repositories | not started |
@@ -85,6 +85,22 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 10 (separate password mismatch from crypto failure) — complete. One
+  commit. `auth_password_verify` / `auth_core_password_verify` now return
+  `app_error_code_t` with a `bool *out_matches` instead of a bare `bool`, so the
+  three outcomes are distinct: APP_ERROR_INVALID_ARGUMENT for a malformed
+  argument or a corrupt record (iteration count below the policy floor,
+  out-of-range length, embedded NUL), APP_ERROR_INTERNAL for a PBKDF2 derivation
+  failure, and APP_ERROR_NONE with `out_matches` for an actual comparison. The
+  login handler (`web_server_login.c`) now answers 500 "authentication subsystem
+  unavailable" on any non-NONE verify result -- so it does **not** increment the
+  login-failure count on a PBKDF2 failure and does **not** answer 401 on a corrupt
+  record -- and only records a failure + returns 401 on a genuine mismatch; a
+  missing/non-string password is a 400. Host tests cover all four result
+  combinations (match, mismatch, derive failure, corrupt record) plus the
+  argument/boundary cases; the on-device `test_app` and the existing auth suites
+  were migrated to the new signature. storage/auth/web host suites green +
+  ASan/UBSan, fail-closed clang-tidy 0, check-format clean.
 - Phase 9 (serialize repository operations) — complete. Three commits.
   - **§9.1 (lock abstraction): `d981d13`.** `storage_repository_lock.{c,h}`: one
     non-recursive lock behind an operations seam. Platform default is FreeRTOS
@@ -474,3 +490,12 @@ policy) is **not** hardware-blocked and is implemented in its phase.
   unmounts even if lock teardown fails. init/deinit are exposed on the public
   `storage_repository.h`; the take/give mechanism and the test ops seam stay in
   the private `storage_repository_lock.h`.
+- **§10 login: a missing/non-string password is now 400, not 401.** Previously
+  the handler folded a missing password field into the same "invalid credentials"
+  401 path (incrementing the failure count). With the verify result now
+  distinguished, an absent or non-string `password` is a malformed request
+  (400 Bad Request) and is not counted as a login attempt; only a genuine
+  password mismatch increments the failure count and returns 401. The host auth
+  suites in `tests/host/` are not covered by `check-format.sh` (it scans only
+  `firmware/`), so the fixture `.inc` include is kept in its own include block to
+  stay stable under editor include-sorting while remaining first.

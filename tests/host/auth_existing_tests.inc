@@ -17,9 +17,14 @@ static void test_password_boundaries(void)
         0xa6U, 0x81U, 0x20U, 0x67U, 0x43U, 0x34U, 0xb2U, 0x6eU,
     };
     TEST_CHECK_EQ_BUFFER(expected_salt, record.salt, sizeof(expected_salt));
-    TEST_CHECK(auth_core_password_verify(&core, password, 12U, &record));
+    bool matches = false;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         auth_core_password_verify(&core, password, 12U, &record, &matches));
+    TEST_CHECK(matches);
     password[0] = 'b';
-    TEST_CHECK(!auth_core_password_verify(&core, password, 12U, &record));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         auth_core_password_verify(&core, password, 12U, &record, &matches));
+    TEST_CHECK(!matches);
     password[0] = 'a';
     TEST_CHECK(auth_core_password_create(&core, password, 128U, &record) == APP_ERROR_NONE);
     TEST_CHECK(auth_core_password_create(&core, password, 129U, &record) ==
@@ -54,10 +59,14 @@ static void test_derive_failures_zero_outputs(void)
                                          &record) == APP_ERROR_NONE);
     fake.derive_fail = true;
     const size_t zero_before = fake.zero_count;
-    TEST_CHECK(!auth_core_password_verify(&core,
-                                          password,
-                                          sizeof(password) - 1U,
-                                          &record));
+    bool matches = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL,
+                         auth_core_password_verify(&core,
+                                                   password,
+                                                   sizeof(password) - 1U,
+                                                   &record,
+                                                   &matches));
+    TEST_CHECK(!matches);
     TEST_CHECK(fake.zero_count == zero_before + 1U);
     TEST_CHECK_EQ_U64(AUTH_HASH_BYTES, fake.last_zero_length);
 }

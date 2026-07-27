@@ -29,22 +29,31 @@ app_error_code_t auth_core_password_create(auth_core_t *core, const char *passwo
     return APP_ERROR_NONE;
 }
 
-bool auth_core_password_verify(auth_core_t *core, const char *password, size_t password_length,
-                               const auth_password_record_t *record) {
-    if (core == NULL || password == NULL || record == NULL ||
+app_error_code_t auth_core_password_verify(auth_core_t *core, const char *password,
+                                           size_t password_length,
+                                           const auth_password_record_t *record,
+                                           bool *out_matches) {
+    if (out_matches != NULL) {
+        *out_matches = false;
+    }
+    /* A malformed argument or a corrupt record (iterations below the policy floor)
+     * is not a wrong password: report it distinctly so the caller does not count a
+     * login failure or answer 401 for a subsystem/record problem (FIX1 §10). */
+    if (core == NULL || password == NULL || record == NULL || out_matches == NULL ||
         password_length < AUTH_CORE_PASSWORD_MIN_BYTES ||
         password_length > AUTH_CORE_PASSWORD_MAX_BYTES ||
         record->iterations < AUTH_CORE_PBKDF2_ITERATIONS ||
         memchr(password, '\0', password_length) != NULL) {
-        return false;
+        return APP_ERROR_INVALID_ARGUMENT;
     }
     uint8_t derived[AUTH_HASH_BYTES];
     if (core->ops.derive(core->ops.context, password, password_length, record->salt,
                          record->iterations, derived) != 0) {
+        /* Key derivation failed: the subsystem is unavailable, not a mismatch. */
         core->ops.secure_zero(core->ops.context, derived, sizeof(derived));
-        return false;
+        return APP_ERROR_INTERNAL;
     }
-    const bool matches = auth_core_constant_time_equal(derived, record->hash, sizeof(derived));
+    *out_matches = auth_core_constant_time_equal(derived, record->hash, sizeof(derived));
     core->ops.secure_zero(core->ops.context, derived, sizeof(derived));
-    return matches;
+    return APP_ERROR_NONE;
 }
