@@ -539,3 +539,58 @@ policy) is **not** hardware-blocked and is implemented in its phase.
   suites in `tests/host/` are not covered by `check-format.sh` (it scans only
   `firmware/`), so the fixture `.inc` include is kept in its own include block to
   stay stable under editor include-sorting while remaining first.
+
+## Phase 13 — Device-controls shutdown and failure visibility
+
+Status: **Implementation complete; diagnostics aggregation remains open for Phase 19.**
+
+Evidence:
+
+- implementation commit: `dbe4bcb409af751a290739a5751231419fcd787b`;
+- cooperative task stop, bounded wait, safe GPIO state, cleanup accumulation, idempotent deinit,
+  and atomic health updates are implemented behind the host-testable operations seam;
+- host tests cover confirmation-signal failure, cancellation failure, GPIO output failure,
+  stop timeout, repeated deinit, and no callback/resource use after deletion;
+- the controls policy exceeded the required 90% line and 80% branch coverage thresholds;
+- redacted controls-health aggregation is intentionally still unchecked and will be completed
+  with the common subsystem diagnostics report in Phase 19.
+
+## Phase 14 — Encrypted persistent provisioning
+
+Status: **Software implementation and CI validation complete. Physical confidentiality remains
+an explicit Phase 20 hardware claim.**
+
+Evidence commit: `840544dbbe3bdd93366c4ac160cb7d658bfe1542`.
+
+Validation evidence:
+
+- Quality workflow run `30295745891`: authoritative `./scripts/check-all.sh` passed, including
+  ESP-IDF v5.5.5 production GCC build, production and device-test clang-tidy, formatting,
+  script policy, documentation, frontend checks, and host tests;
+- Host Tests workflow run `30295743521`: normal host tests, ASan/UBSan, native coverage,
+  frontend tests, and frontend coverage all passed;
+- Device Test Build workflow run `30295743845`: device-test lint and ESP32-S3 firmware build
+  passed using ESP-IDF v5.5.5.
+
+Implemented behavior:
+
+- the 8 MiB partition layout contains exactly one 4 KiB encrypted `nvs_keys` partition while
+  retaining aligned equal-size OTA slots;
+- production NVS uses HMAC-backed encryption and the production gate rejects disabled encryption,
+  alternate/unprotected schemes, and manufacturing/development credential logging;
+- the provisioning repository uses a canonical bounded record, revision conflicts,
+  `nvs_commit()`, readback verification, factory reset verification, and secure zeroing;
+- setup AP credentials and one-time setup code are domain-separated HMAC derivations bound to
+  the device SoftAP MAC; the matching offline manufacturing label generator has fixed vectors;
+- unprovisioned devices expose only setup routes and do not start USB, executor, repositories,
+  or normal authenticated routes;
+- setup JSON rejects trailing data, duplicate/unknown fields, wrong types, oversized values,
+  and embedded NUL escapes; credential-bearing buffers are wiped on every exit path;
+- ordinary logs contain no plaintext credentials; the only plaintext path is a permanently
+  warned manufacturing-only compile option rejected by production configuration.
+
+Not claimed by this phase:
+
+- a physical ESP32-S3 has not yet been eFuse-provisioned and inspected for raw-flash secrecy;
+- real first-run, reboot persistence, button confirmation, and interruption behavior remain in
+  the Phase 20 hardware matrix.

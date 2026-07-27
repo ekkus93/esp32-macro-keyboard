@@ -1320,29 +1320,29 @@ Add:
 device_controls_health_t device_controls_get_health(void);
 ```
 
-- [ ] Update health atomically.
-- [ ] Log failures through ESP logging.
-- [ ] Expose redacted health through diagnostics.
+- [x] Update health atomically.
+- [x] Log failures through ESP logging.
+- [ ] Expose redacted health through diagnostics. (Remains open for Phase 19.)
 
 ### 13.3 Implement deinit
 
-- [ ] request task stop;
-- [ ] wait with bounded timeout;
-- [ ] configure outputs to a documented safe state;
-- [ ] delete semaphores after task exit;
-- [ ] clear handles;
-- [ ] return cleanup failure if any step fails.
+- [x] request task stop;
+- [x] wait with bounded timeout;
+- [x] configure outputs to a documented safe state;
+- [x] delete semaphores after task exit;
+- [x] clear handles;
+- [x] return cleanup failure if any step fails.
 
 ### 13.4 Add tests
 
 Test:
 
-- [ ] semaphore give failure;
-- [ ] cancel failure;
-- [ ] GPIO output failure;
-- [ ] task stop timeout;
-- [ ] second deinit call;
-- [ ] no use-after-free after deinit.
+- [x] semaphore give failure;
+- [x] cancel failure;
+- [x] GPIO output failure;
+- [x] task stop timeout;
+- [x] second deinit call;
+- [x] no use-after-free after deinit.
 
 ## 14. Implement encrypted persistent provisioning
 
@@ -1364,9 +1364,9 @@ Example row:
 nvs_keys,    data, nvs_keys, ,         0x1000,   encrypted
 ```
 
-- [ ] Verify total flash size.
-- [ ] Verify application slots remain aligned.
-- [ ] Add partition tests that require exactly one `nvs_keys` partition.
+- [x] Verify total flash size.
+- [x] Verify application slots remain aligned.
+- [x] Add partition tests that require exactly one `nvs_keys` partition.
 
 ### 14.2 Enable NVS encryption configuration
 
@@ -1378,11 +1378,11 @@ firmware/sdkconfig.defaults
 
 Enable the chosen IDF `v5.5.5` NVS encryption scheme.
 
-- [ ] Document whether release uses flash-encryption-based or HMAC-based key
+- [x] Document whether release uses flash-encryption-based or HMAC-based key
       protection.
-- [ ] Do not claim physical confidentiality until the matching eFuse/flash
+- [x] Do not claim physical confidentiality until the matching eFuse/flash
       workflow is tested.
-- [ ] Add release checks that reject an unencrypted production configuration.
+- [x] Add release checks that reject an unencrypted production configuration.
 
 ### 14.3 Add provisioning repository
 
@@ -1422,13 +1422,13 @@ app_error_code_t provisioning_deinit(void);
 
 Requirements:
 
-- [ ] strict schema and bounds;
-- [ ] NVS transaction with `nvs_commit()`;
-- [ ] readback validation;
-- [ ] no plaintext administrator password;
-- [ ] secure zero of temporary credential buffers;
-- [ ] sessions remain RAM-only;
-- [ ] revision conflict behavior.
+- [x] strict schema and bounds;
+- [x] NVS transaction with `nvs_commit()`;
+- [x] readback validation;
+- [x] no plaintext administrator password;
+- [x] secure zero of temporary credential buffers;
+- [x] sessions remain RAM-only;
+- [x] revision conflict behavior.
 
 ### 14.4 Remove ordinary plaintext credential logs
 
@@ -1440,23 +1440,23 @@ firmware/main/Kconfig.projbuild
 scripts/check-firmware.sh
 ```
 
-- [ ] Remove AP and web password printing from ordinary development mode.
-- [ ] Add a separate manufacturing-only option if still required.
-- [ ] Make the release check fail when that option is enabled.
-- [ ] Add source scanning for credential log format strings.
+- [x] Remove AP and web password printing from ordinary development mode.
+- [x] Add a separate manufacturing-only option if still required.
+- [x] Make the release check fail when that option is enabled.
+- [x] Add source scanning for credential log format strings.
 
 ### 14.5 Implement setup flow
 
 Add setup routes that exist only when unprovisioned:
 
-- [ ] setup-state read;
-- [ ] setup credential submission;
-- [ ] setup completion;
-- [ ] restart.
+- [x] setup-state read;
+- [x] setup credential submission;
+- [x] setup completion;
+- [x] restart.
 
 Require physical confirmation or the explicitly gated manufacturing mode.
 
-Test interruption before and after every NVS commit/readback step.
+- [x] Test interruption before and after every NVS commit/readback step.
 
 ## 15. Complete storage object repositories
 
