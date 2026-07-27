@@ -17,7 +17,7 @@ write_fixture() {
 
 expect_pass() {
 	local name="$1"
-	if ! "${checker}" "${temporary_dir}/sdkconfig.defaults" >"${temporary_dir}/output" 2>&1; then
+	if ! bash "${checker}" "${temporary_dir}/sdkconfig.defaults" >"${temporary_dir}/output" 2>&1; then
 		printf 'FAIL: %s unexpectedly failed\n' "${name}" >&2
 		cat -- "${temporary_dir}/output" >&2
 		exit 1
@@ -28,7 +28,7 @@ expect_pass() {
 expect_fail() {
 	local name="$1"
 	local expected="$2"
-	if "${checker}" "${temporary_dir}/sdkconfig.defaults" >"${temporary_dir}/output" 2>&1; then
+	if bash "${checker}" "${temporary_dir}/sdkconfig.defaults" >"${temporary_dir}/output" 2>&1; then
 		printf 'FAIL: %s unexpectedly passed\n' "${name}" >&2
 		exit 1
 	fi
