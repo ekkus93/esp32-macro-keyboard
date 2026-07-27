@@ -1,0 +1,265 @@
+name: Apply Phase 14 provisioning hardening
+
+on:
+  push:
+    paths:
+      - .github/workflows/apply-phase14-provisioning-hardening.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - name: Install host test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clang-format libcjson-dev
+      - name: Apply reviewed hardening
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("firmware/components/provisioning/provisioning_core.c")
+          source = path.read_text(encoding="utf-8")
+
+          replacements = [
+              (
+                  """#define WIRE_MAGIC_OFFSET 0U
+          #define WIRE_SCHEMA_OFFSET 4U
+          #define WIRE_REVISION_OFFSET 8U
+          #define WIRE_CREDENTIAL_VERSION_OFFSET 12U
+          #define WIRE_FLAGS_OFFSET 16U
+          #define WIRE_SSID_OFFSET 20U
+          #define WIRE_PASSPHRASE_OFFSET (WIRE_SSID_OFFSET + WIFI_AP_SSID_MAX_BYTES + 1U)
+          #define WIRE_SALT_OFFSET (WIRE_PASSPHRASE_OFFSET + WIFI_AP_PASSPHRASE_MAX_BYTES + 1U)
+          #define WIRE_HASH_OFFSET (WIRE_SALT_OFFSET + AUTH_SALT_BYTES)
+          #define WIRE_ITERATIONS_OFFSET (WIRE_HASH_OFFSET + AUTH_HASH_BYTES)
+          #define WIRE_ACTIVE_SET_OFFSET (WIRE_ITERATIONS_OFFSET + 4U)
+
+          static const uint8_t RECORD_MAGIC[4] = {'P', 'R', 'O', 'V'};
+          """,
+                  """#define WIRE_UINT32_BYTES 4U
+          #define WIRE_BOOLEAN_COUNT 4U
+          #define WIRE_MAGIC_OFFSET 0U
+          #define WIRE_SCHEMA_OFFSET 4U
+          #define WIRE_REVISION_OFFSET 8U
+          #define WIRE_CREDENTIAL_VERSION_OFFSET 12U
+          #define WIRE_FLAGS_OFFSET 16U
+          #define WIRE_SSID_OFFSET (WIRE_FLAGS_OFFSET + WIRE_BOOLEAN_COUNT)
+          #define WIRE_PASSPHRASE_OFFSET (WIRE_SSID_OFFSET + WIFI_AP_SSID_MAX_BYTES + 1U)
+          #define WIRE_SALT_OFFSET (WIRE_PASSPHRASE_OFFSET + WIFI_AP_PASSPHRASE_MAX_BYTES + 1U)
+          #define WIRE_HASH_OFFSET (WIRE_SALT_OFFSET + AUTH_SALT_BYTES)
+          #define WIRE_ITERATIONS_OFFSET (WIRE_HASH_OFFSET + AUTH_HASH_BYTES)
+          #define WIRE_ACTIVE_SET_OFFSET (WIRE_ITERATIONS_OFFSET + WIRE_UINT32_BYTES)
+          #define U32_BYTE_MASK UINT32_C(0xff)
+          #define U32_BYTE_ONE_SHIFT 8U
+          #define U32_BYTE_TWO_SHIFT 16U
+          #define U32_BYTE_THREE_SHIFT 24U
+
+          _Static_assert(WIRE_ACTIVE_SET_OFFSET + APP_UUID_BUFFER_LENGTH ==
+                             PROVISIONING_RECORD_BYTES,
+                         "provisioning wire layout must match the fixed record size");
+
+          static const uint8_t RECORD_MAGIC[WIRE_UINT32_BYTES] = {'P', 'R', 'O', 'V'};
+          """,
+              ),
+              (
+                  """static void put_u32(uint8_t *output, size_t offset, uint32_t value) {
+              output[offset] = (uint8_t)(value & 0xffU);
+              output[offset + 1U] = (uint8_t)((value >> 8U) & 0xffU);
+              output[offset + 2U] = (uint8_t)((value >> 16U) & 0xffU);
+              output[offset + 3U] = (uint8_t)((value >> 24U) & 0xffU);
+          }
+
+          static uint32_t get_u32(const uint8_t *input, size_t offset) {
+              return (uint32_t)input[offset] |
+                     ((uint32_t)input[offset + 1U] << 8U) |
+                     ((uint32_t)input[offset + 2U] << 16U) |
+                     ((uint32_t)input[offset + 3U] << 24U);
+          }
+          """,
+                  """static void put_u32(uint8_t *output, size_t offset, uint32_t value) {
+              output[offset] = (uint8_t)(value & U32_BYTE_MASK);
+              output[offset + 1U] =
+                  (uint8_t)((value >> U32_BYTE_ONE_SHIFT) & U32_BYTE_MASK);
+              output[offset + 2U] =
+                  (uint8_t)((value >> U32_BYTE_TWO_SHIFT) & U32_BYTE_MASK);
+              output[offset + 3U] =
+                  (uint8_t)((value >> U32_BYTE_THREE_SHIFT) & U32_BYTE_MASK);
+          }
+
+          static uint32_t get_u32(const uint8_t *input, size_t offset) {
+              return (uint32_t)input[offset] |
+                     ((uint32_t)input[offset + 1U] << U32_BYTE_ONE_SHIFT) |
+                     ((uint32_t)input[offset + 2U] << U32_BYTE_TWO_SHIFT) |
+                     ((uint32_t)input[offset + 3U] << U32_BYTE_THREE_SHIFT);
+          }
+          """,
+              ),
+              (
+                  """static bool bounded_length(const char *text, size_t maximum, size_t *out_length) {
+              if (text == NULL || out_length == NULL) {
+                  return false;
+              }
+              for (size_t index = 0U; index <= maximum; ++index) {
+                  if (text[index] == '\0') {
+                      *out_length = index;
+                      return true;
+                  }
+              }
+              return false;
+          }
+
+          static bool all_zero(const void *memory, size_t size) {
+              const uint8_t *bytes = memory;
+              for (size_t index = 0U; index < size; ++index) {
+                  if (bytes[index] != 0U) {
+                      return false;
+                  }
+              }
+              return true;
+          }
+          """,
+                  """static bool all_zero(const void *memory, size_t size) {
+              const uint8_t *bytes = memory;
+              for (size_t index = 0U; index < size; ++index) {
+                  if (bytes[index] != 0U) {
+                      return false;
+                  }
+              }
+              return true;
+          }
+
+          static bool canonical_string(const char *text,
+                                       size_t capacity,
+                                       size_t *out_length) {
+              if (text == NULL || out_length == NULL || capacity == 0U) {
+                  return false;
+              }
+              for (size_t index = 0U; index < capacity; ++index) {
+                  if (text[index] == '\0') {
+                      const size_t trailing_size = capacity - index - 1U;
+                      if (!all_zero(text + index + 1U, trailing_size)) {
+                          return false;
+                      }
+                      *out_length = index;
+                      return true;
+                  }
+              }
+              return false;
+          }
+          """,
+              ),
+              (
+                  """    return configuration->ap_ssid[0] == '\0' &&
+                     configuration->ap_passphrase[0] == '\0' &&
+          """,
+                  """    return all_zero(configuration->ap_ssid, sizeof(configuration->ap_ssid)) &&
+                     all_zero(configuration->ap_passphrase,
+                              sizeof(configuration->ap_passphrase)) &&
+          """,
+              ),
+              (
+                  """    if (!bounded_length(configuration->ap_ssid,
+                                          WIFI_AP_SSID_MAX_BYTES,
+                                          &ssid_length) ||
+                  !bounded_length(configuration->ap_passphrase,
+                                  WIFI_AP_PASSPHRASE_MAX_BYTES,
+                                  &passphrase_length)) {
+          """,
+                  """    if (!canonical_string(configuration->ap_ssid,
+                                            sizeof(configuration->ap_ssid),
+                                            &ssid_length) ||
+                  !canonical_string(configuration->ap_passphrase,
+                                    sizeof(configuration->ap_passphrase),
+                                    &passphrase_length)) {
+          """,
+              ),
+              (
+                  """    if (!bounded_length(configuration->ap_ssid,
+                                          WIFI_AP_SSID_MAX_BYTES,
+                                          &length)) {
+          """,
+                  """    if (!canonical_string(configuration->ap_ssid,
+                                            sizeof(configuration->ap_ssid),
+                                            &length)) {
+          """,
+              ),
+              (
+                  """    if (!bounded_length(configuration->ap_passphrase,
+                                          WIFI_AP_PASSPHRASE_MAX_BYTES,
+                                          &length)) {
+          """,
+                  """    if (!canonical_string(configuration->ap_passphrase,
+                                            sizeof(configuration->ap_passphrase),
+                                            &length)) {
+          """,
+              ),
+              (
+                  """    if (!provisioning_config_is_valid(&configuration)) {
+                  return APP_ERROR_STORAGE_CORRUPT;
+              }
+
+              uint8_t canonical[PROVISIONING_RECORD_BYTES];
+          """,
+                  """    if (!provisioning_config_is_valid(&configuration)) {
+                  core->operations.secure_zero(core->operations.context,
+                                               &configuration,
+                                               sizeof(configuration));
+                  return APP_ERROR_STORAGE_CORRUPT;
+              }
+
+              uint8_t canonical[PROVISIONING_RECORD_BYTES] = {0};
+          """,
+              ),
+              (
+                  """    if (!exact) {
+                  return APP_ERROR_STORAGE_CORRUPT;
+              }
+              *out_configuration = configuration;
+              return APP_ERROR_NONE;
+          """,
+                  """    if (!exact) {
+                  core->operations.secure_zero(core->operations.context,
+                                               &configuration,
+                                               sizeof(configuration));
+                  return APP_ERROR_STORAGE_CORRUPT;
+              }
+              *out_configuration = configuration;
+              core->operations.secure_zero(core->operations.context,
+                                           &configuration,
+                                           sizeof(configuration));
+              return APP_ERROR_NONE;
+          """,
+              ),
+          ]
+
+          for old, new in replacements:
+              if source.count(old) != 1:
+                  raise SystemExit(f"expected one exact replacement, found {source.count(old)}")
+              source = source.replace(old, new)
+
+          path.write_text(source, encoding="utf-8")
+          PY
+          clang-format -i firmware/components/provisioning/provisioning_core.c
+          rm -f docs/review-source/PHASE14_3_PROVISIONING_CORE_HARDENING.patch
+      - name: Run provisioning and storage tests
+        run: |
+          ./scripts/run-tests.sh storage
+          ./scripts/run-tests.sh --sanitizers storage
+          git diff --check
+      - name: Commit hardening
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firmware/components/provisioning/provisioning_core.c \
+            docs/review-source/PHASE14_3_PROVISIONING_CORE_HARDENING.patch
+          git commit -m "fix(provisioning): harden canonical record handling"
+          git push origin HEAD:master
