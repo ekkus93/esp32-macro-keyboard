@@ -102,20 +102,20 @@ static app_error_code_t adapter_random_fill(void *context, uint8_t *output, size
 }
 
 static app_error_code_t adapter_password_create(void *context, const char *password,
-                                                size_t password_length,
-                                                auth_password_record_t *out_record) {
+                                                 size_t password_length,
+                                                 auth_password_record_t *out_record) {
     (void)context;
     return auth_password_create(password, password_length, out_record);
 }
 
 static app_error_code_t adapter_wifi_start(void *context, const char *ssid,
-                                           const char *passphrase) {
+                                            const char *passphrase) {
     (void)context;
     return wifi_ap_start(ssid, passphrase);
 }
 
 static app_error_code_t adapter_http_start(void *context,
-                                           const web_server_config_t *configuration) {
+                                            const web_server_config_t *configuration) {
     (void)context;
     return web_server_start(configuration);
 }
@@ -226,9 +226,16 @@ static void adapter_log_event(void *context, const app_core_log_event_t *event) 
         ESP_LOGW(TAG, "storage recovery requires operator review; evidence was preserved");
         break;
     case APP_CORE_LOG_DEVELOPMENT_CREDENTIALS:
-        ESP_LOGW(TAG, "development-only AP SSID: %s", event->ssid);
-        ESP_LOGW(TAG, "development-only AP passphrase: %s", event->ap_passphrase);
-        ESP_LOGW(TAG, "development-only web password: %s", event->web_password);
+#if CONFIG_APP_MANUFACTURING_PROVISIONING_LOG
+        ESP_LOGE(TAG,
+                 "MANUFACTURING MODE ENABLED: plaintext one-time credentials follow; "
+                 "never deploy this build");
+        ESP_LOGW(TAG, "manufacturing-only AP SSID: %s", event->ssid);
+        ESP_LOGW(TAG, "manufacturing-only AP passphrase: %s", event->ap_passphrase);
+        ESP_LOGW(TAG, "manufacturing-only web password: %s", event->web_password);
+#else
+        ESP_LOGE(TAG, "credential log event rejected outside manufacturing mode");
+#endif
         break;
     case APP_CORE_LOG_PROVISIONING_REQUIRED:
         ESP_LOGE(
@@ -279,7 +286,7 @@ app_error_code_t app_core_start(void) {
         .log_event = adapter_log_event,
     };
     const app_core_policy_t policy = {
-#if CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG
+#if CONFIG_APP_MANUFACTURING_PROVISIONING_LOG
         .development_provisioning_enabled = true,
         .development_ssid = "ESP32-Macro-Setup",
 #else
