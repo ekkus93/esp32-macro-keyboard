@@ -102,7 +102,7 @@ static bool server_configuration_valid(const web_server_config_t *configuration)
 
 app_error_code_t web_server_start(const web_server_config_t *configuration) {
     if (!server_configuration_valid(configuration) ||
-        server_lifecycle.handle != NULL || server_setup_core.initialized) {
+        server_lifecycle.handle != NULL || web_server_setup_owns_resources()) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     server_configuration = *configuration;
@@ -117,14 +117,14 @@ app_error_code_t web_server_start(const web_server_config_t *configuration) {
             &server_lifecycle, &operations, table.count);
     }
     if (result != APP_ERROR_NONE && server_lifecycle.handle == NULL) {
+        app_error_code_t setup_cleanup = APP_ERROR_NONE;
         if (server_configuration.mode == WEB_SERVER_MODE_SETUP &&
-            server_setup_core.initialized) {
-            const app_error_code_t setup_cleanup = web_server_setup_deinit();
-            if (result == APP_ERROR_NONE) {
-                result = setup_cleanup;
-            }
+            web_server_setup_owns_resources()) {
+            setup_cleanup = web_server_setup_deinit();
         }
-        memset(&server_configuration, 0, sizeof(server_configuration));
+        if (setup_cleanup == APP_ERROR_NONE) {
+            memset(&server_configuration, 0, sizeof(server_configuration));
+        }
     }
     return result;
 }
@@ -133,8 +133,10 @@ app_error_code_t web_server_stop(void) {
     const web_adapter_lifecycle_ops_t operations = server_lifecycle_ops();
     app_error_code_t result =
         web_adapter_lifecycle_stop(&server_lifecycle, &operations);
-    if (result == APP_ERROR_NONE &&
-        server_configuration.mode == WEB_SERVER_MODE_SETUP) {
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    if (server_configuration.mode == WEB_SERVER_MODE_SETUP) {
         result = web_server_setup_deinit();
     }
     if (result == APP_ERROR_NONE) {
@@ -145,5 +147,5 @@ app_error_code_t web_server_stop(void) {
 
 bool web_server_owns_resources(void) {
     return web_adapter_lifecycle_owns_resources(&server_lifecycle) ||
-           server_setup_core.initialized;
+           web_server_setup_owns_resources();
 }
