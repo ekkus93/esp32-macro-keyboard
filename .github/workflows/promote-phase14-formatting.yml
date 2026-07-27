@@ -1,0 +1,26 @@
+name: Promote Phase 14 formatting
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    if: github.head_ref == 'phase14-quality-diagnosis'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Cherry-pick formatter-only commit to master
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin master
+          git checkout -B phase14-format-promotion origin/master
+          git cherry-pick 5d0973e3d6b93f7f5b4916e6d48411ab7951de6c
+          git push origin HEAD:master
