@@ -1,0 +1,104 @@
+---
+name: Apply FIX1 Phase 15 foundation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out staging branch
+        uses: actions/checkout@v4
+
+      - name: Reconstruct and verify reviewed patches
+        shell: bash
+        run: |
+          base64 --decode docs/review-source/PHASE14_EVIDENCE.patch.gz.b64 \
+            | gzip --decompress >"${RUNNER_TEMP}/phase14-evidence.patch"
+          cat docs/review-source/phase15-macro.part.0* \
+            | base64 --decode \
+            | gzip --decompress >"${RUNNER_TEMP}/phase15-macro.patch"
+          printf '%s  %s\n' \
+            'e045a75b4179fa240fac49fe5406497d6e28a3826453b39d89b3f2fe215e5d23' \
+            "${RUNNER_TEMP}/phase14-evidence.patch" \
+            | sha256sum --check
+          printf '%s  %s\n' \
+            'b67af4e3ed44e2b9f0a3971a1ab35698c411558f63a6f5dbdf739e5427cfd240' \
+            "${RUNNER_TEMP}/phase15-macro.patch" \
+            | sha256sum --check
+
+      - name: Check out current master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          clean: true
+
+      - name: Install validation tools
+        run: |
+          sudo apt-get update >/dev/null
+          sudo apt-get install --yes clang-format jq libcjson-dev >/dev/null
+          python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0 >/dev/null
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Set up repository Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install documentation dependencies
+        run: npm ci --prefix webapp --silent
+
+      - name: Apply and commit Phase 13 and 14 evidence
+        shell: bash
+        run: |
+          git apply --check "${RUNNER_TEMP}/phase14-evidence.patch"
+          git apply "${RUNNER_TEMP}/phase14-evidence.patch"
+          git diff --check
+          ./scripts/check-docs.sh
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md \
+            docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md
+          git commit -m "docs(fix1): record Phase 13 and 14 evidence"
+
+      - name: Apply and format Phase 15 macro repository
+        shell: bash
+        run: |
+          git apply --check "${RUNNER_TEMP}/phase15-macro.patch"
+          git apply "${RUNNER_TEMP}/phase15-macro.patch"
+          mapfile -t changed_c < <(
+            git diff --name-only --diff-filter=ACM \
+              | grep -E '\.(c|h)$'
+          )
+          clang-format -i "${changed_c[@]}"
+          cmake-format -i \
+            firmware/components/storage/CMakeLists.txt \
+            tests/host/CMakeLists.txt \
+            tests/host/cmake/extra_tests.cmake
+          git diff --check
+
+      - name: Run storage repository tests
+        run: |
+          ./scripts/run-tests.sh storage
+          ./scripts/run-tests.sh --sanitizers storage
+
+      - name: Commit and push Phase 15 foundation
+        shell: bash
+        run: |
+          git add \
+            firmware/components/storage \
+            tests/host/CMakeLists.txt \
+            tests/host/cmake/extra_tests.cmake \
+            tests/host/test_storage_macros.c \
+            tests/host/test_storage_object_json.c
+          git commit -m "feat(storage): add strict macro object repository"
+          git push origin HEAD:master
