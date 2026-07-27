@@ -48,27 +48,48 @@ jobs:
         run: |
           source "$HOME/esp/esp-idf-v5.5.5/export.sh"
           source ./scripts/check-firmware.sh
-          run_first_party_clang_tidy "${GITHUB_WORKSPACE}/firmware"
+          set +e
+          run_first_party_clang_tidy "${GITHUB_WORKSPACE}/firmware" \
+            >"${RUNNER_TEMP}/production-tidy.log" 2>&1
+          status=$?
+          set -e
+          if ((status != 0)); then
+            findings="${RUNNER_TEMP}/production-findings.log"
+            grep -E '/firmware/(main/|components/|test_app/main/).*:[0-9]+:[0-9]+: (warning|error):' \
+              "${RUNNER_TEMP}/production-tidy.log" >"${findings}" || true
+            if [[ -s "${findings}" ]]; then
+              cat "${findings}"
+            else
+              tail -n 250 "${RUNNER_TEMP}/production-tidy.log"
+            fi
+            exit "${status}"
+          fi
       - name: Configure device-test clang database
         shell: bash
         run: |
           source "$HOME/esp/esp-idf-v5.5.5/export.sh"
-          set +e
           IDF_TOOLCHAIN=clang idf.py -C firmware/test_app \
-            -B firmware/test_app/build-clang set-target esp32s3 \
-            >"${RUNNER_TEMP}/test-clang-config.log" 2>&1
-          status=$?
-          set -e
-          if ((status != 0)); then
-            cat "${RUNNER_TEMP}/test-clang-config.log"
-            exit "${status}"
-          fi
-          tail -n 40 "${RUNNER_TEMP}/test-clang-config.log"
+            -B firmware/test_app/build-clang set-target esp32s3
       - name: Run device-test clang-tidy
         shell: bash
         run: |
           source "$HOME/esp/esp-idf-v5.5.5/export.sh"
           source ./scripts/check-firmware.sh
-          run_first_party_clang_tidy "${GITHUB_WORKSPACE}/firmware/test_app"
+          set +e
+          run_first_party_clang_tidy "${GITHUB_WORKSPACE}/firmware/test_app" \
+            >"${RUNNER_TEMP}/device-tidy.log" 2>&1
+          status=$?
+          set -e
+          if ((status != 0)); then
+            findings="${RUNNER_TEMP}/device-findings.log"
+            grep -E '/firmware/(main/|components/|test_app/main/).*:[0-9]+:[0-9]+: (warning|error):' \
+              "${RUNNER_TEMP}/device-tidy.log" >"${findings}" || true
+            if [[ -s "${findings}" ]]; then
+              cat "${findings}"
+            else
+              tail -n 250 "${RUNNER_TEMP}/device-tidy.log"
+            fi
+            exit "${status}"
+          fi
       - name: Run script regression gate
         run: ./scripts/check-scripts.sh
