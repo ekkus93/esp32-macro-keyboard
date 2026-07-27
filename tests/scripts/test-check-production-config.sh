@@ -71,7 +71,7 @@ expect_fail 'invalid key block' "must be '0'"
 write_fixture "${valid_config}"$'\nCONFIG_NVS_ENCRYPTION=y'
 expect_fail 'duplicate setting' 'duplicate setting CONFIG_NVS_ENCRYPTION'
 
-manufacturing_config="${valid_config/# CONFIG_APP_MANUFACTURING_PROVISIONING_LOG is not set/CONFIG_APP_MANUFACTURING_PROVISIONING_LOG=y}"
+manufacturing_config="${valid_config/\# CONFIG_APP_MANUFACTURING_PROVISIONING_LOG is not set/CONFIG_APP_MANUFACTURING_PROVISIONING_LOG=y}"
 write_fixture "${manufacturing_config}"
 expect_fail 'manufacturing credential logging' 'is forbidden in production configuration'
 
