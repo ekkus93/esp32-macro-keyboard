@@ -46,6 +46,18 @@ static route_table_t active_route_table(void) {
     };
 }
 
+static void clear_setup_configuration_secrets(void) {
+    memset(server_configuration.setup_device_id,
+           0,
+           sizeof(server_configuration.setup_device_id));
+    memset(server_configuration.setup_ap_ssid,
+           0,
+           sizeof(server_configuration.setup_ap_ssid));
+    memset(server_configuration.setup_code,
+           0,
+           sizeof(server_configuration.setup_code));
+}
+
 static int start_server_adapter(void *context, void **out_handle) {
     (void)context;
     httpd_config_t configuration = HTTPD_DEFAULT_CONFIG();
@@ -109,6 +121,7 @@ app_error_code_t web_server_start(const web_server_config_t *configuration) {
     app_error_code_t result = APP_ERROR_NONE;
     if (server_configuration.mode == WEB_SERVER_MODE_SETUP) {
         result = web_server_setup_init(&server_configuration);
+        clear_setup_configuration_secrets();
     }
     if (result == APP_ERROR_NONE) {
         const web_adapter_lifecycle_ops_t operations = server_lifecycle_ops();
