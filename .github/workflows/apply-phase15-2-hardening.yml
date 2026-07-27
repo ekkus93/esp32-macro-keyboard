@@ -19,11 +19,11 @@ jobs:
       - name: Reconstruct and verify reviewed patch
         shell: bash
         run: |
-          cat docs/review-source/phase15-2-hardening-v2.part.* \
+          cat docs/review-source/phase15-2-full-analysis.part.* \
             | base64 --decode \
             | gzip --decompress >"${RUNNER_TEMP}/phase15-2-hardening.patch"
           printf '%s  %s\n' \
-            '496e74e01e7fe1adc5210390f05638c767a8d648313b951e93969f6180460b95' \
+            '32107110fb62c65a83035dac95d93aaa4b0b38491e83e78dc57da6389acf1a78' \
             "${RUNNER_TEMP}/phase15-2-hardening.patch" \
             | sha256sum --check
 
@@ -54,8 +54,17 @@ jobs:
           git apply --check "${RUNNER_TEMP}/phase15-2-hardening.patch"
           git apply "${RUNNER_TEMP}/phase15-2-hardening.patch"
           clang-format -i \
+            firmware/components/storage/storage_atomic_validators.c \
+            firmware/components/storage/storage_json.c \
+            firmware/components/storage/storage_paths.c \
+            firmware/components/storage/storage_repository_macros.c \
+            firmware/components/storage/storage_repository_objects_json.c \
+            firmware/components/storage/storage_repository_objects_json.h \
+            firmware/components/storage/storage_repository_order.c \
+            firmware/components/storage/storage_repository_order.h \
             firmware/components/storage/storage_repository_procedures.c \
             firmware/components/storage/storage_repository_procedures_internal.h \
+            tests/host/test_storage_object_json.c \
             tests/host/test_storage_procedures.c
           git diff --check
 
@@ -94,8 +103,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
+            firmware/components/storage/storage_atomic_validators.c \
+            firmware/components/storage/storage_json.c \
+            firmware/components/storage/storage_paths.c \
+            firmware/components/storage/storage_repository_macros.c \
+            firmware/components/storage/storage_repository_objects_json.c \
+            firmware/components/storage/storage_repository_objects_json.h \
+            firmware/components/storage/storage_repository_order.c \
+            firmware/components/storage/storage_repository_order.h \
             firmware/components/storage/storage_repository_procedures.c \
             firmware/components/storage/storage_repository_procedures_internal.h \
+            tests/host/test_storage_object_json.c \
             tests/host/test_storage_procedures.c
-          git commit -m "fix(storage): harden procedure deletion consistency"
+          git commit -m "fix(storage): satisfy strict procedure repository analysis"
           git push origin HEAD:master
