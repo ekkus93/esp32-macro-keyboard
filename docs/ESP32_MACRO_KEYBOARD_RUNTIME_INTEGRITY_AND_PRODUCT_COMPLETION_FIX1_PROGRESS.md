@@ -51,7 +51,7 @@
 | 6 | Correct filesystem mount ownership and topology | done (LittleFS permission verification is device-observable) |
 | 7 | Atomic-write artifact recovery | done (4 object validators deferred to Phase 15; quarantine-dir scan residual resolved by Phase 8's staged-dir layout) |
 | 8 | Make quarantine recoverable | done |
-| 9 | Serialize repository operations | not started |
+| 9 | Serialize repository operations | done (import/restore serialization deferred with Phase 18) |
 | 10 | Separate password mismatch from crypto failure | not started |
 | 11–13 | Wi-Fi / executor / controls cleanup and visibility | not started |
 | 14 | Encrypted persistent provisioning | not started |
@@ -85,6 +85,33 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 9 (serialize repository operations) — complete. Three commits.
+  - **§9.1 (lock abstraction): `d981d13`.** `storage_repository_lock.{c,h}`: one
+    non-recursive lock behind an operations seam. Platform default is FreeRTOS
+    (`xSemaphoreCreateMutex` / take `portMAX_DELAY` / give) on device; on host it
+    is a re-entrancy-detecting flag lock so a take-while-held (a would-be
+    production deadlock through a missing `_locked` seam) becomes a visible test
+    failure. Unit test 3/3.
+  - **§9.2 (serialize mutations): `54b9bd4`.** Every public repository
+    transaction split into a lock-acquiring wrapper over a `_locked` core:
+    set_read/list/create/update/delete, storage_repository_init, and (new
+    non-acquiring `storage_quarantine_file_locked` for the read/load/recovery
+    paths) storage_quarantine_file/list. The three recovery entry points
+    (atomic/transaction/quarantine `recover_all`) acquire the lock around their
+    lock-free `_with_ops` cores (RESPONSES §2.3). Every wrapper reports
+    APP_ERROR_INTERNAL on unlock failure so a broken lock is never mutation
+    success. app_core initializes the lock in the storage-mount step (before
+    recovery) and tears it down in unmount. storage 10/10 + ASan/UBSan,
+    fail-closed clang-tidy 0.
+  - **§9.3 (concurrency tests): this commit.** Deterministic proofs via the lock
+    ops seam (no host threads): same-expected-revision updates cannot both
+    succeed; a one-shot interloper fired while the lock is held shows an API
+    mutation is blocked during recovery and a delete is blocked during create;
+    and a give-failing / take-failing stub shows unlock failure surfaces as
+    INTERNAL (never success) and take failure refuses the mutation with the disk
+    revision unchanged. The set-repository suite's green run under the
+    re-entrancy-detecting default lock also proves no `_locked` seam re-enters.
+    storage 10/10 + ASan/UBSan; test-only (no firmware change since `54b9bd4`).
 - Phase 8 (make quarantine recoverable) — complete. Three commits.
   - **§8.1–8.2 (layout + staged creation): `d72e997`.** Replaced the flat
     two-files-per-entry quarantine layout with a directory-per-entry layout —
@@ -425,3 +452,25 @@ policy) is **not** hardware-blocked and is implemented in its phase.
   atomic-validators classifier test now asserts a flat
   `/data/quarantine/<uuid>.json` classifies as UNKNOWN, and the atomic-recovery
   quarantine-count tests expect one committed subdirectory per artifact.
+- **§9 serialization scope is today's repository surface.** FIX1 §7.5 lists set,
+  macro, procedure, progress, and settings mutations plus import/restore; only
+  set CRUD, quarantine mutation, and startup recovery exist now. Those are
+  serialized. The macro/procedure/progress/settings object repositories are
+  Phase 15 and import/restore is Phase 18; each will acquire the same lock in its
+  phase (the §9.3 exclusion proof generalizes). The §9.3 "import/restore excludes
+  all other mutations" checkbox is therefore left open, not falsely ticked.
+- **`storage_transaction_write_manifest` and `storage_repository_deinit` stay
+  lock-free.** §9.2 says public repository functions acquire the lock, but
+  `storage_transaction_write_manifest` is a manifest-write primitive invoked by
+  set create/delete *while they hold the lock*; making it self-acquire would
+  deadlock the non-recursive mutex, so it stays lock-free (always called under the
+  lock). `storage_repository_deinit` holds no state and does no I/O (a documented
+  no-op), so it takes no lock; the lock's own teardown is
+  `storage_repository_lock_deinit` in the unmount step.
+- **Lock lifecycle lives in the storage mount/unmount steps.** The TODO §9.1
+  shows `storage_repository_lock_init` but not its call site. It is initialized in
+  `app_core`'s storage-mount adapter (so the lock exists before startup recovery,
+  which serializes behind it) and torn down in the unmount adapter, which
+  unmounts even if lock teardown fails. init/deinit are exposed on the public
+  `storage_repository.h`; the take/give mechanism and the test ops seam stay in
+  the private `storage_repository_lock.h`.

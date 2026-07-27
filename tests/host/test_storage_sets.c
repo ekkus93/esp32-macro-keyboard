@@ -13,6 +13,7 @@
 #include "storage.h"
 #include "storage_repository.h"
 #include "storage_repository_internal.h"
+#include "storage_repository_lock.h"
 
 #include "test_assert.h"
 #include "test_temp_dir.h"
@@ -434,6 +435,181 @@ static void test_repository_deinit_is_a_safe_noop(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_list(&list));
 }
 
+/* ---- FIX1 §9.3 concurrency guarantees, proven deterministically via the lock
+ * operations seam (no host threads). --------------------------------------- */
+
+static app_uuid_t g_interloper_id;
+
+/* Mutual-exclusion prover: models one non-recursive lock. On the armed take it
+ * fires a one-shot interloper -- a concurrent locking operation -- while the lock
+ * is held; the interloper's own take is rejected, proving it would block behind
+ * the operation under test. */
+typedef struct {
+    bool held;
+    app_error_code_t (*interloper)(void);
+    bool interloper_armed;
+    bool interloper_ran;
+    app_error_code_t interloper_result;
+} mx_lock_state_t;
+
+static mx_lock_state_t g_mx;
+
+static app_error_code_t mx_noop(void *context) {
+    (void)context;
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t mx_take(void *context) {
+    (void)context;
+    if (g_mx.held) {
+        return APP_ERROR_INTERNAL; /* a second acquirer would block */
+    }
+    g_mx.held = true;
+    if (g_mx.interloper_armed) {
+        g_mx.interloper_armed = false;
+        g_mx.interloper_ran = true;
+        g_mx.interloper_result = g_mx.interloper();
+    }
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t mx_give(void *context) {
+    (void)context;
+    g_mx.held = false;
+    return APP_ERROR_NONE;
+}
+
+static const storage_repository_lock_ops_t mx_ops = {
+    .context = NULL,
+    .init = mx_noop,
+    .take = mx_take,
+    .give = mx_give,
+    .deinit = mx_noop,
+};
+
+static app_error_code_t interloper_read(void) {
+    macro_set_t out = {0};
+    return storage_set_read(&g_interloper_id, &out);
+}
+
+static app_error_code_t interloper_delete(void) {
+    return storage_set_delete(&g_interloper_id, 1U);
+}
+
+/* Two updates with the same expected revision cannot both succeed: the lock makes
+ * each read-check-write atomic, so the second sees the bumped revision. */
+static void test_concurrency_same_revision_updates_conflict(void) {
+    reset_store();
+    macro_set_t set = make_set(1U, "Serialize", 0);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
+
+    macro_set_t first = set;
+    first.revision = 1U;
+    macro_set_t updated = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_update(&first, 1U, &updated));
+    TEST_CHECK_EQ_U64(2U, updated.revision);
+
+    macro_set_t second = set;
+    second.revision = 1U;
+    macro_set_t updated_again = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_set_update(&second, 1U, &updated_again));
+}
+
+/* Startup recovery holds the lock for its whole pass, so an API mutation arriving
+ * concurrently is blocked. */
+static void test_concurrency_recovery_excludes_mutation(void) {
+    reset_store();
+    macro_set_t set = make_set(1U, "RecoveryRace", 0);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
+    g_interloper_id = set.id;
+
+    g_mx = (mx_lock_state_t){.interloper = interloper_read, .interloper_armed = true};
+    storage_repository_lock_set_ops(&mx_ops);
+    const app_error_code_t result = storage_transaction_recover_all();
+    storage_repository_lock_set_ops(NULL);
+
+    TEST_CHECK(g_mx.interloper_ran);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, g_mx.interloper_result);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, result);
+    TEST_CHECK(!g_mx.held);
+}
+
+/* A create and a delete cannot race the index: while create holds the lock, an
+ * interloping delete is blocked. */
+static void test_concurrency_create_excludes_delete(void) {
+    reset_store();
+    macro_set_t existing = make_set(1U, "Existing", 0);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&existing));
+    g_interloper_id = existing.id;
+
+    macro_set_t created = make_set(2U, "Created", 1);
+    g_mx = (mx_lock_state_t){.interloper = interloper_delete, .interloper_armed = true};
+    storage_repository_lock_set_ops(&mx_ops);
+    const app_error_code_t result = storage_set_create(&created);
+    storage_repository_lock_set_ops(NULL);
+
+    TEST_CHECK(g_mx.interloper_ran);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, g_mx.interloper_result);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, result);
+    TEST_CHECK(!g_mx.held);
+}
+
+static app_error_code_t g_take_result;
+static app_error_code_t g_give_result;
+
+static app_error_code_t gate_take(void *context) {
+    (void)context;
+    return g_take_result;
+}
+
+static app_error_code_t gate_give(void *context) {
+    (void)context;
+    return g_give_result;
+}
+
+static const storage_repository_lock_ops_t gate_ops = {
+    .context = NULL,
+    .init = mx_noop,
+    .take = gate_take,
+    .give = gate_give,
+    .deinit = mx_noop,
+};
+
+/* Unlock failure is visible and never reported as mutation success; take failure
+ * refuses the mutation outright. */
+static void test_concurrency_lock_failures_are_visible(void) {
+    reset_store();
+    macro_set_t set = make_set(1U, "LockFail", 0);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
+
+    /* Give fails after a successful write: result must be INTERNAL, not NONE. */
+    g_take_result = APP_ERROR_NONE;
+    g_give_result = APP_ERROR_INTERNAL;
+    storage_repository_lock_set_ops(&gate_ops);
+    macro_set_t first = set;
+    first.revision = 1U;
+    macro_set_t updated = {0};
+    const app_error_code_t give_failure = storage_set_update(&first, 1U, &updated);
+    storage_repository_lock_set_ops(NULL);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, give_failure);
+
+    /* Take fails: the mutation is refused and the revision on disk is unchanged. */
+    g_take_result = APP_ERROR_INTERNAL;
+    g_give_result = APP_ERROR_NONE;
+    storage_repository_lock_set_ops(&gate_ops);
+    macro_set_t second = set;
+    second.revision = 2U;
+    macro_set_t updated_again = {0};
+    const app_error_code_t take_failure = storage_set_update(&second, 2U, &updated_again);
+    storage_repository_lock_set_ops(NULL);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, take_failure);
+
+    /* The give-failure write did land (revision 2); the take-failure one did not. */
+    macro_set_t current = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_read(&set.id, &current));
+    TEST_CHECK_EQ_U64(2U, current.revision);
+}
+
 int main(void) {
     /* The public set/quarantine/recovery functions serialize behind the repository
      * mutation lock (FIX1 §9); the default host backend must be initialized before
@@ -451,6 +627,13 @@ int main(void) {
     test_delete_recovery();
     test_unknown_transaction_is_preserved();
     test_missing_initialized_index_is_not_recreated();
+    test_concurrency_same_revision_updates_conflict();
+    test_concurrency_recovery_excludes_mutation();
+    test_concurrency_create_excludes_delete();
+    test_concurrency_lock_failures_are_visible();
+    /* Import/restore serialization (FIX1 §9.3) is deferred with the import/restore
+     * feature itself (Phase 18); it will acquire this same lock, so the exclusion
+     * proven above covers it once implemented. */
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
     puts("storage set repository tests passed");

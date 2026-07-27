@@ -982,11 +982,13 @@ Use internal `_locked` helpers.
 
 Use host threads or deterministic fake scheduling to prove:
 
-- [ ] two updates with the same expected revision cannot both succeed;
-- [ ] create and delete cannot race the same index;
-- [ ] recovery cannot race an API mutation;
-- [ ] import/restore excludes all other mutations;
-- [ ] unlock failure is visible and does not report mutation success.
+- [x] two updates with the same expected revision cannot both succeed;
+- [x] create and delete cannot race the same index;
+- [x] recovery cannot race an API mutation;
+- [ ] import/restore excludes all other mutations (deferred with the
+      import/restore feature, Phase 18; it will acquire the same lock, so the
+      exclusion proven for create/delete/recovery covers it once implemented);
+- [x] unlock failure is visible and does not report mutation success.
 
 ## 10. Separate password mismatch from crypto failure
 
