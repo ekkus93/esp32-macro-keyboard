@@ -17,7 +17,7 @@ MANUFACTURING_BANNER = (
 APPROVED_MESSAGES = {
     "manufacturing-only AP SSID: %s",
     "manufacturing-only AP passphrase: %s",
-    "manufacturing-only web password: %s",
+    "manufacturing-only setup code: %s",
 }
 LEGACY_OPTION = "CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG"
 STRING_LITERAL_SOURCE = r'"(?:\\.|[^"\\])*"'
