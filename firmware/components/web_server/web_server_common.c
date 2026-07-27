@@ -65,6 +65,8 @@ const char *execution_state_string(execution_state_t state) {
         return "cancelled";
     case EXECUTION_FAILED:
         return "failed";
+    case EXECUTION_TIMED_OUT:
+        return "timed_out";
     default:
         return "unknown";
     }

@@ -97,9 +97,60 @@ static void test_cancel_and_status_lock_failures(void)
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, failed_status.error);
 }
 
+/* FIX1 §12.4: a key release that fails only after an otherwise successful run is
+ * surfaced through release_error while the run still completes. */
+static void test_key_release_failure_after_success(void)
+{
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+    executor_submit_single_key(&engine, &fake, 4U);
+    /* The per-action release (index 0) succeeds; the post-run release_all
+     * (index 1) in finish_execution fails. */
+    fake.release_results[0] = APP_ERROR_NONE;
+    fake.release_results[1] = APP_ERROR_USB_NOT_READY;
+    fake.release_result_count = 2U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, executor_execute_queued(&engine, &fake));
+    executor_assert_terminal(&engine, EXECUTION_COMPLETED, APP_ERROR_NONE, false);
+    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, engine.status.release_error);
+    TEST_CHECK_EQ_U64(2U, fake.release_index);
+}
+
+/* FIX1 §12.3: when the terminal state cannot be published, the engine latches
+ * unavailable and rejects new submissions rather than appearing falsely idle. */
+static void test_terminal_publish_failure_leaves_executor_unavailable(void)
+{
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+    /* A single zero-length delay keeps the lock sequence fixed and free of the
+     * per-slice cancellation reads a key action would add: RUNNING publish (1),
+     * per-action publish (2), cancellation read (3), terminal publish (4),
+     * terminal reset (5). Failing the terminal publish (lock 4) makes
+     * finish_execution fail after an otherwise successful run. */
+    macro_execution_request_t request = executor_make_request(1U);
+    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_DELAY, .delay_ms = 0U};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
+    fake_call_log_fail_on(&fake.calls, "lock", 4U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, executor_execute_queued(&engine, &fake));
+    executor_clear_injected_failure(&fake);
+
+    /* The lock now works again, but the engine stays latched unavailable and
+     * refuses the next submission; the caller keeps ownership of its plan. */
+    macro_execution_request_t rejected = executor_make_request(1U);
+    rejected.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 5U};
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_submit(&engine, &rejected));
+    TEST_CHECK(rejected.plan.actions != NULL);
+    executor_free_unowned_request(&rejected);
+}
+
 void executor_run_terminal_tests(void)
 {
     test_press_release_and_final_release_errors();
     test_recovery_after_each_terminal_outcome();
     test_cancel_and_status_lock_failures();
+    test_key_release_failure_after_success();
+    test_terminal_publish_failure_leaves_executor_unavailable();
 }

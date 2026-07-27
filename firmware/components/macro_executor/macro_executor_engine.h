@@ -12,6 +12,11 @@ typedef struct {
     macro_execution_status_t status;
     bool busy;
     bool cancellation_requested;
+    /* Latched true when a terminal state could not be published or the busy flag
+     * could not be cleared (FIX1 §12.3): the engine's observable state is then
+     * unreliable, so it rejects new submissions until re-initialized rather than
+     * appearing falsely idle. Set only on such a failure, cleared only by init. */
+    bool unavailable;
     /* Absolute watchdog deadline for the in-flight execution (ms). */
     uint32_t deadline;
 } macro_executor_engine_t;

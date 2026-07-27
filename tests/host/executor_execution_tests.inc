@@ -101,7 +101,8 @@ static void test_watchdog_and_wait_failures(void)
     TEST_CHECK_APP_ERROR(APP_ERROR_TIMEOUT, executor_execute_queued(&engine, &fake));
     TEST_CHECK(fake.wait_count > 0U);
     TEST_CHECK_EQ_U64(1U, fake.release_index);
-    executor_assert_terminal(&engine, EXECUTION_FAILED, APP_ERROR_TIMEOUT, false);
+    /* A watchdog timeout is its own terminal state, distinct from a failure. */
+    executor_assert_terminal(&engine, EXECUTION_TIMED_OUT, APP_ERROR_TIMEOUT, false);
 
     executor_fake_reset(&fake);
     executor_init_engine(&engine, &fake);

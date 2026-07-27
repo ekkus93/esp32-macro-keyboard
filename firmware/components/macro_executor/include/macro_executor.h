@@ -13,7 +13,10 @@ typedef enum {
     EXECUTION_RUNNING,
     EXECUTION_COMPLETED,
     EXECUTION_CANCELLED,
-    EXECUTION_FAILED
+    EXECUTION_FAILED,
+    /* A run that exceeded its watchdog deadline. Distinct from EXECUTION_FAILED so
+     * the API and frontend can report a timeout specifically (FIX1 §12.4). */
+    EXECUTION_TIMED_OUT
 } execution_state_t;
 
 typedef struct {

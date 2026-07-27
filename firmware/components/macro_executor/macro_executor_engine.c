@@ -115,6 +115,12 @@ static app_error_code_t finish_execution(macro_executor_engine_t *engine,
     status.error = primary_error;
     const app_error_code_t publish_result = publish_status(engine, status);
     const app_error_code_t reset_result = reset_terminal_flags(engine);
+    if (publish_result != APP_ERROR_NONE || reset_result != APP_ERROR_NONE) {
+        /* The terminal state could not be published or the busy flag could not be
+         * cleared: latch the engine unavailable so it rejects new work until
+         * re-initialized rather than appearing falsely idle (FIX1 §12.3). */
+        engine->unavailable = true;
+    }
     if (publish_result != APP_ERROR_NONE) {
         return publish_result;
     }
@@ -136,6 +142,12 @@ app_error_code_t macro_executor_engine_submit(macro_executor_engine_t *engine,
                                               macro_execution_request_t *request) {
     if (engine == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
+    }
+    /* A prior terminal-publish/reset failure latched the engine unavailable: refuse
+     * new work until it is re-initialized (FIX1 §12.3). Read without the lock -- it
+     * is a monotonic fault latch set only when the lock itself was failing. */
+    if (engine->unavailable) {
+        return APP_ERROR_INTERNAL;
     }
     app_error_code_t result = validate_request(request);
     if (result != APP_ERROR_NONE) {
@@ -244,8 +256,9 @@ app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
     app_error_code_t result = publish_status(engine, status);
     if (result != APP_ERROR_NONE) {
         engine->ops.plan_free(&request->plan);
-        (void)finish_execution(engine, status, EXECUTION_FAILED, result);
-        return result;
+        const app_error_code_t finish_result =
+            finish_execution(engine, status, EXECUTION_FAILED, result);
+        return finish_result != APP_ERROR_NONE ? finish_result : result;
     }
 
     const uint32_t started = engine->ops.now_ms(engine->ops.context);
@@ -285,6 +298,8 @@ app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
         terminal = EXECUTION_COMPLETED;
     } else if (result == APP_ERROR_EXECUTION_CANCELLED) {
         terminal = EXECUTION_CANCELLED;
+    } else if (result == APP_ERROR_TIMEOUT) {
+        terminal = EXECUTION_TIMED_OUT;
     }
     const app_error_code_t finish_result = finish_execution(engine, status, terminal, result);
     return finish_result == APP_ERROR_NONE ? result : finish_result;

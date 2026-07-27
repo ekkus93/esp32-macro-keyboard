@@ -54,7 +54,8 @@
 | 9 | Serialize repository operations | done (import/restore serialization deferred with Phase 18) |
 | 10 | Separate password mismatch from crypto failure | done |
 | 11 | Fix Wi-Fi cleanup | done |
-| 12–13 | Executor / controls cleanup and visibility | not started |
+| 12 | Fix executor shutdown and terminal integrity | done (§12.4 observability fields deferred to Phase 16/19) |
+| 13 | Fix device-controls shutdown and failure visibility | not started |
 | 14 | Encrypted persistent provisioning | not started |
 | 15 | Complete storage object repositories | not started |
 | 16 | Complete the HTTP API | not started |
@@ -86,6 +87,28 @@
 - Phase 2.4 (Phase 2 gate verification): fail-closed behavior demonstrated
   (broken analyzer → fail, first-party warning → fail, restored tree → all four
   gate commands pass); see the 2.4 progress section above for evidence.
+- Phase 12 (fix executor shutdown and terminal integrity) — complete. One commit.
+  §12.1/§12.2: `macro_executor.c` replaced the forced `vTaskDelete` shutdown with a
+  cooperative one — a tagged worker message (EXECUTE/STOP), an `executor_stopped`
+  binary semaphore, a depth-2 queue, and a `shutting_down` latch. `deinit` now
+  rejects new submissions, requests cancellation, enqueues STOP, waits a bounded
+  time for the worker to acknowledge exit (leaving the queue/semaphores intact and
+  failing closed if it does not), releases USB keys, drains and frees any queued
+  plan, deletes the queue and semaphores only after the task exits, clears handles
+  and engine state, and retains the first release/shutdown error (including a
+  recorded stop-signal failure). §12.3: the ignored `(void)finish_execution(...)`
+  now handles its result, and a terminal-publish/reset failure latches the engine
+  `unavailable` (rejecting new submits with the primary error retained in status)
+  rather than leaving it falsely idle. §12.4: added `EXECUTION_TIMED_OUT` (engine
+  maps `APP_ERROR_TIMEOUT` to it; web `execution_state_string` gains "timed_out")
+  and a key-release-failure-after-success test. The engine/web changes are host
+  tested (executor + web suites green + ASan/UBSan); the FreeRTOS shutdown code is
+  firmware-only (compile + fail-closed clang-tidy 0, device-observable).
+  **Deferred (recorded, per RESPONSES §8):** the §12.4 observability status fields
+  — set_id/macro_id identity, accepted/started/completed timestamps, and a
+  current-action summary — to Phase 16 (HTTP API) / Phase 19 (diagnostics), where
+  they are consumed and their JSON shape is designed (operator decision confirmed
+  in-session); execution_id is already in the status.
 - Phase 11 (fix Wi-Fi cleanup) — complete. One commit. `cleanup_resources`
   (`wifi_ap_state.c`) no longer returns early on the first failing teardown step;
   it records the first error and continues through all four steps (wifi_stop,

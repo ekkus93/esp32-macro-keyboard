@@ -1245,15 +1245,15 @@ record it in executor health before task exit.
 
 `macro_executor_deinit()` must:
 
-- [ ] reject new submissions;
-- [ ] request cancellation;
-- [ ] enqueue or notify stop;
-- [ ] wait with a bounded timeout;
-- [ ] release all USB keys;
-- [ ] free any owned plan;
-- [ ] delete queue and semaphores after task exit;
-- [ ] clear handles and engine state;
-- [ ] retain release and shutdown errors.
+- [x] reject new submissions;
+- [x] request cancellation;
+- [x] enqueue or notify stop;
+- [x] wait with a bounded timeout;
+- [x] release all USB keys;
+- [x] free any owned plan;
+- [x] delete queue and semaphores after task exit;
+- [x] clear handles and engine state;
+- [x] retain release and shutdown errors.
 
 ### 12.3 Remove ignored `finish_execution`
 
@@ -1265,20 +1265,24 @@ Replace:
 
 with explicit result handling. If terminal publication or reset fails:
 
-- [ ] return that failure;
-- [ ] retain the primary execution failure in status/health;
-- [ ] leave executor unavailable rather than falsely idle;
-- [ ] require deinit/restart or explicit recovery.
+- [x] return that failure;
+- [x] retain the primary execution failure in status/health;
+- [x] leave executor unavailable rather than falsely idle;
+- [x] require deinit/restart or explicit recovery.
 
 ### 12.4 Add terminal states
 
 Add `EXECUTION_TIMED_OUT` or retain `EXECUTION_FAILED` with a required
 `APP_ERROR_TIMEOUT` mapping. The API and frontend must distinguish timeout.
 
-- [ ] Add execution ID and object identity to status.
-- [ ] Add accepted, started, and completed timestamps.
-- [ ] Add current action summary.
-- [ ] Add tests for key-release failure after otherwise successful execution.
+- [ ] Add execution ID and object identity to status. (execution_id already
+      present; set_id/macro_id identity deferred to the API/diagnostics phases,
+      16/19, where it is consumed and its JSON shape is designed.)
+- [ ] Add accepted, started, and completed timestamps. (Observability metadata
+      deferred to Phase 16/19 with its consumer.)
+- [ ] Add current action summary. (Observability metadata deferred to Phase 16/19
+      with its consumer.)
+- [x] Add tests for key-release failure after otherwise successful execution.
 
 ## 13. Fix device-controls shutdown and failure visibility
 
