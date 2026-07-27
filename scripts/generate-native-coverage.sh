@@ -55,6 +55,7 @@ pure_policy_args=(
 	--filter '^firmware/components/web_server/web_origin\.c$'
 	--filter '^firmware/components/web_server/web_static_path\.c$'
 	--filter '^firmware/components/web_server/web_content\.c$'
+	--filter '^firmware/components/web_server/web_setup_core\.c$'
 	--filter '^firmware/components/app_core/app_core_sequence\.c$'
 	--filter '^firmware/components/device_controls/device_controls_logic\.c$'
 	--filter '^firmware/components/wifi_ap/wifi_ap_state\.c$'
