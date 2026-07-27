@@ -79,7 +79,7 @@ cmake \
 	-S "${repo_root}/tests/host" \
 	-B "${build_dir}" \
 	-DHOST_TEST_MODE="${mode}" \
-	-DCMAKE_PROJECT_INCLUDE="${repo_root}/tests/host/cmake/host_test_mode.cmake"
+	-DCMAKE_PROJECT_INCLUDE="${repo_root}/tests/host/cmake/host_test_project.cmake"
 cmake --build "${build_dir}" --parallel
 
 ctest_args=(--test-dir "${build_dir}" --output-on-failure)
