@@ -21,16 +21,17 @@ typedef struct {
 typedef app_error_code_t (*storage_atomic_validate_fn)(void *context,
                                                        const storage_atomic_candidate_t *candidate);
 
-/* The storage object types an atomic-write destination can name. The
- * MACRO/PROCEDURE/PROGRESS/SETTINGS object repositories are not yet implemented
- * (Phase 15); their destinations classify here but have no validator, so recovery
- * refuses to activate their candidates. */
+/* The storage object types an atomic-write destination can name. Every active
+ * repository object type has an object-specific validator so recovery cannot
+ * activate syntactically valid but semantically mismatched bytes. */
 typedef enum {
     STORAGE_ATOMIC_OBJECT_UNKNOWN = 0,
     STORAGE_ATOMIC_OBJECT_TRANSACTION_MANIFEST,
     STORAGE_ATOMIC_OBJECT_SCHEMA_MARKER,
     STORAGE_ATOMIC_OBJECT_SET_INDEX,
     STORAGE_ATOMIC_OBJECT_GLOBAL_MACRO_INDEX,
+    STORAGE_ATOMIC_OBJECT_SET_MACRO_INDEX,
+    STORAGE_ATOMIC_OBJECT_PROCEDURE_INDEX,
     STORAGE_ATOMIC_OBJECT_SET_METADATA,
     STORAGE_ATOMIC_OBJECT_MACRO,
     STORAGE_ATOMIC_OBJECT_PROCEDURE,

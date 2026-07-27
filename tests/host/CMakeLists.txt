@@ -266,6 +266,8 @@ add_executable(
     ../../firmware/components/storage/storage_transaction.c
     ../../firmware/components/storage/storage_repository_io.c
     ../../firmware/components/storage/storage_repository_json.c
+    ../../firmware/components/storage/storage_json.c
+    ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/storage/storage_repository_index.c
     ../../firmware/components/storage/storage_repository_sets.c
     ../../firmware/components/storage/storage_quarantine.c
@@ -298,6 +300,8 @@ add_executable(
     ../../firmware/components/storage/storage_transaction.c
     ../../firmware/components/storage/storage_repository_io.c
     ../../firmware/components/storage/storage_repository_json.c
+    ../../firmware/components/storage/storage_json.c
+    ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/storage/storage_repository_index.c
     ../../firmware/components/storage/storage_repository_sets.c
     ../../firmware/components/storage/storage_quarantine.c
@@ -455,6 +459,8 @@ add_executable(
     ../../firmware/components/storage/storage_transaction.c
     ../../firmware/components/storage/storage_repository_io.c
     ../../firmware/components/storage/storage_repository_json.c
+    ../../firmware/components/storage/storage_json.c
+    ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/storage/storage_repository_index.c
     ../../firmware/components/storage/storage_repository_sets.c
     ../../firmware/components/storage/storage_repository_lock.c

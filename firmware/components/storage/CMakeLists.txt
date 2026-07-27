@@ -11,9 +11,12 @@ idf_component_register(
     "storage_transaction.c"
     "storage_repository_io.c"
     "storage_repository_json.c"
+    "storage_json.c"
+    "storage_repository_objects_json.c"
     "storage_repository_index.c"
     "storage_repository_sets.c"
     "storage_repository_lock.c"
+    "storage_repository_macros.c"
     "storage_quarantine.c"
     INCLUDE_DIRS
     "include"

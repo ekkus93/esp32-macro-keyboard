@@ -32,3 +32,71 @@ app_error_code_t storage_make_macro_path(const app_uuid_t *set_id, const app_uui
     }
     return APP_ERROR_NONE;
 }
+
+static bool valid_path_argument(const app_uuid_t *id, const char *buffer, size_t buffer_size) {
+    return id != NULL && buffer != NULL && buffer_size > 0U && app_uuid_is_valid_string(id->value);
+}
+
+static app_error_code_t finish_path(char *buffer, size_t buffer_size, int written) {
+    if (written < 0 || (size_t)written >= buffer_size) {
+        buffer[0] = '\0';
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    return APP_ERROR_NONE;
+}
+
+app_error_code_t storage_make_global_macro_path(const app_uuid_t *macro_id, char *buffer,
+                                                size_t buffer_size) {
+    if (!valid_path_argument(macro_id, buffer, buffer_size)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const int written =
+        snprintf(buffer, buffer_size, STORAGE_DATA_MOUNT "/global/macros/%s.json", macro_id->value);
+    return finish_path(buffer, buffer_size, written);
+}
+
+app_error_code_t storage_make_set_macro_order_path(const app_uuid_t *set_id, char *buffer,
+                                                   size_t buffer_size) {
+    if (!valid_path_argument(set_id, buffer, buffer_size)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const int written = snprintf(buffer, buffer_size,
+                                 STORAGE_DATA_MOUNT "/sets/%s/macro-order.json", set_id->value);
+    return finish_path(buffer, buffer_size, written);
+}
+
+app_error_code_t storage_make_procedure_path(const app_uuid_t *set_id,
+                                             const app_uuid_t *procedure_id, char *buffer,
+                                             size_t buffer_size) {
+    if (!valid_path_argument(set_id, buffer, buffer_size) || procedure_id == NULL ||
+        !app_uuid_is_valid_string(procedure_id->value)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const int written =
+        snprintf(buffer, buffer_size, STORAGE_DATA_MOUNT "/sets/%s/procedures/%s.json",
+                 set_id->value, procedure_id->value);
+    return finish_path(buffer, buffer_size, written);
+}
+
+app_error_code_t storage_make_procedure_order_path(const app_uuid_t *set_id, char *buffer,
+                                                   size_t buffer_size) {
+    if (!valid_path_argument(set_id, buffer, buffer_size)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const int written = snprintf(buffer, buffer_size,
+                                 STORAGE_DATA_MOUNT "/sets/%s/procedure-order.json", set_id->value);
+    return finish_path(buffer, buffer_size, written);
+}
+
+app_error_code_t storage_make_progress_path(const app_uuid_t *set_id,
+                                            const app_uuid_t *procedure_id, char *buffer,
+                                            size_t buffer_size) {
+    if (!valid_path_argument(set_id, buffer, buffer_size) || procedure_id == NULL ||
+        !app_uuid_is_valid_string(procedure_id->value)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const int written =
+        snprintf(buffer, buffer_size, STORAGE_DATA_MOUNT "/sets/%s/progress/%s.json", set_id->value,
+                 procedure_id->value);
+    return finish_path(buffer, buffer_size, written);
+}
