@@ -64,16 +64,14 @@ expect_fail 'conflicting flash scheme' 'conflicts with the required HMAC NVS sch
 write_fixture "${valid_config}"$'\nCONFIG_NVS_SEC_KEY_PROTECT_NONE=y'
 expect_fail 'unprotected scheme' 'conflicts with the required HMAC NVS scheme'
 
-invalid_key_config="${valid_config/CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID=0/"
-invalid_key_config+="CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID=6}"
+invalid_key_config="${valid_config/CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID=0/CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID=6}"
 write_fixture "${invalid_key_config}"
 expect_fail 'invalid key block' "must be '0'"
 
 write_fixture "${valid_config}"$'\nCONFIG_NVS_ENCRYPTION=y'
 expect_fail 'duplicate setting' 'duplicate setting CONFIG_NVS_ENCRYPTION'
 
-manufacturing_config="${valid_config/# CONFIG_APP_MANUFACTURING_PROVISIONING_LOG is not set/"
-manufacturing_config+="CONFIG_APP_MANUFACTURING_PROVISIONING_LOG=y}"
+manufacturing_config="${valid_config/# CONFIG_APP_MANUFACTURING_PROVISIONING_LOG is not set/CONFIG_APP_MANUFACTURING_PROVISIONING_LOG=y}"
 write_fixture "${manufacturing_config}"
 expect_fail 'manufacturing credential logging' 'is forbidden in production configuration'
 
