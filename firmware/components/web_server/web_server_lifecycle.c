@@ -47,15 +47,9 @@ static route_table_t active_route_table(void) {
 }
 
 static void clear_setup_configuration_secrets(void) {
-    memset(server_configuration.setup_device_id,
-           0,
-           sizeof(server_configuration.setup_device_id));
-    memset(server_configuration.setup_ap_ssid,
-           0,
-           sizeof(server_configuration.setup_ap_ssid));
-    memset(server_configuration.setup_code,
-           0,
-           sizeof(server_configuration.setup_code));
+    memset(server_configuration.setup_device_id, 0, sizeof(server_configuration.setup_device_id));
+    memset(server_configuration.setup_ap_ssid, 0, sizeof(server_configuration.setup_ap_ssid));
+    memset(server_configuration.setup_code, 0, sizeof(server_configuration.setup_code));
 }
 
 static int start_server_adapter(void *context, void **out_handle) {
@@ -78,8 +72,7 @@ static int register_route_adapter(void *context, void *handle, size_t route_inde
     if (route_index >= table.count) {
         return -1;
     }
-    return httpd_register_uri_handler((httpd_handle_t)handle,
-                                      &table.routes[route_index]) == ESP_OK
+    return httpd_register_uri_handler((httpd_handle_t)handle, &table.routes[route_index]) == ESP_OK
                ? 0
                : -1;
 }
@@ -113,8 +106,8 @@ static bool server_configuration_valid(const web_server_config_t *configuration)
 }
 
 app_error_code_t web_server_start(const web_server_config_t *configuration) {
-    if (!server_configuration_valid(configuration) ||
-        server_lifecycle.handle != NULL || web_server_setup_owns_resources()) {
+    if (!server_configuration_valid(configuration) || server_lifecycle.handle != NULL ||
+        web_server_setup_owns_resources()) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     server_configuration = *configuration;
@@ -126,8 +119,7 @@ app_error_code_t web_server_start(const web_server_config_t *configuration) {
     if (result == APP_ERROR_NONE) {
         const web_adapter_lifecycle_ops_t operations = server_lifecycle_ops();
         const route_table_t table = active_route_table();
-        result = web_adapter_lifecycle_start(
-            &server_lifecycle, &operations, table.count);
+        result = web_adapter_lifecycle_start(&server_lifecycle, &operations, table.count);
     }
     if (result != APP_ERROR_NONE && server_lifecycle.handle == NULL) {
         app_error_code_t setup_cleanup = APP_ERROR_NONE;
@@ -144,8 +136,7 @@ app_error_code_t web_server_start(const web_server_config_t *configuration) {
 
 app_error_code_t web_server_stop(void) {
     const web_adapter_lifecycle_ops_t operations = server_lifecycle_ops();
-    app_error_code_t result =
-        web_adapter_lifecycle_stop(&server_lifecycle, &operations);
+    app_error_code_t result = web_adapter_lifecycle_stop(&server_lifecycle, &operations);
     if (result != APP_ERROR_NONE) {
         return result;
     }

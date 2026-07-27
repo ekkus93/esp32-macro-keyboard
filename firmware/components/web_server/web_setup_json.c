@@ -23,9 +23,7 @@ static bool operations_valid(const web_setup_json_ops_t *operations) {
     return operations != NULL && operations->secure_zero != NULL;
 }
 
-static bool bounded_body_length(const char *body,
-                                size_t capacity,
-                                size_t *out_length) {
+static bool bounded_body_length(const char *body, size_t capacity, size_t *out_length) {
     if (body == NULL || out_length == NULL || capacity == 0U) {
         return false;
     }
@@ -89,11 +87,8 @@ static bool exact_setup_fields(const cJSON *root) {
     return true;
 }
 
-static bool copy_json_text(const cJSON *item,
-                           char *output,
-                           size_t output_size) {
-    if (!cJSON_IsString(item) || item->valuestring == NULL || output == NULL ||
-        output_size == 0U) {
+static bool copy_json_text(const cJSON *item, char *output, size_t output_size) {
+    if (!cJSON_IsString(item) || item->valuestring == NULL || output == NULL || output_size == 0U) {
         return false;
     }
     const size_t length = strlen(item->valuestring);
@@ -105,36 +100,25 @@ static bool copy_json_text(const cJSON *item,
     return true;
 }
 
-static bool populate_submission(const cJSON *root,
-                                web_setup_submission_t *submission) {
-    const cJSON *setup_code =
-        cJSON_GetObjectItemCaseSensitive(root, "setupCode");
+static bool populate_submission(const cJSON *root, web_setup_submission_t *submission) {
+    const cJSON *setup_code = cJSON_GetObjectItemCaseSensitive(root, "setupCode");
     const cJSON *ap_ssid = cJSON_GetObjectItemCaseSensitive(root, "apSsid");
-    const cJSON *ap_passphrase =
-        cJSON_GetObjectItemCaseSensitive(root, "apPassphrase");
+    const cJSON *ap_passphrase = cJSON_GetObjectItemCaseSensitive(root, "apPassphrase");
     const cJSON *administrator_password =
         cJSON_GetObjectItemCaseSensitive(root, "administratorPassword");
     const cJSON *require_confirmation =
         cJSON_GetObjectItemCaseSensitive(root, "requirePhysicalConfirmation");
-    const cJSON *always_select =
-        cJSON_GetObjectItemCaseSensitive(root, "alwaysSelectSet");
-    if (!copy_json_text(setup_code,
-                        submission->setup_code,
-                        sizeof(submission->setup_code)) ||
-        !copy_json_text(ap_ssid,
-                        submission->ap_ssid,
-                        sizeof(submission->ap_ssid)) ||
-        !copy_json_text(ap_passphrase,
-                        submission->ap_passphrase,
+    const cJSON *always_select = cJSON_GetObjectItemCaseSensitive(root, "alwaysSelectSet");
+    if (!copy_json_text(setup_code, submission->setup_code, sizeof(submission->setup_code)) ||
+        !copy_json_text(ap_ssid, submission->ap_ssid, sizeof(submission->ap_ssid)) ||
+        !copy_json_text(ap_passphrase, submission->ap_passphrase,
                         sizeof(submission->ap_passphrase)) ||
-        !copy_json_text(administrator_password,
-                        submission->administrator_password,
+        !copy_json_text(administrator_password, submission->administrator_password,
                         sizeof(submission->administrator_password)) ||
         !cJSON_IsBool(require_confirmation) || !cJSON_IsBool(always_select)) {
         return false;
     }
-    submission->require_physical_confirmation =
-        cJSON_IsTrue(require_confirmation);
+    submission->require_physical_confirmation = cJSON_IsTrue(require_confirmation);
     submission->always_select_set = cJSON_IsTrue(always_select);
     return true;
 }
@@ -142,13 +126,11 @@ static bool populate_submission(const cJSON *root,
 static void wipe_json_tree(const web_setup_json_ops_t *operations, cJSON *item) {
     for (cJSON *current = item; current != NULL; current = current->next) {
         if (current->string != NULL) {
-            operations->secure_zero(operations->context,
-                                    current->string,
+            operations->secure_zero(operations->context, current->string,
                                     strlen(current->string) + 1U);
         }
         if (cJSON_IsString(current) && current->valuestring != NULL) {
-            operations->secure_zero(operations->context,
-                                    current->valuestring,
+            operations->secure_zero(operations->context, current->valuestring,
                                     strlen(current->valuestring) + 1U);
         }
         if (current->child != NULL) {
@@ -157,18 +139,14 @@ static void wipe_json_tree(const web_setup_json_ops_t *operations, cJSON *item) 
     }
 }
 
-app_error_code_t web_setup_json_parse(
-    char *body,
-    size_t body_capacity,
-    const web_setup_json_ops_t *operations,
-    web_setup_submission_t *out_submission) {
+app_error_code_t web_setup_json_parse(char *body, size_t body_capacity,
+                                      const web_setup_json_ops_t *operations,
+                                      web_setup_submission_t *out_submission) {
     if (!operations_valid(operations)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     if (out_submission != NULL) {
-        operations->secure_zero(operations->context,
-                                out_submission,
-                                sizeof(*out_submission));
+        operations->secure_zero(operations->context, out_submission, sizeof(*out_submission));
     }
     if (body == NULL || body_capacity == 0U || out_submission == NULL) {
         if (body != NULL && body_capacity > 0U) {
@@ -185,8 +163,7 @@ app_error_code_t web_setup_json_parse(
     }
 
     const char *parse_end = NULL;
-    cJSON *root = cJSON_ParseWithLengthOpts(
-        body, body_length + 1U, &parse_end, true);
+    cJSON *root = cJSON_ParseWithLengthOpts(body, body_length + 1U, &parse_end, true);
     const bool exact_document = root != NULL && parse_end == body + body_length;
     operations->secure_zero(operations->context, body, body_capacity);
     if (!exact_document) {
@@ -197,14 +174,11 @@ app_error_code_t web_setup_json_parse(
         return APP_ERROR_INVALID_ARGUMENT;
     }
 
-    const bool valid = exact_setup_fields(root) &&
-                       populate_submission(root, out_submission);
+    const bool valid = exact_setup_fields(root) && populate_submission(root, out_submission);
     wipe_json_tree(operations, root);
     cJSON_Delete(root);
     if (!valid) {
-        operations->secure_zero(operations->context,
-                                out_submission,
-                                sizeof(*out_submission));
+        operations->secure_zero(operations->context, out_submission, sizeof(*out_submission));
         return APP_ERROR_INVALID_ARGUMENT;
     }
     return APP_ERROR_NONE;

@@ -93,8 +93,8 @@ static app_error_code_t adapter_set_safe_output(void *context) {
      * driven inactive before all three controls pins are reset to their default
      * high-impedance GPIO state. */
     const int inactive_level = !CONFIG_APP_LED_ACTIVE_LEVEL;
-    return gpio_set_level((gpio_num_t)CONFIG_APP_STATUS_LED_GPIO,
-                          (uint32_t)inactive_level) == ESP_OK
+    return gpio_set_level((gpio_num_t)CONFIG_APP_STATUS_LED_GPIO, (uint32_t)inactive_level) ==
+                   ESP_OK
                ? APP_ERROR_NONE
                : APP_ERROR_INTERNAL;
 }
@@ -170,8 +170,7 @@ static app_error_code_t read_buttons(button_state_t *out_buttons) {
     if (out_buttons == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    const int confirmation_level =
-        gpio_get_level((gpio_num_t)CONFIG_APP_CONFIRM_BUTTON_GPIO);
+    const int confirmation_level = gpio_get_level((gpio_num_t)CONFIG_APP_CONFIRM_BUTTON_GPIO);
     const int cancel_level = gpio_get_level((gpio_num_t)CONFIG_APP_CANCEL_BUTTON_GPIO);
     if ((confirmation_level != 0 && confirmation_level != 1) ||
         (cancel_level != 0 && cancel_level != 1)) {
@@ -193,17 +192,15 @@ static void controls_task(void *context) {
     while (true) {
         button_state_t buttons = {0};
         const app_error_code_t read_result = read_buttons(&buttons);
-        const uint64_t elapsed =
-            (uint64_t)xTaskGetTickCount() * (uint64_t)portTICK_PERIOD_MS;
+        const uint64_t elapsed = (uint64_t)xTaskGetTickCount() * (uint64_t)portTICK_PERIOD_MS;
         const device_controls_poll_result_t result = device_controls_engine_poll(
-            &engine,
-            (device_controls_poll_input_t){
-                .confirmation_pressed = buttons.confirmation_pressed,
-                .cancel_pressed = buttons.cancel_pressed,
-                .stop_requested = stop_requested(),
-                .gpio_read_error = read_result,
-                .elapsed_ms = (uint32_t)elapsed,
-            });
+            &engine, (device_controls_poll_input_t){
+                         .confirmation_pressed = buttons.confirmation_pressed,
+                         .cancel_pressed = buttons.cancel_pressed,
+                         .stop_requested = stop_requested(),
+                         .gpio_read_error = read_result,
+                         .elapsed_ms = (uint32_t)elapsed,
+                     });
         if (result.error != APP_ERROR_NONE) {
             log_controls_error("controls poll", result.error);
         }
@@ -330,8 +327,8 @@ app_error_code_t device_controls_init(void) {
         return result;
     }
     if (!configuration_valid()) {
-        return record_init_failure(
-            APP_ERROR_INVALID_ARGUMENT, DEVICE_CONTROLS_FAILURE_GPIO_CONFIGURATION);
+        return record_init_failure(APP_ERROR_INVALID_ARGUMENT,
+                                   DEVICE_CONTROLS_FAILURE_GPIO_CONFIGURATION);
     }
 
     result = configure_input_pins();
@@ -355,11 +352,7 @@ app_error_code_t device_controls_init(void) {
         return record_init_failure(result, DEVICE_CONTROLS_FAILURE_GENERIC);
     }
 
-    if (xTaskCreate(controls_task,
-                    "controls",
-                    2048U,
-                    NULL,
-                    CONTROLS_TASK_PRIORITY,
+    if (xTaskCreate(controls_task, "controls", 2048U, NULL, CONTROLS_TASK_PRIORITY,
                     &controls_task_handle) != pdPASS) {
         controls_task_handle = NULL;
         return record_init_failure(APP_ERROR_INTERNAL, DEVICE_CONTROLS_FAILURE_TASK_START);

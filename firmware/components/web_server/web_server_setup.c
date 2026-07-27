@@ -32,33 +32,28 @@ static void secure_zero_bytes(void *memory, size_t size) {
     }
 }
 
-static app_error_code_t setup_provisioning_load(
-    void *context,
-    provisioning_config_t *out_configuration) {
+static app_error_code_t setup_provisioning_load(void *context,
+                                                provisioning_config_t *out_configuration) {
     (void)context;
     return provisioning_load(out_configuration);
 }
 
-static app_error_code_t setup_password_create(
-    void *context,
-    const char *password,
-    size_t password_length,
-    auth_password_record_t *out_record) {
+static app_error_code_t setup_password_create(void *context, const char *password,
+                                              size_t password_length,
+                                              auth_password_record_t *out_record) {
     (void)context;
     return auth_password_create(password, password_length, out_record);
 }
 
-static app_error_code_t setup_provisioning_commit(
-    void *context,
-    const provisioning_config_t *replacement,
-    uint32_t expected_revision,
-    provisioning_config_t *out_committed) {
+static app_error_code_t setup_provisioning_commit(void *context,
+                                                  const provisioning_config_t *replacement,
+                                                  uint32_t expected_revision,
+                                                  provisioning_config_t *out_committed) {
     (void)context;
     return provisioning_commit(replacement, expected_revision, out_committed);
 }
 
-static app_error_code_t setup_wait_for_confirmation(void *context,
-                                                    uint32_t timeout_ms) {
+static app_error_code_t setup_wait_for_confirmation(void *context, uint32_t timeout_ms) {
     (void)context;
     return device_controls_wait_for_confirmation(timeout_ms);
 }
@@ -118,22 +113,18 @@ app_error_code_t web_server_setup_init(const web_server_config_t *configuration)
         return APP_ERROR_INVALID_ARGUMENT;
     }
     web_setup_configuration_t setup_configuration = {
-        .physical_confirmation_required =
-            configuration->setup_physical_confirmation_required,
+        .physical_confirmation_required = configuration->setup_physical_confirmation_required,
         .manufacturing_bypass = configuration->setup_manufacturing_bypass,
     };
-    memcpy(setup_configuration.device_id,
-           configuration->setup_device_id,
+    memcpy(setup_configuration.device_id, configuration->setup_device_id,
            sizeof(setup_configuration.device_id));
-    memcpy(setup_configuration.ap_ssid,
-           configuration->setup_ap_ssid,
+    memcpy(setup_configuration.ap_ssid, configuration->setup_ap_ssid,
            sizeof(setup_configuration.ap_ssid));
-    memcpy(setup_configuration.setup_code,
-           configuration->setup_code,
+    memcpy(setup_configuration.setup_code, configuration->setup_code,
            sizeof(setup_configuration.setup_code));
     const web_setup_ops_t operations = setup_operations();
-    const app_error_code_t result = web_setup_core_init(
-        &server_setup_core, &operations, &setup_configuration);
+    const app_error_code_t result =
+        web_setup_core_init(&server_setup_core, &operations, &setup_configuration);
     secure_zero_bytes(&setup_configuration, sizeof(setup_configuration));
     return result;
 }
@@ -151,8 +142,7 @@ app_error_code_t web_server_setup_deinit(void) {
             result = APP_ERROR_IO;
         }
     }
-    const app_error_code_t core_result =
-        web_setup_core_deinit(&server_setup_core);
+    const app_error_code_t core_result = web_setup_core_deinit(&server_setup_core);
     return result != APP_ERROR_NONE ? result : core_result;
 }
 
@@ -160,10 +150,7 @@ bool web_server_setup_owns_resources(void) {
     return server_setup_core.initialized || setup_restart_timer != NULL;
 }
 
-static bool get_header(httpd_req_t *request,
-                       const char *name,
-                       char *output,
-                       size_t output_size) {
+static bool get_header(httpd_req_t *request, const char *name, char *output, size_t output_size) {
     if (request == NULL || name == NULL || output == NULL || output_size == 0U) {
         return false;
     }
@@ -211,23 +198,17 @@ static const char *setup_http_status(app_error_code_t result) {
     }
 }
 
-static esp_err_t send_setup_state(httpd_req_t *request,
-                                  const web_setup_state_t *state,
+static esp_err_t send_setup_state(httpd_req_t *request, const web_setup_state_t *state,
                                   const char *status) {
     char response[SETUP_RESPONSE_MAX_BYTES];
-    const int length = snprintf(
-        response,
-        sizeof(response),
-        "{\"ok\":true,\"data\":{\"deviceId\":\"%s\",\"apSsid\":\"%s\","
-        "\"completed\":%s,\"physicalConfirmationRequired\":%s}}",
-        state->device_id,
-        state->ap_ssid,
-        state->completed ? "true" : "false",
-        state->physical_confirmation_required ? "true" : "false");
+    const int length =
+        snprintf(response, sizeof(response),
+                 "{\"ok\":true,\"data\":{\"deviceId\":\"%s\",\"apSsid\":\"%s\","
+                 "\"completed\":%s,\"physicalConfirmationRequired\":%s}}",
+                 state->device_id, state->ap_ssid, state->completed ? "true" : "false",
+                 state->physical_confirmation_required ? "true" : "false");
     if (length < 0 || (size_t)length >= sizeof(response)) {
-        return send_error(request,
-                          "500 Internal Server Error",
-                          APP_ERROR_INTERNAL,
+        return send_error(request, "500 Internal Server Error", APP_ERROR_INTERNAL,
                           "setup response overflow");
     }
     return send_json(request, response, status);
@@ -236,9 +217,7 @@ static esp_err_t send_setup_state(httpd_req_t *request,
 esp_err_t setup_state_handler(httpd_req_t *request) {
     const web_setup_state_t state = web_setup_core_get_state(&server_setup_core);
     if (!server_setup_core.initialized) {
-        return send_error(request,
-                          "503 Service Unavailable",
-                          APP_ERROR_CONFLICT,
+        return send_error(request, "503 Service Unavailable", APP_ERROR_CONFLICT,
                           "setup service unavailable");
     }
     return send_setup_state(request, &state, "200 OK");
@@ -246,21 +225,15 @@ esp_err_t setup_state_handler(httpd_req_t *request) {
 
 esp_err_t setup_credentials_handler(httpd_req_t *request) {
     if (!server_setup_core.initialized) {
-        return send_error(request,
-                          "503 Service Unavailable",
-                          APP_ERROR_CONFLICT,
+        return send_error(request, "503 Service Unavailable", APP_ERROR_CONFLICT,
                           "setup service unavailable");
     }
     if (!setup_origin_allowed(request)) {
-        return send_error(request,
-                          "401 Unauthorized",
-                          APP_ERROR_AUTH_REQUIRED,
+        return send_error(request, "401 Unauthorized", APP_ERROR_AUTH_REQUIRED,
                           "invalid setup origin");
     }
     if (!setup_json_content_type(request)) {
-        return send_error(request,
-                          "415 Unsupported Media Type",
-                          APP_ERROR_INVALID_ARGUMENT,
+        return send_error(request, "415 Unsupported Media Type", APP_ERROR_INVALID_ARGUMENT,
                           "content type must be application/json");
     }
 
@@ -269,10 +242,7 @@ esp_err_t setup_credentials_handler(httpd_req_t *request) {
         read_bounded_body(request, body, sizeof(body), SETUP_BODY_MAX_BYTES);
     if (body_result != APP_ERROR_NONE) {
         secure_zero_bytes(body, sizeof(body));
-        return send_error(request,
-                          "400 Bad Request",
-                          body_result,
-                          "invalid setup request body");
+        return send_error(request, "400 Bad Request", body_result, "invalid setup request body");
     }
 
     web_setup_submission_t submission = {0};
@@ -280,13 +250,10 @@ esp_err_t setup_credentials_handler(httpd_req_t *request) {
         .context = NULL,
         .secure_zero = setup_secure_zero,
     };
-    const app_error_code_t parse_result = web_setup_json_parse(
-        body, sizeof(body), &json_operations, &submission);
+    const app_error_code_t parse_result =
+        web_setup_json_parse(body, sizeof(body), &json_operations, &submission);
     if (parse_result != APP_ERROR_NONE) {
-        return send_error(request,
-                          "400 Bad Request",
-                          parse_result,
-                          "invalid setup request");
+        return send_error(request, "400 Bad Request", parse_result, "invalid setup request");
     }
 
     provisioning_config_t committed = {0};
@@ -294,9 +261,7 @@ esp_err_t setup_credentials_handler(httpd_req_t *request) {
         web_setup_core_submit(&server_setup_core, &submission, &committed);
     secure_zero_bytes(&committed, sizeof(committed));
     if (result != APP_ERROR_NONE) {
-        return send_error(request,
-                          setup_http_status(result),
-                          result,
+        return send_error(request, setup_http_status(result), result,
                           "setup could not be completed");
     }
     const web_setup_state_t state = web_setup_core_get_state(&server_setup_core);
@@ -305,22 +270,16 @@ esp_err_t setup_credentials_handler(httpd_req_t *request) {
 
 esp_err_t setup_complete_handler(httpd_req_t *request) {
     if (!server_setup_core.initialized) {
-        return send_error(request,
-                          "503 Service Unavailable",
-                          APP_ERROR_CONFLICT,
+        return send_error(request, "503 Service Unavailable", APP_ERROR_CONFLICT,
                           "setup service unavailable");
     }
     if (!setup_origin_allowed(request)) {
-        return send_error(request,
-                          "401 Unauthorized",
-                          APP_ERROR_AUTH_REQUIRED,
+        return send_error(request, "401 Unauthorized", APP_ERROR_AUTH_REQUIRED,
                           "invalid setup origin");
     }
     const web_setup_state_t state = web_setup_core_get_state(&server_setup_core);
     if (!state.completed) {
-        return send_error(request,
-                          "409 Conflict",
-                          APP_ERROR_CONFLICT,
+        return send_error(request, "409 Conflict", APP_ERROR_CONFLICT,
                           "setup credentials have not been committed");
     }
     return send_setup_state(request, &state, "200 OK");
@@ -328,25 +287,17 @@ esp_err_t setup_complete_handler(httpd_req_t *request) {
 
 esp_err_t setup_restart_handler(httpd_req_t *request) {
     if (!server_setup_core.initialized) {
-        return send_error(request,
-                          "503 Service Unavailable",
-                          APP_ERROR_CONFLICT,
+        return send_error(request, "503 Service Unavailable", APP_ERROR_CONFLICT,
                           "setup service unavailable");
     }
     if (!setup_origin_allowed(request)) {
-        return send_error(request,
-                          "401 Unauthorized",
-                          APP_ERROR_AUTH_REQUIRED,
+        return send_error(request, "401 Unauthorized", APP_ERROR_AUTH_REQUIRED,
                           "invalid setup origin");
     }
     const app_error_code_t result = web_setup_core_restart(&server_setup_core);
     if (result != APP_ERROR_NONE) {
-        return send_error(request,
-                          setup_http_status(result),
-                          result,
+        return send_error(request, setup_http_status(result), result,
                           "restart could not be scheduled");
     }
-    return send_json(request,
-                     "{\"ok\":true,\"data\":{\"restartScheduled\":true}}",
-                     "202 Accepted");
+    return send_json(request, "{\"ok\":true,\"data\":{\"restartScheduled\":true}}", "202 Accepted");
 }

@@ -30,9 +30,9 @@ typedef struct {
 app_error_code_t auth_init(void);
 app_error_code_t auth_deinit(void);
 app_error_code_t auth_password_create(const char *password, size_t password_length,
-                                       auth_password_record_t *out_record);
+                                      auth_password_record_t *out_record);
 app_error_code_t auth_password_verify(const char *password, size_t password_length,
-                                       const auth_password_record_t *record, bool *out_matches);
+                                      const auth_password_record_t *record, bool *out_matches);
 app_error_code_t auth_session_create(auth_session_view_t *out_session);
 app_error_code_t auth_session_validate(const char *session_token, const char *csrf_token);
 app_error_code_t auth_session_logout(const char *session_token);

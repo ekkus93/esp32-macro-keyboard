@@ -8,10 +8,7 @@
 #include "provisioning_bootstrap.h"
 #include "wifi_ap.h"
 
-typedef enum {
-    WEB_SERVER_MODE_NORMAL = 0,
-    WEB_SERVER_MODE_SETUP
-} web_server_mode_t;
+typedef enum { WEB_SERVER_MODE_NORMAL = 0, WEB_SERVER_MODE_SETUP } web_server_mode_t;
 
 typedef struct {
     web_server_mode_t mode;

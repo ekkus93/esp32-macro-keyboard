@@ -11,10 +11,8 @@ typedef struct {
     void (*secure_zero)(void *context, void *memory, size_t size);
 } web_setup_json_ops_t;
 
-app_error_code_t web_setup_json_parse(
-    char *body,
-    size_t body_capacity,
-    const web_setup_json_ops_t *operations,
-    web_setup_submission_t *out_submission);
+app_error_code_t web_setup_json_parse(char *body, size_t body_capacity,
+                                      const web_setup_json_ops_t *operations,
+                                      web_setup_submission_t *out_submission);
 
 #endif

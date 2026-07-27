@@ -11,9 +11,7 @@
 
 typedef struct {
     void *context;
-    app_error_code_t (*read_blob)(void *context,
-                                  uint8_t *output,
-                                  size_t capacity,
+    app_error_code_t (*read_blob)(void *context, uint8_t *output, size_t capacity,
                                   size_t *out_size);
     app_error_code_t (*write_blob)(void *context, const uint8_t *data, size_t size);
     app_error_code_t (*erase_blob)(void *context);

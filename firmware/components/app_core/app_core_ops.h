@@ -50,10 +50,8 @@ typedef struct {
     void *context;
     app_core_nvs_result_t (*nvs_init)(void *context);
     app_error_code_t (*provisioning_init)(void *context);
-    app_error_code_t (*provisioning_load)(void *context,
-                                          provisioning_config_t *out_configuration);
-    app_error_code_t (*bootstrap_derive)(void *context,
-                                         provisioning_bootstrap_t *out_bootstrap);
+    app_error_code_t (*provisioning_load)(void *context, provisioning_config_t *out_configuration);
+    app_error_code_t (*bootstrap_derive)(void *context, provisioning_bootstrap_t *out_bootstrap);
     app_error_code_t (*storage_mount)(void *context);
     app_error_code_t (*storage_recover)(void *context);
     app_error_code_t (*repository_init)(void *context);
@@ -61,11 +59,8 @@ typedef struct {
     app_error_code_t (*usb_init)(void *context);
     app_error_code_t (*executor_init)(void *context);
     app_error_code_t (*controls_init)(void *context);
-    app_error_code_t (*wifi_start)(void *context,
-                                   const char *ssid,
-                                   const char *passphrase);
-    app_error_code_t (*http_start)(void *context,
-                                   const web_server_config_t *configuration);
+    app_error_code_t (*wifi_start)(void *context, const char *ssid, const char *passphrase);
+    app_error_code_t (*http_start)(void *context, const web_server_config_t *configuration);
     app_error_code_t (*http_stop)(void *context);
     app_error_code_t (*wifi_stop)(void *context);
     app_error_code_t (*storage_unmount)(void *context);
@@ -80,8 +75,7 @@ typedef struct {
     bool (*wifi_owns_resources)(void *context);
     bool (*storage_owns_mount)(void *context);
     bool (*provisioning_owns_resources)(void *context);
-    app_error_code_t (*set_indicator)(void *context,
-                                      device_indicator_state_t indicator);
+    app_error_code_t (*set_indicator)(void *context, device_indicator_state_t indicator);
     void (*secure_zero)(void *context, void *memory, size_t length);
     void (*log_event)(void *context, const app_core_log_event_t *event);
 } app_core_ops_t;

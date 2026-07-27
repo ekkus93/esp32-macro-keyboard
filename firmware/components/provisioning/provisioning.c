@@ -37,9 +37,7 @@ static app_error_code_t map_nvs_error(esp_err_t result) {
     }
 }
 
-static app_error_code_t adapter_read_blob(void *context,
-                                          uint8_t *output,
-                                          size_t capacity,
+static app_error_code_t adapter_read_blob(void *context, uint8_t *output, size_t capacity,
                                           size_t *out_size) {
     (void)context;
     if (!namespace_open || output == NULL || out_size == NULL || capacity == 0U) {
@@ -54,15 +52,12 @@ static app_error_code_t adapter_read_blob(void *context,
     return map_nvs_error(result);
 }
 
-static app_error_code_t adapter_write_blob(void *context,
-                                           const uint8_t *data,
-                                           size_t size) {
+static app_error_code_t adapter_write_blob(void *context, const uint8_t *data, size_t size) {
     (void)context;
     if (!namespace_open || data == NULL || size == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    return map_nvs_error(
-        nvs_set_blob(provisioning_handle, PROVISIONING_CONFIG_KEY, data, size));
+    return map_nvs_error(nvs_set_blob(provisioning_handle, PROVISIONING_CONFIG_KEY, data, size));
 }
 
 static app_error_code_t adapter_erase_blob(void *context) {
@@ -70,8 +65,7 @@ static app_error_code_t adapter_erase_blob(void *context) {
     if (!namespace_open) {
         return APP_ERROR_STORAGE_UNAVAILABLE;
     }
-    const esp_err_t result =
-        nvs_erase_key(provisioning_handle, PROVISIONING_CONFIG_KEY);
+    const esp_err_t result = nvs_erase_key(provisioning_handle, PROVISIONING_CONFIG_KEY);
     return result == ESP_ERR_NVS_NOT_FOUND ? APP_ERROR_NONE : map_nvs_error(result);
 }
 
@@ -153,8 +147,8 @@ app_error_code_t provisioning_init(void) {
     if (provisioning_mutex == NULL) {
         return APP_ERROR_INTERNAL;
     }
-    app_error_code_t result = map_nvs_error(
-        nvs_open(PROVISIONING_NAMESPACE, NVS_READWRITE, &provisioning_handle));
+    app_error_code_t result =
+        map_nvs_error(nvs_open(PROVISIONING_NAMESPACE, NVS_READWRITE, &provisioning_handle));
     if (result != APP_ERROR_NONE) {
         cleanup_partial_init();
         return result;
@@ -198,8 +192,7 @@ app_error_code_t provisioning_commit(const provisioning_config_t *replacement,
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    result = provisioning_core_commit(
-        &core, replacement, expected_revision, out_committed);
+    result = provisioning_core_commit(&core, replacement, expected_revision, out_committed);
     return finish_locked(result);
 }
 
