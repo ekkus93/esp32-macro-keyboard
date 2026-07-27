@@ -1,0 +1,100 @@
+---
+name: Phase 15.2 Firmware Diagnostic
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install host lint tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clang-format clang-tidy jq libcjson-dev shellcheck
+          python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
+          go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install ESP-IDF v5.5.5
+        run: ./scripts/install-esp-idf.sh
+
+      - name: Verify authoritative toolchain
+        shell: bash
+        run: |
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          ./scripts/verify-toolchain.sh
+
+      - name: Build production firmware with GCC
+        shell: bash
+        run: |
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          idf.py -C firmware -B firmware/build set-target esp32s3
+          idf.py -C firmware -B firmware/build build
+
+      - name: Configure production clang database
+        shell: bash
+        run: |
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          IDF_TOOLCHAIN=clang idf.py -C firmware -B firmware/build-clang set-target esp32s3
+
+      - name: Run production clang-tidy
+        shell: bash
+        run: |
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          source ./scripts/check-firmware.sh
+          set +e
+          run_first_party_clang_tidy "$GITHUB_WORKSPACE/firmware" \
+            >"$RUNNER_TEMP/production-tidy.log" 2>&1
+          status=$?
+          set -e
+          if ((status != 0)); then
+            grep -E '/firmware/(main/|components/).*:[0-9]+:[0-9]+: (warning|error):' \
+              "$RUNNER_TEMP/production-tidy.log" \
+              | head -n 250 || tail -n 250 "$RUNNER_TEMP/production-tidy.log"
+          fi
+          exit "$status"
+
+      - name: Build device-test firmware with GCC
+        if: always()
+        shell: bash
+        run: |
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          idf.py -C firmware/test_app -B firmware/test_app/build set-target esp32s3
+          idf.py -C firmware/test_app -B firmware/test_app/build build
+
+      - name: Configure device-test clang database
+        if: always()
+        shell: bash
+        run: |
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          IDF_TOOLCHAIN=clang idf.py -C firmware/test_app \
+            -B firmware/test_app/build-clang set-target esp32s3
+
+      - name: Run device-test clang-tidy
+        if: always()
+        shell: bash
+        run: |
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          source ./scripts/check-firmware.sh
+          set +e
+          run_first_party_clang_tidy "$GITHUB_WORKSPACE/firmware/test_app" \
+            >"$RUNNER_TEMP/device-tidy.log" 2>&1
+          status=$?
+          set -e
+          if ((status != 0)); then
+            grep -E '/firmware/(main/|components/|test_app/main/).*:[0-9]+:[0-9]+: (warning|error):' \
+              "$RUNNER_TEMP/device-tidy.log" \
+              | head -n 250 || tail -n 250 "$RUNNER_TEMP/device-tidy.log"
+          fi
+          exit "$status"
