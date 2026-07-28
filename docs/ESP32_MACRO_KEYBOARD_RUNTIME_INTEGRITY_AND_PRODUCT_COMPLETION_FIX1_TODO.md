@@ -1473,15 +1473,15 @@ Implement files under:
 
 Add:
 
-- [ ] list;
-- [ ] create;
-- [ ] read;
-- [ ] update with expected revision;
-- [ ] delete;
-- [ ] duplicate;
-- [ ] reorder;
-- [ ] validate references;
-- [ ] quarantine corrupt objects.
+- [x] list;
+- [x] create;
+- [x] read;
+- [x] update with expected revision;
+- [x] delete;
+- [x] duplicate;
+- [x] reorder;
+- [x] validate references;
+- [x] quarantine corrupt objects.
 
 ### 15.2 Procedure repository
 
@@ -1494,12 +1494,12 @@ Implement:
 
 Validate:
 
-- [ ] step IDs unique;
-- [ ] macro references exist and match scope;
-- [ ] no duplicate completion/skip IDs;
-- [ ] step count and text bounds;
-- [ ] exact fields;
-- [ ] revision conflicts.
+- [x] step IDs unique;
+- [x] macro references exist and match scope;
+- [x] no duplicate completion/skip IDs;
+- [x] step count and text bounds;
+- [x] exact fields;
+- [x] revision conflicts.
 
 ### 15.3 Progress repository
 
@@ -1509,37 +1509,47 @@ Implement:
 /data/sets/<set-id>/progress/<procedure-id>.json
 ```
 
-- [ ] current step must belong to the referenced procedure revision;
-- [ ] completed and skipped arrays must contain only existing step IDs;
-- [ ] no ID may be both completed and skipped;
-- [ ] procedure revision changes must produce visible stale-progress handling;
-- [ ] reset is atomic.
+- [x] current step must belong to the referenced procedure revision;
+- [x] completed and skipped arrays must contain only existing step IDs;
+- [x] no ID may be both completed and skipped;
+- [x] procedure revision changes must produce visible stale-progress handling;
+- [x] reset is atomic.
 
 ### 15.4 Settings and active-set repository
 
 Persist non-secret user settings in the chosen protected configuration store.
 
-- [ ] always ask for set;
-- [ ] optional active set;
-- [ ] physical confirmation requirement;
-- [ ] UI preferences only when specified by `docs/SPEC.md`.
+- [x] always ask for set;
+- [x] optional active set;
+- [x] physical confirmation requirement;
+- [x] UI preferences only when specified by `docs/SPEC.md`.
 
 ### 15.5 Delete/reference behavior
 
 Before deleting a macro:
 
-- [ ] scan procedure references under the repository lock;
-- [ ] return `APP_ERROR_CONFLICT` when referenced;
-- [ ] include bounded referencing IDs in API details;
-- [ ] never silently rewrite a procedure.
+- [x] scan procedure references under the repository lock;
+- [x] return `APP_ERROR_CONFLICT` when referenced;
+- [x] include bounded referencing IDs in API details;
+- [x] never silently rewrite a procedure.
 
 Before deleting a set:
 
-- [ ] move the set to transaction-owned trash;
-- [ ] remove it from index;
-- [ ] preserve global macros;
-- [ ] clear active-set selection if it points to the deleted set;
-- [ ] recover deterministically after interruption.
+- [x] move the set to transaction-owned trash;
+- [x] remove it from index;
+- [x] preserve global macros;
+- [x] clear active-set selection if it points to the deleted set;
+- [x] recover deterministically after interruption.
+
+Phase 15 implementation notes:
+
+- Macro and procedure CRUD/order/reference/quarantine suites are registered as real CTest targets;
+  the previously unregistered source-only tests no longer provide false confidence.
+- Progress reads return an explicit `CURRENT` or `STALE` status and the current procedure
+  revision; stale records remain visible and can only be reset against the current revision.
+- Non-secret settings and active-set selection remain in the encrypted provisioning record
+  through a redacted settings API. Set deletion clears a matching active set before the
+  LittleFS transaction, preventing a power loss from leaving a dangling active-set ID.
 
 ## 16. Complete the HTTP API
 

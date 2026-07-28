@@ -353,6 +353,98 @@ app_error_code_t provisioning_core_commit(provisioning_core_t *core,
     return APP_ERROR_NONE;
 }
 
+static provisioning_settings_t
+settings_from_configuration(const provisioning_config_t *configuration) {
+    return (provisioning_settings_t){
+        .schema_version = APP_SCHEMA_VERSION,
+        .revision = configuration->revision,
+        .require_physical_confirmation = configuration->require_physical_confirmation,
+        .always_select_set = configuration->always_select_set,
+        .has_active_set = configuration->has_active_set,
+        .active_set_id = configuration->active_set_id,
+    };
+}
+
+static bool settings_valid(const provisioning_settings_t *settings) {
+    if (settings == NULL || settings->schema_version != APP_SCHEMA_VERSION) {
+        return false;
+    }
+    if (settings->has_active_set) {
+        return app_uuid_is_valid_string(settings->active_set_id.value);
+    }
+    return all_zero(&settings->active_set_id, sizeof(settings->active_set_id));
+}
+
+app_error_code_t provisioning_core_settings_read(provisioning_core_t *core,
+                                                 provisioning_settings_t *out_settings) {
+    if (out_settings != NULL) {
+        memset(out_settings, 0, sizeof(*out_settings));
+    }
+    if (core == NULL || out_settings == NULL || !core->initialized || !core->loaded) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    *out_settings = settings_from_configuration(&core->current);
+    return APP_ERROR_NONE;
+}
+
+app_error_code_t provisioning_core_settings_update(provisioning_core_t *core,
+                                                   const provisioning_settings_t *replacement,
+                                                   uint32_t expected_revision,
+                                                   provisioning_settings_t *out_committed) {
+    if (out_committed != NULL) {
+        memset(out_committed, 0, sizeof(*out_committed));
+    }
+    if (core == NULL || replacement == NULL || out_committed == NULL || !core->initialized ||
+        !core->loaded || !settings_valid(replacement) ||
+        replacement->revision != expected_revision) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (core->current.revision != expected_revision) {
+        return APP_ERROR_CONFLICT;
+    }
+
+    provisioning_config_t candidate = core->current;
+    candidate.require_physical_confirmation = replacement->require_physical_confirmation;
+    candidate.always_select_set = replacement->always_select_set;
+    candidate.has_active_set = replacement->has_active_set;
+    candidate.active_set_id = replacement->active_set_id;
+    provisioning_config_t committed = {0};
+    const app_error_code_t result =
+        provisioning_core_commit(core, &candidate, expected_revision, &committed);
+    if (result == APP_ERROR_NONE) {
+        *out_committed = settings_from_configuration(&committed);
+    }
+    core->operations.secure_zero(core->operations.context, &candidate, sizeof(candidate));
+    core->operations.secure_zero(core->operations.context, &committed, sizeof(committed));
+    return result;
+}
+
+app_error_code_t provisioning_core_clear_active_set_if_matches(provisioning_core_t *core,
+                                                               const app_uuid_t *set_id,
+                                                               bool *out_cleared) {
+    if (out_cleared != NULL) {
+        *out_cleared = false;
+    }
+    if (core == NULL || set_id == NULL || !core->initialized || !core->loaded ||
+        !app_uuid_is_valid_string(set_id->value)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (!core->current.has_active_set || !app_uuid_equal(&core->current.active_set_id, set_id)) {
+        return APP_ERROR_NONE;
+    }
+
+    provisioning_settings_t replacement = settings_from_configuration(&core->current);
+    replacement.has_active_set = false;
+    memset(&replacement.active_set_id, 0, sizeof(replacement.active_set_id));
+    provisioning_settings_t committed = {0};
+    const app_error_code_t result =
+        provisioning_core_settings_update(core, &replacement, core->current.revision, &committed);
+    if (result == APP_ERROR_NONE && out_cleared != NULL) {
+        *out_cleared = true;
+    }
+    return result;
+}
+
 app_error_code_t provisioning_core_clear_credentials(provisioning_core_t *core) {
     if (core == NULL || !core->initialized || !core->loaded) {
         return APP_ERROR_INVALID_ARGUMENT;

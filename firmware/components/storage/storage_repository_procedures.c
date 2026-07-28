@@ -22,6 +22,7 @@
 #include "storage_repository_macros_internal.h"
 #include "storage_repository_objects_json.h"
 #include "storage_repository_order.h"
+#include "storage_repository_procedures_internal.h"
 
 static bool procedure_matches_set(const procedure_t *procedure, const app_uuid_t *set_id) {
     return procedure != NULL && set_id != NULL && app_uuid_is_valid_string(set_id->value) &&
@@ -202,16 +203,16 @@ static app_error_code_t procedure_order_index(const app_uuid_t *set_id, size_t *
                : APP_ERROR_STORAGE_CORRUPT;
 }
 
-static app_error_code_t procedure_read_locked(const app_uuid_t *set_id,
-                                              const app_uuid_t *procedure_id,
-                                              procedure_t *out_procedure) {
-    if (out_procedure == NULL) {
+app_error_code_t storage_procedure_read_locked(const storage_procedure_identity_t *identity,
+                                               procedure_t *out_procedure) {
+    if (identity == NULL || out_procedure == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    app_error_code_t result = procedure_read_object_locked(set_id, procedure_id, out_procedure);
+    app_error_code_t result =
+        procedure_read_object_locked(&identity->set_id, &identity->procedure_id, out_procedure);
     size_t index = 0U;
     if (result == APP_ERROR_NONE) {
-        result = procedure_order_index(set_id, &index, procedure_id);
+        result = procedure_order_index(&identity->set_id, &index, &identity->procedure_id);
     }
     if (result == APP_ERROR_NONE) {
         out_procedure->sort_order = (int32_t)index;
@@ -220,6 +221,19 @@ static app_error_code_t procedure_read_locked(const app_uuid_t *set_id,
         memset(out_procedure, 0, sizeof(*out_procedure));
     }
     return result;
+}
+
+static app_error_code_t procedure_read_locked(const app_uuid_t *set_id,
+                                              const app_uuid_t *procedure_id,
+                                              procedure_t *out_procedure) {
+    if (set_id == NULL || procedure_id == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const storage_procedure_identity_t identity = {
+        .set_id = *set_id,
+        .procedure_id = *procedure_id,
+    };
+    return storage_procedure_read_locked(&identity, out_procedure);
 }
 
 static app_error_code_t procedure_list_locked(const app_uuid_t *set_id,
@@ -367,6 +381,20 @@ static app_error_code_t procedure_update_locked(const app_uuid_t *set_id,
     return result;
 }
 
+static app_error_code_t remove_progress_if_present(const app_uuid_t *set_id,
+                                                   const app_uuid_t *procedure_id) {
+    char path[APP_PATH_MAX_BYTES];
+    const app_error_code_t result =
+        storage_make_progress_path(set_id, procedure_id, path, sizeof(path));
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    if (unlink(path) == 0 || errno == ENOENT) {
+        return APP_ERROR_NONE;
+    }
+    return storage_repository_map_file_error();
+}
+
 static app_error_code_t procedure_delete_locked(const app_uuid_t *set_id,
                                                 const app_uuid_t *procedure_id,
                                                 uint32_t expected_revision) {
@@ -385,6 +413,10 @@ static app_error_code_t procedure_delete_locked(const app_uuid_t *set_id,
         return APP_ERROR_CONFLICT;
     }
     macro_model_free_procedure(&current);
+    result = remove_progress_if_present(set_id, procedure_id);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
     storage_uuid_order_t order = {0};
     result = load_procedure_order(set_id, &order);
     if (result == APP_ERROR_NONE) {

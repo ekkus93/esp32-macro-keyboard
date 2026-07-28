@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "app_error.h"
+#include "app_uuid.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -193,6 +194,43 @@ app_error_code_t provisioning_commit(const provisioning_config_t *replacement,
         return result;
     }
     result = provisioning_core_commit(&core, replacement, expected_revision, out_committed);
+    return finish_locked(result);
+}
+
+app_error_code_t provisioning_settings_read(provisioning_settings_t *out_settings) {
+    if (out_settings == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    app_error_code_t result = lock_provisioning();
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    result = provisioning_core_settings_read(&core, out_settings);
+    return finish_locked(result);
+}
+
+app_error_code_t provisioning_settings_update(const provisioning_settings_t *replacement,
+                                              uint32_t expected_revision,
+                                              provisioning_settings_t *out_committed) {
+    if (replacement == NULL || out_committed == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    app_error_code_t result = lock_provisioning();
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    result =
+        provisioning_core_settings_update(&core, replacement, expected_revision, out_committed);
+    return finish_locked(result);
+}
+
+app_error_code_t provisioning_clear_active_set_if_matches(const app_uuid_t *set_id,
+                                                          bool *out_cleared) {
+    app_error_code_t result = lock_provisioning();
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    result = provisioning_core_clear_active_set_if_matches(&core, set_id, out_cleared);
     return finish_locked(result);
 }
 

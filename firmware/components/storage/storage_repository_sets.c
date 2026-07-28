@@ -18,6 +18,50 @@
 #include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
+#ifndef ESP_PLATFORM
+#include "storage_repository_sets_internal.h"
+#endif
+
+#ifdef ESP_PLATFORM
+#include "provisioning.h"
+#endif
+
+#ifdef ESP_PLATFORM
+static app_error_code_t clear_matching_active_set(const app_uuid_t *set_id) {
+    return provisioning_clear_active_set_if_matches(set_id, NULL);
+}
+#else
+static app_error_code_t host_clear_no_active_set(void *context, const app_uuid_t *set_id) {
+    (void)context;
+    (void)set_id;
+    return APP_ERROR_NONE;
+}
+
+static storage_repository_set_settings_ops_t settings_operations = {
+    .context = NULL,
+    .clear_active_set_if_matches = host_clear_no_active_set,
+};
+
+void storage_repository_sets_set_settings_ops_for_test(
+    const storage_repository_set_settings_ops_t *operations) {
+    if (operations == NULL || operations->clear_active_set_if_matches == NULL) {
+        storage_repository_sets_reset_settings_ops_for_test();
+        return;
+    }
+    settings_operations = *operations;
+}
+
+void storage_repository_sets_reset_settings_ops_for_test(void) {
+    settings_operations = (storage_repository_set_settings_ops_t){
+        .context = NULL,
+        .clear_active_set_if_matches = host_clear_no_active_set,
+    };
+}
+
+static app_error_code_t clear_matching_active_set(const app_uuid_t *set_id) {
+    return settings_operations.clear_active_set_if_matches(settings_operations.context, set_id);
+}
+#endif
 
 /* Public set functions serialize their whole read-check-write transaction behind
  * the repository mutation lock (FIX1 §7.5); the `_locked` helpers below do the
@@ -344,6 +388,10 @@ static app_error_code_t storage_set_delete_locked(const app_uuid_t *set_id,
     }
     if (current.revision != expected_revision) {
         return APP_ERROR_CONFLICT;
+    }
+    result = clear_matching_active_set(set_id);
+    if (result != APP_ERROR_NONE) {
+        return result;
     }
     storage_set_index_t index = {0};
     result = storage_repository_load_index(&index);

@@ -478,3 +478,63 @@ target_compile_options(storage_repository_tests PRIVATE ${STRICT_WARNINGS})
 target_link_libraries(storage_repository_tests PRIVATE PkgConfig::CJSON test_support)
 add_test(NAME storage_repository COMMAND storage_repository_tests)
 set_tests_properties(storage_repository PROPERTIES LABELS "storage")
+
+set(STORAGE_OBJECT_REPOSITORY_SOURCES
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/macro_model/macro_model.c
+    ../../firmware/components/storage/storage_atomic.c
+    ../../firmware/components/storage/storage_fs_ops.c
+    ../../firmware/components/storage/storage_paths.c
+    ../../firmware/components/storage/storage_transaction.c
+    ../../firmware/components/storage/storage_repository_io.c
+    ../../firmware/components/storage/storage_repository_json.c
+    ../../firmware/components/storage/storage_json.c
+    ../../firmware/components/storage/storage_repository_objects_json.c
+    ../../firmware/components/storage/storage_repository_index.c
+    ../../firmware/components/storage/storage_repository_sets.c
+    ../../firmware/components/storage/storage_repository_lock.c
+    ../../firmware/components/storage/storage_repository_order.c
+    ../../firmware/components/storage/storage_repository_macros.c
+    ../../firmware/components/storage/storage_repository_procedures.c
+    ../../firmware/components/storage/storage_repository_progress.c
+    ../../firmware/components/storage/storage_quarantine.c
+)
+
+# Register one isolated storage-object repository host test.
+function(add_storage_object_repository_test target source mount_name)
+    add_executable(${target} ${source} ${STORAGE_OBJECT_REPOSITORY_SOURCES})
+    target_include_directories(
+        ${target}
+        PRIVATE ../../firmware/components/macro_model/include
+                ../../firmware/components/storage/include ../../firmware/components/storage
+    )
+    target_compile_definitions(
+        ${target} PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/${mount_name}"
+    )
+    target_compile_options(${target} PRIVATE ${STRICT_WARNINGS})
+    target_link_libraries(${target} PRIVATE PkgConfig::CJSON test_support)
+    add_test(NAME ${target} COMMAND ${target})
+    set_tests_properties(${target} PROPERTIES LABELS "storage")
+endfunction()
+
+add_storage_object_repository_test(storage_progress_repository_tests test_storage_progress.c p15p)
+add_storage_object_repository_test(
+    storage_active_set_delete_tests test_storage_active_set_delete.c p15a
+)
+
+add_executable(
+    provisioning_settings_tests
+    test_provisioning_settings.c ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/provisioning/provisioning_core.c
+)
+target_include_directories(
+    provisioning_settings_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/auth/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/provisioning/include ../../firmware/components/provisioning
+)
+target_link_libraries(provisioning_settings_tests PRIVATE test_support)
+target_compile_options(provisioning_settings_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME provisioning_settings COMMAND provisioning_settings_tests)
+set_tests_properties(provisioning_settings PROPERTIES LABELS "storage")
