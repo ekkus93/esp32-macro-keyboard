@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAYLOAD_DIR = ROOT / "scripts" / "phase17-foundation"
-PAYLOAD_VERSION = 6
+PAYLOAD_VERSION = 7
 
 MANIFEST = {
     "backend": [
@@ -22,7 +22,9 @@ MANIFEST = {
         ("safe-backend-v5-03.txt", "3c332accf5cc0fc5c2bfb9ce1e82da463d7c7d42"),
     ],
     "docs": [
-        ("safe-docs-v2-00.txt", "cb38f75ed57be79560a9bb89413a5fe9782c69d0"),
+        ("safe-docs-v3-00.txt", "fdbe5d2c73af835d2c8f019af2b205d95c38aeb7"),
+        ("safe-docs-v3-01.txt", "a521dfc820739bb95f4225f3bab102571a786c96"),
+        ("safe-docs-v3-02.txt", "6fed400ddf9cf43cf9294088e1d08b24e40ea588"),
     ],
     "frontend": [
         ("safe-frontend-00.txt", "f2a93fe4a0124e9be4e844ab959399eb63eed177"),
