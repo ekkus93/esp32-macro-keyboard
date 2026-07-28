@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import gzip
+import hashlib
 import io
 import shutil
 import tarfile
@@ -11,18 +12,52 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAYLOAD_DIR = ROOT / "scripts" / "phase17-foundation"
-PAYLOAD_VERSION = 2
+PAYLOAD_VERSION = 3
+
+MANIFEST = {
+    "backend": [
+        ("safe-backend-00.txt", "96b0fcacc910dc66e89b0d726b79cc2bf151e5ac"),
+        ("safe-backend-01.txt", "cffe0a1fd86a913d90ef314c6236c75f94ab97ca"),
+    ],
+    "docs": [
+        ("safe-docs-00.txt", "ebd8123f764704fba2dded49767e8e3e678c65d9"),
+    ],
+    "frontend": [
+        ("safe-frontend-00.txt", "f2a93fe4a0124e9be4e844ab959399eb63eed177"),
+        ("safe-frontend-01.txt", "f4a66d937123d8882f7f17f3292117d89571c935"),
+        ("safe-frontend-02.txt", "b7e10a616fc52558feecac6ad1bfdde172c619c7"),
+        ("safe-frontend-03.txt", "d1cd4b83d87541d0f4cd771ad4b0e92fc2f932d6"),
+        ("safe-frontend-04.txt", "24d8f17f127e34e5036c8c21c8b6bb4d8d2a425c"),
+        ("safe-frontend-05.txt", "6709586e20e126a6172d06dbc03fe433018398e5"),
+        ("safe-frontend-06.txt", "010c3f09c6d2d8304920040666e80b00934d1fe8"),
+        ("safe-frontend-07.txt", "9e1fc3f26909ae2cec41400ef3262b536b18198c"),
+        ("safe-frontend-08.txt", "5f446983a091d6f006fb98e0c104d76bfd683494"),
+        ("safe-frontend-09.txt", "cdefe4e02a5115e407e8da145e26de008e5ad3d8"),
+    ],
+}
 
 
-def decode_chunks(prefix: str) -> bytes:
-    chunks = sorted(PAYLOAD_DIR.glob(f"{prefix}-*.txt"))
-    if not chunks:
-        raise SystemExit(f"Phase 17 {prefix} payload is missing")
-    encoded = "".join(path.read_text(encoding="ascii").strip() for path in chunks)
-    return base64.b64decode(encoded, validate=True)
+def git_blob_sha(data: bytes) -> str:
+    header = f"blob {len(data)}\0".encode("ascii")
+    return hashlib.sha1(header + data).hexdigest()
 
 
-payload = decode_chunks("payload")
+def decode_chunks(group: str) -> bytes:
+    encoded_parts: list[str] = []
+    for filename, expected_sha in MANIFEST[group]:
+        path = PAYLOAD_DIR / filename
+        data = path.read_bytes()
+        actual_sha = git_blob_sha(data)
+        if actual_sha != expected_sha:
+            raise SystemExit(
+                f"Phase 17 payload integrity failure for {filename}: "
+                f"expected {expected_sha}, got {actual_sha}"
+            )
+        encoded_parts.append(data.decode("ascii").strip())
+    return base64.b64decode("".join(encoded_parts), validate=True)
+
+
+payload = decode_chunks("frontend")
 with tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz") as archive:
     for member in archive.getmembers():
         parts = Path(member.name).parts
