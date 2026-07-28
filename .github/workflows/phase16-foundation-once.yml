@@ -169,3 +169,5 @@ jobs:
           git commit -m "ci: record Phase 16 foundation failure"
           git push origin HEAD:master
           exit 1
+
+# Retry after the transferred-plan fixture ownership fix.
