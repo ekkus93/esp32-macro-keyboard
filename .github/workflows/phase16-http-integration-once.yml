@@ -57,22 +57,26 @@ jobs:
           } 2>&1 | tee /tmp/phase16-finalization-cleanup.log
 
       - name: Install host validation dependencies
+        id: host_deps
         if: steps.transform.outcome == 'success' && steps.cleanup.outcome == 'success'
+        continue-on-error: true
+        shell: bash
         run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends \
-            build-essential clang-format clang-tidy cmake jq libcjson-dev python3-venv shellcheck
-          python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
-          python3 -m venv "${RUNNER_TEMP}/gcovr"
-          "${RUNNER_TEMP}/gcovr/bin/python" -m pip install --disable-pip-version-check gcovr==8.6
-          echo "${RUNNER_TEMP}/gcovr/bin" >> "$GITHUB_PATH"
-          go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          set -o pipefail
+          {
+            sudo apt-get update
+            sudo apt-get install --yes --no-install-recommends \
+              build-essential clang-format clang-tidy cmake jq libcjson-dev python3-venv shellcheck
+            python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
+            python3 -m venv "${RUNNER_TEMP}/gcovr"
+            "${RUNNER_TEMP}/gcovr/bin/python" -m pip install --disable-pip-version-check gcovr==8.6
+            go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
+            echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          } 2>&1 | tee /tmp/phase16-finalization-host-deps.log
 
       - name: Apply authoritative formatting
         id: format
-        if: steps.transform.outcome == 'success' && steps.cleanup.outcome == 'success'
+        if: steps.host_deps.outcome == 'success'
         continue-on-error: true
         shell: bash
         run: |
@@ -90,10 +94,7 @@ jobs:
 
       - name: Run focused host and sanitizer tests
         id: focused
-        if: >-
-          steps.transform.outcome == 'success' &&
-          steps.cleanup.outcome == 'success' &&
-          steps.format.outcome == 'success'
+        if: steps.format.outcome == 'success'
         continue-on-error: true
         shell: bash
         run: |
@@ -110,22 +111,35 @@ jobs:
           } 2>&1 | tee /tmp/phase16-finalization-focused.log
 
       - uses: actions/setup-node@v4
+        id: node
         if: steps.focused.outcome == 'success'
+        continue-on-error: true
         with:
           node-version-file: .nvmrc
 
       - name: Install ESP-IDF v5.5.5
-        if: steps.focused.outcome == 'success'
-        run: ./scripts/install-esp-idf.sh
+        id: idf
+        if: steps.node.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          env -u VIRTUAL_ENV ./scripts/install-esp-idf.sh \
+            2>&1 | tee /tmp/phase16-finalization-idf.log
 
       - name: Install frontend dependencies
-        if: steps.focused.outcome == 'success'
+        id: frontend
+        if: steps.idf.outcome == 'success'
+        continue-on-error: true
+        shell: bash
         working-directory: webapp
-        run: npm ci
+        run: |
+          set -o pipefail
+          npm ci 2>&1 | tee /tmp/phase16-finalization-frontend.log
 
       - name: Run authoritative repository gate
         id: gate
-        if: steps.focused.outcome == 'success'
+        if: steps.frontend.outcome == 'success'
         continue-on-error: true
         shell: bash
         run: |
@@ -144,7 +158,7 @@ jobs:
           set -o pipefail
           {
             . "$HOME/esp/esp-idf-v5.5.5/export.sh"
-            ./scripts/generate-native-coverage.sh
+            PATH="${RUNNER_TEMP}/gcovr/bin:${PATH}" ./scripts/generate-native-coverage.sh
             ./scripts/build-device-tests.sh
           } 2>&1 | tee /tmp/phase16-finalization-evidence.log
 
@@ -152,8 +166,12 @@ jobs:
         if: >-
           steps.transform.outcome == 'success' &&
           steps.cleanup.outcome == 'success' &&
+          steps.host_deps.outcome == 'success' &&
           steps.format.outcome == 'success' &&
           steps.focused.outcome == 'success' &&
+          steps.node.outcome == 'success' &&
+          steps.idf.outcome == 'success' &&
+          steps.frontend.outcome == 'success' &&
           steps.gate.outcome == 'success' &&
           steps.evidence.outcome == 'success'
         run: |
@@ -170,8 +188,12 @@ jobs:
         if: >-
           steps.transform.outcome == 'failure' ||
           steps.cleanup.outcome == 'failure' ||
+          steps.host_deps.outcome == 'failure' ||
           steps.format.outcome == 'failure' ||
           steps.focused.outcome == 'failure' ||
+          steps.node.outcome == 'failure' ||
+          steps.idf.outcome == 'failure' ||
+          steps.frontend.outcome == 'failure' ||
           steps.gate.outcome == 'failure' ||
           steps.evidence.outcome == 'failure'
         run: |
@@ -187,15 +209,22 @@ jobs:
             echo
             echo "- Transform: ${{ steps.transform.outcome }}"
             echo "- Cleanup: ${{ steps.cleanup.outcome }}"
+            echo "- Host dependencies: ${{ steps.host_deps.outcome }}"
             echo "- Format: ${{ steps.format.outcome }}"
             echo "- Focused tests: ${{ steps.focused.outcome }}"
+            echo "- Node setup: ${{ steps.node.outcome }}"
+            echo "- ESP-IDF install: ${{ steps.idf.outcome }}"
+            echo "- Frontend install: ${{ steps.frontend.outcome }}"
             echo "- Authoritative gate: ${{ steps.gate.outcome }}"
             echo "- Coverage/device evidence: ${{ steps.evidence.outcome }}"
             for log in \
               /tmp/phase16-finalization-transform.log \
               /tmp/phase16-finalization-cleanup.log \
+              /tmp/phase16-finalization-host-deps.log \
               /tmp/phase16-finalization-format.log \
               /tmp/phase16-finalization-focused.log \
+              /tmp/phase16-finalization-idf.log \
+              /tmp/phase16-finalization-frontend.log \
               /tmp/phase16-finalization-gate.log \
               /tmp/phase16-finalization-evidence.log; do
               if [[ -f "$log" ]]; then
@@ -204,7 +233,7 @@ jobs:
                 echo
                 echo '```text'
                 grep -n -E \
-                  'error:|FAILED|Failure|AddressSanitizer|UndefinedBehaviorSanitizer|expected|mismatch' \
+                  'error:|ERROR:|FAILED|Failure|AddressSanitizer|UndefinedBehaviorSanitizer|expected|mismatch' \
                   "$log" | tail -n 260 || true
                 echo
                 tail -n 280 "$log"
