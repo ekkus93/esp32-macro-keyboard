@@ -49,6 +49,13 @@ if anchor_count != 1:
     raise SystemExit(f"expected one generated set API macro_model include, found {anchor_count}")
 set_api_path.write_text(set_api_text.replace(anchor, include + anchor, 1), encoding="utf-8")
 
+replace_once(
+    "firmware/components/web_server/web_api_json.c",
+    '#include "macro_limits.h"\n',
+    '#include "macro_limits.h"\n#include "macro_model.h"\n',
+    "request JSON macro-model include anchor",
+)
+
 operations_file = "firmware/components/storage/storage_repository_set_operations.c"
 regex_once(
     operations_file,
