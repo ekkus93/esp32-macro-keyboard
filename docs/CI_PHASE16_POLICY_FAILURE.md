@@ -8,7 +8,7 @@
 ## phase16-policy-transform.log
 
 ```text
-1:firmware/components/web_server/web_api_core.c: expected one match, found 0: '    case WEB_API_ROUTE_PROCEDURE_PROGRESS:\n    case WEB_API_ROUTE_SETTINGS:\n        return method =='
+1:tests/host/auth_existing_tests.inc: expected one match, found 0: '    TEST_CHECK(auth_core_session_validate(&core,\n                                           session.'
 
-firmware/components/web_server/web_api_core.c: expected one match, found 0: '    case WEB_API_ROUTE_PROCEDURE_PROGRESS:\n    case WEB_API_ROUTE_SETTINGS:\n        return method =='
+tests/host/auth_existing_tests.inc: expected one match, found 0: '    TEST_CHECK(auth_core_session_validate(&core,\n                                           session.'
 ```
