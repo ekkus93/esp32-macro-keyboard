@@ -1,0 +1,201 @@
+name: Complete FIX1 Phase 15 once
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/complete-phase15-once.yml"
+      - "scripts/complete-phase15.py"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: complete-fix1-phase15-once
+  cancel-in-progress: true
+
+jobs:
+  complete:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install host lint tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            clang-format clang-tidy jq libcjson-dev shellcheck
+          python3 -m pip install --user \
+            cmakelang==0.6.13 yamllint==1.38.0
+          go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install ESP-IDF v5.5.5
+        run: ./scripts/install-esp-idf.sh
+
+      - name: Install frontend dependencies
+        working-directory: webapp
+        run: npm ci
+
+      - name: Apply Phase 15 implementation
+        id: apply
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          cp scripts/complete-phase15.py /tmp/complete-phase15.py
+          python3 scripts/complete-phase15.py 2>&1 | tee /tmp/phase15-apply.log
+          status=${PIPESTATUS[0]}
+          if [[ "${status}" -eq 0 ]]; then
+            clang-format -i \
+              firmware/components/provisioning/include/provisioning.h \
+              firmware/components/provisioning/provisioning.c \
+              firmware/components/provisioning/provisioning_core.c \
+              firmware/components/provisioning/provisioning_core.h \
+              firmware/components/storage/include/storage_repository.h \
+              firmware/components/storage/storage_repository_progress.c \
+              firmware/components/storage/storage_repository_procedures.c \
+              firmware/components/storage/storage_repository_procedures_internal.h \
+              firmware/components/storage/storage_repository_sets.c \
+              firmware/components/storage/storage_repository_sets_internal.h \
+              tests/host/test_provisioning_settings.c \
+              tests/host/test_storage_active_set_delete.c \
+              tests/host/test_storage_progress.c \
+              2>&1 | tee -a /tmp/phase15-apply.log
+            status=${PIPESTATUS[0]}
+          fi
+          if [[ "${status}" -eq 0 ]]; then
+            cmake-format -i \
+              firmware/components/storage/CMakeLists.txt \
+              tests/host/CMakeLists.txt \
+              2>&1 | tee -a /tmp/phase15-apply.log
+            status=${PIPESTATUS[0]}
+          fi
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit "${status}"
+
+      - name: Run Phase 15 validation
+        id: validate
+        if: steps.apply.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          {
+            ./scripts/run-tests.sh storage &&
+            ./scripts/run-tests.sh --sanitizers storage &&
+            ./scripts/generate-native-coverage.sh &&
+            ./scripts/check-all.sh
+          } 2>&1 | tee /tmp/phase15-validation.log
+          status=${PIPESTATUS[0]}
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit "${status}"
+
+      - name: Commit validated Phase 15 implementation
+        id: commit
+        if: steps.apply.outcome == 'success' && steps.validate.outcome == 'success'
+        shell: bash
+        run: |
+          rm -f \
+            .github/workflows/complete-phase15-once.yml \
+            scripts/complete-phase15.py \
+            docs/CI_PHASE15_FAILURE.md
+          git config user.name "ChatGPT"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "feat(storage): complete FIX1 Phase 15 repositories"
+          implementation_sha="$(git rev-parse HEAD)"
+          echo "implementation_sha=${implementation_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Record exact Phase 15 evidence
+        id: evidence
+        if: steps.commit.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          python3 /tmp/complete-phase15.py \
+            --record-evidence "${{ steps.commit.outputs.implementation_sha }}" \
+            2>&1 | tee /tmp/phase15-evidence.log
+          status=${PIPESTATUS[0]}
+          if [[ "${status}" -eq 0 ]]; then
+            ./webapp/node_modules/.bin/markdownlint-cli2 --fix \
+              docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md \
+              docs/IMPLEMENTATION_STATUS.md \
+              docs/FIX1_CHATGPT_HANDOFF.md \
+              2>&1 | tee -a /tmp/phase15-evidence.log
+            status=${PIPESTATUS[0]}
+          fi
+          if [[ "${status}" -eq 0 ]]; then
+            ./scripts/check-docs.sh 2>&1 | tee -a /tmp/phase15-evidence.log
+            status=${PIPESTATUS[0]}
+          fi
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit "${status}"
+
+      - name: Commit evidence and push master
+        if: steps.evidence.outcome == 'success'
+        shell: bash
+        run: |
+          git add docs
+          git commit -m "docs(fix1): record Phase 15 completion evidence"
+          git fetch origin master
+          git rebase origin/master
+          git push origin HEAD:master
+
+      - name: Publish fail-closed diagnostic
+        if: >-
+          always() &&
+          (steps.apply.outcome != 'success' ||
+           steps.validate.outcome != 'success' ||
+           steps.evidence.outcome == 'failure')
+        shell: bash
+        run: |
+          git config user.name "ChatGPT"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin master
+          git reset --hard origin/master
+          mkdir -p docs
+          {
+            echo "# FIX1 Phase 15 automation failure"
+            echo
+            echo "Apply outcome: ${{ steps.apply.outcome }}"
+            echo "Apply status: ${{ steps.apply.outputs.status }}"
+            echo "Validation outcome: ${{ steps.validate.outcome }}"
+            echo "Validation status: ${{ steps.validate.outputs.status }}"
+            echo "Evidence outcome: ${{ steps.evidence.outcome }}"
+            echo "Evidence status: ${{ steps.evidence.outputs.status }}"
+            echo
+            echo "## Apply log"
+            echo
+            echo '```text'
+            tail -n 400 /tmp/phase15-apply.log 2>/dev/null || true
+            echo '```'
+            echo
+            echo "## Validation log"
+            echo
+            echo '```text'
+            tail -n 700 /tmp/phase15-validation.log 2>/dev/null || true
+            echo '```'
+            echo
+            echo "## Evidence log"
+            echo
+            echo '```text'
+            tail -n 300 /tmp/phase15-evidence.log 2>/dev/null || true
+            echo '```'
+          } > docs/CI_PHASE15_FAILURE.md
+          git add docs/CI_PHASE15_FAILURE.md
+          git commit -m "ci: record FIX1 Phase 15 failure"
+          git push origin HEAD:master
+          exit 1
