@@ -33,9 +33,8 @@ static app_error_code_t send_storage_snapshot(web_api_response_t *response) {
         snprintf(data, sizeof(data),
                  "{\"verified\":false,\"webMounted\":%s,\"dataMounted\":%s,"
                  "\"quarantineCount\":%lu,\"damagedQuarantineCount\":%lu}",
-                 mounts.web_mounted ? "true" : "false",
-                 mounts.data_mounted ? "true" : "false", (unsigned long)quarantine.count,
-                 (unsigned long)quarantine.damaged_count);
+                 mounts.web_mounted ? "true" : "false", mounts.data_mounted ? "true" : "false",
+                 (unsigned long)quarantine.count, (unsigned long)quarantine.damaged_count);
     return length < 0 || (size_t)length >= sizeof(data)
                ? APP_ERROR_INTERNAL
                : web_api_response_success(response, WEB_HTTP_STATUS_OK, data);

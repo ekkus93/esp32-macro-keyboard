@@ -14,6 +14,7 @@
 #include "provisioning.h"
 #include "storage.h"
 #include "storage_repository.h"
+#include "web_api_admin_boundary.h"
 #include "web_api_core.h"
 #include "web_api_handler_common.h"
 #include "web_api_json.h"
@@ -237,26 +238,6 @@ static app_error_code_t handle_reset_settings(const web_api_call_t *call,
     return send_settings(response, &committed);
 }
 
-static app_error_code_t handle_storage_health(web_api_response_t *response, bool checked) {
-    const storage_mount_state_t mounts = storage_mount_state();
-    storage_quarantine_list_t quarantine = {0};
-    const app_error_code_t result = storage_quarantine_list(&quarantine);
-    if (result != APP_ERROR_NONE) {
-        return web_api_handler_error(response, result, "storage health unavailable", NULL);
-    }
-    char data[256U];
-    const int length =
-        snprintf(data, sizeof(data),
-                 "{\"checked\":%s,\"webMounted\":%s,\"dataMounted\":%s,"
-                 "\"quarantineCount\":%lu,\"damagedQuarantineCount\":%lu}",
-                 checked ? "true" : "false", mounts.web_mounted ? "true" : "false",
-                 mounts.data_mounted ? "true" : "false", (unsigned long)quarantine.count,
-                 (unsigned long)quarantine.damaged_count);
-    return length < 0 || (size_t)length >= sizeof(data)
-               ? APP_ERROR_INTERNAL
-               : web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, data);
-}
-
 static app_error_code_t handle_quarantine(web_api_response_t *response) {
     storage_quarantine_list_t list = {0};
     app_error_code_t result = storage_quarantine_list(&list);
@@ -273,10 +254,6 @@ static app_error_code_t handle_quarantine(web_api_response_t *response) {
     }
     web_api_handler_json_free(json);
     return result;
-}
-
-static app_error_code_t unavailable(web_api_response_t *response, const char *message) {
-    return web_api_handler_error(response, APP_ERROR_STORAGE_UNAVAILABLE, message, NULL);
 }
 
 app_error_code_t web_api_handle_administration(const web_api_call_t *call,
@@ -306,16 +283,14 @@ app_error_code_t web_api_handle_administration(const web_api_call_t *call,
                    : web_api_handler_error(response, result, "factory reset failed", NULL);
     }
     case WEB_API_ROUTE_DIAGNOSTICS_STORAGE:
-        return handle_storage_health(response, false);
     case WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK:
-        return handle_storage_health(response, true);
-    case WEB_API_ROUTE_DIAGNOSTICS_QUARANTINE:
-        return handle_quarantine(response);
     case WEB_API_ROUTE_SET_EXPORT:
     case WEB_API_ROUTE_SET_IMPORT:
     case WEB_API_ROUTE_BACKUP:
     case WEB_API_ROUTE_RESTORE:
-        return unavailable(response, "package operation requires the Phase 18 transaction service");
+        return web_api_admin_boundary_handle(call->path.route, response);
+    case WEB_API_ROUTE_DIAGNOSTICS_QUARANTINE:
+        return handle_quarantine(response);
     default:
         return APP_ERROR_NOT_FOUND;
     }

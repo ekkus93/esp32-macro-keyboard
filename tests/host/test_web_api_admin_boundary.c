@@ -45,9 +45,8 @@ static void assert_absent(const char *body, const char *secret) {
 static void test_storage_snapshot_is_redacted_and_not_verified(void) {
     reset_fixture();
     web_api_response_t response = {0};
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        web_api_admin_boundary_handle(WEB_API_ROUTE_DIAGNOSTICS_STORAGE, &response));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(
+                                             WEB_API_ROUTE_DIAGNOSTICS_STORAGE, &response));
     TEST_CHECK_EQ_U64(200U, response.status);
     TEST_CHECK(strstr(response.body, "\"verified\":false") != NULL);
     TEST_CHECK(strstr(response.body, "\"webMounted\":true") != NULL);
@@ -68,9 +67,8 @@ static void test_storage_snapshot_failure_is_visible(void) {
     reset_fixture();
     quarantine_result = APP_ERROR_IO;
     web_api_response_t response = {0};
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        web_api_admin_boundary_handle(WEB_API_ROUTE_DIAGNOSTICS_STORAGE, &response));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(
+                                             WEB_API_ROUTE_DIAGNOSTICS_STORAGE, &response));
     TEST_CHECK_EQ_U64(500U, response.status);
     TEST_CHECK(strstr(response.body, "storage health unavailable") != NULL);
     TEST_CHECK(strstr(response.body, "\"ok\":false") != NULL);
@@ -80,9 +78,8 @@ static void test_storage_snapshot_failure_is_visible(void) {
 static void test_storage_check_never_reports_false_success(void) {
     reset_fixture();
     web_api_response_t response = {0};
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        web_api_admin_boundary_handle(WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK, &response));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(
+                                             WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK, &response));
     TEST_CHECK_EQ_U64(503U, response.status);
     TEST_CHECK(strstr(response.body, "Phase 19 diagnostics service") != NULL);
     TEST_CHECK(strstr(response.body, "\"ok\":false") != NULL);
@@ -110,9 +107,8 @@ static void test_package_boundaries_are_explicit(void) {
 
 static void test_invalid_boundary_inputs(void) {
     web_api_response_t response = {0};
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        web_api_admin_boundary_handle(WEB_API_ROUTE_DIAGNOSTICS_STORAGE, NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_admin_boundary_handle(WEB_API_ROUTE_DIAGNOSTICS_STORAGE, NULL));
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
                          web_api_admin_boundary_handle(WEB_API_ROUTE_SETTINGS, &response));
     TEST_CHECK(response.body == NULL);

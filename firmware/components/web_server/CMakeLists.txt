@@ -23,6 +23,7 @@ idf_component_register(
     "web_api_procedures.c"
     "web_api_execution.c"
     "web_api_administration.c"
+    "web_api_admin_boundary.c"
     "web_api_dispatch.c"
     "web_request_policy.c"
     "web_execution_submit.c"

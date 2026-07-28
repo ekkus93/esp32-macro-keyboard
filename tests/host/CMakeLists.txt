@@ -654,3 +654,25 @@ target_link_libraries(web_api_dispatch_tests PRIVATE PkgConfig::CJSON test_suppo
 target_compile_options(web_api_dispatch_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME web_api_dispatch COMMAND web_api_dispatch_tests)
 set_tests_properties(web_api_dispatch PROPERTIES LABELS "web")
+
+add_executable(
+    web_api_admin_boundary_tests
+    test_web_api_admin_boundary.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/web_server/web_api_core.c
+    ../../firmware/components/web_server/web_api_response.c
+    ../../firmware/components/web_server/web_api_admin_boundary.c
+)
+target_include_directories(
+    web_api_admin_boundary_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/storage/include
+            ../../firmware/components/web_server
+)
+target_link_libraries(web_api_admin_boundary_tests PRIVATE PkgConfig::CJSON test_support)
+target_compile_options(web_api_admin_boundary_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME web_api_admin_boundary COMMAND web_api_admin_boundary_tests)
+set_tests_properties(web_api_admin_boundary PROPERTIES LABELS "web")
