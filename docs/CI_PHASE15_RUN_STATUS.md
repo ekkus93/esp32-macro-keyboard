@@ -4,10 +4,17 @@
 {
   "runs": [
     {
-      "id": 30346199457,
-      "head_sha": "fa52e245199528ea41cb8123e4d3be6c614da787",
+      "id": 30346957124,
+      "head_sha": "adce852ababce19a1eb6ebb285d944628d029e42",
       "status": "in_progress",
       "conclusion": null,
+      "html_url": "https://github.com/ekkus93/esp32-macro-keyboard/actions/runs/30346957124"
+    },
+    {
+      "id": 30346199457,
+      "head_sha": "fa52e245199528ea41cb8123e4d3be6c614da787",
+      "status": "completed",
+      "conclusion": "failure",
       "html_url": "https://github.com/ekkus93/esp32-macro-keyboard/actions/runs/30346199457"
     },
     {
@@ -16,13 +23,6 @@
       "status": "completed",
       "conclusion": "failure",
       "html_url": "https://github.com/ekkus93/esp32-macro-keyboard/actions/runs/30345575678"
-    },
-    {
-      "id": 30344975577,
-      "head_sha": "70d7aacb8864268c1f6e8c3b047f6bfe9696f861",
-      "status": "completed",
-      "conclusion": "failure",
-      "html_url": "https://github.com/ekkus93/esp32-macro-keyboard/actions/runs/30344975577"
     }
   ]
 }
