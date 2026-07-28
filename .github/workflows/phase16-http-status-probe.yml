@@ -47,4 +47,4 @@ jobs:
           git rebase origin/master
           git push origin HEAD:master
 
-# Refreshed after preserving legacy .inc include order.
+# Refreshed after direct-include and type-safe adapter fixes.
