@@ -13,6 +13,9 @@ idf_component_register(
     "web_server_adapter_json.c"
     "web_server_adapter_static_stream.c"
     "web_server_adapter_lifecycle.c"
+    "web_api_core.c"
+    "web_request_policy.c"
+    "web_execution_submit.c"
     "web_cookie.c"
     "web_origin.c"
     "web_static_path.c"
@@ -26,6 +29,7 @@ idf_component_register(
     REQUIRES
     macro_model
     macro_executor
+    macro_parser
     usb_keyboard
     wifi_ap
     auth
