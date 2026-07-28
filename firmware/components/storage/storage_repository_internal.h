@@ -9,8 +9,8 @@
 #include "macro_model.h"
 #include "storage_atomic_internal.h"
 #include "storage_fs_ops.h"
+#include "storage_object_json.h"
 
-#define STORAGE_SET_FILE_MAX_BYTES 4096U
 #define STORAGE_INDEX_FILE_MAX_BYTES 4096U
 #define STORAGE_SCHEMA_FILE_PATH STORAGE_DATA_MOUNT "/schema.json"
 #define STORAGE_SET_INDEX_FILE_PATH STORAGE_DATA_MOUNT "/set-index.json"
@@ -46,12 +46,8 @@ app_error_code_t storage_repository_make_directory(const char *path);
 app_error_code_t storage_repository_remove_tree_with_ops(const char *path,
                                                          const storage_fs_ops_t *operations);
 app_error_code_t storage_repository_remove_tree(const char *path);
-app_error_code_t storage_repository_parse_set_json(const char *data, size_t length,
-                                                   macro_set_t *out_set);
 app_error_code_t storage_repository_parse_index(const char *data, size_t length,
                                                 storage_set_index_t *out_index);
-app_error_code_t storage_repository_serialize_set_json(const macro_set_t *set, char **out_json,
-                                                       size_t *out_length);
 app_error_code_t storage_repository_load_index(storage_set_index_t *out_index);
 app_error_code_t storage_repository_load_index_path(const char *path,
                                                     storage_set_index_t *out_index);
