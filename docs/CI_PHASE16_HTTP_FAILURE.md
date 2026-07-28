@@ -1,704 +1,448 @@
 # Phase 16 HTTP integration failure
 
+## Error index
+
 ```text
-2026-07-28T12:46:48.3418395Z 99%
-2026-07-28T12:46:48.3418649Z 99%
-2026-07-28T12:46:48.3418775Z 99%
-2026-07-28T12:46:48.3419158Z 99%
-2026-07-28T12:46:48.3419292Z 99%
-2026-07-28T12:46:48.3419534Z 99%
-2026-07-28T12:46:48.3419656Z 99%
-2026-07-28T12:46:48.3419924Z 99%
-2026-07-28T12:46:48.3420044Z 99%
-2026-07-28T12:46:48.3420387Z 99%
-2026-07-28T12:46:48.3420511Z 99%
-2026-07-28T12:46:48.3420808Z 99%
-2026-07-28T12:46:48.3420949Z 99%
-2026-07-28T12:46:48.3421389Z 99%
-2026-07-28T12:46:48.3421573Z 99%
-2026-07-28T12:46:48.3421839Z 99%
-2026-07-28T12:46:48.3421966Z 99%
-2026-07-28T12:46:48.3422301Z 99%
-2026-07-28T12:46:48.3422423Z 99%
-2026-07-28T12:46:48.3422728Z 99%
-2026-07-28T12:46:48.3422859Z 99%
-2026-07-28T12:46:48.3423111Z 99%
-2026-07-28T12:46:48.3423242Z 99%
-2026-07-28T12:46:48.3423523Z 99%
-2026-07-28T12:46:48.3423668Z 99%
-2026-07-28T12:46:48.3423928Z 99%
-2026-07-28T12:46:48.3424050Z 99%
-2026-07-28T12:46:48.3424404Z 99%
-2026-07-28T12:46:48.3424535Z 99%
-2026-07-28T12:46:48.3424803Z 99%
-2026-07-28T12:46:48.3424931Z 99%
-2026-07-28T12:46:48.3425181Z 99%
-2026-07-28T12:46:48.3425313Z 99%
-2026-07-28T12:46:48.3425562Z 99%
-2026-07-28T12:46:48.3425697Z 99%
-2026-07-28T12:46:48.3426105Z 99%
-2026-07-28T12:46:48.3426226Z 99%
-2026-07-28T12:46:48.3426492Z 99%
-2026-07-28T12:46:48.3426614Z 99%
-2026-07-28T12:46:48.3426939Z 99%
-2026-07-28T12:46:48.3427067Z 99%
-2026-07-28T12:46:48.3427320Z 99%
-2026-07-28T12:46:48.3427464Z 99%
-2026-07-28T12:46:48.3427769Z 99%
-2026-07-28T12:46:48.3427920Z 99%
-2026-07-28T12:46:48.3428223Z 99%
-2026-07-28T12:46:48.3428435Z 99%
-2026-07-28T12:46:48.3428623Z 99%
-2026-07-28T12:46:48.3428745Z 99%
-2026-07-28T12:46:48.3428998Z 99%
-2026-07-28T12:46:48.3429126Z 99%
-2026-07-28T12:46:48.3429458Z 99%
-2026-07-28T12:46:48.3429596Z 99%
-2026-07-28T12:46:48.3429845Z 99%
-2026-07-28T12:46:48.3429978Z 99%
-2026-07-28T12:46:48.3430242Z 99%
-2026-07-28T12:46:48.3430363Z 99%
-2026-07-28T12:46:48.3430738Z 99%
-2026-07-28T12:46:48.3430867Z 99%
-2026-07-28T12:46:48.3431233Z 99%
-2026-07-28T12:46:48.3431400Z 99%
-2026-07-28T12:46:48.3431640Z 99%
-2026-07-28T12:46:48.3431818Z 99%
-2026-07-28T12:46:48.3432085Z 99%
-2026-07-28T12:46:48.3432210Z 99%
-2026-07-28T12:46:48.3432583Z 99%
-2026-07-28T12:46:48.3432706Z 99%
-2026-07-28T12:46:48.3432984Z 99%
-2026-07-28T12:46:48.3433114Z 99%
-2026-07-28T12:46:48.3433371Z 99%
-2026-07-28T12:46:48.3433505Z 99%
-2026-07-28T12:46:48.3433764Z 99%
-2026-07-28T12:46:48.3433916Z 99%
-2026-07-28T12:46:48.3434274Z 99%
-2026-07-28T12:46:48.3434397Z 99%
-2026-07-28T12:46:48.3434678Z 99%
-2026-07-28T12:46:48.3434887Z 99%
-2026-07-28T12:46:48.3435072Z 99%
-2026-07-28T12:46:48.3435203Z 99%
-2026-07-28T12:46:48.3435462Z 99%
-2026-07-28T12:46:48.3435588Z 99%
-2026-07-28T12:46:48.3435977Z 99%
-2026-07-28T12:46:48.3436104Z 99%
-2026-07-28T12:46:48.3436382Z 99%
-2026-07-28T12:46:48.3436507Z 99%
-2026-07-28T12:46:48.3436784Z 99%
-2026-07-28T12:46:48.3436907Z 99%
-2026-07-28T12:46:48.3437163Z 99%
-2026-07-28T12:46:48.3437298Z 99%
-2026-07-28T12:46:48.3437652Z 99%
-2026-07-28T12:46:48.3437777Z 99%
-2026-07-28T12:46:48.3438043Z 99%
-2026-07-28T12:46:48.3438164Z 99%
-2026-07-28T12:46:48.3438431Z 99%
-2026-07-28T12:46:48.3438552Z 99%
-2026-07-28T12:46:48.3438807Z 99%
-2026-07-28T12:46:48.3438945Z 99%
-2026-07-28T12:46:48.3439313Z 99%
-2026-07-28T12:46:48.3439439Z 99%
-2026-07-28T12:46:48.3439725Z 99%
-2026-07-28T12:46:48.3439863Z 99%
-2026-07-28T12:46:48.3440138Z 99%
-2026-07-28T12:46:48.3440257Z 99%
-2026-07-28T12:46:48.3440529Z 99%
-2026-07-28T12:46:48.3440650Z 99%
-2026-07-28T12:46:48.3441102Z 99%
-2026-07-28T12:46:48.3441231Z 99%
-2026-07-28T12:46:48.3441503Z 99%
-2026-07-28T12:46:48.3441643Z 99%
-2026-07-28T12:46:48.3441993Z 99%
-2026-07-28T12:46:48.3442114Z 99%
-2026-07-28T12:46:48.3442289Z 99%
-2026-07-28T12:46:48.3442417Z 99%
-2026-07-28T12:46:48.3442798Z 99%
-2026-07-28T12:46:48.3442927Z 99%
-2026-07-28T12:46:48.3443224Z 99%
-2026-07-28T12:46:48.3443350Z 99%
-2026-07-28T12:46:48.3443632Z 99%
-2026-07-28T12:46:48.3443763Z 99%
-2026-07-28T12:46:48.3444023Z 99%
-2026-07-28T12:46:48.3444172Z 99%
-2026-07-28T12:46:48.3444487Z 99%
-2026-07-28T12:46:48.3444607Z 99%
-2026-07-28T12:46:48.3444860Z 99%
-2026-07-28T12:46:48.3444985Z 99%
-2026-07-28T12:46:48.3445250Z 99%
-2026-07-28T12:46:48.3445376Z 99%
-2026-07-28T12:46:48.3445632Z 99%
-2026-07-28T12:46:48.3445759Z 99%
-2026-07-28T12:46:48.3446122Z 99%
-2026-07-28T12:46:48.3446250Z 99%
-2026-07-28T12:46:48.3446517Z 99%
-2026-07-28T12:46:48.3446640Z 99%
-2026-07-28T12:46:48.3446907Z 99%
-2026-07-28T12:46:48.3447113Z 99%
-2026-07-28T12:46:48.3447299Z 99%
-2026-07-28T12:46:48.3447434Z 99%
-2026-07-28T12:46:48.3447821Z 99%
-2026-07-28T12:46:48.3447952Z 99%
-2026-07-28T12:46:48.3448212Z 99%
-2026-07-28T12:46:48.3448373Z 99%
-2026-07-28T12:46:48.3448623Z 99%
-2026-07-28T12:46:48.3448749Z 99%
-2026-07-28T12:46:48.3449015Z 99%
-2026-07-28T12:46:48.3449144Z 99%
-2026-07-28T12:46:48.3449511Z 99%
-2026-07-28T12:46:48.3449645Z 99%
-2026-07-28T12:46:48.3449961Z 99%
-2026-07-28T12:46:48.3450102Z 99%
-2026-07-28T12:46:48.3450360Z 99%
-2026-07-28T12:46:48.3450482Z 99%
-2026-07-28T12:46:48.3450807Z 99%
-2026-07-28T12:46:48.3450927Z 99%
-2026-07-28T12:46:48.3451347Z 99%
-2026-07-28T12:46:48.3451500Z 99%
-2026-07-28T12:46:48.3451750Z 99%
-2026-07-28T12:46:48.3451882Z 99%
-2026-07-28T12:46:48.3452140Z 99%
-2026-07-28T12:46:48.3452276Z 99%
-2026-07-28T12:46:48.3452659Z 99%
-2026-07-28T12:46:48.3452779Z 99%
-2026-07-28T12:46:48.3453032Z 99%
-2026-07-28T12:46:48.3453155Z 99%
-2026-07-28T12:46:48.3453436Z 99%
-2026-07-28T12:46:48.3453562Z 99%
-2026-07-28T12:46:48.3453815Z 99%
-2026-07-28T12:46:48.3453950Z 99%
-2026-07-28T12:46:48.3454303Z 99%
-2026-07-28T12:46:48.3454446Z 99%
-2026-07-28T12:46:48.3454725Z 99%
-2026-07-28T12:46:48.3454944Z 99%
-2026-07-28T12:46:48.3455116Z 99%
-2026-07-28T12:46:48.3455237Z 99%
-2026-07-28T12:46:48.3455491Z 99%
-2026-07-28T12:46:48.3455626Z 99%
-2026-07-28T12:46:48.3455979Z 99%
-2026-07-28T12:46:48.3456106Z 99%
-2026-07-28T12:46:48.3456357Z 99%
-2026-07-28T12:46:48.3456495Z 99%
-2026-07-28T12:46:48.3456773Z 99%
-2026-07-28T12:46:48.3456893Z 99%
-2026-07-28T12:46:48.3457147Z 99%
-2026-07-28T12:46:48.3457276Z 99%
-2026-07-28T12:46:48.3457645Z 99%
-2026-07-28T12:46:48.3457771Z 99%
-2026-07-28T12:46:48.3458020Z 99%
-2026-07-28T12:46:48.3458158Z 99%
-2026-07-28T12:46:48.3458408Z 99%
-2026-07-28T12:46:48.3458553Z 99%
-2026-07-28T12:46:48.3458809Z 99%
-2026-07-28T12:46:48.3458931Z 99%
-2026-07-28T12:46:48.3459316Z 99%
-2026-07-28T12:46:48.3459442Z 99%
-2026-07-28T12:46:48.3459691Z 99%
-2026-07-28T12:46:48.3459824Z 99%
-2026-07-28T12:46:48.3460074Z 99%
-2026-07-28T12:46:48.3460211Z 99%
-2026-07-28T12:46:48.3460474Z 99%
-2026-07-28T12:46:48.3460614Z 99%
-2026-07-28T12:46:48.3461129Z 99%
-2026-07-28T12:46:48.3461338Z 99%
-2026-07-28T12:46:48.3461655Z 99%
-2026-07-28T12:46:48.3461787Z 99%
-2026-07-28T12:46:48.3462034Z 99%
-2026-07-28T12:46:48.3462177Z 99%
-2026-07-28T12:46:48.3462417Z 99%
-2026-07-28T12:46:48.3462557Z 99%
-2026-07-28T12:46:48.3462907Z 99%
-2026-07-28T12:46:48.3463034Z 99%
-2026-07-28T12:46:48.3463299Z 99%
-2026-07-28T12:46:48.3463422Z 99%
-2026-07-28T12:46:48.3463687Z 99%
-2026-07-28T12:46:48.3463819Z 99%
-2026-07-28T12:46:48.3464081Z 99%
-2026-07-28T12:46:48.3464210Z 99%
-2026-07-28T12:46:48.3464576Z 99%
-2026-07-28T12:46:48.3464711Z 99%
-2026-07-28T12:46:48.3464965Z 99%
-2026-07-28T12:46:48.3465112Z 99%
-2026-07-28T12:46:48.3465416Z 99%
-2026-07-28T12:46:48.3465535Z 99%
-2026-07-28T12:46:48.3465789Z 99%
-2026-07-28T12:46:48.3465920Z 99%
-2026-07-28T12:46:48.3466250Z 99%
-2026-07-28T12:46:48.3466377Z 99%
-2026-07-28T12:46:48.3466621Z 99%
-2026-07-28T12:46:48.3466763Z 99%
-2026-07-28T12:46:48.3467024Z 99%
-2026-07-28T12:46:48.3467147Z 99%
-2026-07-28T12:46:48.3467411Z 99%
-2026-07-28T12:46:48.3467550Z 99%
-2026-07-28T12:46:48.3467851Z 99%
-2026-07-28T12:46:48.3468017Z 99%
-2026-07-28T12:46:48.3468349Z 99%
-2026-07-28T12:46:48.3468472Z 99%
-2026-07-28T12:46:48.3468648Z 99%
-2026-07-28T12:46:48.3468780Z 99%
-2026-07-28T12:46:48.3469067Z 99%
-2026-07-28T12:46:48.3469194Z 99%
-2026-07-28T12:46:48.3469473Z 99%
-2026-07-28T12:46:48.3469601Z 99%
-2026-07-28T12:46:48.3469854Z 99%
-2026-07-28T12:46:48.3469988Z 99%
-2026-07-28T12:46:48.3470236Z 99%
-2026-07-28T12:46:48.3470373Z 99%
-2026-07-28T12:46:48.3470648Z 99%
-2026-07-28T12:46:48.3470773Z 99%
-2026-07-28T12:46:48.3471159Z 99%
-2026-07-28T12:46:48.3471282Z 99%
-2026-07-28T12:46:48.3471562Z 99%
-2026-07-28T12:46:48.3471694Z 99%
-2026-07-28T12:46:48.3471934Z 99%
-2026-07-28T12:46:48.3472076Z 99%
-2026-07-28T12:46:48.3472299Z 99%
-2026-07-28T12:46:48.3474230Z 99%
-2026-07-28T12:46:48.3474366Z 100%
-2026-07-28T12:46:48.3474485Z Done
-2026-07-28T12:47:13.6079958Z Extracting /home/runner/.espressif/dist/clang-esp-19.1.2_20250312-x86_64-linux-gnu.tar.xz to /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312
-2026-07-28T12:47:13.6241667Z ESP-IDF v5.5.5 installed at /home/runner/esp/esp-idf-v5.5.5
-2026-07-28T12:47:13.6278249Z ##[group]Run npm ci
-2026-07-28T12:47:13.6278496Z [36;1mnpm ci[0m
-2026-07-28T12:47:13.6325709Z shell: /usr/bin/bash -e {0}
-2026-07-28T12:47:13.6325980Z ##[endgroup]
-2026-07-28T12:47:15.2103865Z npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
-2026-07-28T12:47:17.9219110Z npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
-2026-07-28T12:48:14.1254472Z
-2026-07-28T12:48:14.1255090Z added 471 packages, and audited 472 packages in 1m
-2026-07-28T12:48:14.3369032Z
-2026-07-28T12:48:14.3369675Z 18 vulnerabilities (16 high, 2 critical)
-2026-07-28T12:48:14.3369954Z
-2026-07-28T12:48:14.3370170Z To address issues that do not require attention, run:
-2026-07-28T12:48:14.3370906Z   npm audit fix
-2026-07-28T12:48:14.3371481Z
-2026-07-28T12:48:14.3371805Z To address all issues (including breaking changes), run:
-2026-07-28T12:48:14.3372260Z   npm audit fix --force
-2026-07-28T12:48:14.3372459Z
-2026-07-28T12:48:14.3372623Z Run `npm audit` for details.
-2026-07-28T12:48:14.3379619Z npm warn allow-scripts 2 packages have install scripts not yet covered by allowScripts:
-2026-07-28T12:48:14.3380379Z npm warn allow-scripts   @tailwindcss/oxide@4.1.11 (postinstall: node ./scripts/install.js)
-2026-07-28T12:48:14.3381163Z npm warn allow-scripts   esbuild@0.25.12 (postinstall: node install.js)
-2026-07-28T12:48:14.3381557Z npm warn allow-scripts
-2026-07-28T12:48:14.3382200Z npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
-2026-07-28T12:48:14.4357686Z ##[group]Run python3 scripts/apply-phase16-http-integration.py
-2026-07-28T12:48:14.4358214Z [36;1mpython3 scripts/apply-phase16-http-integration.py[0m
-2026-07-28T12:48:14.4405448Z shell: /usr/bin/bash -e {0}
-2026-07-28T12:48:14.4405720Z ##[endgroup]
-2026-07-28T12:48:14.4822595Z ##[group]Run set -euo pipefail
-2026-07-28T12:48:14.4822918Z [36;1mset -euo pipefail[0m
-2026-07-28T12:48:14.4823171Z [36;1mmapfile -t web_sources < <([0m
-2026-07-28T12:48:14.4823468Z [36;1m  find firmware/components/web_server \[0m
-2026-07-28T12:48:14.4823835Z [36;1m    -type f \( -name '*.c' -o -name '*.h' \) -print | sort[0m
-2026-07-28T12:48:14.4824155Z [36;1m)[0m
-2026-07-28T12:48:14.4824356Z [36;1mclang-format -i \[0m
-2026-07-28T12:48:14.4824592Z [36;1m  "${web_sources[@]}" \[0m
-2026-07-28T12:48:14.4824934Z [36;1m  firmware/components/macro_executor/macro_executor_engine.c \[0m
-2026-07-28T12:48:14.4825389Z [36;1m  firmware/components/app_core/app_core_sequence.c \[0m
-2026-07-28T12:48:14.4825736Z [36;1m  tests/host/test_web_api_json.c \[0m
-2026-07-28T12:48:14.4826032Z [36;1m  tests/host/test_web_api_response.c[0m
-2026-07-28T12:48:14.4826523Z [36;1mcmake-format -i firmware/components/web_server/CMakeLists.txt tests/host/CMakeLists.txt[0m
-2026-07-28T12:48:14.4873548Z shell: /usr/bin/bash -e {0}
-2026-07-28T12:48:14.4873808Z ##[endgroup]
-2026-07-28T12:48:15.6934181Z ##[group]Run set -euo pipefail
-2026-07-28T12:48:15.6934678Z [36;1mset -euo pipefail[0m
-2026-07-28T12:48:15.6935095Z [36;1m./scripts/run-tests.sh web[0m
-2026-07-28T12:48:15.6935547Z [36;1m./scripts/run-tests.sh executor[0m
-2026-07-28T12:48:15.6936039Z [36;1m./scripts/run-tests.sh --sanitizers web[0m
-2026-07-28T12:48:15.6936601Z [36;1m./scripts/run-tests.sh --sanitizers executor[0m
-2026-07-28T12:48:15.6999338Z shell: /usr/bin/bash -e {0}
-2026-07-28T12:48:15.6999843Z ##[endgroup]
-2026-07-28T12:48:16.5719330Z -- The C compiler identification is GNU 13.3.0
-2026-07-28T12:48:16.7098022Z -- Detecting C compiler ABI info
-2026-07-28T12:48:16.9222080Z -- Detecting C compiler ABI info - done
-2026-07-28T12:48:16.9397028Z -- Check for working C compiler: /usr/bin/cc - skipped
-2026-07-28T12:48:16.9455256Z -- Detecting C compile features
-2026-07-28T12:48:16.9462968Z -- Detecting C compile features - done
-2026-07-28T12:48:16.9817116Z -- Found PkgConfig: /usr/bin/pkg-config (found version "1.8.1")
-2026-07-28T12:48:16.9825198Z -- Checking for module 'libcjson'
-2026-07-28T12:48:16.9917175Z --   Found libcjson, version 1.7.17
-2026-07-28T12:48:17.0156513Z -- Configuring done (0.8s)
-2026-07-28T12:48:17.1194087Z -- Generating done (0.1s)
-2026-07-28T12:48:17.1198031Z -- Build files have been written to: /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/tests/host/build
-2026-07-28T12:48:17.1513509Z [  0%] Building C object CMakeFiles/test_support.dir/support/test_assert.c.o
-2026-07-28T12:48:17.1514866Z [  1%] Building C object CMakeFiles/test_support.dir/support/test_memory.c.o
-2026-07-28T12:48:17.1516118Z [  1%] Building C object CMakeFiles/test_support.dir/support/test_temp_dir.c.o
-2026-07-28T12:48:17.1517363Z [  1%] Building C object CMakeFiles/test_support.dir/fakes/fake_call_log.c.o
-2026-07-28T12:48:17.1629346Z [  2%] Building C object CMakeFiles/test_support.dir/fakes/fake_clock.c.o
-2026-07-28T12:48:17.1642962Z [  2%] Building C object CMakeFiles/test_support.dir/fakes/fake_random.c.o
-2026-07-28T12:48:17.1644033Z [  2%] Building C object CMakeFiles/test_support.dir/fakes/fake_freertos.c.o
-2026-07-28T12:48:17.1645087Z [  2%] Building C object CMakeFiles/test_support.dir/fakes/fake_gpio_backend.c.o
-2026-07-28T12:48:17.1646139Z [  3%] Building C object CMakeFiles/test_support.dir/fakes/fake_usb_backend.c.o
-2026-07-28T12:48:17.1669389Z [  3%] Building C object CMakeFiles/test_support.dir/fakes/fake_wifi_backend.c.o
-2026-07-28T12:48:17.1720804Z [  4%] Building C object CMakeFiles/test_support.dir/fakes/fake_http_backend.c.o
-2026-07-28T12:48:17.1824330Z [  4%] Building C object CMakeFiles/test_support.dir/fakes/fake_fs_backend.c.o
-2026-07-28T12:48:17.2718677Z [  4%] Linking C static library libtest_support.a
-2026-07-28T12:48:17.7415636Z [  4%] Built target test_support
-2026-07-28T12:48:17.7555115Z [  5%] Building C object CMakeFiles/test_support_tests.dir/test_support.c.o
-2026-07-28T12:48:17.7616566Z [  6%] Building C object CMakeFiles/app_operation_result_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/support/app_operation_result.c.o
-2026-07-28T12:48:17.7639121Z [  6%] Building C object CMakeFiles/macro_model_tests.dir/test_macro_model.c.o
-2026-07-28T12:48:17.7642726Z [  6%] Building C object CMakeFiles/macro_parser_tests.dir/test_macro_parser.c.o
-2026-07-28T12:48:17.7644098Z [  6%] Building C object CMakeFiles/app_operation_result_tests.dir/test_app_operation_result.c.o
-2026-07-28T12:48:17.7648802Z [  7%] Building C object CMakeFiles/macro_model_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-2026-07-28T12:48:17.7819648Z [  7%] Building C object CMakeFiles/macro_executor_tests.dir/test_macro_executor.c.o
-2026-07-28T12:48:17.7944232Z [  7%] Building C object CMakeFiles/macro_parser_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:17.8153085Z [  8%] Building C object CMakeFiles/macro_executor_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_executor/macro_executor_engine.c.o
-2026-07-28T12:48:17.8345522Z [  9%] Building C object CMakeFiles/macro_parser_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_parser.c.o
-2026-07-28T12:48:17.8416872Z [ 10%] Building C object CMakeFiles/macro_parser_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:17.8577561Z [ 10%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:17.8811860Z [ 11%] Building C object CMakeFiles/auth_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_rate_limit.c.o
-2026-07-28T12:48:17.9163579Z [ 12%] Building C object CMakeFiles/web_server_adapter_tests.dir/test_web_server_adapter.c.o
-2026-07-28T12:48:17.9544934Z [ 13%] Building C object CMakeFiles/web_security_tests.dir/test_web_security.c.o
-2026-07-28T12:48:18.0014614Z [ 13%] Building C object CMakeFiles/macro_parser_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_keymap_us.c.o
-2026-07-28T12:48:18.0587868Z [ 13%] Building C object CMakeFiles/macro_parser_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-2026-07-28T12:48:18.1295380Z [ 14%] Building C object CMakeFiles/web_security_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_static_path.c.o
-2026-07-28T12:48:18.2175764Z [ 14%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_common.c.o
-2026-07-28T12:48:18.2934972Z [ 14%] Building C object CMakeFiles/web_security_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_content.c.o
-2026-07-28T12:48:18.3802911Z [ 14%] Building C object CMakeFiles/usb_keyboard_tests.dir/test_usb_keyboard.c.o
-2026-07-28T12:48:18.4784247Z [ 14%] Building C object CMakeFiles/auth_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_session.c.o
-2026-07-28T12:48:18.5573776Z [ 16%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_body_auth.c.o
-2026-07-28T12:48:18.6493642Z [ 16%] Building C object CMakeFiles/auth_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_common.c.o
-2026-07-28T12:48:18.7605980Z [ 16%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_json.c.o
-2026-07-28T12:48:18.8306561Z [ 10%] Building C object CMakeFiles/web_security_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_cookie.c.o
-2026-07-28T12:48:18.9113490Z [ 10%] Building C object CMakeFiles/auth_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_password.c.o
-2026-07-28T12:48:18.9972729Z [ 16%] Building C object CMakeFiles/auth_tests.dir/test_auth.c.o
-2026-07-28T12:48:19.0713717Z [ 16%] Building C object CMakeFiles/web_security_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_origin.c.o
-2026-07-28T12:48:19.1443483Z [ 16%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_cookie.c.o
-2026-07-28T12:48:19.2044521Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c: In function ‘parse_data’:
-2026-07-28T12:48:19.2047130Z [ 16%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_origin.c.o
-2026-07-28T12:48:19.2722557Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c:34:72: error: ‘false’ undeclared (first use in this function)
-2026-07-28T12:48:19.2724244Z [ 17%] Building C object CMakeFiles/wifi_ap_tests.dir/test_wifi_ap.c.o
-2026-07-28T12:48:19.3497180Z    34 |     cJSON *value = cJSON_ParseWithLengthOpts(json, length, &parse_end, false);
-2026-07-28T12:48:19.3499044Z [ 18%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_static_path.c.o
-2026-07-28T12:48:19.4352538Z       |                                                                        ^~~~~
-2026-07-28T12:48:19.4354450Z [ 19%] Building C object CMakeFiles/usb_keyboard_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/usb_keyboard/usb_keyboard_state.c.o
-2026-07-28T12:48:19.5044630Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c:9:1: note: ‘false’ is defined in header ‘<stdbool.h>’; did you forget to ‘#include <stdbool.h>’?
-2026-07-28T12:48:19.5047172Z [ 19%] Building C object CMakeFiles/wifi_ap_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/wifi_ap/wifi_ap_state.c.o
-2026-07-28T12:48:19.5719848Z     8 | #include "cJSON.h"
-2026-07-28T12:48:19.5720882Z [ 19%] Building C object CMakeFiles/device_controls_tests.dir/test_device_controls.c.o
-2026-07-28T12:48:19.6472255Z   +++ |+#include <stdbool.h>
-2026-07-28T12:48:19.6474112Z [ 19%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_static_stream.c.o
-2026-07-28T12:48:19.7131169Z     9 |
-2026-07-28T12:48:19.7132923Z [ 20%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_lifecycle.c.o
-2026-07-28T12:48:19.7693802Z [ 21%] Building C object CMakeFiles/device_controls_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/device_controls/device_controls_logic.c.o
-2026-07-28T12:48:19.8013623Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c:34:72: note: each undeclared identifier is reported only once for each function it appears in
-2026-07-28T12:48:19.8474012Z    34 |     cJSON *value = cJSON_ParseWithLengthOpts(json, length, &parse_end, false);
-2026-07-28T12:48:19.8475870Z [ 21%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_content.c.o
-2026-07-28T12:48:19.9202501Z       |                                                                        ^~~~~
-2026-07-28T12:48:19.9203699Z [ 21%] Building C object CMakeFiles/storage_repository_io_tests.dir/test_storage_repository_io.c.o
-2026-07-28T12:48:19.9742721Z [ 21%] Building C object CMakeFiles/storage_mount_tests.dir/test_storage_mount.c.o
-2026-07-28T12:48:19.9833687Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c: In function ‘web_api_response_success’:
-2026-07-28T12:48:20.0654334Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c:52:76: error: ‘true’ undeclared (first use in this function)
-2026-07-28T12:48:20.0656048Z [ 21%] Building C object CMakeFiles/provisioning_tests.dir/test_provisioning.c.o
-2026-07-28T12:48:20.1238705Z    52 |     if (data == NULL || root == NULL || !cJSON_AddBoolToObject(root, "ok", true) ||
-2026-07-28T12:48:20.1241247Z [ 21%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-2026-07-28T12:48:20.1962942Z       |                                                                            ^~~~
-2026-07-28T12:48:20.1964174Z [ 22%] Building C object CMakeFiles/storage_repository_lock_tests.dir/test_storage_repository_lock.c.o
-2026-07-28T12:48:20.2514320Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c:52:76: note: ‘true’ is defined in header ‘<stdbool.h>’; did you forget to ‘#include <stdbool.h>’?
-2026-07-28T12:48:20.2517263Z [ 23%] Building C object CMakeFiles/provisioning_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning_core.c.o
-2026-07-28T12:48:20.3094260Z [ 23%] Building C object CMakeFiles/app_core_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/app_core/app_core_sequence.c.o
-2026-07-28T12:48:20.3153591Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c: In function ‘web_api_response_error’:
-2026-07-28T12:48:20.3645809Z [ 24%] Building C object CMakeFiles/storage_atomic_tests.dir/test_storage_atomic.c.o
-2026-07-28T12:48:20.3804019Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c:72:77: error: ‘false’ undeclared (first use in this function)
-2026-07-28T12:48:20.4053254Z [ 24%] Building C object CMakeFiles/app_core_tests.dir/test_app_core.c.o
-2026-07-28T12:48:20.4742626Z    72 |     if (root == NULL || error == NULL || !cJSON_AddBoolToObject(root, "ok", false) ||
-2026-07-28T12:48:20.4743813Z [ 24%] Building C object CMakeFiles/web_api_core_tests.dir/test_web_api_core.c.o
-2026-07-28T12:48:20.5302495Z       |                                                                             ^~~~~
-2026-07-28T12:48:20.5304659Z [ 25%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:20.5783511Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c:72:77: note: ‘false’ is defined in header ‘<stdbool.h>’; did you forget to ‘#include <stdbool.h>’?
-2026-07-28T12:48:20.5786135Z [ 25%] Building C object CMakeFiles/storage_mount_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:20.6323842Z gmake[2]: *** [CMakeFiles/web_api_response_tests.dir/build.make:107: CMakeFiles/web_api_response_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c.o] Error 1
-2026-07-28T12:48:20.6326550Z [ 25%] Building C object CMakeFiles/provisioning_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:20.6683355Z [ 21%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/test_storage_atomic_recovery.c.o
-2026-07-28T12:48:20.6912534Z gmake[2]: *** Waiting for unfinished jobs....
-2026-07-28T12:48:20.7213138Z gmake[1]: *** [CMakeFiles/Makefile2:1190: CMakeFiles/web_api_response_tests.dir/all] Error 2
-2026-07-28T12:48:20.7215129Z [ 27%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-2026-07-28T12:48:20.7693381Z [ 27%] Building C object CMakeFiles/storage_mount_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_mount_topology.c.o
-2026-07-28T12:48:20.7870474Z gmake[1]: *** Waiting for unfinished jobs....
-2026-07-28T12:48:20.8223515Z [ 28%] Building C object CMakeFiles/storage_mount_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_mount_core.c.o
-2026-07-28T12:48:20.8707778Z [ 28%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic_recovery.c.o
-2026-07-28T12:48:20.9053326Z [ 28%] Building C object CMakeFiles/storage_atomic_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:20.9492784Z [ 28%] Building C object CMakeFiles/storage_repository_tests.dir/test_storage_repository.c.o
-2026-07-28T12:48:20.9792957Z [ 29%] Building C object CMakeFiles/storage_parent_sync_tests.dir/test_storage_parent_sync.c.o
-2026-07-28T12:48:21.0089901Z [ 29%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic_validators.c.o
-2026-07-28T12:48:21.0442774Z [ 30%] Building C object CMakeFiles/storage_transaction_tests.dir/test_storage_transactions.c.o
-2026-07-28T12:48:21.0798407Z [ 30%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.1083343Z [ 30%] Building C object CMakeFiles/storage_atomic_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.1403379Z [ 31%] Building C object CMakeFiles/storage_parent_sync_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-2026-07-28T12:48:21.1613561Z [ 31%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.1925001Z [ 31%] Building C object CMakeFiles/storage_parent_sync_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-2026-07-28T12:48:21.2154790Z [ 32%] Building C object CMakeFiles/storage_atomic_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-2026-07-28T12:48:21.2303926Z [ 33%] Building C object CMakeFiles/storage_repository_io_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.2512676Z [ 33%] Building C object CMakeFiles/storage_quarantine_tests.dir/test_storage_quarantine.c.o
-2026-07-28T12:48:21.2732394Z [ 33%] Building C object CMakeFiles/storage_repository_lock_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.2945325Z [ 33%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-2026-07-28T12:48:21.3113998Z [ 34%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-2026-07-28T12:48:21.3284002Z [ 34%] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.3493297Z [ 34%] Building C object CMakeFiles/storage_parent_sync_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.3673541Z [ 34%] Building C object CMakeFiles/storage_atomic_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-2026-07-28T12:48:21.3768289Z [ 35%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/test_storage_atomic_validators.c.o
-2026-07-28T12:48:21.3883672Z [ 36%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-2026-07-28T12:48:21.4064023Z [ 36%] Building C object CMakeFiles/storage_parent_sync_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.4142758Z [ 36%] Building C object CMakeFiles/storage_repository_io_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-2026-07-28T12:48:21.4323573Z [ 36%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic_validators.c.o
-2026-07-28T12:48:21.4513358Z [ 36%] Building C object CMakeFiles/storage_repository_io_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-2026-07-28T12:48:21.4620173Z [ 36%] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.4693487Z [ 37%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-2026-07-28T12:48:21.4813381Z [ 38%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-2026-07-28T12:48:21.4847026Z [ 38%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.4883140Z [ 26%] Building C object CMakeFiles/app_core_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/support/app_operation_result.c.o
-2026-07-28T12:48:21.4963590Z [ 39%] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-2026-07-28T12:48:21.4988676Z [ 39%] Building C object CMakeFiles/storage_repository_io_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.5066730Z [ 40%] Building C object CMakeFiles/web_api_core_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.5123779Z [ 40%] Building C object CMakeFiles/web_api_core_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.5131436Z [ 40%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.5161831Z [ 41%] Building C object CMakeFiles/storage_repository_io_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
-2026-07-28T12:48:21.5164701Z [ 42%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-2026-07-28T12:48:21.5167203Z [ 42%] Building C object CMakeFiles/storage_repository_io_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-2026-07-28T12:48:21.5169824Z [ 43%] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-2026-07-28T12:48:21.5172784Z [ 43%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-2026-07-28T12:48:21.5175472Z [ 43%] Building C object CMakeFiles/storage_repository_lock_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-2026-07-28T12:48:21.5178401Z [ 43%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-2026-07-28T12:48:21.5181153Z [ 43%] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-2026-07-28T12:48:21.5183419Z [ 31%] Building C object CMakeFiles/web_api_core_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_core.c.o
-2026-07-28T12:48:21.5185944Z [ 43%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-2026-07-28T12:48:21.5188375Z [ 44%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-2026-07-28T12:48:21.5190699Z [ 44%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
-2026-07-28T12:48:21.5193715Z [ 45%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.5198104Z [ 46%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-2026-07-28T12:48:21.5200045Z [ 47%] Building C object CMakeFiles/provisioning_settings_tests.dir/test_provisioning_settings.c.o
-2026-07-28T12:48:21.5202317Z [ 48%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.5204945Z [ 48%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-2026-07-28T12:48:21.5207708Z [ 48%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-2026-07-28T12:48:21.5210073Z [ 48%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-2026-07-28T12:48:21.5212861Z [ 48%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-2026-07-28T12:48:21.5215360Z [ 48%] Building C object CMakeFiles/provisioning_settings_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.5218179Z [ 48%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-2026-07-28T12:48:21.5220847Z [ 48%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
-2026-07-28T12:48:21.5223571Z [ 48%] Building C object CMakeFiles/provisioning_settings_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning_core.c.o
-2026-07-28T12:48:21.5226133Z [ 48%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.5228734Z [ 48%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-2026-07-28T12:48:21.5231668Z [ 48%] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-2026-07-28T12:48:21.5234325Z [ 48%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
-2026-07-28T12:48:21.5237017Z [ 49%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-2026-07-28T12:48:21.5239940Z [ 51%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-2026-07-28T12:48:21.5242925Z [ 51%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-2026-07-28T12:48:21.5244909Z [ 52%] Building C object CMakeFiles/provisioning_bootstrap_tests.dir/test_provisioning_bootstrap.c.o
-2026-07-28T12:48:21.5247054Z [ 52%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-2026-07-28T12:48:21.5248963Z [ 52%] Building C object CMakeFiles/web_request_policy_tests.dir/test_web_request_policy.c.o
-2026-07-28T12:48:21.5251131Z [ 47%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-2026-07-28T12:48:21.5253596Z [ 52%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-2026-07-28T12:48:21.5255537Z [ 52%] Building C object CMakeFiles/web_api_json_tests.dir/test_web_api_json.c.o
-2026-07-28T12:48:21.5256870Z [ 52%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/test_storage_active_set_delete.c.o
-2026-07-28T12:48:21.5259036Z [ 52%] Building C object CMakeFiles/web_execution_submit_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.5261769Z [ 53%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.5264379Z [ 53%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-2026-07-28T12:48:21.5266935Z [ 53%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-2026-07-28T12:48:21.5268948Z [ 54%] Building C object CMakeFiles/web_setup_tests.dir/test_web_setup.c.o
-2026-07-28T12:48:21.5270103Z [ 55%] Building C object CMakeFiles/web_setup_json_tests.dir/test_web_setup_json.c.o
-2026-07-28T12:48:21.5272449Z [ 56%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.5274928Z [ 57%] Building C object CMakeFiles/web_request_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.5277335Z [ 57%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-2026-07-28T12:48:21.5279918Z [ 58%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-2026-07-28T12:48:21.5282861Z [ 59%] Building C object CMakeFiles/web_execution_submit_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.5285716Z [ 48%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-2026-07-28T12:48:21.5287720Z [ 59%] Building C object CMakeFiles/storage_progress_repository_tests.dir/test_storage_progress.c.o
-2026-07-28T12:48:21.5289096Z [ 60%] Building C object CMakeFiles/web_api_response_tests.dir/test_web_api_response.c.o
-2026-07-28T12:48:21.5291360Z [ 60%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-2026-07-28T12:48:21.5293852Z [ 60%] Building C object CMakeFiles/web_api_response_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.5296398Z [ 61%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-2026-07-28T12:48:21.5299115Z [ 62%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.5301762Z [ 62%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.5304202Z [ 62%] Building C object CMakeFiles/web_api_response_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c.o
-2026-07-28T12:48:21.5306615Z [ 48%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-2026-07-28T12:48:21.5309212Z [ 63%] Building C object CMakeFiles/web_api_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.5311788Z [ 63%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-2026-07-28T12:48:21.5314284Z [ 63%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-2026-07-28T12:48:21.5317004Z [ 64%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-2026-07-28T12:48:21.5319374Z [ 64%] Building C object CMakeFiles/web_api_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c.o
-2026-07-28T12:48:21.5322406Z [ 64%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-2026-07-28T12:48:21.5325008Z [ 64%] Building C object CMakeFiles/web_request_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_request_policy.c.o
-2026-07-28T12:48:21.5326893Z [ 64%] Building C object CMakeFiles/web_execution_submit_tests.dir/test_web_execution_submit.c.o
-2026-07-28T12:48:21.5328893Z [ 52%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-2026-07-28T12:48:21.5331637Z [ 64%] Building C object CMakeFiles/provisioning_bootstrap_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning_bootstrap_core.c.o
-2026-07-28T12:48:21.5334164Z [ 65%] Building C object CMakeFiles/web_request_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_cookie.c.o
-2026-07-28T12:48:21.5337007Z [ 52%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-2026-07-28T12:48:21.5339700Z [ 65%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-2026-07-28T12:48:21.5342378Z [ 66%] Building C object CMakeFiles/web_execution_submit_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_execution_submit.c.o
-2026-07-28T12:48:21.5344848Z [ 66%] Building C object CMakeFiles/web_setup_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_setup_core.c.o
-2026-07-28T12:48:21.5347128Z [ 66%] Building C object CMakeFiles/web_request_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_origin.c.o
-2026-07-28T12:48:21.5349443Z [ 66%] Building C object CMakeFiles/web_request_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.5352165Z [ 66%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-2026-07-28T12:48:21.5354721Z [ 67%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-2026-07-28T12:48:21.5357354Z [ 67%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-2026-07-28T12:48:21.5359891Z [ 67%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-2026-07-28T12:48:21.5362783Z [ 67%] Building C object CMakeFiles/web_execution_submit_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-2026-07-28T12:48:21.5365178Z [ 67%] Building C object CMakeFiles/web_setup_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_setup_json.c.o
-2026-07-28T12:48:21.5367627Z [ 67%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-2026-07-28T12:48:21.5370031Z [ 67%] Building C object CMakeFiles/web_api_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.5372870Z [ 67%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-2026-07-28T12:48:21.5374748Z [ 68%] Building C object CMakeFiles/storage_macro_repository_tests.dir/test_storage_macros.c.o
-2026-07-28T12:48:21.5376755Z [ 63%] Building C object CMakeFiles/web_request_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_core.c.o
-2026-07-28T12:48:21.5379250Z [ 69%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-2026-07-28T12:48:21.5381940Z [ 69%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
-2026-07-28T12:48:21.5384572Z [ 69%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-2026-07-28T12:48:21.5387386Z [ 66%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-2026-07-28T12:48:21.5389863Z [ 70%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
-2026-07-28T12:48:21.5391803Z [ 70%] Building C object CMakeFiles/storage_object_json_tests.dir/test_storage_object_json.c.o
-2026-07-28T12:48:21.5393780Z [ 70%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-2026-07-28T12:48:21.5396455Z [ 70%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-2026-07-28T12:48:21.5398970Z [ 70%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.5401664Z [ 71%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
-2026-07-28T12:48:21.5404170Z [ 70%] Building C object CMakeFiles/storage_object_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.5406793Z [ 71%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-2026-07-28T12:48:21.5409606Z [ 72%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
-2026-07-28T12:48:21.5412766Z [ 72%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-2026-07-28T12:48:21.5415466Z [ 72%] Building C object CMakeFiles/storage_object_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-2026-07-28T12:48:21.5418232Z [ 72%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-2026-07-28T12:48:21.5420923Z [ 73%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-2026-07-28T12:48:21.5423592Z [ 71%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
-2026-07-28T12:48:21.5426339Z [ 70%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.5428961Z [ 74%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-2026-07-28T12:48:21.5431808Z [ 75%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
-2026-07-28T12:48:21.5434422Z [ 75%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-2026-07-28T12:48:21.5437089Z [ 76%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-2026-07-28T12:48:21.5440103Z [ 77%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-2026-07-28T12:48:21.5443003Z [ 77%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-2026-07-28T12:48:21.5445534Z [ 77%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-2026-07-28T12:48:21.5448088Z [ 78%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-2026-07-28T12:48:21.5449887Z [ 79%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/test_storage_procedures.c.o
-2026-07-28T12:48:21.5452216Z [ 80%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-2026-07-28T12:48:21.5454744Z [ 81%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-2026-07-28T12:48:21.5457227Z [ 82%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-2026-07-28T12:48:21.5459628Z [ 74%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-2026-07-28T12:48:21.5503091Z [ 74%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-2026-07-28T12:48:21.5506356Z [ 74%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-2026-07-28T12:48:21.5532868Z [ 74%] Building C object CMakeFiles/storage_object_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-2026-07-28T12:48:21.5563338Z [ 76%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-2026-07-28T12:48:21.5582987Z [ 74%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-2026-07-28T12:48:21.5623218Z [ 74%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-2026-07-28T12:48:21.5626178Z [ 83%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c.o
-2026-07-28T12:48:21.5653022Z [ 84%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-2026-07-28T12:48:21.5682806Z [ 85%] Building C object CMakeFiles/storage_object_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-2026-07-28T12:48:21.5713054Z [ 86%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-2026-07-28T12:48:21.5743919Z [ 87%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
-2026-07-28T12:48:21.5746779Z [ 88%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
-2026-07-28T12:48:21.5751912Z [ 86%] Linking C executable app_operation_result_tests
-2026-07-28T12:48:21.5753838Z [ 89%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-2026-07-28T12:48:21.5756383Z [ 90%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-2026-07-28T12:48:21.5758985Z [ 91%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
-2026-07-28T12:48:21.5761861Z [ 83%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-2026-07-28T12:48:21.5764470Z [ 92%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
-2026-07-28T12:48:21.5767065Z [ 83%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-2026-07-28T12:48:21.5769693Z [ 83%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-2026-07-28T12:48:21.5772682Z [ 83%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-2026-07-28T12:48:21.5776078Z [ 83%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-2026-07-28T12:48:21.5779131Z [ 83%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c.o
-2026-07-28T12:48:21.5781941Z [ 83%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c.o
-2026-07-28T12:48:21.5784780Z [ 83%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-2026-07-28T12:48:21.5787644Z [ 83%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-2026-07-28T12:48:21.5790328Z [ 83%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c.o
-2026-07-28T12:48:21.5793085Z [ 83%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-2026-07-28T12:48:21.5795899Z [ 83%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-2026-07-28T12:48:21.5798749Z [ 83%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
-2026-07-28T12:48:21.5801754Z [ 83%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-2026-07-28T12:48:21.5804317Z [ 83%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c.o
-2026-07-28T12:48:21.5807008Z [ 83%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-2026-07-28T12:48:21.5809655Z [ 83%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-2026-07-28T12:48:21.5812773Z [ 83%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-2026-07-28T12:48:21.5815342Z [ 83%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-2026-07-28T12:48:21.5818086Z [ 83%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-2026-07-28T12:48:21.5820859Z [ 92%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
-2026-07-28T12:48:21.5822790Z [ 92%] Linking C executable test_support_tests
-2026-07-28T12:48:21.5823635Z [ 93%] Linking C executable storage_repository_lock_tests
-2026-07-28T12:48:21.5824577Z [ 92%] Linking C executable macro_model_tests
-2026-07-28T12:48:21.5825436Z [ 93%] Linking C executable web_security_tests
-2026-07-28T12:48:21.5826191Z [ 93%] Linking C executable web_setup_json_tests
-2026-07-28T12:48:21.5826934Z [ 94%] Linking C executable web_api_core_tests
-2026-07-28T12:48:21.5827662Z [ 94%] Linking C executable macro_parser_tests
-2026-07-28T12:48:21.5828398Z [ 94%] Linking C executable storage_mount_tests
-2026-07-28T12:48:21.5829155Z [ 94%] Built target app_operation_result_tests
-2026-07-28T12:48:21.5829941Z [ 94%] Linking C executable storage_repository_io_tests
-2026-07-28T12:48:21.5830799Z [ 94%] Linking C executable provisioning_bootstrap_tests
-2026-07-28T12:48:21.5832060Z [ 94%] Built target macro_model_tests
-2026-07-28T12:48:21.5832783Z [ 94%] Linking C executable storage_parent_sync_tests
-2026-07-28T12:48:21.5833535Z [ 94%] Linking C executable usb_keyboard_tests
-2026-07-28T12:48:21.5834272Z [ 94%] Built target storage_repository_lock_tests
-2026-07-28T12:48:21.5835020Z [ 94%] Linking C executable storage_atomic_tests
-2026-07-28T12:48:21.5835922Z [ 94%] Built target test_support_tests
-2026-07-28T12:48:21.5836579Z [ 94%] Linking C executable provisioning_tests
-2026-07-28T12:48:21.5837275Z [ 94%] Linking C executable device_controls_tests
-2026-07-28T12:48:21.5838067Z [ 95%] Linking C executable provisioning_settings_tests
-2026-07-28T12:48:21.5838782Z [ 95%] Built target web_setup_json_tests
-2026-07-28T12:48:21.5839467Z [ 95%] Built target macro_parser_tests
-2026-07-28T12:48:21.5840143Z [ 95%] Linking C executable web_api_json_tests
-2026-07-28T12:48:21.5840840Z [ 96%] Linking C executable web_execution_submit_tests
-2026-07-28T12:48:21.5841742Z [ 96%] Linking C executable web_request_policy_tests
-2026-07-28T12:48:21.5842421Z [ 96%] Built target web_security_tests
-2026-07-28T12:48:21.5843062Z [ 96%] Built target web_api_core_tests
-2026-07-28T12:48:21.5843709Z [ 96%] Linking C executable web_setup_tests
-2026-07-28T12:48:21.5844430Z [ 96%] Linking C executable web_server_adapter_tests
-2026-07-28T12:48:21.5845228Z [ 96%] Linking C executable storage_transaction_tests
-2026-07-28T12:48:21.5845934Z [ 96%] Built target storage_mount_tests
-2026-07-28T12:48:21.5846588Z [ 97%] Linking C executable wifi_ap_tests
-2026-07-28T12:48:21.5847486Z [ 97%] Built target storage_repository_io_tests
-2026-07-28T12:48:21.5848189Z [ 97%] Linking C executable storage_object_json_tests
-2026-07-28T12:48:21.5848862Z [ 97%] Linking C executable auth_tests
-2026-07-28T12:48:21.5849540Z [ 97%] Built target provisioning_bootstrap_tests
-2026-07-28T12:48:21.5850241Z [ 97%] Built target storage_parent_sync_tests
-2026-07-28T12:48:21.5850894Z [ 97%] Built target usb_keyboard_tests
-2026-07-28T12:48:21.5851728Z [ 97%] Linking C executable macro_executor_tests
-2026-07-28T12:48:21.5852462Z [ 97%] Built target provisioning_settings_tests
-2026-07-28T12:48:21.5853173Z [ 97%] Built target web_request_policy_tests
-2026-07-28T12:48:21.5853863Z [ 97%] Built target device_controls_tests
-2026-07-28T12:48:21.5854548Z [ 97%] Built target provisioning_tests
-2026-07-28T12:48:21.5855219Z [ 97%] Built target storage_atomic_tests
-2026-07-28T12:48:21.5855913Z [ 97%] Built target storage_transaction_tests
-2026-07-28T12:48:21.5856680Z [ 97%] Linking C executable storage_atomic_recovery_tests
-2026-07-28T12:48:21.5857424Z [ 97%] Built target web_server_adapter_tests
-2026-07-28T12:48:21.5858087Z [ 97%] Built target web_setup_tests
-2026-07-28T12:48:21.5858755Z [ 97%] Built target web_execution_submit_tests
-2026-07-28T12:48:21.5859528Z [ 98%] Linking C executable storage_macro_repository_tests
-2026-07-28T12:48:21.5860245Z [ 98%] Built target wifi_ap_tests
-2026-07-28T12:48:21.5860864Z [ 98%] Built target web_api_json_tests
-2026-07-28T12:48:21.5861696Z [ 98%] Built target storage_object_json_tests
-2026-07-28T12:48:21.5862426Z [ 98%] Linking C executable storage_repository_tests
-2026-07-28T12:48:21.5863271Z [ 98%] Linking C executable storage_atomic_validators_tests
-2026-07-28T12:48:21.5864116Z [ 98%] Built target macro_executor_tests
-2026-07-28T12:48:21.5867484Z [ 98%] Built target storage_macro_repository_tests
-2026-07-28T12:48:21.6072504Z [ 98%] Built target auth_tests
-2026-07-28T12:48:21.6114753Z [ 98%] Built target storage_atomic_recovery_tests
-2026-07-28T12:48:21.6133741Z [ 98%] Linking C executable storage_procedure_repository_tests
-2026-07-28T12:48:21.6172126Z [ 98%] Linking C executable storage_progress_repository_tests
-2026-07-28T12:48:21.6204568Z [ 99%] Linking C executable storage_quarantine_tests
-2026-07-28T12:48:21.6252205Z [ 99%] Linking C executable storage_active_set_delete_tests
-2026-07-28T12:48:21.6438312Z [ 99%] Built target storage_atomic_validators_tests
-2026-07-28T12:48:21.6542569Z [ 99%] Built target storage_repository_tests
-2026-07-28T12:48:21.6543292Z [ 99%] Linking C executable app_core_tests
-2026-07-28T12:48:21.6642551Z [ 99%] Built target storage_quarantine_tests
-2026-07-28T12:48:21.6753043Z [ 99%] Built target storage_active_set_delete_tests
-2026-07-28T12:48:21.6773797Z [ 99%] Built target storage_procedure_repository_tests
-2026-07-28T12:48:21.6787023Z [ 99%] Built target storage_progress_repository_tests
-2026-07-28T12:48:21.6834416Z [ 99%] Built target app_core_tests
-2026-07-28T12:48:21.6840909Z gmake: *** [Makefile:101: all] Error 2
-2026-07-28T12:48:21.6868156Z ##[error]Process completed with exit code 2.
-2026-07-28T12:48:21.7012713Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
-2026-07-28T12:48:21.7013884Z Post job cleanup.
-2026-07-28T12:48:21.7902939Z [command]/usr/bin/git version
-2026-07-28T12:48:21.7940500Z git version 2.54.0
-2026-07-28T12:48:21.7976699Z Temporarily overriding HOME='/home/runner/work/_temp/90c2d865-57d2-4a76-91c6-906380d01e4d' before making global git config changes
-2026-07-28T12:48:21.7977584Z Adding repository directory to the temporary git global config as a safe directory
-2026-07-28T12:48:21.7982681Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard
-2026-07-28T12:48:21.8024159Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
-2026-07-28T12:48:21.8086196Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
-2026-07-28T12:48:21.8335111Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
-2026-07-28T12:48:21.8366726Z http.https://github.com/.extraheader
-2026-07-28T12:48:21.8378598Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
-2026-07-28T12:48:21.8414127Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
-2026-07-28T12:48:21.8654619Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
-2026-07-28T12:48:21.8689916Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
-2026-07-28T12:48:21.9084340Z Cleaning up orphan processes
-2026-07-28T12:48:21.9422421Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+108785:2026-07-28T13:01:33.0061451Z error: run-clang-tidy failed for /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware with status 1
+109059:2026-07-28T13:01:33.0168743Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c:117:73: error: 2 adjacent parameters of 'web_api_json_parse_resource_mutation' of similar type ('size_t') are easily swapped by mistake [bugprone-easily-swappable-parameters,-warnings-as-errors]
+109070:2026-07-28T13:01:33.0177787Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c:161:66: error: 2 adjacent parameters of 'web_api_json_parse_uuid_order' of similar type ('size_t') are easily swapped by mistake [bugprone-easily-swappable-parameters,-warnings-as-errors]
+109087:2026-07-28T13:01:33.0191036Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:22:29: error: no header providing "WEB_API_ROUTE_GLOBAL_MACROS" is directly included [misc-include-cleaner,-warnings-as-errors]
+109090:2026-07-28T13:01:33.0193459Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:23:29: error: no header providing "WEB_API_ROUTE_GLOBAL_MACRO" is directly included [misc-include-cleaner,-warnings-as-errors]
+109093:2026-07-28T13:01:33.0195866Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:24:29: error: no header providing "WEB_API_ROUTE_GLOBAL_MACRO_VALIDATE" is directly included [misc-include-cleaner,-warnings-as-errors]
+109096:2026-07-28T13:01:33.0198646Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:25:29: error: no header providing "WEB_API_ROUTE_GLOBAL_MACRO_DUPLICATE" is directly included [misc-include-cleaner,-warnings-as-errors]
+109099:2026-07-28T13:01:33.0201105Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:26:29: error: no header providing "WEB_API_ROUTE_GLOBAL_MACROS_REORDER" is directly included [misc-include-cleaner,-warnings-as-errors]
+109102:2026-07-28T13:01:33.0203456Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:66:25: error: no header providing "WEB_API_METHOD_GET" is directly included [misc-include-cleaner,-warnings-as-errors]
+109105:2026-07-28T13:01:33.0205875Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:75:61: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109108:2026-07-28T13:01:33.0208591Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:106:35: error: 201U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109111:2026-07-28T13:01:33.0211008Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:124:16: error: variable name 'id' is too short, expected at least 3 characters [readability-identifier-length,-warnings-as-errors]
+109114:2026-07-28T13:01:33.0213411Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:142:43: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109117:2026-07-28T13:01:33.0215860Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:149:25: error: no header providing "WEB_API_METHOD_PUT" is directly included [misc-include-cleaner,-warnings-as-errors]
+109120:2026-07-28T13:01:33.0218312Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:172:39: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109123:2026-07-28T13:01:33.0220888Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:199:15: error: 80U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109126:2026-07-28T13:01:33.0223034Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:204:57: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109129:2026-07-28T13:01:33.0225520Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:216:57: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109132:2026-07-28T13:01:33.0228446Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:241:22: error: 192U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109135:2026-07-28T13:01:33.0230696Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:250:15: error: 160U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109138:2026-07-28T13:01:33.0232831Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:259:57: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109141:2026-07-28T13:01:33.0235191Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:263:64: error: parameter 'out_name_size' is unused [misc-unused-parameters,-warnings-as-errors]
+109144:2026-07-28T13:01:33.0237908Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:304:35: error: 201U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109147:2026-07-28T13:01:33.0240291Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:314:10: error: no header providing "WEB_API_ROUTE_SET_MACROS" is directly included [misc-include-cleaner,-warnings-as-errors]
+109150:2026-07-28T13:01:33.0242473Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:317:10: error: no header providing "WEB_API_ROUTE_SET_MACRO" is directly included [misc-include-cleaner,-warnings-as-errors]
+109153:2026-07-28T13:01:33.0244736Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:320:10: error: no header providing "WEB_API_ROUTE_SET_MACROS_REORDER" is directly included [misc-include-cleaner,-warnings-as-errors]
+109156:2026-07-28T13:01:33.0246975Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:323:10: error: no header providing "WEB_API_ROUTE_SET_MACRO_VALIDATE" is directly included [misc-include-cleaner,-warnings-as-errors]
+109159:2026-07-28T13:01:33.0249408Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c:326:10: error: no header providing "WEB_API_ROUTE_SET_MACRO_DUPLICATE" is directly included [misc-include-cleaner,-warnings-as-errors]
+109208:2026-07-28T13:01:33.0293258Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_dispatch.c:68:17: error: no header providing "NULL" is directly included [misc-include-cleaner,-warnings-as-errors]
+109232:2026-07-28T13:01:33.0314518Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c:48:59: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109235:2026-07-28T13:01:33.0317228Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c:48:77: error: 300U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109238:2026-07-28T13:01:33.0320308Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c:62:71: error: 2 adjacent parameters of 'web_api_response_error' of convertible types are easily swapped by mistake [bugprone-easily-swappable-parameters,-warnings-as-errors]
+109255:2026-07-28T13:01:33.0332978Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c:63:64: error: 2 adjacent parameters of 'web_api_response_error' of similar type ('const char *') are easily swapped by mistake [bugprone-easily-swappable-parameters,-warnings-as-errors]
+109266:2026-07-28T13:01:33.0340756Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c:68:57: error: 400U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109269:2026-07-28T13:01:33.0343355Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c:68:74: error: 599U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109303:2026-07-28T13:01:33.0374040Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:40:57: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109306:2026-07-28T13:01:33.0376600Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:48:25: error: no header providing "WEB_API_METHOD_GET" is directly included [misc-include-cleaner,-warnings-as-errors]
+109309:2026-07-28T13:01:33.0379021Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:57:61: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109312:2026-07-28T13:01:33.0381685Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:85:39: error: 201U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109315:2026-07-28T13:01:33.0384098Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:96:47: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109318:2026-07-28T13:01:33.0386600Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:103:25: error: no header providing "WEB_API_METHOD_PUT" is directly included [misc-include-cleaner,-warnings-as-errors]
+109321:2026-07-28T13:01:33.0389005Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:127:43: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109324:2026-07-28T13:01:33.0391459Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:142:15: error: 80U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109327:2026-07-28T13:01:33.0393776Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:147:57: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109330:2026-07-28T13:01:33.0396332Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:158:57: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109333:2026-07-28T13:01:33.0399085Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:207:85: error: parameter name 'id' is too short, expected at least 3 characters [readability-identifier-length,-warnings-as-errors]
+109336:2026-07-28T13:01:33.0401865Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:216:78: error: parameter name 'id' is too short, expected at least 3 characters [readability-identifier-length,-warnings-as-errors]
+109339:2026-07-28T13:01:33.0404879Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:241:25: error: function 'handle_progress_action' has cognitive complexity of 29 (threshold 25) [readability-function-cognitive-complexity,-warnings-as-errors]
+109402:2026-07-28T13:01:33.0448002Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:304:10: error: no header providing "WEB_API_ROUTE_SET_PROCEDURES" is directly included [misc-include-cleaner,-warnings-as-errors]
+109405:2026-07-28T13:01:33.0450371Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:306:10: error: no header providing "WEB_API_ROUTE_SET_PROCEDURE" is directly included [misc-include-cleaner,-warnings-as-errors]
+109408:2026-07-28T13:01:33.0452648Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:308:10: error: no header providing "WEB_API_ROUTE_SET_PROCEDURES_REORDER" is directly included [misc-include-cleaner,-warnings-as-errors]
+109411:2026-07-28T13:01:33.0455065Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:310:10: error: no header providing "WEB_API_ROUTE_PROCEDURE_PROGRESS" is directly included [misc-include-cleaner,-warnings-as-errors]
+109414:2026-07-28T13:01:33.0457363Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:312:10: error: no header providing "WEB_API_ROUTE_PROGRESS_COMPLETE" is directly included [misc-include-cleaner,-warnings-as-errors]
+109417:2026-07-28T13:01:33.0459730Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c:314:10: error: no header providing "WEB_API_ROUTE_PROGRESS_SKIP" is directly included [misc-include-cleaner,-warnings-as-errors]
+109546:2026-07-28T13:01:33.0577193Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_execution.c:93:15: error: 768U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109549:2026-07-28T13:01:33.0579515Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_execution.c:104:22: error: 192U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109552:2026-07-28T13:01:33.0581772Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_execution.c:130:15: error: 192U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109682:2026-07-28T13:01:33.0701921Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:135:25: error: no header providing "WEB_API_METHOD_GET" is directly included [misc-include-cleaner,-warnings-as-errors]
+109685:2026-07-28T13:01:33.0704250Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:147:9: error: no header providing "macro_set_t" is directly included [misc-include-cleaner,-warnings-as-errors]
+109688:2026-07-28T13:01:33.0706489Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:206:15: error: 80U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109691:2026-07-28T13:01:33.0709017Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:285:10: error: no header providing "WEB_API_ROUTE_AUTH_SESSION" is directly included [misc-include-cleaner,-warnings-as-errors]
+109694:2026-07-28T13:01:33.0711327Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:288:10: error: no header providing "WEB_API_ROUTE_SETTINGS" is directly included [misc-include-cleaner,-warnings-as-errors]
+109697:2026-07-28T13:01:33.0721987Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:290:10: error: no header providing "WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD" is directly included [misc-include-cleaner,-warnings-as-errors]
+109700:2026-07-28T13:01:33.0724491Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:292:10: error: no header providing "WEB_API_ROUTE_DEVICE_RESTART" is directly included [misc-include-cleaner,-warnings-as-errors]
+109703:2026-07-28T13:01:33.0726832Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:295:10: error: no header providing "WEB_API_ROUTE_DEVICE_RESET_SETTINGS" is directly included [misc-include-cleaner,-warnings-as-errors]
+109706:2026-07-28T13:01:33.0729488Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:297:10: error: no header providing "WEB_API_ROUTE_DEVICE_FACTORY_RESET" is directly included [misc-include-cleaner,-warnings-as-errors]
+109709:2026-07-28T13:01:33.0731833Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:305:10: error: no header providing "WEB_API_ROUTE_DIAGNOSTICS_STORAGE" is directly included [misc-include-cleaner,-warnings-as-errors]
+109712:2026-07-28T13:01:33.0734288Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:307:10: error: no header providing "WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK" is directly included [misc-include-cleaner,-warnings-as-errors]
+109715:2026-07-28T13:01:33.0736704Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:309:10: error: no header providing "WEB_API_ROUTE_DIAGNOSTICS_QUARANTINE" is directly included [misc-include-cleaner,-warnings-as-errors]
+109718:2026-07-28T13:01:33.0739112Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:311:10: error: no header providing "WEB_API_ROUTE_SET_EXPORT" is directly included [misc-include-cleaner,-warnings-as-errors]
+109721:2026-07-28T13:01:33.0741477Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:312:10: error: no header providing "WEB_API_ROUTE_SET_IMPORT" is directly included [misc-include-cleaner,-warnings-as-errors]
+109724:2026-07-28T13:01:33.0743685Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:313:10: error: no header providing "WEB_API_ROUTE_BACKUP" is directly included [misc-include-cleaner,-warnings-as-errors]
+109727:2026-07-28T13:01:33.0745884Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:314:10: error: no header providing "WEB_API_ROUTE_RESTORE" is directly included [misc-include-cleaner,-warnings-as-errors]
+109746:2026-07-28T13:01:33.0762798Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c:45:61: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109749:2026-07-28T13:01:33.0765343Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c:72:39: error: 201U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109752:2026-07-28T13:01:33.0767980Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c:82:62: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109755:2026-07-28T13:01:33.0770510Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c:102:62: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109758:2026-07-28T13:01:33.0773039Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c:115:15: error: 80U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109761:2026-07-28T13:01:33.0775200Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c:121:51: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109764:2026-07-28T13:01:33.0777854Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c:148:57: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+109783:2026-07-28T13:01:33.0795002Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:8:1: error: included header types.h is not used directly [misc-include-cleaner,-warnings-as-errors]
+109787:2026-07-28T13:01:33.0797352Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:53:16: error: variable name 'id' is too short, expected at least 3 characters [readability-identifier-length,-warnings-as-errors]
+109790:2026-07-28T13:01:33.0799776Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:200:54: error: no header providing "ssize_t" is directly included [misc-include-cleaner,-warnings-as-errors]
+109793:2026-07-28T13:01:33.0802692Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:221:27: error: redundant explicit casting to the same type 'size_t' (aka 'unsigned int') as the sub-expression, remove this casting [readability-redundant-casting,-warnings-as-errors]
+109799:2026-07-28T13:01:33.0807384Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:231:35: error: redundant explicit casting to the same type 'size_t' (aka 'unsigned int') as the sub-expression, remove this casting [readability-redundant-casting,-warnings-as-errors]
+109805:2026-07-28T13:01:33.0812058Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:259:11: error: function 'api_handler' has cognitive complexity of 29 (threshold 25) [readability-function-cognitive-complexity,-warnings-as-errors]
+109892:2026-07-28T13:01:33.0870433Z ##[error]Process completed with exit code 1.
+```
+
+## Terminal gate tail
+
+```text
+2026-07-28T13:01:33.0586621Z [47/80][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_static_path.c
+2026-07-28T13:01:33.0588137Z 672 warnings generated.
+2026-07-28T13:01:33.0588441Z Suppressed 672 warnings (672 in non-user code).
+2026-07-28T13:01:33.0589140Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0589625Z
+2026-07-28T13:01:33.0591208Z [48/80][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/wifi_ap/wifi_ap.c
+2026-07-28T13:01:33.0592573Z 1446 warnings generated.
+2026-07-28T13:01:33.0592881Z Suppressed 1446 warnings (1446 in non-user code).
+2026-07-28T13:01:33.0593582Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0594050Z
+2026-07-28T13:01:33.0595839Z [49/80][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c
+2026-07-28T13:01:33.0597324Z 745 warnings generated.
+2026-07-28T13:01:33.0597733Z Suppressed 745 warnings (745 in non-user code).
+2026-07-28T13:01:33.0598450Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0598911Z
+2026-07-28T13:01:33.0600609Z [50/80][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_body_auth.c
+2026-07-28T13:01:33.0602134Z 154 warnings generated.
+2026-07-28T13:01:33.0602430Z Suppressed 154 warnings (154 in non-user code).
+2026-07-28T13:01:33.0603123Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0603578Z
+2026-07-28T13:01:33.0605184Z [51/80][3.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_content.c
+2026-07-28T13:01:33.0606563Z 672 warnings generated.
+2026-07-28T13:01:33.0606852Z Suppressed 672 warnings (672 in non-user code).
+2026-07-28T13:01:33.0607627Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0608078Z
+2026-07-28T13:01:33.0609850Z [52/80][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_static.c
+2026-07-28T13:01:33.0611272Z 1447 warnings generated.
+2026-07-28T13:01:33.0611579Z Suppressed 1447 warnings (1447 in non-user code).
+2026-07-28T13:01:33.0612270Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0612717Z
+2026-07-28T13:01:33.0614374Z [53/80][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c
+2026-07-28T13:01:33.0615797Z 913 warnings generated.
+2026-07-28T13:01:33.0616086Z Suppressed 913 warnings (913 in non-user code).
+2026-07-28T13:01:33.0616758Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0617204Z
+2026-07-28T13:01:33.0618908Z [54/80][3.8s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_setup_json.c
+2026-07-28T13:01:33.0620425Z 759 warnings generated.
+2026-07-28T13:01:33.0620721Z Suppressed 759 warnings (759 in non-user code).
+2026-07-28T13:01:33.0621390Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0621840Z
+2026-07-28T13:01:33.0623500Z [55/80][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_status_limits.c
+2026-07-28T13:01:33.0624930Z 1437 warnings generated.
+2026-07-28T13:01:33.0625297Z Suppressed 1437 warnings (1437 in non-user code).
+2026-07-28T13:01:33.0625975Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0626417Z
+2026-07-28T13:01:33.0628132Z [56/80][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_mount_core.c
+2026-07-28T13:01:33.0629523Z 144 warnings generated.
+2026-07-28T13:01:33.0629810Z Suppressed 144 warnings (144 in non-user code).
+2026-07-28T13:01:33.0630480Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0630929Z
+2026-07-28T13:01:33.0632586Z [57/80][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_keymap_us.c
+2026-07-28T13:01:33.0633997Z 672 warnings generated.
+2026-07-28T13:01:33.0634286Z Suppressed 672 warnings (672 in non-user code).
+2026-07-28T13:01:33.0635101Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0635555Z
+2026-07-28T13:01:33.0637167Z [58/80][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/usb_keyboard/usb_keyboard.c
+2026-07-28T13:01:33.0638677Z 1454 warnings generated.
+2026-07-28T13:01:33.0638971Z Suppressed 1454 warnings (1454 in non-user code).
+2026-07-28T13:01:33.0639648Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0640088Z
+2026-07-28T13:01:33.0641679Z [59/80][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_common.c
+2026-07-28T13:01:33.0643048Z 687 warnings generated.
+2026-07-28T13:01:33.0643335Z Suppressed 687 warnings (687 in non-user code).
+2026-07-28T13:01:33.0644079Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0644525Z
+2026-07-28T13:01:33.0646097Z [60/80][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/app_core/app_core.c
+2026-07-28T13:01:33.0647455Z 996 warnings generated.
+2026-07-28T13:01:33.0647895Z Suppressed 996 warnings (996 in non-user code).
+2026-07-28T13:01:33.0648581Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0649037Z
+2026-07-28T13:01:33.0650799Z [61/80][5.0s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/app_core/app_core_sequence.c
+2026-07-28T13:01:33.0652220Z 687 warnings generated.
+2026-07-28T13:01:33.0652520Z Suppressed 687 warnings (687 in non-user code).
+2026-07-28T13:01:33.0653226Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0653688Z
+2026-07-28T13:01:33.0655322Z [62/80][0.0s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c
+2026-07-28T13:01:33.0658395Z [63/80][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/usb_keyboard/usb_keyboard_state.c
+2026-07-28T13:01:33.0659933Z 134 warnings generated.
+2026-07-28T13:01:33.0660227Z Suppressed 134 warnings (134 in non-user code).
+2026-07-28T13:01:33.0660920Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0661370Z
+2026-07-28T13:01:33.0663039Z [64/80][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_executor/macro_executor_engine.c
+2026-07-28T13:01:33.0664472Z 682 warnings generated.
+2026-07-28T13:01:33.0664755Z Suppressed 682 warnings (682 in non-user code).
+2026-07-28T13:01:33.0665435Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0665883Z
+2026-07-28T13:01:33.0667617Z [65/80][6.0s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c
+2026-07-28T13:01:33.0669065Z 1115 warnings generated.
+2026-07-28T13:01:33.0669366Z Suppressed 1115 warnings (1115 in non-user code).
+2026-07-28T13:01:33.0670046Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0670491Z
+2026-07-28T13:01:33.0672066Z [66/80][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_origin.c
+2026-07-28T13:01:33.0673430Z 667 warnings generated.
+2026-07-28T13:01:33.0673709Z Suppressed 667 warnings (667 in non-user code).
+2026-07-28T13:01:33.0674377Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0674891Z
+2026-07-28T13:01:33.0676498Z [67/80][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning.c
+2026-07-28T13:01:33.0678064Z 1320 warnings generated.
+2026-07-28T13:01:33.0678366Z Suppressed 1320 warnings (1320 in non-user code).
+2026-07-28T13:01:33.0679042Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0679497Z
+2026-07-28T13:01:33.0681087Z [68/80][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c
+2026-07-28T13:01:33.0682461Z 749 warnings generated.
+2026-07-28T13:01:33.0682756Z Suppressed 749 warnings (749 in non-user code).
+2026-07-28T13:01:33.0683446Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0684042Z
+2026-07-28T13:01:33.0685648Z [69/80][3.7s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_parser.c
+2026-07-28T13:01:33.0687061Z 866 warnings generated.
+2026-07-28T13:01:33.0687361Z Suppressed 866 warnings (866 in non-user code).
+2026-07-28T13:01:33.0688358Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0688815Z
+2026-07-28T13:01:33.0690469Z [70/80][0.7s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic_validators.c
+2026-07-28T13:01:33.0691889Z 908 warnings generated.
+2026-07-28T13:01:33.0692177Z Suppressed 908 warnings (908 in non-user code).
+2026-07-28T13:01:33.0692849Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0693384Z
+2026-07-28T13:01:33.0694990Z [71/80][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_cancel.c
+2026-07-28T13:01:33.0696378Z 1442 warnings generated.
+2026-07-28T13:01:33.0696682Z Suppressed 1442 warnings (1442 in non-user code).
+2026-07-28T13:01:33.0697365Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0697918Z
+2026-07-28T13:01:33.0699555Z [72/80][1.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c
+2026-07-28T13:01:33.0701921Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:135:25: error: no header providing "WEB_API_METHOD_GET" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0702876Z     1 |     if (call->method == WEB_API_METHOD_GET) {
+2026-07-28T13:01:33.0703189Z       |                         ^
+2026-07-28T13:01:33.0704250Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:147:9: error: no header providing "macro_set_t" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0705133Z     1 |         macro_set_t selected = {0};
+2026-07-28T13:01:33.0705397Z       |         ^
+2026-07-28T13:01:33.0706489Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:206:15: error: 80U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+2026-07-28T13:01:33.0707400Z   206 |     char data[80U];
+2026-07-28T13:01:33.0707731Z       |               ^
+2026-07-28T13:01:33.0709017Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:285:10: error: no header providing "WEB_API_ROUTE_AUTH_SESSION" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0709991Z   285 |     case WEB_API_ROUTE_AUTH_SESSION:
+2026-07-28T13:01:33.0710260Z       |          ^
+2026-07-28T13:01:33.0711327Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:288:10: error: no header providing "WEB_API_ROUTE_SETTINGS" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0712245Z   288 |     case WEB_API_ROUTE_SETTINGS:
+2026-07-28T13:01:33.0720678Z       |          ^
+2026-07-28T13:01:33.0721987Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:290:10: error: no header providing "WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0723065Z   290 |     case WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD:
+2026-07-28T13:01:33.0723368Z       |          ^
+2026-07-28T13:01:33.0724491Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:292:10: error: no header providing "WEB_API_ROUTE_DEVICE_RESTART" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0725452Z   292 |     case WEB_API_ROUTE_DEVICE_RESTART:
+2026-07-28T13:01:33.0725724Z       |          ^
+2026-07-28T13:01:33.0726832Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:295:10: error: no header providing "WEB_API_ROUTE_DEVICE_RESET_SETTINGS" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0728099Z   295 |     case WEB_API_ROUTE_DEVICE_RESET_SETTINGS:
+2026-07-28T13:01:33.0728383Z       |          ^
+2026-07-28T13:01:33.0729488Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:297:10: error: no header providing "WEB_API_ROUTE_DEVICE_FACTORY_RESET" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0730468Z   297 |     case WEB_API_ROUTE_DEVICE_FACTORY_RESET: {
+2026-07-28T13:01:33.0730743Z       |          ^
+2026-07-28T13:01:33.0731833Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:305:10: error: no header providing "WEB_API_ROUTE_DIAGNOSTICS_STORAGE" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0732896Z   305 |     case WEB_API_ROUTE_DIAGNOSTICS_STORAGE:
+2026-07-28T13:01:33.0733176Z       |          ^
+2026-07-28T13:01:33.0734288Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:307:10: error: no header providing "WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0735308Z   307 |     case WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK:
+2026-07-28T13:01:33.0735595Z       |          ^
+2026-07-28T13:01:33.0736704Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:309:10: error: no header providing "WEB_API_ROUTE_DIAGNOSTICS_QUARANTINE" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0737788Z   309 |     case WEB_API_ROUTE_DIAGNOSTICS_QUARANTINE:
+2026-07-28T13:01:33.0738061Z       |          ^
+2026-07-28T13:01:33.0739112Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:311:10: error: no header providing "WEB_API_ROUTE_SET_EXPORT" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0740035Z   311 |     case WEB_API_ROUTE_SET_EXPORT:
+2026-07-28T13:01:33.0740292Z       |          ^
+2026-07-28T13:01:33.0741477Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:312:10: error: no header providing "WEB_API_ROUTE_SET_IMPORT" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0742397Z   312 |     case WEB_API_ROUTE_SET_IMPORT:
+2026-07-28T13:01:33.0742644Z       |          ^
+2026-07-28T13:01:33.0743685Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:313:10: error: no header providing "WEB_API_ROUTE_BACKUP" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0744585Z   313 |     case WEB_API_ROUTE_BACKUP:
+2026-07-28T13:01:33.0744835Z       |          ^
+2026-07-28T13:01:33.0745884Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c:314:10: error: no header providing "WEB_API_ROUTE_RESTORE" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0746789Z   314 |     case WEB_API_ROUTE_RESTORE:
+2026-07-28T13:01:33.0747037Z       |          ^
+2026-07-28T13:01:33.0747253Z 1570 warnings generated.
+2026-07-28T13:01:33.0747685Z Suppressed 1554 warnings (1554 in non-user code).
+2026-07-28T13:01:33.0748422Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0749000Z 16 warnings treated as errors
+2026-07-28T13:01:33.0749159Z
+2026-07-28T13:01:33.0750887Z [73/80][1.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c
+2026-07-28T13:01:33.0752454Z 1445 warnings generated.
+2026-07-28T13:01:33.0752769Z Suppressed 1445 warnings (1445 in non-user code).
+2026-07-28T13:01:33.0753491Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0753950Z
+2026-07-28T13:01:33.0755564Z [74/80][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_login.c
+2026-07-28T13:01:33.0757026Z 1504 warnings generated.
+2026-07-28T13:01:33.0757331Z Suppressed 1504 warnings (1504 in non-user code).
+2026-07-28T13:01:33.0758375Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0758866Z
+2026-07-28T13:01:33.0760543Z [75/80][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c
+2026-07-28T13:01:33.0762798Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c:45:61: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+2026-07-28T13:01:33.0763808Z    45 |             result = web_api_handler_success_json(response, 200U, json);
+2026-07-28T13:01:33.0764225Z       |                                                             ^
+2026-07-28T13:01:33.0765343Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c:72:39: error: 201U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+2026-07-28T13:01:33.0766429Z    72 |             return send_set(response, 201U, &committed);
+2026-07-28T13:01:33.0766778Z       |                                       ^
+2026-07-28T13:01:33.0767980Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c:82:62: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+2026-07-28T13:01:33.0768970Z    82 |         return result == APP_ERROR_NONE ? send_set(response, 200U, &set)
+2026-07-28T13:01:33.0769393Z       |                                                              ^
+2026-07-28T13:01:33.0770510Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c:102:62: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+2026-07-28T13:01:33.0771510Z   102 |         return result == APP_ERROR_NONE ? send_set(response, 200U, &committed)
+2026-07-28T13:01:33.0771934Z       |                                                              ^
+2026-07-28T13:01:33.0773039Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c:115:15: error: 80U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+2026-07-28T13:01:33.0773898Z   115 |     char data[80U];
+2026-07-28T13:01:33.0774135Z       |               ^
+2026-07-28T13:01:33.0775200Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c:121:51: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+2026-07-28T13:01:33.0776257Z   121 |     return web_api_handler_success_json(response, 200U, data);
+2026-07-28T13:01:33.0776634Z       |                                                   ^
+2026-07-28T13:01:33.0777854Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c:148:57: error: 200U is a magic number; consider replacing it with a named constant [readability-magic-numbers,-warnings-as-errors]
+2026-07-28T13:01:33.0778850Z   148 |         result = web_api_handler_success_json(response, 200U, json);
+2026-07-28T13:01:33.0779256Z       |                                                         ^
+2026-07-28T13:01:33.0779554Z 943 warnings generated.
+2026-07-28T13:01:33.0779997Z Suppressed 936 warnings (936 in non-user code).
+2026-07-28T13:01:33.0781005Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0781592Z 7 warnings treated as errors
+2026-07-28T13:01:33.0781752Z
+2026-07-28T13:01:33.0783460Z [76/80][2.8s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_common.c
+2026-07-28T13:01:33.0784900Z 149 warnings generated.
+2026-07-28T13:01:33.0785201Z Suppressed 149 warnings (149 in non-user code).
+2026-07-28T13:01:33.0785894Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0786342Z
+2026-07-28T13:01:33.0788133Z [77/80][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/support/app_operation_result.c
+2026-07-28T13:01:33.0789580Z 15 warnings generated.
+2026-07-28T13:01:33.0789877Z Suppressed 15 warnings (15 in non-user code).
+2026-07-28T13:01:33.0790773Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0791247Z
+2026-07-28T13:01:33.0792863Z [78/80][3.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c
+2026-07-28T13:01:33.0795002Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:8:1: error: included header types.h is not used directly [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0795834Z     8 | #include <sys/types.h>
+2026-07-28T13:01:33.0796086Z       | ^~~~~~~~~~~~~~~~~~~~~~
+2026-07-28T13:01:33.0796300Z     9 |
+2026-07-28T13:01:33.0797352Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:53:16: error: variable name 'id' is too short, expected at least 3 characters [readability-identifier-length,-warnings-as-errors]
+2026-07-28T13:01:33.0798542Z    53 |     app_uuid_t id = {0};
+2026-07-28T13:01:33.0798787Z       |                ^
+2026-07-28T13:01:33.0799776Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:200:54: error: no header providing "ssize_t" is directly included [misc-include-cleaner,-warnings-as-errors]
+2026-07-28T13:01:33.0800881Z     6 |     return httpd_resp_send(request, response->body, (ssize_t)response->body_length);
+2026-07-28T13:01:33.0801338Z       |                                                      ^
+2026-07-28T13:01:33.0802692Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:221:27: error: redundant explicit casting to the same type 'size_t' (aka 'unsigned int') as the sub-expression, remove this casting [readability-redundant-casting,-warnings-as-errors]
+2026-07-28T13:01:33.0803805Z   221 |         .content_length = (size_t)request->content_len,
+2026-07-28T13:01:33.0804144Z       |                           ^~~~~~~~
+2026-07-28T13:01:33.0804894Z /home/runner/esp/esp-idf-v5.5.5/components/esp_http_server/include/esp_http_server.h:377:21: note: source type originates from referencing this member
+2026-07-28T13:01:33.0805715Z   377 |     size_t          content_len;                /*!< Length of the request body */
+2026-07-28T13:01:33.0806080Z       |     ~~~~~~          ^
+2026-07-28T13:01:33.0807384Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:231:35: error: redundant explicit casting to the same type 'size_t' (aka 'unsigned int') as the sub-expression, remove this casting [readability-redundant-casting,-warnings-as-errors]
+2026-07-28T13:01:33.0808662Z   231 |     const size_t content_length = (size_t)request->content_len;
+2026-07-28T13:01:33.0809041Z       |                                   ^~~~~~~~
+2026-07-28T13:01:33.0809798Z /home/runner/esp/esp-idf-v5.5.5/components/esp_http_server/include/esp_http_server.h:377:21: note: source type originates from referencing this member
+2026-07-28T13:01:33.0810513Z   377 |     size_t          content_len;                /*!< Length of the request body */
+2026-07-28T13:01:33.0810874Z       |     ~~~~~~          ^
+2026-07-28T13:01:33.0812058Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:259:11: error: function 'api_handler' has cognitive complexity of 29 (threshold 25) [readability-function-cognitive-complexity,-warnings-as-errors]
+2026-07-28T13:01:33.0813069Z   259 | esp_err_t api_handler(httpd_req_t *request) {
+2026-07-28T13:01:33.0813360Z       |           ^
+2026-07-28T13:01:33.0814330Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:268:5: note: +1, including nesting penalty of 0, nesting level increased to 1
+2026-07-28T13:01:33.0815352Z   268 |     if (result == APP_ERROR_NONE) {
+2026-07-28T13:01:33.0815625Z       |     ^
+2026-07-28T13:01:33.0816441Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:271:5: note: +1, including nesting penalty of 0, nesting level increased to 1
+2026-07-28T13:01:33.0817202Z   271 |     if (result != APP_ERROR_NONE) {
+2026-07-28T13:01:33.0817454Z       |     ^
+2026-07-28T13:01:33.0818380Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:273:43: note: +2, including nesting penalty of 1, nesting level increased to 2
+2026-07-28T13:01:33.0819310Z   273 |             result == APP_ERROR_NOT_FOUND ? WEB_HTTP_STATUS_NOT_FOUND : WEB_HTTP_STATUS_BAD_REQUEST;
+2026-07-28T13:01:33.0819772Z       |                                           ^
+2026-07-28T13:01:33.0820696Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:275:73: note: +2, including nesting penalty of 1, nesting level increased to 2
+2026-07-28T13:01:33.0821543Z   275 |                                     status == WEB_HTTP_STATUS_NOT_FOUND ? "route not found"
+2026-07-28T13:01:33.0821986Z       |                                                                         ^
+2026-07-28T13:01:33.0822806Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:278:12: note: +1, nesting level increased to 1
+2026-07-28T13:01:33.0823668Z   278 |     } else if (!web_api_route_allows_method(call.path.route, call.method)) {
+2026-07-28T13:01:33.0824029Z       |            ^
+2026-07-28T13:01:33.0824862Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:285:5: note: +1, including nesting penalty of 0, nesting level increased to 1
+2026-07-28T13:01:33.0825648Z   285 |     if (!response_ready && result == APP_ERROR_NONE &&
+2026-07-28T13:01:33.0826118Z       |     ^
+2026-07-28T13:01:33.0826791Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:286:68: note: +1
+2026-07-28T13:01:33.0827671Z   286 |         !web_api_route_requires_body(call.path.route, call.method) && request->content_len != 0U) {
+2026-07-28T13:01:33.0828197Z       |                                                                    ^
+2026-07-28T13:01:33.0829215Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:291:5: note: +1, including nesting penalty of 0, nesting level increased to 1
+2026-07-28T13:01:33.0830005Z   291 |     if (!response_ready && result == APP_ERROR_NONE) {
+2026-07-28T13:01:33.0830305Z       |     ^
+2026-07-28T13:01:33.0830900Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:291:25: note: +1
+2026-07-28T13:01:33.0831512Z   291 |     if (!response_ready && result == APP_ERROR_NONE) {
+2026-07-28T13:01:33.0831830Z       |                         ^
+2026-07-28T13:01:33.0832691Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:294:9: note: +2, including nesting penalty of 1, nesting level increased to 2
+2026-07-28T13:01:33.0833453Z   294 |         if (policy_result != APP_ERROR_NONE) {
+2026-07-28T13:01:33.0833741Z       |         ^
+2026-07-28T13:01:33.0834562Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:301:5: note: +1, including nesting penalty of 0, nesting level increased to 1
+2026-07-28T13:01:33.0835332Z   301 |     if (!response_ready && result == APP_ERROR_NONE) {
+2026-07-28T13:01:33.0835616Z       |     ^
+2026-07-28T13:01:33.0836196Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:301:25: note: +1
+2026-07-28T13:01:33.0836911Z   301 |     if (!response_ready && result == APP_ERROR_NONE) {
+2026-07-28T13:01:33.0837234Z       |                         ^
+2026-07-28T13:01:33.0838200Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:303:34: note: +2, including nesting penalty of 1, nesting level increased to 2
+2026-07-28T13:01:33.0838962Z   303 |         call.body = body == NULL ? "" : body;
+2026-07-28T13:01:33.0839277Z       |                                  ^
+2026-07-28T13:01:33.0840149Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:304:9: note: +2, including nesting penalty of 1, nesting level increased to 2
+2026-07-28T13:01:33.0840895Z   304 |         if (result != APP_ERROR_NONE) {
+2026-07-28T13:01:33.0840978Z       |         ^
+2026-07-28T13:01:33.0841682Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:310:5: note: +1, including nesting penalty of 0, nesting level increased to 1
+2026-07-28T13:01:33.0841859Z   310 |     if (!response_ready && result == APP_ERROR_NONE) {
+2026-07-28T13:01:33.0841937Z       |     ^
+2026-07-28T13:01:33.0842428Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:310:25: note: +1
+2026-07-28T13:01:33.0842592Z   310 |     if (!response_ready && result == APP_ERROR_NONE) {
+2026-07-28T13:01:33.0842697Z       |                         ^
+2026-07-28T13:01:33.0843402Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:312:9: note: +2, including nesting penalty of 1, nesting level increased to 2
+2026-07-28T13:01:33.0843674Z   312 |         if (result != APP_ERROR_NONE && response.body == NULL) {
+2026-07-28T13:01:33.0843763Z       |         ^
+2026-07-28T13:01:33.0844238Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:312:38: note: +1
+2026-07-28T13:01:33.0844418Z   312 |         if (result != APP_ERROR_NONE && response.body == NULL) {
+2026-07-28T13:01:33.0844542Z       |                                      ^
+2026-07-28T13:01:33.0845006Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:316:51: note: +1
+2026-07-28T13:01:33.0845252Z   316 |         response_ready = result == APP_ERROR_NONE && response.body != NULL;
+2026-07-28T13:01:33.0845395Z       |                                                   ^
+2026-07-28T13:01:33.0846171Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:318:5: note: +1, including nesting penalty of 0, nesting level increased to 1
+2026-07-28T13:01:33.0846294Z   318 |     if (!response_ready) {
+2026-07-28T13:01:33.0846379Z       |     ^
+2026-07-28T13:01:33.0846855Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:324:55: note: +1
+2026-07-28T13:01:33.0847191Z   324 |     const bool should_restart = response.body != NULL && restart_after_response(&call, &response);
+2026-07-28T13:01:33.0847336Z       |                                                       ^
+2026-07-28T13:01:33.0848162Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:328:5: note: +1, including nesting penalty of 0, nesting level increased to 1
+2026-07-28T13:01:33.0848330Z   328 |     if (send_result == ESP_OK && should_restart) {
+2026-07-28T13:01:33.0848413Z       |     ^
+2026-07-28T13:01:33.0848895Z /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c:328:31: note: +1
+2026-07-28T13:01:33.0849042Z   328 |     if (send_result == ESP_OK && should_restart) {
+2026-07-28T13:01:33.0849158Z       |                               ^
+2026-07-28T13:01:33.0849264Z 1479 warnings generated.
+2026-07-28T13:01:33.0849456Z Suppressed 1472 warnings (1472 in non-user code).
+2026-07-28T13:01:33.0850104Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0850218Z 6 warnings treated as errors
+2026-07-28T13:01:33.0850228Z
+2026-07-28T13:01:33.0851968Z [79/80][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_logout_execution.c
+2026-07-28T13:01:33.0852078Z 1442 warnings generated.
+2026-07-28T13:01:33.0852246Z Suppressed 1442 warnings (1442 in non-user code).
+2026-07-28T13:01:33.0852755Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0852763Z
+2026-07-28T13:01:33.0854421Z [80/80][3.6s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic_recovery.c
+2026-07-28T13:01:33.0854523Z 1042 warnings generated.
+2026-07-28T13:01:33.0854692Z Suppressed 1042 warnings (1042 in non-user code).
+2026-07-28T13:01:33.0855245Z Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+2026-07-28T13:01:33.0855253Z
+2026-07-28T13:01:33.0870433Z ##[error]Process completed with exit code 1.
+2026-07-28T13:01:33.1011041Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-28T13:01:33.1011166Z Post job cleanup.
+2026-07-28T13:01:33.1857886Z [command]/usr/bin/git version
+2026-07-28T13:01:33.1895999Z git version 2.54.0
+2026-07-28T13:01:33.1930533Z Temporarily overriding HOME='/home/runner/work/_temp/b54dbc34-8cb6-4723-9cb3-537f29d6bba4' before making global git config changes
+2026-07-28T13:01:33.1936335Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-28T13:01:33.1937416Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard
+2026-07-28T13:01:33.1975171Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-28T13:01:33.2010819Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-28T13:01:33.2251978Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-28T13:01:33.2280424Z http.https://github.com/.extraheader
+2026-07-28T13:01:33.2291663Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-07-28T13:01:33.2325299Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-28T13:01:33.2593238Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-28T13:01:33.2627789Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-07-28T13:01:33.3025498Z Cleaning up orphan processes
+2026-07-28T13:01:33.3376542Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
 ```
