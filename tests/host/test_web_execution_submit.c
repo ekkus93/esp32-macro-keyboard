@@ -311,22 +311,25 @@ static void test_argument_validation(void) {
 
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_execution_submit_persisted(NULL, &ops, &accepted, &parse_error));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_execution_submit_persisted(&submission, NULL, &accepted, &parse_error));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        web_execution_submit_persisted(&submission, NULL, &accepted, &parse_error));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_execution_submit_persisted(&submission, &ops, NULL, &parse_error));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_execution_submit_persisted(&submission, &ops, &accepted, NULL));
 
     submission.macro_revision = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_execution_submit_persisted(&submission, &ops, &accepted, &parse_error));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        web_execution_submit_persisted(&submission, &ops, &accepted, &parse_error));
     TEST_CHECK_EQ_U64(0U, fixture.read_calls);
 
     submission = request();
     ops.submit = NULL;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_execution_submit_persisted(&submission, &ops, &accepted, &parse_error));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        web_execution_submit_persisted(&submission, &ops, &accepted, &parse_error));
     TEST_CHECK_EQ_U64(0U, fixture.read_calls);
 }
 

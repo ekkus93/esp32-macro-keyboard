@@ -193,8 +193,7 @@ static void evaluate_missing_header(const route_case_t *route_case, const char *
     const web_request_policy_input_t policy = input(route_case->route, route_case->method);
     web_request_policy_result_t result = {0};
     web_request_policy_failure_t failure = WEB_REQUEST_POLICY_FAILURE_NONE;
-    const app_error_code_t error =
-        web_request_policy_evaluate(&policy, &ops, &result, &failure);
+    const app_error_code_t error = web_request_policy_evaluate(&policy, &ops, &result, &failure);
     TEST_CHECK(error != APP_ERROR_NONE);
     TEST_CHECK_EQ_INT(expected_failure, failure);
     TEST_CHECK_EQ_U64(expected_status, web_request_policy_http_status(failure, error));
