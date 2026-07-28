@@ -52,16 +52,16 @@ scripts/normalize-phase16-finalization-input.py
 ```text
 
 Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
-Hit:6 https://packages.microsoft.com/repos/azure-cli noble InRelease
 Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+Hit:6 https://packages.microsoft.com/repos/azure-cli noble InRelease
 Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
 Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
 Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
 Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
 Get:8 https://dl.google.com/linux/chrome-stable/deb stable InRelease [2548 B]
 Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [252 kB]
-Get:10 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [218 kB]
-Get:11 https://packages.microsoft.com/ubuntu/24.04/prod noble/main armhf Packages [11.7 kB]
+Get:10 https://packages.microsoft.com/ubuntu/24.04/prod noble/main armhf Packages [11.7 kB]
+Get:11 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [218 kB]
 Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1153 kB]
 Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [278 kB]
 Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [180 kB]
@@ -87,7 +87,7 @@ Get:33 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translat
 Get:34 http://azure.archive.ubuntu.com/ubuntu noble-security/multiverse amd64 Packages [40.3 kB]
 Get:35 http://azure.archive.ubuntu.com/ubuntu noble-security/multiverse Translation-en [10.6 kB]
 Get:36 https://dl.google.com/linux/chrome-stable/deb stable/main amd64 Packages [1424 B]
-Fetched 10.9 MB in 1s (8123 kB/s)
+Fetched 10.9 MB in 1s (8397 kB/s)
 Reading package lists...
 Reading package lists...
 Building dependency tree...
@@ -115,7 +115,7 @@ Get:7 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 cmake-data all 3.2
 Get:8 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 cmake amd64 3.28.3-1build7 [11.2 MB]
 Get:9 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libcjson1 amd64 1.7.17-1 [24.8 kB]
 Get:10 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libcjson-dev amd64 1.7.17-1 [20.8 kB]
-Fetched 13.6 MB in 0s (58.2 MB/s)
+Fetched 13.6 MB in 1s (13.9 MB/s)
 Selecting previously unselected package build-essential.
 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 202954 files and directories currently installed.)
 Preparing to unpack .../0-build-essential_12.10ubuntu1_amd64.deb ...
@@ -175,11 +175,11 @@ Collecting pathspec>=1.0.0 (from yamllint==1.38.0)
   Downloading pathspec-1.1.1-py3-none-any.whl.metadata (14 kB)
 Requirement already satisfied: pyyaml in /usr/lib/python3/dist-packages (from yamllint==1.38.0) (6.0.1)
 Downloading cmakelang-0.6.13-py3-none-any.whl (159 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 159.8/159.8 kB 21.2 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 159.8/159.8 kB 2.0 MB/s eta 0:00:00
 Downloading yamllint-1.38.0-py3-none-any.whl (68 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 68.9/68.9 kB 20.7 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 68.9/68.9 kB 8.5 MB/s eta 0:00:00
 Downloading pathspec-1.1.1-py3-none-any.whl (57 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 57.3/57.3 kB 20.1 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 57.3/57.3 kB 8.9 MB/s eta 0:00:00
 Installing collected packages: pathspec, cmakelang, yamllint
 Successfully installed cmakelang-0.6.13 pathspec-1.1.1 yamllint-1.38.0
 Collecting gcovr==8.6
@@ -195,20 +195,20 @@ Collecting pygments>=2.13.0 (from gcovr==8.6)
 Collecting MarkupSafe>=2.0 (from jinja2->gcovr==8.6)
   Downloading markupsafe-3.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
 Downloading gcovr-8.6-py3-none-any.whl (254 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 254.6/254.6 kB 25.3 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 254.6/254.6 kB 28.0 MB/s eta 0:00:00
 Downloading pygments-2.20.0-py3-none-any.whl (1.2 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 77.5 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 102.9 MB/s eta 0:00:00
 Downloading colorlog-6.12.0-py3-none-any.whl (12 kB)
 Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 38.9 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 49.1 MB/s eta 0:00:00
 Downloading lxml-6.1.1-cp312-cp312-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl (5.2 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.2/5.2 MB 157.3 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.2/5.2 MB 139.1 MB/s eta 0:00:00
 Downloading markupsafe-3.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
 Installing collected packages: pygments, MarkupSafe, lxml, colorlog, jinja2, gcovr
 Successfully installed MarkupSafe-3.0.3 colorlog-6.12.0 gcovr-8.6 jinja2-3.1.6 lxml-6.1.1 pygments-2.20.0
 go: downloading mvdan.cc/sh/v3 v3.11.0
-go: downloading github.com/rogpeppe/go-internal v1.14.1
 go: downloading github.com/google/renameio/v2 v2.0.0
+go: downloading github.com/rogpeppe/go-internal v1.14.1
 go: downloading golang.org/x/term v0.29.0
 go: downloading mvdan.cc/editorconfig v0.3.0
 go: downloading golang.org/x/sys v0.30.0
@@ -224,275 +224,275 @@ go: downloading golang.org/x/sys v0.30.0
 
 ```text
 
-[ 37%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-[ 37%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-[ 25%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-[ 38%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-[ 39%] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-[ 39%] Building C object CMakeFiles/wifi_ap_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/wifi_ap/wifi_ap_state.c.o
-[ 39%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 40%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-[ 40%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-[ 34%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 37%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-[ 41%] Building C object CMakeFiles/storage_atomic_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-[ 41%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-[ 42%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 38%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-[ 42%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-[ 42%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-[ 43%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-[ 44%] Building C object CMakeFiles/storage_mount_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_mount_topology.c.o
-[ 44%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-[ 44%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
-[ 44%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-[ 44%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-[ 44%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
-[ 44%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-[ 44%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-[ 44%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/test_web_api_repository_handlers.c.o
-[ 44%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-[ 45%] Building C object CMakeFiles/web_api_core_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 46%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-[ 47%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-[ 47%] Building C object CMakeFiles/web_api_core_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-[ 47%] Building C object CMakeFiles/storage_mount_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_mount_core.c.o
-[ 48%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-[ 49%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
-[ 49%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
-[ 50%] Building C object CMakeFiles/storage_repository_lock_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-[ 50%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
-[ 50%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-[ 50%] Building C object CMakeFiles/provisioning_settings_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning_core.c.o
-[ 51%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-[ 51%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-[ 51%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-[ 51%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
-[ 51%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-[ 52%] Building C object CMakeFiles/web_api_admin_boundary_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 53%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-[ 53%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_set_operations.c.o
-[ 54%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-[ 54%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c.o
-[ 54%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c.o
-[ 54%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c.o
-[ 55%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
-[ 56%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-[ 56%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-[ 57%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-[ 57%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/test_storage_active_set_delete.c.o
-[ 57%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-[ 57%] Building C object CMakeFiles/web_api_core_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_core.c.o
-[ 40%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-[ 23%] Building C object CMakeFiles/web_request_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_request_policy.c.o
-[ 23%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-[ 23%] Building C object CMakeFiles/web_api_admin_boundary_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-[ 23%] Building C object CMakeFiles/web_api_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-[ 23%] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 23%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 23%] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-[ 23%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-[ 23%] Building C object CMakeFiles/storage_atomic_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-[ 23%] Building C object CMakeFiles/web_setup_json_tests.dir/test_web_setup_json.c.o
-[ 23%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-[ 23%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-[ 23%] Building C object CMakeFiles/web_api_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-[ 23%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-[ 23%] Building C object CMakeFiles/storage_atomic_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 23%] Building C object CMakeFiles/web_request_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-[ 51%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c.o
-[ 58%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic_validators.c.o
-[ 59%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c.o
-[ 59%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-[ 53%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-[ 59%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-[ 59%] Building C object CMakeFiles/storage_repository_lock_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 59%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 60%] Building C object CMakeFiles/web_api_dispatch_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_dispatch.c.o
-[ 60%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-[ 60%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_core.c.o
-[ 61%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c.o
-[ 62%] Building C object CMakeFiles/web_request_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_origin.c.o
-[ 62%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-[ 63%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-[ 63%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
-[ 63%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c.o
-[ 64%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-[ 65%] Building C object CMakeFiles/storage_quarantine_tests.dir/test_storage_quarantine.c.o
-[ 65%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-[ 65%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-[ 65%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_handler_common.c.o
-[ 66%] Building C object CMakeFiles/web_execution_submit_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-[ 66%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 66%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-[ 66%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-[ 66%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c.o
-[ 67%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-[ 67%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-[ 67%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-[ 68%] Building C object CMakeFiles/storage_object_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-[ 68%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-[ 69%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c.o
-[ 69%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c.o
-[ 70%] Building C object CMakeFiles/web_api_admin_boundary_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c.o
-[ 71%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-[ 71%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-[ 72%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-[ 72%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_set_operations.c.o
-[ 72%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-[ 73%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 75%] Building C object CMakeFiles/web_api_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
+[ 42%] Building C object CMakeFiles/storage_object_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[ 43%] Building C object CMakeFiles/web_api_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
+[ 43%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/test_storage_active_set_delete.c.o
+[ 43%] Building C object CMakeFiles/web_execution_route_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[ 43%] Building C object CMakeFiles/web_api_admin_boundary_tests.dir/test_web_api_admin_boundary.c.o
+[ 44%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[ 44%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
+[ 45%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
+[ 45%] Building C object CMakeFiles/web_api_admin_boundary_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_core.c.o
+[ 45%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[ 45%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/test_web_api_repository_handlers.c.o
+[ 45%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
+[ 45%] Building C object CMakeFiles/storage_object_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
+[ 38%] Building C object CMakeFiles/web_api_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
+[ 24%] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[ 24%] Building C object CMakeFiles/storage_transaction_tests.dir/test_storage_transactions.c.o
+[ 24%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic_validators.c.o
+[ 24%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
+[ 24%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic_validators.c.o
+[ 24%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_static_stream.c.o
+[ 24%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
+[ 24%] Building C object CMakeFiles/storage_parent_sync_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
+[ 24%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
+[ 24%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
+[ 24%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/test_storage_atomic_recovery.c.o
+[ 24%] Building C object CMakeFiles/storage_repository_io_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
+[ 24%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_json.c.o
+[ 24%] Building C object CMakeFiles/storage_repository_io_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[ 24%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_cookie.c.o
+[ 24%] Building C object CMakeFiles/storage_parent_sync_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[ 24%] Building C object CMakeFiles/storage_repository_io_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[ 24%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/test_storage_atomic_validators.c.o
+[ 24%] Building C object CMakeFiles/storage_repository_lock_tests.dir/test_storage_repository_lock.c.o
+[ 46%] Building C object CMakeFiles/web_api_admin_boundary_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c.o
+[ 45%] Building C object CMakeFiles/web_api_admin_boundary_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_admin_boundary.c.o
+[ 46%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
+[ 47%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
+[ 48%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[ 48%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
+[ 48%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c.o
+[ 49%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[ 45%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[ 49%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
+[ 49%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
+[ 49%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
+[ 50%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c.o
+[ 50%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
+[ 50%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[ 50%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
+[ 51%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
+[ 52%] Building C object CMakeFiles/storage_macro_repository_tests.dir/test_storage_macros.c.o
+[ 52%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[ 52%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
+[ 53%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
+[ 53%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
+[ 54%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
+[ 54%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
+[ 54%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[ 54%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
+[ 55%] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[ 56%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
+[ 57%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
+[ 57%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
+[ 57%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
+[ 58%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
+[ 59%] Building C object CMakeFiles/storage_atomic_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
+[ 60%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
+[ 61%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_lifecycle.c.o
+[ 61%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
+[ 62%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
+[ 63%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
+[ 63%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c.o
+[ 63%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
+[ 63%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
+[ 64%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[ 64%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
+[ 64%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
+[ 64%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_keymap_us.c.o
+[ 64%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c.o
+[ 65%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c.o
+[ 66%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
+[ 67%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c.o
+[ 67%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
+[ 67%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c.o
+[ 67%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_procedures.c.o
+[ 67%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c.o
+[ 68%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
+[ 69%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
+[ 63%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_core.c.o
+[ 70%] Building C object CMakeFiles/web_setup_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_setup_json.c.o
+[ 70%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c.o
+[ 70%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_handler_common.c.o
+[ 71%] Building C object CMakeFiles/web_execution_route_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_execution_route_policy.c.o
+[ 71%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
+[ 72%] Building C object CMakeFiles/web_api_dispatch_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_dispatch.c.o
+[ 73%] Building C object CMakeFiles/web_request_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_origin.c.o
+[ 74%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[ 46%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
+[ 57%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
+[ 46%] Building C object CMakeFiles/web_api_core_tests.dir/test_web_api_core.c.o
+[ 46%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
+[ 46%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
+[ 46%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
+[ 46%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
+[ 46%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
+[ 46%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
+[ 46%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[ 46%] Building C object CMakeFiles/provisioning_bootstrap_tests.dir/test_provisioning_bootstrap.c.o
+[ 46%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
+[ 46%] Building C object CMakeFiles/web_request_policy_tests.dir/test_web_request_policy.c.o
+[ 46%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
+[ 46%] Building C object CMakeFiles/web_request_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[ 46%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[ 46%] Building C object CMakeFiles/web_api_response_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c.o
+[ 46%] Building C object CMakeFiles/web_request_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_cookie.c.o
+[ 46%] Building C object CMakeFiles/web_api_dispatch_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c.o
+[ 46%] Building C object CMakeFiles/storage_repository_tests.dir/test_storage_repository.c.o
+[ 46%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
+[ 46%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
+[ 46%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
+[ 46%] Building C object CMakeFiles/web_api_response_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[ 46%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
+[ 46%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
+[ 46%] Building C object CMakeFiles/storage_object_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
+[ 46%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[ 46%] Building C object CMakeFiles/provisioning_bootstrap_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning_bootstrap_core.c.o
+[ 46%] Building C object CMakeFiles/web_api_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c.o
+[ 46%] Building C object CMakeFiles/storage_object_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
+[ 46%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
+[ 46%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
+[ 46%] Building C object CMakeFiles/web_api_dispatch_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[ 46%] Building C object CMakeFiles/web_api_admin_boundary_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[ 46%] Building C object CMakeFiles/web_api_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
+[ 46%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[ 46%] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
+[ 46%] Building C object CMakeFiles/web_setup_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_setup_core.c.o
+[ 46%] Building C object CMakeFiles/storage_object_json_tests.dir/test_storage_object_json.c.o
+[ 46%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[ 46%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[ 46%] Building C object CMakeFiles/web_execution_route_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[ 46%] Building C object CMakeFiles/web_execution_submit_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
+[ 46%] Building C object CMakeFiles/storage_atomic_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[ 46%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
+[ 46%] Building C object CMakeFiles/web_api_dispatch_tests.dir/test_web_api_dispatch.c.o
+[ 46%] Building C object CMakeFiles/web_execution_submit_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_execution_submit.c.o
+[ 46%] Building C object CMakeFiles/storage_mount_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_mount_topology.c.o
+[ 46%] Building C object CMakeFiles/storage_atomic_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[ 46%] Building C object CMakeFiles/storage_atomic_validators_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
+[ 75%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
+[ 76%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
+[ 77%] Building C object CMakeFiles/web_api_admin_boundary_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[ 78%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
+[ 79%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
+[ 80%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/test_storage_procedures.c.o
+[ 81%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
+[ 82%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
+[ 83%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
+[ 84%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
+[ 85%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
+[ 86%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
+[ 75%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
+[ 75%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
+[ 75%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
+[ 75%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
+[ 75%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
+[ 75%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
+[ 75%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_parser.c.o
+[ 75%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_set_operations.c.o
+[ 75%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[ 75%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
+[ 75%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c.o
+[ 75%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
+[ 75%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_set_operations.c.o
 [ 75%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
-[ 71%] Building C object CMakeFiles/storage_quarantine_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-[ 76%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-[ 76%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c.o
-[ 74%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
-[ 77%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-[ 78%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-[ 80%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-[ 81%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-[ 76%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c.o
-[ 79%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-[ 58%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-[ 58%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-[ 58%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
-[ 58%] Building C object CMakeFiles/storage_object_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-[ 58%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-[ 58%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-[ 58%] Building C object CMakeFiles/web_api_dispatch_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 58%] Building C object CMakeFiles/web_execution_route_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_execution_route_policy.c.o
-[ 58%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-[ 58%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-[ 58%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-[ 58%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-[ 58%] Building C object CMakeFiles/web_execution_submit_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 58%] Building C object CMakeFiles/provisioning_settings_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-[ 58%] Building C object CMakeFiles/web_api_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
-[ 58%] Building C object CMakeFiles/storage_mount_tests.dir/test_storage_mount.c.o
-[ 58%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/test_storage_atomic_recovery.c.o
-[ 58%] Building C object CMakeFiles/storage_mount_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[ 58%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
-[ 58%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-[ 58%] Building C object CMakeFiles/web_api_admin_boundary_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_core.c.o
-[ 58%] Building C object CMakeFiles/web_api_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c.o
-[ 58%] Building C object CMakeFiles/provisioning_bootstrap_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning_bootstrap_core.c.o
-[ 58%] Building C object CMakeFiles/web_execution_submit_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-[ 58%] Building C object CMakeFiles/web_api_core_tests.dir/test_web_api_core.c.o
-[ 58%] Building C object CMakeFiles/provisioning_settings_tests.dir/test_provisioning_settings.c.o
-[ 58%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
-[ 58%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-[ 58%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-[ 58%] Building C object CMakeFiles/web_setup_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_setup_core.c.o
-[ 58%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-[ 58%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-[ 58%] Building C object CMakeFiles/storage_repository_lock_tests.dir/test_storage_repository_lock.c.o
-[ 58%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-[ 58%] Building C object CMakeFiles/storage_progress_repository_tests.dir/test_storage_progress.c.o
-[ 58%] Building C object CMakeFiles/web_api_dispatch_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c.o
-[ 58%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-[ 58%] Building C object CMakeFiles/web_execution_submit_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_execution_submit.c.o
-[ 58%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-[ 58%] Building C object CMakeFiles/web_setup_tests.dir/test_web_setup.c.o
-[ 58%] Building C object CMakeFiles/web_api_admin_boundary_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_admin_boundary.c.o
-[ 58%] Building C object CMakeFiles/storage_atomic_recovery_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-[ 58%] Building C object CMakeFiles/web_request_policy_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_cookie.c.o
-[ 58%] Building C object CMakeFiles/web_api_dispatch_tests.dir/test_web_api_dispatch.c.o
-[ 82%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_parser.c.o
-[ 83%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-[ 84%] Building C object CMakeFiles/storage_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-[ 85%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-[ 86%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-[ 82%] Building C object CMakeFiles/web_setup_json_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_setup_json.c.o
-[ 82%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_keymap_us.c.o
-[ 82%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-[ 82%] Building C object CMakeFiles/provisioning_bootstrap_tests.dir/test_provisioning_bootstrap.c.o
-[ 82%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
-[ 82%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-[ 82%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_set_operations.c.o
-[ 82%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
-[ 86%] Building C object CMakeFiles/storage_progress_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[ 75%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[ 75%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
+[ 75%] Building C object CMakeFiles/web_server_adapter_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_body_auth.c.o
+[ 75%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
+[ 75%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
+[ 75%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
+[ 75%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
+[ 75%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
+[ 75%] Building C object CMakeFiles/storage_procedure_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
+[ 75%] Building C object CMakeFiles/web_api_repository_handlers_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_set_operations.c.o
+[ 75%] Building C object CMakeFiles/storage_macro_repository_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
+[ 75%] Building C object CMakeFiles/storage_active_set_delete_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c.o
+[ 86%] Building C object CMakeFiles/web_execution_submit_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
 [ 86%] Linking C executable app_operation_result_tests
 [ 86%] Linking C executable web_api_response_tests
-[ 86%] Linking C executable web_api_dispatch_tests
+[ 86%] Linking C executable storage_repository_lock_tests
 [ 87%] Linking C executable web_security_tests
+[ 87%] Linking C executable web_api_dispatch_tests
 [ 87%] Linking C executable test_support_tests
-[ 87%] Linking C executable web_execution_route_policy_tests
 [ 88%] Linking C executable macro_model_tests
-[ 88%] Linking C executable storage_repository_lock_tests
-[ 88%] Built target app_operation_result_tests
-[ 88%] Linking C executable web_setup_json_tests
-[ 88%] Built target web_api_response_tests
+[ 88%] Linking C executable web_execution_route_policy_tests
 [ 89%] Linking C executable provisioning_bootstrap_tests
+[ 89%] Linking C executable web_setup_json_tests
+[ 89%] Built target app_operation_result_tests
+[ 89%] Built target web_api_response_tests
+[ 89%] Linking C executable storage_mount_tests
+[ 89%] Built target storage_repository_lock_tests
 [ 89%] Built target web_api_dispatch_tests
 [ 89%] Built target web_security_tests
-[ 89%] Built target web_execution_route_policy_tests
 [ 89%] Built target test_support_tests
-[ 89%] Linking C executable storage_parent_sync_tests
-[ 89%] Built target macro_model_tests
 [ 90%] Linking C executable web_api_core_tests
-[ 90%] Built target storage_repository_lock_tests
-[ 90%] Linking C executable storage_atomic_tests
-[ 90%] Linking C executable storage_repository_io_tests
-[ 90%] Linking C executable storage_mount_tests
+[ 90%] Built target macro_model_tests
 [ 90%] Linking C executable web_api_admin_boundary_tests
-[ 90%] Built target web_setup_json_tests
+[ 90%] Linking C executable storage_parent_sync_tests
+[ 90%] Built target web_execution_route_policy_tests
+[ 90%] Linking C executable storage_repository_io_tests
+[ 90%] Linking C executable storage_atomic_tests
 [ 90%] Built target provisioning_bootstrap_tests
-[ 90%] Built target storage_repository_io_tests
+[ 90%] Built target web_setup_json_tests
 [ 91%] Linking C executable macro_parser_tests
-[ 91%] Built target storage_parent_sync_tests
+[ 91%] Built target storage_mount_tests
 [ 92%] Linking C executable web_execution_submit_tests
-[ 92%] Built target web_api_core_tests
-[ 92%] Built target storage_atomic_tests
-[ 92%] Linking C executable web_request_policy_tests
-[ 93%] Linking C executable storage_object_json_tests
-[ 93%] Built target storage_mount_tests
-[ 93%] Built target web_api_admin_boundary_tests
-[ 93%] Linking C executable web_server_adapter_tests
+[ 93%] Linking C executable wifi_ap_tests
 [ 93%] Linking C executable device_controls_tests
 [ 94%] Linking C executable web_setup_tests
-[ 95%] Linking C executable wifi_ap_tests
-[ 95%] Built target macro_parser_tests
-[ 95%] Linking C executable auth_tests
-[ 95%] Built target storage_object_json_tests
-[ 95%] Built target web_execution_submit_tests
-[ 95%] Built target web_request_policy_tests
-[ 95%] Linking C executable usb_keyboard_tests
-[ 95%] Built target web_server_adapter_tests
-[ 95%] Built target device_controls_tests
-[ 95%] Linking C executable storage_transaction_tests
-[ 95%] Built target web_setup_tests
-[ 95%] Built target auth_tests
-[ 95%] Linking C executable macro_executor_tests
-[ 95%] Linking C executable provisioning_tests
-[ 95%] Built target wifi_ap_tests
-[ 95%] Built target usb_keyboard_tests
-[ 96%] Linking C executable provisioning_settings_tests
-[ 96%] Linking C executable storage_atomic_validators_tests
-[ 96%] Built target storage_transaction_tests
-[ 96%] Built target provisioning_tests
-[ 96%] Built target provisioning_settings_tests
-[ 96%] Built target storage_atomic_validators_tests
-[ 97%] Linking C executable web_api_json_tests
-[ 97%] Built target macro_executor_tests
-[ 97%] Linking C executable storage_atomic_recovery_tests
-[ 97%] Built target web_api_json_tests
-[ 98%] Linking C executable storage_macro_repository_tests
-[ 99%] Linking C executable app_core_tests
-[ 99%] Built target storage_atomic_recovery_tests
-[ 99%] Linking C executable web_api_repository_handlers_tests
-[ 99%] Linking C executable storage_progress_repository_tests
-[ 99%] Linking C executable storage_active_set_delete_tests
-[ 99%] Built target storage_macro_repository_tests
-[ 99%] Built target app_core_tests
-[100%] Linking C executable storage_quarantine_tests
-[100%] Linking C executable storage_procedure_repository_tests
-[100%] Built target web_api_repository_handlers_tests
-[100%] Linking C executable storage_repository_tests
-[100%] Built target storage_progress_repository_tests
+[ 94%] Built target storage_repository_io_tests
+[ 94%] Built target web_api_core_tests
+[ 94%] Built target storage_atomic_tests
+[ 94%] Built target web_api_admin_boundary_tests
+[ 94%] Built target storage_parent_sync_tests
+[ 94%] Linking C executable web_request_policy_tests
+[ 94%] Linking C executable usb_keyboard_tests
+[ 94%] Linking C executable web_server_adapter_tests
+[ 94%] Linking C executable storage_transaction_tests
+[ 94%] Built target macro_parser_tests
+[ 94%] Linking C executable auth_tests
+[ 94%] Built target web_setup_tests
+[ 94%] Built target web_execution_submit_tests
+[ 94%] Built target wifi_ap_tests
+[ 94%] Built target device_controls_tests
+[ 94%] Built target web_request_policy_tests
+[ 94%] Built target web_server_adapter_tests
+[ 94%] Built target usb_keyboard_tests
+[ 94%] Linking C executable macro_executor_tests
+[ 94%] Linking C executable provisioning_tests
+[ 94%] Built target storage_transaction_tests
+[ 94%] Built target provisioning_tests
+[ 95%] Linking C executable storage_macro_repository_tests
+[ 96%] Linking C executable storage_object_json_tests
+[ 97%] Linking C executable storage_quarantine_tests
+[ 97%] Built target auth_tests
+[ 98%] Linking C executable provisioning_settings_tests
+[ 98%] Built target storage_macro_repository_tests
+[ 98%] Built target macro_executor_tests
+[ 99%] Linking C executable web_api_json_tests
+[ 99%] Linking C executable storage_atomic_recovery_tests
+[ 99%] Built target provisioning_settings_tests
+[100%] Linking C executable app_core_tests
 [100%] Built target storage_quarantine_tests
+[100%] Built target web_api_json_tests
+[100%] Linking C executable storage_progress_repository_tests
+[100%] Built target storage_object_json_tests
+[100%] Built target storage_atomic_recovery_tests
+[100%] Linking C executable storage_repository_tests
+[100%] Built target app_core_tests
+[100%] Linking C executable storage_atomic_validators_tests
+[100%] Built target storage_progress_repository_tests
+[100%] Linking C executable storage_active_set_delete_tests
+[100%] Built target storage_repository_tests
+[100%] Linking C executable web_api_repository_handlers_tests
+[100%] Linking C executable storage_procedure_repository_tests
+[100%] Built target storage_atomic_validators_tests
 [100%] Built target storage_active_set_delete_tests
 [100%] Built target storage_procedure_repository_tests
-[100%] Built target storage_repository_tests
+[100%] Built target web_api_repository_handlers_tests
 Internal ctest changing into directory: /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/tests/host/build-sanitizers
 Test project /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/tests/host/build-sanitizers
     Start 6: auth
@@ -605,7 +605,7 @@ Requirement already satisfied: pip in /home/runner/.espressif/python_env/idf5.5_
 Collecting pip
   Downloading pip-26.1.2-py3-none-any.whl.metadata (4.6 kB)
 Downloading pip-26.1.2-py3-none-any.whl (1.8 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 43.0 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 12.5 MB/s eta 0:00:00
 Installing collected packages: pip
   Attempting uninstall: pip
     Found existing installation: pip 24.0
@@ -615,7 +615,7 @@ Successfully installed pip-26.1.2
 Collecting setuptools
   Downloading setuptools-83.0.0-py3-none-any.whl.metadata (6.6 kB)
 Downloading setuptools-83.0.0-py3-none-any.whl (1.0 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.0/1.0 MB 76.9 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.0/1.0 MB 112.7 MB/s  0:00:00
 Installing collected packages: setuptools
 Successfully installed setuptools-83.0.0
 Looking in indexes: https://pypi.org/simple, https://dl.espressif.com/pypi
@@ -629,7 +629,7 @@ Collecting pyserial (from -r /home/runner/esp/esp-idf-v5.5.5/tools/requirements/
   Downloading pyserial-3.5-py2.py3-none-any.whl (90 kB)
 Collecting cryptography (from -r /home/runner/esp/esp-idf-v5.5.5/tools/requirements/requirements.core.txt (line 13))
   Downloading cryptography-44.0.3-cp39-abi3-manylinux_2_34_x86_64.whl (3.7 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 159.7 MB/s  0:00:00
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.7/3.7 MB 236.9 MB/s  0:00:00
 Collecting pyparsing (from -r /home/runner/esp/esp-idf-v5.5.5/tools/requirements/requirements.core.txt (line 14))
   Downloading pyparsing-3.2.5-py3-none-any.whl.metadata (5.0 kB)
 Collecting pyelftools (from -r /home/runner/esp/esp-idf-v5.5.5/tools/requirements/requirements.core.txt (line 15))
@@ -718,7 +718,7 @@ Collecting markdown-it-py>=2.2.0 (from rich->-r /home/runner/esp/esp-idf-v5.5.5/
   Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
 Collecting pygments<3.0.0,>=2.13.0 (from rich->-r /home/runner/esp/esp-idf-v5.5.5/tools/requirements/requirements.core.txt (line 27))
   Downloading pygments-2.20.0-py3-none-any.whl (1.2 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 170.6 MB/s  0:00:00
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 238.3 MB/s  0:00:00
 Collecting bitarray<4.0,>=3.0.0 (from bitstring!=4.2.0,>=3.1.6->esptool->-r /home/runner/esp/esp-idf-v5.5.5/tools/requirements/requirements.core.txt (line 18))
   Downloading bitarray-3.9.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (366 kB)
 Collecting tibs<0.6,>=0.5.6 (from bitstring!=4.2.0,>=3.1.6->esptool->-r /home/runner/esp/esp-idf-v5.5.5/tools/requirements/requirements.core.txt (line 18))
@@ -751,11 +751,11 @@ Collecting certifi>=2023.5.7 (from requests->idf-component-manager~=2.2->-r /hom
   Downloading certifi-2026.7.22-py3-none-any.whl (136 kB)
 Downloading pyparsing-3.2.5-py3-none-any.whl (113 kB)
 Downloading tree_sitter-0.26.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (667 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 667.5/667.5 kB 96.8 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 667.5/667.5 kB 86.2 MB/s  0:00:00
 Downloading tree_sitter_c-0.24.2-cp310-abi3-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (94 kB)
 Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)
 Downloading pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 196.9 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 173.2 MB/s  0:00:00
 Downloading annotated_types-0.8.0-py3-none-any.whl (13 kB)
 Downloading pathvalidate-3.3.1-py3-none-any.whl (24 kB)
 Downloading pydantic_settings-2.14.2-py3-none-any.whl (61 kB)
@@ -766,7 +766,7 @@ Downloading tqdm-4.70.0-py3-none-any.whl (80 kB)
 Building wheels for collected packages: esptool
   Building wheel for esptool (pyproject.toml): started
   Building wheel for esptool (pyproject.toml): finished with status 'done'
-  Created wheel for esptool: filename=esptool-4.12.0-py3-none-any.whl size=616537 sha256=bd77a53e964ba295c96b866af450e1dd6a3687843919c7e614e5c6282b5e2ac7
+  Created wheel for esptool: filename=esptool-4.12.0-py3-none-any.whl size=616537 sha256=634ad282337e2fe9786385834400e0337994f72564b853dbe3ee2edbcc8c6b05
   Stored in directory: /home/runner/.cache/pip/wheels/8e/95/c0/03b414199505d3d22b6a9843a9e3cb2db9d72673433364f6f4
 Successfully built esptool
 Installing collected packages: reedsolo, pyserial, pygdbmi, intelhex, urllib3, typing-extensions, truststore, tree_sitter_c, tree_sitter, tqdm, tibs, six, ruamel.yaml, PyYAML, python-dotenv, pyparsing, pygments, pyelftools, pycparser, psutil, pathvalidate, packaging, mdurl, jsonref, idna, freertos_gdb, esp-idf-kconfig, construct, colorama, click, charset_normalizer, certifi, bitarray, argcomplete, annotated-types, typing-inspection, requests, pydantic-core, markdown-it-py, esp-idf-panic-decoder, ecdsa, cffi, bitstring, rich, requests-toolbelt, requests-file, pydantic, cryptography, rich-click, pydantic-settings, esptool, esp-pylib, esp-idf-size, esp-idf-nvs-partition-gen, esp-idf-diag, idf-component-manager, esp-coredump, pyclang, esp-idf-monitor
@@ -799,7 +799,7 @@ ESP-IDF v5.5.5 installed at /home/runner/esp/esp-idf-v5.5.5
 npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
-added 471 packages, and audited 472 packages in 58s
+added 471 packages, and audited 472 packages in 56s
 
 18 vulnerabilities (16 high, 2 critical)
 
@@ -820,292 +820,285 @@ npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to revi
 ## phase16-finalization-gate.log
 
 ```text
-1626:    bugprone-shared-ptr-array-mismatch
-1656:    bugprone-unique-ptr-array-mismatch
-2230:/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c:131:50: error: no header providing "macro_set_t" is directly included [misc-include-cleaner,-warnings-as-errors]
-2233:/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c:152:52: error: no header providing "macro_t" is directly included [misc-include-cleaner,-warnings-as-errors]
-2236:/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c:168:56: error: no header providing "procedure_t" is directly included [misc-include-cleaner,-warnings-as-errors]
-2239:/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c:188:55: error: no header providing "procedure_progress_t" is directly included [misc-include-cleaner,-warnings-as-errors]
-2312:error: run-clang-tidy failed for /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware with status 1
 
-[30/83][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_origin.c
-667 warnings generated.
-Suppressed 667 warnings (667 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+[1102/1128] Linking C static library esp-idf/cmock/libcmock.a
+[1103/1128] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/test_auth.c.obj
+[1104/1128] Linking C static library esp-idf/esp_driver_cam/libesp_driver_cam.a
+[1105/1128] Linking C static library esp-idf/esp_driver_touch_sens/libesp_driver_touch_sens.a
+[1106/1128] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/test_usb_state.c.obj
+[1107/1128] Linking C static library esp-idf/esp_hid/libesp_hid.a
+[1108/1128] Linking C static library esp-idf/esp_eth/libesp_eth.a
+[1109/1128] Linking C static library esp-idf/esp_lcd/libesp_lcd.a
+[1110/1128] Linking C static library esp-idf/mqtt/libmqtt.a
+[1111/1128] Linking C static library esp-idf/nvs_sec_provider/libnvs_sec_provider.a
+[1112/1128] Linking C static library esp-idf/esp_local_ctrl/libesp_local_ctrl.a
+[1113/1128] Linking C static library esp-idf/perfmon/libperfmon.a
+[1114/1128] Linking C static library esp-idf/espcoredump/libespcoredump.a
+[1115/1128] Linking C static library esp-idf/rt/librt.a
+[1116/1128] Linking C static library esp-idf/spiffs/libspiffs.a
+[1117/1128] Linking C static library esp-idf/touch_element/libtouch_element.a
+[1118/1128] Linking C static library esp-idf/main/libmain.a
+[1119/1128] Building C object esp-idf/wifi_provisioning/CMakeFiles/__idf_wifi_provisioning.dir/src/manager.c.obj
+[1120/1128] Linking C static library esp-idf/wifi_provisioning/libwifi_provisioning.a
+[1121/1128] Performing build step for 'bootloader'
+[1/123] Building C object esp-idf/log/CMakeFiles/__idf_log.dir/src/noos/util.c.obj
+[2/123] Building C object esp-idf/log/CMakeFiles/__idf_log.dir/src/util.c.obj
+[3/123] Building C object esp-idf/log/CMakeFiles/__idf_log.dir/src/log_timestamp_common.c.obj
+[4/123] Building C object esp-idf/log/CMakeFiles/__idf_log.dir/src/noos/log_timestamp.c.obj
+[5/123] Building C object esp-idf/log/CMakeFiles/__idf_log.dir/src/noos/log_lock.c.obj
+[6/123] Building C object esp-idf/log/CMakeFiles/__idf_log.dir/src/log_format_text.c.obj
+[7/123] Building C object esp-idf/log/CMakeFiles/__idf_log.dir/src/buffer/log_buffers.c.obj
+[8/123] Building C object esp-idf/log/CMakeFiles/__idf_log.dir/src/log.c.obj
+[9/123] Building C object esp-idf/log/CMakeFiles/__idf_log.dir/src/log_print.c.obj
+[10/123] Building C object esp-idf/esp_rom/CMakeFiles/__idf_esp_rom.dir/patches/esp_rom_crc.c.obj
+[11/123] Building C object esp-idf/esp_rom/CMakeFiles/__idf_esp_rom.dir/patches/esp_rom_sys.c.obj
+[12/123] Building C object esp-idf/esp_rom/CMakeFiles/__idf_esp_rom.dir/patches/esp_rom_efuse.c.obj
+[13/123] Building ASM object esp-idf/esp_rom/CMakeFiles/__idf_esp_rom.dir/patches/esp_rom_longjmp.S.obj
+[14/123] Building C object esp-idf/esp_rom/CMakeFiles/__idf_esp_rom.dir/patches/esp_rom_spiflash.c.obj
+[15/123] Building C object esp-idf/esp_rom/CMakeFiles/__idf_esp_rom.dir/patches/esp_rom_systimer.c.obj
+[16/123] Building C object esp-idf/esp_rom/CMakeFiles/__idf_esp_rom.dir/patches/esp_rom_gpio.c.obj
+[17/123] Building C object esp-idf/esp_rom/CMakeFiles/__idf_esp_rom.dir/patches/esp_rom_uart.c.obj
+[18/123] Building C object esp-idf/esp_rom/CMakeFiles/__idf_esp_rom.dir/patches/esp_rom_wdt.c.obj
+[19/123] Building ASM object esp-idf/esp_rom/CMakeFiles/__idf_esp_rom.dir/patches/esp_rom_cache_writeback_esp32s3.S.obj
+[20/123] Linking C static library esp-idf/log/liblog.a
+[21/123] Building C object esp-idf/esp_hw_support/CMakeFiles/__idf_esp_hw_support.dir/esp_memory_utils.c.obj
+[22/123] Building C object esp-idf/esp_rom/CMakeFiles/__idf_esp_rom.dir/patches/esp_rom_cache_esp32s2_esp32s3.c.obj
+[23/123] Building C object esp-idf/esp_common/CMakeFiles/__idf_esp_common.dir/src/esp_err_to_name.c.obj
+[24/123] Building C object esp-idf/esp_hw_support/CMakeFiles/__idf_esp_hw_support.dir/port/esp32s3/esp_cpu_intr.c.obj
+[25/123] Building C object esp-idf/esp_hw_support/CMakeFiles/__idf_esp_hw_support.dir/port/esp32s3/cpu_region_protect.c.obj
+[26/123] Building C object esp-idf/esp_rom/CMakeFiles/__idf_esp_rom.dir/patches/esp_rom_print.c.obj
+[27/123] Building C object esp-idf/esp_hw_support/CMakeFiles/__idf_esp_hw_support.dir/cpu.c.obj
+[28/123] Building C object esp-idf/esp_hw_support/CMakeFiles/__idf_esp_hw_support.dir/port/esp32s3/rtc_clk_init.c.obj
+[29/123] Linking C static library esp-idf/esp_rom/libesp_rom.a
+[30/123] Linking C static library esp-idf/esp_common/libesp_common.a
+[31/123] Building C object esp-idf/esp_hw_support/CMakeFiles/__idf_esp_hw_support.dir/port/esp32s3/chip_info.c.obj
+[32/123] Building C object esp-idf/esp_system/CMakeFiles/__idf_esp_system.dir/esp_err.c.obj
+[33/123] Building C object esp-idf/esp_hw_support/CMakeFiles/__idf_esp_hw_support.dir/port/esp32s3/rtc_clk.c.obj
+[34/123] Building C object esp-idf/efuse/CMakeFiles/__idf_efuse.dir/esp32s3/esp_efuse_table.c.obj
+[35/123] Building C object esp-idf/esp_hw_support/CMakeFiles/__idf_esp_hw_support.dir/port/esp32s3/rtc_sleep.c.obj
+[36/123] Building C object esp-idf/efuse/CMakeFiles/__idf_efuse.dir/esp32s3/esp_efuse_fields.c.obj
+[37/123] Building C object esp-idf/esp_hw_support/CMakeFiles/__idf_esp_hw_support.dir/port/esp32s3/rtc_time.c.obj
+[38/123] Building C object esp-idf/esp_hw_support/CMakeFiles/__idf_esp_hw_support.dir/port/esp32s3/rtc_init.c.obj
+[39/123] Linking C static library esp-idf/esp_hw_support/libesp_hw_support.a
+[40/123] Building C object esp-idf/efuse/CMakeFiles/__idf_efuse.dir/esp32s3/esp_efuse_rtc_calib.c.obj
+[41/123] Linking C static library esp-idf/esp_system/libesp_system.a
+[42/123] Building C object esp-idf/efuse/CMakeFiles/__idf_efuse.dir/esp32s3/esp_efuse_utility.c.obj
+[43/123] Building C object esp-idf/efuse/CMakeFiles/__idf_efuse.dir/src/esp_efuse_fields.c.obj
+[44/123] Building C object esp-idf/efuse/CMakeFiles/__idf_efuse.dir/src/esp_efuse_api.c.obj
+[45/123] Building C object esp-idf/efuse/CMakeFiles/__idf_efuse.dir/src/esp_efuse_utility.c.obj
+[46/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/bootloader_clock_init.c.obj
+[47/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/bootloader_mem.c.obj
+[48/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/bootloader_efuse.c.obj
+[49/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/bootloader_random.c.obj
+[50/123] Building C object esp-idf/efuse/CMakeFiles/__idf_efuse.dir/src/efuse_controller/keys/with_key_purposes/esp_efuse_api_key.c.obj
+[51/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/bootloader_common_loader.c.obj
+[52/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/bootloader_common.c.obj
+[53/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/secure_boot.c.obj
+[54/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/flash_encrypt.c.obj
+[55/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/bootloader_random_esp32s3.c.obj
+[56/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/flash_partitions.c.obj
+[57/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/bootloader_flash/src/flash_qio_mode.c.obj
+[58/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/bootloader_flash/src/bootloader_flash_config_esp32s3.c.obj
+[59/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/bootloader_sha.c.obj
+[60/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/bootloader_clock_loader.c.obj
+[61/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/bootloader_init.c.obj
+[62/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/bootloader_flash/src/bootloader_flash.c.obj
+[63/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/bootloader_console_loader.c.obj
+[64/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/esp32s3/bootloader_soc.c.obj
+[65/123] Linking C static library esp-idf/efuse/libefuse.a
+[66/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/bootloader_panic.c.obj
+[67/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/bootloader_console.c.obj
+[68/123] Building C object esp-idf/esp_bootloader_format/CMakeFiles/__idf_esp_bootloader_format.dir/esp_bootloader_desc.c.obj
+[69/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/esp32s3/bootloader_esp32s3.c.obj
+[70/123] Building C object esp-idf/hal/CMakeFiles/__idf_hal.dir/hal_utils.c.obj
+[71/123] Building C object esp-idf/hal/CMakeFiles/__idf_hal.dir/mpu_hal.c.obj
+[72/123] Building C object esp-idf/hal/CMakeFiles/__idf_hal.dir/efuse_hal.c.obj
+[73/123] Building C object esp-idf/spi_flash/CMakeFiles/__idf_spi_flash.dir/spi_flash_wrap.c.obj
+[74/123] Building C object esp-idf/hal/CMakeFiles/__idf_hal.dir/esp32s3/efuse_hal.c.obj
+[75/123] Building C object esp-idf/hal/CMakeFiles/__idf_hal.dir/mmu_hal.c.obj
+[76/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/dport_access_common.c.obj
+[77/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/interrupts.c.obj
+[78/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/lldesc.c.obj
+[79/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/bootloader_utility.c.obj
+[80/123] Building C object esp-idf/bootloader_support/CMakeFiles/__idf_bootloader_support.dir/src/esp_image_format.c.obj
+[81/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/gpio_periph.c.obj
+[82/123] Building C object esp-idf/hal/CMakeFiles/__idf_hal.dir/cache_hal.c.obj
+[83/123] Linking C static library esp-idf/bootloader_support/libbootloader_support.a
+[84/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/adc_periph.c.obj
+[85/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/dedic_gpio_periph.c.obj
+[86/123] Linking C static library esp-idf/esp_bootloader_format/libesp_bootloader_format.a
+[87/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/uart_periph.c.obj
+[88/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/gdma_periph.c.obj
+[89/123] Linking C static library esp-idf/spi_flash/libspi_flash.a
+[90/123] Linking C static library esp-idf/hal/libhal.a
+[91/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/rmt_periph.c.obj
+[92/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/ledc_periph.c.obj
+[93/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/sdm_periph.c.obj
+[94/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/pcnt_periph.c.obj
+[95/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/spi_periph.c.obj
+[96/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/i2s_periph.c.obj
+[97/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/i2c_periph.c.obj
+[98/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/timer_periph.c.obj
+[99/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/temperature_sensor_periph.c.obj
+[100/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/lcd_periph.c.obj
+[101/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/mcpwm_periph.c.obj
+[102/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/touch_sensor_periph.c.obj
+[103/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/mpi_periph.c.obj
+[104/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/twai_periph.c.obj
+[105/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/sdmmc_periph.c.obj
+[106/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/usb_dwc_periph.c.obj
+[107/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/wdt_periph.c.obj
+[108/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/cam_periph.c.obj
+[109/123] Generating project_elf_src_esp32s3.c
+[110/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/power_supply_periph.c.obj
+[111/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/rtc_io_periph.c.obj
+[112/123] Building C object esp-idf/xtensa/CMakeFiles/__idf_xtensa.dir/eri.c.obj
+[113/123] Building C object CMakeFiles/bootloader.elf.dir/project_elf_src_esp32s3.c.obj
+[114/123] Building C object esp-idf/xtensa/CMakeFiles/__idf_xtensa.dir/xt_trax.c.obj
+[115/123] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/bootloader_start.c.obj
+[116/123] Building C object esp-idf/micro-ecc/CMakeFiles/__idf_micro-ecc.dir/uECC_verify_antifault.c.obj
+[117/123] Linking C static library esp-idf/micro-ecc/libmicro-ecc.a
+[118/123] Linking C static library esp-idf/soc/libsoc.a
+[119/123] Linking C static library esp-idf/xtensa/libxtensa.a
+[120/123] Linking C static library esp-idf/main/libmain.a
+[121/123] Linking C executable bootloader.elf
+[122/123] Generating binary image from built executable
+esptool.py v4.12.0
+Creating esp32s3 image...
+Merged 2 ELF sections
+Successfully created esp32s3 image.
+Generated /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/test_app/build/bootloader/bootloader.bin
+[123/123] cd /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/test_app/build/bootloader/esp-idf/esptool_py && /home/runner/.espressif/python_env/idf5.5_py3.12_env/bin/python /home/runner/esp/esp-idf-v5.5.5/components/partition_table/check_sizes.py --offset 0x8000 bootloader 0x0 /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/test_app/build/bootloader/bootloader.bin
+Bootloader binary size 0x5160 bytes. 0x2ea0 bytes (36%) free.
+[1122/1128] No install step for 'bootloader'
+[1123/1128] Completed 'bootloader'
+[1124/1128] Generating esp-idf/esp_system/ld/sections.ld
+[1125/1128] Building C object CMakeFiles/esp32_macro_keyboard_device_tests.elf.dir/project_elf_src_esp32s3.c.obj
+[1126/1128] Linking CXX executable esp32_macro_keyboard_device_tests.elf
+[1127/1128] Generating binary image from built executable
+esptool.py v4.12.0
+Creating esp32s3 image...
+Merged 2 ELF sections
+Successfully created esp32s3 image.
+Generated /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/test_app/build/esp32_macro_keyboard_device_tests.bin
+[1128/1128] cd /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/test_app/build/esp-idf/esptool_py && /home/runner/.espressif/python_env/idf5.5_py3.12_env/bin/python /home/runner/esp/esp-idf-v5.5.5/components/partition_table/check_sizes.py --offset 0x8000 partition --type app /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/test_app/build/partition_table/partition-table.bin /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/test_app/build/esp32_macro_keyboard_device_tests.bin
+esp32_macro_keyboard_device_tests.bin binary size 0x2f200 bytes. Smallest app partition is 0x100000 bytes. 0xd0e00 bytes (82%) free.
 
-[31/83][0.6s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/app_core/app_core.c
-996 warnings generated.
-Suppressed 996 warnings (996 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+Project build complete. To flash, run:
+ idf.py flash
+or
+ idf.py -p PORT flash
+or
+ python -m esptool --chip esp32s3 -b 460800 --before default_reset --after hard_reset write_flash --flash_mode dio --flash_size 8MB --flash_freq 80m 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/esp32_macro_keyboard_device_tests.bin
+or from the "/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/test_app/build" directory
+ python -m esptool --chip esp32s3 -b 460800 --before default_reset --after hard_reset write_flash "@flash_args"
+CMake Warning at /home/runner/esp/esp-idf-v5.5.5/components/esp_common/project_include.cmake:14 (message):
+  Building ESP-IDF with clang is an experimental feature and is not yet
+  officially supported.
+Call Stack (most recent call first):
+  /home/runner/esp/esp-idf-v5.5.5/tools/cmake/build.cmake:471 (include)
+  /home/runner/esp/esp-idf-v5.5.5/tools/cmake/build.cmake:722 (__build_process_project_includes)
+  /home/runner/esp/esp-idf-v5.5.5/tools/cmake/project.cmake:752 (idf_build_process)
+  CMakeLists.txt:16 (project)
 
-[32/83][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth.c
-1479 warnings generated.
-Suppressed 1479 warnings (1479 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[33/83][1.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c
-998 warnings generated.
-Suppressed 998 warnings (998 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
-[34/83][5.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c
-1137 warnings generated.
-Suppressed 1137 warnings (1137 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+added 471 packages, and audited 472 packages in 5s
 
-[35/83][5.0s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/app_core/app_core_sequence.c
-687 warnings generated.
-Suppressed 687 warnings (687 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+18 vulnerabilities (16 high, 2 critical)
 
-[36/83][3.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_common.c
-149 warnings generated.
-Suppressed 149 warnings (149 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+To address issues that do not require attention, run:
+  npm audit fix
 
-[37/83][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_logout_execution.c
-1442 warnings generated.
-Suppressed 1442 warnings (1442 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+To address all issues (including breaking changes), run:
+  npm audit fix --force
 
-[38/83][0.8s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c
-1133 warnings generated.
-Suppressed 1133 warnings (1133 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+Run `npm audit` for details.
+npm warn allow-scripts 2 packages have install scripts not yet covered by allowScripts:
+npm warn allow-scripts   @tailwindcss/oxide@4.1.11 (postinstall: node ./scripts/install.js)
+npm warn allow-scripts   esbuild@0.25.12 (postinstall: node install.js)
+npm warn allow-scripts
+npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
 
-[39/83][0.8s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic_validators.c
-908 warnings generated.
-Suppressed 908 warnings (908 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+> esp32-macro-keyboard-webapp@0.1.0 typecheck
+> tsc -b --pretty false
 
-[40/83][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_dispatch.c
-164 warnings generated.
-Suppressed 164 warnings (164 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[41/83][3.9s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_parser.c
-866 warnings generated.
-Suppressed 866 warnings (866 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+> esp32-macro-keyboard-webapp@0.1.0 lint
+> eslint . --max-warnings=0
 
-[42/83][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/wifi_ap/wifi_ap_state.c
-682 warnings generated.
-Suppressed 682 warnings (682 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[43/83][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c
-1285 warnings generated.
-Suppressed 1285 warnings (1285 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+> esp32-macro-keyboard-webapp@0.1.0 stylelint
+> stylelint 'src/**/*.css' --max-warnings=0
 
-[44/83][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_execution.c
-1492 warnings generated.
-Suppressed 1492 warnings (1492 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[45/83][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/usb_keyboard/usb_keyboard_state.c
-134 warnings generated.
-Suppressed 134 warnings (134 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+> esp32-macro-keyboard-webapp@0.1.0 test
+> vitest run
 
-[46/83][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_mount.c
-879 warnings generated.
-Suppressed 879 warnings (879 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[47/83][3.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_set_operations.c
-1440 warnings generated.
-Suppressed 1440 warnings (1440 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90m/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/webapp[39m
 
-[48/83][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_request_policy.c
-712 warnings generated.
-Suppressed 712 warnings (712 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+ [32m✓[39m tests/api.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+ [32m✓[39m tests/app-execution.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 106[2mms[22m[39m
+ [32m✓[39m tests/app-auth.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 135[2mms[22m[39m
+ [32m✓[39m tests/app.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m tests/error-banner.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m tests/app-routing.test.tsx [2m([22m[2m23 tests[22m[2m)[22m[32m 187[2mms[22m[39m
 
-[49/83][3.6s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_api.c
-1472 warnings generated.
-Suppressed 1472 warnings (1472 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+[2m Test Files [22m [1m[32m6 passed[39m[22m[90m (6)[39m
+[2m      Tests [22m [1m[32m57 passed[39m[22m[90m (57)[39m
+[2m   Start at [22m 21:01:05
+[2m   Duration [22m 1.94s[2m (transform 214ms, setup 159ms, collect 421ms, tests 521ms, environment 2.84s, prepare 481ms)[22m
 
-[50/83][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c
-902 warnings generated.
-Suppressed 902 warnings (902 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[51/83][1.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c
-1445 warnings generated.
-Suppressed 1445 warnings (1445 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+> esp32-macro-keyboard-webapp@0.1.0 build
+> tsc -b && vite build
 
-[52/83][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c
-913 warnings generated.
-Suppressed 913 warnings (913 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+[36mvite v7.0.6 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 33 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                 [39m[1m[2m  0.46 kB[22m[1m[22m[2m │ gzip:  0.30 kB[22m
+[2mdist/[22m[2massets/[22m[35mindex-CYVBQS_1.css  [39m[1m[2m  6.30 kB[22m[1m[22m[2m │ gzip:  2.10 kB[22m
+[2mdist/[22m[2massets/[22m[36mindex-DsK75504.js   [39m[1m[2m197.71 kB[22m[1m[22m[2m │ gzip: 62.39 kB[22m
+[32m✓ built in 953ms[39m
+ok    analyzer executable missing fails
+ok    analyzer nonzero exit with no warnings fails
+ok    zero exit with a first-party warning fails
+ok    zero exit with a first-party include-cycle finding fails
+ok    zero exit with only third-party warnings passes
+ok    missing compile database fails
+ok    invalid compile database fails
+ok    zero first-party translation units fails
+ok    clean run passes
 
-[53/83][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/wifi_ap/wifi_ap.c
-1446 warnings generated.
-Suppressed 1446 warnings (1446 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+9 tests, 0 failed
+ok    first-party include cycle fails
+ok    first-party include cycle is reported
+ok    third-party include cycle is excluded
+ok    third-party include cycle produces no finding
+ok    first-party unit without a cycle passes
 
-[54/83][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c
-857 warnings generated.
-Suppressed 857 warnings (857 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+5 tests, 0 failed
+ok    real configuration passes
+ok    fourth disabled check fails
+ok    wildcard broadening fails
+ok    weakened WarningsAsErrors fails
+ok    first-party NOLINT fails
+ok    first-party -Wno- fails
 
-[55/83][7.9s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c
-1186 warnings generated.
-Suppressed 1186 warnings (1186 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[56/83][2.8s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c
-762 warnings generated.
-Suppressed 762 warnings (762 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[57/83][0.0s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c
-[58/83][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/usb_keyboard/usb_descriptors.c
-1454 warnings generated.
-Suppressed 1454 warnings (1454 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[59/83][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_execution_submit.c
-702 warnings generated.
-Suppressed 702 warnings (702 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[60/83][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_session.c
-687 warnings generated.
-Suppressed 687 warnings (687 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[61/83][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_macros.c
-998 warnings generated.
-Suppressed 998 warnings (998 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[62/83][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/support/app_operation_result.c
-15 warnings generated.
-Suppressed 15 warnings (15 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[63/83][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c
-1445 warnings generated.
-Suppressed 1445 warnings (1445 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[64/83][2.6s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_cookie.c
-682 warnings generated.
-Suppressed 682 warnings (682 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[65/83][0.6s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_executor/macro_executor.c
-1308 warnings generated.
-Suppressed 1308 warnings (1308 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[66/83][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_static_path.c
-672 warnings generated.
-Suppressed 672 warnings (672 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[67/83][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_keymap_us.c
-672 warnings generated.
-Suppressed 672 warnings (672 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[68/83][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_admin_boundary.c
-882 warnings generated.
-Suppressed 882 warnings (882 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[69/83][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_rate_limit.c
-311 warnings generated.
-Suppressed 311 warnings (311 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[70/83][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c
-/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c:131:50: error: no header providing "macro_set_t" is directly included [misc-include-cleaner,-warnings-as-errors]
-   13 |                                                  macro_set_t *out_set) {
-      |                                                  ^
-/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c:152:52: error: no header providing "macro_t" is directly included [misc-include-cleaner,-warnings-as-errors]
-  152 |                                                    macro_t *out_macro) {
-      |                                                    ^
-/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c:168:56: error: no header providing "procedure_t" is directly included [misc-include-cleaner,-warnings-as-errors]
-  168 |                                                        procedure_t *out_procedure) {
-      |                                                        ^
-/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c:188:55: error: no header providing "procedure_progress_t" is directly included [misc-include-cleaner,-warnings-as-errors]
-  188 |                                                       procedure_progress_t *out_progress) {
-      |                                                       ^
-789 warnings generated.
-Suppressed 785 warnings (785 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-4 warnings treated as errors
-
-[71/83][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_setup.c
-1447 warnings generated.
-Suppressed 1447 warnings (1447 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[72/83][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c
-1440 warnings generated.
-Suppressed 1440 warnings (1440 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[73/83][0.7s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_handler_common.c
-802 warnings generated.
-Suppressed 802 warnings (802 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[74/83][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c
-749 warnings generated.
-Suppressed 749 warnings (749 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[75/83][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_executor/macro_executor_engine.c
-682 warnings generated.
-Suppressed 682 warnings (682 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[76/83][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/main/app_main.c
-745 warnings generated.
-Suppressed 745 warnings (745 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[77/83][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_lifecycle.c
-1442 warnings generated.
-Suppressed 1442 warnings (1442 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[78/83][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_mount_core.c
-144 warnings generated.
-Suppressed 144 warnings (144 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[79/83][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning_bootstrap_core.c
-682 warnings generated.
-Suppressed 682 warnings (682 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[80/83][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_json.c
-867 warnings generated.
-Suppressed 867 warnings (867 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[81/83][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/usb_keyboard/usb_keyboard.c
-1454 warnings generated.
-Suppressed 1454 warnings (1454 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[82/83][1.0s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_administration.c
-1554 warnings generated.
-Suppressed 1554 warnings (1554 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[83/83][2.9s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic_recovery.c
-1042 warnings generated.
-Suppressed 1042 warnings (1042 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-error: run-clang-tidy failed for /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware with status 1
+6 tests, 0 failed
+check-partitions regression tests passed: 9
+check-production-config regression tests passed: 10
+check-credential-logging regression tests passed: 9
+setup-label generator tests passed
+check-setup-route-isolation regression tests passed: 6
+markdownlint-cli2 v0.23.1 (markdownlint v0.41.1)
+Finding: **/*.md !**/node_modules !**/managed_components !tests/host/build
+Linting: 69 files
+Summary: 1 issue in 1 file
+docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md:1726 error MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 2]
 ```
