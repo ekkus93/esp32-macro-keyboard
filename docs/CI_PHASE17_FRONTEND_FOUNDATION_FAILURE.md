@@ -14,6 +14,7 @@
 ## phase17-foundation-transform.log
 
 ```text
+1:expected one session validator output contract, found 0
 
-Phase 17 frontend payload is missing
+expected one session validator output contract, found 0
 ```
