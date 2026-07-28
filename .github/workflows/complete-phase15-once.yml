@@ -53,6 +53,7 @@ jobs:
         shell: bash
         run: |
           set +e
+          rm -f docs/CI_PHASE15_FAILURE.md
           cp scripts/complete-phase15.py /tmp/complete-phase15.py
           python3 scripts/complete-phase15.py 2>&1 | tee /tmp/phase15-apply.log
           status=${PIPESTATUS[0]}
@@ -70,39 +71,43 @@ jobs:
           path = Path("firmware/components/storage/storage_repository_progress.c")
           text = path.read_text(encoding="utf-8")
           old = '''static app_error_code_t write_progress_locked(const storage_procedure_identity_t *identity,
-                                              const procedure_progress_t *replacement,
-                                              storage_progress_snapshot_t *out_snapshot) {
-    if (out_snapshot != NULL) {
-        memset(out_snapshot, 0, sizeof(*out_snapshot));
-    }
-    if (!identity_valid(identity) || !progress_matches_identity(replacement, identity) ||
-        out_snapshot == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-'''
+                                                    const procedure_progress_t *replacement,
+                                                    storage_progress_snapshot_t *out_snapshot) {
+              if (out_snapshot != NULL) {
+                  memset(out_snapshot, 0, sizeof(*out_snapshot));
+              }
+              if (!identity_valid(identity) || !progress_matches_identity(replacement, identity) ||
+                  out_snapshot == NULL) {
+                  return APP_ERROR_INVALID_ARGUMENT;
+              }
+          '''
           new = '''static app_error_code_t write_progress_locked(const storage_procedure_identity_t *identity,
-                                              const procedure_progress_t *replacement,
-                                              storage_progress_snapshot_t *out_snapshot) {
-    procedure_progress_t candidate = {0};
-    if (replacement != NULL) {
-        candidate = *replacement;
-    }
-    if (out_snapshot != NULL) {
-        memset(out_snapshot, 0, sizeof(*out_snapshot));
-    }
-    if (!identity_valid(identity) || !progress_matches_identity(&candidate, identity) ||
-        out_snapshot == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-'''
+                                                    const procedure_progress_t *replacement,
+                                                    storage_progress_snapshot_t *out_snapshot) {
+              procedure_progress_t candidate = {0};
+              if (replacement != NULL) {
+                  candidate = *replacement;
+              }
+              if (out_snapshot != NULL) {
+                  memset(out_snapshot, 0, sizeof(*out_snapshot));
+              }
+              if (!identity_valid(identity) || !progress_matches_identity(&candidate, identity) ||
+                  out_snapshot == NULL) {
+                  return APP_ERROR_INVALID_ARGUMENT;
+              }
+          '''
           if text.count(old) != 1:
               raise RuntimeError("progress alias-safety patch did not match exactly once")
           text = text.replace(old, new, 1)
           text = text.replace("replacement->procedure_revision", "candidate.procedure_revision")
-          text = text.replace("progress_steps_belong_to_procedure(replacement, &procedure)",
-                              "progress_steps_belong_to_procedure(&candidate, &procedure)")
-          text = text.replace("storage_repository_serialize_progress_json(replacement, &json, &length)",
-                              "storage_repository_serialize_progress_json(&candidate, &json, &length)")
+          text = text.replace(
+              "progress_steps_belong_to_procedure(replacement, &procedure)",
+              "progress_steps_belong_to_procedure(&candidate, &procedure)",
+          )
+          text = text.replace(
+              "storage_repository_serialize_progress_json(replacement, &json, &length)",
+              "storage_repository_serialize_progress_json(&candidate, &json, &length)",
+          )
           path.write_text(text, encoding="utf-8")
           PY
             status=${PIPESTATUS[0]}
@@ -222,11 +227,17 @@ jobs:
             echo "# FIX1 Phase 15 automation failure"
             echo
             echo "Apply outcome: ${{ steps.apply.outcome }}"
-            echo "Apply status: ${{ steps.apply.outputs.status }}"
+            if [[ -n "${{ steps.apply.outputs.status }}" ]]; then
+              echo "Apply status: ${{ steps.apply.outputs.status }}"
+            fi
             echo "Validation outcome: ${{ steps.validate.outcome }}"
-            echo "Validation status: ${{ steps.validate.outputs.status }}"
+            if [[ -n "${{ steps.validate.outputs.status }}" ]]; then
+              echo "Validation status: ${{ steps.validate.outputs.status }}"
+            fi
             echo "Evidence outcome: ${{ steps.evidence.outcome }}"
-            echo "Evidence status: ${{ steps.evidence.outputs.status }}"
+            if [[ -n "${{ steps.evidence.outputs.status }}" ]]; then
+              echo "Evidence status: ${{ steps.evidence.outputs.status }}"
+            fi
             echo
             echo "## Apply log"
             echo
@@ -246,6 +257,7 @@ jobs:
             tail -n 300 /tmp/phase15-evidence.log 2>/dev/null || true
             echo '```'
           } > docs/CI_PHASE15_FAILURE.md
+          sed -i 's/[[:space:]]\+$//' docs/CI_PHASE15_FAILURE.md
           git add docs/CI_PHASE15_FAILURE.md
           git commit -m "ci: record FIX1 Phase 15 failure"
           git push origin HEAD:master
