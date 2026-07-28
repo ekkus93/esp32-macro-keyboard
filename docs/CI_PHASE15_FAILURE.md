@@ -14,6 +14,18 @@ Evidence outcome: skipped
 ## Validation log
 
 ```text
+[108/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/cam_periph.c.obj
+[109/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/power_supply_periph.c.obj
+[110/123] Generating project_elf_src_esp32s3.c
+[111/123] Building C object esp-idf/soc/CMakeFiles/__idf_soc.dir/esp32s3/rtc_io_periph.c.obj
+[112/123] Building C object esp-idf/xtensa/CMakeFiles/__idf_xtensa.dir/eri.c.obj
+[113/123] Building C object CMakeFiles/bootloader.elf.dir/project_elf_src_esp32s3.c.obj
+[114/123] Building C object esp-idf/xtensa/CMakeFiles/__idf_xtensa.dir/xt_trax.c.obj
+[115/123] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/bootloader_start.c.obj
+[116/123] Building C object esp-idf/micro-ecc/CMakeFiles/__idf_micro-ecc.dir/uECC_verify_antifault.c.obj
+[117/123] Linking C static library esp-idf/micro-ecc/libmicro-ecc.a
+[118/123] Linking C static library esp-idf/soc/libsoc.a
+[119/123] Linking C static library esp-idf/xtensa/libxtensa.a
 [120/123] Linking C static library esp-idf/main/libmain.a
 [121/123] Linking C executable bootloader.elf
 [122/123] Generating binary image from built executable
@@ -366,187 +378,263 @@ Enabled checks:
     readability-use-std-min-max
 
 Running clang-tidy for 67 files out of 1059 in compilation database ...
-[ 1/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_mount_core.c
-144 warnings generated.
-Suppressed 144 warnings (144 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[ 2/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/usb_keyboard/usb_keyboard_state.c
+[ 1/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/usb_keyboard/usb_keyboard_state.c
 134 warnings generated.
 Suppressed 134 warnings (134 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[ 3/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_password.c
-687 warnings generated.
-Suppressed 687 warnings (687 in non-user code).
+[ 2/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_mount_core.c
+144 warnings generated.
+Suppressed 144 warnings (144 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[ 4/67][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_logout_execution.c
-1442 warnings generated.
-Suppressed 1442 warnings (1442 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[ 5/67][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_executor/macro_executor_engine.c
-682 warnings generated.
-Suppressed 682 warnings (682 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[ 6/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_json.c
-867 warnings generated.
-Suppressed 867 warnings (867 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[ 7/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_static_path.c
-672 warnings generated.
-Suppressed 672 warnings (672 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[ 8/67][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_common.c
-687 warnings generated.
-Suppressed 687 warnings (687 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[ 9/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/usb_keyboard/usb_keyboard.c
-1454 warnings generated.
-Suppressed 1454 warnings (1454 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[10/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c
-911 warnings generated.
-Suppressed 911 warnings (911 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[11/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_status_limits.c
-1437 warnings generated.
-Suppressed 1437 warnings (1437 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[12/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c
-677 warnings generated.
-Suppressed 677 warnings (677 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[13/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_mount.c
-879 warnings generated.
-Suppressed 879 warnings (879 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[14/67][2.8s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_cookie.c
-682 warnings generated.
-Suppressed 682 warnings (682 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[15/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_cancel.c
-1437 warnings generated.
-Suppressed 1437 warnings (1437 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[16/67][2.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c
-1451 warnings generated.
-Suppressed 1451 warnings (1451 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[17/67][1.8s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c
-1445 warnings generated.
-Suppressed 1445 warnings (1445 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[18/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/support/app_operation_result.c
-15 warnings generated.
-Suppressed 15 warnings (15 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[19/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_static_stream.c
-876 warnings generated.
-Suppressed 876 warnings (876 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[20/67][4.0s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning_core.c
-692 warnings generated.
-Suppressed 692 warnings (692 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[21/67][8.0s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c
-1186 warnings generated.
-Suppressed 1186 warnings (1186 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[22/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_session.c
-687 warnings generated.
-Suppressed 687 warnings (687 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[23/67][3.8s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c
-762 warnings generated.
-Suppressed 762 warnings (762 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[24/67][3.9s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_common.c
-149 warnings generated.
-Suppressed 149 warnings (149 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[25/67][0.7s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_common.c
+[ 3/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_common.c
 1499 warnings generated.
 Suppressed 1499 warnings (1499 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[26/67][0.6s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_login.c
-1504 warnings generated.
-Suppressed 1504 warnings (1504 in non-user code).
+[ 4/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c
+894 warnings generated.
+Suppressed 894 warnings (894 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[27/67][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c
-857 warnings generated.
-Suppressed 857 warnings (857 in non-user code).
+[ 5/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_origin.c
+667 warnings generated.
+Suppressed 667 warnings (667 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[28/67][5.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_setup_json.c
-759 warnings generated.
-Suppressed 759 warnings (759 in non-user code).
+[ 6/67][2.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c
+1451 warnings generated.
+Suppressed 1451 warnings (1451 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[29/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/main/app_main.c
-745 warnings generated.
-Suppressed 745 warnings (745 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[30/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_static.c
+[ 7/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_static.c
 1447 warnings generated.
 Suppressed 1447 warnings (1447 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[31/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning_bootstrap.c
-874 warnings generated.
-Suppressed 874 warnings (874 in non-user code).
+[ 8/67][2.7s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_content.c
+672 warnings generated.
+Suppressed 672 warnings (672 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[32/67][0.6s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_executor/macro_executor.c
-1308 warnings generated.
-Suppressed 1308 warnings (1308 in non-user code).
+[ 9/67][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_executor/macro_executor_engine.c
+682 warnings generated.
+Suppressed 682 warnings (682 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[33/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_rate_limit.c
-311 warnings generated.
-Suppressed 311 warnings (311 in non-user code).
+[10/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c
+1440 warnings generated.
+Suppressed 1440 warnings (1440 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[34/67][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/app_core/app_core.c
-996 warnings generated.
-Suppressed 996 warnings (996 in non-user code).
+[11/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_logout_execution.c
+1442 warnings generated.
+Suppressed 1442 warnings (1442 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[35/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_lifecycle.c
+[12/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c
+749 warnings generated.
+Suppressed 749 warnings (749 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[13/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/wifi_ap/wifi_ap.c
+1446 warnings generated.
+Suppressed 1446 warnings (1446 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[14/67][0.0s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c
+[15/67][4.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c
+1132 warnings generated.
+Suppressed 1132 warnings (1132 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[16/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_mount.c
+879 warnings generated.
+Suppressed 879 warnings (879 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[17/67][0.9s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c
+1128 warnings generated.
+Suppressed 1128 warnings (1128 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[18/67][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_setup_core.c
+692 warnings generated.
+Suppressed 692 warnings (692 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[19/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_setup.c
+1447 warnings generated.
+Suppressed 1447 warnings (1447 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[20/67][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_common.c
 687 warnings generated.
 Suppressed 687 warnings (687 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[36/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth.c
-1479 warnings generated.
-Suppressed 1479 warnings (1479 in non-user code).
+[21/67][4.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/app_core/app_core_sequence.c
+687 warnings generated.
+Suppressed 687 warnings (687 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[37/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning.c
+[22/67][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_cancel.c
+1437 warnings generated.
+Suppressed 1437 warnings (1437 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[23/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c
+1440 warnings generated.
+Suppressed 1440 warnings (1440 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[24/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_lifecycle.c
+1442 warnings generated.
+Suppressed 1442 warnings (1442 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[25/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_body_auth.c
+154 warnings generated.
+Suppressed 154 warnings (154 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[26/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/main/app_main.c
+745 warnings generated.
+Suppressed 745 warnings (745 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[27/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_login.c
+1504 warnings generated.
+Suppressed 1504 warnings (1504 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[28/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_mount_topology.c
+816 warnings generated.
+Suppressed 816 warnings (816 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[29/67][1.6s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c
+1445 warnings generated.
+Suppressed 1445 warnings (1445 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[30/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_static_path.c
+672 warnings generated.
+Suppressed 672 warnings (672 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[31/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c
+913 warnings generated.
+Suppressed 913 warnings (913 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[32/67][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/app_core/app_core.c
+996 warnings generated.
+Suppressed 996 warnings (996 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[33/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning_bootstrap_core.c
+682 warnings generated.
+Suppressed 682 warnings (682 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[34/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_json.c
+867 warnings generated.
+Suppressed 867 warnings (867 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[35/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/usb_keyboard/usb_keyboard.c
+1454 warnings generated.
+Suppressed 1454 warnings (1454 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[36/67][0.6s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_executor/macro_executor.c
+1308 warnings generated.
+Suppressed 1308 warnings (1308 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[37/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_lifecycle.c
+687 warnings generated.
+Suppressed 687 warnings (687 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[38/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/support/app_operation_result.c
+15 warnings generated.
+Suppressed 15 warnings (15 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[39/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_status_limits.c
+1437 warnings generated.
+Suppressed 1437 warnings (1437 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[40/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/device_controls/device_controls.c
+1315 warnings generated.
+Suppressed 1315 warnings (1315 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[41/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_rate_limit.c
+311 warnings generated.
+Suppressed 311 warnings (311 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[42/67][3.8s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_common.c
+149 warnings generated.
+Suppressed 149 warnings (149 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[43/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c
+911 warnings generated.
+Suppressed 911 warnings (911 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[44/67][5.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic_recovery.c
+1042 warnings generated.
+Suppressed 1042 warnings (1042 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[45/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c
+677 warnings generated.
+Suppressed 677 warnings (677 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[46/67][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c
+857 warnings generated.
+Suppressed 857 warnings (857 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[47/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_password.c
+687 warnings generated.
+Suppressed 687 warnings (687 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[48/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth_core_session.c
+687 warnings generated.
+Suppressed 687 warnings (687 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[49/67][0.9s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic_validators.c
+908 warnings generated.
+Suppressed 908 warnings (908 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[50/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/usb_keyboard/usb_descriptors.c
+1454 warnings generated.
+Suppressed 1454 warnings (1454 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[51/67][8.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c
+1186 warnings generated.
+Suppressed 1186 warnings (1186 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[52/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_static_stream.c
+876 warnings generated.
+Suppressed 876 warnings (876 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[53/67][0.7s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning.c
 /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning.c:226:65: error: no header providing "app_uuid_t" is directly included [misc-include-cleaner,-warnings-as-errors]
     8 | app_error_code_t provisioning_clear_active_set_if_matches(const app_uuid_t *set_id,
       |                                                                 ^
@@ -555,162 +643,74 @@ Suppressed 1320 warnings (1320 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 1 warning treated as error
 
-[38/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c
-749 warnings generated.
-Suppressed 749 warnings (749 in non-user code).
+[54/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c
+1440 warnings generated.
+Suppressed 1440 warnings (1440 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[39/67][0.6s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/device_controls/device_controls.c
-1315 warnings generated.
-Suppressed 1315 warnings (1315 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[40/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/wifi_ap/wifi_ap.c
-1446 warnings generated.
-Suppressed 1446 warnings (1446 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[41/67][4.6s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c
-1132 warnings generated.
-Suppressed 1132 warnings (1132 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[42/67][5.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c
-1115 warnings generated.
-Suppressed 1115 warnings (1115 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[43/67][0.8s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic_validators.c
-908 warnings generated.
-Suppressed 908 warnings (908 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[44/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_setup.c
-1447 warnings generated.
-Suppressed 1447 warnings (1447 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[45/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_adapter_body_auth.c
-154 warnings generated.
-Suppressed 154 warnings (154 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[46/67][3.0s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_content.c
-672 warnings generated.
-Suppressed 672 warnings (672 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[47/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/wifi_ap/wifi_ap_state.c
+[55/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/wifi_ap/wifi_ap_state.c
 682 warnings generated.
 Suppressed 682 warnings (682 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[48/67][0.9s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c
-1128 warnings generated.
-Suppressed 1128 warnings (1128 in non-user code).
+[56/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning_bootstrap.c
+874 warnings generated.
+Suppressed 874 warnings (874 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[49/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/usb_keyboard/usb_descriptors.c
-1454 warnings generated.
-Suppressed 1454 warnings (1454 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[50/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_mount_topology.c
-816 warnings generated.
-Suppressed 816 warnings (816 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[51/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c
-1440 warnings generated.
-Suppressed 1440 warnings (1440 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[52/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_keymap_us.c
+[57/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_keymap_us.c
 672 warnings generated.
 Suppressed 672 warnings (672 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[53/67][6.8s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/device_controls/device_controls_logic.c
-672 warnings generated.
-Suppressed 672 warnings (672 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[54/67][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c
-1285 warnings generated.
-Suppressed 1285 warnings (1285 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[55/67][4.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/app_core/app_core_sequence.c
-687 warnings generated.
-Suppressed 687 warnings (687 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[56/67][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_setup_core.c
-692 warnings generated.
-Suppressed 692 warnings (692 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[57/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c
-/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c:111:15: error: no header providing "APP_PATH_MAX_BYTES" is directly included [misc-include-cleaner,-warnings-as-errors]
-    1 |     char path[APP_PATH_MAX_BYTES];
-      |               ^
-/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c:212:27: error: no header providing "APP_SCHEMA_VERSION" is directly included [misc-include-cleaner,-warnings-as-errors]
-  212 |         .schema_version = APP_SCHEMA_VERSION,
-      |                           ^
-915 warnings generated.
-Suppressed 913 warnings (913 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-2 warnings treated as errors
-
-[58/67][0.5s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c
-/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c:21:1: error: included header storage_repository_sets_internal.h is not used directly [misc-include-cleaner,-warnings-as-errors]
-   21 | #include "storage_repository_sets_internal.h"
-      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-   22 |
-1441 warnings generated.
-Suppressed 1440 warnings (1440 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-1 warning treated as error
-
-[59/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_server_lifecycle.c
-1442 warnings generated.
-Suppressed 1442 warnings (1442 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[60/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c
-1440 warnings generated.
-Suppressed 1440 warnings (1440 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[61/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_origin.c
-667 warnings generated.
-Suppressed 667 warnings (667 in non-user code).
-Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
-
-[62/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c
+[58/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c
 902 warnings generated.
 Suppressed 902 warnings (902 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[63/67][0.0s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c
-[64/67][4.8s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic_recovery.c
-1042 warnings generated.
-Suppressed 1042 warnings (1042 in non-user code).
+[59/67][3.9s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning_core.c
+692 warnings generated.
+Suppressed 692 warnings (692 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[65/67][0.1s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/provisioning/provisioning_bootstrap_core.c
+[60/67][4.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_parser.c
+866 warnings generated.
+Suppressed 866 warnings (866 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[61/67][0.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/auth/auth.c
+1479 warnings generated.
+Suppressed 1479 warnings (1479 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[62/67][2.7s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_cookie.c
 682 warnings generated.
 Suppressed 682 warnings (682 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[66/67][0.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c
-894 warnings generated.
-Suppressed 894 warnings (894 in non-user code).
+[63/67][3.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c
+762 warnings generated.
+Suppressed 762 warnings (762 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
-[67/67][2.9s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_parser.c
-866 warnings generated.
-Suppressed 866 warnings (866 in non-user code).
+[64/67][0.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c
+1285 warnings generated.
+Suppressed 1285 warnings (1285 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[65/67][7.4s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/device_controls/device_controls_logic.c
+672 warnings generated.
+Suppressed 672 warnings (672 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[66/67][3.2s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_setup_json.c
+759 warnings generated.
+Suppressed 759 warnings (759 in non-user code).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+
+[67/67][4.3s] /home/runner/.espressif/tools/esp-clang/esp-19.1.2_20250312/esp-clang/bin/clang-tidy --exclude-header-filter=(esp-idf|managed_components) -header-filter=/firmware/(main/|components/|test_app/main/) -p=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/build-clang /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c
+1115 warnings generated.
+Suppressed 1115 warnings (1115 in non-user code).
 Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
 
 error: run-clang-tidy failed for /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware with status 1
