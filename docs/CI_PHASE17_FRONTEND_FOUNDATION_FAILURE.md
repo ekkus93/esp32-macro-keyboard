@@ -14,17 +14,7 @@
 ## phase17-foundation-transform.log
 
 ```text
-11:binascii.Error: Excess data after padding
+1:expected one session JSON declaration, found 0
 
-Traceback (most recent call last):
-  File "/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/scripts/apply-phase17-foundation.py", line 34, in <module>
-    source = gzip.decompress(decode_chunks(module_name)).decode("utf-8")
-                             ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/scripts/apply-phase17-foundation.py", line 22, in decode_chunks
-    return base64.b64decode(encoded, validate=True)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.12/base64.py", line 88, in b64decode
-    return binascii.a2b_base64(s, strict_mode=validate)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-binascii.Error: Excess data after padding
+expected one session JSON declaration, found 0
 ```
