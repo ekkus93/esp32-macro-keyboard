@@ -6,9 +6,14 @@ on:
       - master
     paths:
       - ".github/workflows/fix-storage-quality-once.yml"
+      - "scripts/fix-storage-quality-once.py"
 
 permissions:
   contents: write
+
+concurrency:
+  group: fix-storage-quality-once
+  cancel-in-progress: true
 
 jobs:
   fix:
@@ -42,35 +47,95 @@ jobs:
         working-directory: webapp
         run: npm ci
 
-      - name: Apply storage quality fixes
+      - name: Apply and format storage fixes
+        id: apply
+        continue-on-error: true
         shell: bash
         run: |
-          printf '%s' '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' | base64 --decode | gzip --decompress > /tmp/fix.py
-          python3 /tmp/fix.py
-          clang-format -i \
-            firmware/components/storage/storage_paths.c \
-            firmware/components/storage/storage_json.c \
-            firmware/components/storage/storage_repository_order.h \
-            firmware/components/storage/storage_repository_order.c \
-            firmware/components/storage/storage_repository_procedures.c \
-            firmware/components/storage/storage_repository_macros.c \
-            firmware/components/storage/storage_repository_objects_json.c \
-            firmware/components/storage/storage_repository_objects_json.h \
-            firmware/components/storage/storage_atomic_validators.c \
-            tests/host/test_storage_object_json.c
-          rm -- ".github/workflows/fix-storage-quality-once.yml"
+          set +e
+          python3 scripts/fix-storage-quality-once.py 2>&1 | tee /tmp/apply.log
+          status=${PIPESTATUS[0]}
+          if [[ "${status}" -eq 0 ]]; then
+            clang-format -i \
+              firmware/components/storage/storage_paths.c \
+              firmware/components/storage/storage_json.c \
+              firmware/components/storage/storage_repository_order.h \
+              firmware/components/storage/storage_repository_order.c \
+              firmware/components/storage/storage_repository_procedures.c \
+              firmware/components/storage/storage_repository_macros.c \
+              firmware/components/storage/storage_repository_objects_json.c \
+              firmware/components/storage/storage_repository_objects_json.h \
+              firmware/components/storage/storage_atomic_validators.c \
+              tests/host/test_storage_object_json.c \
+              2>&1 | tee -a /tmp/apply.log
+            status=${PIPESTATUS[0]}
+          fi
+          if [[ "${status}" -eq 0 ]]; then
+            rm -f \
+              .github/workflows/fix-storage-quality-once.yml \
+              scripts/fix-storage-quality-once.py \
+              docs/CI_STORAGE_QUALITY_FAILURE.md
+          fi
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit "${status}"
 
       - name: Run authoritative checks
+        id: quality
+        if: steps.apply.outcome == 'success'
+        continue-on-error: true
         shell: bash
         run: |
+          set +e
           . "$HOME/esp/esp-idf-v5.5.5/export.sh"
-          ./scripts/check-all.sh
+          ./scripts/check-all.sh 2>&1 | tee /tmp/check-all.log
+          status=${PIPESTATUS[0]}
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit "${status}"
 
-      - name: Commit directly to master
+      - name: Commit passing fix directly to master
+        if: steps.apply.outcome == 'success' && steps.quality.outcome == 'success'
         shell: bash
         run: |
           git config user.name "ChatGPT"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add --all
           git commit -m "fix(storage): resolve authoritative quality findings"
+          git fetch origin master
+          git rebase origin/master
           git push origin HEAD:master
+
+      - name: Publish failure diagnostic
+        if: >-
+          always() &&
+          (steps.apply.outcome != 'success' || steps.quality.outcome != 'success')
+        shell: bash
+        run: |
+          git config user.name "ChatGPT"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin master
+          git reset --hard origin/master
+          mkdir -p docs
+          {
+            echo "# Storage quality fixer failure"
+            echo
+            echo "Apply outcome: ${{ steps.apply.outcome }}"
+            echo "Apply status: ${{ steps.apply.outputs.status }}"
+            echo "Quality outcome: ${{ steps.quality.outcome }}"
+            echo "Quality status: ${{ steps.quality.outputs.status }}"
+            echo
+            echo "## Apply log"
+            echo
+            echo '```text'
+            tail -n 300 /tmp/apply.log 2>/dev/null || true
+            echo '```'
+            echo
+            echo "## Authoritative-check log"
+            echo
+            echo '```text'
+            tail -n 500 /tmp/check-all.log 2>/dev/null || true
+            echo '```'
+          } > docs/CI_STORAGE_QUALITY_FAILURE.md
+          git add docs/CI_STORAGE_QUALITY_FAILURE.md
+          git commit -m "ci: record storage quality fixer failure"
+          git push origin HEAD:master
+          exit 1
