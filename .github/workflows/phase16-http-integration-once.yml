@@ -40,8 +40,11 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends \
-            build-essential clang-format clang-tidy cmake gcovr jq libcjson-dev shellcheck
+            build-essential clang-format clang-tidy cmake jq libcjson-dev python3-venv shellcheck
           python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
+          python3 -m venv "${RUNNER_TEMP}/gcovr"
+          "${RUNNER_TEMP}/gcovr/bin/python" -m pip install --disable-pip-version-check \
+            gcovr==8.6
           go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
@@ -74,7 +77,7 @@ jobs:
           {
             ./scripts/run-tests.sh web
             ./scripts/run-tests.sh --sanitizers web
-            ./scripts/generate-native-coverage.sh
+            PATH="${RUNNER_TEMP}/gcovr/bin:${PATH}" ./scripts/generate-native-coverage.sh
           } 2>&1 | tee /tmp/phase16-json-focused.log
 
       - uses: actions/setup-node@v4
