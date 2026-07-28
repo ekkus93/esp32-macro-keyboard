@@ -2,6 +2,7 @@
 """Repair policy transform matchers and execute only outstanding hardening."""
 
 from pathlib import Path
+import re
 import runpy
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,5 +37,37 @@ if route_start < 0 or route_end < 0:
     raise SystemExit("Phase 16 route-policy transform block changed unexpectedly")
 text = text[:route_start] + text[route_end:]
 
+auth_test_start = text.find("# Authentication-core coverage for read-only validation and token rejection.")
+auth_test_end = text.find('print("Phase 16 request-policy hardening applied")', auth_test_start)
+if auth_test_start < 0 or auth_test_end < 0:
+    raise SystemExit("Phase 16 auth-test transform block changed unexpectedly")
+text = text[:auth_test_start] + text[auth_test_end:]
 SCRIPT.write_text(text, encoding="utf-8")
 runpy.run_path(str(SCRIPT), run_name="__main__")
+
+auth_test = ROOT / "tests/host/auth_existing_tests.inc"
+auth_text = auth_test.read_text(encoding="utf-8")
+pattern = (
+    r"(TEST_CHECK\(auth_core_session_validate\(&core,\s*session\.session_token,\s*"
+    r"session\.csrf_token\) == APP_ERROR_NONE\);)(\s*fake\.now_us \+= 1000000U;)"
+)
+replacement = (
+    r"\1\n    TEST_CHECK(auth_core_session_validate_read_only(&core, session.session_token) ==\n"
+    r"               APP_ERROR_NONE);\n\2"
+)
+auth_text, count = re.subn(pattern, replacement, auth_text, count=1)
+if count != 1:
+    raise SystemExit(f"auth_existing_tests.inc: read-only success insertion matched {count}")
+pattern = (
+    r'(TEST_CHECK\(auth_core_session_validate\(&core, "short", wrong\) == '
+    r'APP_ERROR_AUTH_REQUIRED\);)'
+)
+replacement = (
+    r"\1\n    TEST_CHECK(auth_core_session_validate_read_only(&core, wrong) == APP_ERROR_AUTH_REQUIRED);\n"
+    r"    TEST_CHECK(auth_core_session_validate_read_only(NULL, session.session_token) ==\n"
+    r"               APP_ERROR_AUTH_REQUIRED);"
+)
+auth_text, count = re.subn(pattern, replacement, auth_text, count=1)
+if count != 1:
+    raise SystemExit(f"auth_existing_tests.inc: read-only rejection insertion matched {count}")
+auth_test.write_text(auth_text, encoding="utf-8")
