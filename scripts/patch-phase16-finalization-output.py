@@ -84,4 +84,11 @@ regex_once(
     "generated procedure-order helper call",
 )
 
+todo_path = ROOT / "docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md"
+todo_text = todo_path.read_text(encoding="utf-8")
+normalized_todo, blank_run_count = re.subn(r"\n{3,}", "\n\n", todo_text)
+if blank_run_count != 1:
+    raise SystemExit(f"expected one generated TODO multiple-blank run, found {blank_run_count}")
+todo_path.write_text(normalized_todo, encoding="utf-8")
+
 print("Phase 16 generated output corrections applied")
