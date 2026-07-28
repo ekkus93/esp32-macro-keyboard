@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +16,15 @@ def replace_once(relative: str, old: str, new: str, description: str) -> None:
     if count != 1:
         raise SystemExit(f"expected one {description}, found {count}")
     path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+
+def regex_once(relative: str, pattern: str, replacement: str, description: str) -> None:
+    path = ROOT / relative
+    text = path.read_text(encoding="utf-8")
+    updated, count = re.subn(pattern, replacement, text, count=1, flags=re.MULTILINE)
+    if count != 1:
+        raise SystemExit(f"expected one {description}, found {count}")
+    path.write_text(updated, encoding="utf-8")
 
 
 replace_once(
@@ -39,31 +49,31 @@ if anchor_count != 1:
     raise SystemExit(f"expected one generated set API macro_model include, found {anchor_count}")
 set_api_path.write_text(set_api_text.replace(anchor, include + anchor, 1), encoding="utf-8")
 
-replace_once(
-    "firmware/components/storage/storage_repository_set_operations.c",
-    "static app_error_code_t write_duplicate_order(const char *staging, const char *filename,\n"
-    "                                               const app_uuid_t *ids, size_t count,\n"
-    "                                               size_t maximum_count) {\n",
+operations_file = "firmware/components/storage/storage_repository_set_operations.c"
+regex_once(
+    operations_file,
+    r"static app_error_code_t write_duplicate_order\(const char \*staging, const char \*filename,\s+"
+    r"const app_uuid_t \*ids, size_t count,\s+size_t maximum_count\) \{",
     "static app_error_code_t write_duplicate_order(const char *staging, const char *filename,\n"
     "                                               size_t maximum_count, const app_uuid_t *ids,\n"
-    "                                               size_t count) {\n",
+    "                                               size_t count) {",
     "generated duplicate-order helper signature",
 )
-replace_once(
-    "firmware/components/storage/storage_repository_set_operations.c",
-    "        result = write_duplicate_order(staging, \"macro-order.json\", ordered_ids, macros->count,\n"
-    "                                       APP_MACROS_PER_SET_MAX);\n",
-    "        result = write_duplicate_order(staging, \"macro-order.json\", APP_MACROS_PER_SET_MAX,\n"
-    "                                       ordered_ids, macros->count);\n",
+regex_once(
+    operations_file,
+    r'result = write_duplicate_order\(staging, "macro-order\.json", ordered_ids,\s+'
+    r"macros->count,\s+APP_MACROS_PER_SET_MAX\);",
+    'result = write_duplicate_order(staging, "macro-order.json", APP_MACROS_PER_SET_MAX,\n'
+    "                                       ordered_ids, macros->count);",
     "generated macro-order helper call",
 )
-replace_once(
-    "firmware/components/storage/storage_repository_set_operations.c",
-    "        result = write_duplicate_order(staging, \"procedure-order.json\", ordered_ids,\n"
-    "                                       procedures->count, APP_PROCEDURES_PER_SET_MAX);\n",
-    "        result = write_duplicate_order(staging, \"procedure-order.json\",\n"
+regex_once(
+    operations_file,
+    r'result = write_duplicate_order\(staging, "procedure-order\.json", ordered_ids,\s+'
+    r"procedures->count, APP_PROCEDURES_PER_SET_MAX\);",
+    'result = write_duplicate_order(staging, "procedure-order.json",\n'
     "                                       APP_PROCEDURES_PER_SET_MAX, ordered_ids,\n"
-    "                                       procedures->count);\n",
+    "                                       procedures->count);",
     "generated procedure-order helper call",
 )
 
