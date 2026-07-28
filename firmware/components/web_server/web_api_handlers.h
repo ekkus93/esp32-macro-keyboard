@@ -14,14 +14,11 @@ typedef struct {
     size_t body_length;
 } web_api_call_t;
 
-app_error_code_t web_api_handle_sets(const web_api_call_t *call,
-                                     web_api_response_t *response);
-app_error_code_t web_api_handle_macros(const web_api_call_t *call,
-                                       web_api_response_t *response);
+app_error_code_t web_api_handle_sets(const web_api_call_t *call, web_api_response_t *response);
+app_error_code_t web_api_handle_macros(const web_api_call_t *call, web_api_response_t *response);
 app_error_code_t web_api_handle_procedures(const web_api_call_t *call,
                                            web_api_response_t *response);
-app_error_code_t web_api_handle_execution(const web_api_call_t *call,
-                                          web_api_response_t *response);
+app_error_code_t web_api_handle_execution(const web_api_call_t *call, web_api_response_t *response);
 app_error_code_t web_api_handle_administration(const web_api_call_t *call,
                                                web_api_response_t *response);
 app_error_code_t web_api_dispatch(const web_api_call_t *call, web_api_response_t *response);

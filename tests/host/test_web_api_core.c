@@ -39,8 +39,7 @@ static void test_route_parsing(void) {
     check_route("/api/v1/sets/" SET_ID, WEB_API_ROUTE_SET);
     check_route("/api/v1/sets/" SET_ID "/select", WEB_API_ROUTE_SET_SELECT);
     check_route("/api/v1/sets/" SET_ID "/macros", WEB_API_ROUTE_SET_MACROS);
-    check_route("/api/v1/sets/" SET_ID "/macros/" MACRO_ID,
-                WEB_API_ROUTE_SET_MACRO);
+    check_route("/api/v1/sets/" SET_ID "/macros/" MACRO_ID, WEB_API_ROUTE_SET_MACRO);
     check_route("/api/v1/sets/" SET_ID "/macros/" MACRO_ID "/validate",
                 WEB_API_ROUTE_SET_MACRO_VALIDATE);
     check_route("/api/v1/sets/" SET_ID "/procedures/" PROCEDURE_ID "/progress/skip",
@@ -50,12 +49,10 @@ static void test_route_parsing(void) {
                 WEB_API_ROUTE_GLOBAL_MACRO_DUPLICATE);
     check_route("/api/v1/executions", WEB_API_ROUTE_EXECUTIONS);
     check_route("/api/v1/executions/current", WEB_API_ROUTE_EXECUTION_CURRENT);
-    check_route("/api/v1/executions/" EXECUTION_ID "/cancel",
-                WEB_API_ROUTE_EXECUTION_CANCEL);
+    check_route("/api/v1/executions/" EXECUTION_ID "/cancel", WEB_API_ROUTE_EXECUTION_CANCEL);
     check_route("/api/v1/settings/change-password", WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD);
     check_route("/api/v1/device/factory-reset", WEB_API_ROUTE_DEVICE_FACTORY_RESET);
-    check_route("/api/v1/diagnostics/storage/check",
-                WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK);
+    check_route("/api/v1/diagnostics/storage/check", WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK);
     check_route("/api/v1/backup", WEB_API_ROUTE_BACKUP);
 
     web_api_path_t path = {0};
@@ -67,8 +64,7 @@ static void test_route_parsing(void) {
                          web_api_parse_path("/api/v1/sets//macros", &path));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_api_parse_path("/api/v1/sets/not-a-uuid", &path));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
-                         web_api_parse_path("/api/v1/unknown", &path));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, web_api_parse_path("/api/v1/unknown", &path));
 }
 
 static void test_route_policy(void) {
@@ -81,8 +77,7 @@ static void test_route_policy(void) {
     TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_SETTINGS));
     TEST_CHECK(web_api_route_requires_csrf(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
     TEST_CHECK(!web_api_route_requires_csrf(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
-    TEST_CHECK(web_api_route_requires_physical_confirmation(
-        WEB_API_ROUTE_DEVICE_FACTORY_RESET));
+    TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_FACTORY_RESET));
     TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SET_MACRO));
 }
 

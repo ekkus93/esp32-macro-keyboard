@@ -67,8 +67,8 @@ static app_error_code_t load_macro_snapshot(const web_execution_submit_request_t
     return operations->macro_read(operations->context, &location, &request->macro_id, out_macro);
 }
 
-static app_error_code_t validate_procedure_context(
-    const web_execution_submit_request_t *request, const web_execution_ops_t *operations) {
+static app_error_code_t validate_procedure_context(const web_execution_submit_request_t *request,
+                                                   const web_execution_ops_t *operations) {
     if (!request->has_procedure_context) {
         return APP_ERROR_NONE;
     }
@@ -83,9 +83,10 @@ static app_error_code_t validate_procedure_context(
     return matches ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
 }
 
-app_error_code_t web_execution_submit_persisted(
-    const web_execution_submit_request_t *request, const web_execution_ops_t *operations,
-    web_execution_accepted_t *out_accepted, macro_parse_error_t *out_parse_error) {
+app_error_code_t web_execution_submit_persisted(const web_execution_submit_request_t *request,
+                                                const web_execution_ops_t *operations,
+                                                web_execution_accepted_t *out_accepted,
+                                                macro_parse_error_t *out_parse_error) {
     if (out_accepted != NULL) {
         memset(out_accepted, 0, sizeof(*out_accepted));
     }

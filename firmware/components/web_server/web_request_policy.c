@@ -33,20 +33,18 @@ static bool operations_valid(const web_request_policy_ops_t *operations) {
 }
 
 static app_error_code_t read_required_header(const web_request_policy_ops_t *operations,
-                                             const char *name, char *buffer,
-                                             size_t buffer_size) {
+                                             const char *name, char *buffer, size_t buffer_size) {
     const app_error_code_t result =
         operations->get_header(operations->context, name, buffer, buffer_size);
-    return result == APP_ERROR_NONE && buffer[0] != '\0' ? APP_ERROR_NONE
-                                                         : APP_ERROR_AUTH_REQUIRED;
+    return result == APP_ERROR_NONE && buffer[0] != '\0' ? APP_ERROR_NONE : APP_ERROR_AUTH_REQUIRED;
 }
 
 static app_error_code_t establish_request_id(const web_request_policy_ops_t *operations,
                                              web_request_policy_result_t *out_result,
                                              web_request_policy_failure_t *out_failure) {
     char supplied[WEB_API_REQUEST_ID_MAX_BYTES + 1U] = {0};
-    const app_error_code_t header_result = operations->get_header(
-        operations->context, "X-Request-ID", supplied, sizeof(supplied));
+    const app_error_code_t header_result =
+        operations->get_header(operations->context, "X-Request-ID", supplied, sizeof(supplied));
     if (header_result == APP_ERROR_NONE) {
         if (!web_api_request_id_is_valid(supplied)) {
             return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_REQUEST_ID,
@@ -57,17 +55,17 @@ static app_error_code_t establish_request_id(const web_request_policy_ops_t *ope
     }
     const app_error_code_t generate_result = operations->generate_request_id(
         operations->context, out_result->request_id, sizeof(out_result->request_id));
-    if (generate_result != APP_ERROR_NONE ||
-        !web_api_request_id_is_valid(out_result->request_id)) {
+    if (generate_result != APP_ERROR_NONE || !web_api_request_id_is_valid(out_result->request_id)) {
         return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_REQUEST_ID,
                     generate_result == APP_ERROR_NONE ? APP_ERROR_INTERNAL : generate_result);
     }
     return APP_ERROR_NONE;
 }
 
-app_error_code_t web_request_policy_evaluate(
-    const web_request_policy_input_t *input, const web_request_policy_ops_t *operations,
-    web_request_policy_result_t *out_result, web_request_policy_failure_t *out_failure) {
+app_error_code_t web_request_policy_evaluate(const web_request_policy_input_t *input,
+                                             const web_request_policy_ops_t *operations,
+                                             web_request_policy_result_t *out_result,
+                                             web_request_policy_failure_t *out_failure) {
     clear_result(out_result);
     if (out_failure != NULL) {
         *out_failure = WEB_REQUEST_POLICY_FAILURE_NONE;
@@ -123,8 +121,8 @@ app_error_code_t web_request_policy_evaluate(
             return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_CSRF,
                         APP_ERROR_AUTH_REQUIRED);
         }
-        const app_error_code_t validation = operations->validate_session(
-            operations->context, out_result->session_token, csrf);
+        const app_error_code_t validation =
+            operations->validate_session(operations->context, out_result->session_token, csrf);
         if (validation != APP_ERROR_NONE) {
             return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_SESSION, validation);
         }
@@ -136,13 +134,13 @@ app_error_code_t web_request_policy_evaluate(
     }
     if (web_api_route_requires_physical_confirmation(input->route)) {
         if (operations->confirm == NULL) {
-            return fail(out_result, out_failure,
-                        WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION, APP_ERROR_INTERNAL);
+            return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION,
+                        APP_ERROR_INTERNAL);
         }
         result = operations->confirm(operations->context);
         if (result != APP_ERROR_NONE) {
-            return fail(out_result, out_failure,
-                        WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION, result);
+            return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION,
+                        result);
         }
     }
     return APP_ERROR_NONE;

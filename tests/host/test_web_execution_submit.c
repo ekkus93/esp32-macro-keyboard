@@ -58,8 +58,7 @@ static app_error_code_t read_macro(void *context, const storage_macro_location_t
 }
 
 static app_error_code_t read_procedure(void *context, const app_uuid_t *set_id,
-                                       const app_uuid_t *procedure_id,
-                                       procedure_t *out_procedure) {
+                                       const app_uuid_t *procedure_id, procedure_t *out_procedure) {
     (void)context;
     (void)set_id;
     (void)procedure_id;
@@ -138,39 +137,34 @@ static void test_success_and_failures(void) {
 
     fixture_t fixture = {.revision = 7U};
     web_execution_ops_t ops = operations(&fixture);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_execution_submit_persisted(&submission, &ops, &accepted,
-                                                        &parse_error));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE, web_execution_submit_persisted(&submission, &ops, &accepted, &parse_error));
     TEST_CHECK_EQ_STRING(EXECUTION_ID, accepted.execution_id.value);
     TEST_CHECK_EQ_U64(2U, accepted.action_count);
     TEST_CHECK_EQ_U64(0U, fixture.free_calls);
 
     fixture = (fixture_t){.revision = 8U};
     ops = operations(&fixture);
-    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
-                         web_execution_submit_persisted(&submission, &ops, &accepted,
-                                                        &parse_error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, web_execution_submit_persisted(
+                                                 &submission, &ops, &accepted, &parse_error));
     TEST_CHECK_EQ_U64(0U, fixture.compile_calls);
 
     fixture = (fixture_t){.revision = 7U, .compile_result = APP_ERROR_MACRO_SYNTAX};
     ops = operations(&fixture);
-    TEST_CHECK_APP_ERROR(APP_ERROR_MACRO_SYNTAX,
-                         web_execution_submit_persisted(&submission, &ops, &accepted,
-                                                        &parse_error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_MACRO_SYNTAX, web_execution_submit_persisted(
+                                                     &submission, &ops, &accepted, &parse_error));
     TEST_CHECK_EQ_U64(2U, parse_error.line);
 
     fixture = (fixture_t){.revision = 7U, .submit_result = APP_ERROR_USB_NOT_READY};
     ops = operations(&fixture);
-    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY,
-                         web_execution_submit_persisted(&submission, &ops, &accepted,
-                                                        &parse_error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, web_execution_submit_persisted(
+                                                      &submission, &ops, &accepted, &parse_error));
     TEST_CHECK_EQ_U64(1U, fixture.free_calls);
 
     fixture = (fixture_t){.revision = 7U, .submit_result = APP_ERROR_EXECUTOR_BUSY};
     ops = operations(&fixture);
-    TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTOR_BUSY,
-                         web_execution_submit_persisted(&submission, &ops, &accepted,
-                                                        &parse_error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTOR_BUSY, web_execution_submit_persisted(
+                                                      &submission, &ops, &accepted, &parse_error));
     TEST_CHECK_EQ_U64(1U, fixture.free_calls);
 }
 

@@ -113,8 +113,8 @@ static app_error_code_t reference_details_json(const storage_reference_list_t *r
     *out_json = NULL;
     cJSON *root = cJSON_CreateObject();
     cJSON *ids = cJSON_CreateArray();
-    if (root == NULL || ids == NULL || !cJSON_AddBoolToObject(root, "truncated",
-                                                              references->truncated) ||
+    if (root == NULL || ids == NULL ||
+        !cJSON_AddBoolToObject(root, "truncated", references->truncated) ||
         !cJSON_AddItemToObject(root, "procedureIds", ids)) {
         cJSON_Delete(ids);
         cJSON_Delete(root);
@@ -133,13 +133,11 @@ static app_error_code_t reference_details_json(const storage_reference_list_t *r
     return *out_json == NULL ? APP_ERROR_INTERNAL : APP_ERROR_NONE;
 }
 
-static app_error_code_t handle_item(const web_api_call_t *call,
-                                    web_api_response_t *response) {
+static app_error_code_t handle_item(const web_api_call_t *call, web_api_response_t *response) {
     const storage_macro_location_t location = location_for_call(call);
     if (call->method == WEB_API_METHOD_GET) {
         macro_t macro = {0};
-        app_error_code_t result =
-            storage_macro_read(&location, &call->path.macro_id, &macro);
+        app_error_code_t result = storage_macro_read(&location, &call->path.macro_id, &macro);
         if (result == APP_ERROR_NONE) {
             result = send_macro(response, 200U, &macro);
         } else {
@@ -177,12 +175,12 @@ static app_error_code_t handle_item(const web_api_call_t *call,
     }
 
     uint32_t expected_revision = 0U;
-    app_error_code_t result = web_api_json_parse_expected_revision(
-        call->body, call->body_length, &expected_revision);
+    app_error_code_t result =
+        web_api_json_parse_expected_revision(call->body, call->body_length, &expected_revision);
     storage_reference_list_t references = {0};
     if (result == APP_ERROR_NONE) {
-        result = storage_macro_delete(&location, &call->path.macro_id, expected_revision,
-                                      &references);
+        result =
+            storage_macro_delete(&location, &call->path.macro_id, expected_revision, &references);
     }
     if (result == APP_ERROR_CONFLICT && references.count > 0U) {
         char *details = NULL;
@@ -199,18 +197,17 @@ static app_error_code_t handle_item(const web_api_call_t *call,
         return respond_error(response, result, "could not delete macro", NULL);
     }
     char data[80U];
-    const int length = snprintf(data, sizeof(data), "{\"deleted\":true,\"id\":\"%s\"}",
-                                call->path.macro_id.value);
+    const int length =
+        snprintf(data, sizeof(data), "{\"deleted\":true,\"id\":\"%s\"}", call->path.macro_id.value);
     return length < 0 || (size_t)length >= sizeof(data)
                ? APP_ERROR_INTERNAL
                : web_api_handler_success_json(response, 200U, data);
 }
 
-static app_error_code_t handle_reorder(const web_api_call_t *call,
-                                       web_api_response_t *response) {
+static app_error_code_t handle_reorder(const web_api_call_t *call, web_api_response_t *response) {
     storage_uuid_order_t order = {0};
-    app_error_code_t result = web_api_json_parse_uuid_order(
-        call->body, call->body_length, APP_MACROS_PER_SET_MAX, &order);
+    app_error_code_t result = web_api_json_parse_uuid_order(call->body, call->body_length,
+                                                            APP_MACROS_PER_SET_MAX, &order);
     const storage_macro_location_t location = location_for_call(call);
     if (result == APP_ERROR_NONE) {
         result = storage_macro_reorder(&location, order.ids, order.count);
@@ -220,8 +217,7 @@ static app_error_code_t handle_reorder(const web_api_call_t *call,
                : respond_error(response, result, "could not reorder macros", NULL);
 }
 
-static app_error_code_t handle_validate(const web_api_call_t *call,
-                                        web_api_response_t *response) {
+static app_error_code_t handle_validate(const web_api_call_t *call, web_api_response_t *response) {
     const storage_macro_location_t location = location_for_call(call);
     macro_t candidate = {0};
     app_error_code_t result =
@@ -237,27 +233,26 @@ static app_error_code_t handle_validate(const web_api_call_t *call,
             .key_press_ms = candidate.key_press_ms,
             .inter_key_ms = candidate.inter_key_ms,
         };
-        result = macro_compile(candidate.source, candidate.source_length, &options, &plan,
-                               &parse_error);
+        result =
+            macro_compile(candidate.source, candidate.source_length, &options, &plan, &parse_error);
     }
     macro_model_free_macro(&candidate);
     if (result != APP_ERROR_NONE) {
         char details[192U];
-        const int length = snprintf(details, sizeof(details),
-                                    "{\"line\":%lu,\"column\":%lu,\"byteOffset\":%lu}",
-                                    (unsigned long)parse_error.line,
-                                    (unsigned long)parse_error.column,
-                                    (unsigned long)parse_error.byte_offset);
+        const int length =
+            snprintf(details, sizeof(details), "{\"line\":%lu,\"column\":%lu,\"byteOffset\":%lu}",
+                     (unsigned long)parse_error.line, (unsigned long)parse_error.column,
+                     (unsigned long)parse_error.byte_offset);
         return length < 0 || (size_t)length >= sizeof(details)
                    ? APP_ERROR_INTERNAL
                    : respond_error(response, result, "macro validation failed", details);
     }
     char data[160U];
-    const int length = snprintf(data, sizeof(data),
-                                "{\"valid\":true,\"actionCount\":%lu,"
-                                "\"estimatedDurationMs\":%lu}",
-                                (unsigned long)plan.action_count,
-                                (unsigned long)plan.estimated_duration_ms);
+    const int length =
+        snprintf(data, sizeof(data),
+                 "{\"valid\":true,\"actionCount\":%lu,"
+                 "\"estimatedDurationMs\":%lu}",
+                 (unsigned long)plan.action_count, (unsigned long)plan.estimated_duration_ms);
     macro_plan_free(&plan);
     return length < 0 || (size_t)length >= sizeof(data)
                ? APP_ERROR_INTERNAL
@@ -270,8 +265,8 @@ static app_error_code_t parse_duplicate(const web_api_call_t *call, app_uuid_t *
     cJSON *root = cJSON_ParseWithLengthOpts(call->body, call->body_length, &parse_end, false);
     bool id_seen = false;
     bool name_seen = false;
-    bool valid = root != NULL && parse_end == call->body + call->body_length &&
-                 cJSON_IsObject(root);
+    bool valid =
+        root != NULL && parse_end == call->body + call->body_length && cJSON_IsObject(root);
     for (const cJSON *item = valid ? root->child : NULL; item != NULL; item = item->next) {
         if (item->string != NULL && strcmp(item->string, "id") == 0 && !id_seen &&
             cJSON_IsString(item) && item->valuestring != NULL &&
@@ -292,8 +287,7 @@ static app_error_code_t parse_duplicate(const web_api_call_t *call, app_uuid_t *
     return valid ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
 }
 
-static app_error_code_t handle_duplicate(const web_api_call_t *call,
-                                         web_api_response_t *response) {
+static app_error_code_t handle_duplicate(const web_api_call_t *call, web_api_response_t *response) {
     app_uuid_t duplicate_id = {0};
     char duplicate_name[APP_MACRO_NAME_MAX_BYTES + 1U] = {0};
     app_error_code_t result =
@@ -312,8 +306,7 @@ static app_error_code_t handle_duplicate(const web_api_call_t *call,
     return result;
 }
 
-app_error_code_t web_api_handle_macros(const web_api_call_t *call,
-                                       web_api_response_t *response) {
+app_error_code_t web_api_handle_macros(const web_api_call_t *call, web_api_response_t *response) {
     if (call == NULL || response == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }

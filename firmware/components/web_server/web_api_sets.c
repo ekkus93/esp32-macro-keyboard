@@ -75,8 +75,7 @@ static app_error_code_t handle_set_collection(const web_api_call_t *call,
     return respond_result(response, result, "could not create set");
 }
 
-static app_error_code_t handle_set_item(const web_api_call_t *call,
-                                        web_api_response_t *response) {
+static app_error_code_t handle_set_item(const web_api_call_t *call, web_api_response_t *response) {
     if (call->method == WEB_API_METHOD_GET) {
         macro_set_t set = {0};
         const app_error_code_t result = storage_set_read(&call->path.set_id, &set);
@@ -100,14 +99,13 @@ static app_error_code_t handle_set_item(const web_api_call_t *call,
             result = storage_set_update(&replacement, mutation.expected_revision, &committed);
         }
         web_api_json_free_resource_mutation(&mutation);
-        return result == APP_ERROR_NONE
-                   ? send_set(response, 200U, &committed)
-                   : respond_result(response, result, "could not update set");
+        return result == APP_ERROR_NONE ? send_set(response, 200U, &committed)
+                                        : respond_result(response, result, "could not update set");
     }
 
     uint32_t expected_revision = 0U;
-    app_error_code_t result = web_api_json_parse_expected_revision(
-        call->body, call->body_length, &expected_revision);
+    app_error_code_t result =
+        web_api_json_parse_expected_revision(call->body, call->body_length, &expected_revision);
     if (result == APP_ERROR_NONE) {
         result = storage_set_delete(&call->path.set_id, expected_revision);
     }
@@ -115,19 +113,18 @@ static app_error_code_t handle_set_item(const web_api_call_t *call,
         return respond_result(response, result, "could not delete set");
     }
     char data[80U];
-    const int length = snprintf(data, sizeof(data), "{\"deleted\":true,\"id\":\"%s\"}",
-                                call->path.set_id.value);
+    const int length =
+        snprintf(data, sizeof(data), "{\"deleted\":true,\"id\":\"%s\"}", call->path.set_id.value);
     if (length < 0 || (size_t)length >= sizeof(data)) {
         return APP_ERROR_INTERNAL;
     }
     return web_api_handler_success_json(response, 200U, data);
 }
 
-static app_error_code_t handle_select(const web_api_call_t *call,
-                                      web_api_response_t *response) {
+static app_error_code_t handle_select(const web_api_call_t *call, web_api_response_t *response) {
     uint32_t expected_revision = 0U;
-    app_error_code_t result = web_api_json_parse_expected_revision(
-        call->body, call->body_length, &expected_revision);
+    app_error_code_t result =
+        web_api_json_parse_expected_revision(call->body, call->body_length, &expected_revision);
     macro_set_t set = {0};
     if (result == APP_ERROR_NONE) {
         result = storage_set_read(&call->path.set_id, &set);
@@ -158,8 +155,7 @@ static app_error_code_t unavailable(web_api_response_t *response, const char *op
     return web_api_handler_error(response, APP_ERROR_STORAGE_UNAVAILABLE, operation, NULL);
 }
 
-app_error_code_t web_api_handle_sets(const web_api_call_t *call,
-                                     web_api_response_t *response) {
+app_error_code_t web_api_handle_sets(const web_api_call_t *call, web_api_response_t *response) {
     if (call == NULL || response == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }

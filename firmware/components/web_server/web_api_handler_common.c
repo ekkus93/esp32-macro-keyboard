@@ -211,10 +211,10 @@ app_error_code_t web_api_handler_progress_json(const storage_progress_snapshot_t
     cJSON *root = cJSON_CreateObject();
     if (progress == NULL || root == NULL ||
         !cJSON_AddStringToObject(root, "status",
-                                snapshot->status == STORAGE_PROGRESS_STATUS_STALE ? "stale"
-                                                                                 : "current") ||
+                                 snapshot->status == STORAGE_PROGRESS_STATUS_STALE ? "stale"
+                                                                                   : "current") ||
         !cJSON_AddNumberToObject(root, "currentProcedureRevision",
-                                snapshot->current_procedure_revision) ||
+                                 snapshot->current_procedure_revision) ||
         !cJSON_AddItemToObject(root, "progress", progress)) {
         cJSON_Delete(progress);
         cJSON_Delete(root);
@@ -232,15 +232,15 @@ app_error_code_t web_api_handler_settings_json(const provisioning_settings_t *se
     if (root == NULL || !cJSON_AddNumberToObject(root, "schemaVersion", settings->schema_version) ||
         !cJSON_AddNumberToObject(root, "revision", settings->revision) ||
         !cJSON_AddBoolToObject(root, "requirePhysicalConfirmation",
-                              settings->require_physical_confirmation) ||
+                               settings->require_physical_confirmation) ||
         !cJSON_AddBoolToObject(root, "alwaysSelectSet", settings->always_select_set)) {
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;
     }
-    const bool added = settings->has_active_set
-                           ? cJSON_AddStringToObject(root, "activeSetId",
-                                                    settings->active_set_id.value) != NULL
-                           : cJSON_AddNullToObject(root, "activeSetId") != NULL;
+    const bool added =
+        settings->has_active_set
+            ? cJSON_AddStringToObject(root, "activeSetId", settings->active_set_id.value) != NULL
+            : cJSON_AddNullToObject(root, "activeSetId") != NULL;
     if (!added) {
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;

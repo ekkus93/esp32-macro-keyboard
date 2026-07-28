@@ -114,9 +114,9 @@ app_error_code_t web_api_json_parse_expected_revision(const char *body, size_t b
     return APP_ERROR_NONE;
 }
 
-app_error_code_t web_api_json_parse_resource_mutation(
-    const char *body, size_t body_length, size_t maximum_resource_length,
-    web_api_resource_mutation_t *out_mutation) {
+app_error_code_t web_api_json_parse_resource_mutation(const char *body, size_t body_length,
+                                                      size_t maximum_resource_length,
+                                                      web_api_resource_mutation_t *out_mutation) {
     if (out_mutation != NULL) {
         memset(out_mutation, 0, sizeof(*out_mutation));
     }
@@ -188,8 +188,7 @@ app_error_code_t web_api_json_parse_uuid_order(const char *body, size_t body_len
             return APP_ERROR_INVALID_ARGUMENT;
         }
         for (int prior = 0; prior < index; ++prior) {
-            if (app_uuid_equal(&out_order->ids[(size_t)prior],
-                               &out_order->ids[(size_t)index])) {
+            if (app_uuid_equal(&out_order->ids[(size_t)prior], &out_order->ids[(size_t)index])) {
                 memset(out_order, 0, sizeof(*out_order));
                 cJSON_Delete(root);
                 return APP_ERROR_INVALID_ARGUMENT;
@@ -201,8 +200,8 @@ app_error_code_t web_api_json_parse_uuid_order(const char *body, size_t body_len
     return APP_ERROR_NONE;
 }
 
-app_error_code_t web_api_json_parse_execution_submit(
-    const char *body, size_t body_length, web_execution_submit_request_t *out_request) {
+app_error_code_t web_api_json_parse_execution_submit(const char *body, size_t body_length,
+                                                     web_execution_submit_request_t *out_request) {
     if (out_request != NULL) {
         memset(out_request, 0, sizeof(*out_request));
     }
@@ -211,8 +210,8 @@ app_error_code_t web_api_json_parse_execution_submit(
     }
     cJSON *root = parse_exact_document(body, body_length);
     static const char *const base_fields[] = {"setId", "macroId", "macroRevision"};
-    static const char *const context_fields[] = {"setId", "macroId", "macroRevision",
-                                                 "procedureId", "stepId"};
+    static const char *const context_fields[] = {"setId", "macroId", "macroRevision", "procedureId",
+                                                 "stepId"};
     const bool base = root != NULL && exact_fields(root, base_fields, 3U);
     const bool contextual = root != NULL && exact_fields(root, context_fields, 5U);
     if ((!base && !contextual) || !read_uuid(root, "setId", &out_request->set_id) ||
@@ -247,11 +246,12 @@ app_error_code_t web_api_json_parse_progress_action(const char *body, size_t bod
     cJSON *root = parse_exact_document(body, body_length);
     static const char *const complete_fields[] = {"expectedProcedureRevision", "stepId"};
     static const char *const skip_fields[] = {"expectedProcedureRevision", "stepId", "confirmed"};
-    const bool exact = root != NULL &&
-                       exact_fields(root, confirmation_required ? skip_fields : complete_fields,
-                                    confirmation_required ? 3U : 2U);
-    if (!exact || !read_revision(root, "expectedProcedureRevision",
-                                 &out_action->expected_procedure_revision) ||
+    const bool exact =
+        root != NULL && exact_fields(root, confirmation_required ? skip_fields : complete_fields,
+                                     confirmation_required ? 3U : 2U);
+    if (!exact ||
+        !read_revision(root, "expectedProcedureRevision",
+                       &out_action->expected_procedure_revision) ||
         !read_uuid(root, "stepId", &out_action->step_id)) {
         cJSON_Delete(root);
         memset(out_action, 0, sizeof(*out_action));
@@ -304,7 +304,8 @@ app_error_code_t web_api_json_parse_settings_update(const char *body, size_t bod
     out_settings->always_select_set = cJSON_IsTrue(always_select);
     if (cJSON_IsString(active_set)) {
         if (active_set->valuestring == NULL ||
-            app_uuid_parse(active_set->valuestring, &out_settings->active_set_id) != APP_ERROR_NONE) {
+            app_uuid_parse(active_set->valuestring, &out_settings->active_set_id) !=
+                APP_ERROR_NONE) {
             cJSON_Delete(root);
             memset(out_settings, 0, sizeof(*out_settings));
             *out_expected_revision = 0U;

@@ -22,7 +22,8 @@ static bool text_equal(const char *left, const char *right) {
 }
 
 static bool parse_uuid_segment(const char *segment, app_uuid_t *out_uuid) {
-    return segment != NULL && out_uuid != NULL && app_uuid_parse(segment, out_uuid) == APP_ERROR_NONE;
+    return segment != NULL && out_uuid != NULL &&
+           app_uuid_parse(segment, out_uuid) == APP_ERROR_NONE;
 }
 
 static app_error_code_t split_path(const char *uri, char *buffer, size_t buffer_size,
@@ -238,8 +239,8 @@ bool web_api_content_type_is_json(const char *content_type) {
         ++content_type;
     }
     const char *separator = strchr(content_type, ';');
-    const size_t media_length = separator == NULL ? strlen(content_type)
-                                                   : (size_t)(separator - content_type);
+    const size_t media_length =
+        separator == NULL ? strlen(content_type) : (size_t)(separator - content_type);
     if (media_length != sizeof("application/json") - 1U ||
         strncasecmp(content_type, "application/json", media_length) != 0) {
         return false;
@@ -377,8 +378,7 @@ bool web_api_route_requires_csrf(web_api_route_t route, web_api_method_t method)
 
 bool web_api_route_requires_physical_confirmation(web_api_route_t route) {
     return route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD ||
-           route == WEB_API_ROUTE_DEVICE_RESTART ||
-           route == WEB_API_ROUTE_DEVICE_RESET_SETTINGS ||
+           route == WEB_API_ROUTE_DEVICE_RESTART || route == WEB_API_ROUTE_DEVICE_RESET_SETTINGS ||
            route == WEB_API_ROUTE_DEVICE_FACTORY_RESET || route == WEB_API_ROUTE_RESTORE;
 }
 
@@ -424,7 +424,8 @@ unsigned int web_api_cancel_http_status(const macro_execution_status_t *status,
     if (cancel_result == APP_ERROR_INTERNAL) {
         return 500U;
     }
-    if (cancel_result == APP_ERROR_STORAGE_UNAVAILABLE || cancel_result == APP_ERROR_USB_NOT_READY) {
+    if (cancel_result == APP_ERROR_STORAGE_UNAVAILABLE ||
+        cancel_result == APP_ERROR_USB_NOT_READY) {
         return 503U;
     }
     if (cancel_result == APP_ERROR_NOT_FOUND && status != NULL) {

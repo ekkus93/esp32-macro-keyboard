@@ -65,8 +65,8 @@ static app_error_code_t handle_collection(const web_api_call_t *call,
     }
 
     procedure_t procedure = {0};
-    app_error_code_t result = storage_repository_parse_procedure_json(
-        call->body, call->body_length, &procedure);
+    app_error_code_t result =
+        storage_repository_parse_procedure_json(call->body, call->body_length, &procedure);
     if (result == APP_ERROR_NONE &&
         (procedure.revision != 1U || !app_uuid_equal(&procedure.set_id, &call->path.set_id))) {
         result = APP_ERROR_INVALID_ARGUMENT;
@@ -87,12 +87,11 @@ static app_error_code_t handle_collection(const web_api_call_t *call,
     return result;
 }
 
-static app_error_code_t handle_item(const web_api_call_t *call,
-                                    web_api_response_t *response) {
+static app_error_code_t handle_item(const web_api_call_t *call, web_api_response_t *response) {
     if (call->method == WEB_API_METHOD_GET) {
         procedure_t procedure = {0};
-        app_error_code_t result = storage_procedure_read(
-            &call->path.set_id, &call->path.procedure_id, &procedure);
+        app_error_code_t result =
+            storage_procedure_read(&call->path.set_id, &call->path.procedure_id, &procedure);
         if (result == APP_ERROR_NONE) {
             result = send_procedure(response, 200U, &procedure);
         } else {
@@ -131,8 +130,8 @@ static app_error_code_t handle_item(const web_api_call_t *call,
     }
 
     uint32_t expected_revision = 0U;
-    app_error_code_t result = web_api_json_parse_expected_revision(
-        call->body, call->body_length, &expected_revision);
+    app_error_code_t result =
+        web_api_json_parse_expected_revision(call->body, call->body_length, &expected_revision);
     if (result == APP_ERROR_NONE) {
         result = storage_procedure_delete(&call->path.set_id, &call->path.procedure_id,
                                           expected_revision);
@@ -148,11 +147,10 @@ static app_error_code_t handle_item(const web_api_call_t *call,
                : web_api_handler_success_json(response, 200U, data);
 }
 
-static app_error_code_t handle_reorder(const web_api_call_t *call,
-                                       web_api_response_t *response) {
+static app_error_code_t handle_reorder(const web_api_call_t *call, web_api_response_t *response) {
     storage_uuid_order_t order = {0};
-    app_error_code_t result = web_api_json_parse_uuid_order(
-        call->body, call->body_length, APP_PROCEDURES_PER_SET_MAX, &order);
+    app_error_code_t result = web_api_json_parse_uuid_order(call->body, call->body_length,
+                                                            APP_PROCEDURES_PER_SET_MAX, &order);
     if (result == APP_ERROR_NONE) {
         result = storage_procedure_reorder(&call->path.set_id, order.ids, order.count);
     }
@@ -175,13 +173,12 @@ static app_error_code_t handle_progress_resource(const web_api_call_t *call,
         storage_progress_snapshot_t snapshot = {0};
         const app_error_code_t result = storage_progress_read(&identity, &snapshot);
         return result == APP_ERROR_NONE ? send_progress(response, &snapshot)
-                                        : respond_error(response, result,
-                                                        "progress not available");
+                                        : respond_error(response, result, "progress not available");
     }
     if (call->method == WEB_API_METHOD_PUT) {
         procedure_progress_t replacement = {0};
-        app_error_code_t result = storage_repository_parse_progress_json(
-            call->body, call->body_length, &replacement);
+        app_error_code_t result =
+            storage_repository_parse_progress_json(call->body, call->body_length, &replacement);
         if (result == APP_ERROR_NONE &&
             (!app_uuid_equal(&replacement.set_id, &identity.set_id) ||
              !app_uuid_equal(&replacement.procedure_id, &identity.procedure_id))) {
@@ -197,15 +194,14 @@ static app_error_code_t handle_progress_resource(const web_api_call_t *call,
     }
 
     uint32_t expected_revision = 0U;
-    app_error_code_t result = web_api_json_parse_expected_revision(
-        call->body, call->body_length, &expected_revision);
+    app_error_code_t result =
+        web_api_json_parse_expected_revision(call->body, call->body_length, &expected_revision);
     storage_progress_snapshot_t snapshot = {0};
     if (result == APP_ERROR_NONE) {
         result = storage_progress_reset(&identity, expected_revision, &snapshot);
     }
     return result == APP_ERROR_NONE ? send_progress(response, &snapshot)
-                                    : respond_error(response, result,
-                                                    "could not reset progress");
+                                    : respond_error(response, result, "could not reset progress");
 }
 
 static bool order_contains(const app_uuid_t *items, size_t count, const app_uuid_t *id) {
@@ -245,8 +241,8 @@ static bool procedure_has_step(const procedure_t *procedure, const app_uuid_t *s
 static app_error_code_t handle_progress_action(const web_api_call_t *call,
                                                web_api_response_t *response, bool skipped) {
     web_api_progress_action_t action = {0};
-    app_error_code_t result = web_api_json_parse_progress_action(
-        call->body, call->body_length, skipped, &action);
+    app_error_code_t result =
+        web_api_json_parse_progress_action(call->body, call->body_length, skipped, &action);
     const storage_procedure_identity_t identity = progress_identity(call);
     storage_progress_snapshot_t current = {0};
     if (result == APP_ERROR_NONE) {
@@ -267,14 +263,14 @@ static app_error_code_t handle_progress_action(const web_api_call_t *call,
     }
     procedure_progress_t replacement = current.progress;
     if (result == APP_ERROR_NONE) {
-        app_uuid_t *target = skipped ? replacement.skipped_step_ids
-                                     : replacement.completed_step_ids;
-        size_t *target_count = skipped ? &replacement.skipped_step_count
-                                       : &replacement.completed_step_count;
-        app_uuid_t *opposite = skipped ? replacement.completed_step_ids
-                                       : replacement.skipped_step_ids;
-        size_t *opposite_count = skipped ? &replacement.completed_step_count
-                                         : &replacement.skipped_step_count;
+        app_uuid_t *target =
+            skipped ? replacement.skipped_step_ids : replacement.completed_step_ids;
+        size_t *target_count =
+            skipped ? &replacement.skipped_step_count : &replacement.completed_step_count;
+        app_uuid_t *opposite =
+            skipped ? replacement.completed_step_ids : replacement.skipped_step_ids;
+        size_t *opposite_count =
+            skipped ? &replacement.completed_step_count : &replacement.skipped_step_count;
         order_remove(opposite, opposite_count, &action.step_id);
         if (!order_contains(target, *target_count, &action.step_id)) {
             if (*target_count >= APP_STEPS_PER_PROCEDURE_MAX) {
@@ -293,11 +289,10 @@ static app_error_code_t handle_progress_action(const web_api_call_t *call,
         result = storage_progress_update(&identity, &replacement, &committed);
     }
     macro_model_free_procedure(&procedure);
-    return result == APP_ERROR_NONE
-               ? send_progress(response, &committed)
-               : respond_error(response, result,
-                               skipped ? "could not skip procedure step"
-                                       : "could not complete procedure step");
+    return result == APP_ERROR_NONE ? send_progress(response, &committed)
+                                    : respond_error(response, result,
+                                                    skipped ? "could not skip procedure step"
+                                                            : "could not complete procedure step");
 }
 
 app_error_code_t web_api_handle_procedures(const web_api_call_t *call,

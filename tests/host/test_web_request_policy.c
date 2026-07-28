@@ -50,8 +50,7 @@ static app_error_code_t get_header(void *context, const char *name, char *output
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t validate(void *context, const char *session_token,
-                                 const char *csrf_token) {
+static app_error_code_t validate(void *context, const char *session_token, const char *csrf_token) {
     fixture_t *fixture = context;
     TEST_CHECK_EQ_STRING(TOKEN, session_token);
     if (csrf_token != NULL) {

@@ -46,9 +46,10 @@ typedef struct {
     char request_id[WEB_API_REQUEST_ID_MAX_BYTES + 1U];
 } web_request_policy_result_t;
 
-app_error_code_t web_request_policy_evaluate(
-    const web_request_policy_input_t *input, const web_request_policy_ops_t *operations,
-    web_request_policy_result_t *out_result, web_request_policy_failure_t *out_failure);
+app_error_code_t web_request_policy_evaluate(const web_request_policy_input_t *input,
+                                             const web_request_policy_ops_t *operations,
+                                             web_request_policy_result_t *out_result,
+                                             web_request_policy_failure_t *out_failure);
 unsigned int web_request_policy_http_status(web_request_policy_failure_t failure,
                                             app_error_code_t error);
 
