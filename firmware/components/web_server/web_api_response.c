@@ -2,11 +2,14 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "app_error.h"
 #include "cJSON.h"
+#include "web_http_status.h"
+
+#define WEB_HTTP_SUCCESS_STATUS_UPPER_BOUND 300U
+#define WEB_HTTP_ERROR_STATUS_UPPER_BOUND 599U
 
 static app_error_code_t set_serialized(web_api_response_t *response, unsigned int status,
                                        cJSON *root) {
@@ -45,7 +48,8 @@ app_error_code_t web_api_response_success(web_api_response_t *response, unsigned
     if (response != NULL) {
         memset(response, 0, sizeof(*response));
     }
-    if (response == NULL || data_json == NULL || status < 200U || status >= 300U) {
+    if (response == NULL || data_json == NULL || status < WEB_HTTP_STATUS_OK ||
+        status >= WEB_HTTP_SUCCESS_STATUS_UPPER_BOUND) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     cJSON *data = parse_data(data_json);
@@ -59,34 +63,35 @@ app_error_code_t web_api_response_success(web_api_response_t *response, unsigned
     return set_serialized(response, status, root);
 }
 
-app_error_code_t web_api_response_error(web_api_response_t *response, unsigned int status,
-                                        app_error_code_t code, const char *message,
-                                        const char *details_json) {
+app_error_code_t web_api_response_error(web_api_response_t *response,
+                                        const web_api_error_spec_t *error_spec) {
     if (response != NULL) {
         memset(response, 0, sizeof(*response));
     }
-    if (response == NULL || message == NULL || status < 400U || status > 599U) {
+    if (response == NULL || error_spec == NULL || error_spec->message == NULL ||
+        error_spec->status < WEB_HTTP_STATUS_BAD_REQUEST ||
+        error_spec->status > WEB_HTTP_ERROR_STATUS_UPPER_BOUND) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     cJSON *root = cJSON_CreateObject();
     cJSON *error = cJSON_CreateObject();
     if (root == NULL || error == NULL || !cJSON_AddBoolToObject(root, "ok", false) ||
-        !cJSON_AddStringToObject(error, "code", app_error_code_string(code)) ||
-        !cJSON_AddStringToObject(error, "message", message) ||
+        !cJSON_AddStringToObject(error, "code", app_error_code_string(error_spec->code)) ||
+        !cJSON_AddStringToObject(error, "message", error_spec->message) ||
         !cJSON_AddItemToObject(root, "error", error)) {
         cJSON_Delete(error);
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;
     }
-    if (details_json != NULL) {
-        cJSON *details = parse_data(details_json);
+    if (error_spec->details_json != NULL) {
+        cJSON *details = parse_data(error_spec->details_json);
         if (details == NULL || !cJSON_AddItemToObject(error, "details", details)) {
             cJSON_Delete(details);
             cJSON_Delete(root);
             return APP_ERROR_INTERNAL;
         }
     }
-    return set_serialized(response, status, root);
+    return set_serialized(response, error_spec->status, root);
 }
 
 void web_api_response_free(web_api_response_t *response) {

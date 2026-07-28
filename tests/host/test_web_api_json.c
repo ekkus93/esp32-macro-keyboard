@@ -26,8 +26,12 @@ static void test_expected_revision_and_mutation(void) {
         "{\"expectedRevision\":7,\"resource\":{\"schema_version\":1,\"id\":\"" SET_ID
         "\",\"revision\":8}}";
     web_api_resource_mutation_t mutation = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_resource_mutation(
-                                             update, sizeof(update) - 1U, 512U, &mutation));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_api_json_parse_resource_mutation(
+                             update,
+                             &(web_api_resource_parse_limits_t){.body_length = sizeof(update) - 1U,
+                                                                .maximum_resource_length = 512U},
+                             &mutation));
     TEST_CHECK_EQ_U64(7U, mutation.expected_revision);
     TEST_CHECK(strstr(mutation.resource_json, SET_ID) != NULL);
     web_api_json_free_resource_mutation(&mutation);
@@ -36,15 +40,22 @@ static void test_expected_revision_and_mutation(void) {
 static void test_order_and_execution(void) {
     const char order[] = "{\"ids\":[\"" MACRO_ID "\",\"" SET_ID "\"]}";
     storage_uuid_order_t parsed = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_api_json_parse_uuid_order(order, sizeof(order) - 1U, 4U, &parsed));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        web_api_json_parse_uuid_order(
+            order,
+            &(web_api_order_parse_limits_t){.body_length = sizeof(order) - 1U, .maximum_count = 4U},
+            &parsed));
     TEST_CHECK_EQ_U64(2U, parsed.count);
     TEST_CHECK_EQ_STRING(MACRO_ID, parsed.ids[0].value);
 
     const char duplicate[] = "{\"ids\":[\"" MACRO_ID "\",\"" MACRO_ID "\"]}";
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        web_api_json_parse_uuid_order(duplicate, sizeof(duplicate) - 1U, 4U, &parsed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_json_parse_uuid_order(
+                             duplicate,
+                             &(web_api_order_parse_limits_t){.body_length = sizeof(duplicate) - 1U,
+                                                             .maximum_count = 4U},
+                             &parsed));
 
     const char execution[] =
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID

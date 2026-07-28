@@ -1,5 +1,6 @@
 #include "web_server_internal.h"
 
+#include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -18,6 +19,9 @@
 #include "web_api_handlers.h"
 #include "web_api_response.h"
 #include "web_http_status.h"
+
+_Static_assert(WEB_API_RESPONSE_MAX_BYTES <= INT_MAX,
+               "API response length must fit httpd_resp_send");
 #include "web_request_policy.h"
 #include "web_server.h"
 
@@ -49,10 +53,10 @@ static app_error_code_t policy_generate_request_id(void *context, char *output,
     if (output == NULL || output_size < APP_UUID_BUFFER_LENGTH) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    app_uuid_t id = {0};
-    const app_error_code_t result = app_uuid_generate(&id);
+    app_uuid_t request_id = {0};
+    const app_error_code_t result = app_uuid_generate(&request_id);
     if (result == APP_ERROR_NONE) {
-        memcpy(output, id.value, sizeof(id.value));
+        memcpy(output, request_id.value, sizeof(request_id.value));
     }
     return result;
 }
@@ -181,14 +185,17 @@ static const char *policy_failure_message(web_request_policy_failure_t failure) 
 
 static app_error_code_t set_error_response(web_api_response_t *response, unsigned int status,
                                            app_error_code_t error, const char *message) {
-    return web_api_response_error(response, status, error, message, NULL);
+    return web_api_response_error(response, &(web_api_error_spec_t){
+                                                .status = status,
+                                                .code = error,
+                                                .message = message,
+                                            });
 }
 
 static esp_err_t send_api_response(httpd_req_t *request, const char *request_id,
                                    const web_api_response_t *response) {
     if (request == NULL || response == NULL || response->body == NULL ||
-        response->body_length == 0U ||
-        httpd_resp_set_type(request, "application/json") != ESP_OK ||
+        response->body_length == 0U || httpd_resp_set_type(request, "application/json") != ESP_OK ||
         httpd_resp_set_status(request, status_text(response->status)) != ESP_OK ||
         httpd_resp_set_hdr(request, "Cache-Control", "no-store") != ESP_OK) {
         return ESP_FAIL;
@@ -197,7 +204,7 @@ static esp_err_t send_api_response(httpd_req_t *request, const char *request_id,
         httpd_resp_set_hdr(request, "X-Request-ID", request_id) != ESP_OK) {
         return ESP_FAIL;
     }
-    return httpd_resp_send(request, response->body, (ssize_t)response->body_length);
+    return httpd_resp_send(request, response->body, (int)response->body_length);
 }
 
 static app_error_code_t apply_request_policy(httpd_req_t *request, const web_api_call_t *call,
@@ -218,7 +225,7 @@ static app_error_code_t apply_request_policy(httpd_req_t *request, const web_api
     const web_request_policy_input_t input = {
         .route = call->path.route,
         .method = call->method,
-        .content_length = (size_t)request->content_len,
+        .content_length = request->content_len,
         .body_limit = body_limit,
     };
     return web_request_policy_evaluate(&input, &operations, out_policy, out_failure);
@@ -228,7 +235,7 @@ static app_error_code_t read_call_body(httpd_req_t *request, size_t body_limit, 
                                        size_t *out_length) {
     *out_body = NULL;
     *out_length = 0U;
-    const size_t content_length = (size_t)request->content_len;
+    const size_t content_length = request->content_len;
     if (content_length == 0U) {
         return APP_ERROR_NONE;
     }
@@ -250,65 +257,98 @@ static app_error_code_t read_call_body(httpd_req_t *request, size_t body_limit, 
     return APP_ERROR_NONE;
 }
 
-static bool restart_after_response(const web_api_call_t *call,
-                                   const web_api_response_t *response) {
+static bool restart_after_response(const web_api_call_t *call, const web_api_response_t *response) {
     return response->status == WEB_HTTP_STATUS_ACCEPTED &&
            (call->path.route == WEB_API_ROUTE_DEVICE_RESTART ||
             call->path.route == WEB_API_ROUTE_DEVICE_FACTORY_RESET);
 }
 
+static app_error_code_t prepare_api_call(httpd_req_t *request, web_api_call_t *call,
+                                         web_api_response_t *response, size_t *out_body_limit,
+                                         bool *out_response_ready) {
+    app_error_code_t result = method_from_request(request, &call->method);
+    if (result == APP_ERROR_NONE) {
+        result = web_api_parse_path(request->uri, &call->path);
+    }
+    if (result != APP_ERROR_NONE) {
+        const unsigned int status =
+            result == APP_ERROR_NOT_FOUND ? WEB_HTTP_STATUS_NOT_FOUND : WEB_HTTP_STATUS_BAD_REQUEST;
+        result = set_error_response(response, status, result,
+                                    status == WEB_HTTP_STATUS_NOT_FOUND ? "route not found"
+                                                                        : "invalid API path");
+        *out_response_ready = result == APP_ERROR_NONE;
+        return result;
+    }
+    if (!web_api_route_allows_method(call->path.route, call->method)) {
+        result = set_error_response(response, WEB_HTTP_STATUS_METHOD_NOT_ALLOWED,
+                                    APP_ERROR_INVALID_ARGUMENT, "method not allowed");
+        *out_response_ready = result == APP_ERROR_NONE;
+        return result;
+    }
+    *out_body_limit = route_body_limit(call->path.route);
+    if (!web_api_route_requires_body(call->path.route, call->method) &&
+        request->content_len != 0U) {
+        result = set_error_response(response, WEB_HTTP_STATUS_UNPROCESSABLE_ENTITY,
+                                    APP_ERROR_INVALID_ARGUMENT,
+                                    "request body is not allowed for this route");
+        *out_response_ready = result == APP_ERROR_NONE;
+    }
+    return result;
+}
+
+static app_error_code_t authorize_and_read_api_call(httpd_req_t *request, web_api_call_t *call,
+                                                    size_t body_limit,
+                                                    web_request_policy_result_t *policy,
+                                                    web_api_response_t *response, char **out_body,
+                                                    bool *out_response_ready) {
+    web_request_policy_failure_t failure = WEB_REQUEST_POLICY_FAILURE_NONE;
+    app_error_code_t result = apply_request_policy(request, call, body_limit, policy, &failure);
+    if (result != APP_ERROR_NONE) {
+        result = set_error_response(response, web_request_policy_http_status(failure, result),
+                                    result, policy_failure_message(failure));
+        *out_response_ready = result == APP_ERROR_NONE;
+        return result;
+    }
+    result = read_call_body(request, body_limit, out_body, &call->body_length);
+    call->body = *out_body == NULL ? "" : *out_body;
+    if (result != APP_ERROR_NONE) {
+        result = set_error_response(response, web_api_http_status_for_error(result), result,
+                                    "could not read request body");
+        *out_response_ready = result == APP_ERROR_NONE;
+    }
+    return result;
+}
+
+static bool dispatch_api_call(const web_api_call_t *call, web_api_response_t *response) {
+    app_error_code_t result = web_api_dispatch(call, response);
+    if (result != APP_ERROR_NONE && response->body == NULL) {
+        result = set_error_response(response, web_api_http_status_for_error(result), result,
+                                    "API operation failed");
+    }
+    return result == APP_ERROR_NONE && response->body != NULL;
+}
+
 esp_err_t api_handler(httpd_req_t *request) {
     web_api_response_t response = {0};
     web_request_policy_result_t policy = {0};
-    web_request_policy_failure_t policy_failure = WEB_REQUEST_POLICY_FAILURE_NONE;
     web_api_call_t call = {0};
     char *body = NULL;
+    size_t body_limit = WEB_API_SMALL_BODY_MAX_BYTES;
+    bool response_ready = false;
 
-    app_error_code_t result = method_from_request(request, &call.method);
-    if (result == APP_ERROR_NONE) {
-        result = web_api_parse_path(request->uri, &call.path);
+    app_error_code_t result =
+        prepare_api_call(request, &call, &response, &body_limit, &response_ready);
+    if (!response_ready && result == APP_ERROR_NONE) {
+        result = authorize_and_read_api_call(request, &call, body_limit, &policy, &response, &body,
+                                             &response_ready);
     }
-    if (result != APP_ERROR_NONE) {
-        const unsigned int status = result == APP_ERROR_NOT_FOUND ? WEB_HTTP_STATUS_NOT_FOUND
-                                                                  : WEB_HTTP_STATUS_BAD_REQUEST;
-        result = set_error_response(&response, status, result,
-                                    status == WEB_HTTP_STATUS_NOT_FOUND ? "route not found"
-                                                                         : "invalid API path");
-    } else if (!web_api_route_allows_method(call.path.route, call.method)) {
-        result = set_error_response(&response, WEB_HTTP_STATUS_METHOD_NOT_ALLOWED,
-                                    APP_ERROR_INVALID_ARGUMENT, "method not allowed");
+    if (!response_ready && result == APP_ERROR_NONE) {
+        response_ready = dispatch_api_call(&call, &response);
     }
-
-    const size_t body_limit = route_body_limit(call.path.route);
-    if (result == APP_ERROR_NONE &&
-        !web_api_route_requires_body(call.path.route, call.method) && request->content_len != 0U) {
-        result = set_error_response(&response, WEB_HTTP_STATUS_UNPROCESSABLE_ENTITY,
-                                    APP_ERROR_INVALID_ARGUMENT,
-                                    "request body is not allowed for this route");
-    }
-    if (result == APP_ERROR_NONE) {
-        const app_error_code_t policy_result =
-            apply_request_policy(request, &call, body_limit, &policy, &policy_failure);
-        if (policy_result != APP_ERROR_NONE) {
-            result = set_error_response(&response,
-                                        web_request_policy_http_status(policy_failure, policy_result),
-                                        policy_result, policy_failure_message(policy_failure));
-        }
-    }
-    if (result == APP_ERROR_NONE) {
-        result = read_call_body(request, body_limit, &body, &call.body_length);
-        call.body = body == NULL ? "" : body;
-        if (result != APP_ERROR_NONE) {
-            result = set_error_response(&response, web_api_http_status_for_error(result), result,
-                                        "could not read request body");
-        }
-    }
-    if (result == APP_ERROR_NONE) {
-        result = web_api_dispatch(&call, &response);
-        if (result != APP_ERROR_NONE && response.body == NULL) {
-            result = set_error_response(&response, web_api_http_status_for_error(result), result,
-                                        "API operation failed");
-        }
+    if (!response_ready) {
+        web_api_response_free(&response);
+        (void)set_error_response(&response, WEB_HTTP_STATUS_INTERNAL_SERVER_ERROR,
+                                 APP_ERROR_INTERNAL, "response encoding failed");
     }
 
     const bool should_restart = response.body != NULL && restart_after_response(&call, &response);

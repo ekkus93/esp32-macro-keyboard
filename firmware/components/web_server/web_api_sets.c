@@ -15,6 +15,9 @@
 #include "web_api_handler_common.h"
 #include "web_api_json.h"
 #include "web_api_response.h"
+#include "web_http_status.h"
+
+#define WEB_SET_DELETE_RESPONSE_BYTES 80U
 
 static app_error_code_t respond_result(web_api_response_t *response, app_error_code_t result,
                                        const char *message) {
@@ -42,7 +45,7 @@ static app_error_code_t handle_set_collection(const web_api_call_t *call,
             result = web_api_handler_set_list_json(&list, &json);
         }
         if (result == APP_ERROR_NONE) {
-            result = web_api_handler_success_json(response, 200U, json);
+            result = web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, json);
         } else {
             const app_error_code_t response_result =
                 respond_result(response, result, "could not list sets");
@@ -69,7 +72,7 @@ static app_error_code_t handle_set_collection(const web_api_call_t *call,
         macro_set_t committed = {0};
         result = storage_set_read(&set.id, &committed);
         if (result == APP_ERROR_NONE) {
-            return send_set(response, 201U, &committed);
+            return send_set(response, WEB_HTTP_STATUS_CREATED, &committed);
         }
     }
     return respond_result(response, result, "could not create set");
@@ -79,13 +82,18 @@ static app_error_code_t handle_set_item(const web_api_call_t *call, web_api_resp
     if (call->method == WEB_API_METHOD_GET) {
         macro_set_t set = {0};
         const app_error_code_t result = storage_set_read(&call->path.set_id, &set);
-        return result == APP_ERROR_NONE ? send_set(response, 200U, &set)
+        return result == APP_ERROR_NONE ? send_set(response, WEB_HTTP_STATUS_OK, &set)
                                         : respond_result(response, result, "set not available");
     }
     if (call->method == WEB_API_METHOD_PUT) {
         web_api_resource_mutation_t mutation = {0};
         app_error_code_t result = web_api_json_parse_resource_mutation(
-            call->body, call->body_length, STORAGE_SET_FILE_MAX_BYTES, &mutation);
+            call->body,
+            &(web_api_resource_parse_limits_t){
+                .body_length = call->body_length,
+                .maximum_resource_length = STORAGE_SET_FILE_MAX_BYTES,
+            },
+            &mutation);
         macro_set_t replacement = {0};
         if (result == APP_ERROR_NONE) {
             result = storage_repository_parse_set_json(mutation.resource_json,
@@ -99,7 +107,7 @@ static app_error_code_t handle_set_item(const web_api_call_t *call, web_api_resp
             result = storage_set_update(&replacement, mutation.expected_revision, &committed);
         }
         web_api_json_free_resource_mutation(&mutation);
-        return result == APP_ERROR_NONE ? send_set(response, 200U, &committed)
+        return result == APP_ERROR_NONE ? send_set(response, WEB_HTTP_STATUS_OK, &committed)
                                         : respond_result(response, result, "could not update set");
     }
 
@@ -112,13 +120,13 @@ static app_error_code_t handle_set_item(const web_api_call_t *call, web_api_resp
     if (result != APP_ERROR_NONE) {
         return respond_result(response, result, "could not delete set");
     }
-    char data[80U];
+    char data[WEB_SET_DELETE_RESPONSE_BYTES];
     const int length =
         snprintf(data, sizeof(data), "{\"deleted\":true,\"id\":\"%s\"}", call->path.set_id.value);
     if (length < 0 || (size_t)length >= sizeof(data)) {
         return APP_ERROR_INTERNAL;
     }
-    return web_api_handler_success_json(response, 200U, data);
+    return web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, data);
 }
 
 static app_error_code_t handle_select(const web_api_call_t *call, web_api_response_t *response) {
@@ -145,7 +153,7 @@ static app_error_code_t handle_select(const web_api_call_t *call, web_api_respon
     char *json = NULL;
     result = web_api_handler_settings_json(&committed, &json);
     if (result == APP_ERROR_NONE) {
-        result = web_api_handler_success_json(response, 200U, json);
+        result = web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, json);
     }
     web_api_handler_json_free(json);
     return result;

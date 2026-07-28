@@ -10,9 +10,11 @@
 #include "auth.h"
 #include "cJSON.h"
 #include "macro_limits.h"
+#include "macro_model.h"
 #include "provisioning.h"
 #include "storage.h"
 #include "storage_repository.h"
+#include "web_api_core.h"
 #include "web_api_handler_common.h"
 #include "web_api_json.h"
 #include "web_api_response.h"
@@ -20,6 +22,7 @@
 #include "web_server_internal.h"
 
 #define WEB_PASSWORD_CHANGE_BODY_MAX_BYTES 512U
+#define WEB_PASSWORD_CHANGE_RESPONSE_BYTES 80U
 
 typedef struct {
     uint32_t expected_revision;
@@ -100,14 +103,14 @@ static app_error_code_t parse_password_change(const web_api_call_t *call,
         root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "currentPassword");
     const cJSON *replacement =
         root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "newPassword");
-    const bool valid = root != NULL && parse_end == call->body + call->body_length &&
-                       exact_password_fields(root) && cJSON_IsNumber(expected) &&
-                       expected->valuedouble >= 1.0 && expected->valuedouble <= (double)UINT32_MAX &&
-                       expected->valuedouble == (double)expected->valueint &&
-                       copy_password(current, out_change->current_password,
-                                     sizeof(out_change->current_password)) &&
-                       copy_password(replacement, out_change->new_password,
-                                     sizeof(out_change->new_password));
+    const bool valid =
+        root != NULL && parse_end == call->body + call->body_length &&
+        exact_password_fields(root) && cJSON_IsNumber(expected) && expected->valuedouble >= 1.0 &&
+        expected->valuedouble <= (double)UINT32_MAX &&
+        expected->valuedouble == (double)expected->valueint &&
+        copy_password(current, out_change->current_password,
+                      sizeof(out_change->current_password)) &&
+        copy_password(replacement, out_change->new_password, sizeof(out_change->new_password));
     if (valid) {
         out_change->expected_revision = (uint32_t)expected->valuedouble;
     }
@@ -131,8 +134,7 @@ static app_error_code_t send_settings(web_api_response_t *response,
     return result;
 }
 
-static app_error_code_t handle_settings(const web_api_call_t *call,
-                                        web_api_response_t *response) {
+static app_error_code_t handle_settings(const web_api_call_t *call, web_api_response_t *response) {
     if (call->method == WEB_API_METHOD_GET) {
         provisioning_settings_t settings = {0};
         const app_error_code_t result = provisioning_settings_read(&settings);
@@ -142,8 +144,8 @@ static app_error_code_t handle_settings(const web_api_call_t *call,
     }
     provisioning_settings_t replacement = {0};
     uint32_t expected_revision = 0U;
-    app_error_code_t result = web_api_json_parse_settings_update(
-        call->body, call->body_length, &replacement, &expected_revision);
+    app_error_code_t result = web_api_json_parse_settings_update(call->body, call->body_length,
+                                                                 &replacement, &expected_revision);
     if (result == APP_ERROR_NONE && replacement.has_active_set) {
         macro_set_t selected = {0};
         result = storage_set_read(&replacement.active_set_id, &selected);
@@ -155,8 +157,7 @@ static app_error_code_t handle_settings(const web_api_call_t *call,
     if (result != APP_ERROR_NONE) {
         return web_api_handler_error(response, result, "could not update settings", NULL);
     }
-    server_configuration.require_physical_confirmation =
-        committed.require_physical_confirmation;
+    server_configuration.require_physical_confirmation = committed.require_physical_confirmation;
     return send_settings(response, &committed);
 }
 
@@ -205,7 +206,7 @@ static app_error_code_t handle_change_password(const web_api_call_t *call,
     if (result != APP_ERROR_NONE) {
         return web_api_handler_error(response, result, "could not change password", NULL);
     }
-    char data[80U];
+    char data[WEB_PASSWORD_CHANGE_RESPONSE_BYTES];
     const int length = snprintf(data, sizeof(data), "{\"credentialVersion\":%lu}",
                                 (unsigned long)credential_version);
     return length < 0 || (size_t)length >= sizeof(data)
@@ -244,13 +245,13 @@ static app_error_code_t handle_storage_health(web_api_response_t *response, bool
         return web_api_handler_error(response, result, "storage health unavailable", NULL);
     }
     char data[256U];
-    const int length = snprintf(
-        data, sizeof(data),
-        "{\"checked\":%s,\"webMounted\":%s,\"dataMounted\":%s," 
-        "\"quarantineCount\":%lu,\"damagedQuarantineCount\":%lu}",
-        checked ? "true" : "false", mounts.web_mounted ? "true" : "false",
-        mounts.data_mounted ? "true" : "false", (unsigned long)quarantine.count,
-        (unsigned long)quarantine.damaged_count);
+    const int length =
+        snprintf(data, sizeof(data),
+                 "{\"checked\":%s,\"webMounted\":%s,\"dataMounted\":%s,"
+                 "\"quarantineCount\":%lu,\"damagedQuarantineCount\":%lu}",
+                 checked ? "true" : "false", mounts.web_mounted ? "true" : "false",
+                 mounts.data_mounted ? "true" : "false", (unsigned long)quarantine.count,
+                 (unsigned long)quarantine.damaged_count);
     return length < 0 || (size_t)length >= sizeof(data)
                ? APP_ERROR_INTERNAL
                : web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, data);
@@ -300,7 +301,7 @@ app_error_code_t web_api_handle_administration(const web_api_call_t *call,
         const app_error_code_t result = provisioning_factory_reset();
         return result == APP_ERROR_NONE
                    ? web_api_handler_success_json(response, WEB_HTTP_STATUS_ACCEPTED,
-                                                  "{\"factoryReset\":true," 
+                                                  "{\"factoryReset\":true,"
                                                   "\"restartScheduled\":true}")
                    : web_api_handler_error(response, result, "factory reset failed", NULL);
     }

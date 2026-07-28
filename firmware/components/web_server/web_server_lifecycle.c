@@ -8,7 +8,7 @@
 #include "web_server.h"
 #include "web_server_adapter.h"
 
-#define WEB_MAX_URI_HANDLERS 24U
+#define WEB_MAX_URI_HANDLERS 28U
 
 static const httpd_uri_t normal_routes[] = {
     {.uri = "/api/v1/status", .method = HTTP_GET, .handler = status_handler},
@@ -17,6 +17,10 @@ static const httpd_uri_t normal_routes[] = {
     {.uri = "/api/v1/auth/logout", .method = HTTP_POST, .handler = logout_handler},
     {.uri = "/api/v1/executions/current", .method = HTTP_GET, .handler = execution_handler},
     {.uri = "/api/v1/executions/current/cancel", .method = HTTP_POST, .handler = cancel_handler},
+    {.uri = "/api/v1/*", .method = HTTP_GET, .handler = api_handler},
+    {.uri = "/api/v1/*", .method = HTTP_POST, .handler = api_handler},
+    {.uri = "/api/v1/*", .method = HTTP_PUT, .handler = api_handler},
+    {.uri = "/api/v1/*", .method = HTTP_DELETE, .handler = api_handler},
     {.uri = "/*", .method = HTTP_GET, .handler = static_handler},
 };
 

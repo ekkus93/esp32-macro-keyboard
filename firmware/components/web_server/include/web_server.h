@@ -14,6 +14,7 @@ typedef struct {
     web_server_mode_t mode;
     bool login_enabled;
     auth_password_record_t password_record;
+    bool require_physical_confirmation;
     char setup_device_id[PROVISIONING_DEVICE_ID_HEX_BYTES + 1U];
     char setup_ap_ssid[WIFI_AP_SSID_MAX_BYTES + 1U];
     char setup_code[PROVISIONING_SETUP_SECRET_BUFFER_BYTES];

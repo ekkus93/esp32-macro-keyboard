@@ -337,9 +337,10 @@ bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method)
     case WEB_API_ROUTE_GLOBAL_MACRO:
     case WEB_API_ROUTE_SET_PROCEDURE:
     case WEB_API_ROUTE_PROCEDURE_PROGRESS:
-    case WEB_API_ROUTE_SETTINGS:
         return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_PUT ||
                method == WEB_API_METHOD_DELETE;
+    case WEB_API_ROUTE_SETTINGS:
+        return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_PUT;
     case WEB_API_ROUTE_SET_EXPORT:
     case WEB_API_ROUTE_BACKUP:
     case WEB_API_ROUTE_DIAGNOSTICS_STORAGE:
@@ -400,7 +401,8 @@ bool web_api_route_requires_csrf(web_api_route_t route, web_api_method_t method)
 }
 
 bool web_api_route_requires_physical_confirmation(web_api_route_t route) {
-    return route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD ||
+    return route == WEB_API_ROUTE_EXECUTIONS || route == WEB_API_ROUTE_EXECUTION_CONFIRM ||
+           route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD ||
            route == WEB_API_ROUTE_DEVICE_RESTART || route == WEB_API_ROUTE_DEVICE_RESET_SETTINGS ||
            route == WEB_API_ROUTE_DEVICE_FACTORY_RESET || route == WEB_API_ROUTE_RESTORE;
 }

@@ -212,6 +212,7 @@ static void configure_normal_server(const provisioning_config_t *provisioning,
         .mode = WEB_SERVER_MODE_NORMAL,
         .login_enabled = true,
         .password_record = provisioning->password_record,
+        .require_physical_confirmation = provisioning->require_physical_confirmation,
     };
 }
 

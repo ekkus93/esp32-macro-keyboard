@@ -1,6 +1,7 @@
 #include "web_api_handlers.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "app_error.h"
 #include "web_api_core.h"

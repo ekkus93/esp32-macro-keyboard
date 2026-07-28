@@ -135,6 +135,7 @@ app_error_code_t macro_executor_engine_init(macro_executor_engine_t *engine,
     memset(engine, 0, sizeof(*engine));
     engine->ops = *ops;
     engine->status.state = EXECUTION_IDLE;
+    engine->status.available = true;
     return APP_ERROR_NONE;
 }
 
@@ -185,12 +186,18 @@ app_error_code_t macro_executor_engine_cancel(macro_executor_engine_t *engine) {
     if (engine == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
+    if (engine->unavailable) {
+        return APP_ERROR_STORAGE_UNAVAILABLE;
+    }
     app_error_code_t result = lock_engine(engine);
     if (result != APP_ERROR_NONE) {
         return result;
     }
     if (!engine->busy) {
         return unlock_engine(engine) == APP_ERROR_NONE ? APP_ERROR_NOT_FOUND : APP_ERROR_INTERNAL;
+    }
+    if (engine->cancellation_requested) {
+        return unlock_engine(engine) == APP_ERROR_NONE ? APP_ERROR_CONFLICT : APP_ERROR_INTERNAL;
     }
     engine->cancellation_requested = true;
     result = unlock_engine(engine);
@@ -210,6 +217,8 @@ macro_execution_status_t macro_executor_engine_get_status(macro_executor_engine_
         return result;
     }
     result = engine->status;
+    result.available = !engine->unavailable;
+    result.cancellation_requested = engine->cancellation_requested;
     if (unlock_engine(engine) != APP_ERROR_NONE) {
         result.state = EXECUTION_FAILED;
         result.error = APP_ERROR_INTERNAL;
@@ -250,6 +259,10 @@ app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
         .error = APP_ERROR_NONE,
         .release_error = APP_ERROR_NONE,
         .execution_id = request->execution_id,
+        .set_id = request->set_id,
+        .macro_id = request->macro_id,
+        .macro_revision = request->macro_revision,
+        .available = true,
         .action_index = 0U,
         .action_count = request->plan.action_count,
     };

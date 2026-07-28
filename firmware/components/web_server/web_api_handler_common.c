@@ -38,8 +38,9 @@ static cJSON *parse_serialized(char *json, size_t length) {
     }
     const char *parse_end = NULL;
     cJSON *item = cJSON_ParseWithLengthOpts(json, length, &parse_end, false);
+    const bool complete = item != NULL && parse_end != NULL && (size_t)(parse_end - json) == length;
     cJSON_free(json);
-    if (item == NULL || parse_end == NULL || (size_t)(parse_end - json) != length) {
+    if (!complete) {
         cJSON_Delete(item);
         return NULL;
     }
@@ -48,8 +49,12 @@ static cJSON *parse_serialized(char *json, size_t length) {
 
 app_error_code_t web_api_handler_error(web_api_response_t *response, app_error_code_t error,
                                        const char *message, const char *details_json) {
-    return web_api_response_error(response, web_api_http_status_for_error(error), error, message,
-                                  details_json);
+    return web_api_response_error(response, &(web_api_error_spec_t){
+                                                .status = web_api_http_status_for_error(error),
+                                                .code = error,
+                                                .message = message,
+                                                .details_json = details_json,
+                                            });
 }
 
 app_error_code_t web_api_handler_success_json(web_api_response_t *response, unsigned int status,

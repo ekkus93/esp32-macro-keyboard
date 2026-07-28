@@ -600,3 +600,40 @@ target_link_libraries(web_execution_submit_tests PRIVATE test_support)
 target_compile_options(web_execution_submit_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME web_execution_submit COMMAND web_execution_submit_tests)
 set_tests_properties(web_execution_submit PROPERTIES LABELS "web")
+
+# Phase 16 strict JSON and response envelope tests.
+add_executable(
+    web_api_json_tests
+    test_web_api_json.c ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/web_server/web_api_json.c
+)
+target_include_directories(
+    web_api_json_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/provisioning/include
+            ../../firmware/components/storage/include
+            ../../firmware/components/web_server
+)
+target_link_libraries(web_api_json_tests PRIVATE PkgConfig::CJSON test_support)
+target_compile_options(web_api_json_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME web_api_json COMMAND web_api_json_tests)
+set_tests_properties(web_api_json PROPERTIES LABELS "web")
+
+add_executable(
+    web_api_response_tests
+    test_web_api_response.c ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/web_server/web_api_response.c
+)
+target_include_directories(
+    web_api_response_tests PRIVATE ../../firmware/components/macro_model/include
+                                   ../../firmware/components/web_server
+)
+target_link_libraries(web_api_response_tests PRIVATE PkgConfig::CJSON test_support)
+target_compile_options(web_api_response_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME web_api_response COMMAND web_api_response_tests)
+set_tests_properties(web_api_response PROPERTIES LABELS "web")

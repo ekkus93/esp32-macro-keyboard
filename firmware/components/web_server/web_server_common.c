@@ -114,9 +114,8 @@ app_error_code_t read_bounded_body(httpd_req_t *request, char *buffer, size_t bu
                                          receive_body_adapter, request);
 }
 
-static app_error_code_t get_header_adapter(void *context, const char *name, char *buffer,
-                                           size_t buffer_size) {
-    httpd_req_t *request = context;
+app_error_code_t web_server_get_header(httpd_req_t *request, const char *name, char *buffer,
+                                       size_t buffer_size) {
     if (buffer != NULL && buffer_size > 0U) {
         buffer[0] = '\0';
     }
@@ -130,6 +129,11 @@ static app_error_code_t get_header_adapter(void *context, const char *name, char
     return httpd_req_get_hdr_value_str(request, name, buffer, buffer_size) == ESP_OK
                ? APP_ERROR_NONE
                : APP_ERROR_AUTH_REQUIRED;
+}
+
+static app_error_code_t get_header_adapter(void *context, const char *name, char *buffer,
+                                           size_t buffer_size) {
+    return web_server_get_header(context, name, buffer, buffer_size);
 }
 
 static app_error_code_t validate_session_adapter(void *context, const char *session_token,

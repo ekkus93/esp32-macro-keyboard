@@ -18,6 +18,10 @@
 #include "web_execution_submit.h"
 #include "web_http_status.h"
 
+#define WEB_EXECUTION_STATUS_RESPONSE_BYTES 768U
+#define WEB_EXECUTION_DETAILS_RESPONSE_BYTES 192U
+#include "web_server_internal.h"
+
 static app_error_code_t read_macro(void *context, const storage_macro_location_t *location,
                                    const app_uuid_t *macro_id, macro_t *out_macro) {
     (void)context;
@@ -25,8 +29,7 @@ static app_error_code_t read_macro(void *context, const storage_macro_location_t
 }
 
 static app_error_code_t read_procedure(void *context, const app_uuid_t *set_id,
-                                       const app_uuid_t *procedure_id,
-                                       procedure_t *out_procedure) {
+                                       const app_uuid_t *procedure_id, procedure_t *out_procedure) {
     (void)context;
     return storage_procedure_read(set_id, procedure_id, out_procedure);
 }
@@ -65,16 +68,16 @@ static web_execution_ops_t execution_operations(void) {
     };
 }
 
-static app_error_code_t execution_status_json(const macro_execution_status_t *status,
-                                              char *output, size_t output_size) {
+static app_error_code_t execution_status_json(const macro_execution_status_t *status, char *output,
+                                              size_t output_size) {
     if (status == NULL || output == NULL || output_size == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     const int length = snprintf(
         output, output_size,
-        "{\"executionId\":\"%s\",\"setId\":\"%s\",\"macroId\":\"%s\"," 
-        "\"macroRevision\":%lu,\"state\":\"%s\",\"error\":\"%s\"," 
-        "\"releaseError\":\"%s\",\"actionIndex\":%lu,\"actionCount\":%lu," 
+        "{\"executionId\":\"%s\",\"setId\":\"%s\",\"macroId\":\"%s\","
+        "\"macroRevision\":%lu,\"state\":\"%s\",\"error\":\"%s\","
+        "\"releaseError\":\"%s\",\"actionIndex\":%lu,\"actionCount\":%lu,"
         "\"available\":%s,\"cancellationRequested\":%s}",
         status->execution_id.value, status->set_id.value, status->macro_id.value,
         (unsigned long)status->macro_revision, execution_state_string(status->state),
@@ -90,23 +93,22 @@ static app_error_code_t execution_status_json(const macro_execution_status_t *st
 
 static app_error_code_t send_current(web_api_response_t *response) {
     const macro_execution_status_t status = macro_executor_get_status();
-    char data[768U];
+    char data[WEB_EXECUTION_STATUS_RESPONSE_BYTES];
     const app_error_code_t result = execution_status_json(&status, data, sizeof(data));
-    return result == APP_ERROR_NONE ? web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, data)
-                                    : result;
+    return result == APP_ERROR_NONE
+               ? web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, data)
+               : result;
 }
 
-static app_error_code_t send_submission_error(web_api_response_t *response,
-                                              app_error_code_t error,
+static app_error_code_t send_submission_error(web_api_response_t *response, app_error_code_t error,
                                               const macro_parse_error_t *parse_error) {
     if ((error == APP_ERROR_MACRO_SYNTAX || error == APP_ERROR_MACRO_LIMIT) &&
         parse_error != NULL) {
-        char details[192U];
-        const int length = snprintf(details, sizeof(details),
-                                    "{\"line\":%lu,\"column\":%lu,\"byteOffset\":%lu}",
-                                    (unsigned long)parse_error->line,
-                                    (unsigned long)parse_error->column,
-                                    (unsigned long)parse_error->byte_offset);
+        char details[WEB_EXECUTION_DETAILS_RESPONSE_BYTES];
+        const int length =
+            snprintf(details, sizeof(details), "{\"line\":%lu,\"column\":%lu,\"byteOffset\":%lu}",
+                     (unsigned long)parse_error->line, (unsigned long)parse_error->column,
+                     (unsigned long)parse_error->byte_offset);
         if (length < 0 || (size_t)length >= sizeof(details)) {
             return APP_ERROR_INTERNAL;
         }
@@ -128,12 +130,11 @@ static app_error_code_t handle_submit(const web_api_call_t *call, web_api_respon
     if (result != APP_ERROR_NONE) {
         return send_submission_error(response, result, &parse_error);
     }
-    char data[192U];
+    char data[WEB_EXECUTION_DETAILS_RESPONSE_BYTES];
     const int length = snprintf(data, sizeof(data),
-                                "{\"executionId\":\"%s\",\"actionCount\":%lu," 
+                                "{\"executionId\":\"%s\",\"actionCount\":%lu,"
                                 "\"estimatedDurationMs\":%lu}",
-                                accepted.execution_id.value,
-                                (unsigned long)accepted.action_count,
+                                accepted.execution_id.value, (unsigned long)accepted.action_count,
                                 (unsigned long)accepted.estimated_duration_ms);
     return length < 0 || (size_t)length >= sizeof(data)
                ? APP_ERROR_INTERNAL
@@ -154,7 +155,11 @@ static bool execution_terminal(execution_state_t state) {
 
 static app_error_code_t explicit_error(web_api_response_t *response, unsigned int status,
                                        app_error_code_t error, const char *message) {
-    return web_api_response_error(response, status, error, message, NULL);
+    return web_api_response_error(response, &(web_api_error_spec_t){
+                                                .status = status,
+                                                .code = error,
+                                                .message = message,
+                                            });
 }
 
 static app_error_code_t handle_cancel(const web_api_call_t *call, web_api_response_t *response) {
@@ -191,8 +196,7 @@ static app_error_code_t handle_confirm(const web_api_call_t *call, web_api_respo
         return explicit_error(response, WEB_HTTP_STATUS_CONFLICT, APP_ERROR_CONFLICT,
                               "execution is already terminal");
     }
-    return web_api_handler_success_json(response, WEB_HTTP_STATUS_OK,
-                                        "{\"confirmed\":true}");
+    return web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, "{\"confirmed\":true}");
 }
 
 app_error_code_t web_api_handle_execution(const web_api_call_t *call,

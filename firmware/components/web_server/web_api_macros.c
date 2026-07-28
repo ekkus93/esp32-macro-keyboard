@@ -14,9 +14,15 @@
 #include "macro_parser.h"
 #include "storage_object_json.h"
 #include "storage_repository.h"
+#include "web_api_core.h"
 #include "web_api_handler_common.h"
 #include "web_api_json.h"
 #include "web_api_response.h"
+#include "web_http_status.h"
+
+#define WEB_MACRO_DELETE_RESPONSE_BYTES 80U
+#define WEB_MACRO_VALIDATION_DETAILS_BYTES 192U
+#define WEB_MACRO_VALIDATION_RESPONSE_BYTES 160U
 
 static storage_macro_location_t location_for_call(const web_api_call_t *call) {
     if (call->path.route == WEB_API_ROUTE_GLOBAL_MACROS ||
@@ -72,7 +78,7 @@ static app_error_code_t handle_collection(const web_api_call_t *call,
         }
         storage_macro_list_free(&list);
         if (result == APP_ERROR_NONE) {
-            result = web_api_handler_success_json(response, 200U, json);
+            result = web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, json);
         } else {
             const app_error_code_t encoded =
                 respond_error(response, result, "could not list macros", NULL);
@@ -103,7 +109,7 @@ static app_error_code_t handle_collection(const web_api_call_t *call,
     if (result != APP_ERROR_NONE) {
         return respond_error(response, result, "could not create macro", NULL);
     }
-    result = send_macro(response, 201U, &committed);
+    result = send_macro(response, WEB_HTTP_STATUS_CREATED, &committed);
     macro_model_free_macro(&committed);
     return result;
 }
@@ -121,9 +127,9 @@ static app_error_code_t reference_details_json(const storage_reference_list_t *r
         return APP_ERROR_INTERNAL;
     }
     for (size_t index = 0U; index < references->count; ++index) {
-        cJSON *id = cJSON_CreateString(references->ids[index].value);
-        if (id == NULL || !cJSON_AddItemToArray(ids, id)) {
-            cJSON_Delete(id);
+        cJSON *identifier = cJSON_CreateString(references->ids[index].value);
+        if (identifier == NULL || !cJSON_AddItemToArray(ids, identifier)) {
+            cJSON_Delete(identifier);
             cJSON_Delete(root);
             return APP_ERROR_INTERNAL;
         }
@@ -139,7 +145,7 @@ static app_error_code_t handle_item(const web_api_call_t *call, web_api_response
         macro_t macro = {0};
         app_error_code_t result = storage_macro_read(&location, &call->path.macro_id, &macro);
         if (result == APP_ERROR_NONE) {
-            result = send_macro(response, 200U, &macro);
+            result = send_macro(response, WEB_HTTP_STATUS_OK, &macro);
         } else {
             result = respond_error(response, result, "macro not available", NULL);
         }
@@ -149,7 +155,12 @@ static app_error_code_t handle_item(const web_api_call_t *call, web_api_response
     if (call->method == WEB_API_METHOD_PUT) {
         web_api_resource_mutation_t mutation = {0};
         app_error_code_t result = web_api_json_parse_resource_mutation(
-            call->body, call->body_length, STORAGE_MACRO_FILE_MAX_BYTES, &mutation);
+            call->body,
+            &(web_api_resource_parse_limits_t){
+                .body_length = call->body_length,
+                .maximum_resource_length = STORAGE_MACRO_FILE_MAX_BYTES,
+            },
+            &mutation);
         macro_t replacement = {0};
         if (result == APP_ERROR_NONE) {
             result = storage_repository_parse_macro_json(mutation.resource_json,
@@ -169,7 +180,7 @@ static app_error_code_t handle_item(const web_api_call_t *call, web_api_response
         if (result != APP_ERROR_NONE) {
             return respond_error(response, result, "could not update macro", NULL);
         }
-        result = send_macro(response, 200U, &committed);
+        result = send_macro(response, WEB_HTTP_STATUS_OK, &committed);
         macro_model_free_macro(&committed);
         return result;
     }
@@ -196,24 +207,29 @@ static app_error_code_t handle_item(const web_api_call_t *call, web_api_response
     if (result != APP_ERROR_NONE) {
         return respond_error(response, result, "could not delete macro", NULL);
     }
-    char data[80U];
+    char data[WEB_MACRO_DELETE_RESPONSE_BYTES];
     const int length =
         snprintf(data, sizeof(data), "{\"deleted\":true,\"id\":\"%s\"}", call->path.macro_id.value);
     return length < 0 || (size_t)length >= sizeof(data)
                ? APP_ERROR_INTERNAL
-               : web_api_handler_success_json(response, 200U, data);
+               : web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, data);
 }
 
 static app_error_code_t handle_reorder(const web_api_call_t *call, web_api_response_t *response) {
     storage_uuid_order_t order = {0};
-    app_error_code_t result = web_api_json_parse_uuid_order(call->body, call->body_length,
-                                                            APP_MACROS_PER_SET_MAX, &order);
+    app_error_code_t result =
+        web_api_json_parse_uuid_order(call->body,
+                                      &(web_api_order_parse_limits_t){
+                                          .body_length = call->body_length,
+                                          .maximum_count = APP_MACROS_PER_SET_MAX,
+                                      },
+                                      &order);
     const storage_macro_location_t location = location_for_call(call);
     if (result == APP_ERROR_NONE) {
         result = storage_macro_reorder(&location, order.ids, order.count);
     }
     return result == APP_ERROR_NONE
-               ? web_api_handler_success_json(response, 200U, "{\"reordered\":true}")
+               ? web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, "{\"reordered\":true}")
                : respond_error(response, result, "could not reorder macros", NULL);
 }
 
@@ -238,7 +254,7 @@ static app_error_code_t handle_validate(const web_api_call_t *call, web_api_resp
     }
     macro_model_free_macro(&candidate);
     if (result != APP_ERROR_NONE) {
-        char details[192U];
+        char details[WEB_MACRO_VALIDATION_DETAILS_BYTES];
         const int length =
             snprintf(details, sizeof(details), "{\"line\":%lu,\"column\":%lu,\"byteOffset\":%lu}",
                      (unsigned long)parse_error.line, (unsigned long)parse_error.column,
@@ -247,7 +263,7 @@ static app_error_code_t handle_validate(const web_api_call_t *call, web_api_resp
                    ? APP_ERROR_INTERNAL
                    : respond_error(response, result, "macro validation failed", details);
     }
-    char data[160U];
+    char data[WEB_MACRO_VALIDATION_RESPONSE_BYTES];
     const int length =
         snprintf(data, sizeof(data),
                  "{\"valid\":true,\"actionCount\":%lu,"
@@ -256,7 +272,7 @@ static app_error_code_t handle_validate(const web_api_call_t *call, web_api_resp
     macro_plan_free(&plan);
     return length < 0 || (size_t)length >= sizeof(data)
                ? APP_ERROR_INTERNAL
-               : web_api_handler_success_json(response, 200U, data);
+               : web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, data);
 }
 
 static app_error_code_t parse_duplicate(const web_api_call_t *call, app_uuid_t *out_id,
@@ -274,7 +290,8 @@ static app_error_code_t parse_duplicate(const web_api_call_t *call, app_uuid_t *
             id_seen = true;
         } else if (item->string != NULL && strcmp(item->string, "name") == 0 && !name_seen &&
                    cJSON_IsString(item) && item->valuestring != NULL &&
-                   strlen(item->valuestring) <= APP_MACRO_NAME_MAX_BYTES) {
+                   strlen(item->valuestring) <= APP_MACRO_NAME_MAX_BYTES &&
+                   strlen(item->valuestring) < out_name_size) {
             memcpy(out_name, item->valuestring, strlen(item->valuestring) + 1U);
             name_seen = true;
         } else {
@@ -301,7 +318,7 @@ static app_error_code_t handle_duplicate(const web_api_call_t *call, web_api_res
     if (result != APP_ERROR_NONE) {
         return respond_error(response, result, "could not duplicate macro", NULL);
     }
-    result = send_macro(response, 201U, &duplicate);
+    result = send_macro(response, WEB_HTTP_STATUS_CREATED, &duplicate);
     macro_model_free_macro(&duplicate);
     return result;
 }

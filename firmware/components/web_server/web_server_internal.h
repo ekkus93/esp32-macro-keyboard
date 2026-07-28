@@ -34,6 +34,8 @@ esp_err_t send_error(httpd_req_t *request, const char *status, app_error_code_t 
                      const char *message);
 app_error_code_t read_bounded_body(httpd_req_t *request, char *buffer, size_t buffer_size,
                                    size_t maximum_length);
+app_error_code_t web_server_get_header(httpd_req_t *request, const char *name, char *buffer,
+                                       size_t buffer_size);
 app_error_code_t authorize_mutation(httpd_req_t *request, char *out_session_token);
 
 esp_err_t status_handler(httpd_req_t *request);
@@ -42,6 +44,7 @@ esp_err_t login_handler(httpd_req_t *request);
 esp_err_t logout_handler(httpd_req_t *request);
 esp_err_t execution_handler(httpd_req_t *request);
 esp_err_t cancel_handler(httpd_req_t *request);
+esp_err_t api_handler(httpd_req_t *request);
 esp_err_t static_handler(httpd_req_t *request);
 esp_err_t setup_state_handler(httpd_req_t *request);
 esp_err_t setup_credentials_handler(httpd_req_t *request);

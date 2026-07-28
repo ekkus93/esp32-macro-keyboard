@@ -114,16 +114,17 @@ app_error_code_t web_api_json_parse_expected_revision(const char *body, size_t b
     return APP_ERROR_NONE;
 }
 
-app_error_code_t web_api_json_parse_resource_mutation(const char *body, size_t body_length,
-                                                      size_t maximum_resource_length,
+app_error_code_t web_api_json_parse_resource_mutation(const char *body,
+                                                      const web_api_resource_parse_limits_t *limits,
                                                       web_api_resource_mutation_t *out_mutation) {
     if (out_mutation != NULL) {
         memset(out_mutation, 0, sizeof(*out_mutation));
     }
-    if (out_mutation == NULL || maximum_resource_length == 0U) {
+    if (out_mutation == NULL || limits == NULL || limits->body_length == 0U ||
+        limits->maximum_resource_length == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    cJSON *root = parse_exact_document(body, body_length);
+    cJSON *root = parse_exact_document(body, limits->body_length);
     static const char *const fields[] = {"expectedRevision", "resource"};
     if (root == NULL || !exact_fields(root, fields, 2U) ||
         !read_revision(root, "expectedRevision", &out_mutation->expected_revision)) {
@@ -141,7 +142,7 @@ app_error_code_t web_api_json_parse_resource_mutation(const char *body, size_t b
         return APP_ERROR_INTERNAL;
     }
     const size_t length = strlen(serialized);
-    if (length == 0U || length > maximum_resource_length) {
+    if (length == 0U || length > limits->maximum_resource_length) {
         cJSON_free(serialized);
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -158,16 +159,17 @@ void web_api_json_free_resource_mutation(web_api_resource_mutation_t *mutation) 
     memset(mutation, 0, sizeof(*mutation));
 }
 
-app_error_code_t web_api_json_parse_uuid_order(const char *body, size_t body_length,
-                                               size_t maximum_count,
+app_error_code_t web_api_json_parse_uuid_order(const char *body,
+                                               const web_api_order_parse_limits_t *limits,
                                                storage_uuid_order_t *out_order) {
     if (out_order != NULL) {
         memset(out_order, 0, sizeof(*out_order));
     }
-    if (out_order == NULL || maximum_count == 0U || maximum_count > STORAGE_ORDER_MAX_IDS) {
+    if (out_order == NULL || limits == NULL || limits->body_length == 0U ||
+        limits->maximum_count == 0U || limits->maximum_count > STORAGE_ORDER_MAX_IDS) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    cJSON *root = parse_exact_document(body, body_length);
+    cJSON *root = parse_exact_document(body, limits->body_length);
     static const char *const fields[] = {"ids"};
     const cJSON *ids = root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "ids");
     if (root == NULL || !exact_fields(root, fields, 1U) || !cJSON_IsArray(ids)) {
@@ -175,7 +177,7 @@ app_error_code_t web_api_json_parse_uuid_order(const char *body, size_t body_len
         return APP_ERROR_INVALID_ARGUMENT;
     }
     const int count = cJSON_GetArraySize(ids);
-    if (count < 0 || (size_t)count > maximum_count) {
+    if (count < 0 || (size_t)count > limits->maximum_count) {
         cJSON_Delete(root);
         return APP_ERROR_INVALID_ARGUMENT;
     }

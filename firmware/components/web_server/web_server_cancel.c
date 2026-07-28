@@ -40,6 +40,5 @@ esp_err_t cancel_handler(httpd_req_t *request) {
         return send_error(request, cancel_status_text(web_api_cancel_http_status(&status, result)),
                           result, "no cancellable execution");
     }
-    return send_json(request, "{\"ok\":true,\"data\":{\"cancelRequested\":true}}",
-                     "202 Accepted");
+    return send_json(request, "{\"ok\":true,\"data\":{\"cancelRequested\":true}}", "202 Accepted");
 }
