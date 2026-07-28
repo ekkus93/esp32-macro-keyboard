@@ -89,6 +89,9 @@ jobs:
           path.write_text(text.replace(cast_call, typed_call, 1), encoding="utf-8")
           PY
 
+      - name: Apply Phase 16 clang-tidy cleanup
+        run: python3 scripts/fix-phase16-clang-tidy.py
+
       - name: Apply authoritative formatting
         run: |
           set -euo pipefail
@@ -133,5 +136,5 @@ jobs:
             tests/host/test_web_api_response.c
           git commit -m "feat(web): integrate Phase 16 HTTP API"
           git fetch origin master
-          git rebase origin/master
+          test "$(git rev-parse origin/master)" = "$GITHUB_SHA"
           git push origin HEAD:master
