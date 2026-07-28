@@ -17,6 +17,7 @@
 #include "storage_repository_lock.h"
 #include "test_assert.h"
 #include "test_temp_dir.h"
+#include "web_api_handler_common.h"
 #include "web_api_handlers.h"
 #include "web_api_response.h"
 
@@ -527,9 +528,23 @@ static void test_set_delete_and_persistent_readback(void) {
     expect_status(&response, 200U, "\"deleted\":true");
 }
 
+static void test_session_json_redaction(void) {
+    char csrf_token[AUTH_TOKEN_HEX_BYTES];
+    memset(csrf_token, 'a', sizeof(csrf_token));
+    csrf_token[sizeof(csrf_token) - 1U] = '\0';
+    char *json = NULL;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_handler_session_json(csrf_token, &json));
+    TEST_CHECK(json != NULL);
+    TEST_CHECK(strstr(json, "\"authenticated\":true") != NULL);
+    TEST_CHECK(strstr(json, csrf_token) != NULL);
+    TEST_CHECK(strstr(json, "sessionToken") == NULL);
+    web_api_handler_json_free(json);
+}
+
 int main(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
     reset_store();
+    test_session_json_redaction();
     test_set_routes();
     test_macro_routes();
     test_procedure_and_progress_routes();

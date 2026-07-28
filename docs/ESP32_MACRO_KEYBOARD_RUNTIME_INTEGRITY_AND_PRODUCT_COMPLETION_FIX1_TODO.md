@@ -1754,6 +1754,8 @@ webapp/src/pages/
 
 Keep `App.tsx` responsible for routing, session boundary, and global shell only.
 
+**Implemented foundation:** feature-owned setup/authentication, set selection, settings, and execution views now sit behind a small routing and shell coordinator.
+
 ### 17.2 Runtime-validate API responses
 
 Add explicit guards or a small pinned schema library.
@@ -1792,24 +1794,26 @@ export function isExecutionStatus(
 
 Do not use `value.data as T` without route-specific validation.
 
+**Implemented foundation:** `apiRequest` requires a route validator; exact guards cover setup, status, session, settings, sets, cancellation, and execution payloads. Invalid 2xx payloads fail closed as `invalid_response`.
+
 ### 17.3 Implement real session boundary
 
-- [ ] load status/session on startup;
-- [ ] redirect unprovisioned devices to setup;
-- [ ] redirect expired sessions to login;
-- [ ] clear CSRF token on logout or 401;
-- [ ] display rate-limit retry time;
-- [ ] stop authenticated polling after session expiry.
+- [x] load status/session on startup;
+- [x] redirect unprovisioned devices to setup;
+- [x] redirect expired sessions to login;
+- [x] clear CSRF token on logout or 401;
+- [x] display rate-limit retry time;
+- [x] stop authenticated polling after session expiry.
 
 ### 17.4 Implement real set selection
 
-- [ ] load sets;
-- [ ] recents;
-- [ ] search;
-- [ ] metadata;
-- [ ] explicit active set;
-- [ ] no hardcoded HP model;
-- [ ] active set shown in the header from server state.
+- [x] load sets;
+- [x] recents;
+- [x] search;
+- [x] metadata;
+- [x] explicit active set;
+- [x] no hardcoded HP model;
+- [x] active set shown in the header from server state.
 
 ### 17.5 Implement real macro editor
 
@@ -1919,13 +1923,15 @@ function executionResultTitle(
 Update `webapp/tests/app-execution.test.tsx` so cancellation expects
 `Macro cancelled`, not `Macro finished`.
 
+**Implemented:** terminal labels are exhaustive for completed, cancelled, failed, timed out, and key-release failure. Polling stops on terminal state, route exit, unmount, or session expiry.
+
 ### 17.9 Implement real management screens
 
 - [ ] create/edit/duplicate/reorder/delete sets;
 - [ ] import as new;
 - [ ] transactional replace;
 - [ ] export;
-- [ ] settings;
+- [x] settings;
 - [ ] backup/restore;
 - [ ] diagnostics;
 - [ ] quarantine view;

@@ -1,23 +1,31 @@
+import type { Validator } from "./guards";
+import { isRecord } from "./guards";
+
 export interface ApiErrorBody {
   code: string;
   message: string;
   details?: unknown;
 }
 
-export interface ApiSuccess<T> {
+interface ApiSuccess {
   ok: true;
-  data: T;
+  data: unknown;
 }
 
-export interface ApiFailure {
+interface ApiFailure {
   ok: false;
   error: ApiErrorBody;
+}
+
+export interface ApiRequestOptions {
+  notifyOnUnauthorized?: boolean;
 }
 
 export class ApiError extends Error {
   public constructor(
     public readonly status: number,
     public readonly body: ApiErrorBody,
+    public readonly retryAfterSeconds: number | null = null,
   ) {
     super(body.message);
     this.name = "ApiError";
@@ -25,9 +33,23 @@ export class ApiError extends Error {
 }
 
 let csrfToken: string | null = null;
+const unauthorizedListeners = new Set<() => void>();
 
 export function setCsrfToken(token: string | null): void {
   csrfToken = token;
+}
+
+export function subscribeUnauthorized(listener: () => void): () => void {
+  unauthorizedListeners.add(listener);
+  return () => {
+    unauthorizedListeners.delete(listener);
+  };
+}
+
+function notifyUnauthorized(): void {
+  for (const listener of unauthorizedListeners) {
+    listener();
+  }
 }
 
 function invalidResponse(status: number, message: string): ApiError {
@@ -37,21 +59,25 @@ function invalidResponse(status: number, message: string): ApiError {
   });
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function isApiErrorBody(value: unknown): value is ApiErrorBody {
   if (!isRecord(value)) {
     return false;
   }
-  return typeof value.code === "string" && typeof value.message === "string";
+  if (typeof value.code !== "string" || typeof value.message !== "string") {
+    return false;
+  }
+  const keys = Object.keys(value);
+  return (
+    keys.every((key) => ["code", "message", "details"].includes(key)) &&
+    keys.includes("code") &&
+    keys.includes("message")
+  );
 }
 
-function parseEnvelope<T>(
+function parseEnvelope(
   status: number,
   value: unknown,
-): ApiSuccess<T> | ApiFailure {
+): ApiSuccess | ApiFailure {
   if (!isRecord(value) || typeof value.ok !== "boolean") {
     throw invalidResponse(
       status,
@@ -59,7 +85,10 @@ function parseEnvelope<T>(
     );
   }
   if (value.ok) {
-    if (!Object.prototype.hasOwnProperty.call(value, "data")) {
+    if (
+      Object.keys(value).length !== 2 ||
+      !Object.prototype.hasOwnProperty.call(value, "data")
+    ) {
       throw invalidResponse(
         status,
         "The device returned an invalid success envelope.",
@@ -67,10 +96,10 @@ function parseEnvelope<T>(
     }
     return {
       ok: true,
-      data: value.data as T,
+      data: value.data,
     };
   }
-  if (!isApiErrorBody(value.error)) {
+  if (Object.keys(value).length !== 2 || !isApiErrorBody(value.error)) {
     throw invalidResponse(
       status,
       "The device returned an invalid failure envelope.",
@@ -82,11 +111,22 @@ function parseEnvelope<T>(
   };
 }
 
+function retryAfterSeconds(response: Response): number | null {
+  const raw = response.headers.get("Retry-After");
+  if (raw === null || !/^[0-9]+$/.test(raw)) {
+    return null;
+  }
+  const parsed = Number(raw);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
 const mutationMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
+  validate: Validator<T>,
+  options: ApiRequestOptions = {},
 ): Promise<T> {
   if (!path.startsWith("/api/")) {
     throw new Error("API requests must use same-origin /api/ paths.");
@@ -135,15 +175,27 @@ export async function apiRequest<T>(
       );
     }
 
-    const envelope = parseEnvelope<T>(response.status, value);
+    const envelope = parseEnvelope(response.status, value);
     if (!response.ok || !envelope.ok) {
+      if (response.status === 401) {
+        setCsrfToken(null);
+        if (options.notifyOnUnauthorized !== false) {
+          notifyUnauthorized();
+        }
+      }
       const body = envelope.ok
         ? {
             code: "http_error",
             message: `Request failed with status ${String(response.status)}.`,
           }
         : envelope.error;
-      throw new ApiError(response.status, body);
+      throw new ApiError(response.status, body, retryAfterSeconds(response));
+    }
+    if (!validate(envelope.data)) {
+      throw invalidResponse(
+        response.status,
+        "The device returned an invalid response payload.",
+      );
     }
     return envelope.data;
   } finally {

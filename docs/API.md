@@ -36,6 +36,10 @@ are rejected before handler mutation.
 | POST | `/api/v1/device/restart` | Respond, then restart |
 | POST | `/api/v1/device/factory-reset` | Factory reset and restart |
 
+`GET /api/v1/auth/session` returns `authenticated: true` plus the current CSRF token so a
+same-origin page reload can restore the RAM-only frontend token. It never returns the
+HttpOnly session token, and all API responses use `Cache-Control: no-store`.
+
 Password change, settings reset, restart, and factory reset require physical
 confirmation. Settings responses never contain password records, AP credentials,
 session tokens, CSRF tokens, setup secrets, or encryption material.

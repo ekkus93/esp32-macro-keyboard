@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "app_error.h"
+#include "auth.h"
 #include "cJSON.h"
 #include "macro_model.h"
 #include "provisioning.h"
@@ -68,6 +69,22 @@ app_error_code_t web_api_handler_error(web_api_response_t *response, app_error_c
 app_error_code_t web_api_handler_success_json(web_api_response_t *response, unsigned int status,
                                               const char *data_json) {
     return web_api_response_success(response, status, data_json);
+}
+
+app_error_code_t web_api_handler_session_json(const char *csrf_token, char **out_json) {
+    if (out_json != NULL) {
+        *out_json = NULL;
+    }
+    if (csrf_token == NULL || out_json == NULL || strlen(csrf_token) != AUTH_TOKEN_HEX_BYTES - 1U) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL || !cJSON_AddBoolToObject(root, "authenticated", true) ||
+        !cJSON_AddStringToObject(root, "csrfToken", csrf_token)) {
+        cJSON_Delete(root);
+        return APP_ERROR_INTERNAL;
+    }
+    return finish_json(root, out_json);
 }
 
 app_error_code_t web_api_handler_set_json(const macro_set_t *set, char **out_json) {

@@ -124,6 +124,24 @@ static app_error_code_t parse_password_change(const web_api_call_t *call,
     return APP_ERROR_NONE;
 }
 
+static app_error_code_t handle_session(const web_api_call_t *call, web_api_response_t *response) {
+    char csrf_token[AUTH_TOKEN_HEX_BYTES] = {0};
+    app_error_code_t result =
+        auth_session_get_csrf_token(call->session_token, csrf_token, sizeof(csrf_token));
+    char *json = NULL;
+    if (result == APP_ERROR_NONE) {
+        result = web_api_handler_session_json(csrf_token, &json);
+    }
+    secure_zero(csrf_token, sizeof(csrf_token));
+    if (result == APP_ERROR_NONE) {
+        result = web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, json);
+    } else {
+        result = web_api_handler_error(response, result, "session unavailable", NULL);
+    }
+    web_api_handler_json_free(json);
+    return result;
+}
+
 static app_error_code_t send_settings(web_api_response_t *response,
                                       const provisioning_settings_t *settings) {
     char *json = NULL;
@@ -263,8 +281,7 @@ app_error_code_t web_api_handle_administration(const web_api_call_t *call,
     }
     switch (call->path.route) {
     case WEB_API_ROUTE_AUTH_SESSION:
-        return web_api_handler_success_json(response, WEB_HTTP_STATUS_OK,
-                                            "{\"authenticated\":true}");
+        return handle_session(call, response);
     case WEB_API_ROUTE_SETTINGS:
         return handle_settings(call, response);
     case WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD:

@@ -41,6 +41,12 @@ textarea {
   border-radius: 0.75rem;
 }
 
+input[type="checkbox"] {
+  width: auto;
+  min-width: 1.25rem;
+  min-height: 1.25rem;
+}
+
 textarea {
   min-height: 12rem;
   font-family: ui-monospace, monospace;
@@ -54,6 +60,7 @@ textarea:focus-visible {
 }
 
 button:disabled {
+  cursor: not-allowed;
   opacity: 0.45;
 }
 
@@ -95,6 +102,21 @@ main {
   font-size: 1rem;
 }
 
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.header-button {
+  min-height: 36px;
+  padding: 0.4rem 0.65rem;
+  color: white;
+  background: #334155;
+}
+
 .eyebrow {
   margin: 0 0 0.25rem;
   color: #93c5fd;
@@ -106,7 +128,7 @@ main {
 .card {
   display: flex;
   gap: 1rem;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   margin: 0.75rem 0;
   padding: 1rem;
@@ -116,19 +138,27 @@ main {
   box-shadow: 0 0.25rem 1rem rgb(15 23 42 / 8%);
 }
 
-.card h2 {
+.card h2,
+.card h3 {
   margin: 0 0 0.35rem;
   font-size: 1rem;
 }
 
 .card p {
-  margin: 0;
+  margin: 0.25rem 0;
   color: #475569;
 }
 
 .form-stack {
   display: grid;
   gap: 0.75rem;
+}
+
+.checkbox-row {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  min-height: 44px;
 }
 
 .error-message {
@@ -143,11 +173,15 @@ main {
   position: sticky;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.5rem;
   padding: 0.75rem;
   background: white;
   border-top: 1px solid #cbd5e1;
+}
+
+.bottom-nav button {
+  padding-inline: 0.45rem;
 }
 
 .bottom-nav button.active {
@@ -189,10 +223,35 @@ dl {
   gap: 0.5rem 1rem;
 }
 
+.metadata {
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
+}
+
 dt {
   font-weight: 800;
 }
 
 dd {
   margin: 0;
+}
+
+@media (width <= 32rem) {
+  .app-header,
+  .card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
+  }
+
+  .bottom-nav {
+    gap: 0.25rem;
+  }
+
+  .bottom-nav button {
+    font-size: 0.8rem;
+  }
 }

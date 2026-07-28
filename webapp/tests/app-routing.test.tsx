@@ -1,51 +1,61 @@
 import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
 import App from "../src/App";
+import {
+  executionStatus,
+  planAuthenticatedBootstrap,
+  planNormalUnauthenticatedBootstrap,
+} from "./appFixtures";
 import { getFetchCalls, planJsonResponse } from "./fakeFetch";
 import { navigateHash, setHashSilently } from "./fakeLocation";
 import { flushReact, render } from "./render";
 
-const runningStatus = {
-  state: "running",
-  error: "",
-  releaseError: "",
-  actionIndex: 1,
-  actionCount: 3,
-} as const;
-
 describe("application routing", () => {
-  test.each(["", "/unknown"])("routes %j to login", async (hash: string) => {
-    setHashSilently(hash);
+  test("unknown routes use the set selector after authentication", async () => {
+    setHashSilently("/unknown");
+    planAuthenticatedBootstrap();
     const view = await render(<App />);
+    await flushReact();
+    expect(document.body.textContent).toContain("Choose a macro set");
+    await view.unmount();
+  });
+
+  test("unknown routes still require a valid session", async () => {
+    setHashSilently("/unknown");
+    planNormalUnauthenticatedBootstrap();
+    const view = await render(<App />);
+    await flushReact();
     expect(document.body.textContent).toContain("Administrator password");
     await view.unmount();
   });
 
   test.each([
-    ["/setup", "First-run setup"],
-    ["/login", "Administrator password"],
     ["/sets", "Choose a macro set"],
     ["/procedures", "Procedures"],
-    ["/procedure", "ChromeOS to Debian 13"],
-    ["/instruction", "Disconnect the battery"],
+    ["/procedure", "Procedure"],
+    ["/instruction", "Instruction"],
     ["/procedure-editor", "Edit procedure"],
     ["/macros", "Macros"],
     ["/macro-editor", "Macro editor"],
     ["/confirm", "Confirm send"],
     ["/execution", "Typing macro"],
-    ["/result", "Macro finished"],
-    ["/manage-sets", "Manage macro sets"],
+    ["/result", "No execution result"],
+    ["/manage-sets", "Choose a macro set"],
     ["/set-editor", "Create macro set"],
     ["/import", "Import macro set"],
     ["/export", "Export macro set"],
     ["/delete-set", "Delete macro set"],
     ["/settings", "Settings"],
     ["/diagnostics", "Diagnostics"],
-  ])("renders route %s", async (hash: string, expectedText: string) => {
-    if (hash === "/execution") {
-      planJsonResponse({ ok: true, data: runningStatus });
-    }
+  ])("renders authenticated route %s", async (hash, expectedText) => {
     setHashSilently(hash);
+    planAuthenticatedBootstrap();
+    if (hash === "/execution") {
+      planJsonResponse({
+        ok: true,
+        data: executionStatus("running"),
+      });
+    }
     const view = await render(<App />);
     await flushReact();
     expect(document.body.textContent).toContain(expectedText);
@@ -56,7 +66,9 @@ describe("application routing", () => {
     const addListener = vi.spyOn(window, "addEventListener");
     const removeListener = vi.spyOn(window, "removeEventListener");
     setHashSilently("/sets");
+    planAuthenticatedBootstrap();
     const view = await render(<App />);
+    await flushReact();
 
     const hashRegistration = addListener.mock.calls.find(
       ([type]) => type === "hashchange",
@@ -71,18 +83,22 @@ describe("application routing", () => {
 
   test("clears execution polling after route change", async () => {
     vi.useFakeTimers();
-    planJsonResponse({ ok: true, data: runningStatus });
     setHashSilently("/execution");
+    planAuthenticatedBootstrap();
+    planJsonResponse({
+      ok: true,
+      data: executionStatus("running"),
+    });
     const view = await render(<App />);
     await flushReact();
-    expect(getFetchCalls()).toHaveLength(1);
+    expect(getFetchCalls()).toHaveLength(6);
 
     await act(async () => {
       navigateHash("/sets");
       await Promise.resolve();
     });
     await vi.advanceTimersByTimeAsync(1_500);
-    expect(getFetchCalls()).toHaveLength(1);
+    expect(getFetchCalls()).toHaveLength(6);
     expect(document.body.textContent).toContain("Choose a macro set");
     await view.unmount();
   });

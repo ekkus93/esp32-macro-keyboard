@@ -310,6 +310,7 @@ static app_error_code_t authorize_and_read_api_call(httpd_req_t *request, web_ap
         *out_response_ready = result == APP_ERROR_NONE;
         return result;
     }
+    memcpy(call->session_token, policy->session_token, sizeof(call->session_token));
     result = read_call_body(request, body_limit, out_body, &call->body_length);
     call->body = *out_body == NULL ? "" : *out_body;
     if (result != APP_ERROR_NONE) {

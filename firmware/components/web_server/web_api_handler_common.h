@@ -14,6 +14,7 @@ app_error_code_t web_api_handler_error(web_api_response_t *response, app_error_c
                                        const char *message, const char *details_json);
 app_error_code_t web_api_handler_success_json(web_api_response_t *response, unsigned int status,
                                               const char *data_json);
+app_error_code_t web_api_handler_session_json(const char *csrf_token, char **out_json);
 app_error_code_t web_api_handler_set_json(const macro_set_t *set, char **out_json);
 app_error_code_t web_api_handler_set_list_json(const storage_set_list_t *list, char **out_json);
 app_error_code_t web_api_handler_macro_json(const macro_t *macro, char **out_json);

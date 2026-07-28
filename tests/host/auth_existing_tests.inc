@@ -78,6 +78,12 @@ static void test_sessions(void) {
                APP_ERROR_NONE);
     TEST_CHECK(auth_core_session_validate_read_only(&core, session.session_token) ==
                APP_ERROR_NONE);
+    char restored_csrf[AUTH_TOKEN_HEX_BYTES] = {0};
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE, auth_core_session_get_csrf_token(&core, session.session_token,
+                                                         restored_csrf,
+                                                         sizeof(restored_csrf)));
+    TEST_CHECK_EQ_STRING(session.csrf_token, restored_csrf);
 
     fake.now_us += 1000000U;
     TEST_CHECK(auth_core_session_validate(&core, session.session_token, session.csrf_token) ==
@@ -93,10 +99,23 @@ static void test_sessions(void) {
     TEST_CHECK_EQ_U64(expiry_before_failure, core.sessions[0].view.expires_at_us);
     TEST_CHECK(auth_core_session_validate(&core, "short", wrong) == APP_ERROR_AUTH_REQUIRED);
     TEST_CHECK(auth_core_session_validate_read_only(&core, wrong) == APP_ERROR_AUTH_REQUIRED);
+    memset(restored_csrf, 'x', sizeof(restored_csrf));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_AUTH_REQUIRED,
+        auth_core_session_get_csrf_token(&core, wrong, restored_csrf, sizeof(restored_csrf)));
+    TEST_CHECK_EQ_U64(0U, restored_csrf[0]);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         auth_core_session_get_csrf_token(
+                             &core, session.session_token, restored_csrf, 1U));
+    TEST_CHECK_EQ_U64(0U, restored_csrf[0]);
     TEST_CHECK(auth_core_session_validate_read_only(NULL, session.session_token) ==
                APP_ERROR_AUTH_REQUIRED);
 
     TEST_CHECK(auth_core_session_logout(&core, session.session_token) == APP_ERROR_NONE);
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_AUTH_REQUIRED,
+        auth_core_session_get_csrf_token(&core, session.session_token, restored_csrf,
+                                         sizeof(restored_csrf)));
     TEST_CHECK(auth_core_session_logout(&core, session.session_token) == APP_ERROR_NOT_FOUND);
 }
 

@@ -41,6 +41,7 @@ export async function flushReact(): Promise<void> {
   await act(async () => {
     await Promise.resolve();
     await Promise.resolve();
+    await Promise.resolve();
   });
 }
 
@@ -67,6 +68,18 @@ export async function setInputValue(
     setNativeValue(element, value);
     element.dispatchEvent(new Event("input", { bubbles: true }));
     element.dispatchEvent(new Event("change", { bubbles: true }));
+    await Promise.resolve();
+  });
+}
+
+export async function setCheckboxChecked(
+  element: HTMLInputElement,
+  checked: boolean,
+): Promise<void> {
+  await act(async () => {
+    if (element.checked !== checked) {
+      element.click();
+    }
     await Promise.resolve();
   });
 }

@@ -672,7 +672,9 @@ target_include_directories(
     web_api_dispatch_tests
     PRIVATE ../../firmware/components/macro_model/include
             ../../firmware/components/macro_parser/include
-            ../../firmware/components/macro_executor/include ../../firmware/components/web_server
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/web_server
 )
 target_link_libraries(web_api_dispatch_tests PRIVATE PkgConfig::CJSON test_support)
 target_compile_options(web_api_dispatch_tests PRIVATE ${STRICT_WARNINGS})

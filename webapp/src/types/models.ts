@@ -6,10 +6,49 @@ export type UsbState =
   | "suspended"
   | "error";
 
-export type MacroScope = "set" | "global";
+export type ExecutionState =
+  | "idle"
+  | "running"
+  | "completed"
+  | "cancelled"
+  | "failed"
+  | "timed_out";
+
+export interface DeviceStatus {
+  version: string;
+  idf: string;
+  usbState: UsbState;
+  wifiState: string;
+  wifiClients: number;
+  executionState: ExecutionState;
+}
+
+export interface SetupState {
+  deviceId: string;
+  apSsid: string;
+  completed: boolean;
+  physicalConfirmationRequired: boolean;
+}
+
+export interface SessionStatus {
+  authenticated: true;
+  csrfToken: string;
+}
+
+export interface LoginResponse {
+  csrfToken: string;
+}
+
+export interface Settings {
+  schemaVersion: 1;
+  revision: number;
+  requirePhysicalConfirmation: boolean;
+  alwaysSelectSet: boolean;
+  activeSetId: string | null;
+}
 
 export interface MacroSet {
-  schemaVersion: 1;
+  schema_version: 1;
   id: string;
   revision: number;
   name: string;
@@ -17,21 +56,23 @@ export interface MacroSet {
   manufacturer: string;
   model: string;
   board: string;
-  keyboardLayout: "en-US";
-  sortOrder: number;
+  keyboard_layout: "en-US";
+  sort_order: number;
 }
 
+export type MacroScope = "set" | "global";
+
 export interface Macro {
-  schemaVersion: 1;
+  schema_version: 1;
   id: string;
   revision: number;
   scope: MacroScope;
-  setId?: string;
+  set_id?: string;
   name: string;
   source: string;
   favorite: boolean;
-  keyPressMs: number;
-  interKeyMs: number;
+  key_press_ms: number;
+  inter_key_ms: number;
 }
 
 export type ProcedureStep =
@@ -39,9 +80,9 @@ export type ProcedureStep =
       id: string;
       type: "macro";
       title: string;
-      macroId: string;
+      macro_id: string;
       required: boolean;
-      autoCompleteOnSuccess: boolean;
+      auto_complete_on_success: boolean;
     }
   | {
       id: string;
@@ -52,20 +93,34 @@ export type ProcedureStep =
     };
 
 export interface Procedure {
-  schemaVersion: 1;
+  schema_version: 1;
   id: string;
   revision: number;
-  setId: string;
+  set_id: string;
   name: string;
   description: string;
   steps: ProcedureStep[];
-  sortOrder: number;
+  sort_order: number;
 }
 
 export interface ExecutionStatus {
-  state: "idle" | "running" | "completed" | "cancelled" | "failed";
+  executionId: string;
+  setId: string;
+  macroId: string;
+  macroRevision: number;
+  state: ExecutionState;
   error: string;
   releaseError: string;
   actionIndex: number;
   actionCount: number;
+  available: boolean;
+  cancellationRequested: boolean;
+}
+
+export interface CancelAccepted {
+  cancelRequested: true;
+}
+
+export interface RestartAccepted {
+  restartScheduled: true;
 }

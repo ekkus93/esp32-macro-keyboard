@@ -59,7 +59,7 @@
 | 14 | Encrypted persistent provisioning | done (physical confidentiality remains Phase 20 hardware evidence) |
 | 15 | Complete storage object repositories | done |
 | 16 | Complete the HTTP API | done (package transactions Phase 18; diagnostics aggregation Phase 19) |
-| 17 | Replace frontend mock behavior | not started |
+| 17 | Replace frontend mock behavior | in progress (17.1-17.4, 17.8, and settings complete) |
 | 18 | Import / export / backup / restore | not started |
 | 19 | Diagnostics and observability | not started |
 | 20 | Hardware and integration validation | environment-blocked (see below) |
@@ -68,6 +68,8 @@
 | 23 | Final regression and acceptance gate | not started |
 
 ## Completed tasks (commit evidence)
+
+- Phase 17 foundation (split shell, runtime response validation, setup/login/logout and reload-safe session lifecycle, live set selection, settings, and execution-result semantics) — complete in the commit containing this progress update. The authenticated session route restores only the CSRF token after reload; the HttpOnly session token remains undisclosed. Invalid response data fails closed, 401 clears CSRF and stops polling, login throttling is visible, the hardcoded model/set is removed, and deferred Phase 18/19 functions are explicit rather than inert.
 
 - Phase 16 (complete HTTP API) — complete. The final Phase 16 commit adds
   transactional deep set duplication without progress, complete set ordering,

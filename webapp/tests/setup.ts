@@ -22,6 +22,8 @@ const onUnhandledRejection = (event: PromiseRejectionEvent): void => {
 
 beforeEach(() => {
   document.body.replaceChildren();
+  window.localStorage.clear();
+  window.sessionStorage.clear();
   resetFakeLocation();
   resetFakeFetch();
   installFakeFetch();
