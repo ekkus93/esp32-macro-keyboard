@@ -9,6 +9,7 @@ on:
       - "scripts/apply-phase16-finalization.py"
       - "scripts/apply-phase16-request-json.py"
       - "scripts/normalize-phase16-finalization-input.py"
+      - "scripts/patch-phase16-finalization-output.py"
 
 permissions:
   contents: write
@@ -37,6 +38,7 @@ jobs:
             python3 scripts/normalize-phase16-finalization-input.py
             python3 scripts/apply-phase16-request-json.py
             python3 scripts/apply-phase16-finalization.py
+            python3 scripts/patch-phase16-finalization-output.py
           } 2>&1 | tee /tmp/phase16-finalization-transform.log
 
       - name: Remove temporary Phase 16 tooling
