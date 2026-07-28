@@ -82,11 +82,21 @@ jobs:
         run: |
           set -o pipefail
           {
-            mapfile -t c_files < <(git diff --name-only --diff-filter=ACM | grep -E '\.(c|h)$' || true)
+            mapfile -t c_files < <(
+              {
+                git diff --name-only --diff-filter=ACM
+                git ls-files --others --exclude-standard
+              } | grep -E '\.(c|h)$' | sort -u || true
+            )
             if (( ${#c_files[@]} > 0 )); then
               clang-format -i "${c_files[@]}"
             fi
-            mapfile -t cmake_files < <(git diff --name-only --diff-filter=ACM | grep -E '(^|/)CMakeLists\.txt$|\.cmake$' || true)
+            mapfile -t cmake_files < <(
+              {
+                git diff --name-only --diff-filter=ACM
+                git ls-files --others --exclude-standard
+              } | grep -E '(^|/)CMakeLists\.txt$|\.cmake$' | sort -u || true
+            )
             if (( ${#cmake_files[@]} > 0 )); then
               cmake-format -i "${cmake_files[@]}"
             fi
