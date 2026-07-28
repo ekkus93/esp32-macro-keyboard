@@ -1,4 +1,4 @@
-name: Validate Phase 16 request JSON hardening once
+name: Validate Phase 16 finalization once
 
 on:
   push:
@@ -6,36 +6,54 @@ on:
       - master
     paths:
       - ".github/workflows/phase16-http-integration-once.yml"
+      - "scripts/apply-phase16-finalization.py"
       - "scripts/apply-phase16-request-json.py"
 
 permissions:
   contents: write
 
 concurrency:
-  group: phase16-request-json-hardening-once
+  group: phase16-finalization-once
   cancel-in-progress: true
 
 jobs:
   validate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Apply request JSON hardening
+      - name: Apply Phase 16 finalization
         id: transform
         continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
-          python3 scripts/apply-phase16-request-json.py \
-            2>&1 | tee /tmp/phase16-json-transform.log
+          {
+            python3 scripts/apply-phase16-request-json.py
+            python3 scripts/apply-phase16-finalization.py
+          } 2>&1 | tee /tmp/phase16-finalization-transform.log
+
+      - name: Remove temporary Phase 16 tooling
+        id: cleanup
+        if: steps.transform.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            find .github/workflows -maxdepth 1 -type f \
+              \( -name '*phase16*' -o -name 'inspect-phase16-*' \) -print -delete
+            find scripts -maxdepth 1 -type f \
+              \( -name '*phase16*' -o -name 'apply-phase16-*' -o -name 'run-phase16-*' \) \
+              -print -delete
+          } 2>&1 | tee /tmp/phase16-finalization-cleanup.log
 
       - name: Install host validation dependencies
-        if: steps.transform.outcome == 'success'
+        if: steps.transform.outcome == 'success' && steps.cleanup.outcome == 'success'
         run: |
           set -euo pipefail
           sudo apt-get update
@@ -43,42 +61,49 @@ jobs:
             build-essential clang-format clang-tidy cmake jq libcjson-dev python3-venv shellcheck
           python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
           python3 -m venv "${RUNNER_TEMP}/gcovr"
-          "${RUNNER_TEMP}/gcovr/bin/python" -m pip install --disable-pip-version-check \
-            gcovr==8.6
+          "${RUNNER_TEMP}/gcovr/bin/python" -m pip install --disable-pip-version-check gcovr==8.6
+          echo "${RUNNER_TEMP}/gcovr/bin" >> "$GITHUB_PATH"
           go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Apply authoritative formatting
         id: format
-        if: steps.transform.outcome == 'success'
+        if: steps.transform.outcome == 'success' && steps.cleanup.outcome == 'success'
         continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
           {
-            clang-format -i \
-              firmware/components/web_server/web_api_json.c \
-              firmware/components/web_server/web_api_json.h \
-              firmware/components/web_server/web_api_sets.c \
-              firmware/components/web_server/web_api_macros.c \
-              firmware/components/web_server/web_api_procedures.c \
-              tests/host/test_web_api_json.c \
-              tests/host/test_web_api_repository_handlers.c
-            cmake-format -i tests/host/CMakeLists.txt
-          } 2>&1 | tee /tmp/phase16-json-format.log
+            mapfile -t c_files < <(git diff --name-only --diff-filter=ACM | grep -E '\.(c|h)$' || true)
+            if (( ${#c_files[@]} > 0 )); then
+              clang-format -i "${c_files[@]}"
+            fi
+            mapfile -t cmake_files < <(git diff --name-only --diff-filter=ACM | grep -E '(^|/)CMakeLists\.txt$|\.cmake$' || true)
+            if (( ${#cmake_files[@]} > 0 )); then
+              cmake-format -i "${cmake_files[@]}"
+            fi
+          } 2>&1 | tee /tmp/phase16-finalization-format.log
 
       - name: Run focused host and sanitizer tests
         id: focused
-        if: steps.transform.outcome == 'success' && steps.format.outcome == 'success'
+        if: >-
+          steps.transform.outcome == 'success' &&
+          steps.cleanup.outcome == 'success' &&
+          steps.format.outcome == 'success'
         continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
           {
             ./scripts/run-tests.sh web
+            ./scripts/run-tests.sh storage
+            ./scripts/run-tests.sh executor
+            ./scripts/run-tests.sh auth
             ./scripts/run-tests.sh --sanitizers web
-            PATH="${RUNNER_TEMP}/gcovr/bin:${PATH}" ./scripts/generate-native-coverage.sh
-          } 2>&1 | tee /tmp/phase16-json-focused.log
+            ./scripts/run-tests.sh --sanitizers storage
+            ./scripts/run-tests.sh --sanitizers executor
+            ./scripts/run-tests.sh --sanitizers auth
+          } 2>&1 | tee /tmp/phase16-finalization-focused.log
 
       - uses: actions/setup-node@v4
         if: steps.focused.outcome == 'success'
@@ -103,31 +128,36 @@ jobs:
           set -o pipefail
           {
             . "$HOME/esp/esp-idf-v5.5.5/export.sh"
-            rm -f docs/CI_PHASE16_JSON_FAILURE.md
             ./scripts/check-all.sh
-          } 2>&1 | tee /tmp/phase16-json-gate.log
+          } 2>&1 | tee /tmp/phase16-finalization-gate.log
 
-      - name: Commit validated request JSON hardening
+      - name: Run coverage and device-build evidence
+        id: evidence
+        if: steps.gate.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+            ./scripts/generate-native-coverage.sh
+            ./scripts/build-device-tests.sh
+          } 2>&1 | tee /tmp/phase16-finalization-evidence.log
+
+      - name: Commit validated Phase 16 finalization
         if: >-
           steps.transform.outcome == 'success' &&
+          steps.cleanup.outcome == 'success' &&
           steps.format.outcome == 'success' &&
           steps.focused.outcome == 'success' &&
-          steps.gate.outcome == 'success'
+          steps.gate.outcome == 'success' &&
+          steps.evidence.outcome == 'success'
         run: |
           set -euo pipefail
           git config user.name "ChatGPT"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            firmware/components/web_server/web_api_json.c \
-            firmware/components/web_server/web_api_json.h \
-            firmware/components/web_server/web_api_sets.c \
-            firmware/components/web_server/web_api_macros.c \
-            firmware/components/web_server/web_api_procedures.c \
-            tests/host/CMakeLists.txt \
-            tests/host/test_web_api_json.c \
-            tests/host/test_web_api_repository_handlers.c
-          git add -u docs/CI_PHASE16_JSON_FAILURE.md docs/CI_PHASE16_POLICY_FAILURE.md
-          git commit -m "fix(web): reject malformed resource JSON"
+          git add -A
+          git commit -m "feat(web): complete Phase 16 HTTP API"
           git fetch origin master
           test "$(git rev-parse origin/master)" = "$GITHUB_SHA"
           git push origin HEAD:master
@@ -135,9 +165,11 @@ jobs:
       - name: Record exact failure
         if: >-
           steps.transform.outcome == 'failure' ||
+          steps.cleanup.outcome == 'failure' ||
           steps.format.outcome == 'failure' ||
           steps.focused.outcome == 'failure' ||
-          steps.gate.outcome == 'failure'
+          steps.gate.outcome == 'failure' ||
+          steps.evidence.outcome == 'failure'
         run: |
           set -euo pipefail
           git config user.name "ChatGPT"
@@ -147,17 +179,21 @@ jobs:
           git reset --hard origin/master
           git clean -fd
           {
-            echo "# Phase 16 request JSON hardening failure"
+            echo "# Phase 16 finalization failure"
             echo
             echo "- Transform: ${{ steps.transform.outcome }}"
+            echo "- Cleanup: ${{ steps.cleanup.outcome }}"
             echo "- Format: ${{ steps.format.outcome }}"
             echo "- Focused tests: ${{ steps.focused.outcome }}"
             echo "- Authoritative gate: ${{ steps.gate.outcome }}"
+            echo "- Coverage/device evidence: ${{ steps.evidence.outcome }}"
             for log in \
-              /tmp/phase16-json-transform.log \
-              /tmp/phase16-json-format.log \
-              /tmp/phase16-json-focused.log \
-              /tmp/phase16-json-gate.log; do
+              /tmp/phase16-finalization-transform.log \
+              /tmp/phase16-finalization-cleanup.log \
+              /tmp/phase16-finalization-format.log \
+              /tmp/phase16-finalization-focused.log \
+              /tmp/phase16-finalization-gate.log \
+              /tmp/phase16-finalization-evidence.log; do
               if [[ -f "$log" ]]; then
                 echo
                 echo "## $(basename "$log")"
@@ -165,15 +201,15 @@ jobs:
                 echo '```text'
                 grep -n -E \
                   'error:|FAILED|Failure|AddressSanitizer|UndefinedBehaviorSanitizer|expected|mismatch' \
-                  "$log" | tail -n 220 || true
+                  "$log" | tail -n 260 || true
                 echo
-                tail -n 260 "$log"
+                tail -n 280 "$log"
                 echo '```'
               fi
             done
-          } > docs/CI_PHASE16_JSON_FAILURE.md
-          sed -i 's/[[:space:]]\+$//' docs/CI_PHASE16_JSON_FAILURE.md
-          git add docs/CI_PHASE16_JSON_FAILURE.md
-          git commit -m "ci: record Phase 16 request JSON failure"
+          } > docs/CI_PHASE16_FINALIZATION_FAILURE.md
+          sed -i 's/[[:space:]]\+$//' docs/CI_PHASE16_FINALIZATION_FAILURE.md
+          git add docs/CI_PHASE16_FINALIZATION_FAILURE.md
+          git commit -m "ci: record Phase 16 finalization failure"
           git push origin HEAD:master
           exit 1
