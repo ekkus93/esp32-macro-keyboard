@@ -6,7 +6,7 @@ on:
       - master
     paths:
       - ".github/workflows/phase16-http-integration-once.yml"
-      - "scripts/apply-phase16-policy-hardening.py"
+      - "scripts/apply-phase16-request-json.py"
 
 permissions:
   contents: write
@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          python3 scripts/apply-phase16-policy-hardening.py \
+          python3 scripts/apply-phase16-request-json.py \
             2>&1 | tee /tmp/phase16-json-transform.log
 
       - name: Install host validation dependencies
