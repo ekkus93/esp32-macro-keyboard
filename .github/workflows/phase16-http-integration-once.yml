@@ -1,0 +1,105 @@
+name: Validate Phase 16 HTTP integration once
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/phase16-http-integration-once.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: phase16-http-integration-once
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install validation dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            clang-format \
+            clang-tidy \
+            cmake \
+            jq \
+            libcjson-dev \
+            shellcheck
+          python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
+          go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install ESP-IDF v5.5.5
+        run: ./scripts/install-esp-idf.sh
+
+      - name: Install frontend dependencies
+        working-directory: webapp
+        run: npm ci
+
+      - name: Apply deterministic integration patch
+        run: python3 scripts/apply-phase16-http-integration.py
+
+      - name: Apply authoritative formatting
+        run: |
+          set -euo pipefail
+          mapfile -t phase16_c < <(
+            find firmware/components/web_server firmware/components/macro_executor \
+              firmware/components/app_core tests/host \
+              -type f \( -name '*.c' -o -name '*.h' \) -print | sort
+          )
+          clang-format -i "${phase16_c[@]}"
+          cmake-format -i firmware/components/web_server/CMakeLists.txt tests/host/CMakeLists.txt
+
+      - name: Run focused host tests
+        run: |
+          set -euo pipefail
+          ./scripts/run-tests.sh web
+          ./scripts/run-tests.sh executor
+          ./scripts/run-tests.sh --sanitizers web
+          ./scripts/run-tests.sh --sanitizers executor
+
+      - name: Run authoritative repository gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          ./scripts/check-all.sh
+
+      - name: Commit validated integration
+        run: |
+          set -euo pipefail
+          git config user.name "ChatGPT"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            firmware/components/app_core/app_core_sequence.c \
+            firmware/components/macro_executor/macro_executor_engine.c \
+            firmware/components/web_server/CMakeLists.txt \
+            firmware/components/web_server/include/web_server.h \
+            firmware/components/web_server/web_api_core.c \
+            firmware/components/web_server/web_api_execution.c \
+            firmware/components/web_server/web_api_handler_common.c \
+            firmware/components/web_server/web_server_api.c \
+            firmware/components/web_server/web_server_common.c \
+            firmware/components/web_server/web_server_internal.h \
+            firmware/components/web_server/web_server_lifecycle.c \
+            tests/host/CMakeLists.txt
+          git commit -m "feat(web): integrate Phase 16 HTTP API"
+          git fetch origin master
+          git rebase origin/master
+          git push origin HEAD:master
