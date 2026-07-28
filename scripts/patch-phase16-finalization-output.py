@@ -28,11 +28,15 @@ replace_once(
     "generated test_ready path declaration",
 )
 
-replace_once(
-    "firmware/components/web_server/web_api_sets.c",
-    '#include "app_uuid.h"\n#include "macro_model.h"\n',
-    '#include "app_uuid.h"\n#include "macro_limits.h"\n#include "macro_model.h"\n',
-    "generated set API macro_limits include insertion point",
-)
+set_api_path = ROOT / "firmware/components/web_server/web_api_sets.c"
+set_api_text = set_api_path.read_text(encoding="utf-8")
+include = '#include "macro_limits.h"\n'
+if set_api_text.count(include) != 0:
+    raise SystemExit("generated set API unexpectedly already includes macro_limits.h")
+anchor = '#include "macro_model.h"\n'
+anchor_count = set_api_text.count(anchor)
+if anchor_count != 1:
+    raise SystemExit(f"expected one generated set API macro_model include, found {anchor_count}")
+set_api_path.write_text(set_api_text.replace(anchor, include + anchor, 1), encoding="utf-8")
 
 print("Phase 16 generated output corrections applied")
