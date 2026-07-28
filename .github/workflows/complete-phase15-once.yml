@@ -57,6 +57,50 @@ jobs:
           python3 scripts/complete-phase15.py 2>&1 | tee /tmp/phase15-apply.log
           status=${PIPESTATUS[0]}
           if [[ "${status}" -eq 0 ]]; then
+            python3 - <<'PY' 2>&1 | tee -a /tmp/phase15-apply.log
+          from pathlib import Path
+
+          path = Path("firmware/components/storage/storage_repository_progress.c")
+          text = path.read_text(encoding="utf-8")
+          old = '''static app_error_code_t write_progress_locked(const storage_procedure_identity_t *identity,
+                                              const procedure_progress_t *replacement,
+                                              storage_progress_snapshot_t *out_snapshot) {
+    if (out_snapshot != NULL) {
+        memset(out_snapshot, 0, sizeof(*out_snapshot));
+    }
+    if (!identity_valid(identity) || !progress_matches_identity(replacement, identity) ||
+        out_snapshot == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+'''
+          new = '''static app_error_code_t write_progress_locked(const storage_procedure_identity_t *identity,
+                                              const procedure_progress_t *replacement,
+                                              storage_progress_snapshot_t *out_snapshot) {
+    procedure_progress_t candidate = {0};
+    if (replacement != NULL) {
+        candidate = *replacement;
+    }
+    if (out_snapshot != NULL) {
+        memset(out_snapshot, 0, sizeof(*out_snapshot));
+    }
+    if (!identity_valid(identity) || !progress_matches_identity(&candidate, identity) ||
+        out_snapshot == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+'''
+          if text.count(old) != 1:
+              raise RuntimeError("progress alias-safety patch did not match exactly once")
+          text = text.replace(old, new, 1)
+          text = text.replace("replacement->procedure_revision", "candidate.procedure_revision")
+          text = text.replace("progress_steps_belong_to_procedure(replacement, &procedure)",
+                              "progress_steps_belong_to_procedure(&candidate, &procedure)")
+          text = text.replace("storage_repository_serialize_progress_json(replacement, &json, &length)",
+                              "storage_repository_serialize_progress_json(&candidate, &json, &length)")
+          path.write_text(text, encoding="utf-8")
+          PY
+            status=${PIPESTATUS[0]}
+          fi
+          if [[ "${status}" -eq 0 ]]; then
             clang-format -i \
               firmware/components/provisioning/include/provisioning.h \
               firmware/components/provisioning/provisioning.c \
