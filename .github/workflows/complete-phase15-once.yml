@@ -138,6 +138,20 @@ jobs:
               encoding="utf-8",
           )
 
+          provisioning_path = Path("firmware/components/provisioning/provisioning.c")
+          provisioning_text = provisioning_path.read_text(encoding="utf-8")
+          provisioning_anchor = '#include "app_error.h"\n'
+          if provisioning_text.count(provisioning_anchor) != 1:
+              raise RuntimeError("provisioning include anchor did not match exactly once")
+          provisioning_path.write_text(
+              provisioning_text.replace(
+                  provisioning_anchor,
+                  '#include "app_error.h"\n#include "app_uuid.h"\n',
+                  1,
+              ),
+              encoding="utf-8",
+          )
+
           cmake_path = Path("tests/host/CMakeLists.txt")
           cmake = cmake_path.read_text(encoding="utf-8")
           cmake_replacements = {
