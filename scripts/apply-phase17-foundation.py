@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAYLOAD_DIR = ROOT / "scripts" / "phase17-foundation"
-PAYLOAD_VERSION = 7
+PAYLOAD_VERSION = 8
 
 MANIFEST = {
     "backend": [
@@ -61,6 +61,14 @@ def decode_chunks(group: str) -> bytes:
     return base64.b64decode("".join(encoded_parts), validate=True)
 
 
+def replace_once(path: Path, old: str, new: str, label: str) -> None:
+    text = path.read_text(encoding="utf-8")
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"expected one {label}, found {count}")
+    path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+
 payload = decode_chunks("frontend")
 with tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz") as archive:
     for member in archive.getmembers():
@@ -68,6 +76,35 @@ with tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz") as archive:
         if not member.isfile() or not member.name.startswith("webapp/") or ".." in parts:
             raise SystemExit(f"unsafe archive member: {member.name}")
     archive.extractall(ROOT, filter="data")
+
+replace_once(
+    ROOT / "webapp" / "tests" / "render.tsx",
+    """export async function setCheckboxChecked(
+  element: HTMLInputElement,
+  checked: boolean,
+): Promise<void> {
+  await act(async () => {
+    element.checked = checked;
+    element.dispatchEvent(new Event(\"input\", { bubbles: true }));
+    element.dispatchEvent(new Event(\"change\", { bubbles: true }));
+    await Promise.resolve();
+  });
+}
+""",
+    """export async function setCheckboxChecked(
+  element: HTMLInputElement,
+  checked: boolean,
+): Promise<void> {
+  await act(async () => {
+    if (element.checked !== checked) {
+      element.click();
+    }
+    await Promise.resolve();
+  });
+}
+""",
+    "checkbox interaction helper",
+)
 
 for module_name in ("backend", "docs"):
     source = gzip.decompress(decode_chunks(module_name)).decode("utf-8")
