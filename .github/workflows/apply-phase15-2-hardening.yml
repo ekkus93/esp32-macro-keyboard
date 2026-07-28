@@ -16,34 +16,57 @@ jobs:
       - name: Check out staging branch
         uses: actions/checkout@v4
 
-      - name: Assemble reviewed patch transport
+      - name: Reconstruct and verify reviewed patch
         shell: bash
         run: |
-          cat docs/review-source/phase15-2-analysis-final.part.* \
-            >"${RUNNER_TEMP}/phase15-2-hardening.b64"
-          sha256sum "${RUNNER_TEMP}/phase15-2-hardening.b64" \
-            >"${RUNNER_TEMP}/phase15-2-hardening.b64.sha256"
+          python3 - <<'PY'
+          import base64
+          import gzip
+          import hashlib
+          from pathlib import Path
 
-      - name: Preserve assembled transport
-        uses: actions/upload-artifact@v4
-        with:
-          name: phase15-2-assembled-transport
-          path: |
-            ${{ runner.temp }}/phase15-2-hardening.b64
-            ${{ runner.temp }}/phase15-2-hardening.b64.sha256
-          if-no-files-found: error
-          retention-days: 1
+          expected = "b26fa9fff431b772b8db8996295956cdc0f252d3310da42a2dce28844fff34c5"
+          alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+          part_paths = sorted(Path("docs/review-source").glob("phase15-2-analysis-final.part.*"))
+          parts = [path.read_text(encoding="ascii").strip() for path in part_paths]
 
-      - name: Decode and verify reviewed patch
-        shell: bash
-        run: |
-          base64 --decode "${RUNNER_TEMP}/phase15-2-hardening.b64" \
-            | gzip --decompress >"${RUNNER_TEMP}/phase15-2-hardening.patch"
-          expected='b26fa9fff431b772b8db8996295956cdc0f252d3310da42a2dce28844fff34c5'
-          actual="$(sha256sum "${RUNNER_TEMP}/phase15-2-hardening.patch" | cut -d' ' -f1)"
-          printf 'expected patch SHA-256: %s\n' "${expected}"
-          printf 'actual patch SHA-256:   %s\n' "${actual}"
-          [[ "${actual}" == "${expected}" ]]
+          def decode_verified(encoded: str):
+              try:
+                  compressed = base64.b64decode(encoded, validate=True)
+                  patch = gzip.decompress(compressed)
+              except (ValueError, gzip.BadGzipFile, EOFError):
+                  return None
+              return patch if hashlib.sha256(patch).hexdigest() == expected else None
+
+          encoded = "".join(parts)
+          patch = decode_verified(encoded)
+          repair = "none"
+
+          if patch is None:
+              for boundary in range(1, len(parts)):
+                  prefix = "".join(parts[:boundary])
+                  suffix = "".join(parts[boundary:])
+                  for character in alphabet:
+                      candidate = prefix + character + suffix
+                      patch = decode_verified(candidate)
+                      if patch is not None:
+                          repair = f"boundary={boundary},character={character}"
+                          encoded = candidate
+                          break
+                  if patch is not None:
+                      break
+
+          if patch is None:
+              lengths = ", ".join(
+                  f"{path.name}:{len(content)}" for path, content in zip(part_paths, parts)
+              )
+              raise SystemExit(f"reviewed patch reconstruction failed; part lengths: {lengths}")
+
+          Path("/tmp/phase15-2-hardening.b64").write_text(encoded, encoding="ascii")
+          Path("/tmp/phase15-2-hardening.patch").write_bytes(patch)
+          print(f"verified patch SHA-256: {hashlib.sha256(patch).hexdigest()}")
+          print(f"transport repair: {repair}")
+          PY
 
       - name: Check out current master
         uses: actions/checkout@v4
@@ -69,8 +92,8 @@ jobs:
       - name: Apply reviewed repository hardening
         shell: bash
         run: |
-          git apply --check "${RUNNER_TEMP}/phase15-2-hardening.patch"
-          git apply "${RUNNER_TEMP}/phase15-2-hardening.patch"
+          git apply --check /tmp/phase15-2-hardening.patch
+          git apply /tmp/phase15-2-hardening.patch
           clang-format -i \
             firmware/components/storage/storage_atomic_validators.c \
             firmware/components/storage/storage_json.c \
@@ -96,25 +119,7 @@ jobs:
         run: |
           . "$HOME/esp/esp-idf-v5.5.5/export.sh"
           ./scripts/verify-toolchain.sh
-          set +e
-          ./scripts/check-firmware.sh >"$RUNNER_TEMP/check-firmware.log" 2>&1
-          status=$?
-          set -e
-          if ((status != 0)); then
-            grep -E '/firmware/(main/|components/|test_app/main/).*:[0-9]+:[0-9]+: (warning|error):' \
-              "$RUNNER_TEMP/check-firmware.log" \
-              | head -n 250 || tail -n 300 "$RUNNER_TEMP/check-firmware.log"
-          fi
-          exit "$status"
-
-      - name: Preserve firmware diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: phase15-2-firmware-diagnostics
-          path: ${{ runner.temp }}/check-firmware.log
-          if-no-files-found: warn
-          retention-days: 1
+          ./scripts/check-firmware.sh
 
       - name: Commit and push
         run: |
