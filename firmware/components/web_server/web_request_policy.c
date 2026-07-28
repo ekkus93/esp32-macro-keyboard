@@ -118,15 +118,13 @@ app_error_code_t web_request_policy_evaluate(
                         APP_ERROR_AUTH_REQUIRED);
         }
         char csrf[AUTH_TOKEN_HEX_BYTES] = {0};
-        if (web_api_route_requires_csrf(input->route, input->method) &&
-            read_required_header(operations, "X-CSRF-Token", csrf, sizeof(csrf)) !=
-                APP_ERROR_NONE) {
+        if (read_required_header(operations, "X-CSRF-Token", csrf, sizeof(csrf)) !=
+            APP_ERROR_NONE) {
             return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_CSRF,
                         APP_ERROR_AUTH_REQUIRED);
         }
         const app_error_code_t validation = operations->validate_session(
-            operations->context, out_result->session_token,
-            web_api_route_requires_csrf(input->route, input->method) ? csrf : NULL);
+            operations->context, out_result->session_token, csrf);
         if (validation != APP_ERROR_NONE) {
             return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_SESSION, validation);
         }
