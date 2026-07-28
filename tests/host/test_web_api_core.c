@@ -85,25 +85,56 @@ static void test_route_policy(void) {
     TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_DELETE));
 }
 
-static void test_status_mapping(void) {
+static void test_error_status_mapping(void) {
+    TEST_CHECK_EQ_U64(200U, web_api_http_status_for_error(APP_ERROR_NONE));
+    TEST_CHECK_EQ_U64(401U, web_api_http_status_for_error(APP_ERROR_AUTH_REQUIRED));
     TEST_CHECK_EQ_U64(404U, web_api_http_status_for_error(APP_ERROR_NOT_FOUND));
     TEST_CHECK_EQ_U64(409U, web_api_http_status_for_error(APP_ERROR_CONFLICT));
-    TEST_CHECK_EQ_U64(507U, web_api_http_status_for_error(APP_ERROR_STORAGE_FULL));
-    TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_USB_NOT_READY));
+    TEST_CHECK_EQ_U64(409U, web_api_http_status_for_error(APP_ERROR_EXECUTOR_BUSY));
+    TEST_CHECK_EQ_U64(422U, web_api_http_status_for_error(APP_ERROR_INVALID_ARGUMENT));
     TEST_CHECK_EQ_U64(422U, web_api_http_status_for_error(APP_ERROR_MACRO_SYNTAX));
+    TEST_CHECK_EQ_U64(429U, web_api_http_status_for_error(APP_ERROR_RATE_LIMITED));
+    TEST_CHECK_EQ_U64(500U, web_api_http_status_for_error(APP_ERROR_IO));
+    TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_STORAGE_UNAVAILABLE));
+    TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_STORAGE_CORRUPT));
+    TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_USB_NOT_READY));
+    TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_TIMEOUT));
+    TEST_CHECK_EQ_U64(507U, web_api_http_status_for_error(APP_ERROR_STORAGE_FULL));
+}
 
-    macro_execution_status_t status = {.state = EXECUTION_IDLE};
-    TEST_CHECK_EQ_U64(404U, web_api_cancel_http_status(&status, APP_ERROR_NOT_FOUND));
-    status.state = EXECUTION_COMPLETED;
-    TEST_CHECK_EQ_U64(409U, web_api_cancel_http_status(&status, APP_ERROR_NOT_FOUND));
+static void test_cancellation_status_matrix(void) {
+    macro_execution_status_t status = {.state = EXECUTION_IDLE, .available = true};
     TEST_CHECK_EQ_U64(202U, web_api_cancel_http_status(&status, APP_ERROR_NONE));
     TEST_CHECK_EQ_U64(500U, web_api_cancel_http_status(&status, APP_ERROR_INTERNAL));
+    TEST_CHECK_EQ_U64(503U,
+                      web_api_cancel_http_status(&status, APP_ERROR_STORAGE_UNAVAILABLE));
+    TEST_CHECK_EQ_U64(503U, web_api_cancel_http_status(&status, APP_ERROR_USB_NOT_READY));
+    TEST_CHECK_EQ_U64(404U, web_api_cancel_http_status(&status, APP_ERROR_NOT_FOUND));
+
+    status.state = EXECUTION_RUNNING;
+    TEST_CHECK_EQ_U64(404U, web_api_cancel_http_status(&status, APP_ERROR_NOT_FOUND));
+    TEST_CHECK_EQ_U64(409U, web_api_cancel_http_status(&status, APP_ERROR_CONFLICT));
+
+    static const execution_state_t terminal_states[] = {
+        EXECUTION_COMPLETED,
+        EXECUTION_CANCELLED,
+        EXECUTION_FAILED,
+        EXECUTION_TIMED_OUT,
+    };
+    for (size_t index = 0U; index < sizeof(terminal_states) / sizeof(terminal_states[0]); ++index) {
+        status.state = terminal_states[index];
+        TEST_CHECK_EQ_U64(409U, web_api_cancel_http_status(&status, APP_ERROR_NOT_FOUND));
+    }
+
+    TEST_CHECK_EQ_U64(409U, web_api_cancel_http_status(NULL, APP_ERROR_NOT_FOUND));
+    TEST_CHECK_EQ_U64(409U, web_api_cancel_http_status(NULL, APP_ERROR_EXECUTION_CANCELLED));
 }
 
 int main(void) {
     test_content_type_and_request_id();
     test_route_parsing();
     test_route_policy();
-    test_status_mapping();
+    test_error_status_mapping();
+    test_cancellation_status_matrix();
     return 0;
 }
