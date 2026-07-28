@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAYLOAD_DIR = ROOT / "scripts" / "phase17-foundation"
-PAYLOAD_VERSION = 8
+PAYLOAD_VERSION = 9
 
 MANIFEST = {
     "backend": [
@@ -113,6 +113,40 @@ for module_name in ("backend", "docs"):
         compile(source, str(module_path), "exec"),
         {"__name__": "__main__", "__file__": str(module_path)},
     )
+
+auth_session_path = (
+    ROOT / "firmware" / "components" / "auth" / "auth_core_session.c"
+)
+auth_session_bytes = auth_session_path.read_bytes()
+nul_character_literal = bytes((0x27, 0x00, 0x27))
+if auth_session_bytes.count(nul_character_literal) != 1:
+    raise SystemExit(
+        "expected one generated NUL character literal in auth_core_session.c"
+    )
+auth_session_path.write_bytes(
+    auth_session_bytes.replace(nul_character_literal, b"'\\0'", 1)
+)
+
+replace_once(
+    ROOT / "tests" / "host" / "CMakeLists.txt",
+    """target_include_directories(
+    web_api_dispatch_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include ../../firmware/components/web_server
+)
+""",
+    """target_include_directories(
+    web_api_dispatch_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/web_server
+)
+""",
+    "web API dispatch auth include boundary",
+)
 
 (ROOT / "docs" / "CI_PHASE17_FRONTEND_FOUNDATION_FAILURE.md").unlink(missing_ok=True)
 shutil.rmtree(PAYLOAD_DIR)
