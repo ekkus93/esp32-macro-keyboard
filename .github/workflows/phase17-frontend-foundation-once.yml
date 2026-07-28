@@ -71,7 +71,11 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          npm run format:write 2>&1 | tee /tmp/phase17-foundation-format.log
+          {
+            npm run format:write
+            npx stylelint 'src/**/*.css' --fix
+            npm run format:write
+          } 2>&1 | tee /tmp/phase17-foundation-format.log
 
       - name: Run focused frontend validation
         id: frontend
