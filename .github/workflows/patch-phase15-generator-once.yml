@@ -1,0 +1,97 @@
+name: Patch Phase 15 generator once
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/patch-phase15-generator-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Make progress generation alias-safe
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          generator = Path("scripts/complete-phase15.py")
+          text = generator.read_text(encoding="utf-8")
+          old = '''static app_error_code_t write_progress_locked(const storage_procedure_identity_t *identity,
+                                                     const procedure_progress_t *replacement,
+                                                     storage_progress_snapshot_t *out_snapshot) {
+              if (out_snapshot != NULL) {
+                  memset(out_snapshot, 0, sizeof(*out_snapshot));
+              }
+              if (!identity_valid(identity) || !progress_matches_identity(replacement, identity) ||
+                  out_snapshot == NULL) {
+                  return APP_ERROR_INVALID_ARGUMENT;
+              }
+          '''
+          new = '''static app_error_code_t write_progress_locked(const storage_procedure_identity_t *identity,
+                                                     const procedure_progress_t *replacement,
+                                                     storage_progress_snapshot_t *out_snapshot) {
+              procedure_progress_t candidate = {0};
+              if (replacement != NULL) {
+                  candidate = *replacement;
+              }
+              if (out_snapshot != NULL) {
+                  memset(out_snapshot, 0, sizeof(*out_snapshot));
+              }
+              if (!identity_valid(identity) || !progress_matches_identity(&candidate, identity) ||
+                  out_snapshot == NULL) {
+                  return APP_ERROR_INVALID_ARGUMENT;
+              }
+          '''
+          if text.count(old) != 1:
+              raise RuntimeError("generator progress prologue did not match exactly once")
+          text = text.replace(old, new, 1)
+          replacements = {
+              "replacement->procedure_revision": "candidate.procedure_revision",
+              "progress_steps_belong_to_procedure(replacement, &procedure)":
+                  "progress_steps_belong_to_procedure(&candidate, &procedure)",
+              "storage_repository_serialize_progress_json(replacement, &json, &length)":
+                  "storage_repository_serialize_progress_json(&candidate, &json, &length)",
+          }
+          for source, replacement in replacements.items():
+              if text.count(source) != 1:
+                  raise RuntimeError(f"generator replacement count for {source!r} was not one")
+              text = text.replace(source, replacement, 1)
+          generator.write_text(text, encoding="utf-8")
+
+          workflow = Path(".github/workflows/complete-phase15-once.yml")
+          workflow_text = workflow.read_text(encoding="utf-8")
+          pattern = re.compile(
+              r'''\n          if \[\[ "\$\{status\}" -eq 0 \]\]; then\n'''
+              r'''            python3 - <<'PY' 2>&1 \| tee -a /tmp/phase15-apply\.log\n'''
+              r'''.*?\n            status=\$\{PIPESTATUS\[0\]\}\n          fi\n''',
+              re.DOTALL,
+          )
+          workflow_text, count = pattern.subn("\n", workflow_text, count=1)
+          if count != 1:
+              raise RuntimeError("runtime alias patch block did not match exactly once")
+          workflow.write_text(workflow_text, encoding="utf-8")
+          PY
+          rm -f \
+            .github/workflows/patch-phase15-generator-once.yml \
+            docs/CI_PHASE15_FAILURE.md \
+            docs/CI_PHASE15_STATUS.md
+      - name: Commit generator correction
+        run: |
+          set -euo pipefail
+          git config user.name "ChatGPT"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "ci(fix1): make Phase 15 generator alias-safe"
+          git fetch origin master
+          git rebase origin/master
+          git push origin HEAD:master
