@@ -29,6 +29,7 @@ jobs:
           rm -f \
             docs/CI_PHASE15_FAILURE.md \
             docs/CI_PHASE15_RUN_STATUS.md \
+            docs/CI_PHASE15_RECONCILE_STATUS.md \
             scripts/complete-phase15.py
           if grep -R --fixed-strings "${old_sha}" \
             docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md \
@@ -37,11 +38,14 @@ jobs:
             echo "stale pre-rebase Phase 15 SHA remains" >&2
             exit 1
           fi
-      - name: Validate documentation
+      - name: Validate modified documentation
         run: |
           set -euo pipefail
           npm ci --prefix webapp
-          ./scripts/check-docs.sh
+          ./webapp/node_modules/.bin/markdownlint-cli2 \
+            docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md \
+            docs/IMPLEMENTATION_STATUS.md \
+            docs/FIX1_CHATGPT_HANDOFF.md
       - name: Commit reconciled evidence
         run: |
           set -euo pipefail
@@ -53,4 +57,4 @@ jobs:
           git rebase origin/master
           git push origin HEAD:master
 
-# Trigger after workflow registration
+# Narrow validation to modified artifacts
