@@ -110,7 +110,7 @@ response_test_start = text.find('replace_once(\n    "tests/host/test_web_api_res
 response_test_end = text.find("# Direct include ownership and named constants.", response_test_start)
 if response_test_start < 0 or response_test_end < 0:
     raise SystemExit("Phase 16 response-test matcher block changed unexpectedly")
-response_test_write = '''write(
+response_test_write = """write(
     "tests/host/test_web_api_response.c",
     r'''#include <stddef.h>
 #include <string.h>
@@ -181,7 +181,7 @@ int main(void) {
 ''',
 )
 
-'''
+"""
 text = text[:response_test_start] + response_test_write + text[response_test_end:]
 SCRIPT.write_text(text, encoding="utf-8")
 runpy.run_path(str(SCRIPT), run_name="__main__")
