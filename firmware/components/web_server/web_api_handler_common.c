@@ -47,6 +47,14 @@ static cJSON *parse_serialized(char *json, size_t length) {
     return item;
 }
 
+static bool size_to_json_number(size_t value, double *out_number) {
+    if (out_number == NULL || value > UINT32_MAX) {
+        return false;
+    }
+    *out_number = (double)(uint32_t)value;
+    return true;
+}
+
 app_error_code_t web_api_handler_error(web_api_response_t *response, app_error_code_t error,
                                        const char *message, const char *details_json) {
     return web_api_response_error(response, &(web_api_error_spec_t){
@@ -116,6 +124,10 @@ static const char *macro_scope_string(macro_scope_t scope) {
 }
 
 static cJSON *macro_summary(const macro_t *macro) {
+    double source_bytes = 0.0;
+    if (!size_to_json_number(macro->source_length, &source_bytes)) {
+        return NULL;
+    }
     cJSON *item = cJSON_CreateObject();
     if (item == NULL || !cJSON_AddNumberToObject(item, "schema_version", macro->schema_version) ||
         !cJSON_AddStringToObject(item, "id", macro->id.value) ||
@@ -125,7 +137,7 @@ static cJSON *macro_summary(const macro_t *macro) {
         !cJSON_AddBoolToObject(item, "favorite", macro->favorite) ||
         !cJSON_AddNumberToObject(item, "key_press_ms", macro->key_press_ms) ||
         !cJSON_AddNumberToObject(item, "inter_key_ms", macro->inter_key_ms) ||
-        !cJSON_AddNumberToObject(item, "source_bytes", macro->source_length)) {
+        !cJSON_AddNumberToObject(item, "source_bytes", source_bytes)) {
         cJSON_Delete(item);
         return NULL;
     }
@@ -164,6 +176,10 @@ app_error_code_t web_api_handler_procedure_json(const procedure_t *procedure, ch
 }
 
 static cJSON *procedure_summary(const procedure_t *procedure) {
+    double step_count = 0.0;
+    if (!size_to_json_number(procedure->step_count, &step_count)) {
+        return NULL;
+    }
     cJSON *item = cJSON_CreateObject();
     if (item == NULL ||
         !cJSON_AddNumberToObject(item, "schema_version", procedure->schema_version) ||
@@ -172,7 +188,7 @@ static cJSON *procedure_summary(const procedure_t *procedure) {
         !cJSON_AddStringToObject(item, "set_id", procedure->set_id.value) ||
         !cJSON_AddStringToObject(item, "name", procedure->name) ||
         !cJSON_AddStringToObject(item, "description", procedure->description) ||
-        !cJSON_AddNumberToObject(item, "step_count", procedure->step_count) ||
+        !cJSON_AddNumberToObject(item, "step_count", step_count) ||
         !cJSON_AddNumberToObject(item, "sort_order", procedure->sort_order)) {
         cJSON_Delete(item);
         return NULL;
@@ -258,10 +274,14 @@ app_error_code_t web_api_handler_quarantine_json(const storage_quarantine_list_t
     if (list == NULL || out_json == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
+    double damaged_count = 0.0;
+    if (!size_to_json_number(list->damaged_count, &damaged_count)) {
+        return APP_ERROR_INTERNAL;
+    }
     cJSON *root = cJSON_CreateObject();
     cJSON *items = cJSON_CreateArray();
     if (root == NULL || items == NULL ||
-        !cJSON_AddNumberToObject(root, "damagedCount", list->damaged_count) ||
+        !cJSON_AddNumberToObject(root, "damagedCount", damaged_count) ||
         !cJSON_AddItemToObject(root, "items", items)) {
         cJSON_Delete(items);
         cJSON_Delete(root);
@@ -281,8 +301,4 @@ app_error_code_t web_api_handler_quarantine_json(const storage_quarantine_list_t
         }
     }
     return finish_json(root, out_json);
-}
-
-void web_api_handler_json_free(char *json) {
-    cJSON_free(json);
 }
