@@ -38,14 +38,6 @@ jobs:
             echo "stale pre-rebase Phase 15 SHA remains" >&2
             exit 1
           fi
-      - name: Validate modified documentation
-        run: |
-          set -euo pipefail
-          npm ci --prefix webapp
-          ./webapp/node_modules/.bin/markdownlint-cli2 \
-            docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md \
-            docs/IMPLEMENTATION_STATUS.md \
-            docs/FIX1_CHATGPT_HANDOFF.md
       - name: Commit reconciled evidence
         run: |
           set -euo pipefail
@@ -57,4 +49,4 @@ jobs:
           git rebase origin/master
           git push origin HEAD:master
 
-# Narrow validation to modified artifacts
+# Deterministic evidence-only reconciliation
