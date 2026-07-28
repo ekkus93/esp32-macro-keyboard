@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAYLOAD_DIR = ROOT / "scripts" / "phase17-foundation"
-PAYLOAD_VERSION = 10
+PAYLOAD_VERSION = 11
 
 MANIFEST = {
     "backend": [
@@ -72,7 +72,9 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
 
 def regex_replace_once(path: Path, pattern: str, replacement: str, label: str) -> None:
     text = path.read_text(encoding="utf-8")
-    updated, count = re.subn(pattern, replacement, text, count=1, flags=re.DOTALL)
+    updated, count = re.subn(
+        pattern, lambda _match: replacement, text, count=1, flags=re.DOTALL
+    )
     if count != 1:
         raise SystemExit(f"expected one {label}, found {count}")
     path.write_text(updated, encoding="utf-8")
