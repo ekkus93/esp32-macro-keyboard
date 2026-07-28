@@ -277,12 +277,88 @@ static void add_reference(storage_reference_list_t *references, const app_uuid_t
     }
 }
 
-static app_error_code_t scan_set_procedure_references(const app_uuid_t *set_id,
-                                                      const app_uuid_t *macro_id,
-                                                      storage_reference_list_t *references) {
+static const char PROCEDURE_JSON_SUFFIX[] = ".json";
+
+typedef struct {
+    const app_uuid_t *set_id;
+    const app_uuid_t *macro_id;
+    storage_reference_list_t *references;
+} procedure_reference_scan_t;
+
+static app_error_code_t parse_procedure_filename(const char *filename, bool *out_matches,
+                                                 app_uuid_t *out_procedure_id) {
+    *out_matches = false;
+    const size_t suffix_length = sizeof(PROCEDURE_JSON_SUFFIX) - 1U;
+    const size_t name_length = strlen(filename);
+    if (name_length != APP_UUID_STRING_LENGTH + suffix_length ||
+        strcmp(filename + APP_UUID_STRING_LENGTH, PROCEDURE_JSON_SUFFIX) != 0) {
+        return APP_ERROR_NONE;
+    }
+    char uuid_text[APP_UUID_BUFFER_LENGTH];
+    memcpy(uuid_text, filename, APP_UUID_STRING_LENGTH);
+    uuid_text[APP_UUID_STRING_LENGTH] = '\0';
+    if (app_uuid_parse(uuid_text, out_procedure_id) != APP_ERROR_NONE) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    *out_matches = true;
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t read_reference_scan_procedure(const procedure_reference_scan_t *scan,
+                                                      const app_uuid_t *procedure_id,
+                                                      procedure_t *out_procedure) {
+    char path[APP_PATH_MAX_BYTES];
+    app_error_code_t result =
+        storage_make_procedure_path(scan->set_id, procedure_id, path, sizeof(path));
+    char *data = NULL;
+    size_t length = 0U;
+    if (result == APP_ERROR_NONE) {
+        result = storage_repository_read_bounded_file(path, STORAGE_PROCEDURE_FILE_MAX_BYTES, &data,
+                                                      &length);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = storage_repository_parse_procedure_json(data, length, out_procedure);
+    }
+    free(data);
+    if (result != APP_ERROR_STORAGE_CORRUPT) {
+        return result;
+    }
+    storage_quarantine_entry_t quarantine_entry = {0};
+    const app_error_code_t quarantine = storage_quarantine_file_locked(
+        path, "invalid procedure during reference scan", &quarantine_entry);
+    return quarantine == APP_ERROR_NONE ? result : quarantine;
+}
+
+static bool procedure_references_macro(const procedure_t *procedure, const app_uuid_t *macro_id) {
+    for (size_t step_index = 0U; step_index < procedure->step_count; ++step_index) {
+        if (step_references_macro(&procedure->steps[step_index], macro_id)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static app_error_code_t scan_procedure_entry(const procedure_reference_scan_t *scan,
+                                             const struct dirent *entry) {
+    app_uuid_t procedure_id = {0};
+    bool matches = false;
+    app_error_code_t result = parse_procedure_filename(entry->d_name, &matches, &procedure_id);
+    if (result != APP_ERROR_NONE || !matches) {
+        return result;
+    }
+    procedure_t procedure = {0};
+    result = read_reference_scan_procedure(scan, &procedure_id, &procedure);
+    if (result == APP_ERROR_NONE && procedure_references_macro(&procedure, scan->macro_id)) {
+        add_reference(scan->references, &procedure.id);
+    }
+    macro_model_free_procedure(&procedure);
+    return result;
+}
+
+static app_error_code_t scan_set_procedure_references(const procedure_reference_scan_t *scan) {
     char directory_path[APP_PATH_MAX_BYTES];
     const int written = snprintf(directory_path, sizeof(directory_path),
-                                 STORAGE_DATA_MOUNT "/sets/%s/procedures", set_id->value);
+                                 STORAGE_DATA_MOUNT "/sets/%s/procedures", scan->set_id->value);
     if (written < 0 || (size_t)written >= sizeof(directory_path)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -292,51 +368,10 @@ static app_error_code_t scan_set_procedure_references(const app_uuid_t *set_id,
     }
     app_error_code_t result = APP_ERROR_NONE;
     for (struct dirent *entry = readdir(directory); entry != NULL; entry = readdir(directory)) {
-        const size_t name_length = strlen(entry->d_name);
-        if (name_length != APP_UUID_STRING_LENGTH + 5U ||
-            strcmp(entry->d_name + APP_UUID_STRING_LENGTH, ".json") != 0) {
-            continue;
-        }
-        char uuid_text[APP_UUID_BUFFER_LENGTH];
-        memcpy(uuid_text, entry->d_name, APP_UUID_STRING_LENGTH);
-        uuid_text[APP_UUID_STRING_LENGTH] = '\0';
-        app_uuid_t procedure_id = {0};
-        if (app_uuid_parse(uuid_text, &procedure_id) != APP_ERROR_NONE) {
-            result = APP_ERROR_STORAGE_CORRUPT;
-            break;
-        }
-        char path[APP_PATH_MAX_BYTES];
-        result = storage_make_procedure_path(set_id, &procedure_id, path, sizeof(path));
-        char *data = NULL;
-        size_t length = 0U;
-        if (result == APP_ERROR_NONE) {
-            result = storage_repository_read_bounded_file(path, STORAGE_PROCEDURE_FILE_MAX_BYTES,
-                                                          &data, &length);
-        }
-        procedure_t procedure = {0};
-        if (result == APP_ERROR_NONE) {
-            result = storage_repository_parse_procedure_json(data, length, &procedure);
-        }
-        free(data);
-        if (result == APP_ERROR_STORAGE_CORRUPT) {
-            storage_quarantine_entry_t quarantine_entry = {0};
-            const app_error_code_t quarantine = storage_quarantine_file_locked(
-                path, "invalid procedure during reference scan", &quarantine_entry);
-            if (quarantine != APP_ERROR_NONE) {
-                result = quarantine;
-            }
-        }
+        result = scan_procedure_entry(scan, entry);
         if (result != APP_ERROR_NONE) {
-            macro_model_free_procedure(&procedure);
             break;
         }
-        for (size_t step = 0U; step < procedure.step_count; ++step) {
-            if (step_references_macro(&procedure.steps[step], macro_id)) {
-                add_reference(references, &procedure.id);
-                break;
-            }
-        }
-        macro_model_free_procedure(&procedure);
     }
     if (closedir(directory) != 0 && result == APP_ERROR_NONE) {
         result = APP_ERROR_IO;
@@ -349,12 +384,22 @@ static app_error_code_t find_macro_references(const storage_macro_location_t *lo
                                               storage_reference_list_t *references) {
     memset(references, 0, sizeof(*references));
     if (location->scope == MACRO_SCOPE_SET) {
-        return scan_set_procedure_references(&location->set_id, macro_id, references);
+        const procedure_reference_scan_t scan = {
+            .set_id = &location->set_id,
+            .macro_id = macro_id,
+            .references = references,
+        };
+        return scan_set_procedure_references(&scan);
     }
     storage_set_index_t index = {0};
     app_error_code_t result = storage_repository_load_index(&index);
     for (size_t set = 0U; result == APP_ERROR_NONE && set < index.count; ++set) {
-        result = scan_set_procedure_references(&index.ids[set], macro_id, references);
+        const procedure_reference_scan_t scan = {
+            .set_id = &index.ids[set],
+            .macro_id = macro_id,
+            .references = references,
+        };
+        result = scan_set_procedure_references(&scan);
     }
     return result;
 }

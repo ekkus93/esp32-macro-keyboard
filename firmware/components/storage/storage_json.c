@@ -9,6 +9,7 @@
 #include "app_error.h"
 #include "app_uuid.h"
 #include "cJSON.h"
+#include "macro_limits.h"
 
 #define STORAGE_JSON_MAX_FIELDS 64U
 

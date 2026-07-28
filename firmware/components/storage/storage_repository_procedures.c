@@ -89,20 +89,16 @@ static app_error_code_t read_macro_candidate(const storage_macro_location_t *loc
     return result == APP_ERROR_NOT_FOUND ? APP_ERROR_NONE : result;
 }
 
-static app_error_code_t validate_macro_reference_locked(const app_uuid_t *set_id,
-                                                        const app_uuid_t *macro_id) {
-    const storage_macro_location_t set_location = {
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
-        .set_id = *set_id,
-    };
+static app_error_code_t
+validate_macro_reference_locked(const storage_macro_location_t *set_location,
+                                const app_uuid_t *macro_id) {
     const storage_macro_location_t global_location = {
         .scope = MACRO_SCOPE_GLOBAL,
         .has_set_id = false,
     };
     bool set_exists = false;
     bool global_exists = false;
-    app_error_code_t result = read_macro_candidate(&set_location, macro_id, &set_exists);
+    app_error_code_t result = read_macro_candidate(set_location, macro_id, &set_exists);
     if (result == APP_ERROR_NONE) {
         result = read_macro_candidate(&global_location, macro_id, &global_exists);
     }
@@ -125,13 +121,18 @@ static app_error_code_t validate_procedure_shape(const procedure_t *procedure) {
 }
 
 static app_error_code_t validate_procedure_references_locked(const procedure_t *procedure) {
+    const storage_macro_location_t set_location = {
+        .scope = MACRO_SCOPE_SET,
+        .has_set_id = true,
+        .set_id = procedure->set_id,
+    };
     for (size_t index = 0U; index < procedure->step_count; ++index) {
         const procedure_step_t *step = &procedure->steps[index];
         if (step->type != PROCEDURE_STEP_MACRO) {
             continue;
         }
         const app_error_code_t result =
-            validate_macro_reference_locked(&procedure->set_id, &step->macro_id);
+            validate_macro_reference_locked(&set_location, &step->macro_id);
         if (result != APP_ERROR_NONE) {
             return result;
         }
@@ -189,8 +190,8 @@ static app_error_code_t procedure_read_object_locked(const app_uuid_t *set_id,
     return result;
 }
 
-static app_error_code_t procedure_order_index(const app_uuid_t *set_id,
-                                              const app_uuid_t *procedure_id, size_t *out_index) {
+static app_error_code_t procedure_order_index(const app_uuid_t *set_id, size_t *out_index,
+                                              const app_uuid_t *procedure_id) {
     storage_uuid_order_t order = {0};
     const app_error_code_t result = load_procedure_order(set_id, &order);
     if (result != APP_ERROR_NONE) {
@@ -210,7 +211,7 @@ static app_error_code_t procedure_read_locked(const app_uuid_t *set_id,
     app_error_code_t result = procedure_read_object_locked(set_id, procedure_id, out_procedure);
     size_t index = 0U;
     if (result == APP_ERROR_NONE) {
-        result = procedure_order_index(set_id, procedure_id, &index);
+        result = procedure_order_index(set_id, &index, procedure_id);
     }
     if (result == APP_ERROR_NONE) {
         out_procedure->sort_order = (int32_t)index;

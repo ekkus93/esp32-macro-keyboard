@@ -21,6 +21,8 @@
 #define MACRO_STEP_FIELD_COUNT 6U
 #define MANUAL_STEP_FIELD_COUNT 5U
 #define KEY_PRESS_STORAGE_MAX_MS 1000U
+#define MACRO_SCOPE_BUFFER_BYTES sizeof("global")
+#define PROCEDURE_STEP_TYPE_BUFFER_BYTES sizeof("instruction")
 
 static const char *const MACRO_FIELDS[MACRO_FIELD_COUNT] = {
     "schema_version", "id",       "revision",     "scope",        "name",
@@ -85,7 +87,7 @@ static bool macro_shape_valid(const macro_t *macro) {
 }
 
 static app_error_code_t parse_scope(const cJSON *root, macro_t *out_macro) {
-    char scope[7];
+    char scope[MACRO_SCOPE_BUFFER_BYTES];
     app_error_code_t result = storage_json_get_string(root, "scope", scope, sizeof(scope), true);
     if (result != APP_ERROR_NONE) {
         return result;
@@ -246,7 +248,7 @@ static app_error_code_t exact_child_fields(const cJSON *object, const char *cons
 }
 
 static app_error_code_t parse_step_type(const cJSON *object, procedure_step_t *out_step) {
-    char type[12];
+    char type[PROCEDURE_STEP_TYPE_BUFFER_BYTES];
     app_error_code_t result = storage_json_get_string(object, "type", type, sizeof(type), true);
     if (result != APP_ERROR_NONE) {
         return result;
@@ -660,8 +662,8 @@ app_error_code_t storage_repository_serialize_progress_json(const procedure_prog
 }
 
 app_error_code_t storage_repository_parse_order_json(const char *data, size_t length,
-                                                     size_t maximum_count,
-                                                     storage_uuid_order_t *out_order) {
+                                                     storage_uuid_order_t *out_order,
+                                                     size_t maximum_count) {
     if (out_order != NULL) {
         memset(out_order, 0, sizeof(*out_order));
     }

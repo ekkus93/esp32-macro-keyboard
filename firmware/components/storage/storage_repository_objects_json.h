@@ -30,8 +30,8 @@ app_error_code_t storage_repository_parse_progress_json(const char *data, size_t
 app_error_code_t storage_repository_serialize_progress_json(const procedure_progress_t *progress,
                                                             char **out_json, size_t *out_length);
 app_error_code_t storage_repository_parse_order_json(const char *data, size_t length,
-                                                     size_t maximum_count,
-                                                     storage_uuid_order_t *out_order);
+                                                     storage_uuid_order_t *out_order,
+                                                     size_t maximum_count);
 app_error_code_t storage_repository_serialize_order_json(const storage_uuid_order_t *order,
                                                          size_t maximum_count, char **out_json,
                                                          size_t *out_length);

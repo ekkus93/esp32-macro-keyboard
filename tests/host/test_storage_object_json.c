@@ -257,7 +257,7 @@ static void test_progress_and_order_round_trip(void) {
                          storage_repository_serialize_order_json(&order, 2U, &json, &length));
     storage_uuid_order_t parsed = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_parse_order_json(json, length, 2U, &parsed));
+                         storage_repository_parse_order_json(json, length, &parsed, 2U));
     TEST_CHECK_EQ_U64(2U, parsed.count);
     TEST_CHECK_EQ_UUID(&order.ids[1], &parsed.ids[1]);
     cJSON_free(json);

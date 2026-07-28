@@ -192,7 +192,7 @@ static app_error_code_t validate_index(void *context, const storage_atomic_candi
         read_candidate(validation, candidate, STORAGE_ORDER_FILE_MAX_BYTES, &data, &length);
     if (result == APP_ERROR_NONE) {
         storage_uuid_order_t order = {0};
-        result = storage_repository_parse_order_json(data, length, maximum, &order);
+        result = storage_repository_parse_order_json(data, length, &order, maximum);
     }
     free(data);
     return result;

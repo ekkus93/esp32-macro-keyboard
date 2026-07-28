@@ -33,8 +33,10 @@ app_error_code_t storage_make_macro_path(const app_uuid_t *set_id, const app_uui
     return APP_ERROR_NONE;
 }
 
-static bool valid_path_argument(const app_uuid_t *id, const char *buffer, size_t buffer_size) {
-    return id != NULL && buffer != NULL && buffer_size > 0U && app_uuid_is_valid_string(id->value);
+static bool valid_path_argument(const app_uuid_t *object_id, const char *buffer,
+                                size_t buffer_size) {
+    return object_id != NULL && buffer != NULL && buffer_size > 0U &&
+           app_uuid_is_valid_string(object_id->value);
 }
 
 static app_error_code_t finish_path(char *buffer, size_t buffer_size, int written) {

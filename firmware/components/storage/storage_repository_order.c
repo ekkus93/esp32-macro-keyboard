@@ -24,7 +24,7 @@ app_error_code_t storage_repository_load_order_locked(const char *path, size_t m
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    result = storage_repository_parse_order_json(data, length, maximum_count, out_order);
+    result = storage_repository_parse_order_json(data, length, out_order, maximum_count);
     free(data);
     if (result == APP_ERROR_STORAGE_CORRUPT) {
         storage_quarantine_entry_t entry = {0};
@@ -51,16 +51,16 @@ app_error_code_t storage_repository_write_order_locked(const char *path, size_t 
     return result;
 }
 
-bool storage_repository_order_contains(const storage_uuid_order_t *order, const app_uuid_t *id,
+bool storage_repository_order_contains(const storage_uuid_order_t *order, const app_uuid_t *item_id,
                                        size_t *out_index) {
     if (out_index != NULL) {
         *out_index = 0U;
     }
-    if (order == NULL || id == NULL) {
+    if (order == NULL || item_id == NULL) {
         return false;
     }
     for (size_t index = 0U; index < order->count; ++index) {
-        if (app_uuid_equal(&order->ids[index], id)) {
+        if (app_uuid_equal(&order->ids[index], item_id)) {
             if (out_index != NULL) {
                 *out_index = index;
             }
@@ -71,29 +71,29 @@ bool storage_repository_order_contains(const storage_uuid_order_t *order, const 
 }
 
 app_error_code_t storage_repository_order_append(storage_uuid_order_t *order, size_t maximum_count,
-                                                 const app_uuid_t *id) {
-    if (order == NULL || id == NULL || maximum_count > STORAGE_ORDER_MAX_IDS ||
-        !app_uuid_is_valid_string(id->value)) {
+                                                 const app_uuid_t *item_id) {
+    if (order == NULL || item_id == NULL || maximum_count > STORAGE_ORDER_MAX_IDS ||
+        !app_uuid_is_valid_string(item_id->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    if (storage_repository_order_contains(order, id, NULL)) {
+    if (storage_repository_order_contains(order, item_id, NULL)) {
         return APP_ERROR_CONFLICT;
     }
     if (order->count >= maximum_count) {
         return APP_ERROR_STORAGE_FULL;
     }
-    order->ids[order->count] = *id;
+    order->ids[order->count] = *item_id;
     ++order->count;
     return APP_ERROR_NONE;
 }
 
 app_error_code_t storage_repository_order_remove(storage_uuid_order_t *order,
-                                                 const app_uuid_t *id) {
-    if (order == NULL || id == NULL) {
+                                                 const app_uuid_t *item_id) {
+    if (order == NULL || item_id == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     size_t index = 0U;
-    if (!storage_repository_order_contains(order, id, &index)) {
+    if (!storage_repository_order_contains(order, item_id, &index)) {
         return APP_ERROR_NOT_FOUND;
     }
     for (size_t item = index; item + 1U < order->count; ++item) {
