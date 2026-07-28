@@ -293,28 +293,30 @@ app_error_code_t web_api_json_parse_settings_update(const char *body, size_t bod
         root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "alwaysSelectSet");
     const cJSON *active_set =
         root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "activeSetId");
+    uint32_t expected_revision = 0U;
     if (root == NULL || !exact_fields(root, fields, 4U) ||
-        !read_revision(root, "expectedRevision", out_expected_revision) ||
+        !read_revision(root, "expectedRevision", &expected_revision) ||
         !cJSON_IsBool(require_confirmation) || !cJSON_IsBool(always_select) ||
         (!cJSON_IsNull(active_set) && !cJSON_IsString(active_set))) {
         cJSON_Delete(root);
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    out_settings->schema_version = APP_SCHEMA_VERSION;
-    out_settings->revision = *out_expected_revision;
-    out_settings->require_physical_confirmation = cJSON_IsTrue(require_confirmation);
-    out_settings->always_select_set = cJSON_IsTrue(always_select);
+    provisioning_settings_t settings = {
+        .schema_version = APP_SCHEMA_VERSION,
+        .revision = expected_revision,
+        .require_physical_confirmation = cJSON_IsTrue(require_confirmation),
+        .always_select_set = cJSON_IsTrue(always_select),
+    };
     if (cJSON_IsString(active_set)) {
         if (active_set->valuestring == NULL ||
-            app_uuid_parse(active_set->valuestring, &out_settings->active_set_id) !=
-                APP_ERROR_NONE) {
+            app_uuid_parse(active_set->valuestring, &settings.active_set_id) != APP_ERROR_NONE) {
             cJSON_Delete(root);
-            memset(out_settings, 0, sizeof(*out_settings));
-            *out_expected_revision = 0U;
             return APP_ERROR_INVALID_ARGUMENT;
         }
-        out_settings->has_active_set = true;
+        settings.has_active_set = true;
     }
     cJSON_Delete(root);
+    *out_settings = settings;
+    *out_expected_revision = expected_revision;
     return APP_ERROR_NONE;
 }

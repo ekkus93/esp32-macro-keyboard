@@ -15,8 +15,8 @@
 static void test_expected_revision_matrix(void) {
     uint32_t revision = 99U;
     const char valid[] = "{\"expectedRevision\":7}";
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_api_json_parse_expected_revision(valid, sizeof(valid) - 1U, &revision));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE, web_api_json_parse_expected_revision(valid, sizeof(valid) - 1U, &revision));
     TEST_CHECK_EQ_U64(7U, revision);
 
     static const char *const invalid[] = {
@@ -149,8 +149,8 @@ static void test_uuid_order_matrix(void) {
 }
 
 static void test_execution_submit_matrix(void) {
-    const char base[] = "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
-                        "\",\"macroRevision\":7}";
+    const char base[] =
+        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":7}";
     web_execution_submit_request_t request = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_api_json_parse_execution_submit(base, sizeof(base) - 1U, &request));
@@ -159,11 +159,9 @@ static void test_execution_submit_matrix(void) {
 
     const char contextual[] =
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
-        "\",\"macroRevision\":7,\"procedureId\":\"" PROCEDURE_ID
-        "\",\"stepId\":\"" STEP_ID "\"}";
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        web_api_json_parse_execution_submit(contextual, sizeof(contextual) - 1U, &request));
+        "\",\"macroRevision\":7,\"procedureId\":\"" PROCEDURE_ID "\",\"stepId\":\"" STEP_ID "\"}";
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_execution_submit(
+                                             contextual, sizeof(contextual) - 1U, &request));
     TEST_CHECK(request.has_procedure_context);
     TEST_CHECK_EQ_STRING(PROCEDURE_ID, request.procedure_id.value);
     TEST_CHECK_EQ_STRING(STEP_ID, request.step_id.value);
@@ -171,16 +169,13 @@ static void test_execution_submit_matrix(void) {
     static const char *const invalid[] = {
         "{}",
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID "\"}",
-        "{\"setId\":\"not-a-uuid\",\"macroId\":\"" MACRO_ID
-        "\",\"macroRevision\":7}",
-        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
-        "\",\"macroRevision\":0}",
+        "{\"setId\":\"not-a-uuid\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":7}",
+        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":0}",
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"procedureId\":\"" PROCEDURE_ID "\"}",
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"extra\":true}",
-        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
-        "\",\"macroRevision\":7}x",
+        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":7}x",
     };
     for (size_t index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); ++index) {
         memset(&request, 0xa5, sizeof(request));
@@ -197,51 +192,47 @@ static void test_execution_submit_matrix(void) {
 static void test_progress_action_matrix(void) {
     const char complete[] = "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID "\"}";
     web_api_progress_action_t action = {0};
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        web_api_json_parse_progress_action(complete, sizeof(complete) - 1U, false, &action));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_progress_action(
+                                             complete, sizeof(complete) - 1U, false, &action));
     TEST_CHECK_EQ_U64(3U, action.expected_procedure_revision);
     TEST_CHECK(!action.confirmed);
 
-    const char skip[] = "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID
-                        "\",\"confirmed\":true}";
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_api_json_parse_progress_action(skip, sizeof(skip) - 1U, true, &action));
+    const char skip[] =
+        "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID "\",\"confirmed\":true}";
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE, web_api_json_parse_progress_action(skip, sizeof(skip) - 1U, true, &action));
     TEST_CHECK(action.confirmed);
 
     static const char *const invalid_complete[] = {
         "{}",
         "{\"expectedProcedureRevision\":0,\"stepId\":\"" STEP_ID "\"}",
         "{\"expectedProcedureRevision\":3,\"stepId\":\"bad\"}",
-        "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID
-        "\",\"confirmed\":true}",
+        "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID "\",\"confirmed\":true}",
         "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID "\"}x",
     };
-    for (size_t index = 0U; index < sizeof(invalid_complete) / sizeof(invalid_complete[0]); ++index) {
-        TEST_CHECK_APP_ERROR(
-            APP_ERROR_INVALID_ARGUMENT,
-            web_api_json_parse_progress_action(invalid_complete[index],
-                                               strlen(invalid_complete[index]), false, &action));
+    for (size_t index = 0U; index < sizeof(invalid_complete) / sizeof(invalid_complete[0]);
+         ++index) {
+        TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                             web_api_json_parse_progress_action(invalid_complete[index],
+                                                                strlen(invalid_complete[index]),
+                                                                false, &action));
     }
 
     static const char *const invalid_skip[] = {
         "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID "\"}",
-        "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID
-        "\",\"confirmed\":false}",
-        "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID
-        "\",\"confirmed\":\"true\"}",
+        "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID "\",\"confirmed\":false}",
+        "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID "\",\"confirmed\":\"true\"}",
         "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID
         "\",\"confirmed\":true,\"extra\":1}",
     };
     for (size_t index = 0U; index < sizeof(invalid_skip) / sizeof(invalid_skip[0]); ++index) {
-        TEST_CHECK_APP_ERROR(
-            APP_ERROR_INVALID_ARGUMENT,
-            web_api_json_parse_progress_action(invalid_skip[index], strlen(invalid_skip[index]), true,
-                                               &action));
+        TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                             web_api_json_parse_progress_action(
+                                 invalid_skip[index], strlen(invalid_skip[index]), true, &action));
     }
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_json_parse_progress_action(complete, sizeof(complete) - 1U, false,
-                                                            NULL));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        web_api_json_parse_progress_action(complete, sizeof(complete) - 1U, false, NULL));
 }
 
 static void test_settings_update_matrix(void) {
@@ -249,9 +240,8 @@ static void test_settings_update_matrix(void) {
                           "\"alwaysSelectSet\":false,\"activeSetId\":\"" SET_ID "\"}";
     provisioning_settings_t settings = {0};
     uint32_t revision = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_api_json_parse_settings_update(active, sizeof(active) - 1U, &settings,
-                                                            &revision));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_settings_update(
+                                             active, sizeof(active) - 1U, &settings, &revision));
     TEST_CHECK_EQ_U64(4U, revision);
     TEST_CHECK(settings.require_physical_confirmation);
     TEST_CHECK(settings.has_active_set);
@@ -281,18 +271,17 @@ static void test_settings_update_matrix(void) {
     for (size_t index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); ++index) {
         memset(&settings, 0xa5, sizeof(settings));
         revision = 99U;
-        TEST_CHECK_APP_ERROR(
-            APP_ERROR_INVALID_ARGUMENT,
-            web_api_json_parse_settings_update(invalid[index], strlen(invalid[index]), &settings,
-                                               &revision));
+        TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                             web_api_json_parse_settings_update(
+                                 invalid[index], strlen(invalid[index]), &settings, &revision));
         TEST_CHECK_EQ_U64(0U, revision);
     }
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_json_parse_settings_update(active, sizeof(active) - 1U, NULL,
-                                                            &revision));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_json_parse_settings_update(active, sizeof(active) - 1U, &settings,
-                                                            NULL));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        web_api_json_parse_settings_update(active, sizeof(active) - 1U, NULL, &revision));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        web_api_json_parse_settings_update(active, sizeof(active) - 1U, &settings, NULL));
 }
 
 static void test_embedded_nul_rejected(void) {

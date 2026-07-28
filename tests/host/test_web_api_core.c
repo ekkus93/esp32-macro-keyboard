@@ -106,8 +106,7 @@ static void test_cancellation_status_matrix(void) {
     macro_execution_status_t status = {.state = EXECUTION_IDLE, .available = true};
     TEST_CHECK_EQ_U64(202U, web_api_cancel_http_status(&status, APP_ERROR_NONE));
     TEST_CHECK_EQ_U64(500U, web_api_cancel_http_status(&status, APP_ERROR_INTERNAL));
-    TEST_CHECK_EQ_U64(503U,
-                      web_api_cancel_http_status(&status, APP_ERROR_STORAGE_UNAVAILABLE));
+    TEST_CHECK_EQ_U64(503U, web_api_cancel_http_status(&status, APP_ERROR_STORAGE_UNAVAILABLE));
     TEST_CHECK_EQ_U64(503U, web_api_cancel_http_status(&status, APP_ERROR_USB_NOT_READY));
     TEST_CHECK_EQ_U64(404U, web_api_cancel_http_status(&status, APP_ERROR_NOT_FOUND));
 

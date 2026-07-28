@@ -41,12 +41,13 @@ app_error_code_t provisioning_settings_read(provisioning_settings_t *out_setting
 }
 
 app_error_code_t provisioning_settings_update(const provisioning_settings_t *replacement,
-                                               uint32_t expected_revision,
-                                               provisioning_settings_t *out_committed) {
+                                              uint32_t expected_revision,
+                                              provisioning_settings_t *out_committed) {
     if (replacement == NULL || out_committed == NULL || expected_revision == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    if (settings_store.revision != expected_revision || replacement->revision != expected_revision) {
+    if (settings_store.revision != expected_revision ||
+        replacement->revision != expected_revision) {
         return APP_ERROR_CONFLICT;
     }
     settings_store = *replacement;
@@ -253,8 +254,8 @@ static void expect_status(web_api_response_t *response, unsigned int status, con
 static void test_set_routes(void) {
     macro_set_t set = make_set();
     char *json = serialize_set(&set);
-    web_api_response_t response =
-        invoke(web_api_handle_sets, WEB_API_ROUTE_SETS, WEB_API_METHOD_POST, json, NULL, NULL, NULL);
+    web_api_response_t response = invoke(web_api_handle_sets, WEB_API_ROUTE_SETS,
+                                         WEB_API_METHOD_POST, json, NULL, NULL, NULL);
     expect_status(&response, 201U, "Handler Set");
     cJSON_free(json);
 
@@ -341,17 +342,16 @@ static void test_macro_routes(void) {
         snprintf(duplicate_body, sizeof(duplicate_body),
                  "{\"id\":\"%s\",\"name\":\"Duplicated Macro\"}", MACRO_DUPLICATE_ID);
     TEST_CHECK(duplicate_length > 0 && (size_t)duplicate_length < sizeof(duplicate_body));
-    response = invoke(web_api_handle_macros, WEB_API_ROUTE_SET_MACRO_DUPLICATE,
-                      WEB_API_METHOD_POST, duplicate_body, SET_ID, MACRO_ID, NULL);
+    response = invoke(web_api_handle_macros, WEB_API_ROUTE_SET_MACRO_DUPLICATE, WEB_API_METHOD_POST,
+                      duplicate_body, SET_ID, MACRO_ID, NULL);
     expect_status(&response, 201U, MACRO_DUPLICATE_ID);
 
     char order_body[192U];
-    const int order_length =
-        snprintf(order_body, sizeof(order_body), "{\"ids\":[\"%s\",\"%s\"]}",
-                 MACRO_DUPLICATE_ID, MACRO_ID);
+    const int order_length = snprintf(order_body, sizeof(order_body), "{\"ids\":[\"%s\",\"%s\"]}",
+                                      MACRO_DUPLICATE_ID, MACRO_ID);
     TEST_CHECK(order_length > 0 && (size_t)order_length < sizeof(order_body));
-    response = invoke(web_api_handle_macros, WEB_API_ROUTE_SET_MACROS_REORDER,
-                      WEB_API_METHOD_POST, order_body, SET_ID, NULL, NULL);
+    response = invoke(web_api_handle_macros, WEB_API_ROUTE_SET_MACROS_REORDER, WEB_API_METHOD_POST,
+                      order_body, SET_ID, NULL, NULL);
     expect_status(&response, 200U, "\"reordered\":true");
 
     macro_t global = make_macro(GLOBAL_MACRO_ID, MACRO_SCOPE_GLOBAL);
@@ -409,10 +409,10 @@ static void test_procedure_and_progress_routes(void) {
     expect_status(&response, 200U, "\"status\":\"current\"");
     cJSON_free(json);
 
-    response = invoke(web_api_handle_procedures, WEB_API_ROUTE_PROGRESS_COMPLETE,
-                      WEB_API_METHOD_POST,
-                      "{\"expectedProcedureRevision\":1,\"stepId\":\"" STEP_ONE_ID "\"}",
-                      SET_ID, NULL, PROCEDURE_ID);
+    response =
+        invoke(web_api_handle_procedures, WEB_API_ROUTE_PROGRESS_COMPLETE, WEB_API_METHOD_POST,
+               "{\"expectedProcedureRevision\":1,\"stepId\":\"" STEP_ONE_ID "\"}", SET_ID, NULL,
+               PROCEDURE_ID);
     expect_status(&response, 200U, STEP_TWO_ID);
     response = invoke(web_api_handle_procedures, WEB_API_ROUTE_PROGRESS_SKIP, WEB_API_METHOD_POST,
                       "{\"expectedProcedureRevision\":1,\"stepId\":\"" STEP_TWO_ID
@@ -423,8 +423,8 @@ static void test_procedure_and_progress_routes(void) {
     TEST_CHECK(snprintf(procedure.name, sizeof(procedure.name), "Updated Procedure") > 0);
     json = serialize_procedure(&procedure);
     char *mutation = mutation_body(1U, json);
-    response = invoke(web_api_handle_procedures, WEB_API_ROUTE_SET_PROCEDURE,
-                      WEB_API_METHOD_PUT, mutation, SET_ID, NULL, PROCEDURE_ID);
+    response = invoke(web_api_handle_procedures, WEB_API_ROUTE_SET_PROCEDURE, WEB_API_METHOD_PUT,
+                      mutation, SET_ID, NULL, PROCEDURE_ID);
     expect_status(&response, 200U, "Updated Procedure");
     cJSON_free(mutation);
     cJSON_free(json);
@@ -432,18 +432,17 @@ static void test_procedure_and_progress_routes(void) {
     response = invoke(web_api_handle_procedures, WEB_API_ROUTE_PROCEDURE_PROGRESS,
                       WEB_API_METHOD_GET, NULL, SET_ID, NULL, PROCEDURE_ID);
     expect_status(&response, 200U, "\"status\":\"stale\"");
-    response = invoke(web_api_handle_procedures, WEB_API_ROUTE_PROCEDURE_PROGRESS,
-                      WEB_API_METHOD_DELETE, "{\"expectedRevision\":2}", SET_ID, NULL,
-                      PROCEDURE_ID);
+    response =
+        invoke(web_api_handle_procedures, WEB_API_ROUTE_PROCEDURE_PROGRESS, WEB_API_METHOD_DELETE,
+               "{\"expectedRevision\":2}", SET_ID, NULL, PROCEDURE_ID);
     expect_status(&response, 200U, "\"status\":\"current\"");
 
     response = invoke(web_api_handle_macros, WEB_API_ROUTE_SET_MACRO, WEB_API_METHOD_DELETE,
                       "{\"expectedRevision\":2}", SET_ID, MACRO_ID, NULL);
     expect_status(&response, 409U, PROCEDURE_ID);
 
-    response = invoke(web_api_handle_procedures, WEB_API_ROUTE_SET_PROCEDURE,
-                      WEB_API_METHOD_DELETE, "{\"expectedRevision\":2}", SET_ID, NULL,
-                      PROCEDURE_ID);
+    response = invoke(web_api_handle_procedures, WEB_API_ROUTE_SET_PROCEDURE, WEB_API_METHOD_DELETE,
+                      "{\"expectedRevision\":2}", SET_ID, NULL, PROCEDURE_ID);
     expect_status(&response, 200U, "\"deleted\":true");
     response = invoke(web_api_handle_macros, WEB_API_ROUTE_SET_MACRO, WEB_API_METHOD_DELETE,
                       "{\"expectedRevision\":2}", SET_ID, MACRO_ID, NULL);
@@ -457,13 +456,14 @@ static void test_procedure_and_progress_routes(void) {
 
 static void test_set_delete_and_persistent_readback(void) {
     macro_set_t current = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_read(&(app_uuid_t){.value = SET_ID}, &current));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_set_read(&(app_uuid_t){.value = SET_ID}, &current));
     TEST_CHECK_EQ_U64(2U, current.revision);
     TEST_CHECK_EQ_STRING("Updated Handler Set", current.name);
 
-    web_api_response_t response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET,
-                                         WEB_API_METHOD_DELETE, "{\"expectedRevision\":1}", SET_ID,
-                                         NULL, NULL);
+    web_api_response_t response =
+        invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE,
+               "{\"expectedRevision\":1}", SET_ID, NULL, NULL);
     expect_status(&response, 409U, "could not delete set");
     response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE,
                       "{\"expectedRevision\":2}", SET_ID, NULL, NULL);
