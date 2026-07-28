@@ -1,12 +1,14 @@
 # Phase 16 cleanup failure
 
-- Apply: failure
+- Transform: failure
+- Format: skipped
 - Focused tests: skipped
 - Authoritative gate: skipped
 
-## phase16-apply.log
+## phase16-transform.log
 
 ```text
+1:firmware/components/web_server/web_api_macros.c: expected one match, found 0: 'web_api_json_parse_uuid_order(call->body, call->body_length,\n                   '
 
-firmware/components/web_server/web_api_json.h: expected one match, found 0: 'app_error_code_t web_api_json_parse_resource_mutation(const char *body, size_t b'
+firmware/components/web_server/web_api_macros.c: expected one match, found 0: 'web_api_json_parse_uuid_order(call->body, call->body_length,\n                   '
 ```
