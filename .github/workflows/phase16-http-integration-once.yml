@@ -8,6 +8,7 @@ on:
       - ".github/workflows/phase16-http-integration-once.yml"
       - "scripts/apply-phase16-finalization.py"
       - "scripts/apply-phase16-request-json.py"
+      - "scripts/normalize-phase16-finalization-input.py"
 
 permissions:
   contents: write
@@ -33,6 +34,7 @@ jobs:
         run: |
           set -o pipefail
           {
+            python3 scripts/normalize-phase16-finalization-input.py
             python3 scripts/apply-phase16-request-json.py
             python3 scripts/apply-phase16-finalization.py
           } 2>&1 | tee /tmp/phase16-finalization-transform.log
