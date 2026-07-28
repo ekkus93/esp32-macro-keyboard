@@ -2,106 +2,126 @@
 from pathlib import Path
 import re
 
-ROOT = Path(__file__).resolve().parents[1] if Path(__file__).resolve().parent.name == 'scripts' else Path.cwd()
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def read(path: str) -> str:
-    return (ROOT / path).read_text(encoding='utf-8')
+    return (ROOT / path).read_text(encoding="utf-8")
 
 
 def write(path: str, content: str) -> None:
-    (ROOT / path).write_text(content, encoding='utf-8')
+    (ROOT / path).write_text(content, encoding="utf-8")
 
 
 def replace_once(text: str, old: str, new: str, path: str) -> str:
     count = text.count(old)
     if count != 1:
-        raise RuntimeError(f'{path}: expected one occurrence, found {count}: {old[:100]!r}')
+        raise RuntimeError(f"{path}: expected one occurrence, found {count}: {old[:100]!r}")
     return text.replace(old, new, 1)
 
+
+def sub_once(text: str, pattern: str, replacement: str, path: str) -> str:
+    updated, count = re.subn(pattern, replacement, text, count=1, flags=re.MULTILINE)
+    if count != 1:
+        raise RuntimeError(f"{path}: expected one regex occurrence, found {count}: {pattern[:100]!r}")
+    return updated
+
+
 # storage_paths.c: descriptive identifier.
-path = 'firmware/components/storage/storage_paths.c'
+path = "firmware/components/storage/storage_paths.c"
 text = read(path)
-text = replace_once(
+text = sub_once(
     text,
-    'static bool valid_path_argument(const app_uuid_t *id, const char *buffer, size_t buffer_size) {\n'
-    '    return id != NULL && buffer != NULL && buffer_size > 0U && app_uuid_is_valid_string(id->value);\n'
-    '}',
-    'static bool valid_path_argument(const app_uuid_t *object_id, const char *buffer,\n'
-    '                                size_t buffer_size) {\n'
-    '    return object_id != NULL && buffer != NULL && buffer_size > 0U &&\n'
-    '           app_uuid_is_valid_string(object_id->value);\n'
-    '}',
+    r"static bool valid_path_argument\(const app_uuid_t \*id, const char \*buffer, size_t buffer_size\) \{\n"
+    r"\s+return id != NULL && buffer != NULL && buffer_size > 0U && app_uuid_is_valid_string\(id->value\);\n"
+    r"\}",
+    "static bool valid_path_argument(const app_uuid_t *object_id, const char *buffer,\n"
+    "                                size_t buffer_size) {\n"
+    "    return object_id != NULL && buffer != NULL && buffer_size > 0U &&\n"
+    "           app_uuid_is_valid_string(object_id->value);\n"
+    "}",
     path,
 )
 write(path, text)
 
-# storage_json.c: directly include the header that defines APP_UUID_BUFFER_LENGTH.
-path = 'firmware/components/storage/storage_json.c'
+# storage_json.c: directly include the defining header.
+path = "firmware/components/storage/storage_json.c"
 text = read(path)
 text = replace_once(text, '#include "cJSON.h"\n', '#include "cJSON.h"\n#include "macro_limits.h"\n', path)
 write(path, text)
 
 # Order helper API: descriptive UUID parameter names.
 for path in (
-    'firmware/components/storage/storage_repository_order.h',
-    'firmware/components/storage/storage_repository_order.c',
+    "firmware/components/storage/storage_repository_order.h",
+    "firmware/components/storage/storage_repository_order.c",
 ):
     text = read(path)
-    text = re.sub(r'const app_uuid_t \*id\b', 'const app_uuid_t *item_id', text)
-    text = re.sub(r'\bid\b', 'item_id', text)
+    text = re.sub(r"\bconst app_uuid_t \*id\b", "const app_uuid_t *item_id", text)
+    text = re.sub(r"\bid\b", "item_id", text)
     write(path, text)
 
 # Procedure helpers: remove adjacent same-type UUID parameters.
-path = 'firmware/components/storage/storage_repository_procedures.c'
+path = "firmware/components/storage/storage_repository_procedures.c"
 text = read(path)
-old = '''static app_error_code_t validate_macro_reference_locked(const app_uuid_t *set_id,
-                                                         const app_uuid_t *macro_id) {
-    const storage_macro_location_t set_location = {
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
-        .set_id = *set_id,
-    };
-    const storage_macro_location_t global_location = {
-'''
-new = '''static app_error_code_t validate_macro_reference_locked(
-    const storage_macro_location_t *set_location, const app_uuid_t *macro_id) {
-    const storage_macro_location_t global_location = {
-'''
-text = replace_once(text, old, new, path)
-text = replace_once(text, 'read_macro_candidate(&set_location, macro_id, &set_exists)',
-                    'read_macro_candidate(set_location, macro_id, &set_exists)', path)
-old = '''static app_error_code_t validate_procedure_references_locked(const procedure_t *procedure) {
-    for (size_t index = 0U; index < procedure->step_count; ++index) {
-'''
-new = '''static app_error_code_t validate_procedure_references_locked(const procedure_t *procedure) {
-    const storage_macro_location_t set_location = {
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
-        .set_id = procedure->set_id,
-    };
-    for (size_t index = 0U; index < procedure->step_count; ++index) {
-'''
-text = replace_once(text, old, new, path)
-text = replace_once(text,
-                    'validate_macro_reference_locked(&procedure->set_id, &step->macro_id)',
-                    'validate_macro_reference_locked(&set_location, &step->macro_id)', path)
-old = '''static app_error_code_t procedure_order_index(const app_uuid_t *set_id,
-                                               const app_uuid_t *procedure_id, size_t *out_index) {
-'''
-new = '''static app_error_code_t procedure_order_index(const app_uuid_t *set_id, size_t *out_index,
-                                               const app_uuid_t *procedure_id) {
-'''
-text = replace_once(text, old, new, path)
-text = text.replace('procedure_order_index(set_id, procedure_id, &index)',
-                    'procedure_order_index(set_id, &index, procedure_id)')
+text = sub_once(
+    text,
+    r"static app_error_code_t validate_macro_reference_locked\(const app_uuid_t \*set_id,\n"
+    r"\s+const app_uuid_t \*macro_id\) \{\n"
+    r"\s+const storage_macro_location_t set_location = \{\n"
+    r"\s+\.scope = MACRO_SCOPE_SET,\n"
+    r"\s+\.has_set_id = true,\n"
+    r"\s+\.set_id = \*set_id,\n"
+    r"\s+\};\n"
+    r"\s+const storage_macro_location_t global_location = \{",
+    "static app_error_code_t validate_macro_reference_locked(\n"
+    "    const storage_macro_location_t *set_location, const app_uuid_t *macro_id) {\n"
+    "    const storage_macro_location_t global_location = {",
+    path,
+)
+text = replace_once(
+    text,
+    "read_macro_candidate(&set_location, macro_id, &set_exists)",
+    "read_macro_candidate(set_location, macro_id, &set_exists)",
+    path,
+)
+text = sub_once(
+    text,
+    r"static app_error_code_t validate_procedure_references_locked\(const procedure_t \*procedure\) \{\n",
+    "static app_error_code_t validate_procedure_references_locked(const procedure_t *procedure) {\n"
+    "    const storage_macro_location_t set_location = {\n"
+    "        .scope = MACRO_SCOPE_SET,\n"
+    "        .has_set_id = true,\n"
+    "        .set_id = procedure->set_id,\n"
+    "    };\n",
+    path,
+)
+text = replace_once(
+    text,
+    "validate_macro_reference_locked(&procedure->set_id, &step->macro_id)",
+    "validate_macro_reference_locked(&set_location, &step->macro_id)",
+    path,
+)
+text = sub_once(
+    text,
+    r"static app_error_code_t procedure_order_index\(const app_uuid_t \*set_id,\n"
+    r"\s+const app_uuid_t \*procedure_id, size_t \*out_index\) \{",
+    "static app_error_code_t procedure_order_index(const app_uuid_t *set_id, size_t *out_index,\n"
+    "                                               const app_uuid_t *procedure_id) {",
+    path,
+)
+text = replace_once(
+    text,
+    "procedure_order_index(set_id, procedure_id, &index)",
+    "procedure_order_index(set_id, &index, procedure_id)",
+    path,
+)
 write(path, text)
 
 # Macro reference scan: split entry parsing/loading from directory traversal.
-path = 'firmware/components/storage/storage_repository_macros.c'
+path = "firmware/components/storage/storage_repository_macros.c"
 text = read(path)
-start = text.index('static app_error_code_t scan_set_procedure_references(')
-end = text.index('\nstatic app_error_code_t find_macro_references(', start)
+start = text.index("static app_error_code_t scan_set_procedure_references(")
+end = text.index("\nstatic app_error_code_t find_macro_references(", start)
 replacement = r'''static const char PROCEDURE_JSON_SUFFIX[] = ".json";
 
 typedef struct {
@@ -111,7 +131,7 @@ typedef struct {
 } procedure_reference_scan_t;
 
 static app_error_code_t parse_procedure_filename(const char *filename, bool *out_matches,
-                                                   app_uuid_t *out_procedure_id) {
+                                                  app_uuid_t *out_procedure_id) {
     *out_matches = false;
     const size_t suffix_length = sizeof(PROCEDURE_JSON_SUFFIX) - 1U;
     const size_t name_length = strlen(filename);
@@ -130,8 +150,8 @@ static app_error_code_t parse_procedure_filename(const char *filename, bool *out
 }
 
 static app_error_code_t read_reference_scan_procedure(const procedure_reference_scan_t *scan,
-                                                      const app_uuid_t *procedure_id,
-                                                      procedure_t *out_procedure) {
+                                                       const app_uuid_t *procedure_id,
+                                                       procedure_t *out_procedure) {
     char path[APP_PATH_MAX_BYTES];
     app_error_code_t result =
         storage_make_procedure_path(scan->set_id, procedure_id, path, sizeof(path));
@@ -205,78 +225,90 @@ static app_error_code_t scan_set_procedure_references(const procedure_reference_
 }
 '''
 text = text[:start] + replacement + text[end:]
-old = '''    if (location->scope == MACRO_SCOPE_SET) {
-        return scan_set_procedure_references(&location->set_id, macro_id, references);
-    }
-'''
-new = '''    if (location->scope == MACRO_SCOPE_SET) {
-        const procedure_reference_scan_t scan = {
-            .set_id = &location->set_id,
-            .macro_id = macro_id,
-            .references = references,
-        };
-        return scan_set_procedure_references(&scan);
-    }
-'''
-text = replace_once(text, old, new, path)
-old = '''    for (size_t set = 0U; result == APP_ERROR_NONE && set < index.count; ++set) {
-        result = scan_set_procedure_references(&index.ids[set], macro_id, references);
-    }
-'''
-new = '''    for (size_t set = 0U; result == APP_ERROR_NONE && set < index.count; ++set) {
-        const procedure_reference_scan_t scan = {
-            .set_id = &index.ids[set],
-            .macro_id = macro_id,
-            .references = references,
-        };
-        result = scan_set_procedure_references(&scan);
-    }
-'''
-text = replace_once(text, old, new, path)
+text = replace_once(
+    text,
+    "    if (location->scope == MACRO_SCOPE_SET) {\n"
+    "        return scan_set_procedure_references(&location->set_id, macro_id, references);\n"
+    "    }\n",
+    "    if (location->scope == MACRO_SCOPE_SET) {\n"
+    "        const procedure_reference_scan_t scan = {\n"
+    "            .set_id = &location->set_id,\n"
+    "            .macro_id = macro_id,\n"
+    "            .references = references,\n"
+    "        };\n"
+    "        return scan_set_procedure_references(&scan);\n"
+    "    }\n",
+    path,
+)
+text = replace_once(
+    text,
+    "    for (size_t set = 0U; result == APP_ERROR_NONE && set < index.count; ++set) {\n"
+    "        result = scan_set_procedure_references(&index.ids[set], macro_id, references);\n"
+    "    }\n",
+    "    for (size_t set = 0U; result == APP_ERROR_NONE && set < index.count; ++set) {\n"
+    "        const procedure_reference_scan_t scan = {\n"
+    "            .set_id = &index.ids[set],\n"
+    "            .macro_id = macro_id,\n"
+    "            .references = references,\n"
+    "        };\n"
+    "        result = scan_set_procedure_references(&scan);\n"
+    "    }\n",
+    path,
+)
 write(path, text)
 
 # Object JSON: named buffer capacities and non-swappable parse-order API.
-path = 'firmware/components/storage/storage_repository_objects_json.c'
+path = "firmware/components/storage/storage_repository_objects_json.c"
 text = read(path)
-text = replace_once(text, '#define KEY_PRESS_STORAGE_MAX_MS 1000U\n',
-                    '#define KEY_PRESS_STORAGE_MAX_MS 1000U\n'
-                    '#define MACRO_SCOPE_BUFFER_BYTES sizeof("global")\n'
-                    '#define PROCEDURE_STEP_TYPE_BUFFER_BYTES sizeof("instruction")\n', path)
-text = text.replace('char scope[7];', 'char scope[MACRO_SCOPE_BUFFER_BYTES];')
-text = text.replace('char type[12];', 'char type[PROCEDURE_STEP_TYPE_BUFFER_BYTES];')
-old = '''app_error_code_t storage_repository_parse_order_json(const char *data, size_t length,
-                                                     size_t maximum_count,
-                                                     storage_uuid_order_t *out_order) {'''
-new = '''app_error_code_t storage_repository_parse_order_json(const char *data, size_t length,
-                                                     storage_uuid_order_t *out_order,
-                                                     size_t maximum_count) {'''
-text = replace_once(text, old, new, path)
+text = replace_once(
+    text,
+    "#define KEY_PRESS_STORAGE_MAX_MS 1000U\n",
+    "#define KEY_PRESS_STORAGE_MAX_MS 1000U\n"
+    '#define MACRO_SCOPE_BUFFER_BYTES sizeof("global")\n'
+    '#define PROCEDURE_STEP_TYPE_BUFFER_BYTES sizeof("instruction")\n',
+    path,
+)
+text = replace_once(text, "char scope[7];", "char scope[MACRO_SCOPE_BUFFER_BYTES];", path)
+text = replace_once(text, "char type[12];", "char type[PROCEDURE_STEP_TYPE_BUFFER_BYTES];", path)
+text = sub_once(
+    text,
+    r"app_error_code_t storage_repository_parse_order_json\(const char \*data, size_t length,\n"
+    r"\s+size_t maximum_count,\n"
+    r"\s+storage_uuid_order_t \*out_order\) \{",
+    "app_error_code_t storage_repository_parse_order_json(const char *data, size_t length,\n"
+    "                                                     storage_uuid_order_t *out_order,\n"
+    "                                                     size_t maximum_count) {",
+    path,
+)
 write(path, text)
 
-path = 'firmware/components/storage/storage_repository_objects_json.h'
+path = "firmware/components/storage/storage_repository_objects_json.h"
 text = read(path)
-old = '''app_error_code_t storage_repository_parse_order_json(const char *data, size_t length,
-                                                     size_t maximum_count,
-                                                     storage_uuid_order_t *out_order);'''
-new = '''app_error_code_t storage_repository_parse_order_json(const char *data, size_t length,
-                                                     storage_uuid_order_t *out_order,
-                                                     size_t maximum_count);'''
-text = replace_once(text, old, new, path)
+text = sub_once(
+    text,
+    r"app_error_code_t storage_repository_parse_order_json\(const char \*data, size_t length,\n"
+    r"\s+size_t maximum_count,\n"
+    r"\s+storage_uuid_order_t \*out_order\);",
+    "app_error_code_t storage_repository_parse_order_json(const char *data, size_t length,\n"
+    "                                                     storage_uuid_order_t *out_order,\n"
+    "                                                     size_t maximum_count);",
+    path,
+)
 write(path, text)
 
-# Update all known call sites for the reordered parse-order API.
+# Update every known call site for the reordered parse-order API.
 call_replacements = {
-    'firmware/components/storage/storage_repository_order.c': (
-        'storage_repository_parse_order_json(data, length, maximum_count, out_order)',
-        'storage_repository_parse_order_json(data, length, out_order, maximum_count)',
+    "firmware/components/storage/storage_repository_order.c": (
+        "storage_repository_parse_order_json(data, length, maximum_count, out_order)",
+        "storage_repository_parse_order_json(data, length, out_order, maximum_count)",
     ),
-    'firmware/components/storage/storage_atomic_validators.c': (
-        'storage_repository_parse_order_json(data, length, maximum, &order)',
-        'storage_repository_parse_order_json(data, length, &order, maximum)',
+    "firmware/components/storage/storage_atomic_validators.c": (
+        "storage_repository_parse_order_json(data, length, maximum, &order)",
+        "storage_repository_parse_order_json(data, length, &order, maximum)",
     ),
-    'tests/host/test_storage_object_json.c': (
-        'storage_repository_parse_order_json(json, length, 2U, &parsed)',
-        'storage_repository_parse_order_json(json, length, &parsed, 2U)',
+    "tests/host/test_storage_object_json.c": (
+        "storage_repository_parse_order_json(json, length, 2U, &parsed)",
+        "storage_repository_parse_order_json(json, length, &parsed, 2U)",
     ),
 }
 for path, (old, new) in call_replacements.items():
@@ -284,15 +316,14 @@ for path, (old, new) in call_replacements.items():
     text = replace_once(text, old, new, path)
     write(path, text)
 
-# Fail closed if a stale four-argument call remains in first-party code.
-for candidate in list((ROOT / 'firmware').rglob('*.[ch]')) + list((ROOT / 'tests').rglob('*.[ch]')):
-    source = candidate.read_text(encoding='utf-8')
-    for match in re.finditer(r'storage_repository_parse_order_json\s*\((.*?)\)', source, re.S):
-        call = match.group(1)
-        if 'storage_uuid_order_t *out_order' in call:
+# Fail closed if a stale call remains in first-party code.
+for candidate in list((ROOT / "firmware").rglob("*.[ch]")) + list((ROOT / "tests").rglob("*.[ch]")):
+    source = candidate.read_text(encoding="utf-8")
+    for match in re.finditer(r"storage_repository_parse_order_json\s*\((.*?)\)", source, re.DOTALL):
+        compact = " ".join(match.group(1).split())
+        if "storage_uuid_order_t *out_order" in compact:
             continue
-        compact = ' '.join(call.split())
-        if re.search(r'\blength\s*,\s*(maximum|maximum_count|[0-9]+U)\s*,', compact):
-            raise RuntimeError(f'{candidate}: stale parse-order argument order: {compact}')
+        if re.search(r"\blength\s*,\s*(maximum|maximum_count|[0-9]+U)\s*,", compact):
+            raise RuntimeError(f"{candidate}: stale parse-order argument order: {compact}")
 
-print('storage quality transformations applied')
+print("storage quality transformations applied")
