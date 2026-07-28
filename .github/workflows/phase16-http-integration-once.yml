@@ -6,6 +6,8 @@ on:
       - master
     paths:
       - ".github/workflows/phase16-http-integration-once.yml"
+      - "scripts/fix-phase16-clang-tidy.py"
+      - "scripts/run-phase16-clang-tidy-cleanup.py"
 
 permissions:
   contents: write
@@ -209,5 +211,3 @@ jobs:
           git commit -m "ci: record Phase 16 cleanup failure"
           git push origin HEAD:master
           exit 1
-
-# Retry after structural call-site matcher hardening.
