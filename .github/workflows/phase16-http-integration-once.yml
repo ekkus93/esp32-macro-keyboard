@@ -169,7 +169,7 @@ jobs:
           {
             . "$HOME/esp/esp-idf-v5.5.5/export.sh"
             PATH="${RUNNER_TEMP}/gcovr/bin:${PATH}" ./scripts/generate-native-coverage.sh
-            ./scripts/build-device-tests.sh
+            bash ./scripts/build-device-tests.sh
           } 2>&1 | tee /tmp/phase16-finalization-evidence.log
 
       - name: Commit validated Phase 16 finalization
