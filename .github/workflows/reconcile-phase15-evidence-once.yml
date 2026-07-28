@@ -52,3 +52,5 @@ jobs:
           git fetch origin master
           git rebase origin/master
           git push origin HEAD:master
+
+# Trigger after workflow registration
