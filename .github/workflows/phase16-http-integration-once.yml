@@ -55,6 +55,40 @@ jobs:
       - name: Apply deterministic integration patch
         run: python3 scripts/apply-phase16-http-integration.py
 
+      - name: Harden generated header adapter
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("firmware/components/web_server/web_server_common.c")
+          text = path.read_text(encoding="utf-8")
+          marker = "static app_error_code_t validate_session_adapter"
+          adapter = '''static app_error_code_t get_header_adapter(void *context, const char *name,
+                                                         char *buffer, size_t buffer_size) {
+              return web_server_get_header(context, name, buffer, buffer_size);
+          }
+
+          '''
+          if text.count(marker) != 1:
+              raise SystemExit("web_server_common.c: validation adapter marker mismatch")
+          if "static app_error_code_t get_header_adapter" in text:
+              raise SystemExit("web_server_common.c: header adapter already present")
+          text = text.replace(marker, adapter + marker, 1)
+          cast_call = (
+              "return web_adapter_authorize_mutation("
+              "(web_adapter_get_header_fn)web_server_get_header,\n"
+              "                                          validate_session_adapter, request,"
+          )
+          typed_call = (
+              "return web_adapter_authorize_mutation(get_header_adapter, "
+              "validate_session_adapter, request,"
+          )
+          if text.count(cast_call) != 1:
+              raise SystemExit("web_server_common.c: cast call mismatch")
+          path.write_text(text.replace(cast_call, typed_call, 1), encoding="utf-8")
+          PY
+
       - name: Apply authoritative formatting
         run: |
           set -euo pipefail
