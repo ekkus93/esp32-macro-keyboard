@@ -1,0 +1,54 @@
+name: Reconcile Phase 15 evidence once
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/reconcile-phase15-evidence-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconcile rebased evidence and remove temporary files
+        run: |
+          set -euo pipefail
+          readonly old_sha="9639d6aaf7ddc93498d3174545088e1b0042a375"
+          readonly final_sha="b1ad2b8bb56d999dd88df8ace328c9990b41100c"
+          sed -i "s/${old_sha}/${final_sha}/g" \
+            docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md \
+            docs/IMPLEMENTATION_STATUS.md \
+            docs/FIX1_CHATGPT_HANDOFF.md
+          rm -f \
+            docs/CI_PHASE15_FAILURE.md \
+            docs/CI_PHASE15_RUN_STATUS.md \
+            scripts/complete-phase15.py
+          if grep -R --fixed-strings "${old_sha}" \
+            docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md \
+            docs/IMPLEMENTATION_STATUS.md \
+            docs/FIX1_CHATGPT_HANDOFF.md; then
+            echo "stale pre-rebase Phase 15 SHA remains" >&2
+            exit 1
+          fi
+      - name: Validate documentation
+        run: |
+          set -euo pipefail
+          npm ci --prefix webapp
+          ./scripts/check-docs.sh
+      - name: Commit reconciled evidence
+        run: |
+          set -euo pipefail
+          git config user.name "ChatGPT"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "docs(fix1): reconcile final Phase 15 evidence"
+          git fetch origin master
+          git rebase origin/master
+          git push origin HEAD:master
