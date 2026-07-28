@@ -39,4 +39,32 @@ if anchor_count != 1:
     raise SystemExit(f"expected one generated set API macro_model include, found {anchor_count}")
 set_api_path.write_text(set_api_text.replace(anchor, include + anchor, 1), encoding="utf-8")
 
+replace_once(
+    "firmware/components/storage/storage_repository_set_operations.c",
+    "static app_error_code_t write_duplicate_order(const char *staging, const char *filename,\n"
+    "                                               const app_uuid_t *ids, size_t count,\n"
+    "                                               size_t maximum_count) {\n",
+    "static app_error_code_t write_duplicate_order(const char *staging, const char *filename,\n"
+    "                                               size_t maximum_count, const app_uuid_t *ids,\n"
+    "                                               size_t count) {\n",
+    "generated duplicate-order helper signature",
+)
+replace_once(
+    "firmware/components/storage/storage_repository_set_operations.c",
+    "        result = write_duplicate_order(staging, \"macro-order.json\", ordered_ids, macros->count,\n"
+    "                                       APP_MACROS_PER_SET_MAX);\n",
+    "        result = write_duplicate_order(staging, \"macro-order.json\", APP_MACROS_PER_SET_MAX,\n"
+    "                                       ordered_ids, macros->count);\n",
+    "generated macro-order helper call",
+)
+replace_once(
+    "firmware/components/storage/storage_repository_set_operations.c",
+    "        result = write_duplicate_order(staging, \"procedure-order.json\", ordered_ids,\n"
+    "                                       procedures->count, APP_PROCEDURES_PER_SET_MAX);\n",
+    "        result = write_duplicate_order(staging, \"procedure-order.json\",\n"
+    "                                       APP_PROCEDURES_PER_SET_MAX, ordered_ids,\n"
+    "                                       procedures->count);\n",
+    "generated procedure-order helper call",
+)
+
 print("Phase 16 generated output corrections applied")
