@@ -1,6 +1,7 @@
 #ifndef MACRO_EXECUTOR_H
 #define MACRO_EXECUTOR_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -34,8 +35,13 @@ typedef struct {
     app_error_code_t error;
     app_error_code_t release_error;
     app_uuid_t execution_id;
+    app_uuid_t set_id;
+    app_uuid_t macro_id;
+    uint32_t macro_revision;
     size_t action_index;
     size_t action_count;
+    bool available;
+    bool cancellation_requested;
 } macro_execution_status_t;
 
 app_error_code_t macro_executor_init(void);
