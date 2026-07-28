@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Run the Phase 16 cleanup after replacing two indentation-sensitive matchers."""
+"""Run the Phase 16 cleanup with structural source matchers."""
 
 from pathlib import Path
+import re
 import runpy
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/fix-phase16-clang-tidy.py"
 text = SCRIPT.read_text(encoding="utf-8")
-old = '''replace_once(
+
+old_declarations = '''replace_once(
     "firmware/components/web_server/web_api_json.h",
     "app_error_code_t web_api_json_parse_resource_mutation(const char *body, size_t body_length,\\n"
     "                                                       size_t maximum_resource_length,\\n"
@@ -26,7 +28,7 @@ replace_once(
     "    storage_uuid_order_t *out_order);\\n",
 )
 '''
-new = '''replace_regex_once(
+new_declarations = '''replace_regex_once(
     "firmware/components/web_server/web_api_json.h",
     r"app_error_code_t web_api_json_parse_resource_mutation\\(.*?out_mutation\\);\\n",
     "app_error_code_t web_api_json_parse_resource_mutation(\\n"
@@ -41,7 +43,68 @@ replace_regex_once(
     "    storage_uuid_order_t *out_order);\\n",
 )
 '''
-if text.count(old) != 1:
-    raise SystemExit("Phase 16 cleanup script declaration matcher block changed unexpectedly")
-SCRIPT.write_text(text.replace(old, new, 1), encoding="utf-8")
+if text.count(old_declarations) != 1:
+    raise SystemExit("Phase 16 cleanup declaration matcher block changed unexpectedly")
+text = text.replace(old_declarations, new_declarations, 1)
+
+start = text.find("for relative, resource_limit in (")
+end = text.find("# Error response options prevent", start)
+if start < 0 or end < 0:
+    raise SystemExit("Phase 16 cleanup call-site matcher block changed unexpectedly")
+new_calls = '''for relative, resource_limit in (
+    ("firmware/components/web_server/web_api_sets.c", "STORAGE_SET_FILE_MAX_BYTES"),
+    ("firmware/components/web_server/web_api_macros.c", "STORAGE_MACRO_FILE_MAX_BYTES"),
+    ("firmware/components/web_server/web_api_procedures.c", "STORAGE_PROCEDURE_FILE_MAX_BYTES"),
+):
+    replace_regex_once(
+        relative,
+        rf"web_api_json_parse_resource_mutation\\(\\s*call->body,\\s*call->body_length,\\s*{resource_limit},\\s*&mutation\\)",
+        "web_api_json_parse_resource_mutation(\\n"
+        "            call->body,\\n"
+        "            &(web_api_resource_parse_limits_t){\\n"
+        "                .body_length = call->body_length,\\n"
+        f"                .maximum_resource_length = {resource_limit},\\n"
+        "            },\\n"
+        "            &mutation)",
+    )
+
+for relative, maximum_count in (
+    ("firmware/components/web_server/web_api_macros.c", "APP_MACROS_PER_SET_MAX"),
+    ("firmware/components/web_server/web_api_procedures.c", "APP_PROCEDURES_PER_SET_MAX"),
+):
+    replace_regex_once(
+        relative,
+        rf"web_api_json_parse_uuid_order\\(\\s*call->body,\\s*call->body_length,\\s*{maximum_count},\\s*&order\\)",
+        "web_api_json_parse_uuid_order(\\n"
+        "        call->body,\\n"
+        "        &(web_api_order_parse_limits_t){\\n"
+        "            .body_length = call->body_length,\\n"
+        f"            .maximum_count = {maximum_count},\\n"
+        "        },\\n"
+        "        &order)",
+    )
+
+replace_regex_once(
+    "tests/host/test_web_api_json.c",
+    r"web_api_json_parse_resource_mutation\\(\\s*update,\\s*sizeof\\(update\\) - 1U,\\s*512U,\\s*&mutation\\)",
+    "web_api_json_parse_resource_mutation(\\n"
+    "            update,\\n"
+    "            &(web_api_resource_parse_limits_t){\\n"
+    "                .body_length = sizeof(update) - 1U, .maximum_resource_length = 512U},\\n"
+    "            &mutation)",
+)
+for variable in ("order", "duplicate"):
+    replace_regex_once(
+        "tests/host/test_web_api_json.c",
+        rf"web_api_json_parse_uuid_order\\(\\s*{variable},\\s*sizeof\\({variable}\\) - 1U,\\s*4U,\\s*&parsed\\)",
+        "web_api_json_parse_uuid_order(\\n"
+        f"            {variable},\\n"
+        "            &(web_api_order_parse_limits_t){\\n"
+        f"                .body_length = sizeof({variable}) - 1U, .maximum_count = 4U}},\\n"
+        "            &parsed)",
+    )
+
+'''
+text = text[:start] + new_calls + text[end:]
+SCRIPT.write_text(text, encoding="utf-8")
 runpy.run_path(str(SCRIPT), run_name="__main__")
