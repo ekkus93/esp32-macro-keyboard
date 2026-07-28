@@ -1,4 +1,4 @@
-name: Validate Phase 16 HTTP integration once
+name: Validate Phase 16 policy hardening once
 
 on:
   push:
@@ -6,15 +6,13 @@ on:
       - master
     paths:
       - ".github/workflows/phase16-http-integration-once.yml"
-      - "scripts/fix-phase16-clang-tidy.py"
-      - "scripts/run-phase16-clang-tidy-cleanup.py"
-      - "scripts/run-phase16-clang-tidy-cleanup-v3.py"
+      - "scripts/apply-phase16-policy-hardening.py"
 
 permissions:
   contents: write
 
 concurrency:
-  group: phase16-http-integration-once
+  group: phase16-policy-hardening-once
   cancel-in-progress: true
 
 jobs:
@@ -27,46 +25,13 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Apply deterministic Phase 16 transforms
+      - name: Apply deterministic policy hardening
         id: transform
         continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
-          {
-            python3 scripts/apply-phase16-http-integration.py
-            python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("firmware/components/web_server/web_server_common.c")
-          text = path.read_text(encoding="utf-8")
-          marker = "static app_error_code_t validate_session_adapter"
-          adapter = '''static app_error_code_t get_header_adapter(void *context, const char *name,
-                                                         char *buffer, size_t buffer_size) {
-              return web_server_get_header(context, name, buffer, buffer_size);
-          }
-
-          '''
-          if text.count(marker) != 1:
-              raise SystemExit("web_server_common.c: validation adapter marker mismatch")
-          if "static app_error_code_t get_header_adapter" in text:
-              raise SystemExit("web_server_common.c: header adapter already present")
-          text = text.replace(marker, adapter + marker, 1)
-          cast_call = (
-              "return web_adapter_authorize_mutation("
-              "(web_adapter_get_header_fn)web_server_get_header,\n"
-              "                                          validate_session_adapter, request,"
-          )
-          typed_call = (
-              "return web_adapter_authorize_mutation(get_header_adapter, "
-              "validate_session_adapter, request,"
-          )
-          if text.count(cast_call) != 1:
-              raise SystemExit("web_server_common.c: cast call mismatch")
-          path.write_text(text.replace(cast_call, typed_call, 1), encoding="utf-8")
-          PY
-            python3 scripts/run-phase16-clang-tidy-cleanup-v3.py
-          } 2>&1 | tee /tmp/phase16-transform.log
+          python3 scripts/apply-phase16-policy-hardening.py 2>&1 | tee /tmp/phase16-policy-transform.log
 
       - uses: actions/setup-node@v4
         if: steps.transform.outcome == 'success'
@@ -107,19 +72,18 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          {
-            mapfile -t web_sources < <(
-              find firmware/components/web_server \
-                -type f \( -name '*.c' -o -name '*.h' \) -print | sort
-            )
-            clang-format -i \
-              "${web_sources[@]}" \
-              firmware/components/macro_executor/macro_executor_engine.c \
-              firmware/components/app_core/app_core_sequence.c \
-              tests/host/test_web_api_json.c \
-              tests/host/test_web_api_response.c
-            cmake-format -i firmware/components/web_server/CMakeLists.txt tests/host/CMakeLists.txt
-          } 2>&1 | tee /tmp/phase16-format.log
+          clang-format -i \
+            firmware/components/auth/include/auth.h \
+            firmware/components/auth/auth.c \
+            firmware/components/auth/auth_core.h \
+            firmware/components/auth/auth_core_session.c \
+            firmware/components/web_server/web_api_core.c \
+            firmware/components/web_server/web_request_policy.c \
+            firmware/components/web_server/web_server_api.c \
+            tests/host/test_web_api_core.c \
+            tests/host/test_web_request_policy.c \
+            tests/host/auth_existing_tests.inc \
+            2>&1 | tee /tmp/phase16-policy-format.log
 
       - name: Run focused host tests
         id: focused
@@ -129,11 +93,11 @@ jobs:
         run: |
           set -o pipefail
           {
+            ./scripts/run-tests.sh auth
             ./scripts/run-tests.sh web
-            ./scripts/run-tests.sh executor
+            ./scripts/run-tests.sh --sanitizers auth
             ./scripts/run-tests.sh --sanitizers web
-            ./scripts/run-tests.sh --sanitizers executor
-          } 2>&1 | tee /tmp/phase16-focused.log
+          } 2>&1 | tee /tmp/phase16-policy-focused.log
 
       - name: Run authoritative repository gate
         id: gate
@@ -147,11 +111,11 @@ jobs:
           set -o pipefail
           {
             . "$HOME/esp/esp-idf-v5.5.5/export.sh"
-            rm -f docs/CI_PHASE16_CLEANUP_FAILURE.md
+            rm -f docs/CI_PHASE16_POLICY_FAILURE.md
             ./scripts/check-all.sh
-          } 2>&1 | tee /tmp/phase16-gate.log
+          } 2>&1 | tee /tmp/phase16-policy-gate.log
 
-      - name: Commit validated integration
+      - name: Commit validated policy hardening
         if: >-
           steps.transform.outcome == 'success' &&
           steps.format.outcome == 'success' &&
@@ -162,13 +126,17 @@ jobs:
           git config user.name "ChatGPT"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
-            firmware/components/app_core/app_core_sequence.c \
-            firmware/components/macro_executor/macro_executor_engine.c \
-            firmware/components/web_server \
-            tests/host/CMakeLists.txt \
-            tests/host/test_web_api_json.c \
-            tests/host/test_web_api_response.c
-          git commit -m "feat(web): integrate Phase 16 HTTP API"
+            firmware/components/auth/include/auth.h \
+            firmware/components/auth/auth.c \
+            firmware/components/auth/auth_core.h \
+            firmware/components/auth/auth_core_session.c \
+            firmware/components/web_server/web_api_core.c \
+            firmware/components/web_server/web_request_policy.c \
+            firmware/components/web_server/web_server_api.c \
+            tests/host/test_web_api_core.c \
+            tests/host/test_web_request_policy.c \
+            tests/host/auth_existing_tests.inc
+          git commit -m "fix(web): harden Phase 16 request policy"
           git fetch origin master
           test "$(git rev-parse origin/master)" = "$GITHUB_SHA"
           git push origin HEAD:master
@@ -188,27 +156,27 @@ jobs:
           git reset --hard origin/master
           git clean -fd
           {
-            echo "# Phase 16 cleanup failure"
+            echo "# Phase 16 policy hardening failure"
             echo
             echo "- Transform: ${{ steps.transform.outcome }}"
             echo "- Format: ${{ steps.format.outcome }}"
             echo "- Focused tests: ${{ steps.focused.outcome }}"
             echo "- Authoritative gate: ${{ steps.gate.outcome }}"
-            for log in /tmp/phase16-transform.log /tmp/phase16-format.log /tmp/phase16-focused.log /tmp/phase16-gate.log; do
+            for log in /tmp/phase16-policy-transform.log /tmp/phase16-policy-format.log /tmp/phase16-policy-focused.log /tmp/phase16-policy-gate.log; do
               if [[ -f "$log" ]]; then
                 echo
                 echo "## $(basename "$log")"
                 echo
                 echo '```text'
-                grep -n -E 'error:|FAILED|Failure|AddressSanitizer|UndefinedBehaviorSanitizer|Process completed|expected one|mismatch' "$log" | tail -n 160 || true
+                grep -n -E 'error:|FAILED|Failure|AddressSanitizer|UndefinedBehaviorSanitizer|expected one|mismatch' "$log" | tail -n 160 || true
                 echo
                 tail -n 180 "$log"
                 echo '```'
               fi
             done
-          } > docs/CI_PHASE16_CLEANUP_FAILURE.md
-          sed -i 's/[[:space:]]\+$//' docs/CI_PHASE16_CLEANUP_FAILURE.md
-          git add docs/CI_PHASE16_CLEANUP_FAILURE.md
-          git commit -m "ci: record Phase 16 cleanup failure"
+          } > docs/CI_PHASE16_POLICY_FAILURE.md
+          sed -i 's/[[:space:]]\+$//' docs/CI_PHASE16_POLICY_FAILURE.md
+          git add docs/CI_PHASE16_POLICY_FAILURE.md
+          git commit -m "ci: record Phase 16 policy hardening failure"
           git push origin HEAD:master
           exit 1
