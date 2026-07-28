@@ -23,6 +23,7 @@ typedef struct {
     size_t compile_calls;
     size_t submit_calls;
     size_t free_calls;
+    macro_plan_t accepted_plan;
 } fixture_t;
 
 static app_uuid_t uuid(const char *text) {
@@ -105,9 +106,15 @@ static app_error_code_t submit(void *context, macro_execution_request_t *request
     TEST_CHECK_EQ_STRING(EXECUTION_ID, request->execution_id.value);
     TEST_CHECK_EQ_U64(2U, request->plan.action_count);
     if (fixture->submit_result == APP_ERROR_NONE) {
+        fixture->accepted_plan = request->plan;
         request->plan = (macro_plan_t){0};
     }
     return fixture->submit_result;
+}
+
+static void release_accepted_plan(fixture_t *fixture) {
+    free(fixture->accepted_plan.actions);
+    fixture->accepted_plan = (macro_plan_t){0};
 }
 
 static web_execution_ops_t operations(fixture_t *fixture) {
@@ -142,6 +149,8 @@ static void test_success_and_failures(void) {
     TEST_CHECK_EQ_STRING(EXECUTION_ID, accepted.execution_id.value);
     TEST_CHECK_EQ_U64(2U, accepted.action_count);
     TEST_CHECK_EQ_U64(0U, fixture.free_calls);
+    TEST_CHECK(fixture.accepted_plan.actions != NULL);
+    release_accepted_plan(&fixture);
 
     fixture = (fixture_t){.revision = 8U};
     ops = operations(&fixture);
