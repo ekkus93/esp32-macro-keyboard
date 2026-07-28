@@ -8,6 +8,12 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/fix-phase16-clang-tidy.py"
 text = SCRIPT.read_text(encoding="utf-8")
 
+old_define_lookup = "    first_define = defines.splitlines()[0]\n"
+new_define_lookup = "    first_define = next(line for line in defines.splitlines() if line)\n"
+if text.count(old_define_lookup) != 1:
+    raise SystemExit("Phase 16 define helper changed unexpectedly")
+text = text.replace(old_define_lookup, new_define_lookup, 1)
+
 old_declarations = '''replace_once(
     "firmware/components/web_server/web_api_json.h",
     "app_error_code_t web_api_json_parse_resource_mutation(const char *body, size_t body_length,\\n"
