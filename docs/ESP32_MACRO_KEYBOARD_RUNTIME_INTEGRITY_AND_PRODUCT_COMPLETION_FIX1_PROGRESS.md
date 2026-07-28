@@ -55,10 +55,10 @@
 | 10 | Separate password mismatch from crypto failure | done |
 | 11 | Fix Wi-Fi cleanup | done |
 | 12 | Fix executor shutdown and terminal integrity | done (§12.4 observability fields deferred to Phase 16/19) |
-| 13 | Fix device-controls shutdown and failure visibility | not started |
-| 14 | Encrypted persistent provisioning | not started |
-| 15 | Complete storage object repositories | not started |
-| 16 | Complete the HTTP API | not started |
+| 13 | Fix device-controls shutdown and failure visibility | done (diagnostics aggregation deferred to Phase 19) |
+| 14 | Encrypted persistent provisioning | done (physical confidentiality remains Phase 20 hardware evidence) |
+| 15 | Complete storage object repositories | done |
+| 16 | Complete the HTTP API | next |
 | 17 | Replace frontend mock behavior | not started |
 | 18 | Import / export / backup / restore | not started |
 | 19 | Diagnostics and observability | not started |
@@ -594,3 +594,34 @@ Not claimed by this phase:
 - a physical ESP32-S3 has not yet been eFuse-provisioned and inspected for raw-flash secrecy;
 - real first-run, reboot persistence, button confirmation, and interruption behavior remain in
   the Phase 20 hardware matrix.
+
+## Phase 15 — Complete storage object repositories
+
+Status: **Complete.**
+
+Implementation commit: `9639d6aaf7ddc93498d3174545088e1b0042a375`.
+
+Implemented and validated:
+
+- macro list/create/read/update/delete/duplicate/reorder, bounded procedure-reference details,
+  scope validation, revision conflicts, and corrupt-object/order quarantine;
+- procedure list/create/read/update/delete/reorder, unique step IDs, strict macro scope/reference
+  validation, exact fields and bounds, revision conflicts, corrupt-object quarantine, and progress
+  removal before procedure deletion;
+- progress read/update/reset with canonical JSON, procedure and step validation, atomic writes,
+  completed/skipped exclusivity, explicit stale-revision snapshots, and corruption quarantine;
+- redacted non-secret settings read/update over the encrypted provisioning record, including
+  always-select-set, active-set selection, and physical-confirmation policy;
+- set deletion clears a matching encrypted-NVS active-set selection before moving the set to
+  transaction-owned trash, so interruption cannot leave a dangling selection; existing delete
+  transaction recovery remains idempotent and preserves global macros.
+
+Validation:
+
+- `./scripts/run-tests.sh storage`;
+- `./scripts/run-tests.sh --sanitizers storage`;
+- `./scripts/generate-native-coverage.sh`;
+- authoritative `./scripts/check-all.sh`;
+- ESP-IDF v5.5.5 production and device-test builds with fail-closed clang-tidy;
+- macro, procedure, progress, active-set deletion, provisioning-settings, atomic-validator, and
+  transaction-recovery host suites all execute as registered CTest targets.
