@@ -1,0 +1,1 @@
+Validation trigger for a full lint, test, sanitizer, coverage, frontend, and ESP32-S3 device-build run against master commit c85482887681b72ee094337c2fdb0cda19bfcbe0.
