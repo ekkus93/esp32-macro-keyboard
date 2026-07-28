@@ -1,4 +1,4 @@
-name: Validate Phase 16 repository handlers once
+name: Validate Phase 16 execution route policy once
 
 on:
   push:
@@ -6,14 +6,13 @@ on:
       - master
     paths:
       - ".github/workflows/phase16-http-integration-once.yml"
-      - "scripts/apply-phase16-handler-acceptance.py"
-      - "firmware/components/web_server/web_api_handler_common.c"
+      - "scripts/apply-phase16-execution-route-policy.py"
 
 permissions:
   contents: write
 
 concurrency:
-  group: phase16-repository-handlers-once
+  group: phase16-execution-route-policy-once
   cancel-in-progress: true
 
 jobs:
@@ -26,45 +25,25 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Register repository-backed handler acceptance
+      - name: Apply execution route policy
         id: transform
         continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
-          python3 scripts/apply-phase16-handler-acceptance.py \
-            2>&1 | tee /tmp/phase16-handler-transform.log
+          python3 scripts/apply-phase16-execution-route-policy.py \
+            2>&1 | tee /tmp/phase16-execution-transform.log
 
-      - uses: actions/setup-node@v4
-        if: steps.transform.outcome == 'success'
-        with:
-          node-version-file: .nvmrc
-
-      - name: Install validation dependencies
+      - name: Install host validation dependencies
         if: steps.transform.outcome == 'success'
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends \
-            build-essential \
-            clang-format \
-            clang-tidy \
-            cmake \
-            jq \
-            libcjson-dev \
-            shellcheck
+            build-essential clang-format clang-tidy cmake jq libcjson-dev shellcheck
           python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
           go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-
-      - name: Install ESP-IDF v5.5.5
-        if: steps.transform.outcome == 'success'
-        run: ./scripts/install-esp-idf.sh
-
-      - name: Install frontend dependencies
-        if: steps.transform.outcome == 'success'
-        working-directory: webapp
-        run: npm ci
 
       - name: Apply authoritative formatting
         id: format
@@ -75,13 +54,21 @@ jobs:
           set -o pipefail
           {
             clang-format -i \
-              firmware/components/web_server/web_api_handler_common.c \
-              firmware/components/web_server/web_api_json.c \
+              firmware/components/web_server/web_api_core.c \
+              firmware/components/web_server/web_api_core.h \
+              firmware/components/web_server/web_api_dispatch.c \
+              firmware/components/web_server/web_api_execution.c \
+              firmware/components/web_server/web_execution_route_policy.c \
+              firmware/components/web_server/web_execution_route_policy.h \
+              firmware/components/web_server/web_server_api.c \
               tests/host/test_web_api_core.c \
-              tests/host/test_web_api_json.c \
-              tests/host/test_web_api_repository_handlers.c
-            cmake-format -i tests/host/CMakeLists.txt
-          } 2>&1 | tee /tmp/phase16-handler-format.log
+              tests/host/test_web_api_dispatch.c \
+              tests/host/test_web_request_policy.c \
+              tests/host/test_web_execution_route_policy.c
+            cmake-format -i \
+              firmware/components/web_server/CMakeLists.txt \
+              tests/host/CMakeLists.txt
+          } 2>&1 | tee /tmp/phase16-execution-format.log
 
       - name: Run focused host and sanitizer tests
         id: focused
@@ -92,26 +79,39 @@ jobs:
           set -o pipefail
           {
             ./scripts/run-tests.sh web
+            ./scripts/run-tests.sh executor
             ./scripts/run-tests.sh --sanitizers web
-          } 2>&1 | tee /tmp/phase16-handler-focused.log
+            ./scripts/run-tests.sh --sanitizers executor
+          } 2>&1 | tee /tmp/phase16-execution-focused.log
+
+      - uses: actions/setup-node@v4
+        if: steps.focused.outcome == 'success'
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install ESP-IDF v5.5.5
+        if: steps.focused.outcome == 'success'
+        run: ./scripts/install-esp-idf.sh
+
+      - name: Install frontend dependencies
+        if: steps.focused.outcome == 'success'
+        working-directory: webapp
+        run: npm ci
 
       - name: Run authoritative repository gate
         id: gate
-        if: >-
-          steps.transform.outcome == 'success' &&
-          steps.format.outcome == 'success' &&
-          steps.focused.outcome == 'success'
+        if: steps.focused.outcome == 'success'
         continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
           {
             . "$HOME/esp/esp-idf-v5.5.5/export.sh"
-            rm -f docs/CI_PHASE16_HANDLER_ACCEPTANCE_FAILURE.md
+            rm -f docs/CI_PHASE16_EXECUTION_POLICY_FAILURE.md
             ./scripts/check-all.sh
-          } 2>&1 | tee /tmp/phase16-handler-gate.log
+          } 2>&1 | tee /tmp/phase16-execution-gate.log
 
-      - name: Commit validated repository handler acceptance
+      - name: Commit validated execution route policy
         if: >-
           steps.transform.outcome == 'success' &&
           steps.format.outcome == 'success' &&
@@ -122,14 +122,21 @@ jobs:
           git config user.name "ChatGPT"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
-            firmware/components/web_server/web_api_handler_common.c \
-            firmware/components/web_server/web_api_json.c \
+            firmware/components/web_server/CMakeLists.txt \
+            firmware/components/web_server/web_api_core.c \
+            firmware/components/web_server/web_api_core.h \
+            firmware/components/web_server/web_api_dispatch.c \
+            firmware/components/web_server/web_api_execution.c \
+            firmware/components/web_server/web_execution_route_policy.c \
+            firmware/components/web_server/web_execution_route_policy.h \
+            firmware/components/web_server/web_server_api.c \
             tests/host/CMakeLists.txt \
             tests/host/test_web_api_core.c \
-            tests/host/test_web_api_json.c \
-            tests/host/test_web_api_repository_handlers.c
-          git add -u docs/CI_PHASE16_HANDLER_ACCEPTANCE_FAILURE.md
-          git commit -m "test(web): add repository-backed Phase 16 acceptance"
+            tests/host/test_web_api_dispatch.c \
+            tests/host/test_web_request_policy.c \
+            tests/host/test_web_execution_route_policy.c
+          git add -u docs/CI_PHASE16_EXECUTION_POLICY_FAILURE.md
+          git commit -m "fix(web): harden execution route policy"
           git fetch origin master
           test "$(git rev-parse origin/master)" = "$GITHUB_SHA"
           git push origin HEAD:master
@@ -149,17 +156,17 @@ jobs:
           git reset --hard origin/master
           git clean -fd
           {
-            echo "# Phase 16 repository handler acceptance failure"
+            echo "# Phase 16 execution route policy failure"
             echo
             echo "- Transform: ${{ steps.transform.outcome }}"
             echo "- Format: ${{ steps.format.outcome }}"
             echo "- Focused tests: ${{ steps.focused.outcome }}"
             echo "- Authoritative gate: ${{ steps.gate.outcome }}"
             for log in \
-              /tmp/phase16-handler-transform.log \
-              /tmp/phase16-handler-format.log \
-              /tmp/phase16-handler-focused.log \
-              /tmp/phase16-handler-gate.log; do
+              /tmp/phase16-execution-transform.log \
+              /tmp/phase16-execution-format.log \
+              /tmp/phase16-execution-focused.log \
+              /tmp/phase16-execution-gate.log; do
               if [[ -f "$log" ]]; then
                 echo
                 echo "## $(basename "$log")"
@@ -167,15 +174,15 @@ jobs:
                 echo '```text'
                 grep -n -E \
                   'error:|FAILED|Failure|AddressSanitizer|UndefinedBehaviorSanitizer|expected|mismatch' \
-                  "$log" | tail -n 240 || true
+                  "$log" | tail -n 220 || true
                 echo
-                tail -n 260 "$log"
+                tail -n 240 "$log"
                 echo '```'
               fi
             done
-          } > docs/CI_PHASE16_HANDLER_ACCEPTANCE_FAILURE.md
-          sed -i 's/[[:space:]]\+$//' docs/CI_PHASE16_HANDLER_ACCEPTANCE_FAILURE.md
-          git add docs/CI_PHASE16_HANDLER_ACCEPTANCE_FAILURE.md
-          git commit -m "ci: record Phase 16 handler acceptance failure"
+          } > docs/CI_PHASE16_EXECUTION_POLICY_FAILURE.md
+          sed -i 's/[[:space:]]\+$//' docs/CI_PHASE16_EXECUTION_POLICY_FAILURE.md
+          git add docs/CI_PHASE16_EXECUTION_POLICY_FAILURE.md
+          git commit -m "ci: record Phase 16 execution policy failure"
           git push origin HEAD:master
           exit 1
