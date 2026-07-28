@@ -1,4 +1,4 @@
-name: Validate Phase 16 policy hardening once
+name: Validate Phase 16 acceptance foundation once
 
 on:
   push:
@@ -6,14 +6,13 @@ on:
       - master
     paths:
       - ".github/workflows/phase16-http-integration-once.yml"
-      - "scripts/apply-phase16-policy-hardening.py"
-      - "scripts/run-phase16-policy-hardening.py"
+      - "scripts/apply-phase16-acceptance-registration.py"
 
 permissions:
   contents: write
 
 concurrency:
-  group: phase16-policy-hardening-once
+  group: phase16-acceptance-foundation-once
   cancel-in-progress: true
 
 jobs:
@@ -26,13 +25,14 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Apply deterministic policy hardening
+      - name: Register dispatcher acceptance test
         id: transform
         continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
-          python3 scripts/run-phase16-policy-hardening.py 2>&1 | tee /tmp/phase16-policy-transform.log
+          python3 scripts/apply-phase16-acceptance-registration.py \
+            2>&1 | tee /tmp/phase16-acceptance-transform.log
 
       - uses: actions/setup-node@v4
         if: steps.transform.outcome == 'success'
@@ -55,7 +55,6 @@ jobs:
           python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
           go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Install ESP-IDF v5.5.5
         if: steps.transform.outcome == 'success'
@@ -73,20 +72,15 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          clang-format -i \
-            firmware/components/auth/include/auth.h \
-            firmware/components/auth/auth.c \
-            firmware/components/auth/auth_core.h \
-            firmware/components/auth/auth_core_session.c \
-            firmware/components/web_server/web_api_core.c \
-            firmware/components/web_server/web_request_policy.c \
-            firmware/components/web_server/web_server_api.c \
-            tests/host/test_web_api_core.c \
-            tests/host/test_web_request_policy.c \
-            tests/host/auth_existing_tests.inc \
-            2>&1 | tee /tmp/phase16-policy-format.log
+          {
+            clang-format -i \
+              tests/host/test_web_api_dispatch.c \
+              tests/host/test_web_request_policy.c \
+              tests/host/test_web_execution_submit.c
+            cmake-format -i tests/host/CMakeLists.txt
+          } 2>&1 | tee /tmp/phase16-acceptance-format.log
 
-      - name: Run focused host tests
+      - name: Run focused host and sanitizer tests
         id: focused
         if: steps.transform.outcome == 'success' && steps.format.outcome == 'success'
         continue-on-error: true
@@ -94,11 +88,13 @@ jobs:
         run: |
           set -o pipefail
           {
-            ./scripts/run-tests.sh auth
             ./scripts/run-tests.sh web
-            ./scripts/run-tests.sh --sanitizers auth
+            ./scripts/run-tests.sh executor
+            ./scripts/run-tests.sh auth
             ./scripts/run-tests.sh --sanitizers web
-          } 2>&1 | tee /tmp/phase16-policy-focused.log
+            ./scripts/run-tests.sh --sanitizers executor
+            ./scripts/run-tests.sh --sanitizers auth
+          } 2>&1 | tee /tmp/phase16-acceptance-focused.log
 
       - name: Run authoritative repository gate
         id: gate
@@ -112,11 +108,11 @@ jobs:
           set -o pipefail
           {
             . "$HOME/esp/esp-idf-v5.5.5/export.sh"
-            rm -f docs/CI_PHASE16_POLICY_FAILURE.md
+            rm -f docs/CI_PHASE16_ACCEPTANCE_FAILURE.md
             ./scripts/check-all.sh
-          } 2>&1 | tee /tmp/phase16-policy-gate.log
+          } 2>&1 | tee /tmp/phase16-acceptance-gate.log
 
-      - name: Commit validated policy hardening
+      - name: Commit validated acceptance foundation
         if: >-
           steps.transform.outcome == 'success' &&
           steps.format.outcome == 'success' &&
@@ -127,17 +123,11 @@ jobs:
           git config user.name "ChatGPT"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
-            firmware/components/auth/include/auth.h \
-            firmware/components/auth/auth.c \
-            firmware/components/auth/auth_core.h \
-            firmware/components/auth/auth_core_session.c \
-            firmware/components/web_server/web_api_core.c \
-            firmware/components/web_server/web_request_policy.c \
-            firmware/components/web_server/web_server_api.c \
-            tests/host/test_web_api_core.c \
+            tests/host/CMakeLists.txt \
+            tests/host/test_web_api_dispatch.c \
             tests/host/test_web_request_policy.c \
-            tests/host/auth_existing_tests.inc
-          git commit -m "fix(web): harden Phase 16 request policy"
+            tests/host/test_web_execution_submit.c
+          git commit -m "test(web): add Phase 16 acceptance foundation"
           git fetch origin master
           test "$(git rev-parse origin/master)" = "$GITHUB_SHA"
           git push origin HEAD:master
@@ -157,27 +147,33 @@ jobs:
           git reset --hard origin/master
           git clean -fd
           {
-            echo "# Phase 16 policy hardening failure"
+            echo "# Phase 16 acceptance foundation failure"
             echo
             echo "- Transform: ${{ steps.transform.outcome }}"
             echo "- Format: ${{ steps.format.outcome }}"
             echo "- Focused tests: ${{ steps.focused.outcome }}"
             echo "- Authoritative gate: ${{ steps.gate.outcome }}"
-            for log in /tmp/phase16-policy-transform.log /tmp/phase16-policy-format.log /tmp/phase16-policy-focused.log /tmp/phase16-policy-gate.log; do
+            for log in \
+              /tmp/phase16-acceptance-transform.log \
+              /tmp/phase16-acceptance-format.log \
+              /tmp/phase16-acceptance-focused.log \
+              /tmp/phase16-acceptance-gate.log; do
               if [[ -f "$log" ]]; then
                 echo
                 echo "## $(basename "$log")"
                 echo
                 echo '```text'
-                grep -n -E 'error:|FAILED|Failure|AddressSanitizer|UndefinedBehaviorSanitizer|expected one|mismatch' "$log" | tail -n 160 || true
+                grep -n -E \
+                  'error:|FAILED|Failure|AddressSanitizer|UndefinedBehaviorSanitizer|expected|mismatch' \
+                  "$log" | tail -n 200 || true
                 echo
-                tail -n 180 "$log"
+                tail -n 220 "$log"
                 echo '```'
               fi
             done
-          } > docs/CI_PHASE16_POLICY_FAILURE.md
-          sed -i 's/[[:space:]]\+$//' docs/CI_PHASE16_POLICY_FAILURE.md
-          git add docs/CI_PHASE16_POLICY_FAILURE.md
-          git commit -m "ci: record Phase 16 policy hardening failure"
+          } > docs/CI_PHASE16_ACCEPTANCE_FAILURE.md
+          sed -i 's/[[:space:]]\+$//' docs/CI_PHASE16_ACCEPTANCE_FAILURE.md
+          git add docs/CI_PHASE16_ACCEPTANCE_FAILURE.md
+          git commit -m "ci: record Phase 16 acceptance failure"
           git push origin HEAD:master
           exit 1
