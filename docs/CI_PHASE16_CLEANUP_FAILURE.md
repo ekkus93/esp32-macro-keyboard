@@ -8,7 +8,9 @@
 ## phase16-transform.log
 
 ```text
-1:tests/host/test_web_api_response.c: expected one match, found 0: '                          web_api_response_error(&response, 400U, APP_ERROR_INVA'
 
-tests/host/test_web_api_response.c: expected one match, found 0: '                          web_api_response_error(&response, 400U, APP_ERROR_INVA'
+  File "/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/scripts/run-phase16-clang-tidy-cleanup.py", line 123
+    static void test_success_envelope(void) {
+           ^^^^
+SyntaxError: invalid syntax
 ```
