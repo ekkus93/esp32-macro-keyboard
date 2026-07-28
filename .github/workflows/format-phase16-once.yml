@@ -1,0 +1,62 @@
+name: Format Phase 16 sources once
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/format-phase16-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install formatters
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends clang-format python3-pip
+          python3 -m pip install --user cmakelang==0.6.13
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Format Phase 16 files
+        run: |
+          set -euo pipefail
+          readonly phase15_commit="08cbd6ead3509cb8f9799ab2ffea2ab1f603c134"
+          mapfile -t c_files < <(
+            git diff --name-only "${phase15_commit}" HEAD -- '*.c' '*.h' |
+              grep -E '^(firmware|tests)/' || true
+          )
+          if ((${#c_files[@]} > 0)); then
+            clang-format -i "${c_files[@]}"
+          fi
+          mapfile -t cmake_files < <(
+            git diff --name-only "${phase15_commit}" HEAD -- '*/CMakeLists.txt' || true
+          )
+          if ((${#cmake_files[@]} > 0)); then
+            cmake-format -i "${cmake_files[@]}"
+          fi
+          if git diff --check; then
+            :
+          else
+            exit 1
+          fi
+      - name: Commit formatted sources
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No formatting changes were required."
+            exit 0
+          fi
+          git config user.name "ChatGPT"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firmware tests
+          git commit -m "style(phase16): apply authoritative formatting"
+          git fetch origin master
+          git rebase origin/master
+          git push origin HEAD:master
