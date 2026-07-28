@@ -14,7 +14,7 @@
 ## phase17-foundation-transform.log
 
 ```text
-1:expected one session JSON declaration, found 0
+1:expected one session JSON encoder, found 0
 
-expected one session JSON declaration, found 0
+expected one session JSON encoder, found 0
 ```
