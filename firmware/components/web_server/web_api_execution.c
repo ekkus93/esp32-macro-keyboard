@@ -15,6 +15,7 @@
 #include "web_api_handler_common.h"
 #include "web_api_json.h"
 #include "web_api_response.h"
+#include "web_execution_route_policy.h"
 #include "web_execution_submit.h"
 #include "web_http_status.h"
 
@@ -141,18 +142,6 @@ static app_error_code_t handle_submit(const web_api_call_t *call, web_api_respon
                : web_api_handler_success_json(response, WEB_HTTP_STATUS_ACCEPTED, data);
 }
 
-static bool execution_matches_path(const macro_execution_status_t *status,
-                                   const web_api_path_t *path) {
-    return status != NULL && path != NULL && path->has_execution_id &&
-           app_uuid_is_valid_string(status->execution_id.value) &&
-           app_uuid_equal(&status->execution_id, &path->execution_id);
-}
-
-static bool execution_terminal(execution_state_t state) {
-    return state == EXECUTION_COMPLETED || state == EXECUTION_CANCELLED ||
-           state == EXECUTION_FAILED || state == EXECUTION_TIMED_OUT;
-}
-
 static app_error_code_t explicit_error(web_api_response_t *response, unsigned int status,
                                        app_error_code_t error, const char *message) {
     return web_api_response_error(response, &(web_api_error_spec_t){
@@ -164,39 +153,21 @@ static app_error_code_t explicit_error(web_api_response_t *response, unsigned in
 
 static app_error_code_t handle_cancel(const web_api_call_t *call, web_api_response_t *response) {
     const macro_execution_status_t status = macro_executor_get_status();
-    if (!status.available) {
-        return explicit_error(response, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
-                              APP_ERROR_STORAGE_UNAVAILABLE, "executor unavailable");
+    web_execution_cancel_policy_t policy = {0};
+    app_error_code_t result = web_execution_cancel_policy_evaluate(&status, &call->path, &policy);
+    if (result != APP_ERROR_NONE) {
+        return result;
     }
-    if (!execution_matches_path(&status, &call->path)) {
-        return explicit_error(response, WEB_HTTP_STATUS_NOT_FOUND, APP_ERROR_NOT_FOUND,
-                              "execution not found");
+    if (!policy.permitted) {
+        return explicit_error(response, policy.status, policy.error, policy.message);
     }
-    if (execution_terminal(status.state) || status.cancellation_requested) {
-        return explicit_error(response, WEB_HTTP_STATUS_CONFLICT, APP_ERROR_CONFLICT,
-                              status.cancellation_requested ? "cancellation already requested"
-                                                            : "execution is already terminal");
-    }
-    const app_error_code_t result = macro_executor_cancel();
+    result = macro_executor_cancel();
     const unsigned int http_status = web_api_cancel_http_status(&status, result);
     if (result != APP_ERROR_NONE) {
         return explicit_error(response, http_status, result, "cancellation request failed");
     }
     return web_api_handler_success_json(response, WEB_HTTP_STATUS_ACCEPTED,
                                         "{\"cancelRequested\":true}");
-}
-
-static app_error_code_t handle_confirm(const web_api_call_t *call, web_api_response_t *response) {
-    const macro_execution_status_t status = macro_executor_get_status();
-    if (!execution_matches_path(&status, &call->path)) {
-        return explicit_error(response, WEB_HTTP_STATUS_NOT_FOUND, APP_ERROR_NOT_FOUND,
-                              "execution not found");
-    }
-    if (execution_terminal(status.state)) {
-        return explicit_error(response, WEB_HTTP_STATUS_CONFLICT, APP_ERROR_CONFLICT,
-                              "execution is already terminal");
-    }
-    return web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, "{\"confirmed\":true}");
 }
 
 app_error_code_t web_api_handle_execution(const web_api_call_t *call,
@@ -211,8 +182,6 @@ app_error_code_t web_api_handle_execution(const web_api_call_t *call,
         return send_current(response);
     case WEB_API_ROUTE_EXECUTION_CANCEL:
         return handle_cancel(call, response);
-    case WEB_API_ROUTE_EXECUTION_CONFIRM:
-        return handle_confirm(call, response);
     default:
         return APP_ERROR_NOT_FOUND;
     }

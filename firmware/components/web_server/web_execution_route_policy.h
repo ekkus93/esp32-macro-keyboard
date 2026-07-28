@@ -14,9 +14,9 @@ typedef struct {
     const char *message;
 } web_execution_cancel_policy_t;
 
-app_error_code_t web_execution_cancel_policy_evaluate(
-    const macro_execution_status_t *execution_status,
-    const web_api_path_t *request_path,
-    web_execution_cancel_policy_t *out_policy);
+app_error_code_t
+web_execution_cancel_policy_evaluate(const macro_execution_status_t *execution_status,
+                                     const web_api_path_t *request_path,
+                                     web_execution_cancel_policy_t *out_policy);
 
 #endif

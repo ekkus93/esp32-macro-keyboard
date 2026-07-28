@@ -207,8 +207,6 @@ static app_error_code_t match_execution_routes(const path_segments_t *segments,
     out_path->has_execution_id = true;
     if (segments->count == 3U && text_equal(segments->items[2], "cancel")) {
         out_path->route = WEB_API_ROUTE_EXECUTION_CANCEL;
-    } else if (segments->count == 3U && text_equal(segments->items[2], "confirm")) {
-        out_path->route = WEB_API_ROUTE_EXECUTION_CONFIRM;
     } else {
         return APP_ERROR_NOT_FOUND;
     }
@@ -360,7 +358,6 @@ bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method)
     case WEB_API_ROUTE_PROGRESS_SKIP:
     case WEB_API_ROUTE_EXECUTIONS:
     case WEB_API_ROUTE_EXECUTION_CANCEL:
-    case WEB_API_ROUTE_EXECUTION_CONFIRM:
     case WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD:
     case WEB_API_ROUTE_DEVICE_RESTART:
     case WEB_API_ROUTE_DEVICE_RESET_SETTINGS:
@@ -381,7 +378,6 @@ bool web_api_route_requires_body(web_api_route_t route, web_api_method_t method)
     }
     switch (route) {
     case WEB_API_ROUTE_EXECUTION_CANCEL:
-    case WEB_API_ROUTE_EXECUTION_CONFIRM:
     case WEB_API_ROUTE_DEVICE_RESTART:
     case WEB_API_ROUTE_DEVICE_FACTORY_RESET:
     case WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK:
@@ -400,11 +396,18 @@ bool web_api_route_requires_csrf(web_api_route_t route, web_api_method_t method)
     return method != WEB_API_METHOD_GET;
 }
 
-bool web_api_route_requires_physical_confirmation(web_api_route_t route) {
-    return route == WEB_API_ROUTE_EXECUTIONS || route == WEB_API_ROUTE_EXECUTION_CONFIRM ||
-           route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD ||
+bool web_api_physical_confirmation_required(web_api_route_t route,
+                                            bool execution_confirmation_enabled) {
+    if (route == WEB_API_ROUTE_EXECUTIONS) {
+        return execution_confirmation_enabled;
+    }
+    return route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD ||
            route == WEB_API_ROUTE_DEVICE_RESTART || route == WEB_API_ROUTE_DEVICE_RESET_SETTINGS ||
            route == WEB_API_ROUTE_DEVICE_FACTORY_RESET || route == WEB_API_ROUTE_RESTORE;
+}
+
+bool web_api_route_requires_physical_confirmation(web_api_route_t route) {
+    return web_api_physical_confirmation_required(route, true);
 }
 
 unsigned int web_api_http_status_for_error(app_error_code_t error) {

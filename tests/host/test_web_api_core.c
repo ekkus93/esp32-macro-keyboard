@@ -56,6 +56,8 @@ static void test_route_parsing(void) {
     check_route("/api/v1/backup", WEB_API_ROUTE_BACKUP);
 
     web_api_path_t path = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
+                         web_api_parse_path("/api/v1/executions/" EXECUTION_ID "/confirm", &path));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_api_parse_path("/api/v1/sets/%2fetc", &path));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
@@ -79,6 +81,10 @@ static void test_route_policy(void) {
     TEST_CHECK(!web_api_route_requires_csrf(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_FACTORY_RESET));
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_EXECUTIONS));
+    TEST_CHECK(web_api_physical_confirmation_required(WEB_API_ROUTE_EXECUTIONS, true));
+    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_EXECUTIONS, false));
+    TEST_CHECK(web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_FACTORY_RESET, false));
+    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_SET_MACRO, true));
     TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SET_MACRO));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));

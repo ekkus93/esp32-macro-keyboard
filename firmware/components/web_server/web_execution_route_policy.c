@@ -24,9 +24,10 @@ static void reject(web_execution_cancel_policy_t *policy, unsigned int status,
     };
 }
 
-app_error_code_t web_execution_cancel_policy_evaluate(
-    const macro_execution_status_t *execution_status, const web_api_path_t *request_path,
-    web_execution_cancel_policy_t *out_policy) {
+app_error_code_t
+web_execution_cancel_policy_evaluate(const macro_execution_status_t *execution_status,
+                                     const web_api_path_t *request_path,
+                                     web_execution_cancel_policy_t *out_policy) {
     if (out_policy != NULL) {
         memset(out_policy, 0, sizeof(*out_policy));
     }
@@ -41,8 +42,7 @@ app_error_code_t web_execution_cancel_policy_evaluate(
     if (!request_path->has_execution_id ||
         !app_uuid_is_valid_string(execution_status->execution_id.value) ||
         !app_uuid_equal(&execution_status->execution_id, &request_path->execution_id)) {
-        reject(out_policy, WEB_HTTP_STATUS_NOT_FOUND, APP_ERROR_NOT_FOUND,
-               "execution not found");
+        reject(out_policy, WEB_HTTP_STATUS_NOT_FOUND, APP_ERROR_NOT_FOUND, "execution not found");
         return APP_ERROR_NONE;
     }
     if (execution_status->cancellation_requested) {

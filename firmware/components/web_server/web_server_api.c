@@ -67,8 +67,8 @@ static app_error_code_t policy_confirm(void *context) {
     if (request_context == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    if (request_context->route == WEB_API_ROUTE_EXECUTIONS &&
-        !server_configuration.require_physical_confirmation) {
+    if (!web_api_physical_confirmation_required(
+            request_context->route, server_configuration.require_physical_confirmation)) {
         return APP_ERROR_NONE;
     }
     return device_controls_wait_for_confirmation(APP_PHYSICAL_CONFIRM_TIMEOUT_MS);

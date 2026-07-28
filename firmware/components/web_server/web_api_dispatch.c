@@ -58,7 +58,6 @@ static bool is_execution_route(web_api_route_t route) {
     case WEB_API_ROUTE_EXECUTIONS:
     case WEB_API_ROUTE_EXECUTION_CURRENT:
     case WEB_API_ROUTE_EXECUTION_CANCEL:
-    case WEB_API_ROUTE_EXECUTION_CONFIRM:
         return true;
     default:
         return false;

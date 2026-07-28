@@ -46,7 +46,6 @@ typedef enum {
     WEB_API_ROUTE_EXECUTIONS,
     WEB_API_ROUTE_EXECUTION_CURRENT,
     WEB_API_ROUTE_EXECUTION_CANCEL,
-    WEB_API_ROUTE_EXECUTION_CONFIRM,
     WEB_API_ROUTE_SETTINGS,
     WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD,
     WEB_API_ROUTE_DEVICE_RESTART,
@@ -79,6 +78,8 @@ bool web_api_route_requires_body(web_api_route_t route, web_api_method_t method)
 bool web_api_route_requires_session(web_api_route_t route);
 bool web_api_route_requires_csrf(web_api_route_t route, web_api_method_t method);
 bool web_api_route_requires_physical_confirmation(web_api_route_t route);
+bool web_api_physical_confirmation_required(web_api_route_t route,
+                                            bool execution_confirmation_enabled);
 unsigned int web_api_http_status_for_error(app_error_code_t error);
 unsigned int web_api_cancel_http_status(const macro_execution_status_t *status,
                                         app_error_code_t cancel_result);
