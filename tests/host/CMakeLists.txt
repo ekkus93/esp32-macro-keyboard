@@ -538,3 +538,65 @@ target_link_libraries(provisioning_settings_tests PRIVATE test_support)
 target_compile_options(provisioning_settings_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME provisioning_settings COMMAND provisioning_settings_tests)
 set_tests_properties(provisioning_settings PROPERTIES LABELS "storage")
+
+# Phase 16 HTTP API foundation tests.
+add_executable(
+    web_api_core_tests
+    test_web_api_core.c ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/web_server/web_api_core.c
+)
+target_include_directories(
+    web_api_core_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include ../../firmware/components/web_server
+)
+target_link_libraries(web_api_core_tests PRIVATE test_support)
+target_compile_options(web_api_core_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME web_api_core COMMAND web_api_core_tests)
+set_tests_properties(web_api_core PROPERTIES LABELS "web")
+
+add_executable(
+    web_request_policy_tests
+    test_web_request_policy.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/web_server/web_api_core.c
+    ../../firmware/components/web_server/web_request_policy.c
+    ../../firmware/components/web_server/web_cookie.c
+    ../../firmware/components/web_server/web_origin.c
+)
+target_include_directories(
+    web_request_policy_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/web_server
+)
+target_link_libraries(web_request_policy_tests PRIVATE test_support)
+target_compile_options(web_request_policy_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME web_request_policy COMMAND web_request_policy_tests)
+set_tests_properties(web_request_policy PROPERTIES LABELS "web")
+
+add_executable(
+    web_execution_submit_tests
+    test_web_execution_submit.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/macro_model/macro_model.c
+    ../../firmware/components/web_server/web_execution_submit.c
+)
+target_include_directories(
+    web_execution_submit_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/storage/include
+            ../../firmware/components/web_server
+)
+target_link_libraries(web_execution_submit_tests PRIVATE test_support)
+target_compile_options(web_execution_submit_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME web_execution_submit COMMAND web_execution_submit_tests)
+set_tests_properties(web_execution_submit PROPERTIES LABELS "web")
