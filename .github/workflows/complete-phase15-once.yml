@@ -70,20 +70,15 @@ jobs:
 
           path = Path("firmware/components/storage/storage_repository_progress.c")
           text = path.read_text(encoding="utf-8")
-          old = '''static app_error_code_t write_progress_locked(const storage_procedure_identity_t *identity,
-                                                    const procedure_progress_t *replacement,
-                                                    storage_progress_snapshot_t *out_snapshot) {
-              if (out_snapshot != NULL) {
-                  memset(out_snapshot, 0, sizeof(*out_snapshot));
-              }
-              if (!identity_valid(identity) || !progress_matches_identity(replacement, identity) ||
-                  out_snapshot == NULL) {
-                  return APP_ERROR_INVALID_ARGUMENT;
-              }
-          '''
-          new = '''static app_error_code_t write_progress_locked(const storage_procedure_identity_t *identity,
-                                                    const procedure_progress_t *replacement,
-                                                    storage_progress_snapshot_t *out_snapshot) {
+          function_start = text.index(
+              "static app_error_code_t write_progress_locked("
+          )
+          body_start = text.index(
+              "    procedure_t procedure = {0};", function_start
+          )
+          prologue = '''static app_error_code_t write_progress_locked(const storage_procedure_identity_t *identity,
+                                                     const procedure_progress_t *replacement,
+                                                     storage_progress_snapshot_t *out_snapshot) {
               procedure_progress_t candidate = {0};
               if (replacement != NULL) {
                   candidate = *replacement;
@@ -95,19 +90,23 @@ jobs:
                   out_snapshot == NULL) {
                   return APP_ERROR_INVALID_ARGUMENT;
               }
+
           '''
-          if text.count(old) != 1:
-              raise RuntimeError("progress alias-safety patch did not match exactly once")
-          text = text.replace(old, new, 1)
-          text = text.replace("replacement->procedure_revision", "candidate.procedure_revision")
-          text = text.replace(
-              "progress_steps_belong_to_procedure(replacement, &procedure)",
-              "progress_steps_belong_to_procedure(&candidate, &procedure)",
-          )
-          text = text.replace(
-              "storage_repository_serialize_progress_json(replacement, &json, &length)",
-              "storage_repository_serialize_progress_json(&candidate, &json, &length)",
-          )
+          text = text[:function_start] + prologue + text[body_start:]
+          replacements = {
+              "replacement->procedure_revision": "candidate.procedure_revision",
+              "progress_steps_belong_to_procedure(replacement, &procedure)":
+                  "progress_steps_belong_to_procedure(&candidate, &procedure)",
+              "storage_repository_serialize_progress_json(replacement, &json, &length)":
+                  "storage_repository_serialize_progress_json(&candidate, &json, &length)",
+          }
+          for source, replacement in replacements.items():
+              count = text.count(source)
+              if count != 1:
+                  raise RuntimeError(
+                      f"progress replacement count for {source!r} was {count}"
+                  )
+              text = text.replace(source, replacement, 1)
           path.write_text(text, encoding="utf-8")
           PY
             status=${PIPESTATUS[0]}
@@ -163,10 +162,7 @@ jobs:
         if: steps.apply.outcome == 'success' && steps.validate.outcome == 'success'
         shell: bash
         run: |
-          rm -f \
-            .github/workflows/complete-phase15-once.yml \
-            scripts/complete-phase15.py \
-            docs/CI_PHASE15_FAILURE.md
+          rm -f docs/CI_PHASE15_FAILURE.md
           git config user.name "ChatGPT"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add --all
