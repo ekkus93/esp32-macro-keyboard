@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAYLOAD_DIR = ROOT / "scripts" / "phase17-foundation"
+PAYLOAD_VERSION = 2
 
 
 def decode_chunks(prefix: str) -> bytes:
@@ -39,4 +40,4 @@ for module_name in ("backend", "docs"):
 
 (ROOT / "docs" / "CI_PHASE17_FRONTEND_FOUNDATION_FAILURE.md").unlink(missing_ok=True)
 shutil.rmtree(PAYLOAD_DIR)
-print("Phase 17 authenticated frontend foundation applied")
+print(f"Phase 17 authenticated frontend foundation applied (payload {PAYLOAD_VERSION})")
