@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Repair indentation-sensitive policy transform matchers and execute the transform."""
+"""Repair policy transform matchers and execute only outstanding hardening."""
 
 from pathlib import Path
 import runpy
@@ -28,5 +28,13 @@ new = '''replace_regex_once(
 '''
 if text.count(old) != 1:
     raise SystemExit("Phase 16 auth-core declaration matcher changed unexpectedly")
-SCRIPT.write_text(text.replace(old, new, 1), encoding="utf-8")
+text = text.replace(old, new, 1)
+
+route_start = text.find("# Restrict methods accurately and ensure execution submission enters confirmation policy.")
+route_end = text.find("# Core route regression coverage.", route_start)
+if route_start < 0 or route_end < 0:
+    raise SystemExit("Phase 16 route-policy transform block changed unexpectedly")
+text = text[:route_start] + text[route_end:]
+
+SCRIPT.write_text(text, encoding="utf-8")
 runpy.run_path(str(SCRIPT), run_name="__main__")
