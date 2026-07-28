@@ -8,6 +8,7 @@ on:
       - ".github/workflows/phase16-http-integration-once.yml"
       - "scripts/fix-phase16-clang-tidy.py"
       - "scripts/run-phase16-clang-tidy-cleanup.py"
+      - "scripts/run-phase16-clang-tidy-cleanup-v3.py"
 
 permissions:
   contents: write
@@ -64,7 +65,7 @@ jobs:
               raise SystemExit("web_server_common.c: cast call mismatch")
           path.write_text(text.replace(cast_call, typed_call, 1), encoding="utf-8")
           PY
-            python3 scripts/run-phase16-clang-tidy-cleanup.py
+            python3 scripts/run-phase16-clang-tidy-cleanup-v3.py
           } 2>&1 | tee /tmp/phase16-transform.log
 
       - uses: actions/setup-node@v4
