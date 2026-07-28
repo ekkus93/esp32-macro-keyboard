@@ -113,14 +113,22 @@ jobs:
           cmake-format -i tests/host/CMakeLists.txt
 
       - name: Run web host tests
-        run: ./scripts/run-tests.sh web
+        shell: bash
+        run: |
+          set -o pipefail
+          ./scripts/run-tests.sh web 2>&1 | tee /tmp/phase16-web.log
 
       - name: Run web sanitizers
-        run: ./scripts/run-tests.sh --sanitizers web
+        shell: bash
+        run: |
+          set -o pipefail
+          ./scripts/run-tests.sh --sanitizers web 2>&1 | tee /tmp/phase16-web-sanitizers.log
 
       - name: Commit validated host registration
+        if: success()
         run: |
           set -euo pipefail
+          rm -f docs/CI_PHASE16_FOUNDATION_FAILURE.md
           git config user.name "ChatGPT"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add tests/host/CMakeLists.txt
@@ -128,3 +136,36 @@ jobs:
           git fetch origin master
           git rebase origin/master
           git push origin HEAD:master
+
+      - name: Publish exact failure tail
+        if: failure()
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          git reset --hard origin/master
+          {
+            echo "# Phase 16 foundation validation failure"
+            echo
+            echo "## Normal web tests"
+            echo
+            echo '```text'
+            if [[ -f /tmp/phase16-web.log ]]; then
+              tail -n 250 /tmp/phase16-web.log
+            fi
+            echo '```'
+            echo
+            echo "## Sanitizer web tests"
+            echo
+            echo '```text'
+            if [[ -f /tmp/phase16-web-sanitizers.log ]]; then
+              tail -n 400 /tmp/phase16-web-sanitizers.log
+            fi
+            echo '```'
+          } > docs/CI_PHASE16_FOUNDATION_FAILURE.md
+          sed -i 's/[[:space:]]\+$//' docs/CI_PHASE16_FOUNDATION_FAILURE.md
+          git config user.name "ChatGPT"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/CI_PHASE16_FOUNDATION_FAILURE.md
+          git commit -m "ci: record Phase 16 foundation failure"
+          git push origin HEAD:master
+          exit 1
