@@ -70,6 +70,14 @@ jobs:
 
           path = Path("firmware/components/storage/storage_repository_progress.c")
           text = path.read_text(encoding="utf-8")
+          include_anchor = '#include "macro_model.h"\n'
+          if text.count(include_anchor) != 1:
+              raise RuntimeError("progress include anchor did not match exactly once")
+          text = text.replace(
+              include_anchor,
+              '#include "macro_limits.h"\n#include "macro_model.h"\n',
+              1,
+          )
           function_start = text.index(
               "static app_error_code_t write_progress_locked("
           )
@@ -108,6 +116,27 @@ jobs:
                   )
               text = text.replace(source, replacement, 1)
           path.write_text(text, encoding="utf-8")
+
+          sets_path = Path("firmware/components/storage/storage_repository_sets.c")
+          sets_text = sets_path.read_text(encoding="utf-8")
+          sets_include = (
+              '#include "storage_repository_lock.h"\n'
+              '#include "storage_repository_sets_internal.h"\n\n'
+              '#ifdef ESP_PLATFORM\n'
+          )
+          guarded_include = (
+              '#include "storage_repository_lock.h"\n'
+              '#ifndef ESP_PLATFORM\n'
+              '#include "storage_repository_sets_internal.h"\n'
+              '#endif\n\n'
+              '#ifdef ESP_PLATFORM\n'
+          )
+          if sets_text.count(sets_include) != 1:
+              raise RuntimeError("set internal include anchor did not match exactly once")
+          sets_path.write_text(
+              sets_text.replace(sets_include, guarded_include, 1),
+              encoding="utf-8",
+          )
 
           cmake_path = Path("tests/host/CMakeLists.txt")
           cmake = cmake_path.read_text(encoding="utf-8")
