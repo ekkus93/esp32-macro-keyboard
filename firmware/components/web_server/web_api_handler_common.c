@@ -302,3 +302,7 @@ app_error_code_t web_api_handler_quarantine_json(const storage_quarantine_list_t
     }
     return finish_json(root, out_json);
 }
+
+void web_api_handler_json_free(char *json) {
+    cJSON_free(json);
+}
