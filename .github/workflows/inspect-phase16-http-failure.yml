@@ -21,7 +21,7 @@ jobs:
       - name: Capture failed job tail
         env:
           GH_TOKEN: ${{ github.token }}
-          JOB_ID: "90275400849"
+          JOB_ID: "90277471424"
         run: |
           set -euo pipefail
           curl --fail --location \
