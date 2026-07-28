@@ -68,6 +68,10 @@ app_error_code_t storage_set_read(const app_uuid_t *set_id, macro_set_t *out_set
 app_error_code_t storage_set_update(const macro_set_t *replacement, uint32_t expected_revision,
                                     macro_set_t *out_updated);
 app_error_code_t storage_set_delete(const app_uuid_t *set_id, uint32_t expected_revision);
+app_error_code_t storage_set_duplicate(const app_uuid_t *source_id, uint32_t expected_revision,
+                                       const app_uuid_t *duplicate_id, const char *duplicate_name,
+                                       macro_set_t *out_duplicate);
+app_error_code_t storage_set_reorder(const app_uuid_t *ordered_ids, size_t count);
 
 app_error_code_t storage_macro_list(const storage_macro_location_t *location,
                                     storage_macro_list_t *out_list);

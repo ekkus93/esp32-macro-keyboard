@@ -58,7 +58,7 @@
 | 13 | Fix device-controls shutdown and failure visibility | done (diagnostics aggregation deferred to Phase 19) |
 | 14 | Encrypted persistent provisioning | done (physical confidentiality remains Phase 20 hardware evidence) |
 | 15 | Complete storage object repositories | done |
-| 16 | Complete the HTTP API | next |
+| 16 | Complete the HTTP API | done (package transactions Phase 18; diagnostics aggregation Phase 19) |
 | 17 | Replace frontend mock behavior | not started |
 | 18 | Import / export / backup / restore | not started |
 | 19 | Diagnostics and observability | not started |
@@ -68,6 +68,14 @@
 | 23 | Final regression and acceptance gate | not started |
 
 ## Completed tasks (commit evidence)
+
+- Phase 16 (complete HTTP API) — complete. The final Phase 16 commit adds
+  transactional deep set duplication without progress, complete set ordering,
+  centralized current and exact-ID cancellation, repository-backed route acceptance,
+  strict shared request policy, execution ownership/cancellation tests, and synchronized
+  API documentation. Import/export/backup/restore remain explicit 503 boundaries owned
+  by Phase 18; diagnostics aggregation remains Phase 19. The final commit SHA is the
+  commit containing this progress update.
 
 - Phase 1.1–1.3 (baseline + this document): `7cf917a`, `4a17aeb`.
 - Phase 2.1 / 2.2 (fail-closed clang-tidy gate + regression tests): `9e0498c`.

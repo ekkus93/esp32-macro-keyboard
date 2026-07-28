@@ -90,7 +90,7 @@ static app_error_code_t handle_collection(const web_api_call_t *call,
 
     macro_t macro = {0};
     app_error_code_t result =
-        storage_repository_parse_macro_json(call->body, call->body_length, &macro);
+        web_api_json_parse_macro_resource(call->body, call->body_length, &macro);
     if (result == APP_ERROR_NONE &&
         (macro.revision != 1U || macro.scope != location.scope ||
          (location.scope == MACRO_SCOPE_SET &&
@@ -163,8 +163,8 @@ static app_error_code_t handle_item(const web_api_call_t *call, web_api_response
             &mutation);
         macro_t replacement = {0};
         if (result == APP_ERROR_NONE) {
-            result = storage_repository_parse_macro_json(mutation.resource_json,
-                                                         mutation.resource_length, &replacement);
+            result = web_api_json_parse_macro_resource(mutation.resource_json,
+                                                       mutation.resource_length, &replacement);
         }
         if (result == APP_ERROR_NONE &&
             !macro_matches_path(&replacement, &location, &call->path.macro_id)) {
@@ -237,7 +237,7 @@ static app_error_code_t handle_validate(const web_api_call_t *call, web_api_resp
     const storage_macro_location_t location = location_for_call(call);
     macro_t candidate = {0};
     app_error_code_t result =
-        storage_repository_parse_macro_json(call->body, call->body_length, &candidate);
+        web_api_json_parse_macro_resource(call->body, call->body_length, &candidate);
     if (result == APP_ERROR_NONE &&
         !macro_matches_path(&candidate, &location, &call->path.macro_id)) {
         result = APP_ERROR_INVALID_ARGUMENT;

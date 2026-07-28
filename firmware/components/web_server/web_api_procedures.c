@@ -70,7 +70,7 @@ static app_error_code_t handle_collection(const web_api_call_t *call,
 
     procedure_t procedure = {0};
     app_error_code_t result =
-        storage_repository_parse_procedure_json(call->body, call->body_length, &procedure);
+        web_api_json_parse_procedure_resource(call->body, call->body_length, &procedure);
     if (result == APP_ERROR_NONE &&
         (procedure.revision != 1U || !app_uuid_equal(&procedure.set_id, &call->path.set_id))) {
         result = APP_ERROR_INVALID_ARGUMENT;
@@ -115,8 +115,8 @@ static app_error_code_t handle_item(const web_api_call_t *call, web_api_response
             &mutation);
         procedure_t replacement = {0};
         if (result == APP_ERROR_NONE) {
-            result = storage_repository_parse_procedure_json(
-                mutation.resource_json, mutation.resource_length, &replacement);
+            result = web_api_json_parse_procedure_resource(mutation.resource_json,
+                                                           mutation.resource_length, &replacement);
         }
         if (result == APP_ERROR_NONE &&
             (!app_uuid_equal(&replacement.id, &call->path.procedure_id) ||
@@ -192,7 +192,7 @@ static app_error_code_t handle_progress_resource(const web_api_call_t *call,
     if (call->method == WEB_API_METHOD_PUT) {
         procedure_progress_t replacement = {0};
         app_error_code_t result =
-            storage_repository_parse_progress_json(call->body, call->body_length, &replacement);
+            web_api_json_parse_progress_resource(call->body, call->body_length, &replacement);
         if (result == APP_ERROR_NONE &&
             (!app_uuid_equal(&replacement.set_id, &identity.set_id) ||
              !app_uuid_equal(&replacement.procedure_id, &identity.procedure_id))) {

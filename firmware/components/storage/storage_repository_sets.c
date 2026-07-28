@@ -19,9 +19,7 @@
 #include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
-#ifndef ESP_PLATFORM
 #include "storage_repository_sets_internal.h"
-#endif
 
 #ifdef ESP_PLATFORM
 #include "provisioning.h"
@@ -67,7 +65,6 @@ static app_error_code_t clear_matching_active_set(const app_uuid_t *set_id) {
 /* Public set functions serialize their whole read-check-write transaction behind
  * the repository mutation lock (FIX1 §7.5); the `_locked` helpers below do the
  * work and must be called only with the lock held, never reacquiring it. */
-static app_error_code_t storage_set_read_locked(const app_uuid_t *set_id, macro_set_t *out_set);
 static app_error_code_t storage_set_list_locked(storage_set_list_t *out_list);
 static app_error_code_t storage_set_create_locked(const macro_set_t *set);
 static app_error_code_t storage_set_update_locked(const macro_set_t *replacement,
@@ -128,7 +125,7 @@ app_error_code_t storage_set_delete(const app_uuid_t *set_id, uint32_t expected_
     return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }
 
-static app_error_code_t storage_set_read_locked(const app_uuid_t *set_id, macro_set_t *out_set) {
+app_error_code_t storage_set_read_locked(const app_uuid_t *set_id, macro_set_t *out_set) {
     if (set_id == NULL || out_set == NULL || !app_uuid_is_valid_string(set_id->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }

@@ -1557,25 +1557,25 @@ Phase 15 implementation notes:
 
 Create a reusable request-policy adapter that checks:
 
-- [ ] Content-Type;
-- [ ] body limit;
-- [ ] Host;
-- [ ] Origin;
-- [ ] cookie;
-- [ ] CSRF;
-- [ ] session;
-- [ ] request ID;
-- [ ] route-specific physical confirmation.
+- [x] Content-Type;
+- [x] body limit;
+- [x] Host;
+- [x] Origin;
+- [x] cookie;
+- [x] CSRF;
+- [x] session;
+- [x] request ID;
+- [x] route-specific physical confirmation.
 
 Do not duplicate security checks across every route.
 
 ### 16.2 Add path parameter parsing
 
-- [ ] strict UUID only;
-- [ ] no decoded slash;
-- [ ] no path traversal;
-- [ ] bounded route buffers;
-- [ ] unknown fields rejected in JSON bodies.
+- [x] strict UUID only;
+- [x] no decoded slash;
+- [x] no path traversal;
+- [x] bounded route buffers;
+- [x] unknown fields rejected in JSON bodies.
 
 ### 16.3 Implement set routes
 
@@ -1583,29 +1583,29 @@ Implement all set routes from the FIX1 specification.
 
 For every mutation:
 
-- [ ] require expected revision;
-- [ ] map conflict to HTTP 409;
-- [ ] map storage full to HTTP 507;
-- [ ] return committed object readback;
-- [ ] test partial body and malformed JSON.
+- [x] require expected revision;
+- [x] map conflict to HTTP 409;
+- [x] map storage full to HTTP 507;
+- [x] return committed object readback;
+- [x] test partial body and malformed JSON.
 
 ### 16.4 Implement macro routes
 
-- [ ] set-local CRUD;
-- [ ] global CRUD;
-- [ ] ordering;
-- [ ] validation without execution;
-- [ ] reference-conflict details;
-- [ ] exact action count and duration.
+- [x] set-local CRUD;
+- [x] global CRUD;
+- [x] ordering;
+- [x] validation without execution;
+- [x] reference-conflict details;
+- [x] exact action count and duration.
 
 ### 16.5 Implement procedure/progress routes
 
-- [ ] CRUD and order;
-- [ ] progress read;
-- [ ] complete step;
-- [ ] skip with explicit confirmation;
-- [ ] reset progress;
-- [ ] stale revision handling.
+- [x] CRUD and order;
+- [x] progress read;
+- [x] complete step;
+- [x] skip with explicit confirmation;
+- [x] reset progress;
+- [x] stale revision handling.
 
 ### 16.6 Implement server-owned execution submission
 
@@ -1680,9 +1680,9 @@ if (plan_owned) {
 }
 ```
 
-- [ ] Do not accept macro source in the request.
-- [ ] Return `202` only after executor ownership transfer.
-- [ ] Add tests for stale revision, missing object, USB unavailable, busy
+- [x] Do not accept macro source in the request.
+- [x] Return `202` only after executor ownership transfer.
+- [x] Add tests for stale revision, missing object, USB unavailable, busy
       executor, compile failure, queue failure, and ownership cleanup.
 
 ### 16.7 Correct cancellation status mapping
@@ -1698,8 +1698,10 @@ Map:
 
 ### 16.8 Add administration routes
 
-Implement settings, storage health, quarantine, diagnostics, export, import,
-backup, restore, restart, credential reset, and factory reset.
+Implement settings, storage health, quarantine, the Phase 19 diagnostics boundary,
+the Phase 18 export/import/backup/restore boundaries, restart, credential reset,
+and factory reset. Package operations must remain explicit 503 responses until
+Phase 18 owns their validated transaction.
 
 Destructive operations must enforce reauthentication or physical confirmation
 as specified.
@@ -1708,18 +1710,31 @@ as specified.
 
 Every documented route needs:
 
-- [ ] success test;
-- [ ] authentication failure;
-- [ ] CSRF failure;
-- [ ] Origin failure;
-- [ ] Host failure;
-- [ ] Content-Type failure;
-- [ ] oversized body;
-- [ ] malformed JSON;
-- [ ] unknown field;
-- [ ] storage failure;
-- [ ] revision conflict;
-- [ ] redaction assertion.
+- [x] success test;
+- [x] authentication failure;
+- [x] CSRF failure;
+- [x] Origin failure;
+- [x] Host failure;
+- [x] Content-Type failure;
+- [x] oversized body;
+- [x] malformed JSON;
+- [x] unknown field;
+- [x] storage failure;
+- [x] revision conflict;
+- [x] redaction assertion.
+
+Phase 16 completion evidence:
+
+- centralized path, body, Host, Origin, cookie, session, CSRF, request-ID, and
+  physical-confirmation policy is shared by wildcard API routes;
+- repository-backed acceptance tests exercise set, macro, procedure, and progress
+  success, malformed/unknown input, revision conflict, reference conflict, stale
+  progress, redaction, and durable readback;
+- execution tests cover stale/missing objects, procedure mismatch, compile failure,
+  UUID/queue failure, USB unavailable, busy executor, ownership transfer, and exact
+  cancellation admission/status mapping;
+- import/export/backup/restore are intentionally Phase 18 boundaries and return 503
+  rather than false success; full diagnostics aggregation remains Phase 19.
 
 ## 17. Replace frontend mock behavior
 

@@ -93,6 +93,82 @@ static void test_resource_mutation_matrix(void) {
     web_api_json_free_resource_mutation(NULL);
 }
 
+static void test_resource_request_boundary(void) {
+    const char valid_set[] = "{\"schema_version\":1,\"id\":\"" SET_ID
+                             "\",\"revision\":1,\"name\":\"Set\",\"description\":\"\","
+                             "\"manufacturer\":\"\",\"model\":\"\",\"board\":\"\","
+                             "\"keyboard_layout\":\"en-US\",\"sort_order\":0}";
+    macro_set_t set = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_api_json_parse_set_resource(valid_set, sizeof(valid_set) - 1U, &set));
+    TEST_CHECK_EQ_STRING("Set", set.name);
+
+    const char valid_macro[] = "{\"schema_version\":1,\"id\":\"" MACRO_ID
+                               "\",\"revision\":1,\"scope\":\"set\",\"name\":\"Macro\","
+                               "\"source\":\"a\",\"favorite\":false,\"key_press_ms\":8,"
+                               "\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}";
+    macro_t macro = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_macro_resource(
+                                             valid_macro, sizeof(valid_macro) - 1U, &macro));
+    TEST_CHECK_EQ_STRING("a", macro.source);
+    macro_model_free_macro(&macro);
+
+    const char valid_procedure[] =
+        "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":1,\"set_id\":\"" SET_ID
+        "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{"
+        "\"id\":\"" STEP_ID "\",\"type\":\"macro\",\"title\":\"Step\",\"macro_id\":\"" MACRO_ID
+        "\",\"required\":true,\"auto_complete_on_success\":false}],\"sort_order\":0}";
+    procedure_t procedure = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_api_json_parse_procedure_resource(
+                             valid_procedure, sizeof(valid_procedure) - 1U, &procedure));
+    TEST_CHECK_EQ_U64(1U, procedure.step_count);
+    macro_model_free_procedure(&procedure);
+
+    const char valid_progress[] =
+        "{\"schema_version\":1,\"set_id\":\"" SET_ID "\",\"procedure_id\":\"" PROCEDURE_ID
+        "\",\"procedure_revision\":1,\"current_step_id\":\"" STEP_ID
+        "\",\"completed_step_ids\":[],\"skipped_step_ids\":[]}";
+    procedure_progress_t progress = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_api_json_parse_progress_resource(
+                             valid_progress, sizeof(valid_progress) - 1U, &progress));
+    TEST_CHECK_EQ_U64(1U, progress.procedure_revision);
+
+    static const char *const invalid_sets[] = {
+        "{}",
+        "{\"schema_version\":1,\"id\":\"" SET_ID
+        "\",\"revision\":1,\"name\":\"Set\",\"description\":\"\","
+        "\"manufacturer\":\"\",\"model\":\"\",\"board\":\"\","
+        "\"keyboard_layout\":\"en-US\",\"sort_order\":0,\"extra\":true}",
+        "{\"schema_version\":1,\"schema_version\":1,\"id\":\"" SET_ID
+        "\",\"revision\":1,\"name\":\"Set\",\"description\":\"\","
+        "\"manufacturer\":\"\",\"model\":\"\",\"board\":\"\","
+        "\"keyboard_layout\":\"en-US\",\"sort_order\":0}",
+        "{\"schema_version\":1}x",
+        "{",
+    };
+    for (size_t index = 0U; index < sizeof(invalid_sets) / sizeof(invalid_sets[0]); ++index) {
+        memset(&set, 0xa5, sizeof(set));
+        TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                             web_api_json_parse_set_resource(invalid_sets[index],
+                                                             strlen(invalid_sets[index]), &set));
+        TEST_CHECK_EQ_U64(0U, set.revision);
+    }
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_json_parse_macro_resource("{}", 2U, &macro));
+    TEST_CHECK(macro.source == NULL);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_json_parse_procedure_resource("{}", 2U, &procedure));
+    TEST_CHECK(procedure.steps == NULL);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_json_parse_progress_resource("{}", 2U, &progress));
+    TEST_CHECK_EQ_U64(0U, progress.procedure_revision);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_json_parse_set_resource(valid_set, sizeof(valid_set) - 1U, NULL));
+}
+
 static void test_uuid_order_matrix(void) {
     const char valid[] = "{\"ids\":[\"" MACRO_ID "\",\"" SET_ID "\"]}";
     storage_uuid_order_t order = {0};
@@ -295,6 +371,7 @@ static void test_embedded_nul_rejected(void) {
 int main(void) {
     test_expected_revision_matrix();
     test_resource_mutation_matrix();
+    test_resource_request_boundary();
     test_uuid_order_matrix();
     test_execution_submit_matrix();
     test_progress_action_matrix();

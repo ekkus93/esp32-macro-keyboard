@@ -125,6 +125,10 @@ static app_error_code_t match_set_routes(const path_segments_t *segments,
         out_path->route = WEB_API_ROUTE_SETS;
         return APP_ERROR_NONE;
     }
+    if (segments->count == 2U && text_equal(segments->items[1], "order")) {
+        out_path->route = WEB_API_ROUTE_SETS_ORDER;
+        return APP_ERROR_NONE;
+    }
     if (segments->count == 2U && text_equal(segments->items[1], "import")) {
         out_path->route = WEB_API_ROUTE_SET_IMPORT;
         return APP_ERROR_NONE;
@@ -199,6 +203,11 @@ static app_error_code_t match_execution_routes(const path_segments_t *segments,
     }
     if (segments->count == 2U && text_equal(segments->items[1], "current")) {
         out_path->route = WEB_API_ROUTE_EXECUTION_CURRENT;
+        return APP_ERROR_NONE;
+    }
+    if (segments->count == 3U && text_equal(segments->items[1], "current") &&
+        text_equal(segments->items[2], "cancel")) {
+        out_path->route = WEB_API_ROUTE_EXECUTION_CANCEL;
         return APP_ERROR_NONE;
     }
     if (!parse_uuid_segment(segments->items[1], &out_path->execution_id)) {
@@ -343,6 +352,8 @@ bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method)
     case WEB_API_ROUTE_BACKUP:
     case WEB_API_ROUTE_DIAGNOSTICS_STORAGE:
         return method == WEB_API_METHOD_GET;
+    case WEB_API_ROUTE_SETS_ORDER:
+        return method == WEB_API_METHOD_PUT;
     case WEB_API_ROUTE_SET_IMPORT:
     case WEB_API_ROUTE_RESTORE:
     case WEB_API_ROUTE_SET_DUPLICATE:

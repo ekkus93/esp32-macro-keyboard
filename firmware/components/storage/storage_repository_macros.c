@@ -141,8 +141,8 @@ static app_error_code_t write_macro_order(const storage_macro_location_t *locati
                : result;
 }
 
-static app_error_code_t macro_list_locked(const storage_macro_location_t *location,
-                                          storage_macro_list_t *out_list) {
+app_error_code_t storage_macro_list_locked(const storage_macro_location_t *location,
+                                           storage_macro_list_t *out_list) {
     if (!location_valid(location) || out_list == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -524,7 +524,7 @@ app_error_code_t storage_macro_list(const storage_macro_location_t *location,
     if (lock != APP_ERROR_NONE) {
         return lock;
     }
-    const app_error_code_t result = macro_list_locked(location, out_list);
+    const app_error_code_t result = storage_macro_list_locked(location, out_list);
     const app_error_code_t unlock = storage_repository_lock_give();
     return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }

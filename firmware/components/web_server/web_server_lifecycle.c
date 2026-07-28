@@ -15,8 +15,6 @@ static const httpd_uri_t normal_routes[] = {
     {.uri = "/api/v1/limits", .method = HTTP_GET, .handler = limits_handler},
     {.uri = "/api/v1/auth/login", .method = HTTP_POST, .handler = login_handler},
     {.uri = "/api/v1/auth/logout", .method = HTTP_POST, .handler = logout_handler},
-    {.uri = "/api/v1/executions/current", .method = HTTP_GET, .handler = execution_handler},
-    {.uri = "/api/v1/executions/current/cancel", .method = HTTP_POST, .handler = cancel_handler},
     {.uri = "/api/v1/*", .method = HTTP_GET, .handler = api_handler},
     {.uri = "/api/v1/*", .method = HTTP_POST, .handler = api_handler},
     {.uri = "/api/v1/*", .method = HTTP_PUT, .handler = api_handler},

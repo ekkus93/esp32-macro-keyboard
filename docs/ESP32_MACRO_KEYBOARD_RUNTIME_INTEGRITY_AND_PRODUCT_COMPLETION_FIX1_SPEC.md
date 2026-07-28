@@ -650,7 +650,7 @@ Implement and test at least:
 - `DELETE /api/v1/sets/{setId}`
 - `POST /api/v1/sets/{setId}/duplicate`
 - `PUT /api/v1/sets/order`
-- `PUT /api/v1/settings/active-set`
+- `POST /api/v1/sets/{setId}/select` (the bounded active-set mutation)
 
 ### Macros
 
@@ -660,9 +660,9 @@ Implement and test at least:
 - `PUT /api/v1/sets/{setId}/macros/{macroId}`
 - `DELETE /api/v1/sets/{setId}/macros/{macroId}`
 - `POST /api/v1/sets/{setId}/macros/{macroId}/duplicate`
-- `PUT /api/v1/sets/{setId}/macros/order`
-- corresponding global macro routes under `/api/v1/macros/global`
-- `POST /api/v1/macros/validate`
+- `POST /api/v1/sets/{setId}/macros/reorder`
+- corresponding global macro routes under `/api/v1/global/macros`
+- per-resource validation routes ending in `/validate`
 
 ### Procedures and progress
 
@@ -676,6 +676,7 @@ Implement and test at least:
 - `POST /api/v1/executions`
 - `GET /api/v1/executions/current`
 - `POST /api/v1/executions/current/cancel`
+- `POST /api/v1/executions/{executionId}/cancel` as an exact-identity alias
 
 Execution submission must accept object identity, not arbitrary executable
 source. The server loads the persisted macro, verifies the expected revision,

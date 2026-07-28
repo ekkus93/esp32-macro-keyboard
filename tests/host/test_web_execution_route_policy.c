@@ -26,6 +26,12 @@ static macro_execution_status_t running_status(void) {
     };
 }
 
+static web_api_path_t current_path(void) {
+    return (web_api_path_t){
+        .route = WEB_API_ROUTE_EXECUTION_CANCEL,
+    };
+}
+
 static web_api_path_t matching_path(void) {
     return (web_api_path_t){
         .route = WEB_API_ROUTE_EXECUTION_CANCEL,
@@ -44,8 +50,11 @@ static web_execution_cancel_policy_t evaluate(const macro_execution_status_t *st
 
 static void test_ready(void) {
     const macro_execution_status_t status = running_status();
-    const web_api_path_t path = matching_path();
-    const web_execution_cancel_policy_t policy = evaluate(&status, &path);
+    web_api_path_t path = matching_path();
+    web_execution_cancel_policy_t policy = evaluate(&status, &path);
+    TEST_CHECK(policy.permitted);
+    path = current_path();
+    policy = evaluate(&status, &path);
     TEST_CHECK(policy.permitted);
     TEST_CHECK_EQ_U64(0U, policy.status);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, policy.error);
@@ -68,10 +77,12 @@ static void test_not_found_matrix(void) {
     macro_execution_status_t status = running_status();
     web_api_path_t path = matching_path();
 
-    path.has_execution_id = false;
+    path = current_path();
+    status.state = EXECUTION_IDLE;
     web_execution_cancel_policy_t policy = evaluate(&status, &path);
     TEST_CHECK_EQ_U64(404U, policy.status);
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, policy.error);
+    status = running_status();
 
     path = matching_path();
     path.execution_id = uuid(OTHER_EXECUTION_ID);

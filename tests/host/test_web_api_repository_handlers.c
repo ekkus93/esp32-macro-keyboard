@@ -21,6 +21,7 @@
 #include "web_api_response.h"
 
 #define SET_ID "11111111-1111-4111-8111-111111111111"
+#define SET_DUPLICATE_ID "11111111-1111-4111-8111-222222222222"
 #define MACRO_ID "22222222-2222-4222-8222-222222222222"
 #define MACRO_DUPLICATE_ID "22222222-2222-4222-8222-333333333333"
 #define GLOBAL_MACRO_ID "22222222-2222-4222-8222-444444444444"
@@ -283,9 +284,17 @@ static void test_set_routes(void) {
     cJSON_free(mutation);
     cJSON_free(json);
 
-    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SETS, WEB_API_METHOD_POST,
-                      "{\"unknown\":true}", NULL, NULL, NULL);
-    expect_status(&response, 503U, "could not create set");
+    static const char *const invalid_set_bodies[] = {
+        "{\"unknown\":true}",
+        "{\"schema_version\":1}x",
+        "{",
+    };
+    for (size_t index = 0U; index < sizeof(invalid_set_bodies) / sizeof(invalid_set_bodies[0]);
+         ++index) {
+        response = invoke(web_api_handle_sets, WEB_API_ROUTE_SETS, WEB_API_METHOD_POST,
+                          invalid_set_bodies[index], NULL, NULL, NULL);
+        expect_status(&response, 422U, "could not create set");
+    }
 
     response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_SELECT, WEB_API_METHOD_POST,
                       "{\"expectedRevision\":1}", SET_ID, NULL, NULL);
@@ -295,7 +304,6 @@ static void test_set_routes(void) {
     TEST_CHECK_EQ_U64(2U, settings_store.revision);
 
     static const web_api_route_t unavailable_routes[] = {
-        WEB_API_ROUTE_SET_DUPLICATE,
         WEB_API_ROUTE_SET_EXPORT,
         WEB_API_ROUTE_SET_IMPORT,
     };
@@ -437,6 +445,50 @@ static void test_procedure_and_progress_routes(void) {
                "{\"expectedRevision\":2}", SET_ID, NULL, PROCEDURE_ID);
     expect_status(&response, 200U, "\"status\":\"current\"");
 
+    char duplicate_body[192U];
+    const int duplicate_length = snprintf(duplicate_body, sizeof(duplicate_body),
+                                          "{\"id\":\"%s\",\"name\":\"Duplicated Handler Set\","
+                                          "\"expectedRevision\":2}",
+                                          SET_DUPLICATE_ID);
+    TEST_CHECK(duplicate_length > 0 && (size_t)duplicate_length < sizeof(duplicate_body));
+    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_DUPLICATE, WEB_API_METHOD_POST,
+                      duplicate_body, SET_ID, NULL, NULL);
+    expect_status(&response, 201U, "Duplicated Handler Set");
+    macro_set_t duplicate_readback = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_read(&(app_uuid_t){.value = SET_DUPLICATE_ID},
+                                                          &duplicate_readback));
+    TEST_CHECK_EQ_U64(1U, duplicate_readback.revision);
+    storage_macro_list_t duplicate_macros = {0};
+    const storage_macro_location_t duplicate_location = {
+        .scope = MACRO_SCOPE_SET,
+        .has_set_id = true,
+        .set_id = {.value = SET_DUPLICATE_ID},
+    };
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_macro_list(&duplicate_location, &duplicate_macros));
+    TEST_CHECK_EQ_U64(2U, duplicate_macros.count);
+    storage_macro_list_free(&duplicate_macros);
+    storage_procedure_list_t duplicate_procedures = {0};
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        storage_procedure_list(&(app_uuid_t){.value = SET_DUPLICATE_ID}, &duplicate_procedures));
+    TEST_CHECK_EQ_U64(1U, duplicate_procedures.count);
+    storage_procedure_list_free(&duplicate_procedures);
+    storage_progress_snapshot_t duplicate_progress = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, storage_progress_read(
+                                                  &(storage_procedure_identity_t){
+                                                      .set_id = {.value = SET_DUPLICATE_ID},
+                                                      .procedure_id = {.value = PROCEDURE_ID},
+                                                  },
+                                                  &duplicate_progress));
+    char set_order[192U];
+    const int set_order_length = snprintf(set_order, sizeof(set_order), "{\"ids\":[\"%s\",\"%s\"]}",
+                                          SET_DUPLICATE_ID, SET_ID);
+    TEST_CHECK(set_order_length > 0 && (size_t)set_order_length < sizeof(set_order));
+    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SETS_ORDER, WEB_API_METHOD_PUT, set_order,
+                      NULL, NULL, NULL);
+    expect_status(&response, 200U, SET_DUPLICATE_ID);
+
     response = invoke(web_api_handle_macros, WEB_API_ROUTE_SET_MACRO, WEB_API_METHOD_DELETE,
                       "{\"expectedRevision\":2}", SET_ID, MACRO_ID, NULL);
     expect_status(&response, 409U, PROCEDURE_ID);
@@ -470,6 +522,9 @@ static void test_set_delete_and_persistent_readback(void) {
     expect_status(&response, 200U, "\"deleted\":true");
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
                          storage_set_read(&(app_uuid_t){.value = SET_ID}, &current));
+    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE,
+                      "{\"expectedRevision\":1}", SET_DUPLICATE_ID, NULL, NULL);
+    expect_status(&response, 200U, "\"deleted\":true");
 }
 
 int main(void) {

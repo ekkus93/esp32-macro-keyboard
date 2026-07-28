@@ -7,6 +7,8 @@
 
 #include "app_error.h"
 #include "app_uuid.h"
+#include "cJSON.h"
+#include "macro_limits.h"
 #include "macro_model.h"
 #include "provisioning.h"
 #include "storage_object_json.h"
@@ -18,6 +20,7 @@
 #include "web_http_status.h"
 
 #define WEB_SET_DELETE_RESPONSE_BYTES 80U
+#define WEB_SET_DUPLICATE_NAME_BYTES (APP_NAME_MAX_BYTES + 1U)
 
 static app_error_code_t respond_result(web_api_response_t *response, app_error_code_t result,
                                        const char *message) {
@@ -60,8 +63,7 @@ static app_error_code_t handle_set_collection(const web_api_call_t *call,
     }
 
     macro_set_t set = {0};
-    app_error_code_t result =
-        storage_repository_parse_set_json(call->body, call->body_length, &set);
+    app_error_code_t result = web_api_json_parse_set_resource(call->body, call->body_length, &set);
     if (result == APP_ERROR_NONE && set.revision != 1U) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
@@ -96,8 +98,8 @@ static app_error_code_t handle_set_item(const web_api_call_t *call, web_api_resp
             &mutation);
         macro_set_t replacement = {0};
         if (result == APP_ERROR_NONE) {
-            result = storage_repository_parse_set_json(mutation.resource_json,
-                                                       mutation.resource_length, &replacement);
+            result = web_api_json_parse_set_resource(mutation.resource_json,
+                                                     mutation.resource_length, &replacement);
         }
         if (result == APP_ERROR_NONE && !app_uuid_equal(&replacement.id, &call->path.set_id)) {
             result = APP_ERROR_INVALID_ARGUMENT;
@@ -159,6 +161,105 @@ static app_error_code_t handle_select(const web_api_call_t *call, web_api_respon
     return result;
 }
 
+static app_error_code_t parse_set_duplicate(const web_api_call_t *call,
+                                            app_uuid_t *out_duplicate_id,
+                                            uint32_t *out_expected_revision, char *out_name,
+                                            size_t out_name_size) {
+    if (call == NULL || out_duplicate_id == NULL || out_expected_revision == NULL ||
+        out_name == NULL || out_name_size == 0U) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    memset(out_duplicate_id, 0, sizeof(*out_duplicate_id));
+    *out_expected_revision = 0U;
+    out_name[0] = '\0';
+    const char *parse_end = NULL;
+    cJSON *root = cJSON_ParseWithLengthOpts(call->body, call->body_length, &parse_end, false);
+    bool identifier_seen = false;
+    bool name_seen = false;
+    bool revision_seen = false;
+    bool valid =
+        root != NULL && parse_end == call->body + call->body_length && cJSON_IsObject(root);
+    for (const cJSON *item = valid ? root->child : NULL; item != NULL; item = item->next) {
+        if (item->string != NULL && strcmp(item->string, "id") == 0 && !identifier_seen &&
+            cJSON_IsString(item) && item->valuestring != NULL &&
+            app_uuid_parse(item->valuestring, out_duplicate_id) == APP_ERROR_NONE) {
+            identifier_seen = true;
+        } else if (item->string != NULL && strcmp(item->string, "name") == 0 && !name_seen &&
+                   cJSON_IsString(item) && item->valuestring != NULL) {
+            const size_t length = strlen(item->valuestring);
+            if (length == 0U || length > APP_NAME_MAX_BYTES || length >= out_name_size) {
+                valid = false;
+                break;
+            }
+            memcpy(out_name, item->valuestring, length + 1U);
+            name_seen = true;
+        } else if (item->string != NULL && strcmp(item->string, "expectedRevision") == 0 &&
+                   !revision_seen && cJSON_IsNumber(item) && item->valuedouble >= 1.0 &&
+                   item->valuedouble <= (double)UINT32_MAX &&
+                   item->valuedouble == (double)item->valueint) {
+            *out_expected_revision = (uint32_t)item->valuedouble;
+            revision_seen = true;
+        } else {
+            valid = false;
+            break;
+        }
+    }
+    cJSON_Delete(root);
+    valid = valid && identifier_seen && name_seen && revision_seen;
+    if (!valid) {
+        memset(out_duplicate_id, 0, sizeof(*out_duplicate_id));
+        *out_expected_revision = 0U;
+        out_name[0] = '\0';
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t handle_duplicate(const web_api_call_t *call, web_api_response_t *response) {
+    app_uuid_t duplicate_id = {0};
+    uint32_t expected_revision = 0U;
+    char duplicate_name[WEB_SET_DUPLICATE_NAME_BYTES] = {0};
+    app_error_code_t result = parse_set_duplicate(call, &duplicate_id, &expected_revision,
+                                                  duplicate_name, sizeof(duplicate_name));
+    macro_set_t duplicate = {0};
+    if (result == APP_ERROR_NONE) {
+        result = storage_set_duplicate(&call->path.set_id, expected_revision, &duplicate_id,
+                                       duplicate_name, &duplicate);
+    }
+    return result == APP_ERROR_NONE ? send_set(response, WEB_HTTP_STATUS_CREATED, &duplicate)
+                                    : respond_result(response, result, "could not duplicate set");
+}
+
+static app_error_code_t handle_set_reorder(const web_api_call_t *call,
+                                           web_api_response_t *response) {
+    storage_uuid_order_t order = {0};
+    app_error_code_t result = web_api_json_parse_uuid_order(call->body,
+                                                            &(web_api_order_parse_limits_t){
+                                                                .body_length = call->body_length,
+                                                                .maximum_count = APP_MACRO_SETS_MAX,
+                                                            },
+                                                            &order);
+    if (result == APP_ERROR_NONE) {
+        result = storage_set_reorder(order.ids, order.count);
+    }
+    storage_set_list_t committed = {0};
+    char *json = NULL;
+    if (result == APP_ERROR_NONE) {
+        result = storage_set_list(&committed);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = web_api_handler_set_list_json(&committed, &json);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, json);
+    } else {
+        const app_error_code_t encoded = respond_result(response, result, "could not reorder sets");
+        result = encoded == APP_ERROR_NONE ? APP_ERROR_NONE : encoded;
+    }
+    web_api_handler_json_free(json);
+    return result;
+}
+
 static app_error_code_t unavailable(web_api_response_t *response, const char *operation) {
     return web_api_handler_error(response, APP_ERROR_STORAGE_UNAVAILABLE, operation, NULL);
 }
@@ -170,12 +271,14 @@ app_error_code_t web_api_handle_sets(const web_api_call_t *call, web_api_respons
     switch (call->path.route) {
     case WEB_API_ROUTE_SETS:
         return handle_set_collection(call, response);
+    case WEB_API_ROUTE_SETS_ORDER:
+        return handle_set_reorder(call, response);
     case WEB_API_ROUTE_SET:
         return handle_set_item(call, response);
     case WEB_API_ROUTE_SET_SELECT:
         return handle_select(call, response);
     case WEB_API_ROUTE_SET_DUPLICATE:
-        return unavailable(response, "set duplication requires the Phase 18 transaction service");
+        return handle_duplicate(call, response);
     case WEB_API_ROUTE_SET_EXPORT:
         return unavailable(response, "set export requires the Phase 18 package service");
     case WEB_API_ROUTE_SET_IMPORT:

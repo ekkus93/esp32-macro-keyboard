@@ -3,6 +3,9 @@
 
 #include "app_error.h"
 #include "app_uuid.h"
+#include "macro_model.h"
+
+app_error_code_t storage_set_read_locked(const app_uuid_t *set_id, macro_set_t *out_set);
 
 #ifndef ESP_PLATFORM
 typedef struct {

@@ -5,6 +5,8 @@
 #include "macro_model.h"
 #include "storage_repository.h"
 
+app_error_code_t storage_procedure_list_locked(const app_uuid_t *set_id,
+                                               storage_procedure_list_t *out_list);
 app_error_code_t storage_procedure_read_locked(const storage_procedure_identity_t *identity,
                                                procedure_t *out_procedure);
 

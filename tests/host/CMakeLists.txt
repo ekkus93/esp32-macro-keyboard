@@ -493,6 +493,7 @@ set(STORAGE_OBJECT_REPOSITORY_SOURCES
     ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/storage/storage_repository_index.c
     ../../firmware/components/storage/storage_repository_sets.c
+    ../../firmware/components/storage/storage_repository_set_operations.c
     ../../firmware/components/storage/storage_repository_lock.c
     ../../firmware/components/storage/storage_repository_order.c
     ../../firmware/components/storage/storage_repository_macros.c
@@ -621,8 +622,13 @@ set_tests_properties(web_execution_route_policy PROPERTIES LABELS "web")
 # Phase 16 strict JSON and response envelope tests.
 add_executable(
     web_api_json_tests
-    test_web_api_json.c ../../firmware/components/macro_model/app_error.c
+    test_web_api_json.c
+    ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/macro_model/macro_model.c
+    ../../firmware/components/storage/storage_json.c
+    ../../firmware/components/storage/storage_repository_json.c
+    ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/web_server/web_api_json.c
 )
 target_include_directories(
@@ -634,6 +640,7 @@ target_include_directories(
             ../../firmware/components/wifi_ap/include
             ../../firmware/components/provisioning/include
             ../../firmware/components/storage/include
+            ../../firmware/components/storage
             ../../firmware/components/web_server
 )
 target_link_libraries(web_api_json_tests PRIVATE PkgConfig::CJSON test_support)

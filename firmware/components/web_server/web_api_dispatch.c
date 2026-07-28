@@ -10,6 +10,7 @@
 static bool is_set_route(web_api_route_t route) {
     switch (route) {
     case WEB_API_ROUTE_SETS:
+    case WEB_API_ROUTE_SETS_ORDER:
     case WEB_API_ROUTE_SET:
     case WEB_API_ROUTE_SET_DUPLICATE:
     case WEB_API_ROUTE_SET_SELECT:

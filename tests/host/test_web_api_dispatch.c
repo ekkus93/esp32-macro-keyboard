@@ -59,6 +59,7 @@ app_error_code_t web_api_handle_administration(const web_api_call_t *call,
 static const dispatch_case_t dispatch_cases[] = {
     {WEB_API_ROUTE_AUTH_SESSION, HANDLER_ADMINISTRATION},
     {WEB_API_ROUTE_SETS, HANDLER_SETS},
+    {WEB_API_ROUTE_SETS_ORDER, HANDLER_SETS},
     {WEB_API_ROUTE_SET, HANDLER_SETS},
     {WEB_API_ROUTE_SET_DUPLICATE, HANDLER_SETS},
     {WEB_API_ROUTE_SET_SELECT, HANDLER_SETS},

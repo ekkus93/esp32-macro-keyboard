@@ -10,9 +10,12 @@
 #include "app_uuid.h"
 #include "cJSON.h"
 #include "macro_limits.h"
+#include "macro_model.h"
 #include "provisioning.h"
 #include "storage_object_json.h"
 #include "web_execution_submit.h"
+
+#define WEB_API_JSON_MAX_FIELDS 16U
 
 static bool contains_embedded_nul_escape(const char *body, size_t length) {
     static const char escape[] = "\\u0000";
@@ -42,10 +45,11 @@ static cJSON *parse_exact_document(const char *body, size_t body_length) {
 }
 
 static bool exact_fields(const cJSON *root, const char *const *fields, size_t field_count) {
-    if (!cJSON_IsObject(root) || fields == NULL || field_count == 0U || field_count > 8U) {
+    if (!cJSON_IsObject(root) || fields == NULL || field_count == 0U ||
+        field_count > WEB_API_JSON_MAX_FIELDS) {
         return false;
     }
-    bool seen[8U] = {false};
+    bool seen[WEB_API_JSON_MAX_FIELDS] = {false};
     size_t actual_count = 0U;
     for (const cJSON *item = root->child; item != NULL; item = item->next) {
         if (item->string == NULL) {
@@ -92,6 +96,115 @@ static bool read_uuid(const cJSON *root, const char *field, app_uuid_t *out_uuid
     const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, field);
     return cJSON_IsString(item) && item->valuestring != NULL &&
            app_uuid_parse(item->valuestring, out_uuid) == APP_ERROR_NONE;
+}
+
+static app_error_code_t request_resource_result(app_error_code_t result) {
+    return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
+}
+
+static app_error_code_t validate_resource_fields(const char *body, size_t body_length,
+                                                 const char *const *fields, size_t field_count) {
+    cJSON *root = parse_exact_document(body, body_length);
+    const bool valid = root != NULL && exact_fields(root, fields, field_count);
+    cJSON_Delete(root);
+    return valid ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
+}
+
+static app_error_code_t validate_macro_resource_fields(const char *body, size_t body_length) {
+    static const char *const base_fields[] = {
+        "schema_version", "id",       "revision",     "scope",        "name",
+        "source",         "favorite", "key_press_ms", "inter_key_ms",
+    };
+    static const char *const set_fields[] = {
+        "schema_version", "id",       "revision",     "scope",        "name",
+        "source",         "favorite", "key_press_ms", "inter_key_ms", "set_id",
+    };
+    cJSON *root = parse_exact_document(body, body_length);
+    const bool valid =
+        root != NULL &&
+        (exact_fields(root, base_fields, sizeof(base_fields) / sizeof(base_fields[0])) ||
+         exact_fields(root, set_fields, sizeof(set_fields) / sizeof(set_fields[0])));
+    cJSON_Delete(root);
+    return valid ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
+}
+
+app_error_code_t web_api_json_parse_set_resource(const char *body, size_t body_length,
+                                                 macro_set_t *out_set) {
+    if (out_set != NULL) {
+        memset(out_set, 0, sizeof(*out_set));
+    }
+    if (out_set == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    static const char *const fields[] = {
+        "schema_version", "id",    "revision",        "name",       "description", "manufacturer",
+        "model",          "board", "keyboard_layout", "sort_order",
+    };
+    app_error_code_t result =
+        validate_resource_fields(body, body_length, fields, sizeof(fields) / sizeof(fields[0]));
+    if (result == APP_ERROR_NONE) {
+        result =
+            request_resource_result(storage_repository_parse_set_json(body, body_length, out_set));
+    }
+    return result;
+}
+
+app_error_code_t web_api_json_parse_macro_resource(const char *body, size_t body_length,
+                                                   macro_t *out_macro) {
+    if (out_macro != NULL) {
+        memset(out_macro, 0, sizeof(*out_macro));
+    }
+    if (out_macro == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    app_error_code_t result = validate_macro_resource_fields(body, body_length);
+    if (result == APP_ERROR_NONE) {
+        result = request_resource_result(
+            storage_repository_parse_macro_json(body, body_length, out_macro));
+    }
+    return result;
+}
+
+app_error_code_t web_api_json_parse_procedure_resource(const char *body, size_t body_length,
+                                                       procedure_t *out_procedure) {
+    if (out_procedure != NULL) {
+        memset(out_procedure, 0, sizeof(*out_procedure));
+    }
+    if (out_procedure == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    static const char *const fields[] = {
+        "schema_version", "id", "revision", "set_id", "name", "description", "steps", "sort_order",
+    };
+    app_error_code_t result =
+        validate_resource_fields(body, body_length, fields, sizeof(fields) / sizeof(fields[0]));
+    if (result == APP_ERROR_NONE) {
+        result = request_resource_result(
+            storage_repository_parse_procedure_json(body, body_length, out_procedure));
+    }
+    return result;
+}
+
+app_error_code_t web_api_json_parse_progress_resource(const char *body, size_t body_length,
+                                                      procedure_progress_t *out_progress) {
+    if (out_progress != NULL) {
+        memset(out_progress, 0, sizeof(*out_progress));
+    }
+    if (out_progress == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    static const char *const fields[] = {
+        "schema_version",     "set_id",          "procedure_id",
+        "procedure_revision", "current_step_id", "completed_step_ids",
+        "skipped_step_ids",
+    };
+    app_error_code_t result =
+        validate_resource_fields(body, body_length, fields, sizeof(fields) / sizeof(fields[0]));
+    if (result == APP_ERROR_NONE) {
+        result = request_resource_result(
+            storage_repository_parse_progress_json(body, body_length, out_progress));
+    }
+    return result;
 }
 
 app_error_code_t web_api_json_parse_expected_revision(const char *body, size_t body_length,

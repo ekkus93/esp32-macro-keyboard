@@ -236,8 +236,8 @@ static app_error_code_t procedure_read_locked(const app_uuid_t *set_id,
     return storage_procedure_read_locked(&identity, out_procedure);
 }
 
-static app_error_code_t procedure_list_locked(const app_uuid_t *set_id,
-                                              storage_procedure_list_t *out_list) {
+app_error_code_t storage_procedure_list_locked(const app_uuid_t *set_id,
+                                               storage_procedure_list_t *out_list) {
     if (set_id == NULL || out_list == NULL || !app_uuid_is_valid_string(set_id->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -470,7 +470,7 @@ app_error_code_t storage_procedure_list(const app_uuid_t *set_id,
     if (lock != APP_ERROR_NONE) {
         return lock;
     }
-    const app_error_code_t result = procedure_list_locked(set_id, out_list);
+    const app_error_code_t result = storage_procedure_list_locked(set_id, out_list);
     const app_error_code_t unlock = storage_repository_lock_give();
     return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }

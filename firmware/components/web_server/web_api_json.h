@@ -38,6 +38,14 @@ app_error_code_t web_api_json_parse_expected_revision(const char *body, size_t b
 app_error_code_t web_api_json_parse_resource_mutation(const char *body,
                                                       const web_api_resource_parse_limits_t *limits,
                                                       web_api_resource_mutation_t *out_mutation);
+app_error_code_t web_api_json_parse_set_resource(const char *body, size_t body_length,
+                                                 macro_set_t *out_set);
+app_error_code_t web_api_json_parse_macro_resource(const char *body, size_t body_length,
+                                                   macro_t *out_macro);
+app_error_code_t web_api_json_parse_procedure_resource(const char *body, size_t body_length,
+                                                       procedure_t *out_procedure);
+app_error_code_t web_api_json_parse_progress_resource(const char *body, size_t body_length,
+                                                      procedure_progress_t *out_progress);
 void web_api_json_free_resource_mutation(web_api_resource_mutation_t *mutation);
 app_error_code_t web_api_json_parse_uuid_order(const char *body,
                                                const web_api_order_parse_limits_t *limits,

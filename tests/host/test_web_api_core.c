@@ -35,6 +35,7 @@ static void test_content_type_and_request_id(void) {
 static void test_route_parsing(void) {
     check_route("/api/v1/auth/session", WEB_API_ROUTE_AUTH_SESSION);
     check_route("/api/v1/sets", WEB_API_ROUTE_SETS);
+    check_route("/api/v1/sets/order", WEB_API_ROUTE_SETS_ORDER);
     check_route("/api/v1/sets/import", WEB_API_ROUTE_SET_IMPORT);
     check_route("/api/v1/sets/" SET_ID, WEB_API_ROUTE_SET);
     check_route("/api/v1/sets/" SET_ID "/select", WEB_API_ROUTE_SET_SELECT);
@@ -49,6 +50,7 @@ static void test_route_parsing(void) {
                 WEB_API_ROUTE_GLOBAL_MACRO_DUPLICATE);
     check_route("/api/v1/executions", WEB_API_ROUTE_EXECUTIONS);
     check_route("/api/v1/executions/current", WEB_API_ROUTE_EXECUTION_CURRENT);
+    check_route("/api/v1/executions/current/cancel", WEB_API_ROUTE_EXECUTION_CANCEL);
     check_route("/api/v1/executions/" EXECUTION_ID "/cancel", WEB_API_ROUTE_EXECUTION_CANCEL);
     check_route("/api/v1/settings/change-password", WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD);
     check_route("/api/v1/device/factory-reset", WEB_API_ROUTE_DEVICE_FACTORY_RESET);
@@ -72,6 +74,8 @@ static void test_route_parsing(void) {
 static void test_route_policy(void) {
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETS, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETS, WEB_API_METHOD_POST));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETS_ORDER, WEB_API_METHOD_PUT));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETS_ORDER, WEB_API_METHOD_POST));
     TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETS, WEB_API_METHOD_DELETE));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE));
     TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE));
