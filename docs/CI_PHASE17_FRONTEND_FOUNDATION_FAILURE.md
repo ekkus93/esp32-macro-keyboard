@@ -14,7 +14,8 @@
 ## phase17-foundation-transform.log
 
 ```text
-1:expected one session JSON encoder, found 0
+2:expected one Phase 17.9 settings checkbox, found 2
 
-expected one session JSON encoder, found 0
+Phase 17 backend session foundation applied
+expected one Phase 17.9 settings checkbox, found 2
 ```
