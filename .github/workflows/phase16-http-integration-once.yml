@@ -40,7 +40,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends \
-            build-essential clang-format clang-tidy cmake jq libcjson-dev shellcheck
+            build-essential clang-format clang-tidy cmake gcovr jq libcjson-dev shellcheck
           python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
           go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
