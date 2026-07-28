@@ -108,6 +108,27 @@ jobs:
                   )
               text = text.replace(source, replacement, 1)
           path.write_text(text, encoding="utf-8")
+
+          cmake_path = Path("tests/host/CMakeLists.txt")
+          cmake = cmake_path.read_text(encoding="utf-8")
+          cmake_replacements = {
+              "function(add_storage_object_repository_test target source)":
+                  "function(add_storage_object_repository_test target source mount_name)",
+              '${CMAKE_CURRENT_BINARY_DIR}/${target}-data':
+                  '${CMAKE_CURRENT_BINARY_DIR}/${mount_name}',
+              "add_storage_object_repository_test(storage_progress_repository_tests test_storage_progress.c)":
+                  "add_storage_object_repository_test(storage_progress_repository_tests test_storage_progress.c p15p)",
+              "add_storage_object_repository_test(storage_active_set_delete_tests test_storage_active_set_delete.c)":
+                  "add_storage_object_repository_test(storage_active_set_delete_tests test_storage_active_set_delete.c p15a)",
+          }
+          for source, replacement in cmake_replacements.items():
+              count = cmake.count(source)
+              if count != 1:
+                  raise RuntimeError(
+                      f"CMake replacement count for {source!r} was {count}"
+                  )
+              cmake = cmake.replace(source, replacement, 1)
+          cmake_path.write_text(cmake, encoding="utf-8")
           PY
             status=${PIPESTATUS[0]}
           fi
