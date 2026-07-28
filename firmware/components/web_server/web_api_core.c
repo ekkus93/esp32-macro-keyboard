@@ -8,9 +8,17 @@
 #include "app_error.h"
 #include "app_uuid.h"
 #include "macro_executor.h"
+#include "web_http_status.h"
 
 #define WEB_API_PREFIX "/api/v1/"
 #define WEB_API_MAX_SEGMENTS 8U
+
+/* Segment counts for the deepest set sub-routes. Named because
+ * readability-magic-numbers exempts only 1-4 by default; these positional
+ * counts would otherwise read as magic numbers. */
+#define WEB_API_SEGMENTS_MACRO_SUBACTION 5U
+#define WEB_API_SEGMENTS_PROCEDURE_PROGRESS 5U
+#define WEB_API_SEGMENTS_PROGRESS_ACTION 6U
 
 typedef struct {
     char *items[WEB_API_MAX_SEGMENTS];
@@ -58,6 +66,59 @@ static app_error_code_t split_path(const char *uri, char *buffer, size_t buffer_
     return APP_ERROR_NONE;
 }
 
+static app_error_code_t match_set_macro_routes(const path_segments_t *segments,
+                                               web_api_path_t *out_path) {
+    if (segments->count == 4U && text_equal(segments->items[3], "reorder")) {
+        out_path->route = WEB_API_ROUTE_SET_MACROS_REORDER;
+        return APP_ERROR_NONE;
+    }
+    if (!parse_uuid_segment(segments->items[3], &out_path->macro_id)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    out_path->has_macro_id = true;
+    if (segments->count == 4U) {
+        out_path->route = WEB_API_ROUTE_SET_MACRO;
+    } else if (segments->count == WEB_API_SEGMENTS_MACRO_SUBACTION &&
+               text_equal(segments->items[4], "validate")) {
+        out_path->route = WEB_API_ROUTE_SET_MACRO_VALIDATE;
+    } else if (segments->count == WEB_API_SEGMENTS_MACRO_SUBACTION &&
+               text_equal(segments->items[4], "duplicate")) {
+        out_path->route = WEB_API_ROUTE_SET_MACRO_DUPLICATE;
+    } else {
+        return APP_ERROR_NOT_FOUND;
+    }
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t match_set_procedure_routes(const path_segments_t *segments,
+                                                   web_api_path_t *out_path) {
+    if (segments->count == 4U && text_equal(segments->items[3], "reorder")) {
+        out_path->route = WEB_API_ROUTE_SET_PROCEDURES_REORDER;
+        return APP_ERROR_NONE;
+    }
+    if (!parse_uuid_segment(segments->items[3], &out_path->procedure_id)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    out_path->has_procedure_id = true;
+    if (segments->count == 4U) {
+        out_path->route = WEB_API_ROUTE_SET_PROCEDURE;
+    } else if (segments->count == WEB_API_SEGMENTS_PROCEDURE_PROGRESS &&
+               text_equal(segments->items[4], "progress")) {
+        out_path->route = WEB_API_ROUTE_PROCEDURE_PROGRESS;
+    } else if (segments->count == WEB_API_SEGMENTS_PROGRESS_ACTION &&
+               text_equal(segments->items[4], "progress") &&
+               text_equal(segments->items[WEB_API_SEGMENTS_PROGRESS_ACTION - 1U], "complete")) {
+        out_path->route = WEB_API_ROUTE_PROGRESS_COMPLETE;
+    } else if (segments->count == WEB_API_SEGMENTS_PROGRESS_ACTION &&
+               text_equal(segments->items[4], "progress") &&
+               text_equal(segments->items[WEB_API_SEGMENTS_PROGRESS_ACTION - 1U], "skip")) {
+        out_path->route = WEB_API_ROUTE_PROGRESS_SKIP;
+    } else {
+        return APP_ERROR_NOT_FOUND;
+    }
+    return APP_ERROR_NONE;
+}
+
 static app_error_code_t match_set_routes(const path_segments_t *segments,
                                          web_api_path_t *out_path) {
     if (segments->count == 1U) {
@@ -93,48 +154,10 @@ static app_error_code_t match_set_routes(const path_segments_t *segments,
         return APP_ERROR_NONE;
     }
     if (text_equal(segments->items[2], "macros")) {
-        if (segments->count == 4U && text_equal(segments->items[3], "reorder")) {
-            out_path->route = WEB_API_ROUTE_SET_MACROS_REORDER;
-            return APP_ERROR_NONE;
-        }
-        if (!parse_uuid_segment(segments->items[3], &out_path->macro_id)) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        out_path->has_macro_id = true;
-        if (segments->count == 4U) {
-            out_path->route = WEB_API_ROUTE_SET_MACRO;
-        } else if (segments->count == 5U && text_equal(segments->items[4], "validate")) {
-            out_path->route = WEB_API_ROUTE_SET_MACRO_VALIDATE;
-        } else if (segments->count == 5U && text_equal(segments->items[4], "duplicate")) {
-            out_path->route = WEB_API_ROUTE_SET_MACRO_DUPLICATE;
-        } else {
-            return APP_ERROR_NOT_FOUND;
-        }
-        return APP_ERROR_NONE;
+        return match_set_macro_routes(segments, out_path);
     }
     if (text_equal(segments->items[2], "procedures")) {
-        if (segments->count == 4U && text_equal(segments->items[3], "reorder")) {
-            out_path->route = WEB_API_ROUTE_SET_PROCEDURES_REORDER;
-            return APP_ERROR_NONE;
-        }
-        if (!parse_uuid_segment(segments->items[3], &out_path->procedure_id)) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        out_path->has_procedure_id = true;
-        if (segments->count == 4U) {
-            out_path->route = WEB_API_ROUTE_SET_PROCEDURE;
-        } else if (segments->count == 5U && text_equal(segments->items[4], "progress")) {
-            out_path->route = WEB_API_ROUTE_PROCEDURE_PROGRESS;
-        } else if (segments->count == 6U && text_equal(segments->items[4], "progress") &&
-                   text_equal(segments->items[5], "complete")) {
-            out_path->route = WEB_API_ROUTE_PROGRESS_COMPLETE;
-        } else if (segments->count == 6U && text_equal(segments->items[4], "progress") &&
-                   text_equal(segments->items[5], "skip")) {
-            out_path->route = WEB_API_ROUTE_PROGRESS_SKIP;
-        } else {
-            return APP_ERROR_NOT_FOUND;
-        }
-        return APP_ERROR_NONE;
+        return match_set_procedure_routes(segments, out_path);
     }
     return APP_ERROR_NOT_FOUND;
 }
@@ -385,48 +408,48 @@ bool web_api_route_requires_physical_confirmation(web_api_route_t route) {
 unsigned int web_api_http_status_for_error(app_error_code_t error) {
     switch (error) {
     case APP_ERROR_NONE:
-        return 200U;
+        return WEB_HTTP_STATUS_OK;
     case APP_ERROR_INVALID_ARGUMENT:
     case APP_ERROR_MACRO_SYNTAX:
     case APP_ERROR_MACRO_LIMIT:
-        return 422U;
+        return WEB_HTTP_STATUS_UNPROCESSABLE_ENTITY;
     case APP_ERROR_NOT_FOUND:
-        return 404U;
+        return WEB_HTTP_STATUS_NOT_FOUND;
     case APP_ERROR_CONFLICT:
     case APP_ERROR_EXECUTOR_BUSY:
-        return 409U;
+        return WEB_HTTP_STATUS_CONFLICT;
     case APP_ERROR_STORAGE_FULL:
-        return 507U;
+        return WEB_HTTP_STATUS_INSUFFICIENT_STORAGE;
     case APP_ERROR_STORAGE_UNAVAILABLE:
     case APP_ERROR_STORAGE_CORRUPT:
     case APP_ERROR_USB_NOT_READY:
     case APP_ERROR_TIMEOUT:
-        return 503U;
+        return WEB_HTTP_STATUS_SERVICE_UNAVAILABLE;
     case APP_ERROR_AUTH_REQUIRED:
     case APP_ERROR_AUTH_FAILED:
-        return 401U;
+        return WEB_HTTP_STATUS_UNAUTHORIZED;
     case APP_ERROR_RATE_LIMITED:
-        return 429U;
+        return WEB_HTTP_STATUS_TOO_MANY_REQUESTS;
     case APP_ERROR_EXECUTION_CANCELLED:
-        return 409U;
+        return WEB_HTTP_STATUS_CONFLICT;
     case APP_ERROR_IO:
     case APP_ERROR_INTERNAL:
     default:
-        return 500U;
+        return WEB_HTTP_STATUS_INTERNAL_SERVER_ERROR;
     }
 }
 
 unsigned int web_api_cancel_http_status(const macro_execution_status_t *status,
                                         app_error_code_t cancel_result) {
     if (cancel_result == APP_ERROR_NONE) {
-        return 202U;
+        return WEB_HTTP_STATUS_ACCEPTED;
     }
     if (cancel_result == APP_ERROR_INTERNAL) {
-        return 500U;
+        return WEB_HTTP_STATUS_INTERNAL_SERVER_ERROR;
     }
     if (cancel_result == APP_ERROR_STORAGE_UNAVAILABLE ||
         cancel_result == APP_ERROR_USB_NOT_READY) {
-        return 503U;
+        return WEB_HTTP_STATUS_SERVICE_UNAVAILABLE;
     }
     if (cancel_result == APP_ERROR_NOT_FOUND && status != NULL) {
         switch (status->state) {
@@ -434,12 +457,12 @@ unsigned int web_api_cancel_http_status(const macro_execution_status_t *status,
         case EXECUTION_CANCELLED:
         case EXECUTION_FAILED:
         case EXECUTION_TIMED_OUT:
-            return 409U;
+            return WEB_HTTP_STATUS_CONFLICT;
         case EXECUTION_IDLE:
         case EXECUTION_RUNNING:
         default:
-            return 404U;
+            return WEB_HTTP_STATUS_NOT_FOUND;
         }
     }
-    return 409U;
+    return WEB_HTTP_STATUS_CONFLICT;
 }

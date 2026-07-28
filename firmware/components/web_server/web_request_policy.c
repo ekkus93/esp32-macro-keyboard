@@ -8,8 +8,8 @@
 #include "auth.h"
 #include "web_api_core.h"
 #include "web_cookie.h"
+#include "web_http_status.h"
 #include "web_origin.h"
-#include "web_server_adapter.h"
 
 #define WEB_POLICY_HEADER_BYTES 256U
 
@@ -62,19 +62,10 @@ static app_error_code_t establish_request_id(const web_request_policy_ops_t *ope
     return APP_ERROR_NONE;
 }
 
-app_error_code_t web_request_policy_evaluate(const web_request_policy_input_t *input,
-                                             const web_request_policy_ops_t *operations,
-                                             web_request_policy_result_t *out_result,
-                                             web_request_policy_failure_t *out_failure) {
-    clear_result(out_result);
-    if (out_failure != NULL) {
-        *out_failure = WEB_REQUEST_POLICY_FAILURE_NONE;
-    }
-    if (input == NULL || !operations_valid(operations) || out_result == NULL ||
-        out_failure == NULL || input->route == WEB_API_ROUTE_UNKNOWN || input->body_limit == 0U) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-
+static app_error_code_t enforce_body_content_type(const web_request_policy_input_t *input,
+                                                  const web_request_policy_ops_t *operations,
+                                                  web_request_policy_result_t *out_result,
+                                                  web_request_policy_failure_t *out_failure) {
     if (input->content_length > input->body_limit) {
         return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_BODY_LIMIT,
                     APP_ERROR_INVALID_ARGUMENT);
@@ -88,7 +79,13 @@ app_error_code_t web_request_policy_evaluate(const web_request_policy_input_t *i
                         APP_ERROR_INVALID_ARGUMENT);
         }
     }
+    return APP_ERROR_NONE;
+}
 
+static app_error_code_t enforce_host_and_origin(const web_request_policy_input_t *input,
+                                                const web_request_policy_ops_t *operations,
+                                                web_request_policy_result_t *out_result,
+                                                web_request_policy_failure_t *out_failure) {
     char host[WEB_POLICY_HEADER_BYTES] = {0};
     if (read_required_header(operations, "Host", host, sizeof(host)) != APP_ERROR_NONE) {
         return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_HOST,
@@ -106,63 +103,105 @@ app_error_code_t web_request_policy_evaluate(const web_request_policy_input_t *i
         return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_ORIGIN,
                     APP_ERROR_AUTH_REQUIRED);
     }
+    return APP_ERROR_NONE;
+}
 
-    if (web_api_route_requires_session(input->route)) {
-        char cookie[WEB_POLICY_HEADER_BYTES] = {0};
-        if (read_required_header(operations, "Cookie", cookie, sizeof(cookie)) != APP_ERROR_NONE ||
-            web_cookie_extract_session(cookie, out_result->session_token,
-                                       sizeof(out_result->session_token)) != APP_ERROR_NONE) {
-            return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_COOKIE,
-                        APP_ERROR_AUTH_REQUIRED);
-        }
-        char csrf[AUTH_TOKEN_HEX_BYTES] = {0};
-        if (read_required_header(operations, "X-CSRF-Token", csrf, sizeof(csrf)) !=
-            APP_ERROR_NONE) {
-            return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_CSRF,
-                        APP_ERROR_AUTH_REQUIRED);
-        }
-        const app_error_code_t validation =
-            operations->validate_session(operations->context, out_result->session_token, csrf);
-        if (validation != APP_ERROR_NONE) {
-            return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_SESSION, validation);
-        }
+static app_error_code_t enforce_session(const web_request_policy_input_t *input,
+                                        const web_request_policy_ops_t *operations,
+                                        web_request_policy_result_t *out_result,
+                                        web_request_policy_failure_t *out_failure) {
+    if (!web_api_route_requires_session(input->route)) {
+        return APP_ERROR_NONE;
+    }
+    char cookie[WEB_POLICY_HEADER_BYTES] = {0};
+    if (read_required_header(operations, "Cookie", cookie, sizeof(cookie)) != APP_ERROR_NONE ||
+        web_cookie_extract_session(cookie, out_result->session_token,
+                                   sizeof(out_result->session_token)) != APP_ERROR_NONE) {
+        return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_COOKIE,
+                    APP_ERROR_AUTH_REQUIRED);
+    }
+    char csrf[AUTH_TOKEN_HEX_BYTES] = {0};
+    if (read_required_header(operations, "X-CSRF-Token", csrf, sizeof(csrf)) != APP_ERROR_NONE) {
+        return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_CSRF,
+                    APP_ERROR_AUTH_REQUIRED);
+    }
+    const app_error_code_t validation =
+        operations->validate_session(operations->context, out_result->session_token, csrf);
+    if (validation != APP_ERROR_NONE) {
+        return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_SESSION, validation);
+    }
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t enforce_physical_confirmation(const web_request_policy_input_t *input,
+                                                      const web_request_policy_ops_t *operations,
+                                                      web_request_policy_result_t *out_result,
+                                                      web_request_policy_failure_t *out_failure) {
+    if (!web_api_route_requires_physical_confirmation(input->route)) {
+        return APP_ERROR_NONE;
+    }
+    if (operations->confirm == NULL) {
+        return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION,
+                    APP_ERROR_INTERNAL);
+    }
+    const app_error_code_t result = operations->confirm(operations->context);
+    if (result != APP_ERROR_NONE) {
+        return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION,
+                    result);
+    }
+    return APP_ERROR_NONE;
+}
+
+app_error_code_t web_request_policy_evaluate(const web_request_policy_input_t *input,
+                                             const web_request_policy_ops_t *operations,
+                                             web_request_policy_result_t *out_result,
+                                             web_request_policy_failure_t *out_failure) {
+    clear_result(out_result);
+    if (out_failure != NULL) {
+        *out_failure = WEB_REQUEST_POLICY_FAILURE_NONE;
+    }
+    if (input == NULL || !operations_valid(operations) || out_result == NULL ||
+        out_failure == NULL || input->route == WEB_API_ROUTE_UNKNOWN || input->body_limit == 0U) {
+        return APP_ERROR_INVALID_ARGUMENT;
     }
 
-    app_error_code_t result = establish_request_id(operations, out_result, out_failure);
+    app_error_code_t result = enforce_body_content_type(input, operations, out_result, out_failure);
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    if (web_api_route_requires_physical_confirmation(input->route)) {
-        if (operations->confirm == NULL) {
-            return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION,
-                        APP_ERROR_INTERNAL);
-        }
-        result = operations->confirm(operations->context);
-        if (result != APP_ERROR_NONE) {
-            return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION,
-                        result);
-        }
+    result = enforce_host_and_origin(input, operations, out_result, out_failure);
+    if (result != APP_ERROR_NONE) {
+        return result;
     }
-    return APP_ERROR_NONE;
+    result = enforce_session(input, operations, out_result, out_failure);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    result = establish_request_id(operations, out_result, out_failure);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    return enforce_physical_confirmation(input, operations, out_result, out_failure);
 }
 
 unsigned int web_request_policy_http_status(web_request_policy_failure_t failure,
                                             app_error_code_t error) {
     switch (failure) {
     case WEB_REQUEST_POLICY_FAILURE_CONTENT_TYPE:
-        return 415U;
+        return WEB_HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE;
     case WEB_REQUEST_POLICY_FAILURE_BODY_LIMIT:
-        return 413U;
+        return WEB_HTTP_STATUS_PAYLOAD_TOO_LARGE;
     case WEB_REQUEST_POLICY_FAILURE_HOST:
     case WEB_REQUEST_POLICY_FAILURE_ORIGIN:
     case WEB_REQUEST_POLICY_FAILURE_CSRF:
     case WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION:
-        return 403U;
+        return WEB_HTTP_STATUS_FORBIDDEN;
     case WEB_REQUEST_POLICY_FAILURE_COOKIE:
     case WEB_REQUEST_POLICY_FAILURE_SESSION:
-        return 401U;
+        return WEB_HTTP_STATUS_UNAUTHORIZED;
     case WEB_REQUEST_POLICY_FAILURE_REQUEST_ID:
-        return error == APP_ERROR_INTERNAL ? 500U : 400U;
+        return error == APP_ERROR_INTERNAL ? WEB_HTTP_STATUS_INTERNAL_SERVER_ERROR
+                                           : WEB_HTTP_STATUS_BAD_REQUEST;
     case WEB_REQUEST_POLICY_FAILURE_NONE:
     default:
         return web_api_http_status_for_error(error);
