@@ -12,15 +12,27 @@
 #include "web_execution_submit.h"
 
 #define SET_ID "11111111-1111-4111-8111-111111111111"
+#define OTHER_SET_ID "11111111-1111-4111-8111-999999999999"
 #define MACRO_ID "22222222-2222-4222-8222-222222222222"
+#define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
+#define STEP_ID "44444444-4444-4444-8444-444444444444"
+#define OTHER_STEP_ID "44444444-4444-4444-8444-999999999999"
 #define EXECUTION_ID "55555555-5555-4555-8555-555555555555"
 
 typedef struct {
     app_error_code_t read_result;
+    app_error_code_t procedure_result;
     app_error_code_t compile_result;
+    app_error_code_t uuid_result;
     app_error_code_t submit_result;
     uint32_t revision;
+    macro_scope_t macro_scope;
+    bool macro_set_matches;
+    bool procedure_matches;
+    size_t read_calls;
+    size_t procedure_calls;
     size_t compile_calls;
+    size_t uuid_calls;
     size_t submit_calls;
     size_t free_calls;
     macro_plan_t accepted_plan;
@@ -32,21 +44,33 @@ static app_uuid_t uuid(const char *text) {
     return value;
 }
 
+static fixture_t fixture_defaults(void) {
+    return (fixture_t){
+        .revision = 7U,
+        .macro_scope = MACRO_SCOPE_SET,
+        .macro_set_matches = true,
+        .procedure_matches = true,
+    };
+}
+
 static app_error_code_t read_macro(void *context, const storage_macro_location_t *location,
                                    const app_uuid_t *macro_id, macro_t *out_macro) {
     fixture_t *fixture = context;
-    TEST_CHECK(location->scope == MACRO_SCOPE_SET);
+    ++fixture->read_calls;
     TEST_CHECK_EQ_STRING(MACRO_ID, macro_id->value);
     if (fixture->read_result != APP_ERROR_NONE) {
         return fixture->read_result;
+    }
+    if (location->scope != fixture->macro_scope) {
+        return APP_ERROR_NOT_FOUND;
     }
     *out_macro = (macro_t){
         .schema_version = 1U,
         .id = uuid(MACRO_ID),
         .revision = fixture->revision,
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
-        .set_id = uuid(SET_ID),
+        .scope = fixture->macro_scope,
+        .has_set_id = fixture->macro_scope == MACRO_SCOPE_SET,
+        .set_id = uuid(fixture->macro_set_matches ? SET_ID : OTHER_SET_ID),
         .source_length = 1U,
         .key_press_ms = 8U,
         .inter_key_ms = 15U,
@@ -60,11 +84,27 @@ static app_error_code_t read_macro(void *context, const storage_macro_location_t
 
 static app_error_code_t read_procedure(void *context, const app_uuid_t *set_id,
                                        const app_uuid_t *procedure_id, procedure_t *out_procedure) {
-    (void)context;
-    (void)set_id;
-    (void)procedure_id;
-    (void)out_procedure;
-    return APP_ERROR_NOT_FOUND;
+    fixture_t *fixture = context;
+    ++fixture->procedure_calls;
+    TEST_CHECK_EQ_STRING(SET_ID, set_id->value);
+    TEST_CHECK_EQ_STRING(PROCEDURE_ID, procedure_id->value);
+    if (fixture->procedure_result != APP_ERROR_NONE) {
+        return fixture->procedure_result;
+    }
+    out_procedure->schema_version = 1U;
+    out_procedure->id = uuid(PROCEDURE_ID);
+    out_procedure->revision = 1U;
+    out_procedure->set_id = uuid(SET_ID);
+    out_procedure->steps = calloc(1U, sizeof(*out_procedure->steps));
+    TEST_CHECK(out_procedure->steps != NULL);
+    out_procedure->step_count = 1U;
+    out_procedure->steps[0] = (procedure_step_t){
+        .id = uuid(fixture->procedure_matches ? STEP_ID : OTHER_STEP_ID),
+        .type = PROCEDURE_STEP_MACRO,
+        .has_macro_id = true,
+        .macro_id = uuid(MACRO_ID),
+    };
+    return APP_ERROR_NONE;
 }
 
 static app_error_code_t compile_macro(void *context, const char *source, size_t source_length,
@@ -95,7 +135,11 @@ static void free_plan(void *context, macro_plan_t *plan) {
 }
 
 static app_error_code_t generate_uuid(void *context, app_uuid_t *out_uuid) {
-    (void)context;
+    fixture_t *fixture = context;
+    ++fixture->uuid_calls;
+    if (fixture->uuid_result != APP_ERROR_NONE) {
+        return fixture->uuid_result;
+    }
     *out_uuid = uuid(EXECUTION_ID);
     return APP_ERROR_NONE;
 }
@@ -104,6 +148,9 @@ static app_error_code_t submit(void *context, macro_execution_request_t *request
     fixture_t *fixture = context;
     ++fixture->submit_calls;
     TEST_CHECK_EQ_STRING(EXECUTION_ID, request->execution_id.value);
+    TEST_CHECK_EQ_STRING(SET_ID, request->set_id.value);
+    TEST_CHECK_EQ_STRING(MACRO_ID, request->macro_id.value);
+    TEST_CHECK_EQ_U64(7U, request->macro_revision);
     TEST_CHECK_EQ_U64(2U, request->plan.action_count);
     if (fixture->submit_result == APP_ERROR_NONE) {
         fixture->accepted_plan = request->plan;
@@ -137,47 +184,156 @@ static web_execution_submit_request_t request(void) {
     };
 }
 
-static void test_success_and_failures(void) {
+static web_execution_submit_request_t procedure_request(void) {
+    web_execution_submit_request_t submission = request();
+    submission.has_procedure_context = true;
+    submission.procedure_id = uuid(PROCEDURE_ID);
+    submission.step_id = uuid(STEP_ID);
+    return submission;
+}
+
+static app_error_code_t submit_fixture(fixture_t *fixture,
+                                       const web_execution_submit_request_t *submission,
+                                       web_execution_accepted_t *accepted,
+                                       macro_parse_error_t *parse_error) {
+    const web_execution_ops_t ops = operations(fixture);
+    return web_execution_submit_persisted(submission, &ops, accepted, parse_error);
+}
+
+static void test_success_and_global_fallback(void) {
     web_execution_accepted_t accepted = {0};
     macro_parse_error_t parse_error = {0};
     const web_execution_submit_request_t submission = request();
 
-    fixture_t fixture = {.revision = 7U};
-    web_execution_ops_t ops = operations(&fixture);
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE, web_execution_submit_persisted(&submission, &ops, &accepted, &parse_error));
+    fixture_t fixture = fixture_defaults();
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         submit_fixture(&fixture, &submission, &accepted, &parse_error));
     TEST_CHECK_EQ_STRING(EXECUTION_ID, accepted.execution_id.value);
     TEST_CHECK_EQ_U64(2U, accepted.action_count);
+    TEST_CHECK_EQ_U64(1U, fixture.read_calls);
     TEST_CHECK_EQ_U64(0U, fixture.free_calls);
     TEST_CHECK(fixture.accepted_plan.actions != NULL);
     release_accepted_plan(&fixture);
 
-    fixture = (fixture_t){.revision = 8U};
-    ops = operations(&fixture);
-    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, web_execution_submit_persisted(
-                                                 &submission, &ops, &accepted, &parse_error));
+    fixture = fixture_defaults();
+    fixture.macro_scope = MACRO_SCOPE_GLOBAL;
+    memset(&accepted, 0, sizeof(accepted));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         submit_fixture(&fixture, &submission, &accepted, &parse_error));
+    TEST_CHECK_EQ_U64(2U, fixture.read_calls);
+    TEST_CHECK_EQ_U64(0U, fixture.free_calls);
+    release_accepted_plan(&fixture);
+}
+
+static void test_pre_compile_failures(void) {
+    web_execution_accepted_t accepted = {0};
+    macro_parse_error_t parse_error = {0};
+    const web_execution_submit_request_t submission = request();
+
+    fixture_t fixture = fixture_defaults();
+    fixture.revision = 8U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
+                         submit_fixture(&fixture, &submission, &accepted, &parse_error));
+    TEST_CHECK_EQ_U64(0U, fixture.compile_calls);
+    TEST_CHECK_EQ_U64(0U, fixture.free_calls);
+
+    fixture = fixture_defaults();
+    fixture.read_result = APP_ERROR_NOT_FOUND;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
+                         submit_fixture(&fixture, &submission, &accepted, &parse_error));
+    TEST_CHECK_EQ_U64(2U, fixture.read_calls);
     TEST_CHECK_EQ_U64(0U, fixture.compile_calls);
 
-    fixture = (fixture_t){.revision = 7U, .compile_result = APP_ERROR_MACRO_SYNTAX};
-    ops = operations(&fixture);
-    TEST_CHECK_APP_ERROR(APP_ERROR_MACRO_SYNTAX, web_execution_submit_persisted(
-                                                     &submission, &ops, &accepted, &parse_error));
+    fixture = fixture_defaults();
+    fixture.macro_set_matches = false;
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
+                         submit_fixture(&fixture, &submission, &accepted, &parse_error));
+    TEST_CHECK_EQ_U64(0U, fixture.compile_calls);
+
+    const web_execution_submit_request_t contextual = procedure_request();
+    fixture = fixture_defaults();
+    fixture.procedure_result = APP_ERROR_NOT_FOUND;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
+                         submit_fixture(&fixture, &contextual, &accepted, &parse_error));
+    TEST_CHECK_EQ_U64(1U, fixture.procedure_calls);
+    TEST_CHECK_EQ_U64(0U, fixture.read_calls);
+
+    fixture = fixture_defaults();
+    fixture.procedure_matches = false;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         submit_fixture(&fixture, &contextual, &accepted, &parse_error));
+    TEST_CHECK_EQ_U64(1U, fixture.procedure_calls);
+    TEST_CHECK_EQ_U64(0U, fixture.read_calls);
+}
+
+static void test_post_compile_cleanup_matrix(void) {
+    web_execution_accepted_t accepted = {0};
+    macro_parse_error_t parse_error = {0};
+    const web_execution_submit_request_t submission = request();
+
+    fixture_t fixture = fixture_defaults();
+    fixture.compile_result = APP_ERROR_MACRO_SYNTAX;
+    TEST_CHECK_APP_ERROR(APP_ERROR_MACRO_SYNTAX,
+                         submit_fixture(&fixture, &submission, &accepted, &parse_error));
     TEST_CHECK_EQ_U64(2U, parse_error.line);
+    TEST_CHECK_EQ_U64(0U, fixture.free_calls);
+    TEST_CHECK_EQ_U64(0U, fixture.uuid_calls);
 
-    fixture = (fixture_t){.revision = 7U, .submit_result = APP_ERROR_USB_NOT_READY};
-    ops = operations(&fixture);
-    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, web_execution_submit_persisted(
-                                                      &submission, &ops, &accepted, &parse_error));
+    fixture = fixture_defaults();
+    fixture.uuid_result = APP_ERROR_INTERNAL;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL,
+                         submit_fixture(&fixture, &submission, &accepted, &parse_error));
     TEST_CHECK_EQ_U64(1U, fixture.free_calls);
+    TEST_CHECK_EQ_U64(0U, fixture.submit_calls);
 
-    fixture = (fixture_t){.revision = 7U, .submit_result = APP_ERROR_EXECUTOR_BUSY};
-    ops = operations(&fixture);
-    TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTOR_BUSY, web_execution_submit_persisted(
-                                                      &submission, &ops, &accepted, &parse_error));
-    TEST_CHECK_EQ_U64(1U, fixture.free_calls);
+    static const app_error_code_t submit_failures[] = {
+        APP_ERROR_USB_NOT_READY,
+        APP_ERROR_EXECUTOR_BUSY,
+        APP_ERROR_INTERNAL,
+    };
+    for (size_t index = 0U; index < sizeof(submit_failures) / sizeof(submit_failures[0]); ++index) {
+        fixture = fixture_defaults();
+        fixture.submit_result = submit_failures[index];
+        TEST_CHECK_APP_ERROR(submit_failures[index],
+                             submit_fixture(&fixture, &submission, &accepted, &parse_error));
+        TEST_CHECK_EQ_U64(1U, fixture.free_calls);
+        TEST_CHECK_EQ_U64(1U, fixture.submit_calls);
+        TEST_CHECK(fixture.accepted_plan.actions == NULL);
+    }
+}
+
+static void test_argument_validation(void) {
+    fixture_t fixture = fixture_defaults();
+    web_execution_ops_t ops = operations(&fixture);
+    web_execution_submit_request_t submission = request();
+    web_execution_accepted_t accepted = {0};
+    macro_parse_error_t parse_error = {0};
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_execution_submit_persisted(NULL, &ops, &accepted, &parse_error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_execution_submit_persisted(&submission, NULL, &accepted, &parse_error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_execution_submit_persisted(&submission, &ops, NULL, &parse_error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_execution_submit_persisted(&submission, &ops, &accepted, NULL));
+
+    submission.macro_revision = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_execution_submit_persisted(&submission, &ops, &accepted, &parse_error));
+    TEST_CHECK_EQ_U64(0U, fixture.read_calls);
+
+    submission = request();
+    ops.submit = NULL;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_execution_submit_persisted(&submission, &ops, &accepted, &parse_error));
+    TEST_CHECK_EQ_U64(0U, fixture.read_calls);
 }
 
 int main(void) {
-    test_success_and_failures();
+    test_success_and_global_fallback();
+    test_pre_compile_failures();
+    test_post_compile_cleanup_matrix();
+    test_argument_validation();
     return 0;
 }
