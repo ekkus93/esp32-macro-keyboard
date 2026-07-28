@@ -183,5 +183,36 @@ int main(void) {
 
 """
 text = text[:response_test_start] + response_test_write + text[response_test_end:]
+
+old_length_block = '''# Remove direct ssize_t spelling and split request orchestration into bounded helpers.
+text = read("firmware/components/web_server/web_server_api.c")
+text = text.replace('#include <sys/types.h>\\n', '')
+text = text.replace('app_uuid_t id = {0};', 'app_uuid_t request_id = {0};')
+text = text.replace('app_uuid_generate(&id)', 'app_uuid_generate(&request_id)')
+text = text.replace('memcpy(output, id.value, sizeof(id.value));',
+                    'memcpy(output, request_id.value, sizeof(request_id.value));')
+text = text.replace('(ssize_t)response->body_length', 'response->body_length')
+'''
+new_length_block = '''# Convert the bounded response length explicitly without naming ssize_t.
+text = read("firmware/components/web_server/web_server_api.c")
+text = text.replace('#include <sys/types.h>\\n', '')
+text = text.replace('#include <stdbool.h>\\n', '#include <limits.h>\\n#include <stdbool.h>\\n', 1)
+text = text.replace(
+    '#include "web_http_status.h"\\n',
+    '#include "web_http_status.h"\\n\\n'
+    '_Static_assert(WEB_API_RESPONSE_MAX_BYTES <= INT_MAX, '
+    '"API response length must fit httpd_resp_send");\\n',
+    1,
+)
+text = text.replace('app_uuid_t id = {0};', 'app_uuid_t request_id = {0};')
+text = text.replace('app_uuid_generate(&id)', 'app_uuid_generate(&request_id)')
+text = text.replace('memcpy(output, id.value, sizeof(id.value));',
+                    'memcpy(output, request_id.value, sizeof(request_id.value));')
+text = text.replace('(ssize_t)response->body_length', '(int)response->body_length')
+'''
+if text.count(old_length_block) != 1:
+    raise SystemExit("Phase 16 response-length cleanup block changed unexpectedly")
+text = text.replace(old_length_block, new_length_block, 1)
+
 SCRIPT.write_text(text, encoding="utf-8")
 runpy.run_path(str(SCRIPT), run_name="__main__")
