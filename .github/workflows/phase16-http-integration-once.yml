@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: phase16-http-integration-once
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   validate:
@@ -52,13 +52,15 @@ jobs:
         working-directory: webapp
         run: npm ci
 
-      - name: Apply deterministic integration patch
-        run: python3 scripts/apply-phase16-http-integration.py
-
-      - name: Harden generated header adapter
+      - name: Apply and format Phase 16 integration
+        id: apply
+        continue-on-error: true
+        shell: bash
         run: |
-          set -euo pipefail
-          python3 - <<'PY'
+          set -o pipefail
+          {
+            python3 scripts/apply-phase16-http-integration.py
+            python3 - <<'PY'
           from pathlib import Path
 
           path = Path("firmware/components/web_server/web_server_common.c")
@@ -88,41 +90,52 @@ jobs:
               raise SystemExit("web_server_common.c: cast call mismatch")
           path.write_text(text.replace(cast_call, typed_call, 1), encoding="utf-8")
           PY
-
-      - name: Apply Phase 16 clang-tidy cleanup
-        run: python3 scripts/fix-phase16-clang-tidy.py
-
-      - name: Apply authoritative formatting
-        run: |
-          set -euo pipefail
-          mapfile -t web_sources < <(
-            find firmware/components/web_server \
-              -type f \( -name '*.c' -o -name '*.h' \) -print | sort
-          )
-          clang-format -i \
-            "${web_sources[@]}" \
-            firmware/components/macro_executor/macro_executor_engine.c \
-            firmware/components/app_core/app_core_sequence.c \
-            tests/host/test_web_api_json.c \
-            tests/host/test_web_api_response.c
-          cmake-format -i firmware/components/web_server/CMakeLists.txt tests/host/CMakeLists.txt
+            python3 scripts/fix-phase16-clang-tidy.py
+            mapfile -t web_sources < <(
+              find firmware/components/web_server \
+                -type f \( -name '*.c' -o -name '*.h' \) -print | sort
+            )
+            clang-format -i \
+              "${web_sources[@]}" \
+              firmware/components/macro_executor/macro_executor_engine.c \
+              firmware/components/app_core/app_core_sequence.c \
+              tests/host/test_web_api_json.c \
+              tests/host/test_web_api_response.c
+            cmake-format -i firmware/components/web_server/CMakeLists.txt tests/host/CMakeLists.txt
+          } 2>&1 | tee /tmp/phase16-apply.log
 
       - name: Run focused host tests
-        run: |
-          set -euo pipefail
-          ./scripts/run-tests.sh web
-          ./scripts/run-tests.sh executor
-          ./scripts/run-tests.sh --sanitizers web
-          ./scripts/run-tests.sh --sanitizers executor
-
-      - name: Run authoritative repository gate
+        id: focused
+        if: steps.apply.outcome == 'success'
+        continue-on-error: true
         shell: bash
         run: |
-          set -euo pipefail
-          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
-          ./scripts/check-all.sh
+          set -o pipefail
+          {
+            ./scripts/run-tests.sh web
+            ./scripts/run-tests.sh executor
+            ./scripts/run-tests.sh --sanitizers web
+            ./scripts/run-tests.sh --sanitizers executor
+          } 2>&1 | tee /tmp/phase16-focused.log
+
+      - name: Run authoritative repository gate
+        id: gate
+        if: steps.apply.outcome == 'success' && steps.focused.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+            rm -f docs/CI_PHASE16_CLEANUP_FAILURE.md
+            ./scripts/check-all.sh
+          } 2>&1 | tee /tmp/phase16-gate.log
 
       - name: Commit validated integration
+        if: >-
+          steps.apply.outcome == 'success' &&
+          steps.focused.outcome == 'success' &&
+          steps.gate.outcome == 'success'
         run: |
           set -euo pipefail
           git config user.name "ChatGPT"
@@ -138,3 +151,41 @@ jobs:
           git fetch origin master
           test "$(git rev-parse origin/master)" = "$GITHUB_SHA"
           git push origin HEAD:master
+
+      - name: Record exact failure
+        if: >-
+          steps.apply.outcome == 'failure' ||
+          steps.focused.outcome == 'failure' ||
+          steps.gate.outcome == 'failure'
+        run: |
+          set -euo pipefail
+          git config user.name "ChatGPT"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$GITHUB_SHA"
+          git reset --hard origin/master
+          git clean -fd
+          {
+            echo "# Phase 16 cleanup failure"
+            echo
+            echo "- Apply: ${{ steps.apply.outcome }}"
+            echo "- Focused tests: ${{ steps.focused.outcome }}"
+            echo "- Authoritative gate: ${{ steps.gate.outcome }}"
+            for log in /tmp/phase16-apply.log /tmp/phase16-focused.log /tmp/phase16-gate.log; do
+              if [[ -f "$log" ]]; then
+                echo
+                echo "## $(basename "$log")"
+                echo
+                echo '```text'
+                grep -n -E 'error:|FAILED|Failure|AddressSanitizer|UndefinedBehaviorSanitizer|Process completed' "$log" | tail -n 160 || true
+                echo
+                tail -n 180 "$log"
+                echo '```'
+              fi
+            done
+          } > docs/CI_PHASE16_CLEANUP_FAILURE.md
+          sed -i 's/[[:space:]]\+$//' docs/CI_PHASE16_CLEANUP_FAILURE.md
+          git add docs/CI_PHASE16_CLEANUP_FAILURE.md
+          git commit -m "ci: record Phase 16 cleanup failure"
+          git push origin HEAD:master
+          exit 1
