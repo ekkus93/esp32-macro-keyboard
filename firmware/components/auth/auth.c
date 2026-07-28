@@ -112,6 +112,10 @@ app_error_code_t auth_session_validate(const char *session_token, const char *cs
     return auth_core_session_validate(&auth_core, session_token, csrf_token);
 }
 
+app_error_code_t auth_session_validate_read_only(const char *session_token) {
+    return auth_core_session_validate_read_only(&auth_core, session_token);
+}
+
 app_error_code_t auth_session_logout(const char *session_token) {
     return auth_core_session_logout(&auth_core, session_token);
 }

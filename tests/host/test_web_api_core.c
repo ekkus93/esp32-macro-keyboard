@@ -78,7 +78,11 @@ static void test_route_policy(void) {
     TEST_CHECK(web_api_route_requires_csrf(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
     TEST_CHECK(!web_api_route_requires_csrf(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_FACTORY_RESET));
+    TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_EXECUTIONS));
     TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SET_MACRO));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_DELETE));
 }
 
 static void test_status_mapping(void) {

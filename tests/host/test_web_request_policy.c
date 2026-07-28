@@ -18,6 +18,7 @@ typedef struct {
     app_error_code_t confirmation_result;
     size_t validation_calls;
     size_t confirmation_calls;
+    bool saw_null_csrf;
 } fixture_t;
 
 static app_error_code_t get_header(void *context, const char *name, char *output,
@@ -53,6 +54,7 @@ static app_error_code_t get_header(void *context, const char *name, char *output
 static app_error_code_t validate(void *context, const char *session_token, const char *csrf_token) {
     fixture_t *fixture = context;
     TEST_CHECK_EQ_STRING(TOKEN, session_token);
+    fixture->saw_null_csrf = csrf_token == NULL;
     if (csrf_token != NULL) {
         TEST_CHECK_EQ_STRING(TOKEN, csrf_token);
     }
@@ -111,6 +113,21 @@ static void test_success_and_generated_request_id(void) {
     TEST_CHECK_EQ_U64(1U, fixture.validation_calls);
 }
 
+static void test_get_does_not_require_csrf(void) {
+    fixture_t fixture = {
+        .missing = "X-CSRF-Token",
+        .validation_result = APP_ERROR_NONE,
+    };
+    const web_request_policy_ops_t ops = operations(&fixture);
+    const web_request_policy_input_t policy = input(WEB_API_ROUTE_SETS, WEB_API_METHOD_GET);
+    web_request_policy_result_t result = {0};
+    web_request_policy_failure_t failure = WEB_REQUEST_POLICY_FAILURE_NONE;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_request_policy_evaluate(&policy, &ops, &result, &failure));
+    TEST_CHECK(fixture.saw_null_csrf);
+    TEST_CHECK_EQ_U64(1U, fixture.validation_calls);
+}
+
 static void test_failure_statuses(void) {
     web_request_policy_result_t result = {0};
     web_request_policy_failure_t failure = WEB_REQUEST_POLICY_FAILURE_NONE;
@@ -146,6 +163,16 @@ static void test_failure_statuses(void) {
                          web_request_policy_evaluate(&policy, &ops, &result, &failure));
     TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_COOKIE, failure);
     TEST_CHECK_EQ_U64(401U, web_request_policy_http_status(failure, APP_ERROR_AUTH_REQUIRED));
+
+    fixture = (fixture_t){
+        .content_type = "application/json",
+        .origin = "http://192.168.4.1",
+        .missing = "X-CSRF-Token",
+    };
+    ops = operations(&fixture);
+    TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
+                         web_request_policy_evaluate(&policy, &ops, &result, &failure));
+    TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_CSRF, failure);
 
     fixture = (fixture_t){
         .content_type = "application/json",
@@ -200,6 +227,7 @@ static void test_body_limit_precedes_headers(void) {
 
 int main(void) {
     test_success_and_generated_request_id();
+    test_get_does_not_require_csrf();
     test_failure_statuses();
     test_body_limit_precedes_headers();
     return 0;

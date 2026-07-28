@@ -44,7 +44,8 @@ static app_error_code_t policy_get_header(void *context, const char *name, char 
 static app_error_code_t policy_validate_session(void *context, const char *session_token,
                                                 const char *csrf_token) {
     (void)context;
-    return auth_session_validate(session_token, csrf_token);
+    return csrf_token == NULL ? auth_session_validate_read_only(session_token)
+                              : auth_session_validate(session_token, csrf_token);
 }
 
 static app_error_code_t policy_generate_request_id(void *context, char *output,

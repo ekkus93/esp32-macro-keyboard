@@ -121,12 +121,17 @@ static app_error_code_t enforce_session(const web_request_policy_input_t *input,
                     APP_ERROR_AUTH_REQUIRED);
     }
     char csrf[AUTH_TOKEN_HEX_BYTES] = {0};
-    if (read_required_header(operations, "X-CSRF-Token", csrf, sizeof(csrf)) != APP_ERROR_NONE) {
-        return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_CSRF,
-                    APP_ERROR_AUTH_REQUIRED);
+    const char *csrf_token = NULL;
+    if (web_api_route_requires_csrf(input->route, input->method)) {
+        if (read_required_header(operations, "X-CSRF-Token", csrf, sizeof(csrf)) !=
+            APP_ERROR_NONE) {
+            return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_CSRF,
+                        APP_ERROR_AUTH_REQUIRED);
+        }
+        csrf_token = csrf;
     }
     const app_error_code_t validation =
-        operations->validate_session(operations->context, out_result->session_token, csrf);
+        operations->validate_session(operations->context, out_result->session_token, csrf_token);
     if (validation != APP_ERROR_NONE) {
         return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_SESSION, validation);
     }

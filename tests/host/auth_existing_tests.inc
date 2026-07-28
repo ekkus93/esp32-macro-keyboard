@@ -1,5 +1,4 @@
-static void test_password_boundaries(void)
-{
+static void test_password_boundaries(void) {
     auth_fake_t fake;
     fake_reset(&fake);
     auth_core_t core;
@@ -34,8 +33,7 @@ static void test_password_boundaries(void)
                APP_ERROR_INVALID_ARGUMENT);
 }
 
-static void test_derive_failures_zero_outputs(void)
-{
+static void test_derive_failures_zero_outputs(void) {
     auth_fake_t fake;
     fake_reset(&fake);
     auth_core_t core;
@@ -44,35 +42,27 @@ static void test_derive_failures_zero_outputs(void)
     memset(&record, 0xa5, sizeof(record));
     fake.derive_fail = true;
     static const char password[] = "abcdefghijkl";
-    TEST_CHECK(auth_core_password_create(&core,
-                                         password,
-                                         sizeof(password) - 1U,
-                                         &record) == APP_ERROR_INTERNAL);
+    TEST_CHECK(auth_core_password_create(&core, password, sizeof(password) - 1U, &record) ==
+               APP_ERROR_INTERNAL);
     static const uint8_t zeros[sizeof(record)] = {0};
     TEST_CHECK_EQ_BUFFER(zeros, &record, sizeof(record));
     TEST_CHECK(fake.zero_count >= 1U);
 
     fake.derive_fail = false;
-    TEST_CHECK(auth_core_password_create(&core,
-                                         password,
-                                         sizeof(password) - 1U,
-                                         &record) == APP_ERROR_NONE);
+    TEST_CHECK(auth_core_password_create(&core, password, sizeof(password) - 1U, &record) ==
+               APP_ERROR_NONE);
     fake.derive_fail = true;
     const size_t zero_before = fake.zero_count;
     bool matches = true;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL,
-                         auth_core_password_verify(&core,
-                                                   password,
-                                                   sizeof(password) - 1U,
-                                                   &record,
-                                                   &matches));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INTERNAL,
+        auth_core_password_verify(&core, password, sizeof(password) - 1U, &record, &matches));
     TEST_CHECK(!matches);
     TEST_CHECK(fake.zero_count == zero_before + 1U);
     TEST_CHECK_EQ_U64(AUTH_HASH_BYTES, fake.last_zero_length);
 }
 
-static void test_sessions(void)
-{
+static void test_sessions(void) {
     auth_fake_t fake;
     fake_reset(&fake);
     fake.now_us = 100U;
@@ -84,32 +74,33 @@ static void test_sessions(void)
     TEST_CHECK(strlen(session.csrf_token) == AUTH_TOKEN_HEX_BYTES - 1U);
     TEST_CHECK(strcmp(session.session_token, session.csrf_token) != 0);
     const uint64_t original_expiry = session.expires_at_us;
-    TEST_CHECK(auth_core_session_validate(&core,
-                                          session.session_token,
-                                          session.csrf_token) == APP_ERROR_NONE);
+    TEST_CHECK(auth_core_session_validate(&core, session.session_token, session.csrf_token) ==
+               APP_ERROR_NONE);
+    TEST_CHECK(auth_core_session_validate_read_only(&core, session.session_token) ==
+               APP_ERROR_NONE);
 
     fake.now_us += 1000000U;
-    TEST_CHECK(auth_core_session_validate(&core,
-                                          session.session_token,
-                                          session.csrf_token) == APP_ERROR_NONE);
+    TEST_CHECK(auth_core_session_validate(&core, session.session_token, session.csrf_token) ==
+               APP_ERROR_NONE);
     TEST_CHECK(core.sessions[0].view.expires_at_us > original_expiry);
 
     char wrong[AUTH_TOKEN_HEX_BYTES];
     memcpy(wrong, session.csrf_token, sizeof(wrong));
     wrong[0] = wrong[0] == '0' ? '1' : '0';
     const uint64_t expiry_before_failure = core.sessions[0].view.expires_at_us;
-    TEST_CHECK(auth_core_session_validate(&core,
-                                          session.session_token,
-                                          wrong) == APP_ERROR_AUTH_REQUIRED);
+    TEST_CHECK(auth_core_session_validate(&core, session.session_token, wrong) ==
+               APP_ERROR_AUTH_REQUIRED);
     TEST_CHECK_EQ_U64(expiry_before_failure, core.sessions[0].view.expires_at_us);
     TEST_CHECK(auth_core_session_validate(&core, "short", wrong) == APP_ERROR_AUTH_REQUIRED);
+    TEST_CHECK(auth_core_session_validate_read_only(&core, wrong) == APP_ERROR_AUTH_REQUIRED);
+    TEST_CHECK(auth_core_session_validate_read_only(NULL, session.session_token) ==
+               APP_ERROR_AUTH_REQUIRED);
 
     TEST_CHECK(auth_core_session_logout(&core, session.session_token) == APP_ERROR_NONE);
     TEST_CHECK(auth_core_session_logout(&core, session.session_token) == APP_ERROR_NOT_FOUND);
 }
 
-static void test_session_expiry_and_capacity(void)
-{
+static void test_session_expiry_and_capacity(void) {
     auth_fake_t fake;
     fake_reset(&fake);
     auth_core_t core;
@@ -122,14 +113,12 @@ static void test_session_expiry_and_capacity(void)
     TEST_CHECK(auth_core_session_create(&core, &extra) == APP_ERROR_CONFLICT);
 
     fake.now_us = sessions[0].expires_at_us;
-    TEST_CHECK(auth_core_session_validate(&core,
-                                          sessions[0].session_token,
+    TEST_CHECK(auth_core_session_validate(&core, sessions[0].session_token,
                                           sessions[0].csrf_token) == APP_ERROR_AUTH_REQUIRED);
     TEST_CHECK(auth_core_session_create(&core, &extra) == APP_ERROR_NONE);
 }
 
-static void test_rate_limit(void)
-{
+static void test_rate_limit(void) {
     auth_fake_t fake;
     fake_reset(&fake);
     auth_core_t core;
@@ -157,8 +146,7 @@ static void test_rate_limit(void)
     TEST_CHECK(auth_core_login_attempt_allowed(&core, &retry) == APP_ERROR_INTERNAL);
 }
 
-static void test_strict_password_create_sequence(void)
-{
+static void test_strict_password_create_sequence(void) {
     auth_fake_t fake;
     fake_reset(&fake);
     auth_core_t core;
@@ -184,8 +172,7 @@ static void test_strict_password_create_sequence(void)
     fake_call_log_verify(&fake.calls);
 }
 
-static void auth_run_existing_tests(void)
-{
+static void auth_run_existing_tests(void) {
     test_strict_password_create_sequence();
     test_password_boundaries();
     test_derive_failures_zero_outputs();

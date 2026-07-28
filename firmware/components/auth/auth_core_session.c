@@ -1,5 +1,6 @@
 #include "auth_core.h"
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -56,10 +57,10 @@ app_error_code_t auth_core_session_create(auth_core_t *core, auth_session_view_t
     return result;
 }
 
-app_error_code_t auth_core_session_validate(auth_core_t *core, const char *session_token,
-                                            const char *csrf_token) {
+static app_error_code_t validate_session(auth_core_t *core, const char *session_token,
+                                         const char *csrf_token, bool require_csrf) {
     if (core == NULL || !auth_core_valid_hex_token(session_token) ||
-        !auth_core_valid_hex_token(csrf_token)) {
+        (require_csrf && !auth_core_valid_hex_token(csrf_token))) {
         return APP_ERROR_AUTH_REQUIRED;
     }
     app_error_code_t result = auth_core_lock(core);
@@ -81,12 +82,14 @@ app_error_code_t auth_core_session_validate(auth_core_t *core, const char *sessi
                 memset(entry, 0, sizeof(*entry));
                 continue;
             }
-            if (auth_core_constant_time_equal((const uint8_t *)entry->view.session_token,
-                                              (const uint8_t *)session_token,
-                                              AUTH_TOKEN_HEX_BYTES - 1U) &&
-                auth_core_constant_time_equal((const uint8_t *)entry->view.csrf_token,
-                                              (const uint8_t *)csrf_token,
-                                              AUTH_TOKEN_HEX_BYTES - 1U)) {
+            const bool session_matches = auth_core_constant_time_equal(
+                (const uint8_t *)entry->view.session_token, (const uint8_t *)session_token,
+                AUTH_TOKEN_HEX_BYTES - 1U);
+            const bool csrf_matches =
+                !require_csrf || auth_core_constant_time_equal(
+                                     (const uint8_t *)entry->view.csrf_token,
+                                     (const uint8_t *)csrf_token, AUTH_TOKEN_HEX_BYTES - 1U);
+            if (session_matches && csrf_matches) {
                 if (UINT64_MAX - now < AUTH_CORE_SESSION_IDLE_US) {
                     result = APP_ERROR_INTERNAL;
                 } else {
@@ -102,6 +105,16 @@ app_error_code_t auth_core_session_validate(auth_core_t *core, const char *sessi
         return APP_ERROR_INTERNAL;
     }
     return result;
+}
+
+app_error_code_t auth_core_session_validate(auth_core_t *core, const char *session_token,
+                                            const char *csrf_token) {
+    return validate_session(core, session_token, csrf_token, true);
+}
+
+app_error_code_t auth_core_session_validate_read_only(auth_core_t *core,
+                                                      const char *session_token) {
+    return validate_session(core, session_token, NULL, false);
 }
 
 app_error_code_t auth_core_session_logout(auth_core_t *core, const char *session_token) {
