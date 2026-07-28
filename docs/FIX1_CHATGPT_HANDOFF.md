@@ -4,7 +4,7 @@
 
 - Work is direct on `master`; do not create PR branches unless the operator changes that decision.
 - FIX1 Phases 1–15 are complete.
-- Phase 15 implementation commit: `9639d6aaf7ddc93498d3174545088e1b0042a375`.
+- Phase 15 implementation commit: `b1ad2b8bb56d999dd88df8ace328c9990b41100c`.
 - The authoritative gate passed after Phase 15: `./scripts/check-all.sh`, storage ASan/UBSan, and
   native coverage.
 - No first-party warning suppression or fail-open fallback was introduced.

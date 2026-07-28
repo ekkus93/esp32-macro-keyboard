@@ -11,7 +11,7 @@ This file distinguishes implemented software from hardware-validated and release
   part of Phase 19.
 - Phase 14 encrypted persistent provisioning is software-complete; physical eFuse/HMAC-backed NVS
   confidentiality and reboot behavior remain Phase 20 hardware evidence.
-- Phase 15 storage object repositories are complete at `9639d6aaf7ddc93498d3174545088e1b0042a375`: set, macro, procedure,
+- Phase 15 storage object repositories are complete at `b1ad2b8bb56d999dd88df8ace328c9990b41100c`: set, macro, procedure,
   progress, ordering, reference validation, stale-progress visibility, non-secret settings,
   active-set consistency, atomic object writes, quarantine, and set transaction recovery.
 
