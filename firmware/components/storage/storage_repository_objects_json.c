@@ -12,6 +12,7 @@
 #include "macro_limits.h"
 #include "macro_model.h"
 #include "storage_json.h"
+#include "storage_object_json.h"
 
 #define MACRO_FIELD_COUNT 10U
 #define MACRO_REQUIRED_FIELD_COUNT 9U

@@ -12,8 +12,8 @@
 #include "macro_model.h"
 #include "storage.h"
 #include "storage_fs_ops.h"
+#include "storage_object_json.h"
 #include "storage_repository_internal.h"
-#include "storage_repository_objects_json.h"
 #include "storage_transaction_internal.h"
 
 #define SCHEMA_MARKER_MAX_BYTES 128U

@@ -1,4 +1,4 @@
-#include "storage_repository_internal.h"
+#include "storage_object_json.h"
 
 #include <stdbool.h>
 #include <stdint.h>

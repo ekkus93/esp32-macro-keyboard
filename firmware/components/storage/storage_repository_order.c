@@ -8,9 +8,9 @@
 #include "app_uuid.h"
 #include "cJSON.h"
 #include "storage.h"
+#include "storage_object_json.h"
 #include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
-#include "storage_repository_objects_json.h"
 
 app_error_code_t storage_repository_load_order_locked(const char *path, size_t maximum_count,
                                                       storage_uuid_order_t *out_order) {
