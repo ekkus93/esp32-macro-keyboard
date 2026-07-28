@@ -113,6 +113,7 @@ jobs:
           cmake = cmake_path.read_text(encoding="utf-8")
           cmake_replacements = {
               "function(add_storage_object_repository_test target source)":
+                  "# Register one isolated storage-object repository host test.\n"
                   "function(add_storage_object_repository_test target source mount_name)",
               '${CMAKE_CURRENT_BINARY_DIR}/${target}-data':
                   '${CMAKE_CURRENT_BINARY_DIR}/${mount_name}',
