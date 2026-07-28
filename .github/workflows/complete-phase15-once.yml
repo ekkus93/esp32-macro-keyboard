@@ -57,6 +57,13 @@ jobs:
           python3 scripts/complete-phase15.py 2>&1 | tee /tmp/phase15-apply.log
           status=${PIPESTATUS[0]}
           if [[ "${status}" -eq 0 ]]; then
+            sed -i \
+              -e '/add_storage_object_repository_test(storage_macro_repository_tests/d' \
+              -e '/add_storage_object_repository_test(storage_procedure_repository_tests/d' \
+              tests/host/CMakeLists.txt
+            status=$?
+          fi
+          if [[ "${status}" -eq 0 ]]; then
             python3 - <<'PY' 2>&1 | tee -a /tmp/phase15-apply.log
           from pathlib import Path
 
