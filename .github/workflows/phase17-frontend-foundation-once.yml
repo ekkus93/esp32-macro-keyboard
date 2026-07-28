@@ -85,6 +85,10 @@ jobs:
         run: |
           set -o pipefail
           {
+            echo '--- app-sets.test.tsx lines 100-155 ---'
+            sed -n '100,155p' webapp/tests/app-sets.test.tsx
+            echo '--- SettingsPage.tsx ---'
+            sed -n '1,240p' webapp/src/features/settings/SettingsPage.tsx
             ! git grep -n -E 'HP Chromebook 11 G6 EE|value\.data as [A-Za-z]' -- webapp/src
             cd webapp
             npm run typecheck
@@ -227,7 +231,7 @@ jobs:
                   'error|Error|ERROR|FAILED|Failure|AddressSanitizer|UndefinedBehaviorSanitizer|expected|mismatch' \
                   "$log" | tail -n 260 || true
                 echo
-                tail -n 300 "$log"
+                tail -n 420 "$log"
                 echo '```'
               fi
             done
