@@ -1,4 +1,4 @@
-name: Validate Phase 16 acceptance foundation once
+name: Validate Phase 16 administration boundaries once
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - master
     paths:
       - ".github/workflows/phase16-http-integration-once.yml"
-      - "scripts/apply-phase16-acceptance-registration.py"
+      - "scripts/apply-phase16-admin-boundary.py"
 
 permissions:
   contents: write
 
 concurrency:
-  group: phase16-acceptance-foundation-once
+  group: phase16-admin-boundary-once
   cancel-in-progress: true
 
 jobs:
@@ -25,14 +25,14 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Register dispatcher acceptance test
+      - name: Wire administration boundary
         id: transform
         continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
-          python3 scripts/apply-phase16-acceptance-registration.py \
-            2>&1 | tee /tmp/phase16-acceptance-transform.log
+          python3 scripts/apply-phase16-admin-boundary.py \
+            2>&1 | tee /tmp/phase16-admin-transform.log
 
       - uses: actions/setup-node@v4
         if: steps.transform.outcome == 'success'
@@ -74,11 +74,14 @@ jobs:
           set -o pipefail
           {
             clang-format -i \
-              tests/host/test_web_api_dispatch.c \
-              tests/host/test_web_request_policy.c \
-              tests/host/test_web_execution_submit.c
-            cmake-format -i tests/host/CMakeLists.txt
-          } 2>&1 | tee /tmp/phase16-acceptance-format.log
+              firmware/components/web_server/web_api_administration.c \
+              firmware/components/web_server/web_api_admin_boundary.c \
+              firmware/components/web_server/web_api_admin_boundary.h \
+              tests/host/test_web_api_admin_boundary.c
+            cmake-format -i \
+              firmware/components/web_server/CMakeLists.txt \
+              tests/host/CMakeLists.txt
+          } 2>&1 | tee /tmp/phase16-admin-format.log
 
       - name: Run focused host and sanitizer tests
         id: focused
@@ -89,12 +92,8 @@ jobs:
           set -o pipefail
           {
             ./scripts/run-tests.sh web
-            ./scripts/run-tests.sh executor
-            ./scripts/run-tests.sh auth
             ./scripts/run-tests.sh --sanitizers web
-            ./scripts/run-tests.sh --sanitizers executor
-            ./scripts/run-tests.sh --sanitizers auth
-          } 2>&1 | tee /tmp/phase16-acceptance-focused.log
+          } 2>&1 | tee /tmp/phase16-admin-focused.log
 
       - name: Run authoritative repository gate
         id: gate
@@ -108,11 +107,11 @@ jobs:
           set -o pipefail
           {
             . "$HOME/esp/esp-idf-v5.5.5/export.sh"
-            rm -f docs/CI_PHASE16_ACCEPTANCE_FAILURE.md
+            rm -f docs/CI_PHASE16_ADMIN_FAILURE.md
             ./scripts/check-all.sh
-          } 2>&1 | tee /tmp/phase16-acceptance-gate.log
+          } 2>&1 | tee /tmp/phase16-admin-gate.log
 
-      - name: Commit validated acceptance foundation
+      - name: Commit validated administration boundary
         if: >-
           steps.transform.outcome == 'success' &&
           steps.format.outcome == 'success' &&
@@ -123,11 +122,13 @@ jobs:
           git config user.name "ChatGPT"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
+            firmware/components/web_server/CMakeLists.txt \
+            firmware/components/web_server/web_api_administration.c \
+            firmware/components/web_server/web_api_admin_boundary.c \
+            firmware/components/web_server/web_api_admin_boundary.h \
             tests/host/CMakeLists.txt \
-            tests/host/test_web_api_dispatch.c \
-            tests/host/test_web_request_policy.c \
-            tests/host/test_web_execution_submit.c
-          git commit -m "test(web): add Phase 16 acceptance foundation"
+            tests/host/test_web_api_admin_boundary.c
+          git commit -m "fix(web): make administration boundaries fail closed"
           git fetch origin master
           test "$(git rev-parse origin/master)" = "$GITHUB_SHA"
           git push origin HEAD:master
@@ -147,17 +148,17 @@ jobs:
           git reset --hard origin/master
           git clean -fd
           {
-            echo "# Phase 16 acceptance foundation failure"
+            echo "# Phase 16 administration boundary failure"
             echo
             echo "- Transform: ${{ steps.transform.outcome }}"
             echo "- Format: ${{ steps.format.outcome }}"
             echo "- Focused tests: ${{ steps.focused.outcome }}"
             echo "- Authoritative gate: ${{ steps.gate.outcome }}"
             for log in \
-              /tmp/phase16-acceptance-transform.log \
-              /tmp/phase16-acceptance-format.log \
-              /tmp/phase16-acceptance-focused.log \
-              /tmp/phase16-acceptance-gate.log; do
+              /tmp/phase16-admin-transform.log \
+              /tmp/phase16-admin-format.log \
+              /tmp/phase16-admin-focused.log \
+              /tmp/phase16-admin-gate.log; do
               if [[ -f "$log" ]]; then
                 echo
                 echo "## $(basename "$log")"
@@ -171,9 +172,9 @@ jobs:
                 echo '```'
               fi
             done
-          } > docs/CI_PHASE16_ACCEPTANCE_FAILURE.md
-          sed -i 's/[[:space:]]\+$//' docs/CI_PHASE16_ACCEPTANCE_FAILURE.md
-          git add docs/CI_PHASE16_ACCEPTANCE_FAILURE.md
-          git commit -m "ci: record Phase 16 acceptance failure"
+          } > docs/CI_PHASE16_ADMIN_FAILURE.md
+          sed -i 's/[[:space:]]\+$//' docs/CI_PHASE16_ADMIN_FAILURE.md
+          git add docs/CI_PHASE16_ADMIN_FAILURE.md
+          git commit -m "ci: record Phase 16 administration failure"
           git push origin HEAD:master
           exit 1
