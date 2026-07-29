@@ -71,8 +71,10 @@ workflow event timestamp.
 
 The publisher has only `actions: read`, `contents: read`, and `issues: write`.
 It does not check out or execute repository code and cannot modify repository
-contents or workflow runs. A stale-run check prevents an older event from
-overwriting the status of a newer run of the same workflow. Each issue is an
+contents or workflow runs. Fork-originated runs are ignored so untrusted
+workflow metadata cannot overwrite the authoritative issues. A stale-run check
+considers only same-repository runs and prevents an older trusted event from
+overwriting a newer trusted run of the same workflow. Each issue is an
 overwritten latest-state snapshot, not a historical log and not a replacement
 for complete job logs.
 
