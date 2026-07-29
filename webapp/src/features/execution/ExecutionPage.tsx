@@ -6,10 +6,12 @@ import type { ExecutionStatus } from "../../types/models";
 import { isTerminalExecution } from "./executionResult";
 
 interface ExecutionPageProps {
+  expectedExecutionId: string | null;
   onTerminal: (execution: ExecutionStatus) => void;
 }
 
 export function ExecutionPage({
+  expectedExecutionId,
   onTerminal,
 }: ExecutionPageProps): React.JSX.Element {
   const [execution, setExecution] = useState<ExecutionStatus | null>(null);
@@ -22,6 +24,16 @@ export function ExecutionPage({
       try {
         const current = await getCurrentExecution();
         if (!active) {
+          return;
+        }
+        if (
+          expectedExecutionId !== null &&
+          current.executionId !== expectedExecutionId
+        ) {
+          setExecution(null);
+          setError(
+            "The device reported a different current execution. Waiting for the accepted execution identity.",
+          );
           return;
         }
         setExecution(current);
@@ -44,7 +56,7 @@ export function ExecutionPage({
       active = false;
       window.clearInterval(timer);
     };
-  }, [onTerminal]);
+  }, [expectedExecutionId, onTerminal]);
 
   const cancel = async (): Promise<void> => {
     setCancelling(true);
