@@ -1,3 +1,7 @@
+import { useState } from "react";
+import { errorText } from "../../api/errors";
+import { exportSetPackage } from "../../api/packages";
+import { ErrorBanner } from "../../components/ErrorBanner";
 import type { MacroSet } from "../../types/models";
 
 interface PackageOperationsPageProps {
@@ -28,10 +32,46 @@ function OperationCard({
   );
 }
 
+function downloadSetPackage(setId: string, text: string): void {
+  const blob = new Blob([text], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `macro-set-${setId}.json`;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function PackageOperationsPage({
   activeSet,
   initialSection,
 }: PackageOperationsPageProps): React.JSX.Element {
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const performExport = async (): Promise<void> => {
+    if (activeSet === null || exporting) {
+      return;
+    }
+    setExporting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const download = await exportSetPackage(activeSet.id);
+      downloadSetPackage(activeSet.id, download.text);
+      setMessage(
+        `Exported ${activeSet.name} as ${String(download.byteLength)} bytes.`,
+      );
+    } catch (exportError: unknown) {
+      setError(errorText(exportError));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <section aria-labelledby="package-operations-title">
       <div className="page-heading">
@@ -39,17 +79,24 @@ export function PackageOperationsPage({
           <p className="eyebrow dark">Transactional data operations</p>
           <h2 id="package-operations-title">Import, export, and recovery</h2>
           <p>
-            These controls remain disabled until the device can validate the
-            complete package before mutation and exclude every secret.
+            Package operations validate server-owned data and exclude credentials,
+            sessions, and encryption material.
           </p>
         </div>
       </div>
 
       <div className="boundary-message" role="status">
-        The frontend does not simulate package success. The current firmware
-        intentionally returns <code>503 Service Unavailable</code> for these
-        Phase 18 boundaries.
+        Deterministic set export is available. Import, transactional replacement,
+        full backup, and restore remain disabled until their Phase 18 transaction
+        services are complete.
       </div>
+
+      <ErrorBanner message={error} />
+      {message === null ? null : (
+        <p className="save-message" role="status" aria-live="polite">
+          {message}
+        </p>
+      )}
 
       <nav className="section-tabs" aria-label="Package operations">
         <a
@@ -73,7 +120,7 @@ export function PackageOperationsPage({
           <OperationCard
             action="Import as new set"
             description="Validate a complete package, assign a new identity, and create it without changing existing sets."
-            explanation="the Phase 18 bounded package reader and all-object validation service are not implemented."
+            explanation="transactional import-as-new is not implemented."
           />
           <OperationCard
             action="Replace selected set"
@@ -85,34 +132,43 @@ export function PackageOperationsPage({
             explanation={
               activeSet === null
                 ? "there is no active replacement target."
-                : "the Phase 18 transactional replace and interrupted-operation recovery service are not implemented."
+                : "transactional replace and interrupted-operation recovery are not implemented."
             }
           />
           <OperationCard
             action="Restore full backup"
             description="Restore all sets, global macros, procedures, and optional progress as one transaction."
-            explanation="the Phase 18 all-or-nothing restore and secret-scanning service are not implemented."
+            explanation="all-or-nothing restore and backup secret scanning are not implemented."
           />
         </div>
       ) : (
         <div className="management-grid">
-          <OperationCard
-            action="Export selected set"
-            description={
-              activeSet === null
+          <article className="validation-card">
+            <h3>Export selected set</h3>
+            <p>
+              {activeSet === null
                 ? "Select an active set before exporting a macro-set package."
-                : `Export ${activeSet.name} with referenced macros and procedures but without credentials or sessions.`
-            }
-            explanation={
-              activeSet === null
-                ? "there is no active export target."
-                : "the Phase 18 deterministic package writer and secret exclusion scanner are not implemented."
-            }
-          />
+                : `Export ${activeSet.name} with set-local macros, referenced global macros, procedures, and current progress.`}
+            </p>
+            <button
+              className="primary"
+              disabled={activeSet === null || exporting}
+              onClick={() => {
+                void performExport();
+              }}
+              type="button"
+            >
+              {exporting ? "Exporting…" : "Export selected set"}
+            </button>
+            <p className="field-help">
+              The downloaded JSON is generated from one locked repository snapshot,
+              validated again before response, and never stored by the frontend.
+            </p>
+          </article>
           <OperationCard
             action="Create full backup"
             description="Create a deterministic backup of user data while excluding provisioning credentials, sessions, and encryption material."
-            explanation="the Phase 18 full-backup service and secret scanner are not implemented."
+            explanation="the full-backup service and backup secret scanner are not implemented."
           />
         </div>
       )}
