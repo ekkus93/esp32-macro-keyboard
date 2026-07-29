@@ -43,6 +43,9 @@ function AuthenticatedApp({
 }: AuthenticatedAppProps): React.JSX.Element {
   const [route, setRoute] = useState<Screen>(() => routeFromHash());
   const [routeHash, setRouteHash] = useState(() => window.location.hash);
+  const [confirmationTarget, setConfirmationTarget] = useState(() =>
+    executionConfirmationTargetFromHash(),
+  );
   const [settings, setSettings] = useState<Settings | null>(null);
   const [sets, setSets] = useState<MacroSet[] | null>(null);
   const [status, setStatus] = useState(initialStatus);
@@ -60,6 +63,7 @@ function AuthenticatedApp({
       setRuntimeError(null);
       setRoute(routeFromHash());
       setRouteHash(window.location.hash);
+      setConfirmationTarget(executionConfirmationTargetFromHash());
     };
     window.addEventListener("hashchange", onHashChange);
     return () => {
@@ -118,10 +122,6 @@ function AuthenticatedApp({
   const activeSet = useMemo(
     () => sets?.find((set) => set.id === settings?.activeSetId) ?? null,
     [sets, settings],
-  );
-  const confirmationTarget = useMemo(
-    () => executionConfirmationTargetFromHash(),
-    [routeHash],
   );
 
   const navigateTo = useCallback((target: Screen): void => {
