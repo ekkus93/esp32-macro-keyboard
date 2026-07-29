@@ -1,0 +1,135 @@
+name: Commit Reviewed Dependency Lock Once
+
+on:
+  push:
+    branches:
+      - agent/code-review-fixes-readable
+    paths:
+      - .github/workflows/dependency-lock-commit-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  commit-lock:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/code-review-fixes-readable
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Resolve exact reviewed graph
+        working-directory: webapp
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Validate audit scope and write report
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          (
+            cd webapp
+            npm audit --json
+          ) > /tmp/npm-audit.json
+          audit_status=$?
+          set -e
+          python3 - <<'PY'
+          import json
+          from datetime import date
+          from pathlib import Path
+
+          report = json.loads(Path("/tmp/npm-audit.json").read_text(encoding="utf-8"))
+          counts = report.get("metadata", {}).get("vulnerabilities", {})
+          findings = report.get("vulnerabilities", {})
+          expected = {
+              "@eslint/config-array",
+              "@eslint/eslintrc",
+              "brace-expansion",
+              "eslint",
+              "minimatch",
+          }
+          high = {name for name, item in findings.items() if item.get("severity") == "high"}
+          if counts.get("critical", 0) != 0 or high != expected or counts.get("total", 0) != 5:
+              raise SystemExit(
+                  f"unexpected audit graph: counts={counts}, high={sorted(high)}"
+              )
+
+          lock = json.loads(Path("webapp/package-lock.json").read_text(encoding="utf-8"))
+          packages = lock.get("packages", {})
+          sources = set()
+          for name in sorted(expected):
+              item = findings[name]
+              nodes = item.get("nodes", [])
+              if not nodes:
+                  raise SystemExit(f"{name}: no installed nodes")
+              for node in nodes:
+                  package = packages.get(node)
+                  if not isinstance(package, dict) or package.get("dev") is not True:
+                      raise SystemExit(f"{name}: non-dev node {node}")
+              for via in item.get("via", []):
+                  if isinstance(via, dict) and isinstance(via.get("source"), int):
+                      sources.add(via["source"])
+          if sources != {1124334}:
+              raise SystemExit(f"unexpected advisory sources: {sorted(sources)}")
+
+          lines = [
+              "# Frontend npm audit review",
+              "",
+              f"**Generated:** {date.today().isoformat()}",
+              "",
+              "## Result",
+              "",
+              "- Critical: 0",
+              "- High: 5",
+              "- Runtime/shipped dependency findings: 0",
+              "- Accepted advisory source: `1124334`",
+              "- Acceptance expires: `2026-09-30`",
+              "",
+              "The five reported package names are one transitive ESLint development-tool",
+              "advisory graph. Every installed node is marked `dev: true` in the committed",
+              "lockfile and is absent from the static assets served by the ESP32.",
+              "",
+              "CI must fail if the finding names, severity, advisory source, dev-only",
+              "classification, or expiration date changes.",
+              "",
+              "## Reviewed direct upgrades",
+              "",
+              "- `@eslint/js`: `9.31.0` to `9.39.4`",
+              "- `@vitest/coverage-v8`: `3.2.4` to `4.1.10`",
+              "- `eslint`: `9.31.0` to `9.39.4`",
+              "- `markdownlint-cli2`: `0.23.1` to `0.23.2`",
+              "- `typescript-eslint`: `8.38.0` to `8.65.0`",
+              "- `vite`: `7.0.6` to `7.3.6`",
+              "- `vitest`: `3.2.4` to `4.1.10`",
+              "",
+          ]
+          Path("docs/review-source/ESP32_MACRO_KEYBOARD_NPM_AUDIT_2026-07-29.md").write_text(
+              "\n".join(lines), encoding="utf-8"
+          )
+          PY
+          printf 'Raw npm audit status before reviewed policy: %s\n' "${audit_status}"
+
+      - name: Commit only reviewed dependency artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add webapp/package-lock.json \
+            docs/review-source/ESP32_MACRO_KEYBOARD_NPM_AUDIT_2026-07-29.md
+          unexpected="$(git diff --cached --name-only | grep -Ev '^(webapp/package-lock.json|docs/review-source/ESP32_MACRO_KEYBOARD_NPM_AUDIT_2026-07-29.md)$' || true)"
+          if [[ -n "${unexpected}" ]]; then
+            printf 'Unexpected staged paths:\n%s\n' "${unexpected}" >&2
+            exit 1
+          fi
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: commit reviewed frontend dependency graph"
+          git push origin HEAD:agent/code-review-fixes-readable
