@@ -303,9 +303,6 @@ static app_error_code_t snapshot_load(const app_uuid_t *set_id, bool include_pro
     if (result == APP_ERROR_NONE && unlock != APP_ERROR_NONE) {
         result = APP_ERROR_INTERNAL;
     }
-    if (result != APP_ERROR_NONE) {
-        snapshot_free(out_snapshot);
-    }
     return result;
 }
 
