@@ -60,6 +60,11 @@ export interface MacroSet {
   sort_order: number;
 }
 
+export interface SetDeletion {
+  deleted: true;
+  id: string;
+}
+
 export type MacroScope = "set" | "global";
 
 export interface Macro {
@@ -180,4 +185,29 @@ export interface CancelAccepted {
 
 export interface RestartAccepted {
   restartScheduled: true;
+}
+
+export interface FactoryResetAccepted {
+  factoryReset: true;
+  restartScheduled: true;
+}
+
+export interface StorageHealth {
+  verified: boolean;
+  webMounted: boolean;
+  dataMounted: boolean;
+  quarantineCount: number;
+  damagedQuarantineCount: number;
+}
+
+export interface QuarantineEntry {
+  id: string;
+  sourcePath: string;
+  evidencePath: string;
+  reason: string;
+}
+
+export interface QuarantineList {
+  damagedCount: number;
+  items: QuarantineEntry[];
 }
