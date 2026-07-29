@@ -119,3 +119,9 @@ replace_exact_count(
     2,
     "macro request body parser",
 )
+replace_once(
+    ROOT / "webapp" / "tests" / "app-routing.test.tsx",
+    '["/macro-editor", "Macro editor"],\n',
+    '["/macro-editor", "Create macro"],\n',
+    "macro editor route expectation",
+)
