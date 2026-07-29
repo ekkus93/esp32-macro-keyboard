@@ -47,4 +47,7 @@ jobs:
 
       - name: Apply, validate, and publish fixes
         shell: bash
-        run: bash ./scripts/code-review-fixes-runner.sh
+        run: |
+          set -euo pipefail
+          rm -f webapp/package-lock.json
+          bash ./scripts/code-review-fixes-runner.sh
