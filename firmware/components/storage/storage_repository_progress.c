@@ -17,6 +17,7 @@
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_procedures_internal.h"
+#include "storage_repository_progress_internal.h"
 
 static bool identity_valid(const storage_procedure_identity_t *identity) {
     return identity != NULL && app_uuid_is_valid_string(identity->set_id.value) &&
@@ -100,8 +101,8 @@ static app_error_code_t read_progress_object_locked(const storage_procedure_iden
     return result;
 }
 
-static app_error_code_t progress_read_locked(const storage_procedure_identity_t *identity,
-                                             storage_progress_snapshot_t *out_snapshot) {
+app_error_code_t storage_progress_read_locked(const storage_procedure_identity_t *identity,
+                                              storage_progress_snapshot_t *out_snapshot) {
     if (out_snapshot != NULL) {
         memset(out_snapshot, 0, sizeof(*out_snapshot));
     }
@@ -185,7 +186,7 @@ static app_error_code_t write_progress_locked(const storage_procedure_identity_t
     }
     cJSON_free(json);
     if (result == APP_ERROR_NONE) {
-        result = progress_read_locked(identity, out_snapshot);
+        result = storage_progress_read_locked(identity, out_snapshot);
     }
     return result;
 }
@@ -226,7 +227,7 @@ app_error_code_t storage_progress_read(const storage_procedure_identity_t *ident
     if (lock != APP_ERROR_NONE) {
         return lock;
     }
-    const app_error_code_t result = progress_read_locked(identity, out_snapshot);
+    const app_error_code_t result = storage_progress_read_locked(identity, out_snapshot);
     const app_error_code_t unlock = storage_repository_lock_give();
     return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }
