@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Screen } from "../routing";
 import type { UsbState } from "../types/models";
+import "../management.css";
 import { ConnectivityBanner } from "./ConnectivityBanner";
 import { StatusBadge } from "./StatusBadge";
 
