@@ -142,6 +142,24 @@ export interface ProcedureProgressSnapshot {
   progress: ProcedureProgress;
 }
 
+export interface ExecutionSourceContext {
+  procedureId: string;
+  stepId: string;
+}
+
+export interface ExecutionSubmitRequest {
+  setId: string;
+  macroId: string;
+  macroRevision: number;
+  sourceContext?: ExecutionSourceContext;
+}
+
+export interface ExecutionAccepted {
+  executionId: string;
+  actionCount: number;
+  estimatedDurationMs: number;
+}
+
 export interface ExecutionStatus {
   executionId: string;
   setId: string;
