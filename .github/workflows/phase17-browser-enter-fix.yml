@@ -1,0 +1,82 @@
+name: Phase 17 Chrome Enter correction
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: >-
+      github.repository == 'ekkus93/esp32-macro-keyboard' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/code-review-fixes-readable'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out reviewed branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install pinned frontend tooling
+        working-directory: webapp
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Add Enter text to CDP keydown
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("webapp/tests/browser/run-browser-tests.mjs")
+          text = path.read_text(encoding="utf-8")
+          old = '''    nativeVirtualKeyCode: keyCode,
+              modifiers,
+            });'''
+          new = '''    nativeVirtualKeyCode: keyCode,
+              modifiers,
+              text: key === "Enter" ? "\\r" : undefined,
+              unmodifiedText: key === "Enter" ? "\\r" : undefined,
+            });'''
+          if old in text:
+              if text.count(old) != 1:
+                  raise SystemExit(f"expected one raw keydown anchor, found {text.count(old)}")
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise SystemExit("raw keydown anchor not found")
+          path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Format and validate exact scope
+        working-directory: webapp
+        run: |
+          npx prettier --write tests/browser/run-browser-tests.mjs
+          npm run lint
+          npm run format:check
+          npm run build
+          git diff --check
+          test "$(git diff --name-only)" = "webapp/tests/browser/run-browser-tests.mjs"
+
+      - name: Commit reviewed Enter correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- webapp/tests/browser/run-browser-tests.mjs
+          git commit -m "test(web): dispatch real Chrome Enter activation"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
