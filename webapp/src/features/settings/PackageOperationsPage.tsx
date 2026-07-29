@@ -51,28 +51,22 @@ export function PackageOperationsPage({
         Phase 18 boundaries.
       </div>
 
-      <div
-        className="section-tabs"
-        role="tablist"
-        aria-label="Package operations"
-      >
+      <nav className="section-tabs" aria-label="Package operations">
         <a
-          aria-selected={initialSection === "import"}
+          aria-current={initialSection === "import" ? "page" : undefined}
           className={initialSection === "import" ? "active" : ""}
           href="#/import"
-          role="tab"
         >
           Import and restore
         </a>
         <a
-          aria-selected={initialSection === "export"}
+          aria-current={initialSection === "export" ? "page" : undefined}
           className={initialSection === "export" ? "active" : ""}
           href="#/export"
-          role="tab"
         >
           Export and backup
         </a>
-      </div>
+      </nav>
 
       {initialSection === "import" ? (
         <div className="management-grid">
