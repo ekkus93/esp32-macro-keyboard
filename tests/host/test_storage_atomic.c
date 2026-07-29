@@ -1,3 +1,4 @@
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
@@ -45,6 +46,16 @@ static int adapter_sync(void *context, int descriptor)
 static int adapter_close(void *context, int descriptor)
 {
     return fake_fs_close(context, descriptor);
+}
+
+static int adapter_close_and_report_failure(void *context, int descriptor)
+{
+    const int result = fake_fs_close(context, descriptor);
+    if (result == 0) {
+        errno = EIO;
+        return -1;
+    }
+    return result;
 }
 
 static int adapter_stat(void *context, const char *path, struct stat *metadata)
@@ -104,6 +115,19 @@ static void make_path(char *output,
     TEST_CHECK((size_t)written < output_size);
 }
 
+static void make_atomic_path(char *output,
+                             size_t output_size,
+                             const char *path,
+                             const char *kind,
+                             size_t sequence)
+{
+    const int written = snprintf(output, output_size,
+                                 "%s.%s.00000000-0000-4000-8000-%012zu",
+                                 path, kind, sequence);
+    TEST_CHECK(written > 0);
+    TEST_CHECK((size_t)written < output_size);
+}
+
 static void write_file(const char *path, const char *text)
 {
     int descriptor = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
@@ -128,6 +152,22 @@ static bool path_exists(const char *path)
 {
     struct stat metadata;
     return stat(path, &metadata) == 0;
+}
+
+static size_t count_open_descriptors(void)
+{
+    DIR *directory = opendir("/proc/self/fd");
+    TEST_CHECK(directory != NULL);
+    size_t count = 0U;
+    for (const struct dirent *entry = readdir(directory);
+         entry != NULL;
+         entry = readdir(directory)) {
+        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+            ++count;
+        }
+    }
+    TEST_CHECK_EQ_INT(0, closedir(directory));
+    return count;
 }
 
 static void assert_no_temporary_files(const test_temp_dir_t *directory)
@@ -346,6 +386,95 @@ static void test_name_collision_retry_and_exhaustion(void)
     test_temp_dir_remove(&directory);
 }
 
+static void test_backup_collision_closes_before_retry(void)
+{
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char path[APP_PATH_MAX_BYTES];
+    make_path(path, sizeof(path), &directory, "object.json");
+    char backup[APP_PATH_MAX_BYTES];
+    make_atomic_path(backup, sizeof(backup), path, "bak", 1U);
+    write_file(backup, "occupied");
+
+    const size_t descriptors_before = count_open_descriptors();
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    uuid_sequence_t uuids = {0};
+    static const char data[] = "new";
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
+                      storage_atomic_write_with_ops(path, data, sizeof(data) - 1U,
+                                                    true, &operations,
+                                                    generate_uuid, &uuids));
+    TEST_CHECK_EQ_U64(2U, uuids.calls);
+    TEST_CHECK_EQ_U64(3U, filesystem.operation_counts[FAKE_FS_CLOSE]);
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_UNLINK]);
+    TEST_CHECK_EQ_U64(descriptors_before, count_open_descriptors());
+    char output[16U];
+    read_file(path, output, sizeof(output));
+    TEST_CHECK_EQ_STRING(data, output);
+    TEST_CHECK_EQ_INT(0, unlink(backup));
+    assert_no_temporary_files(&directory);
+    test_temp_dir_remove(&directory);
+}
+
+static void test_backup_stat_failure_closes_before_cleanup(void)
+{
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char path[APP_PATH_MAX_BYTES];
+    make_path(path, sizeof(path), &directory, "object.json");
+
+    const size_t descriptors_before = count_open_descriptors();
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    fake_fs_backend_fail_on(&filesystem, FAKE_FS_STAT, 1U, EIO);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    uuid_sequence_t uuids = {0};
+    static const char data[] = "new";
+    TEST_CHECK_EQ_INT(APP_ERROR_IO,
+                      storage_atomic_write_with_ops(path, data, sizeof(data) - 1U,
+                                                    true, &operations,
+                                                    generate_uuid, &uuids));
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_CLOSE]);
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_UNLINK]);
+    TEST_CHECK_EQ_U64(descriptors_before, count_open_descriptors());
+    TEST_CHECK(!path_exists(path));
+    assert_no_temporary_files(&directory);
+    test_temp_dir_remove(&directory);
+}
+
+static void test_backup_collision_close_failure_is_reported(void)
+{
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char path[APP_PATH_MAX_BYTES];
+    make_path(path, sizeof(path), &directory, "object.json");
+    char backup[APP_PATH_MAX_BYTES];
+    make_atomic_path(backup, sizeof(backup), path, "bak", 1U);
+    write_file(backup, "occupied");
+
+    const size_t descriptors_before = count_open_descriptors();
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    operations.close_file = adapter_close_and_report_failure;
+    uuid_sequence_t uuids = {0};
+    static const char data[] = "new";
+    TEST_CHECK_EQ_INT(APP_ERROR_IO,
+                      storage_atomic_write_with_ops(path, data, sizeof(data) - 1U,
+                                                    true, &operations,
+                                                    generate_uuid, &uuids));
+    TEST_CHECK_EQ_U64(1U, uuids.calls);
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_CLOSE]);
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_UNLINK]);
+    TEST_CHECK_EQ_U64(descriptors_before, count_open_descriptors());
+    TEST_CHECK(!path_exists(path));
+    TEST_CHECK_EQ_INT(0, unlink(backup));
+    assert_no_temporary_files(&directory);
+    test_temp_dir_remove(&directory);
+}
+
 static void test_uuid_failure_has_no_side_effect(void)
 {
     test_temp_dir_t directory = {0};
@@ -414,6 +543,9 @@ int main(void)
     test_failures_preserve_destination();
     test_activation_failure_rolls_back();
     test_name_collision_retry_and_exhaustion();
+    test_backup_collision_closes_before_retry();
+    test_backup_stat_failure_closes_before_cleanup();
+    test_backup_collision_close_failure_is_reported();
     test_uuid_failure_has_no_side_effect();
     puts("storage atomic tests passed");
     return EXIT_SUCCESS;
