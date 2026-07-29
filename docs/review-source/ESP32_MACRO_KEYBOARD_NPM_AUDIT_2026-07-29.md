@@ -11,7 +11,7 @@
 - Acceptance expires: `2026-09-30`
 
 The five reported package names are one transitive ESLint development-tool
-advisory graph. Every installed node is marked `dev: true` in the committed
+advisory graph. Every installed node is marked `dev: true` in the reviewed
 lockfile and is absent from the static assets served by the ESP32.
 
 CI must fail if the finding names, severity, advisory source, dev-only
