@@ -431,7 +431,8 @@ async function clickButton(cdp, text, focus = false) {
 }
 
 async function dispatchKey(cdp, key, modifiers = 0) {
-  const keyCode = key === "Tab" ? 9 : key === "Escape" ? 27 : 0;
+  const keyCode =
+    key === "Tab" ? 9 : key === "Escape" ? 27 : key === "Enter" ? 13 : 0;
   await cdp.send("Input.dispatchKeyEvent", {
     type: "rawKeyDown",
     key,
@@ -473,11 +474,30 @@ async function runBrowserWorkflows(cdp, serverState) {
   );
   await assertTouchTargets(cdp);
 
-  await clickButton(cdp, "Manage sets");
+  await evaluate(cdp, "document.querySelector('#main-content').focus()");
+  await dispatchKey(cdp, "Tab");
+  const keyboardFocus = await evaluate(
+    cdp,
+    "document.activeElement.textContent.trim()",
+  );
+  assert(
+    keyboardFocus === "Manage sets",
+    `Keyboard navigation did not reach Manage sets: ${String(keyboardFocus)}`,
+  );
+  await dispatchKey(cdp, "Enter");
   await waitFor(
     cdp,
     "document.body.innerText.includes('Manage macro sets')",
     "Set management did not load.",
+  );
+
+  const colorOnlyStatuses = await evaluate(
+    cdp,
+    "Array.from(document.querySelectorAll('.status-badge')).filter((element) => element.textContent.trim().length === 0).length",
+  );
+  assert(
+    colorOnlyStatuses === 0,
+    "A status badge relied on color without visible text.",
   );
 
   await clickButton(cdp, "Create set", true);
@@ -541,7 +561,7 @@ async function runBrowserWorkflows(cdp, serverState) {
   await evaluate(cdp, "window.dispatchEvent(new Event('offline'))");
   await waitFor(
     cdp,
-    "document.body.innerText.includes('Offline.')",
+    "document.querySelector('.connectivity-offline[role=status]') !== null && document.body.innerText.includes('Offline.')",
     "Offline state was not announced.",
   );
   const readsBeforeReconnect = serverState.settingsReads;
@@ -589,6 +609,22 @@ async function runBrowserWorkflows(cdp, serverState) {
   );
 }
 
+async function stopChrome(processHandle) {
+  if (processHandle.exitCode !== null) {
+    return;
+  }
+  await new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      processHandle.kill("SIGKILL");
+    }, 5_000);
+    processHandle.once("exit", () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+    processHandle.kill("SIGTERM");
+  });
+}
+
 async function main() {
   const chrome = commandPath([
     "google-chrome",
@@ -622,9 +658,14 @@ async function main() {
     console.log("Real Chrome Phase 17.10 workflows passed.");
   } finally {
     cdp?.close();
-    chromeProcess.kill("SIGTERM");
+    await stopChrome(chromeProcess);
     await application.close();
-    await rm(userDataDirectory, { recursive: true, force: true });
+    await rm(userDataDirectory, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    });
   }
 }
 
