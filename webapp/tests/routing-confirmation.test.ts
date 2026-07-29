@@ -50,7 +50,7 @@ describe("execution confirmation routing", () => {
 
   test("navigation helpers always open a preview instead of executing", () => {
     navigateToMacroConfirmation(macroId);
-    expect(window.location.hash).toBe(`#\/confirm?macroId=${macroId}`.replace("\\/", "/"));
+    expect(window.location.hash).toBe(`#/confirm?macroId=${macroId}`);
 
     navigateToProcedureMacroConfirmation(
       procedureId,
