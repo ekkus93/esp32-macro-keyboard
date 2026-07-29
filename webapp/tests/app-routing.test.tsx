@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from "vitest";
 import App from "../src/App";
 import {
   executionStatus,
+  macro,
   planAuthenticatedBootstrap,
   planNormalUnauthenticatedBootstrap,
 } from "./appFixtures";
@@ -36,7 +37,7 @@ describe("application routing", () => {
     ["/instruction", "Instruction"],
     ["/procedure-editor", "Edit procedure"],
     ["/macros", "Macros"],
-    ["/macro-editor", "Macro editor"],
+    ["/macro-editor", "Create macro"],
     ["/confirm", "Confirm send"],
     ["/execution", "Typing macro"],
     ["/result", "No execution result"],
@@ -55,6 +56,9 @@ describe("application routing", () => {
         ok: true,
         data: executionStatus("running"),
       });
+    }
+    if (hash === "/macros") {
+      planJsonResponse({ ok: true, data: [macro] });
     }
     const view = await render(<App />);
     await flushReact();

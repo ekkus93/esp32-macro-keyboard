@@ -75,6 +75,18 @@ export interface Macro {
   inter_key_ms: number;
 }
 
+export interface MacroValidation {
+  valid: true;
+  actionCount: number;
+  estimatedDurationMs: number;
+}
+
+export interface MacroParseLocation {
+  line: number;
+  column: number;
+  byteOffset: number;
+}
+
 export type ProcedureStep =
   | {
       id: string;

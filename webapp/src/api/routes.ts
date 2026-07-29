@@ -5,7 +5,10 @@ import {
   isExecutionStatus,
   isEmptyRecord,
   isLoginResponse,
+  isMacro,
+  isMacroList,
   isMacroSetList,
+  isMacroValidation,
   isRestartAccepted,
   isSessionStatus,
   isSettings,
@@ -16,7 +19,9 @@ import type {
   DeviceStatus,
   ExecutionStatus,
   LoginResponse,
+  Macro,
   MacroSet,
+  MacroValidation,
   RestartAccepted,
   SessionStatus,
   Settings,
@@ -133,6 +138,71 @@ export async function selectSet(
       body: JSON.stringify({ expectedRevision }),
     },
     isSettings,
+  );
+}
+
+function setMacrosPath(setId: string): string {
+  return `/api/v1/sets/${encodeURIComponent(setId)}/macros`;
+}
+
+function setMacroPath(setId: string, macroId: string): string {
+  return `${setMacrosPath(setId)}/${encodeURIComponent(macroId)}`;
+}
+
+export async function listSetMacros(setId: string): Promise<Macro[]> {
+  return apiRequest(setMacrosPath(setId), {}, isMacroList);
+}
+
+export async function getSetMacro(
+  setId: string,
+  macroId: string,
+): Promise<Macro> {
+  return apiRequest(setMacroPath(setId, macroId), {}, isMacro);
+}
+
+export async function createSetMacro(
+  setId: string,
+  macro: Macro,
+): Promise<Macro> {
+  return apiRequest(
+    setMacrosPath(setId),
+    {
+      method: "POST",
+      body: JSON.stringify(macro),
+    },
+    isMacro,
+  );
+}
+
+export async function updateSetMacro(
+  setId: string,
+  macro: Macro,
+  expectedRevision: number,
+): Promise<Macro> {
+  return apiRequest(
+    setMacroPath(setId, macro.id),
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        expectedRevision,
+        resource: macro,
+      }),
+    },
+    isMacro,
+  );
+}
+
+export async function validateSetMacro(
+  setId: string,
+  macro: Macro,
+): Promise<MacroValidation> {
+  return apiRequest(
+    `${setMacroPath(setId, macro.id)}/validate`,
+    {
+      method: "POST",
+      body: JSON.stringify(macro),
+    },
+    isMacroValidation,
   );
 }
 

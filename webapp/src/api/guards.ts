@@ -1,10 +1,13 @@
+import { limits } from "../types/limits";
 import type {
   CancelAccepted,
   DeviceStatus,
   ExecutionState,
   ExecutionStatus,
   LoginResponse,
+  Macro,
   MacroSet,
+  MacroValidation,
   RestartAccepted,
   SessionStatus,
   Settings,
@@ -194,6 +197,74 @@ export function isMacroSet(value: unknown): value is MacroSet {
 
 export function isMacroSetList(value: unknown): value is MacroSet[] {
   return Array.isArray(value) && value.every(isMacroSet);
+}
+
+function utf8Length(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
+}
+
+export function isMacro(value: unknown): value is Macro {
+  if (!isRecord(value) || (value.scope !== "set" && value.scope !== "global")) {
+    return false;
+  }
+  const expectedKeys =
+    value.scope === "set"
+      ? [
+          "schema_version",
+          "id",
+          "revision",
+          "scope",
+          "set_id",
+          "name",
+          "source",
+          "favorite",
+          "key_press_ms",
+          "inter_key_ms",
+        ]
+      : [
+          "schema_version",
+          "id",
+          "revision",
+          "scope",
+          "name",
+          "source",
+          "favorite",
+          "key_press_ms",
+          "inter_key_ms",
+        ];
+  if (!hasExactKeys(value, expectedKeys)) {
+    return false;
+  }
+  return (
+    value.schema_version === 1 &&
+    isUuid(value.id) &&
+    isPositiveInteger(value.revision) &&
+    (value.scope === "global" || isUuid(value.set_id)) &&
+    typeof value.name === "string" &&
+    value.name.length > 0 &&
+    utf8Length(value.name) <= limits.macroNameBytes &&
+    typeof value.source === "string" &&
+    utf8Length(value.source) <= limits.macroSourceBytes &&
+    typeof value.favorite === "boolean" &&
+    isNonNegativeInteger(value.key_press_ms) &&
+    isNonNegativeInteger(value.inter_key_ms)
+  );
+}
+
+export function isMacroList(value: unknown): value is Macro[] {
+  return Array.isArray(value) && value.every(isMacro);
+}
+
+export function isMacroValidation(value: unknown): value is MacroValidation {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["valid", "actionCount", "estimatedDurationMs"]) &&
+    value.valid === true &&
+    isNonNegativeInteger(value.actionCount) &&
+    value.actionCount <= limits.compiledActions &&
+    isNonNegativeInteger(value.estimatedDurationMs) &&
+    value.estimatedDurationMs <= limits.durationMs
+  );
 }
 
 export function isExecutionStatus(value: unknown): value is ExecutionStatus {

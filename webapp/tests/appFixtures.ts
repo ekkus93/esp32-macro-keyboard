@@ -34,6 +34,19 @@ export const macroSet = {
   sort_order: 0,
 } as const;
 
+export const macro = {
+  schema_version: 1,
+  id: macroId,
+  revision: 7,
+  scope: "set",
+  set_id: setId,
+  name: "Open terminal",
+  source: "{CTRL+ALT+T}",
+  favorite: true,
+  key_press_ms: 8,
+  inter_key_ms: 15,
+} as const;
+
 export function executionStatus(
   state:
     | "idle"

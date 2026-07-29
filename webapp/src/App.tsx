@@ -6,10 +6,17 @@ import { ErrorBanner } from "./components/ErrorBanner";
 import { SessionBoundary } from "./features/auth/SessionBoundary";
 import { ExecutionPage } from "./features/execution/ExecutionPage";
 import { ExecutionResultPage } from "./features/execution/ExecutionResultPage";
+import { MacroEditorPage } from "./features/macros/MacroEditorPage";
+import { MacroLibraryPage } from "./features/macros/MacroLibraryPage";
 import { SetSelectionPage } from "./features/sets/SetSelectionPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { DeferredPage } from "./pages/DeferredPage";
-import { navigate, routeFromHash } from "./routing";
+import {
+  macroEditorTargetFromHash,
+  navigate,
+  navigateToMacroEditor,
+  routeFromHash,
+} from "./routing";
 import type { Screen } from "./routing";
 import type {
   DeviceStatus,
@@ -28,6 +35,7 @@ function AuthenticatedApp({
   logout,
 }: AuthenticatedAppProps): React.JSX.Element {
   const [route, setRoute] = useState<Screen>(() => routeFromHash());
+  const [routeHash, setRouteHash] = useState(() => window.location.hash);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [sets, setSets] = useState<MacroSet[] | null>(null);
   const [status, setStatus] = useState(initialStatus);
@@ -40,6 +48,7 @@ function AuthenticatedApp({
     const onHashChange = (): void => {
       setRuntimeError(null);
       setRoute(routeFromHash());
+      setRouteHash(window.location.hash);
     };
     window.addEventListener("hashchange", onHashChange);
     return () => {
@@ -192,14 +201,27 @@ function AuthenticatedApp({
           "Procedure editing and accessible reordering are not enabled in this slice.",
         );
       case "macros":
-        return deferred(
-          "Macros",
-          "Server-backed macro listing and editing are the next Phase 17 slice.",
+        return (
+          <MacroLibraryPage
+            activeSet={activeSet}
+            onCreate={() => {
+              navigateToMacroEditor(null);
+            }}
+            onEdit={(macroId) => {
+              navigateToMacroEditor(macroId);
+            }}
+          />
         );
       case "macro-editor":
-        return deferred(
-          "Macro editor",
-          "No macro is loaded. Save remains unavailable until server validation is wired.",
+        return (
+          <MacroEditorPage
+            activeSet={activeSet}
+            key={`${activeSet?.id ?? "none"}:${routeHash}`}
+            onBack={() => {
+              navigateTo("macros");
+            }}
+            target={macroEditorTargetFromHash()}
+          />
         );
       case "confirm":
         return deferred(

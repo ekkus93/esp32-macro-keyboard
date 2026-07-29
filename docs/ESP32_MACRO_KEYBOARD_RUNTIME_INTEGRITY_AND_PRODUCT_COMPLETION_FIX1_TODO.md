@@ -1817,15 +1817,22 @@ Do not use `value.data as T` without route-specific validation.
 
 ### 17.5 Implement real macro editor
 
-- [ ] load/create/update;
-- [ ] source byte count;
-- [ ] live server validation;
-- [ ] action count;
-- [ ] estimated duration;
-- [ ] exact parse location;
-- [ ] directive insertion;
-- [ ] disable Save when invalid;
-- [ ] stale-revision conflict UI.
+- [x] load/create/update;
+- [x] source byte count;
+- [x] live server validation;
+- [x] action count;
+- [x] estimated duration;
+- [x] exact parse location;
+- [x] directive insertion;
+- [x] disable Save when invalid;
+- [x] stale-revision conflict UI.
+
+**Implemented:** the active-set macro library and editor use exact runtime-validated
+firmware resources, expected-revision PUTs, UTF-8 byte counts, and a debounced
+compile-only validation request. Metrics and parser coordinates are server-owned;
+Save remains disabled unless the successful validation fingerprint matches the
+current draft. A 409 never overwrites local source and requires an explicit reload
+of the latest server revision.
 
 ### 17.6 Implement real procedure workflow
 
