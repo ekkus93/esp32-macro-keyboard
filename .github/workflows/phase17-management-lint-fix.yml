@@ -35,16 +35,16 @@ jobs:
         working-directory: webapp
         run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Remove impossible acknowledgement checks
+      - name: Apply exact source and test corrections
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
 
-          path = Path("webapp/src/features/settings/SettingsPage.tsx")
-          text = path.read_text(encoding="utf-8")
-          replacements = [
+          settings_path = Path("webapp/src/features/settings/SettingsPage.tsx")
+          settings_text = settings_path.read_text(encoding="utf-8")
+          settings_replacements = [
               (
                   '''          const accepted = await restartDevice();
                     if (!accepted.restartScheduled) {
@@ -68,30 +68,58 @@ jobs:
           ''',
               ),
           ]
-          for old, new in replacements:
-              if old in text:
-                  if text.count(old) != 1:
-                      raise SystemExit(f"expected one acknowledgement block, found {text.count(old)}")
-                  text = text.replace(old, new, 1)
-              elif new not in text:
+          for old, new in settings_replacements:
+              if old in settings_text:
+                  if settings_text.count(old) != 1:
+                      raise SystemExit(f"expected one acknowledgement block, found {settings_text.count(old)}")
+                  settings_text = settings_text.replace(old, new, 1)
+              elif new not in settings_text:
                   raise SystemExit("expected acknowledgement block not found")
-          path.write_text(text, encoding="utf-8")
+          settings_path.write_text(settings_text, encoding="utf-8")
+
+          test_path = Path("webapp/tests/set-management.test.tsx")
+          test_text = test_path.read_text(encoding="utf-8")
+          old_submit = '''await submit(
+                document.querySelector('[role="dialog"] form') as HTMLFormElement,
+              );'''
+          new_submit = '''await submit(
+                requiredElement('[role="dialog"] form', HTMLFormElement),
+              );'''
+          if old_submit in test_text:
+              if test_text.count(old_submit) != 2:
+                  raise SystemExit(f"expected two dialog form casts, found {test_text.count(old_submit)}")
+              test_text = test_text.replace(old_submit, new_submit)
+          elif test_text.count(new_submit) != 2:
+              raise SystemExit("expected dialog form assertions not found")
+
+          old_delete = '''    await click(deleteButtons[1] as HTMLButtonElement);'''
+          new_delete = '''    const deletableButton = deleteButtons[1];
+              if (deletableButton === undefined) {
+                throw new Error("Missing deletable set control.");
+              }
+              await click(deletableButton);'''
+          if old_delete in test_text:
+              if test_text.count(old_delete) != 1:
+                  raise SystemExit(f"expected one delete cast, found {test_text.count(old_delete)}")
+              test_text = test_text.replace(old_delete, new_delete, 1)
+          elif new_delete not in test_text:
+              raise SystemExit("expected delete assertion not found")
+          test_path.write_text(test_text, encoding="utf-8")
           PY
 
-      - name: Apply project lint fixes and formatting
+      - name: Format reviewed files
         working-directory: webapp
-        run: |
-          npx eslint --fix tests/set-management.test.tsx
-          npx prettier --write \
-            eslint.config.js \
-            package.json \
-            src/features/settings/PackageOperationsPage.tsx \
-            src/features/settings/SettingsPage.tsx \
-            tests/app-routing.test.tsx \
-            tests/browser/run-browser-tests.mjs \
-            tests/management-api.test.ts \
-            tests/management-screens.test.tsx \
-            tests/set-management.test.tsx
+        run: >-
+          npx prettier --write
+          eslint.config.js
+          package.json
+          src/features/settings/PackageOperationsPage.tsx
+          src/features/settings/SettingsPage.tsx
+          tests/app-routing.test.tsx
+          tests/browser/run-browser-tests.mjs
+          tests/management-api.test.ts
+          tests/management-screens.test.tsx
+          tests/set-management.test.tsx
 
       - name: Verify exact scope and frontend static gates
         shell: bash
