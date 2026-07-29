@@ -24,11 +24,11 @@ static app_error_code_t map_error_number(int error_number) {
 }
 
 static app_error_code_t write_all(const storage_fs_ops_t *operations, int descriptor,
-                                   const uint8_t *data, size_t length) {
+                                  const uint8_t *data, size_t length) {
     size_t written = 0U;
     while (written < length) {
         const ssize_t count = operations->write_file(operations->context, descriptor,
-                                                      data + written, length - written);
+                                                     data + written, length - written);
         if (count < 0) {
             const int write_error = errno;
             if (write_error == EINTR) {
@@ -45,7 +45,7 @@ static app_error_code_t write_all(const storage_fs_ops_t *operations, int descri
 }
 
 static app_error_code_t verify_file(const storage_fs_ops_t *operations, const char *path,
-                                     const uint8_t *expected, size_t length) {
+                                    const uint8_t *expected, size_t length) {
     int descriptor = operations->open_file(operations->context, path, O_RDONLY, 0);
     if (descriptor < 0) {
         const int open_error = errno;
@@ -101,7 +101,7 @@ static app_error_code_t cleanup_path(const storage_fs_ops_t *operations, const c
 }
 
 static app_error_code_t close_preserving_error(const storage_fs_ops_t *operations, int descriptor,
-                                                app_error_code_t original_error) {
+                                               app_error_code_t original_error) {
     if (operations->close_file(operations->context, descriptor) == 0) {
         return original_error;
     }
@@ -110,7 +110,7 @@ static app_error_code_t close_preserving_error(const storage_fs_ops_t *operation
 }
 
 static app_error_code_t sync_parent(storage_parent_sync_fn sync_parent_path,
-                                     void *parent_sync_context, const char *path) {
+                                    void *parent_sync_context, const char *path) {
     if (sync_parent_path(parent_sync_context, path) == 0) {
         return APP_ERROR_NONE;
     }
@@ -124,10 +124,10 @@ static app_error_code_t production_uuid_generate(void *context, app_uuid_t *out_
 }
 
 static app_error_code_t create_temporary_file(const char *path, const storage_fs_ops_t *operations,
-                                               storage_uuid_generate_fn generate_uuid,
-                                               void *uuid_context, char *temporary,
-                                               size_t temporary_size, char *backup,
-                                               size_t backup_size, int *out_descriptor) {
+                                              storage_uuid_generate_fn generate_uuid,
+                                              void *uuid_context, char *temporary,
+                                              size_t temporary_size, char *backup,
+                                              size_t backup_size, int *out_descriptor) {
     for (size_t attempt = 0U; attempt < STORAGE_ATOMIC_NAME_ATTEMPTS; ++attempt) {
         app_uuid_t operation_id = {0};
         app_error_code_t result = generate_uuid(uuid_context, &operation_id);
@@ -144,7 +144,7 @@ static app_error_code_t create_temporary_file(const char *path, const storage_fs
         }
 
         int descriptor = operations->open_file(operations->context, temporary,
-                                                O_WRONLY | O_CREAT | O_EXCL, STORAGE_FILE_MODE);
+                                               O_WRONLY | O_CREAT | O_EXCL, STORAGE_FILE_MODE);
         if (descriptor < 0) {
             const int open_error = errno;
             if (open_error == EEXIST) {
@@ -181,10 +181,10 @@ static app_error_code_t create_temporary_file(const char *path, const storage_fs
 }
 
 static app_error_code_t compensate_with_new_destination(const storage_fs_ops_t *operations,
-                                                         const char *path, const char *temporary,
-                                                         storage_parent_sync_fn sync_parent_path,
-                                                         void *parent_sync_context,
-                                                         app_error_code_t original_error) {
+                                                        const char *path, const char *temporary,
+                                                        storage_parent_sync_fn sync_parent_path,
+                                                        void *parent_sync_context,
+                                                        app_error_code_t original_error) {
     if (operations->rename_path(operations->context, temporary, path) != 0) {
         const int compensation_error = errno;
         return map_error_number(compensation_error);
@@ -202,15 +202,15 @@ typedef struct {
 } atomic_write_paths_t;
 
 static app_error_code_t restore_backup_after_failed_barrier(const storage_fs_ops_t *operations,
-                                                             atomic_write_paths_t paths,
-                                                             storage_parent_sync_fn sync_parent_path,
-                                                             void *parent_sync_context,
-                                                             app_error_code_t original_error) {
+                                                            atomic_write_paths_t paths,
+                                                            storage_parent_sync_fn sync_parent_path,
+                                                            void *parent_sync_context,
+                                                            app_error_code_t original_error) {
     if (operations->rename_path(operations->context, paths.backup, paths.path) != 0) {
         const int restore_error = errno;
         return compensate_with_new_destination(operations, paths.path, paths.temporary,
-                                                sync_parent_path, parent_sync_context,
-                                                map_error_number(restore_error));
+                                               sync_parent_path, parent_sync_context,
+                                               map_error_number(restore_error));
     }
 
     const app_error_code_t cleanup_result = cleanup_path(operations, paths.temporary);
@@ -235,15 +235,15 @@ rollback_activated_destination(const storage_fs_ops_t *operations, atomic_write_
         operations->rename_path(operations->context, paths.backup, paths.path) != 0) {
         const int restore_error = errno;
         return compensate_with_new_destination(operations, paths.path, paths.temporary,
-                                                sync_parent_path, parent_sync_context,
-                                                map_error_number(restore_error));
+                                               sync_parent_path, parent_sync_context,
+                                               map_error_number(restore_error));
     }
 
     const app_error_code_t cleanup_result = cleanup_path(operations, paths.temporary);
     if (!destination_existed && cleanup_result != APP_ERROR_NONE) {
         return compensate_with_new_destination(operations, paths.path, paths.temporary,
-                                                sync_parent_path, parent_sync_context,
-                                                cleanup_result);
+                                               sync_parent_path, parent_sync_context,
+                                               cleanup_result);
     }
 
     const app_error_code_t sync_result =
@@ -255,11 +255,11 @@ rollback_activated_destination(const storage_fs_ops_t *operations, atomic_write_
 }
 
 static app_error_code_t stage_temporary_file(const char *path, const void *data, size_t data_length,
-                                              bool sync_required, const storage_fs_ops_t *operations,
-                                              storage_uuid_generate_fn generate_uuid,
-                                              void *uuid_context, char *temporary,
-                                              size_t temporary_size, char *backup,
-                                              size_t backup_size) {
+                                             bool sync_required, const storage_fs_ops_t *operations,
+                                             storage_uuid_generate_fn generate_uuid,
+                                             void *uuid_context, char *temporary,
+                                             size_t temporary_size, char *backup,
+                                             size_t backup_size) {
     int descriptor = -1;
     app_error_code_t result =
         create_temporary_file(path, operations, generate_uuid, uuid_context, temporary,
@@ -290,10 +290,10 @@ static app_error_code_t stage_temporary_file(const char *path, const void *data,
 }
 
 static app_error_code_t activate_temporary_file(const char *path,
-                                                 const storage_fs_ops_t *operations,
-                                                 const char *temporary, const char *backup,
-                                                 storage_parent_sync_fn sync_parent_path,
-                                                 void *parent_sync_context) {
+                                                const storage_fs_ops_t *operations,
+                                                const char *temporary, const char *backup,
+                                                storage_parent_sync_fn sync_parent_path,
+                                                void *parent_sync_context) {
     struct stat existing;
     const bool destination_exists =
         operations->stat_path(operations->context, path, &existing) == 0;
@@ -370,21 +370,21 @@ app_error_code_t storage_atomic_write_with_ops_and_parent_sync(
         return result;
     }
     return activate_temporary_file(path, operations, temporary, backup, sync_parent_path,
-                                    parent_sync_context);
+                                   parent_sync_context);
 }
 
 app_error_code_t storage_atomic_write_with_ops(const char *path, const void *data,
-                                                size_t data_length, bool sync_required,
-                                                const storage_fs_ops_t *operations,
-                                                storage_uuid_generate_fn generate_uuid,
-                                                void *uuid_context) {
+                                               size_t data_length, bool sync_required,
+                                               const storage_fs_ops_t *operations,
+                                               storage_uuid_generate_fn generate_uuid,
+                                               void *uuid_context) {
     return storage_atomic_write_with_ops_and_parent_sync(path, data, data_length, sync_required,
                                                          operations, generate_uuid, uuid_context,
                                                          storage_fs_sync_parent_path, NULL);
 }
 
 app_error_code_t storage_atomic_write(const char *path, const void *data, size_t data_length,
-                                       bool sync_required) {
+                                      bool sync_required) {
     return storage_atomic_write_with_ops(path, data, data_length, sync_required,
                                          storage_fs_ops_posix(), production_uuid_generate, NULL);
 }

@@ -255,7 +255,8 @@ static void test_execution_submit_matrix(void) {
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"sourceContext\":{\"stepId\":\"" STEP_ID "\"}}",
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
-        "\",\"macroRevision\":7,\"sourceContext\":{\"procedureId\":\"bad\",\"stepId\":\"" STEP_ID "\"}}",
+        "\",\"macroRevision\":7,\"sourceContext\":{\"procedureId\":\"bad\",\"stepId\":\"" STEP_ID
+        "\"}}",
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"sourceContext\":{\"procedureId\":\"" PROCEDURE_ID
         "\",\"stepId\":\"" STEP_ID "\",\"extra\":true}}",
