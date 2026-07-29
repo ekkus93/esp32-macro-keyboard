@@ -20,6 +20,7 @@ ACCEPTED_HIGH_FINDINGS = {
 }
 ACCEPTED_ADVISORY_SOURCES = {1124334}
 ACCEPTANCE_EXPIRES = dt.date(2026, 9, 30)
+SEVERITIES = ("info", "low", "moderate", "high", "critical", "total")
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -50,49 +51,91 @@ def advisory_sources(finding: dict[str, Any]) -> set[int]:
     sources: set[int] = set()
     via = finding.get("via", [])
     if not isinstance(via, list):
-        return sources
+        raise ValueError("audit finding via field must be an array")
     for entry in via:
         if isinstance(entry, dict):
             source = entry.get("source")
             if isinstance(source, int):
                 sources.add(source)
+        elif not isinstance(entry, str):
+            raise ValueError("audit finding via entry must be an object or package name")
     return sources
+
+
+def read_counts(report: dict[str, Any]) -> dict[str, int]:
+    if "error" in report:
+        raise ValueError(f"npm audit returned an error object: {report['error']!r}")
+    metadata = report.get("metadata")
+    if not isinstance(metadata, dict):
+        raise ValueError("audit metadata must be an object")
+    raw_counts = metadata.get("vulnerabilities")
+    if not isinstance(raw_counts, dict):
+        raise ValueError("audit metadata.vulnerabilities must be an object")
+    counts: dict[str, int] = {}
+    for severity in SEVERITIES:
+        value = raw_counts.get(severity)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            raise ValueError(f"audit count {severity} must be a non-negative integer")
+        counts[severity] = value
+    return counts
+
+
+def read_findings(report: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    raw_findings = report.get("vulnerabilities")
+    if not isinstance(raw_findings, dict):
+        raise ValueError("audit vulnerabilities must be an object")
+    findings: dict[str, dict[str, Any]] = {}
+    for name, finding in raw_findings.items():
+        if not isinstance(name, str) or not isinstance(finding, dict):
+            raise ValueError("every audit finding must be a named object")
+        severity = finding.get("severity")
+        if severity not in {"info", "low", "moderate", "high", "critical"}:
+            raise ValueError(f"{name}: invalid or missing severity")
+        findings[name] = finding
+    return findings
 
 
 def validate_policy(
     report: dict[str, Any], lockfile: dict[str, Any], today: dt.date
 ) -> str:
-    metadata = report.get("metadata", {})
-    counts = metadata.get("vulnerabilities", {}) if isinstance(metadata, dict) else {}
-    if not isinstance(counts, dict):
-        raise ValueError("audit metadata.vulnerabilities must be an object")
-    critical = int(counts.get("critical", 0))
-    if critical != 0:
-        raise ValueError(f"npm audit contains {critical} critical finding(s)")
+    counts = read_counts(report)
+    findings = read_findings(report)
 
-    findings = report.get("vulnerabilities", {})
-    if not isinstance(findings, dict):
-        raise ValueError("audit vulnerabilities must be an object")
-    high_names = {
-        name
-        for name, finding in findings.items()
-        if isinstance(name, str)
-        and isinstance(finding, dict)
-        and finding.get("severity") == "high"
+    severity_names = {
+        severity: {
+            name for name, finding in findings.items() if finding["severity"] == severity
+        }
+        for severity in ("info", "low", "moderate", "high", "critical")
     }
+    for severity, names in severity_names.items():
+        if counts[severity] != len(names):
+            raise ValueError(
+                f"npm audit {severity} count does not match finding set: "
+                f"count={counts[severity]}, names={sorted(names)}"
+            )
+    if counts["total"] != len(findings):
+        raise ValueError(
+            "npm audit total count does not match finding set: "
+            f"count={counts['total']}, findings={len(findings)}"
+        )
+    if counts["critical"] != 0:
+        raise ValueError(
+            f"npm audit contains {counts['critical']} critical finding(s)"
+        )
+
     unexpected_non_high = sorted(
         name
-        for name, finding in findings.items()
-        if isinstance(name, str)
-        and isinstance(finding, dict)
-        and finding.get("severity") not in {"high"}
+        for severity in ("info", "low", "moderate")
+        for name in severity_names[severity]
     )
     if unexpected_non_high:
         raise ValueError(
             "npm audit contains unreviewed non-high findings: "
             + ", ".join(unexpected_non_high)
         )
-    if not high_names:
+
+    high_names = severity_names["high"]
+    if not findings:
         return "npm audit policy: no findings"
     if today > ACCEPTANCE_EXPIRES:
         raise ValueError(
@@ -111,8 +154,6 @@ def validate_policy(
     seen_sources: set[int] = set()
     for name in sorted(high_names):
         finding = findings[name]
-        if not isinstance(finding, dict):
-            raise ValueError(f"{name}: finding must be an object")
         nodes = finding.get("nodes", [])
         if not isinstance(nodes, list) or not nodes:
             raise ValueError(f"{name}: finding has no installed dependency nodes")
