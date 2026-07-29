@@ -79,12 +79,15 @@ static void test_invalid_payload_rejected(void) {
                                               .details_json = "not-json",
                                           }));
 
-    char *body = malloc(3U);
-    TEST_CHECK(body != NULL);
-    memcpy(body, "{}", 3U);
+    char *embedded_nul = malloc(3U);
+    TEST_CHECK(embedded_nul != NULL);
+    embedded_nul[0] = '{';
+    embedded_nul[1] = '\0';
+    embedded_nul[2] = '}';
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_response_take_json(&response, WEB_HTTP_STATUS_OK, body, 1U));
-    free(body);
+                         web_api_response_take_json(&response, WEB_HTTP_STATUS_OK, embedded_nul,
+                                                    3U));
+    free(embedded_nul);
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_api_response_take_json(&response, WEB_HTTP_STATUS_OK, NULL, 0U));
 }
