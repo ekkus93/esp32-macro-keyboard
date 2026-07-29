@@ -29,6 +29,11 @@ export function AccessibleDialog({
   const descriptionId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) {
@@ -46,7 +51,7 @@ export function AccessibleDialog({
     const keydown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab" || container === null) {
@@ -80,7 +85,7 @@ export function AccessibleDialog({
       returnFocusRef.current?.focus();
       returnFocusRef.current = null;
     };
-  }, [onClose, open]);
+  }, [open]);
 
   if (!open) {
     return null;
