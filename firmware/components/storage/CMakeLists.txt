@@ -21,11 +21,13 @@ idf_component_register(
     "storage_repository_macros.c"
     "storage_repository_procedures.c"
     "storage_repository_progress.c"
+    "storage_package.c"
     "storage_quarantine.c"
     INCLUDE_DIRS
     "include"
     REQUIRES
     macro_model
+    macro_parser
     provisioning
     littlefs
     json
