@@ -93,18 +93,34 @@ todo_path.write_text(todo, encoding="utf-8")
 PY
 
 stage="intentional dependency upgrades"
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+path = Path("webapp/package.json")
+package = json.loads(path.read_text(encoding="utf-8"))
+dev = package["devDependencies"]
+updates = {
+    "@eslint/js": "10.0.1",
+    "@vitest/coverage-v8": "4.1.10",
+    "eslint": "10.8.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.3",
+    "markdownlint-cli2": "0.23.2",
+    "typescript-eslint": "8.65.0",
+    "vite": "7.3.6",
+    "vitest": "4.1.10",
+}
+missing = sorted(set(updates) - set(dev))
+if missing:
+    raise SystemExit(f"missing expected dev dependencies: {missing}")
+dev.update(updates)
+path.write_text(json.dumps(package, indent=2) + "\n", encoding="utf-8")
+PY
+rm -rf webapp/node_modules
 (
 	cd webapp
-	npm install --save-dev --save-exact \
-		@eslint/js@10.0.1 \
-		@vitest/coverage-v8@4.1.10 \
-		eslint@10.8.0 \
-		eslint-plugin-react-hooks@latest \
-		eslint-plugin-react-refresh@latest \
-		markdownlint-cli2@0.23.2 \
-		typescript-eslint@8.65.0 \
-		vite@7.3.6 \
-		vitest@4.1.10
+	npm install
 )
 
 stage="source formatting"
@@ -187,9 +203,6 @@ lines.extend([
 Path("docs/review-source/ESP32_MACRO_KEYBOARD_NPM_AUDIT_2026-07-28.md").write_text(
     "\n".join(lines), encoding="utf-8"
 )
-print(json.dumps({"auditStatus": audit_status if False else None, "counts": counts}, sort_keys=True))
-for name in sorted(findings):
-    print(f"AUDIT_FINDING {name}: {findings[name].get('severity')}")
 PY
 (
 	cd webapp
