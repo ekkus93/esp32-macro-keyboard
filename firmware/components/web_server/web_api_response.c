@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "app_error.h"
@@ -26,6 +27,7 @@ static app_error_code_t set_serialized(web_api_response_t *response, unsigned in
     response->status = status;
     response->body = serialized;
     response->body_length = length;
+    response->body_free = cJSON_free;
     return APP_ERROR_NONE;
 }
 
@@ -63,6 +65,24 @@ app_error_code_t web_api_response_success(web_api_response_t *response, unsigned
     return set_serialized(response, status, root);
 }
 
+app_error_code_t web_api_response_take_json(web_api_response_t *response, unsigned int status,
+                                            char *body, size_t body_length) {
+    if (response != NULL) {
+        memset(response, 0, sizeof(*response));
+    }
+    if (response == NULL || body == NULL || body_length == 0U ||
+        body_length > WEB_API_RESPONSE_MAX_BYTES || body[body_length] != '\0' ||
+        strlen(body) != body_length || status < WEB_HTTP_STATUS_OK ||
+        status >= WEB_HTTP_SUCCESS_STATUS_UPPER_BOUND) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    response->status = status;
+    response->body = body;
+    response->body_length = body_length;
+    response->body_free = free;
+    return APP_ERROR_NONE;
+}
+
 app_error_code_t web_api_response_error(web_api_response_t *response,
                                         const web_api_error_spec_t *error_spec) {
     if (response != NULL) {
@@ -98,6 +118,8 @@ void web_api_response_free(web_api_response_t *response) {
     if (response == NULL) {
         return;
     }
-    cJSON_free(response->body);
+    if (response->body_free != NULL) {
+        response->body_free(response->body);
+    }
     memset(response, 0, sizeof(*response));
 }
