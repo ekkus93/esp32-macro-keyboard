@@ -98,12 +98,25 @@ static bool read_uuid(const cJSON *root, const char *field, app_uuid_t *out_uuid
            app_uuid_parse(item->valuestring, out_uuid) == APP_ERROR_NONE;
 }
 
+static bool read_execution_source_context(const cJSON *root,
+                                          web_execution_submit_request_t *out_request) {
+    static const char *const fields[] = {"procedureId", "stepId"};
+    const cJSON *context = cJSON_GetObjectItemCaseSensitive(root, "sourceContext");
+    if (!cJSON_IsObject(context) || !exact_fields(context, fields, 2U) ||
+        !read_uuid(context, "procedureId", &out_request->procedure_id) ||
+        !read_uuid(context, "stepId", &out_request->step_id)) {
+        return false;
+    }
+    out_request->has_procedure_context = true;
+    return true;
+}
+
 static app_error_code_t request_resource_result(app_error_code_t result) {
     return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
 }
 
 static app_error_code_t validate_resource_fields(const char *body, size_t body_length,
-                                                 const char *const *fields, size_t field_count) {
+                                                  const char *const *fields, size_t field_count) {
     cJSON *root = parse_exact_document(body, body_length);
     const bool valid = root != NULL && exact_fields(root, fields, field_count);
     cJSON_Delete(root);
@@ -129,7 +142,7 @@ static app_error_code_t validate_macro_resource_fields(const char *body, size_t 
 }
 
 app_error_code_t web_api_json_parse_set_resource(const char *body, size_t body_length,
-                                                 macro_set_t *out_set) {
+                                                  macro_set_t *out_set) {
     if (out_set != NULL) {
         memset(out_set, 0, sizeof(*out_set));
     }
@@ -150,7 +163,7 @@ app_error_code_t web_api_json_parse_set_resource(const char *body, size_t body_l
 }
 
 app_error_code_t web_api_json_parse_macro_resource(const char *body, size_t body_length,
-                                                   macro_t *out_macro) {
+                                                    macro_t *out_macro) {
     if (out_macro != NULL) {
         memset(out_macro, 0, sizeof(*out_macro));
     }
@@ -166,7 +179,7 @@ app_error_code_t web_api_json_parse_macro_resource(const char *body, size_t body
 }
 
 app_error_code_t web_api_json_parse_procedure_resource(const char *body, size_t body_length,
-                                                       procedure_t *out_procedure) {
+                                                        procedure_t *out_procedure) {
     if (out_procedure != NULL) {
         memset(out_procedure, 0, sizeof(*out_procedure));
     }
@@ -186,7 +199,7 @@ app_error_code_t web_api_json_parse_procedure_resource(const char *body, size_t 
 }
 
 app_error_code_t web_api_json_parse_progress_resource(const char *body, size_t body_length,
-                                                      procedure_progress_t *out_progress) {
+                                                       procedure_progress_t *out_progress) {
     if (out_progress != NULL) {
         memset(out_progress, 0, sizeof(*out_progress));
     }
@@ -208,7 +221,7 @@ app_error_code_t web_api_json_parse_progress_resource(const char *body, size_t b
 }
 
 app_error_code_t web_api_json_parse_expected_revision(const char *body, size_t body_length,
-                                                      uint32_t *out_expected_revision) {
+                                                       uint32_t *out_expected_revision) {
     if (out_expected_revision != NULL) {
         *out_expected_revision = 0U;
     }
@@ -228,8 +241,8 @@ app_error_code_t web_api_json_parse_expected_revision(const char *body, size_t b
 }
 
 app_error_code_t web_api_json_parse_resource_mutation(const char *body,
-                                                      const web_api_resource_parse_limits_t *limits,
-                                                      web_api_resource_mutation_t *out_mutation) {
+                                                       const web_api_resource_parse_limits_t *limits,
+                                                       web_api_resource_mutation_t *out_mutation) {
     if (out_mutation != NULL) {
         memset(out_mutation, 0, sizeof(*out_mutation));
     }
@@ -273,8 +286,8 @@ void web_api_json_free_resource_mutation(web_api_resource_mutation_t *mutation) 
 }
 
 app_error_code_t web_api_json_parse_uuid_order(const char *body,
-                                               const web_api_order_parse_limits_t *limits,
-                                               storage_uuid_order_t *out_order) {
+                                                const web_api_order_parse_limits_t *limits,
+                                                storage_uuid_order_t *out_order) {
     if (out_order != NULL) {
         memset(out_order, 0, sizeof(*out_order));
     }
@@ -316,7 +329,7 @@ app_error_code_t web_api_json_parse_uuid_order(const char *body,
 }
 
 app_error_code_t web_api_json_parse_execution_submit(const char *body, size_t body_length,
-                                                     web_execution_submit_request_t *out_request) {
+                                                      web_execution_submit_request_t *out_request) {
     if (out_request != NULL) {
         memset(out_request, 0, sizeof(*out_request));
     }
@@ -325,33 +338,25 @@ app_error_code_t web_api_json_parse_execution_submit(const char *body, size_t bo
     }
     cJSON *root = parse_exact_document(body, body_length);
     static const char *const base_fields[] = {"setId", "macroId", "macroRevision"};
-    static const char *const context_fields[] = {"setId", "macroId", "macroRevision", "procedureId",
-                                                 "stepId"};
+    static const char *const context_fields[] = {"setId", "macroId", "macroRevision",
+                                                  "sourceContext"};
     const bool base = root != NULL && exact_fields(root, base_fields, 3U);
-    const bool contextual = root != NULL && exact_fields(root, context_fields, 5U);
+    const bool contextual = root != NULL && exact_fields(root, context_fields, 4U);
     if ((!base && !contextual) || !read_uuid(root, "setId", &out_request->set_id) ||
         !read_uuid(root, "macroId", &out_request->macro_id) ||
-        !read_revision(root, "macroRevision", &out_request->macro_revision)) {
+        !read_revision(root, "macroRevision", &out_request->macro_revision) ||
+        (contextual && !read_execution_source_context(root, out_request))) {
         cJSON_Delete(root);
         memset(out_request, 0, sizeof(*out_request));
         return APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (contextual) {
-        out_request->has_procedure_context = true;
-        if (!read_uuid(root, "procedureId", &out_request->procedure_id) ||
-            !read_uuid(root, "stepId", &out_request->step_id)) {
-            cJSON_Delete(root);
-            memset(out_request, 0, sizeof(*out_request));
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
     }
     cJSON_Delete(root);
     return APP_ERROR_NONE;
 }
 
 app_error_code_t web_api_json_parse_progress_action(const char *body, size_t body_length,
-                                                    bool confirmation_required,
-                                                    web_api_progress_action_t *out_action) {
+                                                     bool confirmation_required,
+                                                     web_api_progress_action_t *out_action) {
     if (out_action != NULL) {
         memset(out_action, 0, sizeof(*out_action));
     }
@@ -386,8 +391,8 @@ app_error_code_t web_api_json_parse_progress_action(const char *body, size_t bod
 }
 
 app_error_code_t web_api_json_parse_settings_update(const char *body, size_t body_length,
-                                                    provisioning_settings_t *out_settings,
-                                                    uint32_t *out_expected_revision) {
+                                                     provisioning_settings_t *out_settings,
+                                                     uint32_t *out_expected_revision) {
     if (out_settings != NULL) {
         memset(out_settings, 0, sizeof(*out_settings));
     }
