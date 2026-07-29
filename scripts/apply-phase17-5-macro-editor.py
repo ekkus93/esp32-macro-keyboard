@@ -22,6 +22,16 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
     path.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 
+def replace_exact_count(
+    path: Path, old: str, new: str, expected_count: int, label: str
+) -> None:
+    text = path.read_text(encoding="utf-8")
+    count = text.count(old)
+    if count != expected_count:
+        raise SystemExit(f"expected {expected_count} {label}, found {count}")
+    path.write_text(text.replace(old, new), encoding="utf-8")
+
+
 encoded = PAYLOAD.read_text(encoding="ascii").strip()
 compressed = base64.b64decode(encoded, validate=True)
 actual_gzip_sha256 = hashlib.sha256(compressed).hexdigest()
@@ -69,6 +79,28 @@ replace_once(
 )
 replace_once(
     editor_path,
+    '    let active = true;\n'
+    '    setDraft(null);\n'
+    '    setLoading(true);\n'
+    '    void getSetMacro(activeSet.id, target.macroId)\n',
+    '    if (targetMacroId === null) {\n'
+    '      setLoadError("The macro editor URL does not identify a macro.");\n'
+    '      return;\n'
+    '    }\n'
+    '    let active = true;\n'
+    '    setDraft(null);\n'
+    '    setLoading(true);\n'
+    '    void getSetMacro(activeSet.id, targetMacroId)\n',
+    "stable macro identifier load",
+)
+replace_once(
+    editor_path,
+    '    if (!canSave || activeSet === null || draft === null) {\n',
+    '    if (activeSet === null || draft === null || !canSave) {\n',
+    "save narrowing order",
+)
+replace_once(
+    editor_path,
     '  const resolveConflict = (): void => {\n'
     '    if (persisted) {\n',
     '  const resolveConflict = (): void => {\n'
@@ -77,4 +109,13 @@ replace_once(
     '    }\n'
     '    if (persisted) {\n',
     "active set conflict guard",
+)
+
+test_path = ROOT / "webapp" / "tests" / "app-macros.test.tsx"
+replace_exact_count(
+    test_path,
+    'JSON.parse(String(call.body))',
+    'JSON.parse(typeof call.body === "string" ? call.body : "")',
+    2,
+    "macro request body parser",
 )
