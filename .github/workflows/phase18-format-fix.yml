@@ -1,0 +1,116 @@
+name: Phase 18 Export Format Fix
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/phase18-format-fix.yml"
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: phase18-export-format-fix
+  cancel-in-progress: true
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: true
+
+      - name: Install formatter
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes clang-format
+
+      - name: Correct and format exact Phase 18 files
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("firmware/components/storage/storage_package_export.c")
+          source = path.read_text(encoding="utf-8")
+          old = "        .set_id = {0},\n"
+          new = "        .set_id = {{0}},\n"
+          if source.count(old) != 1:
+              raise SystemExit("expected exact global location initializer once")
+          path.write_text(source.replace(old, new, 1), encoding="utf-8")
+          PY
+          files=(
+            firmware/components/storage/include/storage_package.h
+            firmware/components/storage/storage_package_internal.h
+            firmware/components/storage/storage_package_export.c
+            firmware/components/storage/storage_repository_progress_internal.h
+            firmware/components/storage/storage_repository_progress.c
+            tests/host/test_storage_package_export.c
+          )
+          clang-format -i "${files[@]}"
+          clang-format --dry-run --Werror "${files[@]}"
+          git diff --check
+
+      - name: Verify exact change scope
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only)
+          allowed='^(firmware/components/storage/include/storage_package\.h|firmware/components/storage/storage_package_internal\.h|firmware/components/storage/storage_package_export\.c|firmware/components/storage/storage_repository_progress_internal\.h|firmware/components/storage/storage_repository_progress\.c|tests/host/test_storage_package_export\.c)$'
+          if [[ "${#changed[@]}" -eq 0 ]]; then
+            echo 'expected at least one formatted change' >&2
+            exit 1
+          fi
+          for path in "${changed[@]}"; do
+            if [[ ! "${path}" =~ ${allowed} ]]; then
+              printf 'unexpected changed path: %s\n' "${path}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Commit exact Phase 18 changes
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            firmware/components/storage/include/storage_package.h \
+            firmware/components/storage/storage_package_internal.h \
+            firmware/components/storage/storage_package_export.c \
+            firmware/components/storage/storage_repository_progress_internal.h \
+            firmware/components/storage/storage_repository_progress.c \
+            tests/host/test_storage_package_export.c
+          git commit -m "style: format Phase 18 package export"
+          git push origin HEAD:master
+
+      - name: Publish result
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          commit_sha="$(git rev-parse HEAD)"
+          python3 - "${commit_sha}" <<'PY' > /tmp/issue.json
+          import json
+          import os
+          import sys
+
+          body = (
+              "Temporary Phase 18 export formatter completed.\n\n"
+              f"Run ID: `{os.environ['RUN_ID']}`\n"
+              f"Commit: `{sys.argv[1]}`\n"
+              "The job allowed only the six listed Phase 18 C/H test files and must now be removed."
+          )
+          print(json.dumps({"body": body}))
+          PY
+          curl --fail-with-body \
+            --request PATCH \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/24" \
+            --data-binary @/tmp/issue.json
