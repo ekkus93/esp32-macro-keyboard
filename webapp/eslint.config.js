@@ -33,4 +33,15 @@ export default defineConfig(
       "@typescript-eslint/consistent-type-imports": "error",
     },
   },
+  {
+    files: ["tests/browser/**/*.mjs"],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+  },
 );
