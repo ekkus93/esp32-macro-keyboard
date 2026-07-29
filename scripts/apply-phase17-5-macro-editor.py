@@ -125,3 +125,6 @@ replace_once(
     '["/macro-editor", "Create macro"],\n',
     "macro editor route expectation",
 )
+
+print("--- generated app-macros.test.tsx ---")
+print(test_path.read_text(encoding="utf-8"))
