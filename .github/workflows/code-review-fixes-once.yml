@@ -91,6 +91,10 @@ jobs:
           source = gzip.decompress(base64.b64decode(encoded, validate=True))
           if hashlib.sha256(source).hexdigest() != expected_source:
               raise SystemExit("transform source SHA-256 mismatch")
+          root_anchor = b"ROOT = Path(__file__).resolve().parents[1]"
+          if source.count(root_anchor) != 1:
+              raise SystemExit("transform root anchor mismatch")
+          source = source.replace(root_anchor, b"ROOT = Path.cwd()", 1)
           Path("/tmp/apply-code-review-fixes.py").write_bytes(source)
           PY
           python3 -m py_compile /tmp/apply-code-review-fixes.py
