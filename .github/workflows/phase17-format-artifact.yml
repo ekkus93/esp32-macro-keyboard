@@ -37,6 +37,14 @@ jobs:
           src/features/execution/ConfirmExecutionPage.tsx
           tests/routing-confirmation.test.ts
 
+      - name: Show formatting patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff -- \
+            webapp/src/features/execution/ConfirmExecutionPage.tsx \
+            webapp/tests/routing-confirmation.test.ts
+
       - name: Stage formatting artifact
         shell: bash
         run: |
