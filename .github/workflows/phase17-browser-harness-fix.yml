@@ -1,0 +1,181 @@
+name: Phase 17 browser harness corrections
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: >-
+      github.repository == 'ekkus93/esp32-macro-keyboard' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/code-review-fixes-readable'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out reviewed branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install pinned frontend tooling
+        working-directory: webapp
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Apply exact browser corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("webapp/tests/browser/run-browser-tests.mjs")
+          text = path.read_text(encoding="utf-8")
+
+          replacements = [
+              (
+                  '''  const keyCode = key === "Tab" ? 9 : key === "Escape" ? 27 : 0;''',
+                  '''  const keyCode =
+                    key === "Tab" ? 9 : key === "Escape" ? 27 : key === "Enter" ? 13 : 0;''',
+              ),
+              (
+                  '''  await assertTouchTargets(cdp);
+
+                await clickButton(cdp, "Manage sets");''',
+                  '''  await assertTouchTargets(cdp);
+
+                await evaluate(cdp, "document.querySelector('#main-content').focus()");
+                await dispatchKey(cdp, "Tab");
+                const keyboardFocus = await evaluate(
+                  cdp,
+                  "document.activeElement.textContent.trim()",
+                );
+                assert(
+                  keyboardFocus === "Manage sets",
+                  `Keyboard navigation did not reach Manage sets: ${String(keyboardFocus)}`,
+                );
+                await dispatchKey(cdp, "Enter");''',
+              ),
+              (
+                  '''  await waitFor(
+                    cdp,
+                    "document.body.innerText.includes('Manage macro sets')",
+                    "Set management did not load.",
+                  );
+
+                await clickButton(cdp, "Create set", true);''',
+                  '''  await waitFor(
+                    cdp,
+                    "document.body.innerText.includes('Manage macro sets')",
+                    "Set management did not load.",
+                  );
+                const colorOnlyStatuses = await evaluate(
+                  cdp,
+                  "Array.from(document.querySelectorAll('.status-badge')).filter((element) => element.textContent.trim().length === 0).length",
+                );
+                assert(
+                  colorOnlyStatuses === 0,
+                  "A status badge relied on color without visible text.",
+                );
+
+                await clickButton(cdp, "Create set", true);''',
+              ),
+              (
+                  '''    "document.body.innerText.includes('Offline.')",
+                    "Offline state was not announced.",''',
+                  '''    "document.querySelector('.connectivity-offline[role=status]') !== null && document.body.innerText.includes('Offline.')",
+                    "Offline state was not announced through a status live region.",''',
+              ),
+              (
+                  '''async function main() {''',
+                  '''async function stopChrome(processHandle) {
+                  if (processHandle.exitCode !== null) {
+                    return;
+                  }
+                  await new Promise((resolve) => {
+                    const timeout = setTimeout(() => {
+                      processHandle.kill("SIGKILL");
+                    }, 5_000);
+                    processHandle.once("exit", () => {
+                      clearTimeout(timeout);
+                      resolve();
+                    });
+                    processHandle.kill("SIGTERM");
+                  });
+                }
+
+                async function main() {''',
+              ),
+              (
+                  '''  } finally {
+                    cdp?.close();
+                    chromeProcess.kill("SIGTERM");
+                    await application.close();
+                    await rm(userDataDirectory, { recursive: true, force: true });
+                  }''',
+                  '''  } finally {
+                    cdp?.close();
+                    await stopChrome(chromeProcess);
+                    await application.close();
+                    await rm(userDataDirectory, {
+                      recursive: true,
+                      force: true,
+                      maxRetries: 5,
+                      retryDelay: 100,
+                    });
+                  }''',
+              ),
+          ]
+
+          for old, new in replacements:
+              if old in text:
+                  if text.count(old) != 1:
+                      raise SystemExit(f"expected one browser block, found {text.count(old)}")
+                  text = text.replace(old, new, 1)
+              elif new not in text:
+                  raise SystemExit("expected browser block not found")
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Format and statically validate browser harness
+        working-directory: webapp
+        run: |
+          npx prettier --write tests/browser/run-browser-tests.mjs
+          npm run lint
+          npm run format:check
+          npm run build
+
+      - name: Verify exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          mapfile -t changed < <(git diff --name-only)
+          if [[ "${#changed[@]}" -ne 1 || "${changed[0]}" != "webapp/tests/browser/run-browser-tests.mjs" ]]; then
+            printf 'error: unexpected browser-fix scope: %s\n' "${changed[*]}" >&2
+            exit 1
+          fi
+
+      - name: Commit reviewed browser corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- webapp/tests/browser/run-browser-tests.mjs
+          git commit -m "test(web): harden real Chrome workflow"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
