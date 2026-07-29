@@ -440,6 +440,8 @@ async function dispatchKey(cdp, key, modifiers = 0) {
     windowsVirtualKeyCode: keyCode,
     nativeVirtualKeyCode: keyCode,
     modifiers,
+    text: key === "Enter" ? "\r" : undefined,
+    unmodifiedText: key === "Enter" ? "\r" : undefined,
   });
   await cdp.send("Input.dispatchKeyEvent", {
     type: "keyUp",
