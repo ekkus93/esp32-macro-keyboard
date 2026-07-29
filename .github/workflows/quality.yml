@@ -19,13 +19,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  format-review-files:
+  format-and-commit-review-files:
+    if: github.event_name == 'pull_request' && github.head_ref == 'agent/code-review-fixes-readable'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          persist-credentials: false
+          ref: agent/code-review-fixes-readable
+          fetch-depth: 0
 
       - name: Install formatter
         run: |
@@ -33,37 +37,41 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends clang-format
 
-      - name: Format changed C files
+      - name: Format and commit only reviewed C files
         shell: bash
         run: |
           set -euo pipefail
-          clang-format -i \
-            firmware/components/storage/storage_atomic.c \
-            firmware/components/web_server/web_api_json.c \
-            firmware/components/web_server/web_api_procedures.c \
-            tests/host/test_storage_atomic.c \
-            tests/host/test_web_api_json.c \
-            tests/host/test_web_api_repository_handlers.c
-          clang-format --dry-run --Werror \
-            firmware/components/storage/storage_atomic.c \
-            firmware/components/web_server/web_api_json.c \
-            firmware/components/web_server/web_api_procedures.c \
-            tests/host/test_storage_atomic.c \
-            tests/host/test_web_api_json.c \
-            tests/host/test_web_api_repository_handlers.c
-
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: formatted-code-review-files
-          path: |
+          readonly files=(
             firmware/components/storage/storage_atomic.c
             firmware/components/web_server/web_api_json.c
             firmware/components/web_server/web_api_procedures.c
             tests/host/test_storage_atomic.c
             tests/host/test_web_api_json.c
             tests/host/test_web_api_repository_handlers.c
-          if-no-files-found: error
-          retention-days: 1
+          )
+          clang-format -i "${files[@]}"
+          clang-format --dry-run --Werror "${files[@]}"
+          unexpected="$(git diff --name-only | grep -Fvx -f <(printf '%s\n' "${files[@]}") || true)"
+          if [[ -n "${unexpected}" ]]; then
+            printf 'Unexpected formatted paths:\n%s\n' "${unexpected}" >&2
+            exit 1
+          fi
+          git add -- "${files[@]}"
+          if git diff --cached --quiet; then
+            printf 'Reviewed C files already formatted.\n'
+            exit 0
+          fi
+          staged="$(git diff --cached --name-only)"
+          unexpected="$(printf '%s\n' "${staged}" | grep -Fvx -f <(printf '%s\n' "${files[@]}") || true)"
+          if [[ -n "${unexpected}" ]]; then
+            printf 'Unexpected staged paths:\n%s\n' "${unexpected}" >&2
+            exit 1
+          fi
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "style: format code-review C changes"
+          git push origin HEAD:agent/code-review-fixes-readable
 
   quality:
     runs-on: ubuntu-24.04
