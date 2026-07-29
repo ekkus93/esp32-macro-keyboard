@@ -13,4 +13,5 @@ npm run stylelint
 npm run test
 npm run test:coverage
 npm run build
+npm run test:browser
 "${repo_root}/scripts/verify-no-remote-assets.sh" "${repo_root}/webapp/dist"
