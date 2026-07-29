@@ -1,0 +1,275 @@
+name: Phase 17.9 and 17.10 documentation sync
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: >-
+      github.repository == 'ekkus93/esp32-macro-keyboard' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/code-review-fixes-readable'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out reviewed branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install pinned documentation tooling
+        working-directory: webapp
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Apply exact documentation updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: Path, old: str, new: str) -> None:
+              text = path.read_text(encoding="utf-8")
+              if old in text:
+                  count = text.count(old)
+                  if count != 1:
+                      raise SystemExit(f"{path}: expected one old block, found {count}")
+                  path.write_text(text.replace(old, new, 1), encoding="utf-8")
+                  return
+              if new in text:
+                  return
+              raise SystemExit(f"{path}: neither expected old nor new block exists")
+
+          todo = Path("docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md")
+          progress = Path("docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md")
+          review = Path("docs/ESP32_MACRO_KEYBOARD_CODE_REVIEW_FIXES_PROGRESS_2026-07-29.md")
+          ci = Path("docs/CI_REPRODUCIBILITY.md")
+
+          replace_once(
+              todo,
+              """- [ ] create/edit/duplicate/reorder/delete sets;
+          - [ ] import as new;
+          - [ ] transactional replace;
+          - [ ] export;
+          - [x] settings;
+          - [ ] backup/restore;
+          - [ ] diagnostics;
+          - [ ] quarantine view;
+          - [ ] restart/reset workflows.
+
+          No enabled button may be inert.
+
+          - [ ] every enabled control performs a real action or navigation;
+          - [ ] unavailable controls are disabled with explanation.""",
+              """- [x] create/edit/duplicate/reorder/delete sets;
+          - [x] import-as-new boundary screen, disabled until Phase 18;
+          - [x] transactional-replace boundary screen, disabled until Phase 18;
+          - [x] export boundary screen, disabled until Phase 18;
+          - [x] settings;
+          - [x] backup/restore boundary screens, disabled until Phase 18;
+          - [x] diagnostics;
+          - [x] quarantine view;
+          - [x] restart/reset workflows.
+
+          No enabled button may be inert.
+
+          - [x] every enabled control performs a real action or navigation;
+          - [x] unavailable controls are disabled with explanation.
+
+          **Implemented:** set create, edit, duplicate, keyboard-accessible reorder,
+          and guarded delete use live revisioned APIs. Settings, storage health,
+          redacted quarantine evidence, restart, settings reset, and factory reset
+          use strict response guards and visible physical-confirmation waits. Import,
+          replace, export, backup, and restore are honest disabled boundaries because
+          their all-or-nothing package services remain Phase 18; the frontend never
+          simulates success or sends an unsupported mutation.""",
+          )
+
+          replace_once(
+              todo,
+              """- [ ] keyboard-only navigation;
+          - [ ] focus trap and restoration in modals;
+          - [ ] screen-reader live regions;
+          - [ ] reorder alternatives;
+          - [ ] touch target checks;
+          - [ ] no color-only status;
+          - [ ] offline/reconnect behavior;
+          - [ ] full execution workflow.""",
+              """- [x] keyboard-only navigation;
+          - [x] focus trap and restoration in modals;
+          - [x] screen-reader live regions;
+          - [x] reorder alternatives;
+          - [x] touch target checks;
+          - [x] no color-only status;
+          - [x] offline/reconnect behavior;
+          - [x] full execution workflow.
+
+          **Implemented:** the permanent read-only Browser Tests workflow builds the
+          production bundle and drives Chrome through the DevTools Protocol. It proves
+          native keyboard activation, modal focus wrapping and restoration, visible
+          status text, 44 by 44 CSS-pixel targets, explicit reorder controls, offline and
+          reconnect announcements with live refresh, and the complete persisted-macro
+          preview, submit, poll, and terminal-result workflow. The gate fails if Chrome
+          is unavailable rather than silently falling back to a DOM simulator.""",
+          )
+
+          replace_once(
+              progress,
+              "| 17 | Replace frontend mock behavior | in progress (17.1-17.8 and settings complete; 17.9-17.10 open) |",
+              "| 17 | Replace frontend mock behavior | done (Phase 18 package services and Phase 19 aggregation remain separate) |",
+          )
+          replace_once(
+              progress,
+              """## Completed tasks (commit evidence)
+
+          - Phase 17.7 execution confirmation and submission""",
+              """## Completed tasks (commit evidence)
+
+          - Phase 17.9 management surfaces and Phase 17.10 accessibility/browser
+            coverage — complete in the implementation ending at `ac12c50`. Live APIs
+            now back set create, edit, duplicate, reorder, guarded delete, settings,
+            storage health, quarantine evidence, restart, settings reset, and factory
+            reset. Phase 18 package operations are visible disabled boundaries with
+            specific explanations rather than inert or simulated controls. Dialogs
+            trap and restore focus; statuses have visible text; reconnect refreshes
+            live configuration; and mobile target sizing is enforced in real Chrome.
+            Host Tests run `30455828432` passed static checks, unit tests, coverage,
+            sanitizers, and native tests. Browser Tests run `30455823494` built the
+            production bundle and passed the full Chrome workflow.
+
+          - Phase 17.7 execution confirmation and submission""",
+          )
+
+          replace_once(
+              review,
+              """## Intentionally deferred scope
+
+          ### Phase 18 executable import validation""",
+              """### Phase 17.9 management surfaces
+
+          - Set create, edit, duplicate, exact-order reorder, and guarded delete use
+            current revisions and strict response validation.
+          - Settings, storage health, quarantine evidence, restart, settings reset, and
+            factory reset are live and fail closed.
+          - Import, transactional replace, export, backup, and restore show disabled
+            Phase 18 boundaries with explicit reasons; no unsupported request is sent.
+          - Every enabled management control performs a real request or navigation.
+
+          ### Phase 17.10 accessibility and browser coverage
+
+          - Accessible dialogs trap focus, close with Escape, and restore focus.
+          - Reordering has Move first, up, down, and last controls.
+          - Offline and reconnect states are announced and reconnect reloads live data.
+          - A dedicated read-only Chrome workflow checks keyboard activation, status
+            text, 44 by 44 CSS-pixel targets, reordering, reconnect, and end-to-end
+            execution against a deterministic same-origin API fixture.
+          - Chrome absence is a hard failure; there is no jsdom substitution for the
+            browser acceptance gate.
+
+          Final implementation commit before documentation sync: `ac12c50`.
+
+          ## Intentionally deferred scope
+
+          ### Phase 18 executable import validation""",
+          )
+          replace_once(
+              review,
+              """## Validation status
+
+          - Host Tests run `30447946686`: passed, including native tests, ASan/UBSan,
+            native coverage, frontend coverage, and 113 frontend tests.
+          - Device Test Build run `30447946598`: passed for ESP32-S3 test firmware.
+          - Quality run `30447946652`: validates the read-only authoritative
+            `./scripts/check-all.sh` path for the implementation tree; the final
+            documentation-only commit is revalidated after this evidence sync.""",
+              """## Validation status
+
+          - Host Tests run `30455828432`: passed, including strict frontend gates,
+            frontend and native coverage, host tests, and ASan/UBSan.
+          - Browser Tests run `30455823494`: passed the real Chrome production-bundle
+            workflow, including keyboard, focus, touch-target, reconnect, reorder, and
+            complete execution checks.
+          - The documentation-only synchronization commit is revalidated by the
+            read-only Quality, Host Tests, Browser Tests, and ESP32-S3 build workflows
+            before Phase 17.9/17.10 is reported as final.""",
+          )
+
+          replace_once(
+              ci,
+              """- Node.js from `.nvmrc`;
+          - frontend dependencies installed only with `npm ci`;""",
+              """- Node.js from `.nvmrc`;
+          - Chrome or Chromium from the pinned `ubuntu-24.04` runner image;
+          - frontend dependencies installed only with `npm ci`;""",
+          )
+          ci_text = ci.read_text(encoding="utf-8")
+          browser_section = """
+
+          ## Real Chrome browser validation
+
+          Phase 17.10 has a dedicated read-only workflow at
+          `.github/workflows/browser-tests.yml`. It:
+
+          - uses pinned checkout and Node setup action commits;
+          - builds the production Vite bundle before testing;
+          - launches Chrome or Chromium from the pinned Ubuntu runner image;
+          - fails when no supported browser is present;
+          - serves a deterministic same-origin API fixture without external assets;
+          - drives the page through the Chrome DevTools Protocol using Node 24 built-ins;
+          - checks keyboard activation, modal focus, visible status text, 44 by 44
+            CSS-pixel targets, reorder alternatives, reconnect refresh, and the complete
+            execution workflow.
+
+          `scripts/check-webapp.sh` runs the same browser harness after the unit,
+          coverage, static, and production-build gates, so the authoritative Quality
+          workflow cannot pass by skipping real-browser behavior.
+          """.strip("\n")
+          if "## Real Chrome browser validation" not in ci_text:
+              ci.write_text(ci_text.rstrip() + "\n\n" + browser_section + "\n", encoding="utf-8")
+          PY
+
+      - name: Verify exact documentation scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          ./scripts/check-docs.sh
+          mapfile -t changed < <(git diff --name-only | sort)
+          expected=(
+            docs/CI_REPRODUCIBILITY.md
+            docs/ESP32_MACRO_KEYBOARD_CODE_REVIEW_FIXES_PROGRESS_2026-07-29.md
+            docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md
+            docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md
+          )
+          if [[ "${changed[*]}" != "${expected[*]}" ]]; then
+            printf 'error: unexpected documentation diff: %s\n' "${changed[*]}" >&2
+            exit 1
+          fi
+
+      - name: Commit exact documentation evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            docs/CI_REPRODUCIBILITY.md \
+            docs/ESP32_MACRO_KEYBOARD_CODE_REVIEW_FIXES_PROGRESS_2026-07-29.md \
+            docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md \
+            docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md
+          git commit -m "docs: complete Phase 17.9 and 17.10 evidence"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
