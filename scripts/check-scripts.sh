@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+actionlint
+
 # First-party shell sources: the authoritative scripts, the script regression
 # tests, and their fakes (the fake analyzer has a bash shebang but no extension).
 shell_files=(scripts/*.sh tests/scripts/*.sh tests/scripts/fakes/run-clang-tidy)
