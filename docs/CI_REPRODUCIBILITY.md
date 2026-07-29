@@ -52,6 +52,35 @@ a cold cache.
 - A dependency-audit exception must be narrow, dev-only, documented, tested,
   and time-limited. Any changed finding fails closed.
 
+## Connector-readable CI status
+
+`.github/workflows/publish-ci-status.yml` publishes the latest state of the
+four permanent validation workflows to stable issues:
+
+- Quality: issue #19;
+- Host Tests: issue #20;
+- Browser Tests: issue #21;
+- Device Test Build: issue #22.
+
+The publisher listens for requested, in-progress, and completed run states. It
+records the run and attempt IDs, commit, branch, event, runner information,
+job and step states, running and pending jobs, and non-success problem steps in
+both a readable summary and a versioned JSON payload. It also records the time
+the publisher observed the jobs API, which can be newer than the original
+workflow event timestamp.
+
+The publisher has only `actions: read`, `contents: read`, and `issues: write`.
+It does not check out or execute repository code and cannot modify repository
+contents or workflow runs. A stale-run check prevents an older event from
+overwriting the status of a newer run of the same workflow. Each issue is an
+overwritten latest-state snapshot, not a historical log and not a replacement
+for complete job logs.
+
+GitHub activates a `workflow_run` publisher only after its workflow file exists
+on the default branch. Status issues therefore remain installation placeholders
+until the change containing the publisher is merged into `master` and a
+monitored workflow changes state.
+
 ## Release limitations
 
 This document does not claim that firmware-slot, webfs, RAM, heap, or task-stack
