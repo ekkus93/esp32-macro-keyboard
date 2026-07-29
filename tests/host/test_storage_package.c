@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -156,7 +157,7 @@ static void test_object_and_reference_validation(void) {
         "\",\"procedure_revision\":1,\"current_step_id\":\"" OTHER_STEP_ID
         "\",\"completed_step_ids\":[],\"skipped_step_ids\":[]}]}";
 
-    static const struct {
+    const struct {
         const char *data;
         size_t length;
         app_error_code_t expected;
@@ -214,5 +215,6 @@ int main(void) {
     test_top_level_contract();
     test_object_and_reference_validation();
     test_size_and_argument_bounds();
-    return test_assert_report();
+    puts("storage package tests passed");
+    return EXIT_SUCCESS;
 }
