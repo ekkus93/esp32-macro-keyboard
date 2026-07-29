@@ -41,13 +41,13 @@ describe("application routing", () => {
     ["/confirm", "Confirm send"],
     ["/execution", "Typing macro"],
     ["/result", "No execution result"],
-    ["/manage-sets", "Choose a macro set"],
-    ["/set-editor", "Create macro set"],
-    ["/import", "Import macro set"],
-    ["/export", "Export macro set"],
-    ["/delete-set", "Delete macro set"],
+    ["/manage-sets", "Manage macro sets"],
+    ["/set-editor", "Manage macro sets"],
+    ["/import", "Import, export, and recovery"],
+    ["/export", "Import, export, and recovery"],
+    ["/delete-set", "Manage macro sets"],
     ["/settings", "Settings"],
-    ["/diagnostics", "Diagnostics"],
+    ["/diagnostics", "Storage diagnostics"],
   ])("renders authenticated route %s", async (hash, expectedText) => {
     setHashSilently(hash);
     planAuthenticatedBootstrap();
@@ -62,6 +62,22 @@ describe("application routing", () => {
     }
     if (hash === "/procedures") {
       planJsonResponse({ ok: true, data: [] });
+    }
+    if (hash === "/diagnostics") {
+      planJsonResponse({
+        ok: true,
+        data: {
+          verified: false,
+          webMounted: true,
+          dataMounted: true,
+          quarantineCount: 0,
+          damagedQuarantineCount: 0,
+        },
+      });
+      planJsonResponse({
+        ok: true,
+        data: { damagedCount: 0, items: [] },
+      });
     }
     const view = await render(<App />);
     await flushReact();
