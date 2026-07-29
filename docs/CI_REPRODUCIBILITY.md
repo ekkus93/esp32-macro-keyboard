@@ -15,6 +15,7 @@ has read-only repository permission.
   `scripts/install-esp-idf.sh`
 - Node.js: exact version from `.nvmrc` and the matching `engines.node` field in
   `webapp/package.json`
+- Go toolchain: exact `go1.25.12` selected through `GOTOOLCHAIN`
 - Chrome or Chromium from the pinned `ubuntu-24.04` runner image
 - npm graph: exact committed `webapp/package-lock.json`, installed with `npm ci`
 - Python tools:
@@ -32,8 +33,8 @@ has read-only repository permission.
 
 The runner and reusable actions are immutable in the workflow. Ubuntu package
 names are tied to the `ubuntu-24.04` runner archive rather than mutable
-`ubuntu-latest`. A runner-image, action, or package-set migration requires a
-reviewed workflow change and a clean full-gate result.
+`ubuntu-latest`. A runner-image, action, toolchain, or package-set migration
+requires a reviewed workflow change and a clean full-gate result.
 
 ## Cache policy
 
