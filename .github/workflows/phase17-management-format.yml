@@ -1,0 +1,121 @@
+name: Phase 17 management formatting
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: >-
+      github.repository == 'ekkus93/esp32-macro-keyboard' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/code-review-fixes-readable'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out reviewed branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install pinned frontend tooling
+        working-directory: webapp
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Apply exact optional-property correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("webapp/src/features/sets/SetManagementPage.tsx")
+          text = path.read_text(encoding="utf-8")
+          old = "  error?: string;"
+          new = "  error: string | undefined;"
+          if old in text:
+              if text.count(old) != 1:
+                  raise SystemExit(f"expected one optional error field, found {text.count(old)}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          elif new not in text:
+              raise SystemExit("expected FieldProps error declaration not found")
+          PY
+
+      - name: Format reviewed management files
+        working-directory: webapp
+        run: >-
+          npx prettier --write
+          src/App.tsx
+          src/api/managementGuards.ts
+          src/api/routes.ts
+          src/components/AccessibleDialog.tsx
+          src/components/AppShell.tsx
+          src/components/ConnectivityBanner.tsx
+          src/features/sets/SetManagementPage.tsx
+          src/features/sets/SetSelectionPage.tsx
+          src/features/settings/DiagnosticsPage.tsx
+          src/features/settings/PackageOperationsPage.tsx
+          src/features/settings/SettingsPage.tsx
+          src/management.css
+          src/types/limits.ts
+          src/types/models.ts
+
+      - name: Verify exact scope and typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          (
+            cd webapp
+            npm run typecheck
+          )
+          readonly allowed_file="${RUNNER_TEMP}/allowed-files.txt"
+          cat > "${allowed_file}" <<'EOF'
+          webapp/src/App.tsx
+          webapp/src/api/managementGuards.ts
+          webapp/src/api/routes.ts
+          webapp/src/components/AccessibleDialog.tsx
+          webapp/src/components/AppShell.tsx
+          webapp/src/components/ConnectivityBanner.tsx
+          webapp/src/features/sets/SetManagementPage.tsx
+          webapp/src/features/sets/SetSelectionPage.tsx
+          webapp/src/features/settings/DiagnosticsPage.tsx
+          webapp/src/features/settings/PackageOperationsPage.tsx
+          webapp/src/features/settings/SettingsPage.tsx
+          webapp/src/management.css
+          webapp/src/types/limits.ts
+          webapp/src/types/models.ts
+          EOF
+          while IFS= read -r changed; do
+            grep -Fx -- "${changed}" "${allowed_file}" >/dev/null || {
+              printf 'error: unexpected formatted file: %s\n' "${changed}" >&2
+              exit 1
+            }
+          done < <(git diff --name-only)
+
+      - name: Commit reviewed mechanical changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "Mechanical changes already applied."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- webapp/src
+          git commit -m "style(web): format Phase 17 management implementation"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
