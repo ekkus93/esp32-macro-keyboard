@@ -3,7 +3,12 @@ import { describe, expect, test, vi } from "vitest";
 import { setCsrfToken } from "../src/api/client";
 import { ConfirmExecutionPage } from "../src/features/execution/ConfirmExecutionPage";
 import type { ExecutionConfirmationTarget } from "../src/routing";
-import type { DeviceStatus, Macro, Settings } from "../src/types/models";
+import type {
+  DeviceStatus,
+  ExecutionAccepted,
+  Macro,
+  Settings,
+} from "../src/types/models";
 import {
   deviceStatus,
   executionId,
@@ -38,6 +43,11 @@ const procedureTarget: ExecutionConfirmationTarget = {
   },
 };
 
+type AcceptedHandler = (
+  accepted: ExecutionAccepted,
+  returnHash: string,
+) => void;
+
 function success(data: unknown): object {
   return { ok: true, data };
 }
@@ -64,14 +74,14 @@ async function renderConfirmation(
   options: {
     currentSettings?: Settings;
     currentStatus?: DeviceStatus;
-    onAccepted?: ReturnType<typeof vi.fn>;
+    onAccepted?: AcceptedHandler;
     target?: ExecutionConfirmationTarget;
   } = {},
 ): Promise<Awaited<ReturnType<typeof render>>> {
   const view = await render(
     <ConfirmExecutionPage
       activeSet={macroSet}
-      onAccepted={options.onAccepted ?? vi.fn()}
+      onAccepted={options.onAccepted ?? (() => undefined)}
       settings={options.currentSettings ?? settings}
       status={options.currentStatus ?? deviceStatus}
       target={options.target ?? procedureTarget}
@@ -112,7 +122,7 @@ describe("execution confirmation", () => {
 
   test("rechecks state, waits for device confirmation, and submits nested context", async () => {
     setCsrfToken("csrf-token");
-    const onAccepted = vi.fn();
+    const onAccepted = vi.fn<AcceptedHandler>();
     planProcedureConfirmationLoad();
     const view = await renderConfirmation({ onAccepted });
 
@@ -122,11 +132,13 @@ describe("execution confirmation", () => {
     planJsonResponse(success(procedure));
     planJsonResponse(success(validation));
 
-    let resolveSubmission: ((response: Response) => void) | undefined;
+    const submission = {
+      resolve: null as ((response: Response) => void) | null,
+    };
     planFetch(
       () =>
         new Promise<Response>((resolve) => {
-          resolveSubmission = resolve;
+          submission.resolve = resolve;
         }),
     );
 
@@ -153,7 +165,8 @@ describe("execution confirmation", () => {
       },
     });
 
-    if (resolveSubmission === undefined) {
+    const resolveSubmission = submission.resolve;
+    if (resolveSubmission === null) {
       throw new Error("Execution submission was not started.");
     }
     await act(async () => {
@@ -210,11 +223,17 @@ describe("execution confirmation", () => {
   });
 
   test("falls back to a persisted global macro", async () => {
-    const globalMacro = {
-      ...macro,
-      scope: "global" as const,
+    const globalMacro: Macro = {
+      schema_version: macro.schema_version,
+      id: macro.id,
+      revision: macro.revision,
+      scope: "global",
+      name: macro.name,
+      source: macro.source,
+      favorite: macro.favorite,
+      key_press_ms: macro.key_press_ms,
+      inter_key_ms: macro.inter_key_ms,
     };
-    delete (globalMacro as Partial<Macro>).set_id;
 
     planJsonResponse(
       {
