@@ -63,6 +63,16 @@ stage="post-transform scope correction"
 python3 - <<'PY'
 from pathlib import Path
 
+
+def replace_exact(path_text: str, old: str, new: str) -> None:
+    path = Path(path_text)
+    text = path.read_text(encoding="utf-8")
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"{path}: expected one replacement anchor, found {count}")
+    path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+
 test_path = Path("webapp/tests/api-execution-submit.test.ts")
 text = test_path.read_text(encoding="utf-8")
 text = text.replace(
@@ -71,6 +81,33 @@ text = text.replace(
 )
 text = text.replace(").rejects.toMatchObject<ApiError>({", ").rejects.toMatchObject({")
 test_path.write_text(text, encoding="utf-8")
+
+replace_exact(
+    "webapp/eslint.config.js",
+    'import js from "@eslint/js";\n',
+    'import js from "@eslint/js";\nimport { defineConfig } from "eslint/config";\n',
+)
+replace_exact(
+    "webapp/eslint.config.js",
+    "export default tseslint.config(\n",
+    "export default defineConfig(\n",
+)
+replace_exact(
+    "webapp/src/features/execution/ExecutionPage.tsx",
+    '''        disabled={
+          cancelling ||
+          execution === null ||
+          execution.state !== "running" ||
+          execution.cancellationRequested
+        }
+''',
+    '''        disabled={
+          cancelling ||
+          execution?.state !== "running" ||
+          execution?.cancellationRequested === true
+        }
+''',
+)
 
 todo_path = Path("docs/ESP32_MACRO_KEYBOARD_CODE_REVIEW_FIXES_TODO_2026-07-28.md")
 todo = todo_path.read_text(encoding="utf-8")
@@ -101,11 +138,9 @@ path = Path("webapp/package.json")
 package = json.loads(path.read_text(encoding="utf-8"))
 dev = package["devDependencies"]
 updates = {
-    "@eslint/js": "10.0.1",
+    "@eslint/js": "9.39.4",
     "@vitest/coverage-v8": "4.1.10",
-    "eslint": "10.8.0",
-    "eslint-plugin-react-hooks": "7.1.1",
-    "eslint-plugin-react-refresh": "0.5.3",
+    "eslint": "9.39.4",
     "markdownlint-cli2": "0.23.2",
     "typescript-eslint": "8.65.0",
     "vite": "7.3.6",
