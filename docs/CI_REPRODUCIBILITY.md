@@ -15,6 +15,7 @@ has read-only repository permission.
   `scripts/install-esp-idf.sh`
 - Node.js: exact version from `.nvmrc` and the matching `engines.node` field in
   `webapp/package.json`
+- Chrome or Chromium from the pinned `ubuntu-24.04` runner image
 - npm graph: exact committed `webapp/package-lock.json`, installed with `npm ci`
 - Python tools:
   - `cmakelang==0.6.13`
@@ -56,3 +57,22 @@ a cold cache.
 This document does not claim that firmware-slot, webfs, RAM, heap, or task-stack
 budgets are complete. Those measurements remain part of release preparation and
 must be recorded from actual builds and hardware before version 0.1 release.
+
+## Real Chrome browser validation
+
+Phase 17.10 has a dedicated read-only workflow at
+`.github/workflows/browser-tests.yml`. It:
+
+- uses pinned checkout and Node setup action commits;
+- builds the production Vite bundle before testing;
+- launches Chrome or Chromium from the pinned Ubuntu runner image;
+- fails when no supported browser is present;
+- serves a deterministic same-origin API fixture without external assets;
+- drives the page through the Chrome DevTools Protocol using Node 24 built-ins;
+- checks keyboard activation, modal focus, visible status text, 44 by 44
+  CSS-pixel targets, reorder alternatives, reconnect refresh, and the complete
+  execution workflow.
+
+`scripts/check-webapp.sh` runs the same browser harness after the unit,
+coverage, static, and production-build gates, so the authoritative Quality
+workflow cannot pass by skipping real-browser behavior.

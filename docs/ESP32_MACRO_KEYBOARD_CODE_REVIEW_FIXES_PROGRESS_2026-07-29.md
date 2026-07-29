@@ -102,6 +102,29 @@ Primary commit: `c4440a2`.
 
 Final implementation commit before documentation sync: `9fb7130`.
 
+### Phase 17.9 management surfaces
+
+- Set create, edit, duplicate, exact-order reorder, and guarded delete use
+  current revisions and strict response validation.
+- Settings, storage health, quarantine evidence, restart, settings reset, and
+  factory reset are live and fail closed.
+- Import, transactional replace, export, backup, and restore show disabled
+  Phase 18 boundaries with explicit reasons; no unsupported request is sent.
+- Every enabled management control performs a real request or navigation.
+
+### Phase 17.10 accessibility and browser coverage
+
+- Accessible dialogs trap focus, close with Escape, and restore focus.
+- Reordering has Move first, up, down, and last controls.
+- Offline and reconnect states are announced and reconnect reloads live data.
+- A dedicated read-only Chrome workflow checks keyboard activation, status
+  text, 44 by 44 CSS-pixel targets, reordering, reconnect, and end-to-end
+  execution against a deterministic same-origin API fixture.
+- Chrome absence is a hard failure; there is no jsdom substitution for the
+  browser acceptance gate.
+
+Final implementation commit before documentation sync: `ac12c50`.
+
 ## Intentionally deferred scope
 
 ### Phase 18 executable import validation
@@ -118,9 +141,11 @@ remain open. This fix pass does not manufacture completion evidence for them.
 
 ## Validation status
 
-- Host Tests run `30447946686`: passed, including native tests, ASan/UBSan,
-  native coverage, frontend coverage, and 113 frontend tests.
-- Device Test Build run `30447946598`: passed for ESP32-S3 test firmware.
-- Quality run `30447946652`: validates the read-only authoritative
-  `./scripts/check-all.sh` path for the implementation tree; the final
-  documentation-only commit is revalidated after this evidence sync.
+- Host Tests run `30455828432`: passed, including strict frontend gates,
+  frontend and native coverage, host tests, and ASan/UBSan.
+- Browser Tests run `30455823494`: passed the real Chrome production-bundle
+  workflow, including keyboard, focus, touch-target, reconnect, reorder, and
+  complete execution checks.
+- The documentation-only synchronization commit is revalidated by the
+  read-only Quality, Host Tests, Browser Tests, and ESP32-S3 build workflows
+  before Phase 17.9/17.10 is reported as final.
