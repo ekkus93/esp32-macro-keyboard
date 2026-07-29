@@ -1,52 +1,52 @@
 import { useEffect, useState } from "react";
-import { errorText } from "../../api/errors";
-import { cancelCurrentExecution, getCurrentExecution } from "../../api/routes";
 import { ErrorBanner } from "../../components/ErrorBanner";
+import {
+  cancelCurrentExecution,
+  getCurrentExecution,
+} from "../../api/routes";
+import { errorText } from "../../api/errors";
 import type { ExecutionStatus } from "../../types/models";
-import { isTerminalExecution } from "./executionResult";
 
-interface ExecutionPageProps {
-  onTerminal: (execution: ExecutionStatus) => void;
-}
+const pollDelayMs = 250;
 
-export function ExecutionPage({
-  onTerminal,
-}: ExecutionPageProps): React.JSX.Element {
+export function ExecutionPage() {
   const [execution, setExecution] = useState<ExecutionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    const refresh = async (): Promise<void> => {
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const poll = async () => {
       try {
-        const current = await getCurrentExecution();
-        if (!active) {
-          return;
-        }
-        setExecution(current);
-        setError(null);
-        if (isTerminalExecution(current)) {
-          onTerminal(current);
+        const next = await getCurrentExecution();
+        if (!cancelled) {
+          setExecution(next);
+          setError(null);
+          if (next.state === "running") {
+            timer = window.setTimeout(() => {
+              void poll();
+            }, pollDelayMs);
+          }
         }
       } catch (pollError: unknown) {
-        if (active) {
+        if (!cancelled) {
           setError(errorText(pollError));
         }
       }
     };
 
-    void refresh();
-    const timer = window.setInterval(() => {
-      void refresh();
-    }, 500);
+    void poll();
     return () => {
-      active = false;
-      window.clearInterval(timer);
+      cancelled = true;
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+      }
     };
-  }, [onTerminal]);
+  }, []);
 
-  const cancel = async (): Promise<void> => {
+  const cancel = async () => {
     setCancelling(true);
     setError(null);
     try {
@@ -74,9 +74,8 @@ export function ExecutionPage({
         className="danger"
         disabled={
           cancelling ||
-          execution === null ||
-          execution.state !== "running" ||
-          execution.cancellationRequested
+          execution?.state !== "running" ||
+          execution?.cancellationRequested === true
         }
         onClick={() => {
           void cancel();
