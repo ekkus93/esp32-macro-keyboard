@@ -24,6 +24,17 @@ jobs:
           fetch-depth: 1
           persist-credentials: true
 
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install pinned documentation tooling
+        working-directory: webapp
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
       - name: Apply exact documentation updates
         shell: bash
         run: |
