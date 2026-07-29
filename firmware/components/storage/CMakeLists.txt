@@ -22,6 +22,7 @@ idf_component_register(
     "storage_repository_procedures.c"
     "storage_repository_progress.c"
     "storage_package.c"
+    "storage_package_export.c"
     "storage_quarantine.c"
     INCLUDE_DIRS
     "include"
