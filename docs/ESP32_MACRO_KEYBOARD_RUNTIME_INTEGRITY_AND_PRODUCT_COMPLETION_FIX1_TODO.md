@@ -1859,12 +1859,12 @@ and no progress action submits or automatically starts an execution.
 
 The confirmation page must use live data and disable Send unless:
 
-- [ ] active set is loaded;
-- [ ] macro is loaded and validated;
-- [ ] revision is current;
-- [ ] USB state is `ready`;
-- [ ] executor is not busy;
-- [ ] physical confirmation policy can be satisfied.
+- [x] active set is loaded;
+- [x] macro is loaded and validated;
+- [x] revision is current;
+- [x] USB state is `ready`;
+- [x] executor is not busy;
+- [x] physical confirmation policy can be satisfied.
 
 Send handler:
 
@@ -1905,6 +1905,21 @@ export async function apiRequest<T>(
   return envelope.data;
 }
 ```
+
+**Implemented:** confirmation routes accept either exactly one macro ID or a
+complete procedure/step context. The page loads and validates the persisted
+set-local or global macro, verifies the exact procedure macro step, and shows
+the server-owned source, revision, action count, duration, and key timings.
+Navigation never executes. Explicit Send performs a second preflight of the
+active set, settings, macro, validation result, procedure context, USB state,
+and executor state. Drift fails closed. When configured, the page visibly waits
+for the device button using a bounded 25-second client timeout around the
+firmware's 20-second confirmation window. Submission uses nested
+`sourceContext`; execution polling retains the accepted execution ID and refuses
+to display or cancel a different current execution. Tests cover malformed and
+partial routes, preview-only navigation, USB blocking, global-macro fallback,
+preflight drift, physical-confirmation state, exact nested submission, timeout,
+and execution-identity mismatch.
 
 ### 17.8 Correct result labeling
 

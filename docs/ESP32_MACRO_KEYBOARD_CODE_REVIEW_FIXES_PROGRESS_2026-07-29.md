@@ -84,15 +84,25 @@ Primary commits: `d915796`, `1d7f14e`, `0abbaa3`, `f85f96c`, `dd14028`,
 
 Primary commit: `c4440a2`.
 
+### Phase 17.7 execution confirmation and submission
+
+- Standalone macro Send and procedure Send/Resend open a strict preview route;
+  navigation never starts an execution.
+- The page loads and revalidates persisted set-local or global macro data,
+  server-owned metrics, exact procedure context, active settings, USB state,
+  and executor state.
+- Explicit Send fails closed on active-set, revision, source, validation,
+  procedure-step, USB, or executor drift.
+- Physical confirmation is shown as an explicit device-button wait, with a
+  bounded 25-second request timeout around the firmware's 20-second window.
+- Submission uses exact nested `sourceContext`, retains the accepted execution
+  ID, and refuses to display or cancel a different current execution.
+- Route, timeout, preview, global fallback, stale-data, submission, and identity
+  regression tests are committed.
+
+Final implementation commit before documentation sync: `9fb7130`.
+
 ## Intentionally deferred scope
-
-### Phase 17.7 confirmation UI
-
-The typed execution request, serializer, and response guard are ready. The
-actual confirmation screen is not implemented in this fix pass because the
-source TODO explicitly excludes full Phase 17.7 UI implementation. That phase
-must construct the same nested request and omit `sourceContext` for standalone
-execution.
 
 ### Phase 18 executable import validation
 
@@ -108,7 +118,9 @@ remain open. This fix pass does not manufacture completion evidence for them.
 
 ## Validation status
 
-Targeted Host Tests passed for the procedure authority and atomic-write fixes.
-The final branch gate is the read-only Quality workflow running
-`./scripts/check-all.sh` from the committed dependency graph. This section must
-be updated with the final workflow conclusions before the TODO is closed.
+- Host Tests run `30447946686`: passed, including native tests, ASan/UBSan,
+  native coverage, frontend coverage, and 113 frontend tests.
+- Device Test Build run `30447946598`: passed for ESP32-S3 test firmware.
+- Quality run `30447946652`: validates the read-only authoritative
+  `./scripts/check-all.sh` path for the implementation tree; the final
+  documentation-only commit is revalidated after this evidence sync.
