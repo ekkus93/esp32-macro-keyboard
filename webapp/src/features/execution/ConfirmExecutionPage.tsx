@@ -101,11 +101,10 @@ function procedureContext(
     return null;
   }
   const sourceContext = target.sourceContext;
-  if (
-    procedure === null ||
-    procedure.id !== sourceContext.procedureId ||
-    procedure.set_id !== activeSetId
-  ) {
+  const contextMatches =
+    procedure?.id === sourceContext.procedureId &&
+    procedure.set_id === activeSetId;
+  if (!contextMatches) {
     throw new Error(
       "The procedure context no longer belongs to the active macro set.",
     );
