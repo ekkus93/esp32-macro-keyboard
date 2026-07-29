@@ -64,7 +64,6 @@ export function isStorageHealth(value: unknown): value is StorageHealth {
     typeof value.webMounted === "boolean" &&
     typeof value.dataMounted === "boolean" &&
     isNonNegativeInteger(value.quarantineCount) &&
-    value.quarantineCount <= limits.macroSets * 20 &&
     isNonNegativeInteger(value.damagedQuarantineCount) &&
     value.damagedQuarantineCount <= value.quarantineCount
   );
@@ -87,7 +86,6 @@ export function isQuarantineList(value: unknown): value is QuarantineList {
     hasExactKeys(value, ["damagedCount", "items"]) &&
     isNonNegativeInteger(value.damagedCount) &&
     Array.isArray(value.items) &&
-    value.items.length <= limits.macroSets * 20 &&
     value.items.every(isQuarantineEntry) &&
     value.damagedCount <= value.items.length &&
     new Set(value.items.map((entry) => entry.id)).size === value.items.length
