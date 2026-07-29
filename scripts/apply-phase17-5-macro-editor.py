@@ -29,7 +29,8 @@ if actual_source_sha256 != EXPECTED_SOURCE_SHA256:
         f"expected {EXPECTED_SOURCE_SHA256}, got {actual_source_sha256}"
     )
 module_path = ROOT / "scripts" / "phase17-5-macro-editor" / "payload.py"
+virtual_entrypoint = ROOT / "scripts" / "apply-phase17-5-macro-editor.py"
 exec(
     compile(source.decode("utf-8"), str(module_path), "exec"),
-    {"__name__": "__main__", "__file__": str(module_path)},
+    {"__name__": "__main__", "__file__": str(virtual_entrypoint)},
 )
