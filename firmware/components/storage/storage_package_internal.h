@@ -15,8 +15,7 @@ typedef struct {
     app_error_code_t (*procedure_list)(void *context, const app_uuid_t *set_id,
                                        storage_procedure_list_t *out_list);
     void (*procedure_list_free)(void *context, storage_procedure_list_t *list);
-    app_error_code_t (*progress_read)(void *context,
-                                      const storage_procedure_identity_t *identity,
+    app_error_code_t (*progress_read)(void *context, const storage_procedure_identity_t *identity,
                                       storage_progress_snapshot_t *out_snapshot);
 } storage_package_export_ops_t;
 

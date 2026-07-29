@@ -71,8 +71,7 @@ static app_error_code_t fake_set_read(void *context, const app_uuid_t *set_id,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t fake_macro_list(void *context,
-                                        const storage_macro_location_t *location,
+static app_error_code_t fake_macro_list(void *context, const storage_macro_location_t *location,
                                         storage_macro_list_t *out_list) {
     fake_export_context_t *fake = context;
     memset(out_list, 0, sizeof(*out_list));
@@ -228,13 +227,14 @@ static fake_export_context_t valid_context(void) {
     context.procedure_count = 1U;
 
     context.progress = (storage_progress_snapshot_t){
-        .progress = {
-            .schema_version = APP_SCHEMA_VERSION,
-            .set_id = context.set.id,
-            .procedure_id = procedures[0].id,
-            .procedure_revision = procedures[0].revision,
-            .current_step_id = steps[0].id,
-        },
+        .progress =
+            {
+                .schema_version = APP_SCHEMA_VERSION,
+                .set_id = context.set.id,
+                .procedure_id = procedures[0].id,
+                .procedure_revision = procedures[0].revision,
+                .current_step_id = steps[0].id,
+            },
         .status = STORAGE_PROGRESS_STATUS_CURRENT,
         .current_procedure_revision = procedures[0].revision,
     };
@@ -258,9 +258,9 @@ static void test_deterministic_export_and_filtering(void) {
     TEST_CHECK(strstr(first, "\"progress\":[{") != NULL);
 
     storage_package_summary_t summary = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_package_validate(first, first_length, STORAGE_PACKAGE_KIND_SET,
-                                                  &summary));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        storage_package_validate(first, first_length, STORAGE_PACKAGE_KIND_SET, &summary));
     TEST_CHECK_EQ_U64(1U, summary.set_count);
     TEST_CHECK_EQ_U64(1U, summary.local_macro_count);
     TEST_CHECK_EQ_U64(1U, summary.global_macro_count);
@@ -269,9 +269,8 @@ static void test_deterministic_export_and_filtering(void) {
 
     char *second = NULL;
     size_t second_length = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_package_export_set(&context.set.id, true, &second,
-                                                    &second_length));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE, storage_package_export_set(&context.set.id, true, &second, &second_length));
     TEST_CHECK_EQ_U64(first_length, second_length);
     TEST_CHECK(memcmp(first, second, first_length) == 0);
     TEST_CHECK_EQ_U64(2U, context.lock_take_count);
@@ -292,9 +291,8 @@ static void test_progress_is_optional_and_stale_progress_is_omitted(void) {
 
     char *without_progress = NULL;
     size_t length = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_package_export_set(&context.set.id, false, &without_progress,
-                                                    &length));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_export_set(&context.set.id, false,
+                                                                    &without_progress, &length));
     TEST_CHECK(strstr(without_progress, "\"progress\":[]") != NULL);
     TEST_CHECK_EQ_U64(0U, context.progress_read_count);
     storage_package_free(without_progress);

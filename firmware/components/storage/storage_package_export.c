@@ -114,10 +114,8 @@ static storage_package_export_ops_t export_operations = {
 static bool export_operations_valid(void) {
     return export_operations.lock_take != NULL && export_operations.lock_give != NULL &&
            export_operations.set_read != NULL && export_operations.macro_list != NULL &&
-           export_operations.macro_list_free != NULL &&
-           export_operations.procedure_list != NULL &&
-           export_operations.procedure_list_free != NULL &&
-           export_operations.progress_read != NULL;
+           export_operations.macro_list_free != NULL && export_operations.procedure_list != NULL &&
+           export_operations.procedure_list_free != NULL && export_operations.progress_read != NULL;
 }
 
 static app_error_code_t writer_reserve(package_writer_t *writer, size_t additional) {
@@ -232,7 +230,8 @@ static app_error_code_t snapshot_load_progress(set_export_snapshot_t *snapshot) 
         return APP_ERROR_NONE;
     }
     snapshot->progress = calloc(snapshot->procedures.count, sizeof(*snapshot->progress));
-    snapshot->progress_present = calloc(snapshot->procedures.count, sizeof(*snapshot->progress_present));
+    snapshot->progress_present =
+        calloc(snapshot->procedures.count, sizeof(*snapshot->progress_present));
     if (snapshot->progress == NULL || snapshot->progress_present == NULL) {
         return APP_ERROR_INTERNAL;
     }
@@ -276,7 +275,7 @@ static app_error_code_t snapshot_load_locked(const app_uuid_t *set_id, bool incl
     const storage_macro_location_t global_location = {
         .scope = MACRO_SCOPE_GLOBAL,
         .has_set_id = false,
-        .set_id = {0},
+        .set_id = {{0}},
     };
     if (result == APP_ERROR_NONE) {
         result = export_operations.macro_list(export_operations.context, &global_location,
@@ -363,8 +362,7 @@ static app_error_code_t validate_snapshot(const set_export_snapshot_t *snapshot,
 }
 
 static app_error_code_t append_macro_array(package_writer_t *writer,
-                                           const storage_macro_list_t *list,
-                                           const bool *included) {
+                                           const storage_macro_list_t *list, const bool *included) {
     app_error_code_t result = writer_append_text(writer, "[");
     bool wrote_item = false;
     for (size_t index = 0U; result == APP_ERROR_NONE && index < list->count; ++index) {
@@ -432,8 +430,8 @@ static app_error_code_t serialize_snapshot(const set_export_snapshot_t *snapshot
                                            const bool *global_referenced, char **out_data,
                                            size_t *out_length) {
     package_writer_t writer = {0};
-    app_error_code_t result = writer_append_text(
-        &writer, "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":[");
+    app_error_code_t result =
+        writer_append_text(&writer, "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":[");
     if (result == APP_ERROR_NONE) {
         result = writer_append_set(&writer, &snapshot->set);
     }
