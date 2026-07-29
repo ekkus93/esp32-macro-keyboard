@@ -119,6 +119,10 @@ function AuthenticatedApp({
     () => sets?.find((set) => set.id === settings?.activeSetId) ?? null,
     [sets, settings],
   );
+  const confirmationTarget = useMemo(
+    () => executionConfirmationTargetFromHash(),
+    [routeHash],
+  );
 
   const navigateTo = useCallback((target: Screen): void => {
     setRuntimeError(null);
@@ -268,7 +272,7 @@ function AuthenticatedApp({
             }}
             settings={settings}
             status={status}
-            target={executionConfirmationTargetFromHash()}
+            target={confirmationTarget}
           />
         );
       case "manage-sets":
