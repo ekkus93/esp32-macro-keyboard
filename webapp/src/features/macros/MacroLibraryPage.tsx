@@ -9,12 +9,14 @@ interface MacroLibraryPageProps {
   activeSet: MacroSet | null;
   onCreate: () => void;
   onEdit: (macroId: string) => void;
+  onSend: (macroId: string) => void;
 }
 
 export function MacroLibraryPage({
   activeSet,
   onCreate,
   onEdit,
+  onSend,
 }: MacroLibraryPageProps): React.JSX.Element {
   const [macros, setMacros] = useState<Macro[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -138,14 +140,25 @@ export function MacroLibraryPage({
                 {String(macro.inter_key_ms)} ms
               </p>
             </div>
-            <button
-              onClick={() => {
-                onEdit(macro.id);
-              }}
-              type="button"
-            >
-              Edit
-            </button>
+            <div className="card-actions">
+              <button
+                className="primary"
+                onClick={() => {
+                  onSend(macro.id);
+                }}
+                type="button"
+              >
+                Send
+              </button>
+              <button
+                onClick={() => {
+                  onEdit(macro.id);
+                }}
+                type="button"
+              >
+                Edit
+              </button>
+            </div>
           </article>
         ))}
       </div>
