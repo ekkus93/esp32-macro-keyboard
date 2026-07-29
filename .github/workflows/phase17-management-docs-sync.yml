@@ -71,10 +71,7 @@ jobs:
           - [ ] quarantine view;
           - [ ] restart/reset workflows.
 
-          No enabled button may be inert.
-
-          - [ ] every enabled control performs a real action or navigation;
-          - [ ] unavailable controls are disabled with explanation.""",
+          No enabled button may be inert.""",
               """- [x] create/edit/duplicate/reorder/delete sets;
           - [x] import-as-new boundary screen, disabled until Phase 18;
           - [x] transactional-replace boundary screen, disabled until Phase 18;
@@ -87,35 +84,33 @@ jobs:
 
           No enabled button may be inert.
 
-          - [x] every enabled control performs a real action or navigation;
-          - [x] unavailable controls are disabled with explanation.
-
-          **Implemented:** set create, edit, duplicate, keyboard-accessible reorder,
-          and guarded delete use live revisioned APIs. Settings, storage health,
-          redacted quarantine evidence, restart, settings reset, and factory reset
-          use strict response guards and visible physical-confirmation waits. Import,
-          replace, export, backup, and restore are honest disabled boundaries because
-          their all-or-nothing package services remain Phase 18; the frontend never
-          simulates success or sends an unsupported mutation.""",
+          **Implemented:** every enabled management control performs a real request or
+          navigation. Set create, edit, duplicate, keyboard-accessible reorder, and
+          guarded delete use live revisioned APIs. Settings, storage health, redacted
+          quarantine evidence, restart, settings reset, and factory reset use strict
+          response guards and visible physical-confirmation waits. Import, replace,
+          export, backup, and restore are honest disabled boundaries because their
+          all-or-nothing package services remain Phase 18; the frontend never simulates
+          success or sends an unsupported mutation.""",
           )
 
           replace_once(
               todo,
               """- [ ] keyboard-only navigation;
-          - [ ] focus trap and restoration in modals;
+          - [ ] focus trap and restoration;
           - [ ] screen-reader live regions;
           - [ ] reorder alternatives;
           - [ ] touch target checks;
           - [ ] no color-only status;
-          - [ ] offline/reconnect behavior;
+          - [ ] offline/reconnect;
           - [ ] full execution workflow.""",
               """- [x] keyboard-only navigation;
-          - [x] focus trap and restoration in modals;
+          - [x] focus trap and restoration;
           - [x] screen-reader live regions;
           - [x] reorder alternatives;
           - [x] touch target checks;
           - [x] no color-only status;
-          - [x] offline/reconnect behavior;
+          - [x] offline/reconnect;
           - [x] full execution workflow.
 
           **Implemented:** the permanent read-only Browser Tests workflow builds the
