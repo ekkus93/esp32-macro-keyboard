@@ -11,6 +11,7 @@ import {
   jsonResponse,
   planFetch,
   planJsonResponse,
+  planTextResponse,
 } from "./fakeFetch";
 import {
   buttonWithText,
@@ -66,19 +67,60 @@ describe("management screens", () => {
     await view.unmount();
   });
 
-  test("keeps deferred package operations visibly disabled", async () => {
+  test("keeps deferred mutating package operations visibly disabled", async () => {
     const view = await render(
       <PackageOperationsPage activeSet={macroSet} initialSection="import" />,
     );
 
-    expect(document.body.textContent).toContain("503 Service Unavailable");
+    expect(document.body.textContent).toContain(
+      "Deterministic set export is available",
+    );
     expect(buttonWithText("Import as new set").disabled).toBe(true);
     expect(buttonWithText("Replace selected set").disabled).toBe(true);
     expect(buttonWithText("Restore full backup").disabled).toBe(true);
     expect(document.body.textContent).toContain(
-      "all-object validation service",
+      "transactional import-as-new is not implemented",
     );
     expect(getFetchCalls()).toHaveLength(0);
+    await view.unmount();
+  });
+
+  test("downloads a strictly validated raw set package", async () => {
+    const packageText = JSON.stringify({
+      schema_version: 1,
+      package_type: "set",
+      sets: [macroSet],
+      macros: [],
+      global_macros: [],
+      procedures: [],
+      progress: [],
+    });
+    planTextResponse(packageText, 200, "application/json");
+    const saveFile = vi.fn<(filename: string, text: string) => void>();
+    const view = await render(
+      <PackageOperationsPage
+        activeSet={macroSet}
+        initialSection="export"
+        saveFile={saveFile}
+      />,
+    );
+
+    await click(buttonWithText("Export selected set"));
+    await flushReact();
+
+    expect(getFetchCalls()).toHaveLength(1);
+    expect(getFetchCalls()[0]?.url).toBe(
+      `/api/v1/sets/${macroSet.id}/export`,
+    );
+    expect(getFetchCalls()[0]?.method).toBe("GET");
+    expect(getFetchCalls()[0]?.credentials).toBe("same-origin");
+    expect(saveFile).toHaveBeenCalledWith(
+      `macro-set-${macroSet.id}.json`,
+      packageText,
+    );
+    expect(document.body.textContent).toContain(
+      `Exported ${macroSet.name} as ${String(new Blob([packageText]).size)} bytes.`,
+    );
     await view.unmount();
   });
 
