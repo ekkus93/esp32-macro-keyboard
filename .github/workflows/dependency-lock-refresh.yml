@@ -1,0 +1,54 @@
+name: Dependency Lock Refresh
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - .github/workflows/dependency-lock-refresh.yml
+      - webapp/package.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Resolve reviewed dependency versions
+        working-directory: webapp
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Capture audit report
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          (
+            cd webapp
+            npm audit --json
+          ) > npm-audit.json
+          audit_status=$?
+          set -e
+          printf 'Raw npm audit status: %s\n' "${audit_status}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-dependency-lock
+          path: |
+            webapp/package-lock.json
+            npm-audit.json
+          if-no-files-found: error
+          retention-days: 1
