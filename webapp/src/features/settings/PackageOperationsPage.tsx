@@ -7,6 +7,7 @@ import type { MacroSet } from "../../types/models";
 interface PackageOperationsPageProps {
   activeSet: MacroSet | null;
   initialSection: "import" | "export";
+  saveFile?: (filename: string, text: string) => void;
 }
 
 interface OperationCardProps {
@@ -32,12 +33,12 @@ function OperationCard({
   );
 }
 
-function downloadSetPackage(setId: string, text: string): void {
+function downloadSetPackage(filename: string, text: string): void {
   const blob = new Blob([text], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `macro-set-${setId}.json`;
+  anchor.download = filename;
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
@@ -47,6 +48,7 @@ function downloadSetPackage(setId: string, text: string): void {
 export function PackageOperationsPage({
   activeSet,
   initialSection,
+  saveFile = downloadSetPackage,
 }: PackageOperationsPageProps): React.JSX.Element {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +63,7 @@ export function PackageOperationsPage({
     setMessage(null);
     try {
       const download = await exportSetPackage(activeSet.id);
-      downloadSetPackage(activeSet.id, download.text);
+      saveFile(`macro-set-${activeSet.id}.json`, download.text);
       setMessage(
         `Exported ${activeSet.name} as ${String(download.byteLength)} bytes.`,
       );
