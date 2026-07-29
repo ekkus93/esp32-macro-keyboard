@@ -38,12 +38,14 @@ function searchableText(set: MacroSet): string {
 interface SetSelectionPageProps {
   sets: readonly MacroSet[];
   settings: Settings;
+  onManage: () => void;
   onSelected: (settings: Settings) => void;
 }
 
 export function SetSelectionPage({
   sets,
   settings,
+  onManage,
   onSelected,
 }: SetSelectionPageProps): React.JSX.Element {
   const [query, setQuery] = useState("");
@@ -90,18 +92,28 @@ export function SetSelectionPage({
   };
 
   return (
-    <section>
-      <h2>Choose a macro set</h2>
-      <label htmlFor="set-search">Search sets</label>
-      <input
-        id="set-search"
-        onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-          setQuery(event.target.value);
-        }}
-        placeholder="Name, manufacturer, model, board, or purpose"
-        type="search"
-        value={query}
-      />
+    <section aria-labelledby="set-selection-title">
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow dark">Persisted device state</p>
+          <h2 id="set-selection-title">Choose a macro set</h2>
+        </div>
+        <button onClick={onManage} type="button">
+          Manage sets
+        </button>
+      </div>
+      <label className="form-stack" htmlFor="set-search">
+        Search sets
+        <input
+          id="set-search"
+          onChange={(event) => {
+            setQuery(event.currentTarget.value);
+          }}
+          placeholder="Name, manufacturer, model, board, or purpose"
+          type="search"
+          value={query}
+        />
+      </label>
       <ErrorBanner message={error} />
       {visibleSets.length === 0 ? (
         <p role="status">No macro sets match this search.</p>
@@ -112,7 +124,12 @@ export function SetSelectionPage({
             return (
               <article className="card" key={set.id}>
                 <div>
-                  <h3>{set.name}</h3>
+                  <div className="management-title-row">
+                    <h3>{set.name}</h3>
+                    {active ? (
+                      <span className="status-badge status-good">Active set</span>
+                    ) : null}
+                  </div>
                   <p>{set.description || "No description"}</p>
                   <dl className="metadata">
                     <dt>Manufacturer</dt>
