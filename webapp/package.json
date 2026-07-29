@@ -16,6 +16,7 @@
     "format:write": "prettier --write .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:browser": "node tests/browser/run-browser-tests.mjs",
     "audit:ci": "python3 ../scripts/check-npm-audit.py"
   },
   "dependencies": {
