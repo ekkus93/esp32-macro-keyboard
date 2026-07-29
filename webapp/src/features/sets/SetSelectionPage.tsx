@@ -127,7 +127,9 @@ export function SetSelectionPage({
                   <div className="management-title-row">
                     <h3>{set.name}</h3>
                     {active ? (
-                      <span className="status-badge status-good">Active set</span>
+                      <span className="status-badge status-good">
+                        Active set
+                      </span>
                     ) : null}
                   </div>
                   <p>{set.description || "No description"}</p>

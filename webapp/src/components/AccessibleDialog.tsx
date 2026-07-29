@@ -45,7 +45,8 @@ export function AccessibleDialog({
         ? document.activeElement
         : null;
     const container = containerRef.current;
-    const focusable = container?.querySelectorAll<HTMLElement>(focusableSelector);
+    const focusable =
+      container?.querySelectorAll<HTMLElement>(focusableSelector);
     focusable?.item(0).focus();
 
     const keydown = (event: KeyboardEvent): void => {

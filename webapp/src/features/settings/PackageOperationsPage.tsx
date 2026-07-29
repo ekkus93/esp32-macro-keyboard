@@ -51,7 +51,11 @@ export function PackageOperationsPage({
         Phase 18 boundaries.
       </div>
 
-      <div className="section-tabs" role="tablist" aria-label="Package operations">
+      <div
+        className="section-tabs"
+        role="tablist"
+        aria-label="Package operations"
+      >
         <a
           aria-selected={initialSection === "import"}
           className={initialSection === "import" ? "active" : ""}

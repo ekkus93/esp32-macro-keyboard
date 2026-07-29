@@ -46,9 +46,13 @@ function navigationActive(route: Screen, target: Screen): boolean {
     ].includes(route);
   }
   if (target === "macros") {
-    return ["macros", "macro-editor", "confirm", "execution", "result"].includes(
-      route,
-    );
+    return [
+      "macros",
+      "macro-editor",
+      "confirm",
+      "execution",
+      "result",
+    ].includes(route);
   }
   if (target === "settings") {
     return ["settings", "import", "export", "diagnostics"].includes(route);

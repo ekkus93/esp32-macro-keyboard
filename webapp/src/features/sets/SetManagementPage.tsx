@@ -34,7 +34,8 @@ interface SetFieldErrors {
 
 function sortedSets(sets: readonly MacroSet[]): MacroSet[] {
   return [...sets].sort(
-    (left, right) => left.sort_order - right.sort_order || left.name.localeCompare(right.name),
+    (left, right) =>
+      left.sort_order - right.sort_order || left.name.localeCompare(right.name),
   );
 }
 
@@ -85,7 +86,7 @@ function noErrors(errors: SetFieldErrors): boolean {
 }
 
 interface FieldProps {
-  error?: string;
+  error: string | undefined;
   id: string;
   label: string;
   maximumBytes: number;
@@ -116,7 +117,9 @@ function TextField({
         value={value}
       />
       <span
-        className={error === undefined ? "field-help" : "field-help limit-exceeded"}
+        className={
+          error === undefined ? "field-help" : "field-help limit-exceeded"
+        }
         id={helpId}
       >
         {error ?? `${String(bytes)} / ${String(maximumBytes)} UTF-8 bytes`}
@@ -267,7 +270,9 @@ export function SetManagementPage({
     try {
       const committed = await reorderSets(replacement.map((set) => set.id));
       onSetsChanged(sortedSets(committed));
-      setMessage(`Moved ${moved.name} to position ${String(destinationIndex + 1)}.`);
+      setMessage(
+        `Moved ${moved.name} to position ${String(destinationIndex + 1)}.`,
+      );
     } catch (reorderError: unknown) {
       setError(errorText(reorderError));
     } finally {
@@ -295,7 +300,9 @@ export function SetManagementPage({
         <div>
           <p className="eyebrow dark">Persisted resources</p>
           <h2 id="manage-sets-title">Manage macro sets</h2>
-          <p>Create, revise, duplicate, reorder, or delete complete macro sets.</p>
+          <p>
+            Create, revise, duplicate, reorder, or delete complete macro sets.
+          </p>
         </div>
         <button
           className="primary"
@@ -313,7 +320,8 @@ export function SetManagementPage({
 
       {ordered.length >= limits.macroSets ? (
         <p className="conflict-message" role="status">
-          The device already contains the maximum of {String(limits.macroSets)} sets.
+          The device already contains the maximum of {String(limits.macroSets)}{" "}
+          sets.
         </p>
       ) : null}
       <ErrorBanner message={error} />
@@ -335,13 +343,17 @@ export function SetManagementPage({
                   <div className="management-title-row">
                     <h3>{set.name}</h3>
                     {active ? (
-                      <span className="status-badge status-good">Active set</span>
+                      <span className="status-badge status-good">
+                        Active set
+                      </span>
                     ) : null}
                   </div>
                   <p>{set.description || "No description"}</p>
                   <dl className="metadata">
                     <dt>Position</dt>
-                    <dd>{String(index + 1)} of {String(ordered.length)}</dd>
+                    <dd>
+                      {String(index + 1)} of {String(ordered.length)}
+                    </dd>
                     <dt>Revision</dt>
                     <dd>{String(set.revision)}</dd>
                     <dt>Device</dt>
@@ -354,7 +366,10 @@ export function SetManagementPage({
                 </div>
 
                 <div className="management-actions">
-                  <div className="reorder-actions" aria-label={`Reorder ${set.name}`}>
+                  <div
+                    className="reorder-actions"
+                    aria-label={`Reorder ${set.name}`}
+                  >
                     <button
                       aria-label={`Move ${set.name} first`}
                       disabled={busy || index === 0}
@@ -435,7 +450,9 @@ export function SetManagementPage({
                     </button>
                   </div>
                   {active ? (
-                    <p className="field-help">Select a different active set before deleting this one.</p>
+                    <p className="field-help">
+                      Select a different active set before deleting this one.
+                    </p>
                   ) : null}
                 </div>
               </li>
@@ -452,7 +469,9 @@ export function SetManagementPage({
         }
         onClose={closeDialogs}
         open={editor !== null}
-        title={editor?.mode === "create" ? "Create macro set" : "Edit macro set"}
+        title={
+          editor?.mode === "create" ? "Create macro set" : "Edit macro set"
+        }
       >
         {editor === null ? null : (
           <form

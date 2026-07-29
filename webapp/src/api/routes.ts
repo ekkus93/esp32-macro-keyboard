@@ -151,7 +151,9 @@ export async function updateSettings(
   );
 }
 
-export async function resetSettings(expectedRevision: number): Promise<Settings> {
+export async function resetSettings(
+  expectedRevision: number,
+): Promise<Settings> {
   return apiRequest(
     "/api/v1/device/reset-settings",
     {
@@ -480,9 +482,5 @@ export async function getStorageHealth(): Promise<StorageHealth> {
 }
 
 export async function getQuarantine(): Promise<QuarantineList> {
-  return apiRequest(
-    "/api/v1/diagnostics/quarantine",
-    {},
-    isQuarantineList,
-  );
+  return apiRequest("/api/v1/diagnostics/quarantine", {}, isQuarantineList);
 }

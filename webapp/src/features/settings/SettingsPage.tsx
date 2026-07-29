@@ -116,9 +116,13 @@ export function SettingsPage({
         case "restart": {
           const accepted = await restartDevice();
           if (!accepted.restartScheduled) {
-            throw new Error("The device did not confirm the scheduled restart.");
+            throw new Error(
+              "The device did not confirm the scheduled restart.",
+            );
           }
-          setMessage("Restart scheduled. This page may disconnect while the device reboots.");
+          setMessage(
+            "Restart scheduled. This page may disconnect while the device reboots.",
+          );
           break;
         }
         case "reset-settings": {
@@ -134,7 +138,9 @@ export function SettingsPage({
         case "factory-reset": {
           const accepted = await factoryResetDevice();
           if (!accepted.factoryReset || !accepted.restartScheduled) {
-            throw new Error("The device returned an incomplete factory-reset acknowledgement.");
+            throw new Error(
+              "The device returned an incomplete factory-reset acknowledgement.",
+            );
           }
           setMessage(
             "Factory reset accepted. The device will restart into first-run setup.",
@@ -157,7 +163,10 @@ export function SettingsPage({
         <div>
           <p className="eyebrow dark">Device administration</p>
           <h2 id="settings-title">Settings</h2>
-          <p>Manage live policy, persisted data, diagnostics, and device lifecycle.</p>
+          <p>
+            Manage live policy, persisted data, diagnostics, and device
+            lifecycle.
+          </p>
         </div>
       </div>
 
@@ -216,7 +225,9 @@ export function SettingsPage({
         </article>
         <article className="validation-card">
           <h3>Import and restore</h3>
-          <p>Review the explicit Phase 18 transactional-operation boundaries.</p>
+          <p>
+            Review the explicit Phase 18 transactional-operation boundaries.
+          </p>
           <button
             onClick={() => {
               navigate("import");
@@ -255,8 +266,8 @@ export function SettingsPage({
       <section className="danger-zone" aria-labelledby="device-actions-title">
         <h3 id="device-actions-title">Device actions</h3>
         <p>
-          These operations require deliberate confirmation. The request visibly waits
-          for the configured physical device confirmation.
+          These operations require deliberate confirmation. The request visibly
+          waits for the configured physical device confirmation.
         </p>
         <div className="form-actions">
           <button
@@ -314,11 +325,15 @@ export function SettingsPage({
             </label>
           ) : null}
           {actionBusy ? (
-            <div className="confirmation-panel" role="status" aria-live="assertive">
+            <div
+              className="confirmation-panel"
+              role="status"
+              aria-live="assertive"
+            >
               <strong>Press the confirmation button on the device.</strong>
               <p>
-                The operation will not proceed unless the device accepts the physical
-                confirmation before the bounded request timeout.
+                The operation will not proceed unless the device accepts the
+                physical confirmation before the bounded request timeout.
               </p>
             </div>
           ) : null}
@@ -339,7 +354,9 @@ export function SettingsPage({
               }}
               type="button"
             >
-              {actionBusy ? "Waiting for device…" : `Confirm ${actionTitle(action)}`}
+              {actionBusy
+                ? "Waiting for device…"
+                : `Confirm ${actionTitle(action)}`}
             </button>
           </div>
         </div>

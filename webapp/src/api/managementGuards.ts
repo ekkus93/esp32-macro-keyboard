@@ -23,7 +23,10 @@ function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
-function isBoundedString(value: unknown, maximumBytes: number): value is string {
+function isBoundedString(
+  value: unknown,
+  maximumBytes: number,
+): value is string {
   return (
     typeof value === "string" &&
     new TextEncoder().encode(value).byteLength <= maximumBytes

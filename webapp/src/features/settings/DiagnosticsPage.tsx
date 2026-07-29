@@ -68,7 +68,10 @@ export function DiagnosticsPage(): React.JSX.Element {
       ) : null}
 
       {health === null ? null : (
-        <article className="validation-card" aria-labelledby="storage-health-title">
+        <article
+          className="validation-card"
+          aria-labelledby="storage-health-title"
+        >
           <div className="management-title-row">
             <h3 id="storage-health-title">Storage health</h3>
             <StatusBadge
@@ -129,11 +132,17 @@ export function DiagnosticsPage(): React.JSX.Element {
                     <h4>{entry.reason || "Unspecified quarantine reason"}</h4>
                     <dl className="metadata">
                       <dt>Record ID</dt>
-                      <dd><code>{entry.id}</code></dd>
+                      <dd>
+                        <code>{entry.id}</code>
+                      </dd>
                       <dt>Source</dt>
-                      <dd><code>{entry.sourcePath}</code></dd>
+                      <dd>
+                        <code>{entry.sourcePath}</code>
+                      </dd>
                       <dt>Evidence</dt>
-                      <dd><code>{entry.evidencePath}</code></dd>
+                      <dd>
+                        <code>{entry.evidencePath}</code>
+                      </dd>
                     </dl>
                   </div>
                 </li>
@@ -153,8 +162,8 @@ export function DiagnosticsPage(): React.JSX.Element {
       <article className="validation-card">
         <h3>Full subsystem diagnostics</h3>
         <p>
-          Build identity, heap, task stacks, capacities, and subsystem health are
-          not fabricated by this screen.
+          Build identity, heap, task stacks, capacities, and subsystem health
+          are not fabricated by this screen.
         </p>
         <button disabled type="button">
           Load full diagnostics
