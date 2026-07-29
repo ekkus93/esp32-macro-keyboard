@@ -20,7 +20,9 @@ has read-only repository permission.
 - Python tools:
   - `cmakelang==0.6.13`
   - `yamllint==1.38.0`
-- Go tool: `mvdan.cc/sh/v3/cmd/shfmt@v3.11.0`
+- Go tools:
+  - `github.com/rhysd/actionlint/cmd/actionlint@v1.7.12`
+  - `mvdan.cc/sh/v3/cmd/shfmt@v3.11.0`
 - Ubuntu packages supplied by the pinned runner archive:
   - `clang-format`
   - `clang-tidy`
@@ -51,6 +53,9 @@ a cold cache.
   gate remains usable offline after dependencies and toolchains are installed.
 - A dependency-audit exception must be narrow, dev-only, documented, tested,
   and time-limited. Any changed finding fails closed.
+- `actionlint` validates every GitHub Actions workflow as part of
+  `scripts/check-scripts.sh`; workflow syntax and expression errors fail the
+  authoritative gate.
 
 ## Connector-readable CI status
 
