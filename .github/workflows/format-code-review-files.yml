@@ -1,0 +1,59 @@
+name: Format Code Review Files
+
+on:
+  push:
+    branches:
+      - agent/code-review-fixes-readable
+    paths:
+      - .github/workflows/format-code-review-files.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install formatter
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends clang-format
+
+      - name: Format changed C files
+        shell: bash
+        run: |
+          set -euo pipefail
+          clang-format -i \
+            firmware/components/storage/storage_atomic.c \
+            firmware/components/web_server/web_api_json.c \
+            firmware/components/web_server/web_api_procedures.c \
+            tests/host/test_storage_atomic.c \
+            tests/host/test_web_api_json.c \
+            tests/host/test_web_api_repository_handlers.c
+          clang-format --dry-run --Werror \
+            firmware/components/storage/storage_atomic.c \
+            firmware/components/web_server/web_api_json.c \
+            firmware/components/web_server/web_api_procedures.c \
+            tests/host/test_storage_atomic.c \
+            tests/host/test_web_api_json.c \
+            tests/host/test_web_api_repository_handlers.c
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: formatted-code-review-files
+          path: |
+            firmware/components/storage/storage_atomic.c
+            firmware/components/web_server/web_api_json.c
+            firmware/components/web_server/web_api_procedures.c
+            tests/host/test_storage_atomic.c
+            tests/host/test_web_api_json.c
+            tests/host/test_web_api_repository_handlers.c
+          if-no-files-found: error
+          retention-days: 1
