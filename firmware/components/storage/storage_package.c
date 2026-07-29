@@ -19,9 +19,9 @@
 #define STORAGE_PACKAGE_FIELD_NAME_BYTES 32U
 #define STORAGE_PACKAGE_FIELD_COUNT 7U
 #define STORAGE_PACKAGE_ARRAY_COUNT 5U
-#define STORAGE_PACKAGE_LOCAL_MACROS_MAX \
+#define STORAGE_PACKAGE_LOCAL_MACROS_MAX                                                           \
     ((size_t)APP_MACRO_SETS_MAX * (size_t)APP_MACROS_PER_SET_MAX)
-#define STORAGE_PACKAGE_PROCEDURES_MAX \
+#define STORAGE_PACKAGE_PROCEDURES_MAX                                                             \
     ((size_t)APP_MACRO_SETS_MAX * (size_t)APP_PROCEDURES_PER_SET_MAX)
 #define STORAGE_PACKAGE_GLOBAL_MACROS_MAX ((size_t)APP_MACROS_PER_SET_MAX)
 
@@ -111,8 +111,7 @@ typedef struct {
 typedef app_error_code_t (*package_object_callback_t)(const json_span_t *object, void *context);
 
 static const char *const PACKAGE_FIELDS[STORAGE_PACKAGE_FIELD_COUNT] = {
-    "schema_version", "package_type", "sets", "macros", "global_macros", "procedures",
-    "progress",
+    "schema_version", "package_type", "sets", "macros", "global_macros", "procedures", "progress",
 };
 
 static void skip_whitespace(json_cursor_t *cursor) {
@@ -341,8 +340,7 @@ static app_error_code_t capture_json_value(json_cursor_t *cursor, json_span_t *o
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t read_plain_string(json_cursor_t *cursor, char *output,
-                                          size_t output_size) {
+static app_error_code_t read_plain_string(json_cursor_t *cursor, char *output, size_t output_size) {
     if (output == NULL || output_size == 0U || cursor->offset >= cursor->length ||
         cursor->data[cursor->offset] != '"') {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -401,8 +399,7 @@ static size_t package_field_index(const char *name) {
     return SIZE_MAX;
 }
 
-static app_error_code_t read_package_kind(json_cursor_t *cursor,
-                                          storage_package_kind_t *out_kind) {
+static app_error_code_t read_package_kind(json_cursor_t *cursor, storage_package_kind_t *out_kind) {
     char value[sizeof("backup")];
     app_error_code_t result = read_plain_string(cursor, value, sizeof(value));
     if (result != APP_ERROR_NONE) {
@@ -451,9 +448,8 @@ static app_error_code_t parse_package_field(json_cursor_t *cursor, size_t field_
         return APP_ERROR_INVALID_ARGUMENT;
     }
     app_error_code_t result = capture_json_value(cursor, &out_document->arrays[array_index]);
-    if (result == APP_ERROR_NONE &&
-        (out_document->arrays[array_index].length == 0U ||
-         out_document->arrays[array_index].data[0] != '[')) {
+    if (result == APP_ERROR_NONE && (out_document->arrays[array_index].length == 0U ||
+                                     out_document->arrays[array_index].data[0] != '[')) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
     return result;
@@ -579,6 +575,9 @@ static bool add_allocation_budget(const allocation_shape_t *shape, size_t *in_ou
         return false;
     }
     const size_t bytes = shape->count * shape->item_size;
+    if (bytes > APP_IMPORT_PACKAGE_MAX_BYTES) {
+        return false;
+    }
     if (*in_out_total > APP_IMPORT_PACKAGE_MAX_BYTES - bytes) {
         return false;
     }
@@ -698,8 +697,8 @@ static app_error_code_t external_object_result(app_error_code_t result) {
 
 static app_error_code_t parse_exact_set(const json_span_t *object, macro_set_t *out_set) {
     static const char *const fields[] = {
-        "schema_version", "id",    "revision",        "name",       "description",
-        "manufacturer",   "model", "board",           "keyboard_layout", "sort_order",
+        "schema_version", "id",    "revision",        "name",       "description", "manufacturer",
+        "model",          "board", "keyboard_layout", "sort_order",
     };
     cJSON *root = NULL;
     app_error_code_t result = storage_json_parse_exact_object(
@@ -761,8 +760,7 @@ static app_error_code_t validate_macro_object(const json_span_t *object, void *c
     size_t set_index = SIZE_MAX;
     if (result == APP_ERROR_NONE && macro.scope == MACRO_SCOPE_SET) {
         set_index = find_set_index(state, &macro.set_id);
-        if (set_index == SIZE_MAX ||
-            state->set_macro_counts[set_index] >= APP_MACROS_PER_SET_MAX) {
+        if (set_index == SIZE_MAX || state->set_macro_counts[set_index] >= APP_MACROS_PER_SET_MAX) {
             result = APP_ERROR_INVALID_ARGUMENT;
         }
     }
@@ -795,7 +793,8 @@ static bool procedure_macro_references_valid(const package_validation_state_t *s
             return false;
         }
         const package_macro_metadata_t *macro = &state->macros[macro_index];
-        if (macro->scope == MACRO_SCOPE_SET && !app_uuid_equal(&macro->set_id, &procedure->set_id)) {
+        if (macro->scope == MACRO_SCOPE_SET &&
+            !app_uuid_equal(&macro->set_id, &procedure->set_id)) {
             return false;
         }
     }
@@ -902,9 +901,9 @@ static app_error_code_t validate_progress_object(const json_span_t *object, void
 
 static app_error_code_t count_package_arrays(const package_document_t *document,
                                              storage_package_summary_t *out_summary) {
-    app_error_code_t result = visit_object_array(
-        &document->arrays[PACKAGE_ARRAY_SETS], APP_MACRO_SETS_MAX, NULL, NULL,
-        &out_summary->set_count);
+    app_error_code_t result =
+        visit_object_array(&document->arrays[PACKAGE_ARRAY_SETS], APP_MACRO_SETS_MAX, NULL, NULL,
+                           &out_summary->set_count);
     if (result == APP_ERROR_NONE) {
         result = visit_object_array(&document->arrays[PACKAGE_ARRAY_MACROS],
                                     STORAGE_PACKAGE_LOCAL_MACROS_MAX, NULL, NULL,
@@ -951,9 +950,9 @@ static app_error_code_t validate_package_objects(const package_document_t *docum
         .expected_scope = MACRO_SCOPE_SET,
     };
     if (result == APP_ERROR_NONE) {
-        result = visit_object_array(&document->arrays[PACKAGE_ARRAY_MACROS],
-                                    summary->local_macro_count, validate_macro_object,
-                                    &local_macros, &visited);
+        result =
+            visit_object_array(&document->arrays[PACKAGE_ARRAY_MACROS], summary->local_macro_count,
+                               validate_macro_object, &local_macros, &visited);
     }
     macro_validation_context_t global_macros = {
         .state = &state,
@@ -970,9 +969,9 @@ static app_error_code_t validate_package_objects(const package_document_t *docum
                                     &visited);
     }
     if (result == APP_ERROR_NONE) {
-        result = visit_object_array(&document->arrays[PACKAGE_ARRAY_PROGRESS],
-                                    state.progress_capacity, validate_progress_object, &state,
-                                    &visited);
+        result =
+            visit_object_array(&document->arrays[PACKAGE_ARRAY_PROGRESS], state.progress_capacity,
+                               validate_progress_object, &state, &visited);
     }
     if (result == APP_ERROR_NONE &&
         (state.set_count != summary->set_count ||
