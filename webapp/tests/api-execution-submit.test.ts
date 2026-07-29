@@ -20,6 +20,13 @@ function accepted(): { ok: true; data: Record<string, unknown> } {
   };
 }
 
+function parseJsonBody(body: BodyInit | null | undefined): unknown {
+  if (typeof body !== "string") {
+    throw new Error("Expected a JSON string request body.");
+  }
+  return JSON.parse(body) as unknown;
+}
+
 describe("submitExecution", () => {
   test("sends the exact standalone request shape", async () => {
     planJsonResponse(accepted(), 202);
@@ -33,7 +40,7 @@ describe("submitExecution", () => {
     const call = getFetchCalls()[0];
     expect(call?.url).toBe("/api/v1/executions");
     expect(call?.method).toBe("POST");
-    expect(JSON.parse(String(call?.body))).toEqual({
+    expect(parseJsonBody(call?.body)).toEqual({
       setId,
       macroId,
       macroRevision: 7,
@@ -50,7 +57,7 @@ describe("submitExecution", () => {
     };
 
     await submitExecution(request);
-    expect(JSON.parse(String(getFetchCalls()[0]?.body))).toEqual({
+    expect(parseJsonBody(getFetchCalls()[0]?.body)).toEqual({
       setId,
       macroId,
       macroRevision: 7,
