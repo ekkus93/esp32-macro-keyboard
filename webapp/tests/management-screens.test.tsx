@@ -6,7 +6,12 @@ import { DiagnosticsPage } from "../src/features/settings/DiagnosticsPage";
 import { PackageOperationsPage } from "../src/features/settings/PackageOperationsPage";
 import { SettingsPage } from "../src/features/settings/SettingsPage";
 import { macroSet, settings } from "./appFixtures";
-import { getFetchCalls, jsonResponse, planFetch, planJsonResponse } from "./fakeFetch";
+import {
+  getFetchCalls,
+  jsonResponse,
+  planFetch,
+  planJsonResponse,
+} from "./fakeFetch";
 import {
   buttonWithText,
   click,

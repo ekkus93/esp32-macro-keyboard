@@ -55,7 +55,8 @@ describe("set management", () => {
     );
 
     const moveDown = Array.from(document.querySelectorAll("button")).find(
-      (button) => button.getAttribute("aria-label") === `Move ${macroSet.name} down`,
+      (button) =>
+        button.getAttribute("aria-label") === `Move ${macroSet.name} down`,
     );
     if (!(moveDown instanceof HTMLButtonElement)) {
       throw new Error("Missing accessible Move down button.");
@@ -150,7 +151,7 @@ describe("set management", () => {
       sort_order: 1,
     };
     planJsonResponse(success(created), 201);
-    await submit(document.querySelector('[role="dialog"] form') as HTMLFormElement);
+    await submit(requiredElement('[role="dialog"] form', HTMLFormElement));
     await flushReact();
 
     expect(getFetchCalls()[0]?.url).toBe("/api/v1/sets");
@@ -179,12 +180,16 @@ describe("set management", () => {
       />,
     );
 
-    const deleteButtons = Array.from(document.querySelectorAll("button")).filter(
-      (button) => button.textContent?.trim() === "Delete",
-    );
+    const deleteButtons = Array.from(
+      document.querySelectorAll("button"),
+    ).filter((button) => button.textContent?.trim() === "Delete");
     expect(deleteButtons[0]?.disabled).toBe(true);
     expect(deleteButtons[1]?.disabled).toBe(false);
-    await click(deleteButtons[1] as HTMLButtonElement);
+    const deletableButton = deleteButtons[1];
+    if (deletableButton === undefined) {
+      throw new Error("Missing deletable set control.");
+    }
+    await click(deletableButton);
     expect(buttonWithText("Delete permanently").disabled).toBe(true);
     await setInputValue(
       requiredElement("#delete-set-confirmation", HTMLInputElement),
@@ -193,7 +198,7 @@ describe("set management", () => {
     expect(buttonWithText("Delete permanently").disabled).toBe(false);
 
     planJsonResponse(success({ deleted: true, id: secondSetId }));
-    await submit(document.querySelector('[role="dialog"] form') as HTMLFormElement);
+    await submit(requiredElement('[role="dialog"] form', HTMLFormElement));
     await flushReact();
 
     expect(jsonBody(0)).toEqual({ expectedRevision: secondSet.revision });

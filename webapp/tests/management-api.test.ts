@@ -13,7 +13,12 @@ import {
   updateSet,
 } from "../src/api/routes";
 import { macroSet, setId, settings } from "./appFixtures";
-import { getFetchCalls, jsonResponse, planFetch, planJsonResponse } from "./fakeFetch";
+import {
+  getFetchCalls,
+  jsonResponse,
+  planFetch,
+  planJsonResponse,
+} from "./fakeFetch";
 
 const secondSetId = "99999999-9999-4999-8999-999999999999";
 const secondSet = {
@@ -124,13 +129,18 @@ describe("management API contracts", () => {
       }),
     );
 
-    await expect(getStorageHealth()).resolves.toMatchObject({ dataMounted: true });
+    await expect(getStorageHealth()).resolves.toMatchObject({
+      dataMounted: true,
+    });
     await expect(getQuarantine()).resolves.toMatchObject({ damagedCount: 0 });
   });
 
   test("fails closed on incomplete factory-reset acknowledgement", async () => {
     planFetch(() =>
-      jsonResponse(success({ factoryReset: true, restartScheduled: false }), 202),
+      jsonResponse(
+        success({ factoryReset: true, restartScheduled: false }),
+        202,
+      ),
     );
     await expect(factoryResetDevice()).rejects.toMatchObject({
       body: { code: "invalid_response" },

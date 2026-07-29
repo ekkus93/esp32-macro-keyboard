@@ -114,12 +114,7 @@ export function SettingsPage({
     try {
       switch (action) {
         case "restart": {
-          const accepted = await restartDevice();
-          if (!accepted.restartScheduled) {
-            throw new Error(
-              "The device did not confirm the scheduled restart.",
-            );
-          }
+          await restartDevice();
           setMessage(
             "Restart scheduled. This page may disconnect while the device reboots.",
           );
@@ -136,12 +131,7 @@ export function SettingsPage({
           break;
         }
         case "factory-reset": {
-          const accepted = await factoryResetDevice();
-          if (!accepted.factoryReset || !accepted.restartScheduled) {
-            throw new Error(
-              "The device returned an incomplete factory-reset acknowledgement.",
-            );
-          }
+          await factoryResetDevice();
           setMessage(
             "Factory reset accepted. The device will restart into first-run setup.",
           );

@@ -170,7 +170,10 @@ async function startApplicationServer() {
           state.lastOrder = [...body.ids];
           state.sets = body.ids.map((id, index) => {
             const found = state.sets.find((set) => set.id === id);
-            assert(found !== undefined, `Unknown reordered set ID: ${String(id)}`);
+            assert(
+              found !== undefined,
+              `Unknown reordered set ID: ${String(id)}`,
+            );
             return { ...found, sort_order: index };
           });
           sendJson(response, 200, { ok: true, data: state.sets });
@@ -217,10 +220,7 @@ async function startApplicationServer() {
           });
           return;
         }
-        if (
-          method === "GET" &&
-          url.pathname === "/api/v1/executions/current"
-        ) {
+        if (method === "GET" && url.pathname === "/api/v1/executions/current") {
           state.executionPolls += 1;
           const completed = state.executionPolls >= 2;
           sendJson(response, 200, {
@@ -254,7 +254,8 @@ async function startApplicationServer() {
         return;
       }
 
-      const requested = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
+      const requested =
+        url.pathname === "/" ? "index.html" : url.pathname.slice(1);
       const safe = normalize(requested).replace(/^(\.\.[/\\])+/, "");
       let file = new URL(safe, dist);
       try {
@@ -288,7 +289,10 @@ async function startApplicationServer() {
     server.listen(0, "127.0.0.1", resolve);
   });
   const address = server.address();
-  assert(address !== null && typeof address !== "string", "Missing server port.");
+  assert(
+    address !== null && typeof address !== "string",
+    "Missing server port.",
+  );
   return {
     baseUrl: `http://127.0.0.1:${String(address.port)}`,
     close: () => new Promise((resolve) => server.close(resolve)),
@@ -314,7 +318,11 @@ async function devToolsUrl(processHandle) {
     processHandle.stdout.on("data", receive);
     processHandle.once("exit", (code) => {
       clearTimeout(timeout);
-      reject(new Error(`Chrome exited before DevTools startup with code ${String(code)}.`));
+      reject(
+        new Error(
+          `Chrome exited before DevTools startup with code ${String(code)}.`,
+        ),
+      );
     });
   });
 }
@@ -505,7 +513,10 @@ async function runBrowserWorkflows(cdp, serverState) {
     cdp,
     "document.activeElement.textContent.trim()",
   );
-  assert(restoredFocus === "Create set", "Dialog focus was not restored to its opener.");
+  assert(
+    restoredFocus === "Create set",
+    "Dialog focus was not restored to its opener.",
+  );
 
   const reordered = await evaluate(
     cdp,
@@ -522,7 +533,8 @@ async function runBrowserWorkflows(cdp, serverState) {
     "Set reorder did not complete.",
   );
   assert(
-    JSON.stringify(serverState.lastOrder) === JSON.stringify([secondSetId, setId]),
+    JSON.stringify(serverState.lastOrder) ===
+      JSON.stringify([secondSetId, setId]),
     `Unexpected reordered IDs: ${JSON.stringify(serverState.lastOrder)}`,
   );
 
@@ -540,7 +552,10 @@ async function runBrowserWorkflows(cdp, serverState) {
     "Reconnect state was not announced.",
   );
   const reconnectDeadline = Date.now() + 5_000;
-  while (serverState.settingsReads <= readsBeforeReconnect && Date.now() < reconnectDeadline) {
+  while (
+    serverState.settingsReads <= readsBeforeReconnect &&
+    Date.now() < reconnectDeadline
+  ) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   assert(
@@ -581,7 +596,9 @@ async function main() {
     "chromium",
     "chromium-browser",
   ]);
-  const userDataDirectory = await mkdtemp(join(tmpdir(), "esp32-macro-browser-"));
+  const userDataDirectory = await mkdtemp(
+    join(tmpdir(), "esp32-macro-browser-"),
+  );
   const application = await startApplicationServer();
   const chromeProcess = spawn(
     chrome,
