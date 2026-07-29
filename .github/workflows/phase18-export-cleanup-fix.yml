@@ -58,9 +58,39 @@ jobs:
           fi
 
       - name: Run storage host suite
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          set -euo pipefail
-          ./scripts/run-tests.sh storage
+          set -uo pipefail
+          ./scripts/run-tests.sh storage > /tmp/storage-tests.log 2>&1
+          status=$?
+          cat /tmp/storage-tests.log
+          if ((status != 0)); then
+            tail -n 80 /tmp/storage-tests.log > /tmp/storage-tests-tail.log
+            python3 - <<'PY' > /tmp/issue.json
+          import json
+          import os
+          from pathlib import Path
+
+          tail = Path("/tmp/storage-tests-tail.log").read_text(encoding="utf-8", errors="replace")
+          body = (
+              "Temporary Phase 18 export cleanup test failed.\n\n"
+              f"Run ID: `{os.environ['RUN_ID']}`\n\n"
+              "```text\n" + tail[-12000:] + "\n```\n\n"
+              "No production commit was made."
+          )
+          print(json.dumps({"body": body}))
+          PY
+            curl --fail-with-body \
+              --request PATCH \
+              --header "Authorization: Bearer ${GH_TOKEN}" \
+              --header "Accept: application/vnd.github+json" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/24" \
+              --data-binary @/tmp/issue.json
+            exit "${status}"
+          fi
 
       - name: Commit exact cleanup fix
         run: |
