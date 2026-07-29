@@ -434,7 +434,7 @@ async function dispatchKey(cdp, key, modifiers = 0) {
   const keyCode =
     key === "Tab" ? 9 : key === "Escape" ? 27 : key === "Enter" ? 13 : 0;
   await cdp.send("Input.dispatchKeyEvent", {
-    type: "rawKeyDown",
+    type: key === "Enter" ? "keyDown" : "rawKeyDown",
     key,
     code: key,
     windowsVirtualKeyCode: keyCode,
