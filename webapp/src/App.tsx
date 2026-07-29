@@ -4,6 +4,7 @@ import { getDeviceStatus, getSettings, listSets } from "./api/routes";
 import { AppShell } from "./components/AppShell";
 import { ErrorBanner } from "./components/ErrorBanner";
 import { SessionBoundary } from "./features/auth/SessionBoundary";
+import { ConfirmExecutionPage } from "./features/execution/ConfirmExecutionPage";
 import { ExecutionPage } from "./features/execution/ExecutionPage";
 import { ExecutionResultPage } from "./features/execution/ExecutionResultPage";
 import { MacroEditorPage } from "./features/macros/MacroEditorPage";
@@ -14,8 +15,10 @@ import { SetSelectionPage } from "./features/sets/SetSelectionPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { DeferredPage } from "./pages/DeferredPage";
 import {
+  executionConfirmationTargetFromHash,
   macroEditorTargetFromHash,
   navigate,
+  navigateToMacroConfirmation,
   navigateToMacroEditor,
   navigateToProcedure,
   procedureTargetFromHash,
@@ -44,6 +47,10 @@ function AuthenticatedApp({
   const [sets, setSets] = useState<MacroSet[] | null>(null);
   const [status, setStatus] = useState(initialStatus);
   const [execution, setExecution] = useState<ExecutionStatus | null>(null);
+  const [expectedExecutionId, setExpectedExecutionId] = useState<string | null>(
+    null,
+  );
+  const [executionReturnHash, setExecutionReturnHash] = useState("/macros");
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [loadVersion, setLoadVersion] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
@@ -174,13 +181,19 @@ function AuthenticatedApp({
       case "settings":
         return <SettingsPage onUpdated={setSettings} settings={settings} />;
       case "execution":
-        return <ExecutionPage onTerminal={onTerminal} />;
+        return (
+          <ExecutionPage
+            expectedExecutionId={expectedExecutionId}
+            onTerminal={onTerminal}
+          />
+        );
       case "result":
         return (
           <ExecutionResultPage
             execution={execution}
             onReturn={() => {
-              navigateTo("procedures");
+              setExpectedExecutionId(null);
+              window.location.hash = executionReturnHash;
             }}
           />
         );
@@ -226,6 +239,9 @@ function AuthenticatedApp({
             onEdit={(macroId) => {
               navigateToMacroEditor(macroId);
             }}
+            onSend={(macroId) => {
+              navigateToMacroConfirmation(macroId);
+            }}
           />
         );
       case "macro-editor":
@@ -240,9 +256,20 @@ function AuthenticatedApp({
           />
         );
       case "confirm":
-        return deferred(
-          "Confirm send",
-          "Execution submission remains a separate Phase 17.7 boundary. Opening this page never sends a macro automatically.",
+        return (
+          <ConfirmExecutionPage
+            activeSet={activeSet}
+            key={`${activeSet?.id ?? "none"}:${routeHash}`}
+            onAccepted={(accepted, returnHash) => {
+              setExecution(null);
+              setExpectedExecutionId(accepted.executionId);
+              setExecutionReturnHash(returnHash);
+              navigateTo("execution");
+            }}
+            settings={settings}
+            status={status}
+            target={executionConfirmationTargetFromHash()}
+          />
         );
       case "manage-sets":
         return (
