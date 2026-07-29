@@ -197,3 +197,38 @@ target_link_libraries(storage_package_export_tests PRIVATE PkgConfig::CJSON test
 target_compile_options(storage_package_export_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME storage_package_export COMMAND storage_package_export_tests)
 set_tests_properties(storage_package_export PROPERTIES LABELS "storage")
+
+add_executable(
+    web_api_set_export_tests
+    "${CMAKE_SOURCE_DIR}/test_web_api_set_export.c"
+    ${STORAGE_OBJECT_REPOSITORY_SOURCES}
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/macro_parser.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/macro_keymap_us.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_export.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_core.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_response.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_json.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_handler_common.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_sets.c"
+)
+target_include_directories(
+    web_api_set_export_tests
+    PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_executor/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/auth/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/wifi_ap/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/provisioning/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/storage"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server"
+)
+target_compile_definitions(
+    web_api_set_export_tests
+    PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/web-api-set-export-data"
+)
+target_link_libraries(web_api_set_export_tests PRIVATE PkgConfig::CJSON test_support)
+target_compile_options(web_api_set_export_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME web_api_set_export COMMAND web_api_set_export_tests)
+set_tests_properties(web_api_set_export PROPERTIES LABELS "web;storage")
