@@ -1,0 +1,198 @@
+a,
+select {
+  font: inherit;
+}
+
+select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.75rem;
+  border: 1px solid #94a3b8;
+  border-radius: 0.75rem;
+}
+
+a:focus-visible,
+select:focus-visible,
+[tabindex="-1"]:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+.header-button {
+  min-height: 44px;
+}
+
+.connectivity-banner {
+  padding: 0.75rem 1rem;
+  font-weight: 800;
+  border-bottom: 1px solid;
+}
+
+.connectivity-offline {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.connectivity-reconnected {
+  color: #14532d;
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  overflow-y: auto;
+  background: rgb(15 23 42 / 72%);
+}
+
+.dialog-panel {
+  width: min(100%, 38rem);
+  max-height: calc(100vh - 2rem);
+  padding: 1rem;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #64748b;
+  border-radius: 1rem;
+  box-shadow: 0 1.5rem 4rem rgb(15 23 42 / 35%);
+}
+
+.dialog-heading,
+.management-title-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.dialog-heading {
+  margin-bottom: 1rem;
+}
+
+.dialog-heading h2,
+.dialog-heading p,
+.management-title-row h3,
+.management-title-row h4 {
+  margin-top: 0;
+}
+
+.management-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.management-card {
+  margin: 0;
+}
+
+.management-card > div:first-child {
+  min-width: 0;
+  flex: 1 1 16rem;
+}
+
+.management-actions {
+  display: grid;
+  gap: 0.5rem;
+  min-width: min(100%, 18rem);
+}
+
+.reorder-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.management-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.management-grid > article {
+  margin: 0;
+}
+
+.danger-zone {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #fff7ed;
+  border: 1px solid #fb923c;
+  border-radius: 0.75rem;
+}
+
+.boundary-message {
+  margin: 1rem 0;
+  padding: 1rem;
+  color: #78350f;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 0.75rem;
+}
+
+.unavailable-operation {
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+}
+
+.unavailable-operation button {
+  width: 100%;
+}
+
+.section-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.section-tabs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.7rem 1rem;
+  color: #1e3a8a;
+  font-weight: 800;
+  text-decoration: none;
+  background: #dbeafe;
+  border-radius: 0.75rem;
+}
+
+.section-tabs a.active {
+  color: white;
+  background: #2563eb;
+}
+
+@media (width <= 40rem) {
+  .management-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog-heading,
+  .management-title-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (width <= 32rem) {
+  .reorder-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .management-actions,
+  .management-actions button,
+  .section-tabs,
+  .section-tabs a {
+    width: 100%;
+  }
+}
