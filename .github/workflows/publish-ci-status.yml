@@ -1,0 +1,252 @@
+name: Publish CI Status
+
+on:
+  workflow_run:
+    workflows:
+      - Quality
+      - Host Tests
+      - Browser Tests
+      - Device Test Build
+    types:
+      - requested
+      - in_progress
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+concurrency:
+  group: publish-ci-status-${{ github.event.workflow_run.workflow_id }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Publish latest workflow status
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Update authoritative status issue
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.workflow_id }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_STATUS: ${{ github.event.workflow_run.status }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          CREATED_AT: ${{ github.event.workflow_run.created_at }}
+          UPDATED_AT: ${{ github.event.workflow_run.updated_at }}
+        run: |
+          set -euo pipefail
+
+          case "${WORKFLOW_NAME}" in
+            "Quality")
+              ISSUE_NUMBER="19"
+              ISSUE_TITLE="CI Status: Quality"
+              ISSUE_HEADING="Latest Quality Run"
+              ;;
+            "Host Tests")
+              ISSUE_NUMBER="20"
+              ISSUE_TITLE="CI Status: Host Tests"
+              ISSUE_HEADING="Latest Host Tests Run"
+              ;;
+            "Browser Tests")
+              ISSUE_NUMBER="21"
+              ISSUE_TITLE="CI Status: Browser Tests"
+              ISSUE_HEADING="Latest Browser Tests Run"
+              ;;
+            "Device Test Build")
+              ISSUE_NUMBER="22"
+              ISSUE_TITLE="CI Status: Device Test Build"
+              ISSUE_HEADING="Latest Device Test Build Run"
+              ;;
+            *)
+              printf 'Unsupported workflow: %s\n' "${WORKFLOW_NAME}" >&2
+              exit 1
+              ;;
+          esac
+          export ISSUE_NUMBER ISSUE_TITLE ISSUE_HEADING
+
+          latest_run_id="$(
+            gh api \
+              "repos/${REPOSITORY}/actions/workflows/${WORKFLOW_ID}/runs?per_page=1" \
+              --jq '.workflow_runs[0].id'
+          )"
+          if [[ "${latest_run_id}" != "${RUN_ID}" ]]; then
+            printf 'Skipping stale state for run %s; latest run is %s.\n' \
+              "${RUN_ID}" "${latest_run_id}"
+            exit 0
+          fi
+
+          jobs_file="${RUNNER_TEMP}/ci-status-jobs.json"
+          body_file="${RUNNER_TEMP}/ci-status-body.md"
+          patch_file="${RUNNER_TEMP}/ci-status-issue-patch.json"
+
+          gh api \
+            "repos/${REPOSITORY}/actions/runs/${RUN_ID}/jobs?filter=latest&per_page=100" \
+            > "${jobs_file}"
+
+          python3 - "${jobs_file}" "${body_file}" <<'PY'
+          import json
+          import os
+          import sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          jobs_path = Path(sys.argv[1])
+          body_path = Path(sys.argv[2])
+          raw_jobs = json.loads(jobs_path.read_text(encoding="utf-8"))
+
+          problem_conclusions = {
+              "action_required",
+              "cancelled",
+              "failure",
+              "startup_failure",
+              "stale",
+              "timed_out",
+          }
+          jobs = []
+          problem_steps = []
+          running_jobs = []
+          pending_jobs = []
+
+          for raw_job in raw_jobs.get("jobs", []):
+              job_name = raw_job.get("name")
+              job_status = raw_job.get("status")
+              if job_status == "in_progress":
+                  running_jobs.append(job_name)
+              elif job_status in {"queued", "pending", "waiting"}:
+                  pending_jobs.append(job_name)
+
+              steps = []
+              for raw_step in raw_job.get("steps", []):
+                  step = {
+                      "number": raw_step.get("number"),
+                      "name": raw_step.get("name"),
+                      "status": raw_step.get("status"),
+                      "conclusion": raw_step.get("conclusion"),
+                      "started_at": raw_step.get("started_at"),
+                      "completed_at": raw_step.get("completed_at"),
+                  }
+                  steps.append(step)
+                  if step["conclusion"] in problem_conclusions:
+                      problem_steps.append(
+                          {
+                              "job_id": raw_job.get("id"),
+                              "job": job_name,
+                              "step_number": step["number"],
+                              "step": step["name"],
+                              "conclusion": step["conclusion"],
+                          }
+                      )
+
+              jobs.append(
+                  {
+                      "id": raw_job.get("id"),
+                      "name": job_name,
+                      "status": job_status,
+                      "conclusion": raw_job.get("conclusion"),
+                      "started_at": raw_job.get("started_at"),
+                      "completed_at": raw_job.get("completed_at"),
+                      "runner_name": raw_job.get("runner_name"),
+                      "runner_group_name": raw_job.get("runner_group_name"),
+                      "steps": steps,
+                  }
+              )
+
+          payload = {
+              "schema_version": 1,
+              "workflow": os.environ["WORKFLOW_NAME"],
+              "workflow_id": int(os.environ["WORKFLOW_ID"]),
+              "run_id": int(os.environ["RUN_ID"]),
+              "run_attempt": int(os.environ["RUN_ATTEMPT"]),
+              "run_url": os.environ["RUN_URL"],
+              "status": os.environ["RUN_STATUS"],
+              "conclusion": os.environ["RUN_CONCLUSION"] or None,
+              "event": os.environ["RUN_EVENT"],
+              "head_branch": os.environ["HEAD_BRANCH"],
+              "head_sha": os.environ["HEAD_SHA"],
+              "created_at": os.environ["CREATED_AT"],
+              "event_updated_at": os.environ["UPDATED_AT"],
+              "publisher_observed_at": datetime.now(timezone.utc)
+              .isoformat()
+              .replace("+00:00", "Z"),
+              "running_jobs": running_jobs,
+              "pending_jobs": pending_jobs,
+              "problem_steps": problem_steps,
+              "jobs": jobs,
+          }
+
+          def summary(values):
+              clean = [str(value) for value in values if value]
+              return ", ".join(clean) if clean else "None"
+
+          problem_summary = "None"
+          if problem_steps:
+              problem_summary = ", ".join(
+                  f'{item["job"]} / {item["step"]} ({item["conclusion"]})'
+                  for item in problem_steps
+              )
+
+          status = payload["status"] or "unknown"
+          conclusion = payload["conclusion"] or "pending"
+          body = "\n".join(
+              [
+                  "<!-- maintained by publish-ci-status.yml -->",
+                  f'# {os.environ["ISSUE_HEADING"]}',
+                  "",
+                  f"- **Status:** `{status}`",
+                  f"- **Conclusion:** `{conclusion}`",
+                  f'- **Run:** [{payload["run_id"]}]({payload["run_url"]})',
+                  f'- **Attempt:** `{payload["run_attempt"]}`',
+                  f'- **Commit:** `{payload["head_sha"]}`',
+                  f'- **Branch/event:** `{payload["head_branch"]}` / `{payload["event"]}`',
+                  f'- **Running jobs:** {summary(running_jobs)}',
+                  f'- **Pending jobs:** {summary(pending_jobs)}',
+                  f"- **Problem steps:** {problem_summary}",
+                  f'- **Observed:** `{payload["publisher_observed_at"]}`',
+                  "",
+                  "## Machine-readable status",
+                  "",
+                  "```json",
+                  json.dumps(payload, indent=2, sort_keys=True),
+                  "```",
+                  "",
+                  "This issue is overwritten whenever the latest run changes state; it is not a historical log.",
+              ]
+          )
+          body_path.write_text(body + "\n", encoding="utf-8")
+          PY
+
+          python3 - "${body_file}" "${patch_file}" <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          body = Path(sys.argv[1]).read_text(encoding="utf-8")
+          patch = {
+              "title": os.environ["ISSUE_TITLE"],
+              "body": body,
+              "state": "open",
+          }
+          Path(sys.argv[2]).write_text(json.dumps(patch), encoding="utf-8")
+          PY
+
+          gh api \
+            --method PATCH \
+            "repos/${REPOSITORY}/issues/${ISSUE_NUMBER}" \
+            --input "${patch_file}" \
+            >/dev/null
+
+          printf 'Published %s run %s status %s to issue #%s.\n' \
+            "${WORKFLOW_NAME}" "${RUN_ID}" "${RUN_STATUS}" "${ISSUE_NUMBER}"
