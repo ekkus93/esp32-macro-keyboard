@@ -96,7 +96,7 @@ stage="intentional dependency upgrades"
 (
 	cd webapp
 	npm install --save-dev --save-exact \
-		@eslint/js@10.8.0 \
+		@eslint/js@10.0.1 \
 		@vitest/coverage-v8@4.1.10 \
 		eslint@10.8.0 \
 		eslint-plugin-react-hooks@latest \
