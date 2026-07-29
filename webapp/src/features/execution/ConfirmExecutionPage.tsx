@@ -295,7 +295,13 @@ export function ConfirmExecutionPage({
       reasons.push("Another macro execution is already running.");
     }
     return reasons;
-  }, [activeSet?.id, currentSettings.activeSetId, currentStatus, loaded, stale]);
+  }, [
+    activeSet?.id,
+    currentSettings.activeSetId,
+    currentStatus,
+    loaded,
+    stale,
+  ]);
 
   const send = async (): Promise<void> => {
     if (
@@ -329,10 +335,7 @@ export function ConfirmExecutionPage({
       if (
         !sameMacroSnapshot(loaded.macro, latest.macro) ||
         !sameValidationSnapshot(loaded.validation, latest.validation) ||
-        !sameProcedureContext(
-          loaded.procedureContext,
-          latest.procedureContext,
-        )
+        !sameProcedureContext(loaded.procedureContext, latest.procedureContext)
       ) {
         setLoaded(latest);
         setStale(true);
@@ -387,8 +390,8 @@ export function ConfirmExecutionPage({
       <section aria-labelledby="confirm-execution-title">
         <h2 id="confirm-execution-title">Confirm send</h2>
         <p className="error-message" role="alert">
-          The confirmation URL must contain one macro ID and either both procedure
-          context IDs or neither context ID.
+          The confirmation URL must contain one macro ID and either both
+          procedure context IDs or neither context ID.
         </p>
         <button
           onClick={() => {
