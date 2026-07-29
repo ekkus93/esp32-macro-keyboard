@@ -4,11 +4,7 @@ import {
   navigateToMacroConfirmation,
   navigateToProcedureMacroConfirmation,
 } from "../src/routing";
-import {
-  macroId,
-  macroStepId,
-  procedureId,
-} from "./appFixtures";
+import { macroId, macroStepId, procedureId } from "./appFixtures";
 import { setHashSilently } from "./fakeLocation";
 
 describe("execution confirmation routing", () => {
@@ -52,11 +48,7 @@ describe("execution confirmation routing", () => {
     navigateToMacroConfirmation(macroId);
     expect(window.location.hash).toBe(`#/confirm?macroId=${macroId}`);
 
-    navigateToProcedureMacroConfirmation(
-      procedureId,
-      macroStepId,
-      macroId,
-    );
+    navigateToProcedureMacroConfirmation(procedureId, macroStepId, macroId);
     expect(window.location.hash).toBe(
       `#/confirm?procedureId=${procedureId}&stepId=${macroStepId}&macroId=${macroId}`,
     );
