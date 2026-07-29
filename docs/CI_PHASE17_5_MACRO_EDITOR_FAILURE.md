@@ -30,7 +30,7 @@ Phase 17.5 macro editor applied
 npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
-added 471 packages, and audited 472 packages in 1m
+added 471 packages, and audited 472 packages in 60s
 
 18 vulnerabilities (16 high, 2 critical)
 
@@ -51,74 +51,74 @@ npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to revi
 ## phase17-5-macro-editor-format.log
 
 ```text
-10:[90msrc/api/errors.ts[39m 3ms (unchanged)
-16:[90msrc/components/ErrorBanner.tsx[39m 3ms (unchanged)
-55:[90mtests/error-banner.test.tsx[39m 4ms (unchanged)
+10:[90msrc/api/errors.ts[39m 4ms (unchanged)
+16:[90msrc/components/ErrorBanner.tsx[39m 2ms (unchanged)
+55:[90mtests/error-banner.test.tsx[39m 3ms (unchanged)
 75:[90msrc/api/errors.ts[39m 3ms (unchanged)
-81:[90msrc/components/ErrorBanner.tsx[39m 3ms (unchanged)
+81:[90msrc/components/ErrorBanner.tsx[39m 2ms (unchanged)
 120:[90mtests/error-banner.test.tsx[39m 3ms (unchanged)
 
 
 > esp32-macro-keyboard-webapp@0.1.0 format:write
 > prettier --write .
 
-[90meslint.config.js[39m 52ms (unchanged)
-[90mindex.html[39m 29ms (unchanged)
+[90meslint.config.js[39m 48ms (unchanged)
+[90mindex.html[39m 30ms (unchanged)
 [90mpackage.json[39m 3ms (unchanged)
-[90mREADME.md[39m 28ms (unchanged)
-[90msrc/api/client.ts[39m 103ms (unchanged)
-[90msrc/api/errors.ts[39m 3ms (unchanged)
-[90msrc/api/guards.ts[39m 39ms (unchanged)
+[90mREADME.md[39m 25ms (unchanged)
+[90msrc/api/client.ts[39m 93ms (unchanged)
+[90msrc/api/errors.ts[39m 4ms (unchanged)
+[90msrc/api/guards.ts[39m 42ms (unchanged)
 [90msrc/api/README.md[39m 2ms (unchanged)
-[90msrc/api/routes.ts[39m 17ms (unchanged)
-[90msrc/App.tsx[39m 30ms (unchanged)
-[90msrc/components/AppShell.tsx[39m 10ms (unchanged)
-[90msrc/components/ErrorBanner.tsx[39m 3ms (unchanged)
+[90msrc/api/routes.ts[39m 18ms (unchanged)
+[90msrc/App.tsx[39m 28ms (unchanged)
+[90msrc/components/AppShell.tsx[39m 8ms (unchanged)
+[90msrc/components/ErrorBanner.tsx[39m 2ms (unchanged)
 [90msrc/components/README.md[39m 2ms (unchanged)
 [90msrc/components/StatusBadge.tsx[39m 2ms (unchanged)
-[90msrc/features/auth/LoginPage.tsx[39m 11ms (unchanged)
-[90msrc/features/auth/README.md[39m 4ms (unchanged)
-[90msrc/features/auth/SessionBoundary.tsx[39m 13ms (unchanged)
-[90msrc/features/auth/SetupPage.tsx[39m 14ms (unchanged)
+[90msrc/features/auth/LoginPage.tsx[39m 8ms (unchanged)
+[90msrc/features/auth/README.md[39m 3ms (unchanged)
+[90msrc/features/auth/SessionBoundary.tsx[39m 12ms (unchanged)
+[90msrc/features/auth/SetupPage.tsx[39m 13ms (unchanged)
 [90msrc/features/execution/ExecutionPage.tsx[39m 7ms (unchanged)
 [90msrc/features/execution/executionResult.ts[39m 3ms (unchanged)
-[90msrc/features/execution/ExecutionResultPage.tsx[39m 5ms (unchanged)
-[90msrc/features/execution/README.md[39m 5ms (unchanged)
-src/features/macros/macroDraft.ts 19ms
-src/features/macros/MacroEditorPage.tsx 53ms
-src/features/macros/MacroLibraryPage.tsx 16ms
-[90msrc/features/macros/README.md[39m 7ms (unchanged)
+[90msrc/features/execution/ExecutionResultPage.tsx[39m 4ms (unchanged)
+[90msrc/features/execution/README.md[39m 3ms (unchanged)
+src/features/macros/macroDraft.ts 17ms
+src/features/macros/MacroEditorPage.tsx 44ms
+src/features/macros/MacroLibraryPage.tsx 18ms
+[90msrc/features/macros/README.md[39m 6ms (unchanged)
 [90msrc/features/procedures/README.md[39m 2ms (unchanged)
-[90msrc/features/README.md[39m 2ms (unchanged)
-[90msrc/features/sets/README.md[39m 2ms (unchanged)
+[90msrc/features/README.md[39m 1ms (unchanged)
+[90msrc/features/sets/README.md[39m 4ms (unchanged)
 [90msrc/features/sets/SetSelectionPage.tsx[39m 15ms (unchanged)
-[90msrc/features/settings/README.md[39m 2ms (unchanged)
+[90msrc/features/settings/README.md[39m 3ms (unchanged)
 [90msrc/features/settings/SettingsPage.tsx[39m 7ms (unchanged)
-[90msrc/main.tsx[39m 1ms (unchanged)
-[90msrc/pages/DeferredPage.tsx[39m 1ms (unchanged)
-[90msrc/pages/README.md[39m 2ms (unchanged)
+[90msrc/main.tsx[39m 2ms (unchanged)
+[90msrc/pages/DeferredPage.tsx[39m 2ms (unchanged)
+[90msrc/pages/README.md[39m 3ms (unchanged)
 [90msrc/README.md[39m 1ms (unchanged)
-[90msrc/routing.ts[39m 7ms (unchanged)
-[90msrc/styles.css[39m 48ms (unchanged)
+[90msrc/routing.ts[39m 9ms (unchanged)
+[90msrc/styles.css[39m 49ms (unchanged)
 [90msrc/types/limits.ts[39m 2ms (unchanged)
-[90msrc/types/models.ts[39m 7ms (unchanged)
-[90msrc/types/README.md[39m 2ms (unchanged)
+[90msrc/types/models.ts[39m 8ms (unchanged)
+[90msrc/types/README.md[39m 1ms (unchanged)
 [90mstylelint.config.mjs[39m 2ms (unchanged)
-[90mtests/api.test.ts[39m 31ms (unchanged)
-[90mtests/app-auth.test.tsx[39m 19ms (unchanged)
-[90mtests/app-execution.test.tsx[39m 19ms (unchanged)
-tests/app-macros.test.tsx 19ms
+[90mtests/api.test.ts[39m 20ms (unchanged)
+[90mtests/app-auth.test.tsx[39m 14ms (unchanged)
+[90mtests/app-execution.test.tsx[39m 13ms (unchanged)
+tests/app-macros.test.tsx 18ms
 [90mtests/app-routing.test.tsx[39m 7ms (unchanged)
-[90mtests/app-sets.test.tsx[39m 12ms (unchanged)
+[90mtests/app-sets.test.tsx[39m 8ms (unchanged)
 [90mtests/app.test.ts[39m 1ms (unchanged)
-[90mtests/appFixtures.ts[39m 8ms (unchanged)
-[90mtests/error-banner.test.tsx[39m 4ms (unchanged)
-[90mtests/fakeFetch.ts[39m 12ms (unchanged)
+[90mtests/appFixtures.ts[39m 7ms (unchanged)
+[90mtests/error-banner.test.tsx[39m 3ms (unchanged)
+[90mtests/fakeFetch.ts[39m 9ms (unchanged)
 [90mtests/fakeLocation.ts[39m 3ms (unchanged)
-[90mtests/guards.test.ts[39m 7ms (unchanged)
+[90mtests/guards.test.ts[39m 5ms (unchanged)
 [90mtests/README.md[39m 4ms (unchanged)
-[90mtests/render.tsx[39m 10ms (unchanged)
-[90mtests/setup.ts[39m 7ms (unchanged)
+[90mtests/render.tsx[39m 9ms (unchanged)
+[90mtests/setup.ts[39m 6ms (unchanged)
 [90mtsconfig.app.json[39m 2ms (unchanged)
 [90mtsconfig.json[39m 1ms (unchanged)
 [90mtsconfig.node.json[39m 1ms (unchanged)
@@ -127,63 +127,63 @@ tests/app-macros.test.tsx 19ms
 > esp32-macro-keyboard-webapp@0.1.0 format:write
 > prettier --write .
 
-[90meslint.config.js[39m 42ms (unchanged)
-[90mindex.html[39m 24ms (unchanged)
+[90meslint.config.js[39m 37ms (unchanged)
+[90mindex.html[39m 25ms (unchanged)
 [90mpackage.json[39m 3ms (unchanged)
-[90mREADME.md[39m 27ms (unchanged)
-[90msrc/api/client.ts[39m 80ms (unchanged)
+[90mREADME.md[39m 20ms (unchanged)
+[90msrc/api/client.ts[39m 72ms (unchanged)
 [90msrc/api/errors.ts[39m 3ms (unchanged)
-[90msrc/api/guards.ts[39m 36ms (unchanged)
+[90msrc/api/guards.ts[39m 32ms (unchanged)
 [90msrc/api/README.md[39m 2ms (unchanged)
-[90msrc/api/routes.ts[39m 22ms (unchanged)
+[90msrc/api/routes.ts[39m 13ms (unchanged)
 [90msrc/App.tsx[39m 28ms (unchanged)
-[90msrc/components/AppShell.tsx[39m 11ms (unchanged)
-[90msrc/components/ErrorBanner.tsx[39m 3ms (unchanged)
-[90msrc/components/README.md[39m 2ms (unchanged)
-[90msrc/components/StatusBadge.tsx[39m 2ms (unchanged)
-[90msrc/features/auth/LoginPage.tsx[39m 10ms (unchanged)
+[90msrc/components/AppShell.tsx[39m 9ms (unchanged)
+[90msrc/components/ErrorBanner.tsx[39m 2ms (unchanged)
+[90msrc/components/README.md[39m 1ms (unchanged)
+[90msrc/components/StatusBadge.tsx[39m 1ms (unchanged)
+[90msrc/features/auth/LoginPage.tsx[39m 8ms (unchanged)
 [90msrc/features/auth/README.md[39m 3ms (unchanged)
-[90msrc/features/auth/SessionBoundary.tsx[39m 14ms (unchanged)
-[90msrc/features/auth/SetupPage.tsx[39m 16ms (unchanged)
-[90msrc/features/execution/ExecutionPage.tsx[39m 9ms (unchanged)
+[90msrc/features/auth/SessionBoundary.tsx[39m 12ms (unchanged)
+[90msrc/features/auth/SetupPage.tsx[39m 13ms (unchanged)
+[90msrc/features/execution/ExecutionPage.tsx[39m 7ms (unchanged)
 [90msrc/features/execution/executionResult.ts[39m 2ms (unchanged)
-[90msrc/features/execution/ExecutionResultPage.tsx[39m 4ms (unchanged)
-[90msrc/features/execution/README.md[39m 3ms (unchanged)
-[90msrc/features/macros/macroDraft.ts[39m 15ms (unchanged)
-[90msrc/features/macros/MacroEditorPage.tsx[39m 45ms (unchanged)
-[90msrc/features/macros/MacroLibraryPage.tsx[39m 18ms (unchanged)
-[90msrc/features/macros/README.md[39m 6ms (unchanged)
+[90msrc/features/execution/ExecutionResultPage.tsx[39m 5ms (unchanged)
+[90msrc/features/execution/README.md[39m 4ms (unchanged)
+[90msrc/features/macros/macroDraft.ts[39m 16ms (unchanged)
+[90msrc/features/macros/MacroEditorPage.tsx[39m 40ms (unchanged)
+[90msrc/features/macros/MacroLibraryPage.tsx[39m 13ms (unchanged)
+[90msrc/features/macros/README.md[39m 7ms (unchanged)
 [90msrc/features/procedures/README.md[39m 2ms (unchanged)
 [90msrc/features/README.md[39m 1ms (unchanged)
-[90msrc/features/sets/README.md[39m 3ms (unchanged)
-[90msrc/features/sets/SetSelectionPage.tsx[39m 19ms (unchanged)
-[90msrc/features/settings/README.md[39m 3ms (unchanged)
-[90msrc/features/settings/SettingsPage.tsx[39m 8ms (unchanged)
-[90msrc/main.tsx[39m 2ms (unchanged)
-[90msrc/pages/DeferredPage.tsx[39m 2ms (unchanged)
+[90msrc/features/sets/README.md[39m 2ms (unchanged)
+[90msrc/features/sets/SetSelectionPage.tsx[39m 16ms (unchanged)
+[90msrc/features/settings/README.md[39m 2ms (unchanged)
+[90msrc/features/settings/SettingsPage.tsx[39m 5ms (unchanged)
+[90msrc/main.tsx[39m 1ms (unchanged)
+[90msrc/pages/DeferredPage.tsx[39m 1ms (unchanged)
 [90msrc/pages/README.md[39m 2ms (unchanged)
 [90msrc/README.md[39m 1ms (unchanged)
-[90msrc/routing.ts[39m 8ms (unchanged)
-[90msrc/styles.css[39m 41ms (unchanged)
+[90msrc/routing.ts[39m 7ms (unchanged)
+[90msrc/styles.css[39m 36ms (unchanged)
 [90msrc/types/limits.ts[39m 2ms (unchanged)
-[90msrc/types/models.ts[39m 7ms (unchanged)
+[90msrc/types/models.ts[39m 9ms (unchanged)
 [90msrc/types/README.md[39m 1ms (unchanged)
 [90mstylelint.config.mjs[39m 2ms (unchanged)
-[90mtests/api.test.ts[39m 25ms (unchanged)
-[90mtests/app-auth.test.tsx[39m 15ms (unchanged)
-[90mtests/app-execution.test.tsx[39m 18ms (unchanged)
-[90mtests/app-macros.test.tsx[39m 18ms (unchanged)
+[90mtests/api.test.ts[39m 21ms (unchanged)
+[90mtests/app-auth.test.tsx[39m 14ms (unchanged)
+[90mtests/app-execution.test.tsx[39m 14ms (unchanged)
+[90mtests/app-macros.test.tsx[39m 17ms (unchanged)
 [90mtests/app-routing.test.tsx[39m 7ms (unchanged)
-[90mtests/app-sets.test.tsx[39m 10ms (unchanged)
+[90mtests/app-sets.test.tsx[39m 8ms (unchanged)
 [90mtests/app.test.ts[39m 1ms (unchanged)
-[90mtests/appFixtures.ts[39m 9ms (unchanged)
+[90mtests/appFixtures.ts[39m 7ms (unchanged)
 [90mtests/error-banner.test.tsx[39m 3ms (unchanged)
-[90mtests/fakeFetch.ts[39m 9ms (unchanged)
-[90mtests/fakeLocation.ts[39m 3ms (unchanged)
-[90mtests/guards.test.ts[39m 7ms (unchanged)
+[90mtests/fakeFetch.ts[39m 6ms (unchanged)
+[90mtests/fakeLocation.ts[39m 2ms (unchanged)
+[90mtests/guards.test.ts[39m 6ms (unchanged)
 [90mtests/README.md[39m 3ms (unchanged)
-[90mtests/render.tsx[39m 10ms (unchanged)
-[90mtests/setup.ts[39m 6ms (unchanged)
+[90mtests/render.tsx[39m 9ms (unchanged)
+[90mtests/setup.ts[39m 5ms (unchanged)
 [90mtsconfig.app.json[39m 2ms (unchanged)
 [90mtsconfig.json[39m 1ms (unchanged)
 [90mtsconfig.node.json[39m 1ms (unchanged)
@@ -193,45 +193,46 @@ tests/app-macros.test.tsx 19ms
 ## phase17-5-macro-editor-frontend.log
 
 ```text
-24:  const [runtimeError, setRuntimeError] = useState<string | null>(null);
-30:      setRuntimeError(null);
-42:      setRuntimeError(null);
-52:      } catch (loadError: unknown) {
-54:          setRuntimeError(errorText(loadError));
-72:      } catch (statusError: unknown) {
-74:          setRuntimeError(errorText(statusError));
-93:    setRuntimeError(null);
-107:    setRuntimeError(null);
-110:    } catch (logoutError: unknown) {
-111:      setRuntimeError(errorText(logoutError));
-119:        <ErrorBanner message={runtimeError} />
-120:        {runtimeError === null ? (
+25:  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+31:      setRuntimeError(null);
+44:      setRuntimeError(null);
+54:      } catch (loadError: unknown) {
+56:          setRuntimeError(errorText(loadError));
+74:      } catch (statusError: unknown) {
+76:          setRuntimeError(errorText(statusError));
+95:    setRuntimeError(null);
+109:    setRuntimeError(null);
+112:    } catch (logoutError: unknown) {
+113:      setRuntimeError(errorText(logoutError));
+121:        <ErrorBanner message={runtimeError} />
+122:        {runtimeError === null ? (
 220:import { ApiError } from "../../api/client";
 221:import { errorText } from "../../api/errors";
 228:import { ErrorBanner } from "../../components/ErrorBanner";
-269:  | { kind: "error"; fingerprint: string; message: string };
-288:  const [loadError, setLoadError] = useState<string | null>(null);
-305:      setLoadError(null);
-310:    setLoadError(null);
-325:          throw new Error(
-334:      .catch((error: unknown) => {
-336:          setLoadError(errorText(error));
-375:        .catch((error: unknown) => {
-379:          const location = parseMacroLocation(error);
-380:          if (error instanceof ApiError && error.status === 422) {
-384:              message: errorText(error),
-389:              kind: "error",
-391:              message: errorText(error),
-431:  const goToError = (): void => {
-478:    } catch (error: unknown) {
-479:      if (error instanceof ApiError && error.status === 409) {
-482:        setSaveMessage(errorText(error));
-514:        <p className="error-message" role="alert">
-533:  if (loadError !== null || draft === null || localValidation === null) {
-537:        <ErrorBanner message={loadError ?? "Macro is unavailable."} />
-553:src/App.tsx(217,48): error TS2304: Cannot find name 'routeHash'.
-554:src/features/macros/MacroEditorPage.tsx(26,3): error TS6133: 'utf8ByteLength' is declared but its value is never read.
-555:src/features/macros/MacroEditorPage.tsx(276,31): error TS18047: 'activeSet' is possibly 'null'.
+268:  | { kind: "error"; fingerprint: string; message: string };
+287:  const [loadError, setLoadError] = useState<string | null>(null);
+304:      setLoadError(null);
+309:    setLoadError(null);
+324:          throw new Error(
+333:      .catch((error: unknown) => {
+335:          setLoadError(errorText(error));
+374:        .catch((error: unknown) => {
+378:          const location = parseMacroLocation(error);
+379:          if (error instanceof ApiError && error.status === 422) {
+383:              message: errorText(error),
+388:              kind: "error",
+390:              message: errorText(error),
+430:  const goToError = (): void => {
+477:    } catch (error: unknown) {
+478:      if (error instanceof ApiError && error.status === 409) {
+481:        setSaveMessage(errorText(error));
+516:        <p className="error-message" role="alert">
+535:  if (loadError !== null || draft === null || localValidation === null) {
+539:        <ErrorBanner message={loadError ?? "Macro is unavailable."} />
+560:  238:43  error    Unnecessary conditional, the types have no overlap                                                                 @typescript-eslint/no-unnecessary-condition
+563:   80:38  error  'call.body' may use Object's default stringification format ('[object Object]') when stringified  @typescript-eslint/no-base-to-string
+564:  171:38  error  'call.body' may use Object's default stringification format ('[object Object]') when stringified  @typescript-eslint/no-base-to-string
+566:✖ 4 problems (3 errors, 1 warning)
 
 --- App.tsx lines 20-235 ---
 import type { Screen } from "./routing";
@@ -252,6 +253,7 @@ function AuthenticatedApp({
   logout,
 }: AuthenticatedAppProps): React.JSX.Element {
   const [route, setRoute] = useState<Screen>(() => routeFromHash());
+  const [routeHash, setRouteHash] = useState(() => window.location.hash);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [sets, setSets] = useState<MacroSet[] | null>(null);
   const [status, setStatus] = useState(initialStatus);
@@ -264,6 +266,7 @@ function AuthenticatedApp({
     const onHashChange = (): void => {
       setRuntimeError(null);
       setRoute(routeFromHash());
+      setRouteHash(window.location.hash);
     };
     window.addEventListener("hashchange", onHashChange);
     return () => {
@@ -448,8 +451,6 @@ function AuthenticatedApp({
           <SetSelectionPage
             onSelected={setSettings}
             sets={sets}
-            settings={settings}
-          />
 --- MacroEditorPage.tsx lines 1-330 ---
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ApiError } from "../../api/client";
@@ -476,7 +477,6 @@ import {
   macroDirectives,
   macroFingerprint,
   parseMacroLocation,
-  utf8ByteLength,
   validateMacroLocally,
   validationSummary,
 } from "./macroDraft";
@@ -722,6 +722,9 @@ export function MacroEditorPage({
   };
 
   const resolveConflict = (): void => {
+    if (activeSet === null) {
+      return;
+    }
     if (persisted) {
       setLoadVersion((version) => version + 1);
       return;
@@ -779,13 +782,23 @@ export function MacroEditorPage({
               type="button"
             >
               Retry
-            </button>
-          ) : null}
 
 > esp32-macro-keyboard-webapp@0.1.0 typecheck
 > tsc -b --pretty false
 
-src/App.tsx(217,48): error TS2304: Cannot find name 'routeHash'.
-src/features/macros/MacroEditorPage.tsx(26,3): error TS6133: 'utf8ByteLength' is declared but its value is never read.
-src/features/macros/MacroEditorPage.tsx(276,31): error TS18047: 'activeSet' is possibly 'null'.
+
+> esp32-macro-keyboard-webapp@0.1.0 lint
+> eslint . --max-warnings=0
+
+
+/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/webapp/src/features/macros/MacroEditorPage.tsx
+  128:6   warning  React Hook useEffect has a missing dependency: 'target.macroId'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  238:43  error    Unnecessary conditional, the types have no overlap                                                                 @typescript-eslint/no-unnecessary-condition
+
+/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/webapp/tests/app-macros.test.tsx
+   80:38  error  'call.body' may use Object's default stringification format ('[object Object]') when stringified  @typescript-eslint/no-base-to-string
+  171:38  error  'call.body' may use Object's default stringification format ('[object Object]') when stringified  @typescript-eslint/no-base-to-string
+
+✖ 4 problems (3 errors, 1 warning)
+
 ```
