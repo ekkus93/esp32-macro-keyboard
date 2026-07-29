@@ -1,8 +1,6 @@
 #ifndef STORAGE_PACKAGE_INTERNAL_H
 #define STORAGE_PACKAGE_INTERNAL_H
 
-#ifndef ESP_PLATFORM
-
 #include "storage_package.h"
 #include "storage_repository.h"
 
@@ -22,9 +20,9 @@ typedef struct {
                                       storage_progress_snapshot_t *out_snapshot);
 } storage_package_export_ops_t;
 
+#ifndef ESP_PLATFORM
 void storage_package_set_export_ops_for_test(const storage_package_export_ops_t *operations);
 void storage_package_reset_export_ops_for_test(void);
-
 #endif
 
 #endif
