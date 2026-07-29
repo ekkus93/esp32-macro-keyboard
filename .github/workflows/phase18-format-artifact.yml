@@ -33,6 +33,7 @@ jobs:
       - name: Format exact source file
         run: |
           set -euo pipefail
+          # The output is uploaded only; this job cannot write repository contents.
           clang-format -i firmware/components/storage/storage_package.c
           clang-format --dry-run --Werror firmware/components/storage/storage_package.c
 
