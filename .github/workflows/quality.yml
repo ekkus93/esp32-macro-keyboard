@@ -23,12 +23,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: recursive
           persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -41,6 +41,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes clang-format clang-tidy jq libcjson-dev shellcheck
           python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
+          export GOTOOLCHAIN=go1.25.12
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
           go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
@@ -51,6 +53,10 @@ jobs:
       - name: Install frontend dependencies
         working-directory: webapp
         run: npm ci
+
+      - name: Enforce reviewed npm audit policy
+        working-directory: webapp
+        run: npm run audit:ci
 
       - name: Run authoritative checks
         shell: bash

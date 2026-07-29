@@ -19,6 +19,7 @@ interface ApiFailure {
 
 export interface ApiRequestOptions {
   notifyOnUnauthorized?: boolean;
+  timeoutMs?: number;
 }
 
 export class ApiError extends Error {
@@ -34,6 +35,8 @@ export class ApiError extends Error {
 
 let csrfToken: string | null = null;
 const unauthorizedListeners = new Set<() => void>();
+const defaultTimeoutMs = 10_000;
+const maximumTimeoutMs = 60_000;
 
 export function setCsrfToken(token: string | null): void {
   csrfToken = token;
@@ -120,6 +123,22 @@ function retryAfterSeconds(response: Response): number | null {
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
+function requestTimeout(options: ApiRequestOptions): number {
+  const timeoutMs = options.timeoutMs ?? defaultTimeoutMs;
+  if (
+    !Number.isSafeInteger(timeoutMs) ||
+    timeoutMs <= 0 ||
+    timeoutMs > maximumTimeoutMs
+  ) {
+    throw new Error(
+      `API request timeout must be an integer from 1 through ${String(
+        maximumTimeoutMs,
+      )} milliseconds.`,
+    );
+  }
+  return timeoutMs;
+}
+
 const mutationMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export async function apiRequest<T>(
@@ -139,7 +158,7 @@ export async function apiRequest<T>(
   const controller = new AbortController();
   const timeout = window.setTimeout(() => {
     controller.abort();
-  }, 10_000);
+  }, requestTimeout(options));
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
   if (init.body !== undefined && !headers.has("Content-Type")) {

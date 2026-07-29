@@ -98,6 +98,19 @@ static bool read_uuid(const cJSON *root, const char *field, app_uuid_t *out_uuid
            app_uuid_parse(item->valuestring, out_uuid) == APP_ERROR_NONE;
 }
 
+static bool read_execution_source_context(const cJSON *root,
+                                          web_execution_submit_request_t *out_request) {
+    static const char *const fields[] = {"procedureId", "stepId"};
+    const cJSON *context = cJSON_GetObjectItemCaseSensitive(root, "sourceContext");
+    if (!cJSON_IsObject(context) || !exact_fields(context, fields, 2U) ||
+        !read_uuid(context, "procedureId", &out_request->procedure_id) ||
+        !read_uuid(context, "stepId", &out_request->step_id)) {
+        return false;
+    }
+    out_request->has_procedure_context = true;
+    return true;
+}
+
 static app_error_code_t request_resource_result(app_error_code_t result) {
     return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
 }
@@ -325,25 +338,17 @@ app_error_code_t web_api_json_parse_execution_submit(const char *body, size_t bo
     }
     cJSON *root = parse_exact_document(body, body_length);
     static const char *const base_fields[] = {"setId", "macroId", "macroRevision"};
-    static const char *const context_fields[] = {"setId", "macroId", "macroRevision", "procedureId",
-                                                 "stepId"};
+    static const char *const context_fields[] = {"setId", "macroId", "macroRevision",
+                                                 "sourceContext"};
     const bool base = root != NULL && exact_fields(root, base_fields, 3U);
-    const bool contextual = root != NULL && exact_fields(root, context_fields, 5U);
+    const bool contextual = root != NULL && exact_fields(root, context_fields, 4U);
     if ((!base && !contextual) || !read_uuid(root, "setId", &out_request->set_id) ||
         !read_uuid(root, "macroId", &out_request->macro_id) ||
-        !read_revision(root, "macroRevision", &out_request->macro_revision)) {
+        !read_revision(root, "macroRevision", &out_request->macro_revision) ||
+        (contextual && !read_execution_source_context(root, out_request))) {
         cJSON_Delete(root);
         memset(out_request, 0, sizeof(*out_request));
         return APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (contextual) {
-        out_request->has_procedure_context = true;
-        if (!read_uuid(root, "procedureId", &out_request->procedure_id) ||
-            !read_uuid(root, "stepId", &out_request->step_id)) {
-            cJSON_Delete(root);
-            memset(out_request, 0, sizeof(*out_request));
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
     }
     cJSON_Delete(root);
     return APP_ERROR_NONE;

@@ -1859,12 +1859,12 @@ and no progress action submits or automatically starts an execution.
 
 The confirmation page must use live data and disable Send unless:
 
-- [ ] active set is loaded;
-- [ ] macro is loaded and validated;
-- [ ] revision is current;
-- [ ] USB state is `ready`;
-- [ ] executor is not busy;
-- [ ] physical confirmation policy can be satisfied.
+- [x] active set is loaded;
+- [x] macro is loaded and validated;
+- [x] revision is current;
+- [x] USB state is `ready`;
+- [x] executor is not busy;
+- [x] physical confirmation policy can be satisfied.
 
 Send handler:
 
@@ -1906,6 +1906,21 @@ export async function apiRequest<T>(
 }
 ```
 
+**Implemented:** confirmation routes accept either exactly one macro ID or a
+complete procedure/step context. The page loads and validates the persisted
+set-local or global macro, verifies the exact procedure macro step, and shows
+the server-owned source, revision, action count, duration, and key timings.
+Navigation never executes. Explicit Send performs a second preflight of the
+active set, settings, macro, validation result, procedure context, USB state,
+and executor state. Drift fails closed. When configured, the page visibly waits
+for the device button using a bounded 25-second client timeout around the
+firmware's 20-second confirmation window. Submission uses nested
+`sourceContext`; execution polling retains the accepted execution ID and refuses
+to display or cancel a different current execution. Tests cover malformed and
+partial routes, preview-only navigation, USB blocking, global-macro fallback,
+preflight drift, physical-confirmation state, exact nested submission, timeout,
+and execution-identity mismatch.
+
 ### 17.8 Correct result labeling
 
 Use an exhaustive function:
@@ -1943,28 +1958,45 @@ Update `webapp/tests/app-execution.test.tsx` so cancellation expects
 
 ### 17.9 Implement real management screens
 
-- [ ] create/edit/duplicate/reorder/delete sets;
-- [ ] import as new;
-- [ ] transactional replace;
-- [ ] export;
+- [x] create/edit/duplicate/reorder/delete sets;
+- [x] import-as-new boundary screen, disabled until Phase 18;
+- [x] transactional-replace boundary screen, disabled until Phase 18;
+- [x] export boundary screen, disabled until Phase 18;
 - [x] settings;
-- [ ] backup/restore;
-- [ ] diagnostics;
-- [ ] quarantine view;
-- [ ] restart/reset workflows.
+- [x] backup/restore boundary screens, disabled until Phase 18;
+- [x] diagnostics;
+- [x] quarantine view;
+- [x] restart/reset workflows.
 
 No enabled button may be inert.
 
+**Implemented:** every enabled management control performs a real request or
+navigation. Set create, edit, duplicate, keyboard-accessible reorder, and
+guarded delete use live revisioned APIs. Settings, storage health, redacted
+quarantine evidence, restart, settings reset, and factory reset use strict
+response guards and visible physical-confirmation waits. Import, replace,
+export, backup, and restore are honest disabled boundaries because their
+all-or-nothing package services remain Phase 18; the frontend never simulates
+success or sends an unsupported mutation.
+
 ### 17.10 Add accessibility and browser tests
 
-- [ ] keyboard-only navigation;
-- [ ] focus trap and restoration;
-- [ ] screen-reader live regions;
-- [ ] reorder alternatives;
-- [ ] touch target checks;
-- [ ] no color-only status;
-- [ ] offline/reconnect;
-- [ ] full execution workflow.
+- [x] keyboard-only navigation;
+- [x] focus trap and restoration;
+- [x] screen-reader live regions;
+- [x] reorder alternatives;
+- [x] touch target checks;
+- [x] no color-only status;
+- [x] offline/reconnect;
+- [x] full execution workflow.
+
+**Implemented:** the permanent read-only Browser Tests workflow builds the
+production bundle and drives Chrome through the DevTools Protocol. It proves
+native keyboard activation, modal focus wrapping and restoration, visible
+status text, 44 by 44 CSS-pixel targets, explicit reorder controls, offline and
+reconnect announcements with live refresh, and the complete persisted-macro
+preview, submit, poll, and terminal-result workflow. The gate fails if Chrome
+is unavailable rather than silently falling back to a DOM simulator.
 
 ## 18. Complete import, export, backup, and restore
 

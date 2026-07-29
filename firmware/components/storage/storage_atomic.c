@@ -100,6 +100,20 @@ static app_error_code_t cleanup_path(const storage_fs_ops_t *operations, const c
     return unlink_error == ENOENT ? APP_ERROR_NONE : map_error_number(unlink_error);
 }
 
+typedef struct {
+    int descriptor;
+    app_error_code_t original_error;
+} close_request_t;
+
+static app_error_code_t close_preserving_error(const storage_fs_ops_t *operations,
+                                               close_request_t request) {
+    if (operations->close_file(operations->context, request.descriptor) == 0) {
+        return request.original_error;
+    }
+    const app_error_code_t close_error = map_error_number(errno);
+    return request.original_error == APP_ERROR_NONE ? close_error : request.original_error;
+}
+
 static app_error_code_t sync_parent(storage_parent_sync_fn sync_parent_path,
                                     void *parent_sync_context, const char *path) {
     if (sync_parent_path(parent_sync_context, path) == 0) {
@@ -146,17 +160,26 @@ static app_error_code_t create_temporary_file(const char *path, const storage_fs
 
         struct stat backup_metadata;
         if (operations->stat_path(operations->context, backup, &backup_metadata) == 0) {
+            const app_error_code_t close_result = close_preserving_error(
+                operations,
+                (close_request_t){.descriptor = descriptor, .original_error = APP_ERROR_NONE});
             const app_error_code_t cleanup_result = cleanup_path(operations, temporary);
             if (cleanup_result != APP_ERROR_NONE) {
                 return cleanup_result;
+            }
+            if (close_result != APP_ERROR_NONE) {
+                return close_result;
             }
             continue;
         }
         const int stat_error = errno;
         if (stat_error != ENOENT) {
             const app_error_code_t result_for_stat = map_error_number(stat_error);
+            const app_error_code_t close_result = close_preserving_error(
+                operations,
+                (close_request_t){.descriptor = descriptor, .original_error = result_for_stat});
             const app_error_code_t cleanup_result = cleanup_path(operations, temporary);
-            return cleanup_result == APP_ERROR_NONE ? result_for_stat : cleanup_result;
+            return cleanup_result == APP_ERROR_NONE ? close_result : cleanup_result;
         }
         *out_descriptor = descriptor;
         return APP_ERROR_NONE;

@@ -277,6 +277,10 @@ static app_error_code_t load_progress_action_context(const web_api_call_t *call,
         !procedure_has_step(out_procedure, &out_action->step_id, out_step_index)) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
+    if (result == APP_ERROR_NONE &&
+        !app_uuid_equal(&out_current->progress.current_step_id, &out_action->step_id)) {
+        result = APP_ERROR_CONFLICT;
+    }
     return result;
 }
 

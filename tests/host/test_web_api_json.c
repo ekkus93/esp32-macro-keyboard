@@ -235,7 +235,8 @@ static void test_execution_submit_matrix(void) {
 
     const char contextual[] =
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
-        "\",\"macroRevision\":7,\"procedureId\":\"" PROCEDURE_ID "\",\"stepId\":\"" STEP_ID "\"}";
+        "\",\"macroRevision\":7,\"sourceContext\":{\"procedureId\":\"" PROCEDURE_ID
+        "\",\"stepId\":\"" STEP_ID "\"}}";
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_execution_submit(
                                              contextual, sizeof(contextual) - 1U, &request));
     TEST_CHECK(request.has_procedure_context);
@@ -248,7 +249,19 @@ static void test_execution_submit_matrix(void) {
         "{\"setId\":\"not-a-uuid\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":7}",
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":0}",
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
-        "\",\"macroRevision\":7,\"procedureId\":\"" PROCEDURE_ID "\"}",
+        "\",\"macroRevision\":7,\"sourceContext\":null}",
+        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
+        "\",\"macroRevision\":7,\"sourceContext\":{\"procedureId\":\"" PROCEDURE_ID "\"}}",
+        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
+        "\",\"macroRevision\":7,\"sourceContext\":{\"stepId\":\"" STEP_ID "\"}}",
+        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
+        "\",\"macroRevision\":7,\"sourceContext\":{\"procedureId\":\"bad\",\"stepId\":\"" STEP_ID
+        "\"}}",
+        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
+        "\",\"macroRevision\":7,\"sourceContext\":{\"procedureId\":\"" PROCEDURE_ID
+        "\",\"stepId\":\"" STEP_ID "\",\"extra\":true}}",
+        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
+        "\",\"macroRevision\":7,\"procedureId\":\"" PROCEDURE_ID "\",\"stepId\":\"" STEP_ID "\"}",
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"extra\":true}",
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":7}x",

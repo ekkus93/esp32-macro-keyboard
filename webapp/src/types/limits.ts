@@ -1,4 +1,9 @@
 export const limits = {
+  setNameBytes: 64,
+  descriptionBytes: 256,
+  manufacturerBytes: 64,
+  modelBytes: 64,
+  boardBytes: 32,
   macroNameBytes: 64,
   macroSourceBytes: 4096,
   compiledActions: 4096,
@@ -8,7 +13,6 @@ export const limits = {
   proceduresPerSet: 50,
   stepsPerProcedure: 200,
   procedureNameBytes: 64,
-  descriptionBytes: 256,
   stepTitleBytes: 96,
   stepBodyBytes: 1024,
   macroSets: 50,

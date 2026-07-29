@@ -85,11 +85,16 @@ of referencing procedure IDs.
 | GET, PUT, DELETE | `/sets/{setId}/procedures/{procedureId}` | Read, revise, or delete |
 | POST | `/sets/{setId}/procedures/reorder` | Replace procedure order |
 | GET, PUT, DELETE | `/sets/{setId}/procedures/{procedureId}/progress` | Read, replace, or reset progress |
-| POST | `.../progress/complete` | Complete a step |
-| POST | `.../progress/skip` | Skip a step with explicit JSON confirmation |
+| POST | `.../progress/complete` | Complete the current step |
+| POST | `.../progress/skip` | Skip the current step with explicit JSON confirmation |
 
-Stale progress remains visible after a procedure revision changes and must be
-reset against the current procedure revision.
+The server owns procedure ordering. Complete and skip requests must target the
+stored `current_step_id`; an existing but non-current step returns `409 Conflict`
+and leaves progress unchanged. An unknown step ID is invalid input rather than a
+conflict. Stale progress remains visible after a procedure revision changes, but
+stale progress actions return `409 Conflict` and are never silently reconciled.
+The client must reload and explicitly reset progress against the current
+procedure revision.
 
 ### Execution
 
@@ -100,10 +105,38 @@ reset against the current procedure revision.
 | POST | `/api/v1/executions/current/cancel` | Cancel the current execution |
 | POST | `/api/v1/executions/{executionId}/cancel` | Cancel only when the execution ID matches |
 
-Execution submission never accepts macro source. `202 Accepted` is returned only
-after the executor owns the validated plan. Physical confirmation is required
-when the persisted setting enables it. Cancellation maps no current execution to
-404, terminal or repeat cancellation to 409, internal failure to 500, unavailable
+Standalone execution request:
+
+```json
+{
+  "setId": "11111111-1111-4111-8111-111111111111",
+  "macroId": "22222222-2222-4222-8222-222222222222",
+  "macroRevision": 7
+}
+```
+
+Procedure-context execution request:
+
+```json
+{
+  "setId": "11111111-1111-4111-8111-111111111111",
+  "macroId": "22222222-2222-4222-8222-222222222222",
+  "macroRevision": 7,
+  "sourceContext": {
+    "procedureId": "33333333-3333-4333-8333-333333333333",
+    "stepId": "44444444-4444-4444-8444-444444444444"
+  }
+}
+```
+
+`sourceContext` is optional, but when present it must contain exactly both IDs.
+`null`, partial context, extra context fields, and flat top-level `procedureId` or
+`stepId` fields are rejected. Clients never submit macro source. The server loads
+the persisted macro, checks its revision and optional procedure-step context,
+and compiles that stored source. `202 Accepted` is returned only after the
+executor owns the validated plan. Physical confirmation is required when the
+persisted setting enables it. Cancellation maps no current execution to 404,
+terminal or repeat cancellation to 409, internal failure to 500, unavailable
 executor to 503, and accepted cancellation to 202.
 
 ### Storage and recovery boundaries

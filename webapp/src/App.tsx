@@ -4,18 +4,24 @@ import { getDeviceStatus, getSettings, listSets } from "./api/routes";
 import { AppShell } from "./components/AppShell";
 import { ErrorBanner } from "./components/ErrorBanner";
 import { SessionBoundary } from "./features/auth/SessionBoundary";
+import { ConfirmExecutionPage } from "./features/execution/ConfirmExecutionPage";
 import { ExecutionPage } from "./features/execution/ExecutionPage";
 import { ExecutionResultPage } from "./features/execution/ExecutionResultPage";
 import { MacroEditorPage } from "./features/macros/MacroEditorPage";
 import { MacroLibraryPage } from "./features/macros/MacroLibraryPage";
 import { ProcedureLibraryPage } from "./features/procedures/ProcedureLibraryPage";
 import { ProcedureWorkflowPage } from "./features/procedures/ProcedureWorkflowPage";
+import { SetManagementPage } from "./features/sets/SetManagementPage";
 import { SetSelectionPage } from "./features/sets/SetSelectionPage";
+import { DiagnosticsPage } from "./features/settings/DiagnosticsPage";
+import { PackageOperationsPage } from "./features/settings/PackageOperationsPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { DeferredPage } from "./pages/DeferredPage";
 import {
+  executionConfirmationTargetFromHash,
   macroEditorTargetFromHash,
   navigate,
+  navigateToMacroConfirmation,
   navigateToMacroEditor,
   navigateToProcedure,
   procedureTargetFromHash,
@@ -40,10 +46,17 @@ function AuthenticatedApp({
 }: AuthenticatedAppProps): React.JSX.Element {
   const [route, setRoute] = useState<Screen>(() => routeFromHash());
   const [routeHash, setRouteHash] = useState(() => window.location.hash);
+  const [confirmationTarget, setConfirmationTarget] = useState(() =>
+    executionConfirmationTargetFromHash(),
+  );
   const [settings, setSettings] = useState<Settings | null>(null);
   const [sets, setSets] = useState<MacroSet[] | null>(null);
   const [status, setStatus] = useState(initialStatus);
   const [execution, setExecution] = useState<ExecutionStatus | null>(null);
+  const [expectedExecutionId, setExpectedExecutionId] = useState<string | null>(
+    null,
+  );
+  const [executionReturnHash, setExecutionReturnHash] = useState("/macros");
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [loadVersion, setLoadVersion] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
@@ -53,6 +66,7 @@ function AuthenticatedApp({
       setRuntimeError(null);
       setRoute(routeFromHash());
       setRouteHash(window.location.hash);
+      setConfirmationTarget(executionConfirmationTargetFromHash());
     };
     window.addEventListener("hashchange", onHashChange);
     return () => {
@@ -126,6 +140,11 @@ function AuthenticatedApp({
     [navigateTo],
   );
 
+  const reloadLiveState = useCallback((): void => {
+    setRuntimeError(null);
+    setLoadVersion((version) => version + 1);
+  }, []);
+
   const signOut = async (): Promise<void> => {
     setSigningOut(true);
     setRuntimeError(null);
@@ -144,12 +163,7 @@ function AuthenticatedApp({
         {runtimeError === null ? (
           <p role="status">Loading device configuration…</p>
         ) : (
-          <button
-            onClick={() => {
-              setLoadVersion((version) => version + 1);
-            }}
-            type="button"
-          >
+          <button onClick={reloadLiveState} type="button">
             Retry
           </button>
         )}
@@ -157,30 +171,41 @@ function AuthenticatedApp({
     );
   }
 
-  const deferred = (title: string, message: string): React.JSX.Element => (
-    <DeferredPage title={title} message={message} />
-  );
-
   const content = (() => {
     switch (route) {
       case "sets":
         return (
           <SetSelectionPage
+            onManage={() => {
+              navigateTo("manage-sets");
+            }}
             onSelected={setSettings}
             sets={sets}
             settings={settings}
           />
         );
       case "settings":
-        return <SettingsPage onUpdated={setSettings} settings={settings} />;
+        return (
+          <SettingsPage
+            navigate={navigateTo}
+            onUpdated={setSettings}
+            settings={settings}
+          />
+        );
       case "execution":
-        return <ExecutionPage onTerminal={onTerminal} />;
+        return (
+          <ExecutionPage
+            expectedExecutionId={expectedExecutionId}
+            onTerminal={onTerminal}
+          />
+        );
       case "result":
         return (
           <ExecutionResultPage
             execution={execution}
             onReturn={() => {
-              navigateTo("procedures");
+              setExpectedExecutionId(null);
+              window.location.hash = executionReturnHash;
             }}
           />
         );
@@ -212,9 +237,11 @@ function AuthenticatedApp({
           />
         );
       case "procedure-editor":
-        return deferred(
-          "Edit procedure",
-          "Procedure editing and accessible reordering are not enabled in this slice.",
+        return (
+          <DeferredPage
+            message="Procedure editing remains separate from the Phase 17.9 set-management scope."
+            title="Edit procedure"
+          />
         );
       case "macros":
         return (
@@ -225,6 +252,9 @@ function AuthenticatedApp({
             }}
             onEdit={(macroId) => {
               navigateToMacroEditor(macroId);
+            }}
+            onSend={(macroId) => {
+              navigateToMacroConfirmation(macroId);
             }}
           />
         );
@@ -240,43 +270,47 @@ function AuthenticatedApp({
           />
         );
       case "confirm":
-        return deferred(
-          "Confirm send",
-          "Execution submission remains a separate Phase 17.7 boundary. Opening this page never sends a macro automatically.",
+        return (
+          <ConfirmExecutionPage
+            activeSet={activeSet}
+            key={`${activeSet?.id ?? "none"}:${routeHash}`}
+            onAccepted={(accepted, returnHash) => {
+              setExecution(null);
+              setExpectedExecutionId(accepted.executionId);
+              setExecutionReturnHash(returnHash);
+              navigateTo("execution");
+            }}
+            settings={settings}
+            status={status}
+            target={confirmationTarget}
+          />
         );
       case "manage-sets":
+      case "set-editor":
+      case "delete-set":
         return (
-          <SetSelectionPage
-            onSelected={setSettings}
+          <SetManagementPage
+            onSetsChanged={setSets}
             sets={sets}
             settings={settings}
           />
         );
-      case "set-editor":
-        return deferred(
-          "Create macro set",
-          "Set creation and editing are not enabled in this slice.",
-        );
-      case "delete-set":
-        return deferred(
-          "Delete macro set",
-          "Deletion is unavailable until a live set and current revision are selected.",
-        );
       case "import":
-        return deferred(
-          "Import macro set",
-          "Import remains unavailable until the Phase 18 transactional package service exists.",
+        return (
+          <PackageOperationsPage
+            activeSet={activeSet}
+            initialSection="import"
+          />
         );
       case "export":
-        return deferred(
-          "Export macro set",
-          "Export remains unavailable until the Phase 18 package service exists.",
+        return (
+          <PackageOperationsPage
+            activeSet={activeSet}
+            initialSection="export"
+          />
         );
       case "diagnostics":
-        return deferred(
-          "Diagnostics",
-          "Full diagnostics aggregation remains a Phase 19 boundary.",
-        );
+        return <DiagnosticsPage />;
     }
   })();
 
@@ -290,6 +324,7 @@ function AuthenticatedApp({
           void signOut();
         }
       }}
+      onReconnect={reloadLiveState}
       route={route}
       usbState={status.usbState}
     >

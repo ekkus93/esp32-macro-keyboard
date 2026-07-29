@@ -36,18 +36,22 @@ async function advanceValidation(): Promise<void> {
 describe("server-backed macros", () => {
   test("loads the active-set macro library", async () => {
     const onEdit = vi.fn();
+    const onSend = vi.fn();
     planJsonResponse({ ok: true, data: [macro] });
     const view = await render(
       <MacroLibraryPage
         activeSet={macroSet}
         onCreate={() => undefined}
         onEdit={onEdit}
+        onSend={onSend}
       />,
     );
     await flushReact();
 
     expect(document.body.textContent).toContain("Open terminal");
     expect(document.body.textContent).toContain("12 source bytes");
+    await click(buttonWithText("Send"));
+    expect(onSend).toHaveBeenCalledWith(macroId);
     await click(buttonWithText("Edit"));
     expect(onEdit).toHaveBeenCalledWith(macroId);
     expect(getFetchCalls()[0]?.url).toBe(`/api/v1/sets/${macroSet.id}/macros`);

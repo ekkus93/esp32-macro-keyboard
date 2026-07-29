@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://local.invalid/schemas/macro-set-package.schema.json",
   "title": "ESP32 Macro Keyboard macro-set package",
+  "$comment": "JSON Schema maxLength counts Unicode code points. The executable Phase 18 import validator must additionally enforce every documented UTF-8 byte limit before any persistent mutation.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -54,6 +55,7 @@
   "$defs": {
     "uuid": {
       "type": "string",
+      "$comment": "Canonical UUIDs are exactly 36 ASCII characters and therefore 36 UTF-8 bytes.",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
     "integrity": {
@@ -69,6 +71,7 @@
         },
         "digest": {
           "type": "string",
+          "$comment": "The digest is exactly 64 lowercase ASCII characters and therefore 64 UTF-8 bytes.",
           "pattern": "^[0-9a-f]{64}$"
         }
       }
@@ -101,23 +104,28 @@
         },
         "name": {
           "type": "string",
+          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_NAME_MAX_BYTES = 64 UTF-8 bytes.",
           "minLength": 1,
           "maxLength": 64
         },
         "description": {
           "type": "string",
+          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_DESCRIPTION_MAX_BYTES = 256 UTF-8 bytes.",
           "maxLength": 256
         },
         "manufacturer": {
           "type": "string",
+          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_MANUFACTURER_MAX_BYTES = 64 UTF-8 bytes.",
           "maxLength": 64
         },
         "model": {
           "type": "string",
+          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_MODEL_MAX_BYTES = 64 UTF-8 bytes.",
           "maxLength": 64
         },
         "board": {
           "type": "string",
+          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_BOARD_MAX_BYTES = 32 UTF-8 bytes.",
           "maxLength": 32
         },
         "keyboard_layout": {
@@ -164,11 +172,13 @@
         },
         "name": {
           "type": "string",
+          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_MACRO_NAME_MAX_BYTES = 64 UTF-8 bytes.",
           "minLength": 1,
           "maxLength": 64
         },
         "source": {
           "type": "string",
+          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_MACRO_SOURCE_MAX_BYTES = 4096 UTF-8 bytes before compilation or mutation.",
           "maxLength": 4096
         },
         "favorite": {
@@ -232,6 +242,7 @@
         },
         "title": {
           "type": "string",
+          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_STEP_TITLE_MAX_BYTES = 96 UTF-8 bytes.",
           "minLength": 1,
           "maxLength": 96
         },
@@ -268,11 +279,13 @@
         },
         "title": {
           "type": "string",
+          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_STEP_TITLE_MAX_BYTES = 96 UTF-8 bytes.",
           "minLength": 1,
           "maxLength": 96
         },
         "body": {
           "type": "string",
+          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_STEP_BODY_MAX_BYTES = 1024 UTF-8 bytes before mutation.",
           "maxLength": 1024
         },
         "required": {
@@ -309,11 +322,13 @@
         },
         "name": {
           "type": "string",
+          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_PROCEDURE_NAME_MAX_BYTES = 64 UTF-8 bytes.",
           "minLength": 1,
           "maxLength": 64
         },
         "description": {
           "type": "string",
+          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_DESCRIPTION_MAX_BYTES = 256 UTF-8 bytes.",
           "maxLength": 256
         },
         "steps": {

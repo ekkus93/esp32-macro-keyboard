@@ -1,4 +1,5 @@
 import { apiRequest, setCsrfToken } from "./client";
+import { isExecutionAccepted } from "./executionGuards";
 import {
   isCancelAccepted,
   isDeviceStatus,
@@ -7,6 +8,7 @@ import {
   isLoginResponse,
   isMacro,
   isMacroList,
+  isMacroSet,
   isMacroSetList,
   isMacroValidation,
   isProcedure,
@@ -17,10 +19,19 @@ import {
   isSettings,
   isSetupState,
 } from "./guards";
+import {
+  isFactoryResetAccepted,
+  isQuarantineList,
+  isSetDeletion,
+  isStorageHealth,
+} from "./managementGuards";
 import type {
   CancelAccepted,
   DeviceStatus,
+  ExecutionAccepted,
   ExecutionStatus,
+  ExecutionSubmitRequest,
+  FactoryResetAccepted,
   LoginResponse,
   Macro,
   MacroSet,
@@ -28,10 +39,13 @@ import type {
   Procedure,
   ProcedureProgressSnapshot,
   ProcedureSummary,
+  QuarantineList,
   RestartAccepted,
   SessionStatus,
+  SetDeletion,
   Settings,
   SetupState,
+  StorageHealth,
 } from "../types/models";
 
 export interface SetupSubmission {
@@ -49,6 +63,14 @@ export interface SettingsUpdate {
   alwaysSelectSet: boolean;
   activeSetId: string | null;
 }
+
+export interface SetDuplicateRequest {
+  id: string;
+  name: string;
+  expectedRevision: number;
+}
+
+const physicalConfirmationOptions = { timeoutMs: 25_000 } as const;
 
 export async function getSetupState(): Promise<SetupState> {
   return apiRequest("/api/v1/setup-state", {}, isSetupState, {
@@ -129,8 +151,112 @@ export async function updateSettings(
   );
 }
 
+export async function resetSettings(
+  expectedRevision: number,
+): Promise<Settings> {
+  return apiRequest(
+    "/api/v1/device/reset-settings",
+    {
+      method: "POST",
+      body: JSON.stringify({ expectedRevision }),
+    },
+    isSettings,
+    physicalConfirmationOptions,
+  );
+}
+
+export async function restartDevice(): Promise<RestartAccepted> {
+  return apiRequest(
+    "/api/v1/device/restart",
+    { method: "POST" },
+    isRestartAccepted,
+    physicalConfirmationOptions,
+  );
+}
+
+export async function factoryResetDevice(): Promise<FactoryResetAccepted> {
+  return apiRequest(
+    "/api/v1/device/factory-reset",
+    { method: "POST" },
+    isFactoryResetAccepted,
+    physicalConfirmationOptions,
+  );
+}
+
+function setPath(setId: string): string {
+  return `/api/v1/sets/${encodeURIComponent(setId)}`;
+}
+
 export async function listSets(): Promise<MacroSet[]> {
   return apiRequest("/api/v1/sets", {}, isMacroSetList);
+}
+
+export async function getSet(setId: string): Promise<MacroSet> {
+  return apiRequest(setPath(setId), {}, isMacroSet);
+}
+
+export async function createSet(set: MacroSet): Promise<MacroSet> {
+  return apiRequest(
+    "/api/v1/sets",
+    {
+      method: "POST",
+      body: JSON.stringify(set),
+    },
+    isMacroSet,
+  );
+}
+
+export async function updateSet(
+  set: MacroSet,
+  expectedRevision: number,
+): Promise<MacroSet> {
+  return apiRequest(
+    setPath(set.id),
+    {
+      method: "PUT",
+      body: JSON.stringify({ expectedRevision, resource: set }),
+    },
+    isMacroSet,
+  );
+}
+
+export async function deleteSet(
+  setId: string,
+  expectedRevision: number,
+): Promise<SetDeletion> {
+  return apiRequest(
+    setPath(setId),
+    {
+      method: "DELETE",
+      body: JSON.stringify({ expectedRevision }),
+    },
+    isSetDeletion,
+  );
+}
+
+export async function duplicateSet(
+  setId: string,
+  request: SetDuplicateRequest,
+): Promise<MacroSet> {
+  return apiRequest(
+    `${setPath(setId)}/duplicate`,
+    {
+      method: "POST",
+      body: JSON.stringify(request),
+    },
+    isMacroSet,
+  );
+}
+
+export async function reorderSets(ids: readonly string[]): Promise<MacroSet[]> {
+  return apiRequest(
+    "/api/v1/sets/order",
+    {
+      method: "PUT",
+      body: JSON.stringify({ ids }),
+    },
+    isMacroSetList,
+  );
 }
 
 export async function selectSet(
@@ -138,7 +264,7 @@ export async function selectSet(
   expectedRevision: number,
 ): Promise<Settings> {
   return apiRequest(
-    `/api/v1/sets/${encodeURIComponent(setId)}/select`,
+    `${setPath(setId)}/select`,
     {
       method: "POST",
       body: JSON.stringify({ expectedRevision }),
@@ -148,11 +274,15 @@ export async function selectSet(
 }
 
 function setMacrosPath(setId: string): string {
-  return `/api/v1/sets/${encodeURIComponent(setId)}/macros`;
+  return `${setPath(setId)}/macros`;
 }
 
 function setMacroPath(setId: string, macroId: string): string {
   return `${setMacrosPath(setId)}/${encodeURIComponent(macroId)}`;
+}
+
+function globalMacroPath(macroId: string): string {
+  return `/api/v1/global/macros/${encodeURIComponent(macroId)}`;
 }
 
 export async function listSetMacros(setId: string): Promise<Macro[]> {
@@ -164,6 +294,10 @@ export async function getSetMacro(
   macroId: string,
 ): Promise<Macro> {
   return apiRequest(setMacroPath(setId, macroId), {}, isMacro);
+}
+
+export async function getGlobalMacro(macroId: string): Promise<Macro> {
+  return apiRequest(globalMacroPath(macroId), {}, isMacro);
 }
 
 export async function createSetMacro(
@@ -212,8 +346,21 @@ export async function validateSetMacro(
   );
 }
 
+export async function validateGlobalMacro(
+  macro: Macro,
+): Promise<MacroValidation> {
+  return apiRequest(
+    `${globalMacroPath(macro.id)}/validate`,
+    {
+      method: "POST",
+      body: JSON.stringify(macro),
+    },
+    isMacroValidation,
+  );
+}
+
 function setProceduresPath(setId: string): string {
-  return `/api/v1/sets/${encodeURIComponent(setId)}/procedures`;
+  return `${setPath(setId)}/procedures`;
 }
 
 function setProcedurePath(setId: string, procedureId: string): string {
@@ -304,6 +451,20 @@ export async function skipProcedureStep(
   );
 }
 
+export async function submitExecution(
+  request: ExecutionSubmitRequest,
+): Promise<ExecutionAccepted> {
+  return apiRequest(
+    "/api/v1/executions",
+    {
+      method: "POST",
+      body: JSON.stringify(request),
+    },
+    isExecutionAccepted,
+    physicalConfirmationOptions,
+  );
+}
+
 export async function getCurrentExecution(): Promise<ExecutionStatus> {
   return apiRequest("/api/v1/executions/current", {}, isExecutionStatus);
 }
@@ -314,4 +475,12 @@ export async function cancelCurrentExecution(): Promise<CancelAccepted> {
     { method: "POST" },
     isCancelAccepted,
   );
+}
+
+export async function getStorageHealth(): Promise<StorageHealth> {
+  return apiRequest("/api/v1/diagnostics/storage", {}, isStorageHealth);
+}
+
+export async function getQuarantine(): Promise<QuarantineList> {
+  return apiRequest("/api/v1/diagnostics/quarantine", {}, isQuarantineList);
 }

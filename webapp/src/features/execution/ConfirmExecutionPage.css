@@ -1,0 +1,49 @@
+.card-actions,
+.confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.confirmation-summary {
+  align-items: center;
+}
+
+.macro-preview {
+  max-height: 14rem;
+  margin: 0;
+  padding: 0.75rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+}
+
+.confirmation-blockers ul {
+  margin-bottom: 0;
+  padding-left: 1.25rem;
+}
+
+.confirmation-actions {
+  position: sticky;
+  bottom: 4.75rem;
+  z-index: 1;
+  padding: 0.75rem 0;
+  background: #f8fafc;
+  border-top: 1px solid #cbd5e1;
+}
+
+@media (width <= 32rem) {
+  .card-actions,
+  .confirmation-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .card-actions button,
+  .confirmation-actions button {
+    width: 100%;
+  }
+}

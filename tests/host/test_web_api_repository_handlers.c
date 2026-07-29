@@ -253,6 +253,16 @@ static void expect_status(web_api_response_t *response, unsigned int status, con
     web_api_response_free(response);
 }
 
+static storage_progress_snapshot_t read_progress_snapshot(void) {
+    const storage_procedure_identity_t identity = {
+        .set_id = {.value = SET_ID},
+        .procedure_id = {.value = PROCEDURE_ID},
+    };
+    storage_progress_snapshot_t snapshot = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_progress_read(&identity, &snapshot));
+    return snapshot;
+}
+
 static void test_set_routes(void) {
     macro_set_t set = make_set();
     char *json = serialize_set(&set);
@@ -420,14 +430,79 @@ static void test_procedure_and_progress_routes(void) {
 
     response =
         invoke(web_api_handle_procedures, WEB_API_ROUTE_PROGRESS_COMPLETE, WEB_API_METHOD_POST,
+               "{\"expectedProcedureRevision\":1,\"stepId\":\"" STEP_TWO_ID "\"}", SET_ID, NULL,
+               PROCEDURE_ID);
+    expect_status(&response, 409U, "could not complete procedure step");
+    storage_progress_snapshot_t snapshot = read_progress_snapshot();
+    TEST_CHECK_EQ_STRING(STEP_ONE_ID, snapshot.progress.current_step_id.value);
+    TEST_CHECK_EQ_U64(0U, snapshot.progress.completed_step_count);
+    TEST_CHECK_EQ_U64(0U, snapshot.progress.skipped_step_count);
+
+    response = invoke(web_api_handle_procedures, WEB_API_ROUTE_PROGRESS_SKIP, WEB_API_METHOD_POST,
+                      "{\"expectedProcedureRevision\":1,\"stepId\":\"" STEP_TWO_ID
+                      "\",\"confirmed\":true}",
+                      SET_ID, NULL, PROCEDURE_ID);
+    expect_status(&response, 409U, "could not skip procedure step");
+    snapshot = read_progress_snapshot();
+    TEST_CHECK_EQ_STRING(STEP_ONE_ID, snapshot.progress.current_step_id.value);
+    TEST_CHECK_EQ_U64(0U, snapshot.progress.completed_step_count);
+    TEST_CHECK_EQ_U64(0U, snapshot.progress.skipped_step_count);
+
+    response =
+        invoke(web_api_handle_procedures, WEB_API_ROUTE_PROGRESS_COMPLETE, WEB_API_METHOD_POST,
                "{\"expectedProcedureRevision\":1,\"stepId\":\"" STEP_ONE_ID "\"}", SET_ID, NULL,
                PROCEDURE_ID);
     expect_status(&response, 200U, STEP_TWO_ID);
+    snapshot = read_progress_snapshot();
+    TEST_CHECK_EQ_STRING(STEP_TWO_ID, snapshot.progress.current_step_id.value);
+    TEST_CHECK_EQ_U64(1U, snapshot.progress.completed_step_count);
+    TEST_CHECK_EQ_STRING(STEP_ONE_ID, snapshot.progress.completed_step_ids[0].value);
+
     response = invoke(web_api_handle_procedures, WEB_API_ROUTE_PROGRESS_SKIP, WEB_API_METHOD_POST,
                       "{\"expectedProcedureRevision\":1,\"stepId\":\"" STEP_TWO_ID
                       "\",\"confirmed\":true}",
                       SET_ID, NULL, PROCEDURE_ID);
     expect_status(&response, 200U, STEP_TWO_ID);
+    snapshot = read_progress_snapshot();
+    TEST_CHECK_EQ_STRING(STEP_TWO_ID, snapshot.progress.current_step_id.value);
+    TEST_CHECK_EQ_U64(1U, snapshot.progress.completed_step_count);
+    TEST_CHECK_EQ_U64(1U, snapshot.progress.skipped_step_count);
+    TEST_CHECK_EQ_STRING(STEP_TWO_ID, snapshot.progress.skipped_step_ids[0].value);
+
+    response =
+        invoke(web_api_handle_procedures, WEB_API_ROUTE_PROGRESS_COMPLETE, WEB_API_METHOD_POST,
+               "{\"expectedProcedureRevision\":1,\"stepId\":\"" STEP_ONE_ID "\"}", SET_ID, NULL,
+               PROCEDURE_ID);
+    expect_status(&response, 409U, "could not complete procedure step");
+    snapshot = read_progress_snapshot();
+    TEST_CHECK_EQ_U64(1U, snapshot.progress.completed_step_count);
+    TEST_CHECK_EQ_U64(1U, snapshot.progress.skipped_step_count);
+
+    response =
+        invoke(web_api_handle_procedures, WEB_API_ROUTE_PROCEDURE_PROGRESS, WEB_API_METHOD_DELETE,
+               "{\"expectedRevision\":1}", SET_ID, NULL, PROCEDURE_ID);
+    expect_status(&response, 200U, STEP_ONE_ID);
+
+    response =
+        invoke(web_api_handle_procedures, WEB_API_ROUTE_PROGRESS_COMPLETE, WEB_API_METHOD_POST,
+               "{\"expectedProcedureRevision\":1,\"stepId\":\"" STEP_ONE_ID "\"}", SET_ID, NULL,
+               PROCEDURE_ID);
+    expect_status(&response, 200U, STEP_TWO_ID);
+    response =
+        invoke(web_api_handle_procedures, WEB_API_ROUTE_PROGRESS_COMPLETE, WEB_API_METHOD_POST,
+               "{\"expectedProcedureRevision\":1,\"stepId\":\"" STEP_TWO_ID "\"}", SET_ID, NULL,
+               PROCEDURE_ID);
+    expect_status(&response, 200U, STEP_TWO_ID);
+    snapshot = read_progress_snapshot();
+    TEST_CHECK_EQ_STRING(STEP_TWO_ID, snapshot.progress.current_step_id.value);
+    TEST_CHECK_EQ_U64(2U, snapshot.progress.completed_step_count);
+    TEST_CHECK_EQ_U64(0U, snapshot.progress.skipped_step_count);
+
+    response =
+        invoke(web_api_handle_procedures, WEB_API_ROUTE_PROGRESS_COMPLETE, WEB_API_METHOD_POST,
+               "{\"expectedProcedureRevision\":1,\"stepId\":\"" STEP_ONE_ID "\"}", SET_ID, NULL,
+               PROCEDURE_ID);
+    expect_status(&response, 409U, "could not complete procedure step");
 
     TEST_CHECK(snprintf(procedure.name, sizeof(procedure.name), "Updated Procedure") > 0);
     json = serialize_procedure(&procedure);
@@ -441,6 +516,16 @@ static void test_procedure_and_progress_routes(void) {
     response = invoke(web_api_handle_procedures, WEB_API_ROUTE_PROCEDURE_PROGRESS,
                       WEB_API_METHOD_GET, NULL, SET_ID, NULL, PROCEDURE_ID);
     expect_status(&response, 200U, "\"status\":\"stale\"");
+    response =
+        invoke(web_api_handle_procedures, WEB_API_ROUTE_PROGRESS_COMPLETE, WEB_API_METHOD_POST,
+               "{\"expectedProcedureRevision\":1,\"stepId\":\"" STEP_TWO_ID "\"}", SET_ID, NULL,
+               PROCEDURE_ID);
+    expect_status(&response, 409U, "could not complete procedure step");
+    snapshot = read_progress_snapshot();
+    TEST_CHECK(snapshot.status == STORAGE_PROGRESS_STATUS_STALE);
+    TEST_CHECK_EQ_U64(2U, snapshot.progress.completed_step_count);
+    TEST_CHECK_EQ_U64(0U, snapshot.progress.skipped_step_count);
+
     response =
         invoke(web_api_handle_procedures, WEB_API_ROUTE_PROCEDURE_PROGRESS, WEB_API_METHOD_DELETE,
                "{\"expectedRevision\":2}", SET_ID, NULL, PROCEDURE_ID);

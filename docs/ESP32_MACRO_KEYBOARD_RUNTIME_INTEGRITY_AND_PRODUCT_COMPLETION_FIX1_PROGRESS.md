@@ -59,7 +59,7 @@
 | 14 | Encrypted persistent provisioning | done (physical confidentiality remains Phase 20 hardware evidence) |
 | 15 | Complete storage object repositories | done |
 | 16 | Complete the HTTP API | done (package transactions Phase 18; diagnostics aggregation Phase 19) |
-| 17 | Replace frontend mock behavior | in progress (17.1-17.6, 17.8, and settings complete) |
+| 17 | Replace frontend mock behavior | done (Phase 18 package services and Phase 19 aggregation remain separate) |
 | 18 | Import / export / backup / restore | not started |
 | 19 | Diagnostics and observability | not started |
 | 20 | Hardware and integration validation | environment-blocked (see below) |
@@ -68,6 +68,34 @@
 | 23 | Final regression and acceptance gate | not started |
 
 ## Completed tasks (commit evidence)
+
+- Phase 17.9 management surfaces and Phase 17.10 accessibility/browser
+  coverage — complete in the implementation ending at `ac12c50`. Live APIs
+  now back set create, edit, duplicate, reorder, guarded delete, settings,
+  storage health, quarantine evidence, restart, settings reset, and factory
+  reset. Phase 18 package operations are visible disabled boundaries with
+  specific explanations rather than inert or simulated controls. Dialogs
+  trap and restore focus; statuses have visible text; reconnect refreshes
+  live configuration; and mobile target sizing is enforced in real Chrome.
+  Host Tests run `30455828432` passed static checks, unit tests, coverage,
+  sanitizers, and native tests. Browser Tests run `30455823494` built the
+  production bundle and passed the full Chrome workflow.
+
+- Phase 17.7 execution confirmation and submission — complete in the commit
+  containing this progress update. Standalone macro sends and procedure
+  Send/Resend actions now navigate to a strict preview route and never execute
+  on navigation. The page loads persisted set-local or global macro data,
+  compile-only validation, exact optional procedure context, active settings,
+  USB state, and executor state. Explicit Send performs a second fail-closed
+  preflight and submits the typed nested `sourceContext` contract. Physical
+  confirmation is visible to the operator and uses a 25-second client timeout
+  around the firmware's 20-second wait. The accepted execution ID is retained;
+  polling refuses to display or cancel a different execution. Regression
+  coverage includes route strictness, preview-only behavior, USB blocking,
+  global fallback, stale preflight data, exact submission, timeout handling,
+  and identity mismatch. Host Tests run 30447946686 passed all native,
+  sanitizer, coverage, and 113 frontend tests; Device Test Build run
+  30447946598 passed.
 
 - Phase 17.6 procedure workflow — complete in the commit containing this progress
   update. The active-set procedure library loads exact summaries and independent
