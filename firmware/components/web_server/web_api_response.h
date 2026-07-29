@@ -7,10 +7,13 @@
 
 #define WEB_API_RESPONSE_MAX_BYTES (512U * 1024U)
 
+typedef void (*web_api_response_body_free_t)(void *body);
+
 typedef struct {
     unsigned int status;
     char *body;
     size_t body_length;
+    web_api_response_body_free_t body_free;
 } web_api_response_t;
 
 typedef struct {
@@ -22,6 +25,8 @@ typedef struct {
 
 app_error_code_t web_api_response_success(web_api_response_t *response, unsigned int status,
                                           const char *data_json);
+app_error_code_t web_api_response_take_json(web_api_response_t *response, unsigned int status,
+                                            char *body, size_t body_length);
 app_error_code_t web_api_response_error(web_api_response_t *response,
                                         const web_api_error_spec_t *error);
 void web_api_response_free(web_api_response_t *response);
