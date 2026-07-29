@@ -7,6 +7,10 @@ has read-only repository permission.
 ## Pinned environment
 
 - GitHub-hosted runner image: `ubuntu-24.04`
+- Checkout action:
+  `actions/checkout@11d5960a326750d5838078e36cf38b85af677262` (`v4`)
+- Node setup action:
+  `actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020` (`v4`)
 - ESP-IDF: exact recursive tag `v5.5.5`, installed by
   `scripts/install-esp-idf.sh`
 - Node.js: exact version from `.nvmrc` and the matching `engines.node` field in
@@ -23,9 +27,10 @@ has read-only repository permission.
   - `libcjson-dev`
   - `shellcheck`
 
-The Ubuntu package names are pinned to the `ubuntu-24.04` image rather than to
-mutable `ubuntu-latest`. A runner-image migration requires a reviewed workflow
-change and a clean full-gate result.
+The runner and reusable actions are immutable in the workflow. Ubuntu package
+names are tied to the `ubuntu-24.04` runner archive rather than mutable
+`ubuntu-latest`. A runner-image, action, or package-set migration requires a
+reviewed workflow change and a clean full-gate result.
 
 ## Cache policy
 
