@@ -79,12 +79,8 @@ jobs:
 
           test_path = Path("webapp/tests/set-management.test.tsx")
           test_text = test_path.read_text(encoding="utf-8")
-          old_submit = '''await submit(
-                document.querySelector('[role="dialog"] form') as HTMLFormElement,
-              );'''
-          new_submit = '''await submit(
-                requiredElement('[role="dialog"] form', HTMLFormElement),
-              );'''
+          old_submit = '''await submit(document.querySelector('[role="dialog"] form') as HTMLFormElement);'''
+          new_submit = '''await submit(requiredElement('[role="dialog"] form', HTMLFormElement));'''
           if old_submit in test_text:
               if test_text.count(old_submit) != 2:
                   raise SystemExit(f"expected two dialog form casts, found {test_text.count(old_submit)}")
