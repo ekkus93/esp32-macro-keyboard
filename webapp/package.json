@@ -15,7 +15,8 @@
     "format:check": "prettier --check .",
     "format:write": "prettier --write .",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "audit:ci": "python3 ../scripts/check-npm-audit.py"
   },
   "dependencies": {
     "@tailwindcss/vite": "4.1.11",
