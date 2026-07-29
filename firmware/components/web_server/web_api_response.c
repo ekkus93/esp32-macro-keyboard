@@ -71,9 +71,8 @@ app_error_code_t web_api_response_take_json(web_api_response_t *response, unsign
         memset(response, 0, sizeof(*response));
     }
     if (response == NULL || body == NULL || body_length == 0U ||
-        body_length > WEB_API_RESPONSE_MAX_BYTES || body[body_length] != '\0' ||
-        strlen(body) != body_length || status < WEB_HTTP_STATUS_OK ||
-        status >= WEB_HTTP_SUCCESS_STATUS_UPPER_BOUND) {
+        body_length > WEB_API_RESPONSE_MAX_BYTES || memchr(body, '\0', body_length) != NULL ||
+        status < WEB_HTTP_STATUS_OK || status >= WEB_HTTP_SUCCESS_STATUS_UPPER_BOUND) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     response->status = status;
