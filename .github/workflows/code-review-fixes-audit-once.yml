@@ -1,0 +1,70 @@
+name: Code review fixes audit once
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/code-review-fixes-audit-once.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: webapp
+        run: npm ci
+      - name: Inspect npm audit findings
+        working-directory: webapp
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          npm audit --json > audit.json
+          status=$?
+          set -e
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("audit.json").read_text(encoding="utf-8"))
+          metadata = report.get("metadata", {})
+          print("AUDIT_METADATA", json.dumps(metadata, sort_keys=True))
+          vulnerabilities = report.get("vulnerabilities", {})
+          for name in sorted(vulnerabilities):
+              item = vulnerabilities[name]
+              via = item.get("via", [])
+              advisories = []
+              for entry in via:
+                  if isinstance(entry, dict):
+                      advisories.append({
+                          "source": entry.get("source"),
+                          "name": entry.get("name"),
+                          "severity": entry.get("severity"),
+                          "title": entry.get("title"),
+                          "url": entry.get("url"),
+                          "range": entry.get("range"),
+                      })
+                  else:
+                      advisories.append(entry)
+              print("AUDIT_PACKAGE", json.dumps({
+                  "name": name,
+                  "severity": item.get("severity"),
+                  "isDirect": item.get("isDirect"),
+                  "range": item.get("range"),
+                  "nodes": item.get("nodes"),
+                  "fixAvailable": item.get("fixAvailable"),
+                  "via": advisories,
+              }, sort_keys=True))
+          PY
+          exit "${status}"
