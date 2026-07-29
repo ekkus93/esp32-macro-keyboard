@@ -12,6 +12,7 @@
 #include "macro_model.h"
 #include "provisioning.h"
 #include "storage_object_json.h"
+#include "storage_package.h"
 #include "storage_repository.h"
 #include "web_api_core.h"
 #include "web_api_handler_common.h"
@@ -260,6 +261,21 @@ static app_error_code_t handle_set_reorder(const web_api_call_t *call,
     return result;
 }
 
+static app_error_code_t handle_export(const web_api_call_t *call, web_api_response_t *response) {
+    char *package_json = NULL;
+    size_t package_length = 0U;
+    app_error_code_t result =
+        storage_package_export_set(&call->path.set_id, true, &package_json, &package_length);
+    if (result != APP_ERROR_NONE) {
+        return respond_result(response, result, "could not export set");
+    }
+    result = web_api_response_take_json(response, WEB_HTTP_STATUS_OK, package_json, package_length);
+    if (result != APP_ERROR_NONE) {
+        storage_package_free(package_json);
+    }
+    return result;
+}
+
 static app_error_code_t unavailable(web_api_response_t *response, const char *operation) {
     return web_api_handler_error(response, APP_ERROR_STORAGE_UNAVAILABLE, operation, NULL);
 }
@@ -280,7 +296,7 @@ app_error_code_t web_api_handle_sets(const web_api_call_t *call, web_api_respons
     case WEB_API_ROUTE_SET_DUPLICATE:
         return handle_duplicate(call, response);
     case WEB_API_ROUTE_SET_EXPORT:
-        return unavailable(response, "set export requires the Phase 18 package service");
+        return handle_export(call, response);
     case WEB_API_ROUTE_SET_IMPORT:
         return unavailable(response, "set import requires the Phase 18 package service");
     default:
