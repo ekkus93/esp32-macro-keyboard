@@ -59,7 +59,7 @@
 | 14 | Encrypted persistent provisioning | done (physical confidentiality remains Phase 20 hardware evidence) |
 | 15 | Complete storage object repositories | done |
 | 16 | Complete the HTTP API | done (package transactions Phase 18; diagnostics aggregation Phase 19) |
-| 17 | Replace frontend mock behavior | in progress (17.1-17.5, 17.8, and settings complete) |
+| 17 | Replace frontend mock behavior | in progress (17.1-17.6, 17.8, and settings complete) |
 | 18 | Import / export / backup / restore | not started |
 | 19 | Diagnostics and observability | not started |
 | 20 | Hardware and integration validation | environment-blocked (see below) |
@@ -68,6 +68,15 @@
 | 23 | Final regression and acceptance gate | not started |
 
 ## Completed tasks (commit evidence)
+
+- Phase 17.6 procedure workflow — complete in the commit containing this progress
+  update. The active-set procedure library loads exact summaries and independent
+  progress, distinguishes not-started from failed progress reads, and exposes stale
+  revisions without reconciling them. The workflow validates procedure/progress
+  identity, preserves the server-owned current step, supports previous/next review,
+  explicit instruction and checkpoint completion, confirmed skip, and confirmed
+  reset. Macro Send/Resend navigates only to the Phase 17.7 confirmation boundary;
+  completing or skipping a step never submits the next execution.
 
 - Phase 17.5 macro editor — complete in the commit containing this progress update.
   The active-set macro library loads persisted resources; create and update use exact

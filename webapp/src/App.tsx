@@ -8,6 +8,8 @@ import { ExecutionPage } from "./features/execution/ExecutionPage";
 import { ExecutionResultPage } from "./features/execution/ExecutionResultPage";
 import { MacroEditorPage } from "./features/macros/MacroEditorPage";
 import { MacroLibraryPage } from "./features/macros/MacroLibraryPage";
+import { ProcedureLibraryPage } from "./features/procedures/ProcedureLibraryPage";
+import { ProcedureWorkflowPage } from "./features/procedures/ProcedureWorkflowPage";
 import { SetSelectionPage } from "./features/sets/SetSelectionPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { DeferredPage } from "./pages/DeferredPage";
@@ -15,6 +17,8 @@ import {
   macroEditorTargetFromHash,
   navigate,
   navigateToMacroEditor,
+  navigateToProcedure,
+  procedureTargetFromHash,
   routeFromHash,
 } from "./routing";
 import type { Screen } from "./routing";
@@ -181,19 +185,31 @@ function AuthenticatedApp({
           />
         );
       case "procedures":
-        return deferred(
-          "Procedures",
-          "Server-backed procedure and progress screens are the next Phase 17 slice.",
+        return (
+          <ProcedureLibraryPage
+            activeSet={activeSet}
+            onOpen={(procedureId) => {
+              navigateToProcedure(procedureId);
+            }}
+          />
         );
       case "procedure":
-        return deferred(
-          "Procedure",
-          "Select a server-backed procedure after the procedure workflow slice is installed.",
+        return (
+          <ProcedureWorkflowPage
+            activeSet={activeSet}
+            key={`${activeSet?.id ?? "none"}:${routeHash}`}
+            mode="overview"
+            target={procedureTargetFromHash("procedure")}
+          />
         );
       case "instruction":
-        return deferred(
-          "Instruction",
-          "Instruction completion is unavailable until a live procedure and revision are loaded.",
+        return (
+          <ProcedureWorkflowPage
+            activeSet={activeSet}
+            key={`${activeSet?.id ?? "none"}:${routeHash}`}
+            mode="step"
+            target={procedureTargetFromHash("instruction")}
+          />
         );
       case "procedure-editor":
         return deferred(
@@ -226,7 +242,7 @@ function AuthenticatedApp({
       case "confirm":
         return deferred(
           "Confirm send",
-          "Execution submission is unavailable until a live macro, current revision, USB readiness, and confirmation policy are loaded.",
+          "Execution submission remains a separate Phase 17.7 boundary. Opening this page never sends a macro automatically.",
         );
       case "manage-sets":
         return (

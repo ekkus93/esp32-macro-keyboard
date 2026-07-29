@@ -104,6 +104,17 @@ export type ProcedureStep =
       required: boolean;
     };
 
+export interface ProcedureSummary {
+  schema_version: 1;
+  id: string;
+  revision: number;
+  set_id: string;
+  name: string;
+  description: string;
+  step_count: number;
+  sort_order: number;
+}
+
 export interface Procedure {
   schema_version: 1;
   id: string;
@@ -113,6 +124,22 @@ export interface Procedure {
   description: string;
   steps: ProcedureStep[];
   sort_order: number;
+}
+
+export interface ProcedureProgress {
+  schema_version: 1;
+  set_id: string;
+  procedure_id: string;
+  procedure_revision: number;
+  current_step_id: string;
+  completed_step_ids: string[];
+  skipped_step_ids: string[];
+}
+
+export interface ProcedureProgressSnapshot {
+  status: "current" | "stale";
+  currentProcedureRevision: number;
+  progress: ProcedureProgress;
 }
 
 export interface ExecutionStatus {

@@ -1,17 +1,22 @@
 # Web Application Tests
 
-Vitest is configured and `app.test.ts` currently verifies selected frontend limits
-against the firmware specification.
+Vitest covers the runtime-validated API client, setup/login/session behavior,
+set selection, execution status, the macro library/editor, and the persisted
+procedure workflow.
+
+Procedure tests verify list and progress loading, explicit not-started state,
+current-step rendering, previous/next review, instruction completion,
+checkpoint confirmation, confirmed skip, stale-progress reset, macro
+Send/Resend navigation, and the invariant that no progress transition
+automatically submits an execution.
 
 Still required:
 
-- API client and structured-error tests
-- authentication and CSRF behavior
-- route and session-expiry tests
-- component interaction tests
-- accessibility checks
+- accessibility audits beyond component semantics
 - browser-level workflows against a device or faithful test server
-- failure-state and cancellation regression tests
+- Phase 17.7 execution confirmation and submission
+- Phase 18 package workflows
+- Phase 19 diagnostics workflows
 
 Run the current suite with:
 

@@ -1836,15 +1836,24 @@ of the latest server revision.
 
 ### 17.6 Implement real procedure workflow
 
-- [ ] list and progress;
-- [ ] current step;
-- [ ] previous/next;
-- [ ] instruction completion;
-- [ ] checkpoint confirmation;
-- [ ] resend;
-- [ ] skip confirmation;
-- [ ] reset;
-- [ ] no automatic next execution.
+- [x] list and progress;
+- [x] current step;
+- [x] previous/next;
+- [x] instruction completion;
+- [x] checkpoint confirmation;
+- [x] resend;
+- [x] skip confirmation;
+- [x] reset;
+- [x] no automatic next execution.
+
+**Implemented:** the active-set procedure library loads persisted summaries and
+independent progress, with a missing progress resource represented explicitly as
+not started. The workflow loads exact procedure and progress resources, validates
+their identities and revisions, keeps future steps visible, and supports
+previous/next review. Instruction completion, checkpoint confirmation, confirmed
+skip, and reset use the dedicated progress endpoints. Stale progress is never
+silently reconciled. Macro Send/Resend stops at the Phase 17.7 confirmation route,
+and no progress action submits or automatically starts an execution.
 
 ### 17.7 Implement execution confirmation and submission
 

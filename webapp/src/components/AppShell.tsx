@@ -30,6 +30,21 @@ function usbBadgeState(
   }
 }
 
+function navigationActive(route: Screen, target: Screen): boolean {
+  if (target === "procedures") {
+    return [
+      "procedures",
+      "procedure",
+      "instruction",
+      "procedure-editor",
+    ].includes(route);
+  }
+  if (target === "macros") {
+    return route === "macros" || route === "macro-editor";
+  }
+  return route === target;
+}
+
 export function AppShell({
   activeSet,
   children,
@@ -72,7 +87,7 @@ export function AppShell({
       <nav className="bottom-nav" aria-label="Primary navigation">
         {navigation.map(([target, label]) => (
           <button
-            className={route === target ? "active" : ""}
+            className={navigationActive(route, target) ? "active" : ""}
             key={target}
             onClick={() => {
               navigate(target);

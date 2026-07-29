@@ -60,6 +60,9 @@ describe("application routing", () => {
     if (hash === "/macros") {
       planJsonResponse({ ok: true, data: [macro] });
     }
+    if (hash === "/procedures") {
+      planJsonResponse({ ok: true, data: [] });
+    }
     const view = await render(<App />);
     await flushReact();
     expect(document.body.textContent).toContain(expectedText);
