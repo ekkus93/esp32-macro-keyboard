@@ -1,0 +1,101 @@
+name: Phase 18 Export Cleanup Fix
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/phase18-export-cleanup-fix.yml"
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: phase18-export-cleanup-fix
+  cancel-in-progress: true
+
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: true
+
+      - name: Install host-test dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends build-essential cmake libcjson-dev
+
+      - name: Remove duplicate snapshot cleanup
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("firmware/components/storage/storage_package_export.c")
+          source = path.read_text(encoding="utf-8")
+          old = """    if (result != APP_ERROR_NONE) {
+              snapshot_free(out_snapshot);
+          }
+          return result;
+          """
+          new = """    return result;
+          """
+          if source.count(old) != 1:
+              raise SystemExit("expected duplicate cleanup block exactly once")
+          path.write_text(source.replace(old, new, 1), encoding="utf-8")
+          PY
+          git diff --check
+          mapfile -t changed < <(git diff --name-only)
+          if [[ "${#changed[@]}" -ne 1 || "${changed[0]}" != "firmware/components/storage/storage_package_export.c" ]]; then
+            printf 'unexpected changed paths:\n' >&2
+            printf '  %s\n' "${changed[@]}" >&2
+            exit 1
+          fi
+
+      - name: Run storage host suite
+        run: |
+          set -euo pipefail
+          ./scripts/run-tests.sh storage
+
+      - name: Commit exact cleanup fix
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- firmware/components/storage/storage_package_export.c
+          git commit -m "storage: avoid duplicate export snapshot cleanup"
+          git push origin HEAD:master
+
+      - name: Publish result
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          commit_sha="$(git rev-parse HEAD)"
+          python3 - "${commit_sha}" <<'PY' > /tmp/issue.json
+          import json
+          import os
+          import sys
+
+          body = (
+              "Temporary Phase 18 export cleanup fix completed.\n\n"
+              f"Run ID: `{os.environ['RUN_ID']}`\n"
+              f"Commit: `{sys.argv[1]}`\n"
+              "Only `firmware/components/storage/storage_package_export.c` was allowed to change, "
+              "and the storage host suite passed before commit. The workflow must now be removed."
+          )
+          print(json.dumps({"body": body}))
+          PY
+          curl --fail-with-body \
+            --request PATCH \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/24" \
+            --data-binary @/tmp/issue.json
