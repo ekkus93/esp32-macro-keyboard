@@ -198,6 +198,12 @@ target_compile_options(storage_package_export_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME storage_package_export COMMAND storage_package_export_tests)
 set_tests_properties(storage_package_export PROPERTIES LABELS "storage")
 
+target_sources(
+    web_api_repository_handlers_tests
+    PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package.c"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_export.c"
+)
+
 add_executable(
     web_api_set_export_tests
     "${CMAKE_SOURCE_DIR}/test_web_api_set_export.c"
