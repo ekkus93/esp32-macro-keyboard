@@ -45,108 +45,95 @@ jobs:
           path = Path("webapp/tests/browser/run-browser-tests.mjs")
           text = path.read_text(encoding="utf-8")
 
-          replacements = [
-              (
-                  '''  const keyCode = key === "Tab" ? 9 : key === "Escape" ? 27 : 0;''',
-                  '''  const keyCode =
-                    key === "Tab" ? 9 : key === "Escape" ? 27 : key === "Enter" ? 13 : 0;''',
-              ),
-              (
-                  '''  await assertTouchTargets(cdp);
-
-                await clickButton(cdp, "Manage sets");''',
-                  '''  await assertTouchTargets(cdp);
-
-                await evaluate(cdp, "document.querySelector('#main-content').focus()");
-                await dispatchKey(cdp, "Tab");
-                const keyboardFocus = await evaluate(
-                  cdp,
-                  "document.activeElement.textContent.trim()",
-                );
-                assert(
-                  keyboardFocus === "Manage sets",
-                  `Keyboard navigation did not reach Manage sets: ${String(keyboardFocus)}`,
-                );
-                await dispatchKey(cdp, "Enter");''',
-              ),
-              (
-                  '''  await waitFor(
-                    cdp,
-                    "document.body.innerText.includes('Manage macro sets')",
-                    "Set management did not load.",
-                  );
-
-                await clickButton(cdp, "Create set", true);''',
-                  '''  await waitFor(
-                    cdp,
-                    "document.body.innerText.includes('Manage macro sets')",
-                    "Set management did not load.",
-                  );
-                const colorOnlyStatuses = await evaluate(
-                  cdp,
-                  "Array.from(document.querySelectorAll('.status-badge')).filter((element) => element.textContent.trim().length === 0).length",
-                );
-                assert(
-                  colorOnlyStatuses === 0,
-                  "A status badge relied on color without visible text.",
-                );
-
-                await clickButton(cdp, "Create set", true);''',
-              ),
-              (
-                  '''    "document.body.innerText.includes('Offline.')",
-                    "Offline state was not announced.",''',
-                  '''    "document.querySelector('.connectivity-offline[role=status]') !== null && document.body.innerText.includes('Offline.')",
-                    "Offline state was not announced through a status live region.",''',
-              ),
-              (
-                  '''async function main() {''',
-                  '''async function stopChrome(processHandle) {
-                  if (processHandle.exitCode !== null) {
-                    return;
-                  }
-                  await new Promise((resolve) => {
-                    const timeout = setTimeout(() => {
-                      processHandle.kill("SIGKILL");
-                    }, 5_000);
-                    processHandle.once("exit", () => {
-                      clearTimeout(timeout);
-                      resolve();
-                    });
-                    processHandle.kill("SIGTERM");
-                  });
-                }
-
-                async function main() {''',
-              ),
-              (
-                  '''  } finally {
-                    cdp?.close();
-                    chromeProcess.kill("SIGTERM");
-                    await application.close();
-                    await rm(userDataDirectory, { recursive: true, force: true });
-                  }''',
-                  '''  } finally {
-                    cdp?.close();
-                    await stopChrome(chromeProcess);
-                    await application.close();
-                    await rm(userDataDirectory, {
-                      recursive: true,
-                      force: true,
-                      maxRetries: 5,
-                      retryDelay: 100,
-                    });
-                  }''',
-              ),
-          ]
-
-          for old, new in replacements:
+          def replace_once(old: str, new: str, label: str) -> None:
+              global text
               if old in text:
-                  if text.count(old) != 1:
-                      raise SystemExit(f"expected one browser block, found {text.count(old)}")
+                  count = text.count(old)
+                  if count != 1:
+                      raise SystemExit(f"{label}: expected one anchor, found {count}")
                   text = text.replace(old, new, 1)
-              elif new not in text:
-                  raise SystemExit("expected browser block not found")
+                  return
+              if new in text:
+                  return
+              raise SystemExit(f"{label}: expected anchor not found")
+
+          replace_once(
+              '  const keyCode = key === "Tab" ? 9 : key === "Escape" ? 27 : 0;',
+              '''  const keyCode =
+                key === "Tab" ? 9 : key === "Escape" ? 27 : key === "Enter" ? 13 : 0;''',
+              "Enter key code",
+          )
+          replace_once(
+              '  await clickButton(cdp, "Manage sets");',
+              '''  await evaluate(cdp, "document.querySelector('#main-content').focus()");
+              await dispatchKey(cdp, "Tab");
+              const keyboardFocus = await evaluate(
+                cdp,
+                "document.activeElement.textContent.trim()",
+              );
+              assert(
+                keyboardFocus === "Manage sets",
+                `Keyboard navigation did not reach Manage sets: ${String(keyboardFocus)}`,
+              );
+              await dispatchKey(cdp, "Enter");''',
+              "keyboard-only navigation",
+          )
+          replace_once(
+              '  await clickButton(cdp, "Create set", true);',
+              '''  const colorOnlyStatuses = await evaluate(
+                cdp,
+                "Array.from(document.querySelectorAll('.status-badge')).filter((element) => element.textContent.trim().length === 0).length",
+              );
+              assert(
+                colorOnlyStatuses === 0,
+                "A status badge relied on color without visible text.",
+              );
+
+              await clickButton(cdp, "Create set", true);''',
+              "text status assertion",
+          )
+          replace_once(
+              '    "document.body.innerText.includes(\'Offline.\')",',
+              '    "document.querySelector(\'.connectivity-offline[role=status]\') !== null && document.body.innerText.includes(\'Offline.\')",',
+              "offline live region",
+          )
+          replace_once(
+              'async function main() {',
+              '''async function stopChrome(processHandle) {
+              if (processHandle.exitCode !== null) {
+                return;
+              }
+              await new Promise((resolve) => {
+                const timeout = setTimeout(() => {
+                  processHandle.kill("SIGKILL");
+                }, 5_000);
+                processHandle.once("exit", () => {
+                  clearTimeout(timeout);
+                  resolve();
+                });
+                processHandle.kill("SIGTERM");
+              });
+            }
+
+            async function main() {''',
+              "browser shutdown helper",
+          )
+          replace_once(
+              '''    cdp?.close();
+              chromeProcess.kill("SIGTERM");
+              await application.close();
+              await rm(userDataDirectory, { recursive: true, force: true });''',
+              '''    cdp?.close();
+              await stopChrome(chromeProcess);
+              await application.close();
+              await rm(userDataDirectory, {
+                recursive: true,
+                force: true,
+                maxRetries: 5,
+                retryDelay: 100,
+              });''',
+              "browser cleanup",
+          )
 
           path.write_text(text, encoding="utf-8")
           PY
