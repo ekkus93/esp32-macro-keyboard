@@ -52,6 +52,10 @@ jobs:
         working-directory: webapp
         run: npm ci
 
+      - name: Enforce reviewed npm audit policy
+        working-directory: webapp
+        run: npm run audit:ci
+
       - name: Run authoritative checks
         shell: bash
         run: |
