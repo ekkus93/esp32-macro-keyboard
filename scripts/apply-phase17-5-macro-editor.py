@@ -112,6 +112,27 @@ replace_once(
 )
 
 test_path = ROOT / "webapp" / "tests" / "app-macros.test.tsx"
+replace_once(
+    test_path,
+    'import { describe, expect, test, vi } from "vitest";\n',
+    'import { act } from "react";\n'
+    'import { describe, expect, test, vi } from "vitest";\n',
+    "React act import",
+)
+replace_once(
+    test_path,
+    'async function advanceValidation(): Promise<void> {\n'
+    '  await vi.advanceTimersByTimeAsync(300);\n'
+    '  await flushReact();\n'
+    '}\n',
+    'async function advanceValidation(): Promise<void> {\n'
+    '  await act(async () => {\n'
+    '    await vi.advanceTimersByTimeAsync(300);\n'
+    '  });\n'
+    '  await flushReact();\n'
+    '}\n',
+    "validation timer act boundary",
+)
 replace_exact_count(
     test_path,
     'JSON.parse(String(call.body))',
@@ -125,6 +146,3 @@ replace_once(
     '["/macro-editor", "Create macro"],\n',
     "macro editor route expectation",
 )
-
-print("--- generated app-macros.test.tsx ---")
-print(test_path.read_text(encoding="utf-8"))
