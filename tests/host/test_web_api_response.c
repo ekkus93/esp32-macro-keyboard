@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "app_error.h"
@@ -15,9 +16,33 @@ static void test_success_envelope(void) {
     TEST_CHECK(response.body_length == strlen(response.body));
     TEST_CHECK(strstr(response.body, "\"ok\":true") != NULL);
     TEST_CHECK(strstr(response.body, "\"id\":\"abc\"") != NULL);
+    TEST_CHECK(response.body_free != NULL);
     web_api_response_free(&response);
     TEST_CHECK(response.body == NULL);
     TEST_CHECK_EQ_U64(0U, response.body_length);
+    TEST_CHECK(response.body_free == NULL);
+}
+
+static void test_raw_package_response(void) {
+    static const char package[] =
+        "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":[],\"macros\":[],"
+        "\"global_macros\":[],\"procedures\":[],\"progress\":[]}";
+    char *owned = malloc(sizeof(package));
+    TEST_CHECK(owned != NULL);
+    memcpy(owned, package, sizeof(package));
+
+    web_api_response_t response = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_api_response_take_json(&response, WEB_HTTP_STATUS_OK, owned,
+                                                    sizeof(package) - 1U));
+    TEST_CHECK_EQ_U64(WEB_HTTP_STATUS_OK, response.status);
+    TEST_CHECK_EQ_U64(sizeof(package) - 1U, response.body_length);
+    TEST_CHECK_EQ_STRING(package, response.body);
+    TEST_CHECK(strstr(response.body, "\"ok\":true") == NULL);
+    TEST_CHECK(response.body_free != NULL);
+    web_api_response_free(&response);
+    TEST_CHECK(response.body == NULL);
+    TEST_CHECK(response.body_free == NULL);
 }
 
 static void test_error_envelope(void) {
@@ -53,10 +78,20 @@ static void test_invalid_payload_rejected(void) {
                                               .message = "invalid",
                                               .details_json = "not-json",
                                           }));
+
+    char *body = malloc(3U);
+    TEST_CHECK(body != NULL);
+    memcpy(body, "{}", 3U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_response_take_json(&response, WEB_HTTP_STATUS_OK, body, 1U));
+    free(body);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_response_take_json(&response, WEB_HTTP_STATUS_OK, NULL, 0U));
 }
 
 int main(void) {
     test_success_envelope();
+    test_raw_package_response();
     test_error_envelope();
     test_invalid_payload_rejected();
     return 0;
