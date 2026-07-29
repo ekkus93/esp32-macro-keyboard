@@ -1,0 +1,308 @@
+#include <errno.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+
+#include "app_error.h"
+#include "app_uuid.h"
+#include "macro_model.h"
+#include "provisioning.h"
+#include "storage_package.h"
+#include "storage_package_internal.h"
+#include "storage_repository.h"
+#include "storage_repository_lock.h"
+#include "storage_repository_macros_internal.h"
+#include "storage_repository_procedures_internal.h"
+#include "storage_repository_progress_internal.h"
+#include "storage_repository_sets_internal.h"
+#include "test_assert.h"
+#include "test_temp_dir.h"
+#include "web_api_handlers.h"
+#include "web_api_response.h"
+
+#define SET_ID "11111111-1111-4111-8111-111111111111"
+#define MISSING_SET_ID "12121212-1212-4212-8212-121212121212"
+#define LOCAL_MACRO_ID "22222222-2222-4222-8222-222222222222"
+#define GLOBAL_MACRO_ID "23232323-2323-4232-8232-232323232323"
+#define UNUSED_GLOBAL_MACRO_ID "24242424-2424-4242-8242-242424242424"
+#define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
+#define LOCAL_STEP_ID "44444444-4444-4444-8444-444444444444"
+#define GLOBAL_STEP_ID "45454545-4545-4545-8545-454545454545"
+#define UNUSED_SENTINEL "SENTINEL-UNREFERENCED-GLOBAL"
+
+app_error_code_t provisioning_settings_read(provisioning_settings_t *out_settings) {
+    (void)out_settings;
+    return APP_ERROR_INTERNAL;
+}
+
+app_error_code_t provisioning_settings_update(const provisioning_settings_t *replacement,
+                                               uint32_t expected_revision,
+                                               provisioning_settings_t *out_committed) {
+    (void)replacement;
+    (void)expected_revision;
+    (void)out_committed;
+    return APP_ERROR_INTERNAL;
+}
+
+static app_uuid_t uuid(const char *text) {
+    app_uuid_t value = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_parse(text, &value));
+    return value;
+}
+
+static void make_directory(const char *path) {
+    TEST_CHECK(mkdir(path, 0750) == 0 || errno == EEXIST);
+}
+
+static void reset_store(void) {
+    test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
+    static const char *const paths[] = {
+        STORAGE_DATA_MOUNT,
+        STORAGE_DATA_MOUNT "/sets",
+        STORAGE_DATA_MOUNT "/global",
+        STORAGE_DATA_MOUNT "/global/macros",
+        STORAGE_DATA_MOUNT "/staging",
+        STORAGE_DATA_MOUNT "/trash",
+        STORAGE_DATA_MOUNT "/quarantine",
+        STORAGE_DATA_MOUNT "/transactions",
+    };
+    for (size_t index = 0U; index < sizeof(paths) / sizeof(paths[0]); ++index) {
+        make_directory(paths[index]);
+    }
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_init());
+}
+
+static macro_set_t make_set(void) {
+    macro_set_t set = {
+        .schema_version = APP_SCHEMA_VERSION,
+        .id = uuid(SET_ID),
+        .revision = 1U,
+        .sort_order = 0,
+    };
+    TEST_CHECK(snprintf(set.name, sizeof(set.name), "Export Set") > 0);
+    TEST_CHECK(snprintf(set.keyboard_layout, sizeof(set.keyboard_layout), "en-US") > 0);
+    return set;
+}
+
+static macro_t make_macro(const char *id, macro_scope_t scope, const app_uuid_t *set_id,
+                          const char *name, const char *source) {
+    macro_t macro = {
+        .schema_version = APP_SCHEMA_VERSION,
+        .id = uuid(id),
+        .revision = 1U,
+        .scope = scope,
+        .has_set_id = scope == MACRO_SCOPE_SET,
+        .favorite = false,
+        .key_press_ms = APP_KEY_PRESS_DEFAULT_MS,
+        .inter_key_ms = APP_INTER_KEY_DEFAULT_MS,
+        .source_length = strlen(source),
+    };
+    if (set_id != NULL) {
+        macro.set_id = *set_id;
+    }
+    TEST_CHECK(snprintf(macro.name, sizeof(macro.name), "%s", name) > 0);
+    macro.source = malloc(macro.source_length + 1U);
+    TEST_CHECK(macro.source != NULL);
+    memcpy(macro.source, source, macro.source_length + 1U);
+    return macro;
+}
+
+static procedure_t make_procedure(const app_uuid_t *set_id) {
+    procedure_t procedure = {
+        .schema_version = APP_SCHEMA_VERSION,
+        .id = uuid(PROCEDURE_ID),
+        .revision = 1U,
+        .set_id = *set_id,
+        .step_count = 2U,
+        .sort_order = 0,
+    };
+    TEST_CHECK(snprintf(procedure.name, sizeof(procedure.name), "Export Procedure") > 0);
+    procedure.steps = calloc(procedure.step_count, sizeof(*procedure.steps));
+    TEST_CHECK(procedure.steps != NULL);
+    procedure.steps[0] = (procedure_step_t){
+        .id = uuid(LOCAL_STEP_ID),
+        .type = PROCEDURE_STEP_MACRO,
+        .required = true,
+        .has_macro_id = true,
+        .macro_id = uuid(LOCAL_MACRO_ID),
+    };
+    TEST_CHECK(snprintf(procedure.steps[0].title, sizeof(procedure.steps[0].title), "Local") > 0);
+    procedure.steps[1] = (procedure_step_t){
+        .id = uuid(GLOBAL_STEP_ID),
+        .type = PROCEDURE_STEP_MACRO,
+        .required = true,
+        .has_macro_id = true,
+        .macro_id = uuid(GLOBAL_MACRO_ID),
+    };
+    TEST_CHECK(snprintf(procedure.steps[1].title, sizeof(procedure.steps[1].title), "Global") > 0);
+    return procedure;
+}
+
+static app_error_code_t export_lock_take(void *context) {
+    (void)context;
+    return storage_repository_lock_take();
+}
+
+static app_error_code_t export_lock_give(void *context) {
+    (void)context;
+    return storage_repository_lock_give();
+}
+
+static app_error_code_t export_set_read(void *context, const app_uuid_t *set_id,
+                                        macro_set_t *out_set) {
+    (void)context;
+    return storage_set_read_locked(set_id, out_set);
+}
+
+static app_error_code_t export_macro_list(void *context,
+                                          const storage_macro_location_t *location,
+                                          storage_macro_list_t *out_list) {
+    (void)context;
+    return storage_macro_list_locked(location, out_list);
+}
+
+static void export_macro_list_free(void *context, storage_macro_list_t *list) {
+    (void)context;
+    storage_macro_list_free(list);
+}
+
+static app_error_code_t export_procedure_list(void *context, const app_uuid_t *set_id,
+                                              storage_procedure_list_t *out_list) {
+    (void)context;
+    return storage_procedure_list_locked(set_id, out_list);
+}
+
+static void export_procedure_list_free(void *context, storage_procedure_list_t *list) {
+    (void)context;
+    storage_procedure_list_free(list);
+}
+
+static app_error_code_t export_progress_read(void *context,
+                                             const storage_procedure_identity_t *identity,
+                                             storage_progress_snapshot_t *out_snapshot) {
+    (void)context;
+    return storage_progress_read_locked(identity, out_snapshot);
+}
+
+static void install_export_operations(void) {
+    const storage_package_export_ops_t operations = {
+        .context = NULL,
+        .lock_take = export_lock_take,
+        .lock_give = export_lock_give,
+        .set_read = export_set_read,
+        .macro_list = export_macro_list,
+        .macro_list_free = export_macro_list_free,
+        .procedure_list = export_procedure_list,
+        .procedure_list_free = export_procedure_list_free,
+        .progress_read = export_progress_read,
+    };
+    storage_package_set_export_ops_for_test(&operations);
+}
+
+static void populate_store(void) {
+    macro_set_t set = make_set();
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
+
+    const storage_macro_location_t local_location = {
+        .scope = MACRO_SCOPE_SET,
+        .has_set_id = true,
+        .set_id = set.id,
+    };
+    macro_t local = make_macro(LOCAL_MACRO_ID, MACRO_SCOPE_SET, &set.id, "Local Macro", "a");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&local_location, &local));
+    macro_model_free_macro(&local);
+
+    const storage_macro_location_t global_location = {
+        .scope = MACRO_SCOPE_GLOBAL,
+        .has_set_id = false,
+        .set_id = {{0}},
+    };
+    macro_t global =
+        make_macro(GLOBAL_MACRO_ID, MACRO_SCOPE_GLOBAL, NULL, "Global Macro", "b");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&global_location, &global));
+    macro_model_free_macro(&global);
+
+    macro_t unused = make_macro(UNUSED_GLOBAL_MACRO_ID, MACRO_SCOPE_GLOBAL, NULL, UNUSED_SENTINEL,
+                                "unreferenced-secret-source");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&global_location, &unused));
+    macro_model_free_macro(&unused);
+
+    procedure_t procedure = make_procedure(&set.id);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_create(&set.id, &procedure));
+    macro_model_free_procedure(&procedure);
+
+    const storage_procedure_identity_t identity = {
+        .set_id = set.id,
+        .procedure_id = uuid(PROCEDURE_ID),
+    };
+    storage_progress_snapshot_t progress = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_progress_reset(&identity, 1U, &progress));
+}
+
+static web_api_response_t invoke_export(const char *set_id) {
+    const web_api_call_t call = {
+        .method = WEB_API_METHOD_GET,
+        .path = {
+            .route = WEB_API_ROUTE_SET_EXPORT,
+            .has_set_id = true,
+            .set_id = {.value = ""},
+        },
+        .body = "",
+        .body_length = 0U,
+    };
+    web_api_call_t mutable_call = call;
+    mutable_call.path.set_id = uuid(set_id);
+    web_api_response_t response = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_handle_sets(&mutable_call, &response));
+    TEST_CHECK(response.body != NULL);
+    return response;
+}
+
+static void test_export_route(void) {
+    web_api_response_t response = invoke_export(SET_ID);
+    TEST_CHECK_EQ_U64(200U, response.status);
+    TEST_CHECK(response.body_length == strlen(response.body));
+    TEST_CHECK(strncmp(response.body, "{\"schema_version\":1", 21U) == 0);
+    TEST_CHECK(strstr(response.body, "\"ok\":true") == NULL);
+    TEST_CHECK(strstr(response.body, LOCAL_MACRO_ID) != NULL);
+    TEST_CHECK(strstr(response.body, GLOBAL_MACRO_ID) != NULL);
+    TEST_CHECK(strstr(response.body, PROCEDURE_ID) != NULL);
+    TEST_CHECK(strstr(response.body, LOCAL_STEP_ID) != NULL);
+    TEST_CHECK(strstr(response.body, UNUSED_GLOBAL_MACRO_ID) == NULL);
+    TEST_CHECK(strstr(response.body, UNUSED_SENTINEL) == NULL);
+
+    storage_package_summary_t summary = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_package_validate(response.body, response.body_length,
+                                                  STORAGE_PACKAGE_KIND_SET, &summary));
+    TEST_CHECK_EQ_U64(1U, summary.set_count);
+    TEST_CHECK_EQ_U64(1U, summary.local_macro_count);
+    TEST_CHECK_EQ_U64(1U, summary.global_macro_count);
+    TEST_CHECK_EQ_U64(1U, summary.procedure_count);
+    TEST_CHECK_EQ_U64(1U, summary.progress_count);
+    web_api_response_free(&response);
+}
+
+static void test_missing_set_error_envelope(void) {
+    web_api_response_t response = invoke_export(MISSING_SET_ID);
+    TEST_CHECK_EQ_U64(404U, response.status);
+    TEST_CHECK(strstr(response.body, "\"ok\":false") != NULL);
+    TEST_CHECK(strstr(response.body, "could not export set") != NULL);
+    web_api_response_free(&response);
+}
+
+int main(void) {
+    reset_store();
+    populate_store();
+    install_export_operations();
+    test_export_route();
+    test_missing_set_error_envelope();
+    storage_package_reset_export_ops_for_test();
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_deinit());
+    test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
+    return 0;
+}
