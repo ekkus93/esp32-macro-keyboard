@@ -20,30 +20,41 @@ concurrency:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          persist-credentials: false
+
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
       - name: Install host lint tools
+        shell: bash
         run: |
+          set -euo pipefail
           sudo apt-get update
           sudo apt-get install --yes clang-format clang-tidy jq libcjson-dev shellcheck
           python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
           go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Install ESP-IDF v5.5.5
         run: ./scripts/install-esp-idf.sh
+
       - name: Install frontend dependencies
         working-directory: webapp
         run: npm ci
+
       - name: Run authoritative checks
         shell: bash
         run: |
+          set -euo pipefail
           . "$HOME/esp/esp-idf-v5.5.5/export.sh"
           ./scripts/check-all.sh
