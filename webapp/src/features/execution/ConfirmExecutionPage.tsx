@@ -6,6 +6,7 @@ import {
   getGlobalMacro,
   getSetMacro,
   getSetProcedure,
+  getSettings,
   submitExecution,
   validateGlobalMacro,
   validateSetMacro,
@@ -24,6 +25,7 @@ import type {
   ProcedureStep,
   Settings,
 } from "../../types/models";
+import "./ConfirmExecutionPage.css";
 
 type ProcedureMacroStep = Extract<ProcedureStep, { type: "macro" }>;
 
@@ -98,9 +100,10 @@ function procedureContext(
   if (target.kind !== "valid" || target.sourceContext === null) {
     return null;
   }
+  const sourceContext = target.sourceContext;
   if (
     procedure === null ||
-    procedure.id !== target.sourceContext.procedureId ||
+    procedure.id !== sourceContext.procedureId ||
     procedure.set_id !== activeSetId
   ) {
     throw new Error(
@@ -108,7 +111,7 @@ function procedureContext(
     );
   }
   const step = procedure.steps.find(
-    (candidate) => candidate.id === target.sourceContext?.stepId,
+    (candidate) => candidate.id === sourceContext.stepId,
   );
   if (step?.type !== "macro" || step.macro_id !== macroId) {
     throw new Error(
@@ -158,6 +161,16 @@ function sameMacroSnapshot(left: Macro, right: Macro): boolean {
     left.source === right.source &&
     left.key_press_ms === right.key_press_ms &&
     left.inter_key_ms === right.inter_key_ms
+  );
+}
+
+function sameValidationSnapshot(
+  left: MacroValidation,
+  right: MacroValidation,
+): boolean {
+  return (
+    left.actionCount === right.actionCount &&
+    left.estimatedDurationMs === right.estimatedDurationMs
   );
 }
 
@@ -215,12 +228,17 @@ export function ConfirmExecutionPage({
   target,
 }: ConfirmExecutionPageProps): React.JSX.Element {
   const [loaded, setLoaded] = useState<LoadedConfirmation | null>(null);
+  const [currentSettings, setCurrentSettings] = useState(settings);
   const [currentStatus, setCurrentStatus] = useState(status);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loadVersion, setLoadVersion] = useState(0);
   const [stale, setStale] = useState(false);
   const [stage, setStage] = useState<SubmissionStage>("idle");
+
+  useEffect(() => {
+    setCurrentSettings(settings);
+  }, [settings]);
 
   useEffect(() => {
     setCurrentStatus(status);
@@ -263,6 +281,9 @@ export function ConfirmExecutionPage({
     if (loaded === null) {
       reasons.push("The persisted macro and validation result are not loaded.");
     }
+    if (currentSettings.activeSetId !== activeSet?.id) {
+      reasons.push("The active macro set changed after this preview opened.");
+    }
     if (stale) {
       reasons.push("The macro or procedure changed after this preview loaded.");
     }
@@ -275,7 +296,7 @@ export function ConfirmExecutionPage({
       reasons.push("Another macro execution is already running.");
     }
     return reasons;
-  }, [currentStatus.executionState, currentStatus.usbState, loaded, stale]);
+  }, [activeSet?.id, currentSettings.activeSetId, currentStatus, loaded, stale]);
 
   const send = async (): Promise<void> => {
     if (
@@ -291,14 +312,24 @@ export function ConfirmExecutionPage({
     setStage("preflight");
     setSubmitError(null);
     try {
-      const [latestStatus, latest] = await Promise.all([
+      const [latestStatus, latestSettings, latest] = await Promise.all([
         getDeviceStatus(),
+        getSettings(),
         loadConfirmation(activeSet, target),
       ]);
       setCurrentStatus(latestStatus);
+      setCurrentSettings(latestSettings);
 
+      if (latestSettings.activeSetId !== activeSet.id) {
+        setStale(true);
+        setSubmitError(
+          "The active macro set changed on the device. Sending was not started.",
+        );
+        return;
+      }
       if (
         !sameMacroSnapshot(loaded.macro, latest.macro) ||
+        !sameValidationSnapshot(loaded.validation, latest.validation) ||
         !sameProcedureContext(
           loaded.procedureContext,
           latest.procedureContext,
@@ -328,7 +359,7 @@ export function ConfirmExecutionPage({
 
       setLoaded(latest);
       setStage(
-        settings.requirePhysicalConfirmation
+        latestSettings.requirePhysicalConfirmation
           ? "physical-confirmation"
           : "submitting",
       );
@@ -492,7 +523,7 @@ export function ConfirmExecutionPage({
           </dd>
           <dt>Physical confirmation</dt>
           <dd>
-            {settings.requirePhysicalConfirmation
+            {currentSettings.requirePhysicalConfirmation
               ? "Required on the device"
               : "Not required"}
           </dd>
@@ -515,7 +546,8 @@ export function ConfirmExecutionPage({
 
       {stage === "preflight" ? (
         <div className="confirmation-panel" role="status" aria-live="assertive">
-          Rechecking the macro, procedure context, USB state, and executor…
+          Rechecking the macro, procedure context, USB state, executor, and
+          confirmation policy…
         </div>
       ) : null}
       {stage === "physical-confirmation" ? (
