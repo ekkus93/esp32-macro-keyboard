@@ -1,0 +1,104 @@
+name: Code review fixes ESLint 9 audit once
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/code-review-fixes-eslint9-audit-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Build exact intended graph and record audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("webapp/package.json")
+          package = json.loads(path.read_text(encoding="utf-8"))
+          package["devDependencies"].update({
+              "@eslint/js": "9.39.4",
+              "@vitest/coverage-v8": "4.1.10",
+              "eslint": "9.39.4",
+              "markdownlint-cli2": "0.23.2",
+              "typescript-eslint": "8.65.0",
+              "vite": "7.3.6",
+              "vitest": "4.1.10",
+          })
+          path.write_text(json.dumps(package, indent=2) + "\n", encoding="utf-8")
+          PY
+          rm -rf webapp/node_modules webapp/package-lock.json
+          cd webapp
+          npm install
+          set +e
+          npm audit --json > /tmp/eslint9-audit.json
+          status=$?
+          set -e
+          cd ..
+          mkdir -p docs/review-source
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("/tmp/eslint9-audit.json").read_text(encoding="utf-8"))
+          counts = report.get("metadata", {}).get("vulnerabilities", {})
+          findings = report.get("vulnerabilities", {})
+          lines = [
+              "# ESLint 9.39.4 frontend audit diagnostic",
+              "",
+              "## Summary",
+              "",
+              f"- High: {counts.get('high', 0)}",
+              f"- Critical: {counts.get('critical', 0)}",
+              f"- Total: {counts.get('total', 0)}",
+              "",
+              "## Findings",
+              "",
+          ]
+          for name in sorted(findings):
+              item = findings[name]
+              lines.extend([
+                  f"### `{name}`",
+                  "",
+                  f"- Severity: `{item.get('severity')}`",
+                  f"- Direct dependency: `{str(bool(item.get('isDirect'))).lower()}`",
+                  f"- Affected range: `{item.get('range')}`",
+                  f"- Nodes: `{', '.join(item.get('nodes', []))}`",
+                  f"- Fix available: `{json.dumps(item.get('fixAvailable'), sort_keys=True)}`",
+                  "- Via:",
+              ])
+              for entry in item.get("via", []):
+                  if isinstance(entry, dict):
+                      lines.append(
+                          f"  - `{entry.get('severity')}` — {entry.get('title')}; "
+                          f"range `{entry.get('range')}`; source `{entry.get('source')}`"
+                      )
+                  else:
+                      lines.append(f"  - transitive through `{entry}`")
+              lines.append("")
+          Path("docs/review-source/ESP32_MACRO_KEYBOARD_NPM_AUDIT_ESLINT9_2026-07-28.md").write_text(
+              "\n".join(lines), encoding="utf-8"
+          )
+          PY
+          git rm .github/workflows/code-review-fixes-eslint9-audit-once.yml
+          git add docs/review-source/ESP32_MACRO_KEYBOARD_NPM_AUDIT_ESLINT9_2026-07-28.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs: record eslint9 frontend audit findings"
+          git push origin HEAD:master
+          exit "${status}"
