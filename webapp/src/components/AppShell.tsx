@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Screen } from "../routing";
 import type { UsbState } from "../types/models";
+import { ConnectivityBanner } from "./ConnectivityBanner";
 import { StatusBadge } from "./StatusBadge";
 
 interface AppShellProps {
@@ -10,6 +11,7 @@ interface AppShellProps {
   usbState: UsbState;
   navigate: (route: Screen) => void;
   onLogout: () => void;
+  onReconnect: () => void;
   logoutDisabled: boolean;
 }
 
@@ -31,6 +33,9 @@ function usbBadgeState(
 }
 
 function navigationActive(route: Screen, target: Screen): boolean {
+  if (target === "sets") {
+    return ["sets", "manage-sets", "set-editor", "delete-set"].includes(route);
+  }
   if (target === "procedures") {
     return [
       "procedures",
@@ -40,7 +45,12 @@ function navigationActive(route: Screen, target: Screen): boolean {
     ].includes(route);
   }
   if (target === "macros") {
-    return route === "macros" || route === "macro-editor";
+    return ["macros", "macro-editor", "confirm", "execution", "result"].includes(
+      route,
+    );
+  }
+  if (target === "settings") {
+    return ["settings", "import", "export", "diagnostics"].includes(route);
   }
   return route === target;
 }
@@ -52,6 +62,7 @@ export function AppShell({
   usbState,
   navigate,
   onLogout,
+  onReconnect,
   logoutDisabled,
 }: AppShellProps): React.JSX.Element {
   const navigation = [
@@ -83,10 +94,14 @@ export function AppShell({
           </button>
         </div>
       </header>
-      <main>{children}</main>
+      <ConnectivityBanner onReconnect={onReconnect} />
+      <main id="main-content" tabIndex={-1}>
+        {children}
+      </main>
       <nav className="bottom-nav" aria-label="Primary navigation">
         {navigation.map(([target, label]) => (
           <button
+            aria-current={navigationActive(route, target) ? "page" : undefined}
             className={navigationActive(route, target) ? "active" : ""}
             key={target}
             onClick={() => {
