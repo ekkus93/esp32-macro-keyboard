@@ -1,4 +1,5 @@
 import { apiRequest, setCsrfToken } from "./client";
+import { isExecutionAccepted } from "./executionGuards";
 import {
   isCancelAccepted,
   isDeviceStatus,
@@ -20,7 +21,9 @@ import {
 import type {
   CancelAccepted,
   DeviceStatus,
+  ExecutionAccepted,
   ExecutionStatus,
+  ExecutionSubmitRequest,
   LoginResponse,
   Macro,
   MacroSet,
@@ -301,6 +304,19 @@ export async function skipProcedureStep(
       }),
     },
     isProcedureProgressSnapshot,
+  );
+}
+
+export async function submitExecution(
+  request: ExecutionSubmitRequest,
+): Promise<ExecutionAccepted> {
+  return apiRequest(
+    "/api/v1/executions",
+    {
+      method: "POST",
+      body: JSON.stringify(request),
+    },
+    isExecutionAccepted,
   );
 }
 
