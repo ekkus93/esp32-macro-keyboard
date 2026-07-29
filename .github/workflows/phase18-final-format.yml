@@ -1,0 +1,138 @@
+name: Phase 18 Exact Formatter
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/phase18-final-format.yml"
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: phase18-final-format
+  cancel-in-progress: true
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: true
+
+      - name: Install formatters
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes clang-format
+          cd webapp
+          npm ci
+
+      - name: Format exact Phase 18 files
+        run: |
+          set -euo pipefail
+          c_files=(
+            firmware/components/storage/include/storage_package.h
+            firmware/components/storage/storage_package.c
+            firmware/components/storage/storage_package_export.c
+            firmware/components/storage/storage_package_internal.h
+            firmware/components/storage/storage_repository_progress_internal.h
+            firmware/components/storage/storage_repository_progress.c
+            firmware/components/web_server/web_api_response.h
+            firmware/components/web_server/web_api_response.c
+            firmware/components/web_server/web_api_sets.c
+            tests/host/test_storage_package.c
+            tests/host/test_storage_package_export.c
+            tests/host/test_web_api_response.c
+            tests/host/test_web_api_set_export.c
+          )
+          clang-format -i "${c_files[@]}"
+          clang-format --dry-run --Werror "${c_files[@]}"
+          cd webapp
+          npm exec prettier -- --write \
+            src/api/client.ts \
+            src/api/packages.ts \
+            src/features/settings/PackageOperationsPage.tsx \
+            tests/management-screens.test.tsx
+          npm exec prettier -- --check \
+            src/api/client.ts \
+            src/api/packages.ts \
+            src/features/settings/PackageOperationsPage.tsx \
+            tests/management-screens.test.tsx
+          cd ..
+          git diff --check
+
+      - name: Verify exact change scope
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only)
+          allowed='^(firmware/components/storage/include/storage_package\.h|firmware/components/storage/storage_package\.c|firmware/components/storage/storage_package_export\.c|firmware/components/storage/storage_package_internal\.h|firmware/components/storage/storage_repository_progress_internal\.h|firmware/components/storage/storage_repository_progress\.c|firmware/components/web_server/web_api_response\.h|firmware/components/web_server/web_api_response\.c|firmware/components/web_server/web_api_sets\.c|tests/host/test_storage_package\.c|tests/host/test_storage_package_export\.c|tests/host/test_web_api_response\.c|tests/host/test_web_api_set_export\.c|webapp/src/api/client\.ts|webapp/src/api/packages\.ts|webapp/src/features/settings/PackageOperationsPage\.tsx|webapp/tests/management-screens\.test\.tsx)$'
+          if [[ "${#changed[@]}" -eq 0 ]]; then
+            echo 'no formatting changes were produced' >&2
+            exit 1
+          fi
+          for path in "${changed[@]}"; do
+            if [[ ! "${path}" =~ ${allowed} ]]; then
+              printf 'unexpected changed path: %s\n' "${path}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Commit exact formatting changes
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            firmware/components/storage/include/storage_package.h \
+            firmware/components/storage/storage_package.c \
+            firmware/components/storage/storage_package_export.c \
+            firmware/components/storage/storage_package_internal.h \
+            firmware/components/storage/storage_repository_progress_internal.h \
+            firmware/components/storage/storage_repository_progress.c \
+            firmware/components/web_server/web_api_response.h \
+            firmware/components/web_server/web_api_response.c \
+            firmware/components/web_server/web_api_sets.c \
+            tests/host/test_storage_package.c \
+            tests/host/test_storage_package_export.c \
+            tests/host/test_web_api_response.c \
+            tests/host/test_web_api_set_export.c \
+            webapp/src/api/client.ts \
+            webapp/src/api/packages.ts \
+            webapp/src/features/settings/PackageOperationsPage.tsx \
+            webapp/tests/management-screens.test.tsx
+          git commit -m "style: format Phase 18 package export"
+          git push origin HEAD:master
+
+      - name: Publish result
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          commit_sha="$(git rev-parse HEAD)"
+          python3 - "${commit_sha}" <<'PY' > /tmp/issue.json
+          import json
+          import os
+          import sys
+
+          body = (
+              "Temporary exact Phase 18 formatter completed.\n\n"
+              f"Run ID: `{os.environ['RUN_ID']}`\n"
+              f"Commit: `{sys.argv[1]}`\n"
+              "Only the explicitly listed Phase 18 C/H and frontend files were allowed to change. "
+              "The temporary workflow must now be removed."
+          )
+          print(json.dumps({"body": body}))
+          PY
+          curl --fail-with-body \
+            --request PATCH \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/24" \
+            --data-binary @/tmp/issue.json
