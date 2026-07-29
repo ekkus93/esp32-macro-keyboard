@@ -11,7 +11,10 @@ import { MacroEditorPage } from "./features/macros/MacroEditorPage";
 import { MacroLibraryPage } from "./features/macros/MacroLibraryPage";
 import { ProcedureLibraryPage } from "./features/procedures/ProcedureLibraryPage";
 import { ProcedureWorkflowPage } from "./features/procedures/ProcedureWorkflowPage";
+import { SetManagementPage } from "./features/sets/SetManagementPage";
 import { SetSelectionPage } from "./features/sets/SetSelectionPage";
+import { DiagnosticsPage } from "./features/settings/DiagnosticsPage";
+import { PackageOperationsPage } from "./features/settings/PackageOperationsPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { DeferredPage } from "./pages/DeferredPage";
 import {
@@ -137,6 +140,11 @@ function AuthenticatedApp({
     [navigateTo],
   );
 
+  const reloadLiveState = useCallback((): void => {
+    setRuntimeError(null);
+    setLoadVersion((version) => version + 1);
+  }, []);
+
   const signOut = async (): Promise<void> => {
     setSigningOut(true);
     setRuntimeError(null);
@@ -155,12 +163,7 @@ function AuthenticatedApp({
         {runtimeError === null ? (
           <p role="status">Loading device configuration…</p>
         ) : (
-          <button
-            onClick={() => {
-              setLoadVersion((version) => version + 1);
-            }}
-            type="button"
-          >
+          <button onClick={reloadLiveState} type="button">
             Retry
           </button>
         )}
@@ -168,22 +171,27 @@ function AuthenticatedApp({
     );
   }
 
-  const deferred = (title: string, message: string): React.JSX.Element => (
-    <DeferredPage title={title} message={message} />
-  );
-
   const content = (() => {
     switch (route) {
       case "sets":
         return (
           <SetSelectionPage
+            onManage={() => {
+              navigateTo("manage-sets");
+            }}
             onSelected={setSettings}
             sets={sets}
             settings={settings}
           />
         );
       case "settings":
-        return <SettingsPage onUpdated={setSettings} settings={settings} />;
+        return (
+          <SettingsPage
+            navigate={navigateTo}
+            onUpdated={setSettings}
+            settings={settings}
+          />
+        );
       case "execution":
         return (
           <ExecutionPage
@@ -229,9 +237,11 @@ function AuthenticatedApp({
           />
         );
       case "procedure-editor":
-        return deferred(
-          "Edit procedure",
-          "Procedure editing and accessible reordering are not enabled in this slice.",
+        return (
+          <DeferredPage
+            message="Procedure editing remains separate from the Phase 17.9 set-management scope."
+            title="Edit procedure"
+          />
         );
       case "macros":
         return (
@@ -276,38 +286,31 @@ function AuthenticatedApp({
           />
         );
       case "manage-sets":
+      case "set-editor":
+      case "delete-set":
         return (
-          <SetSelectionPage
-            onSelected={setSettings}
+          <SetManagementPage
+            onSetsChanged={setSets}
             sets={sets}
             settings={settings}
           />
         );
-      case "set-editor":
-        return deferred(
-          "Create macro set",
-          "Set creation and editing are not enabled in this slice.",
-        );
-      case "delete-set":
-        return deferred(
-          "Delete macro set",
-          "Deletion is unavailable until a live set and current revision are selected.",
-        );
       case "import":
-        return deferred(
-          "Import macro set",
-          "Import remains unavailable until the Phase 18 transactional package service exists.",
+        return (
+          <PackageOperationsPage
+            activeSet={activeSet}
+            initialSection="import"
+          />
         );
       case "export":
-        return deferred(
-          "Export macro set",
-          "Export remains unavailable until the Phase 18 package service exists.",
+        return (
+          <PackageOperationsPage
+            activeSet={activeSet}
+            initialSection="export"
+          />
         );
       case "diagnostics":
-        return deferred(
-          "Diagnostics",
-          "Full diagnostics aggregation remains a Phase 19 boundary.",
-        );
+        return <DiagnosticsPage />;
     }
   })();
 
@@ -321,6 +324,7 @@ function AuthenticatedApp({
           void signOut();
         }
       }}
+      onReconnect={reloadLiveState}
       route={route}
       usbState={status.usbState}
     >
