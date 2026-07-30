@@ -65,91 +65,14 @@ jobs:
           . "$HOME/esp/esp-idf-v5.5.5/export.sh"
           ./scripts/check-all.sh
 
-      - name: Commit Phase 18.1 closure and restore workflows
+      - name: Commit Phase 18.1 closure
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          todo_path = Path("docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md")
-          progress_path = Path("docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md")
-          api_path = Path("docs/API.md")
-
-          todo = todo_path.read_text()
-          replacements = {
-              "- [ ] enforce `APP_IMPORT_PACKAGE_MAX_BYTES`;": "- [x] enforce `APP_IMPORT_PACKAGE_MAX_BYTES`;",
-              "- [ ] stream or use bounded allocation;": "- [x] stream or use bounded allocation;",
-              "- [ ] reject trailing data;": "- [x] reject trailing data;",
-              "- [ ] reject unknown schema fields;": "- [x] reject unknown schema fields;",
-              "- [ ] validate all objects before mutation.": "- [x] validate all objects before mutation.",
-          }
-          for old, new in replacements.items():
-              if old not in todo:
-                  raise SystemExit(f"missing TODO marker: {old}")
-              todo = todo.replace(old, new, 1)
-          marker = "- [x] validate all objects before mutation.\n"
-          evidence = """
-
-Implemented: `storage_package_validate()` is a zero-copy package reader over the
-bounded request buffer. It rejects packages above `APP_IMPORT_PACKAGE_MAX_BYTES`
-before parsing; scans JSON with an iterative, depth-bounded state machine; allocates
-only count-bounded validation metadata; requires the complete input to contain one
-package document with no non-whitespace trailing bytes; rejects duplicate, unknown,
-or future fields; and validates every set, macro, procedure, progress object, and
-cross-object reference before returning success. The validation component has no
-repository mutation dependency, so Phase 18.3 remains the first code permitted to
-activate imported state.
-"""
-          todo = todo.replace(marker, marker + evidence, 1)
-          todo_path.write_text(todo)
-
-          progress = progress_path.read_text()
-          old_status = "| 18 | Import / export / backup / restore | in progress (§18.2 complete; §18.1 and §18.3–18.5 remain) |"
-          if old_status not in progress:
-              raise SystemExit("missing Phase 18 status marker")
-          progress = progress.replace(
-              old_status,
-              "| 18 | Import / export / backup / restore | in progress (§18.1–18.2 complete; §18.3–18.5 remain) |",
-              1,
-          )
-          entry = """- Phase 18.1 bounded package reader — complete in `39b264e`, `974d339`,
-  `e262137`, `3e03294`, `60856a8`, and `ce81a76`, with iterative parser hardening
-  in `3670557`. `storage_package_validate()` enforces the import byte ceiling before
-  parsing, scans without recursion, uses only count-bounded metadata allocations,
-  rejects trailing data and unknown/duplicate fields, validates every object and
-  reference, and remains structurally isolated from repository mutation APIs. The
-  dedicated `tests/scripts/test-storage-package.sh` gate compiles and runs the
-  production parser and its host regression matrix automatically.
-
-"""
-          anchor = "## Completed tasks (commit evidence)\n\n"
-          if anchor not in progress:
-              raise SystemExit("missing progress evidence anchor")
-          progress_path.write_text(progress.replace(anchor, anchor + entry, 1))
-
-          api = api_path.read_text()
-          old_api = (
-              "Export and import currently return explicit `503 Service Unavailable`;\n"
-              "they cannot report false success before the Phase 18 package service exists.\n"
-          )
-          if old_api not in api:
-              raise SystemExit("missing stale export/import API text")
-          api_path.write_text(
-              api.replace(
-                  old_api,
-                  "Set export returns the raw, validated Phase 18 package with its exact byte\n"
-                  "length. Set import remains an explicit `503 Service Unavailable` boundary until\n"
-                  "Phase 18.3 supplies transactional activation; the Phase 18.1 reader and validator\n"
-                  "never mutate repository state.\n",
-                  1,
-              )
-          )
-          PY
-
-          git show HEAD^:.github/workflows/quality.yml > .github/workflows/quality.yml
-          git rm .github/workflows/phase18-1-close.yml
+          python3 .github/phase18_1_close.py
+          git show 3988ec74068b49f548fe9c38c792ba8e40360acf:.github/workflows/quality.yml > .github/workflows/quality.yml
+          git rm .github/phase18_1_close.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .github/workflows/quality.yml docs/API.md docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md
