@@ -76,14 +76,25 @@ jobs:
               "    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());\n"
               "    return 0;"
           )
-          if text.count(opening) != 1 or text.count(closing) != 1:
-              raise SystemExit("set-export lock lifecycle anchors were not unique")
-          export_test.write_text(
-              text.replace(opening, opening_replacement).replace(
-                  closing, closing_replacement
-              ),
-              encoding="utf-8",
+          prefix_assertion = (
+              'strncmp(response.body, "{\\"schema_version\\":1", 21U) == 0'
           )
+          prefix_assertion_replacement = (
+              'strncmp(response.body, "{\\"schema_version\\":1", '
+              'sizeof("{\\"schema_version\\":1") - 1U) == 0'
+          )
+          if (
+              text.count(opening) != 1
+              or text.count(closing) != 1
+              or text.count(prefix_assertion) != 1
+          ):
+              raise SystemExit("set-export test repair anchors were not unique")
+          text = (
+              text.replace(opening, opening_replacement)
+              .replace(closing, closing_replacement)
+              .replace(prefix_assertion, prefix_assertion_replacement)
+          )
+          export_test.write_text(text, encoding="utf-8")
           PY
 
           clang-format -i \
