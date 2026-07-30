@@ -25,6 +25,13 @@ jobs:
         with:
           persist-credentials: true
 
+      - name: Set up required Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
       - name: Install test and format dependencies
         run: |
           set -euo pipefail
