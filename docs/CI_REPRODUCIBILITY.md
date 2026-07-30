@@ -46,7 +46,7 @@ a cold cache.
 
 ## Security and mutation policy
 
-- Workflow permission is `contents: read`.
+- Workflow permission is `contents: read` for normal CI gates.
 - `actions/checkout` uses `persist-credentials: false`.
 - CI never commits, pushes, rewrites branches, or deletes its own workflow.
 - No encoded or generated source transformation is executed.
@@ -60,8 +60,11 @@ a cold cache.
 
 ## Connector-readable CI status
 
-`.github/workflows/publish-ci-status.yml` publishes the latest state of the
-four permanent validation workflows to stable issues:
+The full project adoption specification is
+`docs/CHATGPT_READABLE_GITHUB_ACTIONS_CI_STATUS_BRIDGE_SPEC.md`.
+
+`.github/workflows/publish-ci-status.yml` publishes the latest applicable
+`master` state of the four permanent validation workflows to stable issues:
 
 - Quality: issue #19;
 - Host Tests: issue #20;
@@ -69,25 +72,37 @@ four permanent validation workflows to stable issues:
 - Device Test Build: issue #22.
 
 The publisher listens for requested, in-progress, and completed run states. It
-records the run and attempt IDs, commit, branch, event, runner information,
-job and step states, running and pending jobs, and non-success problem steps in
-both a readable summary and a versioned JSON payload. It also records the time
-the publisher observed the jobs API, which can be newer than the original
-workflow event timestamp.
+records the exact run and attempt IDs, commit, branch, event, runner information,
+job IDs and step states, abnormal steps, timing, and artifact metadata in both a
+readable summary and a versioned JSON payload. It explicitly distinguishes
+metadata that is not yet available from a valid empty result.
 
 The publisher has only `actions: read`, `contents: read`, and `issues: write`.
-It does not check out or execute repository code and cannot modify repository
-contents or workflow runs. Fork-originated runs are ignored so untrusted
-workflow metadata cannot overwrite the authoritative issues. A stale-run check
-considers only same-repository runs and prevents an older trusted event from
-overwriting a newer trusted run of the same workflow. Each issue is an
-overwritten latest-state snapshot, not a historical log and not a replacement
-for complete job logs.
+It sparse-checks out only `tools/ci_status` from trusted `master`, with persisted
+credentials disabled, and never checks out or executes the triggering run's
+branch or commit. The checked-in generator is exercised by permanent unit tests
+from `scripts/check-scripts.sh`.
+
+Fork-originated runs, non-`master` branches, pull-request events, and unrelated
+event categories are ignored. The latest-run query is branch-scoped, and the
+generator filters by trusted repository, branch, and event before an issue may
+be updated. A stale event sets an explicit step output that prevents every later
+publication step from running.
+
+Jobs and artifacts are paginated. Before writing, the publisher validates the
+configured issue number, title, open state, and automation marker; after writing,
+it validates ownership again. The machine-readable JSON is bounded to 60,000
+UTF-8 bytes and uses explicit safe compaction that preserves all job IDs, final
+job conclusions, artifacts, and abnormal steps. It fails rather than silently
+publishing truncated or invalid JSON.
+
+Each issue is an overwritten latest-state snapshot, not a historical log and
+not a replacement for complete job logs. During a Ralph loop, the issue's
+machine-readable `workflow.head_sha` must match the exact candidate SHA before
+the status is used as evidence.
 
 GitHub activates a `workflow_run` publisher only after its workflow file exists
-on the default branch. Status issues therefore remain installation placeholders
-until the change containing the publisher is merged into `master` and a
-monitored workflow changes state.
+on the default branch. The publisher must therefore remain on `master`.
 
 ## Release limitations
 
