@@ -2010,12 +2010,19 @@ is unavailable rather than silently falling back to a DOM simulator.
 
 ### 18.2 Implement export
 
-- [ ] include referenced set-local and global macros;
-- [ ] include procedures and optional progress;
-- [ ] exclude every secret;
-- [ ] deterministic ordering;
-- [ ] stable schema version;
-- [ ] exact content length or bounded chunked response.
+- [x] include referenced set-local and global macros;
+- [x] include procedures and optional progress;
+- [x] exclude every secret;
+- [x] deterministic ordering;
+- [x] stable schema version;
+- [x] exact content length or bounded chunked response.
+
+Implemented: the set export route builds a bounded, versioned package from one
+repository-locked snapshot; includes all set-local macros and only referenced
+global macros; includes procedures and optional current progress; excludes
+provisioning, session, credential, and encryption stores by construction;
+revalidates the serialized package; and transfers the exact byte length to the
+HTTP response.
 
 ### 18.3 Implement transactional replace
 

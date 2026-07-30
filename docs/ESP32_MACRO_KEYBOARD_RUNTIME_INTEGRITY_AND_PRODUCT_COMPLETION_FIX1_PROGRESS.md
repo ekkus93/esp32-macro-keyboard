@@ -60,7 +60,7 @@
 | 15 | Complete storage object repositories | done |
 | 16 | Complete the HTTP API | done (package transactions Phase 18; diagnostics aggregation Phase 19) |
 | 17 | Replace frontend mock behavior | done (Phase 18 package services and Phase 19 aggregation remain separate) |
-| 18 | Import / export / backup / restore | not started |
+| 18 | Import / export / backup / restore | in progress (§18.2 complete; §18.1 and §18.3–18.5 remain) |
 | 19 | Diagnostics and observability | not started |
 | 20 | Hardware and integration validation | environment-blocked (see below) |
 | 21 | Release budgets and immutable CI | not started |
@@ -68,6 +68,21 @@
 | 23 | Final regression and acceptance gate | not started |
 
 ## Completed tasks (commit evidence)
+
+- Phase 18.2 deterministic set export — complete in the implementation through
+  `4fde78b`, with permanent gate repairs in `0e3218b` and the real-Chrome startup
+  readiness repair in `1bad01e`. The GET export route returns a raw schema-version-1
+  set package from one repository-locked snapshot, includes every set-local macro and
+  only referenced global macros, includes procedures and optional current progress,
+  excludes provisioning/session/credential/encryption stores by construction, enforces
+  `APP_IMPORT_PACKAGE_MAX_BYTES`, validates its own serialized output, and returns the
+  exact byte length. Native coverage proves byte-identical repeated exports, omission of
+  an unreferenced sentinel global, optional/stale progress behavior, balanced lock and
+  ownership cleanup, and fail-closed unresolved/ambiguous references. Route and frontend
+  coverage prove raw-body framing, exact content length, error envelopes, and download
+  behavior. Targeted repair runs `30581649333` and `30581998929` passed; permanent Host
+  Tests run `30582054163` and Browser Tests run `30582054132` passed on clean code head
+  `657d7c4`.
 
 - Phase 17.9 management surfaces and Phase 17.10 accessibility/browser
   coverage — complete in the implementation ending at `ac12c50`. Live APIs
