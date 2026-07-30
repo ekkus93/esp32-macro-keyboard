@@ -81,16 +81,16 @@ export function PackageOperationsPage({
           <p className="eyebrow dark">Transactional data operations</p>
           <h2 id="package-operations-title">Import, export, and recovery</h2>
           <p>
-            Package operations validate server-owned data and exclude credentials,
-            sessions, and encryption material.
+            Package operations validate server-owned data and exclude
+            credentials, sessions, and encryption material.
           </p>
         </div>
       </div>
 
       <div className="boundary-message" role="status">
-        Deterministic set export is available. Import, transactional replacement,
-        full backup, and restore remain disabled until their Phase 18 transaction
-        services are complete.
+        Deterministic set export is available. Import, transactional
+        replacement, full backup, and restore remain disabled until their Phase
+        18 transaction services are complete.
       </div>
 
       <ErrorBanner message={error} />
@@ -163,8 +163,9 @@ export function PackageOperationsPage({
               {exporting ? "Exporting…" : "Export selected set"}
             </button>
             <p className="field-help">
-              The downloaded JSON is generated from one locked repository snapshot,
-              validated again before response, and never stored by the frontend.
+              The downloaded JSON is generated from one locked repository
+              snapshot, validated again before response, and never stored by the
+              frontend.
             </p>
           </article>
           <OperationCard

@@ -315,7 +315,6 @@ static void test_set_routes(void) {
     TEST_CHECK_EQ_U64(2U, settings_store.revision);
 
     static const web_api_route_t unavailable_routes[] = {
-        WEB_API_ROUTE_SET_EXPORT,
         WEB_API_ROUTE_SET_IMPORT,
     };
     for (size_t index = 0U; index < sizeof(unavailable_routes) / sizeof(unavailable_routes[0]);

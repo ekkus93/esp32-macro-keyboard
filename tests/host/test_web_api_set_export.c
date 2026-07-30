@@ -40,8 +40,8 @@ app_error_code_t provisioning_settings_read(provisioning_settings_t *out_setting
 }
 
 app_error_code_t provisioning_settings_update(const provisioning_settings_t *replacement,
-                                               uint32_t expected_revision,
-                                               provisioning_settings_t *out_committed) {
+                                              uint32_t expected_revision,
+                                              provisioning_settings_t *out_committed) {
     (void)replacement;
     (void)expected_revision;
     (void)out_committed;
@@ -158,8 +158,7 @@ static app_error_code_t export_set_read(void *context, const app_uuid_t *set_id,
     return storage_set_read_locked(set_id, out_set);
 }
 
-static app_error_code_t export_macro_list(void *context,
-                                          const storage_macro_location_t *location,
+static app_error_code_t export_macro_list(void *context, const storage_macro_location_t *location,
                                           storage_macro_list_t *out_list) {
     (void)context;
     return storage_macro_list_locked(location, out_list);
@@ -221,8 +220,7 @@ static void populate_store(void) {
         .has_set_id = false,
         .set_id = {{0}},
     };
-    macro_t global =
-        make_macro(GLOBAL_MACRO_ID, MACRO_SCOPE_GLOBAL, NULL, "Global Macro", "b");
+    macro_t global = make_macro(GLOBAL_MACRO_ID, MACRO_SCOPE_GLOBAL, NULL, "Global Macro", "b");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&global_location, &global));
     macro_model_free_macro(&global);
 
@@ -246,11 +244,12 @@ static void populate_store(void) {
 static web_api_response_t invoke_export(const char *set_id) {
     const web_api_call_t call = {
         .method = WEB_API_METHOD_GET,
-        .path = {
-            .route = WEB_API_ROUTE_SET_EXPORT,
-            .has_set_id = true,
-            .set_id = {.value = ""},
-        },
+        .path =
+            {
+                .route = WEB_API_ROUTE_SET_EXPORT,
+                .has_set_id = true,
+                .set_id = {.value = ""},
+            },
         .body = "",
         .body_length = 0U,
     };
@@ -266,7 +265,8 @@ static void test_export_route(void) {
     web_api_response_t response = invoke_export(SET_ID);
     TEST_CHECK_EQ_U64(200U, response.status);
     TEST_CHECK(response.body_length == strlen(response.body));
-    TEST_CHECK(strncmp(response.body, "{\"schema_version\":1", 21U) == 0);
+    TEST_CHECK(
+        strncmp(response.body, "{\"schema_version\":1", sizeof("{\"schema_version\":1") - 1U) == 0);
     TEST_CHECK(strstr(response.body, "\"ok\":true") == NULL);
     TEST_CHECK(strstr(response.body, LOCAL_MACRO_ID) != NULL);
     TEST_CHECK(strstr(response.body, GLOBAL_MACRO_ID) != NULL);
@@ -296,6 +296,7 @@ static void test_missing_set_error_envelope(void) {
 }
 
 int main(void) {
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
     reset_store();
     populate_store();
     install_export_operations();
@@ -304,5 +305,6 @@ int main(void) {
     storage_package_reset_export_ops_for_test();
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_deinit());
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
     return 0;
 }

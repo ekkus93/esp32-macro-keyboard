@@ -109,9 +109,7 @@ describe("management screens", () => {
     await flushReact();
 
     expect(getFetchCalls()).toHaveLength(1);
-    expect(getFetchCalls()[0]?.url).toBe(
-      `/api/v1/sets/${macroSet.id}/export`,
-    );
+    expect(getFetchCalls()[0]?.url).toBe(`/api/v1/sets/${macroSet.id}/export`);
     expect(getFetchCalls()[0]?.method).toBe("GET");
     expect(getFetchCalls()[0]?.credentials).toBe("same-origin");
     expect(saveFile).toHaveBeenCalledWith(
