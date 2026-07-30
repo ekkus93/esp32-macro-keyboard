@@ -2008,7 +2008,6 @@ is unavailable rather than silently falling back to a DOM simulator.
 - [x] reject unknown schema fields;
 - [x] validate all objects before mutation.
 
-
 Implemented: `storage_package_validate()` is a zero-copy package reader over the
 bounded request buffer. It rejects packages above `APP_IMPORT_PACKAGE_MAX_BYTES`
 before parsing; scans JSON with an iterative, depth-bounded state machine; allocates
