@@ -18,22 +18,175 @@ permissions:
   issues: write
 
 concurrency:
-  group: publish-ci-status-${{ github.event.workflow_run.workflow_id }}
+  group: publish-ci-status-${{ github.event.workflow_run.workflow_id }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: true
 
 jobs:
   publish:
-    if: github.event.workflow_run.head_repository.full_name == github.repository
+    if: >-
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.head_branch == 'master' &&
+      (github.event.workflow_run.event == 'push' ||
+      github.event.workflow_run.event == 'workflow_dispatch')
     name: Publish latest workflow status
     runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
-      - name: Update authoritative status issue
+      - name: Check out trusted publisher code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: master
+          persist-credentials: false
+          show-progress: false
+          sparse-checkout: tools/ci_status
+          sparse-checkout-cone-mode: true
+
+      - name: Resolve monitored target
+        shell: bash
+        env:
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          set -euo pipefail
+          case "${WORKFLOW_NAME}" in
+            "Quality")
+              issue_number="19"
+              legacy_title="CI Status: Quality"
+              issue_title="CI Status: Quality — master"
+              issue_heading="Latest Quality Run — master"
+              ;;
+            "Host Tests")
+              issue_number="20"
+              legacy_title="CI Status: Host Tests"
+              issue_title="CI Status: Host Tests — master"
+              issue_heading="Latest Host Tests Run — master"
+              ;;
+            "Browser Tests")
+              issue_number="21"
+              legacy_title="CI Status: Browser Tests"
+              issue_title="CI Status: Browser Tests — master"
+              issue_heading="Latest Browser Tests Run — master"
+              ;;
+            "Device Test Build")
+              issue_number="22"
+              legacy_title="CI Status: Device Test Build"
+              issue_title="CI Status: Device Test Build — master"
+              issue_heading="Latest Device Test Build Run — master"
+              ;;
+            *)
+              printf 'Unsupported workflow: %s\n' "${WORKFLOW_NAME}" >&2
+              exit 1
+              ;;
+          esac
+          marker="<!-- maintained by .github/workflows/publish-ci-status.yml; workflow=${WORKFLOW_NAME}; branch=master; issue=${issue_number} -->"
+          {
+            printf 'ISSUE_NUMBER=%s\n' "${issue_number}"
+            printf 'LEGACY_ISSUE_TITLE=%s\n' "${legacy_title}"
+            printf 'ISSUE_TITLE=%s\n' "${issue_title}"
+            printf 'ISSUE_HEADING=%s\n' "${issue_heading}"
+            printf 'STATUS_MARKER=%s\n' "${marker}"
+            printf 'MONITORED_BRANCH=master\n'
+          } >> "${GITHUB_ENV}"
+
+      - name: Reject stale or unrelated run
+        id: freshness
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
+          HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.workflow_id }}
+        run: |
+          set -euo pipefail
+          if [[ "${HEAD_REPOSITORY}" != "${REPOSITORY}" ]]; then
+            printf 'Ignoring untrusted head repository %s.\n' "${HEAD_REPOSITORY}"
+            printf 'should_publish=false\n' >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          if [[ "${HEAD_BRANCH}" != "${MONITORED_BRANCH}" ]]; then
+            printf 'Ignoring unrelated branch %s.\n' "${HEAD_BRANCH}"
+            printf 'should_publish=false\n' >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          case "${RUN_EVENT}" in
+            push | workflow_dispatch) ;;
+            *)
+              printf 'Ignoring unrelated event %s.\n' "${RUN_EVENT}"
+              printf 'should_publish=false\n' >> "${GITHUB_OUTPUT}"
+              exit 0
+              ;;
+          esac
+
+          runs_file="${RUNNER_TEMP}/ci-status-runs.json"
+          gh api --paginate --slurp \
+            "repos/${REPOSITORY}/actions/workflows/${WORKFLOW_ID}/runs?branch=${MONITORED_BRANCH}&per_page=100" \
+            > "${runs_file}"
+          latest_run_id="$(
+            python3 tools/ci_status/publish_status.py latest-run \
+              --runs "${runs_file}" \
+              --repository "${REPOSITORY}" \
+              --branch "${MONITORED_BRANCH}" \
+              --accepted-events push,workflow_dispatch
+          )"
+          if [[ "${latest_run_id}" != "${RUN_ID}" ]]; then
+            printf 'Skipping stale run %s; latest applicable run is %s.\n' \
+              "${RUN_ID}" "${latest_run_id}"
+            printf 'should_publish=false\n' >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          printf 'should_publish=true\n' >> "${GITHUB_OUTPUT}"
+
+      - name: Validate status issue ownership
+        if: steps.freshness.outputs.should_publish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          issue_file="${RUNNER_TEMP}/ci-status-issue.json"
+          gh api "repos/${REPOSITORY}/issues/${ISSUE_NUMBER}" > "${issue_file}"
+          python3 tools/ci_status/publish_status.py validate-issue \
+            --issue "${issue_file}" \
+            --issue-number "${ISSUE_NUMBER}" \
+            --marker "${STATUS_MARKER}" \
+            --accepted-title "${LEGACY_ISSUE_TITLE}" \
+            --accepted-title "${ISSUE_TITLE}"
+
+      - name: Fetch paginated run metadata
+        if: steps.freshness.outputs.should_publish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_STATUS: ${{ github.event.workflow_run.status }}
+        run: |
+          set -euo pipefail
+          jobs_file="${RUNNER_TEMP}/ci-status-jobs.json"
+          artifacts_file="${RUNNER_TEMP}/ci-status-artifacts.json"
+          gh api --paginate --slurp \
+            "repos/${REPOSITORY}/actions/runs/${RUN_ID}/jobs?filter=latest&per_page=100" \
+            > "${jobs_file}"
+          if [[ "${RUN_STATUS}" == "completed" ]]; then
+            gh api --paginate --slurp \
+              "repos/${REPOSITORY}/actions/runs/${RUN_ID}/artifacts?per_page=100" \
+              > "${artifacts_file}"
+          else
+            printf '[]\n' > "${artifacts_file}"
+          fi
+          {
+            printf 'JOBS_FILE=%s\n' "${jobs_file}"
+            printf 'ARTIFACTS_FILE=%s\n' "${artifacts_file}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Generate bounded status issue
+        if: steps.freshness.outputs.should_publish == 'true'
+        shell: bash
+        env:
           HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
           WORKFLOW_ID: ${{ github.event.workflow_run.workflow_id }}
           WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
@@ -49,230 +202,59 @@ jobs:
           UPDATED_AT: ${{ github.event.workflow_run.updated_at }}
         run: |
           set -euo pipefail
-
-          if [[ "${HEAD_REPOSITORY}" != "${REPOSITORY}" ]]; then
-            printf 'Refusing status publication from untrusted head repository %s.\n' \
-              "${HEAD_REPOSITORY}" >&2
-            exit 1
-          fi
-
-          case "${WORKFLOW_NAME}" in
-            "Quality")
-              ISSUE_NUMBER="19"
-              ISSUE_TITLE="CI Status: Quality"
-              ISSUE_HEADING="Latest Quality Run"
-              ;;
-            "Host Tests")
-              ISSUE_NUMBER="20"
-              ISSUE_TITLE="CI Status: Host Tests"
-              ISSUE_HEADING="Latest Host Tests Run"
-              ;;
-            "Browser Tests")
-              ISSUE_NUMBER="21"
-              ISSUE_TITLE="CI Status: Browser Tests"
-              ISSUE_HEADING="Latest Browser Tests Run"
-              ;;
-            "Device Test Build")
-              ISSUE_NUMBER="22"
-              ISSUE_TITLE="CI Status: Device Test Build"
-              ISSUE_HEADING="Latest Device Test Build Run"
-              ;;
-            *)
-              printf 'Unsupported workflow: %s\n' "${WORKFLOW_NAME}" >&2
-              exit 1
-              ;;
-          esac
-          export ISSUE_NUMBER ISSUE_TITLE ISSUE_HEADING
-
-          recent_runs_file="${RUNNER_TEMP}/ci-status-recent-runs.json"
-          gh api \
-            "repos/${REPOSITORY}/actions/workflows/${WORKFLOW_ID}/runs?per_page=20" \
-            > "${recent_runs_file}"
-          latest_run_id="$(
-            python3 - "${recent_runs_file}" <<'PY'
-          import json
-          import os
-          import sys
-          from pathlib import Path
-
-          payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-          repository = os.environ["REPOSITORY"]
-          for run in payload.get("workflow_runs", []):
-              head_repository = run.get("head_repository") or {}
-              if head_repository.get("full_name") == repository:
-                  print(run["id"])
-                  break
-          else:
-              raise SystemExit("No trusted workflow run was found in the latest 20 runs.")
-          PY
-          )"
-          if [[ "${latest_run_id}" != "${RUN_ID}" ]]; then
-            printf 'Skipping stale trusted state for run %s; latest run is %s.\n' \
-              "${RUN_ID}" "${latest_run_id}"
-            exit 0
-          fi
-
-          jobs_file="${RUNNER_TEMP}/ci-status-jobs.json"
           body_file="${RUNNER_TEMP}/ci-status-body.md"
-          patch_file="${RUNNER_TEMP}/ci-status-issue-patch.json"
+          patch_file="${RUNNER_TEMP}/ci-status-patch.json"
+          python3 tools/ci_status/publish_status.py build \
+            --jobs "${JOBS_FILE}" \
+            --artifacts "${ARTIFACTS_FILE}" \
+            --body "${body_file}" \
+            --patch "${patch_file}" \
+            --workflow-file .github/workflows/publish-ci-status.yml \
+            --issue-number "${ISSUE_NUMBER}" \
+            --issue-title "${ISSUE_TITLE}" \
+            --heading "${ISSUE_HEADING}" \
+            --marker "${STATUS_MARKER}" \
+            --monitored-branch "${MONITORED_BRANCH}" \
+            --workflow-name "${WORKFLOW_NAME}" \
+            --workflow-id "${WORKFLOW_ID}" \
+            --run-id "${RUN_ID}" \
+            --run-attempt "${RUN_ATTEMPT}" \
+            --run-url "${RUN_URL}" \
+            --event "${RUN_EVENT}" \
+            --status "${RUN_STATUS}" \
+            --conclusion "${RUN_CONCLUSION}" \
+            --head-repository "${HEAD_REPOSITORY}" \
+            --head-branch "${HEAD_BRANCH}" \
+            --head-sha "${HEAD_SHA}" \
+            --created-at "${CREATED_AT}" \
+            --updated-at "${UPDATED_AT}"
+          {
+            printf 'BODY_FILE=%s\n' "${body_file}"
+            printf 'PATCH_FILE=%s\n' "${patch_file}"
+          } >> "${GITHUB_ENV}"
 
-          gh api \
-            "repos/${REPOSITORY}/actions/runs/${RUN_ID}/jobs?filter=latest&per_page=100" \
-            > "${jobs_file}"
-
-          python3 - "${jobs_file}" "${body_file}" <<'PY'
-          import json
-          import os
-          import sys
-          from datetime import datetime, timezone
-          from pathlib import Path
-
-          jobs_path = Path(sys.argv[1])
-          body_path = Path(sys.argv[2])
-          raw_jobs = json.loads(jobs_path.read_text(encoding="utf-8"))
-
-          problem_conclusions = {
-              "action_required",
-              "cancelled",
-              "failure",
-              "startup_failure",
-              "stale",
-              "timed_out",
-          }
-          jobs = []
-          problem_steps = []
-          running_jobs = []
-          pending_jobs = []
-
-          for raw_job in raw_jobs.get("jobs", []):
-              job_name = raw_job.get("name")
-              job_status = raw_job.get("status")
-              if job_status == "in_progress":
-                  running_jobs.append(job_name)
-              elif job_status in {"queued", "pending", "waiting"}:
-                  pending_jobs.append(job_name)
-
-              steps = []
-              for raw_step in raw_job.get("steps", []):
-                  step = {
-                      "number": raw_step.get("number"),
-                      "name": raw_step.get("name"),
-                      "status": raw_step.get("status"),
-                      "conclusion": raw_step.get("conclusion"),
-                      "started_at": raw_step.get("started_at"),
-                      "completed_at": raw_step.get("completed_at"),
-                  }
-                  steps.append(step)
-                  if step["conclusion"] in problem_conclusions:
-                      problem_steps.append(
-                          {
-                              "job_id": raw_job.get("id"),
-                              "job": job_name,
-                              "step_number": step["number"],
-                              "step": step["name"],
-                              "conclusion": step["conclusion"],
-                          }
-                      )
-
-              jobs.append(
-                  {
-                      "id": raw_job.get("id"),
-                      "name": job_name,
-                      "status": job_status,
-                      "conclusion": raw_job.get("conclusion"),
-                      "started_at": raw_job.get("started_at"),
-                      "completed_at": raw_job.get("completed_at"),
-                      "runner_name": raw_job.get("runner_name"),
-                      "runner_group_name": raw_job.get("runner_group_name"),
-                      "steps": steps,
-                  }
-              )
-
-          payload = {
-              "schema_version": 1,
-              "workflow": os.environ["WORKFLOW_NAME"],
-              "workflow_id": int(os.environ["WORKFLOW_ID"]),
-              "run_id": int(os.environ["RUN_ID"]),
-              "run_attempt": int(os.environ["RUN_ATTEMPT"]),
-              "run_url": os.environ["RUN_URL"],
-              "status": os.environ["RUN_STATUS"],
-              "conclusion": os.environ["RUN_CONCLUSION"] or None,
-              "event": os.environ["RUN_EVENT"],
-              "head_repository": os.environ["HEAD_REPOSITORY"],
-              "head_branch": os.environ["HEAD_BRANCH"],
-              "head_sha": os.environ["HEAD_SHA"],
-              "created_at": os.environ["CREATED_AT"],
-              "event_updated_at": os.environ["UPDATED_AT"],
-              "publisher_observed_at": datetime.now(timezone.utc)
-              .isoformat()
-              .replace("+00:00", "Z"),
-              "running_jobs": running_jobs,
-              "pending_jobs": pending_jobs,
-              "problem_steps": problem_steps,
-              "jobs": jobs,
-          }
-
-          def summary(values):
-              clean = [str(value) for value in values if value]
-              return ", ".join(clean) if clean else "None"
-
-          problem_summary = "None"
-          if problem_steps:
-              problem_summary = ", ".join(
-                  f'{item["job"]} / {item["step"]} ({item["conclusion"]})'
-                  for item in problem_steps
-              )
-
-          status = payload["status"] or "unknown"
-          conclusion = payload["conclusion"] or "pending"
-          body = "\n".join(
-              [
-                  "<!-- maintained by publish-ci-status.yml -->",
-                  f'# {os.environ["ISSUE_HEADING"]}',
-                  "",
-                  f"- **Status:** `{status}`",
-                  f"- **Conclusion:** `{conclusion}`",
-                  f'- **Run:** [{payload["run_id"]}]({payload["run_url"]})',
-                  f'- **Attempt:** `{payload["run_attempt"]}`',
-                  f'- **Commit:** `{payload["head_sha"]}`',
-                  f'- **Branch/event:** `{payload["head_branch"]}` / `{payload["event"]}`',
-                  f'- **Running jobs:** {summary(running_jobs)}',
-                  f'- **Pending jobs:** {summary(pending_jobs)}',
-                  f"- **Problem steps:** {problem_summary}",
-                  f'- **Observed:** `{payload["publisher_observed_at"]}`',
-                  "",
-                  "## Machine-readable status",
-                  "",
-                  "```json",
-                  json.dumps(payload, indent=2, sort_keys=True),
-                  "```",
-                  "",
-                  "This issue is overwritten whenever the latest run changes state; it is not a historical log.",
-              ]
-          )
-          body_path.write_text(body + "\n", encoding="utf-8")
-          PY
-
-          python3 - "${body_file}" "${patch_file}" <<'PY'
-          import json
-          import os
-          import sys
-          from pathlib import Path
-
-          body = Path(sys.argv[1]).read_text(encoding="utf-8")
-          patch = {
-              "title": os.environ["ISSUE_TITLE"],
-              "body": body,
-              "state": "open",
-          }
-          Path(sys.argv[2]).write_text(json.dumps(patch), encoding="utf-8")
-          PY
-
+      - name: Publish and verify status issue
+        if: steps.freshness.outputs.should_publish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          set -euo pipefail
           gh api \
             --method PATCH \
             "repos/${REPOSITORY}/issues/${ISSUE_NUMBER}" \
-            --input "${patch_file}" \
-            >/dev/null
-
-          printf 'Published %s run %s status %s to issue #%s.\n' \
-            "${WORKFLOW_NAME}" "${RUN_ID}" "${RUN_STATUS}" "${ISSUE_NUMBER}"
+            --input "${PATCH_FILE}" \
+            > /dev/null
+          verification_file="${RUNNER_TEMP}/ci-status-verification.json"
+          gh api "repos/${REPOSITORY}/issues/${ISSUE_NUMBER}" \
+            > "${verification_file}"
+          python3 tools/ci_status/publish_status.py validate-issue \
+            --issue "${verification_file}" \
+            --issue-number "${ISSUE_NUMBER}" \
+            --marker "${STATUS_MARKER}" \
+            --accepted-title "${ISSUE_TITLE}"
+          printf 'Published %s run %s to issue #%s.\n' \
+            "${WORKFLOW_NAME}" "${RUN_ID}" "${ISSUE_NUMBER}"
