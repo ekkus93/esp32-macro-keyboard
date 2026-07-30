@@ -60,7 +60,7 @@
 | 15 | Complete storage object repositories | done |
 | 16 | Complete the HTTP API | done (package transactions Phase 18; diagnostics aggregation Phase 19) |
 | 17 | Replace frontend mock behavior | done (Phase 18 package services and Phase 19 aggregation remain separate) |
-| 18 | Import / export / backup / restore | in progress (§18.2 complete; §18.1 and §18.3–18.5 remain) |
+| 18 | Import / export / backup / restore | in progress (§18.1–18.2 complete; §18.3–18.5 remain) |
 | 19 | Diagnostics and observability | not started |
 | 20 | Hardware and integration validation | environment-blocked (see below) |
 | 21 | Release budgets and immutable CI | not started |
@@ -68,6 +68,15 @@
 | 23 | Final regression and acceptance gate | not started |
 
 ## Completed tasks (commit evidence)
+
+- Phase 18.1 bounded package reader — complete in `39b264e`, `974d339`,
+  `e262137`, `3e03294`, `60856a8`, and `ce81a76`, with iterative parser hardening
+  in `3670557`. `storage_package_validate()` enforces the import byte ceiling before
+  parsing, scans without recursion, uses only count-bounded metadata allocations,
+  rejects trailing data and unknown/duplicate fields, validates every object and
+  reference, and remains structurally isolated from repository mutation APIs. The
+  dedicated `tests/scripts/test-storage-package.sh` gate compiles and runs the
+  production parser and its host regression matrix automatically.
 
 - Phase 18.2 deterministic set export — complete in the implementation through
   `4fde78b`, with permanent gate repairs in `0e3218b` and the real-Chrome startup

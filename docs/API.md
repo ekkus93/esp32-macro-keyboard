@@ -58,8 +58,10 @@ session tokens, CSRF tokens, setup secrets, or encryption material.
 
 Set duplication requires a new UUID, name, and the source expected revision. The
 new set and all copied set-owned objects begin at revision 1. Progress is not
-copied. Export and import currently return explicit `503 Service Unavailable`;
-they cannot report false success before the Phase 18 package service exists.
+copied. Set export returns the raw, validated Phase 18 package with its exact byte
+length. Set import remains an explicit `503 Service Unavailable` boundary until
+Phase 18.3 supplies transactional activation; the Phase 18.1 reader and validator
+never mutate repository state.
 
 ### Macros
 

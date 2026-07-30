@@ -2002,11 +2002,22 @@ is unavailable rather than silently falling back to a DOM simulator.
 
 ### 18.1 Implement bounded package reader
 
-- [ ] enforce `APP_IMPORT_PACKAGE_MAX_BYTES`;
-- [ ] stream or use bounded allocation;
-- [ ] reject trailing data;
-- [ ] reject unknown schema fields;
-- [ ] validate all objects before mutation.
+- [x] enforce `APP_IMPORT_PACKAGE_MAX_BYTES`;
+- [x] stream or use bounded allocation;
+- [x] reject trailing data;
+- [x] reject unknown schema fields;
+- [x] validate all objects before mutation.
+
+
+Implemented: `storage_package_validate()` is a zero-copy package reader over the
+bounded request buffer. It rejects packages above `APP_IMPORT_PACKAGE_MAX_BYTES`
+before parsing; scans JSON with an iterative, depth-bounded state machine; allocates
+only count-bounded validation metadata; requires the complete input to contain one
+package document with no non-whitespace trailing bytes; rejects duplicate, unknown,
+or future fields; and validates every set, macro, procedure, progress object, and
+cross-object reference before returning success. The validation component has no
+repository mutation dependency, so Phase 18.3 remains the first code permitted to
+activate imported state.
 
 ### 18.2 Implement export
 
