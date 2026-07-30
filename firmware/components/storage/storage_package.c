@@ -24,6 +24,9 @@
 #define STORAGE_PACKAGE_PROCEDURES_MAX                                                             \
     ((size_t)APP_MACRO_SETS_MAX * (size_t)APP_PROCEDURES_PER_SET_MAX)
 #define STORAGE_PACKAGE_GLOBAL_MACROS_MAX ((size_t)APP_MACROS_PER_SET_MAX)
+#define STORAGE_PACKAGE_JSON_FRAME_COUNT (STORAGE_PACKAGE_MAX_JSON_DEPTH + 1U)
+#define JSON_UNICODE_ESCAPE_DIGITS 4U
+#define JSON_DECIMAL_RADIX 10U
 
 typedef struct {
     const char *data;
@@ -52,6 +55,7 @@ typedef enum {
     PACKAGE_ARRAY_GLOBAL_MACROS,
     PACKAGE_ARRAY_PROCEDURES,
     PACKAGE_ARRAY_PROGRESS,
+    PACKAGE_ARRAY_COUNT,
 } package_array_t;
 
 typedef struct {
@@ -85,6 +89,16 @@ typedef struct {
     size_t count;
     size_t item_size;
 } allocation_shape_t;
+
+typedef enum {
+    VALIDATION_ALLOCATION_SETS = 0,
+    VALIDATION_ALLOCATION_MACROS,
+    VALIDATION_ALLOCATION_PROCEDURES,
+    VALIDATION_ALLOCATION_PROGRESS,
+    VALIDATION_ALLOCATION_SET_MACRO_COUNTS,
+    VALIDATION_ALLOCATION_SET_PROCEDURE_COUNTS,
+    VALIDATION_ALLOCATION_COUNT,
+} validation_allocation_t;
 
 typedef struct {
     package_set_metadata_t *sets;
@@ -129,7 +143,50 @@ static bool is_hex_digit(char value) {
            (value >= 'A' && value <= 'F');
 }
 
-static app_error_code_t scan_json_value(json_cursor_t *cursor, size_t depth);
+static bool is_decimal_digit(char value) {
+    return value >= '0' && value <= '9';
+}
+
+static app_error_code_t scan_json_unicode_escape(json_cursor_t *cursor) {
+    if (cursor->length - cursor->offset < JSON_UNICODE_ESCAPE_DIGITS) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    bool all_zero = true;
+    for (size_t index = 0U; index < JSON_UNICODE_ESCAPE_DIGITS; ++index) {
+        const char digit = cursor->data[cursor->offset + index];
+        if (!is_hex_digit(digit)) {
+            return APP_ERROR_INVALID_ARGUMENT;
+        }
+        all_zero = all_zero && digit == '0';
+    }
+    if (all_zero) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    cursor->offset += JSON_UNICODE_ESCAPE_DIGITS;
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t scan_json_escape(json_cursor_t *cursor) {
+    if (cursor->offset >= cursor->length) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const char escape = cursor->data[cursor->offset++];
+    switch (escape) {
+    case '"':
+    case '\\':
+    case '/':
+    case 'b':
+    case 'f':
+    case 'n':
+    case 'r':
+    case 't':
+        return APP_ERROR_NONE;
+    case 'u':
+        return scan_json_unicode_escape(cursor);
+    default:
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+}
 
 static app_error_code_t scan_json_string(json_cursor_t *cursor) {
     if (cursor->offset >= cursor->length || cursor->data[cursor->offset] != '"') {
@@ -144,89 +201,73 @@ static app_error_code_t scan_json_string(json_cursor_t *cursor) {
         if (value < 0x20U) {
             return APP_ERROR_INVALID_ARGUMENT;
         }
-        if (value != (unsigned char)'\\') {
-            continue;
-        }
-        if (cursor->offset >= cursor->length) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        const char escape = cursor->data[cursor->offset++];
-        if (escape == '"' || escape == '\\' || escape == '/' || escape == 'b' || escape == 'f' ||
-            escape == 'n' || escape == 'r' || escape == 't') {
-            continue;
-        }
-        if (escape != 'u' || cursor->length - cursor->offset < 4U) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        bool all_zero = true;
-        for (size_t index = 0U; index < 4U; ++index) {
-            const char digit = cursor->data[cursor->offset + index];
-            if (!is_hex_digit(digit)) {
-                return APP_ERROR_INVALID_ARGUMENT;
-            }
-            if (digit != '0') {
-                all_zero = false;
+        if (value == (unsigned char)'\\') {
+            const app_error_code_t result = scan_json_escape(cursor);
+            if (result != APP_ERROR_NONE) {
+                return result;
             }
         }
-        if (all_zero) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        cursor->offset += 4U;
     }
     return APP_ERROR_INVALID_ARGUMENT;
 }
 
-static app_error_code_t scan_json_number(json_cursor_t *cursor) {
+static app_error_code_t scan_json_digits(json_cursor_t *cursor) {
     const size_t start = cursor->offset;
-    if (cursor->offset < cursor->length && cursor->data[cursor->offset] == '-') {
+    while (cursor->offset < cursor->length && is_decimal_digit(cursor->data[cursor->offset])) {
         ++cursor->offset;
     }
+    return cursor->offset > start ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
+}
+
+static app_error_code_t scan_json_integer_part(json_cursor_t *cursor) {
     if (cursor->offset >= cursor->length) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     if (cursor->data[cursor->offset] == '0') {
         ++cursor->offset;
-        if (cursor->offset < cursor->length && cursor->data[cursor->offset] >= '0' &&
-            cursor->data[cursor->offset] <= '9') {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-    } else {
-        if (cursor->data[cursor->offset] < '1' || cursor->data[cursor->offset] > '9') {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        while (cursor->offset < cursor->length && cursor->data[cursor->offset] >= '0' &&
-               cursor->data[cursor->offset] <= '9') {
-            ++cursor->offset;
-        }
+        return cursor->offset < cursor->length && is_decimal_digit(cursor->data[cursor->offset])
+                   ? APP_ERROR_INVALID_ARGUMENT
+                   : APP_ERROR_NONE;
     }
-    if (cursor->offset < cursor->length && cursor->data[cursor->offset] == '.') {
-        ++cursor->offset;
-        const size_t fraction_start = cursor->offset;
-        while (cursor->offset < cursor->length && cursor->data[cursor->offset] >= '0' &&
-               cursor->data[cursor->offset] <= '9') {
-            ++cursor->offset;
-        }
-        if (cursor->offset == fraction_start) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
+    if (cursor->data[cursor->offset] < '1' || cursor->data[cursor->offset] > '9') {
+        return APP_ERROR_INVALID_ARGUMENT;
     }
+    return scan_json_digits(cursor);
+}
+
+static app_error_code_t scan_json_fraction(json_cursor_t *cursor) {
+    if (cursor->offset >= cursor->length || cursor->data[cursor->offset] != '.') {
+        return APP_ERROR_NONE;
+    }
+    ++cursor->offset;
+    return scan_json_digits(cursor);
+}
+
+static app_error_code_t scan_json_exponent(json_cursor_t *cursor) {
+    if (cursor->offset >= cursor->length ||
+        (cursor->data[cursor->offset] != 'e' && cursor->data[cursor->offset] != 'E')) {
+        return APP_ERROR_NONE;
+    }
+    ++cursor->offset;
     if (cursor->offset < cursor->length &&
-        (cursor->data[cursor->offset] == 'e' || cursor->data[cursor->offset] == 'E')) {
+        (cursor->data[cursor->offset] == '+' || cursor->data[cursor->offset] == '-')) {
         ++cursor->offset;
-        if (cursor->offset < cursor->length &&
-            (cursor->data[cursor->offset] == '+' || cursor->data[cursor->offset] == '-')) {
-            ++cursor->offset;
-        }
-        const size_t exponent_start = cursor->offset;
-        while (cursor->offset < cursor->length && cursor->data[cursor->offset] >= '0' &&
-               cursor->data[cursor->offset] <= '9') {
-            ++cursor->offset;
-        }
-        if (cursor->offset == exponent_start) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
     }
-    return cursor->offset > start ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
+    return scan_json_digits(cursor);
+}
+
+static app_error_code_t scan_json_number(json_cursor_t *cursor) {
+    if (cursor->offset < cursor->length && cursor->data[cursor->offset] == '-') {
+        ++cursor->offset;
+    }
+    app_error_code_t result = scan_json_integer_part(cursor);
+    if (result == APP_ERROR_NONE) {
+        result = scan_json_fraction(cursor);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = scan_json_exponent(cursor);
+    }
+    return result;
 }
 
 static bool consume_literal(json_cursor_t *cursor, const char *literal) {
@@ -239,84 +280,45 @@ static bool consume_literal(json_cursor_t *cursor, const char *literal) {
     return true;
 }
 
-static app_error_code_t scan_json_array(json_cursor_t *cursor, size_t depth) {
-    ++cursor->offset;
-    skip_whitespace(cursor);
-    if (cursor->offset < cursor->length && cursor->data[cursor->offset] == ']') {
-        ++cursor->offset;
+typedef enum {
+    JSON_FRAME_ARRAY_VALUE_OR_END = 0,
+    JSON_FRAME_ARRAY_VALUE_REQUIRED,
+    JSON_FRAME_ARRAY_SEPARATOR_OR_END,
+    JSON_FRAME_OBJECT_KEY_OR_END,
+    JSON_FRAME_OBJECT_KEY_REQUIRED,
+    JSON_FRAME_OBJECT_COLON,
+    JSON_FRAME_OBJECT_VALUE_REQUIRED,
+    JSON_FRAME_OBJECT_SEPARATOR_OR_END,
+} json_frame_state_t;
+
+typedef struct {
+    json_frame_state_t state;
+} json_frame_t;
+
+static app_error_code_t complete_json_value(json_frame_t *frames, size_t depth,
+                                            bool *out_complete) {
+    if (depth == 0U) {
+        *out_complete = true;
         return APP_ERROR_NONE;
     }
-    for (;;) {
-        app_error_code_t result = scan_json_value(cursor, depth + 1U);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        skip_whitespace(cursor);
-        if (cursor->offset >= cursor->length) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        const char separator = cursor->data[cursor->offset++];
-        if (separator == ']') {
-            return APP_ERROR_NONE;
-        }
-        if (separator != ',') {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        skip_whitespace(cursor);
-    }
-}
-
-static app_error_code_t scan_json_object(json_cursor_t *cursor, size_t depth) {
-    ++cursor->offset;
-    skip_whitespace(cursor);
-    if (cursor->offset < cursor->length && cursor->data[cursor->offset] == '}') {
-        ++cursor->offset;
+    json_frame_state_t *state = &frames[depth - 1U].state;
+    switch (*state) {
+    case JSON_FRAME_ARRAY_VALUE_OR_END:
+    case JSON_FRAME_ARRAY_VALUE_REQUIRED:
+        *state = JSON_FRAME_ARRAY_SEPARATOR_OR_END;
         return APP_ERROR_NONE;
-    }
-    for (;;) {
-        app_error_code_t result = scan_json_string(cursor);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        skip_whitespace(cursor);
-        if (cursor->offset >= cursor->length || cursor->data[cursor->offset] != ':') {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        ++cursor->offset;
-        result = scan_json_value(cursor, depth + 1U);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        skip_whitespace(cursor);
-        if (cursor->offset >= cursor->length) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        const char separator = cursor->data[cursor->offset++];
-        if (separator == '}') {
-            return APP_ERROR_NONE;
-        }
-        if (separator != ',') {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        skip_whitespace(cursor);
-    }
-}
-
-static app_error_code_t scan_json_value(json_cursor_t *cursor, size_t depth) {
-    if (depth > STORAGE_PACKAGE_MAX_JSON_DEPTH) {
-        return APP_ERROR_MACRO_LIMIT;
-    }
-    skip_whitespace(cursor);
-    if (cursor->offset >= cursor->length) {
+    case JSON_FRAME_OBJECT_VALUE_REQUIRED:
+        *state = JSON_FRAME_OBJECT_SEPARATOR_OR_END;
+        return APP_ERROR_NONE;
+    default:
         return APP_ERROR_INVALID_ARGUMENT;
     }
+}
+
+static app_error_code_t scan_json_scalar(json_cursor_t *cursor) {
     switch (cursor->data[cursor->offset]) {
     case '"':
         return scan_json_string(cursor);
-    case '{':
-        return scan_json_object(cursor, depth);
-    case '[':
-        return scan_json_array(cursor, depth);
     case 't':
         return consume_literal(cursor, "true") ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
     case 'f':
@@ -326,6 +328,144 @@ static app_error_code_t scan_json_value(json_cursor_t *cursor, size_t depth) {
     default:
         return scan_json_number(cursor);
     }
+}
+
+static app_error_code_t begin_json_value(json_cursor_t *cursor, json_frame_t *frames,
+                                         size_t *in_out_depth, bool *out_complete) {
+    skip_whitespace(cursor);
+    if (cursor->offset >= cursor->length) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const char token = cursor->data[cursor->offset];
+    if (token == '[' || token == '{') {
+        if (*in_out_depth >= STORAGE_PACKAGE_JSON_FRAME_COUNT) {
+            return APP_ERROR_MACRO_LIMIT;
+        }
+        ++cursor->offset;
+        frames[*in_out_depth].state =
+            token == '[' ? JSON_FRAME_ARRAY_VALUE_OR_END : JSON_FRAME_OBJECT_KEY_OR_END;
+        ++*in_out_depth;
+        return APP_ERROR_NONE;
+    }
+    const app_error_code_t result = scan_json_scalar(cursor);
+    return result == APP_ERROR_NONE ? complete_json_value(frames, *in_out_depth, out_complete)
+                                    : result;
+}
+
+static app_error_code_t close_json_container(json_cursor_t *cursor, json_frame_t *frames,
+                                             size_t *in_out_depth, bool *out_complete) {
+    ++cursor->offset;
+    --*in_out_depth;
+    return complete_json_value(frames, *in_out_depth, out_complete);
+}
+
+static app_error_code_t process_array_value(json_cursor_t *cursor, json_frame_t *frames,
+                                            size_t *in_out_depth, bool allow_empty,
+                                            bool *out_complete) {
+    skip_whitespace(cursor);
+    if (allow_empty && cursor->offset < cursor->length && cursor->data[cursor->offset] == ']') {
+        return close_json_container(cursor, frames, in_out_depth, out_complete);
+    }
+    return begin_json_value(cursor, frames, in_out_depth, out_complete);
+}
+
+static app_error_code_t process_array_separator(json_cursor_t *cursor, json_frame_t *frames,
+                                                size_t *in_out_depth, bool *out_complete) {
+    skip_whitespace(cursor);
+    if (cursor->offset >= cursor->length) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const char separator = cursor->data[cursor->offset];
+    if (separator == ']') {
+        return close_json_container(cursor, frames, in_out_depth, out_complete);
+    }
+    if (separator != ',') {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    ++cursor->offset;
+    frames[*in_out_depth - 1U].state = JSON_FRAME_ARRAY_VALUE_REQUIRED;
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t process_object_key(json_cursor_t *cursor, json_frame_t *frames,
+                                           size_t *in_out_depth, bool allow_empty,
+                                           bool *out_complete) {
+    skip_whitespace(cursor);
+    if (allow_empty && cursor->offset < cursor->length && cursor->data[cursor->offset] == '}') {
+        return close_json_container(cursor, frames, in_out_depth, out_complete);
+    }
+    const app_error_code_t result = scan_json_string(cursor);
+    if (result == APP_ERROR_NONE) {
+        frames[*in_out_depth - 1U].state = JSON_FRAME_OBJECT_COLON;
+    }
+    return result;
+}
+
+static app_error_code_t process_object_colon(json_cursor_t *cursor, json_frame_t *frames,
+                                             size_t depth) {
+    skip_whitespace(cursor);
+    if (cursor->offset >= cursor->length || cursor->data[cursor->offset] != ':') {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    ++cursor->offset;
+    frames[depth - 1U].state = JSON_FRAME_OBJECT_VALUE_REQUIRED;
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t process_object_separator(json_cursor_t *cursor, json_frame_t *frames,
+                                                 size_t *in_out_depth, bool *out_complete) {
+    skip_whitespace(cursor);
+    if (cursor->offset >= cursor->length) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const char separator = cursor->data[cursor->offset];
+    if (separator == '}') {
+        return close_json_container(cursor, frames, in_out_depth, out_complete);
+    }
+    if (separator != ',') {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    ++cursor->offset;
+    frames[*in_out_depth - 1U].state = JSON_FRAME_OBJECT_KEY_REQUIRED;
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t process_json_frame(json_cursor_t *cursor, json_frame_t *frames,
+                                           size_t *in_out_depth, bool *out_complete) {
+    switch (frames[*in_out_depth - 1U].state) {
+    case JSON_FRAME_ARRAY_VALUE_OR_END:
+        return process_array_value(cursor, frames, in_out_depth, true, out_complete);
+    case JSON_FRAME_ARRAY_VALUE_REQUIRED:
+        return process_array_value(cursor, frames, in_out_depth, false, out_complete);
+    case JSON_FRAME_ARRAY_SEPARATOR_OR_END:
+        return process_array_separator(cursor, frames, in_out_depth, out_complete);
+    case JSON_FRAME_OBJECT_KEY_OR_END:
+        return process_object_key(cursor, frames, in_out_depth, true, out_complete);
+    case JSON_FRAME_OBJECT_KEY_REQUIRED:
+        return process_object_key(cursor, frames, in_out_depth, false, out_complete);
+    case JSON_FRAME_OBJECT_COLON:
+        return process_object_colon(cursor, frames, *in_out_depth);
+    case JSON_FRAME_OBJECT_VALUE_REQUIRED:
+        return begin_json_value(cursor, frames, in_out_depth, out_complete);
+    case JSON_FRAME_OBJECT_SEPARATOR_OR_END:
+        return process_object_separator(cursor, frames, in_out_depth, out_complete);
+    default:
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+}
+
+static app_error_code_t scan_json_value(json_cursor_t *cursor, size_t depth) {
+    if (depth != 0U) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    json_frame_t frames[STORAGE_PACKAGE_JSON_FRAME_COUNT] = {0};
+    size_t frame_depth = 0U;
+    bool complete = false;
+    app_error_code_t result = begin_json_value(cursor, frames, &frame_depth, &complete);
+    while (result == APP_ERROR_NONE && !complete) {
+        result = process_json_frame(cursor, frames, &frame_depth, &complete);
+    }
+    return result;
 }
 
 static app_error_code_t capture_json_value(json_cursor_t *cursor, json_span_t *out_span) {
@@ -369,18 +509,17 @@ static app_error_code_t read_plain_string(json_cursor_t *cursor, char *output, s
 
 static app_error_code_t read_u32(json_cursor_t *cursor, uint32_t *out_value) {
     if (out_value == NULL || cursor->offset >= cursor->length ||
-        cursor->data[cursor->offset] < '0' || cursor->data[cursor->offset] > '9') {
+        !is_decimal_digit(cursor->data[cursor->offset])) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     uint32_t value = 0U;
     const size_t start = cursor->offset;
-    while (cursor->offset < cursor->length && cursor->data[cursor->offset] >= '0' &&
-           cursor->data[cursor->offset] <= '9') {
+    while (cursor->offset < cursor->length && is_decimal_digit(cursor->data[cursor->offset])) {
         const uint32_t digit = (uint32_t)(cursor->data[cursor->offset] - '0');
-        if (value > (UINT32_MAX - digit) / 10U) {
+        if (value > (UINT32_MAX - digit) / JSON_DECIMAL_RADIX) {
             return APP_ERROR_INVALID_ARGUMENT;
         }
-        value = value * 10U + digit;
+        value = value * JSON_DECIMAL_RADIX + digit;
         ++cursor->offset;
     }
     if (cursor->offset - start > 1U && cursor->data[start] == '0') {
@@ -431,7 +570,7 @@ static package_array_t package_array_for_field(size_t field_index) {
     case PACKAGE_FIELD_SCHEMA_VERSION:
     case PACKAGE_FIELD_TYPE:
     default:
-        return STORAGE_PACKAGE_ARRAY_COUNT;
+        return PACKAGE_ARRAY_COUNT;
     }
 }
 
@@ -455,6 +594,71 @@ static app_error_code_t parse_package_field(json_cursor_t *cursor, size_t field_
     return result;
 }
 
+static app_error_code_t parse_package_member(json_cursor_t *cursor,
+                                             package_document_t *out_document,
+                                             uint32_t *in_out_seen) {
+    char name[STORAGE_PACKAGE_FIELD_NAME_BYTES];
+    app_error_code_t result = read_plain_string(cursor, name, sizeof(name));
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    const size_t field_index = package_field_index(name);
+    if (field_index == SIZE_MAX || (*in_out_seen & (UINT32_C(1) << field_index)) != 0U) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    skip_whitespace(cursor);
+    if (cursor->offset >= cursor->length || cursor->data[cursor->offset] != ':') {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    ++cursor->offset;
+    result = parse_package_field(cursor, field_index, out_document);
+    if (result == APP_ERROR_NONE) {
+        *in_out_seen |= UINT32_C(1) << field_index;
+    }
+    return result;
+}
+
+static app_error_code_t
+parse_package_members(json_cursor_t *cursor, package_document_t *out_document, uint32_t *out_seen) {
+    *out_seen = 0U;
+    skip_whitespace(cursor);
+    if (cursor->offset < cursor->length && cursor->data[cursor->offset] == '}') {
+        ++cursor->offset;
+        return APP_ERROR_NONE;
+    }
+    for (;;) {
+        app_error_code_t result = parse_package_member(cursor, out_document, out_seen);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+        skip_whitespace(cursor);
+        if (cursor->offset >= cursor->length) {
+            return APP_ERROR_INVALID_ARGUMENT;
+        }
+        const char separator = cursor->data[cursor->offset++];
+        if (separator == '}') {
+            return APP_ERROR_NONE;
+        }
+        if (separator != ',') {
+            return APP_ERROR_INVALID_ARGUMENT;
+        }
+        skip_whitespace(cursor);
+        if (cursor->offset >= cursor->length || cursor->data[cursor->offset] == '}') {
+            return APP_ERROR_INVALID_ARGUMENT;
+        }
+    }
+}
+
+static app_error_code_t finish_package_document(json_cursor_t *cursor, uint32_t seen,
+                                                const package_document_t *document) {
+    skip_whitespace(cursor);
+    const uint32_t required = (UINT32_C(1) << STORAGE_PACKAGE_FIELD_COUNT) - UINT32_C(1);
+    return cursor->offset == cursor->length && seen == required &&
+                   document->schema_version == APP_SCHEMA_VERSION
+               ? APP_ERROR_NONE
+               : APP_ERROR_INVALID_ARGUMENT;
+}
+
 static app_error_code_t parse_package_document(const char *data, size_t length,
                                                package_document_t *out_document) {
     memset(out_document, 0, sizeof(*out_document));
@@ -469,51 +673,57 @@ static app_error_code_t parse_package_document(const char *data, size_t length,
     }
     ++cursor.offset;
     uint32_t seen = 0U;
-    for (;;) {
-        skip_whitespace(&cursor);
-        if (cursor.offset >= cursor.length || cursor.data[cursor.offset] == '}') {
-            if (cursor.offset < cursor.length) {
-                ++cursor.offset;
-            }
-            break;
-        }
-        char name[STORAGE_PACKAGE_FIELD_NAME_BYTES];
-        app_error_code_t result = read_plain_string(&cursor, name, sizeof(name));
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        const size_t field_index = package_field_index(name);
-        if (field_index == SIZE_MAX || (seen & (UINT32_C(1) << field_index)) != 0U) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        skip_whitespace(&cursor);
-        if (cursor.offset >= cursor.length || cursor.data[cursor.offset] != ':') {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        ++cursor.offset;
-        result = parse_package_field(&cursor, field_index, out_document);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        seen |= UINT32_C(1) << field_index;
-        skip_whitespace(&cursor);
-        if (cursor.offset >= cursor.length) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        const char separator = cursor.data[cursor.offset++];
-        if (separator == '}') {
-            break;
-        }
-        if (separator != ',') {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
+    const app_error_code_t result = parse_package_members(&cursor, out_document, &seen);
+    return result == APP_ERROR_NONE ? finish_package_document(&cursor, seen, out_document) : result;
+}
+
+static app_error_code_t finish_object_array(json_cursor_t *cursor) {
+    skip_whitespace(cursor);
+    return cursor->offset == cursor->length ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
+}
+
+static app_error_code_t visit_object_array_item(json_cursor_t *cursor, size_t maximum_count,
+                                                package_object_callback_t callback, void *context,
+                                                size_t *in_out_count) {
+    json_span_t object = {0};
+    app_error_code_t result = capture_json_value(cursor, &object);
+    if (result != APP_ERROR_NONE) {
+        return result;
     }
-    skip_whitespace(&cursor);
-    const uint32_t required = (UINT32_C(1) << STORAGE_PACKAGE_FIELD_COUNT) - UINT32_C(1);
-    if (cursor.offset != cursor.length || seen != required ||
-        out_document->schema_version != APP_SCHEMA_VERSION) {
+    if (object.length == 0U || object.data[0] != '{') {
         return APP_ERROR_INVALID_ARGUMENT;
     }
+    if (*in_out_count >= maximum_count) {
+        return APP_ERROR_MACRO_LIMIT;
+    }
+    if (callback != NULL) {
+        result = callback(&object, context);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+    }
+    ++*in_out_count;
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t consume_object_array_separator(json_cursor_t *cursor, bool *out_done) {
+    skip_whitespace(cursor);
+    if (cursor->offset >= cursor->length) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const char separator = cursor->data[cursor->offset++];
+    if (separator == ']') {
+        *out_done = true;
+        return APP_ERROR_NONE;
+    }
+    if (separator != ',') {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    skip_whitespace(cursor);
+    if (cursor->offset >= cursor->length || cursor->data[cursor->offset] == ']') {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    *out_done = false;
     return APP_ERROR_NONE;
 }
 
@@ -532,39 +742,21 @@ static app_error_code_t visit_object_array(const json_span_t *array, size_t maxi
     skip_whitespace(&cursor);
     if (cursor.offset < cursor.length && cursor.data[cursor.offset] == ']') {
         ++cursor.offset;
-        skip_whitespace(&cursor);
-        return cursor.offset == cursor.length ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
+        return finish_object_array(&cursor);
     }
-    for (;;) {
-        json_span_t object = {0};
-        app_error_code_t result = capture_json_value(&cursor, &object);
-        if (result != APP_ERROR_NONE || object.length == 0U || object.data[0] != '{') {
-            return result == APP_ERROR_NONE ? APP_ERROR_INVALID_ARGUMENT : result;
+    bool done = false;
+    while (!done) {
+        app_error_code_t result =
+            visit_object_array_item(&cursor, maximum_count, callback, context, out_count);
+        if (result != APP_ERROR_NONE) {
+            return result;
         }
-        if (*out_count >= maximum_count) {
-            return APP_ERROR_MACRO_LIMIT;
+        result = consume_object_array_separator(&cursor, &done);
+        if (result != APP_ERROR_NONE) {
+            return result;
         }
-        if (callback != NULL) {
-            result = callback(&object, context);
-            if (result != APP_ERROR_NONE) {
-                return result;
-            }
-        }
-        ++*out_count;
-        skip_whitespace(&cursor);
-        if (cursor.offset >= cursor.length) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        const char separator = cursor.data[cursor.offset++];
-        if (separator == ']') {
-            skip_whitespace(&cursor);
-            return cursor.offset == cursor.length ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
-        }
-        if (separator != ',') {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        skip_whitespace(&cursor);
     }
+    return finish_object_array(&cursor);
 }
 
 static bool add_allocation_budget(const allocation_shape_t *shape, size_t *in_out_total) {
@@ -625,36 +817,49 @@ static app_error_code_t allocate_validation_state(const storage_package_summary_
     out_state->procedure_capacity = summary->procedure_count;
     out_state->progress_capacity = summary->progress_count;
 
-    const allocation_shape_t shapes[] = {
-        {.count = out_state->set_capacity, .item_size = sizeof(*out_state->sets)},
-        {.count = out_state->macro_capacity, .item_size = sizeof(*out_state->macros)},
-        {.count = out_state->procedure_capacity, .item_size = sizeof(*out_state->procedures)},
-        {.count = out_state->progress_capacity, .item_size = sizeof(*out_state->progress)},
-        {.count = out_state->set_capacity, .item_size = sizeof(*out_state->set_macro_counts)},
-        {.count = out_state->set_capacity, .item_size = sizeof(*out_state->set_procedure_counts)},
+    const allocation_shape_t shapes[VALIDATION_ALLOCATION_COUNT] = {
+        [VALIDATION_ALLOCATION_SETS] = {.count = out_state->set_capacity,
+                                        .item_size = sizeof(*out_state->sets)},
+        [VALIDATION_ALLOCATION_MACROS] = {.count = out_state->macro_capacity,
+                                          .item_size = sizeof(*out_state->macros)},
+        [VALIDATION_ALLOCATION_PROCEDURES] = {.count = out_state->procedure_capacity,
+                                              .item_size = sizeof(*out_state->procedures)},
+        [VALIDATION_ALLOCATION_PROGRESS] = {.count = out_state->progress_capacity,
+                                            .item_size = sizeof(*out_state->progress)},
+        [VALIDATION_ALLOCATION_SET_MACRO_COUNTS] = {.count = out_state->set_capacity,
+                                                    .item_size =
+                                                        sizeof(*out_state->set_macro_counts)},
+        [VALIDATION_ALLOCATION_SET_PROCEDURE_COUNTS] = {.count = out_state->set_capacity,
+                                                        .item_size = sizeof(
+                                                            *out_state->set_procedure_counts)},
     };
     size_t allocation_bytes = 0U;
-    for (size_t index = 0U; index < sizeof(shapes) / sizeof(shapes[0]); ++index) {
+    for (size_t index = 0U; index < VALIDATION_ALLOCATION_COUNT; ++index) {
         if (!add_allocation_budget(&shapes[index], &allocation_bytes)) {
             return APP_ERROR_MACRO_LIMIT;
         }
     }
 
-    app_error_code_t result = allocate_items(&shapes[0], (void **)&out_state->sets);
+    app_error_code_t result =
+        allocate_items(&shapes[VALIDATION_ALLOCATION_SETS], (void **)&out_state->sets);
     if (result == APP_ERROR_NONE) {
-        result = allocate_items(&shapes[1], (void **)&out_state->macros);
+        result = allocate_items(&shapes[VALIDATION_ALLOCATION_MACROS], (void **)&out_state->macros);
     }
     if (result == APP_ERROR_NONE) {
-        result = allocate_items(&shapes[2], (void **)&out_state->procedures);
+        result = allocate_items(&shapes[VALIDATION_ALLOCATION_PROCEDURES],
+                                (void **)&out_state->procedures);
     }
     if (result == APP_ERROR_NONE) {
-        result = allocate_items(&shapes[3], (void **)&out_state->progress);
+        result =
+            allocate_items(&shapes[VALIDATION_ALLOCATION_PROGRESS], (void **)&out_state->progress);
     }
     if (result == APP_ERROR_NONE) {
-        result = allocate_items(&shapes[4], (void **)&out_state->set_macro_counts);
+        result = allocate_items(&shapes[VALIDATION_ALLOCATION_SET_MACRO_COUNTS],
+                                (void **)&out_state->set_macro_counts);
     }
     if (result == APP_ERROR_NONE) {
-        result = allocate_items(&shapes[5], (void **)&out_state->set_procedure_counts);
+        result = allocate_items(&shapes[VALIDATION_ALLOCATION_SET_PROCEDURE_COUNTS],
+                                (void **)&out_state->set_procedure_counts);
     }
     if (result != APP_ERROR_NONE) {
         free_validation_state(out_state);
