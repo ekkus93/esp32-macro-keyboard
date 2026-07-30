@@ -471,7 +471,7 @@ async function assertTouchTargets(cdp) {
 async function runBrowserWorkflows(cdp, serverState) {
   await waitFor(
     cdp,
-    "document.body.innerText.includes('Choose a macro set')",
+    "document.body?.innerText.includes('Choose a macro set') ?? false",
     "Authenticated set selection did not load.",
   );
   await assertTouchTargets(cdp);
