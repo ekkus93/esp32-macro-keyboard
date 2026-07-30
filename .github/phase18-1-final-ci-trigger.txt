@@ -1,0 +1,1 @@
+Temporary connector-originated trigger for the final Phase 18.1 clean-head validation.
