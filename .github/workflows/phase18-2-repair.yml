@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: phase18-2-repair
@@ -44,49 +45,38 @@ jobs:
 
           repository_handlers = Path("tests/host/test_web_api_repository_handlers.c")
           text = repository_handlers.read_text(encoding="utf-8")
-          old = '''    static const web_api_route_t unavailable_routes[] = {
-              WEB_API_ROUTE_SET_EXPORT,
-              WEB_API_ROUTE_SET_IMPORT,
-          };
-          for (size_t index = 0U; index < sizeof(unavailable_routes) / sizeof(unavailable_routes[0]);
-               ++index) {
-              response = invoke(web_api_handle_sets, unavailable_routes[index], WEB_API_METHOD_POST, NULL,
-                                SET_ID, NULL, NULL);
-              expect_status(&response, 503U, "requires the Phase 18");
-          }
-          '''
-          new = '''    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_IMPORT, WEB_API_METHOD_POST, NULL,
-                            SET_ID, NULL, NULL);
-              expect_status(&response, 503U, "requires the Phase 18");
-          '''
-          if text.count(old) != 1:
-              raise SystemExit("repository-handler replacement anchor was not unique")
-          repository_handlers.write_text(text.replace(old, new), encoding="utf-8")
+          obsolete_route = "        WEB_API_ROUTE_SET_EXPORT,\n"
+          if text.count(obsolete_route) != 1:
+              raise SystemExit("obsolete export-boundary route anchor was not unique")
+          repository_handlers.write_text(
+              text.replace(obsolete_route, ""), encoding="utf-8"
+          )
 
           export_test = Path("tests/host/test_web_api_set_export.c")
           text = export_test.read_text(encoding="utf-8")
-          opening = '''int main(void) {
-              reset_store();
-          '''
-          opening_replacement = '''int main(void) {
-              TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
-              reset_store();
-          '''
-          closing = '''    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_deinit());
-              test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
-              return 0;
-          }
-          '''
-          closing_replacement = '''    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_deinit());
-              test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
-              TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
-              return 0;
-          }
-          '''
+          opening = "int main(void) {\n    reset_store();"
+          opening_replacement = (
+              "int main(void) {\n"
+              "    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());\n"
+              "    reset_store();"
+          )
+          closing = (
+              "    test_temp_dir_remove_path(STORAGE_DATA_MOUNT);\n"
+              "    return 0;"
+          )
+          closing_replacement = (
+              "    test_temp_dir_remove_path(STORAGE_DATA_MOUNT);\n"
+              "    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());\n"
+              "    return 0;"
+          )
           if text.count(opening) != 1 or text.count(closing) != 1:
-              raise SystemExit("set-export replacement anchors were not unique")
-          text = text.replace(opening, opening_replacement).replace(closing, closing_replacement)
-          export_test.write_text(text, encoding="utf-8")
+              raise SystemExit("set-export lock lifecycle anchors were not unique")
+          export_test.write_text(
+              text.replace(opening, opening_replacement).replace(
+                  closing, closing_replacement
+              ),
+              encoding="utf-8",
+          )
           PY
 
           clang-format -i \
@@ -135,3 +125,32 @@ jobs:
             webapp/tests/management-screens.test.tsx
           git commit -m "test: repair Phase 18.2 export gates"
           git push origin HEAD:master
+
+      - name: Publish repair result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          commit_sha="$(git rev-parse HEAD)"
+          python3 - "${commit_sha}" <<'PY' > /tmp/phase18-2-status.json
+          import json
+          import os
+          import sys
+
+          body = (
+              "Phase 18.2 repair workflow finished.\n\n"
+              f"Status: `{os.environ['JOB_STATUS']}`\n"
+              f"Run ID: `{os.environ['RUN_ID']}`\n"
+              f"Checkout commit: `{sys.argv[1]}`\n"
+              "The run is authoritative only when status is success and the repair commit is present on master."
+          )
+          print(json.dumps({"body": body}))
+          PY
+          gh api \
+            --method PATCH \
+            "repos/${GITHUB_REPOSITORY}/issues/24" \
+            --input /tmp/phase18-2-status.json \
+            > /dev/null
