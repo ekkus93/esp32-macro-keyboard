@@ -1,0 +1,137 @@
+name: Phase 18.2 Repair
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/phase18-2-repair.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: phase18-2-repair
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out master
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: true
+
+      - name: Install test and format dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            clang-format \
+            cmake \
+            libcjson-dev
+          cd webapp
+          npm ci
+
+      - name: Repair exact Phase 18.2 regressions
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          repository_handlers = Path("tests/host/test_web_api_repository_handlers.c")
+          text = repository_handlers.read_text(encoding="utf-8")
+          old = '''    static const web_api_route_t unavailable_routes[] = {
+              WEB_API_ROUTE_SET_EXPORT,
+              WEB_API_ROUTE_SET_IMPORT,
+          };
+          for (size_t index = 0U; index < sizeof(unavailable_routes) / sizeof(unavailable_routes[0]);
+               ++index) {
+              response = invoke(web_api_handle_sets, unavailable_routes[index], WEB_API_METHOD_POST, NULL,
+                                SET_ID, NULL, NULL);
+              expect_status(&response, 503U, "requires the Phase 18");
+          }
+          '''
+          new = '''    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_IMPORT, WEB_API_METHOD_POST, NULL,
+                            SET_ID, NULL, NULL);
+              expect_status(&response, 503U, "requires the Phase 18");
+          '''
+          if text.count(old) != 1:
+              raise SystemExit("repository-handler replacement anchor was not unique")
+          repository_handlers.write_text(text.replace(old, new), encoding="utf-8")
+
+          export_test = Path("tests/host/test_web_api_set_export.c")
+          text = export_test.read_text(encoding="utf-8")
+          opening = '''int main(void) {
+              reset_store();
+          '''
+          opening_replacement = '''int main(void) {
+              TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
+              reset_store();
+          '''
+          closing = '''    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_deinit());
+              test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
+              return 0;
+          }
+          '''
+          closing_replacement = '''    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_deinit());
+              test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
+              TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
+              return 0;
+          }
+          '''
+          if text.count(opening) != 1 or text.count(closing) != 1:
+              raise SystemExit("set-export replacement anchors were not unique")
+          text = text.replace(opening, opening_replacement).replace(closing, closing_replacement)
+          export_test.write_text(text, encoding="utf-8")
+          PY
+
+          clang-format -i \
+            tests/host/test_web_api_repository_handlers.c \
+            tests/host/test_web_api_set_export.c
+          cd webapp
+          npm exec prettier -- --write \
+            src/features/settings/PackageOperationsPage.tsx \
+            tests/management-screens.test.tsx
+          npm exec prettier -- --check \
+            src/features/settings/PackageOperationsPage.tsx \
+            tests/management-screens.test.tsx
+          cd ..
+          git diff --check
+
+      - name: Run host tests
+        run: |
+          set -euo pipefail
+          ./scripts/run-tests.sh
+
+      - name: Verify exact change scope
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only)
+          allowed='^(tests/host/test_web_api_repository_handlers\.c|tests/host/test_web_api_set_export\.c|webapp/src/features/settings/PackageOperationsPage\.tsx|webapp/tests/management-screens\.test\.tsx)$'
+          if [[ "${#changed[@]}" -eq 0 ]]; then
+            echo 'no repair changes were produced' >&2
+            exit 1
+          fi
+          for path in "${changed[@]}"; do
+            if [[ ! "${path}" =~ ${allowed} ]]; then
+              printf 'unexpected changed path: %s\n' "${path}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Commit verified repair
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            tests/host/test_web_api_repository_handlers.c \
+            tests/host/test_web_api_set_export.c \
+            webapp/src/features/settings/PackageOperationsPage.tsx \
+            webapp/tests/management-screens.test.tsx
+          git commit -m "test: repair Phase 18.2 export gates"
+          git push origin HEAD:master
