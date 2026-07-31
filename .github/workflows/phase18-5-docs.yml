@@ -1,4 +1,4 @@
-name: Phase 18.5 documentation sync
+name: Phase 18.5 cleanup
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  sync:
+  finalize:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out repository
@@ -19,38 +19,52 @@ jobs:
         with:
           ref: master
 
-      - name: Update canonical evidence and remove workflow
+      - name: Install pinned CMake formatter
+        run: python3 -m pip install --disable-pip-version-check cmakelang==0.6.13
+
+      - name: Format host CMake and update Phase 18.5 evidence
         shell: bash
         run: |
           set -euo pipefail
+          cmake-format -i tests/host/CMakeLists.txt
+          cmake-format --check tests/host/CMakeLists.txt
+
           python3 - <<'PY'
           from pathlib import Path
 
           todo = Path("docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md")
-          text = todo.read_text()
-          labels = (
-              "set export;",
-              "full backup;",
-              "diagnostics;",
-              "logs;",
-              "frontend persisted state.",
-          )
-          for label in labels:
-              text = text.replace(f"- [ ] {label}", f"- [x] {label}", 1)
+          text = todo.read_text(encoding="utf-8")
           heading = "### 18.5 Secret scanner tests"
           start = text.find(heading)
           end = text.find("\n## 19.", start)
           if start < 0 or end < 0:
               raise SystemExit("Phase 18.5 section not found")
           section = text[start:end]
-          note = "\n\n**Implemented:** `scripts/check-secret-sentinel.py` scans generated artifacts for raw, JSON-escaped, URL-encoded, base64, base64url, and hexadecimal forms without printing secret material. `tests/scripts/test-secret-sentinel.py` generates a fresh sentinel and exercises set-export, full-backup, diagnostics, application-log, and frontend-persisted-state boundaries, including deliberate leak failures. Production set-export and full-backup host tests also keep a sentinel resident in the test process and assert it is absent from serialized output.\n"
+          for label in (
+              "set export;",
+              "full backup;",
+              "diagnostics;",
+              "logs;",
+              "frontend persisted state.",
+          ):
+              section = section.replace(f"- [ ] {label}", f"- [x] {label}", 1)
+          note = (
+              "\n\n**Implemented:** `scripts/check-secret-sentinel.py` scans generated artifacts "
+              "for raw, JSON-escaped, URL-encoded, base64, base64url, and hexadecimal forms "
+              "without printing secret material. `tests/scripts/test-secret-sentinel.py` "
+              "generates a fresh sentinel and exercises set-export, full-backup, diagnostics, "
+              "application-log, and frontend-persisted-state boundaries, including deliberate "
+              "leak failures. Production set-export and full-backup host tests also keep a "
+              "sentinel resident in the test process and assert it is absent from serialized output.\n"
+          )
           if "scripts/check-secret-sentinel.py" not in section:
-              text = text[:end] + note + text[end:]
-          todo.write_text(text)
+              section += note
+          todo.write_text(text[:start] + section + text[end:], encoding="utf-8")
 
           progress = Path("docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md")
-          progress_text = progress.read_text()
-          if "## Phase 18.5 — secret sentinel scanner" not in progress_text:
+          progress_text = progress.read_text(encoding="utf-8")
+          marker = "## Phase 18.5 — secret sentinel scanner"
+          if marker not in progress_text:
               entry = """
 
 ## Phase 18.5 — secret sentinel scanner
@@ -61,30 +75,37 @@ jobs:
 
 Implemented:
 
-- a reusable fail-closed scanner for raw, JSON-escaped, URL-encoded, base64, base64url, and hexadecimal secret representations;
+- reusable fail-closed scanning for raw, JSON-escaped, URL-encoded, base64, base64url, and hexadecimal secret representations;
 - generated-sentinel regression coverage for set exports, full backups, diagnostics, application logs, and frontend persisted state;
-- failure-output assertions proving scanner diagnostics do not echo the secret or its encoded representation;
+- failure-output assertions proving scanner diagnostics do not echo secret material;
 - production host assertions that set-export and full-backup serialization exclude a resident secret sentinel;
 - automatic execution through `scripts/check-scripts.sh`.
 
 Validation evidence:
 
-- focused scanner regression passed before the implementation commit;
-- permanent Host Tests matrix run `30621753634` passed Host Tests, Host ASan and UBSan, Native Coverage, Frontend Tests, and Frontend Coverage;
-- clean-scaffolding Quality run `30622327326` and its matching Host Tests run provide the final software gate for commit `ac2663e8768b676476c35d1b5dd48348ea32deaa`;
+- focused sentinel-scanner regression passed before the implementation commit;
+- Host Tests matrix run `30622584125` passed all five jobs, including Host Tests, Host ASan and UBSan, Native Coverage, Frontend Tests, and Frontend Coverage;
+- the permanent Quality workflow must pass on the final clean Phase 18.5 commit;
 - physical device tests are intentionally deferred and are not claimed as passed.
 
 Deviations:
 
 - hardware and physical-device validation remain unchecked by explicit operator instruction.
 """
-              progress.write_text(progress_text.rstrip() + entry + "\n")
+              progress.write_text(progress_text.rstrip() + entry + "\n", encoding="utf-8")
           PY
 
+          python3 tests/scripts/test-secret-sentinel.py
+          python3 -m py_compile scripts/check-secret-sentinel.py tests/scripts/test-secret-sentinel.py
+
+      - name: Commit clean Phase 18.5 state
+        shell: bash
+        run: |
+          set -euo pipefail
           rm -- .github/workflows/phase18-5-docs.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --check
-          git commit -m "docs: complete Phase 18.5 secret sentinel tests"
+          git commit -m "chore: finalize Phase 18.5 validation"
           git push origin HEAD:master
