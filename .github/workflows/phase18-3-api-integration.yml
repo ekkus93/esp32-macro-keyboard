@@ -39,6 +39,7 @@ jobs:
           {
             python3 tools/phase18_3_api_integration_impl.py
             python3 tools/phase18_3_api_link_fix.py
+            python3 tools/phase18_3_api_boundary_fix.py
           } 2>&1 | tee "${RUNNER_TEMP}/phase18-3-api.log"
 
       - name: Validate API integration
@@ -94,6 +95,7 @@ jobs:
             firmware/components/web_server/web_server_api.c \
             tests/host/test_web_api_core.c \
             tests/host/test_web_api_set_export.c \
+            tests/host/test_web_api_repository_handlers.c \
             tests/host/cmake/extra_tests.cmake
           git commit -m "feat(web): expose transactional set replacement"
           git pull --rebase origin master
