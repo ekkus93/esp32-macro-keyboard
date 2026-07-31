@@ -5,7 +5,7 @@ on:
     branches:
       - master
     paths:
-      - .github/phase18-3-materialize-stage-trigger.txt
+      - .github/phase18-3-materialize-stage-trigger*.txt
 
 permissions:
   contents: write
@@ -13,7 +13,7 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -34,6 +34,11 @@ jobs:
           text = text.replace(
               'storage_procedure_read(&procedure_identity, &procedure)',
               'storage_procedure_read(&procedure_identity.set_id, &procedure_identity.procedure_id, &procedure)',
+              1,
+          )
+          text = text.replace(
+              '        .scope = MACRO_SCOPE_SET,\n        .set_id = id,',
+              '        .scope = MACRO_SCOPE_SET,\n        .has_set_id = true,\n        .set_id = id,',
               1,
           )
           test.write_text(text)
@@ -74,14 +79,27 @@ jobs:
               text = text.replace(old, new, 1)
           path.write_text(text)
           PY
-      - name: Run focused test
+      - name: Run focused sanitizer stress
         shell: bash
         run: |
           set +e
-          cmake -S tests/host -B build/phase18-3-stage -G Ninja
+          cmake -S tests/host -B build/phase18-3-stage -G Ninja \
+            -DCMAKE_C_FLAGS='-fsanitize=address,undefined -fno-omit-frame-pointer' \
+            -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined'
           cmake --build build/phase18-3-stage --target storage_package_replace_tests
-          build/phase18-3-stage/storage_package_replace_tests > /tmp/stage.log 2>&1
-          status=$?
+          status=0
+          : > /tmp/stage.log
+          for iteration in $(seq 1 20); do
+            echo "=== iteration ${iteration} ===" >> /tmp/stage.log
+            ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 \
+              UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
+              build/phase18-3-stage/storage_package_replace_tests >> /tmp/stage.log 2>&1
+            current=$?
+            if [[ "$current" -ne 0 ]]; then
+              status="$current"
+              break
+            fi
+          done
           set -e
           {
             echo '# Phase 18.3 materialization stage result'
@@ -93,6 +111,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/PHASE18_3_MATERIALIZATION_STAGE.md
-          git commit -m "ci: capture Phase 18.3 materialization stage"
+          git commit -m "ci: capture Phase 18.3 sanitizer stress"
           git push origin HEAD:master
           exit "$status"
