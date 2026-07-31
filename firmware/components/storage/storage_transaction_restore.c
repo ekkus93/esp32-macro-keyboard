@@ -70,6 +70,23 @@ static app_error_code_t path_exists(const char *path, const storage_fs_ops_t *op
     return stat_error == ENOENT ? APP_ERROR_NONE : map_error_number(stat_error);
 }
 
+static app_error_code_t ensure_directory(const char *path, const storage_fs_ops_t *operations) {
+    struct stat metadata;
+    if (operations->stat_path(operations->context, path, &metadata) == 0) {
+        return S_ISDIR(metadata.st_mode) ? APP_ERROR_NONE : APP_ERROR_STORAGE_CORRUPT;
+    }
+    const int stat_error = errno;
+    if (stat_error != ENOENT) {
+        return map_error_number(stat_error);
+    }
+    if (operations->mkdir_path(operations->context, path, 0700) != 0) {
+        return map_error_number(errno);
+    }
+    return storage_fs_sync_parent_path(operations->context, path) == 0
+               ? APP_ERROR_NONE
+               : map_error_number(errno);
+}
+
 static app_error_code_t sync_rename_parents(const char *source, const char *destination,
                                             const storage_fs_ops_t *operations) {
     if (storage_fs_sync_parent_path(operations->context, source) != 0) {
@@ -195,6 +212,9 @@ static app_error_code_t recover_staged(
     storage_transaction_validate_repository_fn validate_repository_fn, void *validation_context) {
     app_error_code_t result =
         validate_repository(validate_repository_fn, validation_context, manifest->staging);
+    if (result == APP_ERROR_NONE) {
+        result = ensure_directory(manifest->backup, operations);
+    }
     if (result == APP_ERROR_NONE) {
         result = move_repository_items(STORAGE_DATA_MOUNT, manifest->backup, operations);
     }

@@ -28,6 +28,7 @@ idf_component_register(
     "storage_package.c"
     "storage_package_export.c"
     "storage_package_backup.c"
+    "storage_package_restore.c"
     "storage_package_replace.c"
     "storage_quarantine.c"
     INCLUDE_DIRS

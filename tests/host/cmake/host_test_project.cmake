@@ -12,3 +12,8 @@ cmake_language(
     DIRECTORY "${CMAKE_SOURCE_DIR}"
     CALL include "${CMAKE_SOURCE_DIR}/cmake/phase18_4_tests.cmake"
 )
+cmake_language(
+    DEFER
+    DIRECTORY "${CMAKE_SOURCE_DIR}"
+    CALL include "${CMAKE_SOURCE_DIR}/cmake/phase18_4_restore_tests.cmake"
+)
