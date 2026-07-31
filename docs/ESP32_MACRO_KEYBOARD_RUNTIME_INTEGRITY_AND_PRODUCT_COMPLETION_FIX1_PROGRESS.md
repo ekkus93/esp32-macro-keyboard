@@ -87,7 +87,6 @@
   reloading. Permanent Host Tests run `30611750909` passed all five jobs on
   `991cabefcee46ae82fbebb67ee326480b626d1d5`.
 
-
 - Phase 18.1 bounded package reader — complete in `39b264e`, `974d339`,
   `e262137`, `3e03294`, `60856a8`, and `ce81a76`, with iterative parser hardening
   in `3670557`. `storage_package_validate()` enforces the import byte ceiling before
@@ -724,7 +723,6 @@ Validation:
 - ESP-IDF v5.5.5 production and device-test builds with fail-closed clang-tidy;
 - macro, procedure, progress, active-set deletion, provisioning-settings, atomic-validator, and
   transaction-recovery host suites all execute as registered CTest targets.
-
 
 ## Phase 18.3 completion evidence
 
