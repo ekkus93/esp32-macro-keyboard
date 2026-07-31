@@ -1974,10 +1974,11 @@ No enabled button may be inert.
 navigation. Set create, edit, duplicate, keyboard-accessible reorder, and
 guarded delete use live revisioned APIs. Settings, storage health, redacted
 quarantine evidence, restart, settings reset, and factory reset use strict
-response guards and visible physical-confirmation waits. Import, replace,
-export, backup, and restore are honest disabled boundaries because their
-all-or-nothing package services remain Phase 18; the frontend never simulates
-success or sends an unsupported mutation.
+response guards and visible physical-confirmation waits. Deterministic set
+export, transactional replacement, full backup, and all-or-nothing restore now
+use the completed Phase 18 services. Import-as-new remains an honest disabled
+boundary until its identity-rewrite transaction is implemented; the frontend
+never simulates success or sends an unsupported mutation.
 
 ### 17.10 Add accessibility and browser tests
 
@@ -2049,12 +2050,27 @@ Add a transaction type and recovery code that handles every phase.
 
 ### 18.4 Implement full backup and restore
 
-- [ ] backup all sets, global macros, procedures, and optional progress;
-- [ ] exclude credentials and sessions;
-- [ ] restore all-or-nothing;
-- [ ] require physical/admin confirmation;
-- [ ] test storage full during staging;
-- [ ] test power loss after every phase.
+- [x] backup all sets, global macros, procedures, and optional progress;
+- [x] exclude credentials and sessions;
+- [x] restore all-or-nothing;
+- [x] require physical/admin confirmation;
+- [x] test storage full during staging;
+- [x] test power loss after every phase.
+
+Implemented: full backup serializes every logical repository object from one
+locked snapshot, remains bounded by `APP_IMPORT_PACKAGE_MAX_BYTES`, and excludes
+provisioning, credentials, sessions, CSRF material, encryption keys, quarantine,
+schema markers, and transaction evidence by construction. Restore validates the
+complete package before mutation, stages and validates a full replacement tree,
+and activates only `set-index.json`, `sets/`, and `global/` through a durable
+six-phase restore transaction. Startup resolves restore manifests before ordinary
+set transactions. Host tests cover every durable phase, partial renames,
+idempotent recovery, contradictory evidence, deterministic `STORAGE_FULL` during
+staging, and preservation of the complete old repository. The API requires an
+authenticated administrator session, CSRF, same-origin policy, and physical
+confirmation. The frontend adds strict file validation, the exact typed phrase
+`RESTORE FULL BACKUP`, visible device-confirmation state, and a mandatory reload
+after success.
 
 ### 18.5 Secret scanner tests
 

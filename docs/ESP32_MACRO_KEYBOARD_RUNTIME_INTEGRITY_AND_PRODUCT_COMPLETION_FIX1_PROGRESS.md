@@ -60,7 +60,7 @@
 | 15 | Complete storage object repositories | done |
 | 16 | Complete the HTTP API | done (package transactions Phase 18; diagnostics aggregation Phase 19) |
 | 17 | Replace frontend mock behavior | done (Phase 18 package services and Phase 19 aggregation remain separate) |
-| 18 | Import / export / backup / restore | in progress (§18.1–18.2 complete; §18.3–18.5 remain) |
+| 18 | Import / export / backup / restore | in progress (§18.1–18.4 complete; §18.5 remains) |
 | 19 | Diagnostics and observability | not started |
 | 20 | Hardware and integration validation | environment-blocked (see below) |
 | 21 | Release budgets and immutable CI | not started |
@@ -68,6 +68,25 @@
 | 23 | Final regression and acceptance gate | not started |
 
 ## Completed tasks (commit evidence)
+
+- Phase 18.4 full backup and restore — complete through `991cabe`, with API
+  documentation synchronized in `25edd78`. Backup snapshots every set, local and
+  global macro, procedure, ordering record, and optional progress under one
+  repository lock; serialized output is bounded, deterministic, self-validated,
+  and excludes all credential/session/provisioning/encryption stores. Restore
+  prevalidates the entire backup, writes a durable manifest, materializes and
+  validates a complete staged repository, then activates only the logical
+  repository roots all-or-nothing. Startup restore recovery runs before ordinary
+  transactions and fails closed on multiple or mixed manifests. The six-phase
+  real-filesystem matrix covers every interruption point and partial rename;
+  linker-level fault injection proves `APP_ERROR_STORAGE_FULL` during staged
+  `set.json` write rolls back with the old repository and schema marker intact and
+  no transaction, staging, or trash evidence left. Authenticated/CSRF-protected
+  API routes require physical confirmation for restore, and the frontend requires
+  strict 512 KiB package validation plus `RESTORE FULL BACKUP` before posting and
+  reloading. Permanent Host Tests run `30611750909` passed all five jobs on
+  `991cabefcee46ae82fbebb67ee326480b626d1d5`.
+
 
 - Phase 18.1 bounded package reader — complete in `39b264e`, `974d339`,
   `e262137`, `3e03294`, `60856a8`, and `ce81a76`, with iterative parser hardening
@@ -103,7 +122,9 @@
   live configuration; and mobile target sizing is enforced in real Chrome.
   Host Tests run `30455828432` passed static checks, unit tests, coverage,
   sanitizers, and native tests. Browser Tests run `30455823494` built the
-  production bundle and passed the full Chrome workflow.
+  production bundle and passed the full Chrome workflow. Phase 18 later enabled
+  deterministic set export, transactional replacement, full backup, and
+  all-or-nothing restore; import-as-new remains the only package UI boundary.
 
 - Phase 17.7 execution confirmation and submission — complete in the commit
   containing this progress update. Standalone macro sends and procedure
