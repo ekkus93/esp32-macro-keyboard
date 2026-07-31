@@ -12,13 +12,33 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: host-tests-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  phase18-4-doc-sync:
+    name: Phase 18.4 Documentation Sync
+    if: github.event_name == 'push' && github.event.head_commit.message == 'ci: trigger registered Phase 18.4 documentation patch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Apply and publish documentation patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/phase18_4_doc_sync.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md \
+                  docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md
+          git commit -m "docs: record Phase 18.4 completion"
+          git push
+
   host-tests:
     name: Host Tests
     runs-on: ubuntu-24.04
