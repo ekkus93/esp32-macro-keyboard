@@ -36,8 +36,10 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          python3 tools/phase18_3_api_integration_impl.py 2>&1 \
-            | tee "${RUNNER_TEMP}/phase18-3-api.log"
+          {
+            python3 tools/phase18_3_api_integration_impl.py
+            python3 tools/phase18_3_api_link_fix.py
+          } 2>&1 | tee "${RUNNER_TEMP}/phase18-3-api.log"
 
       - name: Validate API integration
         shell: bash
