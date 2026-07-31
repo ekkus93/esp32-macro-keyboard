@@ -60,6 +60,32 @@ static const char BACKUP_PACKAGE[] =
     "\",\"procedure_revision\":3,\"current_step_id\":\"" LOCAL_STEP_ID
     "\",\"completed_step_ids\":[],\"skipped_step_ids\":[]}]}";
 
+static bool inject_staging_storage_full;
+
+app_error_code_t __real_storage_atomic_write(const char *path, const void *data, size_t data_length,
+                                             bool sync_required);
+app_error_code_t __wrap_storage_atomic_write(const char *path, const void *data, size_t data_length,
+                                             bool sync_required);
+
+static bool path_has_suffix(const char *path, const char *suffix) {
+    if (path == NULL || suffix == NULL) {
+        return false;
+    }
+    const size_t path_length = strlen(path);
+    const size_t suffix_length = strlen(suffix);
+    return path_length >= suffix_length &&
+           strcmp(path + path_length - suffix_length, suffix) == 0;
+}
+
+app_error_code_t __wrap_storage_atomic_write(const char *path, const void *data, size_t data_length,
+                                             bool sync_required) {
+    if (inject_staging_storage_full && path != NULL && strstr(path, "/staging/") != NULL &&
+        path_has_suffix(path, "/set.json")) {
+        return APP_ERROR_STORAGE_FULL;
+    }
+    return __real_storage_atomic_write(path, data, data_length, sync_required);
+}
+
 static void join_path(char *output, size_t output_size, const char *root, const char *name) {
     const int written = snprintf(output, output_size, "%s/%s", root, name);
     TEST_CHECK(written > 0);
@@ -87,6 +113,7 @@ static void remove_storage(void) {
 }
 
 static void create_repository_layout(void) {
+    inject_staging_storage_full = false;
     remove_storage();
     make_directory(STORAGE_DATA_MOUNT);
     char path[APP_PATH_MAX_BYTES];
@@ -150,6 +177,20 @@ static char *read_text(const char *path) {
     return data;
 }
 
+static void assert_repository_remains_empty(void) {
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_repository_tree_validate(STORAGE_DATA_MOUNT));
+    char path[APP_PATH_MAX_BYTES];
+    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "set-index.json");
+    char *index = read_text(path);
+    TEST_CHECK_EQ_STRING("{\"schema_version\":1,\"ids\":[]}", index);
+    free(index);
+    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "schema.json");
+    char *schema = read_text(path);
+    TEST_CHECK_EQ_STRING("{\"schema_version\":1}", schema);
+    free(schema);
+}
+
 static storage_transaction_manifest_t make_restore_manifest(const char *transaction_id) {
     storage_transaction_manifest_t manifest = {
         .schema_version = APP_SCHEMA_VERSION,
@@ -177,6 +218,15 @@ static void stage_prepared_restore(const char *transaction_id) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_transaction_write_manifest(&manifest));
 }
 
+static void assert_transaction_evidence_empty(void) {
+    char path[APP_PATH_MAX_BYTES];
+    static const char *const evidence_roots[] = {"transactions", "staging", "trash"};
+    for (size_t item = 0U; item < sizeof(evidence_roots) / sizeof(evidence_roots[0]); ++item) {
+        join_path(path, sizeof(path), STORAGE_DATA_MOUNT, evidence_roots[item]);
+        TEST_CHECK(directory_empty(path));
+    }
+}
+
 static void test_complete_backup_restores_atomically(void) {
     create_empty_repository();
     TEST_CHECK_APP_ERROR(
@@ -196,12 +246,22 @@ static void test_complete_backup_restores_atomically(void) {
     TEST_CHECK(strstr(set, "\"revision\":7") != NULL);
     TEST_CHECK(strstr(set, "\"name\":\"Restored\"") != NULL);
     free(set);
+    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "schema.json");
+    char *schema = read_text(path);
+    TEST_CHECK_EQ_STRING("{\"schema_version\":1}", schema);
+    free(schema);
+    assert_transaction_evidence_empty();
+}
 
-    static const char *const evidence_roots[] = {"transactions", "staging", "trash"};
-    for (size_t item = 0U; item < sizeof(evidence_roots) / sizeof(evidence_roots[0]); ++item) {
-        join_path(path, sizeof(path), STORAGE_DATA_MOUNT, evidence_roots[item]);
-        TEST_CHECK(directory_empty(path));
-    }
+static void test_storage_full_during_staging_rolls_back(void) {
+    create_empty_repository();
+    inject_staging_storage_full = true;
+    const app_error_code_t result =
+        storage_package_restore_backup(BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U);
+    inject_staging_storage_full = false;
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL, result);
+    assert_repository_remains_empty();
+    assert_transaction_evidence_empty();
 }
 
 static void test_invalid_backup_does_not_mutate_repository(void) {
@@ -212,13 +272,8 @@ static void test_invalid_backup_does_not_mutate_repository(void) {
     TEST_CHECK_APP_ERROR(
         APP_ERROR_INVALID_ARGUMENT,
         storage_package_restore_backup(invalid, sizeof(invalid) - 1U));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_tree_validate(STORAGE_DATA_MOUNT));
+    assert_repository_remains_empty();
     char path[APP_PATH_MAX_BYTES];
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "set-index.json");
-    char *index = read_text(path);
-    TEST_CHECK(strcmp(index, "{\"schema_version\":1,\"ids\":[]}") == 0);
-    free(index);
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "transactions");
     TEST_CHECK(directory_empty(path));
 }
@@ -227,14 +282,8 @@ static void test_startup_recovery_rolls_back_prepared_restore(void) {
     create_empty_repository();
     stage_prepared_restore(RESTORE_TX_ID_A);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_transaction_recover_restores());
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_tree_validate(STORAGE_DATA_MOUNT));
-    char path[APP_PATH_MAX_BYTES];
-    static const char *const evidence_roots[] = {"transactions", "staging", "trash"};
-    for (size_t item = 0U; item < sizeof(evidence_roots) / sizeof(evidence_roots[0]); ++item) {
-        join_path(path, sizeof(path), STORAGE_DATA_MOUNT, evidence_roots[item]);
-        TEST_CHECK(directory_empty(path));
-    }
+    assert_repository_remains_empty();
+    assert_transaction_evidence_empty();
 }
 
 static void test_startup_recovery_rejects_multiple_restore_manifests(void) {
@@ -242,8 +291,7 @@ static void test_startup_recovery_rejects_multiple_restore_manifests(void) {
     stage_prepared_restore(RESTORE_TX_ID_A);
     stage_prepared_restore(RESTORE_TX_ID_B);
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_transaction_recover_restores());
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_tree_validate(STORAGE_DATA_MOUNT));
+    assert_repository_remains_empty();
     char path[APP_PATH_MAX_BYTES];
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "transactions");
     TEST_CHECK(!directory_empty(path));
@@ -254,8 +302,7 @@ static void test_startup_recovery_rejects_multiple_restore_manifests(void) {
 static void test_empty_startup_recovery_is_noop(void) {
     create_empty_repository();
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_transaction_recover_restores());
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_tree_validate(STORAGE_DATA_MOUNT));
+    assert_repository_remains_empty();
 }
 
 static void test_restore_requires_initialized_repository_lock(void) {
@@ -264,8 +311,7 @@ static void test_restore_requires_initialized_repository_lock(void) {
     TEST_CHECK_APP_ERROR(
         APP_ERROR_INTERNAL,
         storage_package_restore_backup(BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_tree_validate(STORAGE_DATA_MOUNT));
+    assert_repository_remains_empty();
     char path[APP_PATH_MAX_BYTES];
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "transactions");
     TEST_CHECK(directory_empty(path));
@@ -273,6 +319,7 @@ static void test_restore_requires_initialized_repository_lock(void) {
 
 int main(void) {
     test_complete_backup_restores_atomically();
+    test_storage_full_during_staging_rolls_back();
     test_invalid_backup_does_not_mutate_repository();
     test_startup_recovery_rolls_back_prepared_restore();
     test_startup_recovery_rejects_multiple_restore_manifests();
