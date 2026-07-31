@@ -2,9 +2,8 @@ import { apiRawJsonRequest, apiRequest } from "./client";
 import { isMacroSet, isRecord } from "./guards";
 import type { MacroSet } from "../types/models";
 
-export interface SetPackageDocument {
+interface PackageDocumentBase {
   schema_version: 1;
-  package_type: "set";
   sets: unknown[];
   macros: unknown[];
   global_macros: unknown[];
@@ -12,9 +11,22 @@ export interface SetPackageDocument {
   progress: unknown[];
 }
 
-export interface SetPackageDownload {
+export interface SetPackageDocument extends PackageDocumentBase {
+  package_type: "set";
+}
+
+export interface BackupPackageDocument extends PackageDocumentBase {
+  package_type: "backup";
+}
+
+export interface PackageDownload {
   text: string;
   byteLength: number;
+}
+
+export interface RestoreResult {
+  restored: true;
+  reloadRequired: true;
 }
 
 const packageKeys = [
@@ -27,9 +39,9 @@ const packageKeys = [
   "progress",
 ] as const;
 
-export function isSetPackageDocument(
-  value: unknown,
-): value is SetPackageDocument {
+function hasExactPackageShape(value: unknown): value is PackageDocumentBase & {
+  package_type: unknown;
+} {
   if (!isRecord(value)) {
     return false;
   }
@@ -38,9 +50,7 @@ export function isSetPackageDocument(
     keys.length === packageKeys.length &&
     packageKeys.every((key) => keys.includes(key)) &&
     value.schema_version === 1 &&
-    value.package_type === "set" &&
     Array.isArray(value.sets) &&
-    value.sets.length === 1 &&
     Array.isArray(value.macros) &&
     Array.isArray(value.global_macros) &&
     Array.isArray(value.procedures) &&
@@ -48,13 +58,50 @@ export function isSetPackageDocument(
   );
 }
 
+export function isSetPackageDocument(
+  value: unknown,
+): value is SetPackageDocument {
+  return (
+    hasExactPackageShape(value) &&
+    value.package_type === "set" &&
+    value.sets.length === 1
+  );
+}
+
+export function isBackupPackageDocument(
+  value: unknown,
+): value is BackupPackageDocument {
+  return hasExactPackageShape(value) && value.package_type === "backup";
+}
+
+function isRestoreResult(value: unknown): value is RestoreResult {
+  return (
+    isRecord(value) &&
+    Object.keys(value).length === 2 &&
+    value.restored === true &&
+    value.reloadRequired === true
+  );
+}
+
 export async function exportSetPackage(
   setId: string,
-): Promise<SetPackageDownload> {
+): Promise<PackageDownload> {
   const response = await apiRawJsonRequest(
     `/api/v1/sets/${encodeURIComponent(setId)}/export`,
     isSetPackageDocument,
     { timeoutMs: 30_000 },
+  );
+  return {
+    text: response.text,
+    byteLength: response.byteLength,
+  };
+}
+
+export async function exportBackupPackage(): Promise<PackageDownload> {
+  const response = await apiRawJsonRequest(
+    "/api/v1/backup",
+    isBackupPackageDocument,
+    { timeoutMs: 60_000 },
   );
   return {
     text: response.text,
@@ -79,5 +126,19 @@ export async function replaceSetPackage(
     },
     isMacroSet,
     { timeoutMs: 30_000 },
+  );
+}
+
+export async function restoreBackupPackage(
+  packageDocument: BackupPackageDocument,
+): Promise<RestoreResult> {
+  return apiRequest(
+    "/api/v1/restore",
+    {
+      method: "POST",
+      body: JSON.stringify(packageDocument),
+    },
+    isRestoreResult,
+    { timeoutMs: 60_000 },
   );
 }
