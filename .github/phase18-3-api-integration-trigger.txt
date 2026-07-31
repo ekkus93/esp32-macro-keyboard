@@ -1,1 +1,1 @@
-Apply and validate the Phase 18.3 transactional set replacement API with repository handler linkage.
+Apply and validate the Phase 18.3 transactional set replacement API with updated enabled-boundary assertions.
