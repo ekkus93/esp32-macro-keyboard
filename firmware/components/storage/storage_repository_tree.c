@@ -1,5 +1,3 @@
-#define _POSIX_C_SOURCE 200809L
-
 #include "storage_repository_tree_internal.h"
 
 #include <dirent.h>
@@ -121,6 +119,30 @@ static size_t entry_index(const tree_entry_t *entries, size_t count, const char 
     return SIZE_MAX;
 }
 
+static app_error_code_t validate_topology_entry(const struct dirent *entry,
+                                                const tree_entry_t *entries, size_t entry_count,
+                                                bool allow_extra, const char *root, bool *seen) {
+    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+        return APP_ERROR_NONE;
+    }
+    const size_t index = entry_index(entries, entry_count, entry->d_name);
+    if (index == SIZE_MAX) {
+        return allow_extra ? APP_ERROR_NONE : APP_ERROR_STORAGE_CORRUPT;
+    }
+    if (seen[index]) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    char path[APP_PATH_MAX_BYTES];
+    app_error_code_t result = join_path(path, sizeof(path), root, entry->d_name);
+    if (result == APP_ERROR_NONE) {
+        result = verify_type(path, entries[index].directory);
+    }
+    if (result == APP_ERROR_NONE) {
+        seen[index] = true;
+    }
+    return result;
+}
+
 static app_error_code_t validate_topology(const char *root, const tree_entry_t *entries,
                                           size_t entry_count, bool allow_extra) {
     if (verify_type(root, true) != APP_ERROR_NONE || entry_count > 8U) {
@@ -141,28 +163,7 @@ static app_error_code_t validate_topology(const char *root, const tree_entry_t *
             }
             break;
         }
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-        const size_t index = entry_index(entries, entry_count, entry->d_name);
-        if (index == SIZE_MAX) {
-            if (!allow_extra) {
-                result = APP_ERROR_STORAGE_CORRUPT;
-            }
-            continue;
-        }
-        if (seen[index]) {
-            result = APP_ERROR_STORAGE_CORRUPT;
-            break;
-        }
-        char path[APP_PATH_MAX_BYTES];
-        result = join_path(path, sizeof(path), root, entry->d_name);
-        if (result == APP_ERROR_NONE) {
-            result = verify_type(path, entries[index].directory);
-        }
-        if (result == APP_ERROR_NONE) {
-            seen[index] = true;
-        }
+        result = validate_topology_entry(entry, entries, entry_count, allow_extra, root, seen);
     }
     if (closedir(directory) != 0 && result == APP_ERROR_NONE) {
         result = map_error_number(errno);
@@ -300,18 +301,18 @@ static app_error_code_t filename_uuid(const char *name, bool suffix, app_uuid_t 
                                                            : APP_ERROR_STORAGE_CORRUPT;
 }
 
-static bool order_contains(const storage_uuid_order_t *order, const app_uuid_t *id) {
+static bool order_contains(const storage_uuid_order_t *order, const app_uuid_t *uuid) {
     for (size_t index = 0U; index < order->count; ++index) {
-        if (app_uuid_equal(&order->ids[index], id)) {
+        if (app_uuid_equal(&order->ids[index], uuid)) {
             return true;
         }
     }
     return false;
 }
 
-static bool index_contains(const storage_set_index_t *index, const app_uuid_t *id) {
+static bool index_contains(const storage_set_index_t *index, const app_uuid_t *uuid) {
     for (size_t item = 0U; item < index->count; ++item) {
-        if (app_uuid_equal(&index->ids[item], id)) {
+        if (app_uuid_equal(&index->ids[item], uuid)) {
             return true;
         }
     }
@@ -351,8 +352,8 @@ validate_directory_membership(const char *path, const storage_uuid_order_t *orde
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
-        app_uuid_t id = {0};
-        result = filename_uuid(entry->d_name, suffix, &id);
+        app_uuid_t uuid = {0};
+        result = filename_uuid(entry->d_name, suffix, &uuid);
         char child[APP_PATH_MAX_BYTES];
         if (result == APP_ERROR_NONE) {
             result = join_path(child, sizeof(child), path, entry->d_name);
@@ -360,7 +361,7 @@ validate_directory_membership(const char *path, const storage_uuid_order_t *orde
         if (result == APP_ERROR_NONE) {
             result = verify_type(child, false);
         }
-        if (result == APP_ERROR_NONE && !order_contains(order, &id)) {
+        if (result == APP_ERROR_NONE && !order_contains(order, &uuid)) {
             result = APP_ERROR_STORAGE_CORRUPT;
         }
         if (result == APP_ERROR_NONE) {
@@ -393,8 +394,8 @@ static app_error_code_t validate_set_directory_membership(const char *path,
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
-        app_uuid_t id = {0};
-        result = filename_uuid(entry->d_name, false, &id);
+        app_uuid_t uuid = {0};
+        result = filename_uuid(entry->d_name, false, &uuid);
         char child[APP_PATH_MAX_BYTES];
         if (result == APP_ERROR_NONE) {
             result = join_path(child, sizeof(child), path, entry->d_name);
@@ -402,7 +403,7 @@ static app_error_code_t validate_set_directory_membership(const char *path,
         if (result == APP_ERROR_NONE) {
             result = verify_type(child, true);
         }
-        if (result == APP_ERROR_NONE && !index_contains(index, &id)) {
+        if (result == APP_ERROR_NONE && !index_contains(index, &uuid)) {
             result = APP_ERROR_STORAGE_CORRUPT;
         }
         if (result == APP_ERROR_NONE) {
@@ -597,8 +598,8 @@ static app_error_code_t validate_progress_membership(const char *directory,
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
-        app_uuid_t id = {0};
-        result = filename_uuid(entry->d_name, true, &id);
+        app_uuid_t uuid = {0};
+        result = filename_uuid(entry->d_name, true, &uuid);
         char child[APP_PATH_MAX_BYTES];
         if (result == APP_ERROR_NONE) {
             result = join_path(child, sizeof(child), directory, entry->d_name);
@@ -606,7 +607,7 @@ static app_error_code_t validate_progress_membership(const char *directory,
         if (result == APP_ERROR_NONE) {
             result = verify_type(child, false);
         }
-        if (result == APP_ERROR_NONE && !order_contains(procedures, &id)) {
+        if (result == APP_ERROR_NONE && !order_contains(procedures, &uuid)) {
             result = APP_ERROR_STORAGE_CORRUPT;
         }
     }

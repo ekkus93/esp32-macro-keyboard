@@ -183,6 +183,26 @@ static size_t root_entry_index(const char *name) {
     return SIZE_MAX;
 }
 
+static app_error_code_t validate_root_topology_entry(const struct dirent *entry, const char *path,
+                                                     bool *seen) {
+    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+        return APP_ERROR_NONE;
+    }
+    const size_t index = root_entry_index(entry->d_name);
+    if (index == SIZE_MAX || seen[index]) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    char child[APP_PATH_MAX_BYTES];
+    app_error_code_t result = join_path(path, entry->d_name, child, sizeof(child));
+    if (result == APP_ERROR_NONE) {
+        result = verify_path_type(child, ROOT_ENTRIES[index].directory);
+    }
+    if (result == APP_ERROR_NONE) {
+        seen[index] = true;
+    }
+    return result;
+}
+
 static app_error_code_t validate_root_topology(const char *path) {
     bool seen[ROOT_ENTRY_COUNT] = {false};
     DIR *directory = opendir(path);
@@ -199,22 +219,7 @@ static app_error_code_t validate_root_topology(const char *path) {
             }
             break;
         }
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-        const size_t index = root_entry_index(entry->d_name);
-        if (index == SIZE_MAX || seen[index]) {
-            result = APP_ERROR_STORAGE_CORRUPT;
-            break;
-        }
-        char child[APP_PATH_MAX_BYTES];
-        result = join_path(path, entry->d_name, child, sizeof(child));
-        if (result == APP_ERROR_NONE) {
-            result = verify_path_type(child, ROOT_ENTRIES[index].directory);
-        }
-        if (result == APP_ERROR_NONE) {
-            seen[index] = true;
-        }
+        result = validate_root_topology_entry(entry, path, seen);
     }
     if (closedir(directory) != 0 && result == APP_ERROR_NONE) {
         result = map_error_number(errno);
@@ -247,9 +252,9 @@ static app_error_code_t filename_uuid(const char *name, app_uuid_t *out_id) {
                                                            : APP_ERROR_STORAGE_CORRUPT;
 }
 
-static bool uuid_list_contains(const app_uuid_t *ids, size_t count, const app_uuid_t *id) {
+static bool uuid_list_contains(const app_uuid_t *ids, size_t count, const app_uuid_t *uuid) {
     for (size_t index = 0U; index < count; ++index) {
-        if (app_uuid_equal(&ids[index], id)) {
+        if (app_uuid_equal(&ids[index], uuid)) {
             return true;
         }
     }
@@ -257,11 +262,11 @@ static bool uuid_list_contains(const app_uuid_t *ids, size_t count, const app_uu
 }
 
 static app_error_code_t add_uuid(app_uuid_t *ids, size_t *count, size_t maximum,
-                                 const app_uuid_t *id) {
-    if (*count >= maximum || uuid_list_contains(ids, *count, id)) {
+                                 const app_uuid_t *uuid) {
+    if (*count >= maximum || uuid_list_contains(ids, *count, uuid)) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
-    ids[*count] = *id;
+    ids[*count] = *uuid;
     ++*count;
     return APP_ERROR_NONE;
 }
@@ -347,8 +352,8 @@ static app_error_code_t validate_macro_directory(const char *set_path, const app
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
-        app_uuid_t id = {0};
-        result = filename_uuid(entry->d_name, &id);
+        app_uuid_t uuid = {0};
+        result = filename_uuid(entry->d_name, &uuid);
         char file_path[APP_PATH_MAX_BYTES];
         if (result == APP_ERROR_NONE) {
             result = join_path(directory_path, entry->d_name, file_path, sizeof(file_path));
@@ -357,7 +362,7 @@ static app_error_code_t validate_macro_directory(const char *set_path, const app
             result = verify_path_type(file_path, false);
         }
         if (result == APP_ERROR_NONE) {
-            result = validate_local_macro_file(file_path, &id, set_id, state);
+            result = validate_local_macro_file(file_path, &uuid, set_id, state);
         }
     }
     if (directory != NULL && closedir(directory) != 0 && result == APP_ERROR_NONE) {
@@ -495,8 +500,8 @@ static app_error_code_t validate_procedure_directory(const char *set_path, const
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
-        app_uuid_t id = {0};
-        result = filename_uuid(entry->d_name, &id);
+        app_uuid_t uuid = {0};
+        result = filename_uuid(entry->d_name, &uuid);
         char file_path[APP_PATH_MAX_BYTES];
         if (result == APP_ERROR_NONE) {
             result = join_path(directory_path, entry->d_name, file_path, sizeof(file_path));
@@ -505,7 +510,7 @@ static app_error_code_t validate_procedure_directory(const char *set_path, const
             result = verify_path_type(file_path, false);
         }
         if (result == APP_ERROR_NONE) {
-            result = validate_procedure_file(file_path, &id, set_id, state);
+            result = validate_procedure_file(file_path, &uuid, set_id, state);
         }
     }
     if (directory != NULL && closedir(directory) != 0 && result == APP_ERROR_NONE) {
@@ -578,9 +583,9 @@ static app_error_code_t load_procedure(const char *set_path, const app_uuid_t *p
     return result;
 }
 
-static app_error_code_t validate_progress_file(const char *set_path, const char *path,
-                                               const app_uuid_t *filename_id,
-                                               const app_uuid_t *set_id, set_tree_state_t *state) {
+static app_error_code_t validate_progress_file(const char *set_path, const app_uuid_t *filename_id,
+                                               const char *path, const app_uuid_t *set_id,
+                                               set_tree_state_t *state) {
     char *data = NULL;
     size_t length = 0U;
     app_error_code_t result =
@@ -635,8 +640,8 @@ static app_error_code_t validate_progress_directory(const char *set_path, const 
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
-        app_uuid_t id = {0};
-        result = filename_uuid(entry->d_name, &id);
+        app_uuid_t uuid = {0};
+        result = filename_uuid(entry->d_name, &uuid);
         char file_path[APP_PATH_MAX_BYTES];
         if (result == APP_ERROR_NONE) {
             result = join_path(directory_path, entry->d_name, file_path, sizeof(file_path));
@@ -645,7 +650,7 @@ static app_error_code_t validate_progress_directory(const char *set_path, const 
             result = verify_path_type(file_path, false);
         }
         if (result == APP_ERROR_NONE) {
-            result = validate_progress_file(set_path, file_path, &id, set_id, state);
+            result = validate_progress_file(set_path, &uuid, file_path, set_id, state);
         }
     }
     if (directory != NULL && closedir(directory) != 0 && result == APP_ERROR_NONE) {
@@ -657,8 +662,8 @@ static app_error_code_t validate_progress_directory(const char *set_path, const 
     return result;
 }
 
-static app_error_code_t validate_order(const char *set_path, const char *name,
-                                       const app_uuid_t *ids, size_t count, size_t maximum) {
+static app_error_code_t validate_order(const char *set_path, const char *name, size_t count,
+                                       const app_uuid_t *ids, size_t maximum) {
     char path[APP_PATH_MAX_BYTES];
     app_error_code_t result = join_path(set_path, name, path, sizeof(path));
     char *data = NULL;
@@ -704,7 +709,7 @@ app_error_code_t storage_set_tree_validate(const char *path, const app_uuid_t *s
         result = validate_macro_directory(path, set_id, state);
     }
     if (result == APP_ERROR_NONE) {
-        result = validate_order(path, "macro-order.json", state->macros.ids, state->macros.count,
+        result = validate_order(path, "macro-order.json", state->macros.count, state->macros.ids,
                                 APP_MACROS_PER_SET_MAX);
     }
     if (result == APP_ERROR_NONE) {
@@ -715,7 +720,7 @@ app_error_code_t storage_set_tree_validate(const char *path, const app_uuid_t *s
         for (size_t index = 0U; index < state->procedure_count; ++index) {
             procedure_ids[index] = state->procedures[index].id;
         }
-        result = validate_order(path, "procedure-order.json", procedure_ids, state->procedure_count,
+        result = validate_order(path, "procedure-order.json", state->procedure_count, procedure_ids,
                                 APP_PROCEDURES_PER_SET_MAX);
     }
     if (result == APP_ERROR_NONE) {

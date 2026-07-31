@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -11,6 +12,7 @@
 #include "app_uuid.h"
 #include "macro_limits.h"
 #include "storage.h"
+#include "storage_atomic_internal.h"
 #include "storage_fs_ops.h"
 
 static app_error_code_t map_error_number(int error_number) {

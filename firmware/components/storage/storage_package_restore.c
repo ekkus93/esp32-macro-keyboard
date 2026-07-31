@@ -14,7 +14,6 @@
 #include "macro_limits.h"
 #include "macro_model.h"
 #include "storage.h"
-#include "storage_atomic_internal.h"
 #include "storage_fs_ops.h"
 #include "storage_object_json.h"
 #include "storage_repository_internal.h"
@@ -23,6 +22,7 @@
 #include "storage_transaction_internal.h"
 
 #define PACKAGE_RESTORE_ARRAY_COUNT 5U
+#define PACKAGE_JSON_SUFFIX ".json"
 
 typedef enum {
     PACKAGE_RESTORE_SETS = 0,
@@ -252,7 +252,7 @@ static app_error_code_t write_macro_object(const char *directory, const macro_t 
     char *json = NULL;
     size_t length = 0U;
     app_error_code_t result = storage_repository_serialize_macro_json(macro, &json, &length);
-    char name[APP_UUID_STRING_LENGTH + 6U];
+    char name[APP_UUID_STRING_LENGTH + sizeof(PACKAGE_JSON_SUFFIX)];
     char path[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
         const int written = snprintf(name, sizeof(name), "%s.json", macro->id.value);
@@ -273,7 +273,7 @@ static app_error_code_t write_procedure_object(const char *directory,
     size_t length = 0U;
     app_error_code_t result =
         storage_repository_serialize_procedure_json(procedure, &json, &length);
-    char name[APP_UUID_STRING_LENGTH + 6U];
+    char name[APP_UUID_STRING_LENGTH + sizeof(PACKAGE_JSON_SUFFIX)];
     char path[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
         const int written = snprintf(name, sizeof(name), "%s.json", procedure->id.value);
@@ -293,7 +293,7 @@ static app_error_code_t write_progress_object(const char *directory,
     char *json = NULL;
     size_t length = 0U;
     app_error_code_t result = storage_repository_serialize_progress_json(progress, &json, &length);
-    char name[APP_UUID_STRING_LENGTH + 6U];
+    char name[APP_UUID_STRING_LENGTH + sizeof(PACKAGE_JSON_SUFFIX)];
     char path[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
         const int written = snprintf(name, sizeof(name), "%s.json", progress->procedure_id.value);

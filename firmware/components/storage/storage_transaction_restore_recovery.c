@@ -9,6 +9,7 @@
 #include "app_error.h"
 #include "app_uuid.h"
 #include "macro_limits.h"
+#include "storage_atomic_internal.h"
 #include "storage_fs_ops.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
@@ -77,6 +78,46 @@ static app_error_code_t manifest_path_from_name(const char *name, char *out_path
     return written >= 0 && (size_t)written < path_size ? APP_ERROR_NONE : APP_ERROR_STORAGE_CORRUPT;
 }
 
+typedef struct {
+    size_t manifest_count;
+    bool restore_found;
+    storage_transaction_manifest_t restore_manifest;
+} restore_recovery_scan_t;
+
+static app_error_code_t recover_restores_scan_entry(const storage_fs_ops_t *operations,
+                                                    const char *name,
+                                                    restore_recovery_scan_t *scan) {
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0 || name[0] == '.') {
+        return APP_ERROR_NONE;
+    }
+    if (scan->manifest_count >= STORAGE_RESTORE_MAX_MANIFESTS) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    app_uuid_t manifest_id = {0};
+    char path[APP_PATH_MAX_BYTES];
+    app_error_code_t result = manifest_id_from_name(name, &manifest_id);
+    if (result == APP_ERROR_NONE) {
+        result = manifest_path_from_name(name, path, sizeof(path));
+    }
+    storage_transaction_manifest_t manifest = {0};
+    if (result == APP_ERROR_NONE) {
+        result =
+            storage_transaction_read_manifest_with_ops(path, &manifest_id, &manifest, operations);
+    }
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    ++scan->manifest_count;
+    if (manifest.type == STORAGE_TRANSACTION_RESTORE) {
+        if (scan->restore_found) {
+            return APP_ERROR_STORAGE_CORRUPT;
+        }
+        scan->restore_manifest = manifest;
+        scan->restore_found = true;
+    }
+    return APP_ERROR_NONE;
+}
+
 app_error_code_t storage_transaction_recover_restores_with_ops(
     const storage_fs_ops_t *operations, storage_uuid_generate_fn generate_uuid, void *uuid_context,
     storage_transaction_validate_repository_fn validate_repository, void *validation_context,
@@ -93,9 +134,7 @@ app_error_code_t storage_transaction_recover_restores_with_ops(
         return open_error == ENOENT ? APP_ERROR_STORAGE_UNAVAILABLE : map_error_number(open_error);
     }
 
-    size_t manifest_count = 0U;
-    bool restore_found = false;
-    storage_transaction_manifest_t restore_manifest = {0};
+    restore_recovery_scan_t scan = {0};
     app_error_code_t result = APP_ERROR_NONE;
     while (result == APP_ERROR_NONE) {
         char name[STORAGE_FS_ENTRY_NAME_MAX];
@@ -108,51 +147,21 @@ app_error_code_t storage_transaction_recover_restores_with_ops(
         if (end) {
             break;
         }
-        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0 || name[0] == '.') {
-            continue;
-        }
-        if (manifest_count >= STORAGE_RESTORE_MAX_MANIFESTS) {
-            result = APP_ERROR_STORAGE_CORRUPT;
-            break;
-        }
-
-        app_uuid_t manifest_id = {0};
-        char path[APP_PATH_MAX_BYTES];
-        result = manifest_id_from_name(name, &manifest_id);
-        if (result == APP_ERROR_NONE) {
-            result = manifest_path_from_name(name, path, sizeof(path));
-        }
-        storage_transaction_manifest_t manifest = {0};
-        if (result == APP_ERROR_NONE) {
-            result = storage_transaction_read_manifest_with_ops(path, &manifest_id, &manifest,
-                                                                operations);
-        }
-        if (result != APP_ERROR_NONE) {
-            break;
-        }
-        ++manifest_count;
-        if (manifest.type == STORAGE_TRANSACTION_RESTORE) {
-            if (restore_found) {
-                result = APP_ERROR_STORAGE_CORRUPT;
-                break;
-            }
-            restore_manifest = manifest;
-            restore_found = true;
-        }
+        result = recover_restores_scan_entry(operations, name, &scan);
     }
 
     if (operations->close_directory(operations->context, directory) != 0 &&
         result == APP_ERROR_NONE) {
         result = map_error_number(errno);
     }
-    if (result != APP_ERROR_NONE || !restore_found) {
+    if (result != APP_ERROR_NONE || !scan.restore_found) {
         return result;
     }
-    if (manifest_count != 1U) {
+    if (scan.manifest_count != 1U) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
     return storage_transaction_recover_restore_with_ops(
-        &restore_manifest, operations, generate_uuid, uuid_context, validate_repository,
+        &scan.restore_manifest, operations, generate_uuid, uuid_context, validate_repository,
         validation_context, remove_tree, remove_context);
 }
 

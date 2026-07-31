@@ -443,8 +443,7 @@ target_include_directories(
     storage_set_tree_tests
     PRIVATE ../../firmware/components/macro_model/include
             ../../firmware/components/macro_parser/include
-            ../../firmware/components/storage/include
-            ../../firmware/components/storage
+            ../../firmware/components/storage/include ../../firmware/components/storage
 )
 target_compile_definitions(
     storage_set_tree_tests
@@ -550,12 +549,10 @@ target_include_directories(
     storage_package_replace_tests
     PRIVATE ../../firmware/components/macro_model/include
             ../../firmware/components/macro_parser/include
-            ../../firmware/components/storage/include
-            ../../firmware/components/storage
+            ../../firmware/components/storage/include ../../firmware/components/storage
 )
 target_compile_definitions(
-    storage_package_replace_tests
-    PRIVATE STORAGE_DATA_MOUNT="/tmp/esp32-macro-keyboard-p18r"
+    storage_package_replace_tests PRIVATE STORAGE_DATA_MOUNT="/tmp/esp32-macro-keyboard-p18r"
 )
 target_compile_options(storage_package_replace_tests PRIVATE ${STRICT_WARNINGS})
 target_link_libraries(storage_package_replace_tests PRIVATE PkgConfig::CJSON test_support)

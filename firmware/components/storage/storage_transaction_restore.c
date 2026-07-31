@@ -11,7 +11,10 @@
 #include "app_uuid.h"
 #include "macro_limits.h"
 #include "storage.h"
+#include "storage_atomic_internal.h"
 #include "storage_fs_ops.h"
+
+#define STORAGE_RESTORE_STAGING_DIR_MODE 0700
 
 static const char *const RESTORE_ITEMS[] = {"set-index.json", "sets", "global"};
 
@@ -79,7 +82,8 @@ static app_error_code_t ensure_directory(const char *path, const storage_fs_ops_
     if (stat_error != ENOENT) {
         return map_error_number(stat_error);
     }
-    if (operations->make_directory(operations->context, path, 0700) != 0) {
+    if (operations->make_directory(operations->context, path, STORAGE_RESTORE_STAGING_DIR_MODE) !=
+        0) {
         return map_error_number(errno);
     }
     return storage_fs_sync_parent_path(operations->context, path) == 0 ? APP_ERROR_NONE

@@ -276,6 +276,49 @@ static void free_set_import_request(web_set_import_request_t *request) {
     memset(request, 0, sizeof(*request));
 }
 
+typedef struct {
+    bool target;
+    bool revision;
+    bool package;
+} set_import_seen_t;
+
+static app_error_code_t parse_set_import_item(const cJSON *item,
+                                              web_set_import_request_t *out_request,
+                                              set_import_seen_t *seen) {
+    if (item->string != NULL && strcmp(item->string, "targetSetId") == 0 && !seen->target &&
+        cJSON_IsString(item) && item->valuestring != NULL &&
+        app_uuid_parse(item->valuestring, &out_request->target_set_id) == APP_ERROR_NONE) {
+        seen->target = true;
+        return APP_ERROR_NONE;
+    }
+    if (item->string != NULL && strcmp(item->string, "expectedRevision") == 0 && !seen->revision &&
+        cJSON_IsNumber(item) && item->valuedouble >= 1.0 &&
+        item->valuedouble <= (double)UINT32_MAX) {
+        const uint32_t revision = (uint32_t)item->valuedouble;
+        if ((double)revision != item->valuedouble) {
+            return APP_ERROR_INVALID_ARGUMENT;
+        }
+        out_request->expected_revision = revision;
+        seen->revision = true;
+        return APP_ERROR_NONE;
+    }
+    if (item->string != NULL && strcmp(item->string, "package") == 0 && !seen->package &&
+        cJSON_IsObject(item)) {
+        out_request->package_json = cJSON_PrintUnformatted(item);
+        if (out_request->package_json == NULL) {
+            return APP_ERROR_INTERNAL;
+        }
+        out_request->package_length = strlen(out_request->package_json);
+        if (out_request->package_length == 0U ||
+            out_request->package_length > APP_IMPORT_PACKAGE_MAX_BYTES) {
+            return APP_ERROR_INVALID_ARGUMENT;
+        }
+        seen->package = true;
+        return APP_ERROR_NONE;
+    }
+    return APP_ERROR_INVALID_ARGUMENT;
+}
+
 static app_error_code_t parse_set_import(const web_api_call_t *call,
                                          web_set_import_request_t *out_request) {
     if (call == NULL || out_request == NULL || call->body == NULL || call->body_length == 0U) {
@@ -284,50 +327,20 @@ static app_error_code_t parse_set_import(const web_api_call_t *call,
     memset(out_request, 0, sizeof(*out_request));
     const char *parse_end = NULL;
     cJSON *root = cJSON_ParseWithLengthOpts(call->body, call->body_length, &parse_end, false);
-    bool target_seen = false;
-    bool revision_seen = false;
-    bool package_seen = false;
+    set_import_seen_t seen = {0};
     app_error_code_t result =
         root != NULL && parse_end == call->body + call->body_length && cJSON_IsObject(root)
             ? APP_ERROR_NONE
             : APP_ERROR_INVALID_ARGUMENT;
     for (const cJSON *item = result == APP_ERROR_NONE ? root->child : NULL; item != NULL;
          item = item->next) {
-        if (item->string != NULL && strcmp(item->string, "targetSetId") == 0 && !target_seen &&
-            cJSON_IsString(item) && item->valuestring != NULL &&
-            app_uuid_parse(item->valuestring, &out_request->target_set_id) == APP_ERROR_NONE) {
-            target_seen = true;
-        } else if (item->string != NULL && strcmp(item->string, "expectedRevision") == 0 &&
-                   !revision_seen && cJSON_IsNumber(item) && item->valuedouble >= 1.0 &&
-                   item->valuedouble <= (double)UINT32_MAX) {
-            const uint32_t revision = (uint32_t)item->valuedouble;
-            if ((double)revision != item->valuedouble) {
-                result = APP_ERROR_INVALID_ARGUMENT;
-                break;
-            }
-            out_request->expected_revision = revision;
-            revision_seen = true;
-        } else if (item->string != NULL && strcmp(item->string, "package") == 0 && !package_seen &&
-                   cJSON_IsObject(item)) {
-            out_request->package_json = cJSON_PrintUnformatted(item);
-            if (out_request->package_json == NULL) {
-                result = APP_ERROR_INTERNAL;
-                break;
-            }
-            out_request->package_length = strlen(out_request->package_json);
-            if (out_request->package_length == 0U ||
-                out_request->package_length > APP_IMPORT_PACKAGE_MAX_BYTES) {
-                result = APP_ERROR_INVALID_ARGUMENT;
-                break;
-            }
-            package_seen = true;
-        } else {
-            result = APP_ERROR_INVALID_ARGUMENT;
+        result = parse_set_import_item(item, out_request, &seen);
+        if (result != APP_ERROR_NONE) {
             break;
         }
     }
     cJSON_Delete(root);
-    if (result == APP_ERROR_NONE && (!target_seen || !revision_seen || !package_seen)) {
+    if (result == APP_ERROR_NONE && (!seen.target || !seen.revision || !seen.package)) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
     if (result != APP_ERROR_NONE) {

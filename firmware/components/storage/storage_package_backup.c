@@ -346,9 +346,9 @@ static app_error_code_t snapshot_load(bool include_progress, backup_snapshot_t *
     return result;
 }
 
-static size_t macro_index(const storage_macro_list_t *list, const app_uuid_t *id) {
+static size_t macro_index(const storage_macro_list_t *list, const app_uuid_t *uuid) {
     for (size_t index = 0U; index < list->count; ++index) {
-        if (app_uuid_equal(&list->items[index].id, id)) {
+        if (app_uuid_equal(&list->items[index].id, uuid)) {
             return index;
         }
     }
