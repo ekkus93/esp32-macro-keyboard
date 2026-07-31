@@ -50,7 +50,9 @@ target_compile_definitions(
 target_link_libraries(storage_restore_transaction_tests PRIVATE test_support)
 target_compile_options(
     storage_restore_transaction_tests
-    PRIVATE ${STRICT_WARNINGS} -include storage_repository.h
+    PRIVATE ${STRICT_WARNINGS}
+            -include
+            "${CMAKE_SOURCE_DIR}/cmake/storage_restore_test_stubs.h"
 )
 add_test(NAME storage_restore_transaction COMMAND storage_restore_transaction_tests)
 set_tests_properties(storage_restore_transaction PROPERTIES LABELS "storage")
