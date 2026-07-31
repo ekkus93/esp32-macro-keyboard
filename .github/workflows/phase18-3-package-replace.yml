@@ -91,9 +91,24 @@ jobs:
             echo
             echo 'The production package replacement validation failed.'
             echo
+            echo '## Validation log'
+            echo
             echo '```text'
             cat "${RUNNER_TEMP}/phase18-3-package-replace.log" 2>/dev/null \
               || echo 'No captured log was available.'
+            echo '```'
+            echo
+            echo '## Test fixture around the failure'
+            echo
+            echo '```c'
+            nl -ba tests/host/test_storage_package_replace.c | sed -n '1,290p'
+            echo '```'
+            echo
+            echo '## Replacement service entry and validators'
+            echo
+            echo '```c'
+            nl -ba firmware/components/storage/storage_package_replace.c | sed -n '1,220p'
+            nl -ba firmware/components/storage/storage_package_replace.c | sed -n '520,680p'
             echo '```'
           } > docs/PHASE18_3_PACKAGE_REPLACE_FAILURE.md
           git config user.name "github-actions[bot]"
