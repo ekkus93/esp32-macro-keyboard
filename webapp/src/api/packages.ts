@@ -1,5 +1,6 @@
-import { apiRawJsonRequest } from "./client";
-import { isRecord } from "./guards";
+import { apiRawJsonRequest, apiRequest } from "./client";
+import { isMacroSet, isRecord } from "./guards";
+import type { MacroSet } from "../types/models";
 
 export interface SetPackageDocument {
   schema_version: 1;
@@ -59,4 +60,24 @@ export async function exportSetPackage(
     text: response.text,
     byteLength: response.byteLength,
   };
+}
+
+export async function replaceSetPackage(
+  targetSetId: string,
+  expectedRevision: number,
+  packageDocument: SetPackageDocument,
+): Promise<MacroSet> {
+  return apiRequest(
+    "/api/v1/sets/import",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        targetSetId,
+        expectedRevision,
+        package: packageDocument,
+      }),
+    },
+    isMacroSet,
+    { timeoutMs: 30_000 },
+  );
 }

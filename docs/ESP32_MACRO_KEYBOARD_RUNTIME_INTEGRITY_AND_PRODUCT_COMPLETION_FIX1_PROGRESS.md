@@ -703,3 +703,22 @@ Validation:
 - ESP-IDF v5.5.5 production and device-test builds with fail-closed clang-tidy;
 - macro, procedure, progress, active-set deletion, provisioning-settings, atomic-validator, and
   transaction-recovery host suites all execute as registered CTest targets.
+
+
+## Phase 18.3 completion evidence
+
+Phase 18.3 transactional macro-set replacement is complete.
+
+- Package replacement validates the bounded package and exact set identity before mutation.
+- Referenced global macros are verified as immutable dependencies.
+- A durable `PREPARED` manifest is written before staging begins.
+- The complete set tree is materialized, read back, and validated before activation.
+- Recovery rolls forward `STAGED` through `INDEXED` transactions and rolls back incomplete
+  `PREPARED` staging.
+- `POST /api/v1/sets/import` exposes optimistic-concurrency replacement behind CSRF and
+  physical confirmation.
+- The frontend validates the package, requires an exact typed confirmation, and refreshes the
+  committed set after success.
+- Host coverage includes invalid packages, revision conflicts, dependency mismatches, complete
+  activation, recovery phases, API envelopes, physical-confirmation policy, and frontend request
+  construction.

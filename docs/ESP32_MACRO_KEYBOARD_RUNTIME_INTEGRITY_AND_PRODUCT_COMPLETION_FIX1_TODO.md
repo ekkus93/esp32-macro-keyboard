@@ -2038,14 +2038,14 @@ HTTP response.
 
 Add a transaction type and recovery code that handles every phase.
 
-- [ ] stage complete replacement;
-- [ ] validate readback;
-- [ ] back up current set;
-- [ ] activate replacement;
-- [ ] update index;
-- [ ] validate active set;
-- [ ] remove backup and manifest;
-- [ ] recover after every interrupted phase.
+- [x] stage complete replacement;
+- [x] validate readback;
+- [x] back up current set;
+- [x] activate replacement;
+- [x] update index;
+- [x] validate active set;
+- [x] remove backup and manifest;
+- [x] recover after every interrupted phase.
 
 ### 18.4 Implement full backup and restore
 

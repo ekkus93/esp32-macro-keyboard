@@ -59,9 +59,34 @@ session tokens, CSRF tokens, setup secrets, or encryption material.
 Set duplication requires a new UUID, name, and the source expected revision. The
 new set and all copied set-owned objects begin at revision 1. Progress is not
 copied. Set export returns the raw, validated Phase 18 package with its exact byte
-length. Set import remains an explicit `503 Service Unavailable` boundary until
-Phase 18.3 supplies transactional activation; the Phase 18.1 reader and validator
-never mutate repository state.
+length.
+
+Set replacement uses `POST /api/v1/sets/import` with an exact wrapper:
+
+```json
+{
+  "targetSetId": "11111111-1111-4111-8111-111111111111",
+  "expectedRevision": 3,
+  "package": {
+    "schema_version": 1,
+    "package_type": "set",
+    "sets": [],
+    "macros": [],
+    "global_macros": [],
+    "procedures": [],
+    "progress": []
+  }
+}
+```
+
+The package must contain exactly one set whose ID matches `targetSetId`. The
+current set revision must match `expectedRevision`, and the replacement revision
+comes from the validated package. Referenced global macros are dependencies: they
+must already exist with identical canonical content and are never modified by set
+replacement. The server writes a durable transaction manifest, stages and validates
+the complete replacement tree, atomically activates it, updates the set index, and
+recovers or rolls forward interrupted activation on startup. Physical confirmation
+is required before the request reaches the mutation handler.
 
 ### Macros
 

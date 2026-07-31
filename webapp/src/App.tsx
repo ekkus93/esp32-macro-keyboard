@@ -145,6 +145,16 @@ function AuthenticatedApp({
     setLoadVersion((version) => version + 1);
   }, []);
 
+  const onSetReplaced = useCallback((replacement: MacroSet): void => {
+    setSets((current) =>
+      current === null
+        ? current
+        : current.map((item) =>
+            item.id === replacement.id ? replacement : item,
+          ),
+    );
+  }, []);
+
   const signOut = async (): Promise<void> => {
     setSigningOut(true);
     setRuntimeError(null);
@@ -300,6 +310,7 @@ function AuthenticatedApp({
           <PackageOperationsPage
             activeSet={activeSet}
             initialSection="import"
+            onSetReplaced={onSetReplaced}
           />
         );
       case "export":

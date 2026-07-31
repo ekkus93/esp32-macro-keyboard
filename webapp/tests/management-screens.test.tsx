@@ -67,21 +67,96 @@ describe("management screens", () => {
     await view.unmount();
   });
 
-  test("keeps deferred mutating package operations visibly disabled", async () => {
+  test("enables only transactional replacement on the import screen", async () => {
     const view = await render(
       <PackageOperationsPage activeSet={macroSet} initialSection="import" />,
     );
 
     expect(document.body.textContent).toContain(
-      "Deterministic set export is available",
+      "transactional replacement are available",
     );
     expect(buttonWithText("Import as new set").disabled).toBe(true);
     expect(buttonWithText("Replace selected set").disabled).toBe(true);
     expect(buttonWithText("Restore full backup").disabled).toBe(true);
-    expect(document.body.textContent).toContain(
-      "transactional import-as-new is not implemented",
-    );
+    expect(
+      requiredElement("#replacement-package", HTMLInputElement).disabled,
+    ).toBe(false);
     expect(getFetchCalls()).toHaveLength(0);
+    await view.unmount();
+  });
+
+  test("validates and confirms a transactional set replacement", async () => {
+    setCsrfToken("csrf-replace");
+    const replacement = {
+      ...macroSet,
+      revision: macroSet.revision + 1,
+      name: "Imported Replacement",
+    };
+    const packageDocument = {
+      schema_version: 1,
+      package_type: "set",
+      sets: [replacement],
+      macros: [],
+      global_macros: [],
+      procedures: [],
+      progress: [],
+    } as const;
+    const packageText = JSON.stringify(packageDocument);
+    const file = new File([packageText], "replacement.json", {
+      type: "application/json",
+    });
+    Object.defineProperty(file, "text", {
+      configurable: true,
+      value: () => Promise.resolve(packageText),
+    });
+    const onSetReplaced = vi.fn();
+    const view = await render(
+      <PackageOperationsPage
+        activeSet={macroSet}
+        initialSection="import"
+        onSetReplaced={onSetReplaced}
+      />,
+    );
+    const input = requiredElement("#replacement-package", HTMLInputElement);
+    Object.defineProperty(input, "files", {
+      configurable: true,
+      value: [file],
+    });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+    });
+    await flushReact();
+    expect(buttonWithText("Replace selected set").disabled).toBe(false);
+
+    await click(buttonWithText("Replace selected set"));
+    await setInputValue(
+      requiredElement("#replacement-confirmation", HTMLInputElement),
+      `REPLACE ${macroSet.name}`,
+    );
+    planJsonResponse(success(replacement));
+    await click(buttonWithText("Confirm replacement"));
+    await flushReact();
+
+    expect(getFetchCalls()).toHaveLength(1);
+    const call = getFetchCalls()[0];
+    expect(call?.url).toBe("/api/v1/sets/import");
+    expect(call?.method).toBe("POST");
+    expect(call?.headers.get("X-CSRF-Token")).toBe("csrf-replace");
+    const requestBody = call?.body;
+    expect(typeof requestBody).toBe("string");
+    if (typeof requestBody !== "string") {
+      throw new Error("Replacement request body was not serialized JSON.");
+    }
+    expect(JSON.parse(requestBody)).toEqual({
+      targetSetId: macroSet.id,
+      expectedRevision: macroSet.revision,
+      package: packageDocument,
+    });
+    expect(onSetReplaced).toHaveBeenCalledWith(replacement);
+    expect(document.body.textContent).toContain(
+      `Replaced ${macroSet.name} with revision ${String(replacement.revision)}.`,
+    );
     await view.unmount();
   });
 

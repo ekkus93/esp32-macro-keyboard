@@ -2,29 +2,41 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://local.invalid/schemas/macro-set-package.schema.json",
   "title": "ESP32 Macro Keyboard macro-set package",
-  "$comment": "JSON Schema maxLength counts Unicode code points. The executable Phase 18 import validator must additionally enforce every documented UTF-8 byte limit before any persistent mutation.",
+  "$comment": "The executable Phase 18 validator is authoritative and additionally enforces UTF-8 byte limits, UUID ownership, referential integrity, macro compilation, exact global dependencies, and the 512 KiB package limit before persistent mutation.",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "format",
-    "format_version",
-    "set",
+    "schema_version",
+    "package_type",
+    "sets",
     "macros",
+    "global_macros",
     "procedures",
-    "keyboard_layout",
-    "integrity"
+    "progress"
   ],
   "properties": {
-    "format": {
-      "const": "esp32-macro-keyboard-set"
-    },
-    "format_version": {
+    "schema_version": {
       "const": 1
     },
-    "set": {
-      "$ref": "#/$defs/set"
+    "package_type": {
+      "const": "set"
+    },
+    "sets": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "$ref": "#/$defs/set"
+      }
     },
     "macros": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "$ref": "#/$defs/macro"
+      }
+    },
+    "global_macros": {
       "type": "array",
       "maxItems": 100,
       "items": {
@@ -38,18 +50,12 @@
         "$ref": "#/$defs/procedure"
       }
     },
-    "keyboard_layout": {
-      "const": "en-US"
-    },
     "progress": {
       "type": "array",
       "maxItems": 50,
       "items": {
         "$ref": "#/$defs/progress"
       }
-    },
-    "integrity": {
-      "$ref": "#/$defs/integrity"
     }
   },
   "$defs": {
@@ -57,24 +63,6 @@
       "type": "string",
       "$comment": "Canonical UUIDs are exactly 36 ASCII characters and therefore 36 UTF-8 bytes.",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-    },
-    "integrity": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "algorithm",
-        "digest"
-      ],
-      "properties": {
-        "algorithm": {
-          "const": "sha256"
-        },
-        "digest": {
-          "type": "string",
-          "$comment": "The digest is exactly 64 lowercase ASCII characters and therefore 64 UTF-8 bytes.",
-          "pattern": "^[0-9a-f]{64}$"
-        }
-      }
     },
     "set": {
       "type": "object",
@@ -343,7 +331,8 @@
                 "$ref": "#/$defs/manual_step"
               }
             ]
-          }
+          },
+          "minItems": 1
         },
         "sort_order": {
           "type": "integer"
