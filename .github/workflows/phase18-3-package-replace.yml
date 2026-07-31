@@ -53,6 +53,20 @@ jobs:
           set -o pipefail
           python3 tools/phase18_3_package_replace_impl.py 2>&1 \
             | tee "${RUNNER_TEMP}/phase18-3-package-replace.log"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/host/test_storage_package_replace.c")
+          text = path.read_text()
+          old = "storage_procedure_read(&procedure_identity, &procedure)"
+          new = (
+              "storage_procedure_read(&procedure_identity.set_id, "
+              "&procedure_identity.procedure_id, &procedure)"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("package replacement procedure-read test anchor changed")
+          path.write_text(text.replace(old, new, 1))
+          PY
 
       - name: Validate package replacement implementation
         shell: bash
