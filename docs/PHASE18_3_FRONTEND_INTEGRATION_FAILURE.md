@@ -5,87 +5,87 @@
 > esp32-macro-keyboard-webapp@0.1.0 format:write
 > prettier --write .
 
-[90meslint.config.js[39m 50ms (unchanged)
+[90meslint.config.js[39m 53ms (unchanged)
 [90mindex.html[39m 29ms (unchanged)
-[90mpackage.json[39m 3ms (unchanged)
-[90mREADME.md[39m 25ms (unchanged)
-[90msrc/api/client.ts[39m 113ms (unchanged)
-[90msrc/api/errors.ts[39m 3ms (unchanged)
-[90msrc/api/executionGuards.ts[39m 4ms (unchanged)
-[90msrc/api/guards.ts[39m 46ms (unchanged)
-[90msrc/api/managementGuards.ts[39m 9ms (unchanged)
-[90msrc/api/packages.ts[39m 7ms (unchanged)
-[90msrc/api/README.md[39m 2ms (unchanged)
-[90msrc/api/routes.ts[39m 30ms (unchanged)
-[90msrc/App.tsx[39m 40ms (unchanged)
-[90msrc/components/AccessibleDialog.tsx[39m 12ms (unchanged)
-[90msrc/components/AppShell.tsx[39m 10ms (unchanged)
-[90msrc/components/ConnectivityBanner.tsx[39m 4ms (unchanged)
-[90msrc/components/ErrorBanner.tsx[39m 1ms (unchanged)
-[90msrc/components/README.md[39m 1ms (unchanged)
-[90msrc/components/StatusBadge.tsx[39m 1ms (unchanged)
-[90msrc/features/auth/LoginPage.tsx[39m 5ms (unchanged)
-[90msrc/features/auth/README.md[39m 3ms (unchanged)
-[90msrc/features/auth/SessionBoundary.tsx[39m 10ms (unchanged)
-[90msrc/features/auth/SetupPage.tsx[39m 13ms (unchanged)
-[90msrc/features/execution/ConfirmExecutionPage.css[39m 24ms (unchanged)
-[90msrc/features/execution/ConfirmExecutionPage.tsx[39m 47ms (unchanged)
-[90msrc/features/execution/ExecutionPage.tsx[39m 8ms (unchanged)
-[90msrc/features/execution/executionResult.ts[39m 2ms (unchanged)
-[90msrc/features/execution/ExecutionResultPage.tsx[39m 3ms (unchanged)
+[90mpackage.json[39m 4ms (unchanged)
+[90mREADME.md[39m 29ms (unchanged)
+[90msrc/api/client.ts[39m 142ms (unchanged)
+[90msrc/api/errors.ts[39m 4ms (unchanged)
+[90msrc/api/executionGuards.ts[39m 5ms (unchanged)
+[90msrc/api/guards.ts[39m 53ms (unchanged)
+[90msrc/api/managementGuards.ts[39m 26ms (unchanged)
+[90msrc/api/packages.ts[39m 5ms (unchanged)
+[90msrc/api/README.md[39m 1ms (unchanged)
+[90msrc/api/routes.ts[39m 31ms (unchanged)
+[90msrc/App.tsx[39m 47ms (unchanged)
+[90msrc/components/AccessibleDialog.tsx[39m 14ms (unchanged)
+[90msrc/components/AppShell.tsx[39m 15ms (unchanged)
+[90msrc/components/ConnectivityBanner.tsx[39m 8ms (unchanged)
+[90msrc/components/ErrorBanner.tsx[39m 4ms (unchanged)
+[90msrc/components/README.md[39m 3ms (unchanged)
+[90msrc/components/StatusBadge.tsx[39m 6ms (unchanged)
+[90msrc/features/auth/LoginPage.tsx[39m 9ms (unchanged)
+[90msrc/features/auth/README.md[39m 5ms (unchanged)
+[90msrc/features/auth/SessionBoundary.tsx[39m 15ms (unchanged)
+[90msrc/features/auth/SetupPage.tsx[39m 21ms (unchanged)
+[90msrc/features/execution/ConfirmExecutionPage.css[39m 43ms (unchanged)
+[90msrc/features/execution/ConfirmExecutionPage.tsx[39m 63ms (unchanged)
+[90msrc/features/execution/ExecutionPage.tsx[39m 12ms (unchanged)
+[90msrc/features/execution/executionResult.ts[39m 5ms (unchanged)
+[90msrc/features/execution/ExecutionResultPage.tsx[39m 4ms (unchanged)
 [90msrc/features/execution/README.md[39m 3ms (unchanged)
-[90msrc/features/macros/macroDraft.ts[39m 17ms (unchanged)
-[90msrc/features/macros/MacroEditorPage.tsx[39m 29ms (unchanged)
-[90msrc/features/macros/MacroLibraryPage.tsx[39m 13ms (unchanged)
-[90msrc/features/macros/README.md[39m 6ms (unchanged)
-[90msrc/features/procedures/ProcedureLibraryPage.tsx[39m 15ms (unchanged)
-[90msrc/features/procedures/procedureState.ts[39m 12ms (unchanged)
-[90msrc/features/procedures/ProcedureWorkflowPage.tsx[39m 37ms (unchanged)
+[90msrc/features/macros/macroDraft.ts[39m 14ms (unchanged)
+[90msrc/features/macros/MacroEditorPage.tsx[39m 36ms (unchanged)
+[90msrc/features/macros/MacroLibraryPage.tsx[39m 15ms (unchanged)
+[90msrc/features/macros/README.md[39m 7ms (unchanged)
+[90msrc/features/procedures/ProcedureLibraryPage.tsx[39m 17ms (unchanged)
+[90msrc/features/procedures/procedureState.ts[39m 15ms (unchanged)
+[90msrc/features/procedures/ProcedureWorkflowPage.tsx[39m 56ms (unchanged)
 [90msrc/features/procedures/README.md[39m 4ms (unchanged)
 [90msrc/features/README.md[39m 1ms (unchanged)
 [90msrc/features/sets/README.md[39m 2ms (unchanged)
-[90msrc/features/sets/SetManagementPage.tsx[39m 40ms (unchanged)
-[90msrc/features/sets/SetSelectionPage.tsx[39m 9ms (unchanged)
-[90msrc/features/settings/DiagnosticsPage.tsx[39m 8ms (unchanged)
-src/features/settings/PackageOperationsPage.tsx 19ms
-[90msrc/features/settings/README.md[39m 2ms (unchanged)
-[90msrc/features/settings/SettingsPage.tsx[39m 16ms (unchanged)
+[90msrc/features/sets/SetManagementPage.tsx[39m 52ms (unchanged)
+[90msrc/features/sets/SetSelectionPage.tsx[39m 14ms (unchanged)
+[90msrc/features/settings/DiagnosticsPage.tsx[39m 15ms (unchanged)
+src/features/settings/PackageOperationsPage.tsx 16ms
+[90msrc/features/settings/README.md[39m 3ms (unchanged)
+[90msrc/features/settings/SettingsPage.tsx[39m 21ms (unchanged)
 [90msrc/main.tsx[39m 1ms (unchanged)
-[90msrc/management.css[39m 13ms (unchanged)
+[90msrc/management.css[39m 16ms (unchanged)
 [90msrc/pages/DeferredPage.tsx[39m 2ms (unchanged)
 [90msrc/pages/README.md[39m 2ms (unchanged)
 [90msrc/README.md[39m 1ms (unchanged)
-[90msrc/routing.ts[39m 10ms (unchanged)
-[90msrc/styles.css[39m 21ms (unchanged)
-[90msrc/types/limits.ts[39m 1ms (unchanged)
-[90msrc/types/models.ts[39m 5ms (unchanged)
+[90msrc/routing.ts[39m 11ms (unchanged)
+[90msrc/styles.css[39m 23ms (unchanged)
+[90msrc/types/limits.ts[39m 2ms (unchanged)
+[90msrc/types/models.ts[39m 8ms (unchanged)
 [90msrc/types/README.md[39m 1ms (unchanged)
 [90mstylelint.config.mjs[39m 1ms (unchanged)
-[90mtests/api-execution-submit.test.ts[39m 5ms (unchanged)
-[90mtests/api-timeout.test.ts[39m 6ms (unchanged)
+[90mtests/api-execution-submit.test.ts[39m 8ms (unchanged)
+[90mtests/api-timeout.test.ts[39m 7ms (unchanged)
 [90mtests/api.test.ts[39m 24ms (unchanged)
-[90mtests/app-auth.test.tsx[39m 10ms (unchanged)
-[90mtests/app-execution.test.tsx[39m 10ms (unchanged)
-[90mtests/app-macros.test.tsx[39m 13ms (unchanged)
-[90mtests/app-procedures.test.tsx[39m 16ms (unchanged)
-[90mtests/app-routing.test.tsx[39m 8ms (unchanged)
+[90mtests/app-auth.test.tsx[39m 13ms (unchanged)
+[90mtests/app-execution.test.tsx[39m 14ms (unchanged)
+[90mtests/app-macros.test.tsx[39m 17ms (unchanged)
+[90mtests/app-procedures.test.tsx[39m 20ms (unchanged)
+[90mtests/app-routing.test.tsx[39m 7ms (unchanged)
 [90mtests/app-sets.test.tsx[39m 7ms (unchanged)
 [90mtests/app.test.ts[39m 1ms (unchanged)
-[90mtests/appFixtures.ts[39m 7ms (unchanged)
-[90mtests/browser/run-browser-tests.mjs[39m 44ms (unchanged)
+[90mtests/appFixtures.ts[39m 8ms (unchanged)
+[90mtests/browser/run-browser-tests.mjs[39m 47ms (unchanged)
 [90mtests/error-banner.test.tsx[39m 5ms (unchanged)
-[90mtests/execution-confirmation.test.tsx[39m 17ms (unchanged)
+[90mtests/execution-confirmation.test.tsx[39m 19ms (unchanged)
 [90mtests/execution-identity.test.tsx[39m 4ms (unchanged)
-[90mtests/fakeFetch.ts[39m 9ms (unchanged)
-[90mtests/fakeLocation.ts[39m 3ms (unchanged)
-[90mtests/guards.test.ts[39m 7ms (unchanged)
-[90mtests/management-api.test.ts[39m 7ms (unchanged)
-tests/management-screens.test.tsx 23ms
-[90mtests/README.md[39m 4ms (unchanged)
-[90mtests/render.tsx[39m 7ms (unchanged)
-[90mtests/routing-confirmation.test.ts[39m 3ms (unchanged)
-[90mtests/set-management.test.tsx[39m 11ms (unchanged)
-[90mtests/setup.ts[39m 4ms (unchanged)
+[90mtests/fakeFetch.ts[39m 7ms (unchanged)
+[90mtests/fakeLocation.ts[39m 2ms (unchanged)
+[90mtests/guards.test.ts[39m 9ms (unchanged)
+[90mtests/management-api.test.ts[39m 14ms (unchanged)
+tests/management-screens.test.tsx 21ms
+[90mtests/README.md[39m 3ms (unchanged)
+[90mtests/render.tsx[39m 11ms (unchanged)
+[90mtests/routing-confirmation.test.ts[39m 5ms (unchanged)
+[90mtests/set-management.test.tsx[39m 18ms (unchanged)
+[90mtests/setup.ts[39m 5ms (unchanged)
 [90mtsconfig.app.json[39m 2ms (unchanged)
 [90mtsconfig.json[39m 1ms (unchanged)
 [90mtsconfig.node.json[39m 1ms (unchanged)
@@ -99,12 +99,104 @@ tests/management-screens.test.tsx 23ms
 > eslint . --max-warnings=0
 
 
-/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/webapp/tests/management-screens.test.tsx
-  110:7   error  Async method 'value' has no 'await' expression                                                     @typescript-eslint/require-await
-  146:30  error  'call?.body' may use Object's default stringification format ('[object Object]') when stringified  @typescript-eslint/no-base-to-string
+> esp32-macro-keyboard-webapp@0.1.0 stylelint
+> stylelint 'src/**/*.css' --max-warnings=0
 
-✖ 2 problems (2 errors, 0 warnings)
 
+> esp32-macro-keyboard-webapp@0.1.0 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.10 [39m[90m/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/webapp[39m
+
+ [32m✓[39m tests/api.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 60[2mms[22m[39m
+ [32m✓[39m tests/app-procedures.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 182[2mms[22m[39m
+ [31m❯[39m tests/management-screens.test.tsx [2m([22m[2m7 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 185[2mms[22m[39m
+     [32m✓[39m shows live redacted storage and quarantine data[32m 63[2mms[22m[39m
+     [32m✓[39m enables only transactional replacement on the import screen[32m 30[2mms[22m[39m
+[31m     [31m×[31m validates and confirms a transactional set replacement[39m[32m 29[2mms[22m[39m
+     [32m✓[39m downloads a strictly validated raw set package[32m 15[2mms[22m[39m
+     [32m✓[39m shows physical-confirmation state for restart[32m 26[2mms[22m[39m
+     [32m✓[39m requires an exact destructive factory-reset phrase[32m 16[2mms[22m[39m
+     [32m✓[39m announces offline and reconnect state and triggers a live refresh[32m 4[2mms[22m[39m
+ [32m✓[39m tests/execution-confirmation.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 114[2mms[22m[39m
+ [32m✓[39m tests/set-management.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 206[2mms[22m[39m
+ [32m✓[39m tests/app-macros.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 256[2mms[22m[39m
+ [32m✓[39m tests/app-auth.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 190[2mms[22m[39m
+ [32m✓[39m tests/management-api.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m tests/app-execution.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[32m 192[2mms[22m[39m
+ [32m✓[39m tests/api-execution-submit.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m tests/app-sets.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 189[2mms[22m[39m
+ [32m✓[39m tests/app-routing.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 322[2mms[22m[39m
+ [32m✓[39m tests/guards.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m tests/execution-identity.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m tests/routing-confirmation.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m tests/api-timeout.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m tests/error-banner.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m tests/app.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 10[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/management-screens.test.tsx[2m > [22mmanagement screens[2m > [22mvalidates and confirms a transactional set replacement
+[31m[1mAssertionError[22m: expected true to be false // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- false[39m
+[31m+ true[39m
+
+[36m [2m❯[22m tests/management-screens.test.tsx:[2m130:61[22m[39m
+    [90m128|[39m     })[33m;[39m
+    [90m129|[39m     [35mawait[39m [34mflushReact[39m()[33m;[39m
+    [90m130|[39m     expect(buttonWithText("Replace selected set").disabled).toBe(false…
+    [90m   |[39m                                                             [31m^[39m
+    [90m131|[39m
+    [90m132|[39m     [35mawait[39m [34mclick[39m([34mbuttonWithText[39m([32m"Replace selected set"[39m))[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Unhandled Errors [49m[22m[31m⎯⎯⎯⎯⎯⎯[39m
+[31m[1m
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.[22m[39m
+
+[31m⎯⎯⎯⎯[39m[1m[41m Unhandled Rejection [49m[22m[31m⎯⎯⎯⎯⎯[39m
+[31m[1mTypeError[22m: event.target.files?.item is not a function[39m
+[36m [2m❯[22m selectReplacement src/features/settings/PackageOperationsPage.tsx:[2m112:38[22m[39m
+    [90m110|[39m     [34msetReplacementPackage[39m([35mnull[39m)[33m;[39m
+    [90m111|[39m     [34msetReplacementFilename[39m([35mnull[39m)[33m;[39m
+    [90m112|[39m     [35mconst[39m file [33m=[39m event[33m.[39mtarget[33m.[39mfiles[33m?.[39m[34mitem[39m([34m0[39m)[33m;[39m
+    [90m   |[39m                                      [31m^[39m
+    [90m113|[39m     [35mif[39m (file [33m===[39m undefined [33m||[39m file [33m===[39m [35mnull[39m) {
+    [90m114|[39m       [35mreturn[39m[33m;[39m
+[90m [2m❯[22m onChange src/features/settings/PackageOperationsPage.tsx:[2m241:22[22m[39m
+[90m [2m❯[22m executeDispatch node_modules/react-dom/cjs/react-dom-client.development.js:[2m16368:9[22m[39m
+[90m [2m❯[22m runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:[2m1522:13[22m[39m
+[90m [2m❯[22m processDispatchQueue node_modules/react-dom/cjs/react-dom-client.development.js:[2m16418:19[22m[39m
+[90m [2m❯[22m node_modules/react-dom/cjs/react-dom-client.development.js:[2m17016:9[22m[39m
+[90m [2m❯[22m batchedUpdates$1 node_modules/react-dom/cjs/react-dom-client.development.js:[2m3262:40[22m[39m
+[90m [2m❯[22m dispatchEventForPluginEventSystem node_modules/react-dom/cjs/react-dom-client.development.js:[2m16572:7[22m[39m
+[90m [2m❯[22m dispatchEvent node_modules/react-dom/cjs/react-dom-client.development.js:[2m20658:11[22m[39m
+[90m [2m❯[22m dispatchDiscreteEvent node_modules/react-dom/cjs/react-dom-client.development.js:[2m20626:11[22m[39m
+
+[31mThis error originated in "[1mtests/management-screens.test.tsx[22m" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.[39m
+[31mThe latest test that might've caused the error is "[1mvalidates and confirms a transactional set replacement[22m". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.[39m
+[31m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m17 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m127 passed[39m[22m[90m (128)[39m
+[2m     Errors [22m [1m[31m1 error[39m[22m
+[2m   Start at [22m 02:38:09
+[2m   Duration [22m 5.44s[2m (transform 891ms, setup 458ms, import 1.53s, tests 2.14s, environment 8.58s)[22m
+
+
+::error file=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/webapp/src/features/settings/PackageOperationsPage.tsx,title=Unhandled error,line=112,column=38::TypeError: event.target.files?.item is not a function%0A ❯ selectReplacement src/features/settings/PackageOperationsPage.tsx:112:38%0A ❯ onChange src/features/settings/PackageOperationsPage.tsx:241:22%0A ❯ executeDispatch node_modules/react-dom/cjs/react-dom-client.development.js:16368:9%0A ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:1522:13%0A ❯ processDispatchQueue node_modules/react-dom/cjs/react-dom-client.development.js:16418:19%0A ❯ node_modules/react-dom/cjs/react-dom-client.development.js:17016:9%0A ❯ batchedUpdates$1 node_modules/react-dom/cjs/react-dom-client.development.js:3262:40%0A ❯ dispatchEventForPluginEventSystem node_modules/react-dom/cjs/react-dom-client.development.js:16572:7%0A ❯ dispatchEvent node_modules/react-dom/cjs/react-dom-client.development.js:20658:11%0A ❯ dispatchDiscreteEvent node_modules/react-dom/cjs/react-dom-client.development.js:20626:11%0A%0AThis error originated in "tests/management-screens.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.%0AThe latest test that might've caused the error is "validates and confirms a transactional set replacement". It might mean one of the following:%0A- The error was thrown, while Vitest was running this test.%0A- If the error occurred after the test had been completed, this was the last documented test before it was thrown.%0A
+
+::error file=/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/webapp/tests/management-screens.test.tsx,title=tests/management-screens.test.tsx > management screens > validates and confirms a transactional set replacement,line=130,column=61::AssertionError: expected true to be false // Object.is equality%0A%0A- Expected%0A+ Received%0A%0A- false%0A+ true%0A%0A ❯ tests/management-screens.test.tsx:130:61%0A%0A
 ```
 
 ## Pending diff
@@ -658,10 +750,10 @@ index 9c9b57a..a362605 100644
    );
  }
 diff --git a/webapp/tests/management-screens.test.tsx b/webapp/tests/management-screens.test.tsx
-index e47841a..0489f31 100644
+index e47841a..f2e0157 100644
 --- a/webapp/tests/management-screens.test.tsx
 +++ b/webapp/tests/management-screens.test.tsx
-@@ -67,21 +67,91 @@ describe("management screens", () => {
+@@ -67,21 +67,96 @@ describe("management screens", () => {
      await view.unmount();
    });
  
@@ -707,7 +799,7 @@ index e47841a..0489f31 100644
 +    });
 +    Object.defineProperty(file, "text", {
 +      configurable: true,
-+      value: async () => packageText,
++      value: () => Promise.resolve(packageText),
 +    });
 +    const onSetReplaced = vi.fn();
 +    const view = await render(
@@ -743,7 +835,12 @@ index e47841a..0489f31 100644
 +    expect(call?.url).toBe("/api/v1/sets/import");
 +    expect(call?.method).toBe("POST");
 +    expect(call?.headers.get("X-CSRF-Token")).toBe("csrf-replace");
-+    expect(JSON.parse(String(call?.body))).toEqual({
++    const requestBody = call?.body;
++    expect(typeof requestBody).toBe("string");
++    if (typeof requestBody !== "string") {
++      throw new Error("Replacement request body was not serialized JSON.");
++    }
++    expect(JSON.parse(requestBody)).toEqual({
 +      targetSetId: macroSet.id,
 +      expectedRevision: macroSet.revision,
 +      package: packageDocument,
