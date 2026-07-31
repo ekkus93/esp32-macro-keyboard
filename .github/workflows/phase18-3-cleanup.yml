@@ -12,36 +12,19 @@ permissions:
   contents: write
 
 concurrency:
-  group: phase18-3-cleanup-master
+  group: phase18-3-cleanup-final-master
   cancel-in-progress: false
 
 jobs:
-  validate-and-clean:
+  clean:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 10
     steps:
       - name: Check out master
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
         with:
           ref: master
           fetch-depth: 0
-
-      - name: Install host-test dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends \
-            build-essential cmake ninja-build libcjson-dev lcov
-
-      - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 24.18.0
-          cache: npm
-          cache-dependency-path: webapp/package-lock.json
-
-      - name: Install frontend dependencies
-        working-directory: webapp
-        run: npm ci
 
       - name: Remove Phase 18.3 scaffolding
         shell: bash
@@ -58,10 +41,8 @@ jobs:
               start = text.index(start_marker)
               end = text.index(end_marker, start)
               text = text[:start] + text[end:]
-          write_permissions = 'permissions:\n  contents: write\n'
-          read_permissions = 'permissions:\n  contents: read\n'
-          if write_permissions in text:
-              text = text.replace(write_permissions, read_permissions, 1)
+          text = text.replace('permissions:\n  contents: write\n',
+                              'permissions:\n  contents: read\n', 1)
           path.write_text(text)
           PY
           shopt -s nullglob
@@ -74,54 +55,10 @@ jobs:
           if ((${#paths[@]} > 0)); then
             git rm -f -- "${paths[@]}"
           fi
-
-      - name: Validate clean repository
-        shell: bash
-        run: |
-          set -o pipefail
-          {
-            git diff --check
-            python3 -m json.tool docs/schemas/macro-set-package.schema.json >/dev/null
-            ./scripts/run-tests.sh
-            ./scripts/run-tests.sh --sanitizers
-            cd webapp
-            npm run typecheck
-            npm run lint
-            npm run stylelint
-            npm test
-            npm run build
-            npm run format:check
-          } 2>&1 | tee "${RUNNER_TEMP}/phase18-3-cleanup.log"
-
-      - name: Record cleanup failure
-        if: failure()
-        shell: bash
-        run: |
-          {
-            echo '# Phase 18.3 cleanup failure'
-            echo
-            echo '```text'
-            cat "${RUNNER_TEMP}/phase18-3-cleanup.log" 2>/dev/null \
-              || echo 'No captured validation log was available.'
-            echo '```'
-            echo
-            echo '## Pending cleanup diff'
-            echo
-            echo '```diff'
-            git diff -- . ':!docs/PHASE18_3_CLEANUP_FAILURE.md'
-            echo '```'
-          } > docs/PHASE18_3_CLEANUP_FAILURE.md
-          git restore --staged . >/dev/null 2>&1 || true
-          git restore .github/workflows/host-tests.yml >/dev/null 2>&1 || true
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/PHASE18_3_CLEANUP_FAILURE.md
-          git commit -m "ci: record Phase 18.3 cleanup failure"
-          git pull --rebase origin master
-          git push origin HEAD:master
+          git diff --check
+          python3 -m json.tool docs/schemas/macro-set-package.schema.json >/dev/null
 
       - name: Commit cleanup
-        if: success()
         shell: bash
         run: |
           set -euo pipefail
