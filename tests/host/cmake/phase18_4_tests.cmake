@@ -10,6 +10,7 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_json.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_objects_json.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_export.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_backup.c"
 )
 target_include_directories(
