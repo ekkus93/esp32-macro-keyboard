@@ -244,6 +244,19 @@ add_test(NAME auth_health COMMAND auth_health_tests)
 set_tests_properties(auth_health PROPERTIES LABELS "auth")
 
 add_executable(
+    usb_health_tests test_usb_health.c ../../firmware/components/usb_keyboard/usb_health.c
+)
+target_include_directories(
+    usb_health_tests
+    PRIVATE ../../firmware/components/usb_keyboard/include
+            ../../firmware/components/support/include ../../firmware/components/macro_model/include
+)
+target_link_libraries(usb_health_tests PRIVATE test_support)
+target_compile_options(usb_health_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME usb_health COMMAND usb_health_tests)
+set_tests_properties(usb_health PROPERTIES LABELS "usb")
+
+add_executable(
     usb_keyboard_tests test_usb_keyboard.c
                        ../../firmware/components/usb_keyboard/usb_keyboard_state.c
 )

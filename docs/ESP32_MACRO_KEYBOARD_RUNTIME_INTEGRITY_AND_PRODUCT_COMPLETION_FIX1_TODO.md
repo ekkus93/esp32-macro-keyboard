@@ -2141,7 +2141,7 @@ Add stable health snapshots for:
 - [x] storage mount/recovery;
 - [x] repository;
 - [x] authentication;
-- [ ] USB;
+- [x] USB;
 - [ ] executor;
 - [ ] controls;
 - [ ] Wi-Fi;
@@ -2176,6 +2176,10 @@ Implemented (authentication): `auth_health.c` tracks a primary error from
 `auth_init()` (mutex/core-state creation) and a cleanup error/incomplete flag
 from `auth_deinit()` (which today can never fail, same rationale as
 repository), recorded from `app_core.c`'s existing auth adapters.
+
+Implemented (USB): `usb_health.c` tracks a primary error from
+`usb_keyboard_init()` and a cleanup error/incomplete flag from
+`usb_keyboard_deinit()`, recorded from `app_core.c`'s existing USB adapters.
 
 Retain primary and cleanup errors separately.
 

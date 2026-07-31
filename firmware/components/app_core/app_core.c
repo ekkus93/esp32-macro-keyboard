@@ -20,6 +20,7 @@
 #include "storage.h"
 #include "storage_health.h"
 #include "storage_repository.h"
+#include "usb_health.h"
 #include "usb_keyboard.h"
 #include "web_server.h"
 #include "wifi_ap.h"
@@ -111,7 +112,9 @@ static app_error_code_t adapter_auth_init(void *context) {
 
 static app_error_code_t adapter_usb_init(void *context) {
     (void)context;
-    return usb_keyboard_init();
+    const app_error_code_t result = usb_keyboard_init();
+    usb_health_record_primary(result);
+    return result;
 }
 
 static app_error_code_t adapter_executor_init(void *context) {
@@ -171,7 +174,9 @@ static app_error_code_t adapter_auth_deinit(void *context) {
 
 static app_error_code_t adapter_usb_deinit(void *context) {
     (void)context;
-    return usb_keyboard_deinit();
+    const app_error_code_t result = usb_keyboard_deinit();
+    usb_health_record_cleanup(result, result != APP_ERROR_NONE);
+    return result;
 }
 
 static app_error_code_t adapter_executor_deinit(void *context) {
@@ -283,6 +288,7 @@ app_error_code_t app_core_start(void) {
     storage_health_reset();
     repository_health_reset();
     auth_health_reset();
+    usb_health_reset();
     const app_core_ops_t operations = {
         .context = NULL,
         .nvs_init = adapter_nvs_init,

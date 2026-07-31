@@ -3,12 +3,14 @@ idf_component_register(
     "usb_keyboard.c"
     "usb_keyboard_state.c"
     "usb_descriptors.c"
+    "usb_health.c"
     INCLUDE_DIRS
     "include"
     PRIV_INCLUDE_DIRS
     "."
     REQUIRES
     macro_model
+    support
     esp_tinyusb
     tinyusb
 )
