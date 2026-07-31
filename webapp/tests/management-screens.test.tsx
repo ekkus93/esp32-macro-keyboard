@@ -190,10 +190,7 @@ describe("management screens", () => {
         onBackupRestored={onBackupRestored}
       />,
     );
-    const input = requiredElement(
-      "#restore-backup-package",
-      HTMLInputElement,
-    );
+    const input = requiredElement("#restore-backup-package", HTMLInputElement);
     Object.defineProperty(input, "files", {
       configurable: true,
       value: [file],
