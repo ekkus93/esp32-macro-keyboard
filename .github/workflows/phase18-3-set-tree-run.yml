@@ -1,22 +1,25 @@
-name: Phase 18.3 Set Tree Runner
+name: Phase 18.3 Prepared Recovery Runner
 
 on:
   push:
-    branches: [master]
+    branches:
+      - master
     paths:
       - .github/workflows/phase18-3-set-tree-run.yml
+      - .github/phase18-3-prepared-trigger.txt
 
 permissions:
   contents: write
 
 concurrency:
-  group: phase18-3-set-tree-implementation
+  group: phase18-3-prepared-recovery
   cancel-in-progress: true
 
 jobs:
   implement:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
@@ -27,103 +30,52 @@ jobs:
       - name: Install host dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config libcjson-dev
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libcjson-dev
 
-      - name: Apply Phase 18.3 set-tree validator
+      - name: Apply prepared-phase recovery
         shell: bash
         run: |
           set -o pipefail
-          python3 - <<'PY'
-          from pathlib import Path
+          python3 tools/phase18_3_prepared_impl.py 2>&1 \
+            | tee "${RUNNER_TEMP}/phase18-3-prepared.log"
 
-          helper = Path("tools/phase18_3_tree_impl.py")
-          text = helper.read_text()
-
-          replacements = {
-              '''    join_path(path, sizeof(path), out_set_path "/macros", LOCAL_MACRO_ID ".json");
-    write_text(path, LOCAL_MACRO_JSON);
-    join_path(path, sizeof(path), out_set_path "/procedures", PROCEDURE_ID ".json");
-    write_text(path, PROCEDURE_JSON);
-    join_path(path, sizeof(path), out_set_path "/progress", PROCEDURE_ID ".json");
-    write_text(path, PROGRESS_JSON);
-''': '''    char directory_path[APP_PATH_MAX_BYTES];
-    join_path(directory_path, sizeof(directory_path), out_set_path, "macros");
-    join_path(path, sizeof(path), directory_path, LOCAL_MACRO_ID ".json");
-    write_text(path, LOCAL_MACRO_JSON);
-    join_path(directory_path, sizeof(directory_path), out_set_path, "procedures");
-    join_path(path, sizeof(path), directory_path, PROCEDURE_ID ".json");
-    write_text(path, PROCEDURE_JSON);
-    join_path(directory_path, sizeof(directory_path), out_set_path, "progress");
-    join_path(path, sizeof(path), directory_path, PROCEDURE_ID ".json");
-    write_text(path, PROGRESS_JSON);
-''',
-              '''    join_path(path, sizeof(path), set_path "/macros", "not-a-uuid.json");
-''': '''    char directory_path[APP_PATH_MAX_BYTES];
-    join_path(directory_path, sizeof(directory_path), set_path, "macros");
-    join_path(path, sizeof(path), directory_path, "not-a-uuid.json");
-''',
-              '''    join_path(path, sizeof(path), set_path "/progress", PROCEDURE_ID ".json");
-''': '''    char progress_path[APP_PATH_MAX_BYTES];
-    join_path(progress_path, sizeof(progress_path), set_path, "progress");
-    join_path(path, sizeof(path), progress_path, PROCEDURE_ID ".json");
-''',
-          }
-
-          for old, new in replacements.items():
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"expected one set-tree fixture replacement, found {count}")
-              text = text.replace(old, new, 1)
-
-          text += r'''
-
-extra_tests = Path("tests/host/cmake/extra_tests.cmake")
-extra_text = extra_tests.read_text()
-extra_needle = '    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_transaction.c"\n'
-if extra_text.count(extra_needle) != 2:
-    raise SystemExit(
-        f"expected two modular transaction source entries, found {extra_text.count(extra_needle)}"
-    )
-extra_replacement = (
-    extra_needle
-    + '    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_transaction_replace.c"\n'
-)
-extra_tests.write_text(extra_text.replace(extra_needle, extra_replacement))
-'''
-
-          helper.write_text(text)
-          PY
-          python3 tools/phase18_3_tree_impl.py 2>&1 | tee /tmp/phase18-3-tree.log
-
-      - name: Validate set-tree and permanent host configuration
+      - name: Validate prepared recovery
         shell: bash
         run: |
           set -o pipefail
           {
             git diff --check
-            cmake -S tests/host -B build/phase18-3-tree -G Ninja
-            cmake --build build/phase18-3-tree --target storage_set_tree_tests storage_transaction_tests
-            ctest --test-dir build/phase18-3-tree --output-on-failure -R '^(storage_set_tree|storage_transaction)$'
+            cmake -S tests/host -B build/phase18-3-prepared -G Ninja
+            cmake --build build/phase18-3-prepared \
+              --target storage_transaction_tests
+            ctest --test-dir build/phase18-3-prepared --output-on-failure \
+              -R '^storage_transaction$'
             ./scripts/run-tests.sh storage
-          } 2>&1 | tee -a /tmp/phase18-3-tree.log
+          } 2>&1 | tee -a "${RUNNER_TEMP}/phase18-3-prepared.log"
 
       - name: Record failed implementation run
         if: failure()
         shell: bash
         run: |
           {
-            echo '# Phase 18.3 set-tree automation failure'
+            echo '# Phase 18.3 prepared recovery automation failure'
             echo
-            echo 'The temporary implementation workflow failed before committing code.'
+            echo 'The implementation job failed before committing production code.'
             echo
             echo '```text'
-            cat /tmp/phase18-3-tree.log 2>/dev/null || echo 'No captured log was available.'
+            cat "${RUNNER_TEMP}/phase18-3-prepared.log" 2>/dev/null \
+              || echo 'No captured log was available.'
             echo '```'
           } > docs/PHASE18_3_CORE_AUTOMATION_FAILURE.md
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/PHASE18_3_CORE_AUTOMATION_FAILURE.md
-          git commit -m "ci: record Phase 18.3 set-tree automation failure"
+          git commit -m "ci: record Phase 18.3 prepared recovery failure"
           git push origin HEAD:master
 
       - name: Commit validated implementation
@@ -132,6 +84,8 @@ extra_tests.write_text(extra_text.replace(extra_needle, extra_replacement))
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add firmware/components/storage tests/host
-          git commit -m "feat(storage): validate complete replacement set trees"
+          git add \
+            firmware/components/storage/storage_transaction_replace.c \
+            tests/host/test_storage_transactions.c
+          git commit -m "feat(storage): recover incomplete replacement staging"
           git push origin HEAD:master
