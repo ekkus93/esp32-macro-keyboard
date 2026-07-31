@@ -67,19 +67,22 @@ describe("management screens", () => {
     await view.unmount();
   });
 
-  test("enables only transactional replacement on the import screen", async () => {
+  test("enables transactional replacement and full restore", async () => {
     const view = await render(
       <PackageOperationsPage activeSet={macroSet} initialSection="import" />,
     );
 
     expect(document.body.textContent).toContain(
-      "transactional replacement are available",
+      "all-or-nothing restore are available",
     );
     expect(buttonWithText("Import as new set").disabled).toBe(true);
     expect(buttonWithText("Replace selected set").disabled).toBe(true);
     expect(buttonWithText("Restore full backup").disabled).toBe(true);
     expect(
       requiredElement("#replacement-package", HTMLInputElement).disabled,
+    ).toBe(false);
+    expect(
+      requiredElement("#restore-backup-package", HTMLInputElement).disabled,
     ).toBe(false);
     expect(getFetchCalls()).toHaveLength(0);
     await view.unmount();
@@ -160,6 +163,76 @@ describe("management screens", () => {
     await view.unmount();
   });
 
+  test("validates and confirms a full backup restore", async () => {
+    setCsrfToken("csrf-restore");
+    const backupDocument = {
+      schema_version: 1,
+      package_type: "backup",
+      sets: [macroSet],
+      macros: [],
+      global_macros: [],
+      procedures: [],
+      progress: [],
+    } as const;
+    const backupText = JSON.stringify(backupDocument);
+    const file = new File([backupText], "full-backup.json", {
+      type: "application/json",
+    });
+    Object.defineProperty(file, "text", {
+      configurable: true,
+      value: () => Promise.resolve(backupText),
+    });
+    const onBackupRestored = vi.fn();
+    const view = await render(
+      <PackageOperationsPage
+        activeSet={macroSet}
+        initialSection="import"
+        onBackupRestored={onBackupRestored}
+      />,
+    );
+    const input = requiredElement(
+      "#restore-backup-package",
+      HTMLInputElement,
+    );
+    Object.defineProperty(input, "files", {
+      configurable: true,
+      value: [file],
+    });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+    });
+    await flushReact();
+    expect(buttonWithText("Restore full backup").disabled).toBe(false);
+
+    await click(buttonWithText("Restore full backup"));
+    expect(buttonWithText("Confirm full restore").disabled).toBe(true);
+    await setInputValue(
+      requiredElement("#restore-confirmation", HTMLInputElement),
+      "RESTORE FULL BACKUP",
+    );
+    planJsonResponse(success({ restored: true, reloadRequired: true }));
+    await click(buttonWithText("Confirm full restore"));
+    await flushReact();
+
+    expect(getFetchCalls()).toHaveLength(1);
+    const call = getFetchCalls()[0];
+    expect(call?.url).toBe("/api/v1/restore");
+    expect(call?.method).toBe("POST");
+    expect(call?.headers.get("X-CSRF-Token")).toBe("csrf-restore");
+    const requestBody = call?.body;
+    expect(typeof requestBody).toBe("string");
+    if (typeof requestBody !== "string") {
+      throw new Error("Restore request body was not serialized JSON.");
+    }
+    expect(JSON.parse(requestBody)).toEqual(backupDocument);
+    expect(onBackupRestored).toHaveBeenCalledOnce();
+    expect(document.body.textContent).toContain(
+      "Full backup restored. Live device state has been reloaded.",
+    );
+    await view.unmount();
+  });
+
   test("downloads a strictly validated raw set package", async () => {
     const packageText = JSON.stringify({
       schema_version: 1,
@@ -193,6 +266,43 @@ describe("management screens", () => {
     );
     expect(document.body.textContent).toContain(
       `Exported ${macroSet.name} as ${String(new Blob([packageText]).size)} bytes.`,
+    );
+    await view.unmount();
+  });
+
+  test("downloads a strictly validated raw full backup", async () => {
+    const backupText = JSON.stringify({
+      schema_version: 1,
+      package_type: "backup",
+      sets: [macroSet],
+      macros: [],
+      global_macros: [],
+      procedures: [],
+      progress: [],
+    });
+    planTextResponse(backupText, 200, "application/json");
+    const saveFile = vi.fn<(filename: string, text: string) => void>();
+    const view = await render(
+      <PackageOperationsPage
+        activeSet={macroSet}
+        initialSection="export"
+        saveFile={saveFile}
+      />,
+    );
+
+    await click(buttonWithText("Create full backup"));
+    await flushReact();
+
+    expect(getFetchCalls()).toHaveLength(1);
+    expect(getFetchCalls()[0]?.url).toBe("/api/v1/backup");
+    expect(getFetchCalls()[0]?.method).toBe("GET");
+    expect(getFetchCalls()[0]?.credentials).toBe("same-origin");
+    expect(saveFile).toHaveBeenCalledWith(
+      "macro-keyboard-backup.json",
+      backupText,
+    );
+    expect(document.body.textContent).toContain(
+      `Created full backup as ${String(new Blob([backupText]).size)} bytes.`,
     );
     await view.unmount();
   });
