@@ -1,173 +1,191 @@
 # Claude Code Handoff — ESP32 Macro Keyboard
 
 **Prepared:** 2026-07-31  
+**Revised after repository audit:** 2026-07-31  
 **Repository:** `ekkus93/esp32-macro-keyboard`  
 **Branch:** `master`  
-**State snapshot:** `7b591a9a1a051694d2fe53933720200cb8145f4b` immediately before this handoff file was added
+**Original handoff commit:** `904c361929382d04f348f0a5da4a142e88d4e7e9`  
+**Pre-handoff implementation snapshot:** `7b591a9a1a051694d2fe53933720200cb8145f4b`
 
-## 1. Purpose
+## 1. Purpose and authority
 
-This document is the handoff from ChatGPT to Claude Code. It explains:
+This document is the operational handoff from ChatGPT to Claude Code. It records:
 
-- the actual current repository state;
-- what has been implemented and validated;
-- why `master` is not currently clean or Quality-green;
-- the exact cleanup required before new feature work;
-- the next software phase;
-- all known physical-device and hardware-integration work still outstanding;
-- the evidence that must be captured before any hardware checkbox is marked complete.
+- the actual repository and CI state;
+- completed implementation work and its limits;
+- immediate repository cleanup required before new feature work;
+- remaining Phase 18 work that must not be falsely closed;
+- the complete Phase 19 diagnostics scope;
+- all known physical-device, secure-provisioning, USB, browser, storage, power-loss, and timing work;
+- Phase 21 through Phase 23 release work;
+- evidence requirements for every completion claim.
 
-Read this file before modifying the repository. Also read the canonical FIX1 files:
+Read these canonical files completely before modifying code:
 
-- `docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_SPEC.md`
-- `docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md`
-- `docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md`
-- `docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_RESPONSES.md`
+```text
+docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_SPEC.md
+docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md
+docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md
+docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_RESPONSES.md
+```
 
-The TODO is authoritative for completion. The progress file is useful historical evidence, but its Phase 18 status is stale and must be corrected as part of the cleanup described below.
+The specification and approved responses define required behavior. The TODO is the ordered checklist. The progress file records evidence but contains stale Phase 18 status and must be corrected conservatively. This handoff does not authorize checking an item merely because a test harness exists; the test must exercise the real required boundary.
 
 ---
 
 ## 2. Operator constraints
 
-These constraints came directly from the repository owner and must be preserved:
+Preserve these instructions:
 
 1. Work directly on `master`.
-2. Do **not** create a branch or pull request unless the user explicitly asks for one.
-3. Do not rewrite or force-push history merely to remove the recent cleanup-trigger commits. Make one normal forward cleanup commit.
-4. Device tests were previously deferred only because ChatGPT did not have physical hardware. Claude Code will have access to an ESP32-S3 and should perform the device work listed in this handoff.
-5. Do not claim physical validation from CI builds. A firmware image compiling is not the same as running on a physical board.
-6. Do not mark a TODO checkbox complete without reproducible evidence: exact commit, command/procedure, result, and relevant logs or measurements.
-7. Never place real credentials in committed files, logs, screenshots, diagnostic output, backup artifacts, or CI output. Use generated test sentinels.
+2. Do **not** create a branch or pull request unless the owner explicitly requests one.
+3. Do not force-push, reset `master`, or rewrite history to remove recent cleanup-trigger commits. Use normal forward commits.
+4. Do not combine unrelated changes in one commit.
+5. Do not claim physical validation from compilation, host fakes, or CI device builds.
+6. Do not mark a TODO checkbox complete without exact implementation and reproducible evidence.
+7. Evidence must identify the exact commit, commands or procedure, result, repetitions where relevant, and redacted logs or measurements.
+8. Never commit or expose real credentials, setup secrets, session tokens, encryption keys, raw private flash dumps, or generated sentinel values.
+9. Use generated disposable credentials for security testing.
+10. Confirm the available board before assuming it is suitable for ESP32-S3 native USB HID testing.
+11. Do not perform irreversible eFuse or security provisioning until the exact operation, consequences, recovery limits, and board suitability are documented and approved by the operator.
 
 ---
 
 ## 3. Executive state summary
 
-### Product implementation
+### 3.1 Implemented phases
 
-Phases 1 through 17 of FIX1 are implemented according to the canonical progress file. Phase 18.1 through Phase 18.4 are implemented. Phase 18.5 secret-sentinel testing is also implemented in code, although the canonical TODO/progress documentation has not yet been synchronized.
+According to the canonical progress file and repository evidence:
 
-The product code is substantially ahead of the stale Phase 18 status table. The immediate blocker is repository hygiene and a formatting gate, not missing Phase 18.5 functionality.
+- Phases 1 through 17 are implemented in software, subject to final regression and physical validation.
+- Phase 18.1 bounded package reading is implemented.
+- Phase 18.2 deterministic set export is implemented.
+- Phase 18.3 transactional set replacement is implemented.
+- Phase 18.4 full backup and all-or-nothing restore are implemented.
+- The reusable Phase 18.5 secret-sentinel scanner and scanner regression harness are implemented.
 
-### Current `master` state
+### 3.2 Phase 18 is **not complete**
 
-The pre-handoff `master` SHA was:
+Do not mark Phase 18 complete yet.
 
-```text
-7b591a9a1a051694d2fe53933720200cb8145f4b
+The current scanner harness proves that `scripts/check-secret-sentinel.py` detects generated secrets and encoded forms in representative files. Production-path tests additionally prove secret exclusion from real set-export and full-backup serialization.
+
+Current Phase 18.5 status must be represented as:
+
+```markdown
+- [x] set export;
+- [x] full backup;
+- [ ] diagnostics;
+- [ ] logs;
+- [ ] frontend persisted state.
 ```
 
-This handoff file is added in a new commit immediately after that SHA. Run:
+The last three remain open because the current script uses synthetic representative content rather than artifacts generated by the real diagnostics route, real application logging, and real browser persisted state.
 
-```bash
-git rev-parse HEAD
-git log --oneline --decorate -20
-```
+Those items must be closed only after:
 
-and use the actual checked-out SHA in all subsequent evidence.
+- Phase 19 generates the production diagnostics response and it is scanned;
+- a real device/application log capture containing resident generated sentinels is scanned;
+- the production frontend is exercised in a real browser and its actual storage/persisted state is scanned.
 
-### Important repository-history fact
+### 3.3 Import-as-new remains unimplemented
 
-The seven commits after `91af97eb6eaa57cc7074366d8cc539a0903ceadd` changed only temporary GitHub Actions cleanup files. They did **not** change firmware, frontend, storage, API, or test implementation code.
+Transactional replacement is implemented, but import-as-new remains an explicitly disabled product boundary. The specification and final acceptance checklist require a real import workflow. Do not treat transactional replacement as satisfying import-as-new.
 
-The diff from `91af97e` to the pre-handoff head touches only:
+Add an explicit canonical TODO item, preferably `Phase 18.6 — Import as new`, covering:
 
-```text
-.github/workflows/host-tests.yml
-.github/workflows/phase18-5-docs.yml
-.github/workflows/phase18-5-direct-finalize.yml
-.github/workflows/phase18-5-direct-finalize.trigger
-.github/workflows/phase18-5-direct-finalize.yml.trigger
-```
+- generation of a new set identity;
+- generation or deterministic rewriting of contained object identities where required;
+- complete rewriting and validation of all internal references;
+- collision-safe behavior;
+- validation before mutation;
+- serialized repository mutation under the repository lock;
+- durable staging, activation, rollback, and recovery;
+- storage-full behavior;
+- malformed, duplicate, ambiguous, and unsupported package handling;
+- API authentication, CSRF, Host, Origin, Content-Type, body limits, and physical-confirmation policy;
+- production frontend workflow and strict runtime response validation;
+- host, sanitizer, coverage, browser, interruption, and real-device validation.
 
-Do not reset or rewrite history. Remove the temporary files and restore the permanent workflow in a normal forward commit.
+Phase 18 may not be declared complete until import-as-new and all five real secret-exclusion boundaries are complete or the owner approves a formal specification/scope change.
 
-### Current CI status at pre-handoff head
+### 3.4 Immediate repository blocker
 
-| Workflow | Result | Run | Commit | Interpretation |
+The pre-handoff tree is not repository-clean or Quality-green because temporary Phase 18.5 CI finalizer files remain and `tests/host/CMakeLists.txt` fails the formatting gate.
+
+Known pre-handoff CI evidence:
+
+| Workflow | Result | Run | Commit | Meaning |
 | --- | --- | --- | --- | --- |
-| Quality | **failed** | `30648740232` | `7b591a9` | Authoritative checks failed because `tests/host/CMakeLists.txt` is not `cmake-format` compliant. |
-| Browser Tests | passed | `30648740132` | `7b591a9` | Real Chrome workflow passed. |
-| Device Test Build | passed | `30648740308` | `7b591a9` | ESP32-S3 device-test firmware linted and compiled with ESP-IDF v5.5.5. This is build evidence only. |
-| Host Tests matrix | passed on latest fully reported run | `30646145471` | `f6c210c` | Five jobs passed: host, ASan/UBSan, native coverage, frontend tests, frontend coverage. The exact final cleanup SHA still needs its own run. |
-
-The Quality failure artifact contained the concise failure:
-
-```text
-Check failed: tests/host/CMakeLists.txt
-```
-
-The formatting gate is implemented in `scripts/check-format.sh` and runs:
-
-```bash
-cmake-format --check <first-party CMakeLists.txt files>
-cmake-lint <first-party CMakeLists.txt files>
-```
+| Quality | failed | `30648740232` | `7b591a9` | `tests/host/CMakeLists.txt` failed `cmake-format`. |
+| Browser Tests | passed | `30648740132` | `7b591a9` | Production bundle passed real Chrome workflow. |
+| Device Test Build | passed | `30648740308` | `7b591a9` | ESP32-S3 test firmware compiled with ESP-IDF v5.5.5; no physical execution. |
+| Host Tests matrix | passed | `30646145471` | `f6c210c` | Five permanent host/frontend jobs passed, but not on the final cleanup SHA. |
 
 ---
 
-## 4. What is already implemented
+## 4. Implemented Phase 18 behavior
 
-### Phase 18.1 — bounded package reader
+### 4.1 Bounded package reader
 
 Implemented and host-tested:
 
-- import byte ceiling is enforced before parsing;
-- parser is non-recursive and allocation-bounded;
-- unknown and duplicate fields are rejected;
-- trailing data is rejected;
-- object identities, references, and schema are validated;
-- parsing is structurally isolated from repository mutation;
-- a dedicated script regression gate compiles and exercises the production parser.
+- package byte ceiling checked before parsing;
+- iterative, non-recursive parsing;
+- allocation bounded by authoritative counts;
+- duplicate and unknown fields rejected;
+- unsupported future fields rejected;
+- trailing non-whitespace data rejected;
+- IDs, revisions, schemas, counts, paths, scopes, syntax, duration, and references validated;
+- validation isolated from repository mutation.
 
-### Phase 18.2 — deterministic set export
+### 4.2 Deterministic set export
 
 Implemented and host/browser-tested:
 
 - one repository-locked snapshot;
-- deterministic output;
+- deterministic output ordering;
 - all set-local macros included;
 - only referenced global macros included;
-- procedures and optional progress included;
+- procedures and optional valid progress included;
 - unreferenced globals excluded;
-- credentials, sessions, provisioning material, and encryption stores excluded by construction;
+- provisioning, credentials, sessions, CSRF material, encryption stores, and transaction evidence excluded;
 - output bounded by `APP_IMPORT_PACKAGE_MAX_BYTES`;
-- generated package revalidated before transfer;
+- serialized package revalidated before transfer;
 - exact response framing and content length.
 
-### Phase 18.3 — transactional set replacement
+### 4.3 Transactional replacement
 
 Implemented and host-tested:
 
 - complete replacement staged before activation;
-- staged readback validated;
-- current set backed up;
+- staged content read back and validated;
+- current set moved to transaction-owned backup;
 - replacement activated transactionally;
 - index updated;
-- active set revalidated;
-- backup and manifest removed only after success;
-- recovery covers every durable phase;
-- ambiguous and contradictory evidence fails closed.
+- active readback validated;
+- manifest and backup removed only after success;
+- recovery covers durable phases;
+- ambiguous or contradictory evidence fails closed and remains visible.
 
-### Phase 18.4 — full backup and restore
+### 4.4 Full backup and restore
 
 Implemented and extensively host-tested:
 
-- backup includes all logical repository data: sets, local/global macros, procedures, ordering, and optional progress;
-- credentials, sessions, CSRF material, provisioning state, encryption keys, schema markers, quarantine, staging, trash, and transaction evidence are excluded;
-- backup is deterministic, bounded, and self-validated;
-- restore validates the entire package before mutation;
-- restore materializes and validates a complete staged repository;
-- restore activation is all-or-nothing;
+- all logical sets, local/global macros, procedures, ordering, and optional progress included;
+- credentials, sessions, CSRF material, provisioning state, encryption keys, schema markers, quarantine, staging, trash, and transaction evidence excluded;
+- deterministic, bounded, self-validated backup;
+- complete validation before restore mutation;
+- complete staged repository materialized and validated;
+- all-or-nothing activation;
 - startup resolves restore manifests before ordinary set transactions;
-- six durable phases are tested;
-- interruption, partial rename, contradictory evidence, and idempotent recovery are tested;
-- linker-level fault injection verifies deterministic `APP_ERROR_STORAGE_FULL` during staging while preserving the old repository;
-- API requires admin authentication, CSRF, same-origin policy, and physical confirmation;
-- frontend requires strict package validation and the exact phrase `RESTORE FULL BACKUP`, then reloads after success.
+- interruption and partial-rename matrices cover all durable phases;
+- contradictory evidence fails closed;
+- linker-level storage-full injection preserves the old repository;
+- API requires administrator authentication, CSRF, same-origin policy, and physical confirmation;
+- frontend requires strict package validation and exact phrase `RESTORE FULL BACKUP`.
 
-### Phase 18.5 — secret-sentinel scanner
+### 4.5 Secret-sentinel infrastructure
 
 Implementation commit:
 
@@ -175,7 +193,7 @@ Implementation commit:
 5ae1aeb208716dc72679d3bf36bf4e56d4e5b627
 ```
 
-Implemented files include:
+Relevant files:
 
 ```text
 scripts/check-secret-sentinel.py
@@ -185,7 +203,7 @@ tests/host/test_storage_package_export.c
 tests/host/test_storage_package_backup.c
 ```
 
-The scanner detects a generated sentinel in these forms:
+The scanner detects:
 
 - raw UTF-8;
 - JSON-escaped;
@@ -195,27 +213,17 @@ The scanner detects a generated sentinel in these forms:
 - lowercase hexadecimal;
 - uppercase hexadecimal.
 
-The scanner deliberately does not echo the secret or encoded representation in failure output.
+Failure output intentionally does not echo the secret or encoded representation.
 
-The regression fixture covers the five required boundary classes:
-
-- set export;
-- full backup;
-- diagnostics;
-- application logs;
-- frontend persisted state.
-
-Production-path host tests additionally assert that a resident sentinel is absent from serialized set-export and full-backup output.
-
-Important nuance: the diagnostics/log/frontend fixtures currently prove the reusable scanner behavior against generated representative boundary artifacts. Phase 19 must continue using this scanner against the real diagnostics implementation and real persisted frontend output.
+Important limitation: `tests/scripts/test-secret-sentinel.py` currently creates canned diagnostic, log, and frontend-state files. That validates the scanner, not production secret exclusion at those boundaries.
 
 ---
 
-## 5. Immediate priority: restore a clean, documented, Quality-green repository
+## 5. Immediate cleanup before feature work
 
-Do this before Phase 19 or device feature changes.
+Do this before import-as-new, Phase 19, or hardware feature changes.
 
-### 5.1 Start from a normal local clone
+### 5.1 Start from current `master`
 
 ```bash
 git clone https://github.com/ekkus93/esp32-macro-keyboard.git
@@ -223,38 +231,58 @@ cd esp32-macro-keyboard
 git checkout master
 git pull --ff-only
 git status --short --branch
+git rev-parse HEAD
 git log --oneline --decorate -20
 ```
 
-Confirm there are no local modifications before beginning.
+Confirm a clean working tree before beginning.
 
-### 5.2 Inspect the cleanup-only diff
+### 5.2 Inspect the cleanup-only workflow diff correctly
+
+The seven cleanup-trigger commits are between `91af97e` and `7b591a9`. The unrestricted diff to current `HEAD` also includes this handoff document, so do not expect it to contain only workflow files.
+
+Use:
 
 ```bash
-git diff --stat 91af97eb6eaa57cc7074366d8cc539a0903ceadd..HEAD
-git diff 91af97eb6eaa57cc7074366d8cc539a0903ceadd..HEAD -- .github/workflows
+git diff --stat \
+  91af97eb6eaa57cc7074366d8cc539a0903ceadd..7b591a9a1a051694d2fe53933720200cb8145f4b
+
+git diff \
+  91af97eb6eaa57cc7074366d8cc539a0903ceadd..HEAD \
+  -- .github/workflows
 ```
 
-Expected: only the temporary workflow files listed earlier.
+The first diff should show only the temporary workflow/trigger changes. The second deliberately restricts current `HEAD` comparison to `.github/workflows`.
+
+The cleanup-only files are:
+
+```text
+.github/workflows/host-tests.yml
+.github/workflows/phase18-5-docs.yml
+.github/workflows/phase18-5-direct-finalize.yml
+.github/workflows/phase18-5-direct-finalize.trigger
+.github/workflows/phase18-5-direct-finalize.yml.trigger
+```
 
 ### 5.3 Restore the permanent Host Tests workflow
 
-The exact permanent `host-tests.yml` blob at `91af97e` is the desired workflow definition. Restore it with Git itself:
+Restore the exact known permanent workflow definition:
 
 ```bash
-git show 91af97eb6eaa57cc7074366d8cc539a0903ceadd:.github/workflows/host-tests.yml \
+git show \
+  91af97eb6eaa57cc7074366d8cc539a0903ceadd:.github/workflows/host-tests.yml \
   > .github/workflows/host-tests.yml
 ```
 
-Verify that the restored workflow:
+Verify:
 
-- has the normal five permanent jobs only;
-- has no `phase18-5-cleanup` or finalizer job;
-- uses least-privilege read permissions;
-- does not push commits;
-- does not install `cmakelang` solely to mutate the repository.
+- exactly the normal five permanent jobs;
+- no finalizer or cleanup mutation job;
+- least-privilege read permissions;
+- no repository pushes;
+- no formatter installed to mutate tracked source.
 
-### 5.4 Delete every temporary Phase 18.5 cleanup file
+### 5.4 Delete temporary Phase 18.5 workflows and triggers
 
 ```bash
 rm -f \
@@ -264,35 +292,28 @@ rm -f \
   .github/workflows/phase18-5-direct-finalize.yml.trigger
 ```
 
-Then confirm:
+Confirm no Phase 18.5 finalizer, trigger, inspection, or docs-sync workflow remains:
 
 ```bash
 find .github/workflows -maxdepth 1 -type f -print | sort
 git status --short
 ```
 
-No Phase 18.5 finalizer, trigger, inspection, or documentation-sync workflow should remain.
+### 5.5 Correct the formatting failure
 
-### 5.5 Format the actual failing file
-
-Use the same pinned formatter version expected by CI:
+Use the CI-pinned formatter:
 
 ```bash
 python3 -m pip install --user 'cmakelang==0.6.13'
 cmake-format -i tests/host/CMakeLists.txt
 cmake-format --check tests/host/CMakeLists.txt
 cmake-lint tests/host/CMakeLists.txt
-```
-
-Review the diff carefully:
-
-```bash
 git diff -- tests/host/CMakeLists.txt
 ```
 
-The change should be formatting only. Do not alter targets, sources, link options, test names, fault-injection wrapping, or coverage behavior.
+The diff must be formatting only. Do not alter test targets, sources, link options, fault-injection wrappers, names, or coverage behavior.
 
-### 5.6 Synchronize the canonical Phase 18.5 documentation
+### 5.6 Correct Phase 18 documentation conservatively
 
 Edit:
 
@@ -301,34 +322,34 @@ docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md
 docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md
 ```
 
-In the TODO, change only the five Phase 18.5 items from `[ ]` to `[x]`:
+In TODO §18.5, mark only production-proven boundaries:
 
 ```markdown
 - [x] set export;
 - [x] full backup;
-- [x] diagnostics;
-- [x] logs;
-- [x] frontend persisted state.
+- [ ] diagnostics;
+- [ ] logs;
+- [ ] frontend persisted state.
 ```
 
-Add a concise implementation note immediately after those items. It should identify:
+Add a note explaining:
 
-- `scripts/check-secret-sentinel.py`;
-- `tests/scripts/test-secret-sentinel.py`;
-- raw/JSON/URL/base64/base64url/hex detection;
-- non-echoing failure diagnostics;
-- production-path set-export and full-backup assertions.
+- scanner implementation and encoded forms;
+- non-echoing diagnostics;
+- production-path export/backup assertions;
+- diagnostic/log/frontend fixtures are scanner-only evidence;
+- the three remaining items depend on real Phase 19/device/browser artifacts.
 
-In the progress file:
+Do **not** change the Phase 18 status row to complete. Use wording such as:
 
-1. Change the Phase 18 row from “in progress (§18.1–18.4 complete; §18.5 remains)” to complete.
-2. Add a Phase 18.5 completion section.
-3. Record implementation commit `5ae1aeb208716dc72679d3bf36bf4e56d4e5b627`.
-4. Record known green Host matrix evidence, but state that final closure depends on the new cleanup commit’s exact CI run.
-5. State explicitly that physical-device validation was previously deferred and is now handed to Claude Code.
-6. Do not insert a Quality run ID until the final cleanup SHA actually passes.
+```text
+in progress (§18.1–18.4 complete; §18.5 export/backup proven;
+diagnostics/log/frontend boundaries open; import-as-new open)
+```
 
-### 5.7 Run the local software gates
+Add an explicit import-as-new task to the canonical TODO, or record it as an approved blocking addendum before implementation. Do not leave the disabled product boundary untracked.
+
+### 5.7 Run local gates
 
 At minimum:
 
@@ -344,30 +365,22 @@ python3 tests/scripts/test-secret-sentinel.py
 ./scripts/check-all.sh
 ```
 
-Notes:
+Requirements:
 
-- `check-all.sh` is the authoritative aggregate gate.
-- Run it from a clean dependency/toolchain environment matching CI as closely as practical.
-- ESP-IDF is pinned to v5.5.5.
-- Do not ignore warnings or append `|| true` to make a gate pass.
+- no `|| true` or suppression to manufacture success;
+- ESP-IDF v5.5.5 active for firmware checks;
+- failures fixed at their cause;
+- exact test counts and results recorded.
 
-### 5.8 Make one normal cleanup commit
+### 5.8 Commit the cleanup normally
 
-Suggested message:
+Suggested commit message:
 
 ```text
-chore: finalize Phase 18.5 validation
+chore: restore permanent CI and record Phase 18 status
 ```
 
-Before committing:
-
-```bash
-git diff --check
-git status --short
-git diff --stat
-```
-
-The expected changed set is approximately:
+Expected changed set is approximately:
 
 ```text
 M  tests/host/CMakeLists.txt
@@ -380,34 +393,92 @@ D  .github/workflows/phase18-5-direct-finalize.trigger
 D  .github/workflows/phase18-5-direct-finalize.yml.trigger
 ```
 
-This handoff file may already be committed separately and should not be modified merely to squash history.
+Before committing:
+
+```bash
+git diff --check
+git diff --stat
+git status --short
+```
 
 Push directly to `master` as instructed by the owner.
 
-### 5.9 Closure definition for housekeeping
+### 5.9 Housekeeping closure
 
-Housekeeping is complete only when the **same final SHA** has:
+Housekeeping is complete only when the exact same final SHA has:
 
 - Quality passed;
-- all five Host Tests jobs passed;
+- all five permanent Host Tests jobs passed;
 - Browser Tests passed;
 - Device Test Build passed;
-- no temporary Phase 18.5 workflow or trigger files;
-- the permanent Host Tests workflow restored;
-- Phase 18.5 TODO checkboxes and progress evidence synchronized;
-- physical tests still accurately described as unexecuted until Claude runs them.
+- permanent Host Tests workflow restored;
+- temporary workflows/triggers absent;
+- Phase 18 documentation accurately left open where evidence is incomplete.
 
-After the runs finish, update the progress entry with the exact final SHA and run IDs if the project’s evidence convention requires a follow-up documentation commit. If a documentation-only evidence commit is added, validate that commit too; do not call an earlier code SHA the final repository state.
+If a later evidence-only documentation commit changes the final SHA, validate that new SHA too.
 
 ---
 
-## 6. Next software work after cleanup: Phase 19
+## 6. Remaining Phase 18 software: import-as-new
 
-Do not skip directly to release closure. Phase 19 is the next canonical implementation phase.
+Implement this before final Phase 18 closure. Recommended sequence is cleanup, import-as-new, Phase 19, then closure of the remaining Phase 18.5 boundaries.
 
-### 6.1 Phase 19.1 — subsystem health records
+### 6.1 Required import semantics
 
-Add stable, thread-safe snapshots for:
+Import-as-new must never overwrite the source package identity or an existing local set. It must:
+
+1. validate the complete package before mutation;
+2. generate a new destination set ID;
+3. generate or rewrite object IDs according to an explicit stable policy;
+4. rewrite procedure, macro, progress, ordering, and active references consistently;
+5. preserve set-local/global scope rules;
+6. reject unresolved or ambiguous references;
+7. stage the complete destination tree;
+8. validate staged readback;
+9. update the set index transactionally;
+10. activate only after complete validation;
+11. recover deterministically after every durable phase;
+12. return the exact committed object identity and revision.
+
+### 6.2 Required tests
+
+Cover:
+
+- repeated import of the same package creates distinct valid sets;
+- ID collision injection;
+- internal-reference rewrite correctness;
+- global-macro dependency policy;
+- stale or malformed progress;
+- duplicate IDs and fields;
+- unsupported future schema;
+- package size and object-count bounds;
+- storage full during each staging boundary;
+- interruption after every durable phase;
+- repository lock and concurrent mutation behavior;
+- API policy failures;
+- frontend invalid-response and stale-state handling;
+- no secret fields or values in imported artifacts.
+
+### 6.3 Product UI
+
+Replace the disabled import-as-new boundary only when the real API exists. The frontend must:
+
+- validate file size and package structure before submission;
+- explain that a new set will be created;
+- display the server-returned new identity;
+- refresh from device state after success;
+- never infer success from HTTP acceptance alone;
+- remain disabled with a truthful explanation until implementation is complete.
+
+---
+
+## 7. Phase 19 — diagnostics and observability
+
+Phase 19 is required both for release observability and for closing the remaining real Phase 18.5 boundaries.
+
+### 7.1 Stable subsystem health records
+
+Add bounded, thread-safe snapshots for:
 
 - app lifecycle;
 - storage mount and recovery;
@@ -419,109 +490,160 @@ Add stable, thread-safe snapshots for:
 - Wi-Fi;
 - HTTP server.
 
+Each applicable subsystem must expose:
+
+- stable state enum;
+- resource/ownership state;
+- last primary error;
+- last cleanup error;
+- enough bounded context to distinguish healthy, degraded, unavailable, recovering, and failed states;
+- no secret or unbounded text fields.
+
 Requirements:
 
-- retain primary and cleanup errors separately;
-- do not collapse cleanup failure into the primary result;
-- do not report “healthy” while resource ownership or cleanup is incomplete;
-- make reads bounded and race-safe;
-- use stable enums/fields suitable for API serialization;
-- do not include secret material, macro source, credentials, tokens, or raw storage contents.
+- never replace the primary error with cleanup failure;
+- never discard cleanup failure;
+- never report healthy while resources remain partially owned or cleanup is incomplete;
+- reads must be race-safe and bounded;
+- reuse existing health APIs rather than creating parallel state.
 
-Some subsystem health structures already exist or were partially implemented in earlier phases. Reuse them rather than creating parallel state. Search for existing `*_get_health()` APIs and lifecycle result structures.
+### 7.2 Exact redacted diagnostics schema
 
-### 6.2 Phase 19.2 — redacted diagnostics route
+The production diagnostics response must include the required exact data, not only vague aggregate fields:
 
-The diagnostics response must include only allowlisted fields such as:
-
-- build ID;
+- build identifier;
 - firmware version;
 - schema version;
 - reset reason;
 - uptime;
-- heap metrics;
-- task stack high-water marks;
-- webfs/userdata capacity;
+- USB state;
+- Wi-Fi state;
+- Wi-Fi client count;
+- storage mount state;
+- storage recovery state;
+- repository revision;
+- repository health;
 - quarantine count;
-- current execution state;
-- subsystem health snapshots.
+- current execution state and safe bounded summary;
+- last primary and cleanup errors for each subsystem;
+- current heap;
+- minimum-ever heap;
+- task stack high-water marks;
+- webfs total, used/free, and headroom;
+- userdata total, used/free, and headroom.
 
-Requirements:
+Exclude:
 
-- stable bounded schema;
-- authenticated/authorized policy consistent with the API spec;
-- no secret material;
-- no raw macro source;
-- no session token, CSRF token, credential hash, NVS key, setup secret, Wi-Fi password, or unredacted request data;
-- explicit degraded/error states when a subsystem query fails.
+- AP passphrase;
+- administrator password record, salt, or hash;
+- setup secret;
+- session or CSRF token;
+- NVS encryption material;
+- raw request headers;
+- unredacted URLs or form bodies;
+- raw macro source;
+- arbitrary repository file content.
 
-### 6.3 Phase 19.3 — diagnostics tests
+Use an explicit allowlist serializer. Do not serialize internal structures generically.
+
+### 7.3 Diagnostics tests
 
 Test:
 
 - exact field allowlist;
-- unknown/unexpected field absence;
-- fresh sentinel absent in raw and encoded forms;
-- bounded output;
-- subsystem query failure behavior;
+- required field presence and type;
+- unexpected-field absence;
+- bounded response size;
+- deterministic behavior;
+- subsystem query failure;
 - primary and cleanup error preservation;
 - no false healthy state;
-- API framing and frontend response validation;
-- frontend persisted state through the Phase 18.5 scanner.
+- API authentication and same-origin policy;
+- HTTP framing;
+- frontend runtime validation;
+- frontend display of degraded and failed states;
+- generated sentinel absence in raw and encoded forms.
 
-The Phase 18.5 scanner should become a reusable acceptance gate for real Phase 19 output, not remain only a synthetic fixture.
+### 7.4 Close the remaining Phase 18.5 boundaries with real artifacts
+
+After Phase 19 exists:
+
+1. Provision generated sentinel credentials and identifiers on the device/test environment.
+2. Produce the actual diagnostics response through the production API.
+3. Capture real application logs from startup, provisioning, login failures, CRUD, execution, cancellation, storage failure, diagnostics, reset, and recovery.
+4. Exercise the production browser application and collect its real persisted state from all used storage mechanisms, including localStorage, sessionStorage, IndexedDB, Cache Storage, and service-worker caches if present.
+5. Run `scripts/check-secret-sentinel.py` over those artifacts without printing the sentinel.
+6. Add deterministic automated coverage where possible.
+7. Only then mark diagnostics, logs, and frontend persisted state complete.
 
 ---
 
-## 7. Physical ESP32-S3 work: current status
+## 8. Hardware suitability check
 
-### What CI has proven
+The user stated that Claude Code will have access to an ESP32. Do not assume it is automatically the correct target.
 
-The device-test application currently:
+Before flashing, record:
 
-- lints successfully;
-- compiles for ESP32-S3;
-- uses ESP-IDF v5.5.5;
-- has a green Device Test Build at pre-handoff head (`30648740308`).
+- exact board model and revision;
+- SoC model (`ESP32-S3` required by the current native USB HID target unless the project explicitly supports another native-USB SoC);
+- flash size;
+- PSRAM presence/size if applicable;
+- native USB OTG/device connector availability;
+- separate USB-to-UART/JTAG interface availability;
+- GPIO availability for cancel, confirm, reset, and indicators;
+- power-source and cable arrangement;
+- whether the board exposes security/eFuse operations safely.
 
-### What has **not** been proven
+If the supplied board is an original ESP32 without native USB device support, record a hardware blocker for the HID matrix. Do not attempt to reinterpret UART or Bluetooth keyboard behavior as native USB validation.
 
-No physical serial output has been reviewed. The current device-test README explicitly says the application is build-tested only.
+---
 
-The test application currently covers:
+## 9. Device-test firmware status and required expansion
+
+### 9.1 Current coverage
+
+The current Unity device-test application is build-tested only. It currently covers:
 
 - hardware-RNG UUID generation;
 - UUID validation;
 - macro parsing and compilation;
 - parser failure atomicity;
-- authoritative firmware limits;
+- authoritative limits;
 - authentication adapters;
 - executor idle/USB-not-ready behavior;
 - USB keyboard state initialization.
 
-It does not by itself prove:
+### 9.2 Missing required device-test coverage
 
-- USB enumeration with a real host;
-- real HID keystrokes;
-- disconnect/reconnect;
-- host suspend/resume;
-- SoftAP clients and browser workflows;
-- physical button timing;
-- encrypted NVS persistence on actual flash;
-- power-loss recovery;
-- storage-full behavior on actual flash;
-- absence of stuck modifiers after interruption;
-- timing budgets.
+The FIX1 specification requires device-test firmware coverage for:
 
-Claude Code has access to a physical ESP32-S3 and should now close these gaps.
+- USB state transitions;
+- real keyboard report press and release;
+- task startup and cooperative shutdown;
+- AP startup and shutdown;
+- encrypted NVS persistence;
+- physical confirmation button;
+- physical cancel button;
+- fatal/degraded indicator behavior;
+- storage mount failure without automatic formatting.
+
+Do not merely run the existing suite and treat the device-test requirement as complete. Expand `firmware/test_app` with deterministic hardware-facing Unity tests and safe test adapters for these cases.
+
+Device-test additions must:
+
+- use production translation units and interfaces where practical;
+- avoid replacing production behavior with a mock that bypasses the hardware seam being tested;
+- identify tests that require a host-side observer;
+- avoid destructive or irreversible actions by default;
+- clean up and restore device state between tests;
+- remain buildable in CI;
+- have documented tags and procedures in `firmware/test_app/README.md`.
 
 ---
 
-## 8. Device-test preparation and evidence discipline
+## 10. Device environment and evidence
 
-### 8.1 Record the environment before flashing
-
-Capture:
+Record before flashing:
 
 ```bash
 git rev-parse HEAD
@@ -534,44 +656,50 @@ sha256sum firmware/dependencies.lock
 
 Also record:
 
-- exact ESP32-S3 board/model;
-- USB-to-UART interface, if any;
-- native USB port used for HID;
+- board/model/revision;
+- serial/JTAG and native USB ports;
 - serial device path;
-- Linux distribution/kernel;
-- ChromeOS device/version when ChromeOS tests are run;
-- cable type and whether the cable supports data;
-- external power arrangement, if used.
+- Linux distribution and kernel;
+- ChromeOS hardware and version;
+- data-capable cable details;
+- powered-hub or external-power arrangement;
+- button and indicator GPIO mapping;
+- partition-table hash;
+- relevant `sdkconfig` security settings.
 
-Use a non-secret evidence directory outside the repository or under an ignored artifact directory. Suggested layout:
+Suggested redacted evidence layout:
 
 ```text
-artifacts/device-validation/<YYYY-MM-DD>/<commit>/
+artifacts/device-validation/<date>/<commit>/
   environment.txt
   unity-device-tests.log
+  device-test-expansion.md
   production-boot.log
+  secure-provisioning.md
   usb-linux.md
   usb-chromeos.md
   softap-browser.md
+  diagnostics-sentinel.md
+  logs-sentinel.md
+  frontend-state-sentinel.md
   power-interruption.md
+  storage-full.md
   physical-controls.md
   metrics.md
 ```
 
-Do not commit large binary dumps or logs containing secrets. Commit concise redacted summaries and reference retained local evidence as appropriate.
+Keep large or sensitive raw artifacts outside Git. Commit concise redacted evidence only.
 
-### 8.2 Identify ports safely
-
-Typical commands:
+### Port identification
 
 ```bash
 ls -l /dev/ttyACM* /dev/ttyUSB* 2>/dev/null || true
 udevadm monitor --udev --property
 ```
 
-Many ESP32-S3 boards expose separate native-USB and UART/JTAG ports. Confirm which port is used for flashing/monitoring and which is used for HID. Do not assume `/dev/ttyUSB0`.
+Do not assume `/dev/ttyUSB0`. Confirm which connector is native USB HID and which is UART/JTAG.
 
-### 8.3 Activate the pinned toolchain
+### Toolchain
 
 ```bash
 ./scripts/install-esp-idf.sh
@@ -579,37 +707,28 @@ Many ESP32-S3 boards expose separate native-USB and UART/JTAG ports. Confirm whi
 idf.py --version
 ```
 
-If ESP-IDF is already installed elsewhere, still verify that the active version is exactly v5.5.5 before recording results.
+The active version must be exactly ESP-IDF v5.5.5 for comparable evidence.
 
 ---
 
-## 9. Run the physical Unity device-test application
+## 11. Run and expand the physical Unity tests
 
-### 9.1 Build
-
-From repository root:
+Build:
 
 ```bash
 bash ./scripts/build-device-tests.sh
 ```
 
-### 9.2 Flash and monitor
-
-From `firmware/test_app`:
+Flash and monitor from `firmware/test_app`:
 
 ```bash
 idf.py -B build -p "$PORT" flash monitor
 ```
 
-Press Enter to display the Unity menu. Run all tests with:
+Run all existing tags:
 
 ```text
 *
-```
-
-Also run the individual tags if needed to isolate failures:
-
-```text
 [device]
 [uuid]
 [macro_parser]
@@ -619,23 +738,33 @@ Also run the individual tags if needed to isolate failures:
 [usb]
 ```
 
-### 9.3 Acceptance
+After adding missing suites, document and run their tags as well, for example:
 
-Record the complete serial output. Required result:
+```text
+[wifi]
+[nvs]
+[controls]
+[lifecycle]
+[storage]
+[indicators]
+```
 
-- zero failed Unity tests;
+Acceptance:
+
+- zero failed tests;
 - no panic, watchdog reset, abort, heap corruption, or unexpected reboot;
-- deterministic repeated run, preferably at least three consecutive full runs;
-- reboot and rerun once to catch initialization residue;
-- exact commit and IDF version in evidence.
+- at least three consecutive complete runs;
+- one cold boot and one warm reboot followed by a complete rerun;
+- exact commit and IDF version recorded;
+- host-side observations captured for HID reports where required.
 
-If any physical Unity test fails, stop and fix it before relying on broader integration results.
+Fix any failure before relying on broader integration results.
 
 ---
 
-## 10. Production firmware clean build and flash
+## 12. Production firmware build, flash, and boot
 
-Run from a clean checkout or after removing generated build directories:
+From a clean tree:
 
 ```bash
 ./scripts/check-all.sh
@@ -644,41 +773,104 @@ idf.py -C firmware build
 ./scripts/build-device-tests.sh
 ```
 
-Flash production firmware:
+Flash:
 
 ```bash
 idf.py -C firmware -p "$PORT" flash monitor
 ```
 
-Capture the complete first boot and at least one warm reboot.
+Capture first boot, warm reboot, and power-cycle boot.
 
-Verify immediately:
+Verify:
 
-- no automatic LittleFS format on mount failure;
-- no fallback to an open Wi-Fi network;
-- expected setup/normal-mode selection;
+- no automatic LittleFS format after mount failure;
+- no open-AP fallback;
+- correct unprovisioned/provisioned mode selection;
 - no plaintext credential output;
 - no panic or watchdog reset;
-- expected USB and Wi-Fi subsystem startup state;
-- explicit visible failure if a subsystem does not start.
+- correct USB/Wi-Fi startup state;
+- visible degraded/fatal state if a subsystem fails;
+- no false healthy state while resources or recovery remain incomplete.
 
 ---
 
-## 11. Phase 20.1 — clean production-build metrics
+## 13. Secure provisioning and physical encryption evidence
 
-Record all canonical metrics:
+Reboot persistence and absence of plaintext in one dump are necessary but not sufficient.
+
+### 13.1 Record security configuration
+
+Record and review:
+
+- NVS encryption configuration;
+- flash-encryption configuration;
+- secure-boot configuration if applicable;
+- partition-table encryption flags;
+- selected NVS key source and key partition;
+- HMAC/eFuse-backed key use if configured;
+- development versus release security mode;
+- manufacturing-only credential logging and setup-bypass configuration.
+
+### 13.2 Physical evidence required
+
+Where applicable, collect:
+
+- eFuse summary/state before provisioning;
+- exact command and expected irreversible changes;
+- eFuse summary/state after approved provisioning;
+- proof that encrypted NVS remains readable by firmware across reboot;
+- proof that generated credential sentinels do not appear in plaintext in the relevant raw partition dump;
+- proof that production configuration rejects disabled NVS encryption or missing required security configuration;
+- proof that erased/reset devices return to the documented secure state.
+
+### 13.3 Irreversible-operation safety
+
+Before any eFuse burn or irreversible flash-encryption transition:
+
+1. confirm the exact board is disposable or designated for provisioning validation;
+2. save the current eFuse summary and firmware configuration;
+3. review ESP-IDF commands and expected bits;
+4. document whether UART download, JTAG, ROM download, or plaintext flashing will be restricted;
+5. confirm the recovery/reflash procedure;
+6. obtain explicit operator approval for the irreversible operation.
+
+If approval is absent, leave irreversible evidence open and document the exact blocker. Do not fake completion with host configuration checks.
+
+### 13.4 Sentinel test procedure
+
+Use a generated SSID/password/admin credential sentinel, never a real network password.
+
+Verify sentinel absence from:
+
+- serial logs;
+- diagnostics;
+- set exports;
+- full backups;
+- frontend persisted state;
+- relevant raw NVS/flash partition dump where practical.
+
+Scan raw and encoded forms without printing the sentinel. Securely delete raw dumps after recording a redacted result.
+
+---
+
+## 14. Phase 20.1 — production metrics
+
+Record:
 
 - exact commit;
 - ESP-IDF version;
 - `firmware/dependencies.lock` hash;
+- partition-table hash;
 - application binary size;
-- OTA slot size and remaining headroom;
+- OTA slot size and headroom;
 - webfs image size and partition headroom;
+- userdata size/free-space feasibility;
 - static RAM usage;
-- peak heap on device;
+- current heap;
+- minimum-ever/peak-consumed heap;
 - task stack high-water marks.
 
-Useful commands include:
+Useful commands:
 
 ```bash
 idf.py -C firmware size
@@ -687,17 +879,19 @@ idf.py -C firmware partition-table
 ls -lh firmware/build/*.bin
 ```
 
-Heap and stack metrics may require Phase 19 diagnostics or temporary test-only instrumentation. Do not invent values. If Phase 19 is not complete, record those items as blocked by Phase 19 rather than marking them passed.
+Use the Phase 19 production diagnostics path for runtime heap and stack measurements. Temporary instrumentation may supplement but must not replace the production result.
 
 ---
 
-## 12. Phase 20.2 — USB host matrix
+## 15. Phase 20.2 — USB host matrix
 
-Run the full matrix on Linux and ChromeOS. Use a safe text editor or dedicated HID test page so keyboard shortcuts cannot damage data.
+The canonical FIX1 release requirement mandates Linux and ChromeOS.
 
-### 12.1 Linux evidence tools
+`docs/HARDWARE_TEST_PLAN.md` currently also lists Windows. Treat Windows as optional supplementary coverage unless the owner explicitly adds it to FIX1 scope. During Phase 22, update that document to distinguish mandatory Linux/ChromeOS evidence from optional Windows evidence.
 
-Useful monitoring commands:
+Use a disposable text editor or dedicated safe HID test page.
+
+### Linux tools
 
 ```bash
 sudo dmesg -w
@@ -706,285 +900,400 @@ lsusb -t
 sudo evtest
 ```
 
-Record VID/PID, product strings, interface enumeration, and reconnect behavior.
+Record VID/PID, product strings, interfaces, event devices, and reconnect behavior.
 
-### 12.2 Required cases
+### Required cases on Linux and ChromeOS
 
 #### Enumeration
 
-- cold-plug device;
-- boot with host already connected;
-- verify HID keyboard interface appears;
-- verify no repeated enumeration loop;
-- record host logs.
+- cold plug;
+- boot with host connected;
+- HID keyboard interface appears;
+- no enumeration loop;
+- host logs retained.
 
 #### Disconnect/reconnect
 
-- disconnect while idle;
-- reconnect without rebooting device;
-- reconnect after device reboot;
-- verify the executor and USB health state recover.
+- disconnect idle;
+- reconnect without board reboot;
+- reconnect after board reboot;
+- health/executor recover;
+- no stale execution resumes.
 
 #### Suspend/resume
 
-- suspend host with device attached;
-- resume host;
-- verify enumeration and keystrokes still work;
-- verify no stuck key or modifier.
+- suspend host while attached;
+- resume;
+- enumeration and typing still work;
+- no stuck key/modifier.
 
 #### Printable text
 
-Exercise representative printable characters, whitespace, punctuation, and line breaks. Compare exact expected and received text.
+Test representative letters, digits, punctuation, whitespace, and line breaks. Compare exact expected and received text.
 
 #### Chords
 
-Exercise safe modifier chords and confirm press/release ordering. Use harmless targets. Verify Ctrl/Alt/Shift/GUI release reliably.
+Use harmless modifier chords. Verify press/release order for Ctrl, Alt, Shift, and GUI.
 
 #### Delay cancellation
 
-Run a macro containing a 10-second delay. Cancel it with the physical control. Verify:
+Run a macro with a 10-second delay and cancel physically. Verify:
 
-- cancellation occurs within the specified latency budget;
-- no action after the cancellation point executes;
-- terminal state is cancellation, not success;
-- all HID reports are released.
+- latency within the implemented/specification threshold;
+- no post-cancel action executes;
+- terminal state is cancelled;
+- all HID reports released.
 
 #### Rapid typing cancellation
 
-Run a long rapid-typing macro and cancel mid-stream. Verify:
-
-- bounded cancellation latency;
-- no continued typing after cancellation settles;
-- no stuck modifier;
-- executor returns to an operable idle state.
+Cancel a long rapid-typing macro. Verify bounded cancellation, no continued typing after settlement, no stuck modifier, and clean return to idle.
 
 #### Disconnect during execution
 
-Disconnect USB while a macro is running. Verify:
-
-- failure is visible;
-- executor terminates or cancels according to the specification;
-- reconnect does not resume stale execution;
-- release-all is attempted/observed;
-- the next execution can start cleanly.
+Disconnect native USB during a macro. Verify visible failure/cancellation, no stale resume, release-all attempt, clean reconnect, and successful subsequent execution.
 
 #### Release-all observation
 
-Use `evtest` or another host event monitor to prove that all pressed keys/modifiers receive releases after:
+Use host event monitoring to prove releases after:
 
 - normal completion;
 - cancellation;
 - USB failure;
-- device shutdown/reboot path, where observable.
+- shutdown/reboot where observable.
 
-### 12.3 ChromeOS
-
-Repeat the canonical matrix on ChromeOS, not just Linux. Record ChromeOS version and hardware. At minimum cover enumeration, disconnect/reconnect, suspend/resume, printable text, chords, cancellation, disconnect during execution, and release-all behavior.
+Repeat the complete canonical matrix on both Linux and ChromeOS and record OS/hardware versions.
 
 ---
 
-## 13. Phase 20.3 — SoftAP and browser integration
+## 16. Phase 20.3 — SoftAP and browser integration
 
 Use generated non-sensitive test credentials.
 
-### Required workflow
+Required workflow:
 
-1. Erase or reset to a documented first-run state.
-2. Connect a client to the setup SoftAP.
-3. Complete first-run setup.
-4. Reboot and power-cycle.
-5. Verify provisioning persists.
-6. Verify the device does not re-enter setup unexpectedly.
-7. Log in through the production frontend.
-8. Exercise rate limiting with controlled invalid logins.
-9. Verify Host and Origin rejection behavior.
-10. Verify session expiry and post-expiry UI behavior.
-11. Exercise set CRUD and ordering.
-12. Exercise macro CRUD, validation, and ordering.
-13. Exercise procedure CRUD and progress.
-14. Execute and cancel macros.
-15. Exercise import/export.
-16. Exercise full backup and restore with physical confirmation and typed phrase.
-17. Disconnect the browser/client network and reconnect.
-18. Verify UI state refreshes from the device rather than using stale mock state.
+1. erase/reset to a documented first-run state;
+2. connect to setup SoftAP;
+3. complete setup;
+4. reboot and power-cycle;
+5. verify encrypted provisioning persistence;
+6. verify no unexpected setup fallback;
+7. log in through production frontend;
+8. exercise rate limiting;
+9. verify Host and Origin rejection;
+10. verify logout and session expiry;
+11. exercise set CRUD and ordering;
+12. exercise macro CRUD, validation, and ordering;
+13. exercise procedure CRUD and progress;
+14. execute and cancel macros;
+15. exercise import-as-new after it is implemented;
+16. exercise transactional replacement;
+17. exercise export;
+18. exercise full backup and restore with physical confirmation and typed phrase;
+19. disconnect/reconnect the client network;
+20. verify UI reloads authoritative device state instead of stale mock/cache state;
+21. inspect browser storage and scan real persisted state for sentinels.
 
-### Encrypted persistence on real flash
-
-Behavioral reboot persistence is necessary but not sufficient. Use a generated sentinel SSID/password and verify it is not present as plaintext in:
-
-- serial logs;
-- diagnostics;
-- backup/export artifacts;
-- a raw NVS partition dump, where practical.
-
-A possible test approach:
-
-1. Record partition offsets from the built partition table.
-2. Provision a unique generated test credential.
-3. Power-cycle and prove the credential still works.
-4. Read only the relevant flash partition with `esptool.py`.
-5. Search the dump for the raw sentinel and encoded forms without printing the secret.
-6. Securely delete the dump after recording a redacted pass/fail result.
-
-Do not use a real household or production Wi-Fi password for this test.
+Do not mark “import/export” complete by testing only export and transactional replacement.
 
 ---
 
-## 14. Phase 20.4 — real power-interruption testing
+## 17. Phase 20.4 — deterministic real power interruption
 
-Randomly pulling power is not enough. The test must target each durable transaction phase.
+Random power pulling is insufficient. Target every durable phase.
 
-### Transactions to cover
-
-At minimum:
+Transactions to cover at minimum:
 
 - atomic object write/recovery;
+- set delete/move-to-trash transaction;
 - set transactional replacement;
+- import-as-new transaction;
 - full repository restore;
-- any additional manifest-based repository transaction introduced by later work.
+- manifest/quarantine operations introduced by later work.
 
-### Recommended deterministic method
+Recommended method:
 
-Add test-only instrumentation or a dedicated hardware-test build that can pause or intentionally reboot after a named durable phase. The instrumentation must be excluded from production configuration and guarded by a compile-time test flag.
-
-For each phase:
-
-1. Start from a known repository state A.
-2. Prepare replacement state B.
-3. Trigger the transaction.
-4. Stop immediately after the target durable phase is committed.
-5. Remove power abruptly or trigger a hardware reset that accurately models the intended fault.
-6. Reboot production recovery code.
-7. Inspect active repository state and preserved evidence.
-8. Repeat enough times to establish deterministic behavior.
-
-### Required assertions
+- add compile-time-guarded test-only fault hooks;
+- pause, reset, or cut power immediately after a named durable phase;
+- ensure hooks are impossible in production configuration.
 
 For every phase:
 
-- state is complete A or complete B;
-- no mixed active set/repository;
-- no automatic filesystem format;
-- recovery failure is visible;
-- ambiguous corruption preserves evidence;
-- no silent fallback to an empty repository;
-- startup does not proceed as healthy when recovery is incomplete;
-- subsequent valid operation remains possible after successful recovery.
+1. establish known state A;
+2. prepare valid state B;
+3. trigger operation;
+4. stop immediately after target durable phase;
+5. cut power or apply the intended reset mechanism;
+6. reboot through production recovery;
+7. inspect active state and retained evidence;
+8. repeat to demonstrate deterministic behavior.
 
-The “recoverable diagnostics” item depends on Phase 19. Do not mark it complete before the real diagnostics route reports the recovery state correctly.
+Assertions:
 
----
+- complete A or complete B only;
+- no mixed active state;
+- no automatic format;
+- no silent empty-repository fallback;
+- recovery failure visible;
+- ambiguous evidence preserved;
+- startup not reported healthy while recovery is incomplete;
+- valid later operations possible after successful recovery.
 
-## 15. Actual-flash storage-full testing
-
-Host fault injection already proves the software rollback path. Physical validation must exercise real partition capacity.
-
-Recommended procedure:
-
-1. Use a test-only helper or repeated valid imports to fill userdata close to capacity.
-2. Record free-space metrics before the transaction.
-3. Attempt a set replacement and full restore whose staging data cannot fit.
-4. Verify the operation reports storage full, not generic corruption or success.
-5. Reboot.
-6. Verify the old complete repository remains active.
-7. Verify schema markers remain intact.
-8. Verify no unexpected auto-format occurred.
-9. Verify staging/trash/manifest evidence is cleaned or preserved exactly according to the transaction state.
-10. Confirm a smaller valid operation succeeds after space is reclaimed.
-
-Never fill the flash with arbitrary corrupt files unless the specific test is for corruption handling. Prefer valid repository objects so the failure is truly capacity-related.
+“Recoverable diagnostics” remains open until Phase 19 reports the actual recovery state correctly.
 
 ---
 
-## 16. Phase 20.5 — physical controls
+## 18. Actual-flash storage-full testing
 
-Measure, do not estimate.
+Host injection is not enough. Exercise actual partition capacity.
 
-### Required measurements
+Procedure:
+
+1. fill userdata close to capacity using valid repository/package data or a test-only valid filler;
+2. record free space before mutation;
+3. attempt set replacement, import-as-new, and full restore whose staging cannot fit;
+4. verify exact storage-full result rather than success, corruption, or generic failure;
+5. reboot;
+6. verify old complete repository remains active;
+7. verify schema markers and configuration remain intact;
+8. verify no automatic format;
+9. verify staging/trash/manifest evidence is cleaned or retained according to durable phase;
+10. reclaim space;
+11. verify a smaller valid operation succeeds.
+
+Do not create arbitrary corrupt files unless testing corruption specifically.
+
+---
+
+## 19. Phase 20.5 — physical controls and indicators
+
+Measure, do not estimate:
 
 - cancellation latency during a 10-second delay;
 - cancellation latency during rapid typing;
 - physical confirmation timeout;
 - reset gesture duration;
-- accidental short-press rejection.
+- accidental short-press rejection;
+- confirmation-button acceptance/rejection boundaries;
+- cancel-button behavior while idle and running;
+- fatal/degraded indicator behavior for injected subsystem failures.
 
-### Measurement guidance
+Use serial timestamps, host HID timestamps, GPIO instrumentation, logic analyzer, or synchronized video.
 
-Use serial timestamps, host HID event timestamps, or synchronized video. For cancellation latency, record:
+For cancellation, record:
 
 - physical press time;
-- firmware observation time, if logged safely;
-- final HID release event time;
-- terminal executor state time.
+- firmware observation time;
+- final HID release time;
+- terminal executor-state publication time.
 
-Run multiple trials and record minimum, maximum, median, and any outlier. The canonical TODO does not define all numeric thresholds in the excerpt, so consult the spec and implementation constants before judging pass/fail.
+Run multiple trials. Record minimum, maximum, median, and outliers. Consult implementation constants and the specification before declaring pass/fail.
 
-Verify that accidental short presses do not trigger destructive reset or privileged confirmation.
+Verify normal short presses cannot trigger factory reset, setup reset, or privileged confirmation.
 
 ---
 
-## 17. Device tasks dependent on Phase 19
+## 20. Device tasks dependent on Phase 19
 
-The following physical tasks should be completed after real health aggregation and diagnostics exist:
+Complete after production health aggregation exists:
 
-- peak heap reported through the production diagnostics path;
+- current and minimum heap through diagnostics;
 - task stack high-water marks;
-- subsystem health snapshots under real fault conditions;
+- exact USB/Wi-Fi/storage/repository/auth/executor/control/HTTP health snapshots;
 - reset reason and uptime;
-- webfs/userdata capacity;
+- Wi-Fi client count;
+- repository revision;
+- webfs and userdata capacity/free space;
 - quarantine count;
-- current execution state;
+- execution state;
+- primary and cleanup error preservation under real fault injection;
 - recovery diagnostics after power interruption;
-- proof that cleanup failure is not reported as healthy;
+- proof cleanup failure is never shown as healthy;
 - real diagnostics sentinel scan;
-- frontend diagnostics rendering and persisted-state scan.
+- frontend diagnostics rendering and real persisted-state scan.
 
-Do not add temporary debug output that leaks secrets merely to collect these metrics. Prefer the redacted Phase 19 API.
+Do not add secret-bearing debug logs to obtain these metrics.
 
 ---
 
-## 18. Remaining non-device phases after Phase 20
-
-### Phase 21 — release budgets and immutable CI
+## 21. Phase 21 — release budgets and immutable CI
 
 Still open:
 
 - application OTA-slot budget gate;
 - webfs partition budget gate;
-- minimum userdata free-space feasibility gate;
+- minimum userdata feasibility gate;
 - static RAM budget;
+- runtime heap budget;
 - task stack margin threshold;
-- pin all GitHub Actions to full commit SHAs with human-readable version comments;
+- all GitHub Actions pinned to full commit SHAs with version comments;
 - runner/tool version documentation;
 - least-privilege permissions;
-- production-configuration gate rejecting credential logging, disabled NVS encryption, missing security configuration, setup bypasses, debug servers, and remote assets.
+- concurrency cancellation retained;
+- production configuration rejects credential logging;
+- production configuration rejects disabled NVS encryption;
+- production configuration rejects missing required security settings;
+- production configuration rejects setup bypasses;
+- production configuration rejects debug servers and remote assets;
+- hardware-measured values integrated into release gates without hardcoded fabricated evidence.
 
-### Phase 22 — documentation synchronization
+---
 
-Still open across README/API/development/status/security/recovery/hardware/release/TODO documents. Correct stale claims and clearly distinguish:
+## 22. Phase 22 — documentation synchronization
+
+Update at least:
+
+```text
+README.md
+docs/API.md
+docs/DEVELOPMENT.md
+docs/IMPLEMENTATION_STATUS.md
+docs/SECURITY_REVIEW.md
+docs/RECOVERY.md
+docs/HARDWARE_TEST_PLAN.md
+docs/RELEASE_NOTES.md
+docs/TODO.md
+docs/UNIT_TESTS1_TODO.md
+```
+
+Correctly distinguish:
 
 - implemented;
 - host-tested;
 - browser-tested;
 - device-build-tested;
 - physically device-tested;
+- secure-provisioning-tested;
 - release-ready.
 
-### Phase 23 — final regression and acceptance
+Specific synchronization issues:
 
-Must run all software gates and all hardware/browser workflows on the final candidate. Do not declare FIX1 complete while any checkbox remains open.
+- import-as-new must not remain an untracked disabled boundary;
+- Phase 18.5 synthetic scanner fixtures must not be described as production-boundary proof;
+- Windows USB matrix must be labeled optional unless added to FIX1 scope;
+- physical device-test firmware coverage must match its README;
+- all referenced companion files must exist at exact paths;
+- historical findings should remain but be marked fixed with exact commit evidence.
 
 ---
 
-## 19. Important files for orientation
+## 23. Phase 23 — final regression and acceptance
 
-### Canonical planning and status
+Run from a clean checkout on one release-candidate SHA:
+
+```bash
+./scripts/check-all.sh
+./scripts/run-tests.sh --sanitizers
+./scripts/generate-native-coverage.sh
+./scripts/generate-frontend-coverage.sh
+./scripts/build-device-tests.sh
+./scripts/check-release-budgets.sh
+```
+
+Then run all required browser and hardware workflows on that exact candidate.
+
+Do not declare FIX1 complete while any checkbox remains open.
+
+Final acceptance must include:
+
+### Quality
+
+- analyzer/tool infrastructure failure makes CI fail;
+- no first-party warning or hidden suppression;
+- formatting, lint, typecheck, tests, sanitizers, leaks, and coverage gates pass.
+
+### Lifecycle and ownership
+
+- startup failure after every stage cleans all owned resources;
+- cleanup continues after cleanup error;
+- residual ownership visible;
+- production provisioning check occurs before normal-operation tasks.
+
+### Storage
+
+- atomic and manifest recovery deterministic;
+- quarantine recoverable;
+- repository mutations serialized;
+- stale revisions cannot both succeed;
+- power loss yields old or new complete state;
+- actual-flash storage-full rollback proven.
+
+### Security
+
+- encrypted persistent provisioning works on hardware;
+- approved physical/eFuse/HMAC evidence recorded or explicitly blocked;
+- no plaintext credentials in ordinary logs;
+- crypto failure distinguished from bad password;
+- mutations require auth, CSRF, Host, Origin, and Content-Type;
+- export, backup, diagnostics, logs, and frontend persisted state contain no sentinel in raw or encoded form.
+
+### Execution
+
+- persisted macro loaded by ID and revision;
+- arbitrary source cannot be submitted;
+- `202` only after executor ownership transfer;
+- cancellation not labeled success;
+- release failure visible;
+- no next step automatically executes;
+- release-all observed on real hosts.
+
+### Product workflows
+
+- setup;
+- login/logout/session expiry;
+- set selection;
+- set CRUD/order;
+- macro CRUD/validation/order;
+- procedure CRUD/progress;
+- execution/cancellation;
+- import-as-new;
+- transactional replacement;
+- export;
+- backup/restore;
+- settings;
+- diagnostics/quarantine.
+
+### Hardware
+
+- expanded Unity device suite physically passes;
+- Linux USB matrix;
+- ChromeOS USB matrix;
+- SoftAP/browser integration;
+- encrypted NVS reboot persistence;
+- deterministic power interruption;
+- actual-flash storage full;
+- cancellation latency;
+- release-all observation;
+- physical controls and indicators.
+
+### Release
+
+- firmware/webfs/userdata/RAM/heap/stack budgets enforced;
+- CI actions pinned;
+- production configuration rejects development bypasses;
+- documentation matches implementation and evidence;
+- every FIX1 checkbox has exact evidence.
+
+---
+
+## 24. Important files
+
+### Planning and status
 
 ```text
 docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_SPEC.md
 docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md
 docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md
 docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_RESPONSES.md
+```
+
+### Package, repository, and recovery
+
+```text
+firmware/components/storage/
+tests/host/test_storage_package_export.c
+tests/host/test_storage_package_backup.c
+tests/host/test_storage_package_restore.c
+tests/host/cmake/phase18_4_restore_tests.cmake
 ```
 
 ### API and frontend
@@ -996,19 +1305,9 @@ webapp/src/features/packages/PackageOperationsPage.tsx
 webapp/src/features/diagnostics/
 ```
 
-Search for the actual diagnostics page path if it differs; Phase 19 may currently contain a partial or placeholder surface.
+Search for the actual diagnostics surface if the path differs.
 
-### Storage package and recovery
-
-```text
-firmware/components/storage/
-tests/host/test_storage_package_export.c
-tests/host/test_storage_package_backup.c
-tests/host/test_storage_package_restore.c
-tests/host/cmake/phase18_4_restore_tests.cmake
-```
-
-### Secret scanning
+### Secret scanner
 
 ```text
 scripts/check-secret-sentinel.py
@@ -1025,7 +1324,7 @@ scripts/build-device-tests.sh
 .github/workflows/device-tests-build.yml
 ```
 
-### Permanent quality gates
+### Permanent gates
 
 ```text
 scripts/check-all.sh
@@ -1042,59 +1341,72 @@ scripts/generate-frontend-coverage.sh
 
 ---
 
-## 20. Known pitfalls
+## 25. Known pitfalls
 
-1. **Do not confuse build success with physical device success.** Device Test Build is green, but physical Unity tests have not been reviewed.
-2. **Do not preserve the temporary finalizer workflows.** They were failed workarounds and are not product infrastructure.
-3. **Do not restore `host-tests.yml` from `HEAD^`.** Several recent ancestors already contain temporary cleanup jobs. Restore the exact file from `91af97e` or compare carefully against that blob.
-4. **Do not force-push to erase cleanup commits.** Use a normal forward cleanup commit.
-5. **Do not globally replace matching Phase 18.5 checklist text.** Restrict edits to the `### 18.5 Secret scanner tests` section.
-6. **Do not claim Phase 18 complete until the canonical docs and exact final CI are green.**
-7. **Do not print sentinel secrets in failing tests.** Existing scanner diagnostics intentionally print only representation type and output path.
-8. **Do not add recursive or unbounded diagnostics serialization.** ESP32 memory and response size are constrained.
-9. **Do not expose raw macro source in diagnostics.**
-10. **Do not report cleanup failure as the primary error or as healthy.** Preserve primary and cleanup errors independently.
-11. **Do not test destructive keyboard chords in an unsafe application.** Use a dedicated text editor/test environment.
-12. **Do not test encrypted persistence with real credentials.** Use generated sentinels.
-13. **Do not perform nondeterministic power-cut testing without phase identification.** Add test-only fault hooks so each durable phase is actually covered.
-14. **Do not mark a hardware checkbox based on one trial.** Repeat timing and interruption tests and retain evidence.
+1. Do not mark all five Phase 18.5 items complete from the synthetic scanner fixture.
+2. Do not call Phase 18 complete while diagnostics/log/frontend sentinel evidence or import-as-new remains open.
+3. Do not confuse transactional replacement with import-as-new.
+4. Do not confuse device build success with physical device execution.
+5. Do not assume the available ESP32 is an ESP32-S3 with native USB.
+6. Do not run only the existing Unity suite; expand it to the required hardware seams.
+7. Do not preserve temporary Phase 18.5 finalizer workflows.
+8. Do not restore `host-tests.yml` from `HEAD^`; restore or verify against `91af97e`.
+9. Do not force-push cleanup commits away.
+10. Do not globally replace checklist text; edit the exact canonical section.
+11. Do not print sentinel values or encoded forms in failures.
+12. Do not expose raw macro source or secrets in diagnostics.
+13. Do not collapse cleanup failure into primary failure or healthy state.
+14. Do not test destructive keyboard chords in an unsafe application.
+15. Do not use real credentials for encryption tests.
+16. Do not burn eFuses without explicit operator approval and a documented irreversible-operation plan.
+17. Do not use random power cuts as a substitute for phase-targeted interruption.
+18. Do not mark hardware timing from one trial.
+19. Do not treat plaintext absence alone as proof of the intended NVS/eFuse/HMAC security configuration.
+20. Do not leave Windows scope ambiguous in the synchronized hardware plan.
 
 ---
 
-## 21. Recommended execution order
+## 26. Recommended execution order
 
 1. Clone and inspect current `master`.
-2. Restore permanent `host-tests.yml` from `91af97e`.
-3. Delete all four Phase 18.5 temporary workflow/trigger files.
-4. Format `tests/host/CMakeLists.txt` with `cmakelang==0.6.13`.
-5. Synchronize Phase 18.5 TODO and progress documentation.
-6. Run all local software gates.
-7. Commit and push one cleanup commit directly to `master`.
-8. Confirm Quality, five-job Host matrix, Browser Tests, and Device Test Build all pass on the exact final SHA.
-9. Run the physical Unity device tests and record serial evidence.
-10. Begin Phase 19 health and diagnostics implementation.
-11. Re-run software gates and real diagnostics secret scanning.
-12. Execute the Phase 20 physical matrix on Linux and ChromeOS.
-13. Implement Phase 21 release gates.
-14. Synchronize Phase 22 documentation.
-15. Run Phase 23 final acceptance on one release-candidate SHA.
+2. Verify the available board and native USB suitability.
+3. Restore permanent `host-tests.yml` from `91af97e`.
+4. Delete all four temporary Phase 18.5 files.
+5. Format `tests/host/CMakeLists.txt` with `cmakelang==0.6.13`.
+6. Correct Phase 18.5 documentation to mark only export and backup complete.
+7. Add explicit import-as-new work to the canonical TODO/progress state.
+8. Run all local software gates.
+9. Commit and push one cleanup/status commit directly to `master`.
+10. Confirm Quality, five-job Host matrix, Browser Tests, and Device Test Build pass on the exact cleanup SHA.
+11. Flash and run the existing Unity tests for initial physical evidence.
+12. Expand and physically run the missing device-test suites.
+13. Implement and validate import-as-new.
+14. Implement Phase 19 health aggregation and exact diagnostics schema.
+15. Generate and scan real diagnostics, logs, and frontend persisted state; close the remaining Phase 18.5 items only then.
+16. Run production firmware and secure-provisioning validation, with explicit approval before irreversible operations.
+17. Execute the Linux and ChromeOS USB matrices.
+18. Execute SoftAP/browser, power-interruption, actual-flash storage-full, controls, indicators, and timing validation.
+19. Implement Phase 21 release gates.
+20. Synchronize Phase 22 documentation, including Windows scope.
+21. Run Phase 23 acceptance on one exact release-candidate SHA.
 
-The first action should be repository cleanup, not new functionality. The first physical action after cleanup should be running the existing Unity device-test image on the ESP32-S3 so the project obtains its first reviewed physical test evidence.
+The first code change should be repository cleanup, not new functionality. The first physical action should be board suitability confirmation followed by execution of the existing Unity image. The existing Unity run is an initial baseline, not completion of the device-test requirement.
 
 ---
 
-## 22. Evidence template
+## 27. Evidence template
 
-Use a consistent format when closing a task:
+Use this format for every closed task:
 
 ```markdown
 ### <task name>
 
 - Commit: `<full SHA>`
 - Date/time: `<ISO-8601 with timezone>`
-- Hardware: `<board/revision>`
-- Host: `<OS/version>`
+- Hardware: `<board/model/revision/SoC>`
+- Host: `<OS/version/kernel or ChromeOS version>`
 - ESP-IDF: `<exact version>`
+- Security configuration: `<relevant sdkconfig/eFuse state or n/a>`
 - Commands/procedure:
   - `<command or numbered procedure>`
 - Expected result: `<objective criterion>`
@@ -1102,9 +1414,11 @@ Use a consistent format when closing a task:
 - Repetitions: `<count>`
 - Evidence:
   - `<redacted log/artifact path or CI run>`
-- Secrets reviewed: `<yes/no and scanner command>`
+- Sentinel scan:
+  - `<command, artifact classes, pass/fail; never include secret>`
+- Irreversible operation approved: `<yes/no/not applicable>`
 - Deviations/limitations: `<none or explicit limitation>`
-- TODO checkbox updated: `<path and section>`
+- TODO checkbox updated: `<path and exact section>`
 ```
 
-A task is not complete merely because the code appears correct. It is complete when implementation, automated validation, physical validation where applicable, documentation, and reproducible evidence agree.
+A task is complete only when implementation, automated validation, physical validation where required, security evidence, documentation, and reproducible evidence all agree.
