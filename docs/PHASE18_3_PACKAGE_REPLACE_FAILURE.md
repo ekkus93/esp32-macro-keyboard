@@ -14,76 +14,76 @@ The production package replacement validation failed.
 -- Found PkgConfig: /usr/bin/pkg-config (found version "1.8.1")
 -- Checking for module 'libcjson'
 --   Found libcjson, version 1.7.17
--- Configuring done (0.9s)
--- Generating done (0.0s)
+-- Configuring done (0.3s)
+-- Generating done (0.1s)
 -- Build files have been written to: /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/build/phase18-3-package-replace
 [1/61] Building C object CMakeFiles/test_support.dir/fakes/fake_clock.c.o
-[2/61] Building C object CMakeFiles/test_support.dir/fakes/fake_random.c.o
-[3/61] Building C object CMakeFiles/test_support.dir/support/test_assert.c.o
-[4/61] Building C object CMakeFiles/test_support.dir/fakes/fake_call_log.c.o
-[5/61] Building C object CMakeFiles/test_support.dir/support/test_memory.c.o
+[2/61] Building C object CMakeFiles/test_support.dir/fakes/fake_call_log.c.o
+[3/61] Building C object CMakeFiles/test_support.dir/support/test_memory.c.o
+[4/61] Building C object CMakeFiles/test_support.dir/fakes/fake_random.c.o
+[5/61] Building C object CMakeFiles/test_support.dir/support/test_assert.c.o
 [6/61] Building C object CMakeFiles/test_support.dir/support/test_temp_dir.c.o
-[7/61] Building C object CMakeFiles/test_support.dir/fakes/fake_freertos.c.o
-[8/61] Building C object CMakeFiles/test_support.dir/fakes/fake_usb_backend.c.o
-[9/61] Building C object CMakeFiles/test_support.dir/fakes/fake_gpio_backend.c.o
-[10/61] Building C object CMakeFiles/test_support.dir/fakes/fake_wifi_backend.c.o
-[11/61] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
-[12/61] Building C object CMakeFiles/test_support.dir/fakes/fake_http_backend.c.o
-[13/61] Building C object CMakeFiles/test_support.dir/fakes/fake_fs_backend.c.o
-[14/61] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[7/61] Building C object CMakeFiles/test_support.dir/fakes/fake_wifi_backend.c.o
+[8/61] Building C object CMakeFiles/test_support.dir/fakes/fake_freertos.c.o
+[9/61] Building C object CMakeFiles/test_support.dir/fakes/fake_usb_backend.c.o
+[10/61] Building C object CMakeFiles/test_support.dir/fakes/fake_gpio_backend.c.o
+[11/61] Building C object CMakeFiles/test_support.dir/fakes/fake_http_backend.c.o
+[12/61] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[13/61] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[14/61] Building C object CMakeFiles/test_support.dir/fakes/fake_fs_backend.c.o
 [15/61] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
-[16/61] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-[17/61] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-[18/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[16/61] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
+[17/61] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[18/61] Building C object CMakeFiles/storage_transaction_tests.dir/test_storage_transactions.c.o
 [19/61] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction_replace.c.o
 [20/61] Building C object CMakeFiles/storage_transaction_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
-[21/61] Building C object CMakeFiles/storage_transaction_tests.dir/test_storage_transactions.c.o
+[21/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
 [22/61] Building C object CMakeFiles/storage_set_tree_tests.dir/test_storage_set_tree.c.o
-[23/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
-[24/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-[25/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_keymap_us.c.o
-[26/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-[27/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_parser.c.o
-[28/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-[29/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[23/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_keymap_us.c.o
+[24/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
+[25/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[26/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_parser.c.o
+[27/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
+[28/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[29/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
 [30/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
-[31/61] Building C object CMakeFiles/storage_package_replace_tests.dir/test_storage_package_replace.c.o
-[32/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
+[31/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
+[32/61] Building C object CMakeFiles/storage_package_replace_tests.dir/test_storage_package_replace.c.o
 [33/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
 [34/61] Building C object CMakeFiles/storage_set_tree_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_set_tree.c.o
-[35/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
+[35/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
 [36/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
-[37/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
-[38/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
-[39/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction_replace.c.o
-[40/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
-[41/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
-[42/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
+[37/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
+[38/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
+[39/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
+[40/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction_replace.c.o
+[41/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
+[42/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
 [43/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
-[44/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
-[45/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
-[46/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
-[47/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_set_operations.c.o
-[48/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
+[44/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
+[45/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
+[46/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
+[47/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
+[48/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_set_operations.c.o
 [49/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c.o
 [50/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c.o
-[51/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
-[52/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_keymap_us.c.o
+[51/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_keymap_us.c.o
+[52/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
 [53/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_parser.c.o
-[54/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_package_replace.c.o
-[55/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
+[54/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
+[55/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_package_replace.c.o
 [56/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_set_tree.c.o
 [57/61] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_package.c.o
 [58/61] Linking C static library libtest_support.a
-[59/61] Linking C executable storage_set_tree_tests
+[59/61] Linking C executable storage_package_replace_tests
 [60/61] Linking C executable storage_transaction_tests
-[61/61] Linking C executable storage_package_replace_tests
+[61/61] Linking C executable storage_set_tree_tests
 Internal ctest changing into directory: /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/build/phase18-3-package-replace
 Test project /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/build/phase18-3-package-replace
     Start 21: storage_transaction
-1/3 Test #21: storage_transaction ..............   Passed    0.09 sec
+1/3 Test #21: storage_transaction ..............   Passed    0.11 sec
     Start 22: storage_set_tree
-2/3 Test #22: storage_set_tree .................   Passed    0.01 sec
+2/3 Test #22: storage_set_tree .................   Passed    0.02 sec
     Start 25: storage_package_replace
 3/3 Test #25: storage_package_replace ..........***Failed    0.02 sec
 PHASE18_3_DIAGNOSTIC validate=0
@@ -91,15 +91,27 @@ PHASE18_3_DIAGNOSTIC open=0
 PHASE18_3_DIAGNOSTIC validate=1
 PHASE18_3_DIAGNOSTIC validate=0
 PHASE18_3_DIAGNOSTIC open=0
+PHASE18_3_DIAGNOSTIC current=0
 PHASE18_3_DIAGNOSTIC replace=3
 PHASE18_3_DIAGNOSTIC validate=0
 PHASE18_3_DIAGNOSTIC open=0
+PHASE18_3_DIAGNOSTIC current=0
+PHASE18_3_DIAGNOSTIC globals=3
 PHASE18_3_DIAGNOSTIC replace=3
 PHASE18_3_DIAGNOSTIC validate=0
 PHASE18_3_DIAGNOSTIC open=0
+PHASE18_3_DIAGNOSTIC current=0
+PHASE18_3_DIAGNOSTIC globals=3
 PHASE18_3_DIAGNOSTIC replace=3
 PHASE18_3_DIAGNOSTIC validate=0
 PHASE18_3_DIAGNOSTIC open=0
+PHASE18_3_DIAGNOSTIC current=0
+PHASE18_3_DIAGNOSTIC globals=0
+PHASE18_3_DIAGNOSTIC uuid=0
+PHASE18_3_DIAGNOSTIC manifest-init=0
+PHASE18_3_DIAGNOSTIC manifest-prepared=0
+PHASE18_3_DIAGNOSTIC staging-create=0
+PHASE18_3_DIAGNOSTIC staging-materialize=1
 PHASE18_3_DIAGNOSTIC replace=1
 test failure at /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/tests/host/test_storage_package_replace.c:231: (uint64_t)(int64_t)(storage_package_replace_set(&id, 3U, PACKAGE, sizeof(PACKAGE) - 1U, &committed)) == (uint64_t)(int64_t)(APP_ERROR_NONE); expected=0, actual=1
 
@@ -107,9 +119,9 @@ test failure at /home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/test
 67% tests passed, 1 tests failed out of 3
 
 Label Time Summary:
-storage    =   0.11 sec*proc (3 tests)
+storage    =   0.15 sec*proc (3 tests)
 
-Total Test time (real) =   0.18 sec
+Total Test time (real) =   0.16 sec
 
 The following tests FAILED:
 	 25 - storage_package_replace (Failed)                  storage
@@ -633,102 +645,112 @@ Errors while running CTest
    526	                                       macro_set_t *out_set) {
    527	    macro_set_t current = {0};
    528	    app_error_code_t result = storage_set_read_locked(target_set_id, &current);
-   529	    if (result == APP_ERROR_NONE && current.revision != expected_revision) {
-   530	        result = APP_ERROR_CONFLICT;
-   531	    }
-   532	    if (result == APP_ERROR_NONE) {
-   533	        result = verify_global_dependencies(document->arrays[PACKAGE_REPLACE_GLOBAL_MACROS]);
-   534	    }
-   535	    app_uuid_t transaction_id = {0};
-   536	    if (result == APP_ERROR_NONE) {
-   537	        result = app_uuid_generate(&transaction_id);
-   538	    }
-   539	    char staging[APP_PATH_MAX_BYTES] = {0};
-   540	    storage_transaction_manifest_t manifest = {0};
-   541	    bool manifest_written = false;
-   542	    if (result == APP_ERROR_NONE) {
-   543	        const int written = snprintf(staging, sizeof(staging), STORAGE_DATA_MOUNT "/staging/%s",
-   544	                                     transaction_id.value);
-   545	        result = written >= 0 && (size_t)written < sizeof(staging) ? APP_ERROR_NONE
-   546	                                                                   : APP_ERROR_INVALID_ARGUMENT;
-   547	    }
-   548	    if (result == APP_ERROR_NONE) {
-   549	        result = initialize_manifest(&transaction_id, &current, &document->replacement, staging,
-   550	                                     &manifest);
-   551	    }
-   552	    if (result == APP_ERROR_NONE) {
-   553	        result = storage_transaction_write_manifest(&manifest);
-   554	        manifest_written = result == APP_ERROR_NONE;
+   529	    fprintf(stderr, "PHASE18_3_DIAGNOSTIC current=%d\n", (int)result);
+   530	    if (result == APP_ERROR_NONE && current.revision != expected_revision) {
+   531	        result = APP_ERROR_CONFLICT;
+   532	    }
+   533	    if (result == APP_ERROR_NONE) {
+   534	        result = verify_global_dependencies(document->arrays[PACKAGE_REPLACE_GLOBAL_MACROS]);
+   535	        fprintf(stderr, "PHASE18_3_DIAGNOSTIC globals=%d\n", (int)result);
+   536	    }
+   537	    app_uuid_t transaction_id = {0};
+   538	    if (result == APP_ERROR_NONE) {
+   539	        result = app_uuid_generate(&transaction_id);
+   540	        fprintf(stderr, "PHASE18_3_DIAGNOSTIC uuid=%d\n", (int)result);
+   541	    }
+   542	    char staging[APP_PATH_MAX_BYTES] = {0};
+   543	    storage_transaction_manifest_t manifest = {0};
+   544	    bool manifest_written = false;
+   545	    if (result == APP_ERROR_NONE) {
+   546	        const int written = snprintf(staging, sizeof(staging), STORAGE_DATA_MOUNT "/staging/%s",
+   547	                                     transaction_id.value);
+   548	        result = written >= 0 && (size_t)written < sizeof(staging) ? APP_ERROR_NONE
+   549	                                                                   : APP_ERROR_INVALID_ARGUMENT;
+   550	    }
+   551	    if (result == APP_ERROR_NONE) {
+   552	        result = initialize_manifest(&transaction_id, &current, &document->replacement, staging,
+   553	                                     &manifest);
+   554	        fprintf(stderr, "PHASE18_3_DIAGNOSTIC manifest-init=%d\n", (int)result);
    555	    }
    556	    if (result == APP_ERROR_NONE) {
-   557	        result = create_staging(&transaction_id, staging, sizeof(staging));
-   558	    }
-   559	    if (result == APP_ERROR_NONE) {
-   560	        result = materialize_staging(document, staging);
-   561	    }
-   562	    if (result == APP_ERROR_NONE) {
-   563	        result = storage_set_tree_validate(staging, target_set_id,
-   564	                                           document->replacement.revision);
-   565	    }
-   566	    if (result == APP_ERROR_NONE) {
-   567	        manifest.phase = STORAGE_TRANSACTION_STAGED;
-   568	        result = storage_transaction_write_manifest(&manifest);
-   569	    }
-   570	    if (result == APP_ERROR_NONE) {
-   571	        result = recover_replace(&manifest);
-   572	    } else if (manifest_written) {
-   573	        const app_error_code_t rollback = recover_replace(&manifest);
-   574	        if (rollback != APP_ERROR_NONE) {
-   575	            return result;
-   576	        }
-   577	    }
-   578	    if (result == APP_ERROR_NONE) {
-   579	        result = storage_set_read_locked(target_set_id, out_set);
-   580	    }
-   581	    if (result == APP_ERROR_NONE && out_set->revision != document->replacement.revision) {
-   582	        memset(out_set, 0, sizeof(*out_set));
-   583	        result = APP_ERROR_STORAGE_CORRUPT;
-   584	    }
-   585	    return result;
-   586	}
-   587	
-   588	app_error_code_t storage_package_replace_set(const app_uuid_t *target_set_id,
-   589	                                             uint32_t expected_revision, const char *data,
-   590	                                             size_t length, macro_set_t *out_set) {
-   591	    if (out_set != NULL) {
+   557	        result = storage_transaction_write_manifest(&manifest);
+   558	        fprintf(stderr, "PHASE18_3_DIAGNOSTIC manifest-prepared=%d\n", (int)result);
+   559	        manifest_written = result == APP_ERROR_NONE;
+   560	    }
+   561	    if (result == APP_ERROR_NONE) {
+   562	        result = create_staging(&transaction_id, staging, sizeof(staging));
+   563	        fprintf(stderr, "PHASE18_3_DIAGNOSTIC staging-create=%d\n", (int)result);
+   564	    }
+   565	    if (result == APP_ERROR_NONE) {
+   566	        result = materialize_staging(document, staging);
+   567	        fprintf(stderr, "PHASE18_3_DIAGNOSTIC staging-materialize=%d\n", (int)result);
+   568	    }
+   569	    if (result == APP_ERROR_NONE) {
+   570	        result = storage_set_tree_validate(staging, target_set_id,
+   571	                                           document->replacement.revision);
+   572	        fprintf(stderr, "PHASE18_3_DIAGNOSTIC staging-validate=%d\n", (int)result);
+   573	    }
+   574	    if (result == APP_ERROR_NONE) {
+   575	        manifest.phase = STORAGE_TRANSACTION_STAGED;
+   576	        result = storage_transaction_write_manifest(&manifest);
+   577	        fprintf(stderr, "PHASE18_3_DIAGNOSTIC manifest-staged=%d\n", (int)result);
+   578	    }
+   579	    if (result == APP_ERROR_NONE) {
+   580	        result = recover_replace(&manifest);
+   581	        fprintf(stderr, "PHASE18_3_DIAGNOSTIC recover=%d\n", (int)result);
+   582	    } else if (manifest_written) {
+   583	        const app_error_code_t rollback = recover_replace(&manifest);
+   584	        if (rollback != APP_ERROR_NONE) {
+   585	            return result;
+   586	        }
+   587	    }
+   588	    if (result == APP_ERROR_NONE) {
+   589	        result = storage_set_read_locked(target_set_id, out_set);
+   590	    }
+   591	    if (result == APP_ERROR_NONE && out_set->revision != document->replacement.revision) {
    592	        memset(out_set, 0, sizeof(*out_set));
-   593	    }
-   594	    if (target_set_id == NULL || expected_revision == 0U || data == NULL || length == 0U ||
-   595	        out_set == NULL || !app_uuid_is_valid_string(target_set_id->value)) {
-   596	        return APP_ERROR_INVALID_ARGUMENT;
-   597	    }
-   598	    storage_package_summary_t summary = {0};
-   599	    app_error_code_t result =
-   600	        storage_package_validate(data, length, STORAGE_PACKAGE_KIND_SET, &summary);
-   601	    fprintf(stderr, "PHASE18_3_DIAGNOSTIC validate=%d\n", (int)result);
-   602	    if (result != APP_ERROR_NONE) {
-   603	        return result;
-   604	    }
-   605	    package_replace_document_t document = {0};
-   606	    result = open_document(data, length, &document);
-   607	    fprintf(stderr, "PHASE18_3_DIAGNOSTIC open=%d\n", (int)result);
-   608	    if (result == APP_ERROR_NONE &&
-   609	        !app_uuid_equal(target_set_id, &document.replacement.id)) {
-   610	        result = APP_ERROR_INVALID_ARGUMENT;
-   611	    }
-   612	    if (result == APP_ERROR_NONE) {
-   613	        result = storage_repository_lock_take();
+   593	        result = APP_ERROR_STORAGE_CORRUPT;
+   594	    }
+   595	    return result;
+   596	}
+   597	
+   598	app_error_code_t storage_package_replace_set(const app_uuid_t *target_set_id,
+   599	                                             uint32_t expected_revision, const char *data,
+   600	                                             size_t length, macro_set_t *out_set) {
+   601	    if (out_set != NULL) {
+   602	        memset(out_set, 0, sizeof(*out_set));
+   603	    }
+   604	    if (target_set_id == NULL || expected_revision == 0U || data == NULL || length == 0U ||
+   605	        out_set == NULL || !app_uuid_is_valid_string(target_set_id->value)) {
+   606	        return APP_ERROR_INVALID_ARGUMENT;
+   607	    }
+   608	    storage_package_summary_t summary = {0};
+   609	    app_error_code_t result =
+   610	        storage_package_validate(data, length, STORAGE_PACKAGE_KIND_SET, &summary);
+   611	    fprintf(stderr, "PHASE18_3_DIAGNOSTIC validate=%d\n", (int)result);
+   612	    if (result != APP_ERROR_NONE) {
+   613	        return result;
    614	    }
-   615	    if (result == APP_ERROR_NONE) {
-   616	        result = replace_locked(target_set_id, expected_revision, &document, out_set);
-   617	        fprintf(stderr, "PHASE18_3_DIAGNOSTIC replace=%d\n", (int)result);
-   618	        const app_error_code_t unlock = storage_repository_lock_give();
-   619	        if (unlock != APP_ERROR_NONE) {
-   620	            memset(out_set, 0, sizeof(*out_set));
-   621	            result = APP_ERROR_INTERNAL;
-   622	        }
-   623	    }
-   624	    close_document(&document);
-   625	    return result;
-   626	}
+   615	    package_replace_document_t document = {0};
+   616	    result = open_document(data, length, &document);
+   617	    fprintf(stderr, "PHASE18_3_DIAGNOSTIC open=%d\n", (int)result);
+   618	    if (result == APP_ERROR_NONE &&
+   619	        !app_uuid_equal(target_set_id, &document.replacement.id)) {
+   620	        result = APP_ERROR_INVALID_ARGUMENT;
+   621	    }
+   622	    if (result == APP_ERROR_NONE) {
+   623	        result = storage_repository_lock_take();
+   624	    }
+   625	    if (result == APP_ERROR_NONE) {
+   626	        result = replace_locked(target_set_id, expected_revision, &document, out_set);
+   627	        fprintf(stderr, "PHASE18_3_DIAGNOSTIC replace=%d\n", (int)result);
+   628	        const app_error_code_t unlock = storage_repository_lock_give();
+   629	        if (unlock != APP_ERROR_NONE) {
+   630	            memset(out_set, 0, sizeof(*out_set));
+   631	            result = APP_ERROR_INTERNAL;
+   632	        }
+   633	    }
+   634	    close_document(&document);
+   635	    return result;
+   636	}
 ```
