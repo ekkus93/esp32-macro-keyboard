@@ -129,6 +129,24 @@ export async function replaceSetPackage(
   );
 }
 
+export async function importSetAsNewPackage(
+  newSetId: string,
+  packageDocument: SetPackageDocument,
+): Promise<MacroSet> {
+  return apiRequest(
+    "/api/v1/sets/import-new",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        newSetId,
+        package: packageDocument,
+      }),
+    },
+    isMacroSet,
+    { timeoutMs: 30_000 },
+  );
+}
+
 export async function restoreBackupPackage(
   packageDocument: BackupPackageDocument,
 ): Promise<RestoreResult> {

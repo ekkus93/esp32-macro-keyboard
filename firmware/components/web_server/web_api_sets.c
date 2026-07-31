@@ -363,6 +363,96 @@ static app_error_code_t handle_import(const web_api_call_t *call, web_api_respon
                                     : respond_result(response, result, "could not replace set");
 }
 
+typedef struct {
+    app_uuid_t new_set_id;
+    char *package_json;
+    size_t package_length;
+} web_set_import_new_request_t;
+
+static void free_set_import_new_request(web_set_import_new_request_t *request) {
+    if (request == NULL) {
+        return;
+    }
+    cJSON_free(request->package_json);
+    memset(request, 0, sizeof(*request));
+}
+
+typedef struct {
+    bool new_set_id;
+    bool package;
+} set_import_new_seen_t;
+
+static app_error_code_t parse_set_import_new_item(const cJSON *item,
+                                                  web_set_import_new_request_t *out_request,
+                                                  set_import_new_seen_t *seen) {
+    if (item->string != NULL && strcmp(item->string, "newSetId") == 0 && !seen->new_set_id &&
+        cJSON_IsString(item) && item->valuestring != NULL &&
+        app_uuid_parse(item->valuestring, &out_request->new_set_id) == APP_ERROR_NONE) {
+        seen->new_set_id = true;
+        return APP_ERROR_NONE;
+    }
+    if (item->string != NULL && strcmp(item->string, "package") == 0 && !seen->package &&
+        cJSON_IsObject(item)) {
+        out_request->package_json = cJSON_PrintUnformatted(item);
+        if (out_request->package_json == NULL) {
+            return APP_ERROR_INTERNAL;
+        }
+        out_request->package_length = strlen(out_request->package_json);
+        if (out_request->package_length == 0U ||
+            out_request->package_length > APP_IMPORT_PACKAGE_MAX_BYTES) {
+            return APP_ERROR_INVALID_ARGUMENT;
+        }
+        seen->package = true;
+        return APP_ERROR_NONE;
+    }
+    return APP_ERROR_INVALID_ARGUMENT;
+}
+
+static app_error_code_t parse_set_import_new(const web_api_call_t *call,
+                                             web_set_import_new_request_t *out_request) {
+    if (call == NULL || out_request == NULL || call->body == NULL || call->body_length == 0U) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    memset(out_request, 0, sizeof(*out_request));
+    const char *parse_end = NULL;
+    cJSON *root = cJSON_ParseWithLengthOpts(call->body, call->body_length, &parse_end, false);
+    set_import_new_seen_t seen = {0};
+    app_error_code_t result =
+        root != NULL && parse_end == call->body + call->body_length && cJSON_IsObject(root)
+            ? APP_ERROR_NONE
+            : APP_ERROR_INVALID_ARGUMENT;
+    for (const cJSON *item = result == APP_ERROR_NONE ? root->child : NULL; item != NULL;
+         item = item->next) {
+        result = parse_set_import_new_item(item, out_request, &seen);
+        if (result != APP_ERROR_NONE) {
+            break;
+        }
+    }
+    cJSON_Delete(root);
+    if (result == APP_ERROR_NONE && (!seen.new_set_id || !seen.package)) {
+        result = APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (result != APP_ERROR_NONE) {
+        free_set_import_new_request(out_request);
+    }
+    return result;
+}
+
+static app_error_code_t handle_import_new(const web_api_call_t *call,
+                                          web_api_response_t *response) {
+    web_set_import_new_request_t request = {0};
+    app_error_code_t result = parse_set_import_new(call, &request);
+    macro_set_t committed = {0};
+    if (result == APP_ERROR_NONE) {
+        result = storage_package_import_set(&request.new_set_id, request.package_json,
+                                            request.package_length, &committed);
+    }
+    free_set_import_new_request(&request);
+    return result == APP_ERROR_NONE
+               ? send_set(response, WEB_HTTP_STATUS_CREATED, &committed)
+               : respond_result(response, result, "could not import set as new");
+}
+
 static app_error_code_t handle_export(const web_api_call_t *call, web_api_response_t *response) {
     char *package_json = NULL;
     size_t package_length = 0U;
@@ -397,6 +487,8 @@ app_error_code_t web_api_handle_sets(const web_api_call_t *call, web_api_respons
         return handle_export(call, response);
     case WEB_API_ROUTE_SET_IMPORT:
         return handle_import(call, response);
+    case WEB_API_ROUTE_SET_IMPORT_NEW:
+        return handle_import_new(call, response);
     default:
         return APP_ERROR_NOT_FOUND;
     }

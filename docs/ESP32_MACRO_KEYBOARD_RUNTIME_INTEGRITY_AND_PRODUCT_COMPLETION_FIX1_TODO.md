@@ -1959,7 +1959,7 @@ Update `webapp/tests/app-execution.test.tsx` so cancellation expects
 ### 17.9 Implement real management screens
 
 - [x] create/edit/duplicate/reorder/delete sets;
-- [x] import-as-new boundary screen, disabled until Phase 18;
+- [x] import-as-new boundary screen, later enabled by Phase 18.6;
 - [x] transactional-replace boundary screen, disabled until Phase 18;
 - [x] export boundary screen, disabled until Phase 18;
 - [x] settings;
@@ -1976,9 +1976,10 @@ guarded delete use live revisioned APIs. Settings, storage health, redacted
 quarantine evidence, restart, settings reset, and factory reset use strict
 response guards and visible physical-confirmation waits. Deterministic set
 export, transactional replacement, full backup, and all-or-nothing restore now
-use the completed Phase 18 services. Import-as-new remains an honest disabled
-boundary until its identity-rewrite transaction is implemented; the frontend
-never simulates success or sends an unsupported mutation.
+use the completed Phase 18 services. Import-as-new was an honest disabled
+boundary until its identity-rewrite transaction was implemented in Phase 18.6;
+the frontend never simulated success or sent an unsupported mutation while
+disabled, and now performs the real import.
 
 ### 17.10 Add accessibility and browser tests
 
@@ -2081,6 +2082,54 @@ Generate known sentinel secrets and assert they do not occur in:
 - [ ] diagnostics;
 - [ ] logs;
 - [ ] frontend persisted state.
+
+### 18.6 Import as new
+
+Import-as-new must never overwrite the source package identity or an existing
+local set.
+
+- [x] validate the complete package before mutation;
+- [x] assign a new destination set ID (generated client-side, mirroring the
+      existing create/duplicate convention, and rejected server-side on
+      collision);
+- [x] preserve macro/procedure identities unchanged (they are never globally
+      namespaced) while rewriting `set_id` on every set-scoped macro,
+      procedure, and progress record, and resetting set/macro/procedure
+      revisions to 1;
+- [x] rewrite progress records consistently, including `procedure_revision`,
+      so the staged tree's cross-checks (`storage_set_tree_validate`) agree
+      with the freshly stamped procedure revision;
+- [x] preserve set-local/global macro scope rules, including the byte-identical
+      global-macro dependency check reused from transactional replace;
+- [x] reject unresolved, ambiguous, or internally inconsistent references
+      (enforced generically by `storage_package_validate` and defensively
+      re-checked while writing each object);
+- [x] stage the complete destination tree and validate the staged readback
+      before activation;
+- [x] update the set index transactionally, activating only after complete
+      validation;
+- [x] recover deterministically after every durable phase, reusing the
+      existing `recover_create` driver via a dedicated
+      `STORAGE_TRANSACTION_IMPORT_PACKAGE_SET` manifest type (kept distinct
+      from plain create/duplicate for crash-forensics clarity);
+- [x] return the exact committed object identity and revision.
+
+Implemented: `storage_package_import_set()` combines transactional replace's
+package-parsing/validation pipeline with the create/duplicate family's
+manifest lifecycle (`storage_package_import.c`). A new
+`POST /api/v1/sets/import-new` route (non-destructive; does not require
+physical confirmation, matching create/duplicate) and a real frontend control
+in the package-operations settings page replace the disabled boundary. Host
+tests cover: a valid import assigning a new identity with every revision
+reset to 1 (including progress `procedure_revision`); repeated import of the
+same package producing two independent sets; ID-collision rejection;
+global-macro-dependency-conflict rejection; and crash-recovery idempotency for
+the new manifest type. Storage-full and interrupted-phase fault injection are
+not separately tested for this feature, matching the existing bar for
+create/duplicate (that coverage lives generically in
+`storage_transaction_tests` against the shared `recover_create` primitives).
+Physical hardware/browser validation of the new control has not been
+performed.
 
 ## 19. Diagnostics and observability
 

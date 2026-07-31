@@ -559,6 +559,30 @@ target_link_libraries(storage_package_replace_tests PRIVATE PkgConfig::CJSON tes
 add_test(NAME storage_package_replace COMMAND storage_package_replace_tests)
 set_tests_properties(storage_package_replace PROPERTIES LABELS "storage")
 
+add_executable(
+    storage_package_import_tests
+    test_storage_package_import.c
+    ${STORAGE_OBJECT_REPOSITORY_SOURCES}
+    ../../firmware/components/macro_parser/macro_parser.c
+    ../../firmware/components/macro_parser/macro_keymap_us.c
+    ../../firmware/components/storage/storage_package.c
+    ../../firmware/components/storage/storage_package_import.c
+    ../../firmware/components/storage/storage_set_tree.c
+)
+target_include_directories(
+    storage_package_import_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/storage/include ../../firmware/components/storage
+)
+target_compile_definitions(
+    storage_package_import_tests PRIVATE STORAGE_DATA_MOUNT="/tmp/esp32-macro-keyboard-p18i"
+)
+target_compile_options(storage_package_import_tests PRIVATE ${STRICT_WARNINGS})
+target_link_libraries(storage_package_import_tests PRIVATE PkgConfig::CJSON test_support)
+add_test(NAME storage_package_import COMMAND storage_package_import_tests)
+set_tests_properties(storage_package_import PROPERTIES LABELS "storage")
+
 # Register one isolated storage-object repository host test.
 function(add_storage_object_repository_test target source mount_name)
     add_executable(${target} ${source} ${STORAGE_OBJECT_REPOSITORY_SOURCES})

@@ -741,3 +741,44 @@ Phase 18.3 transactional macro-set replacement is complete.
 - Host coverage includes invalid packages, revision conflicts, dependency mismatches, complete
   activation, recovery phases, API envelopes, physical-confirmation policy, and frontend request
   construction.
+
+## Phase 18.6 completion evidence
+
+Phase 18.6 import-as-new is implemented in software; physical/browser validation has not been
+performed.
+
+- `storage_package_import_set()` (`firmware/components/storage/storage_package_import.c`)
+  combines transactional replace's package-parsing/validation pipeline with the create/duplicate
+  family's manifest lifecycle: it validates the bounded package, generates a fresh transaction id,
+  stages a complete tree with every macro/procedure/progress record's `set_id` rewritten to the
+  caller-supplied new set id and every revision (set, macros, procedures, and progress's
+  `procedure_revision`) reset to 1, validates the staged tree, then activates through
+  `STAGED -> ACTIVATED -> INDEXED` manifest phases exactly like plain set creation.
+- A new `STORAGE_TRANSACTION_IMPORT_PACKAGE_SET` transaction type keeps import-as-new
+  distinguishable from blank-set create/duplicate during crash-manifest forensics, while reusing
+  the existing `recover_create` crash-recovery driver unmodified (`storage_transaction.c`).
+- The global-macro dependency check (byte-identical canonical JSON, or reject with `CONFLICT`) is
+  reused from transactional replace and runs inside the repository lock, immediately before
+  staging, to close the same TOCTOU window replace already closes.
+- `POST /api/v1/sets/import-new` exposes the operation behind the existing auth/CSRF/session
+  middleware, is POST-only, and does not require physical confirmation (additive, not destructive,
+  matching plain create/duplicate rather than transactional replace).
+- The frontend replaces the disabled "Import as new set" boundary with a real control: client-side
+  package validation, a client-generated new set id (`crypto.randomUUID()`, matching the existing
+  create/duplicate convention), and a direct submit (no typed confirmation phrase, matching the
+  non-destructive create/duplicate UX weight rather than replace's destructive-action gate).
+- Host coverage (`tests/host/test_storage_package_import.c`, plus new cases in
+  `test_storage_transactions.c`, `test_web_api_core.c`, `test_web_api_dispatch.c`, and
+  `test_web_api_repository_handlers.c`): invalid arguments and set-id collision reject without
+  mutation; missing/mismatched global-macro dependency rejects without mutation; a valid import
+  assigns the new identity, resets every revision (including progress's `procedure_revision`, the
+  one place a naive rewrite would pass validation but fail the staged-tree cross-check), and never
+  materializes the package's own embedded source set id; repeated import of the same package
+  produces two independently valid sets; and a manifest of the new transaction type left in the
+  `STAGED` phase is recovered idempotently by the existing crash-recovery driver. Storage-full and
+  interrupted-phase fault injection are not separately tested, matching the existing bar for
+  create/duplicate (that coverage lives generically against the shared `recover_create` primitives
+  in `storage_transaction_tests`).
+- Full local verification: `./scripts/check-all.sh` passes (format, ESP-IDF v5.5.5 firmware build
+  with fail-closed clang-tidy, webapp typecheck/lint/test/build, script/doc lint, and all 51 host
+  CTest targets, including the new `storage_package_import` target).

@@ -205,6 +205,7 @@ target_sources(
     PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package.c"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_export.c"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_replace.c"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_import.c"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_set_tree.c"
 )
 
@@ -217,6 +218,7 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_export.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_replace.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_import.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_set_tree.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_core.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_response.c"

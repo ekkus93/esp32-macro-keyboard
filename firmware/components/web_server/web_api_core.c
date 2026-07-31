@@ -133,6 +133,10 @@ static app_error_code_t match_set_routes(const path_segments_t *segments,
         out_path->route = WEB_API_ROUTE_SET_IMPORT;
         return APP_ERROR_NONE;
     }
+    if (segments->count == 2U && text_equal(segments->items[1], "import-new")) {
+        out_path->route = WEB_API_ROUTE_SET_IMPORT_NEW;
+        return APP_ERROR_NONE;
+    }
     if (!parse_uuid_segment(segments->items[1], &out_path->set_id)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -355,6 +359,7 @@ bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method)
     case WEB_API_ROUTE_SETS_ORDER:
         return method == WEB_API_METHOD_PUT;
     case WEB_API_ROUTE_SET_IMPORT:
+    case WEB_API_ROUTE_SET_IMPORT_NEW:
     case WEB_API_ROUTE_RESTORE:
     case WEB_API_ROUTE_SET_DUPLICATE:
     case WEB_API_ROUTE_SET_SELECT:

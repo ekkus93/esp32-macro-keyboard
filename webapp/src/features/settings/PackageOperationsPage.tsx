@@ -5,6 +5,7 @@ import { isRecord } from "../../api/guards";
 import {
   exportBackupPackage,
   exportSetPackage,
+  importSetAsNewPackage,
   isBackupPackageDocument,
   isSetPackageDocument,
   replaceSetPackage,
@@ -25,31 +26,9 @@ interface PackageOperationsPageProps {
   activeSet: MacroSet | null;
   initialSection: "import" | "export";
   saveFile?: (filename: string, text: string) => void;
+  onSetImported?: (created: MacroSet) => void;
   onSetReplaced?: (replacement: MacroSet) => void;
   onBackupRestored?: () => void;
-}
-
-interface OperationCardProps {
-  action: string;
-  description: string;
-  explanation: string;
-}
-
-function OperationCard({
-  action,
-  description,
-  explanation,
-}: OperationCardProps): React.JSX.Element {
-  return (
-    <article className="validation-card unavailable-operation">
-      <h3>{action}</h3>
-      <p>{description}</p>
-      <button disabled type="button">
-        {action}
-      </button>
-      <p className="field-help">Unavailable: {explanation}</p>
-    </article>
-  );
 }
 
 function downloadPackage(filename: string, text: string): void {
@@ -77,13 +56,19 @@ export function PackageOperationsPage({
   activeSet,
   initialSection,
   saveFile = downloadPackage,
+  onSetImported = () => undefined,
   onSetReplaced = () => undefined,
   onBackupRestored = reloadAfterRestore,
 }: PackageOperationsPageProps): React.JSX.Element {
   const [exporting, setExporting] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [replacing, setReplacing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [importPackage, setImportPackage] = useState<SetPackageDocument | null>(
+    null,
+  );
+  const [importFilename, setImportFilename] = useState<string | null>(null);
   const [replacementPackage, setReplacementPackage] =
     useState<SetPackageDocument | null>(null);
   const [replacementFilename, setReplacementFilename] = useState<string | null>(
@@ -139,6 +124,56 @@ export function PackageOperationsPage({
       setError(errorText(backupError));
     } finally {
       setBackingUp(false);
+    }
+  };
+
+  const selectImportPackage = async (
+    event: ChangeEvent<HTMLInputElement>,
+  ): Promise<void> => {
+    setError(null);
+    setMessage(null);
+    setImportPackage(null);
+    setImportFilename(null);
+    const file = event.target.files?.[0];
+    if (file === undefined) {
+      return;
+    }
+    if (file.size === 0 || file.size > PACKAGE_MAX_BYTES) {
+      setError("The package to import must be between 1 byte and 512 KiB.");
+      return;
+    }
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      if (!isSetPackageDocument(parsed)) {
+        throw new Error("The file is not a supported macro-set package.");
+      }
+      setImportPackage(parsed);
+      setImportFilename(file.name);
+      setMessage(`Validated ${file.name}. Ready to import as a new set.`);
+    } catch (selectionError: unknown) {
+      setError(errorText(selectionError));
+    }
+  };
+
+  const performImport = async (): Promise<void> => {
+    if (importPackage === null || importing) {
+      return;
+    }
+    setImporting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const newSetId = crypto.randomUUID();
+      const created = await importSetAsNewPackage(newSetId, importPackage);
+      onSetImported(created);
+      setImportPackage(null);
+      setImportFilename(null);
+      setMessage(`Imported "${created.name}" as a new set (ID ${created.id}).`);
+    } catch (importError: unknown) {
+      setError(errorText(importError));
+      setMessage(null);
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -287,8 +322,8 @@ export function PackageOperationsPage({
       </div>
 
       <div className="boundary-message" role="status">
-        Deterministic set export, transactional replacement, full backup, and
-        all-or-nothing restore are available. Import-as-new remains disabled.
+        Deterministic set export, import as new, transactional replacement, full
+        backup, and all-or-nothing restore are available.
       </div>
 
       <ErrorBanner message={error} />
@@ -317,11 +352,38 @@ export function PackageOperationsPage({
 
       {initialSection === "import" ? (
         <div className="management-grid">
-          <OperationCard
-            action="Import as new set"
-            description="Validate a complete package, assign a new identity, and create it without changing existing sets."
-            explanation="transactional import-as-new is not implemented."
-          />
+          <article className="validation-card">
+            <h3>Import as new set</h3>
+            <p>
+              Validate a complete package, assign a new identity, and create it
+              as a new set without changing any existing set.
+            </p>
+            <label htmlFor="import-package">Package to import</label>
+            <input
+              accept="application/json,.json"
+              disabled={importing}
+              id="import-package"
+              onChange={(event) => {
+                void selectImportPackage(event);
+              }}
+              type="file"
+            />
+            <button
+              className="primary"
+              disabled={importPackage === null || importing}
+              onClick={() => {
+                void performImport();
+              }}
+              type="button"
+            >
+              {importing ? "Importing…" : "Import as new set"}
+            </button>
+            <p className="field-help">
+              {importFilename === null
+                ? "Referenced global macros must already exist on the device with identical content."
+                : `Ready to import ${importFilename}.`}
+            </p>
+          </article>
           <article className="validation-card">
             <h3>Replace selected set</h3>
             <p>

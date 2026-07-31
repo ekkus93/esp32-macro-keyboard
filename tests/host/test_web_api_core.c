@@ -37,6 +37,7 @@ static void test_route_parsing(void) {
     check_route("/api/v1/sets", WEB_API_ROUTE_SETS);
     check_route("/api/v1/sets/order", WEB_API_ROUTE_SETS_ORDER);
     check_route("/api/v1/sets/import", WEB_API_ROUTE_SET_IMPORT);
+    check_route("/api/v1/sets/import-new", WEB_API_ROUTE_SET_IMPORT_NEW);
     check_route("/api/v1/sets/" SET_ID, WEB_API_ROUTE_SET);
     check_route("/api/v1/sets/" SET_ID "/select", WEB_API_ROUTE_SET_SELECT);
     check_route("/api/v1/sets/" SET_ID "/macros", WEB_API_ROUTE_SET_MACROS);
@@ -85,6 +86,9 @@ static void test_route_policy(void) {
     TEST_CHECK(!web_api_route_requires_csrf(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_FACTORY_RESET));
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SET_IMPORT));
+    TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SET_IMPORT_NEW));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SET_IMPORT_NEW, WEB_API_METHOD_POST));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SET_IMPORT_NEW, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_EXECUTIONS));
     TEST_CHECK(web_api_physical_confirmation_required(WEB_API_ROUTE_EXECUTIONS, true));
     TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_EXECUTIONS, false));

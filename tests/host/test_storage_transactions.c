@@ -47,87 +47,60 @@ typedef struct {
 static validation_fixture_t validation_fixture;
 static remove_fixture_t remove_fixture;
 
-static int adapter_open(void *context, const char *path, int flags, mode_t mode)
-{
+static int adapter_open(void *context, const char *path, int flags, mode_t mode) {
     return fake_fs_open(context, path, flags, mode);
 }
 
-static ssize_t adapter_read(void *context,
-                            int descriptor,
-                            void *buffer,
-                            size_t length)
-{
+static ssize_t adapter_read(void *context, int descriptor, void *buffer, size_t length) {
     return fake_fs_read(context, descriptor, buffer, length);
 }
 
-static ssize_t adapter_write(void *context,
-                             int descriptor,
-                             const void *buffer,
-                             size_t length)
-{
+static ssize_t adapter_write(void *context, int descriptor, const void *buffer, size_t length) {
     return fake_fs_write(context, descriptor, buffer, length);
 }
 
-static int adapter_sync(void *context, int descriptor)
-{
+static int adapter_sync(void *context, int descriptor) {
     return fake_fs_sync(context, descriptor);
 }
 
-static int adapter_close(void *context, int descriptor)
-{
+static int adapter_close(void *context, int descriptor) {
     return fake_fs_close(context, descriptor);
 }
 
-static int adapter_stat(void *context,
-                        const char *path,
-                        struct stat *metadata)
-{
+static int adapter_stat(void *context, const char *path, struct stat *metadata) {
     return fake_fs_stat(context, path, metadata);
 }
 
-static int adapter_rename(void *context,
-                          const char *source,
-                          const char *destination)
-{
+static int adapter_rename(void *context, const char *source, const char *destination) {
     return fake_fs_rename(context, source, destination);
 }
 
-static int adapter_unlink(void *context, const char *path)
-{
+static int adapter_unlink(void *context, const char *path) {
     return fake_fs_unlink(context, path);
 }
 
-static int adapter_mkdir(void *context, const char *path, mode_t mode)
-{
+static int adapter_mkdir(void *context, const char *path, mode_t mode) {
     return fake_fs_mkdir(context, path, mode);
 }
 
-static void *adapter_open_directory(void *context, const char *path)
-{
+static void *adapter_open_directory(void *context, const char *path) {
     return fake_fs_open_dir(context, path);
 }
 
-static int adapter_read_directory(void *context,
-                                  void *directory,
-                                  char *name,
-                                  size_t name_size,
-                                  bool *out_end)
-{
+static int adapter_read_directory(void *context, void *directory, char *name, size_t name_size,
+                                  bool *out_end) {
     return fake_fs_read_dir(context, directory, name, name_size, out_end);
 }
 
-static int adapter_close_directory(void *context, void *directory)
-{
+static int adapter_close_directory(void *context, void *directory) {
     return fake_fs_close_dir(context, directory);
 }
 
-static int adapter_remove_directory(void *context, const char *path)
-{
+static int adapter_remove_directory(void *context, const char *path) {
     return fake_fs_rmdir(context, path);
 }
 
-static storage_fs_ops_t make_operations(fake_fs_backend_t *filesystem)
-{
+static storage_fs_ops_t make_operations(fake_fs_backend_t *filesystem) {
     return (storage_fs_ops_t){
         .context = filesystem,
         .open_file = adapter_open,
@@ -146,30 +119,23 @@ static storage_fs_ops_t make_operations(fake_fs_backend_t *filesystem)
     };
 }
 
-static app_error_code_t generate_uuid(void *context, app_uuid_t *out_uuid)
-{
+static app_error_code_t generate_uuid(void *context, app_uuid_t *out_uuid) {
     uuid_sequence_t *sequence = context;
     if (sequence == NULL || out_uuid == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     ++sequence->calls;
-    if (sequence->fail_on_call != 0U &&
-        sequence->calls == sequence->fail_on_call) {
+    if (sequence->fail_on_call != 0U && sequence->calls == sequence->fail_on_call) {
         return APP_ERROR_INTERNAL;
     }
     ++sequence->next_value;
-    const int written = snprintf(out_uuid->value,
-                                 sizeof(out_uuid->value),
-                                 "ffffffff-ffff-4fff-8fff-%012zu",
-                                 sequence->next_value);
-    return written == (int)APP_UUID_STRING_LENGTH ? APP_ERROR_NONE
-                                                  : APP_ERROR_INTERNAL;
+    const int written = snprintf(out_uuid->value, sizeof(out_uuid->value),
+                                 "ffffffff-ffff-4fff-8fff-%012zu", sequence->next_value);
+    return written == (int)APP_UUID_STRING_LENGTH ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
 }
 
-static app_error_code_t update_index(void *context,
-                                     const app_uuid_t *set_id,
-                                     bool should_be_present)
-{
+static app_error_code_t update_index(void *context, const app_uuid_t *set_id,
+                                     bool should_be_present) {
     index_fixture_t *fixture = context;
     TEST_CHECK(fixture != NULL);
     TEST_CHECK(set_id != NULL);
@@ -177,18 +143,14 @@ static app_error_code_t update_index(void *context,
     fixture->ids[fixture->count] = *set_id;
     fixture->presence[fixture->count] = should_be_present;
     ++fixture->count;
-    if (fixture->fail_on_call != 0U &&
-        fixture->count == fixture->fail_on_call) {
+    if (fixture->fail_on_call != 0U && fixture->count == fixture->fail_on_call) {
         return fixture->failure;
     }
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t validate_set(void *context,
-                                     const char *path,
-                                     const app_uuid_t *set_id,
-                                     uint32_t expected_revision)
-{
+static app_error_code_t validate_set(void *context, const char *path, const app_uuid_t *set_id,
+                                     uint32_t expected_revision) {
     (void)context;
     TEST_CHECK(path != NULL);
     TEST_CHECK(set_id != NULL);
@@ -204,114 +166,75 @@ static app_error_code_t validate_set(void *context,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t remove_tree(void *context, const char *path)
-{
+static app_error_code_t remove_tree(void *context, const char *path) {
     (void)context;
     TEST_CHECK(path != NULL);
     ++remove_fixture.calls;
-    if (remove_fixture.fail_on_call != 0U &&
-        remove_fixture.calls == remove_fixture.fail_on_call) {
+    if (remove_fixture.fail_on_call != 0U && remove_fixture.calls == remove_fixture.fail_on_call) {
         return remove_fixture.failure;
     }
     return rmdir(path) == 0 ? APP_ERROR_NONE : APP_ERROR_IO;
 }
 
-app_error_code_t storage_repository_set_index_presence(
-    const app_uuid_t *set_id,
-    bool should_be_present)
-{
+app_error_code_t storage_repository_set_index_presence(const app_uuid_t *set_id,
+                                                       bool should_be_present) {
     (void)set_id;
     (void)should_be_present;
     return APP_ERROR_INTERNAL;
 }
 
-static app_uuid_t parse_uuid(const char *value)
-{
+static app_uuid_t parse_uuid(const char *value) {
     app_uuid_t id = {0};
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, app_uuid_parse(value, &id));
     return id;
 }
 
-static void checked_path(char *output,
-                         size_t output_size,
-                         const char *directory,
-                         const char *name)
-{
-    const int written = snprintf(output,
-                                 output_size,
-                                 "%s/%s",
-                                 directory,
-                                 name);
+static void checked_path(char *output, size_t output_size, const char *directory,
+                         const char *name) {
+    const int written = snprintf(output, output_size, "%s/%s", directory, name);
     TEST_CHECK(written > 0);
     TEST_CHECK((size_t)written < output_size);
 }
 
-static void transaction_path(char *output,
-                             size_t output_size,
-                             const app_uuid_t *transaction_id)
-{
-    const int written = snprintf(output,
-                                 output_size,
-                                 STORAGE_DATA_MOUNT "/transactions/%s.bin",
+static void transaction_path(char *output, size_t output_size, const app_uuid_t *transaction_id) {
+    const int written = snprintf(output, output_size, STORAGE_DATA_MOUNT "/transactions/%s.bin",
                                  transaction_id->value);
     TEST_CHECK(written > 0);
     TEST_CHECK((size_t)written < output_size);
 }
 
-static void staging_path(char *output,
-                         size_t output_size,
-                         const app_uuid_t *transaction_id)
-{
-    const int written = snprintf(output,
-                                 output_size,
-                                 STORAGE_DATA_MOUNT "/staging/%s",
+static void staging_path(char *output, size_t output_size, const app_uuid_t *transaction_id) {
+    const int written =
+        snprintf(output, output_size, STORAGE_DATA_MOUNT "/staging/%s", transaction_id->value);
+    TEST_CHECK(written > 0);
+    TEST_CHECK((size_t)written < output_size);
+}
+
+static void set_path(char *output, size_t output_size, const char *set_id) {
+    const int written = snprintf(output, output_size, STORAGE_DATA_MOUNT "/sets/%s", set_id);
+    TEST_CHECK(written > 0);
+    TEST_CHECK((size_t)written < output_size);
+}
+
+static void trash_path(char *output, size_t output_size, const char *set_id,
+                       const app_uuid_t *transaction_id) {
+    const int written = snprintf(output, output_size, STORAGE_DATA_MOUNT "/trash/%s-%s", set_id,
                                  transaction_id->value);
     TEST_CHECK(written > 0);
     TEST_CHECK((size_t)written < output_size);
 }
 
-static void set_path(char *output,
-                     size_t output_size,
-                     const char *set_id)
-{
-    const int written = snprintf(output,
-                                 output_size,
-                                 STORAGE_DATA_MOUNT "/sets/%s",
-                                 set_id);
-    TEST_CHECK(written > 0);
-    TEST_CHECK((size_t)written < output_size);
-}
-
-static void trash_path(char *output,
-                       size_t output_size,
-                       const char *set_id,
-                       const app_uuid_t *transaction_id)
-{
-    const int written = snprintf(output,
-                                 output_size,
-                                 STORAGE_DATA_MOUNT "/trash/%s-%s",
-                                 set_id,
-                                 transaction_id->value);
-    TEST_CHECK(written > 0);
-    TEST_CHECK((size_t)written < output_size);
-}
-
-static void create_directory(const char *path)
-{
+static void create_directory(const char *path) {
     TEST_CHECK(mkdir(path, 0700) == 0 || errno == EEXIST);
 }
 
-static void reset_storage(void)
-{
+static void reset_storage(void) {
     memset(&validation_fixture, 0, sizeof(validation_fixture));
     memset(&remove_fixture, 0, sizeof(remove_fixture));
     validation_fixture.failure = APP_ERROR_IO;
     remove_fixture.failure = APP_ERROR_IO;
     char command[APP_PATH_MAX_BYTES + 32U];
-    const int written = snprintf(command,
-                                 sizeof(command),
-                                 "rm -rf '%s'",
-                                 STORAGE_DATA_MOUNT);
+    const int written = snprintf(command, sizeof(command), "rm -rf '%s'", STORAGE_DATA_MOUNT);
     TEST_CHECK(written > 0);
     TEST_CHECK((size_t)written < sizeof(command));
     TEST_CHECK_EQ_INT(0, system(command));
@@ -323,23 +246,19 @@ static void reset_storage(void)
         "sets",
         "trash",
     };
-    for (size_t index = 0U;
-         index < sizeof(children) / sizeof(children[0]);
-         ++index) {
+    for (size_t index = 0U; index < sizeof(children) / sizeof(children[0]); ++index) {
         char path[APP_PATH_MAX_BYTES];
         checked_path(path, sizeof(path), STORAGE_DATA_MOUNT, children[index]);
         create_directory(path);
     }
 }
 
-static bool path_exists(const char *path)
-{
+static bool path_exists(const char *path) {
     struct stat metadata;
     return stat(path, &metadata) == 0;
 }
 
-static void write_raw_file(const char *path, const void *data, size_t length)
-{
+static void write_raw_file(const char *path, const void *data, size_t length) {
     const int descriptor = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     TEST_CHECK(descriptor >= 0);
     const ssize_t count = write(descriptor, data, length);
@@ -348,11 +267,9 @@ static void write_raw_file(const char *path, const void *data, size_t length)
     TEST_CHECK_EQ_INT(0, close(descriptor));
 }
 
-static storage_transaction_manifest_t make_create_manifest(
-    const char *transaction_value,
-    const char *set_value,
-    storage_transaction_phase_t phase)
-{
+static storage_transaction_manifest_t make_create_manifest(const char *transaction_value,
+                                                           const char *set_value,
+                                                           storage_transaction_phase_t phase) {
     storage_transaction_manifest_t manifest = {
         .schema_version = APP_SCHEMA_VERSION,
         .id = parse_uuid(transaction_value),
@@ -361,20 +278,30 @@ static storage_transaction_manifest_t make_create_manifest(
         .expected_revision = 0U,
         .replacement_revision = 1U,
     };
-    staging_path(manifest.staging,
-                 sizeof(manifest.staging),
-                 &manifest.id);
-    set_path(manifest.destination,
-             sizeof(manifest.destination),
-             set_value);
+    staging_path(manifest.staging, sizeof(manifest.staging), &manifest.id);
+    set_path(manifest.destination, sizeof(manifest.destination), set_value);
     return manifest;
 }
 
-static storage_transaction_manifest_t make_delete_manifest(
-    const char *transaction_value,
-    const char *set_value,
-    storage_transaction_phase_t phase)
-{
+static storage_transaction_manifest_t
+make_import_package_manifest(const char *transaction_value, const char *set_value,
+                             storage_transaction_phase_t phase) {
+    storage_transaction_manifest_t manifest = {
+        .schema_version = APP_SCHEMA_VERSION,
+        .id = parse_uuid(transaction_value),
+        .type = STORAGE_TRANSACTION_IMPORT_PACKAGE_SET,
+        .phase = phase,
+        .expected_revision = 0U,
+        .replacement_revision = 1U,
+    };
+    staging_path(manifest.staging, sizeof(manifest.staging), &manifest.id);
+    set_path(manifest.destination, sizeof(manifest.destination), set_value);
+    return manifest;
+}
+
+static storage_transaction_manifest_t make_delete_manifest(const char *transaction_value,
+                                                           const char *set_value,
+                                                           storage_transaction_phase_t phase) {
     storage_transaction_manifest_t manifest = {
         .schema_version = APP_SCHEMA_VERSION,
         .id = parse_uuid(transaction_value),
@@ -384,18 +311,13 @@ static storage_transaction_manifest_t make_delete_manifest(
         .replacement_revision = 0U,
     };
     set_path(manifest.source, sizeof(manifest.source), set_value);
-    trash_path(manifest.backup,
-               sizeof(manifest.backup),
-               set_value,
-               &manifest.id);
+    trash_path(manifest.backup, sizeof(manifest.backup), set_value, &manifest.id);
     return manifest;
 }
 
-static storage_transaction_manifest_t make_replace_manifest(
-    const char *transaction_value,
-    const char *set_value,
-    storage_transaction_phase_t phase)
-{
+static storage_transaction_manifest_t make_replace_manifest(const char *transaction_value,
+                                                            const char *set_value,
+                                                            storage_transaction_phase_t phase) {
     storage_transaction_manifest_t manifest = {
         .schema_version = APP_SCHEMA_VERSION,
         .id = parse_uuid(transaction_value),
@@ -411,93 +333,87 @@ static storage_transaction_manifest_t make_replace_manifest(
     return manifest;
 }
 
-static void write_manifest(storage_transaction_manifest_t *manifest,
-                           storage_fs_ops_t *operations,
-                           uuid_sequence_t *uuids)
-{
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      storage_transaction_write_manifest_with_ops(
-                          manifest,
-                          operations,
-                          generate_uuid,
-                          uuids));
+static void write_manifest(storage_transaction_manifest_t *manifest, storage_fs_ops_t *operations,
+                           uuid_sequence_t *uuids) {
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_transaction_write_manifest_with_ops(
+                                          manifest, operations, generate_uuid, uuids));
 }
 
-static app_error_code_t recover(storage_fs_ops_t *operations,
-                                uuid_sequence_t *uuids,
-                                index_fixture_t *index)
-{
-    return storage_transaction_recover_all_with_ops(operations,
-                                                    generate_uuid,
-                                                    uuids,
-                                                    update_index,
-                                                    index,
-                                                    validate_set,
-                                                    NULL,
-                                                    remove_tree,
-                                                    NULL);
+static app_error_code_t recover(storage_fs_ops_t *operations, uuid_sequence_t *uuids,
+                                index_fixture_t *index) {
+    return storage_transaction_recover_all_with_ops(operations, generate_uuid, uuids, update_index,
+                                                    index, validate_set, NULL, remove_tree, NULL);
 }
 
-static void test_invalid_arguments(void)
-{
+static void test_invalid_arguments(void) {
     reset_storage();
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
     storage_fs_ops_t operations = make_operations(&filesystem);
     uuid_sequence_t uuids = {0};
     index_fixture_t index = {.failure = APP_ERROR_IO};
-    storage_transaction_manifest_t manifest = make_create_manifest(
-        "00000000-0000-4000-8000-000000000001",
-        "10000000-0000-4000-8000-000000000001",
-        STORAGE_TRANSACTION_STAGED);
+    storage_transaction_manifest_t manifest =
+        make_create_manifest("00000000-0000-4000-8000-000000000001",
+                             "10000000-0000-4000-8000-000000000001", STORAGE_TRANSACTION_STAGED);
 
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      storage_transaction_write_manifest_with_ops(
-                          NULL,
-                          &operations,
-                          generate_uuid,
-                          &uuids));
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      storage_transaction_write_manifest_with_ops(
-                          &manifest,
-                          NULL,
-                          generate_uuid,
-                          &uuids));
+    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, storage_transaction_write_manifest_with_ops(
+                                                      NULL, &operations, generate_uuid, &uuids));
+    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, storage_transaction_write_manifest_with_ops(
+                                                      &manifest, NULL, generate_uuid, &uuids));
     manifest.replacement_revision = 0U;
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      storage_transaction_write_manifest_with_ops(
-                          &manifest,
-                          &operations,
-                          generate_uuid,
-                          &uuids));
+    TEST_CHECK_EQ_INT(
+        APP_ERROR_INVALID_ARGUMENT,
+        storage_transaction_write_manifest_with_ops(&manifest, &operations, generate_uuid, &uuids));
 
     TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      storage_transaction_recover_all_with_ops(
-                          NULL,
-                          generate_uuid,
-                          &uuids,
-                          update_index,
-                          &index,
-                          validate_set,
-                          NULL,
-                          remove_tree,
-                          NULL));
+                      storage_transaction_recover_all_with_ops(NULL, generate_uuid, &uuids,
+                                                               update_index, &index, validate_set,
+                                                               NULL, remove_tree, NULL));
     operations.read_directory = NULL;
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      recover(&operations, &uuids, &index));
+    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, recover(&operations, &uuids, &index));
 }
 
-static void test_create_recovery_is_idempotent(void)
-{
+static void test_create_recovery_is_idempotent(void) {
     reset_storage();
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
     storage_fs_ops_t operations = make_operations(&filesystem);
     uuid_sequence_t uuids = {0};
     index_fixture_t index = {.failure = APP_ERROR_IO};
-    storage_transaction_manifest_t manifest = make_create_manifest(
-        "00000000-0000-4000-8000-000000000010",
-        "10000000-0000-4000-8000-000000000010",
+    storage_transaction_manifest_t manifest =
+        make_create_manifest("00000000-0000-4000-8000-000000000010",
+                             "10000000-0000-4000-8000-000000000010", STORAGE_TRANSACTION_STAGED);
+    create_directory(manifest.staging);
+    write_manifest(&manifest, &operations, &uuids);
+    fake_fs_backend_reset(&filesystem);
+
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, recover(&operations, &uuids, &index));
+    TEST_CHECK(!path_exists(manifest.staging));
+    TEST_CHECK(path_exists(manifest.destination));
+    char path[APP_PATH_MAX_BYTES];
+    transaction_path(path, sizeof(path), &manifest.id);
+    TEST_CHECK(!path_exists(path));
+    TEST_CHECK_EQ_U64(2U, index.count);
+    TEST_CHECK(index.presence[0]);
+    TEST_CHECK(index.presence[1]);
+
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, recover(&operations, &uuids, &index));
+    TEST_CHECK_EQ_U64(2U, index.count);
+}
+
+/* STORAGE_TRANSACTION_IMPORT_PACKAGE_SET dispatches to the same recover_create driver
+ * as STORAGE_TRANSACTION_IMPORT_SET/DUPLICATE_SET; this proves that dispatch wiring
+ * survives a crash mid-transaction rather than falling into manifest_shape_valid's
+ * default rejection. */
+static void test_import_package_recovery_is_idempotent(void) {
+    reset_storage();
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    uuid_sequence_t uuids = {0};
+    index_fixture_t index = {.failure = APP_ERROR_IO};
+    storage_transaction_manifest_t manifest = make_import_package_manifest(
+        "00000000-0000-4000-8000-000000000015", "10000000-0000-4000-8000-000000000015",
         STORAGE_TRANSACTION_STAGED);
     create_directory(manifest.staging);
     write_manifest(&manifest, &operations, &uuids);
@@ -517,18 +433,16 @@ static void test_create_recovery_is_idempotent(void)
     TEST_CHECK_EQ_U64(2U, index.count);
 }
 
-static void test_delete_recovery_is_idempotent(void)
-{
+static void test_delete_recovery_is_idempotent(void) {
     reset_storage();
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
     storage_fs_ops_t operations = make_operations(&filesystem);
     uuid_sequence_t uuids = {0};
     index_fixture_t index = {.failure = APP_ERROR_IO};
-    storage_transaction_manifest_t manifest = make_delete_manifest(
-        "00000000-0000-4000-8000-000000000020",
-        "10000000-0000-4000-8000-000000000020",
-        STORAGE_TRANSACTION_PREPARED);
+    storage_transaction_manifest_t manifest =
+        make_delete_manifest("00000000-0000-4000-8000-000000000020",
+                             "10000000-0000-4000-8000-000000000020", STORAGE_TRANSACTION_PREPARED);
     create_directory(manifest.source);
     write_manifest(&manifest, &operations, &uuids);
     fake_fs_backend_reset(&filesystem);
@@ -547,15 +461,12 @@ static void test_delete_recovery_is_idempotent(void)
     TEST_CHECK_EQ_U64(2U, index.count);
 }
 
-static void test_conflicting_create_paths_are_preserved(void)
-{
+static void test_conflicting_create_paths_are_preserved(void) {
     static const bool states[][2] = {
         {false, false},
         {true, true},
     };
-    for (size_t case_index = 0U;
-         case_index < sizeof(states) / sizeof(states[0]);
-         ++case_index) {
+    for (size_t case_index = 0U; case_index < sizeof(states) / sizeof(states[0]); ++case_index) {
         reset_storage();
         fake_fs_backend_t filesystem;
         fake_fs_backend_reset(&filesystem);
@@ -563,8 +474,7 @@ static void test_conflicting_create_paths_are_preserved(void)
         uuid_sequence_t uuids = {0};
         index_fixture_t index = {.failure = APP_ERROR_IO};
         storage_transaction_manifest_t manifest = make_create_manifest(
-            "00000000-0000-4000-8000-000000000030",
-            "10000000-0000-4000-8000-000000000030",
+            "00000000-0000-4000-8000-000000000030", "10000000-0000-4000-8000-000000000030",
             STORAGE_TRANSACTION_STAGED);
         if (states[case_index][0]) {
             create_directory(manifest.staging);
@@ -577,36 +487,28 @@ static void test_conflicting_create_paths_are_preserved(void)
         transaction_path(path, sizeof(path), &manifest.id);
         fake_fs_backend_reset(&filesystem);
 
-        TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT,
-                          recover(&operations, &uuids, &index));
+        TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT, recover(&operations, &uuids, &index));
         TEST_CHECK(path_exists(path));
         TEST_CHECK_EQ_U64(0U, index.count);
     }
 }
 
-static void test_directory_and_manifest_read_failures(void)
-{
+static void test_directory_and_manifest_read_failures(void) {
     static const fake_fs_operation_t directory_failures[] = {
         FAKE_FS_OPEN_DIR,
         FAKE_FS_READ_DIR,
         FAKE_FS_CLOSE_DIR,
     };
     for (size_t case_index = 0U;
-         case_index < sizeof(directory_failures) /
-                          sizeof(directory_failures[0]);
-         ++case_index) {
+         case_index < sizeof(directory_failures) / sizeof(directory_failures[0]); ++case_index) {
         reset_storage();
         fake_fs_backend_t filesystem;
         fake_fs_backend_reset(&filesystem);
-        fake_fs_backend_fail_on(&filesystem,
-                                directory_failures[case_index],
-                                1U,
-                                EIO);
+        fake_fs_backend_fail_on(&filesystem, directory_failures[case_index], 1U, EIO);
         storage_fs_ops_t operations = make_operations(&filesystem);
         uuid_sequence_t uuids = {0};
         index_fixture_t index = {.failure = APP_ERROR_IO};
-        TEST_CHECK_EQ_INT(APP_ERROR_IO,
-                          recover(&operations, &uuids, &index));
+        TEST_CHECK_EQ_INT(APP_ERROR_IO, recover(&operations, &uuids, &index));
     }
 
     static const fake_fs_operation_t read_failures[] = {
@@ -615,8 +517,7 @@ static void test_directory_and_manifest_read_failures(void)
         FAKE_FS_READ,
         FAKE_FS_CLOSE,
     };
-    for (size_t case_index = 0U;
-         case_index < sizeof(read_failures) / sizeof(read_failures[0]);
+    for (size_t case_index = 0U; case_index < sizeof(read_failures) / sizeof(read_failures[0]);
          ++case_index) {
         reset_storage();
         fake_fs_backend_t filesystem;
@@ -625,37 +526,30 @@ static void test_directory_and_manifest_read_failures(void)
         uuid_sequence_t uuids = {0};
         index_fixture_t index = {.failure = APP_ERROR_IO};
         storage_transaction_manifest_t manifest = make_create_manifest(
-            "00000000-0000-4000-8000-000000000040",
-            "10000000-0000-4000-8000-000000000040",
+            "00000000-0000-4000-8000-000000000040", "10000000-0000-4000-8000-000000000040",
             STORAGE_TRANSACTION_STAGED);
         create_directory(manifest.staging);
         write_manifest(&manifest, &operations, &uuids);
         fake_fs_backend_reset(&filesystem);
-        fake_fs_backend_fail_on(&filesystem,
-                                read_failures[case_index],
-                                1U,
-                                EIO);
+        fake_fs_backend_fail_on(&filesystem, read_failures[case_index], 1U, EIO);
 
-        TEST_CHECK_EQ_INT(APP_ERROR_IO,
-                          recover(&operations, &uuids, &index));
+        TEST_CHECK_EQ_INT(APP_ERROR_IO, recover(&operations, &uuids, &index));
         char path[APP_PATH_MAX_BYTES];
         transaction_path(path, sizeof(path), &manifest.id);
         TEST_CHECK(path_exists(path));
     }
 }
 
-static void test_phase_write_failure_can_be_retried(void)
-{
+static void test_phase_write_failure_can_be_retried(void) {
     reset_storage();
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
     storage_fs_ops_t operations = make_operations(&filesystem);
     uuid_sequence_t uuids = {0};
     index_fixture_t index = {.failure = APP_ERROR_IO};
-    storage_transaction_manifest_t manifest = make_create_manifest(
-        "00000000-0000-4000-8000-000000000050",
-        "10000000-0000-4000-8000-000000000050",
-        STORAGE_TRANSACTION_STAGED);
+    storage_transaction_manifest_t manifest =
+        make_create_manifest("00000000-0000-4000-8000-000000000050",
+                             "10000000-0000-4000-8000-000000000050", STORAGE_TRANSACTION_STAGED);
     create_directory(manifest.staging);
     write_manifest(&manifest, &operations, &uuids);
     fake_fs_backend_reset(&filesystem);
@@ -671,18 +565,16 @@ static void test_phase_write_failure_can_be_retried(void)
     TEST_CHECK_EQ_U64(2U, index.count);
 }
 
-static void test_rename_index_and_unlink_failures(void)
-{
+static void test_rename_index_and_unlink_failures(void) {
     reset_storage();
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
     storage_fs_ops_t operations = make_operations(&filesystem);
     uuid_sequence_t uuids = {0};
     index_fixture_t index = {.failure = APP_ERROR_IO};
-    storage_transaction_manifest_t manifest = make_create_manifest(
-        "00000000-0000-4000-8000-000000000060",
-        "10000000-0000-4000-8000-000000000060",
-        STORAGE_TRANSACTION_STAGED);
+    storage_transaction_manifest_t manifest =
+        make_create_manifest("00000000-0000-4000-8000-000000000060",
+                             "10000000-0000-4000-8000-000000000060", STORAGE_TRANSACTION_STAGED);
     create_directory(manifest.staging);
     write_manifest(&manifest, &operations, &uuids);
     fake_fs_backend_reset(&filesystem);
@@ -698,10 +590,9 @@ static void test_rename_index_and_unlink_failures(void)
         .fail_on_call = 1U,
         .failure = APP_ERROR_IO,
     };
-    manifest = make_create_manifest(
-        "00000000-0000-4000-8000-000000000061",
-        "10000000-0000-4000-8000-000000000061",
-        STORAGE_TRANSACTION_ACTIVATED);
+    manifest =
+        make_create_manifest("00000000-0000-4000-8000-000000000061",
+                             "10000000-0000-4000-8000-000000000061", STORAGE_TRANSACTION_ACTIVATED);
     create_directory(manifest.destination);
     write_manifest(&manifest, &operations, &uuids);
     fake_fs_backend_reset(&filesystem);
@@ -713,10 +604,9 @@ static void test_rename_index_and_unlink_failures(void)
     operations = make_operations(&filesystem);
     uuids = (uuid_sequence_t){0};
     index = (index_fixture_t){.failure = APP_ERROR_IO};
-    manifest = make_create_manifest(
-        "00000000-0000-4000-8000-000000000062",
-        "10000000-0000-4000-8000-000000000062",
-        STORAGE_TRANSACTION_INDEXED);
+    manifest =
+        make_create_manifest("00000000-0000-4000-8000-000000000062",
+                             "10000000-0000-4000-8000-000000000062", STORAGE_TRANSACTION_INDEXED);
     create_directory(manifest.destination);
     write_manifest(&manifest, &operations, &uuids);
     fake_fs_backend_reset(&filesystem);
@@ -727,8 +617,7 @@ static void test_rename_index_and_unlink_failures(void)
     TEST_CHECK(path_exists(path));
 }
 
-static void test_corrupt_manifest_does_not_block_valid_manifest(void)
-{
+static void test_corrupt_manifest_does_not_block_valid_manifest(void) {
     reset_storage();
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
@@ -736,25 +625,22 @@ static void test_corrupt_manifest_does_not_block_valid_manifest(void)
     uuid_sequence_t uuids = {0};
     index_fixture_t index = {.failure = APP_ERROR_IO};
 
-    storage_transaction_manifest_t corrupt = make_create_manifest(
-        "00000000-0000-4000-8000-000000000070",
-        "10000000-0000-4000-8000-000000000070",
-        STORAGE_TRANSACTION_STAGED);
+    storage_transaction_manifest_t corrupt =
+        make_create_manifest("00000000-0000-4000-8000-000000000070",
+                             "10000000-0000-4000-8000-000000000070", STORAGE_TRANSACTION_STAGED);
     corrupt.type = (storage_transaction_type_t)99;
     char corrupt_path[APP_PATH_MAX_BYTES];
     transaction_path(corrupt_path, sizeof(corrupt_path), &corrupt.id);
     write_raw_file(corrupt_path, &corrupt, sizeof(corrupt));
 
-    storage_transaction_manifest_t valid = make_create_manifest(
-        "00000000-0000-4000-8000-000000000071",
-        "10000000-0000-4000-8000-000000000071",
-        STORAGE_TRANSACTION_STAGED);
+    storage_transaction_manifest_t valid =
+        make_create_manifest("00000000-0000-4000-8000-000000000071",
+                             "10000000-0000-4000-8000-000000000071", STORAGE_TRANSACTION_STAGED);
     create_directory(valid.staging);
     write_manifest(&valid, &operations, &uuids);
     fake_fs_backend_reset(&filesystem);
 
-    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT,
-                      recover(&operations, &uuids, &index));
+    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT, recover(&operations, &uuids, &index));
     TEST_CHECK(path_exists(corrupt_path));
     TEST_CHECK(path_exists(valid.destination));
     char valid_path[APP_PATH_MAX_BYTES];
@@ -763,8 +649,7 @@ static void test_corrupt_manifest_does_not_block_valid_manifest(void)
     TEST_CHECK_EQ_U64(2U, index.count);
 }
 
-static void test_manifest_order_is_deterministic(void)
-{
+static void test_manifest_order_is_deterministic(void) {
     reset_storage();
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
@@ -772,14 +657,12 @@ static void test_manifest_order_is_deterministic(void)
     uuid_sequence_t uuids = {0};
     index_fixture_t index = {.failure = APP_ERROR_IO};
 
-    storage_transaction_manifest_t later = make_create_manifest(
-        "00000000-0000-4000-8000-000000000082",
-        "10000000-0000-4000-8000-000000000082",
-        STORAGE_TRANSACTION_INDEXED);
-    storage_transaction_manifest_t earlier = make_create_manifest(
-        "00000000-0000-4000-8000-000000000081",
-        "10000000-0000-4000-8000-000000000081",
-        STORAGE_TRANSACTION_INDEXED);
+    storage_transaction_manifest_t later =
+        make_create_manifest("00000000-0000-4000-8000-000000000082",
+                             "10000000-0000-4000-8000-000000000082", STORAGE_TRANSACTION_INDEXED);
+    storage_transaction_manifest_t earlier =
+        make_create_manifest("00000000-0000-4000-8000-000000000081",
+                             "10000000-0000-4000-8000-000000000081", STORAGE_TRANSACTION_INDEXED);
     create_directory(later.destination);
     create_directory(earlier.destination);
     write_manifest(&later, &operations, &uuids);
@@ -788,41 +671,32 @@ static void test_manifest_order_is_deterministic(void)
 
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, recover(&operations, &uuids, &index));
     TEST_CHECK_EQ_U64(2U, index.count);
-    TEST_CHECK_EQ_STRING("10000000-0000-4000-8000-000000000081",
-                         index.ids[0].value);
-    TEST_CHECK_EQ_STRING("10000000-0000-4000-8000-000000000082",
-                         index.ids[1].value);
+    TEST_CHECK_EQ_STRING("10000000-0000-4000-8000-000000000081", index.ids[0].value);
+    TEST_CHECK_EQ_STRING("10000000-0000-4000-8000-000000000082", index.ids[1].value);
 }
 
-static void test_orphaned_staging_is_visible(void)
-{
+static void test_orphaned_staging_is_visible(void) {
     reset_storage();
     char orphan[APP_PATH_MAX_BYTES];
-    checked_path(orphan,
-                 sizeof(orphan),
-                 STORAGE_DATA_MOUNT "/staging",
-                 "orphan");
+    checked_path(orphan, sizeof(orphan), STORAGE_DATA_MOUNT "/staging", "orphan");
     create_directory(orphan);
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
     storage_fs_ops_t operations = make_operations(&filesystem);
     uuid_sequence_t uuids = {0};
     index_fixture_t index = {.failure = APP_ERROR_IO};
-    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT,
-                      recover(&operations, &uuids, &index));
+    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT, recover(&operations, &uuids, &index));
 }
 
-static void test_strict_manifest_write_sequence(void)
-{
+static void test_strict_manifest_write_sequence(void) {
     reset_storage();
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
     storage_fs_ops_t operations = make_operations(&filesystem);
     uuid_sequence_t uuids = {0};
-    storage_transaction_manifest_t manifest = make_create_manifest(
-        "00000000-0000-4000-8000-000000000090",
-        "10000000-0000-4000-8000-000000000090",
-        STORAGE_TRANSACTION_STAGED);
+    storage_transaction_manifest_t manifest =
+        make_create_manifest("00000000-0000-4000-8000-000000000090",
+                             "10000000-0000-4000-8000-000000000090", STORAGE_TRANSACTION_STAGED);
     create_directory(manifest.staging);
 
     /*
@@ -833,34 +707,30 @@ static void test_strict_manifest_write_sequence(void)
      * out-of-order filesystem operation, locking the crash-safe write ordering.
      */
     static const char *const expected[] = {
-        "fs_open", "fs_stat", "fs_write", "fs_sync",  "fs_close",
-        "fs_open", "fs_read", "fs_read",  "fs_read",  "fs_read",
-        "fs_read", "fs_read", "fs_close", "fs_stat",  "fs_rename",
+        "fs_open", "fs_stat", "fs_write", "fs_sync", "fs_close", "fs_open", "fs_read",   "fs_read",
+        "fs_read", "fs_read", "fs_read",  "fs_read", "fs_close", "fs_stat", "fs_rename",
     };
     fake_call_log_set_strict(&filesystem.calls, true);
     for (size_t index = 0U; index < (sizeof(expected) / sizeof(expected[0])); ++index) {
         fake_call_log_expect(&filesystem.calls, expected[index]);
     }
 
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      storage_transaction_write_manifest_with_ops(&manifest, &operations,
-                                                                  generate_uuid, &uuids));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_transaction_write_manifest_with_ops(
+                                          &manifest, &operations, generate_uuid, &uuids));
     fake_call_log_verify(&filesystem.calls);
     reset_storage();
 }
 
-static void test_replace_prepared_rolls_back_incomplete_staging(void)
-{
+static void test_replace_prepared_rolls_back_incomplete_staging(void) {
     reset_storage();
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
     storage_fs_ops_t operations = make_operations(&filesystem);
     uuid_sequence_t uuids = {0};
     index_fixture_t index = {.failure = APP_ERROR_IO};
-    storage_transaction_manifest_t manifest = make_replace_manifest(
-        "00000000-0000-4000-8000-000000000099",
-        "10000000-0000-4000-8000-000000000099",
-        STORAGE_TRANSACTION_PREPARED);
+    storage_transaction_manifest_t manifest =
+        make_replace_manifest("00000000-0000-4000-8000-000000000099",
+                              "10000000-0000-4000-8000-000000000099", STORAGE_TRANSACTION_PREPARED);
     create_directory(manifest.destination);
     create_directory(manifest.staging);
     write_manifest(&manifest, &operations, &uuids);
@@ -881,10 +751,9 @@ static void test_replace_prepared_rolls_back_incomplete_staging(void)
     operations = make_operations(&filesystem);
     uuids = (uuid_sequence_t){0};
     index = (index_fixture_t){.failure = APP_ERROR_IO};
-    manifest = make_replace_manifest(
-        "00000000-0000-4000-8000-000000000098",
-        "10000000-0000-4000-8000-000000000098",
-        STORAGE_TRANSACTION_PREPARED);
+    manifest =
+        make_replace_manifest("00000000-0000-4000-8000-000000000098",
+                              "10000000-0000-4000-8000-000000000098", STORAGE_TRANSACTION_PREPARED);
     create_directory(manifest.destination);
     create_directory(manifest.staging);
     write_manifest(&manifest, &operations, &uuids);
@@ -896,18 +765,16 @@ static void test_replace_prepared_rolls_back_incomplete_staging(void)
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, recover(&operations, &uuids, &index));
 }
 
-static void test_replace_recovery_is_idempotent(void)
-{
+static void test_replace_recovery_is_idempotent(void) {
     reset_storage();
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
     storage_fs_ops_t operations = make_operations(&filesystem);
     uuid_sequence_t uuids = {0};
     index_fixture_t index = {.failure = APP_ERROR_IO};
-    storage_transaction_manifest_t manifest = make_replace_manifest(
-        "00000000-0000-4000-8000-000000000100",
-        "10000000-0000-4000-8000-000000000100",
-        STORAGE_TRANSACTION_STAGED);
+    storage_transaction_manifest_t manifest =
+        make_replace_manifest("00000000-0000-4000-8000-000000000100",
+                              "10000000-0000-4000-8000-000000000100", STORAGE_TRANSACTION_STAGED);
     create_directory(manifest.staging);
     create_directory(manifest.destination);
     write_manifest(&manifest, &operations, &uuids);
@@ -931,27 +798,24 @@ static void test_replace_recovery_is_idempotent(void)
     TEST_CHECK_EQ_U64(3U, index.count);
 }
 
-static void test_replace_recovers_after_unrecorded_renames(void)
-{
+static void test_replace_recovers_after_unrecorded_renames(void) {
     static const storage_transaction_phase_t phases[] = {
         STORAGE_TRANSACTION_STAGED,
         STORAGE_TRANSACTION_BACKED_UP,
     };
-    for (size_t case_index = 0U;
-         case_index < sizeof(phases) / sizeof(phases[0]);
-         ++case_index) {
+    for (size_t case_index = 0U; case_index < sizeof(phases) / sizeof(phases[0]); ++case_index) {
         reset_storage();
         fake_fs_backend_t filesystem;
         fake_fs_backend_reset(&filesystem);
         storage_fs_ops_t operations = make_operations(&filesystem);
         uuid_sequence_t uuids = {0};
         index_fixture_t index = {.failure = APP_ERROR_IO};
-        storage_transaction_manifest_t manifest = make_replace_manifest(
-            case_index == 0U ? "00000000-0000-4000-8000-000000000101"
-                             : "00000000-0000-4000-8000-000000000102",
-            case_index == 0U ? "10000000-0000-4000-8000-000000000101"
-                             : "10000000-0000-4000-8000-000000000102",
-            phases[case_index]);
+        storage_transaction_manifest_t manifest =
+            make_replace_manifest(case_index == 0U ? "00000000-0000-4000-8000-000000000101"
+                                                   : "00000000-0000-4000-8000-000000000102",
+                                  case_index == 0U ? "10000000-0000-4000-8000-000000000101"
+                                                   : "10000000-0000-4000-8000-000000000102",
+                                  phases[case_index]);
         create_directory(manifest.backup);
         if (phases[case_index] == STORAGE_TRANSACTION_STAGED) {
             create_directory(manifest.staging);
@@ -970,18 +834,16 @@ static void test_replace_recovers_after_unrecorded_renames(void)
     }
 }
 
-static void test_replace_failure_is_retryable(void)
-{
+static void test_replace_failure_is_retryable(void) {
     reset_storage();
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
     storage_fs_ops_t operations = make_operations(&filesystem);
     uuid_sequence_t uuids = {0};
     index_fixture_t index = {.failure = APP_ERROR_IO};
-    storage_transaction_manifest_t manifest = make_replace_manifest(
-        "00000000-0000-4000-8000-000000000103",
-        "10000000-0000-4000-8000-000000000103",
-        STORAGE_TRANSACTION_STAGED);
+    storage_transaction_manifest_t manifest =
+        make_replace_manifest("00000000-0000-4000-8000-000000000103",
+                              "10000000-0000-4000-8000-000000000103", STORAGE_TRANSACTION_STAGED);
     create_directory(manifest.staging);
     create_directory(manifest.destination);
     write_manifest(&manifest, &operations, &uuids);
@@ -1002,10 +864,9 @@ static void test_replace_failure_is_retryable(void)
         .fail_on_call = 1U,
         .failure = APP_ERROR_IO,
     };
-    manifest = make_replace_manifest(
-        "00000000-0000-4000-8000-000000000104",
-        "10000000-0000-4000-8000-000000000104",
-        STORAGE_TRANSACTION_ACTIVATED);
+    manifest = make_replace_manifest("00000000-0000-4000-8000-000000000104",
+                                     "10000000-0000-4000-8000-000000000104",
+                                     STORAGE_TRANSACTION_ACTIVATED);
     create_directory(manifest.destination);
     create_directory(manifest.backup);
     write_manifest(&manifest, &operations, &uuids);
@@ -1019,10 +880,9 @@ static void test_replace_failure_is_retryable(void)
     operations = make_operations(&filesystem);
     uuids = (uuid_sequence_t){0};
     index = (index_fixture_t){.failure = APP_ERROR_IO};
-    manifest = make_replace_manifest(
-        "00000000-0000-4000-8000-000000000105",
-        "10000000-0000-4000-8000-000000000105",
-        STORAGE_TRANSACTION_COMPLETE);
+    manifest =
+        make_replace_manifest("00000000-0000-4000-8000-000000000105",
+                              "10000000-0000-4000-8000-000000000105", STORAGE_TRANSACTION_COMPLETE);
     create_directory(manifest.destination);
     create_directory(manifest.backup);
     write_manifest(&manifest, &operations, &uuids);
@@ -1034,11 +894,11 @@ static void test_replace_failure_is_retryable(void)
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, recover(&operations, &uuids, &index));
 }
 
-int main(void)
-{
+int main(void) {
     test_invalid_arguments();
     test_strict_manifest_write_sequence();
     test_create_recovery_is_idempotent();
+    test_import_package_recovery_is_idempotent();
     test_delete_recovery_is_idempotent();
     test_replace_prepared_rolls_back_incomplete_staging();
     test_replace_recovery_is_idempotent();

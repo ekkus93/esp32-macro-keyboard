@@ -317,6 +317,10 @@ static void test_set_routes(void) {
     response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_IMPORT, WEB_API_METHOD_POST, "{}",
                       NULL, NULL, NULL);
     expect_status(&response, 422U, "could not replace set");
+
+    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_IMPORT_NEW, WEB_API_METHOD_POST, "{}",
+                      NULL, NULL, NULL);
+    expect_status(&response, 422U, "could not import set as new");
 }
 
 static void test_macro_routes(void) {

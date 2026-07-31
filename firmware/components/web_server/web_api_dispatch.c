@@ -16,6 +16,7 @@ static bool is_set_route(web_api_route_t route) {
     case WEB_API_ROUTE_SET_SELECT:
     case WEB_API_ROUTE_SET_EXPORT:
     case WEB_API_ROUTE_SET_IMPORT:
+    case WEB_API_ROUTE_SET_IMPORT_NEW:
         return true;
     default:
         return false;

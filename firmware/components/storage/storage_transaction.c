@@ -134,6 +134,7 @@ static bool manifest_revisions_valid(const storage_transaction_manifest_t *manif
     switch (manifest->type) {
     case STORAGE_TRANSACTION_IMPORT_SET:
     case STORAGE_TRANSACTION_DUPLICATE_SET:
+    case STORAGE_TRANSACTION_IMPORT_PACKAGE_SET:
         return manifest->expected_revision == 0U && manifest->replacement_revision != 0U;
     case STORAGE_TRANSACTION_DELETE_SET:
         return manifest->expected_revision != 0U && manifest->replacement_revision == 0U;
@@ -151,7 +152,7 @@ static bool manifest_shape_valid(const storage_transaction_manifest_t *manifest)
     return manifest != NULL && manifest->schema_version == APP_SCHEMA_VERSION &&
            app_uuid_is_valid_string(manifest->id.value) &&
            manifest->type >= STORAGE_TRANSACTION_IMPORT_SET &&
-           manifest->type <= STORAGE_TRANSACTION_MIGRATE &&
+           manifest->type <= STORAGE_TRANSACTION_IMPORT_PACKAGE_SET &&
            manifest->phase >= STORAGE_TRANSACTION_PREPARED &&
            manifest->phase <= STORAGE_TRANSACTION_COMPLETE &&
            manifest_strings_terminated(manifest) && manifest_revisions_valid(manifest);
@@ -631,6 +632,7 @@ app_error_code_t storage_transaction_recover_all_with_ops(
             switch (manifest.type) {
             case STORAGE_TRANSACTION_IMPORT_SET:
             case STORAGE_TRANSACTION_DUPLICATE_SET:
+            case STORAGE_TRANSACTION_IMPORT_PACKAGE_SET:
                 result = recover_create(&manifest, operations, generate_uuid, uuid_context,
                                         set_index_presence, index_context);
                 break;

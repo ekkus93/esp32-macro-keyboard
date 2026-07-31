@@ -34,6 +34,8 @@ app_error_code_t storage_package_restore_backup(const char *data, size_t length)
 app_error_code_t storage_package_replace_set(const app_uuid_t *target_set_id,
                                              uint32_t expected_revision, const char *data,
                                              size_t length, macro_set_t *out_set);
+app_error_code_t storage_package_import_set(const app_uuid_t *new_set_id, const char *data,
+                                            size_t length, macro_set_t *out_set);
 void storage_package_free(char *data);
 
 #endif

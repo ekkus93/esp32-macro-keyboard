@@ -155,6 +155,10 @@ function AuthenticatedApp({
     );
   }, []);
 
+  const onSetImported = useCallback((created: MacroSet): void => {
+    setSets((current) => (current === null ? current : [...current, created]));
+  }, []);
+
   const signOut = async (): Promise<void> => {
     setSigningOut(true);
     setRuntimeError(null);
@@ -310,6 +314,7 @@ function AuthenticatedApp({
           <PackageOperationsPage
             activeSet={activeSet}
             initialSection="import"
+            onSetImported={onSetImported}
             onSetReplaced={onSetReplaced}
           />
         );
