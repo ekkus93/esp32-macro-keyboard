@@ -1,1 +1,1 @@
-Remove all Phase 18.3 implementation scaffolding in one atomic cleanup commit; normal CI validates the clean repository.
+Remove all Phase 18.3 implementation scaffolding in one atomic cleanup commit; normal CI validates the clean repository. Registered retry.
