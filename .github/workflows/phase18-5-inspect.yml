@@ -1,4 +1,4 @@
-name: Phase 18.5 inspection
+name: Phase 18.5 implementation
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  inspect:
+  implement:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out repository
@@ -19,31 +19,228 @@ jobs:
         with:
           ref: master
 
-      - name: Capture implementation surfaces
+      - name: Add secret sentinel scanner and tests
         shell: bash
         run: |
           set -euo pipefail
-          report=docs/PHASE18_5_IMPLEMENTATION_SURFACES.txt
-          : > "$report"
-          files=(
-            tests/host/test_storage_package_export.c
-            tests/host/test_storage_package_backup.c
-            tests/host/test_app_core.c
-            tests/host/test_web_api_admin_boundary.c
-            scripts/check-credential-logging.sh
-            tests/scripts/test-check-credential-logging.sh
-            scripts/check-scripts.sh
-            webapp/package.json
+          cat > scripts/check-secret-sentinel.py <<'PY'
+          #!/usr/bin/env python3
+          """Fail closed when a known test secret appears in generated artifacts."""
+
+          from __future__ import annotations
+
+          import argparse
+          import base64
+          import json
+          from pathlib import Path
+          from urllib.parse import quote
+
+
+          def representations(secret: str) -> dict[str, bytes]:
+              raw = secret.encode("utf-8")
+              json_escaped = json.dumps(secret, ensure_ascii=True)[1:-1].encode("ascii")
+              return {
+                  "raw": raw,
+                  "json-escaped": json_escaped,
+                  "url-encoded": quote(secret, safe="").encode("ascii"),
+                  "base64": base64.b64encode(raw),
+                  "base64url": base64.urlsafe_b64encode(raw).rstrip(b"="),
+                  "hex-lower": raw.hex().encode("ascii"),
+                  "hex-upper": raw.hex().upper().encode("ascii"),
+              }
+
+
+          def parse_args() -> argparse.Namespace:
+              parser = argparse.ArgumentParser()
+              parser.add_argument("--secret-file", required=True, type=Path)
+              parser.add_argument("outputs", nargs="+", type=Path)
+              return parser.parse_args()
+
+
+          def main() -> int:
+              args = parse_args()
+              try:
+                  secret = args.secret_file.read_text(encoding="utf-8").rstrip("\r\n")
+              except OSError as error:
+                  print(f"error: unable to read sentinel file: {error}")
+                  return 2
+              if len(secret.encode("utf-8")) < 16:
+                  print("error: sentinel must be at least 16 UTF-8 bytes")
+                  return 2
+
+              variants = representations(secret)
+              failed = False
+              for output in args.outputs:
+                  try:
+                      data = output.read_bytes()
+                  except OSError as error:
+                      print(f"error: unable to read output {output}: {error}")
+                      failed = True
+                      continue
+                  for label, value in variants.items():
+                      if value and value in data:
+                          print(f"error: secret sentinel representation {label} found in {output}")
+                          failed = True
+              return 1 if failed else 0
+
+
+          if __name__ == "__main__":
+              raise SystemExit(main())
+          PY
+          chmod +x scripts/check-secret-sentinel.py
+
+          cat > tests/scripts/test-secret-sentinel.py <<'PY'
+          #!/usr/bin/env python3
+          """Regression coverage for every Phase 18.5 secret-exclusion boundary."""
+
+          from __future__ import annotations
+
+          import base64
+          import json
+          import secrets
+          import subprocess
+          import tempfile
+          from pathlib import Path
+          from urllib.parse import quote
+
+
+          REPO_ROOT = Path(__file__).resolve().parents[2]
+          SCANNER = REPO_ROOT / "scripts" / "check-secret-sentinel.py"
+          BOUNDARIES = {
+              "set-export.json": '{"package_type":"set","sets":[]}',
+              "full-backup.json": '{"package_type":"backup","sets":[]}',
+              "diagnostics.json": '{"status":"healthy","storage":{"mounted":true}}',
+              "application.log": 'subsystem=storage primary_error=none cleanup_error=none',
+              "frontend-persisted-state.json": '{"theme":"system","lastSetId":null}',
+          }
+
+
+          def run(scanner_args: list[str]) -> subprocess.CompletedProcess[str]:
+              return subprocess.run(
+                  ["python3", str(SCANNER), *scanner_args],
+                  cwd=REPO_ROOT,
+                  text=True,
+                  capture_output=True,
+                  check=False,
+              )
+
+
+          def variants(secret: str) -> dict[str, str]:
+              raw = secret.encode("utf-8")
+              return {
+                  "raw": secret,
+                  "json": json.dumps(secret)[1:-1],
+                  "url": quote(secret, safe=""),
+                  "base64": base64.b64encode(raw).decode("ascii"),
+                  "base64url": base64.urlsafe_b64encode(raw).decode("ascii").rstrip("="),
+                  "hex": raw.hex(),
+              }
+
+
+          def main() -> int:
+              secret = "phase18_5_" + secrets.token_urlsafe(32)
+              with tempfile.TemporaryDirectory() as temporary:
+                  root = Path(temporary)
+                  secret_file = root / "sentinel.txt"
+                  secret_file.write_text(secret + "\n", encoding="utf-8")
+                  outputs: list[Path] = []
+                  for name, content in BOUNDARIES.items():
+                      path = root / name
+                      path.write_text(content, encoding="utf-8")
+                      outputs.append(path)
+
+                  clean = run(["--secret-file", str(secret_file), *map(str, outputs)])
+                  assert clean.returncode == 0, clean.stdout + clean.stderr
+
+                  for boundary in outputs:
+                      original = boundary.read_text(encoding="utf-8")
+                      for label, encoded in variants(secret).items():
+                          boundary.write_text(original + "\n" + encoded, encoding="utf-8")
+                          leaked = run(["--secret-file", str(secret_file), str(boundary)])
+                          assert leaked.returncode == 1, (boundary.name, label)
+                          report = leaked.stdout + leaked.stderr
+                          assert secret not in report
+                          assert encoded not in report
+                          assert boundary.name in report
+                          boundary.write_text(original, encoding="utf-8")
+
+                  short_file = root / "short.txt"
+                  short_file.write_text("too-short", encoding="utf-8")
+                  rejected = run(["--secret-file", str(short_file), str(outputs[0])])
+                  assert rejected.returncode == 2
+
+              print("secret sentinel scanner tests passed")
+              return 0
+
+
+          if __name__ == "__main__":
+              raise SystemExit(main())
+          PY
+          chmod +x tests/scripts/test-secret-sentinel.py
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/check-scripts.sh")
+          text = path.read_text()
+          text = text.replace(
+              "# npm-audit exception policy, and the bounded CI status issue generator.",
+              "# npm-audit exception policy, the Phase 18.5 secret-sentinel scanner, and the bounded\n# CI status issue generator.",
           )
-          while IFS= read -r path; do files+=("$path"); done < <(find webapp -type f \( -name '*test*' -o -name '*spec*' \) | sort)
-          for path in "${files[@]}"; do
-            [[ -f "$path" ]] || continue
-            printf '\n===== %s =====\n' "$path" >> "$report"
-            cat "$path" >> "$report"
-          done
+          needle = "python3 tests/scripts/test-check-npm-audit.py\n"
+          replacement = needle + "python3 tests/scripts/test-secret-sentinel.py\n"
+          if replacement not in text:
+              if needle not in text:
+                  raise SystemExit("check-scripts insertion point missing")
+              text = text.replace(needle, replacement)
+          path.write_text(text)
+
+          sentinel = '#define SECRET_SENTINEL "phase18_5_admin_secret_N7vY5jR3xQ9mK2pL"\n'
+          edits = [
+              (
+                  Path("tests/host/test_storage_package_export.c"),
+                  '#define GLOBAL_STEP_ID "56565656-5656-4656-8656-565656565656"\n',
+                  '#define GLOBAL_STEP_ID "56565656-5656-4656-8656-565656565656"\n' + sentinel,
+                  '    TEST_CHECK(strstr(first, "\\\"progress\\\":[{") != NULL);\n',
+                  '    TEST_CHECK(strstr(first, "\\\"progress\\\":[{") != NULL);\n    TEST_CHECK(strstr(first, SECRET_SENTINEL) == NULL);\n',
+              ),
+              (
+                  Path("tests/host/test_storage_package_backup.c"),
+                  '#define STEP_B_ID "56565656-5656-4656-8656-565656565656"\n',
+                  '#define STEP_B_ID "56565656-5656-4656-8656-565656565656"\n' + sentinel,
+                  '    TEST_CHECK(strstr(first, "sentinel-unreferenced-global") != NULL);\n',
+                  '    TEST_CHECK(strstr(first, "sentinel-unreferenced-global") != NULL);\n    TEST_CHECK(strstr(first, SECRET_SENTINEL) == NULL);\n',
+              ),
+          ]
+          for path, define_needle, define_replacement, assertion_needle, assertion_replacement in edits:
+              text = path.read_text()
+              if "SECRET_SENTINEL" not in text:
+                  if define_needle not in text:
+                      raise SystemExit(f"define insertion point missing: {path}")
+                  text = text.replace(define_needle, define_replacement, 1)
+              if assertion_replacement not in text:
+                  if assertion_needle not in text:
+                      raise SystemExit(f"assertion insertion point missing: {path}")
+                  text = text.replace(assertion_needle, assertion_replacement, 1)
+              path.write_text(text)
+          PY
+
+      - name: Run focused regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/scripts/test-secret-sentinel.py
+          python3 -m py_compile scripts/check-secret-sentinel.py tests/scripts/test-secret-sentinel.py
+
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$report"
+          git add scripts/check-secret-sentinel.py tests/scripts/test-secret-sentinel.py \
+            scripts/check-scripts.sh tests/host/test_storage_package_export.c \
+            tests/host/test_storage_package_backup.c
           git diff --cached --check
-          git commit -m "docs: capture Phase 18.5 implementation surfaces"
+          git commit -m "test: add Phase 18.5 secret sentinel scanner"
           git push origin HEAD:master
