@@ -305,7 +305,7 @@ app_error_code_t web_api_handle_administration(const web_api_call_t *call,
     case WEB_API_ROUTE_SET_IMPORT:
     case WEB_API_ROUTE_BACKUP:
     case WEB_API_ROUTE_RESTORE:
-        return web_api_admin_boundary_handle(call->path.route, response);
+        return web_api_admin_boundary_handle(call, response);
     case WEB_API_ROUTE_DIAGNOSTICS_QUARANTINE:
         return handle_quarantine(response);
     default:
