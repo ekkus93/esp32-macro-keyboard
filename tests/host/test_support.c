@@ -20,16 +20,14 @@
 #include "test_memory.h"
 #include "test_temp_dir.h"
 
-static void child_unexpected_call(void)
-{
+static void child_unexpected_call(void) {
     fake_call_log_t log;
     fake_call_log_reset(&log);
     fake_call_log_set_strict(&log, true);
     (void)fake_call_log_record(&log, "unexpected", 0U, 0U);
 }
 
-static void child_call_log_overflow(void)
-{
+static void child_call_log_overflow(void) {
     fake_call_log_t log;
     fake_call_log_reset(&log);
     for (size_t index = 0U; index <= FAKE_CALL_LOG_CAPACITY; ++index) {
@@ -37,8 +35,7 @@ static void child_call_log_overflow(void)
     }
 }
 
-static void expect_child_abort(void (*operation)(void))
-{
+static void expect_child_abort(void (*operation)(void)) {
     TEST_CHECK(operation != NULL);
     const pid_t child = fork();
     TEST_CHECK(child >= 0);
@@ -52,8 +49,7 @@ static void expect_child_abort(void (*operation)(void))
     TEST_CHECK_EQ_INT(SIGABRT, WTERMSIG(status));
 }
 
-static void test_call_log(void)
-{
+static void test_call_log(void) {
     fake_call_log_t log;
     fake_call_log_reset(&log);
     fake_call_log_set_strict(&log, true);
@@ -74,8 +70,7 @@ static void test_call_log(void)
     expect_child_abort(child_call_log_overflow);
 }
 
-static void test_memory(void)
-{
+static void test_memory(void) {
     test_memory_reset();
     char *buffer = test_calloc(4U, sizeof(*buffer));
     TEST_CHECK(buffer != NULL);
@@ -92,8 +87,7 @@ static void test_memory(void)
     test_memory_reset();
 }
 
-static void test_temp_directory_and_filesystem(void)
-{
+static void test_temp_directory_and_filesystem(void) {
     test_temp_dir_t directory = {0};
     test_temp_dir_create(&directory);
     char path[TEST_TEMP_DIR_PATH_MAX];
@@ -112,8 +106,7 @@ static void test_temp_directory_and_filesystem(void)
     test_temp_dir_remove(&directory);
 }
 
-static void test_deterministic_fakes(void)
-{
+static void test_deterministic_fakes(void) {
     fake_clock_t clock;
     fake_clock_reset(&clock);
     fake_clock_set_us(&clock, 1000U);
@@ -167,8 +160,7 @@ static void test_deterministic_fakes(void)
     TEST_CHECK_EQ_BUFFER("ab", chunk, 2U);
 }
 
-static void test_fake_failure_injection(void)
-{
+static void test_fake_failure_injection(void) {
     fake_clock_t clock;
     fake_clock_reset(&clock);
     fake_clock_set_us(&clock, 1000U);
@@ -216,8 +208,7 @@ static void test_fake_failure_injection(void)
     TEST_CHECK_EQ_INT(-1, fake_http_backend_receive(&http, &byte, 1U));
 }
 
-int main(void)
-{
+int main(void) {
     test_call_log();
     test_memory();
     test_temp_directory_and_filesystem();

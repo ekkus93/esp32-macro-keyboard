@@ -39,24 +39,19 @@ static const char BACKUP_PACKAGE[] =
     "\",\"revision\":1,\"scope\":\"set\",\"name\":\"Local\","
     "\"source\":\"a\",\"favorite\":false,\"key_press_ms\":8,"
     "\"inter_key_ms\":15,\"set_id\":\"" SET_ID
-    "\"}],\"global_macros\":[{\"schema_version\":1,\"id\":\""
-    GLOBAL_MACRO_ID
+    "\"}],\"global_macros\":[{\"schema_version\":1,\"id\":\"" GLOBAL_MACRO_ID
     "\",\"revision\":2,\"scope\":\"global\",\"name\":\"Global\","
     "\"source\":\"b\",\"favorite\":false,\"key_press_ms\":8,"
     "\"inter_key_ms\":15}],\"procedures\":[{\"schema_version\":1,"
-    "\"id\":\"" PROCEDURE_ID "\",\"revision\":3,\"set_id\":\""
-    SET_ID
+    "\"id\":\"" PROCEDURE_ID "\",\"revision\":3,\"set_id\":\"" SET_ID
     "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{"
     "\"id\":\"" LOCAL_STEP_ID
-    "\",\"type\":\"macro\",\"title\":\"Local\",\"macro_id\":\""
-    LOCAL_MACRO_ID
-    "\",\"required\":true,\"auto_complete_on_success\":false},{\"id\":\""
-    GLOBAL_STEP_ID
-    "\",\"type\":\"macro\",\"title\":\"Global\",\"macro_id\":\""
-    GLOBAL_MACRO_ID
+    "\",\"type\":\"macro\",\"title\":\"Local\",\"macro_id\":\"" LOCAL_MACRO_ID
+    "\",\"required\":true,\"auto_complete_on_success\":false},{\"id\":\"" GLOBAL_STEP_ID
+    "\",\"type\":\"macro\",\"title\":\"Global\",\"macro_id\":\"" GLOBAL_MACRO_ID
     "\",\"required\":true,\"auto_complete_on_success\":false}],"
-    "\"sort_order\":0}],\"progress\":[{\"schema_version\":1,\"set_id\":\""
-    SET_ID "\",\"procedure_id\":\"" PROCEDURE_ID
+    "\"sort_order\":0}],\"progress\":[{\"schema_version\":1,\"set_id\":\"" SET_ID
+    "\",\"procedure_id\":\"" PROCEDURE_ID
     "\",\"procedure_revision\":3,\"current_step_id\":\"" LOCAL_STEP_ID
     "\",\"completed_step_ids\":[],\"skipped_step_ids\":[]}]}";
 
@@ -73,8 +68,7 @@ static bool path_has_suffix(const char *path, const char *suffix) {
     }
     const size_t path_length = strlen(path);
     const size_t suffix_length = strlen(suffix);
-    return path_length >= suffix_length &&
-           strcmp(path + path_length - suffix_length, suffix) == 0;
+    return path_length >= suffix_length && strcmp(path + path_length - suffix_length, suffix) == 0;
 }
 
 app_error_code_t __wrap_storage_atomic_write(const char *path, const void *data, size_t data_length,
@@ -132,8 +126,7 @@ static void create_repository_layout(void) {
     write_text(path, "{\"schema_version\":1,\"ids\":[]}");
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "global/macro-order.json");
     write_text(path, "{\"schema_version\":1,\"ids\":[]}");
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_tree_validate(STORAGE_DATA_MOUNT));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_tree_validate(STORAGE_DATA_MOUNT));
 }
 
 static void create_empty_repository(void) {
@@ -178,8 +171,7 @@ static char *read_text(const char *path) {
 }
 
 static void assert_repository_remains_empty(void) {
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_tree_validate(STORAGE_DATA_MOUNT));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_tree_validate(STORAGE_DATA_MOUNT));
     char path[APP_PATH_MAX_BYTES];
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "set-index.json");
     char *index = read_text(path);
@@ -229,19 +221,16 @@ static void assert_transaction_evidence_empty(void) {
 
 static void test_complete_backup_restores_atomically(void) {
     create_empty_repository();
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        storage_package_restore_backup(BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_tree_validate(STORAGE_DATA_MOUNT));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_restore_backup(
+                                             BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_tree_validate(STORAGE_DATA_MOUNT));
 
     char path[APP_PATH_MAX_BYTES];
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "set-index.json");
     char *index = read_text(path);
     TEST_CHECK(strstr(index, SET_ID) != NULL);
     free(index);
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT,
-              "sets/" SET_ID "/set.json");
+    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "sets/" SET_ID "/set.json");
     char *set = read_text(path);
     TEST_CHECK(strstr(set, "\"revision\":7") != NULL);
     TEST_CHECK(strstr(set, "\"name\":\"Restored\"") != NULL);
@@ -269,9 +258,8 @@ static void test_invalid_backup_does_not_mutate_repository(void) {
     static const char invalid[] =
         "{\"schema_version\":1,\"package_type\":\"macro-set\",\"sets\":[],"
         "\"macros\":[],\"global_macros\":[],\"procedures\":[],\"progress\":[]}";
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        storage_package_restore_backup(invalid, sizeof(invalid) - 1U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         storage_package_restore_backup(invalid, sizeof(invalid) - 1U));
     assert_repository_remains_empty();
     char path[APP_PATH_MAX_BYTES];
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "transactions");
@@ -308,9 +296,8 @@ static void test_empty_startup_recovery_is_noop(void) {
 static void test_restore_requires_initialized_repository_lock(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
     create_repository_layout();
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INTERNAL,
-        storage_package_restore_backup(BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, storage_package_restore_backup(
+                                                 BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U));
     assert_repository_remains_empty();
     char path[APP_PATH_MAX_BYTES];
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "transactions");

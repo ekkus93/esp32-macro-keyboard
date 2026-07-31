@@ -11,12 +11,9 @@
 
 #include "test_assert.h"
 
-static app_error_code_t compile_explicit(const char *source,
-                                         size_t source_length,
+static app_error_code_t compile_explicit(const char *source, size_t source_length,
                                          const macro_compile_options_t *options,
-                                         macro_plan_t *out_plan,
-                                         macro_parse_error_t *out_error)
-{
+                                         macro_plan_t *out_plan, macro_parse_error_t *out_error) {
     TEST_CHECK(out_plan != NULL);
     memset(out_plan, 0, sizeof(*out_plan));
     if (out_error != NULL) {
@@ -25,20 +22,13 @@ static app_error_code_t compile_explicit(const char *source,
     return macro_compile(source, source_length, options, out_plan, out_error);
 }
 
-static void expect_success_length(const char *source,
-                                  size_t source_length,
-                                  const macro_compile_options_t *options,
-                                  size_t expected_actions,
-                                  uint32_t expected_duration)
-{
+static void expect_success_length(const char *source, size_t source_length,
+                                  const macro_compile_options_t *options, size_t expected_actions,
+                                  uint32_t expected_duration) {
     macro_plan_t plan = {0};
     macro_parse_error_t error = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         compile_explicit(source,
-                                          source_length,
-                                          options,
-                                          &plan,
-                                          &error));
+                         compile_explicit(source, source_length, options, &plan, &error));
     TEST_CHECK_EQ_U64(expected_actions, plan.action_count);
     TEST_CHECK_EQ_U64(expected_duration, plan.estimated_duration_ms);
     if (expected_actions == 0U) {
@@ -52,49 +42,34 @@ static void expect_success_length(const char *source,
     TEST_CHECK_EQ_U64(0U, plan.estimated_duration_ms);
 }
 
-static void expect_success(const char *source, size_t expected_actions)
-{
-    expect_success_length(source,
-                          strlen(source),
-                          NULL,
-                          expected_actions,
-                          (uint32_t)(expected_actions *
-                                     (APP_KEY_PRESS_DEFAULT_MS +
-                                      APP_INTER_KEY_DEFAULT_MS)));
+static void expect_success(const char *source, size_t expected_actions) {
+    expect_success_length(
+        source, strlen(source), NULL, expected_actions,
+        (uint32_t)(expected_actions * (APP_KEY_PRESS_DEFAULT_MS + APP_INTER_KEY_DEFAULT_MS)));
 }
 
-static macro_parse_error_t expect_failure_length(const char *source,
-                                                 size_t source_length,
+static macro_parse_error_t expect_failure_length(const char *source, size_t source_length,
                                                  const macro_compile_options_t *options,
-                                                 app_error_code_t expected)
-{
+                                                 app_error_code_t expected) {
     macro_plan_t plan = {0};
     macro_parse_error_t error = {0};
-    TEST_CHECK_APP_ERROR(expected,
-                         compile_explicit(source,
-                                          source_length,
-                                          options,
-                                          &plan,
-                                          &error));
+    TEST_CHECK_APP_ERROR(expected, compile_explicit(source, source_length, options, &plan, &error));
     TEST_CHECK(plan.actions == NULL);
     TEST_CHECK_EQ_U64(0U, plan.action_count);
     TEST_CHECK_EQ_U64(0U, plan.estimated_duration_ms);
     return error;
 }
 
-static void expect_failure(const char *source, app_error_code_t expected)
-{
-    const macro_parse_error_t error =
-        expect_failure_length(source, strlen(source), NULL, expected);
+static void expect_failure(const char *source, app_error_code_t expected) {
+    const macro_parse_error_t error = expect_failure_length(source, strlen(source), NULL, expected);
     TEST_CHECK(error.line >= 1U);
     TEST_CHECK(error.column >= 1U);
 }
 
-static void test_uuid_and_revision_validation(void)
-{
+static void test_uuid_and_revision_validation(void) {
     app_uuid_t uuid = {0};
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE, app_uuid_parse("123e4567-e89b-42d3-a456-426614174000", &uuid));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         app_uuid_parse("123e4567-e89b-42d3-a456-426614174000", &uuid));
     TEST_CHECK(app_uuid_is_valid_string(uuid.value));
     TEST_CHECK(!app_uuid_is_valid_string("123e4567-e89b-12d3-a456-426614174000"));
     TEST_CHECK(!app_uuid_is_valid_string("../bad"));
@@ -102,53 +77,40 @@ static void test_uuid_and_revision_validation(void)
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_model_validate_revision(1U));
 }
 
-static void test_null_empty_and_output_arguments(void)
-{
+static void test_null_empty_and_output_arguments(void) {
     macro_plan_t plan = {0};
     macro_parse_error_t error = {0};
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         macro_compile(NULL, 0U, NULL, &plan, &error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_compile(NULL, 0U, NULL, &plan, &error));
     TEST_CHECK(plan.actions == NULL);
     TEST_CHECK_EQ_U64(0U, plan.action_count);
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         macro_compile(NULL, 1U, NULL, &plan, &error));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         macro_compile("a", 1U, NULL, NULL, &error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_compile(NULL, 1U, NULL, &plan, &error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_compile("a", 1U, NULL, NULL, &error));
 
     plan.action_count = 99U;
     plan.estimated_duration_ms = 77U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         macro_compile("", 0U, NULL, &plan, &error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_compile("", 0U, NULL, &plan, &error));
     TEST_CHECK(plan.actions == NULL);
     TEST_CHECK_EQ_U64(0U, plan.action_count);
     TEST_CHECK_EQ_U64(0U, plan.estimated_duration_ms);
 }
 
-static void test_source_and_action_limits(void)
-{
+static void test_source_and_action_limits(void) {
     char *source = malloc(APP_MACRO_SOURCE_MAX_BYTES + 1U);
     TEST_CHECK(source != NULL);
     memset(source, 'a', APP_MACRO_SOURCE_MAX_BYTES + 1U);
 
-    expect_success_length(source,
-                          APP_MACRO_SOURCE_MAX_BYTES,
-                          NULL,
-                          APP_COMPILED_ACTION_MAX,
+    expect_success_length(source, APP_MACRO_SOURCE_MAX_BYTES, NULL, APP_COMPILED_ACTION_MAX,
                           (uint32_t)(APP_COMPILED_ACTION_MAX *
-                                     (APP_KEY_PRESS_DEFAULT_MS +
-                                      APP_INTER_KEY_DEFAULT_MS)));
+                                     (APP_KEY_PRESS_DEFAULT_MS + APP_INTER_KEY_DEFAULT_MS)));
 
-    (void)expect_failure_length(source,
-                                APP_MACRO_SOURCE_MAX_BYTES + 1U,
-                                NULL,
+    (void)expect_failure_length(source, APP_MACRO_SOURCE_MAX_BYTES + 1U, NULL,
                                 APP_ERROR_INVALID_ARGUMENT);
     free(source);
 }
 
-static void test_timing_boundaries(void)
-{
+static void test_timing_boundaries(void) {
     const macro_compile_options_t defaults = {
         .key_press_ms = APP_KEY_PRESS_DEFAULT_MS,
         .inter_key_ms = APP_INTER_KEY_DEFAULT_MS,
@@ -178,47 +140,37 @@ static void test_timing_boundaries(void)
         .key_press_ms = 1U,
         .inter_key_ms = APP_DELAY_MAX_MS + 1U,
     };
-    (void)expect_failure_length("a", 1U, &excessive_inter_key,
-                                APP_ERROR_INVALID_ARGUMENT);
+    (void)expect_failure_length("a", 1U, &excessive_inter_key, APP_ERROR_INVALID_ARGUMENT);
 
     const macro_compile_options_t maximum = {
         .key_press_ms = APP_DELAY_MAX_MS,
         .inter_key_ms = APP_DELAY_MAX_MS,
     };
-    expect_success_length("abcdefghijklmno", 15U, &maximum, 15U,
-                          APP_ESTIMATED_DURATION_MAX_MS);
+    expect_success_length("abcdefghijklmno", 15U, &maximum, 15U, APP_ESTIMATED_DURATION_MAX_MS);
     const macro_parse_error_t error =
-        expect_failure_length("abcdefghijklmnop", 16U, &maximum,
-                              APP_ERROR_MACRO_LIMIT);
+        expect_failure_length("abcdefghijklmnop", 16U, &maximum, APP_ERROR_MACRO_LIMIT);
     TEST_CHECK_EQ_U64(15U, error.byte_offset);
     TEST_CHECK_EQ_STRING("estimated duration limit exceeded", error.message);
 }
 
-static void test_delay_boundaries(void)
-{
+static void test_delay_boundaries(void) {
     expect_success_length("{DELAY:1}", strlen("{DELAY:1}"), NULL, 1U, 1U);
-    expect_success_length("{DELAY:10000}", strlen("{DELAY:10000}"), NULL, 1U,
-                          APP_DELAY_MAX_MS);
+    expect_success_length("{DELAY:10000}", strlen("{DELAY:10000}"), NULL, 1U, APP_DELAY_MAX_MS);
     expect_failure("{DELAY:0}", APP_ERROR_MACRO_LIMIT);
     expect_failure("{DELAY:10001}", APP_ERROR_MACRO_LIMIT);
     expect_failure("{DELAY:42949672960}", APP_ERROR_MACRO_LIMIT);
     expect_failure("{DELAY:-1}", APP_ERROR_MACRO_SYNTAX);
 }
 
-static void test_named_keys_and_modifiers(void)
-{
+static void test_named_keys_and_modifiers(void) {
     static const char *const named_keys[] = {
-        "ENTER", "TAB", "ESC", "BACKSPACE", "DELETE", "INSERT", "HOME",
-        "END", "PAGEUP", "PAGEDOWN", "UP", "DOWN", "LEFT", "RIGHT",
-        "SPACE", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
-        "F9", "F10", "F11", "F12",
+        "ENTER",    "TAB", "ESC",  "BACKSPACE", "DELETE", "INSERT", "HOME", "END", "PAGEUP",
+        "PAGEDOWN", "UP",  "DOWN", "LEFT",      "RIGHT",  "SPACE",  "F1",   "F2",  "F3",
+        "F4",       "F5",  "F6",   "F7",        "F8",     "F9",     "F10",  "F11", "F12",
     };
-    for (size_t index = 0U;
-         index < (sizeof(named_keys) / sizeof(named_keys[0]));
-         ++index) {
+    for (size_t index = 0U; index < (sizeof(named_keys) / sizeof(named_keys[0])); ++index) {
         char source[32U];
-        const int written =
-            snprintf(source, sizeof(source), "{%s}", named_keys[index]);
+        const int written = snprintf(source, sizeof(source), "{%s}", named_keys[index]);
         TEST_CHECK(written > 0 && (size_t)written < sizeof(source));
         expect_success(source, 1U);
     }
@@ -234,21 +186,14 @@ static void test_named_keys_and_modifiers(void)
         {"{CTRL+SHIFT+ALT+GUI+A}", 0x0fU},
         {"{GUI+ALT+SHIFT+CTRL+F1}", 0x0fU},
     };
-    for (size_t index = 0U;
-         index < (sizeof(modifier_cases) / sizeof(modifier_cases[0]));
-         ++index) {
+    for (size_t index = 0U; index < (sizeof(modifier_cases) / sizeof(modifier_cases[0])); ++index) {
         macro_plan_t plan = {0};
-        TEST_CHECK_APP_ERROR(
-            APP_ERROR_NONE,
-            compile_explicit(modifier_cases[index].source,
-                             strlen(modifier_cases[index].source),
-                             NULL,
-                             &plan,
-                             NULL));
+        TEST_CHECK_APP_ERROR(APP_ERROR_NONE, compile_explicit(modifier_cases[index].source,
+                                                              strlen(modifier_cases[index].source),
+                                                              NULL, &plan, NULL));
         TEST_CHECK_EQ_U64(1U, plan.action_count);
         TEST_CHECK_EQ_U64(MACRO_ACTION_CHORD, plan.actions[0].type);
-        TEST_CHECK_EQ_U64(modifier_cases[index].modifiers,
-                          plan.actions[0].modifiers);
+        TEST_CHECK_EQ_U64(modifier_cases[index].modifiers, plan.actions[0].modifiers);
         macro_plan_free(&plan);
     }
 
@@ -259,28 +204,24 @@ static void test_named_keys_and_modifiers(void)
     expect_failure("{CTRL+}", APP_ERROR_MACRO_SYNTAX);
 }
 
-static void test_case_whitespace_and_line_endings(void)
-{
+static void test_case_whitespace_and_line_endings(void) {
     expect_failure("{enter}", APP_ERROR_MACRO_SYNTAX);
     expect_failure("{ ENTER}", APP_ERROR_MACRO_SYNTAX);
     expect_failure("{ENTER }", APP_ERROR_MACRO_SYNTAX);
     expect_success("A B", 3U);
 
     macro_plan_t plan = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         compile_explicit("A\r\nB", 4U, NULL, &plan, NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, compile_explicit("A\r\nB", 4U, NULL, &plan, NULL));
     TEST_CHECK_EQ_U64(3U, plan.action_count);
     TEST_CHECK_EQ_U64(0x28U, plan.actions[1].usage);
     macro_plan_free(&plan);
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         compile_explicit("A\nB", 3U, NULL, &plan, NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, compile_explicit("A\nB", 3U, NULL, &plan, NULL));
     TEST_CHECK_EQ_U64(3U, plan.action_count);
     TEST_CHECK_EQ_U64(0x28U, plan.actions[1].usage);
     macro_plan_free(&plan);
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         compile_explicit("\t", 1U, NULL, &plan, NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, compile_explicit("\t", 1U, NULL, &plan, NULL));
     TEST_CHECK_EQ_U64(1U, plan.action_count);
     TEST_CHECK_EQ_U64(0x2bU, plan.actions[0].usage);
     macro_plan_free(&plan);
@@ -292,8 +233,7 @@ static void test_case_whitespace_and_line_endings(void)
     TEST_CHECK_EQ_U64(2U, error.column);
 }
 
-static void test_error_locations_and_directive_boundaries(void)
-{
+static void test_error_locations_and_directive_boundaries(void) {
     const macro_parse_error_t multiline =
         expect_failure_length("A\n{BAD}", 7U, NULL, APP_ERROR_MACRO_SYNTAX);
     /* SPEC 10.6: the error record itself must carry the code, not only the return. */
@@ -322,55 +262,41 @@ static void test_error_locations_and_directive_boundaries(void)
     TEST_CHECK_EQ_STRING("invalid directive", error_64.message);
 }
 
-static void test_braces_and_character_policy(void)
-{
+static void test_braces_and_character_policy(void) {
     expect_success("{{literal braces}}", 16U);
     expect_success("{{{ENTER}}}", 3U);
     expect_failure("{", APP_ERROR_MACRO_SYNTAX);
     expect_failure("}", APP_ERROR_MACRO_SYNTAX);
 
     static const char valid_non_ascii_utf8[] = "\xc3\xa9";
-    const macro_parse_error_t non_ascii =
-        expect_failure_length(valid_non_ascii_utf8,
-                              sizeof(valid_non_ascii_utf8) - 1U,
-                              NULL,
-                              APP_ERROR_MACRO_SYNTAX);
+    const macro_parse_error_t non_ascii = expect_failure_length(
+        valid_non_ascii_utf8, sizeof(valid_non_ascii_utf8) - 1U, NULL, APP_ERROR_MACRO_SYNTAX);
     TEST_CHECK_EQ_U64(0U, non_ascii.byte_offset);
 
     static const char invalid_utf8[] = {(char)0xc3, 'x'};
     const macro_parse_error_t invalid =
-        expect_failure_length(invalid_utf8,
-                              sizeof(invalid_utf8),
-                              NULL,
-                              APP_ERROR_MACRO_SYNTAX);
+        expect_failure_length(invalid_utf8, sizeof(invalid_utf8), NULL, APP_ERROR_MACRO_SYNTAX);
     TEST_CHECK_EQ_U64(0U, invalid.byte_offset);
 
     static const char embedded_nul[] = {'a', '\0', 'b'};
     const macro_parse_error_t nul =
-        expect_failure_length(embedded_nul,
-                              sizeof(embedded_nul),
-                              NULL,
-                              APP_ERROR_MACRO_SYNTAX);
+        expect_failure_length(embedded_nul, sizeof(embedded_nul), NULL, APP_ERROR_MACRO_SYNTAX);
     TEST_CHECK_EQ_U64(1U, nul.byte_offset);
 }
 
-static void test_output_plan_reuse_contract(void)
-{
+static void test_output_plan_reuse_contract(void) {
     macro_plan_t plan = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         macro_compile("first", 5U, NULL, &plan, NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_compile("first", 5U, NULL, &plan, NULL));
     TEST_CHECK_EQ_U64(5U, plan.action_count);
     macro_plan_free(&plan);
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         macro_compile("{ENTER}", 7U, NULL, &plan, NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_compile("{ENTER}", 7U, NULL, &plan, NULL));
     TEST_CHECK_EQ_U64(1U, plan.action_count);
     macro_plan_free(&plan);
     macro_plan_free(&plan);
 }
 
-static void test_fuzz_corpus(void)
-{
+static void test_fuzz_corpus(void) {
     unsigned int state = 0x13579bdfU;
     char source[128U];
     for (size_t iteration = 0U; iteration < 10000U; ++iteration) {
@@ -382,8 +308,7 @@ static void test_fuzz_corpus(void)
         }
         macro_plan_t plan = {0};
         macro_parse_error_t error = {0};
-        const app_error_code_t result =
-            macro_compile(source, length, NULL, &plan, &error);
+        const app_error_code_t result = macro_compile(source, length, NULL, &plan, &error);
         if (result == APP_ERROR_NONE) {
             TEST_CHECK(plan.action_count <= APP_COMPILED_ACTION_MAX);
             macro_plan_free(&plan);
@@ -394,8 +319,7 @@ static void test_fuzz_corpus(void)
     }
 }
 
-static void test_printable_ascii(void)
-{
+static void test_printable_ascii(void) {
     for (int value = 0x20; value <= 0x7e; ++value) {
         macro_hid_key_t key = {0U, 0U};
         TEST_CHECK(macro_keymap_us_printable((char)value, &key));
@@ -404,8 +328,7 @@ static void test_printable_ascii(void)
     TEST_CHECK(!macro_keymap_us_printable('a', NULL));
 }
 
-static void test_named_key_usages(void)
-{
+static void test_named_key_usages(void) {
     /*
      * SPEC 10.3: each named key must compile to its canonical US HID usage.
      * test_named_keys_and_modifiers only checks the action count, so a keymap
@@ -416,22 +339,19 @@ static void test_named_key_usages(void)
         const char *source;
         uint8_t usage;
     } cases[] = {
-        {"{ENTER}", 0x28U},    {"{TAB}", 0x2bU},      {"{ESC}", 0x29U},
-        {"{BACKSPACE}", 0x2aU}, {"{DELETE}", 0x4cU},  {"{INSERT}", 0x49U},
-        {"{HOME}", 0x4aU},     {"{END}", 0x4dU},      {"{PAGEUP}", 0x4bU},
-        {"{PAGEDOWN}", 0x4eU}, {"{UP}", 0x52U},       {"{DOWN}", 0x51U},
-        {"{LEFT}", 0x50U},     {"{RIGHT}", 0x4fU},    {"{SPACE}", 0x2cU},
-        {"{F1}", 0x3aU},       {"{F2}", 0x3bU},       {"{F3}", 0x3cU},
-        {"{F4}", 0x3dU},       {"{F5}", 0x3eU},       {"{F6}", 0x3fU},
-        {"{F7}", 0x40U},       {"{F8}", 0x41U},       {"{F9}", 0x42U},
-        {"{F10}", 0x43U},      {"{F11}", 0x44U},      {"{F12}", 0x45U},
+        {"{ENTER}", 0x28U},  {"{TAB}", 0x2bU},      {"{ESC}", 0x29U},   {"{BACKSPACE}", 0x2aU},
+        {"{DELETE}", 0x4cU}, {"{INSERT}", 0x49U},   {"{HOME}", 0x4aU},  {"{END}", 0x4dU},
+        {"{PAGEUP}", 0x4bU}, {"{PAGEDOWN}", 0x4eU}, {"{UP}", 0x52U},    {"{DOWN}", 0x51U},
+        {"{LEFT}", 0x50U},   {"{RIGHT}", 0x4fU},    {"{SPACE}", 0x2cU}, {"{F1}", 0x3aU},
+        {"{F2}", 0x3bU},     {"{F3}", 0x3cU},       {"{F4}", 0x3dU},    {"{F5}", 0x3eU},
+        {"{F6}", 0x3fU},     {"{F7}", 0x40U},       {"{F8}", 0x41U},    {"{F9}", 0x42U},
+        {"{F10}", 0x43U},    {"{F11}", 0x44U},      {"{F12}", 0x45U},
     };
     for (size_t index = 0U; index < (sizeof(cases) / sizeof(cases[0])); ++index) {
         macro_plan_t plan = {0};
-        TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                             compile_explicit(cases[index].source,
-                                              strlen(cases[index].source), NULL, &plan,
-                                              NULL));
+        TEST_CHECK_APP_ERROR(
+            APP_ERROR_NONE,
+            compile_explicit(cases[index].source, strlen(cases[index].source), NULL, &plan, NULL));
         TEST_CHECK_EQ_U64(1U, plan.action_count);
         TEST_CHECK_EQ_U64(MACRO_ACTION_KEY, plan.actions[0].type);
         TEST_CHECK_EQ_U64(cases[index].usage, plan.actions[0].usage);
@@ -440,8 +360,7 @@ static void test_named_key_usages(void)
     }
 }
 
-int main(void)
-{
+int main(void) {
     test_uuid_and_revision_validation();
     test_named_key_usages();
     test_null_empty_and_output_arguments();
@@ -457,10 +376,7 @@ int main(void)
     test_fuzz_corpus();
     expect_success("Hello, world!{ENTER}", 14U);
     expect_success_length("{CTRL+ALT+T}{DELAY:500}cd /tmp{ENTER}",
-                          strlen("{CTRL+ALT+T}{DELAY:500}cd /tmp{ENTER}"),
-                          NULL,
-                          10U,
-                          707U);
+                          strlen("{CTRL+ALT+T}{DELAY:500}cd /tmp{ENTER}"), NULL, 10U, 707U);
     puts("macro parser tests passed");
     return EXIT_SUCCESS;
 }

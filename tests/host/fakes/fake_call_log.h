@@ -31,9 +31,7 @@ void fake_call_log_set_strict(fake_call_log_t *log, bool strict);
 void fake_call_log_expect(fake_call_log_t *log, const char *name);
 void fake_call_log_verify(const fake_call_log_t *log);
 void fake_call_log_fail_on(fake_call_log_t *log, const char *name, size_t occurrence);
-bool fake_call_log_record(fake_call_log_t *log,
-                          const char *name,
-                          uint64_t argument0,
+bool fake_call_log_record(fake_call_log_t *log, const char *name, uint64_t argument0,
                           uint64_t argument1);
 const fake_call_t *fake_call_log_at(const fake_call_log_t *log, size_t index);
 

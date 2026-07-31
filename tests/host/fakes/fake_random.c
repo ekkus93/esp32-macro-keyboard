@@ -3,8 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void fake_random_reset(fake_random_t *random)
-{
+void fake_random_reset(fake_random_t *random) {
     if (random == NULL) {
         abort();
     }
@@ -12,13 +11,8 @@ void fake_random_reset(fake_random_t *random)
     fake_call_log_reset(&random->calls);
 }
 
-void fake_random_set(fake_random_t *random,
-                     const uint8_t *bytes,
-                     size_t length,
-                     bool repeat)
-{
-    if (random == NULL || (bytes == NULL && length != 0U) ||
-        length > sizeof(random->bytes)) {
+void fake_random_set(fake_random_t *random, const uint8_t *bytes, size_t length, bool repeat) {
+    if (random == NULL || (bytes == NULL && length != 0U) || length > sizeof(random->bytes)) {
         abort();
     }
     memset(random->bytes, 0, sizeof(random->bytes));
@@ -30,8 +24,7 @@ void fake_random_set(fake_random_t *random,
     random->repeat = repeat;
 }
 
-bool fake_random_fill(fake_random_t *random, uint8_t *output, size_t length)
-{
+bool fake_random_fill(fake_random_t *random, uint8_t *output, size_t length) {
     if (random == NULL || (output == NULL && length != 0U)) {
         abort();
     }

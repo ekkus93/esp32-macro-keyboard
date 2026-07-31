@@ -27,8 +27,7 @@
 #define GLOBAL_STEP_ID "45454545-4545-4545-8545-454545454545"
 #define MISSING_MACRO_ID "56565656-5656-4656-8656-565656565656"
 
-static const char SET_INDEX_JSON[] =
-    "{\"schema_version\":1,\"ids\":[\"" SET_ID "\"]}";
+static const char SET_INDEX_JSON[] = "{\"schema_version\":1,\"ids\":[\"" SET_ID "\"]}";
 static const char SET_JSON[] =
     "{\"schema_version\":1,\"id\":\"" SET_ID
     "\",\"revision\":7,\"name\":\"Set\",\"description\":\"\",\"manufacturer\":\"\","
@@ -36,41 +35,30 @@ static const char SET_JSON[] =
 static const char LOCAL_MACRO_JSON[] =
     "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
     "\",\"revision\":1,\"scope\":\"set\",\"name\":\"Local\",\"source\":\"a\","
-    "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID
-    "\"}";
+    "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}";
 static const char GLOBAL_MACRO_JSON[] =
     "{\"schema_version\":1,\"id\":\"" GLOBAL_MACRO_ID
     "\",\"revision\":2,\"scope\":\"global\",\"name\":\"Global\",\"source\":\"b\","
     "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15}";
 static const char PROCEDURE_JSON[] =
-    "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID
-    "\",\"revision\":3,\"set_id\":\"" SET_ID
-    "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{\"id\":\""
-    LOCAL_STEP_ID
+    "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":3,\"set_id\":\"" SET_ID
+    "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{\"id\":\"" LOCAL_STEP_ID
     "\",\"type\":\"macro\",\"title\":\"Local\",\"macro_id\":\"" LOCAL_MACRO_ID
-    "\",\"required\":true,\"auto_complete_on_success\":false},{\"id\":\""
-    GLOBAL_STEP_ID
+    "\",\"required\":true,\"auto_complete_on_success\":false},{\"id\":\"" GLOBAL_STEP_ID
     "\",\"type\":\"macro\",\"title\":\"Global\",\"macro_id\":\"" GLOBAL_MACRO_ID
     "\",\"required\":true,\"auto_complete_on_success\":false}],\"sort_order\":0}";
 static const char INVALID_PROCEDURE_JSON[] =
-    "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID
-    "\",\"revision\":3,\"set_id\":\"" SET_ID
-    "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{\"id\":\""
-    LOCAL_STEP_ID
-    "\",\"type\":\"macro\",\"title\":\"Missing\",\"macro_id\":\""
-    MISSING_MACRO_ID
+    "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":3,\"set_id\":\"" SET_ID
+    "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{\"id\":\"" LOCAL_STEP_ID
+    "\",\"type\":\"macro\",\"title\":\"Missing\",\"macro_id\":\"" MISSING_MACRO_ID
     "\",\"required\":true,\"auto_complete_on_success\":false}],\"sort_order\":0}";
 static const char PROGRESS_JSON[] =
-    "{\"schema_version\":1,\"set_id\":\"" SET_ID
-    "\",\"procedure_id\":\"" PROCEDURE_ID
+    "{\"schema_version\":1,\"set_id\":\"" SET_ID "\",\"procedure_id\":\"" PROCEDURE_ID
     "\",\"procedure_revision\":3,\"current_step_id\":\"" LOCAL_STEP_ID
     "\",\"completed_step_ids\":[],\"skipped_step_ids\":[]}";
-static const char MACRO_ORDER_JSON[] =
-    "{\"schema_version\":1,\"ids\":[\"" LOCAL_MACRO_ID "\"]}";
-static const char GLOBAL_ORDER_JSON[] =
-    "{\"schema_version\":1,\"ids\":[\"" GLOBAL_MACRO_ID "\"]}";
-static const char PROCEDURE_ORDER_JSON[] =
-    "{\"schema_version\":1,\"ids\":[\"" PROCEDURE_ID "\"]}";
+static const char MACRO_ORDER_JSON[] = "{\"schema_version\":1,\"ids\":[\"" LOCAL_MACRO_ID "\"]}";
+static const char GLOBAL_ORDER_JSON[] = "{\"schema_version\":1,\"ids\":[\"" GLOBAL_MACRO_ID "\"]}";
+static const char PROCEDURE_ORDER_JSON[] = "{\"schema_version\":1,\"ids\":[\"" PROCEDURE_ID "\"]}";
 
 app_error_code_t storage_repository_parse_index(const char *data, size_t length,
                                                 storage_set_index_t *out_index) {
@@ -189,8 +177,7 @@ static void test_missing_and_misnamed_objects_fail(void) {
     remove_storage();
     create_valid_repository(STORAGE_DATA_MOUNT);
     char path[APP_PATH_MAX_BYTES];
-    path_join(path, sizeof(path), STORAGE_DATA_MOUNT,
-              "global/macros/" GLOBAL_MACRO_ID ".json");
+    path_join(path, sizeof(path), STORAGE_DATA_MOUNT, "global/macros/" GLOBAL_MACRO_ID ".json");
     TEST_CHECK_EQ_INT(0, unlink(path));
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
                          storage_repository_tree_validate(STORAGE_DATA_MOUNT));

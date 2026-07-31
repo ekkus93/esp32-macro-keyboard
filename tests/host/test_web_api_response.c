@@ -32,9 +32,8 @@ static void test_raw_package_response(void) {
     memcpy(owned, package, sizeof(package));
 
     web_api_response_t response = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_api_response_take_json(&response, WEB_HTTP_STATUS_OK, owned,
-                                                    sizeof(package) - 1U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_response_take_json(&response, WEB_HTTP_STATUS_OK,
+                                                                    owned, sizeof(package) - 1U));
     TEST_CHECK_EQ_U64(WEB_HTTP_STATUS_OK, response.status);
     TEST_CHECK_EQ_U64(sizeof(package) - 1U, response.body_length);
     TEST_CHECK_EQ_STRING(package, response.body);
@@ -84,9 +83,9 @@ static void test_invalid_payload_rejected(void) {
     embedded_nul[0] = '{';
     embedded_nul[1] = '\0';
     embedded_nul[2] = '}';
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_response_take_json(&response, WEB_HTTP_STATUS_OK, embedded_nul,
-                                                    3U));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        web_api_response_take_json(&response, WEB_HTTP_STATUS_OK, embedded_nul, 3U));
     free(embedded_nul);
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_api_response_take_json(&response, WEB_HTTP_STATUS_OK, NULL, 0U));

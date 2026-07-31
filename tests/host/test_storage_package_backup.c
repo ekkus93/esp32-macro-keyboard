@@ -192,10 +192,10 @@ static fake_backup_context_t valid_context(void) {
     };
     snprintf(context.sets.items[0].name, sizeof(context.sets.items[0].name), "Set A");
     snprintf(context.sets.items[1].name, sizeof(context.sets.items[1].name), "Set B");
-    snprintf(context.sets.items[0].keyboard_layout,
-             sizeof(context.sets.items[0].keyboard_layout), "en-US");
-    snprintf(context.sets.items[1].keyboard_layout,
-             sizeof(context.sets.items[1].keyboard_layout), "en-US");
+    snprintf(context.sets.items[0].keyboard_layout, sizeof(context.sets.items[0].keyboard_layout),
+             "en-US");
+    snprintf(context.sets.items[1].keyboard_layout, sizeof(context.sets.items[1].keyboard_layout),
+             "en-US");
 
     local_a[0] = make_macro(LOCAL_A_ID, MACRO_SCOPE_SET, &context.sets.items[0].id, "Local A",
                             local_a_source);
@@ -243,10 +243,8 @@ static fake_backup_context_t valid_context(void) {
     };
     snprintf(procedures_a[0].name, sizeof(procedures_a[0].name), "Procedure A");
     snprintf(procedures_b[0].name, sizeof(procedures_b[0].name), "Procedure B");
-    context.procedures[0] =
-        (storage_procedure_list_t){.items = procedures_a, .count = 1U};
-    context.procedures[1] =
-        (storage_procedure_list_t){.items = procedures_b, .count = 1U};
+    context.procedures[0] = (storage_procedure_list_t){.items = procedures_a, .count = 1U};
+    context.procedures[1] = (storage_procedure_list_t){.items = procedures_b, .count = 1U};
 
     context.progress[0] = (storage_progress_snapshot_t){
         .progress =
@@ -321,8 +319,7 @@ static void test_progress_is_optional(void) {
     storage_package_set_backup_ops_for_test(&operations);
     char *data = NULL;
     size_t length = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_package_export_backup(false, &data, &length));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_export_backup(false, &data, &length));
     TEST_CHECK(strstr(data, "\"progress\":[]") != NULL);
     TEST_CHECK_EQ_U64(0U, context.progress_read_count);
     storage_package_free(data);

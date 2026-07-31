@@ -41,13 +41,11 @@ static const char PACKAGE[] =
     "{\"schema_version\":1,\"id\":\"" GLOBAL_MACRO_ID
     "\",\"revision\":2,\"scope\":\"global\",\"name\":\"Global\",\"source\":\"b\","
     "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15}],\"procedures\":["
-    "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID
-    "\",\"revision\":3,\"set_id\":\"" SET_ID
+    "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":3,\"set_id\":\"" SET_ID
     "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{\"id\":\"" STEP_ID
     "\",\"type\":\"macro\",\"title\":\"Step\",\"macro_id\":\"" GLOBAL_MACRO_ID
     "\",\"required\":true,\"auto_complete_on_success\":false}],\"sort_order\":0}],"
-    "\"progress\":[{\"schema_version\":1,\"set_id\":\"" SET_ID
-    "\",\"procedure_id\":\"" PROCEDURE_ID
+    "\"progress\":[{\"schema_version\":1,\"set_id\":\"" SET_ID "\",\"procedure_id\":\"" PROCEDURE_ID
     "\",\"procedure_revision\":3,\"current_step_id\":\"" STEP_ID
     "\",\"completed_step_ids\":[],\"skipped_step_ids\":[]}]}";
 
@@ -91,8 +89,7 @@ static void reset_storage(void) {
 static void write_set_file(const char *set_path, const macro_set_t *set) {
     char *json = NULL;
     size_t length = 0U;
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      storage_repository_serialize_set_json(set, &json, &length));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_serialize_set_json(set, &json, &length));
     char path[APP_PATH_MAX_BYTES];
     join_path(path, sizeof(path), set_path, "set.json");
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_atomic_write(path, json, length, true));
@@ -193,17 +190,16 @@ static void test_invalid_and_conflict_inputs_do_not_mutate(void) {
     macro_set_t committed = {0};
     const app_uuid_t id = parse_id(SET_ID);
     const app_uuid_t other = parse_id(OTHER_SET_ID);
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      storage_package_replace_set(NULL, 3U, PACKAGE,
-                                                  sizeof(PACKAGE) - 1U, &committed));
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      storage_package_replace_set(&other, 3U, PACKAGE,
-                                                  sizeof(PACKAGE) - 1U, &committed));
+    TEST_CHECK_EQ_INT(
+        APP_ERROR_INVALID_ARGUMENT,
+        storage_package_replace_set(NULL, 3U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
+    TEST_CHECK_EQ_INT(
+        APP_ERROR_INVALID_ARGUMENT,
+        storage_package_replace_set(&other, 3U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
     TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
                       storage_package_replace_set(&id, 3U, "{}", 2U, &committed));
-    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT,
-                      storage_package_replace_set(&id, 2U, PACKAGE,
-                                                  sizeof(PACKAGE) - 1U, &committed));
+    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT, storage_package_replace_set(
+                                              &id, 2U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
     assert_current_revision(3U);
 }
 
@@ -212,15 +208,13 @@ static void test_global_dependency_must_match(void) {
     create_current_set();
     macro_set_t committed = {0};
     const app_uuid_t id = parse_id(SET_ID);
-    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT,
-                      storage_package_replace_set(&id, 3U, PACKAGE,
-                                                  sizeof(PACKAGE) - 1U, &committed));
+    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT, storage_package_replace_set(
+                                              &id, 3U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
     assert_current_revision(3U);
 
     create_global_macro("c");
-    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT,
-                      storage_package_replace_set(&id, 3U, PACKAGE,
-                                                  sizeof(PACKAGE) - 1U, &committed));
+    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT, storage_package_replace_set(
+                                              &id, 3U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
     assert_current_revision(3U);
 }
 
@@ -228,9 +222,8 @@ static void test_valid_replace_commits_complete_tree(void) {
     prepare_valid_state();
     macro_set_t committed = {0};
     const app_uuid_t id = parse_id(SET_ID);
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      storage_package_replace_set(&id, 3U, PACKAGE,
-                                                  sizeof(PACKAGE) - 1U, &committed));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_package_replace_set(
+                                          &id, 3U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
     TEST_CHECK_EQ_U64(7U, committed.revision);
     TEST_CHECK_EQ_STRING("Replacement", committed.name);
     assert_current_revision(7U);
@@ -252,13 +245,13 @@ static void test_valid_replace_commits_complete_tree(void) {
         .procedure_id = parse_id(PROCEDURE_ID),
     };
     TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      storage_procedure_read(&procedure_identity.set_id, &procedure_identity.procedure_id, &procedure));
+                      storage_procedure_read(&procedure_identity.set_id,
+                                             &procedure_identity.procedure_id, &procedure));
     TEST_CHECK_EQ_U64(3U, procedure.revision);
     macro_model_free_procedure(&procedure);
 
     storage_progress_snapshot_t progress = {0};
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      storage_progress_read(&procedure_identity, &progress));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_progress_read(&procedure_identity, &progress));
     TEST_CHECK_EQ_U64(STORAGE_PROGRESS_STATUS_CURRENT, progress.status);
 
     TEST_CHECK(directory_empty(STORAGE_DATA_MOUNT "/transactions"));

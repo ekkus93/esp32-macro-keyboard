@@ -130,9 +130,8 @@ static void create_set_and_macros(macro_set_t *out_set, macro_t *out_set_macro,
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&global, out_global_macro));
 }
 
-static procedure_t make_procedure(uint32_t value, const macro_set_t *set,
-                                  const macro_t *set_macro, const macro_t *global_macro,
-                                  const char *name) {
+static procedure_t make_procedure(uint32_t value, const macro_set_t *set, const macro_t *set_macro,
+                                  const macro_t *global_macro, const char *name) {
     procedure_t procedure = {
         .schema_version = APP_SCHEMA_VERSION,
         .id = make_uuid(value),
@@ -142,8 +141,8 @@ static procedure_t make_procedure(uint32_t value, const macro_set_t *set,
         .sort_order = 99,
     };
     TEST_CHECK(snprintf(procedure.name, sizeof(procedure.name), "%s", name) > 0);
-    TEST_CHECK(snprintf(procedure.description, sizeof(procedure.description),
-                        "Guided procedure") > 0);
+    TEST_CHECK(snprintf(procedure.description, sizeof(procedure.description), "Guided procedure") >
+               0);
     procedure.steps = calloc(procedure.step_count, sizeof(*procedure.steps));
     TEST_CHECK(procedure.steps != NULL);
     procedure.steps[0] = (procedure_step_t){
@@ -154,8 +153,8 @@ static procedure_t make_procedure(uint32_t value, const macro_set_t *set,
         .has_macro_id = true,
         .macro_id = set_macro->id,
     };
-    TEST_CHECK(snprintf(procedure.steps[0].title, sizeof(procedure.steps[0].title),
-                        "Run set macro") > 0);
+    TEST_CHECK(
+        snprintf(procedure.steps[0].title, sizeof(procedure.steps[0].title), "Run set macro") > 0);
     procedure.steps[1] = (procedure_step_t){
         .id = make_uuid(value + 2U),
         .type = PROCEDURE_STEP_MACRO,
@@ -173,8 +172,8 @@ static procedure_t make_procedure(uint32_t value, const macro_set_t *set,
         .required = true,
         .body_length = sizeof(body) - 1U,
     };
-    TEST_CHECK(snprintf(procedure.steps[2].title, sizeof(procedure.steps[2].title),
-                        "Confirm output") > 0);
+    TEST_CHECK(
+        snprintf(procedure.steps[2].title, sizeof(procedure.steps[2].title), "Confirm output") > 0);
     procedure.steps[2].body = malloc(sizeof(body));
     TEST_CHECK(procedure.steps[2].body != NULL);
     memcpy(procedure.steps[2].body, body, sizeof(body));
@@ -226,12 +225,10 @@ static void test_argument_validation(void) {
                          storage_procedure_update(&set.id, &procedure, 0U, &output));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          storage_procedure_delete(&set.id, &procedure.id, 0U));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_procedure_reorder(&set.id, NULL, 1U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_procedure_reorder(&set.id, NULL, 1U));
 
     procedure.set_id = make_uuid(999U);
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_procedure_create(&set.id, &procedure));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_procedure_create(&set.id, &procedure));
     macro_model_free_procedure(&procedure);
     macro_model_free_macro(&set_macro);
     macro_model_free_macro(&global_macro);
@@ -262,8 +259,7 @@ static void test_crud_and_order(void) {
     storage_procedure_list_free(&list);
 
     procedure_t readback = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_procedure_read(&set.id, &first.id, &readback));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_read(&set.id, &first.id, &readback));
     assert_procedure_equal(&first, &readback);
     TEST_CHECK_EQ_INT(0, readback.sort_order);
     macro_model_free_procedure(&readback);
@@ -278,8 +274,7 @@ static void test_crud_and_order(void) {
     procedure_t updated = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
                          storage_procedure_update(&set.id, &first, 2U, &updated));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_procedure_update(&set.id, &first, 1U, &updated));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_update(&set.id, &first, 1U, &updated));
     TEST_CHECK_EQ_U64(2U, updated.revision);
     TEST_CHECK_EQ_STRING("First updated", updated.name);
     TEST_CHECK_EQ_STRING(updated_body, updated.steps[2].body);
@@ -288,8 +283,7 @@ static void test_crud_and_order(void) {
     first.revision = 2U;
 
     const app_uuid_t reordered[] = {second.id, first.id};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_procedure_reorder(&set.id, reordered, 2U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_reorder(&set.id, reordered, 2U));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_list(&set.id, &list));
     TEST_CHECK_EQ_UUID(&second.id, &list.items[0].id);
     TEST_CHECK_EQ_UUID(&first.id, &list.items[1].id);
@@ -298,12 +292,9 @@ static void test_crud_and_order(void) {
     storage_procedure_list_free(&list);
 
     const app_uuid_t wrong_members[] = {first.id};
-    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
-                         storage_procedure_reorder(&set.id, wrong_members, 1U));
-    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
-                         storage_procedure_delete(&set.id, &second.id, 2U));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_procedure_delete(&set.id, &second.id, 1U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_procedure_reorder(&set.id, wrong_members, 1U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_procedure_delete(&set.id, &second.id, 2U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_delete(&set.id, &second.id, 1U));
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
                          storage_procedure_read(&set.id, &second.id, &readback));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_list(&set.id, &list));
@@ -324,12 +315,10 @@ static void test_reference_validation(void) {
     macro_t set_macro;
     macro_t global_macro;
     create_set_and_macros(&set, &set_macro, &global_macro);
-    procedure_t procedure =
-        make_procedure(1300U, &set, &set_macro, &global_macro, "References");
+    procedure_t procedure = make_procedure(1300U, &set, &set_macro, &global_macro, "References");
 
     procedure.steps[0].macro_id = make_uuid(9999U);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
-                         storage_procedure_create(&set.id, &procedure));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, storage_procedure_create(&set.id, &procedure));
     procedure.steps[0].macro_id = set_macro.id;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_create(&set.id, &procedure));
 
@@ -338,8 +327,7 @@ static void test_reference_validation(void) {
     procedure_t output = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
                          storage_procedure_update(&set.id, &replacement, 1U, &output));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_procedure_read(&set.id, &procedure.id, &output));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_read(&set.id, &procedure.id, &output));
     TEST_CHECK_EQ_UUID(&global_macro.id, &output.steps[1].macro_id);
     macro_model_free_procedure(&output);
 
@@ -351,8 +339,7 @@ static void test_reference_validation(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&global, &duplicate_global));
     procedure_t ambiguous =
         make_procedure(1400U, &set, &duplicate_scope, &global_macro, "Ambiguous");
-    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
-                         storage_procedure_create(&set.id, &ambiguous));
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_procedure_create(&set.id, &ambiguous));
 
     macro_model_free_procedure(&ambiguous);
     macro_model_free_macro(&duplicate_scope);
@@ -368,14 +355,12 @@ static void test_corrupt_and_stale_references_are_quarantined(void) {
     macro_t set_macro;
     macro_t global_macro;
     create_set_and_macros(&set, &set_macro, &global_macro);
-    procedure_t procedure =
-        make_procedure(1500U, &set, &set_macro, &global_macro, "Corrupt");
+    procedure_t procedure = make_procedure(1500U, &set, &set_macro, &global_macro, "Corrupt");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_create(&set.id, &procedure));
 
     char path[APP_PATH_MAX_BYTES];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_make_procedure_path(&set.id, &procedure.id, path,
-                                                     sizeof(path)));
+                         storage_make_procedure_path(&set.id, &procedure.id, path, sizeof(path)));
     static const char invalid[] = "{not json";
     write_file(path, invalid, sizeof(invalid) - 1U);
     procedure_t output = {0};
@@ -397,13 +382,11 @@ static void test_corrupt_and_stale_references_are_quarantined(void) {
     procedure = make_procedure(1600U, &set, &set_macro, &global_macro, "Stale reference");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_create(&set.id, &procedure));
     char macro_path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_make_macro_path(&set.id, &set_macro.id, macro_path,
-                                                 sizeof(macro_path)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_macro_path(&set.id, &set_macro.id, macro_path,
+                                                                 sizeof(macro_path)));
     TEST_CHECK(unlink(macro_path) == 0);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_make_procedure_path(&set.id, &procedure.id, path,
-                                                     sizeof(path)));
+                         storage_make_procedure_path(&set.id, &procedure.id, path, sizeof(path)));
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
                          storage_procedure_read(&set.id, &procedure.id, &output));
     TEST_CHECK(!path_exists(path));
@@ -419,20 +402,17 @@ static void test_missing_set_empty_steps_and_revision_overflow(void) {
     macro_t set_macro;
     macro_t global_macro;
     create_set_and_macros(&set, &set_macro, &global_macro);
-    procedure_t procedure =
-        make_procedure(1700U, &set, &set_macro, &global_macro, "Limits");
+    procedure_t procedure = make_procedure(1700U, &set, &set_macro, &global_macro, "Limits");
 
     const app_uuid_t absent_set = make_uuid(999U);
     procedure.set_id = absent_set;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
-                         storage_procedure_create(&absent_set, &procedure));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, storage_procedure_create(&absent_set, &procedure));
     procedure.set_id = set.id;
 
     procedure_t empty = procedure;
     empty.steps = NULL;
     empty.step_count = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_procedure_create(&set.id, &empty));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_procedure_create(&set.id, &empty));
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_create(&set.id, &procedure));
     procedure.revision = UINT32_MAX;
@@ -442,8 +422,7 @@ static void test_missing_set_empty_steps_and_revision_overflow(void) {
                          storage_repository_serialize_procedure_json(&procedure, &json, &length));
     char path[APP_PATH_MAX_BYTES];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_make_procedure_path(&set.id, &procedure.id, path,
-                                                     sizeof(path)));
+                         storage_make_procedure_path(&set.id, &procedure.id, path, sizeof(path)));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_atomic_write(path, json, length, true));
     cJSON_free(json);
     procedure_t output = {0};

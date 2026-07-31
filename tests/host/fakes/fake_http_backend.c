@@ -3,8 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void fake_http_backend_reset(fake_http_backend_t *http)
-{
+void fake_http_backend_reset(fake_http_backend_t *http) {
     if (http == NULL) {
         abort();
     }
@@ -12,10 +11,7 @@ void fake_http_backend_reset(fake_http_backend_t *http)
     fake_call_log_reset(&http->calls);
 }
 
-void fake_http_backend_set_body(fake_http_backend_t *http,
-                                const char *body,
-                                size_t receive_chunk)
-{
+void fake_http_backend_set_body(fake_http_backend_t *http, const char *body, size_t receive_chunk) {
     if (http == NULL || body == NULL || strlen(body) >= sizeof(http->body)) {
         abort();
     }
@@ -25,14 +21,10 @@ void fake_http_backend_set_body(fake_http_backend_t *http,
     http->receive_chunk = receive_chunk;
 }
 
-void fake_http_backend_add_header(fake_http_backend_t *http,
-                                  const char *name,
-                                  const char *value)
-{
+void fake_http_backend_add_header(fake_http_backend_t *http, const char *name, const char *value) {
     if (http == NULL || name == NULL || value == NULL ||
         http->header_count >= FAKE_HTTP_HEADER_CAPACITY ||
-        strlen(name) >= FAKE_HTTP_HEADER_NAME_MAX ||
-        strlen(value) >= FAKE_HTTP_HEADER_VALUE_MAX) {
+        strlen(name) >= FAKE_HTTP_HEADER_NAME_MAX || strlen(value) >= FAKE_HTTP_HEADER_VALUE_MAX) {
         abort();
     }
     fake_http_header_t *header = &http->headers[http->header_count++];
@@ -40,8 +32,7 @@ void fake_http_backend_add_header(fake_http_backend_t *http,
     memcpy(header->value, value, strlen(value) + 1U);
 }
 
-const char *fake_http_backend_get_header(fake_http_backend_t *http, const char *name)
-{
+const char *fake_http_backend_get_header(fake_http_backend_t *http, const char *name) {
     if (http == NULL || name == NULL) {
         abort();
     }
@@ -56,8 +47,7 @@ const char *fake_http_backend_get_header(fake_http_backend_t *http, const char *
     return NULL;
 }
 
-int fake_http_backend_receive(fake_http_backend_t *http, char *output, size_t capacity)
-{
+int fake_http_backend_receive(fake_http_backend_t *http, char *output, size_t capacity) {
     if (http == NULL || output == NULL || capacity == 0U) {
         abort();
     }
@@ -79,19 +69,12 @@ int fake_http_backend_receive(fake_http_backend_t *http, char *output, size_t ca
     return (int)count;
 }
 
-int fake_http_backend_send(fake_http_backend_t *http,
-                           int status,
-                           const char *data,
-                           size_t length)
-{
+int fake_http_backend_send(fake_http_backend_t *http, int status, const char *data, size_t length) {
     if (http == NULL || (data == NULL && length != 0U) ||
         length > sizeof(http->response) - http->response_length) {
         abort();
     }
-    if (fake_call_log_record(&http->calls,
-                             "http_send",
-                             (uint64_t)(uint32_t)status,
-                             length)) {
+    if (fake_call_log_record(&http->calls, "http_send", (uint64_t)(uint32_t)status, length)) {
         return -1;
     }
     if (length > 0U) {

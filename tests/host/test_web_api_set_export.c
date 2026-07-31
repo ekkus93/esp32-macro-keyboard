@@ -262,7 +262,6 @@ static web_api_response_t invoke_export(const char *set_id) {
     return response;
 }
 
-
 static web_api_response_t invoke_import(const char *body) {
     const web_api_call_t call = {
         .method = WEB_API_METHOD_POST,

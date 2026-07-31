@@ -29,17 +29,10 @@ typedef struct {
 } fake_http_backend_t;
 
 void fake_http_backend_reset(fake_http_backend_t *http);
-void fake_http_backend_set_body(fake_http_backend_t *http,
-                                const char *body,
-                                size_t receive_chunk);
-void fake_http_backend_add_header(fake_http_backend_t *http,
-                                  const char *name,
-                                  const char *value);
+void fake_http_backend_set_body(fake_http_backend_t *http, const char *body, size_t receive_chunk);
+void fake_http_backend_add_header(fake_http_backend_t *http, const char *name, const char *value);
 const char *fake_http_backend_get_header(fake_http_backend_t *http, const char *name);
 int fake_http_backend_receive(fake_http_backend_t *http, char *output, size_t capacity);
-int fake_http_backend_send(fake_http_backend_t *http,
-                           int status,
-                           const char *data,
-                           size_t length);
+int fake_http_backend_send(fake_http_backend_t *http, int status, const char *data, size_t length);
 
 #endif

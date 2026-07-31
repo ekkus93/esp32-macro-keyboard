@@ -20,9 +20,7 @@ typedef struct {
 void fake_freertos_reset(fake_freertos_t *freertos);
 bool fake_freertos_lock(fake_freertos_t *freertos);
 bool fake_freertos_unlock(fake_freertos_t *freertos);
-bool fake_freertos_queue_send(fake_freertos_t *freertos,
-                              const void *data,
-                              size_t length);
+bool fake_freertos_queue_send(fake_freertos_t *freertos, const void *data, size_t length);
 void fake_freertos_notify(fake_freertos_t *freertos);
 bool fake_freertos_wait(fake_freertos_t *freertos, uint32_t milliseconds);
 

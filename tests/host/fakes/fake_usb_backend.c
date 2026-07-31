@@ -3,8 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void fake_usb_backend_reset(fake_usb_backend_t *usb)
-{
+void fake_usb_backend_reset(fake_usb_backend_t *usb) {
     if (usb == NULL) {
         abort();
     }
@@ -12,19 +11,16 @@ void fake_usb_backend_reset(fake_usb_backend_t *usb)
     fake_call_log_reset(&usb->calls);
 }
 
-int fake_usb_backend_state(fake_usb_backend_t *usb)
-{
+int fake_usb_backend_state(fake_usb_backend_t *usb) {
     if (usb == NULL) {
         abort();
     }
-    return fake_call_log_record(
-               &usb->calls, "usb_state", (uint64_t)(uint32_t)usb->state, 0U)
+    return fake_call_log_record(&usb->calls, "usb_state", (uint64_t)(uint32_t)usb->state, 0U)
                ? -1
                : usb->state;
 }
 
-int fake_usb_backend_press(fake_usb_backend_t *usb, uint8_t modifiers, uint8_t usage)
-{
+int fake_usb_backend_press(fake_usb_backend_t *usb, uint8_t modifiers, uint8_t usage) {
     if (usb == NULL) {
         abort();
     }
@@ -37,8 +33,7 @@ int fake_usb_backend_press(fake_usb_backend_t *usb, uint8_t modifiers, uint8_t u
     return usb->press_result;
 }
 
-int fake_usb_backend_release_all(fake_usb_backend_t *usb)
-{
+int fake_usb_backend_release_all(fake_usb_backend_t *usb) {
     if (usb == NULL) {
         abort();
     }

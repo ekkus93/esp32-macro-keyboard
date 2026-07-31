@@ -54,15 +54,13 @@ static void test_valid_document(void) {
     web_setup_submission_t submission;
     memset(&submission, 0xaa, sizeof(submission));
 
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        web_setup_json_parse(body, sizeof(body), &ops, &submission));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_setup_json_parse(body, sizeof(body), &ops, &submission));
     assert_zero(body, sizeof(body));
     TEST_CHECK_EQ_STRING("45175C9BB39D8BE5FC7EF773", submission.setup_code);
     TEST_CHECK_EQ_STRING("Macro Keyboard", submission.ap_ssid);
     TEST_CHECK_EQ_STRING("correct-horse-battery", submission.ap_passphrase);
-    TEST_CHECK_EQ_STRING("admin-password-strong",
-                         submission.administrator_password);
+    TEST_CHECK_EQ_STRING("admin-password-strong", submission.administrator_password);
     TEST_CHECK(submission.require_physical_confirmation);
     TEST_CHECK(!submission.always_select_set);
     TEST_CHECK_EQ_U64(VALID_DOCUMENT_ZERO_CALLS, fixture.calls);
@@ -77,9 +75,8 @@ static void expect_invalid(const char *json) {
     web_setup_submission_t submission;
     memset(&submission, 0xaa, sizeof(submission));
 
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        web_setup_json_parse(body, sizeof(body), &ops, &submission));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_setup_json_parse(body, sizeof(body), &ops, &submission));
     assert_zero(body, sizeof(body));
     assert_zero(&submission, sizeof(submission));
     TEST_CHECK(fixture.calls >= 2U);
@@ -88,35 +85,22 @@ static void expect_invalid(const char *json) {
 static void test_strict_document_and_schema(void) {
     char value[TEST_BODY_BYTES];
 
-    TEST_CHECK(snprintf(value,
-                        sizeof(value),
-                        "%s trailing",
-                        valid_json()) > 0);
+    TEST_CHECK(snprintf(value, sizeof(value), "%s trailing", valid_json()) > 0);
     expect_invalid(value);
 
-    expect_invalid(
-        "{\"setupCode\":\"45175C9BB39D8BE5FC7EF773\"}");
+    expect_invalid("{\"setupCode\":\"45175C9BB39D8BE5FC7EF773\"}");
 
-    TEST_CHECK(snprintf(
-                   value,
-                   sizeof(value),
-                   "{\"unexpected\":true,%s",
-                   valid_json() + 1) > 0);
+    TEST_CHECK(snprintf(value, sizeof(value), "{\"unexpected\":true,%s", valid_json() + 1) > 0);
     expect_invalid(value);
 
-    TEST_CHECK(snprintf(
-                   value,
-                   sizeof(value),
-                   "{\"setupCode\":\"45175C9BB39D8BE5FC7EF773\",%s",
-                   valid_json() + 1) > 0);
+    TEST_CHECK(snprintf(value, sizeof(value), "{\"setupCode\":\"45175C9BB39D8BE5FC7EF773\",%s",
+                        valid_json() + 1) > 0);
     expect_invalid(value);
 
     TEST_CHECK(snprintf(value, sizeof(value), "%s", valid_json()) > 0);
     char *boolean = strstr(value, "\"alwaysSelectSet\":false");
     TEST_CHECK(boolean != NULL);
-    memcpy(boolean,
-           "\"alwaysSelectSet\":\"no\"  ",
-           strlen("\"alwaysSelectSet\":false"));
+    memcpy(boolean, "\"alwaysSelectSet\":\"no\"  ", strlen("\"alwaysSelectSet\":false"));
     expect_invalid(value);
 
     TEST_CHECK(snprintf(value, sizeof(value), "%s", valid_json()) > 0);
@@ -131,18 +115,16 @@ static void test_bounds_and_arguments(void) {
     memset(long_ssid, 'S', sizeof(long_ssid) - 1U);
     long_ssid[sizeof(long_ssid) - 1U] = '\0';
     char value[TEST_BODY_BYTES];
-    TEST_CHECK(snprintf(
-                   value,
-                   sizeof(value),
-                   "{"
-                   "\"setupCode\":\"45175C9BB39D8BE5FC7EF773\","
-                   "\"apSsid\":\"%s\","
-                   "\"apPassphrase\":\"correct-horse-battery\","
-                   "\"administratorPassword\":\"admin-password-strong\","
-                   "\"requirePhysicalConfirmation\":true,"
-                   "\"alwaysSelectSet\":false"
-                   "}",
-                   long_ssid) > 0);
+    TEST_CHECK(snprintf(value, sizeof(value),
+                        "{"
+                        "\"setupCode\":\"45175C9BB39D8BE5FC7EF773\","
+                        "\"apSsid\":\"%s\","
+                        "\"apPassphrase\":\"correct-horse-battery\","
+                        "\"administratorPassword\":\"admin-password-strong\","
+                        "\"requirePhysicalConfirmation\":true,"
+                        "\"alwaysSelectSet\":false"
+                        "}",
+                        long_ssid) > 0);
     expect_invalid(value);
 
     zero_fixture_t fixture = {0};
@@ -150,22 +132,19 @@ static void test_bounds_and_arguments(void) {
     char body[TEST_BODY_BYTES];
     memset(body, 'X', sizeof(body));
     web_setup_submission_t submission;
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        web_setup_json_parse(body, sizeof(body), &ops, &submission));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_setup_json_parse(body, sizeof(body), &ops, &submission));
     assert_zero(body, sizeof(body));
     assert_zero(&submission, sizeof(submission));
 
     TEST_CHECK(snprintf(body, sizeof(body), "%s", valid_json()) > 0);
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        web_setup_json_parse(body, sizeof(body), &ops, NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_setup_json_parse(body, sizeof(body), &ops, NULL));
     assert_zero(body, sizeof(body));
 
     ops.secure_zero = NULL;
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        web_setup_json_parse(NULL, 0U, &ops, &submission));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_setup_json_parse(NULL, 0U, &ops, &submission));
 }
 
 int main(void) {

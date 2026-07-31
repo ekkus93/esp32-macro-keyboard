@@ -11,8 +11,7 @@
 
 #include "test_assert.h"
 
-static void remove_tree(const char *path)
-{
+static void remove_tree(const char *path) {
     DIR *directory = opendir(path);
     if (directory == NULL) {
         TEST_CHECK(errno == ENOENT);
@@ -44,8 +43,7 @@ static void remove_tree(const char *path)
     TEST_CHECK(rmdir(path) == 0);
 }
 
-void test_temp_dir_create(test_temp_dir_t *directory)
-{
+void test_temp_dir_create(test_temp_dir_t *directory) {
     TEST_CHECK(directory != NULL);
     TEST_CHECK(directory->active == 0);
     static const char pattern[] = "/tmp/esp32-macro-keyboard-test-XXXXXX";
@@ -55,8 +53,7 @@ void test_temp_dir_create(test_temp_dir_t *directory)
     directory->active = 1;
 }
 
-void test_temp_dir_remove(test_temp_dir_t *directory)
-{
+void test_temp_dir_remove(test_temp_dir_t *directory) {
     TEST_CHECK(directory != NULL);
     if (directory->active == 0) {
         return;
@@ -66,8 +63,7 @@ void test_temp_dir_remove(test_temp_dir_t *directory)
     directory->active = 0;
 }
 
-void test_temp_dir_remove_path(const char *path)
-{
+void test_temp_dir_remove_path(const char *path) {
     TEST_CHECK(path != NULL);
     TEST_CHECK(path[0] != '\0');
     remove_tree(path);

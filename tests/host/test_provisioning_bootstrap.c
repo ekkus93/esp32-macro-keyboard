@@ -21,9 +21,8 @@ typedef struct {
     size_t zero_bytes;
 } fake_bootstrap_t;
 
-static app_error_code_t fake_read_device_id(
-    void *context,
-    uint8_t output[PROVISIONING_DEVICE_ID_BYTES]) {
+static app_error_code_t fake_read_device_id(void *context,
+                                            uint8_t output[PROVISIONING_DEVICE_ID_BYTES]) {
     fake_bootstrap_t *fake = context;
     if (fake->device_error != APP_ERROR_NONE) {
         return fake->device_error;
@@ -32,11 +31,9 @@ static app_error_code_t fake_read_device_id(
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t fake_calculate_hmac(
-    void *context,
-    const uint8_t *message,
-    size_t message_size,
-    uint8_t output[PROVISIONING_HMAC_BYTES]) {
+static app_error_code_t fake_calculate_hmac(void *context, const uint8_t *message,
+                                            size_t message_size,
+                                            uint8_t output[PROVISIONING_HMAC_BYTES]) {
     fake_bootstrap_t *fake = context;
     if (fake->hmac_calls < 2U) {
         memcpy(fake->messages[fake->hmac_calls], message, message_size);
@@ -74,9 +71,7 @@ static void test_success_and_domain_separation(void) {
     };
     const provisioning_bootstrap_ops_t ops = operations(&fake);
     provisioning_bootstrap_t bootstrap;
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        provisioning_bootstrap_derive_with_ops(&ops, &bootstrap));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_bootstrap_derive_with_ops(&ops, &bootstrap));
     TEST_CHECK_EQ_STRING("102030A0B0C0", bootstrap.device_id);
     TEST_CHECK_EQ_STRING("ESP32-Macro-A0B0C0", bootstrap.ap_ssid);
     TEST_CHECK_EQ_STRING("0102030405060708090A0B0C", bootstrap.ap_passphrase);
@@ -85,11 +80,9 @@ static void test_success_and_domain_separation(void) {
     TEST_CHECK_EQ_U64(BOOTSTRAP_MESSAGE_BYTES, fake.message_sizes[0]);
     TEST_CHECK_EQ_U64(BOOTSTRAP_MESSAGE_BYTES, fake.message_sizes[1]);
     TEST_CHECK(memcmp(fake.messages[0], fake.messages[1], BOOTSTRAP_DOMAIN_BYTES) != 0);
-    TEST_CHECK_EQ_BUFFER(fake.device_id,
-                         fake.messages[0] + BOOTSTRAP_DOMAIN_BYTES,
+    TEST_CHECK_EQ_BUFFER(fake.device_id, fake.messages[0] + BOOTSTRAP_DOMAIN_BYTES,
                          sizeof(fake.device_id));
-    TEST_CHECK_EQ_BUFFER(fake.device_id,
-                         fake.messages[1] + BOOTSTRAP_DOMAIN_BYTES,
+    TEST_CHECK_EQ_BUFFER(fake.device_id, fake.messages[1] + BOOTSTRAP_DOMAIN_BYTES,
                          sizeof(fake.device_id));
     TEST_CHECK(fake.zero_calls >= 5U);
     TEST_CHECK(fake.zero_bytes >= 122U);
@@ -99,26 +92,21 @@ static void test_argument_validation(void) {
     fake_bootstrap_t fake = {0};
     provisioning_bootstrap_ops_t ops = operations(&fake);
     provisioning_bootstrap_t bootstrap;
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        provisioning_bootstrap_derive_with_ops(NULL, &bootstrap));
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        provisioning_bootstrap_derive_with_ops(&ops, NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         provisioning_bootstrap_derive_with_ops(NULL, &bootstrap));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         provisioning_bootstrap_derive_with_ops(&ops, NULL));
     ops.read_device_id = NULL;
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        provisioning_bootstrap_derive_with_ops(&ops, &bootstrap));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         provisioning_bootstrap_derive_with_ops(&ops, &bootstrap));
     ops = operations(&fake);
     ops.calculate_hmac = NULL;
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        provisioning_bootstrap_derive_with_ops(&ops, &bootstrap));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         provisioning_bootstrap_derive_with_ops(&ops, &bootstrap));
     ops = operations(&fake);
     ops.secure_zero = NULL;
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        provisioning_bootstrap_derive_with_ops(&ops, &bootstrap));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         provisioning_bootstrap_derive_with_ops(&ops, &bootstrap));
 }
 
 static void test_device_failure_clears_output(void) {
@@ -128,9 +116,8 @@ static void test_device_failure_clears_output(void) {
     const provisioning_bootstrap_ops_t ops = operations(&fake);
     provisioning_bootstrap_t bootstrap;
     memset(&bootstrap, 0xaa, sizeof(bootstrap));
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INTERNAL,
-        provisioning_bootstrap_derive_with_ops(&ops, &bootstrap));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL,
+                         provisioning_bootstrap_derive_with_ops(&ops, &bootstrap));
     const uint8_t zero[sizeof(bootstrap)] = {0};
     TEST_CHECK_EQ_BUFFER(zero, &bootstrap, sizeof(bootstrap));
     TEST_CHECK_EQ_U64(0U, fake.hmac_calls);
@@ -143,9 +130,8 @@ static void test_hmac_failure_clears_output(void) {
     };
     const provisioning_bootstrap_ops_t ops = operations(&fake);
     provisioning_bootstrap_t bootstrap;
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INTERNAL,
-        provisioning_bootstrap_derive_with_ops(&ops, &bootstrap));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL,
+                         provisioning_bootstrap_derive_with_ops(&ops, &bootstrap));
     const uint8_t zero[sizeof(bootstrap)] = {0};
     TEST_CHECK_EQ_BUFFER(zero, &bootstrap, sizeof(bootstrap));
     TEST_CHECK_EQ_U64(1U, fake.hmac_calls);

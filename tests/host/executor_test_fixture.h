@@ -39,18 +39,12 @@ macro_executor_ops_t executor_make_ops(executor_fake_t *fake);
 void executor_init_engine(macro_executor_engine_t *engine, executor_fake_t *fake);
 macro_execution_request_t executor_make_request(size_t action_count);
 void executor_free_unowned_request(macro_execution_request_t *request);
-app_error_code_t executor_execute_queued(macro_executor_engine_t *engine,
-                                         executor_fake_t *fake);
-void executor_submit_single_key(macro_executor_engine_t *engine,
-                                executor_fake_t *fake,
+app_error_code_t executor_execute_queued(macro_executor_engine_t *engine, executor_fake_t *fake);
+void executor_submit_single_key(macro_executor_engine_t *engine, executor_fake_t *fake,
                                 uint8_t usage);
-void executor_assert_terminal(const macro_executor_engine_t *engine,
-                              execution_state_t state,
-                              app_error_code_t error,
-                              bool expected_busy);
-void executor_assert_relevant_call(const executor_fake_t *fake,
-                                   size_t ordinal,
-                                   const char *name,
+void executor_assert_terminal(const macro_executor_engine_t *engine, execution_state_t state,
+                              app_error_code_t error, bool expected_busy);
+void executor_assert_relevant_call(const executor_fake_t *fake, size_t ordinal, const char *name,
                                    uint64_t argument0);
 
 void executor_run_validation_tests(void);

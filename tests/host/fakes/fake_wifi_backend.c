@@ -3,8 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char *operation_name(fake_wifi_operation_t operation)
-{
+static const char *operation_name(fake_wifi_operation_t operation) {
     static const char *const names[FAKE_WIFI_OPERATION_COUNT] = {
         "wifi_netif_init",
         "wifi_event_loop",
@@ -25,8 +24,7 @@ static const char *operation_name(fake_wifi_operation_t operation)
     return names[(size_t)operation];
 }
 
-void fake_wifi_backend_reset(fake_wifi_backend_t *wifi)
-{
+void fake_wifi_backend_reset(fake_wifi_backend_t *wifi) {
     if (wifi == NULL) {
         abort();
     }
@@ -34,18 +32,15 @@ void fake_wifi_backend_reset(fake_wifi_backend_t *wifi)
     fake_call_log_reset(&wifi->calls);
 }
 
-void fake_wifi_backend_set_result(fake_wifi_backend_t *wifi,
-                                  fake_wifi_operation_t operation,
-                                  int result)
-{
+void fake_wifi_backend_set_result(fake_wifi_backend_t *wifi, fake_wifi_operation_t operation,
+                                  int result) {
     if (wifi == NULL || operation < 0 || operation >= FAKE_WIFI_OPERATION_COUNT) {
         abort();
     }
     wifi->results[(size_t)operation] = result;
 }
 
-int fake_wifi_backend_call(fake_wifi_backend_t *wifi, fake_wifi_operation_t operation)
-{
+int fake_wifi_backend_call(fake_wifi_backend_t *wifi, fake_wifi_operation_t operation) {
     if (wifi == NULL) {
         abort();
     }
@@ -56,11 +51,8 @@ int fake_wifi_backend_call(fake_wifi_backend_t *wifi, fake_wifi_operation_t oper
     return wifi->results[(size_t)operation];
 }
 
-void fake_wifi_backend_capture_config(fake_wifi_backend_t *wifi,
-                                      const char *ssid,
-                                      const char *password,
-                                      size_t max_clients)
-{
+void fake_wifi_backend_capture_config(fake_wifi_backend_t *wifi, const char *ssid,
+                                      const char *password, size_t max_clients) {
     if (wifi == NULL || ssid == NULL || password == NULL || strlen(ssid) > 32U ||
         strlen(password) > 63U) {
         abort();

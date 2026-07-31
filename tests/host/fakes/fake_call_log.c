@@ -3,31 +3,27 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void require_valid(const fake_call_log_t *log, const char *name)
-{
+static void require_valid(const fake_call_log_t *log, const char *name) {
     if (log == NULL || name == NULL || name[0] == '\0') {
         abort();
     }
 }
 
-void fake_call_log_reset(fake_call_log_t *log)
-{
+void fake_call_log_reset(fake_call_log_t *log) {
     if (log == NULL) {
         abort();
     }
     memset(log, 0, sizeof(*log));
 }
 
-void fake_call_log_set_strict(fake_call_log_t *log, bool strict)
-{
+void fake_call_log_set_strict(fake_call_log_t *log, bool strict) {
     if (log == NULL) {
         abort();
     }
     log->strict = strict;
 }
 
-void fake_call_log_expect(fake_call_log_t *log, const char *name)
-{
+void fake_call_log_expect(fake_call_log_t *log, const char *name) {
     require_valid(log, name);
     if (log->expectation_count >= FAKE_EXPECTATION_CAPACITY) {
         abort();
@@ -35,15 +31,13 @@ void fake_call_log_expect(fake_call_log_t *log, const char *name)
     log->expectations[log->expectation_count++] = name;
 }
 
-void fake_call_log_verify(const fake_call_log_t *log)
-{
+void fake_call_log_verify(const fake_call_log_t *log) {
     if (log == NULL || log->expectation_index != log->expectation_count) {
         abort();
     }
 }
 
-void fake_call_log_fail_on(fake_call_log_t *log, const char *name, size_t occurrence)
-{
+void fake_call_log_fail_on(fake_call_log_t *log, const char *name, size_t occurrence) {
     require_valid(log, name);
     if (occurrence == 0U) {
         abort();
@@ -53,11 +47,8 @@ void fake_call_log_fail_on(fake_call_log_t *log, const char *name, size_t occurr
     log->failure_seen = 0U;
 }
 
-bool fake_call_log_record(fake_call_log_t *log,
-                          const char *name,
-                          uint64_t argument0,
-                          uint64_t argument1)
-{
+bool fake_call_log_record(fake_call_log_t *log, const char *name, uint64_t argument0,
+                          uint64_t argument1) {
     require_valid(log, name);
     if (log->call_count >= FAKE_CALL_LOG_CAPACITY) {
         abort();
@@ -81,8 +72,7 @@ bool fake_call_log_record(fake_call_log_t *log,
     return false;
 }
 
-const fake_call_t *fake_call_log_at(const fake_call_log_t *log, size_t index)
-{
+const fake_call_t *fake_call_log_at(const fake_call_log_t *log, size_t index) {
     if (log == NULL || index >= log->call_count) {
         abort();
     }

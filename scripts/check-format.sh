@@ -2,8 +2,10 @@
 set -euo pipefail
 
 # First-party C only. firmware/test_app/main (not firmware/test_app) excludes the
-# fetched managed_components (TinyUSB) and build dirs nested under test_app.
-mapfile -t c_files < <(find firmware/main firmware/components firmware/test_app/main \
+# fetched managed_components (TinyUSB) and build dirs nested under test_app. Host
+# tests are first-party too; prune their generated build directory.
+mapfile -t c_files < <(find firmware/main firmware/components firmware/test_app/main tests/host \
+	-type d -name 'build*' -prune -o \
 	-type f \( -name '*.c' -o -name '*.h' \) -print | sort)
 if ((${#c_files[@]} > 0)); then
 	clang-format --dry-run --Werror "${c_files[@]}"

@@ -6,8 +6,7 @@
 #include "macro_model.h"
 #include "test_assert.h"
 
-static char *duplicate_bytes(const char *text, size_t length)
-{
+static char *duplicate_bytes(const char *text, size_t length) {
     TEST_CHECK(text != NULL || length == 0U);
     char *copy = malloc(length + 1U);
     TEST_CHECK(copy != NULL);
@@ -18,85 +17,64 @@ static char *duplicate_bytes(const char *text, size_t length)
     return copy;
 }
 
-static char *duplicate_text(const char *text)
-{
+static char *duplicate_text(const char *text) {
     TEST_CHECK(text != NULL);
     return duplicate_bytes(text, strlen(text));
 }
 
-static void test_revision_boundaries(void)
-{
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      macro_model_validate_revision(0U));
+static void test_revision_boundaries(void) {
+    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, macro_model_validate_revision(0U));
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, macro_model_validate_revision(1U));
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      macro_model_validate_revision(UINT32_MAX));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, macro_model_validate_revision(UINT32_MAX));
 }
 
-static void test_text_null_and_empty_policy(void)
-{
+static void test_text_null_and_empty_policy(void) {
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, macro_model_validate_text(NULL, 0U, 0U));
     TEST_CHECK_EQ_INT(APP_ERROR_NONE,
                       macro_model_validate_text(NULL, 0U, APP_MACRO_SOURCE_MAX_BYTES));
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      macro_model_validate_text(NULL, 1U, 1U));
+    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, macro_model_validate_text(NULL, 1U, 1U));
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, macro_model_validate_text("", 0U, 0U));
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      macro_model_validate_text("a", 1U, 0U));
+    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, macro_model_validate_text("a", 1U, 0U));
 }
 
-static void test_text_exact_limits(void)
-{
+static void test_text_exact_limits(void) {
     char *text = malloc(APP_MACRO_SOURCE_MAX_BYTES + 1U);
     TEST_CHECK(text != NULL);
     memset(text, 'x', APP_MACRO_SOURCE_MAX_BYTES + 1U);
 
-    TEST_CHECK_EQ_INT(
-        APP_ERROR_NONE,
-        macro_model_validate_text(text,
-                                  APP_MACRO_SOURCE_MAX_BYTES,
-                                  APP_MACRO_SOURCE_MAX_BYTES));
-    TEST_CHECK_EQ_INT(
-        APP_ERROR_INVALID_ARGUMENT,
-        macro_model_validate_text(text,
-                                  APP_MACRO_SOURCE_MAX_BYTES + 1U,
-                                  APP_MACRO_SOURCE_MAX_BYTES));
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      macro_model_validate_text(text, 1U, SIZE_MAX));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, macro_model_validate_text(text, APP_MACRO_SOURCE_MAX_BYTES,
+                                                                APP_MACRO_SOURCE_MAX_BYTES));
+    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
+                      macro_model_validate_text(text, APP_MACRO_SOURCE_MAX_BYTES + 1U,
+                                                APP_MACRO_SOURCE_MAX_BYTES));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, macro_model_validate_text(text, 1U, SIZE_MAX));
     free(text);
 }
 
-static void test_text_embedded_nul_and_byte_policy(void)
-{
+static void test_text_embedded_nul_and_byte_policy(void) {
     static const char embedded_nul[] = {'a', 'b', '\0', 'c'};
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      macro_model_validate_text(embedded_nul,
-                                                sizeof(embedded_nul),
-                                                sizeof(embedded_nul)));
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      macro_model_validate_text(embedded_nul, 2U, 2U));
+    TEST_CHECK_EQ_INT(
+        APP_ERROR_INVALID_ARGUMENT,
+        macro_model_validate_text(embedded_nul, sizeof(embedded_nul), sizeof(embedded_nul)));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, macro_model_validate_text(embedded_nul, 2U, 2U));
 
     static const char trailing_nul[] = {'a', 'b', '\0'};
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      macro_model_validate_text(trailing_nul,
-                                                sizeof(trailing_nul),
-                                                sizeof(trailing_nul)));
+    TEST_CHECK_EQ_INT(
+        APP_ERROR_INVALID_ARGUMENT,
+        macro_model_validate_text(trailing_nul, sizeof(trailing_nul), sizeof(trailing_nul)));
 
     static const char non_ascii_utf8[] = "\xc3\xa9";
     TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      macro_model_validate_text(non_ascii_utf8,
-                                                sizeof(non_ascii_utf8) - 1U,
+                      macro_model_validate_text(non_ascii_utf8, sizeof(non_ascii_utf8) - 1U,
                                                 sizeof(non_ascii_utf8) - 1U));
 
     static const char arbitrary_nonzero_bytes[] = {(char)0xff, (char)0x80};
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      macro_model_validate_text(arbitrary_nonzero_bytes,
-                                                sizeof(arbitrary_nonzero_bytes),
-                                                sizeof(arbitrary_nonzero_bytes)));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, macro_model_validate_text(arbitrary_nonzero_bytes,
+                                                                sizeof(arbitrary_nonzero_bytes),
+                                                                sizeof(arbitrary_nonzero_bytes)));
 }
 
-static void test_macro_cleanup_is_idempotent(void)
-{
+static void test_macro_cleanup_is_idempotent(void) {
     macro_model_free_macro(NULL);
 
     macro_t macro = {
@@ -132,8 +110,7 @@ static void test_macro_cleanup_is_idempotent(void)
     TEST_CHECK_EQ_U64(0U, macro.source_length);
 }
 
-static void test_procedure_cleanup_is_idempotent(void)
-{
+static void test_procedure_cleanup_is_idempotent(void) {
     macro_model_free_procedure(NULL);
 
     procedure_t procedure = {
@@ -163,8 +140,7 @@ static void test_procedure_cleanup_is_idempotent(void)
     TEST_CHECK_EQ_U64(0U, procedure.step_count);
 }
 
-static void test_partial_procedure_cleanup(void)
-{
+static void test_partial_procedure_cleanup(void) {
     procedure_t without_array = {
         .steps = NULL,
         .step_count = APP_STEPS_PER_PROCEDURE_MAX,
@@ -181,10 +157,8 @@ static void test_partial_procedure_cleanup(void)
     TEST_CHECK(partial.steps != NULL);
     partial.steps[0].body = duplicate_text("first");
     partial.steps[0].body_length = strlen("first");
-    partial.steps[APP_STEPS_PER_PROCEDURE_MAX - 1U].body =
-        duplicate_text("last");
-    partial.steps[APP_STEPS_PER_PROCEDURE_MAX - 1U].body_length =
-        strlen("last");
+    partial.steps[APP_STEPS_PER_PROCEDURE_MAX - 1U].body = duplicate_text("last");
+    partial.steps[APP_STEPS_PER_PROCEDURE_MAX - 1U].body_length = strlen("last");
 
     macro_model_free_procedure(&partial);
     TEST_CHECK(partial.steps == NULL);
@@ -192,8 +166,7 @@ static void test_partial_procedure_cleanup(void)
     TEST_CHECK_EQ_U64(UINT32_MAX, partial.revision);
 }
 
-int main(void)
-{
+int main(void) {
     test_revision_boundaries();
     test_text_null_and_empty_policy();
     test_text_exact_limits();

@@ -164,8 +164,7 @@ static void test_argument_validation(void) {
                          storage_macro_delete(&location, &macro.id, 0U, &references));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          storage_macro_duplicate(&location, &macro.id, &macro.id, NULL, &output));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_macro_reorder(&location, NULL, 1U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_macro_reorder(&location, NULL, 1U));
 
     storage_macro_location_t invalid = location;
     invalid.has_set_id = false;
@@ -214,9 +213,9 @@ static void test_set_local_crud_duplicate_and_order(void) {
 
     const app_uuid_t duplicate_id = make_uuid(30U);
     macro_t duplicate = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_macro_duplicate(&location, &first.id, &duplicate_id,
-                                                 "First copy", &duplicate));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        storage_macro_duplicate(&location, &first.id, &duplicate_id, "First copy", &duplicate));
     TEST_CHECK_EQ_UUID(&duplicate_id, &duplicate.id);
     TEST_CHECK_EQ_U64(1U, duplicate.revision);
     TEST_CHECK_EQ_STRING("First copy", duplicate.name);
@@ -224,9 +223,9 @@ static void test_set_local_crud_duplicate_and_order(void) {
     macro_model_free_macro(&duplicate);
 
     const app_uuid_t reordered[] = {duplicate_id, second.id, first.id};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_macro_reorder(&location, reordered,
-                                               sizeof(reordered) / sizeof(reordered[0])));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        storage_macro_reorder(&location, reordered, sizeof(reordered) / sizeof(reordered[0])));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_list(&location, &list));
     TEST_CHECK_EQ_U64(3U, list.count);
     TEST_CHECK_EQ_UUID(&duplicate_id, &list.items[0].id);
@@ -245,8 +244,7 @@ static void test_set_local_crud_duplicate_and_order(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          storage_macro_delete(&location, &first.id, 2U, &references));
     TEST_CHECK_EQ_U64(0U, references.count);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
-                         storage_macro_read(&location, &first.id, &readback));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, storage_macro_read(&location, &first.id, &readback));
 
     macro_model_free_macro(&first);
     macro_model_free_macro(&second);
@@ -302,7 +300,8 @@ static void write_procedure_reference(const macro_set_t *set, const macro_t *mac
         .step_count = 1U,
     };
     TEST_CHECK(snprintf(procedure.name, sizeof(procedure.name), "Reference procedure") > 0);
-    TEST_CHECK(snprintf(procedure.description, sizeof(procedure.description), "Reference test") > 0);
+    TEST_CHECK(snprintf(procedure.description, sizeof(procedure.description), "Reference test") >
+               0);
 
     char *json = NULL;
     size_t length = 0U;

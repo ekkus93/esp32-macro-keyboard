@@ -38,7 +38,7 @@ app_error_code_t storage_quarantine_list(storage_quarantine_list_t *out_list) {
 }
 
 app_error_code_t storage_package_export_backup(bool include_progress, char **out_data,
-                                                size_t *out_length) {
+                                               size_t *out_length) {
     backup_include_progress = include_progress;
     if (out_data == NULL || out_length == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -74,8 +74,7 @@ void storage_package_free(char *data) {
     free(data);
 }
 
-static web_api_call_t call_for(web_api_route_t route, web_api_method_t method,
-                               const char *body) {
+static web_api_call_t call_for(web_api_route_t route, web_api_method_t method, const char *body) {
     return (web_api_call_t){
         .method = method,
         .path = {.route = route},
@@ -196,8 +195,7 @@ static void test_restore_delegates_complete_package(void) {
 static void test_restore_failure_is_visible(void) {
     reset_fixture();
     restore_result = APP_ERROR_INVALID_ARGUMENT;
-    const web_api_call_t call =
-        call_for(WEB_API_ROUTE_RESTORE, WEB_API_METHOD_POST, "{}");
+    const web_api_call_t call = call_for(WEB_API_ROUTE_RESTORE, WEB_API_METHOD_POST, "{}");
     web_api_response_t response = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
     TEST_CHECK_EQ_U64(422U, response.status);
@@ -228,11 +226,9 @@ static void test_invalid_boundary_inputs(void) {
     web_api_response_t response = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_api_admin_boundary_handle(NULL, &response));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_admin_boundary_handle(&call, NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_api_admin_boundary_handle(&call, NULL));
     const web_api_call_t unknown = call_for(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET, NULL);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
-                         web_api_admin_boundary_handle(&unknown, &response));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, web_api_admin_boundary_handle(&unknown, &response));
     TEST_CHECK(response.body == NULL);
 }
 

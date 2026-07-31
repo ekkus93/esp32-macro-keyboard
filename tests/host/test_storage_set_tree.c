@@ -29,31 +29,24 @@ static const char SET_JSON[] =
 static const char LOCAL_MACRO_JSON[] =
     "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
     "\",\"revision\":1,\"scope\":\"set\",\"name\":\"Local\",\"source\":\"a\","
-    "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID
-    "\"}";
+    "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}";
 static const char GLOBAL_MACRO_JSON[] =
     "{\"schema_version\":1,\"id\":\"" GLOBAL_MACRO_ID
     "\",\"revision\":2,\"scope\":\"global\",\"name\":\"Global\",\"source\":\"b\","
     "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15}";
 static const char PROCEDURE_JSON[] =
-    "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID
-    "\",\"revision\":3,\"set_id\":\"" SET_ID
-    "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{\"id\":\""
-    LOCAL_STEP_ID
+    "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":3,\"set_id\":\"" SET_ID
+    "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{\"id\":\"" LOCAL_STEP_ID
     "\",\"type\":\"macro\",\"title\":\"Local\",\"macro_id\":\"" LOCAL_MACRO_ID
-    "\",\"required\":true,\"auto_complete_on_success\":false},{\"id\":\""
-    GLOBAL_STEP_ID
+    "\",\"required\":true,\"auto_complete_on_success\":false},{\"id\":\"" GLOBAL_STEP_ID
     "\",\"type\":\"macro\",\"title\":\"Global\",\"macro_id\":\"" GLOBAL_MACRO_ID
     "\",\"required\":true,\"auto_complete_on_success\":false}],\"sort_order\":0}";
 static const char PROGRESS_JSON[] =
-    "{\"schema_version\":1,\"set_id\":\"" SET_ID
-    "\",\"procedure_id\":\"" PROCEDURE_ID
+    "{\"schema_version\":1,\"set_id\":\"" SET_ID "\",\"procedure_id\":\"" PROCEDURE_ID
     "\",\"procedure_revision\":3,\"current_step_id\":\"" LOCAL_STEP_ID
     "\",\"completed_step_ids\":[],\"skipped_step_ids\":[]}";
-static const char MACRO_ORDER_JSON[] =
-    "{\"schema_version\":1,\"ids\":[\"" LOCAL_MACRO_ID "\"]}";
-static const char PROCEDURE_ORDER_JSON[] =
-    "{\"schema_version\":1,\"ids\":[\"" PROCEDURE_ID "\"]}";
+static const char MACRO_ORDER_JSON[] = "{\"schema_version\":1,\"ids\":[\"" LOCAL_MACRO_ID "\"]}";
+static const char PROCEDURE_ORDER_JSON[] = "{\"schema_version\":1,\"ids\":[\"" PROCEDURE_ID "\"]}";
 
 static void make_directory(const char *path) {
     TEST_CHECK(mkdir(path, 0700) == 0 || errno == EEXIST);
@@ -88,8 +81,8 @@ static void reset_storage(void) {
 }
 
 static void create_valid_tree(char *out_set_path, size_t out_set_path_size) {
-    const int written = snprintf(out_set_path, out_set_path_size, STORAGE_DATA_MOUNT "/sets/%s",
-                                 SET_ID);
+    const int written =
+        snprintf(out_set_path, out_set_path_size, STORAGE_DATA_MOUNT "/sets/%s", SET_ID);
     TEST_CHECK(written > 0);
     TEST_CHECK((size_t)written < out_set_path_size);
     char sets_path[APP_PATH_MAX_BYTES];
@@ -192,8 +185,7 @@ static void test_references_and_progress_integrity(void) {
     join_path(progress_path, sizeof(progress_path), set_path, "progress");
     join_path(path, sizeof(path), progress_path, PROCEDURE_ID ".json");
     static const char stale_progress[] =
-        "{\"schema_version\":1,\"set_id\":\"" SET_ID
-        "\",\"procedure_id\":\"" PROCEDURE_ID
+        "{\"schema_version\":1,\"set_id\":\"" SET_ID "\",\"procedure_id\":\"" PROCEDURE_ID
         "\",\"procedure_revision\":2,\"current_step_id\":\"" LOCAL_STEP_ID
         "\",\"completed_step_ids\":[],\"skipped_step_ids\":[]}";
     write_text(path, stale_progress);

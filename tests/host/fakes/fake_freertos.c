@@ -3,8 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void fake_freertos_reset(fake_freertos_t *freertos)
-{
+void fake_freertos_reset(fake_freertos_t *freertos) {
     if (freertos == NULL) {
         abort();
     }
@@ -12,8 +11,7 @@ void fake_freertos_reset(fake_freertos_t *freertos)
     fake_call_log_reset(&freertos->calls);
 }
 
-bool fake_freertos_lock(fake_freertos_t *freertos)
-{
+bool fake_freertos_lock(fake_freertos_t *freertos) {
     if (freertos == NULL || freertos->locked) {
         abort();
     }
@@ -24,8 +22,7 @@ bool fake_freertos_lock(fake_freertos_t *freertos)
     return true;
 }
 
-bool fake_freertos_unlock(fake_freertos_t *freertos)
-{
+bool fake_freertos_unlock(fake_freertos_t *freertos) {
     if (freertos == NULL || !freertos->locked) {
         abort();
     }
@@ -34,16 +31,12 @@ bool fake_freertos_unlock(fake_freertos_t *freertos)
     return !fail;
 }
 
-bool fake_freertos_queue_send(fake_freertos_t *freertos,
-                              const void *data,
-                              size_t length)
-{
+bool fake_freertos_queue_send(fake_freertos_t *freertos, const void *data, size_t length) {
     if (freertos == NULL || data == NULL || length == 0U ||
         length > sizeof(freertos->queued_bytes)) {
         abort();
     }
-    if (fake_call_log_record(&freertos->calls, "queue_send", length, 0U) ||
-        freertos->queue_full) {
+    if (fake_call_log_record(&freertos->calls, "queue_send", length, 0U) || freertos->queue_full) {
         return false;
     }
     memcpy(freertos->queued_bytes, data, length);
@@ -52,8 +45,7 @@ bool fake_freertos_queue_send(fake_freertos_t *freertos,
     return true;
 }
 
-void fake_freertos_notify(fake_freertos_t *freertos)
-{
+void fake_freertos_notify(fake_freertos_t *freertos) {
     if (freertos == NULL) {
         abort();
     }
@@ -62,8 +54,7 @@ void fake_freertos_notify(fake_freertos_t *freertos)
     }
 }
 
-bool fake_freertos_wait(fake_freertos_t *freertos, uint32_t milliseconds)
-{
+bool fake_freertos_wait(fake_freertos_t *freertos, uint32_t milliseconds) {
     if (freertos == NULL || UINT32_MAX - freertos->elapsed_ms < milliseconds) {
         abort();
     }

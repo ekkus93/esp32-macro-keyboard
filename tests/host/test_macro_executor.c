@@ -7,14 +7,16 @@
 #include "macro_limits.h"
 #include "test_assert.h"
 
+// clang-format off
+// Order-dependent source fragments, not headers: leave unsorted.
 #include "executor_test_fixture.h"
 #include "executor_test_fixture.inc"
 #include "executor_validation_tests.inc"
 #include "executor_execution_tests.inc"
 #include "executor_terminal_tests.inc"
+// clang-format on
 
-int main(void)
-{
+int main(void) {
     executor_run_validation_tests();
     executor_run_execution_tests();
     executor_run_terminal_tests();

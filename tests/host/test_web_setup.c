@@ -35,8 +35,7 @@ static app_error_code_t fake_load(void *context, provisioning_config_t *out_conf
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t fake_password_create(void *context,
-                                             const char *password,
+static app_error_code_t fake_password_create(void *context, const char *password,
                                              size_t password_length,
                                              auth_password_record_t *out_record) {
     fake_setup_t *fake = context;
@@ -52,8 +51,7 @@ static app_error_code_t fake_password_create(void *context,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t fake_commit(void *context,
-                                    const provisioning_config_t *replacement,
+static app_error_code_t fake_commit(void *context, const provisioning_config_t *replacement,
                                     uint32_t expected_revision,
                                     provisioning_config_t *out_committed) {
     fake_setup_t *fake = context;
@@ -107,8 +105,10 @@ static web_setup_configuration_t configuration(void) {
         .manufacturing_bypass = false,
     };
     TEST_CHECK_EQ_INT(12, snprintf(value.device_id, sizeof(value.device_id), "%s", "102030A0B0C0"));
-    TEST_CHECK_EQ_INT(18, snprintf(value.ap_ssid, sizeof(value.ap_ssid), "%s", "ESP32-Macro-A0B0C0"));
-    TEST_CHECK_EQ_INT(24, snprintf(value.setup_code, sizeof(value.setup_code), "%s", "45175C9BB39D8BE5FC7EF773"));
+    TEST_CHECK_EQ_INT(18,
+                      snprintf(value.ap_ssid, sizeof(value.ap_ssid), "%s", "ESP32-Macro-A0B0C0"));
+    TEST_CHECK_EQ_INT(
+        24, snprintf(value.setup_code, sizeof(value.setup_code), "%s", "45175C9BB39D8BE5FC7EF773"));
     return value;
 }
 
@@ -117,10 +117,14 @@ static web_setup_submission_t submission(void) {
         .require_physical_confirmation = true,
         .always_select_set = true,
     };
-    TEST_CHECK_EQ_INT(24, snprintf(value.setup_code, sizeof(value.setup_code), "%s", "45175C9BB39D8BE5FC7EF773"));
+    TEST_CHECK_EQ_INT(
+        24, snprintf(value.setup_code, sizeof(value.setup_code), "%s", "45175C9BB39D8BE5FC7EF773"));
     TEST_CHECK_EQ_INT(14, snprintf(value.ap_ssid, sizeof(value.ap_ssid), "%s", "Macro Keyboard"));
-    TEST_CHECK_EQ_INT(21, snprintf(value.ap_passphrase, sizeof(value.ap_passphrase), "%s", "correct-horse-battery"));
-    TEST_CHECK_EQ_INT(21, snprintf(value.administrator_password, sizeof(value.administrator_password), "%s", "admin-password-strong"));
+    TEST_CHECK_EQ_INT(21, snprintf(value.ap_passphrase, sizeof(value.ap_passphrase), "%s",
+                                   "correct-horse-battery"));
+    TEST_CHECK_EQ_INT(21,
+                      snprintf(value.administrator_password, sizeof(value.administrator_password),
+                               "%s", "admin-password-strong"));
     return value;
 }
 
@@ -242,7 +246,8 @@ static void test_backend_failures(void) {
     initialize(&core, &fake);
     web_setup_submission_t request = submission();
     provisioning_config_t committed;
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, web_setup_core_submit(&core, &request, &committed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE,
+                         web_setup_core_submit(&core, &request, &committed));
 
     fake = (fake_setup_t){.password_error = APP_ERROR_INTERNAL};
     initialize(&core, &fake);
@@ -272,20 +277,24 @@ static void test_submission_validation(void) {
     provisioning_config_t committed;
     web_setup_submission_t request = submission();
     request.ap_ssid[0] = '\0';
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_setup_core_submit(&core, &request, &committed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_setup_core_submit(&core, &request, &committed));
     const uint8_t zero_request[sizeof(request)] = {0};
     TEST_CHECK(memcmp(zero_request, &request, sizeof(request)) == 0);
     request = submission();
     request.ap_passphrase[11] = '\0';
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_setup_core_submit(&core, &request, &committed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_setup_core_submit(&core, &request, &committed));
     TEST_CHECK(memcmp(zero_request, &request, sizeof(request)) == 0);
     request = submission();
     request.administrator_password[11] = '\0';
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_setup_core_submit(&core, &request, &committed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_setup_core_submit(&core, &request, &committed));
     TEST_CHECK(memcmp(zero_request, &request, sizeof(request)) == 0);
     request = submission();
     request.setup_code[24] = 'X';
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_setup_core_submit(&core, &request, &committed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_setup_core_submit(&core, &request, &committed));
     TEST_CHECK(memcmp(zero_request, &request, sizeof(request)) == 0);
 }
 

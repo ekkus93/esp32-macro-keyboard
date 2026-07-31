@@ -18,10 +18,7 @@ typedef struct {
 } fake_random_t;
 
 void fake_random_reset(fake_random_t *random);
-void fake_random_set(fake_random_t *random,
-                     const uint8_t *bytes,
-                     size_t length,
-                     bool repeat);
+void fake_random_set(fake_random_t *random, const uint8_t *bytes, size_t length, bool repeat);
 bool fake_random_fill(fake_random_t *random, uint8_t *output, size_t length);
 
 #endif

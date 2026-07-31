@@ -172,18 +172,17 @@ static storage_transaction_manifest_t manifest(storage_transaction_phase_t phase
 }
 
 static char *manifest_path(char *path, size_t path_size) {
-    const int written = snprintf(path, path_size, STORAGE_DATA_MOUNT "/transactions/%s.bin",
-                                 TRANSACTION_ID);
+    const int written =
+        snprintf(path, path_size, STORAGE_DATA_MOUNT "/transactions/%s.bin", TRANSACTION_ID);
     TEST_CHECK(written > 0);
     TEST_CHECK((size_t)written < path_size);
     return path;
 }
 
 static void write_manifest(storage_transaction_manifest_t *value, uuid_context_t *uuid_sequence) {
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        storage_transaction_write_manifest_with_ops(value, storage_fs_ops_posix(), generate_uuid,
-                                                     uuid_sequence));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_transaction_write_manifest_with_ops(value, storage_fs_ops_posix(),
+                                                                     generate_uuid, uuid_sequence));
 }
 
 static void move_item(const char *source_root, const char *destination_root, const char *name) {
@@ -195,8 +194,7 @@ static void move_item(const char *source_root, const char *destination_root, con
 }
 
 static app_error_code_t recover(storage_transaction_manifest_t *value,
-                                validation_context_t *validation,
-                                uuid_context_t *uuid_sequence) {
+                                validation_context_t *validation, uuid_context_t *uuid_sequence) {
     return storage_transaction_recover_restore_with_ops(
         value, storage_fs_ops_posix(), generate_uuid, uuid_sequence, validate_repository,
         validation, remove_tree, NULL);
@@ -234,9 +232,8 @@ static void test_prepared_rolls_back_partial_staging(void) {
 
 static void test_every_durable_phase_recovers_to_new_repository(void) {
     static const storage_transaction_phase_t phases[] = {
-        STORAGE_TRANSACTION_STAGED, STORAGE_TRANSACTION_BACKED_UP,
-        STORAGE_TRANSACTION_ACTIVATED, STORAGE_TRANSACTION_INDEXED,
-        STORAGE_TRANSACTION_COMPLETE,
+        STORAGE_TRANSACTION_STAGED,  STORAGE_TRANSACTION_BACKED_UP, STORAGE_TRANSACTION_ACTIVATED,
+        STORAGE_TRANSACTION_INDEXED, STORAGE_TRANSACTION_COMPLETE,
     };
     for (size_t index = 0U; index < sizeof(phases) / sizeof(phases[0]); ++index) {
         reset_storage();
@@ -309,8 +306,7 @@ static void test_duplicate_item_and_validation_failure_preserve_evidence(void) {
         .failure = APP_ERROR_STORAGE_CORRUPT,
     };
     write_manifest(&invalid, &uuid_sequence);
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
-                         recover(&invalid, &validation, &uuid_sequence));
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, recover(&invalid, &validation, &uuid_sequence));
     TEST_CHECK(repository_has_marker(STORAGE_DATA_MOUNT, OLD_MARKER));
     TEST_CHECK(exists(invalid.staging));
     TEST_CHECK(exists(invalid.backup));
@@ -324,8 +320,7 @@ static void test_prepared_never_deletes_existing_backup(void) {
     uuid_context_t uuid_sequence = {0};
     validation_context_t validation = {0};
     write_manifest(&value, &uuid_sequence);
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
-                         recover(&value, &validation, &uuid_sequence));
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, recover(&value, &validation, &uuid_sequence));
     TEST_CHECK(repository_has_marker(value.backup, OLD_MARKER));
     TEST_CHECK(repository_has_marker(STORAGE_DATA_MOUNT, OLD_MARKER));
 }

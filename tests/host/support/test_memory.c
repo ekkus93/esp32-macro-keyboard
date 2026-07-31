@@ -14,15 +14,13 @@ typedef struct {
 static size_t outstanding_allocations;
 static size_t outstanding_bytes;
 
-void test_memory_reset(void)
-{
+void test_memory_reset(void) {
     if (outstanding_allocations != 0U || outstanding_bytes != 0U) {
         abort();
     }
 }
 
-static void *allocate_zeroed(size_t size)
-{
+static void *allocate_zeroed(size_t size) {
     if (size > SIZE_MAX - sizeof(test_memory_header_t)) {
         return NULL;
     }
@@ -37,21 +35,18 @@ static void *allocate_zeroed(size_t size)
     return header + 1;
 }
 
-void *test_malloc(size_t size)
-{
+void *test_malloc(size_t size) {
     return allocate_zeroed(size);
 }
 
-void *test_calloc(size_t count, size_t size)
-{
+void *test_calloc(size_t count, size_t size) {
     if (count != 0U && size > SIZE_MAX / count) {
         return NULL;
     }
     return allocate_zeroed(count * size);
 }
 
-void *test_realloc(void *pointer, size_t size)
-{
+void *test_realloc(void *pointer, size_t size) {
     if (pointer == NULL) {
         return test_malloc(size);
     }
@@ -74,8 +69,7 @@ void *test_realloc(void *pointer, size_t size)
     return replacement;
 }
 
-void test_free(void *pointer)
-{
+void test_free(void *pointer) {
     if (pointer == NULL) {
         return;
     }
@@ -90,12 +84,10 @@ void test_free(void *pointer)
     free(header);
 }
 
-size_t test_memory_outstanding_allocations(void)
-{
+size_t test_memory_outstanding_allocations(void) {
     return outstanding_allocations;
 }
 
-size_t test_memory_outstanding_bytes(void)
-{
+size_t test_memory_outstanding_bytes(void) {
     return outstanding_bytes;
 }

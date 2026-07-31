@@ -31,13 +31,10 @@ typedef struct {
 } fake_wifi_backend_t;
 
 void fake_wifi_backend_reset(fake_wifi_backend_t *wifi);
-void fake_wifi_backend_set_result(fake_wifi_backend_t *wifi,
-                                  fake_wifi_operation_t operation,
+void fake_wifi_backend_set_result(fake_wifi_backend_t *wifi, fake_wifi_operation_t operation,
                                   int result);
 int fake_wifi_backend_call(fake_wifi_backend_t *wifi, fake_wifi_operation_t operation);
-void fake_wifi_backend_capture_config(fake_wifi_backend_t *wifi,
-                                      const char *ssid,
-                                      const char *password,
-                                      size_t max_clients);
+void fake_wifi_backend_capture_config(fake_wifi_backend_t *wifi, const char *ssid,
+                                      const char *password, size_t max_clients);
 
 #endif
