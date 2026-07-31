@@ -1,0 +1,1 @@
+Run Phase 18.3 validation with per-step locked replacement diagnostics.
