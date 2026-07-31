@@ -3,5 +3,5 @@
 The temporary implementation workflow failed before committing code.
 
 ```text
-production callback block changed
+No captured log was available.
 ```
