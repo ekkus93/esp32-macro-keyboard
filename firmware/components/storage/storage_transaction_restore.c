@@ -25,9 +25,17 @@ static app_error_code_t map_error_number(int error_number) {
     return APP_ERROR_IO;
 }
 
-static bool expected_path(char *output, size_t output_size, const char *format,
-                          const app_uuid_t *transaction_id) {
-    const int written = snprintf(output, output_size, format, transaction_id->value);
+static bool expected_staging_path(char *output, size_t output_size,
+                                  const app_uuid_t *transaction_id) {
+    const int written = snprintf(output, output_size, STORAGE_DATA_MOUNT "/staging/%s",
+                                 transaction_id->value);
+    return written >= 0 && (size_t)written < output_size;
+}
+
+static bool expected_backup_path(char *output, size_t output_size,
+                                 const app_uuid_t *transaction_id) {
+    const int written = snprintf(output, output_size, STORAGE_DATA_MOUNT "/trash/restore-%s",
+                                 transaction_id->value);
     return written >= 0 && (size_t)written < output_size;
 }
 
@@ -38,10 +46,8 @@ static bool restore_manifest_paths_valid(const storage_transaction_manifest_t *m
            manifest->expected_revision == 0U && manifest->replacement_revision == 0U &&
            strcmp(manifest->source, STORAGE_DATA_MOUNT) == 0 &&
            strcmp(manifest->destination, STORAGE_DATA_MOUNT) == 0 &&
-           expected_path(staging, sizeof(staging), STORAGE_DATA_MOUNT "/staging/%s",
-                         &manifest->id) &&
-           expected_path(backup, sizeof(backup), STORAGE_DATA_MOUNT "/trash/restore-%s",
-                         &manifest->id) &&
+           expected_staging_path(staging, sizeof(staging), &manifest->id) &&
+           expected_backup_path(backup, sizeof(backup), &manifest->id) &&
            strcmp(manifest->staging, staging) == 0 && strcmp(manifest->backup, backup) == 0;
 }
 

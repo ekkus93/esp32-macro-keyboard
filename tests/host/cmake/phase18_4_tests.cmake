@@ -48,6 +48,9 @@ target_compile_definitions(
     PRIVATE STORAGE_DATA_MOUNT="/tmp/esp32-macro-keyboard-restore-transaction"
 )
 target_link_libraries(storage_restore_transaction_tests PRIVATE test_support)
-target_compile_options(storage_restore_transaction_tests PRIVATE ${STRICT_WARNINGS})
+target_compile_options(
+    storage_restore_transaction_tests
+    PRIVATE ${STRICT_WARNINGS} -include storage_repository.h
+)
 add_test(NAME storage_restore_transaction COMMAND storage_restore_transaction_tests)
 set_tests_properties(storage_restore_transaction PROPERTIES LABELS "storage")
