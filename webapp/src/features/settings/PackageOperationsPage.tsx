@@ -3,22 +3,30 @@ import type { ChangeEvent } from "react";
 import { errorText } from "../../api/errors";
 import { isRecord } from "../../api/guards";
 import {
+  exportBackupPackage,
   exportSetPackage,
+  isBackupPackageDocument,
   isSetPackageDocument,
   replaceSetPackage,
+  restoreBackupPackage,
 } from "../../api/packages";
-import type { SetPackageDocument } from "../../api/packages";
+import type {
+  BackupPackageDocument,
+  SetPackageDocument,
+} from "../../api/packages";
 import { AccessibleDialog } from "../../components/AccessibleDialog";
 import { ErrorBanner } from "../../components/ErrorBanner";
 import type { MacroSet } from "../../types/models";
 
-const SET_PACKAGE_MAX_BYTES = 512 * 1024;
+const PACKAGE_MAX_BYTES = 512 * 1024;
+const RESTORE_CONFIRMATION_PHRASE = "RESTORE FULL BACKUP";
 
 interface PackageOperationsPageProps {
   activeSet: MacroSet | null;
   initialSection: "import" | "export";
   saveFile?: (filename: string, text: string) => void;
   onSetReplaced?: (replacement: MacroSet) => void;
+  onBackupRestored?: () => void;
 }
 
 interface OperationCardProps {
@@ -44,7 +52,7 @@ function OperationCard({
   );
 }
 
-function downloadSetPackage(filename: string, text: string): void {
+function downloadPackage(filename: string, text: string): void {
   const blob = new Blob([text], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -64,18 +72,26 @@ function packagedSetId(packageDocument: SetPackageDocument): string | null {
 export function PackageOperationsPage({
   activeSet,
   initialSection,
-  saveFile = downloadSetPackage,
+  saveFile = downloadPackage,
   onSetReplaced = () => undefined,
+  onBackupRestored = () => undefined,
 }: PackageOperationsPageProps): React.JSX.Element {
   const [exporting, setExporting] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
   const [replacing, setReplacing] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const [replacementPackage, setReplacementPackage] =
     useState<SetPackageDocument | null>(null);
   const [replacementFilename, setReplacementFilename] = useState<string | null>(
     null,
   );
+  const [restorePackage, setRestorePackage] =
+    useState<BackupPackageDocument | null>(null);
+  const [restoreFilename, setRestoreFilename] = useState<string | null>(null);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
+  const [restoreConfirmationOpen, setRestoreConfirmationOpen] = useState(false);
+  const [restoreConfirmation, setRestoreConfirmation] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -102,6 +118,24 @@ export function PackageOperationsPage({
     }
   };
 
+  const performBackup = async (): Promise<void> => {
+    if (backingUp) {
+      return;
+    }
+    setBackingUp(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const download = await exportBackupPackage();
+      saveFile("macro-keyboard-backup.json", download.text);
+      setMessage(`Created full backup as ${String(download.byteLength)} bytes.`);
+    } catch (backupError: unknown) {
+      setError(errorText(backupError));
+    } finally {
+      setBackingUp(false);
+    }
+  };
+
   const selectReplacement = async (
     event: ChangeEvent<HTMLInputElement>,
   ): Promise<void> => {
@@ -117,7 +151,7 @@ export function PackageOperationsPage({
       setError("Select an active set before choosing a replacement package.");
       return;
     }
-    if (file.size === 0 || file.size > SET_PACKAGE_MAX_BYTES) {
+    if (file.size === 0 || file.size > PACKAGE_MAX_BYTES) {
       setError("The replacement package must be between 1 byte and 512 KiB.");
       return;
     }
@@ -136,6 +170,34 @@ export function PackageOperationsPage({
       setMessage(
         `Validated ${file.name}. Review the replacement before continuing.`,
       );
+    } catch (selectionError: unknown) {
+      setError(errorText(selectionError));
+    }
+  };
+
+  const selectRestore = async (
+    event: ChangeEvent<HTMLInputElement>,
+  ): Promise<void> => {
+    setError(null);
+    setMessage(null);
+    setRestorePackage(null);
+    setRestoreFilename(null);
+    const file = event.target.files?.[0];
+    if (file === undefined) {
+      return;
+    }
+    if (file.size === 0 || file.size > PACKAGE_MAX_BYTES) {
+      setError("The backup package must be between 1 byte and 512 KiB.");
+      return;
+    }
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      if (!isBackupPackageDocument(parsed)) {
+        throw new Error("The file is not a supported full-backup package.");
+      }
+      setRestorePackage(parsed);
+      setRestoreFilename(file.name);
+      setMessage(`Validated ${file.name}. Review the full restore before continuing.`);
     } catch (selectionError: unknown) {
       setError(errorText(selectionError));
     }
@@ -175,6 +237,33 @@ export function PackageOperationsPage({
     }
   };
 
+  const performRestore = async (): Promise<void> => {
+    if (
+      restorePackage === null ||
+      restoreConfirmation !== RESTORE_CONFIRMATION_PHRASE ||
+      restoring
+    ) {
+      return;
+    }
+    setRestoring(true);
+    setError(null);
+    setMessage("Press the confirmation button on the device.");
+    try {
+      await restoreBackupPackage(restorePackage);
+      setRestoreConfirmationOpen(false);
+      setRestoreConfirmation("");
+      setRestorePackage(null);
+      setRestoreFilename(null);
+      onBackupRestored();
+      setMessage("Full backup restored. Live device state has been reloaded.");
+    } catch (restoreError: unknown) {
+      setError(errorText(restoreError));
+      setMessage(null);
+    } finally {
+      setRestoring(false);
+    }
+  };
+
   return (
     <section aria-labelledby="package-operations-title">
       <div className="page-heading">
@@ -183,15 +272,14 @@ export function PackageOperationsPage({
           <h2 id="package-operations-title">Import, export, and recovery</h2>
           <p>
             Package operations validate server-owned data and exclude
-            credentials, sessions, and encryption material.
+            credentials, sessions, provisioning secrets, and encryption material.
           </p>
         </div>
       </div>
 
       <div className="boundary-message" role="status">
-        Deterministic set export and transactional replacement are available.
-        Import-as-new, full backup, and full restore remain disabled until their
-        later Phase 18 services are complete.
+        Deterministic set export, transactional replacement, full backup, and
+        all-or-nothing restore are available. Import-as-new remains disabled.
       </div>
 
       <ErrorBanner message={error} />
@@ -261,11 +349,40 @@ export function PackageOperationsPage({
                 : `Ready to review ${replacementFilename}.`}
             </p>
           </article>
-          <OperationCard
-            action="Restore full backup"
-            description="Restore all sets, global macros, procedures, and optional progress as one transaction."
-            explanation="all-or-nothing restore and backup secret scanning are not implemented."
-          />
+          <article className="validation-card">
+            <h3>Restore full backup</h3>
+            <p>
+              Replace all sets, set-owned objects, global macros, ordering, and
+              optional progress in one durable transaction. Credentials and
+              provisioning data are never replaced.
+            </p>
+            <label htmlFor="restore-backup-package">Full backup package</label>
+            <input
+              accept="application/json,.json"
+              disabled={restoring}
+              id="restore-backup-package"
+              onChange={(event) => {
+                void selectRestore(event);
+              }}
+              type="file"
+            />
+            <button
+              className="danger"
+              disabled={restorePackage === null || restoring}
+              onClick={() => {
+                setRestoreConfirmation("");
+                setRestoreConfirmationOpen(true);
+              }}
+              type="button"
+            >
+              Restore full backup
+            </button>
+            <p className="field-help">
+              {restoreFilename === null
+                ? "Restore validates the complete staged repository before replacing live data."
+                : `Ready to review ${restoreFilename}.`}
+            </p>
+          </article>
         </div>
       ) : (
         <div className="management-grid">
@@ -292,11 +409,27 @@ export function PackageOperationsPage({
               frontend.
             </p>
           </article>
-          <OperationCard
-            action="Create full backup"
-            description="Create a deterministic backup of user data while excluding provisioning credentials, sessions, and encryption material."
-            explanation="the full-backup service and backup secret scanner are not implemented."
-          />
+          <article className="validation-card">
+            <h3>Create full backup</h3>
+            <p>
+              Download every set, local and global macro, procedure, ordering
+              record, and current progress from one locked repository snapshot.
+            </p>
+            <button
+              className="primary"
+              disabled={backingUp}
+              onClick={() => {
+                void performBackup();
+              }}
+              type="button"
+            >
+              {backingUp ? "Creating backup…" : "Create full backup"}
+            </button>
+            <p className="field-help">
+              The backup excludes credentials, sessions, CSRF material,
+              provisioning secrets, and encryption keys.
+            </p>
+          </article>
         </div>
       )}
 
@@ -346,6 +479,54 @@ export function PackageOperationsPage({
             type="button"
           >
             {replacing ? "Replacing…" : "Confirm replacement"}
+          </button>
+        </div>
+      </AccessibleDialog>
+
+      <AccessibleDialog
+        description="This replaces the complete logical repository. Interrupted activation is recovered from the durable restore manifest, while credentials and provisioning data remain unchanged."
+        onClose={() => {
+          if (!restoring) {
+            setRestoreConfirmationOpen(false);
+            setRestoreConfirmation("");
+          }
+        }}
+        open={restoreConfirmationOpen}
+        title="Confirm full backup restore"
+      >
+        <label htmlFor="restore-confirmation">
+          Type <strong>{RESTORE_CONFIRMATION_PHRASE}</strong> to continue.
+        </label>
+        <input
+          autoComplete="off"
+          id="restore-confirmation"
+          onChange={(event) => {
+            setRestoreConfirmation(event.target.value);
+          }}
+          value={restoreConfirmation}
+        />
+        <div className="dialog-actions">
+          <button
+            disabled={restoring}
+            onClick={() => {
+              setRestoreConfirmationOpen(false);
+              setRestoreConfirmation("");
+            }}
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            className="danger"
+            disabled={
+              restoreConfirmation !== RESTORE_CONFIRMATION_PHRASE || restoring
+            }
+            onClick={() => {
+              void performRestore();
+            }}
+            type="button"
+          >
+            {restoring ? "Restoring…" : "Confirm full restore"}
           </button>
         </div>
       </AccessibleDialog>
