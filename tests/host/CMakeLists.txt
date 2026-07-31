@@ -206,6 +206,19 @@ add_test(NAME app_core_health COMMAND app_core_health_tests)
 set_tests_properties(app_core_health PROPERTIES LABELS "startup")
 
 add_executable(
+    storage_health_tests test_storage_health.c ../../firmware/components/storage/storage_health.c
+)
+target_include_directories(
+    storage_health_tests
+    PRIVATE ../../firmware/components/storage/include ../../firmware/components/support/include
+            ../../firmware/components/macro_model/include
+)
+target_link_libraries(storage_health_tests PRIVATE test_support)
+target_compile_options(storage_health_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME storage_health COMMAND storage_health_tests)
+set_tests_properties(storage_health PROPERTIES LABELS "storage")
+
+add_executable(
     usb_keyboard_tests test_usb_keyboard.c
                        ../../firmware/components/usb_keyboard/usb_keyboard_state.c
 )

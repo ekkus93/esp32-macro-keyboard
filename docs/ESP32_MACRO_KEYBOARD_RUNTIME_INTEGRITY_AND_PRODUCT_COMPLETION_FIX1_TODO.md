@@ -2138,7 +2138,7 @@ performed.
 Add stable health snapshots for:
 
 - [x] app lifecycle;
-- [ ] storage mount/recovery;
+- [x] storage mount/recovery;
 - [ ] repository;
 - [ ] authentication;
 - [ ] USB;
@@ -2157,6 +2157,14 @@ failures, degraded-continuation, and cleanup failures into it;
 in the `support` component) provides the shared
 healthy/degraded/unavailable/recovering/failed vocabulary every subsystem in
 this section will report through.
+
+Implemented (storage mount/recovery): `storage_health.c` (new, in the
+`storage` component, same portable/host-testable shape as `app_core_health.c`)
+tracks a primary error across mount, atomic/transaction/quarantine recovery,
+and repository-lock init, plus a cleanup error/incomplete flag across
+unmount. Recorded from `app_core.c`'s existing
+`adapter_storage_mount`/`adapter_storage_recover`/`adapter_storage_unmount`
+call sites, which remain the only orchestrator of this sequencing today.
 
 Retain primary and cleanup errors separately.
 

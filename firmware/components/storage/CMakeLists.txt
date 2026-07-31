@@ -33,12 +33,14 @@ idf_component_register(
     "storage_package_replace.c"
     "storage_package_import.c"
     "storage_quarantine.c"
+    "storage_health.c"
     INCLUDE_DIRS
     "include"
     REQUIRES
     macro_model
     macro_parser
     provisioning
+    support
     littlefs
     json
     freertos

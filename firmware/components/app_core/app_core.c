@@ -16,6 +16,7 @@
 #include "provisioning.h"
 #include "provisioning_bootstrap.h"
 #include "storage.h"
+#include "storage_health.h"
 #include "storage_repository.h"
 #include "usb_keyboard.h"
 #include "web_server.h"
@@ -62,26 +63,34 @@ static app_error_code_t adapter_storage_mount(void *context) {
      * remains unused until normal-operation recovery/repository initialization. */
     const app_error_code_t mount = storage_mount_all();
     if (mount != APP_ERROR_NONE) {
+        storage_health_record_primary(mount);
         return mount;
     }
-    return storage_repository_lock_init();
+    const app_error_code_t lock = storage_repository_lock_init();
+    storage_health_record_primary(lock);
+    return lock;
 }
 
 static app_error_code_t adapter_storage_recover(void *context) {
     (void)context;
     const app_error_code_t atomic = storage_atomic_recover_all();
     if (atomic != APP_ERROR_NONE) {
+        storage_health_record_primary(atomic);
         return atomic;
     }
     const app_error_code_t restores = storage_transaction_recover_restores();
     if (restores != APP_ERROR_NONE) {
+        storage_health_record_primary(restores);
         return restores;
     }
     const app_error_code_t transactions = storage_transaction_recover_all();
     if (transactions != APP_ERROR_NONE) {
+        storage_health_record_primary(transactions);
         return transactions;
     }
-    return storage_quarantine_recover_all();
+    const app_error_code_t quarantine = storage_quarantine_recover_all();
+    storage_health_record_primary(quarantine);
+    return quarantine;
 }
 
 static app_error_code_t adapter_repository_init(void *context) {
@@ -135,7 +144,9 @@ static app_error_code_t adapter_storage_unmount(void *context) {
     (void)context;
     const app_error_code_t lock = storage_repository_lock_deinit();
     const app_error_code_t unmount = storage_unmount_all();
-    return unmount != APP_ERROR_NONE ? unmount : lock;
+    const app_error_code_t result = unmount != APP_ERROR_NONE ? unmount : lock;
+    storage_health_record_cleanup(result, result != APP_ERROR_NONE);
+    return result;
 }
 
 static app_error_code_t adapter_repository_deinit(void *context) {
@@ -259,6 +270,7 @@ static void adapter_log_event(void *context, const app_core_log_event_t *event) 
 
 app_error_code_t app_core_start(void) {
     app_core_health_reset();
+    storage_health_reset();
     const app_core_ops_t operations = {
         .context = NULL,
         .nvs_init = adapter_nvs_init,
