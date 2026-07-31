@@ -1,0 +1,98 @@
+name: Phase 18.3 Materialization Stage
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/phase18-3-materialize-stage-trigger.txt
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: master
+          fetch-depth: 0
+      - run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends build-essential cmake ninja-build libcjson-dev
+      - name: Generate and instrument
+        shell: bash
+        run: |
+          python3 tools/phase18_3_package_replace_impl.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          test = Path('tests/host/test_storage_package_replace.c')
+          text = test.read_text()
+          text = text.replace(
+              'storage_procedure_read(&procedure_identity, &procedure)',
+              'storage_procedure_read(&procedure_identity.set_id, &procedure_identity.procedure_id, &procedure)',
+              1,
+          )
+          test.write_text(text)
+
+          path = Path('firmware/components/storage/storage_package_replace.c')
+          text = path.read_text()
+          changes = [
+              (
+                  '    app_error_code_t result = write_set(staging, &document->replacement);\n',
+                  '    app_error_code_t result = write_set(staging, &document->replacement);\n'
+                  '    fprintf(stderr, "MATERIALIZE set=%d\\n", (int)result);\n',
+              ),
+              (
+                  '        result = write_macros(staging, document->arrays[PACKAGE_REPLACE_MACROS],\n'
+                  '                              &document->replacement.id);\n',
+                  '        result = write_macros(staging, document->arrays[PACKAGE_REPLACE_MACROS],\n'
+                  '                              &document->replacement.id);\n'
+                  '        fprintf(stderr, "MATERIALIZE macros=%d\\n", (int)result);\n',
+              ),
+              (
+                  '        result = write_procedures(staging, document->arrays[PACKAGE_REPLACE_PROCEDURES],\n'
+                  '                                  &document->replacement.id);\n',
+                  '        result = write_procedures(staging, document->arrays[PACKAGE_REPLACE_PROCEDURES],\n'
+                  '                                  &document->replacement.id);\n'
+                  '        fprintf(stderr, "MATERIALIZE procedures=%d\\n", (int)result);\n',
+              ),
+              (
+                  '        result = write_progress(staging, document->arrays[PACKAGE_REPLACE_PROGRESS],\n'
+                  '                                &document->replacement.id);\n',
+                  '        result = write_progress(staging, document->arrays[PACKAGE_REPLACE_PROGRESS],\n'
+                  '                                &document->replacement.id);\n'
+                  '        fprintf(stderr, "MATERIALIZE progress=%d\\n", (int)result);\n',
+              ),
+          ]
+          for old, new in changes:
+              if text.count(old) != 1:
+                  raise SystemExit(f'materialization stage anchor changed: {old!r}')
+              text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+      - name: Run focused test
+        shell: bash
+        run: |
+          set +e
+          cmake -S tests/host -B build/phase18-3-stage -G Ninja
+          cmake --build build/phase18-3-stage --target storage_package_replace_tests
+          build/phase18-3-stage/storage_package_replace_tests > /tmp/stage.log 2>&1
+          status=$?
+          set -e
+          {
+            echo '# Phase 18.3 materialization stage result'
+            echo
+            echo '```text'
+            cat /tmp/stage.log
+            echo '```'
+          } > docs/PHASE18_3_MATERIALIZATION_STAGE.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/PHASE18_3_MATERIALIZATION_STAGE.md
+          git commit -m "ci: capture Phase 18.3 materialization stage"
+          git push origin HEAD:master
+          exit "$status"
