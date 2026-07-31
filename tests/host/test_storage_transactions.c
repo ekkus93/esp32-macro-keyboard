@@ -849,6 +849,53 @@ static void test_strict_manifest_write_sequence(void)
     reset_storage();
 }
 
+static void test_replace_prepared_rolls_back_incomplete_staging(void)
+{
+    reset_storage();
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    uuid_sequence_t uuids = {0};
+    index_fixture_t index = {.failure = APP_ERROR_IO};
+    storage_transaction_manifest_t manifest = make_replace_manifest(
+        "00000000-0000-4000-8000-000000000099",
+        "10000000-0000-4000-8000-000000000099",
+        STORAGE_TRANSACTION_PREPARED);
+    create_directory(manifest.destination);
+    create_directory(manifest.staging);
+    write_manifest(&manifest, &operations, &uuids);
+    fake_fs_backend_reset(&filesystem);
+
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, recover(&operations, &uuids, &index));
+    TEST_CHECK(path_exists(manifest.destination));
+    TEST_CHECK(!path_exists(manifest.staging));
+    TEST_CHECK(!path_exists(manifest.backup));
+    char path[APP_PATH_MAX_BYTES];
+    transaction_path(path, sizeof(path), &manifest.id);
+    TEST_CHECK(!path_exists(path));
+    TEST_CHECK_EQ_U64(1U, index.count);
+    TEST_CHECK(index.presence[0]);
+
+    reset_storage();
+    fake_fs_backend_reset(&filesystem);
+    operations = make_operations(&filesystem);
+    uuids = (uuid_sequence_t){0};
+    index = (index_fixture_t){.failure = APP_ERROR_IO};
+    manifest = make_replace_manifest(
+        "00000000-0000-4000-8000-000000000098",
+        "10000000-0000-4000-8000-000000000098",
+        STORAGE_TRANSACTION_PREPARED);
+    create_directory(manifest.destination);
+    create_directory(manifest.staging);
+    write_manifest(&manifest, &operations, &uuids);
+    remove_fixture.fail_on_call = 1U;
+    fake_fs_backend_reset(&filesystem);
+    TEST_CHECK_EQ_INT(APP_ERROR_IO, recover(&operations, &uuids, &index));
+    TEST_CHECK(path_exists(manifest.staging));
+    remove_fixture.fail_on_call = 0U;
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, recover(&operations, &uuids, &index));
+}
+
 static void test_replace_recovery_is_idempotent(void)
 {
     reset_storage();
@@ -993,6 +1040,7 @@ int main(void)
     test_strict_manifest_write_sequence();
     test_create_recovery_is_idempotent();
     test_delete_recovery_is_idempotent();
+    test_replace_prepared_rolls_back_incomplete_staging();
     test_replace_recovery_is_idempotent();
     test_replace_recovers_after_unrecorded_renames();
     test_replace_failure_is_retryable();

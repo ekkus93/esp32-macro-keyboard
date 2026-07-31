@@ -129,6 +129,40 @@ static app_error_code_t validate_tree(storage_transaction_validate_set_fn valida
     return result == APP_ERROR_INVALID_ARGUMENT ? APP_ERROR_STORAGE_CORRUPT : result;
 }
 
+static app_error_code_t recover_prepared(
+    const storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
+    storage_transaction_set_index_presence_fn set_index_presence, void *index_context,
+    storage_transaction_validate_set_fn validate_set, void *validation_context,
+    storage_transaction_remove_tree_fn remove_tree, void *remove_context,
+    const app_uuid_t *set_id) {
+    bool staging_exists = false;
+    bool destination_exists = false;
+    bool backup_exists = false;
+    app_error_code_t result = path_is_directory(manifest->staging, operations, &staging_exists);
+    if (result == APP_ERROR_NONE) {
+        result = path_is_directory(manifest->destination, operations, &destination_exists);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = path_is_directory(manifest->backup, operations, &backup_exists);
+    }
+    if (result != APP_ERROR_NONE || !destination_exists || backup_exists) {
+        return result == APP_ERROR_NONE ? APP_ERROR_STORAGE_CORRUPT : result;
+    }
+    result = validate_tree(validate_set, validation_context, manifest->destination, set_id,
+                           manifest->expected_revision);
+    if (result == APP_ERROR_NONE) {
+        result = set_index_presence(index_context, set_id, true);
+    }
+    if (result == APP_ERROR_NONE && staging_exists) {
+        result = remove_tree(remove_context, manifest->staging);
+        if (result == APP_ERROR_NONE &&
+            storage_fs_sync_parent_path(operations->context, manifest->staging) != 0) {
+            result = map_error_number(errno);
+        }
+    }
+    return result == APP_ERROR_NONE ? remove_manifest(manifest, operations) : result;
+}
+
 static app_error_code_t recover_staged(
     storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
     storage_uuid_generate_fn generate_uuid, void *uuid_context,
@@ -327,6 +361,11 @@ app_error_code_t storage_transaction_recover_replace_with_ops(
     app_error_code_t result = validate_manifest_paths(manifest, &set_id);
     if (result != APP_ERROR_NONE) {
         return result;
+    }
+    if (manifest->phase == STORAGE_TRANSACTION_PREPARED) {
+        return recover_prepared(manifest, operations, set_index_presence, index_context,
+                                validate_set, validation_context, remove_tree, remove_context,
+                                &set_id);
     }
     if (manifest->phase == STORAGE_TRANSACTION_STAGED) {
         result = recover_staged(manifest, operations, generate_uuid, uuid_context, validate_set,
