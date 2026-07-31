@@ -11,6 +11,7 @@ idf_component_register(
     "storage_transaction.c"
     "storage_transaction_replace.c"
     "storage_transaction_restore.c"
+    "storage_transaction_restore_recovery.c"
     "storage_set_tree.c"
     "storage_repository_tree.c"
     "storage_repository_io.c"
