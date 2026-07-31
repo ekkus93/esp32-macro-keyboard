@@ -63,4 +63,13 @@ jobs:
         run: |
           set -euo pipefail
           . "$HOME/esp/esp-idf-v5.5.5/export.sh"
-          ./scripts/check-all.sh
+          ./scripts/check-all.sh 2>&1 | tee "${RUNNER_TEMP}/quality-checks.log"
+
+      - name: Upload failed quality log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-quality-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-checks.log
+          if-no-files-found: error
+          retention-days: 14
