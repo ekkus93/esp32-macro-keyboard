@@ -29,6 +29,16 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          helper = Path("tools/phase18_3_core_impl.py")
+          text = helper.read_text()
+          old = "                                                       bool should_be_present) {"
+          new = "                                                      bool should_be_present) {"
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one callback-indent normalization, found {text.count(old)}")
+          helper.write_text(text.replace(old, new, 1))
+          PY
           python3 tools/phase18_3_core_impl.py 2>&1 | tee /tmp/phase18-3-core.log
 
       - name: Validate transaction core
