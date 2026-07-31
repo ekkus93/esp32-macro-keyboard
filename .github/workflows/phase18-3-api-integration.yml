@@ -45,7 +45,8 @@ jobs:
           set -o pipefail
           {
             git diff --check
-            cmake -S tests/host -B /tmp/esp32-p183-api -G Ninja
+            cmake -S tests/host -B /tmp/esp32-p183-api -G Ninja \
+              -DCMAKE_PROJECT_INCLUDE="${GITHUB_WORKSPACE}/tests/host/cmake/host_test_project.cmake"
             cmake --build /tmp/esp32-p183-api \
               --target web_api_set_export_tests web_api_core_tests storage_package_replace_tests
             ctest --test-dir /tmp/esp32-p183-api --output-on-failure \
@@ -92,4 +93,5 @@ jobs:
             tests/host/test_web_api_set_export.c \
             tests/host/cmake/extra_tests.cmake
           git commit -m "feat(web): expose transactional set replacement"
+          git pull --rebase origin master
           git push origin HEAD:master
