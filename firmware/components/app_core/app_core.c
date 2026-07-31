@@ -15,6 +15,7 @@
 #include "nvs_flash.h"
 #include "provisioning.h"
 #include "provisioning_bootstrap.h"
+#include "repository_health.h"
 #include "storage.h"
 #include "storage_health.h"
 #include "storage_repository.h"
@@ -95,7 +96,9 @@ static app_error_code_t adapter_storage_recover(void *context) {
 
 static app_error_code_t adapter_repository_init(void *context) {
     (void)context;
-    return storage_repository_init();
+    const app_error_code_t result = storage_repository_init();
+    repository_health_record_primary(result);
+    return result;
 }
 
 static app_error_code_t adapter_auth_init(void *context) {
@@ -151,7 +154,9 @@ static app_error_code_t adapter_storage_unmount(void *context) {
 
 static app_error_code_t adapter_repository_deinit(void *context) {
     (void)context;
-    return storage_repository_deinit();
+    const app_error_code_t result = storage_repository_deinit();
+    repository_health_record_cleanup(result, result != APP_ERROR_NONE);
+    return result;
 }
 
 static app_error_code_t adapter_auth_deinit(void *context) {
@@ -271,6 +276,7 @@ static void adapter_log_event(void *context, const app_core_log_event_t *event) 
 app_error_code_t app_core_start(void) {
     app_core_health_reset();
     storage_health_reset();
+    repository_health_reset();
     const app_core_ops_t operations = {
         .context = NULL,
         .nvs_init = adapter_nvs_init,

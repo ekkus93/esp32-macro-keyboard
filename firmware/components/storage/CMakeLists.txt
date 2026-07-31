@@ -34,6 +34,7 @@ idf_component_register(
     "storage_package_import.c"
     "storage_quarantine.c"
     "storage_health.c"
+    "repository_health.c"
     INCLUDE_DIRS
     "include"
     REQUIRES

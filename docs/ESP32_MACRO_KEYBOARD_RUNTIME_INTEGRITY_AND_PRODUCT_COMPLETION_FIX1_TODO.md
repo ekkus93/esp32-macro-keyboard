@@ -2139,7 +2139,7 @@ Add stable health snapshots for:
 
 - [x] app lifecycle;
 - [x] storage mount/recovery;
-- [ ] repository;
+- [x] repository;
 - [ ] authentication;
 - [ ] USB;
 - [ ] executor;
@@ -2165,6 +2165,12 @@ and repository-lock init, plus a cleanup error/incomplete flag across
 unmount. Recorded from `app_core.c`'s existing
 `adapter_storage_mount`/`adapter_storage_recover`/`adapter_storage_unmount`
 call sites, which remain the only orchestrator of this sequencing today.
+
+Implemented (repository): `repository_health.c` tracks a primary error from
+`storage_repository_init()` and a cleanup error/incomplete flag from
+`storage_repository_deinit()` (which today can never actually fail — the
+repository layer holds no in-memory resources — but is still wired for
+consistency and to guard against a future change introducing one).
 
 Retain primary and cleanup errors separately.
 
