@@ -23,6 +23,7 @@ target_compile_definitions(
     PRIVATE STORAGE_DATA_MOUNT="/tmp/esp32-macro-keyboard-package-restore"
 )
 target_link_libraries(storage_package_restore_tests PRIVATE PkgConfig::CJSON test_support)
+target_link_options(storage_package_restore_tests PRIVATE "-Wl,--wrap=storage_atomic_write")
 target_compile_options(storage_package_restore_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME storage_package_restore COMMAND storage_package_restore_tests)
 set_tests_properties(storage_package_restore PROPERTIES LABELS "storage")
