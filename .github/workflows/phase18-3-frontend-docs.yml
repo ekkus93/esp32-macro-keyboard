@@ -1,0 +1,77 @@
+name: Phase 18.3 Frontend and Docs
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/phase18-3-frontend-docs-trigger.txt
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: phase18-3-frontend-master
+  cancel-in-progress: false
+
+jobs:
+  integrate-and-validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out master
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@1e60f620b9541d7c2432c8b1a3b8a0b6c1a2e3e7 # v4.0.4
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: webapp
+        run: npm ci
+
+      - name: Apply frontend and documentation integration
+        run: python3 tools/phase18_3_frontend_docs_impl.py
+
+      - name: Format frontend changes
+        working-directory: webapp
+        run: npm run format:write
+
+      - name: Validate frontend and documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          python3 -m json.tool docs/schemas/macro-set-package.schema.json >/dev/null
+          cd webapp
+          npm run typecheck
+          npm run lint
+          npm run stylelint
+          npm test
+          npm run build
+          npm run format:check
+
+      - name: Commit validated frontend and documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            webapp/src/api/packages.ts \
+            webapp/src/features/settings/PackageOperationsPage.tsx \
+            webapp/src/App.tsx \
+            webapp/tests/management-screens.test.tsx \
+            docs/API.md \
+            docs/schemas/macro-set-package.schema.json \
+            docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md \
+            docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md
+          git commit -m "feat(webapp): add transactional set replacement flow"
+          git push origin HEAD:master
