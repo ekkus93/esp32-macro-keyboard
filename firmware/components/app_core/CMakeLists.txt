@@ -1,6 +1,7 @@
 idf_component_register(
     SRCS
     "app_core.c"
+    "app_core_health.c"
     "app_core_sequence.c"
     INCLUDE_DIRS
     "include"

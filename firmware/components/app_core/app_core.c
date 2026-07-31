@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "app_core_health.h"
 #include "app_core_ops.h"
 #include "app_core_sequence.h"
 #include "app_error.h"
@@ -221,10 +222,12 @@ static void adapter_log_event(void *context, const app_core_log_event_t *event) 
         } else {
             ESP_LOGE(TAG, "stage failed: %s (%s)", event->stage,
                      app_error_code_string(event->primary_error));
+            app_core_health_record_stage_failure(event->primary_error);
         }
         break;
     case APP_CORE_LOG_STORAGE_DEGRADED:
         ESP_LOGW(TAG, "storage recovery requires operator review; evidence was preserved");
+        app_core_health_record_degraded();
         break;
     case APP_CORE_LOG_MANUFACTURING_CREDENTIALS:
 #if CONFIG_APP_MANUFACTURING_PROVISIONING_LOG
@@ -245,6 +248,8 @@ static void adapter_log_event(void *context, const app_core_log_event_t *event) 
                  app_error_code_string(event->primary_error),
                  app_error_code_string(event->cleanup_error),
                  event->cleanup_incomplete ? "incomplete" : "complete");
+        app_core_health_record_stage_failure(event->primary_error);
+        app_core_health_record_cleanup_failed(event->cleanup_error, event->cleanup_incomplete);
         break;
     default:
         ESP_LOGE(TAG, "unknown startup log event");
@@ -253,6 +258,7 @@ static void adapter_log_event(void *context, const app_core_log_event_t *event) 
 }
 
 app_error_code_t app_core_start(void) {
+    app_core_health_reset();
     const app_core_ops_t operations = {
         .context = NULL,
         .nvs_init = adapter_nvs_init,
@@ -294,4 +300,8 @@ app_error_code_t app_core_start(void) {
 #endif
     };
     return app_core_sequence_start(&operations, &policy);
+}
+
+app_lifecycle_health_t app_core_get_health(void) {
+    return app_core_health_snapshot();
 }

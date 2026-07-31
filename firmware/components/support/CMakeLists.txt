@@ -1,4 +1,12 @@
-idf_component_register(SRCS "app_operation_result.c" INCLUDE_DIRS "include" REQUIRES macro_model)
+idf_component_register(
+    SRCS
+    "app_operation_result.c"
+    "subsystem_health.c"
+    INCLUDE_DIRS
+    "include"
+    REQUIRES
+    macro_model
+)
 
 target_compile_options(
     ${COMPONENT_LIB}

@@ -59,6 +59,19 @@ add_test(NAME app_operation_result COMMAND app_operation_result_tests)
 set_tests_properties(app_operation_result PROPERTIES LABELS "support")
 
 add_executable(
+    subsystem_health_tests test_subsystem_health.c
+                           ../../firmware/components/support/subsystem_health.c
+)
+target_include_directories(
+    subsystem_health_tests PRIVATE ../../firmware/components/support/include
+                                   ../../firmware/components/macro_model/include
+)
+target_link_libraries(subsystem_health_tests PRIVATE test_support)
+target_compile_options(subsystem_health_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME subsystem_health COMMAND subsystem_health_tests)
+set_tests_properties(subsystem_health PROPERTIES LABELS "support")
+
+add_executable(
     macro_parser_tests
     test_macro_parser.c
     ../../firmware/components/macro_model/app_error.c
@@ -177,6 +190,20 @@ target_link_libraries(app_core_tests PRIVATE test_support)
 target_compile_options(app_core_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME app_core COMMAND app_core_tests)
 set_tests_properties(app_core PROPERTIES LABELS "startup")
+
+add_executable(
+    app_core_health_tests test_app_core_health.c
+                          ../../firmware/components/app_core/app_core_health.c
+)
+target_include_directories(
+    app_core_health_tests
+    PRIVATE ../../firmware/components/app_core/include ../../firmware/components/app_core
+            ../../firmware/components/support/include ../../firmware/components/macro_model/include
+)
+target_link_libraries(app_core_health_tests PRIVATE test_support)
+target_compile_options(app_core_health_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME app_core_health COMMAND app_core_health_tests)
+set_tests_properties(app_core_health PROPERTIES LABELS "startup")
 
 add_executable(
     usb_keyboard_tests test_usb_keyboard.c

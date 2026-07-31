@@ -2137,7 +2137,7 @@ performed.
 
 Add stable health snapshots for:
 
-- [ ] app lifecycle;
+- [x] app lifecycle;
 - [ ] storage mount/recovery;
 - [ ] repository;
 - [ ] authentication;
@@ -2146,6 +2146,17 @@ Add stable health snapshots for:
 - [ ] controls;
 - [ ] Wi-Fi;
 - [ ] HTTP.
+
+Implemented (app lifecycle): `app_core_health.c` (new, portable, host-testable)
+derives a stable `subsystem_health_state_t` purely from recorded fields —
+never HEALTHY while cleanup is incomplete or a cleanup error is present, even
+with no primary error. `app_core.c`'s `adapter_log_event` records stage
+failures, degraded-continuation, and cleanup failures into it;
+`app_core_get_health()` exposes the snapshot via the new shared
+`app_lifecycle_health_t` type in `app_core.h`. `subsystem_health.h`/`.c` (new,
+in the `support` component) provides the shared
+healthy/degraded/unavailable/recovering/failed vocabulary every subsystem in
+this section will report through.
 
 Retain primary and cleanup errors separately.
 
