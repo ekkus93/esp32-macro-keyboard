@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: host-tests-${{ github.workflow }}-${{ github.ref }}
@@ -279,102 +279,3 @@ jobs:
           path: artifacts/frontend-coverage/
           if-no-files-found: error
           retention-days: 90
-
-  phase18-5-cleanup:
-    name: Finalize Phase 18.5
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-
-    steps:
-      - name: Check out cleanup trigger
-        uses: actions/checkout@v4
-        with:
-          ref: master
-          fetch-depth: 2
-
-      - name: Install pinned formatter
-        run: python3 -m pip install --disable-pip-version-check cmakelang==0.6.13
-
-      - name: Format, document, restore workflow, and commit
-        shell: bash
-        run: |
-          set -euo pipefail
-          cmake-format -i tests/host/CMakeLists.txt
-          cmake-format --check tests/host/CMakeLists.txt
-
-          python3 - <<'PY'
-          from pathlib import Path
-
-          todo = Path("docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md")
-          text = todo.read_text(encoding="utf-8")
-          heading = "### 18.5 Secret scanner tests"
-          start = text.find(heading)
-          end = text.find("\n## 19.", start)
-          if start < 0 or end < 0:
-              raise SystemExit("Phase 18.5 section not found")
-          section = text[start:end]
-          for label in (
-              "set export;",
-              "full backup;",
-              "diagnostics;",
-              "logs;",
-              "frontend persisted state.",
-          ):
-              section = section.replace(f"- [ ] {label}", f"- [x] {label}", 1)
-          note = (
-              "\n\n**Implemented:** `scripts/check-secret-sentinel.py` scans generated artifacts "
-              "for raw, JSON-escaped, URL-encoded, base64, base64url, and hexadecimal forms "
-              "without printing secret material. `tests/scripts/test-secret-sentinel.py` "
-              "generates a fresh sentinel and exercises set-export, full-backup, diagnostics, "
-              "application-log, and frontend-persisted-state boundaries, including deliberate "
-              "leak failures. Production set-export and full-backup host tests also keep a "
-              "sentinel resident in the test process and assert it is absent from serialized output.\n"
-          )
-          if "scripts/check-secret-sentinel.py" not in section:
-              section += note
-          todo.write_text(text[:start] + section + text[end:], encoding="utf-8")
-
-          progress = Path("docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md")
-          progress_text = progress.read_text(encoding="utf-8")
-          if "## Phase 18.5 — secret sentinel scanner" not in progress_text:
-              entry = """
-
-## Phase 18.5 — secret sentinel scanner
-
-**Status:** Complete for software validation. Physical-device validation remains deferred by operator direction.
-
-**Implementation commit:** `5ae1aeb208716dc72679d3bf36bf4e56d4e5b627`
-
-Implemented:
-
-- reusable fail-closed scanning for raw, JSON-escaped, URL-encoded, base64, base64url, and hexadecimal secret representations;
-- generated-sentinel regression coverage for set exports, full backups, diagnostics, application logs, and frontend persisted state;
-- failure-output assertions proving scanner diagnostics do not echo secret material;
-- production host assertions that set-export and full-backup serialization exclude a resident secret sentinel;
-- automatic execution through `scripts/check-scripts.sh`.
-
-Validation evidence:
-
-- focused sentinel-scanner regression passed before the implementation commit;
-- Host Tests matrix run `30622584125` passed all five jobs, including Host Tests, Host ASan and UBSan, Native Coverage, Frontend Tests, and Frontend Coverage;
-- the permanent Quality workflow must pass on the final clean Phase 18.5 commit;
-- physical device tests are intentionally deferred and are not claimed as passed.
-
-Deviations:
-
-- hardware and physical-device validation remain unchecked by explicit operator instruction.
-"""
-              progress.write_text(progress_text.rstrip() + entry + "\n", encoding="utf-8")
-          PY
-
-          python3 tests/scripts/test-secret-sentinel.py
-          git show HEAD^:.github/workflows/host-tests.yml > .github/workflows/host-tests.yml
-          rm -f .github/workflows/phase18-5-docs.yml
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --check
-          git commit -m "chore: finalize Phase 18.5 validation"
-          git push origin HEAD:master
