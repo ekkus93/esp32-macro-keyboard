@@ -5,7 +5,7 @@ on:
     branches:
       - master
     paths:
-      - .github/phase18-3-package-replace-trigger.txt
+      - .github/phase18-3-package-replace-trigger*.txt
   workflow_dispatch:
 
 permissions:
