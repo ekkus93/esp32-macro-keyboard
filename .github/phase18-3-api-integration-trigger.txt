@@ -1,1 +1,1 @@
-Apply and validate the Phase 18.3 transactional set replacement API.
+Apply and validate the Phase 18.3 transactional set replacement API. Execute after workflow registration.
