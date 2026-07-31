@@ -21,6 +21,7 @@
 #define PROCEDURE_ID "44444444-4444-4444-8444-444444444444"
 #define LOCAL_STEP_ID "55555555-5555-4555-8555-555555555555"
 #define GLOBAL_STEP_ID "56565656-5656-4656-8656-565656565656"
+#define SECRET_SENTINEL "phase18_5_admin_secret_N7vY5jR3xQ9mK2pL"
 
 typedef struct {
     macro_set_t set;
@@ -256,6 +257,7 @@ static void test_deterministic_export_and_filtering(void) {
     TEST_CHECK(strstr(first, UNUSED_GLOBAL_ID) == NULL);
     TEST_CHECK(strstr(first, "Unreferenced secret") == NULL);
     TEST_CHECK(strstr(first, "\"progress\":[{") != NULL);
+    TEST_CHECK(strstr(first, SECRET_SENTINEL) == NULL);
 
     storage_package_summary_t summary = {0};
     TEST_CHECK_APP_ERROR(

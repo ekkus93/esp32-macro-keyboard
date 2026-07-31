@@ -23,6 +23,7 @@
 #define PROCEDURE_B_ID "45454545-4545-4545-8545-454545454545"
 #define STEP_A_ID "55555555-5555-4555-8555-555555555555"
 #define STEP_B_ID "56565656-5656-4656-8656-565656565656"
+#define SECRET_SENTINEL "phase18_5_admin_secret_N7vY5jR3xQ9mK2pL"
 
 typedef struct {
     storage_set_list_t sets;
@@ -289,6 +290,7 @@ static void test_backup_contains_complete_repository_deterministically(void) {
     TEST_CHECK(strstr(first, SET_A_ID) != NULL);
     TEST_CHECK(strstr(first, SET_B_ID) != NULL);
     TEST_CHECK(strstr(first, "sentinel-unreferenced-global") != NULL);
+    TEST_CHECK(strstr(first, SECRET_SENTINEL) == NULL);
 
     storage_package_summary_t summary = {0};
     TEST_CHECK_APP_ERROR(
