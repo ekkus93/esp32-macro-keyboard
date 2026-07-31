@@ -33,21 +33,52 @@ jobs:
             build-essential cmake ninja-build libcjson-dev
 
       - name: Apply API integration
-        run: python3 tools/phase18_3_api_integration_impl.py
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 tools/phase18_3_api_integration_impl.py 2>&1 \
+            | tee "${RUNNER_TEMP}/phase18-3-api.log"
 
       - name: Validate API integration
         shell: bash
         run: |
-          set -euo pipefail
-          git diff --check
-          cmake -S tests/host -B /tmp/esp32-p183-api -G Ninja
-          cmake --build /tmp/esp32-p183-api \
-            --target web_api_set_export_tests web_api_core_tests storage_package_replace_tests
-          ctest --test-dir /tmp/esp32-p183-api --output-on-failure \
-            -R '^(web_api_set_export|web_api_core|storage_package_replace)$'
-          ./scripts/run-tests.sh web storage
+          set -o pipefail
+          {
+            git diff --check
+            cmake -S tests/host -B /tmp/esp32-p183-api -G Ninja
+            cmake --build /tmp/esp32-p183-api \
+              --target web_api_set_export_tests web_api_core_tests storage_package_replace_tests
+            ctest --test-dir /tmp/esp32-p183-api --output-on-failure \
+              -R '^(web_api_set_export|web_api_core|storage_package_replace)$'
+            ./scripts/run-tests.sh web storage
+          } 2>&1 | tee -a "${RUNNER_TEMP}/phase18-3-api.log"
+
+      - name: Record API integration failure
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo '# Phase 18.3 API integration failure'
+            echo
+            echo '```text'
+            cat "${RUNNER_TEMP}/phase18-3-api.log" 2>/dev/null \
+              || echo 'No captured log was available.'
+            echo '```'
+            echo
+            echo '## Pending diff'
+            echo
+            echo '```diff'
+            git diff -- . ':!docs/PHASE18_3_API_INTEGRATION_FAILURE.md'
+            echo '```'
+          } > docs/PHASE18_3_API_INTEGRATION_FAILURE.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/PHASE18_3_API_INTEGRATION_FAILURE.md
+          git commit -m "ci: record Phase 18.3 API integration failure"
+          git push origin HEAD:master
 
       - name: Commit validated API integration
+        if: success()
         shell: bash
         run: |
           set -euo pipefail
