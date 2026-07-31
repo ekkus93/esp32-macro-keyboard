@@ -1,1 +1,1 @@
-Remove Phase 18.3 implementation scaffolding and run the final clean repository validation. Execute after workflow registration.
+Remove all Phase 18.3 implementation scaffolding in one atomic cleanup commit; normal CI validates the clean repository.
