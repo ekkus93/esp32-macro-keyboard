@@ -1,1 +1,1 @@
-Apply and validate the Phase 18.3 replacement UI, schema, and documentation. Execute after workflow registration.
+Apply and validate the Phase 18.3 replacement UI, schema, and documentation. Diagnosable run.
