@@ -5,7 +5,7 @@ on:
     branches:
       - master
     paths:
-      - .github/phase18-3-test-order-trigger.txt
+      - .github/phase18-3-test-order-trigger*.txt
 
 permissions:
   contents: write
@@ -42,7 +42,7 @@ jobs:
           )
           path.write_text(text)
           PY
-      - name: Run order matrix
+      - name: Run working-directory matrix
         shell: bash
         run: |
           set +e
@@ -53,23 +53,24 @@ jobs:
           : > /tmp/order.log
           run_case() {
             local label="$1"
-            local binary="$2"
+            shift
             echo "=== ${label} ===" >> /tmp/order.log
-            "${binary}" >> /tmp/order.log 2>&1
+            "$@" >> /tmp/order.log 2>&1
             local current=$?
             echo "status=${current}" >> /tmp/order.log
             if [[ "$current" -ne 0 && "$status" -eq 0 ]]; then
               status="$current"
             fi
           }
-          run_case package-first build/phase18-3-order/storage_package_replace_tests
+          run_case package-from-root build/phase18-3-order/storage_package_replace_tests
+          run_case package-from-build bash -lc 'cd build/phase18-3-order && ./storage_package_replace_tests'
+          run_case ctest-package ctest --test-dir build/phase18-3-order --output-on-failure -R '^storage_package_replace$'
           run_case transaction build/phase18-3-order/storage_transaction_tests
-          run_case package-after-transaction build/phase18-3-order/storage_package_replace_tests
           run_case set-tree build/phase18-3-order/storage_set_tree_tests
-          run_case package-after-set-tree build/phase18-3-order/storage_package_replace_tests
+          run_case package-after-peers build/phase18-3-order/storage_package_replace_tests
           set -e
           {
-            echo '# Phase 18.3 test-order result'
+            echo '# Phase 18.3 working-directory result'
             echo
             echo '```text'
             cat /tmp/order.log
@@ -78,6 +79,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/PHASE18_3_TEST_ORDER_DEBUG.md
-          git commit -m "ci: capture Phase 18.3 test-order result"
+          git commit -m "ci: capture Phase 18.3 working-directory result"
           git push origin HEAD:master
           exit "$status"
