@@ -1,0 +1,1 @@
+Capture the normalized generated Phase 18.3 storage test fixture.
