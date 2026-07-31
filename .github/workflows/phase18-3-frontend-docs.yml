@@ -44,6 +44,7 @@ jobs:
           {
             python3 tools/phase18_3_frontend_docs_impl.py
             python3 tools/phase18_3_frontend_test_fix.py
+            python3 tools/phase18_3_frontend_filelist_fix.py
           } 2>&1 | tee "${RUNNER_TEMP}/phase18-3-frontend.log"
 
       - name: Format frontend changes
