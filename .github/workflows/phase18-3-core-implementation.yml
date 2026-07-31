@@ -25,7 +25,8 @@ jobs:
       - name: Apply Phase 18.3 transaction core
         shell: bash
         run: |
-          python3 - <<'PY'
+          set -o pipefail
+          python3 - <<'PY' 2>&1 | tee /tmp/phase18-3-core.log
           from pathlib import Path
 
           def replace_once(path: str, old: str, new: str) -> None:
@@ -897,11 +898,33 @@ static void test_replace_failure_is_retryable(void)
           PY
       - name: Validate transaction core
         run: |
-          git diff --check
-          cmake -S tests/host -B build/phase18-3-host -G Ninja
-          cmake --build build/phase18-3-host --target storage_transaction_tests
-          ctest --test-dir build/phase18-3-host --output-on-failure -R '^storage_transaction$'
+          set -o pipefail
+          {
+            git diff --check
+            cmake -S tests/host -B build/phase18-3-host -G Ninja
+            cmake --build build/phase18-3-host --target storage_transaction_tests
+            ctest --test-dir build/phase18-3-host --output-on-failure -R '^storage_transaction$'
+          } 2>&1 | tee -a /tmp/phase18-3-core.log
+      - name: Record failed implementation run
+        if: failure()
+        run: |
+          mkdir -p docs
+          {
+            echo '# Phase 18.3 core automation failure'
+            echo
+            echo 'The temporary implementation workflow failed before committing code.'
+            echo
+            echo '```text'
+            cat /tmp/phase18-3-core.log 2>/dev/null || echo 'No captured log was available.'
+            echo '```'
+          } > docs/PHASE18_3_CORE_AUTOMATION_FAILURE.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/PHASE18_3_CORE_AUTOMATION_FAILURE.md
+          git commit -m "ci: record Phase 18.3 core automation failure"
+          git push origin HEAD:master
       - name: Commit validated implementation
+        if: success()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
