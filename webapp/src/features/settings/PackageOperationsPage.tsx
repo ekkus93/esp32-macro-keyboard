@@ -64,6 +64,10 @@ function downloadPackage(filename: string, text: string): void {
   URL.revokeObjectURL(url);
 }
 
+function reloadAfterRestore(): void {
+  window.location.reload();
+}
+
 function packagedSetId(packageDocument: SetPackageDocument): string | null {
   const set = packageDocument.sets[0];
   return isRecord(set) && typeof set.id === "string" ? set.id : null;
@@ -74,7 +78,7 @@ export function PackageOperationsPage({
   initialSection,
   saveFile = downloadPackage,
   onSetReplaced = () => undefined,
-  onBackupRestored = () => undefined,
+  onBackupRestored = reloadAfterRestore,
 }: PackageOperationsPageProps): React.JSX.Element {
   const [exporting, setExporting] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
@@ -128,7 +132,9 @@ export function PackageOperationsPage({
     try {
       const download = await exportBackupPackage();
       saveFile("macro-keyboard-backup.json", download.text);
-      setMessage(`Created full backup as ${String(download.byteLength)} bytes.`);
+      setMessage(
+        `Created full backup as ${String(download.byteLength)} bytes.`,
+      );
     } catch (backupError: unknown) {
       setError(errorText(backupError));
     } finally {
@@ -197,7 +203,9 @@ export function PackageOperationsPage({
       }
       setRestorePackage(parsed);
       setRestoreFilename(file.name);
-      setMessage(`Validated ${file.name}. Review the full restore before continuing.`);
+      setMessage(
+        `Validated ${file.name}. Review the full restore before continuing.`,
+      );
     } catch (selectionError: unknown) {
       setError(errorText(selectionError));
     }
@@ -272,7 +280,8 @@ export function PackageOperationsPage({
           <h2 id="package-operations-title">Import, export, and recovery</h2>
           <p>
             Package operations validate server-owned data and exclude
-            credentials, sessions, provisioning secrets, and encryption material.
+            credentials, sessions, provisioning secrets, and encryption
+            material.
           </p>
         </div>
       </div>
