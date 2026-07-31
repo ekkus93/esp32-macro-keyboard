@@ -1,4 +1,4 @@
-# retry 1
+# retry 2
 name: Phase 18.5 direct finalization
 
 on:
@@ -26,20 +26,11 @@ jobs:
           set -euo pipefail
           python3 -m pip install --disable-pip-version-check 'cmakelang==0.6.13'
           cmake-format -i tests/host/CMakeLists.txt
-
           python3 - <<'PY'
           from pathlib import Path
-
           todo = Path('docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md')
           text = todo.read_text()
-          labels = (
-              'set export;',
-              'full backup;',
-              'diagnostics;',
-              'logs;',
-              'frontend persisted state.',
-          )
-          for label in labels:
+          for label in ('set export;', 'full backup;', 'diagnostics;', 'logs;', 'frontend persisted state.'):
               text = text.replace(f'- [ ] {label}', f'- [x] {label}', 1)
           heading = '### 18.5 Secret scanner tests'
           start = text.find(heading)
@@ -47,19 +38,10 @@ jobs:
           if start < 0 or end < 0:
               raise SystemExit('Phase 18.5 section not found')
           section = text[start:end]
-          note = (
-              '\n\n**Implemented:** `scripts/check-secret-sentinel.py` scans generated artifacts '
-              'for raw, JSON-escaped, URL-encoded, base64, base64url, and hexadecimal forms '
-              'without printing secret material. `tests/scripts/test-secret-sentinel.py` generates '
-              'a fresh sentinel and exercises set-export, full-backup, diagnostics, application-log, '
-              'and frontend-persisted-state boundaries, including deliberate leak failures. '
-              'Production set-export and full-backup host tests also keep a sentinel resident in '
-              'the test process and assert it is absent from serialized output.\n'
-          )
+          note = ('\n\n**Implemented:** `scripts/check-secret-sentinel.py` scans generated artifacts for raw, JSON-escaped, URL-encoded, base64, base64url, and hexadecimal forms without printing secret material. `tests/scripts/test-secret-sentinel.py` generates a fresh sentinel and exercises set-export, full-backup, diagnostics, application-log, and frontend-persisted-state boundaries, including deliberate leak failures. Production set-export and full-backup host tests also keep a sentinel resident in the test process and assert it is absent from serialized output.\n')
           if 'scripts/check-secret-sentinel.py' not in section:
               text = text[:end] + note + text[end:]
           todo.write_text(text)
-
           progress = Path('docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md')
           progress_text = progress.read_text()
           if '## Phase 18.5 — secret sentinel scanner' not in progress_text:
@@ -92,16 +74,13 @@ Deviations:
 '''
               progress.write_text(progress_text.rstrip() + entry + '\n')
           PY
-
           rm -f .github/workflows/phase18-5-docs.yml
           rm -f .github/workflows/phase18-5-direct-finalize.yml
           rm -f .github/workflows/phase18-5-direct-finalize.trigger
           rm -f .github/workflows/phase18-5-direct-finalize.yml.trigger
-
           ./scripts/check-format.sh
           ./scripts/check-scripts.sh
           python3 tests/scripts/test-secret-sentinel.py
-
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
