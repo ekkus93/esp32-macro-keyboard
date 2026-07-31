@@ -1,0 +1,83 @@
+name: Phase 18.3 Test Order
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/phase18-3-test-order-trigger.txt
+
+permissions:
+  contents: write
+
+jobs:
+  isolate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: master
+          fetch-depth: 0
+      - run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends build-essential cmake ninja-build libcjson-dev
+      - name: Generate corrected implementation
+        shell: bash
+        run: |
+          python3 tools/phase18_3_package_replace_impl.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('tests/host/test_storage_package_replace.c')
+          text = path.read_text()
+          text = text.replace(
+              'storage_procedure_read(&procedure_identity, &procedure)',
+              'storage_procedure_read(&procedure_identity.set_id, &procedure_identity.procedure_id, &procedure)',
+              1,
+          )
+          text = text.replace(
+              '        .scope = MACRO_SCOPE_SET,\n        .set_id = id,',
+              '        .scope = MACRO_SCOPE_SET,\n        .has_set_id = true,\n        .set_id = id,',
+              1,
+          )
+          path.write_text(text)
+          PY
+      - name: Run order matrix
+        shell: bash
+        run: |
+          set +e
+          cmake -S tests/host -B build/phase18-3-order -G Ninja
+          cmake --build build/phase18-3-order \
+            --target storage_package_replace_tests storage_transaction_tests storage_set_tree_tests
+          status=0
+          : > /tmp/order.log
+          run_case() {
+            local label="$1"
+            local binary="$2"
+            echo "=== ${label} ===" >> /tmp/order.log
+            "${binary}" >> /tmp/order.log 2>&1
+            local current=$?
+            echo "status=${current}" >> /tmp/order.log
+            if [[ "$current" -ne 0 && "$status" -eq 0 ]]; then
+              status="$current"
+            fi
+          }
+          run_case package-first build/phase18-3-order/storage_package_replace_tests
+          run_case transaction build/phase18-3-order/storage_transaction_tests
+          run_case package-after-transaction build/phase18-3-order/storage_package_replace_tests
+          run_case set-tree build/phase18-3-order/storage_set_tree_tests
+          run_case package-after-set-tree build/phase18-3-order/storage_package_replace_tests
+          set -e
+          {
+            echo '# Phase 18.3 test-order result'
+            echo
+            echo '```text'
+            cat /tmp/order.log
+            echo '```'
+          } > docs/PHASE18_3_TEST_ORDER_DEBUG.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/PHASE18_3_TEST_ORDER_DEBUG.md
+          git commit -m "ci: capture Phase 18.3 test-order result"
+          git push origin HEAD:master
+          exit "$status"
