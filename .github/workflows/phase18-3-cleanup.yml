@@ -78,20 +78,50 @@ jobs:
       - name: Validate clean repository
         shell: bash
         run: |
-          set -euo pipefail
-          git diff --check
-          python3 -m json.tool docs/schemas/macro-set-package.schema.json >/dev/null
-          ./scripts/run-tests.sh
-          ./scripts/run-tests.sh --sanitizers
-          cd webapp
-          npm run typecheck
-          npm run lint
-          npm run stylelint
-          npm test
-          npm run build
-          npm run format:check
+          set -o pipefail
+          {
+            git diff --check
+            python3 -m json.tool docs/schemas/macro-set-package.schema.json >/dev/null
+            ./scripts/run-tests.sh
+            ./scripts/run-tests.sh --sanitizers
+            cd webapp
+            npm run typecheck
+            npm run lint
+            npm run stylelint
+            npm test
+            npm run build
+            npm run format:check
+          } 2>&1 | tee "${RUNNER_TEMP}/phase18-3-cleanup.log"
+
+      - name: Record cleanup failure
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo '# Phase 18.3 cleanup failure'
+            echo
+            echo '```text'
+            cat "${RUNNER_TEMP}/phase18-3-cleanup.log" 2>/dev/null \
+              || echo 'No captured validation log was available.'
+            echo '```'
+            echo
+            echo '## Pending cleanup diff'
+            echo
+            echo '```diff'
+            git diff -- . ':!docs/PHASE18_3_CLEANUP_FAILURE.md'
+            echo '```'
+          } > docs/PHASE18_3_CLEANUP_FAILURE.md
+          git restore --staged . >/dev/null 2>&1 || true
+          git restore .github/workflows/host-tests.yml >/dev/null 2>&1 || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/PHASE18_3_CLEANUP_FAILURE.md
+          git commit -m "ci: record Phase 18.3 cleanup failure"
+          git pull --rebase origin master
+          git push origin HEAD:master
 
       - name: Commit cleanup
+        if: success()
         shell: bash
         run: |
           set -euo pipefail
