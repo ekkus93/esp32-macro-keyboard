@@ -12,99 +12,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: host-tests-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  phase18-3-set-tree:
-    name: Phase 18.3 Set Tree
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
-        with:
-          ref: master
-          fetch-depth: 0
-
-      - name: Detect pending implementation
-        id: state
-        shell: bash
-        run: |
-          if [[ -f firmware/components/storage/storage_set_tree.c ]]; then
-            echo 'needed=false' >> "${GITHUB_OUTPUT}"
-          else
-            echo 'needed=true' >> "${GITHUB_OUTPUT}"
-          fi
-
-      - name: Install host-test dependencies
-        if: steps.state.outputs.needed == 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends \
-            build-essential \
-            cmake \
-            ninja-build \
-            libcjson-dev
-
-      - name: Apply Phase 18.3 set-tree validator
-        if: steps.state.outputs.needed == 'true'
-        shell: bash
-        run: |
-          set -o pipefail
-          python3 tools/phase18_3_tree_run.py 2>&1 \
-            | tee "${RUNNER_TEMP}/phase18-3-set-tree.log"
-
-      - name: Validate set-tree and permanent host configuration
-        if: steps.state.outputs.needed == 'true'
-        shell: bash
-        run: |
-          set -o pipefail
-          {
-            git diff --check
-            cmake -S tests/host -B build/phase18-3-tree -G Ninja
-            cmake --build build/phase18-3-tree \
-              --target storage_set_tree_tests storage_transaction_tests
-            ctest --test-dir build/phase18-3-tree --output-on-failure \
-              -R '^(storage_set_tree|storage_transaction)$'
-            ./scripts/run-tests.sh storage
-          } 2>&1 | tee -a "${RUNNER_TEMP}/phase18-3-set-tree.log"
-
-      - name: Record failed implementation run
-        if: failure() && steps.state.outputs.needed == 'true'
-        shell: bash
-        run: |
-          {
-            echo '# Phase 18.3 set-tree automation failure'
-            echo
-            echo 'The implementation job failed before committing production code.'
-            echo
-            echo '```text'
-            cat "${RUNNER_TEMP}/phase18-3-set-tree.log" 2>/dev/null \
-              || echo 'No captured log was available.'
-            echo '```'
-          } > docs/PHASE18_3_CORE_AUTOMATION_FAILURE.md
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/PHASE18_3_CORE_AUTOMATION_FAILURE.md
-          git commit -m "ci: record Phase 18.3 set-tree automation failure"
-          git push origin HEAD:master
-
-      - name: Commit validated implementation
-        if: success() && steps.state.outputs.needed == 'true'
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add firmware/components/storage tests/host
-          git commit -m "feat(storage): validate complete replacement set trees"
-          git push origin HEAD:master
-
   host-tests:
     name: Host Tests
     runs-on: ubuntu-24.04

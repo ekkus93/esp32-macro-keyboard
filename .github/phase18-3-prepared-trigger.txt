@@ -1,1 +1,0 @@
-Trigger the isolated Phase 18.3 PREPARED rollback implementation and validation run.
