@@ -10,10 +10,107 @@
 -- Found PkgConfig: /usr/bin/pkg-config (found version "1.8.1")
 -- Checking for module 'libcjson'
 --   Found libcjson, version 1.7.17
--- Configuring done (1.0s)
+-- Configuring done (0.3s)
 -- Generating done (0.1s)
 -- Build files have been written to: /tmp/esp32-p183-api
-ninja: error: unknown target 'web_api_set_export_tests'
+[1/80] Building C object CMakeFiles/test_support.dir/support/test_assert.c.o
+[2/80] Building C object CMakeFiles/test_support.dir/fakes/fake_random.c.o
+[3/80] Building C object CMakeFiles/test_support.dir/fakes/fake_clock.c.o
+[4/80] Building C object CMakeFiles/test_support.dir/fakes/fake_call_log.c.o
+[5/80] Building C object CMakeFiles/test_support.dir/support/test_memory.c.o
+[6/80] Building C object CMakeFiles/test_support.dir/fakes/fake_freertos.c.o
+[7/80] Building C object CMakeFiles/test_support.dir/fakes/fake_usb_backend.c.o
+[8/80] Building C object CMakeFiles/test_support.dir/support/test_temp_dir.c.o
+[9/80] Building C object CMakeFiles/test_support.dir/fakes/fake_http_backend.c.o
+[10/80] Building C object CMakeFiles/test_support.dir/fakes/fake_gpio_backend.c.o
+[11/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[12/80] Building C object CMakeFiles/test_support.dir/fakes/fake_wifi_backend.c.o
+[13/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
+[14/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[15/80] Building C object CMakeFiles/test_support.dir/fakes/fake_fs_backend.c.o
+[16/80] Building C object CMakeFiles/storage_package_replace_tests.dir/test_storage_package_replace.c.o
+[17/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[18/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
+[19/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
+[20/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction_replace.c.o
+[21/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
+[22/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
+[23/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
+[24/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
+[25/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
+[26/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
+[27/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
+[28/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
+[29/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
+[30/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_set_operations.c.o
+[31/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c.o
+[32/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
+[33/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c.o
+[34/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_parser.c.o
+[35/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_keymap_us.c.o
+[36/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
+[37/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_package.c.o
+[38/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_package_replace.c.o
+[39/80] Building C object CMakeFiles/web_api_core_tests.dir/test_web_api_core.c.o
+[40/80] Building C object CMakeFiles/web_api_core_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[41/80] Building C object CMakeFiles/storage_package_replace_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_set_tree.c.o
+[42/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_error.c.o
+[43/80] Building C object CMakeFiles/web_api_core_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[44/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/macro_model.c.o
+[45/80] Building C object CMakeFiles/web_api_set_export_tests.dir/test_web_api_set_export.c.o
+[46/80] Building C object CMakeFiles/web_api_core_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_core.c.o
+[47/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_model/app_uuid.c.o
+[48/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_atomic.c.o
+[49/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_paths.c.o
+[50/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_fs_ops.c.o
+[51/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction_replace.c.o
+[52/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_json.c.o
+[53/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_io.c.o
+[54/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_json.c.o
+[55/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_transaction.c.o
+[56/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_index.c.o
+[57/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_sets.c.o
+[58/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_lock.c.o
+[59/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_objects_json.c.o
+[60/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_set_operations.c.o
+[61/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_order.c.o
+[62/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_progress.c.o
+[63/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_keymap_us.c.o
+[64/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_procedures.c.o
+[65/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_repository_macros.c.o
+[66/80] Linking C static library libtest_support.a
+[67/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_quarantine.c.o
+[68/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/macro_parser/macro_parser.c.o
+[69/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_core.c.o
+[70/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_package_replace.c.o
+[71/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_package_export.c.o
+[72/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_response.c.o
+[73/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_set_tree.c.o
+[74/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/storage/storage_package.c.o
+[75/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_sets.c.o
+[76/80] Linking C executable storage_package_replace_tests
+[77/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_handler_common.c.o
+[78/80] Linking C executable web_api_core_tests
+[79/80] Building C object CMakeFiles/web_api_set_export_tests.dir/home/runner/work/esp32-macro-keyboard/esp32-macro-keyboard/firmware/components/web_server/web_api_json.c.o
+[80/80] Linking C executable web_api_set_export_tests
+Internal ctest changing into directory: /tmp/esp32-p183-api
+Test project /tmp/esp32-p183-api
+    Start 25: storage_package_replace
+1/3 Test #25: storage_package_replace ..........   Passed    0.04 sec
+    Start 29: web_api_core
+2/3 Test #29: web_api_core .....................   Passed    0.00 sec
+    Start 46: web_api_set_export
+3/3 Test #46: web_api_set_export ...............   Passed    0.03 sec
+
+100% tests passed, 0 tests failed out of 3
+
+Label Time Summary:
+storage    =   0.07 sec*proc (2 tests)
+web        =   0.03 sec*proc (2 tests)
+
+Total Test time (real) =   0.19 sec
+only one host-test label may be selected
+usage: ./scripts/run-tests.sh [--normal|--sanitizers|--coverage] [label]
 ```
 
 ## Pending diff
