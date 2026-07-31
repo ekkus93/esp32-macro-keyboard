@@ -18,6 +18,9 @@ Failure:
 {"ok":false,"error":{"code":"conflict","message":"..."}}
 ```
 
+Package-download routes are the exception: they return the raw validated package
+JSON with its exact content length rather than wrapping it in the success envelope.
+
 A supplied valid `X-Request-ID` is echoed. Otherwise the server generates one.
 Unknown JSON fields, trailing data, invalid UUIDs, encoded path separators,
 backslashes, traversal segments, unsupported media types, and oversized bodies
@@ -53,8 +56,8 @@ session tokens, CSRF tokens, setup secrets, or encryption material.
 | GET, PUT, DELETE | `/api/v1/sets/{setId}` | Read, revise, or delete one set |
 | POST | `/api/v1/sets/{setId}/duplicate` | Atomically duplicate metadata, macros, procedures, and order without progress |
 | POST | `/api/v1/sets/{setId}/select` | Select the active set |
-| GET | `/api/v1/sets/{setId}/export` | Phase 18 package boundary |
-| POST | `/api/v1/sets/import` | Phase 18 package boundary |
+| GET | `/api/v1/sets/{setId}/export` | Export one deterministic macro-set package |
+| POST | `/api/v1/sets/import` | Transactionally replace the selected set |
 
 Set duplication requires a new UUID, name, and the source expected revision. The
 new set and all copied set-owned objects begin at revision 1. Progress is not
@@ -166,19 +169,59 @@ persisted setting enables it. Cancellation maps no current execution to 404,
 terminal or repeat cancellation to 409, internal failure to 500, unavailable
 executor to 503, and accepted cancellation to 202.
 
-### Storage and recovery boundaries
+### Storage, backup, and recovery
 
 | Method | Route | Purpose |
 | --- | --- | --- |
 | GET | `/api/v1/diagnostics/storage` | Redacted mount and quarantine health |
 | POST | `/api/v1/diagnostics/storage/check` | Run the bounded storage check boundary |
 | GET | `/api/v1/diagnostics/quarantine` | List redacted quarantine records |
-| GET | `/api/v1/backup` | Phase 18 package boundary |
-| POST | `/api/v1/restore` | Phase 18 transactional-restore boundary |
+| GET | `/api/v1/backup` | Download a deterministic full logical-repository backup |
+| POST | `/api/v1/restore` | Restore a complete backup all-or-nothing |
 
-Full diagnostics aggregation remains Phase 19. Backup and restore return explicit
-503 responses until Phase 18 supplies package validation, secret exclusion, and
-transactional activation.
+`GET /api/v1/backup` takes one repository lock and returns a raw package with this
+exact top-level shape:
+
+```json
+{
+  "schema_version": 1,
+  "package_type": "backup",
+  "sets": [],
+  "macros": [],
+  "global_macros": [],
+  "procedures": [],
+  "progress": []
+}
+```
+
+The package contains every set, set-local macro, global macro, procedure, order,
+and optional current progress. It is deterministic, bounded by
+`APP_IMPORT_PACKAGE_MAX_BYTES`, and revalidated before response. It excludes
+administrator credentials, AP credentials, sessions, CSRF material, setup
+secrets, provisioning state, encryption keys, schema markers, quarantine, and
+transaction evidence by construction.
+
+`POST /api/v1/restore` accepts the raw backup package as its request body. It
+requires an authenticated administrator session, a matching CSRF token, accepted
+same-origin transport policy, and physical device confirmation. The server fully
+validates the package before mutation, writes a durable `PREPARED` manifest,
+materializes and validates a complete staged repository, and then replaces only
+`set-index.json`, `sets/`, and `global/`. The restore transaction recovers at
+startup before ordinary set transactions. Every durable phase is idempotent and
+resolves to either the complete old logical repository or the complete restored
+logical repository; contradictory evidence fails closed and is preserved.
+
+Successful restore returns the ordinary success envelope with:
+
+```json
+{"restored":true,"reloadRequired":true}
+```
+
+The web application validates the backup locally, requires the exact typed phrase
+`RESTORE FULL BACKUP`, waits visibly for physical confirmation, and reloads after
+success so no stale in-memory repository state survives.
+
+Full diagnostics aggregation remains Phase 19.
 
 ## Status rules
 
