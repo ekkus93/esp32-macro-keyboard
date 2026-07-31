@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: phase18-3-set-tree-implementation
+  cancel-in-progress: true
+
 jobs:
   implement:
     runs-on: ubuntu-24.04
