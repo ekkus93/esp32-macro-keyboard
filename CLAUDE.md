@@ -25,8 +25,8 @@ The lint/test scripts assume the exact versions CI installs (see `.github/workfl
 
 - apt (`clang-format` 18, `clang-tidy` 18, `shellcheck` 0.9.0, `libcjson-dev`, `jq`): `sudo apt-get install --yes clang-format clang-tidy shellcheck libcjson-dev jq`
 - pip: `python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0 gcovr==8.6` (`cmakelang` provides `cmake-format`/`cmake-lint`)
-- go: `go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0`
-- `markdownlint-cli2` 0.23.1 comes from `npm --prefix webapp ci` (it's a pinned devDependency); `check-docs.sh` runs the local `webapp/node_modules/.bin` copy, not a global one.
+- go: `go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0 github.com/rhysd/actionlint/cmd/actionlint@v1.7.12` (`actionlint` lints `.github/workflows/*.yml` as part of `check-scripts.sh`)
+- `markdownlint-cli2` 0.23.2 comes from `npm --prefix webapp ci` (it's a pinned devDependency); `check-docs.sh` runs the local `webapp/node_modules/.bin` copy, not a global one.
 
 `clang-format`/`shellcheck` are distro apt packages, so their versions track the runner's Ubuntu release; build on 24.04 to match CI.
 
@@ -45,7 +45,7 @@ Run scripts from the repo root. All frontend commands go through `npm --prefix w
 
 ## Hard rules
 
-- **No failure-hiding**: no `|| true`, no redirecting errors away, no warning suppression, no first-party lint/analyzer exclusions. Every first-party warning is a defect (`scripts/README.md`). CI runs clang-tidy with `WarningsAsErrors: '*'` and ESLint/stylelint with `--max-warnings=0`.
+- **No failure-hiding**: no `|| true`, no redirecting errors away, no warning suppression, no first-party lint/analyzer exclusions. Every first-party warning is a defect (`scripts/README.md`). CI runs clang-tidy with `WarningsAsErrors: '*'` and ESLint/stylelint with `--max-warnings=0`. Approved exceptions are tracked in `docs/STATIC_ANALYSIS_EXCEPTIONS.md` — don't add a new suppression without registering it there.
 - **Production web assets must be fully local** — no remote `//` URLs in `webapp/dist`; `verify-no-remote-assets.sh` enforces this.
 
 ## Code style (differs from defaults)
@@ -54,6 +54,16 @@ Run scripts from the repo root. All frontend commands go through `npm --prefix w
 - Host tests use a **custom assert harness** (`tests/host/support/test_assert.*`), not Unity. Unity is only for the on-device `firmware/test_app/`.
 - Frontend ESLint is `strictTypeChecked` + `stylisticTypeChecked`, with `no-floating-promises` and `consistent-type-imports` as errors.
 - Shell: `shfmt` + `shellcheck` (bash). CMake: `cmake-format`/`cmake-lint`.
+
+## Active development constraints
+
+See `docs/CLAUDE_CODE_HANDOFF_2026-07-31.md` for full context. Currently in force:
+
+- Work directly on `master`; don't create a branch or PR unless explicitly requested.
+- Never force-push, reset `master`, or rewrite history — use normal forward commits.
+- Don't mark a TODO checkbox complete without exact implementation and reproducible evidence (commit, commands, results).
+- Don't claim physical hardware validation from compilation, host fakes, or CI device builds alone.
+- Never commit or expose real credentials, tokens, keys, or flash dumps — use generated disposable credentials for security testing.
 
 ## Hardware flashing
 
