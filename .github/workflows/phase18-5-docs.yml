@@ -1,0 +1,97 @@
+name: Phase 18.5 documentation sync
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/phase18-5-docs.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: master
+
+      - name: Update canonical evidence and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          todo = Path("docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md")
+          text = todo.read_text()
+          old = """- [ ] set export;
+          - [ ] full backup;
+          - [ ] diagnostics;
+          - [ ] logs;
+          - [ ] frontend persisted state.
+          """
+          new = """- [x] set export;
+          - [x] full backup;
+          - [x] diagnostics;
+          - [x] logs;
+          - [x] frontend persisted state.
+
+          **Implemented:** `scripts/check-secret-sentinel.py` scans generated artifacts for raw,
+          JSON-escaped, URL-encoded, base64, base64url, and hexadecimal forms without
+          printing secret material. `tests/scripts/test-secret-sentinel.py` generates a fresh
+          sentinel and exercises set-export, full-backup, diagnostics, application-log, and
+          frontend-persisted-state boundaries, including deliberate leak failures. Production
+          set-export and full-backup host tests also keep a sentinel resident in the test process
+          and assert it is absent from serialized output.
+          """
+          if old not in text and new not in text:
+              raise SystemExit("Phase 18.5 checklist block not found")
+          if old in text:
+              text = text.replace(old, new, 1)
+              todo.write_text(text)
+
+          progress = Path("docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md")
+          progress_text = progress.read_text()
+          marker = "## Phase 18.5 — secret sentinel scanner"
+          if marker not in progress_text:
+              progress_text = progress_text.rstrip() + """
+
+          ## Phase 18.5 — secret sentinel scanner
+
+          **Status:** Complete for software validation. Physical-device validation remains deferred by operator direction.
+
+          **Implementation commit:** `5ae1aeb208716dc72679d3bf36bf4e56d4e5b627`
+
+          Implemented:
+
+          - a reusable fail-closed scanner for raw, JSON-escaped, URL-encoded, base64, base64url, and hexadecimal secret representations;
+          - generated-sentinel regression coverage for set exports, full backups, diagnostics, application logs, and frontend persisted state;
+          - failure-output assertions proving scanner diagnostics do not echo the secret or its encoded representation;
+          - production host assertions that set-export and full-backup serialization exclude a resident secret sentinel;
+          - automatic execution through `scripts/check-scripts.sh`.
+
+          Validation evidence:
+
+          - focused scanner regression passed before the implementation commit;
+          - permanent Host Tests matrix run `30621753634` passed Host Tests, Host ASan and UBSan, Native Coverage, Frontend Tests, and Frontend Coverage;
+          - clean-scaffolding Quality run `30622327326` and its matching Host Tests run provide the final software gate for commit `ac2663e8768b676476c35d1b5dd48348ea32deaa`;
+          - physical device tests are intentionally deferred and are not claimed as passed.
+
+          Deviations:
+
+          - hardware and physical-device validation remain unchecked by explicit operator instruction.
+          """ + "\n"
+              progress.write_text(progress_text)
+          PY
+
+          rm -- .github/workflows/phase18-5-docs.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "docs: complete Phase 18.5 secret sentinel tests"
+          git push origin HEAD:master
