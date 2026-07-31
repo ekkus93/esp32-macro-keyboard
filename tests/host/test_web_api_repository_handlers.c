@@ -314,15 +314,9 @@ static void test_set_routes(void) {
     TEST_CHECK_EQ_STRING(SET_ID, settings_store.active_set_id.value);
     TEST_CHECK_EQ_U64(2U, settings_store.revision);
 
-    static const web_api_route_t unavailable_routes[] = {
-        WEB_API_ROUTE_SET_IMPORT,
-    };
-    for (size_t index = 0U; index < sizeof(unavailable_routes) / sizeof(unavailable_routes[0]);
-         ++index) {
-        response = invoke(web_api_handle_sets, unavailable_routes[index], WEB_API_METHOD_POST, NULL,
-                          SET_ID, NULL, NULL);
-        expect_status(&response, 503U, "requires the Phase 18");
-    }
+    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_IMPORT, WEB_API_METHOD_POST, "{}",
+                      NULL, NULL, NULL);
+    expect_status(&response, 422U, "could not replace set");
 }
 
 static void test_macro_routes(void) {

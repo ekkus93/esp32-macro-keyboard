@@ -113,6 +113,7 @@ static size_t route_body_limit(web_api_route_t route) {
     case WEB_API_ROUTE_PROCEDURE_PROGRESS:
         return STORAGE_PROGRESS_FILE_MAX_BYTES + WEB_API_WRAPPER_OVERHEAD_BYTES;
     case WEB_API_ROUTE_SET_IMPORT:
+        return APP_IMPORT_PACKAGE_MAX_BYTES + WEB_API_WRAPPER_OVERHEAD_BYTES;
     case WEB_API_ROUTE_RESTORE:
         return APP_IMPORT_PACKAGE_MAX_BYTES;
     default:

@@ -261,6 +261,96 @@ static app_error_code_t handle_set_reorder(const web_api_call_t *call,
     return result;
 }
 
+
+typedef struct {
+    app_uuid_t target_set_id;
+    uint32_t expected_revision;
+    char *package_json;
+    size_t package_length;
+} web_set_import_request_t;
+
+static void free_set_import_request(web_set_import_request_t *request) {
+    if (request == NULL) {
+        return;
+    }
+    cJSON_free(request->package_json);
+    memset(request, 0, sizeof(*request));
+}
+
+static app_error_code_t parse_set_import(const web_api_call_t *call,
+                                         web_set_import_request_t *out_request) {
+    if (call == NULL || out_request == NULL || call->body == NULL || call->body_length == 0U) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    memset(out_request, 0, sizeof(*out_request));
+    const char *parse_end = NULL;
+    cJSON *root = cJSON_ParseWithLengthOpts(call->body, call->body_length, &parse_end, false);
+    bool target_seen = false;
+    bool revision_seen = false;
+    bool package_seen = false;
+    app_error_code_t result =
+        root != NULL && parse_end == call->body + call->body_length && cJSON_IsObject(root)
+            ? APP_ERROR_NONE
+            : APP_ERROR_INVALID_ARGUMENT;
+    for (const cJSON *item = result == APP_ERROR_NONE ? root->child : NULL; item != NULL;
+         item = item->next) {
+        if (item->string != NULL && strcmp(item->string, "targetSetId") == 0 && !target_seen &&
+            cJSON_IsString(item) && item->valuestring != NULL &&
+            app_uuid_parse(item->valuestring, &out_request->target_set_id) == APP_ERROR_NONE) {
+            target_seen = true;
+        } else if (item->string != NULL && strcmp(item->string, "expectedRevision") == 0 &&
+                   !revision_seen && cJSON_IsNumber(item) && item->valuedouble >= 1.0 &&
+                   item->valuedouble <= (double)UINT32_MAX) {
+            const uint32_t revision = (uint32_t)item->valuedouble;
+            if ((double)revision != item->valuedouble) {
+                result = APP_ERROR_INVALID_ARGUMENT;
+                break;
+            }
+            out_request->expected_revision = revision;
+            revision_seen = true;
+        } else if (item->string != NULL && strcmp(item->string, "package") == 0 &&
+                   !package_seen && cJSON_IsObject(item)) {
+            out_request->package_json = cJSON_PrintUnformatted(item);
+            if (out_request->package_json == NULL) {
+                result = APP_ERROR_INTERNAL;
+                break;
+            }
+            out_request->package_length = strlen(out_request->package_json);
+            if (out_request->package_length == 0U ||
+                out_request->package_length > APP_IMPORT_PACKAGE_MAX_BYTES) {
+                result = APP_ERROR_INVALID_ARGUMENT;
+                break;
+            }
+            package_seen = true;
+        } else {
+            result = APP_ERROR_INVALID_ARGUMENT;
+            break;
+        }
+    }
+    cJSON_Delete(root);
+    if (result == APP_ERROR_NONE && (!target_seen || !revision_seen || !package_seen)) {
+        result = APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (result != APP_ERROR_NONE) {
+        free_set_import_request(out_request);
+    }
+    return result;
+}
+
+static app_error_code_t handle_import(const web_api_call_t *call, web_api_response_t *response) {
+    web_set_import_request_t request = {0};
+    app_error_code_t result = parse_set_import(call, &request);
+    macro_set_t committed = {0};
+    if (result == APP_ERROR_NONE) {
+        result = storage_package_replace_set(&request.target_set_id, request.expected_revision,
+                                             request.package_json, request.package_length,
+                                             &committed);
+    }
+    free_set_import_request(&request);
+    return result == APP_ERROR_NONE ? send_set(response, WEB_HTTP_STATUS_OK, &committed)
+                                    : respond_result(response, result, "could not replace set");
+}
+
 static app_error_code_t handle_export(const web_api_call_t *call, web_api_response_t *response) {
     char *package_json = NULL;
     size_t package_length = 0U;
@@ -274,10 +364,6 @@ static app_error_code_t handle_export(const web_api_call_t *call, web_api_respon
         storage_package_free(package_json);
     }
     return result;
-}
-
-static app_error_code_t unavailable(web_api_response_t *response, const char *operation) {
-    return web_api_handler_error(response, APP_ERROR_STORAGE_UNAVAILABLE, operation, NULL);
 }
 
 app_error_code_t web_api_handle_sets(const web_api_call_t *call, web_api_response_t *response) {
@@ -298,7 +384,7 @@ app_error_code_t web_api_handle_sets(const web_api_call_t *call, web_api_respons
     case WEB_API_ROUTE_SET_EXPORT:
         return handle_export(call, response);
     case WEB_API_ROUTE_SET_IMPORT:
-        return unavailable(response, "set import requires the Phase 18 package service");
+        return handle_import(call, response);
     default:
         return APP_ERROR_NOT_FOUND;
     }

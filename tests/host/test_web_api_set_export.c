@@ -9,6 +9,7 @@
 
 #include "app_error.h"
 #include "app_uuid.h"
+#include "cJSON.h"
 #include "macro_model.h"
 #include "provisioning.h"
 #include "storage_package.h"
@@ -261,6 +262,82 @@ static web_api_response_t invoke_export(const char *set_id) {
     return response;
 }
 
+
+static web_api_response_t invoke_import(const char *body) {
+    const web_api_call_t call = {
+        .method = WEB_API_METHOD_POST,
+        .path = {.route = WEB_API_ROUTE_SET_IMPORT},
+        .body = body,
+        .body_length = strlen(body),
+    };
+    web_api_response_t response = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_handle_sets(&call, &response));
+    TEST_CHECK(response.body != NULL);
+    return response;
+}
+
+static char *make_replacement_request(uint32_t expected_revision) {
+    web_api_response_t exported = invoke_export(SET_ID);
+    TEST_CHECK_EQ_U64(200U, exported.status);
+    const char *parse_end = NULL;
+    cJSON *package =
+        cJSON_ParseWithLengthOpts(exported.body, exported.body_length, &parse_end, false);
+    TEST_CHECK(package != NULL);
+    TEST_CHECK(parse_end == exported.body + exported.body_length);
+    cJSON *sets = cJSON_GetObjectItemCaseSensitive(package, "sets");
+    cJSON *set = cJSON_GetArrayItem(sets, 0);
+    TEST_CHECK(cJSON_IsObject(set));
+    cJSON *revision = cJSON_CreateNumber(2.0);
+    cJSON *name = cJSON_CreateString("Imported Replacement");
+    TEST_CHECK(revision != NULL);
+    TEST_CHECK(name != NULL);
+    TEST_CHECK(cJSON_ReplaceItemInObjectCaseSensitive(set, "revision", revision));
+    TEST_CHECK(cJSON_ReplaceItemInObjectCaseSensitive(set, "name", name));
+
+    cJSON *wrapper = cJSON_CreateObject();
+    TEST_CHECK(wrapper != NULL);
+    TEST_CHECK(cJSON_AddStringToObject(wrapper, "targetSetId", SET_ID) != NULL);
+    TEST_CHECK(cJSON_AddNumberToObject(wrapper, "expectedRevision", (double)expected_revision) !=
+               NULL);
+    TEST_CHECK(cJSON_AddItemToObject(wrapper, "package", package));
+    package = NULL;
+    char *request = cJSON_PrintUnformatted(wrapper);
+    TEST_CHECK(request != NULL);
+    cJSON_Delete(wrapper);
+    cJSON_Delete(package);
+    web_api_response_free(&exported);
+    return request;
+}
+
+static void test_import_route(void) {
+    char *request = make_replacement_request(1U);
+    web_api_response_t response = invoke_import(request);
+    TEST_CHECK_EQ_U64(200U, response.status);
+    TEST_CHECK(strstr(response.body, "\"ok\":true") != NULL);
+    TEST_CHECK(strstr(response.body, "Imported Replacement") != NULL);
+    TEST_CHECK(strstr(response.body, "\"revision\":2") != NULL);
+    macro_set_t committed = {0};
+    const app_uuid_t set_id = uuid(SET_ID);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_read(&set_id, &committed));
+    TEST_CHECK_EQ_U64(2U, committed.revision);
+    TEST_CHECK_EQ_STRING("Imported Replacement", committed.name);
+    web_api_response_free(&response);
+    cJSON_free(request);
+
+    request = make_replacement_request(1U);
+    response = invoke_import(request);
+    TEST_CHECK_EQ_U64(409U, response.status);
+    TEST_CHECK(strstr(response.body, "\"ok\":false") != NULL);
+    TEST_CHECK(strstr(response.body, "could not replace set") != NULL);
+    web_api_response_free(&response);
+    cJSON_free(request);
+
+    response = invoke_import("{\"targetSetId\":\"" SET_ID
+                             "\",\"expectedRevision\":2,\"package\":{},\"extra\":true}");
+    TEST_CHECK_EQ_U64(422U, response.status);
+    web_api_response_free(&response);
+}
+
 static void test_export_route(void) {
     web_api_response_t response = invoke_export(SET_ID);
     TEST_CHECK_EQ_U64(200U, response.status);
@@ -301,6 +378,7 @@ int main(void) {
     populate_store();
     install_export_operations();
     test_export_route();
+    test_import_route();
     test_missing_set_error_envelope();
     storage_package_reset_export_ops_for_test();
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_deinit());

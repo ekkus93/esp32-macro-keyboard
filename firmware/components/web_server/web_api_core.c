@@ -414,7 +414,8 @@ bool web_api_physical_confirmation_required(web_api_route_t route,
     }
     return route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD ||
            route == WEB_API_ROUTE_DEVICE_RESTART || route == WEB_API_ROUTE_DEVICE_RESET_SETTINGS ||
-           route == WEB_API_ROUTE_DEVICE_FACTORY_RESET || route == WEB_API_ROUTE_RESTORE;
+           route == WEB_API_ROUTE_DEVICE_FACTORY_RESET || route == WEB_API_ROUTE_SET_IMPORT ||
+           route == WEB_API_ROUTE_RESTORE;
 }
 
 bool web_api_route_requires_physical_confirmation(web_api_route_t route) {

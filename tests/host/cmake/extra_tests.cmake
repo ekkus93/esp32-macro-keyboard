@@ -204,6 +204,8 @@ target_sources(
     web_api_repository_handlers_tests
     PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package.c"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_export.c"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_replace.c"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_set_tree.c"
 )
 
 add_executable(
@@ -214,6 +216,8 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/macro_keymap_us.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_export.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_replace.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_set_tree.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_core.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_response.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_json.c"
@@ -234,7 +238,7 @@ target_include_directories(
 )
 target_compile_definitions(
     web_api_set_export_tests
-    PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/web-api-set-export-data"
+    PRIVATE STORAGE_DATA_MOUNT="/tmp/esp32-macro-keyboard-web-package"
 )
 target_link_libraries(web_api_set_export_tests PRIVATE PkgConfig::CJSON test_support)
 target_compile_options(web_api_set_export_tests PRIVATE ${STRICT_WARNINGS})
