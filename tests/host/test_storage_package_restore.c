@@ -15,6 +15,7 @@
 #include "macro_limits.h"
 #include "storage.h"
 #include "storage_package.h"
+#include "storage_repository_lock.h"
 #include "storage_repository_tree_internal.h"
 #include "test_assert.h"
 
@@ -82,7 +83,7 @@ static void remove_storage(void) {
     TEST_CHECK_EQ_INT(0, system(command));
 }
 
-static void create_empty_repository(void) {
+static void create_repository_layout(void) {
     remove_storage();
     make_directory(STORAGE_DATA_MOUNT);
     char path[APP_PATH_MAX_BYTES];
@@ -103,6 +104,12 @@ static void create_empty_repository(void) {
     write_text(path, "{\"schema_version\":1,\"ids\":[]}");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          storage_repository_tree_validate(STORAGE_DATA_MOUNT));
+}
+
+static void create_empty_repository(void) {
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
+    create_repository_layout();
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
 }
 
 static bool directory_empty(const char *path) {
@@ -186,9 +193,24 @@ static void test_invalid_backup_does_not_mutate_repository(void) {
     TEST_CHECK(directory_empty(path));
 }
 
+static void test_restore_requires_initialized_repository_lock(void) {
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
+    create_repository_layout();
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INTERNAL,
+        storage_package_restore_backup(BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_repository_tree_validate(STORAGE_DATA_MOUNT));
+    char path[APP_PATH_MAX_BYTES];
+    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "transactions");
+    TEST_CHECK(directory_empty(path));
+}
+
 int main(void) {
     test_complete_backup_restores_atomically();
     test_invalid_backup_does_not_mutate_repository();
+    test_restore_requires_initialized_repository_lock();
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
     remove_storage();
     puts("storage package restore tests passed");
     return EXIT_SUCCESS;
