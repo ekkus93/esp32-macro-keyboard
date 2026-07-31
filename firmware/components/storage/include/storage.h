@@ -103,6 +103,7 @@ app_error_code_t storage_make_progress_path(const app_uuid_t *set_id,
 app_error_code_t storage_atomic_write(const char *path, const void *data, size_t data_length,
                                       bool sync_required);
 app_error_code_t storage_atomic_recover_all(void);
+app_error_code_t storage_transaction_recover_restores(void);
 app_error_code_t storage_transaction_recover_all(void);
 app_error_code_t storage_quarantine_file(const char *source_path, const char *reason,
                                          storage_quarantine_entry_t *out_entry);
