@@ -12,6 +12,7 @@ idf_component_register(
     "storage_transaction_replace.c"
     "storage_transaction_restore.c"
     "storage_set_tree.c"
+    "storage_repository_tree.c"
     "storage_repository_io.c"
     "storage_repository_json.c"
     "storage_json.c"
