@@ -69,7 +69,77 @@ jobs:
 
           service_path = Path("firmware/components/storage/storage_package_replace.c")
           service = service_path.read_text()
-          replacements = [
+          entry_marker = "static app_error_code_t replace_locked"
+          if service.count(entry_marker) != 1:
+              raise SystemExit("package replacement locked entry changed")
+          prefix, tail = service.split(entry_marker, 1)
+          trace_replacements = [
+              (
+                  "    app_error_code_t result = storage_set_read_locked(target_set_id, &current);\n",
+                  "    app_error_code_t result = storage_set_read_locked(target_set_id, &current);\n"
+                  "    fprintf(stderr, \"PHASE18_3_DIAGNOSTIC current=%d\\n\", (int)result);\n",
+              ),
+              (
+                  "        result = verify_global_dependencies(document->arrays[PACKAGE_REPLACE_GLOBAL_MACROS]);\n",
+                  "        result = verify_global_dependencies(document->arrays[PACKAGE_REPLACE_GLOBAL_MACROS]);\n"
+                  "        fprintf(stderr, \"PHASE18_3_DIAGNOSTIC globals=%d\\n\", (int)result);\n",
+              ),
+              (
+                  "        result = app_uuid_generate(&transaction_id);\n",
+                  "        result = app_uuid_generate(&transaction_id);\n"
+                  "        fprintf(stderr, \"PHASE18_3_DIAGNOSTIC uuid=%d\\n\", (int)result);\n",
+              ),
+              (
+                  "        result = initialize_manifest(&transaction_id, &current, &document->replacement, staging,\n"
+                  "                                     &manifest);\n",
+                  "        result = initialize_manifest(&transaction_id, &current, &document->replacement, staging,\n"
+                  "                                     &manifest);\n"
+                  "        fprintf(stderr, \"PHASE18_3_DIAGNOSTIC manifest-init=%d\\n\", (int)result);\n",
+              ),
+              (
+                  "        result = storage_transaction_write_manifest(&manifest);\n"
+                  "        manifest_written = result == APP_ERROR_NONE;\n",
+                  "        result = storage_transaction_write_manifest(&manifest);\n"
+                  "        fprintf(stderr, \"PHASE18_3_DIAGNOSTIC manifest-prepared=%d\\n\", (int)result);\n"
+                  "        manifest_written = result == APP_ERROR_NONE;\n",
+              ),
+              (
+                  "        result = create_staging(&transaction_id, staging, sizeof(staging));\n",
+                  "        result = create_staging(&transaction_id, staging, sizeof(staging));\n"
+                  "        fprintf(stderr, \"PHASE18_3_DIAGNOSTIC staging-create=%d\\n\", (int)result);\n",
+              ),
+              (
+                  "        result = materialize_staging(document, staging);\n",
+                  "        result = materialize_staging(document, staging);\n"
+                  "        fprintf(stderr, \"PHASE18_3_DIAGNOSTIC staging-materialize=%d\\n\", (int)result);\n",
+              ),
+              (
+                  "        result = storage_set_tree_validate(staging, target_set_id,\n"
+                  "                                           document->replacement.revision);\n",
+                  "        result = storage_set_tree_validate(staging, target_set_id,\n"
+                  "                                           document->replacement.revision);\n"
+                  "        fprintf(stderr, \"PHASE18_3_DIAGNOSTIC staging-validate=%d\\n\", (int)result);\n",
+              ),
+              (
+                  "        manifest.phase = STORAGE_TRANSACTION_STAGED;\n"
+                  "        result = storage_transaction_write_manifest(&manifest);\n",
+                  "        manifest.phase = STORAGE_TRANSACTION_STAGED;\n"
+                  "        result = storage_transaction_write_manifest(&manifest);\n"
+                  "        fprintf(stderr, \"PHASE18_3_DIAGNOSTIC manifest-staged=%d\\n\", (int)result);\n",
+              ),
+              (
+                  "        result = recover_replace(&manifest);\n",
+                  "        result = recover_replace(&manifest);\n"
+                  "        fprintf(stderr, \"PHASE18_3_DIAGNOSTIC recover=%d\\n\", (int)result);\n",
+              ),
+          ]
+          for before, after in trace_replacements:
+              if tail.count(before) != 1:
+                  raise SystemExit(f"package replacement trace anchor changed: {before!r}")
+              tail = tail.replace(before, after, 1)
+          service = prefix + entry_marker + tail
+
+          outer_replacements = [
               (
                   "    if (result != APP_ERROR_NONE) {\n        return result;\n    }\n"
                   "    package_replace_document_t document = {0};",
@@ -88,9 +158,9 @@ jobs:
                   "        fprintf(stderr, \"PHASE18_3_DIAGNOSTIC replace=%d\\n\", (int)result);\n",
               ),
           ]
-          for before, after in replacements:
+          for before, after in outer_replacements:
               if service.count(before) != 1:
-                  raise SystemExit("package replacement diagnostic anchor changed")
+                  raise SystemExit("package replacement outer diagnostic anchor changed")
               service = service.replace(before, after, 1)
           service_path.write_text(service)
           PY
@@ -135,7 +205,7 @@ jobs:
             echo
             echo '```c'
             nl -ba firmware/components/storage/storage_package_replace.c | sed -n '1,220p'
-            nl -ba firmware/components/storage/storage_package_replace.c | sed -n '520,690p'
+            nl -ba firmware/components/storage/storage_package_replace.c | sed -n '520,720p'
             echo '```'
           } > docs/PHASE18_3_PACKAGE_REPLACE_FAILURE.md
           git config user.name "github-actions[bot]"
