@@ -1,1 +1,1 @@
-Remove Phase 18.3 implementation scaffolding and run the final clean repository validation.
+Remove Phase 18.3 implementation scaffolding and run the final clean repository validation. Execute after workflow registration.
