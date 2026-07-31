@@ -6,6 +6,7 @@
 
 #include "app_error.h"
 #include "app_uuid.h"
+#include "macro_model.h"
 
 typedef enum {
     STORAGE_PACKAGE_KIND_SET = 0,
