@@ -79,7 +79,7 @@ static app_error_code_t ensure_directory(const char *path, const storage_fs_ops_
     if (stat_error != ENOENT) {
         return map_error_number(stat_error);
     }
-    if (operations->mkdir_path(operations->context, path, 0700) != 0) {
+    if (operations->make_directory(operations->context, path, 0700) != 0) {
         return map_error_number(errno);
     }
     return storage_fs_sync_parent_path(operations->context, path) == 0
