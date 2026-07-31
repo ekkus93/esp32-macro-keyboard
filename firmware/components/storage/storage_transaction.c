@@ -44,11 +44,61 @@ static app_error_code_t production_set_index_presence(void *context, const app_u
     return storage_repository_set_index_presence(set_id, should_be_present);
 }
 
+#ifdef ESP_PLATFORM
+static app_error_code_t production_validate_set(void *context, const char *path,
+                                                const app_uuid_t *set_id,
+                                                uint32_t expected_revision) {
+    (void)context;
+    char set_path[APP_PATH_MAX_BYTES];
+    const int written = snprintf(set_path, sizeof(set_path), "%s/set.json", path);
+    if (written < 0 || (size_t)written >= sizeof(set_path)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    char *data = NULL;
+    size_t length = 0U;
+    app_error_code_t result =
+        storage_repository_read_bounded_file(set_path, STORAGE_SET_FILE_MAX_BYTES, &data, &length);
+    macro_set_t set = {0};
+    if (result == APP_ERROR_NONE) {
+        result = storage_repository_parse_set_json(data, length, &set);
+    }
+    free(data);
+    if (result == APP_ERROR_NONE &&
+        (!app_uuid_equal(&set.id, set_id) || set.revision != expected_revision)) {
+        result = APP_ERROR_STORAGE_CORRUPT;
+    }
+    return result;
+}
+
+static app_error_code_t production_remove_tree(void *context, const char *path) {
+    (void)context;
+    return storage_repository_remove_tree(path);
+}
+#else
+static app_error_code_t production_validate_set(void *context, const char *path,
+                                                const app_uuid_t *set_id,
+                                                uint32_t expected_revision) {
+    (void)context;
+    (void)path;
+    (void)set_id;
+    (void)expected_revision;
+    return APP_ERROR_STORAGE_UNAVAILABLE;
+}
+
+static app_error_code_t production_remove_tree(void *context, const char *path) {
+    (void)context;
+    (void)path;
+    return APP_ERROR_STORAGE_UNAVAILABLE;
+}
+#endif
+
 static bool operations_valid(const storage_fs_ops_t *operations,
                              storage_uuid_generate_fn generate_uuid,
-                             storage_transaction_set_index_presence_fn set_index_presence) {
+                             storage_transaction_set_index_presence_fn set_index_presence,
+                             storage_transaction_validate_set_fn validate_set,
+                             storage_transaction_remove_tree_fn remove_tree) {
     return storage_fs_ops_has_directory(operations) && generate_uuid != NULL &&
-           set_index_presence != NULL;
+           set_index_presence != NULL && validate_set != NULL && remove_tree != NULL;
 }
 
 static bool safe_manifest_path(const char *path) {
@@ -105,6 +155,7 @@ static bool manifest_revisions_valid(const storage_transaction_manifest_t *manif
     case STORAGE_TRANSACTION_DELETE_SET:
         return manifest->expected_revision != 0U && manifest->replacement_revision == 0U;
     case STORAGE_TRANSACTION_REPLACE_SET:
+        return manifest->expected_revision != 0U && manifest->replacement_revision != 0U;
     case STORAGE_TRANSACTION_RESTORE:
     case STORAGE_TRANSACTION_MIGRATE:
         return true;
@@ -574,8 +625,10 @@ static app_error_code_t directory_has_entries_with_ops(const char *path,
 
 app_error_code_t storage_transaction_recover_all_with_ops(
     const storage_fs_ops_t *operations, storage_uuid_generate_fn generate_uuid, void *uuid_context,
-    storage_transaction_set_index_presence_fn set_index_presence, void *index_context) {
-    if (!operations_valid(operations, generate_uuid, set_index_presence)) {
+    storage_transaction_set_index_presence_fn set_index_presence, void *index_context,
+    storage_transaction_validate_set_fn validate_set, void *validation_context,
+    storage_transaction_remove_tree_fn remove_tree, void *remove_context) {
+    if (!operations_valid(operations, generate_uuid, set_index_presence, validate_set, remove_tree)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
 
@@ -602,6 +655,10 @@ app_error_code_t storage_transaction_recover_all_with_ops(
                                         set_index_presence, index_context);
                 break;
             case STORAGE_TRANSACTION_REPLACE_SET:
+                result = storage_transaction_recover_replace_with_ops(
+                    &manifest, operations, generate_uuid, uuid_context, set_index_presence,
+                    index_context, validate_set, validation_context, remove_tree, remove_context);
+                break;
             case STORAGE_TRANSACTION_RESTORE:
             case STORAGE_TRANSACTION_MIGRATE:
             default:
@@ -632,8 +689,9 @@ app_error_code_t storage_transaction_recover_all(void) {
         return lock;
     }
     const app_error_code_t result =
-        storage_transaction_recover_all_with_ops(storage_fs_ops_posix(), production_uuid_generate,
-                                                 NULL, production_set_index_presence, NULL);
+        storage_transaction_recover_all_with_ops(
+            storage_fs_ops_posix(), production_uuid_generate, NULL, production_set_index_presence,
+            NULL, production_validate_set, NULL, production_remove_tree, NULL);
     const app_error_code_t unlock = storage_repository_lock_give();
     return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }

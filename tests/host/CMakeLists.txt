@@ -264,6 +264,7 @@ add_executable(
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_paths.c
     ../../firmware/components/storage/storage_transaction.c
+    ../../firmware/components/storage/storage_transaction_replace.c
     ../../firmware/components/storage/storage_repository_io.c
     ../../firmware/components/storage/storage_repository_json.c
     ../../firmware/components/storage/storage_json.c
@@ -298,6 +299,7 @@ add_executable(
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_paths.c
     ../../firmware/components/storage/storage_transaction.c
+    ../../firmware/components/storage/storage_transaction_replace.c
     ../../firmware/components/storage/storage_repository_io.c
     ../../firmware/components/storage/storage_repository_json.c
     ../../firmware/components/storage/storage_json.c
@@ -404,6 +406,7 @@ add_executable(
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_atomic.c
     ../../firmware/components/storage/storage_transaction.c
+    ../../firmware/components/storage/storage_transaction_replace.c
     ../../firmware/components/storage/storage_repository_lock.c
 )
 target_include_directories(
@@ -457,6 +460,7 @@ add_executable(
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_paths.c
     ../../firmware/components/storage/storage_transaction.c
+    ../../firmware/components/storage/storage_transaction_replace.c
     ../../firmware/components/storage/storage_repository_io.c
     ../../firmware/components/storage/storage_repository_json.c
     ../../firmware/components/storage/storage_json.c
@@ -487,6 +491,7 @@ set(STORAGE_OBJECT_REPOSITORY_SOURCES
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_paths.c
     ../../firmware/components/storage/storage_transaction.c
+    ../../firmware/components/storage/storage_transaction_replace.c
     ../../firmware/components/storage/storage_repository_io.c
     ../../firmware/components/storage/storage_repository_json.c
     ../../firmware/components/storage/storage_json.c

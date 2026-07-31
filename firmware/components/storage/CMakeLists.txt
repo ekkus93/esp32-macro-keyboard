@@ -9,6 +9,7 @@ idf_component_register(
     "storage_fs_ops.c"
     "storage_atomic.c"
     "storage_transaction.c"
+    "storage_transaction_replace.c"
     "storage_repository_io.c"
     "storage_repository_json.c"
     "storage_json.c"
