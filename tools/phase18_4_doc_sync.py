@@ -2,7 +2,9 @@
 from pathlib import Path
 
 
-def replace_once(text: str, old: str, new: str, description: str) -> str:
+def replace_if_needed(text: str, old: str, new: str, description: str) -> str:
+    if new in text:
+        return text
     if old not in text:
         raise SystemExit(f"{description} not found")
     return text.replace(old, new, 1)
@@ -12,7 +14,7 @@ todo_path = Path(
     "docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md"
 )
 todo = todo_path.read_text(encoding="utf-8")
-todo = replace_once(
+todo = replace_if_needed(
     todo,
     """### 18.4 Implement full backup and restore
 
@@ -49,7 +51,7 @@ after success.
 """,
     "Phase 18.4 TODO block",
 )
-todo = replace_once(
+todo = replace_if_needed(
     todo,
     """**Implemented:** every enabled management control performs a real request or
 navigation. Set create, edit, duplicate, keyboard-accessible reorder, and
@@ -78,13 +80,13 @@ progress_path = Path(
     "docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md"
 )
 progress = progress_path.read_text(encoding="utf-8")
-progress = replace_once(
+progress = replace_if_needed(
     progress,
     "| 18 | Import / export / backup / restore | in progress (§18.1–18.2 complete; §18.3–18.5 remain) |",
     "| 18 | Import / export / backup / restore | in progress (§18.1–18.4 complete; §18.5 remains) |",
     "Phase 18 progress row",
 )
-progress = replace_once(
+progress = replace_if_needed(
     progress,
     """  Host Tests run `30455828432` passed static checks, unit tests, coverage,
   sanitizers, and native tests. Browser Tests run `30455823494` built the
@@ -119,10 +121,8 @@ entry = """
 
 """
 if entry.strip() not in progress:
-    progress = replace_once(
-        progress,
-        "## Completed tasks (commit evidence)\n",
-        "## Completed tasks (commit evidence)\n" + entry,
-        "completed-task marker",
-    )
+    marker = "## Completed tasks (commit evidence)\n"
+    if marker not in progress:
+        raise SystemExit("completed-task marker not found")
+    progress = progress.replace(marker, marker + entry, 1)
 progress_path.write_text(progress, encoding="utf-8")
