@@ -1,3 +1,4 @@
+# retry 1
 name: Phase 18.5 direct finalization
 
 on:
@@ -94,6 +95,8 @@ Deviations:
 
           rm -f .github/workflows/phase18-5-docs.yml
           rm -f .github/workflows/phase18-5-direct-finalize.yml
+          rm -f .github/workflows/phase18-5-direct-finalize.trigger
+          rm -f .github/workflows/phase18-5-direct-finalize.yml.trigger
 
           ./scripts/check-format.sh
           ./scripts/check-scripts.sh
