@@ -2140,7 +2140,7 @@ Add stable health snapshots for:
 - [x] app lifecycle;
 - [x] storage mount/recovery;
 - [x] repository;
-- [ ] authentication;
+- [x] authentication;
 - [ ] USB;
 - [ ] executor;
 - [ ] controls;
@@ -2171,6 +2171,11 @@ Implemented (repository): `repository_health.c` tracks a primary error from
 `storage_repository_deinit()` (which today can never actually fail — the
 repository layer holds no in-memory resources — but is still wired for
 consistency and to guard against a future change introducing one).
+
+Implemented (authentication): `auth_health.c` tracks a primary error from
+`auth_init()` (mutex/core-state creation) and a cleanup error/incomplete flag
+from `auth_deinit()` (which today can never fail, same rationale as
+repository), recorded from `app_core.c`'s existing auth adapters.
 
 Retain primary and cleanup errors separately.
 

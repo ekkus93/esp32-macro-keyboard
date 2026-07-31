@@ -9,6 +9,7 @@
 #include "app_core_sequence.h"
 #include "app_error.h"
 #include "auth.h"
+#include "auth_health.h"
 #include "device_controls.h"
 #include "esp_log.h"
 #include "macro_executor.h"
@@ -103,7 +104,9 @@ static app_error_code_t adapter_repository_init(void *context) {
 
 static app_error_code_t adapter_auth_init(void *context) {
     (void)context;
-    return auth_init();
+    const app_error_code_t result = auth_init();
+    auth_health_record_primary(result);
+    return result;
 }
 
 static app_error_code_t adapter_usb_init(void *context) {
@@ -161,7 +164,9 @@ static app_error_code_t adapter_repository_deinit(void *context) {
 
 static app_error_code_t adapter_auth_deinit(void *context) {
     (void)context;
-    return auth_deinit();
+    const app_error_code_t result = auth_deinit();
+    auth_health_record_cleanup(result, result != APP_ERROR_NONE);
+    return result;
 }
 
 static app_error_code_t adapter_usb_deinit(void *context) {
@@ -277,6 +282,7 @@ app_error_code_t app_core_start(void) {
     app_core_health_reset();
     storage_health_reset();
     repository_health_reset();
+    auth_health_reset();
     const app_core_ops_t operations = {
         .context = NULL,
         .nvs_init = adapter_nvs_init,

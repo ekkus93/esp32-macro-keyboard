@@ -5,12 +5,14 @@ idf_component_register(
     "auth_core_password.c"
     "auth_core_session.c"
     "auth_core_rate_limit.c"
+    "auth_health.c"
     INCLUDE_DIRS
     "include"
     PRIV_INCLUDE_DIRS
     "."
     REQUIRES
     macro_model
+    support
     esp_timer
     mbedtls
     freertos

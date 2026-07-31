@@ -232,6 +232,17 @@ target_compile_options(repository_health_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME repository_health COMMAND repository_health_tests)
 set_tests_properties(repository_health PROPERTIES LABELS "storage")
 
+add_executable(auth_health_tests test_auth_health.c ../../firmware/components/auth/auth_health.c)
+target_include_directories(
+    auth_health_tests
+    PRIVATE ../../firmware/components/auth/include ../../firmware/components/support/include
+            ../../firmware/components/macro_model/include
+)
+target_link_libraries(auth_health_tests PRIVATE test_support)
+target_compile_options(auth_health_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME auth_health COMMAND auth_health_tests)
+set_tests_properties(auth_health PROPERTIES LABELS "auth")
+
 add_executable(
     usb_keyboard_tests test_usb_keyboard.c
                        ../../firmware/components/usb_keyboard/usb_keyboard_state.c
