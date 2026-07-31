@@ -75,11 +75,27 @@ jobs:
                   raise SystemExit(f"expected one set-tree fixture replacement, found {count}")
               text = text.replace(old, new, 1)
 
+          text += r'''
+
+extra_tests = Path("tests/host/cmake/extra_tests.cmake")
+extra_text = extra_tests.read_text()
+extra_needle = '    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_transaction.c"\n'
+if extra_text.count(extra_needle) != 2:
+    raise SystemExit(
+        f"expected two modular transaction source entries, found {extra_text.count(extra_needle)}"
+    )
+extra_replacement = (
+    extra_needle
+    + '    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_transaction_replace.c"\n'
+)
+extra_tests.write_text(extra_text.replace(extra_needle, extra_replacement))
+'''
+
           helper.write_text(text)
           PY
           python3 tools/phase18_3_tree_impl.py 2>&1 | tee /tmp/phase18-3-tree.log
 
-      - name: Validate set-tree and transaction recovery
+      - name: Validate set-tree and permanent host configuration
         shell: bash
         run: |
           set -o pipefail
@@ -88,6 +104,7 @@ jobs:
             cmake -S tests/host -B build/phase18-3-tree -G Ninja
             cmake --build build/phase18-3-tree --target storage_set_tree_tests storage_transaction_tests
             ctest --test-dir build/phase18-3-tree --output-on-failure -R '^(storage_set_tree|storage_transaction)$'
+            ./scripts/run-tests.sh storage
           } 2>&1 | tee -a /tmp/phase18-3-tree.log
 
       - name: Record failed implementation run
