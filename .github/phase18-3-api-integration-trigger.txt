@@ -1,1 +1,1 @@
-Apply and validate the Phase 18.3 transactional set replacement API with modular host targets enabled.
+Apply and validate the Phase 18.3 transactional set replacement API with separate web and storage suites.
