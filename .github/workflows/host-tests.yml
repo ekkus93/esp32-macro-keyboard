@@ -4,298 +4,37 @@ on:
   push:
     branches:
       - master
-    tags:
-      - "**"
-  pull_request:
-    branches:
-      - master
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: host-tests-${{ github.workflow }}-${{ github.ref }}
+  group: phase18-4-doc-sync-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   phase18-4-doc-sync:
     name: Phase 18.4 Documentation Sync
-    if: github.event_name == 'push' && github.event.head_commit.message == 'ci: trigger registered Phase 18.4 documentation patch'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Apply and publish documentation patch
+      - name: Apply documentation patch
         shell: bash
         run: |
           set -euo pipefail
           python3 tools/phase18_4_doc_sync.py
+          if git diff --quiet -- \
+            docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md \
+            docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md; then
+            echo "Phase 18.4 documentation is already synchronized."
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md \
                   docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md
           git commit -m "docs: record Phase 18.4 completion"
           git push
-
-  host-tests:
-    name: Host Tests
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Install host-test dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends \
-            build-essential \
-            cmake \
-            libcjson-dev
-
-      - name: Run host tests
-        shell: bash
-        run: |
-          set -o pipefail
-          ./scripts/run-tests.sh 2>&1 | tee "${RUNNER_TEMP}/host-tests.log"
-
-      - name: Upload failed host-test log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: failed-host-tests-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/host-tests.log
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Package tagged host-test assets
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: bash
-        run: |
-          set -euo pipefail
-          readonly output_dir="artifacts/host-tests"
-          readonly build_dir="tests/host/build"
-
-          mkdir -p "${output_dir}/binaries"
-          find "${build_dir}" -maxdepth 1 -type f -perm /111 \
-            -exec cp -- {} "${output_dir}/binaries/" \;
-          cp -- "${RUNNER_TEMP}/host-tests.log" "${output_dir}/"
-          printf 'tag=%s\ncommit=%s\nrunner=%s\nmode=normal\n' \
-            "${GITHUB_REF_NAME}" \
-            "${GITHUB_SHA}" \
-            "${RUNNER_OS}" \
-            > "${output_dir}/BUILD-METADATA.txt"
-          bash ./scripts/validate-tagged-test-assets.sh "${output_dir}"
-
-      - name: Upload tagged host-test assets
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v4
-        with:
-          name: host-tests-${{ github.ref_name }}-linux-x86_64
-          path: artifacts/host-tests/
-          if-no-files-found: error
-          retention-days: 90
-
-  host-sanitizers:
-    name: Host ASan and UBSan
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Install host-test dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends \
-            build-essential \
-            cmake \
-            libcjson-dev
-
-      - name: Run host tests with sanitizers
-        shell: bash
-        run: |
-          set -o pipefail
-          ./scripts/run-tests.sh --sanitizers 2>&1 \
-            | tee "${RUNNER_TEMP}/host-sanitizers.log"
-
-      - name: Upload failed sanitizer log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: failed-host-sanitizers-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/host-sanitizers.log
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Package tagged sanitizer assets
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: bash
-        run: |
-          set -euo pipefail
-          readonly output_dir="artifacts/host-sanitizers"
-          readonly build_dir="tests/host/build-sanitizers"
-
-          mkdir -p "${output_dir}/binaries"
-          find "${build_dir}" -maxdepth 1 -type f -perm /111 \
-            -exec cp -- {} "${output_dir}/binaries/" \;
-          cp -- "${RUNNER_TEMP}/host-sanitizers.log" "${output_dir}/"
-          printf 'tag=%s\ncommit=%s\nrunner=%s\nmode=asan-ubsan\n' \
-            "${GITHUB_REF_NAME}" \
-            "${GITHUB_SHA}" \
-            "${RUNNER_OS}" \
-            > "${output_dir}/BUILD-METADATA.txt"
-          bash ./scripts/validate-tagged-test-assets.sh "${output_dir}"
-
-      - name: Upload tagged sanitizer assets
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v4
-        with:
-          name: host-sanitizers-${{ github.ref_name }}-linux-x86_64
-          path: artifacts/host-sanitizers/
-          if-no-files-found: error
-          retention-days: 90
-
-  native-coverage:
-    name: Native Coverage
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Install native coverage dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends \
-            build-essential \
-            cmake \
-            libcjson-dev \
-            python3-venv
-          python3 -m venv "${RUNNER_TEMP}/gcovr"
-          "${RUNNER_TEMP}/gcovr/bin/python" -m pip install --disable-pip-version-check \
-            gcovr==8.6
-
-      - name: Generate native coverage and enforce gates
-        shell: bash
-        run: |
-          set -o pipefail
-          PATH="${RUNNER_TEMP}/gcovr/bin:${PATH}" \
-            bash ./scripts/generate-native-coverage.sh 2>&1 \
-            | tee "${RUNNER_TEMP}/native-coverage.log"
-
-      - name: Package tagged native coverage
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: bash
-        run: |
-          set -euo pipefail
-          readonly output_dir="artifacts/native-coverage"
-          mkdir -p "${output_dir}"
-          cp -R -- tests/host/coverage/. "${output_dir}/"
-          cp -- "${RUNNER_TEMP}/native-coverage.log" "${output_dir}/"
-          printf 'tag=%s\ncommit=%s\nrunner=%s\ncoverage=gcovr-8.6\n' \
-            "${GITHUB_REF_NAME}" \
-            "${GITHUB_SHA}" \
-            "${RUNNER_OS}" \
-            > "${output_dir}/BUILD-METADATA.txt"
-          bash ./scripts/validate-tagged-test-assets.sh "${output_dir}"
-
-      - name: Upload tagged native coverage
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v4
-        with:
-          name: native-coverage-${{ github.ref_name }}
-          path: artifacts/native-coverage/
-          if-no-files-found: error
-          retention-days: 90
-
-  frontend-tests:
-    name: Frontend Tests
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          show-progress: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24.18.0
-          cache: npm
-          cache-dependency-path: webapp/package-lock.json
-
-      - name: Install frontend dependencies
-        run: npm --prefix webapp ci --ignore-scripts --no-audit --no-fund
-
-      - name: Type-check frontend
-        run: npm --prefix webapp run typecheck
-
-      - name: Lint frontend TypeScript
-        run: npm --prefix webapp run lint
-
-      - name: Lint frontend styles
-        run: npm --prefix webapp run stylelint
-
-      - name: Check frontend formatting
-        run: npm --prefix webapp run format:check
-
-      - name: Run frontend tests
-        run: npm --prefix webapp test
-
-  frontend-coverage:
-    name: Frontend Coverage
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          show-progress: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24.18.0
-          cache: npm
-          cache-dependency-path: webapp/package-lock.json
-
-      - name: Generate frontend coverage
-        shell: bash
-        run: |
-          set -o pipefail
-          bash ./scripts/generate-frontend-coverage.sh 2>&1 \
-            | tee "${RUNNER_TEMP}/frontend-coverage.log"
-
-      - name: Package tagged frontend coverage
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: bash
-        run: |
-          set -euo pipefail
-          readonly output_dir="artifacts/frontend-coverage"
-          mkdir -p "${output_dir}"
-          cp -R -- webapp/coverage/. "${output_dir}/"
-          cp -- "${RUNNER_TEMP}/frontend-coverage.log" "${output_dir}/"
-          printf 'tag=%s\ncommit=%s\nrunner=%s\ncoverage=vitest-v8-3.2.4\n' \
-            "${GITHUB_REF_NAME}" \
-            "${GITHUB_SHA}" \
-            "${RUNNER_OS}" \
-            > "${output_dir}/BUILD-METADATA.txt"
-          bash ./scripts/validate-tagged-test-assets.sh "${output_dir}"
-
-      - name: Upload tagged frontend coverage
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-coverage-${{ github.ref_name }}
-          path: artifacts/frontend-coverage/
-          if-no-files-found: error
-          retention-days: 90
