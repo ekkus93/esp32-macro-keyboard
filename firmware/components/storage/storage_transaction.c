@@ -18,6 +18,7 @@
 #include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
+#include "storage_set_tree_internal.h"
 #include "storage_transaction_internal.h"
 
 #define STORAGE_TRANSACTION_MAX_ACTIVE 16U
@@ -49,25 +50,7 @@ static app_error_code_t production_validate_set(void *context, const char *path,
                                                 const app_uuid_t *set_id,
                                                 uint32_t expected_revision) {
     (void)context;
-    char set_path[APP_PATH_MAX_BYTES];
-    const int written = snprintf(set_path, sizeof(set_path), "%s/set.json", path);
-    if (written < 0 || (size_t)written >= sizeof(set_path)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    char *data = NULL;
-    size_t length = 0U;
-    app_error_code_t result =
-        storage_repository_read_bounded_file(set_path, STORAGE_SET_FILE_MAX_BYTES, &data, &length);
-    macro_set_t set = {0};
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_parse_set_json(data, length, &set);
-    }
-    free(data);
-    if (result == APP_ERROR_NONE &&
-        (!app_uuid_equal(&set.id, set_id) || set.revision != expected_revision)) {
-        result = APP_ERROR_STORAGE_CORRUPT;
-    }
-    return result;
+    return storage_set_tree_validate(path, set_id, expected_revision);
 }
 
 static app_error_code_t production_remove_tree(void *context, const char *path) {
