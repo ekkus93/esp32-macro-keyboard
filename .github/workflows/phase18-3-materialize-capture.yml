@@ -1,0 +1,49 @@
+name: Phase 18.3 Materialization Capture
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/phase18-3-materialize-capture-trigger.txt
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: master
+          fetch-depth: 0
+      - name: Materialize source
+        run: |
+          python3 tools/phase18_3_package_replace_impl.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('tests/host/test_storage_package_replace.c')
+          text = path.read_text().replace(
+              'storage_procedure_read(&procedure_identity, &procedure)',
+              'storage_procedure_read(&procedure_identity.set_id, &procedure_identity.procedure_id, &procedure)',
+              1,
+          )
+          path.write_text(text)
+          PY
+      - name: Record materialization implementation
+        shell: bash
+        run: |
+          {
+            echo '# Phase 18.3 materialization implementation'
+            echo
+            echo '```c'
+            nl -ba firmware/components/storage/storage_package_replace.c | sed -n '200,525p'
+            echo '```'
+          } > docs/PHASE18_3_MATERIALIZATION_DEBUG.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/PHASE18_3_MATERIALIZATION_DEBUG.md
+          git commit -m "ci: capture Phase 18.3 materialization source"
+          git push origin HEAD:master
