@@ -19,22 +19,31 @@ jobs:
         with:
           ref: master
 
-      - name: Collect Phase 18.5 surfaces
+      - name: Capture implementation surfaces
         shell: bash
         run: |
           set -euo pipefail
-          report=docs/PHASE18_5_INSPECTION.txt
-          {
-            echo '=== FILES ==='
-            find tests webapp/src firmware/components scripts -type f | sort
-            echo
-            echo '=== SURFACES ==='
-            grep -RInE 'localStorage|sessionStorage|persist|diagnostic|credential|password|secret|token|cookie|log_event|export_set|export_backup' \
-              tests webapp/src firmware/components scripts || true
-          } > "$report"
+          report=docs/PHASE18_5_IMPLEMENTATION_SURFACES.txt
+          : > "$report"
+          files=(
+            tests/host/test_storage_package_export.c
+            tests/host/test_storage_package_backup.c
+            tests/host/test_app_core.c
+            tests/host/test_web_api_admin_boundary.c
+            scripts/check-credential-logging.sh
+            tests/scripts/test-check-credential-logging.sh
+            scripts/check-scripts.sh
+            webapp/package.json
+          )
+          while IFS= read -r path; do files+=("$path"); done < <(find webapp -type f \( -name '*test*' -o -name '*spec*' \) | sort)
+          for path in "${files[@]}"; do
+            [[ -f "$path" ]] || continue
+            printf '\n===== %s =====\n' "$path" >> "$report"
+            cat "$path" >> "$report"
+          done
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "$report"
           git diff --cached --check
-          git commit -m "docs: capture Phase 18.5 inspection surfaces"
+          git commit -m "docs: capture Phase 18.5 implementation surfaces"
           git push origin HEAD:master
