@@ -43,6 +43,11 @@ app_error_code_t storage_transaction_recover_restore_with_ops(
     storage_transaction_validate_repository_fn validate_repository, void *validation_context,
     storage_transaction_remove_tree_fn remove_tree, void *remove_context);
 
+app_error_code_t storage_transaction_recover_restores_with_ops(
+    const storage_fs_ops_t *operations, storage_uuid_generate_fn generate_uuid, void *uuid_context,
+    storage_transaction_validate_repository_fn validate_repository, void *validation_context,
+    storage_transaction_remove_tree_fn remove_tree, void *remove_context);
+
 app_error_code_t storage_transaction_recover_all_with_ops(
     const storage_fs_ops_t *operations, storage_uuid_generate_fn generate_uuid, void *uuid_context,
     storage_transaction_set_index_presence_fn set_index_presence, void *index_context,
