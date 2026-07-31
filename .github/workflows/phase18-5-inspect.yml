@@ -1,0 +1,56 @@
+name: Phase 18.5 inspection
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/phase18-5-inspect.yml
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Collect Phase 18.5 surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inspection/files
+          find tests webapp/src firmware/components scripts -type f | sort > inspection/all-files.txt
+          grep -RInE 'localStorage|sessionStorage|persist|diagnostic|credential|password|secret|token|cookie|log_event|export_set|export_backup' \
+            tests webapp/src firmware/components scripts > inspection/surface-grep.txt || true
+          for path in \
+            tests/host/CMakeLists.txt \
+            tests/host/test_storage_package.c \
+            tests/host/test_storage_package_backup.c \
+            tests/host/test_app_core.c \
+            firmware/components/app_core/app_core_sequence.c \
+            firmware/components/app_core/app_core_ops.h \
+            webapp/package.json; do
+            if [[ -f "$path" ]]; then
+              mkdir -p "inspection/files/$(dirname "$path")"
+              cp "$path" "inspection/files/$path"
+            fi
+          done
+          while IFS= read -r path; do
+            case "$path" in
+              *test*|*store*|*persist*|*diagnostic*|*log*)
+                mkdir -p "inspection/files/$(dirname "$path")"
+                cp "$path" "inspection/files/$path"
+                ;;
+            esac
+          done < inspection/all-files.txt
+
+      - name: Upload inspection
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: phase18-5-inspection-${{ github.run_id }}
+          path: inspection
+          retention-days: 2
+          if-no-files-found: error
