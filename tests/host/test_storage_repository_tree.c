@@ -215,7 +215,10 @@ static void test_cross_object_semantics_are_revalidated(void) {
     path_join(path, sizeof(path), STORAGE_DATA_MOUNT,
               "sets/" SET_ID "/procedures/" PROCEDURE_ID ".json");
     write_text(path, INVALID_PROCEDURE_JSON);
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
+    /* The bounded package validator classifies a semantically invalid package as
+     * invalid input. The restore transaction adapter converts this result to
+     * storage corruption before it can influence recovery. */
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          storage_repository_tree_validate(STORAGE_DATA_MOUNT));
 }
 
