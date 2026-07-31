@@ -26,3 +26,10 @@ target_link_libraries(storage_package_restore_tests PRIVATE PkgConfig::CJSON tes
 target_compile_options(storage_package_restore_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME storage_package_restore COMMAND storage_package_restore_tests)
 set_tests_properties(storage_package_restore PROPERTIES LABELS "storage")
+
+# The administration package boundary now consumes the complete API call type,
+# which includes the fixed-size authenticated-session token.
+target_include_directories(
+    web_api_admin_boundary_tests
+    PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/auth/include"
+)
