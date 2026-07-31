@@ -7,6 +7,7 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_restore.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_transaction_restore.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_transaction_restore_recovery.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_set_tree.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_tree.c"
 )
