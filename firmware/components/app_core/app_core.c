@@ -72,6 +72,10 @@ static app_error_code_t adapter_storage_recover(void *context) {
     if (atomic != APP_ERROR_NONE) {
         return atomic;
     }
+    const app_error_code_t restores = storage_transaction_recover_restores();
+    if (restores != APP_ERROR_NONE) {
+        return restores;
+    }
     const app_error_code_t transactions = storage_transaction_recover_all();
     if (transactions != APP_ERROR_NONE) {
         return transactions;
