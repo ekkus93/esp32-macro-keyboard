@@ -19,43 +19,34 @@ jobs:
         with:
           ref: master
 
-      - name: Record completion and remove scaffolding
+      - name: Finalize Phase 18.5
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           todo = Path("docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md")
           text = todo.read_text()
-          heading = "### 18.5 Secret scanner tests"
-          start = text.index(heading)
-          end = text.index("\n## 19.", start)
-          section = text[start:end]
-          for label in (
-              "set export;",
-              "full backup;",
-              "diagnostics;",
-              "logs;",
-              "frontend persisted state.",
-          ):
-              section = section.replace(f"- [ ] {label}", f"- [x] {label}")
-          note = (
-              "\n**Implemented:** `scripts/check-secret-sentinel.py` scans generated artifacts for "
-              "raw, JSON-escaped, URL-encoded, base64, base64url, and hexadecimal forms without "
-              "printing secret material. `tests/scripts/test-secret-sentinel.py` generates a fresh "
-              "sentinel and exercises set-export, full-backup, diagnostics, application-log, and "
-              "frontend-persisted-state boundaries, including deliberate leak failures. Production "
-              "set-export and full-backup host tests also keep a sentinel resident in the test process "
-              "and assert it is absent from serialized output.\n"
-          )
-          if "**Implemented:** `scripts/check-secret-sentinel.py`" not in section:
-              section += note
-          todo.write_text(text[:start] + section + text[end:])
+          match = re.search(r"(?ms)^### 18\.5 Secret scanner tests\n(.*?)(?=^## 19\.)", text)
+          if match is None:
+              raise SystemExit("Phase 18.5 TODO section not found")
+          section = match.group(0)
+          section = re.sub(r"^- \[ \] (set export;|full backup;|diagnostics;|logs;|frontend persisted state\.)$", r"- [x] \1", section, flags=re.M)
+          note = """
+
+**Implemented:** `scripts/check-secret-sentinel.py` scans generated artifacts for raw, JSON-escaped, URL-encoded, base64, base64url, and hexadecimal forms without printing secret material. `tests/scripts/test-secret-sentinel.py` generates a fresh sentinel and exercises set-export, full-backup, diagnostics, application-log, and frontend-persisted-state boundaries, including deliberate leak failures. Production set-export and full-backup host tests also keep a sentinel resident in the test process and assert it is absent from serialized output.
+"""
+          if "scripts/check-secret-sentinel.py" not in section:
+              section = section.rstrip() + note + "\n"
+          text = text[:match.start()] + section + text[match.end():]
+          todo.write_text(text)
 
           progress = Path("docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_PROGRESS.md")
           progress_text = progress.read_text()
-          entry = """
+          if "## Phase 18.5 — secret sentinel scanner" not in progress_text:
+              progress_text = progress_text.rstrip() + """
 
 ## Phase 18.5 — secret sentinel scanner
 
@@ -82,10 +73,10 @@ Deviations:
 
 - none for Phase 18.5 software scope;
 - hardware/device validation remains unchecked by explicit operator instruction.
-"""
-          if "## Phase 18.5 — secret sentinel scanner" not in progress_text:
-              progress.write_text(progress_text.rstrip() + entry + "\n")
+""" + "\n"
+              progress.write_text(progress_text)
           PY
+
           rm -f docs/PHASE18_5_INSPECTION.txt docs/PHASE18_5_IMPLEMENTATION_SURFACES.txt
           rm -f .github/workflows/phase18-5-inspect.yml
 
