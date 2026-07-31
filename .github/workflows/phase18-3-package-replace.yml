@@ -55,21 +55,34 @@ jobs:
             python3 tools/phase18_3_package_replace_impl.py
             python3 - <<'PY'
           from pathlib import Path
+          import re
 
-          path = Path("tests/host/test_storage_package_replace.c")
-          text = path.read_text()
-          text = text.replace(
+          test_path = Path("tests/host/test_storage_package_replace.c")
+          test = test_path.read_text()
+          test = test.replace(
               "storage_procedure_read(&procedure_identity, &procedure)",
               "storage_procedure_read(&procedure_identity.set_id, "
               "&procedure_identity.procedure_id, &procedure)",
               1,
           )
-          text = text.replace(
+          test = test.replace(
               "        .scope = MACRO_SCOPE_SET,\n        .set_id = id,",
               "        .scope = MACRO_SCOPE_SET,\n        .has_set_id = true,\n        .set_id = id,",
               1,
           )
-          path.write_text(text)
+          test_path.write_text(test)
+
+          cmake_path = Path("tests/host/CMakeLists.txt")
+          cmake = cmake_path.read_text()
+          cmake, count = re.subn(
+              r"\$\{CMAKE_(?:CURRENT_)?BINARY_DIR\}/storage-package-replace-data",
+              "/tmp/esp32-macro-keyboard-p18r",
+              cmake,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit("package replacement host mount anchor changed")
+          cmake_path.write_text(cmake)
           PY
           } 2>&1 | tee "${RUNNER_TEMP}/phase18-3-package-replace.log"
 
