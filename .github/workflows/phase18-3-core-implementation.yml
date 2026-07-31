@@ -1,4 +1,4 @@
-name: Phase 18.3 Core Implementation
+name: Phase 18.3 Set Tree Implementation
 
 on:
   push:
@@ -25,72 +25,40 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config libcjson-dev
 
-      - name: Apply Phase 18.3 transaction core
+      - name: Apply Phase 18.3 set-tree validator
         shell: bash
         run: |
           set -o pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          helper = Path("tools/phase18_3_core_impl.py")
-          text = helper.read_text()
+          python3 tools/phase18_3_tree_impl.py 2>&1 | tee /tmp/phase18-3-tree.log
 
-          callback_old = "                                                       bool should_be_present) {"
-          callback_new = "                                                      bool should_be_present) {"
-          if text.count(callback_old) != 2:
-              raise SystemExit(
-                  f"expected two callback-indent normalizations, found {text.count(callback_old)}"
-              )
-          text = text.replace(callback_old, callback_new)
-
-          recover_tokens = (
-              "generate_uuid,",
-              "uuids,",
-              "update_index,",
-              "index);",
-              "index,",
-              "validate_set,",
-              "NULL,",
-              "remove_tree,",
-              "NULL);",
-          )
-          for token in recover_tokens:
-              old = "\n                                                     " + token
-              new = "\n                                                    " + token
-              text = text.replace(old, new)
-
-          helper.write_text(text)
-          PY
-          python3 tools/phase18_3_core_impl.py 2>&1 | tee /tmp/phase18-3-core.log
-
-      - name: Validate transaction core
+      - name: Validate set-tree and transaction recovery
         shell: bash
         run: |
           set -o pipefail
           {
             git diff --check
-            cmake -S tests/host -B build/phase18-3-host -G Ninja
-            cmake --build build/phase18-3-host --target storage_transaction_tests
-            ctest --test-dir build/phase18-3-host --output-on-failure -R '^storage_transaction$'
-          } 2>&1 | tee -a /tmp/phase18-3-core.log
+            cmake -S tests/host -B build/phase18-3-tree -G Ninja
+            cmake --build build/phase18-3-tree --target storage_set_tree_tests storage_transaction_tests
+            ctest --test-dir build/phase18-3-tree --output-on-failure -R '^(storage_set_tree|storage_transaction)$'
+          } 2>&1 | tee -a /tmp/phase18-3-tree.log
 
       - name: Record failed implementation run
         if: failure()
         shell: bash
         run: |
-          mkdir -p docs
           {
-            echo '# Phase 18.3 core automation failure'
+            echo '# Phase 18.3 set-tree automation failure'
             echo
             echo 'The temporary implementation workflow failed before committing code.'
             echo
             echo '```text'
-            cat /tmp/phase18-3-core.log 2>/dev/null || echo 'No captured log was available.'
+            cat /tmp/phase18-3-tree.log 2>/dev/null || echo 'No captured log was available.'
             echo '```'
           } > docs/PHASE18_3_CORE_AUTOMATION_FAILURE.md
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/PHASE18_3_CORE_AUTOMATION_FAILURE.md
-          git commit -m "ci: record Phase 18.3 core automation failure"
+          git commit -m "ci: record Phase 18.3 set-tree automation failure"
           git push origin HEAD:master
 
       - name: Commit validated implementation
@@ -100,5 +68,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add firmware/components/storage tests/host
-          git commit -m "feat(storage): add replace transaction recovery core"
+          git commit -m "feat(storage): validate complete replacement set trees"
           git push origin HEAD:master
