@@ -1,1 +1,1 @@
-Apply and validate the production Phase 18.3 transactional package replacement service.
+Apply and validate the production Phase 18.3 transactional package replacement service. Diagnostic run 2.
