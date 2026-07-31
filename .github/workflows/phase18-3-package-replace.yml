@@ -56,88 +56,20 @@ jobs:
             python3 - <<'PY'
           from pathlib import Path
 
-          test_path = Path("tests/host/test_storage_package_replace.c")
-          test = test_path.read_text()
-          test = test.replace(
+          path = Path("tests/host/test_storage_package_replace.c")
+          text = path.read_text()
+          text = text.replace(
               "storage_procedure_read(&procedure_identity, &procedure)",
               "storage_procedure_read(&procedure_identity.set_id, "
               "&procedure_identity.procedure_id, &procedure)",
               1,
           )
-          test = test.replace(
+          text = text.replace(
               "        .scope = MACRO_SCOPE_SET,\n        .set_id = id,",
               "        .scope = MACRO_SCOPE_SET,\n        .has_set_id = true,\n        .set_id = id,",
               1,
           )
-          test_path.write_text(test)
-
-          service_path = Path("firmware/components/storage/storage_package_replace.c")
-          service = service_path.read_text()
-          replacements = [
-              (
-                  "    app_error_code_t result = storage_set_read_locked(target_set_id, &current);\n",
-                  "    app_error_code_t result = storage_set_read_locked(target_set_id, &current);\n"
-                  "    fprintf(stderr, \"TRACE current=%d\\n\", (int)result);\n",
-              ),
-              (
-                  "        result = verify_global_dependencies(document->arrays[PACKAGE_REPLACE_GLOBAL_MACROS]);\n",
-                  "        result = verify_global_dependencies(document->arrays[PACKAGE_REPLACE_GLOBAL_MACROS]);\n"
-                  "        fprintf(stderr, \"TRACE globals=%d\\n\", (int)result);\n",
-              ),
-              (
-                  "        result = app_uuid_generate(&transaction_id);\n",
-                  "        result = app_uuid_generate(&transaction_id);\n"
-                  "        fprintf(stderr, \"TRACE uuid=%d\\n\", (int)result);\n",
-              ),
-              (
-                  "        result = initialize_manifest(&transaction_id, &current, &document->replacement, staging,\n"
-                  "                                     &manifest);\n",
-                  "        result = initialize_manifest(&transaction_id, &current, &document->replacement, staging,\n"
-                  "                                     &manifest);\n"
-                  "        fprintf(stderr, \"TRACE manifest-init=%d\\n\", (int)result);\n",
-              ),
-              (
-                  "        result = storage_transaction_write_manifest(&manifest);\n"
-                  "        manifest_written = result == APP_ERROR_NONE;\n",
-                  "        result = storage_transaction_write_manifest(&manifest);\n"
-                  "        fprintf(stderr, \"TRACE manifest-prepared=%d\\n\", (int)result);\n"
-                  "        manifest_written = result == APP_ERROR_NONE;\n",
-              ),
-              (
-                  "        result = create_staging(&transaction_id, staging, sizeof(staging));\n",
-                  "        result = create_staging(&transaction_id, staging, sizeof(staging));\n"
-                  "        fprintf(stderr, \"TRACE staging-create=%d\\n\", (int)result);\n",
-              ),
-              (
-                  "        result = materialize_staging(document, staging);\n",
-                  "        result = materialize_staging(document, staging);\n"
-                  "        fprintf(stderr, \"TRACE materialize=%d\\n\", (int)result);\n",
-              ),
-              (
-                  "        result = storage_set_tree_validate(staging, target_set_id,\n"
-                  "                                           document->replacement.revision);\n",
-                  "        result = storage_set_tree_validate(staging, target_set_id,\n"
-                  "                                           document->replacement.revision);\n"
-                  "        fprintf(stderr, \"TRACE validate-tree=%d\\n\", (int)result);\n",
-              ),
-              (
-                  "        manifest.phase = STORAGE_TRANSACTION_STAGED;\n"
-                  "        result = storage_transaction_write_manifest(&manifest);\n",
-                  "        manifest.phase = STORAGE_TRANSACTION_STAGED;\n"
-                  "        result = storage_transaction_write_manifest(&manifest);\n"
-                  "        fprintf(stderr, \"TRACE manifest-staged=%d\\n\", (int)result);\n",
-              ),
-              (
-                  "        result = recover_replace(&manifest);\n",
-                  "        result = recover_replace(&manifest);\n"
-                  "        fprintf(stderr, \"TRACE recover=%d\\n\", (int)result);\n",
-              ),
-          ]
-          for old, new in replacements:
-              if service.count(old) != 1:
-                  raise SystemExit(f"trace anchor changed: {old!r}")
-              service = service.replace(old, new, 1)
-          service_path.write_text(service)
+          path.write_text(text)
           PY
           } 2>&1 | tee "${RUNNER_TEMP}/phase18-3-package-replace.log"
 
@@ -150,6 +82,10 @@ jobs:
             cmake -S tests/host -B build/phase18-3-package-replace -G Ninja
             cmake --build build/phase18-3-package-replace \
               --target storage_package_replace_tests storage_transaction_tests storage_set_tree_tests
+            for iteration in $(seq 1 10); do
+              echo "package replacement stress iteration ${iteration}"
+              build/phase18-3-package-replace/storage_package_replace_tests
+            done
             ctest --test-dir build/phase18-3-package-replace --output-on-failure \
               -R '^(storage_package_replace|storage_transaction|storage_set_tree)$'
             ./scripts/run-tests.sh storage
@@ -180,7 +116,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sed -i '/TRACE /d' firmware/components/storage/storage_package_replace.c
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
