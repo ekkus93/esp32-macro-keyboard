@@ -51,7 +51,8 @@ jobs:
               --target web_api_set_export_tests web_api_core_tests storage_package_replace_tests
             ctest --test-dir /tmp/esp32-p183-api --output-on-failure \
               -R '^(web_api_set_export|web_api_core|storage_package_replace)$'
-            ./scripts/run-tests.sh web storage
+            ./scripts/run-tests.sh web
+            ./scripts/run-tests.sh storage
           } 2>&1 | tee -a "${RUNNER_TEMP}/phase18-3-api.log"
 
       - name: Record API integration failure
