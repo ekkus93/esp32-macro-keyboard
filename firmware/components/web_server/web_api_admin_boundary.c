@@ -23,8 +23,7 @@ static app_error_code_t respond_error(web_api_response_t *response, unsigned int
 }
 
 static app_error_code_t respond_operation_error(web_api_response_t *response,
-                                                app_error_code_t result,
-                                                const char *message) {
+                                                app_error_code_t result, const char *message) {
     return respond_error(response, web_api_http_status_for_error(result), result, message);
 }
 
@@ -51,8 +50,7 @@ static app_error_code_t send_storage_snapshot(web_api_response_t *response) {
 static app_error_code_t send_backup(web_api_response_t *response) {
     char *package_json = NULL;
     size_t package_length = 0U;
-    app_error_code_t result =
-        storage_package_export_backup(true, &package_json, &package_length);
+    app_error_code_t result = storage_package_export_backup(true, &package_json, &package_length);
     if (result != APP_ERROR_NONE) {
         return respond_operation_error(response, result, "backup unavailable");
     }
@@ -63,10 +61,8 @@ static app_error_code_t send_backup(web_api_response_t *response) {
     return result;
 }
 
-static app_error_code_t restore_backup(const web_api_call_t *call,
-                                       web_api_response_t *response) {
-    const app_error_code_t result =
-        storage_package_restore_backup(call->body, call->body_length);
+static app_error_code_t restore_backup(const web_api_call_t *call, web_api_response_t *response) {
+    const app_error_code_t result = storage_package_restore_backup(call->body, call->body_length);
     return result == APP_ERROR_NONE
                ? web_api_response_success(response, WEB_HTTP_STATUS_OK,
                                           "{\"restored\":true,\"reloadRequired\":true}")

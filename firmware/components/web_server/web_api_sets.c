@@ -261,7 +261,6 @@ static app_error_code_t handle_set_reorder(const web_api_call_t *call,
     return result;
 }
 
-
 typedef struct {
     app_uuid_t target_set_id;
     uint32_t expected_revision;
@@ -308,8 +307,8 @@ static app_error_code_t parse_set_import(const web_api_call_t *call,
             }
             out_request->expected_revision = revision;
             revision_seen = true;
-        } else if (item->string != NULL && strcmp(item->string, "package") == 0 &&
-                   !package_seen && cJSON_IsObject(item)) {
+        } else if (item->string != NULL && strcmp(item->string, "package") == 0 && !package_seen &&
+                   cJSON_IsObject(item)) {
             out_request->package_json = cJSON_PrintUnformatted(item);
             if (out_request->package_json == NULL) {
                 result = APP_ERROR_INTERNAL;
@@ -342,9 +341,9 @@ static app_error_code_t handle_import(const web_api_call_t *call, web_api_respon
     app_error_code_t result = parse_set_import(call, &request);
     macro_set_t committed = {0};
     if (result == APP_ERROR_NONE) {
-        result = storage_package_replace_set(&request.target_set_id, request.expected_revision,
-                                             request.package_json, request.package_length,
-                                             &committed);
+        result =
+            storage_package_replace_set(&request.target_set_id, request.expected_revision,
+                                        request.package_json, request.package_length, &committed);
     }
     free_set_import_request(&request);
     return result == APP_ERROR_NONE ? send_set(response, WEB_HTTP_STATUS_OK, &committed)

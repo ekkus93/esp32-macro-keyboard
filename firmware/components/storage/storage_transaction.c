@@ -611,7 +611,8 @@ app_error_code_t storage_transaction_recover_all_with_ops(
     storage_transaction_set_index_presence_fn set_index_presence, void *index_context,
     storage_transaction_validate_set_fn validate_set, void *validation_context,
     storage_transaction_remove_tree_fn remove_tree, void *remove_context) {
-    if (!operations_valid(operations, generate_uuid, set_index_presence, validate_set, remove_tree)) {
+    if (!operations_valid(operations, generate_uuid, set_index_presence, validate_set,
+                          remove_tree)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
 
@@ -671,10 +672,9 @@ app_error_code_t storage_transaction_recover_all(void) {
     if (lock != APP_ERROR_NONE) {
         return lock;
     }
-    const app_error_code_t result =
-        storage_transaction_recover_all_with_ops(
-            storage_fs_ops_posix(), production_uuid_generate, NULL, production_set_index_presence,
-            NULL, production_validate_set, NULL, production_remove_tree, NULL);
+    const app_error_code_t result = storage_transaction_recover_all_with_ops(
+        storage_fs_ops_posix(), production_uuid_generate, NULL, production_set_index_presence, NULL,
+        production_validate_set, NULL, production_remove_tree, NULL);
     const app_error_code_t unlock = storage_repository_lock_give();
     return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }

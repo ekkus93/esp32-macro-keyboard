@@ -12,8 +12,9 @@
 typedef app_error_code_t (*storage_transaction_set_index_presence_fn)(void *context,
                                                                       const app_uuid_t *set_id,
                                                                       bool should_be_present);
-typedef app_error_code_t (*storage_transaction_validate_set_fn)(
-    void *context, const char *path, const app_uuid_t *set_id, uint32_t expected_revision);
+typedef app_error_code_t (*storage_transaction_validate_set_fn)(void *context, const char *path,
+                                                                const app_uuid_t *set_id,
+                                                                uint32_t expected_revision);
 typedef app_error_code_t (*storage_transaction_validate_repository_fn)(void *context,
                                                                        const char *root);
 typedef app_error_code_t (*storage_transaction_remove_tree_fn)(void *context, const char *path);

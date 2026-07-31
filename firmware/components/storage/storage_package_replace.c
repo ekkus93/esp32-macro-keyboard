@@ -88,8 +88,7 @@ static app_error_code_t join_path(const char *parent, const char *name, char *ou
 }
 
 static app_error_code_t sync_parent(const char *path) {
-    return storage_fs_sync_parent_path(NULL, path) == 0 ? APP_ERROR_NONE
-                                                        : map_error_number(errno);
+    return storage_fs_sync_parent_path(NULL, path) == 0 ? APP_ERROR_NONE : map_error_number(errno);
 }
 
 static app_error_code_t make_directory(const char *path) {
@@ -148,8 +147,7 @@ static app_error_code_t parse_procedure_node(const cJSON *node, procedure_t *out
     return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
 }
 
-static app_error_code_t parse_progress_node(const cJSON *node,
-                                            procedure_progress_t *out_progress) {
+static app_error_code_t parse_progress_node(const cJSON *node, procedure_progress_t *out_progress) {
     char *json = NULL;
     size_t length = 0U;
     app_error_code_t result = node_json(node, &json, &length);
@@ -235,9 +233,8 @@ static app_error_code_t verify_global_dependency(const cJSON *node) {
     if (result == APP_ERROR_NONE) {
         result = canonical_macro_json(&stored, &stored_json, &stored_length);
     }
-    if (result == APP_ERROR_NONE &&
-        (package_length != stored_length ||
-         memcmp(package_json, stored_json, package_length) != 0)) {
+    if (result == APP_ERROR_NONE && (package_length != stored_length ||
+                                     memcmp(package_json, stored_json, package_length) != 0)) {
         result = APP_ERROR_CONFLICT;
     }
     cJSON_free(package_json);
@@ -295,8 +292,7 @@ static app_error_code_t write_order(const char *staging, const char *name,
 }
 
 static app_error_code_t write_macro_node(const char *directory, const cJSON *node,
-                                         const app_uuid_t *set_id,
-                                         storage_uuid_order_t *order) {
+                                         const app_uuid_t *set_id, storage_uuid_order_t *order) {
     macro_t macro = {0};
     app_error_code_t result = parse_macro_node(node, &macro);
     if (result == APP_ERROR_NONE &&
@@ -347,9 +343,8 @@ static app_error_code_t write_procedure_node(const char *directory, const cJSON 
                                              storage_uuid_order_t *order) {
     procedure_t procedure = {0};
     app_error_code_t result = parse_procedure_node(node, &procedure);
-    if (result == APP_ERROR_NONE &&
-        (!app_uuid_equal(&procedure.set_id, set_id) ||
-         order->count >= APP_PROCEDURES_PER_SET_MAX)) {
+    if (result == APP_ERROR_NONE && (!app_uuid_equal(&procedure.set_id, set_id) ||
+                                     order->count >= APP_PROCEDURES_PER_SET_MAX)) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
     char *json = NULL;
@@ -383,12 +378,10 @@ static app_error_code_t write_procedures(const char *staging, const cJSON *array
     storage_uuid_order_t order = {0};
     const int count = cJSON_GetArraySize(array);
     for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
-        result =
-            write_procedure_node(directory, cJSON_GetArrayItem(array, index), set_id, &order);
+        result = write_procedure_node(directory, cJSON_GetArrayItem(array, index), set_id, &order);
     }
     return result == APP_ERROR_NONE
-               ? write_order(staging, "procedure-order.json", &order,
-                             APP_PROCEDURES_PER_SET_MAX)
+               ? write_order(staging, "procedure-order.json", &order, APP_PROCEDURES_PER_SET_MAX)
                : result;
 }
 
@@ -432,8 +425,8 @@ static app_error_code_t write_progress(const char *staging, const cJSON *array,
 
 static app_error_code_t create_staging(const app_uuid_t *transaction_id, char *staging,
                                        size_t staging_size) {
-    const int written = snprintf(staging, staging_size, STORAGE_DATA_MOUNT "/staging/%s",
-                                 transaction_id->value);
+    const int written =
+        snprintf(staging, staging_size, STORAGE_DATA_MOUNT "/staging/%s", transaction_id->value);
     if (written < 0 || (size_t)written >= staging_size) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -477,8 +470,7 @@ static app_error_code_t copy_manifest_path(char *destination, size_t destination
 
 static app_error_code_t initialize_manifest(const app_uuid_t *transaction_id,
                                             const macro_set_t *current,
-                                            const macro_set_t *replacement,
-                                            const char *staging,
+                                            const macro_set_t *replacement, const char *staging,
                                             storage_transaction_manifest_t *out_manifest) {
     memset(out_manifest, 0, sizeof(*out_manifest));
     out_manifest->schema_version = APP_SCHEMA_VERSION;
@@ -498,15 +490,15 @@ static app_error_code_t initialize_manifest(const app_uuid_t *transaction_id,
                                                                   : APP_ERROR_INVALID_ARGUMENT;
     }
     if (result == APP_ERROR_NONE) {
-        result = copy_manifest_path(out_manifest->source, sizeof(out_manifest->source),
-                                    destination);
+        result =
+            copy_manifest_path(out_manifest->source, sizeof(out_manifest->source), destination);
     }
     if (result == APP_ERROR_NONE) {
         result = copy_manifest_path(out_manifest->staging, sizeof(out_manifest->staging), staging);
     }
     if (result == APP_ERROR_NONE) {
-        result = copy_manifest_path(out_manifest->destination,
-                                    sizeof(out_manifest->destination), destination);
+        result = copy_manifest_path(out_manifest->destination, sizeof(out_manifest->destination),
+                                    destination);
     }
     if (result == APP_ERROR_NONE) {
         result = copy_manifest_path(out_manifest->backup, sizeof(out_manifest->backup), backup);
@@ -516,14 +508,12 @@ static app_error_code_t initialize_manifest(const app_uuid_t *transaction_id,
 
 static app_error_code_t recover_replace(storage_transaction_manifest_t *manifest) {
     return storage_transaction_recover_replace_with_ops(
-        manifest, storage_fs_ops_posix(), package_uuid_generate, NULL, package_index_presence,
-        NULL, package_validate_tree, NULL, package_remove_tree, NULL);
+        manifest, storage_fs_ops_posix(), package_uuid_generate, NULL, package_index_presence, NULL,
+        package_validate_tree, NULL, package_remove_tree, NULL);
 }
 
-static app_error_code_t replace_locked(const app_uuid_t *target_set_id,
-                                       uint32_t expected_revision,
-                                       package_replace_document_t *document,
-                                       macro_set_t *out_set) {
+static app_error_code_t replace_locked(const app_uuid_t *target_set_id, uint32_t expected_revision,
+                                       package_replace_document_t *document, macro_set_t *out_set) {
     macro_set_t current = {0};
     app_error_code_t result = storage_set_read_locked(target_set_id, &current);
     if (result == APP_ERROR_NONE && current.revision != expected_revision) {
@@ -560,8 +550,7 @@ static app_error_code_t replace_locked(const app_uuid_t *target_set_id,
         result = materialize_staging(document, staging);
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_set_tree_validate(staging, target_set_id,
-                                           document->replacement.revision);
+        result = storage_set_tree_validate(staging, target_set_id, document->replacement.revision);
     }
     if (result == APP_ERROR_NONE) {
         manifest.phase = STORAGE_TRANSACTION_STAGED;
@@ -603,8 +592,7 @@ app_error_code_t storage_package_replace_set(const app_uuid_t *target_set_id,
     }
     package_replace_document_t document = {0};
     result = open_document(data, length, &document);
-    if (result == APP_ERROR_NONE &&
-        !app_uuid_equal(target_set_id, &document.replacement.id)) {
+    if (result == APP_ERROR_NONE && !app_uuid_equal(target_set_id, &document.replacement.id)) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
     if (result == APP_ERROR_NONE) {

@@ -70,17 +70,16 @@ static app_error_code_t write_phase(storage_transaction_manifest_t *manifest,
 static app_error_code_t remove_manifest(const storage_transaction_manifest_t *manifest,
                                         const storage_fs_ops_t *operations) {
     char path[APP_PATH_MAX_BYTES];
-    const int written = snprintf(path, sizeof(path), STORAGE_DATA_MOUNT "/transactions/%s.bin",
-                                 manifest->id.value);
+    const int written =
+        snprintf(path, sizeof(path), STORAGE_DATA_MOUNT "/transactions/%s.bin", manifest->id.value);
     if (written < 0 || (size_t)written >= sizeof(path)) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
     if (operations->unlink_path(operations->context, path) != 0) {
         return map_error_number(errno);
     }
-    return storage_fs_sync_parent_path(operations->context, path) == 0
-               ? APP_ERROR_NONE
-               : map_error_number(errno);
+    return storage_fs_sync_parent_path(operations->context, path) == 0 ? APP_ERROR_NONE
+                                                                       : map_error_number(errno);
 }
 
 static app_error_code_t parse_set_path(const char *path, app_uuid_t *out_set_id) {
@@ -129,12 +128,12 @@ static app_error_code_t validate_tree(storage_transaction_validate_set_fn valida
     return result == APP_ERROR_INVALID_ARGUMENT ? APP_ERROR_STORAGE_CORRUPT : result;
 }
 
-static app_error_code_t recover_prepared(
-    const storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
-    storage_transaction_set_index_presence_fn set_index_presence, void *index_context,
-    storage_transaction_validate_set_fn validate_set, void *validation_context,
-    storage_transaction_remove_tree_fn remove_tree, void *remove_context,
-    const app_uuid_t *set_id) {
+static app_error_code_t
+recover_prepared(const storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
+                 storage_transaction_set_index_presence_fn set_index_presence, void *index_context,
+                 storage_transaction_validate_set_fn validate_set, void *validation_context,
+                 storage_transaction_remove_tree_fn remove_tree, void *remove_context,
+                 const app_uuid_t *set_id) {
     bool staging_exists = false;
     bool destination_exists = false;
     bool backup_exists = false;
@@ -163,11 +162,11 @@ static app_error_code_t recover_prepared(
     return result == APP_ERROR_NONE ? remove_manifest(manifest, operations) : result;
 }
 
-static app_error_code_t recover_staged(
-    storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
-    storage_uuid_generate_fn generate_uuid, void *uuid_context,
-    storage_transaction_validate_set_fn validate_set, void *validation_context,
-    const app_uuid_t *set_id) {
+static app_error_code_t recover_staged(storage_transaction_manifest_t *manifest,
+                                       const storage_fs_ops_t *operations,
+                                       storage_uuid_generate_fn generate_uuid, void *uuid_context,
+                                       storage_transaction_validate_set_fn validate_set,
+                                       void *validation_context, const app_uuid_t *set_id) {
     bool staging_exists = false;
     bool destination_exists = false;
     bool backup_exists = false;
@@ -199,17 +198,17 @@ static app_error_code_t recover_staged(
             result = sync_rename_parents(manifest->destination, manifest->backup, operations);
         }
     }
-    return result == APP_ERROR_NONE
-               ? write_phase(manifest, STORAGE_TRANSACTION_BACKED_UP, operations, generate_uuid,
-                             uuid_context)
-               : result;
+    return result == APP_ERROR_NONE ? write_phase(manifest, STORAGE_TRANSACTION_BACKED_UP,
+                                                  operations, generate_uuid, uuid_context)
+                                    : result;
 }
 
-static app_error_code_t recover_backed_up(
-    storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
-    storage_uuid_generate_fn generate_uuid, void *uuid_context,
-    storage_transaction_validate_set_fn validate_set, void *validation_context,
-    const app_uuid_t *set_id) {
+static app_error_code_t recover_backed_up(storage_transaction_manifest_t *manifest,
+                                          const storage_fs_ops_t *operations,
+                                          storage_uuid_generate_fn generate_uuid,
+                                          void *uuid_context,
+                                          storage_transaction_validate_set_fn validate_set,
+                                          void *validation_context, const app_uuid_t *set_id) {
     bool staging_exists = false;
     bool destination_exists = false;
     bool backup_exists = false;
@@ -241,16 +240,16 @@ static app_error_code_t recover_backed_up(
             result = sync_rename_parents(manifest->staging, manifest->destination, operations);
         }
     }
-    return result == APP_ERROR_NONE
-               ? write_phase(manifest, STORAGE_TRANSACTION_ACTIVATED, operations, generate_uuid,
-                             uuid_context)
-               : result;
+    return result == APP_ERROR_NONE ? write_phase(manifest, STORAGE_TRANSACTION_ACTIVATED,
+                                                  operations, generate_uuid, uuid_context)
+                                    : result;
 }
 
-static app_error_code_t validate_activated_paths(
-    const storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
-    storage_transaction_validate_set_fn validate_set, void *validation_context,
-    const app_uuid_t *set_id) {
+static app_error_code_t validate_activated_paths(const storage_transaction_manifest_t *manifest,
+                                                 const storage_fs_ops_t *operations,
+                                                 storage_transaction_validate_set_fn validate_set,
+                                                 void *validation_context,
+                                                 const app_uuid_t *set_id) {
     bool staging_exists = false;
     bool destination_exists = false;
     bool backup_exists = false;
@@ -273,46 +272,44 @@ static app_error_code_t validate_activated_paths(
     return result;
 }
 
-static app_error_code_t recover_activated(
-    storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
-    storage_uuid_generate_fn generate_uuid, void *uuid_context,
-    storage_transaction_set_index_presence_fn set_index_presence, void *index_context,
-    storage_transaction_validate_set_fn validate_set, void *validation_context,
-    const app_uuid_t *set_id) {
-    app_error_code_t result = validate_activated_paths(manifest, operations, validate_set,
-                                                       validation_context, set_id);
+static app_error_code_t
+recover_activated(storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
+                  storage_uuid_generate_fn generate_uuid, void *uuid_context,
+                  storage_transaction_set_index_presence_fn set_index_presence, void *index_context,
+                  storage_transaction_validate_set_fn validate_set, void *validation_context,
+                  const app_uuid_t *set_id) {
+    app_error_code_t result =
+        validate_activated_paths(manifest, operations, validate_set, validation_context, set_id);
     if (result == APP_ERROR_NONE) {
         result = set_index_presence(index_context, set_id, true);
     }
-    return result == APP_ERROR_NONE
-               ? write_phase(manifest, STORAGE_TRANSACTION_INDEXED, operations, generate_uuid,
-                             uuid_context)
-               : result;
+    return result == APP_ERROR_NONE ? write_phase(manifest, STORAGE_TRANSACTION_INDEXED, operations,
+                                                  generate_uuid, uuid_context)
+                                    : result;
 }
 
-static app_error_code_t recover_indexed(
-    storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
-    storage_uuid_generate_fn generate_uuid, void *uuid_context,
-    storage_transaction_set_index_presence_fn set_index_presence, void *index_context,
-    storage_transaction_validate_set_fn validate_set, void *validation_context,
-    const app_uuid_t *set_id) {
-    app_error_code_t result = validate_activated_paths(manifest, operations, validate_set,
-                                                       validation_context, set_id);
+static app_error_code_t
+recover_indexed(storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
+                storage_uuid_generate_fn generate_uuid, void *uuid_context,
+                storage_transaction_set_index_presence_fn set_index_presence, void *index_context,
+                storage_transaction_validate_set_fn validate_set, void *validation_context,
+                const app_uuid_t *set_id) {
+    app_error_code_t result =
+        validate_activated_paths(manifest, operations, validate_set, validation_context, set_id);
     if (result == APP_ERROR_NONE) {
         result = set_index_presence(index_context, set_id, true);
     }
-    return result == APP_ERROR_NONE
-               ? write_phase(manifest, STORAGE_TRANSACTION_COMPLETE, operations, generate_uuid,
-                             uuid_context)
-               : result;
+    return result == APP_ERROR_NONE ? write_phase(manifest, STORAGE_TRANSACTION_COMPLETE,
+                                                  operations, generate_uuid, uuid_context)
+                                    : result;
 }
 
-static app_error_code_t recover_complete(
-    const storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
-    storage_transaction_set_index_presence_fn set_index_presence, void *index_context,
-    storage_transaction_validate_set_fn validate_set, void *validation_context,
-    storage_transaction_remove_tree_fn remove_tree, void *remove_context,
-    const app_uuid_t *set_id) {
+static app_error_code_t
+recover_complete(const storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
+                 storage_transaction_set_index_presence_fn set_index_presence, void *index_context,
+                 storage_transaction_validate_set_fn validate_set, void *validation_context,
+                 storage_transaction_remove_tree_fn remove_tree, void *remove_context,
+                 const app_uuid_t *set_id) {
     bool staging_exists = false;
     bool destination_exists = false;
     bool backup_exists = false;
@@ -376,19 +373,19 @@ app_error_code_t storage_transaction_recover_replace_with_ops(
                                    validation_context, &set_id);
     }
     if (result == APP_ERROR_NONE && manifest->phase == STORAGE_TRANSACTION_ACTIVATED) {
-        result = recover_activated(manifest, operations, generate_uuid, uuid_context,
-                                   set_index_presence, index_context, validate_set,
-                                   validation_context, &set_id);
+        result =
+            recover_activated(manifest, operations, generate_uuid, uuid_context, set_index_presence,
+                              index_context, validate_set, validation_context, &set_id);
     }
     if (result == APP_ERROR_NONE && manifest->phase == STORAGE_TRANSACTION_INDEXED) {
-        result = recover_indexed(manifest, operations, generate_uuid, uuid_context,
-                                 set_index_presence, index_context, validate_set,
-                                 validation_context, &set_id);
+        result =
+            recover_indexed(manifest, operations, generate_uuid, uuid_context, set_index_presence,
+                            index_context, validate_set, validation_context, &set_id);
     }
     if (result == APP_ERROR_NONE && manifest->phase == STORAGE_TRANSACTION_COMPLETE) {
-        result = recover_complete(manifest, operations, set_index_presence, index_context,
-                                  validate_set, validation_context, remove_tree, remove_context,
-                                  &set_id);
+        result =
+            recover_complete(manifest, operations, set_index_presence, index_context, validate_set,
+                             validation_context, remove_tree, remove_context, &set_id);
     }
     if (result == APP_ERROR_NONE && manifest->phase < STORAGE_TRANSACTION_STAGED) {
         return APP_ERROR_STORAGE_CORRUPT;

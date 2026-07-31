@@ -74,8 +74,7 @@ static app_error_code_t manifest_path_from_name(const char *name, char *out_path
         return APP_ERROR_STORAGE_CORRUPT;
     }
     const int written = snprintf(out_path, path_size, STORAGE_DATA_MOUNT "/transactions/%s", name);
-    return written >= 0 && (size_t)written < path_size ? APP_ERROR_NONE
-                                                       : APP_ERROR_STORAGE_CORRUPT;
+    return written >= 0 && (size_t)written < path_size ? APP_ERROR_NONE : APP_ERROR_STORAGE_CORRUPT;
 }
 
 app_error_code_t storage_transaction_recover_restores_with_ops(

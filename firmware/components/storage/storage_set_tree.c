@@ -305,8 +305,7 @@ static app_error_code_t validate_local_macro_file(const char *path, const app_uu
                                                   set_tree_state_t *state) {
     char *data = NULL;
     size_t length = 0U;
-    app_error_code_t result =
-        read_bounded_file(path, STORAGE_MACRO_FILE_MAX_BYTES, &data, &length);
+    app_error_code_t result = read_bounded_file(path, STORAGE_MACRO_FILE_MAX_BYTES, &data, &length);
     macro_t macro = {0};
     if (result == APP_ERROR_NONE) {
         result = normalize_object_error(storage_repository_parse_macro_json(data, length, &macro));
@@ -321,8 +320,8 @@ static app_error_code_t validate_local_macro_file(const char *path, const app_uu
         result = compile_macro(&macro);
     }
     if (result == APP_ERROR_NONE) {
-        result = add_uuid(state->macros.ids, &state->macros.count, APP_MACROS_PER_SET_MAX,
-                          &macro.id);
+        result =
+            add_uuid(state->macros.ids, &state->macros.count, APP_MACROS_PER_SET_MAX, &macro.id);
     }
     macro_model_free_macro(&macro);
     return result;
@@ -369,10 +368,9 @@ static app_error_code_t validate_macro_directory(const char *set_path, const app
 
 static app_error_code_t global_macro_path(const app_uuid_t *macro_id, char *path,
                                           size_t path_size) {
-    const int written = snprintf(path, path_size, STORAGE_DATA_MOUNT "/global/macros/%s.json",
-                                 macro_id->value);
-    return written >= 0 && (size_t)written < path_size ? APP_ERROR_NONE
-                                                       : APP_ERROR_STORAGE_CORRUPT;
+    const int written =
+        snprintf(path, path_size, STORAGE_DATA_MOUNT "/global/macros/%s.json", macro_id->value);
+    return written >= 0 && (size_t)written < path_size ? APP_ERROR_NONE : APP_ERROR_STORAGE_CORRUPT;
 }
 
 static app_error_code_t global_macro_exists(const app_uuid_t *macro_id, bool *out_exists) {
@@ -406,9 +404,8 @@ static app_error_code_t validate_global_macro(const app_uuid_t *macro_id) {
         result = normalize_object_error(storage_repository_parse_macro_json(data, length, &macro));
     }
     free(data);
-    if (result == APP_ERROR_NONE &&
-        (!app_uuid_equal(&macro.id, macro_id) || macro.scope != MACRO_SCOPE_GLOBAL ||
-         macro.has_set_id)) {
+    if (result == APP_ERROR_NONE && (!app_uuid_equal(&macro.id, macro_id) ||
+                                     macro.scope != MACRO_SCOPE_GLOBAL || macro.has_set_id)) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     if (result == APP_ERROR_NONE) {
@@ -420,8 +417,7 @@ static app_error_code_t validate_global_macro(const app_uuid_t *macro_id) {
 
 static app_error_code_t validate_macro_reference(const app_uuid_t *macro_id,
                                                  const set_tree_state_t *state) {
-    const bool local =
-        uuid_list_contains(state->macros.ids, state->macros.count, macro_id);
+    const bool local = uuid_list_contains(state->macros.ids, state->macros.count, macro_id);
     bool global = false;
     app_error_code_t result = global_macro_exists(macro_id, &global);
     if (result != APP_ERROR_NONE) {
@@ -450,10 +446,8 @@ static app_error_code_t add_procedure(set_tree_state_t *state, const procedure_t
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t validate_procedure_file(const char *path,
-                                                const app_uuid_t *filename_id,
-                                                const app_uuid_t *set_id,
-                                                set_tree_state_t *state) {
+static app_error_code_t validate_procedure_file(const char *path, const app_uuid_t *filename_id,
+                                                const app_uuid_t *set_id, set_tree_state_t *state) {
     char *data = NULL;
     size_t length = 0U;
     app_error_code_t result =
@@ -464,9 +458,8 @@ static app_error_code_t validate_procedure_file(const char *path,
             storage_repository_parse_procedure_json(data, length, &procedure));
     }
     free(data);
-    if (result == APP_ERROR_NONE &&
-        (!app_uuid_equal(&procedure.id, filename_id) ||
-         !app_uuid_equal(&procedure.set_id, set_id))) {
+    if (result == APP_ERROR_NONE && (!app_uuid_equal(&procedure.id, filename_id) ||
+                                     !app_uuid_equal(&procedure.set_id, set_id))) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     for (size_t index = 0U; result == APP_ERROR_NONE && index < procedure.step_count; ++index) {
@@ -481,8 +474,7 @@ static app_error_code_t validate_procedure_file(const char *path,
     return result;
 }
 
-static app_error_code_t validate_procedure_directory(const char *set_path,
-                                                     const app_uuid_t *set_id,
+static app_error_code_t validate_procedure_directory(const char *set_path, const app_uuid_t *set_id,
                                                      set_tree_state_t *state) {
     char directory_path[APP_PATH_MAX_BYTES];
     app_error_code_t result =
@@ -588,16 +580,15 @@ static app_error_code_t load_procedure(const char *set_path, const app_uuid_t *p
 
 static app_error_code_t validate_progress_file(const char *set_path, const char *path,
                                                const app_uuid_t *filename_id,
-                                               const app_uuid_t *set_id,
-                                               set_tree_state_t *state) {
+                                               const app_uuid_t *set_id, set_tree_state_t *state) {
     char *data = NULL;
     size_t length = 0U;
     app_error_code_t result =
         read_bounded_file(path, STORAGE_PROGRESS_FILE_MAX_BYTES, &data, &length);
     procedure_progress_t progress = {0};
     if (result == APP_ERROR_NONE) {
-        result = normalize_object_error(
-            storage_repository_parse_progress_json(data, length, &progress));
+        result =
+            normalize_object_error(storage_repository_parse_progress_json(data, length, &progress));
     }
     free(data);
     const set_tree_procedure_metadata_t *procedure_metadata =
@@ -617,14 +608,13 @@ static app_error_code_t validate_progress_file(const char *set_path, const char 
     }
     macro_model_free_procedure(&procedure);
     if (result == APP_ERROR_NONE) {
-        result = add_uuid(state->progress_ids, &state->progress_count,
-                          APP_PROCEDURES_PER_SET_MAX, &progress.procedure_id);
+        result = add_uuid(state->progress_ids, &state->progress_count, APP_PROCEDURES_PER_SET_MAX,
+                          &progress.procedure_id);
     }
     return result;
 }
 
-static app_error_code_t validate_progress_directory(const char *set_path,
-                                                    const app_uuid_t *set_id,
+static app_error_code_t validate_progress_directory(const char *set_path, const app_uuid_t *set_id,
                                                     set_tree_state_t *state) {
     char directory_path[APP_PATH_MAX_BYTES];
     app_error_code_t result =
@@ -714,8 +704,8 @@ app_error_code_t storage_set_tree_validate(const char *path, const app_uuid_t *s
         result = validate_macro_directory(path, set_id, state);
     }
     if (result == APP_ERROR_NONE) {
-        result = validate_order(path, "macro-order.json", state->macros.ids,
-                                state->macros.count, APP_MACROS_PER_SET_MAX);
+        result = validate_order(path, "macro-order.json", state->macros.ids, state->macros.count,
+                                APP_MACROS_PER_SET_MAX);
     }
     if (result == APP_ERROR_NONE) {
         result = validate_procedure_directory(path, set_id, state);
@@ -725,8 +715,8 @@ app_error_code_t storage_set_tree_validate(const char *path, const app_uuid_t *s
         for (size_t index = 0U; index < state->procedure_count; ++index) {
             procedure_ids[index] = state->procedures[index].id;
         }
-        result = validate_order(path, "procedure-order.json", procedure_ids,
-                                state->procedure_count, APP_PROCEDURES_PER_SET_MAX);
+        result = validate_order(path, "procedure-order.json", procedure_ids, state->procedure_count,
+                                APP_PROCEDURES_PER_SET_MAX);
     }
     if (result == APP_ERROR_NONE) {
         result = validate_progress_directory(path, set_id, state);

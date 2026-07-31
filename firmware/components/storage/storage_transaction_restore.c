@@ -27,8 +27,8 @@ static app_error_code_t map_error_number(int error_number) {
 
 static bool expected_staging_path(char *output, size_t output_size,
                                   const app_uuid_t *transaction_id) {
-    const int written = snprintf(output, output_size, STORAGE_DATA_MOUNT "/staging/%s",
-                                 transaction_id->value);
+    const int written =
+        snprintf(output, output_size, STORAGE_DATA_MOUNT "/staging/%s", transaction_id->value);
     return written >= 0 && (size_t)written < output_size;
 }
 
@@ -82,9 +82,8 @@ static app_error_code_t ensure_directory(const char *path, const storage_fs_ops_
     if (operations->make_directory(operations->context, path, 0700) != 0) {
         return map_error_number(errno);
     }
-    return storage_fs_sync_parent_path(operations->context, path) == 0
-               ? APP_ERROR_NONE
-               : map_error_number(errno);
+    return storage_fs_sync_parent_path(operations->context, path) == 0 ? APP_ERROR_NONE
+                                                                       : map_error_number(errno);
 }
 
 static app_error_code_t sync_rename_parents(const char *source, const char *destination,
@@ -117,8 +116,7 @@ static app_error_code_t move_once(const char *source, const char *destination,
     return sync_rename_parents(source, destination, operations);
 }
 
-static app_error_code_t move_repository_items(const char *source_root,
-                                              const char *destination_root,
+static app_error_code_t move_repository_items(const char *source_root, const char *destination_root,
                                               const storage_fs_ops_t *operations) {
     for (size_t index = 0U; index < sizeof(RESTORE_ITEMS) / sizeof(RESTORE_ITEMS[0]); ++index) {
         char source[APP_PATH_MAX_BYTES];
@@ -126,8 +124,8 @@ static app_error_code_t move_repository_items(const char *source_root,
         app_error_code_t result =
             join_path(source, sizeof(source), source_root, RESTORE_ITEMS[index]);
         if (result == APP_ERROR_NONE) {
-            result = join_path(destination, sizeof(destination), destination_root,
-                               RESTORE_ITEMS[index]);
+            result =
+                join_path(destination, sizeof(destination), destination_root, RESTORE_ITEMS[index]);
         }
         if (result == APP_ERROR_NONE) {
             result = move_once(source, destination, operations);
@@ -139,9 +137,9 @@ static app_error_code_t move_repository_items(const char *source_root,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t validate_repository(
-    storage_transaction_validate_repository_fn validate_repository_fn, void *validation_context,
-    const char *root) {
+static app_error_code_t
+validate_repository(storage_transaction_validate_repository_fn validate_repository_fn,
+                    void *validation_context, const char *root) {
     const app_error_code_t result = validate_repository_fn(validation_context, root);
     return result == APP_ERROR_INVALID_ARGUMENT ? APP_ERROR_STORAGE_CORRUPT : result;
 }
@@ -159,8 +157,8 @@ static app_error_code_t write_phase(storage_transaction_manifest_t *manifest,
 static app_error_code_t remove_manifest(const storage_transaction_manifest_t *manifest,
                                         const storage_fs_ops_t *operations) {
     char path[APP_PATH_MAX_BYTES];
-    const int written = snprintf(path, sizeof(path), STORAGE_DATA_MOUNT "/transactions/%s.bin",
-                                 manifest->id.value);
+    const int written =
+        snprintf(path, sizeof(path), STORAGE_DATA_MOUNT "/transactions/%s.bin", manifest->id.value);
     if (written < 0 || (size_t)written >= sizeof(path)) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
@@ -170,14 +168,13 @@ static app_error_code_t remove_manifest(const storage_transaction_manifest_t *ma
             return map_error_number(unlink_error);
         }
     }
-    return storage_fs_sync_parent_path(operations->context, path) == 0
-               ? APP_ERROR_NONE
-               : map_error_number(errno);
+    return storage_fs_sync_parent_path(operations->context, path) == 0 ? APP_ERROR_NONE
+                                                                       : map_error_number(errno);
 }
 
-static app_error_code_t remove_tree_if_present(
-    const char *path, const storage_fs_ops_t *operations,
-    storage_transaction_remove_tree_fn remove_tree, void *remove_context) {
+static app_error_code_t remove_tree_if_present(const char *path, const storage_fs_ops_t *operations,
+                                               storage_transaction_remove_tree_fn remove_tree,
+                                               void *remove_context) {
     bool exists = false;
     app_error_code_t result = path_exists(path, operations, &exists);
     if (result == APP_ERROR_NONE && exists) {
@@ -190,10 +187,11 @@ static app_error_code_t remove_tree_if_present(
     return result;
 }
 
-static app_error_code_t recover_prepared(
-    const storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
-    storage_transaction_validate_repository_fn validate_repository_fn, void *validation_context,
-    storage_transaction_remove_tree_fn remove_tree, void *remove_context) {
+static app_error_code_t
+recover_prepared(const storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
+                 storage_transaction_validate_repository_fn validate_repository_fn,
+                 void *validation_context, storage_transaction_remove_tree_fn remove_tree,
+                 void *remove_context) {
     bool backup_exists = false;
     app_error_code_t result = path_exists(manifest->backup, operations, &backup_exists);
     if (result != APP_ERROR_NONE || backup_exists) {
@@ -206,10 +204,11 @@ static app_error_code_t recover_prepared(
     return result == APP_ERROR_NONE ? remove_manifest(manifest, operations) : result;
 }
 
-static app_error_code_t recover_staged(
-    storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
-    storage_uuid_generate_fn generate_uuid, void *uuid_context,
-    storage_transaction_validate_repository_fn validate_repository_fn, void *validation_context) {
+static app_error_code_t
+recover_staged(storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
+               storage_uuid_generate_fn generate_uuid, void *uuid_context,
+               storage_transaction_validate_repository_fn validate_repository_fn,
+               void *validation_context) {
     app_error_code_t result =
         validate_repository(validate_repository_fn, validation_context, manifest->staging);
     if (result == APP_ERROR_NONE) {
@@ -221,16 +220,16 @@ static app_error_code_t recover_staged(
     if (result == APP_ERROR_NONE) {
         result = validate_repository(validate_repository_fn, validation_context, manifest->backup);
     }
-    return result == APP_ERROR_NONE
-               ? write_phase(manifest, STORAGE_TRANSACTION_BACKED_UP, operations, generate_uuid,
-                             uuid_context)
-               : result;
+    return result == APP_ERROR_NONE ? write_phase(manifest, STORAGE_TRANSACTION_BACKED_UP,
+                                                  operations, generate_uuid, uuid_context)
+                                    : result;
 }
 
-static app_error_code_t recover_backed_up(
-    storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
-    storage_uuid_generate_fn generate_uuid, void *uuid_context,
-    storage_transaction_validate_repository_fn validate_repository_fn, void *validation_context) {
+static app_error_code_t
+recover_backed_up(storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
+                  storage_uuid_generate_fn generate_uuid, void *uuid_context,
+                  storage_transaction_validate_repository_fn validate_repository_fn,
+                  void *validation_context) {
     app_error_code_t result =
         validate_repository(validate_repository_fn, validation_context, manifest->backup);
     if (result == APP_ERROR_NONE) {
@@ -243,15 +242,15 @@ static app_error_code_t recover_backed_up(
     if (result == APP_ERROR_NONE) {
         result = validate_repository(validate_repository_fn, validation_context, manifest->backup);
     }
-    return result == APP_ERROR_NONE
-               ? write_phase(manifest, STORAGE_TRANSACTION_ACTIVATED, operations, generate_uuid,
-                             uuid_context)
-               : result;
+    return result == APP_ERROR_NONE ? write_phase(manifest, STORAGE_TRANSACTION_ACTIVATED,
+                                                  operations, generate_uuid, uuid_context)
+                                    : result;
 }
 
-static app_error_code_t validate_activated(
-    const storage_transaction_manifest_t *manifest,
-    storage_transaction_validate_repository_fn validate_repository_fn, void *validation_context) {
+static app_error_code_t
+validate_activated(const storage_transaction_manifest_t *manifest,
+                   storage_transaction_validate_repository_fn validate_repository_fn,
+                   void *validation_context) {
     app_error_code_t result =
         validate_repository(validate_repository_fn, validation_context, STORAGE_DATA_MOUNT);
     if (result == APP_ERROR_NONE) {
@@ -260,10 +259,11 @@ static app_error_code_t validate_activated(
     return result;
 }
 
-static app_error_code_t recover_complete(
-    const storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
-    storage_transaction_validate_repository_fn validate_repository_fn, void *validation_context,
-    storage_transaction_remove_tree_fn remove_tree, void *remove_context) {
+static app_error_code_t
+recover_complete(const storage_transaction_manifest_t *manifest, const storage_fs_ops_t *operations,
+                 storage_transaction_validate_repository_fn validate_repository_fn,
+                 void *validation_context, storage_transaction_remove_tree_fn remove_tree,
+                 void *remove_context) {
     app_error_code_t result =
         validate_repository(validate_repository_fn, validation_context, STORAGE_DATA_MOUNT);
     if (result == APP_ERROR_NONE) {
@@ -325,7 +325,7 @@ app_error_code_t storage_transaction_recover_restore_with_ops(
         }
     }
     return manifest->phase == STORAGE_TRANSACTION_COMPLETE
-               ? recover_complete(manifest, operations, validate_repository_fn,
-                                  validation_context, remove_tree, remove_context)
+               ? recover_complete(manifest, operations, validate_repository_fn, validation_context,
+                                  remove_tree, remove_context)
                : APP_ERROR_STORAGE_CORRUPT;
 }

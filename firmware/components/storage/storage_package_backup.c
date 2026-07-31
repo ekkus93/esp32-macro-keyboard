@@ -128,10 +128,8 @@ static storage_package_backup_ops_t backup_operations = {
 static bool backup_operations_valid(void) {
     return backup_operations.lock_take != NULL && backup_operations.lock_give != NULL &&
            backup_operations.set_list != NULL && backup_operations.macro_list != NULL &&
-           backup_operations.macro_list_free != NULL &&
-           backup_operations.procedure_list != NULL &&
-           backup_operations.procedure_list_free != NULL &&
-           backup_operations.progress_read != NULL;
+           backup_operations.macro_list_free != NULL && backup_operations.procedure_list != NULL &&
+           backup_operations.procedure_list_free != NULL && backup_operations.progress_read != NULL;
 }
 
 static app_error_code_t writer_reserve(backup_writer_t *writer, size_t additional) {
@@ -206,8 +204,7 @@ static app_error_code_t writer_append_set(backup_writer_t *writer, const macro_s
 static app_error_code_t writer_append_macro(backup_writer_t *writer, const macro_t *macro) {
     char *json = NULL;
     size_t length = 0U;
-    const app_error_code_t result =
-        storage_repository_serialize_macro_json(macro, &json, &length);
+    const app_error_code_t result = storage_repository_serialize_macro_json(macro, &json, &length);
     return writer_append_serialized(writer, result, json, length);
 }
 
@@ -292,8 +289,8 @@ static app_error_code_t load_set_snapshot(const macro_set_t *set, bool include_p
         .has_set_id = true,
         .set_id = set->id,
     };
-    app_error_code_t result = backup_operations.macro_list(
-        backup_operations.context, &location, &out_snapshot->local_macros);
+    app_error_code_t result = backup_operations.macro_list(backup_operations.context, &location,
+                                                           &out_snapshot->local_macros);
     if (result == APP_ERROR_NONE) {
         result = backup_operations.procedure_list(backup_operations.context, &set->id,
                                                   &out_snapshot->procedures);
@@ -307,8 +304,7 @@ static app_error_code_t load_set_snapshot(const macro_set_t *set, bool include_p
 static app_error_code_t snapshot_load_locked(bool include_progress,
                                              backup_snapshot_t *out_snapshot) {
     storage_set_list_t set_list = {0};
-    app_error_code_t result =
-        backup_operations.set_list(backup_operations.context, &set_list);
+    app_error_code_t result = backup_operations.set_list(backup_operations.context, &set_list);
     if (result == APP_ERROR_NONE && set_list.count > APP_MACRO_SETS_MAX) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
@@ -321,8 +317,8 @@ static app_error_code_t snapshot_load_locked(bool include_progress,
         }
     }
     for (size_t index = 0U; result == APP_ERROR_NONE && index < set_list.count; ++index) {
-        result = load_set_snapshot(&set_list.items[index], include_progress,
-                                   &out_snapshot->sets[index]);
+        result =
+            load_set_snapshot(&set_list.items[index], include_progress, &out_snapshot->sets[index]);
     }
     const storage_macro_location_t global_location = {
         .scope = MACRO_SCOPE_GLOBAL,
@@ -446,8 +442,7 @@ static app_error_code_t append_sets(backup_writer_t *writer, const backup_snapsh
 }
 
 static app_error_code_t append_local_macros(backup_writer_t *writer,
-                                            const backup_snapshot_t *snapshot,
-                                            size_t *out_count) {
+                                            const backup_snapshot_t *snapshot, size_t *out_count) {
     *out_count = 0U;
     bool first = true;
     app_error_code_t result = writer_append_text(writer, "[");
@@ -482,8 +477,7 @@ static app_error_code_t append_global_macros(backup_writer_t *writer,
 }
 
 static app_error_code_t append_procedures(backup_writer_t *writer,
-                                          const backup_snapshot_t *snapshot,
-                                          size_t *out_count) {
+                                          const backup_snapshot_t *snapshot, size_t *out_count) {
     *out_count = 0U;
     bool first = true;
     app_error_code_t result = writer_append_text(writer, "[");
@@ -503,8 +497,8 @@ static app_error_code_t append_procedures(backup_writer_t *writer,
     return result == APP_ERROR_NONE ? writer_append_text(writer, "]") : result;
 }
 
-static app_error_code_t append_progress(backup_writer_t *writer,
-                                        const backup_snapshot_t *snapshot, size_t *out_count) {
+static app_error_code_t append_progress(backup_writer_t *writer, const backup_snapshot_t *snapshot,
+                                        size_t *out_count) {
     *out_count = 0U;
     bool first = true;
     app_error_code_t result = writer_append_text(writer, "[");
@@ -531,8 +525,8 @@ static app_error_code_t append_progress(backup_writer_t *writer,
 static app_error_code_t serialize_snapshot(const backup_snapshot_t *snapshot, char **out_data,
                                            size_t *out_length) {
     backup_writer_t writer = {0};
-    app_error_code_t result = writer_append_text(
-        &writer, "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":");
+    app_error_code_t result =
+        writer_append_text(&writer, "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":");
     if (result == APP_ERROR_NONE) {
         result = append_sets(&writer, snapshot);
     }

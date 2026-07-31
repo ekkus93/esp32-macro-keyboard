@@ -76,8 +76,7 @@ static app_error_code_t join_path(const char *parent, const char *name, char *ou
 }
 
 static app_error_code_t sync_parent(const char *path) {
-    return storage_fs_sync_parent_path(NULL, path) == 0 ? APP_ERROR_NONE
-                                                        : map_error_number(errno);
+    return storage_fs_sync_parent_path(NULL, path) == 0 ? APP_ERROR_NONE : map_error_number(errno);
 }
 
 static app_error_code_t make_directory(const char *path) {
@@ -138,8 +137,7 @@ static app_error_code_t parse_procedure_node(const cJSON *node, procedure_t *out
     return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
 }
 
-static app_error_code_t parse_progress_node(const cJSON *node,
-                                            procedure_progress_t *out_progress) {
+static app_error_code_t parse_progress_node(const cJSON *node, procedure_progress_t *out_progress) {
     char *json = NULL;
     size_t length = 0U;
     app_error_code_t result = node_json(node, &json, &length);
@@ -225,10 +223,9 @@ static app_error_code_t write_set_index(const char *staging, const storage_set_i
     }
     const size_t length = strlen(json);
     char path[APP_PATH_MAX_BYTES];
-    app_error_code_t result =
-        length <= STORAGE_INDEX_FILE_MAX_BYTES
-            ? join_path(staging, "set-index.json", path, sizeof(path))
-            : APP_ERROR_INVALID_ARGUMENT;
+    app_error_code_t result = length <= STORAGE_INDEX_FILE_MAX_BYTES
+                                  ? join_path(staging, "set-index.json", path, sizeof(path))
+                                  : APP_ERROR_INVALID_ARGUMENT;
     if (result == APP_ERROR_NONE) {
         result = write_json_file(path, json, length);
     }
@@ -295,8 +292,7 @@ static app_error_code_t write_progress_object(const char *directory,
                                               const procedure_progress_t *progress) {
     char *json = NULL;
     size_t length = 0U;
-    app_error_code_t result =
-        storage_repository_serialize_progress_json(progress, &json, &length);
+    app_error_code_t result = storage_repository_serialize_progress_json(progress, &json, &length);
     char name[APP_UUID_STRING_LENGTH + 6U];
     char path[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
@@ -338,8 +334,8 @@ static app_error_code_t write_set_macros(const package_restore_document_t *docum
     const int count = cJSON_GetArraySize(document->arrays[PACKAGE_RESTORE_MACROS]);
     for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
         macro_t macro = {0};
-        result = parse_macro_node(cJSON_GetArrayItem(document->arrays[PACKAGE_RESTORE_MACROS], index),
-                                  &macro);
+        result = parse_macro_node(
+            cJSON_GetArrayItem(document->arrays[PACKAGE_RESTORE_MACROS], index), &macro);
         const bool belongs = result == APP_ERROR_NONE && macro.scope == MACRO_SCOPE_SET &&
                              macro.has_set_id && app_uuid_equal(&macro.set_id, &set->id);
         if (result == APP_ERROR_NONE && belongs) {
@@ -383,10 +379,9 @@ static app_error_code_t write_set_procedures(const package_restore_document_t *d
         }
         macro_model_free_procedure(&procedure);
     }
-    return result == APP_ERROR_NONE
-               ? write_order_file(set_root, "procedure-order.json", &order,
-                                  APP_PROCEDURES_PER_SET_MAX)
-               : result;
+    return result == APP_ERROR_NONE ? write_order_file(set_root, "procedure-order.json", &order,
+                                                       APP_PROCEDURES_PER_SET_MAX)
+                                    : result;
 }
 
 static app_error_code_t write_set_progress(const package_restore_document_t *document,
@@ -413,8 +408,8 @@ static app_error_code_t materialize_sets(const package_restore_document_t *docum
     const int count = cJSON_GetArraySize(document->arrays[PACKAGE_RESTORE_SETS]);
     for (int item = 0; result == APP_ERROR_NONE && item < count; ++item) {
         macro_set_t set = {0};
-        result = parse_set_node(cJSON_GetArrayItem(document->arrays[PACKAGE_RESTORE_SETS], item),
-                                &set);
+        result =
+            parse_set_node(cJSON_GetArrayItem(document->arrays[PACKAGE_RESTORE_SETS], item), &set);
         if (result == APP_ERROR_NONE && index.count >= APP_MACRO_SETS_MAX) {
             result = APP_ERROR_INVALID_ARGUMENT;
         }
@@ -455,9 +450,8 @@ static app_error_code_t materialize_globals(const package_restore_document_t *do
         macro_t macro = {0};
         result = parse_macro_node(
             cJSON_GetArrayItem(document->arrays[PACKAGE_RESTORE_GLOBAL_MACROS], index), &macro);
-        if (result == APP_ERROR_NONE &&
-            (macro.scope != MACRO_SCOPE_GLOBAL || macro.has_set_id ||
-             order.count >= APP_MACROS_PER_SET_MAX)) {
+        if (result == APP_ERROR_NONE && (macro.scope != MACRO_SCOPE_GLOBAL || macro.has_set_id ||
+                                         order.count >= APP_MACROS_PER_SET_MAX)) {
             result = APP_ERROR_INVALID_ARGUMENT;
         }
         if (result == APP_ERROR_NONE) {
@@ -469,22 +463,21 @@ static app_error_code_t materialize_globals(const package_restore_document_t *do
         macro_model_free_macro(&macro);
     }
     return result == APP_ERROR_NONE
-               ? write_order_file(global_root, "macro-order.json", &order,
-                                  APP_MACROS_PER_SET_MAX)
+               ? write_order_file(global_root, "macro-order.json", &order, APP_MACROS_PER_SET_MAX)
                : result;
 }
 
 static app_error_code_t create_staging(const app_uuid_t *transaction_id, char *staging,
                                        size_t staging_size) {
-    const int written = snprintf(staging, staging_size, STORAGE_DATA_MOUNT "/staging/%s",
-                                 transaction_id->value);
+    const int written =
+        snprintf(staging, staging_size, STORAGE_DATA_MOUNT "/staging/%s", transaction_id->value);
     if (written < 0 || (size_t)written >= staging_size) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     app_error_code_t result = make_directory(staging);
     static const char *const roots[] = {"sets", "global"};
-    for (size_t index = 0U;
-         result == APP_ERROR_NONE && index < sizeof(roots) / sizeof(roots[0]); ++index) {
+    for (size_t index = 0U; result == APP_ERROR_NONE && index < sizeof(roots) / sizeof(roots[0]);
+         ++index) {
         char path[APP_PATH_MAX_BYTES];
         result = join_path(staging, roots[index], path, sizeof(path));
         if (result == APP_ERROR_NONE) {
@@ -521,8 +514,7 @@ static app_error_code_t copy_manifest_path(char *destination, size_t destination
                                                               : APP_ERROR_INVALID_ARGUMENT;
 }
 
-static app_error_code_t initialize_manifest(const app_uuid_t *transaction_id,
-                                            const char *staging,
+static app_error_code_t initialize_manifest(const app_uuid_t *transaction_id, const char *staging,
                                             storage_transaction_manifest_t *out_manifest) {
     memset(out_manifest, 0, sizeof(*out_manifest));
     out_manifest->schema_version = APP_SCHEMA_VERSION;
@@ -532,9 +524,9 @@ static app_error_code_t initialize_manifest(const app_uuid_t *transaction_id,
     char backup[APP_PATH_MAX_BYTES];
     const int written = snprintf(backup, sizeof(backup), STORAGE_DATA_MOUNT "/trash/restore-%s",
                                  transaction_id->value);
-    app_error_code_t result =
-        written >= 0 && (size_t)written < sizeof(backup) ? APP_ERROR_NONE
-                                                         : APP_ERROR_INVALID_ARGUMENT;
+    app_error_code_t result = written >= 0 && (size_t)written < sizeof(backup)
+                                  ? APP_ERROR_NONE
+                                  : APP_ERROR_INVALID_ARGUMENT;
     if (result == APP_ERROR_NONE) {
         result = copy_manifest_path(out_manifest->source, sizeof(out_manifest->source),
                                     STORAGE_DATA_MOUNT);
@@ -543,8 +535,8 @@ static app_error_code_t initialize_manifest(const app_uuid_t *transaction_id,
         result = copy_manifest_path(out_manifest->staging, sizeof(out_manifest->staging), staging);
     }
     if (result == APP_ERROR_NONE) {
-        result = copy_manifest_path(out_manifest->destination,
-                                    sizeof(out_manifest->destination), STORAGE_DATA_MOUNT);
+        result = copy_manifest_path(out_manifest->destination, sizeof(out_manifest->destination),
+                                    STORAGE_DATA_MOUNT);
     }
     if (result == APP_ERROR_NONE) {
         result = copy_manifest_path(out_manifest->backup, sizeof(out_manifest->backup), backup);
@@ -554,8 +546,8 @@ static app_error_code_t initialize_manifest(const app_uuid_t *transaction_id,
 
 static app_error_code_t recover_restore(storage_transaction_manifest_t *manifest) {
     return storage_transaction_recover_restore_with_ops(
-        manifest, storage_fs_ops_posix(), restore_uuid_generate, NULL,
-        restore_validate_repository, NULL, restore_remove_tree, NULL);
+        manifest, storage_fs_ops_posix(), restore_uuid_generate, NULL, restore_validate_repository,
+        NULL, restore_remove_tree, NULL);
 }
 
 static app_error_code_t restore_locked(const package_restore_document_t *document) {

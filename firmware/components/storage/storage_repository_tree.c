@@ -331,9 +331,8 @@ static app_error_code_t read_order(const char *path, size_t maximum,
     return result;
 }
 
-static app_error_code_t validate_directory_membership(const char *path,
-                                                       const storage_uuid_order_t *order,
-                                                       bool suffix) {
+static app_error_code_t
+validate_directory_membership(const char *path, const storage_uuid_order_t *order, bool suffix) {
     DIR *directory = opendir(path);
     if (directory == NULL) {
         return map_error_number(errno);
@@ -375,7 +374,7 @@ static app_error_code_t validate_directory_membership(const char *path,
 }
 
 static app_error_code_t validate_set_directory_membership(const char *path,
-                                                           const storage_set_index_t *index) {
+                                                          const storage_set_index_t *index) {
     DIR *directory = opendir(path);
     if (directory == NULL) {
         return map_error_number(errno);
@@ -442,8 +441,8 @@ static app_error_code_t append_macro_file(tree_writer_t *writer, bool *first, co
     return result;
 }
 
-static app_error_code_t append_procedure_file(tree_writer_t *writer, bool *first,
-                                              const char *path, const app_uuid_t *expected_id,
+static app_error_code_t append_procedure_file(tree_writer_t *writer, bool *first, const char *path,
+                                              const app_uuid_t *expected_id,
                                               const app_uuid_t *set_id) {
     char *data = NULL;
     size_t length = 0U;
@@ -453,9 +452,8 @@ static app_error_code_t append_procedure_file(tree_writer_t *writer, bool *first
         result = normalize_object_error(
             storage_repository_parse_procedure_json(data, length, &procedure));
     }
-    if (result == APP_ERROR_NONE &&
-        (!app_uuid_equal(&procedure.id, expected_id) ||
-         !app_uuid_equal(&procedure.set_id, set_id))) {
+    if (result == APP_ERROR_NONE && (!app_uuid_equal(&procedure.id, expected_id) ||
+                                     !app_uuid_equal(&procedure.set_id, set_id))) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     if (result == APP_ERROR_NONE) {
@@ -466,20 +464,19 @@ static app_error_code_t append_procedure_file(tree_writer_t *writer, bool *first
     return result;
 }
 
-static app_error_code_t append_progress_file(tree_writer_t *writer, bool *first,
-                                             const char *path, const app_uuid_t *procedure_id,
+static app_error_code_t append_progress_file(tree_writer_t *writer, bool *first, const char *path,
+                                             const app_uuid_t *procedure_id,
                                              const app_uuid_t *set_id) {
     char *data = NULL;
     size_t length = 0U;
     app_error_code_t result = read_bounded(path, STORAGE_PROGRESS_FILE_MAX_BYTES, &data, &length);
     procedure_progress_t progress = {0};
     if (result == APP_ERROR_NONE) {
-        result = normalize_object_error(
-            storage_repository_parse_progress_json(data, length, &progress));
+        result =
+            normalize_object_error(storage_repository_parse_progress_json(data, length, &progress));
     }
-    if (result == APP_ERROR_NONE &&
-        (!app_uuid_equal(&progress.procedure_id, procedure_id) ||
-         !app_uuid_equal(&progress.set_id, set_id))) {
+    if (result == APP_ERROR_NONE && (!app_uuid_equal(&progress.procedure_id, procedure_id) ||
+                                     !app_uuid_equal(&progress.set_id, set_id))) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     if (result == APP_ERROR_NONE) {
@@ -537,8 +534,8 @@ static app_error_code_t append_ordered_macros(tree_writer_t *writer, bool *first
         }
         result = join_path(path, sizeof(path), directory, name);
         if (result == APP_ERROR_NONE) {
-            result = append_macro_file(writer, first, path, &order.ids[index], set_id,
-                                       MACRO_SCOPE_SET);
+            result =
+                append_macro_file(writer, first, path, &order.ids[index], set_id, MACRO_SCOPE_SET);
         }
         if (result == APP_ERROR_NONE) {
             ++counts->local_macro_count;
@@ -690,9 +687,9 @@ static app_error_code_t append_sets(tree_writer_t *writer, const char *root,
         char set_root[APP_PATH_MAX_BYTES];
         result = join_path(set_root, sizeof(set_root), sets_root, index->ids[item].value);
         if (result == APP_ERROR_NONE) {
-            result = validate_topology(set_root, SET_ROOT_ENTRIES,
-                                       sizeof(SET_ROOT_ENTRIES) / sizeof(SET_ROOT_ENTRIES[0]),
-                                       false);
+            result =
+                validate_topology(set_root, SET_ROOT_ENTRIES,
+                                  sizeof(SET_ROOT_ENTRIES) / sizeof(SET_ROOT_ENTRIES[0]), false);
         }
         if (result == APP_ERROR_NONE) {
             result = append_set_metadata(writer, &first, set_root, &index->ids[item]);
@@ -728,9 +725,9 @@ static app_error_code_t append_global_macros(tree_writer_t *writer, const char *
     char global_root[APP_PATH_MAX_BYTES];
     app_error_code_t result = join_path(global_root, sizeof(global_root), root, "global");
     if (result == APP_ERROR_NONE) {
-        result = validate_topology(global_root, GLOBAL_ROOT_ENTRIES,
-                                   sizeof(GLOBAL_ROOT_ENTRIES) / sizeof(GLOBAL_ROOT_ENTRIES[0]),
-                                   false);
+        result =
+            validate_topology(global_root, GLOBAL_ROOT_ENTRIES,
+                              sizeof(GLOBAL_ROOT_ENTRIES) / sizeof(GLOBAL_ROOT_ENTRIES[0]), false);
     }
     char path[APP_PATH_MAX_BYTES];
     storage_uuid_order_t order = {0};
@@ -772,8 +769,7 @@ static app_error_code_t append_global_macros(tree_writer_t *writer, const char *
 
 static app_error_code_t append_all_procedures(tree_writer_t *writer, const char *root,
                                               const storage_set_index_t *index,
-                                              storage_uuid_order_t *orders,
-                                              tree_counts_t *counts) {
+                                              storage_uuid_order_t *orders, tree_counts_t *counts) {
     app_error_code_t result = writer_text(writer, "[");
     bool first = true;
     for (size_t item = 0U; result == APP_ERROR_NONE && item < index->count; ++item) {
@@ -805,8 +801,8 @@ static app_error_code_t append_all_progress(tree_writer_t *writer, const char *r
             result = join_path(set_root, sizeof(set_root), sets_root, index->ids[item].value);
         }
         if (result == APP_ERROR_NONE) {
-            result = append_progress(writer, &first, set_root, &index->ids[item], &orders[item],
-                                     counts);
+            result =
+                append_progress(writer, &first, set_root, &index->ids[item], &orders[item], counts);
         }
     }
     return result == APP_ERROR_NONE ? writer_text(writer, "]") : result;
@@ -818,8 +814,8 @@ app_error_code_t storage_repository_tree_validate(const char *root) {
     }
     const bool live_root = strcmp(root, STORAGE_DATA_MOUNT) == 0;
     app_error_code_t result = validate_topology(
-        root, LOGICAL_ROOT_ENTRIES,
-        sizeof(LOGICAL_ROOT_ENTRIES) / sizeof(LOGICAL_ROOT_ENTRIES[0]), live_root);
+        root, LOGICAL_ROOT_ENTRIES, sizeof(LOGICAL_ROOT_ENTRIES) / sizeof(LOGICAL_ROOT_ENTRIES[0]),
+        live_root);
     storage_set_index_t index = {0};
     if (result == APP_ERROR_NONE) {
         result = read_set_index(root, &index);
@@ -828,8 +824,8 @@ app_error_code_t storage_repository_tree_validate(const char *root) {
     tree_counts_t counts = {0};
     tree_writer_t writer = {0};
     if (result == APP_ERROR_NONE) {
-        result = writer_text(&writer,
-                             "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":");
+        result =
+            writer_text(&writer, "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":");
     }
     if (result == APP_ERROR_NONE) {
         result = append_sets(&writer, root, &index, &counts);
@@ -866,12 +862,11 @@ app_error_code_t storage_repository_tree_validate(const char *root) {
         result = storage_package_validate(writer.data, writer.length, STORAGE_PACKAGE_KIND_BACKUP,
                                           &summary);
     }
-    if (result == APP_ERROR_NONE &&
-        (summary.set_count != counts.set_count ||
-         summary.local_macro_count != counts.local_macro_count ||
-         summary.global_macro_count != counts.global_macro_count ||
-         summary.procedure_count != counts.procedure_count ||
-         summary.progress_count != counts.progress_count)) {
+    if (result == APP_ERROR_NONE && (summary.set_count != counts.set_count ||
+                                     summary.local_macro_count != counts.local_macro_count ||
+                                     summary.global_macro_count != counts.global_macro_count ||
+                                     summary.procedure_count != counts.procedure_count ||
+                                     summary.progress_count != counts.progress_count)) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     free(writer.data);

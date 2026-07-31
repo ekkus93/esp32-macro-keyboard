@@ -27,9 +27,9 @@ app_error_code_t storage_package_validate(const char *data, size_t length,
                                           storage_package_kind_t expected_kind,
                                           storage_package_summary_t *out_summary);
 app_error_code_t storage_package_export_set(const app_uuid_t *set_id, bool include_progress,
-                                             char **out_data, size_t *out_length);
+                                            char **out_data, size_t *out_length);
 app_error_code_t storage_package_export_backup(bool include_progress, char **out_data,
-                                                size_t *out_length);
+                                               size_t *out_length);
 app_error_code_t storage_package_restore_backup(const char *data, size_t length);
 app_error_code_t storage_package_replace_set(const app_uuid_t *target_set_id,
                                              uint32_t expected_revision, const char *data,
