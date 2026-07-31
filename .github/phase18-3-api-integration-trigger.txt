@@ -1,1 +1,1 @@
-Apply and validate the Phase 18.3 transactional set replacement API. Diagnosable run.
+Apply and validate the Phase 18.3 transactional set replacement API. Current-master run after frontend integration.
