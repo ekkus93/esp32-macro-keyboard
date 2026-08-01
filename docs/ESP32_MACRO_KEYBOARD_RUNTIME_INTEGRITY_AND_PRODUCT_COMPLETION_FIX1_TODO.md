@@ -2077,11 +2077,46 @@ after success.
 
 Generate known sentinel secrets and assert they do not occur in:
 
-- [ ] set export;
-- [ ] full backup;
-- [ ] diagnostics;
+- [x] set export;
+- [x] full backup;
+- [x] diagnostics;
 - [ ] logs;
 - [ ] frontend persisted state.
+
+Implemented (set export, full backup, diagnostics): a shared host-test helper,
+`test_assert_no_secret_sentinel()` (new `tests/host/support/test_secret_sentinel.{h,c}`,
+in `test_support` alongside `test_assert`/`test_temp_dir`), writes real
+production output to real files and runs the real `scripts/check-secret-sentinel.py`
+against them - all 7 representations it checks (raw, JSON-escaped, URL-encoded,
+base64, base64url, hex-lower, hex-upper) - rather than reimplementing a
+substring check in C. The path to the scanner is baked in at CMake configure
+time (`TEST_SECRET_SENTINEL_SCANNER_PATH`, mirroring the existing
+`STORAGE_DATA_MOUNT` compile-definition pattern), so no test hardcodes a
+CWD-relative guess at the repo root. This replaced a previously vacuous
+check: `SECRET_SENTINEL` was already defined in both package tests but
+never actually placed anywhere in the fixtures it was checked against, so
+`strstr(output, SECRET_SENTINEL) == NULL` was true by construction rather
+than by proof. Set export's fixture now genuinely embeds
+`SECRET_SENTINEL` as the source of an unreferenced global macro, so
+`test_export_output_passes_secret_sentinel_scanner` proves the real
+scope-filtering logic excludes it. Full backup has no such scope boundary
+(it covers the entire repository by design), so
+`test_backup_output_passes_secret_sentinel_scanner` instead proves the
+weaker but still real property that `storage_package_export_backup` - whose
+production-path ops interface only ever reads set/macro/procedure/progress
+repository data - cannot leak a secret that exists elsewhere in the process.
+Diagnostics' `test_diagnostics_output_passes_secret_sentinel_scanner`
+follows the same "secret exists elsewhere in the process, real production
+call, real scanner" pattern, appropriate since `web_diagnostics_snapshot_t`
+structurally has no field capable of holding one. Each new test was verified
+against a negative control (temporarily pointing the scanner at a value
+genuinely present in the output) to confirm the harness actually fails
+closed rather than trivially passing, before being reverted.
+
+Logs and frontend persisted state remain open: per FIX1 handoff guidance,
+these need artifacts from real application logging and a real browser
+session (localStorage/sessionStorage/IndexedDB/Cache Storage), not host
+simulation - deferred to the hardware/browser phase (FIX1 §20-21).
 
 ### 18.6 Import as new
 
