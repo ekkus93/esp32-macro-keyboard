@@ -471,18 +471,26 @@ static app_error_code_t append_progress_file(tree_writer_t *writer, bool *first,
     char *data = NULL;
     size_t length = 0U;
     app_error_code_t result = read_bounded(path, STORAGE_PROGRESS_FILE_MAX_BYTES, &data, &length);
-    procedure_progress_t progress = {0};
+    /* Heap-allocated: this struct is several kilobytes and these helpers run
+     * on task stacks measured in single-digit KiB. See
+     * scripts/check-stack-usage.sh. */
+    procedure_progress_t *progress = calloc(1U, sizeof(*progress));
+    if (progress == NULL) {
+        free(data);
+        return APP_ERROR_INTERNAL;
+    }
     if (result == APP_ERROR_NONE) {
         result =
-            normalize_object_error(storage_repository_parse_progress_json(data, length, &progress));
+            normalize_object_error(storage_repository_parse_progress_json(data, length, progress));
     }
-    if (result == APP_ERROR_NONE && (!app_uuid_equal(&progress.procedure_id, procedure_id) ||
-                                     !app_uuid_equal(&progress.set_id, set_id))) {
+    if (result == APP_ERROR_NONE && (!app_uuid_equal(&progress->procedure_id, procedure_id) ||
+                                     !app_uuid_equal(&progress->set_id, set_id))) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     if (result == APP_ERROR_NONE) {
         result = writer_object(writer, first, data, length);
     }
+    free(progress);
     free(data);
     return result;
 }
@@ -515,20 +523,26 @@ static app_error_code_t append_ordered_macros(tree_writer_t *writer, bool *first
                                               tree_counts_t *counts) {
     char path[APP_PATH_MAX_BYTES];
     app_error_code_t result = join_path(path, sizeof(path), set_root, "macro-order.json");
-    storage_uuid_order_t order = {0};
+    /* Heap-allocated: storage_uuid_order_t is several kilobytes and these
+     * helpers run on task stacks measured in single-digit KiB. See
+     * scripts/check-stack-usage.sh. */
+    storage_uuid_order_t *order = calloc(1U, sizeof(*order));
+    if (order == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
     if (result == APP_ERROR_NONE) {
-        result = read_order(path, APP_MACROS_PER_SET_MAX, &order);
+        result = read_order(path, APP_MACROS_PER_SET_MAX, order);
     }
     char directory[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
         result = join_path(directory, sizeof(directory), set_root, "macros");
     }
     if (result == APP_ERROR_NONE) {
-        result = validate_directory_membership(directory, &order, true);
+        result = validate_directory_membership(directory, order, true);
     }
-    for (size_t index = 0U; result == APP_ERROR_NONE && index < order.count; ++index) {
+    for (size_t index = 0U; result == APP_ERROR_NONE && index < order->count; ++index) {
         char name[APP_UUID_STRING_LENGTH + sizeof(TREE_JSON_SUFFIX)];
-        const int written = snprintf(name, sizeof(name), "%s.json", order.ids[index].value);
+        const int written = snprintf(name, sizeof(name), "%s.json", order->ids[index].value);
         if (written < 0 || (size_t)written >= sizeof(name)) {
             result = APP_ERROR_STORAGE_CORRUPT;
             break;
@@ -536,12 +550,13 @@ static app_error_code_t append_ordered_macros(tree_writer_t *writer, bool *first
         result = join_path(path, sizeof(path), directory, name);
         if (result == APP_ERROR_NONE) {
             result =
-                append_macro_file(writer, first, path, &order.ids[index], set_id, MACRO_SCOPE_SET);
+                append_macro_file(writer, first, path, &order->ids[index], set_id, MACRO_SCOPE_SET);
         }
         if (result == APP_ERROR_NONE) {
             ++counts->local_macro_count;
         }
     }
+    free(order);
     return result;
 }
 
@@ -731,40 +746,47 @@ static app_error_code_t append_global_macros(tree_writer_t *writer, const char *
                               sizeof(GLOBAL_ROOT_ENTRIES) / sizeof(GLOBAL_ROOT_ENTRIES[0]), false);
     }
     char path[APP_PATH_MAX_BYTES];
-    storage_uuid_order_t order = {0};
+    /* Heap-allocated: storage_uuid_order_t is several kilobytes and these
+     * helpers run on task stacks measured in single-digit KiB. See
+     * scripts/check-stack-usage.sh. */
+    storage_uuid_order_t *order = calloc(1U, sizeof(*order));
+    if (order == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
     if (result == APP_ERROR_NONE) {
         result = join_path(path, sizeof(path), global_root, "macro-order.json");
     }
     if (result == APP_ERROR_NONE) {
-        result = read_order(path, APP_MACROS_PER_SET_MAX, &order);
+        result = read_order(path, APP_MACROS_PER_SET_MAX, order);
     }
     char directory[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
         result = join_path(directory, sizeof(directory), global_root, "macros");
     }
     if (result == APP_ERROR_NONE) {
-        result = validate_directory_membership(directory, &order, true);
+        result = validate_directory_membership(directory, order, true);
     }
     if (result == APP_ERROR_NONE) {
         result = writer_text(writer, "[");
     }
     bool first = true;
-    for (size_t index = 0U; result == APP_ERROR_NONE && index < order.count; ++index) {
+    for (size_t index = 0U; result == APP_ERROR_NONE && index < order->count; ++index) {
         char name[APP_UUID_STRING_LENGTH + sizeof(TREE_JSON_SUFFIX)];
-        const int written = snprintf(name, sizeof(name), "%s.json", order.ids[index].value);
+        const int written = snprintf(name, sizeof(name), "%s.json", order->ids[index].value);
         if (written < 0 || (size_t)written >= sizeof(name)) {
             result = APP_ERROR_STORAGE_CORRUPT;
             break;
         }
         result = join_path(path, sizeof(path), directory, name);
         if (result == APP_ERROR_NONE) {
-            result = append_macro_file(writer, &first, path, &order.ids[index], NULL,
+            result = append_macro_file(writer, &first, path, &order->ids[index], NULL,
                                        MACRO_SCOPE_GLOBAL);
         }
         if (result == APP_ERROR_NONE) {
             ++counts->global_macro_count;
         }
     }
+    free(order);
     return result == APP_ERROR_NONE ? writer_text(writer, "]") : result;
 }
 
@@ -817,11 +839,28 @@ app_error_code_t storage_repository_tree_validate(const char *root) {
     app_error_code_t result = validate_topology(
         root, LOGICAL_ROOT_ENTRIES, sizeof(LOGICAL_ROOT_ENTRIES) / sizeof(LOGICAL_ROOT_ENTRIES[0]),
         live_root);
-    storage_set_index_t index = {0};
-    if (result == APP_ERROR_NONE) {
-        result = read_set_index(root, &index);
+    /* Both of these are far too large to be stack locals: storage_set_index_t
+     * is ~2 KB and a storage_uuid_order_t is ~8 KB, so an
+     * order-per-set array dimensioned APP_MACRO_SETS_MAX put this frame at
+     * ~388 KB - larger than the device's entire free heap, and reachable from
+     * boot-time restore recovery. They are heap-allocated, and the order array
+     * is sized to the set count actually present rather than the compile-time
+     * maximum, which is what makes it fit at all. */
+    storage_set_index_t *index = calloc(1U, sizeof(*index));
+    if (index == NULL) {
+        return APP_ERROR_INTERNAL;
     }
-    storage_uuid_order_t procedure_orders[APP_MACRO_SETS_MAX] = {0};
+    if (result == APP_ERROR_NONE) {
+        result = read_set_index(root, index);
+    }
+    storage_uuid_order_t *procedure_orders = NULL;
+    if (result == APP_ERROR_NONE && index->count > 0U) {
+        procedure_orders = calloc(index->count, sizeof(*procedure_orders));
+        if (procedure_orders == NULL) {
+            free(index);
+            return APP_ERROR_INTERNAL;
+        }
+    }
     tree_counts_t counts = {0};
     tree_writer_t writer = {0};
     if (result == APP_ERROR_NONE) {
@@ -829,13 +868,13 @@ app_error_code_t storage_repository_tree_validate(const char *root) {
             writer_text(&writer, "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":");
     }
     if (result == APP_ERROR_NONE) {
-        result = append_sets(&writer, root, &index, &counts);
+        result = append_sets(&writer, root, index, &counts);
     }
     if (result == APP_ERROR_NONE) {
         result = writer_text(&writer, ",\"macros\":");
     }
     if (result == APP_ERROR_NONE) {
-        result = append_all_local_macros(&writer, root, &index, &counts);
+        result = append_all_local_macros(&writer, root, index, &counts);
     }
     if (result == APP_ERROR_NONE) {
         result = writer_text(&writer, ",\"global_macros\":");
@@ -847,13 +886,13 @@ app_error_code_t storage_repository_tree_validate(const char *root) {
         result = writer_text(&writer, ",\"procedures\":");
     }
     if (result == APP_ERROR_NONE) {
-        result = append_all_procedures(&writer, root, &index, procedure_orders, &counts);
+        result = append_all_procedures(&writer, root, index, procedure_orders, &counts);
     }
     if (result == APP_ERROR_NONE) {
         result = writer_text(&writer, ",\"progress\":");
     }
     if (result == APP_ERROR_NONE) {
-        result = append_all_progress(&writer, root, &index, procedure_orders, &counts);
+        result = append_all_progress(&writer, root, index, procedure_orders, &counts);
     }
     if (result == APP_ERROR_NONE) {
         result = writer_text(&writer, "}");
@@ -871,5 +910,7 @@ app_error_code_t storage_repository_tree_validate(const char *root) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     free(writer.data);
+    free(procedure_orders);
+    free(index);
     return result;
 }

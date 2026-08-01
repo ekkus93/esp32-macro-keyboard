@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "app_error.h"
@@ -257,11 +258,17 @@ static app_error_code_t handle_reset_settings(const web_api_call_t *call,
 }
 
 static app_error_code_t handle_quarantine(web_api_response_t *response) {
-    storage_quarantine_list_t list = {0};
-    app_error_code_t result = storage_quarantine_list(&list);
+    /* Heap-allocated, not a stack local: storage_quarantine_list_t is far
+     * larger than the httpd task stack (see web_server_lifecycle.c), so a
+     * stack local here overflows it and panics the device. */
+    storage_quarantine_list_t *list = calloc(1U, sizeof(*list));
+    if (list == NULL) {
+        return web_api_handler_error(response, APP_ERROR_INTERNAL, "quarantine unavailable", NULL);
+    }
+    app_error_code_t result = storage_quarantine_list(list);
     char *json = NULL;
     if (result == APP_ERROR_NONE) {
-        result = web_api_handler_quarantine_json(&list, &json);
+        result = web_api_handler_quarantine_json(list, &json);
     }
     if (result == APP_ERROR_NONE) {
         result = web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, json);
@@ -271,6 +278,7 @@ static app_error_code_t handle_quarantine(web_api_response_t *response) {
         result = encoded == APP_ERROR_NONE ? APP_ERROR_NONE : encoded;
     }
     web_api_handler_json_free(json);
+    free(list);
     return result;
 }
 

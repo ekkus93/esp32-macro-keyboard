@@ -10,6 +10,14 @@
 
 #define WEB_MAX_URI_HANDLERS 28U
 
+/* httpd task stack. 8192 (the ESP-IDF-ish default this used to carry) overflows
+ * on real hardware for any request reaching a storage write path: those nest
+ * several multi-kilobyte frames (storage_set_index_t ~2 KB, storage_uuid_order_t
+ * ~8 KB, transaction manifests, APP_PATH_MAX_BYTES buffers, cJSON scratch).
+ * scripts/check-stack-usage.sh enforces per-frame limits; this is the budget
+ * those frames are measured against. */
+#define WEB_HTTPD_TASK_STACK_BYTES 24576U
+
 static const httpd_uri_t normal_routes[] = {
     {.uri = "/api/v1/status", .method = HTTP_GET, .handler = status_handler},
     {.uri = "/api/v1/limits", .method = HTTP_GET, .handler = limits_handler},
@@ -58,7 +66,7 @@ static int start_server_adapter(void *context, void **out_handle) {
     (void)context;
     httpd_config_t configuration = HTTPD_DEFAULT_CONFIG();
     configuration.max_uri_handlers = WEB_MAX_URI_HANDLERS;
-    configuration.stack_size = 8192U;
+    configuration.stack_size = WEB_HTTPD_TASK_STACK_BYTES;
     configuration.uri_match_fn = httpd_uri_match_wildcard;
     httpd_handle_t handle = NULL;
     if (httpd_start(&handle, &configuration) != ESP_OK) {
