@@ -2142,7 +2142,7 @@ Add stable health snapshots for:
 - [x] repository;
 - [x] authentication;
 - [x] USB;
-- [ ] executor;
+- [x] executor;
 - [ ] controls;
 - [ ] Wi-Fi;
 - [ ] HTTP.
@@ -2180,6 +2180,11 @@ repository), recorded from `app_core.c`'s existing auth adapters.
 Implemented (USB): `usb_health.c` tracks a primary error from
 `usb_keyboard_init()` and a cleanup error/incomplete flag from
 `usb_keyboard_deinit()`, recorded from `app_core.c`'s existing USB adapters.
+
+Implemented (executor): `executor_health.c` tracks executor task lifecycle
+health (init/deinit), distinct from a single execution's own result
+(`macro_execution_status_t`, already surfaced separately as the current
+execution state) — recorded from `app_core.c`'s existing executor adapters.
 
 Retain primary and cleanup errors separately.
 

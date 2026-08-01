@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
     "macro_executor.c"
     "macro_executor_engine.c"
+    "executor_health.c"
     INCLUDE_DIRS
     "include"
     PRIV_INCLUDE_DIRS
@@ -10,6 +11,7 @@ idf_component_register(
     macro_model
     macro_parser
     usb_keyboard
+    support
     freertos
 )
 

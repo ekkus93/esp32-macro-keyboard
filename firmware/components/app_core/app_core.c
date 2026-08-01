@@ -12,6 +12,7 @@
 #include "auth_health.h"
 #include "device_controls.h"
 #include "esp_log.h"
+#include "executor_health.h"
 #include "macro_executor.h"
 #include "nvs_flash.h"
 #include "provisioning.h"
@@ -119,7 +120,9 @@ static app_error_code_t adapter_usb_init(void *context) {
 
 static app_error_code_t adapter_executor_init(void *context) {
     (void)context;
-    return macro_executor_init();
+    const app_error_code_t result = macro_executor_init();
+    executor_health_record_primary(result);
+    return result;
 }
 
 static app_error_code_t adapter_controls_init(void *context) {
@@ -181,7 +184,9 @@ static app_error_code_t adapter_usb_deinit(void *context) {
 
 static app_error_code_t adapter_executor_deinit(void *context) {
     (void)context;
-    return macro_executor_deinit();
+    const app_error_code_t result = macro_executor_deinit();
+    executor_health_record_cleanup(result, result != APP_ERROR_NONE);
+    return result;
 }
 
 static app_error_code_t adapter_controls_deinit(void *context) {
@@ -289,6 +294,7 @@ app_error_code_t app_core_start(void) {
     repository_health_reset();
     auth_health_reset();
     usb_health_reset();
+    executor_health_reset();
     const app_core_ops_t operations = {
         .context = NULL,
         .nvs_init = adapter_nvs_init,

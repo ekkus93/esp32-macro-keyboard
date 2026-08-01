@@ -257,6 +257,20 @@ add_test(NAME usb_health COMMAND usb_health_tests)
 set_tests_properties(usb_health PROPERTIES LABELS "usb")
 
 add_executable(
+    executor_health_tests test_executor_health.c
+                          ../../firmware/components/macro_executor/executor_health.c
+)
+target_include_directories(
+    executor_health_tests
+    PRIVATE ../../firmware/components/macro_executor/include
+            ../../firmware/components/support/include ../../firmware/components/macro_model/include
+)
+target_link_libraries(executor_health_tests PRIVATE test_support)
+target_compile_options(executor_health_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME executor_health COMMAND executor_health_tests)
+set_tests_properties(executor_health PROPERTIES LABELS "executor")
+
+add_executable(
     usb_keyboard_tests test_usb_keyboard.c
                        ../../firmware/components/usb_keyboard/usb_keyboard_state.c
 )
