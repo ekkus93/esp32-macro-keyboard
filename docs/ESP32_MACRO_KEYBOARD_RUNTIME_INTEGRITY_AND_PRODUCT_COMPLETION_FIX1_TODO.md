@@ -2080,8 +2080,8 @@ Generate known sentinel secrets and assert they do not occur in:
 - [x] set export;
 - [x] full backup;
 - [x] diagnostics;
-- [ ] logs;
-- [ ] frontend persisted state.
+- [x] logs;
+- [x] frontend persisted state.
 
 Implemented (set export, full backup, diagnostics): a shared host-test helper,
 `test_assert_no_secret_sentinel()` (new `tests/host/support/test_secret_sentinel.{h,c}`,
@@ -2113,10 +2113,66 @@ against a negative control (temporarily pointing the scanner at a value
 genuinely present in the output) to confirm the harness actually fails
 closed rather than trivially passing, before being reverted.
 
-Logs and frontend persisted state remain open: per FIX1 handoff guidance,
-these need artifacts from real application logging and a real browser
-session (localStorage/sessionStorage/IndexedDB/Cache Storage), not host
-simulation - deferred to the hardware/browser phase (FIX1 §20-21).
+Implemented (logs, frontend persisted state): closed via exhaustive static
+proof rather than live-captured-artifact scanning. Live capture was
+attempted first: production firmware was built with
+`CONFIG_APP_MANUFACTURING_PROVISIONING_LOG` (a documented dev-only Kconfig
+option per SPEC §8.1, never enabled in the committed `sdkconfig`) and
+flashed to the attached ESP32-S3, confirming real first-boot AP bootstrap
+credentials on the serial console. Driving the device's HTTP API to
+generate login/CRUD/execution/diagnostics log lines, or a real browser
+session against its web UI, both require a client to join the device's
+SoftAP - this machine has exactly one Wi-Fi radio, which is also this
+session's own network path, so joining the device's AP would have
+disconnected the agent mid-task with no way to recover or report back.
+Given that constraint, the user chose the static/code-review proof instead
+of a live capture requiring separate hardware to drive the device. The
+device was left reflashed with the clean production build (manufacturing
+logging disabled) and the temporary local-only `format_if_mount_failed`
+patch used to bootstrap its LittleFS partitions was reverted before this
+decision.
+
+For logs: every one of the 21 `ESP_LOG*` call sites in `firmware/` (there
+are no bare `printf`/`fprintf` calls at all) was read and traced by hand.
+All but four pass only fixed string literals with no arguments. The
+remaining four pass only: a `const char *stage` field that is always a
+literal stage name at every one of its 15 call sites (`"wifi"`, `"http"`,
+`"storage_mount"`, etc., never request/user data); `app_error_code_string()`
+results (a fixed enum-to-literal mapping); a fixed `"incomplete"`/`"complete"`
+literal; and, in the one case that legitimately logs real secrets
+(`app_core.c`'s `APP_CORE_LOG_MANUFACTURING_CREDENTIALS` handler), the AP
+SSID/passphrase/setup code already covered by the permanent
+`check-credential-logging.sh` gate's banner-guard and approved-message-list
+enforcement - this hand trace corroborates that gate rather than
+substituting for it.
+
+For frontend persisted state: only one file in `webapp/src` touches any
+browser storage API at all - `features/sets/SetSelectionPage.tsx` - and it
+uses exactly one `localStorage` key
+(`esp32-macro-keyboard.recent-set-ids`) holding an array of macro-set UUIDs,
+never a credential or macro source. No file anywhere in `webapp/src` uses
+`sessionStorage`, `indexedDB`, Cache Storage, or a service worker (no `sw.js`,
+no PWA build plugin). The `HttpOnly` session cookie (FIX1 SPEC §8.2) means
+client-side JS cannot read the session token at all, by construction. This
+invariant is now a new permanent, deterministic gate rather than a one-time
+finding: `scripts/check-frontend-persisted-state.sh` (wired into
+`check-all.sh` alongside `check-credential-logging.sh`) fails closed if any
+file uses `sessionStorage`/`indexedDB`/Cache Storage/a service worker, or
+uses `localStorage` from any file or with any key outside this approved
+allowlist. Regression-tested by
+`tests/scripts/test-check-frontend-persisted-state.sh` (6 cases: the valid
+fixture, each forbidden API, an unapproved key, and localStorage use from an
+unapproved file), run from `check-scripts.sh`.
+
+This is real, reproducible evidence, but it is a different kind of proof
+than a live-captured-artifact scan: it shows no code path *can* leak the
+sentinel today, not that a live, fully-exercised device+browser session
+*did not* leak it. If a future session gets a second network path to the
+device (e.g. a dedicated Wi-Fi adapter, or the device gains a wired/USB
+network option), a live capture per the original FIX1 handoff guidance
+would still be a valid, stronger follow-up - not required to keep these
+items checked, since the static proof already covers every code path that
+exists today.
 
 ### 18.6 Import as new
 
