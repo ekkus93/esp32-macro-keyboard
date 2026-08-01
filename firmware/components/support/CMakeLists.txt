@@ -1,5 +1,6 @@
 idf_component_register(
     SRCS
+    "app_lifecycle_health.c"
     "app_operation_result.c"
     "subsystem_health.c"
     INCLUDE_DIRS

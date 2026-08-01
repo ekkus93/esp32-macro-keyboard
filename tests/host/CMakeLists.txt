@@ -192,18 +192,17 @@ add_test(NAME app_core COMMAND app_core_tests)
 set_tests_properties(app_core PROPERTIES LABELS "startup")
 
 add_executable(
-    app_core_health_tests test_app_core_health.c
-                          ../../firmware/components/app_core/app_core_health.c
+    app_lifecycle_health_tests test_app_lifecycle_health.c
+                               ../../firmware/components/support/app_lifecycle_health.c
 )
 target_include_directories(
-    app_core_health_tests
-    PRIVATE ../../firmware/components/app_core/include ../../firmware/components/app_core
-            ../../firmware/components/support/include ../../firmware/components/macro_model/include
+    app_lifecycle_health_tests PRIVATE ../../firmware/components/support/include
+                                       ../../firmware/components/macro_model/include
 )
-target_link_libraries(app_core_health_tests PRIVATE test_support)
-target_compile_options(app_core_health_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME app_core_health COMMAND app_core_health_tests)
-set_tests_properties(app_core_health PROPERTIES LABELS "startup")
+target_link_libraries(app_lifecycle_health_tests PRIVATE test_support)
+target_compile_options(app_lifecycle_health_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME app_lifecycle_health COMMAND app_lifecycle_health_tests)
+set_tests_properties(app_lifecycle_health PROPERTIES LABELS "startup")
 
 add_executable(
     storage_health_tests test_storage_health.c ../../firmware/components/storage/storage_health.c
