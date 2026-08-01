@@ -521,15 +521,26 @@ Before initializing USB, executor, or controls:
 - [x] mount and recover storage;
 - [x] initialize repositories;
 - [x] initialize authentication;
-- [ ] load and validate persistent provisioning state.
+- [x] load and validate persistent provisioning state.
       (Ordering established — the provisioning decision now runs here, before
-      USB/executor/controls. The persistent encrypted-NVS load/validate itself
-      lands in Phase 14; only its position is fixed in Phase 4.)
+      USB/executor/controls. Phase 14 (fully complete) implements the
+      persistent encrypted-NVS load/validate itself:
+      `app_core_sequence.c`'s `app_core_sequence_start()` calls
+      `operations->provisioning_load(...)` right after `provisioning_init`
+      and before `storage_mount`, dispatching to `provisioning_load()` in
+      `provisioning.c`, which calls `provisioning_core_load()`. This
+      checkbox was stale - the work landed with Phase 14, the doc was never
+      updated.)
 
 If production provisioning is incomplete:
 
-- [ ] enter the explicit setup mode; or
-      (Explicit setup mode is implemented in Phase 14.)
+- [x] enter the explicit setup mode; or
+      (Phase 14, fully complete, implements this: `app_core_sequence_start()`
+      branches on `secrets.provisioning.provisioned` into `start_setup_mode()`
+      when incomplete, which initializes auth/controls, derives bootstrap
+      credentials, configures `WEB_SERVER_MODE_SETUP`, and starts the setup
+      AP - reachable in production whenever provisioning is incomplete.
+      Stale checkbox, same as above.)
 - [x] cleanly stop and report provisioning required.
 
 Do not initialize normal-operation tasks and then return
@@ -741,17 +752,43 @@ Provide validators for:
 - [x] set index;
 - [x] global macro index;
 - [x] set metadata;
-- [ ] macro object;
-- [ ] procedure object;
-- [ ] progress object;
+- [x] macro object;
+- [x] procedure object;
+- [x] progress object;
 - [ ] settings object;
 - [x] quarantine record.
 
-The macro / procedure / progress / settings object validators are deferred to
-Phase 15 (their object repositories are not yet implemented — settings has no
-storage representation at all). Until then the dispatch classifies those
-destinations but has **no validator**, so recovery refuses to activate their
-candidates — the fail-closed behavior the invariant requires.
+Implemented (macro/procedure/progress): Phase 15 (fully complete) implements
+their object repositories, and `storage_atomic_validators.c`'s
+`validate_macro`/`validate_procedure`/`validate_progress` are real
+content-validating functions (parse the candidate, check object identity,
+and, for macros, scope/set ownership against the destination path), wired
+into `validator_for_type()`'s dispatch switch. These three checkboxes were
+stale:
+the validators landed with Phase 15 and were genuinely dispatched, but had no
+positive-path test - the pre-existing `test_dispatch_refuses_without_validator`
+asserted `APP_ERROR_NOT_FOUND` for a macro destination, but only because the
+test never wrote the candidate file (a missing-file error, not a
+missing-validator error, coincidentally sharing the same error code). Added
+real coverage in `tests/host/test_storage_atomic_validators.c`:
+`test_macro_validator`/`test_procedure_validator`/`test_progress_validator`
+each assert a matching-identity candidate is accepted, a candidate whose
+owning set disagrees with the destination is rejected, a candidate whose own
+id disagrees with the destination is rejected, and unparseable content is
+rejected - and corrected the stale comment on
+`test_dispatch_refuses_without_validator` (now genuinely only reachable via
+an unrecognized destination, since every classified type has a validator
+except settings, which no path is ever classified as).
+
+The settings object validator remains deferred: settings still has no
+atomic-write storage representation at all (it lives in encrypted NVS via
+the provisioning component, not as a LittleFS JSON object) and
+`storage_atomic_classify_destination()` never returns
+`STORAGE_ATOMIC_OBJECT_SETTINGS` for any real path, so there is nothing yet
+for a validator to guard. Until settings gains a file-based representation,
+the dispatch classifies unrecognized/unimplemented destinations as having
+**no validator**, so recovery refuses to activate their candidates — the
+fail-closed behavior the invariant requires.
 
 The FIX1 §7.2 validator typedef sketch used two separate `const char *` parameters
 (destination, candidate_path). Those are folded into one `storage_atomic_candidate_t`
@@ -985,9 +1022,21 @@ Use host threads or deterministic fake scheduling to prove:
 - [x] two updates with the same expected revision cannot both succeed;
 - [x] create and delete cannot race the same index;
 - [x] recovery cannot race an API mutation;
-- [ ] import/restore excludes all other mutations (deferred with the
-      import/restore feature, Phase 18; it will acquire the same lock, so the
-      exclusion proven for create/delete/recovery covers it once implemented);
+- [x] import/restore excludes all other mutations (Phase 18, fully complete,
+      implements import/restore: `storage_package_import_set()` and
+      `storage_package_restore_backup()` both hold the repository lock
+      across their entire prepare/commit pass via
+      `storage_repository_lock_take()`/`_give()`. This checkbox stayed open
+      after Phase 18 landed because the doc's own note - "it will acquire
+      the same lock, so the exclusion proven for create/delete/recovery
+      covers it once implemented" - was reasoning, not a proof, per §24's
+      own rule against implicit deferral. Added the actual test:
+      `test_concurrency_import_excludes_mutation`
+      (`tests/host/test_storage_package_import.c`) and
+      `test_concurrency_restore_excludes_mutation`
+      (`tests/host/test_storage_package_restore.c`), both using the same
+      interloper-lock pattern as `test_storage_sets.c`'s existing
+      create/delete/recovery proofs.);
 - [x] unlock failure is visible and does not report mutation success.
 
 ## 10. Separate password mismatch from crypto failure
@@ -1275,13 +1324,22 @@ with explicit result handling. If terminal publication or reset fails:
 Add `EXECUTION_TIMED_OUT` or retain `EXECUTION_FAILED` with a required
 `APP_ERROR_TIMEOUT` mapping. The API and frontend must distinguish timeout.
 
-- [ ] Add execution ID and object identity to status. (execution_id already
-      present; set_id/macro_id identity deferred to the API/diagnostics phases,
-      16/19, where it is consumed and its JSON shape is designed.)
-- [ ] Add accepted, started, and completed timestamps. (Observability metadata
-      deferred to Phase 16/19 with its consumer.)
-- [ ] Add current action summary. (Observability metadata deferred to Phase 16/19
-      with its consumer.)
+- [x] Add execution ID and object identity to status. (Phase 16, fully
+      complete, is where this landed: `web_api_execution.c`'s
+      `execution_status_json()` emits `executionId`/`setId`/`macroId` from
+      `macro_execution_status_t`'s `execution_id`/`set_id`/`macro_id`
+      fields on every `/api/v1/executions/current` response. Stale
+      checkbox - the JSON shape this note said would be "designed" in
+      Phase 16 was designed and shipped there.)
+- [ ] Add accepted, started, and completed timestamps. Genuinely still
+      open: `macro_execution_status_t` has no timestamp fields at all, and
+      no consumer (API or diagnostics) references one. Needs a design
+      decision (what timestamps, what format, RTC vs. monotonic clock)
+      before implementing, not just verification - left open.
+- [ ] Add current action summary. Genuinely still open, same reason: no
+      `action_summary`/`current_action` field or mechanism exists anywhere
+      in the executor, API, or diagnostics route, and what a "current
+      action summary" should even contain has never been designed.
 - [x] Add tests for key-release failure after otherwise successful execution.
 
 ## 13. Fix device-controls shutdown and failure visibility
@@ -1322,7 +1380,13 @@ device_controls_health_t device_controls_get_health(void);
 
 - [x] Update health atomically.
 - [x] Log failures through ESP logging.
-- [ ] Expose redacted health through diagnostics. (Remains open for Phase 19.)
+- [x] Expose redacted health through diagnostics. (Landed with FIX1 §19.2:
+      `web_server_diagnostics.c`'s `fill_subsystems()` includes
+      `{.name = "controls", .state = device_controls_health_derive_state(device_controls_get_health())}`
+      as one of the nine subsystems in `/api/v1/diagnostics`, tested in
+      `tests/host/test_web_server_adapter_diagnostics_json.inc`. Commit
+      `4568686` and supporting commits `b4a6df4`/`da2cbd6`/`6323b0a`/
+      `9830d41`/`27841aa`/`f7d876a`.)
 
 ### 13.3 Implement deinit
 
@@ -2575,23 +2639,78 @@ Fail when:
 - [ ] static RAM exceeds budget;
 - [ ] measured task stack margin is below threshold.
 
+Genuinely still open, entirely: `scripts/check-release-budgets.sh` does not
+exist, and no other script enforces any of these five conditions. This isn't
+a stale checkbox - there is real, substantial work here, and it can't be
+done as a mechanical fix: no numeric budget/threshold is defined anywhere in
+this repo for OTA slot usage, static RAM, or task stack margin, so writing
+this script first requires a policy decision on what those thresholds
+should be (not something to invent unilaterally). It's also blocked in part
+on FIX1 §20.1's own finding: the webfs LittleFS image is not generated by
+any automated build step today (SPEC §23's packaging pipeline - gzip
+generation, image generation - has no corresponding script), so "webfs
+image exceeds partition budget" has nothing to check against until that
+pipeline exists.
+
 ### 21.2 Pin GitHub Actions
 
-- [ ] replace action tags with full commit SHAs;
-- [ ] comment the human-readable version;
-- [ ] document runner/tool versions;
-- [ ] retain least-privilege permissions;
-- [ ] keep concurrency cancellation.
+- [x] replace action tags with full commit SHAs;
+- [x] comment the human-readable version;
+- [x] document runner/tool versions;
+- [x] retain least-privilege permissions;
+- [x] keep concurrency cancellation.
+
+Implemented: `.github/workflows/browser-tests.yml`, `publish-ci-status.yml`,
+and part of `quality.yml` were already pinning `actions/checkout`/
+`actions/setup-node` to full commit SHAs with a `# vX` comment; the
+remaining 16 `uses:` lines across `quality.yml`, `device-tests-build.yml`,
+and `host-tests.yml` (`actions/checkout@v4`, `actions/setup-node@v4`, and
+every `actions/upload-artifact@v4`) were still on the mutable `v4` tag.
+Pinned all of them to the same commits the repo already trusted for those
+actions (`actions/checkout` → `11d5960a326750d5838078e36cf38b85af677262`,
+`actions/setup-node` → `49933ea5288caeca8642d1e84afbd3f7d6820020`,
+`actions/upload-artifact` → `ea165f8d65b6e75b540449e92b4886f43607fa02`, the
+commit its `v4` tag currently resolves to), each with a `# v4` comment.
+`actionlint` passes on all five workflow files. Runner versions
+(`ubuntu-24.04`, not `-latest`), tool versions (ESP-IDF v5.5.5, Node via
+`.nvmrc`/explicit `node-version`, `go1.25.12`, `actionlint@v1.7.12`,
+`shfmt@v3.11.0`, pinned pip packages), least-privilege `permissions:` blocks,
+and `concurrency:` blocks with `cancel-in-progress: true` were already
+present in every workflow file before this fix.
 
 ### 21.3 Add production-configuration gate
 
 Fail release when:
 
-- [ ] manufacturing credential logging enabled;
-- [ ] NVS encryption disabled;
-- [ ] required security configuration absent;
-- [ ] development-only setup bypass enabled;
+- [x] manufacturing credential logging enabled;
+- [x] NVS encryption disabled;
+- [x] required security configuration absent;
+- [x] development-only setup bypass enabled;
 - [ ] debug server or remote assets enabled.
+
+Implemented (4 of 5): `scripts/check-production-config.sh`, a permanent gate
+in `check-all.sh`, forbids `CONFIG_APP_MANUFACTURING_PROVISIONING_LOG=y` and
+requires `CONFIG_NVS_ENCRYPTION=y`, `CONFIG_NVS_SEC_KEY_PROTECT_USING_HMAC=y`,
+and a valid `CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID` (rejecting the weaker
+`..._USING_FLASH_ENC`/`..._NONE` alternatives) - "required security
+configuration absent" is real but narrow in scope: it covers the NVS
+encryption scheme specifically, the only security configuration this
+codebase currently defines as required, not a general-purpose policy engine.
+"Development-only setup bypass enabled" is satisfied by the same
+manufacturing-logging check rather than an independently-named one: the only
+setup-bypass mechanism in the code (`setup_manufacturing_bypass`,
+gated by the same `CONFIG_APP_MANUFACTURING_PROVISIONING_LOG`) is blocked
+when that option is rejected. All four regression-tested in
+`tests/scripts/test-check-production-config.sh`.
+
+Remaining gap: "remote assets enabled" is enforced, just by a different
+script not called from `check-production-config.sh` -
+`scripts/verify-no-remote-assets.sh`, run against `webapp/dist` from
+`check-webapp.sh`. "Debug server enabled" has no enforcement anywhere,
+though there is also nothing to enforce against yet - no debug-server
+Kconfig option or HTTP route exists in the firmware today. Left as an open
+checkbox rather than checked-by-vacuous-truth: if a debug server is ever
+added, nothing today would fail a production build that leaves it enabled.
 
 ## 22. Synchronize documentation
 
@@ -2610,13 +2729,47 @@ docs/TODO.md
 docs/UNIT_TESTS1_TODO.md
 ```
 
-- [ ] Remove stale claim that `firmware/dependencies.lock` is missing.
-- [ ] Correct stale claim that set CRUD is not implemented.
+- [x] Remove stale claim that `firmware/dependencies.lock` is missing.
+      (Corrected in `docs/SECURITY_REVIEW.md`, `docs/RELEASE_NOTES.md`, and
+      `docs/TODO_EVIDENCE.md` - all three predate commit `0b64ee6`, which
+      committed the lockfile on 2026-07-25.)
+- [x] Correct stale claim that set CRUD is not implemented. (Corrected in
+      `docs/SECURITY_REVIEW.md`, citing `web_api_sets.c`'s
+      `web_api_handle_sets` and the backing repositories.)
 - [ ] Clearly distinguish implemented, host-tested, device-tested, and
-      release-ready behavior.
+      release-ready behavior. Genuinely still open: this needs a full
+      editorial pass across all ten files listed above, not a mechanical
+      fix - out of scope for this sweep, left open honestly rather than
+      claimed done.
 - [ ] Include exact evidence commit/run for each completed release gate.
-- [ ] Do not reference missing companion files.
+      Partially addressed: every "Implemented"/"Evidence" paragraph added or
+      touched in this sweep cites commits (see this file's §4.5, §7.1, §9.3,
+      §12.4, §13.2, §18.5, §19.2, §20.1, §23 entries), and
+      `docs/ESP32_MACRO_KEYBOARD_CODE_REVIEW_FIXES_PROGRESS_2026-07-29.md`
+      already does this consistently as a reference example. Most of this
+      doc's ~20 older "Implemented" paragraphs (Phases 1-18, before this
+      sweep) still lack commit citations and were not retrofitted - that is
+      a real, separate, git-archaeology-heavy task, left open rather than
+      claimed done.
+- [x] Do not reference missing companion files. (Found and fixed: 5 dead
+      links to a `docs/HIL_TEST_PLAN.md` that was never created - the real
+      file is `docs/HARDWARE_TEST_PLAN.md` - in `docs/README.md`,
+      `docs/FRONTEND_TESTS_PROGRESS.md`, `docs/UNIT_TESTS1_TODO.md`,
+      `docs/UNIT_TESTS1_HANDOFF_STATUS_2026-07-24.md` (x2), and
+      `docs/UNIT_TESTS1_PROGRESS.md`.)
 - [ ] Keep historical findings but mark when and how they were fixed.
+      Partially addressed: `docs/SECURITY_REVIEW.md`, `docs/RELEASE_NOTES.md`,
+      and `docs/TODO_EVIDENCE.md` now carry a superseded/historical-snapshot
+      note pointing at this doc, with the two named stale claims corrected
+      inline (struck through, not deleted). Not addressed:
+      `docs/ESP32_MACRO_KEYBOARD_CODE_REVIEW_FIXES_TODO_2026-07-28.md` (110
+      unchecked boxes describing bugs that
+      `docs/ESP32_MACRO_KEYBOARD_CODE_REVIEW_FIXES_PROGRESS_2026-07-29.md`
+      shows were mostly fixed the next day) is never cross-referenced back
+      to that fix - a reader opening only the original TODO would
+      reasonably believe those bugs are still open. Retroactively
+      annotating a 110-item document is a real, separate task, left open
+      rather than claimed done.
 
 ## 23. Final regression and acceptance gate
 
@@ -2637,58 +2790,107 @@ The final acceptance checklist is:
 
 ### Quality
 
-- [ ] analyzer infrastructure failure makes CI fail;
-- [ ] no first-party warning or suppression;
-- [ ] formatting, lint, typecheck, and tests clean;
-- [ ] sanitizer and leak checks clean;
-- [ ] coverage gates pass without exclusions.
+- [x] analyzer infrastructure failure makes CI fail;
+- [x] no first-party warning or suppression;
+- [x] formatting, lint, typecheck, and tests clean;
+- [x] sanitizer and leak checks clean;
+- [x] coverage gates pass without exclusions.
+
+Evidence: Phase 2 (fully complete) - `check-firmware.sh` no longer swallows
+`run-clang-tidy`'s exit status, regression-tested with fakes
+(`tests/scripts/test-check-firmware.sh`); `.github/workflows/quality.yml`
+runs `check-all.sh` on every push/PR; `host-tests.yml` runs `run-tests.sh`,
+`run-tests.sh --sanitizers`, and dedicated native/frontend coverage jobs.
 
 ### Lifecycle
 
-- [ ] startup failure after every stage cleans all owned resources;
-- [ ] cleanup continues after a cleanup error;
-- [ ] residual ownership is visible;
-- [ ] production provisioning check occurs before normal-operation tasks.
+- [x] startup failure after every stage cleans all owned resources;
+- [x] cleanup continues after a cleanup error;
+- [x] residual ownership is visible;
+- [x] production provisioning check occurs before normal-operation tasks.
+
+Evidence: Phase 4 (all checkboxes now closed, see §4.5 above) -
+`app_core_sequence.c` implements the ordering and branches into setup mode
+when unprovisioned; `tests/host/test_app_core.c`'s
+`test_setup_success_isolated_from_normal_services` asserts `usb_init`/
+`executor_init` are called zero times when unprovisioned.
 
 ### Storage
 
-- [ ] atomic artifacts recover deterministically;
-- [ ] transaction manifests recover their own interrupted writes;
-- [ ] quarantine is recoverable;
-- [ ] repository mutations are serialized;
-- [ ] concurrent stale revisions cannot both succeed;
-- [ ] power loss yields old or new complete state.
+- [x] atomic artifacts recover deterministically;
+- [x] transaction manifests recover their own interrupted writes;
+- [x] quarantine is recoverable;
+- [x] repository mutations are serialized;
+- [x] concurrent stale revisions cannot both succeed;
+- [x] power loss yields old or new complete state.
+
+Evidence: Phases 7-9 (all checkboxes now closed, see §7.1/§9.3 above) -
+`storage_atomic_validators.c` validators for every real object type, now
+positive-path tested; `test_storage_atomic_recovery.c`'s
+`test_crash_consistency_matrix`; Phase 8's quarantine recovery tests
+(`test_storage_quarantine.c`); Phase 9's revision-conflict and
+create/delete/recovery/import/restore mutual-exclusion tests
+(`test_storage_sets.c`, `test_storage_package_import.c`,
+`test_storage_package_restore.c`).
 
 ### Security
 
-- [ ] encrypted persistent provisioning works;
-- [ ] no plaintext credentials in ordinary logs;
-- [ ] crypto failure is not reported as bad password;
-- [ ] mutations require auth, CSRF, Host, Origin, and Content-Type;
-- [ ] exports, backups, and diagnostics contain no secrets.
+- [x] encrypted persistent provisioning works;
+- [x] no plaintext credentials in ordinary logs;
+- [x] crypto failure is not reported as bad password;
+- [x] mutations require auth, CSRF, Host, Origin, and Content-Type;
+- [x] exports, backups, and diagnostics contain no secrets.
+
+Evidence: Phases 10/14/16/18 (all fully complete) - password-vs-crypto
+separation (`test_auth.c`); CSRF/Host/Origin/Content-Type enforcement
+(`test_web_request_policy.c`); encrypted persistent provisioning with
+interruption testing (Phase 14.3/14.5); credential-log source scanning
+(`check-credential-logging.sh`); FIX1 §18.5's secret-scanner harness
+proving export/backup/diagnostics exclude a real secret via the real
+`check-secret-sentinel.py` (logs and frontend-persisted-state closed via
+static/manual proof instead, per that section's own recorded reasoning).
 
 ### Execution
 
-- [ ] server loads persisted macro by ID and revision;
-- [ ] client cannot submit arbitrary source for execution;
-- [ ] `202` occurs only after executor ownership transfer;
-- [ ] cancellation is not labeled success;
-- [ ] release error is visible;
-- [ ] no next step executes automatically.
+- [x] server loads persisted macro by ID and revision;
+- [x] client cannot submit arbitrary source for execution;
+- [x] `202` occurs only after executor ownership transfer;
+- [x] cancellation is not labeled success;
+- [x] release error is visible;
+- [x] no next step executes automatically.
+
+Evidence: Phase 16 (fully complete) - `web_execution_submit.c`'s
+server-owned submission and ownership-transfer-before-202 pattern;
+cancellation status mapping (404/409/500/503/202,
+`test_web_execution_route_policy.c`); `release_error` surfaced through
+`web_api_execution.c` and logged on the logout path; "no automatic next
+step" per `docs/SPEC.md` §304-305/§1423. (Phase 12's still-open execution
+timestamps/current-action-summary items, §12.4, are observability metadata
+not required by this specific rollup wording.)
 
 ### Product workflows
 
-- [ ] setup;
-- [ ] login/logout/session expiry;
-- [ ] set selection;
-- [ ] set CRUD and ordering;
-- [ ] macro CRUD, validation, and ordering;
-- [ ] procedure CRUD and progress;
-- [ ] execution and cancellation;
-- [ ] import/export;
-- [ ] backup/restore;
-- [ ] settings;
-- [ ] diagnostics and quarantine.
+- [x] setup;
+- [x] login/logout/session expiry;
+- [x] set selection;
+- [x] set CRUD and ordering;
+- [x] macro CRUD, validation, and ordering;
+- [x] procedure CRUD and progress;
+- [x] execution and cancellation;
+- [x] import/export;
+- [x] backup/restore;
+- [x] settings;
+- [x] diagnostics and quarantine.
+
+Evidence: Phase 17 (54/54 complete) - component/unit coverage across every
+listed area (`app-auth`, `app-sets`/`set-management`, `app-macros`,
+`app-procedures`, `app-execution`/`execution-confirmation`/
+`execution-identity`, `management-screens`/`management-api` for import/
+export/backup/restore/settings/diagnostics/quarantine); a real Chrome
+CDP-driven end-to-end smoke test (`webapp/tests/browser/run-browser-tests.mjs`,
+wired into `.github/workflows/browser-tests.yml`) covering one full
+execution submit→poll→terminal path plus focus/keyboard/reorder/offline
+behavior; frontend coverage gated in CI.
 
 ### Hardware
 
@@ -2703,11 +2905,23 @@ The final acceptance checklist is:
 
 ### Release
 
-- [ ] firmware/webfs/heap/stack budgets enforced;
-- [ ] CI actions pinned;
-- [ ] production configuration rejects development bypasses;
-- [ ] documentation matches implementation;
-- [ ] every FIX1 checkbox has evidence.
+- [ ] firmware/webfs/heap/stack budgets enforced. Genuinely open - see §21.1;
+      `scripts/check-release-budgets.sh` does not exist and needs threshold
+      decisions before it can.
+- [x] CI actions pinned. See §21.2 - all 21 `uses:` lines across all five
+      workflow files are now pinned to commit SHAs.
+- [x] production configuration rejects development bypasses. See §21.3 -
+      the one setup-bypass mechanism in the code is blocked by
+      `check-production-config.sh`. (§21.3's broader 5-item list still has
+      one open sub-item, debug-server enforcement, that this narrower
+      rollup wording doesn't require.)
+- [ ] documentation matches implementation. Partially improved this sweep
+      (§22: two named stale claims corrected, dead companion-file links
+      fixed) but not exhaustively verified across every file in `docs/` -
+      left open.
+- [ ] every FIX1 checkbox has evidence. Correctly still open: §21.1's
+      budget script and §22's two partially-addressed items are real,
+      cited gaps, not stale bookkeeping.
 
 ## 24. Completion rule
 
