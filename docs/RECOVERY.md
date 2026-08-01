@@ -2,6 +2,14 @@
 
 Recovery must preserve evidence and must never guess.
 
+**Validation status:** every rule below is implemented and host-tested
+(`tests/host/test_storage_atomic_recovery.c`,
+`tests/host/test_storage_restore_transactions.c`, and the storage-package
+test suites), including deterministic crash-consistency across every
+interrupted phase. None has been validated against a real power interruption
+on physical hardware - see `docs/HARDWARE_TEST_PLAN.md`'s "Persistence and
+fault tests" (currently "Not run") and FIX1 TODO §20.4.
+
 - LittleFS mount failures are visible. Firmware does not auto-format.
 - An invalid persistent object is preserved and recorded in quarantine with its
   original path and parse reason.

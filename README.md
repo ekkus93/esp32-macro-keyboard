@@ -23,8 +23,13 @@ events. Compiled assets and test logs are uploaded only for tagged commits.
 Per-capability validation state — host-tested, sanitizer-tested, coverage-gated,
 frontend-tested, device-build-tested, device-executed, and HIL-verified — is tracked
 in [`docs/UNIT_TESTS1_PROGRESS.md`](docs/UNIT_TESTS1_PROGRESS.md) and
-[`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md). No capability is
-currently claimed device-executed or HIL-verified.
+[`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md). Exactly one
+capability has been device-executed so far (production firmware's heap and
+task-stack high-water marks, read from a real ESP32-S3's serial console); no
+capability is currently claimed HIL-verified, and the on-device Unity test
+menu itself has not yet been run on hardware — see
+[`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) for exactly
+what that one device-executed result covers.
 
 ## Toolchain
 

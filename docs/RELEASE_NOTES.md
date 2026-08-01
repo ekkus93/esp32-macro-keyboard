@@ -2,11 +2,13 @@
 
 **Note:** the paragraph below is a historical snapshot from early
 implementation (pre-FIX1) and is stale in multiple places - dependency
-lockfiles, resource repositories/APIs, and import/restore transactions are
-now all implemented. See
+lockfiles, resource repositories/APIs, import/restore transactions, hardware
+size/RAM/stack release budgets, and pinned immutable CI are now all
+implemented. See
 `docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md`
-for current, maintained status; hardware validation and release-budget
-enforcement genuinely remain open there.
+for current, maintained status; physical hardware-in-the-loop validation
+(USB matrix, SoftAP/browser integration, power interruption, physical
+control latency) genuinely remains open there.
 
 ## 0.1.0 — unreleased
 

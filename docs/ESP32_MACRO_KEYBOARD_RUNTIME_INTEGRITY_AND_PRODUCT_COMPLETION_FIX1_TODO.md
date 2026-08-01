@@ -2871,11 +2871,40 @@ docs/UNIT_TESTS1_TODO.md
 - [x] Correct stale claim that set CRUD is not implemented. (Corrected in
       `docs/SECURITY_REVIEW.md`, citing `web_api_sets.c`'s
       `web_api_handle_sets` and the backing repositories.)
-- [ ] Clearly distinguish implemented, host-tested, device-tested, and
-      release-ready behavior. Genuinely still open: this needs a full
-      editorial pass across all ten files listed above, not a mechanical
-      fix - out of scope for this sweep, left open honestly rather than
-      claimed done.
+- [x] Clearly distinguish implemented, host-tested, device-tested, and
+      release-ready behavior. Full editorial pass across all ten listed
+      files. `README.md`: corrected the blanket "no capability is currently
+      claimed device-executed" line - §20.1's heap/stack measurement is one
+      narrow, real device-executed result. `docs/API.md`: added a
+      validation-status paragraph (host-tested + one browser-tested
+      workflow; no route exercised against real device HTTP), added the
+      missing `import-new` and full-diagnostics routes, fixed a stale
+      "remains Phase 19" line. `docs/DEVELOPMENT.md`/`docs/RECOVERY.md`/
+      `docs/HARDWARE_TEST_PLAN.md`: setup instructions and policy rules with
+      no stale completion claims to fix; added one validation-status line to
+      `RECOVERY.md` for consistency. `docs/IMPLEMENTATION_STATUS.md`:
+      rewritten - was dated 2026-07-28 and described only Phase 15 as
+      complete (Phases 16-23 all listed "still open", most now closed);
+      replaced with current phase status and an explicit
+      implemented/host-tested/browser-tested/device-build-tested/
+      device-executed/HIL-verified vocabulary section. `docs/SECURITY_REVIEW.md`:
+      re-audited every remaining "Blocking open findings" entry against
+      current code (not done in the prior sweep, which only fixed two
+      already-named claims); found and struck through three more stale
+      findings (NVS/provisioning, transaction roll-forward, factory reset)
+      with citations, corrected the USB finding to reflect that the build
+      now works and only enumeration remains open, and confirmed the
+      login-throttling and Origin findings are still accurate (not stale).
+      `docs/RELEASE_NOTES.md`: corrected a stale claim that release-budget
+      enforcement remains open (§21.1 closed it). `docs/TODO.md`: this is
+      the original prescriptive plan with no checkboxes or completion
+      claims of its own - added a pointer to where current status actually
+      lives rather than rewriting 1,472 lines with nothing stale to correct.
+      `docs/UNIT_TESTS1_TODO.md`: found genuinely stale - all 26 acceptance
+      checkboxes were already checked with real evidence, but the header
+      still said "Status: In progress"; corrected to "Complete" with an
+      explicit scope caveat (host/frontend/CI only; HIL explicitly excluded
+      by the document's own §1, tracked separately).
 - [x] Include exact evidence commit/run for each completed release gate. The
       14 older "Implemented" paragraphs this checkbox originally named as
       uncited (Phases 2, 17, 18 - written before this document adopted its
@@ -3074,16 +3103,20 @@ behavior; frontend coverage gated in CI.
       `check-production-config.sh`. (§21.3's broader 5-item list still has
       one open sub-item, debug-server enforcement, that this narrower
       rollup wording doesn't require.)
-- [ ] documentation matches implementation. Improved across two sweeps (§22:
-      two named stale claims corrected, dead companion-file links fixed,
-      older evidence paragraphs retrofitted with commit citations, and the
-      2026-07-28/07-29 historical review docs cross-referenced and their
-      broken commit citations corrected) but still not an exhaustive,
-      file-by-file editorial pass across every doc in `docs/` - left open.
+- [x] documentation matches implementation. §22 (all four items) is now
+      closed: two named stale claims corrected, dead companion-file links
+      fixed, older evidence paragraphs retrofitted with commit citations,
+      the 2026-07-28/07-29 historical review docs cross-referenced (with a
+      broken-commit-citation bug found and fixed along the way), and a full
+      implemented/host-tested/device-tested/release-ready editorial pass
+      completed across all ten files §22 named. This covers the scope this
+      rollup item and §22 both define; it is not a claim that every file
+      anywhere under `docs/` (e.g. `docs/SPEC.md`, per-phase handoff notes)
+      has been individually re-audited - only the ten §22 named.
 - [ ] every FIX1 checkbox has evidence. Correctly still open: §21.3's
-      debug-server sub-item (nothing to enforce against yet) and §22's one
-      remaining open item (the full implemented/host-tested/device-tested
-      distinction pass) are real, cited gaps, not stale bookkeeping.
+      debug-server sub-item is the one remaining real, cited gap - nothing
+      in the codebase to enforce against yet, so it stays an honest open
+      checkbox rather than a vacuously-passing one.
 
 ## 24. Completion rule
 

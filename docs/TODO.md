@@ -5,6 +5,15 @@
 **Implementation order:** Mandatory unless a dependency requires a documented change
 **Last updated:** 2026-07-22
 
+**Where current status actually lives:** this document is the original,
+prescriptive task list (what to build) and does not itself carry checkboxes
+or completion claims - "Last updated" above reflects the plan's own text,
+not implementation progress. For what is actually implemented,
+host/device/HIL-tested, and release-ready today, see
+`docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md`
+(the current, continuously-maintained checklist and evidence record) and
+`docs/IMPLEMENTATION_STATUS.md` (a periodic snapshot of the same).
+
 ## 0. Rules for the implementation agent
 
 Before changing code, read `docs/SPEC.md` completely.

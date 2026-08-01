@@ -1,5 +1,15 @@
 # HTTP API reference
 
+**Validation status:** every route below is implemented and covered by host
+tests against the real request-parsing and JSON-encoding code (fakes replace
+only ESP-IDF/FreeRTOS/filesystem calls, per `tests/host/`'s design). One
+execution submit→poll→cancel workflow is additionally covered by a real
+Chrome browser test (`webapp/tests/browser/run-browser-tests.mjs`) against a
+deterministic same-origin fixture, not the real device. No route has been
+exercised against real device firmware serving real HTTP over real Wi-Fi to a
+real browser client - that is FIX1 §20.3's still-open SoftAP/browser
+integration matrix.
+
 All operational API paths are same-origin and use the `/api/v1` prefix. Responses
 are JSON. Read routes require a valid RAM-only session. Mutating routes additionally
 require the matching CSRF token and accepted `Host` and `Origin` headers.
@@ -58,6 +68,7 @@ session tokens, CSRF tokens, setup secrets, or encryption material.
 | POST | `/api/v1/sets/{setId}/select` | Select the active set |
 | GET | `/api/v1/sets/{setId}/export` | Export one deterministic macro-set package |
 | POST | `/api/v1/sets/import` | Transactionally replace the selected set |
+| POST | `/api/v1/sets/import-new` | Import a package as a brand-new set with a fresh identity |
 
 Set duplication requires a new UUID, name, and the source expected revision. The
 new set and all copied set-owned objects begin at revision 1. Progress is not
@@ -90,6 +101,15 @@ replacement. The server writes a durable transaction manifest, stages and valida
 the complete replacement tree, atomically activates it, updates the set index, and
 recovers or rolls forward interrupted activation on startup. Physical confirmation
 is required before the request reaches the mutation handler.
+
+`POST /api/v1/sets/import-new` accepts the same raw package body (no
+`targetSetId`/`expectedRevision` wrapper) and assigns every set, macro,
+procedure, and progress object a fresh identity with every revision reset to
+1, rather than replacing an existing set. It is non-destructive, so unlike set
+replacement it does not require physical confirmation. It reuses the same
+package-parsing/validation pipeline as replacement, recovers deterministically
+via a dedicated durable manifest type, and returns the committed set's
+identity and revision.
 
 ### Macros
 
@@ -176,6 +196,7 @@ executor to 503, and accepted cancellation to 202.
 | GET | `/api/v1/diagnostics/storage` | Redacted mount and quarantine health |
 | POST | `/api/v1/diagnostics/storage/check` | Run the bounded storage check boundary |
 | GET | `/api/v1/diagnostics/quarantine` | List redacted quarantine records |
+| GET | `/api/v1/diagnostics` | Redacted build identity, heap, stack marks, storage capacity, quarantine count, current execution state, and per-subsystem health |
 | GET | `/api/v1/backup` | Download a deterministic full logical-repository backup |
 | POST | `/api/v1/restore` | Restore a complete backup all-or-nothing |
 
@@ -221,7 +242,10 @@ The web application validates the backup locally, requires the exact typed phras
 `RESTORE FULL BACKUP`, waits visibly for physical confirmation, and reloads after
 success so no stale in-memory repository state survives.
 
-Full diagnostics aggregation remains Phase 19.
+`GET /api/v1/diagnostics` excludes all secret material and raw macro source by
+construction (its response type has no field capable of holding either);
+`/api/v1/diagnostics/storage` and `/api/v1/diagnostics/quarantine` remain the
+narrower, pre-existing storage- and quarantine-specific views alongside it.
 
 ## Status rules
 

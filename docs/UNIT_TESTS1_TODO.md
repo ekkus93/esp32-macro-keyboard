@@ -1,8 +1,19 @@
 # Unit Test Expansion 1 — Authoritative TODO
 
-Status: **In progress**
+Status: **Complete** (updated 2026-08-01; all 26 acceptance checkboxes below
+are checked with cited evidence, and none remain unchecked). Scope note:
+"complete" here means this document's own defined scope - host/frontend
+tests, sanitizers, coverage, and CI integration - which explicitly excludes
+hardware-in-the-loop testing by design (see §1's "This plan does not replace
+hardware-in-the-loop testing"). HIL work is tracked separately and remains
+open; see `docs/HARDWARE_TEST_PLAN.md` and the later, broader FIX1 effort's
+`docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md`
+§20, which supersedes this document as the current authoritative status
+record for everything past this document's own scope.
 
-Current validated milestone: **Storage fault-injection and ESP32-S3 device-build slice complete**
+Current validated milestone: **All 16 implementation-order items complete
+(§17): storage fault-injection, ESP32-S3 device-build, and every later slice
+through documentation and final acceptance.**
 
 Target repository: `ekkus93/esp32-macro-keyboard`
 
