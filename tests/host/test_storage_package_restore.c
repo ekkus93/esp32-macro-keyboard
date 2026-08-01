@@ -16,6 +16,7 @@
 #include "macro_limits.h"
 #include "storage.h"
 #include "storage_package.h"
+#include "storage_repository.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_tree_internal.h"
 #include "test_assert.h"
@@ -242,6 +243,78 @@ static void test_complete_backup_restores_atomically(void) {
     assert_transaction_evidence_empty();
 }
 
+/* Mutual-exclusion prover: models one non-recursive lock. On the armed take it
+ * fires a one-shot interloper -- a concurrent locking operation -- while the lock
+ * is held; the interloper's own take is rejected, proving it would block behind
+ * the operation under test. Mirrors test_storage_sets.c's mx_lock_state_t. */
+typedef struct {
+    bool held;
+    app_error_code_t (*interloper)(void);
+    bool interloper_armed;
+    bool interloper_ran;
+    app_error_code_t interloper_result;
+} mx_lock_state_t;
+
+static mx_lock_state_t g_mx;
+
+static app_error_code_t mx_noop(void *context) {
+    (void)context;
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t mx_take(void *context) {
+    (void)context;
+    if (g_mx.held) {
+        return APP_ERROR_INTERNAL; /* a second acquirer would block */
+    }
+    g_mx.held = true;
+    if (g_mx.interloper_armed) {
+        g_mx.interloper_armed = false;
+        g_mx.interloper_ran = true;
+        g_mx.interloper_result = g_mx.interloper();
+    }
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t mx_give(void *context) {
+    (void)context;
+    g_mx.held = false;
+    return APP_ERROR_NONE;
+}
+
+static const storage_repository_lock_ops_t mx_ops = {
+    .context = NULL,
+    .init = mx_noop,
+    .take = mx_take,
+    .give = mx_give,
+    .deinit = mx_noop,
+};
+
+static app_error_code_t interloper_delete_restored_set(void) {
+    app_uuid_t id = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_parse(SET_ID, &id));
+    return storage_set_delete(&id, 1U);
+}
+
+/* Restore holds the repository lock for its whole stage/commit pass (FIX1
+ * §9.3), so a concurrent mutation arriving while it runs is blocked rather
+ * than racing the repository restore is replacing. */
+static void test_concurrency_restore_excludes_mutation(void) {
+    create_empty_repository();
+
+    g_mx =
+        (mx_lock_state_t){.interloper = interloper_delete_restored_set, .interloper_armed = true};
+    storage_repository_lock_set_ops(&mx_ops);
+    const app_error_code_t result =
+        storage_package_restore_backup(BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U);
+    storage_repository_lock_set_ops(NULL);
+
+    TEST_CHECK(g_mx.interloper_ran);
+    TEST_CHECK_EQ_INT(APP_ERROR_INTERNAL, g_mx.interloper_result);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, result);
+    TEST_CHECK(!g_mx.held);
+}
+
 static void test_storage_full_during_staging_rolls_back(void) {
     create_empty_repository();
     inject_staging_storage_full = true;
@@ -306,6 +379,7 @@ static void test_restore_requires_initialized_repository_lock(void) {
 
 int main(void) {
     test_complete_backup_restores_atomically();
+    test_concurrency_restore_excludes_mutation();
     test_storage_full_during_staging_rolls_back();
     test_invalid_backup_does_not_mutate_repository();
     test_startup_recovery_rolls_back_prepared_restore();

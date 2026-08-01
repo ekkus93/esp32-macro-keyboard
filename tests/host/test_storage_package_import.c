@@ -284,6 +284,81 @@ static void test_valid_import_assigns_new_identity_and_resets_revisions(void) {
     assert_index_count(1U);
 }
 
+/* Mutual-exclusion prover: models one non-recursive lock. On the armed take it
+ * fires a one-shot interloper -- a concurrent locking operation -- while the lock
+ * is held; the interloper's own take is rejected, proving it would block behind
+ * the operation under test. Mirrors test_storage_sets.c's mx_lock_state_t. */
+typedef struct {
+    bool held;
+    app_error_code_t (*interloper)(void);
+    bool interloper_armed;
+    bool interloper_ran;
+    app_error_code_t interloper_result;
+} mx_lock_state_t;
+
+static mx_lock_state_t g_mx;
+
+static app_error_code_t mx_noop(void *context) {
+    (void)context;
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t mx_take(void *context) {
+    (void)context;
+    if (g_mx.held) {
+        return APP_ERROR_INTERNAL; /* a second acquirer would block */
+    }
+    g_mx.held = true;
+    if (g_mx.interloper_armed) {
+        g_mx.interloper_armed = false;
+        g_mx.interloper_ran = true;
+        g_mx.interloper_result = g_mx.interloper();
+    }
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t mx_give(void *context) {
+    (void)context;
+    g_mx.held = false;
+    return APP_ERROR_NONE;
+}
+
+static const storage_repository_lock_ops_t mx_ops = {
+    .context = NULL,
+    .init = mx_noop,
+    .take = mx_take,
+    .give = mx_give,
+    .deinit = mx_noop,
+};
+
+static app_error_code_t interloper_delete_unrelated_set(void) {
+    const app_uuid_t unrelated_id = parse_id(NEW_SET_ID_2);
+    return storage_set_delete(&unrelated_id, 1U);
+}
+
+/* Import holds the repository lock for its whole prepare/commit pass (FIX1
+ * §9.3), so a concurrent mutation arriving while it runs is blocked rather
+ * than racing the set index or object files import is writing. */
+static void test_concurrency_import_excludes_mutation(void) {
+    reset_storage();
+    write_empty_index();
+    create_global_macro("b");
+    const app_uuid_t new_id = parse_id(NEW_SET_ID_1);
+
+    g_mx =
+        (mx_lock_state_t){.interloper = interloper_delete_unrelated_set, .interloper_armed = true};
+    storage_repository_lock_set_ops(&mx_ops);
+    macro_set_t committed = {0};
+    const app_error_code_t result =
+        storage_package_import_set(&new_id, PACKAGE, sizeof(PACKAGE) - 1U, &committed);
+    storage_repository_lock_set_ops(NULL);
+
+    TEST_CHECK(g_mx.interloper_ran);
+    TEST_CHECK_EQ_INT(APP_ERROR_INTERNAL, g_mx.interloper_result);
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, result);
+    TEST_CHECK(!g_mx.held);
+}
+
 static void test_repeated_import_produces_distinct_sets(void) {
     reset_storage();
     write_empty_index();
@@ -311,6 +386,7 @@ int main(void) {
     test_global_dependency_must_match();
     test_valid_import_assigns_new_identity_and_resets_revisions();
     test_repeated_import_produces_distinct_sets();
+    test_concurrency_import_excludes_mutation();
     reset_storage();
     storage_repository_lock_deinit();
     puts("storage package import tests passed");
