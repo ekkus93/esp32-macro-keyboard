@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "app_uuid.h"
+#include "macro_limits.h"
 #include "macro_model.h"
 #include "storage.h"
 #include "storage_atomic_validators.h"
@@ -19,6 +20,7 @@
 
 #define SET_UUID "0a1b2c3d-0000-4000-8000-000000000001"
 #define OTHER_UUID "0a1b2c3d-0000-4000-8000-000000000002"
+#define THIRD_UUID "0a1b2c3d-0000-4000-8000-000000000003"
 #define OP_UUID "0a1b2c3d-0000-4000-8000-0000000000ff"
 
 static void make_directory(const char *path) {
@@ -52,8 +54,12 @@ static void reset_store(void) {
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     make_directory(STORAGE_DATA_MOUNT);
     make_directory(STORAGE_DATA_MOUNT "/global");
+    make_directory(STORAGE_DATA_MOUNT "/global/macros");
     make_directory(STORAGE_DATA_MOUNT "/sets");
     make_directory(STORAGE_DATA_MOUNT "/sets/" SET_UUID);
+    make_directory(STORAGE_DATA_MOUNT "/sets/" SET_UUID "/macros");
+    make_directory(STORAGE_DATA_MOUNT "/sets/" SET_UUID "/procedures");
+    make_directory(STORAGE_DATA_MOUNT "/sets/" SET_UUID "/progress");
     make_directory(STORAGE_DATA_MOUNT "/transactions");
     make_directory(STORAGE_DATA_MOUNT "/quarantine");
 }
@@ -78,6 +84,77 @@ static void write_set_json(const char *path, const char *id_text) {
     size_t length = 0U;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          storage_repository_serialize_set_json(&set, &json, &length));
+    TEST_CHECK(json != NULL);
+    write_file(path, json, length);
+    free(json);
+}
+
+static void write_macro_json(const char *path, const char *id_text, const char *set_id_text) {
+    static char source[] = "a";
+    macro_t macro = {
+        .schema_version = APP_SCHEMA_VERSION,
+        .id = parse_uuid(id_text),
+        .revision = 1U,
+        .scope = MACRO_SCOPE_SET,
+        .has_set_id = true,
+        .set_id = parse_uuid(set_id_text),
+        .source = source,
+        .source_length = strlen(source),
+        .favorite = false,
+        .key_press_ms = APP_KEY_PRESS_DEFAULT_MS,
+        .inter_key_ms = APP_INTER_KEY_DEFAULT_MS,
+    };
+    TEST_CHECK(snprintf(macro.name, sizeof(macro.name), "Validator Macro") > 0);
+    char *json = NULL;
+    size_t length = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_repository_serialize_macro_json(&macro, &json, &length));
+    TEST_CHECK(json != NULL);
+    write_file(path, json, length);
+    free(json);
+}
+
+static void write_procedure_json(const char *path, const char *id_text, const char *set_id_text) {
+    procedure_step_t steps[1] = {{
+        .id = parse_uuid(OP_UUID),
+        .type = PROCEDURE_STEP_MACRO,
+        .required = true,
+        .has_macro_id = true,
+        .macro_id = parse_uuid(OP_UUID),
+    }};
+    TEST_CHECK(snprintf(steps[0].title, sizeof(steps[0].title), "Step") > 0);
+    procedure_t procedure = {
+        .schema_version = APP_SCHEMA_VERSION,
+        .id = parse_uuid(id_text),
+        .revision = 1U,
+        .set_id = parse_uuid(set_id_text),
+        .steps = steps,
+        .step_count = 1U,
+        .sort_order = 0,
+    };
+    TEST_CHECK(snprintf(procedure.name, sizeof(procedure.name), "Validator Procedure") > 0);
+    char *json = NULL;
+    size_t length = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_repository_serialize_procedure_json(&procedure, &json, &length));
+    TEST_CHECK(json != NULL);
+    write_file(path, json, length);
+    free(json);
+}
+
+static void write_progress_json(const char *path, const char *procedure_id_text,
+                                const char *set_id_text) {
+    procedure_progress_t progress = {
+        .schema_version = APP_SCHEMA_VERSION,
+        .set_id = parse_uuid(set_id_text),
+        .procedure_id = parse_uuid(procedure_id_text),
+        .procedure_revision = 1U,
+        .current_step_id = parse_uuid(OP_UUID),
+    };
+    char *json = NULL;
+    size_t length = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_repository_serialize_progress_json(&progress, &json, &length));
     TEST_CHECK(json != NULL);
     write_file(path, json, length);
     free(json);
@@ -177,6 +254,68 @@ static void test_set_metadata_validator(void) {
     TEST_CHECK(validate(destination, candidate) != APP_ERROR_NONE);
 }
 
+static void test_macro_validator(void) {
+    reset_store();
+    const char *destination = STORAGE_DATA_MOUNT "/sets/" SET_UUID "/macros/" OTHER_UUID ".json";
+    const char *candidate =
+        STORAGE_DATA_MOUNT "/sets/" SET_UUID "/macros/" OTHER_UUID ".json.tmp." OP_UUID;
+
+    /* A candidate whose id and set both match the destination is valid. */
+    write_macro_json(candidate, OTHER_UUID, SET_UUID);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, validate(destination, candidate));
+
+    /* A candidate with the destination's id but a different owning set is
+     * rejected even though it parses. */
+    write_macro_json(candidate, OTHER_UUID, THIRD_UUID);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, validate(destination, candidate));
+
+    /* A candidate for a different macro id entirely is rejected. */
+    write_macro_json(candidate, THIRD_UUID, SET_UUID);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, validate(destination, candidate));
+
+    write_text(candidate, "{\"not\":\"a macro\"}");
+    TEST_CHECK(validate(destination, candidate) != APP_ERROR_NONE);
+}
+
+static void test_procedure_validator(void) {
+    reset_store();
+    const char *destination =
+        STORAGE_DATA_MOUNT "/sets/" SET_UUID "/procedures/" OTHER_UUID ".json";
+    const char *candidate =
+        STORAGE_DATA_MOUNT "/sets/" SET_UUID "/procedures/" OTHER_UUID ".json.tmp." OP_UUID;
+
+    write_procedure_json(candidate, OTHER_UUID, SET_UUID);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, validate(destination, candidate));
+
+    write_procedure_json(candidate, OTHER_UUID, THIRD_UUID);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, validate(destination, candidate));
+
+    write_procedure_json(candidate, THIRD_UUID, SET_UUID);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, validate(destination, candidate));
+
+    write_text(candidate, "{\"not\":\"a procedure\"}");
+    TEST_CHECK(validate(destination, candidate) != APP_ERROR_NONE);
+}
+
+static void test_progress_validator(void) {
+    reset_store();
+    const char *destination = STORAGE_DATA_MOUNT "/sets/" SET_UUID "/progress/" OTHER_UUID ".json";
+    const char *candidate =
+        STORAGE_DATA_MOUNT "/sets/" SET_UUID "/progress/" OTHER_UUID ".json.tmp." OP_UUID;
+
+    write_progress_json(candidate, OTHER_UUID, SET_UUID);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, validate(destination, candidate));
+
+    write_progress_json(candidate, OTHER_UUID, THIRD_UUID);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, validate(destination, candidate));
+
+    write_progress_json(candidate, THIRD_UUID, SET_UUID);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, validate(destination, candidate));
+
+    write_text(candidate, "{\"not\":\"progress\"}");
+    TEST_CHECK(validate(destination, candidate) != APP_ERROR_NONE);
+}
+
 static void test_transaction_manifest_validator(void) {
     reset_store();
     const char *destination = STORAGE_DATA_MOUNT "/transactions/" SET_UUID ".bin";
@@ -196,13 +335,14 @@ static void test_transaction_manifest_validator(void) {
 
 static void test_dispatch_refuses_without_validator(void) {
     reset_store();
-    /* Macro/procedure/progress/settings objects have no validator yet (Phase 15);
-     * an unknown destination likewise. Recovery must refuse to activate these. */
-    const char *macro_dest = STORAGE_DATA_MOUNT "/sets/" SET_UUID "/macros/" OTHER_UUID ".json";
-    const char *macro_candidate =
-        STORAGE_DATA_MOUNT "/sets/" SET_UUID "/macros/" OTHER_UUID ".json.tmp." OP_UUID;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, validate(macro_dest, macro_candidate));
-
+    /* Every reachable destination classification now has a validator (macro,
+     * procedure, and progress joined schema marker/index/set-metadata/
+     * transaction-manifest in this phase). STORAGE_ATOMIC_OBJECT_SETTINGS
+     * still has none, but settings have no atomic-write file representation
+     * at all - storage_atomic_classify_destination() never returns that
+     * classification for any real path - so the only reachable "no
+     * validator" case left is a genuinely unrecognized destination.
+     * Recovery must refuse to activate that candidate. */
     const char *unknown_dest = STORAGE_DATA_MOUNT "/mystery.dat";
     const char *unknown_candidate = STORAGE_DATA_MOUNT "/mystery.dat.tmp." OP_UUID;
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, validate(unknown_dest, unknown_candidate));
@@ -213,6 +353,9 @@ int main(void) {
     test_schema_marker_validator();
     test_index_validators();
     test_set_metadata_validator();
+    test_macro_validator();
+    test_procedure_validator();
+    test_progress_validator();
     test_transaction_manifest_validator();
     test_dispatch_refuses_without_validator();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
