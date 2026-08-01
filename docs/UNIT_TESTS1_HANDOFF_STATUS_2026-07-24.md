@@ -329,7 +329,7 @@ The following cannot be marked complete without a connected ESP32-S3 and reviewe
 - physical button and LED behavior;
 - browser-to-device workflows;
 - reset and power-interruption recovery;
-- the full `docs/HIL_TEST_PLAN.md`.
+- the full `docs/HARDWARE_TEST_PLAN.md`.
 
 Firmware compilation is not a substitute for physical execution.
 
@@ -454,7 +454,7 @@ Run the device Unity suite and HIL plan only when hardware, serial access, and e
 docs/UNIT_TESTS1_TODO.md
 docs/UNIT_TESTS1_PROGRESS.md
 docs/SPEC.md
-docs/HIL_TEST_PLAN.md
+docs/HARDWARE_TEST_PLAN.md
 ```
 
 ### Latest test additions

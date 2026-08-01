@@ -3,6 +3,15 @@
 This ledger supplements `docs/TODO.md`; it does not redefine requirements or
 mark a completion gate passed without its required evidence.
 
+**Note:** this ledger is a historical snapshot from early implementation
+(pre-FIX1) and its "pending"/"partial" statuses are stale - e.g. "lock
+pending" (row 1.3-1.4) and "lockfile ... pending" (row 1.5) predate
+`firmware/dependencies.lock`/`webapp/package-lock.json` being committed, and
+"repositories, quarantine, recovery phases ... open" (row 5) predates FIX1
+Phases 7-9/15 completing all of those. See
+`docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md`
+for current, maintained status and evidence.
+
 | Area | Evidence | Status |
 | --- | --- | --- |
 | 1.1 repository structure | Tracked paths and `scripts/bootstrap-repo.sh` | Implemented; ShellCheck/shfmt gate pending installed tools |

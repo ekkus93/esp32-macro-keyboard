@@ -31,7 +31,7 @@ The completed work must:
 
 This plan does not replace hardware-in-the-loop testing. USB enumeration, actual typing,
 radio behavior, physical buttons, browser-to-device integration, and power interruption
-remain covered by `docs/HIL_TEST_PLAN.md`.
+remain covered by `docs/HARDWARE_TEST_PLAN.md`.
 
 ## 2. Non-negotiable policy
 

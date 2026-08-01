@@ -230,4 +230,4 @@ rather than extending one pull request into a repository-wide mega-PR.
 
 No physical ESP32-S3 execution, USB enumeration, real typing, radio behavior, button behavior,
 browser-to-device integration, or power-interruption behavior is claimed here. Those require
-reviewed serial output and the procedures in `docs/HIL_TEST_PLAN.md`.
+reviewed serial output and the procedures in `docs/HARDWARE_TEST_PLAN.md`.

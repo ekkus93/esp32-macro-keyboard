@@ -41,4 +41,4 @@ limited to the automated checks that actually ran.
 
 This milestone does not claim physical ESP32-S3 execution, USB enumeration, real typing, radio
 behavior, browser-to-device integration, power-interruption behavior, or hardware-in-the-loop
-completion. Those require reviewed device output and `docs/HIL_TEST_PLAN.md`.
+completion. Those require reviewed device output and `docs/HARDWARE_TEST_PLAN.md`.
