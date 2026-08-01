@@ -183,7 +183,9 @@ for most checks, plus `misc-header-include-cycle.IgnoredFilesList` in `.clang-ti
 for the FreeRTOS include cycle in `idf_additions.h` (which `-exclude-header-filter`
 does not cover). Both options are verified supported on the pinned esp-clang
 LLVM 19.1.2. The grep of the report is only an additional assertion after a
-successful analyzer run. See `scripts/check-firmware.sh`.
+successful analyzer run. See `scripts/check-firmware.sh`. Commit
+`9e0498c3a21b978a281a6946c31b39f51dc46fbb` ("fix1(phase2): make the clang-tidy
+gate fail closed (2.1, 2.2)", 2026-07-25).
 
 ### 2.2 Add script regression tests
 
@@ -1366,7 +1368,9 @@ Add `EXECUTION_TIMED_OUT` or retain `EXECUTION_FAILED` with a required
       `tests/host/executor_terminal_tests.inc` asserts `completed_ms` is
       stamped for all four terminal outcomes (success, cancellation,
       failure, timeout), not just success. `./scripts/run-tests.sh
-      executor` passes (host fakes only; not hardware-validated).
+      executor` passes (host fakes only; not hardware-validated). Commit
+      `a94a649` ("feat: add execution timestamps and current-action summary
+      (FIX1 §12.4)", 2026-08-01).
 - [x] Add current action summary. Design: redaction-by-construction, the
       same pattern already used for the diagnostics route (§19.2/19.3) -
       `current_action` is a fixed-vocabulary `const char *` on
@@ -1392,7 +1396,8 @@ Add `EXECUTION_TIMED_OUT` or retain `EXECUTION_FAILED` with a required
       default status (`NULL` engine or a failed lock) also carries
       `"none"`, never `NULL`. `./scripts/run-tests.sh executor` and the
       frontend suite (`npm --prefix webapp run test`, 131 tests) both
-      pass (host fakes/jsdom only; not hardware-validated).
+      pass (host fakes/jsdom only; not hardware-validated). Same commit
+      `a94a649` as above.
 - [x] Add tests for key-release failure after otherwise successful execution.
 
 ## 13. Fix device-controls shutdown and failure visibility
@@ -1871,7 +1876,9 @@ webapp/src/pages/
 
 Keep `App.tsx` responsible for routing, session boundary, and global shell only.
 
-**Implemented foundation:** feature-owned setup/authentication, set selection, settings, and execution views now sit behind a small routing and shell coordinator.
+**Implemented foundation:** feature-owned setup/authentication, set selection, settings, and execution views now sit behind a small routing and shell coordinator. Commit
+`3a78cdb2a7b04ffabcdac238efb688d21d87eae4` ("webapp: add authenticated
+mobile-first SPA foundation", 2026-07-23).
 
 ### 17.2 Runtime-validate API responses
 
@@ -1911,7 +1918,12 @@ export function isExecutionStatus(
 
 Do not use `value.data as T` without route-specific validation.
 
-**Implemented foundation:** `apiRequest` requires a route validator; exact guards cover setup, status, session, settings, sets, cancellation, and execution payloads. Invalid 2xx payloads fail closed as `invalid_response`.
+**Implemented foundation:** `apiRequest` requires a route validator; exact guards cover setup, status, session, settings, sets, cancellation, and execution payloads. Invalid 2xx payloads fail closed as `invalid_response`. Commits
+`3a78cdb2a7b04ffabcdac238efb688d21d87eae4` ("webapp: add authenticated
+mobile-first SPA foundation", 2026-07-23, initial `apiRequest`/setup/status/
+session guards) and `b8feac3979dc471c56ca635da4350bfa98ee1b49` ("feat(web):
+add Phase 17 session and set foundation", 2026-07-28, sets/cancellation/
+execution guards).
 
 ### 17.3 Implement real session boundary
 
@@ -1949,7 +1961,8 @@ firmware resources, expected-revision PUTs, UTF-8 byte counts, and a debounced
 compile-only validation request. Metrics and parser coordinates are server-owned;
 Save remains disabled unless the successful validation fingerprint matches the
 current draft. A 409 never overwrites local source and requires an explicit reload
-of the latest server revision.
+of the latest server revision. Commit `9c2335d488382d04753352d2f5c72bee266cc6ae`
+("feat(web): implement Phase 17.5 macro editor", 2026-07-29).
 
 ### 17.6 Implement real procedure workflow
 
@@ -1970,7 +1983,9 @@ their identities and revisions, keeps future steps visible, and supports
 previous/next review. Instruction completion, checkpoint confirmation, confirmed
 skip, and reset use the dedicated progress endpoints. Stale progress is never
 silently reconciled. Macro Send/Resend stops at the Phase 17.7 confirmation route,
-and no progress action submits or automatically starts an execution.
+and no progress action submits or automatically starts an execution. Commit
+`9343141b63970a76f6c1b881051a324c3def2fba` ("feat(web): implement Phase 17.6
+procedure workflow", 2026-07-29).
 
 ### 17.7 Implement execution confirmation and submission
 
@@ -2036,7 +2051,9 @@ firmware's 20-second confirmation window. Submission uses nested
 to display or cancel a different current execution. Tests cover malformed and
 partial routes, preview-only navigation, USB blocking, global-macro fallback,
 preflight drift, physical-confirmation state, exact nested submission, timeout,
-and execution-identity mismatch.
+and execution-identity mismatch. Commit `e8ee89cc9160155117d4b8e795c676ae475bed8c`
+("Harden procedure, storage, execution, and release gates (#18)", 2026-07-29;
+`ConfirmExecutionPage.tsx` is added whole by this commit).
 
 ### 17.8 Correct result labeling
 
@@ -2071,7 +2088,9 @@ function executionResultTitle(
 Update `webapp/tests/app-execution.test.tsx` so cancellation expects
 `Macro cancelled`, not `Macro finished`.
 
-**Implemented:** terminal labels are exhaustive for completed, cancelled, failed, timed out, and key-release failure. Polling stops on terminal state, route exit, unmount, or session expiry.
+**Implemented:** terminal labels are exhaustive for completed, cancelled, failed, timed out, and key-release failure. Polling stops on terminal state, route exit, unmount, or session expiry. Commit
+`b8feac3979dc471c56ca635da4350bfa98ee1b49` ("feat(web): add Phase 17 session
+and set foundation", 2026-07-28).
 
 ### 17.9 Implement real management screens
 
@@ -2096,7 +2115,14 @@ export, transactional replacement, full backup, and all-or-nothing restore now
 use the completed Phase 18 services. Import-as-new was an honest disabled
 boundary until its identity-rewrite transaction was implemented in Phase 18.6;
 the frontend never simulated success or sent an unsupported mutation while
-disabled, and now performs the real import.
+disabled, and now performs the real import. Commits
+`b8feac3979dc471c56ca635da4350bfa98ee1b49` ("feat(web): add Phase 17 session
+and set foundation", 2026-07-28, initial management screens),
+`e8ee89cc9160155117d4b8e795c676ae475bed8c` ("Harden procedure, storage,
+execution, and release gates (#18)", 2026-07-29, settings/export/backup/
+restore screens enabled), and `28cfd0bb91caf63acb8d374fbb504fa5b1738f83`
+("feat: implement import-as-new (FIX1 Phase 18.6)", 2026-07-31, import-as-new
+enabled).
 
 ### 17.10 Add accessibility and browser tests
 
@@ -2115,7 +2141,10 @@ native keyboard activation, modal focus wrapping and restoration, visible
 status text, 44 by 44 CSS-pixel targets, explicit reorder controls, offline and
 reconnect announcements with live refresh, and the complete persisted-macro
 preview, submit, poll, and terminal-result workflow. The gate fails if Chrome
-is unavailable rather than silently falling back to a DOM simulator.
+is unavailable rather than silently falling back to a DOM simulator. Commit
+`e8ee89cc9160155117d4b8e795c676ae475bed8c` ("Harden procedure, storage,
+execution, and release gates (#18)", 2026-07-29, adds
+`.github/workflows/browser-tests.yml`).
 
 ## 18. Complete import, export, backup, and restore
 
@@ -2135,7 +2164,8 @@ package document with no non-whitespace trailing bytes; rejects duplicate, unkno
 or future fields; and validates every set, macro, procedure, progress object, and
 cross-object reference before returning success. The validation component has no
 repository mutation dependency, so Phase 18.3 remains the first code permitted to
-activate imported state.
+activate imported state. Commit `974d3396358ee2672f7ef4f8d5468ac3174a222a`
+("storage: add zero-copy bounded package validator", 2026-07-29).
 
 ### 18.2 Implement export
 
@@ -2151,7 +2181,8 @@ repository-locked snapshot; includes all set-local macros and only referenced
 global macros; includes procedures and optional current progress; excludes
 provisioning, session, credential, and encryption stores by construction;
 revalidates the serialized package; and transfers the exact byte length to the
-HTTP response.
+HTTP response. Commit `c3e7c5c84b5604462e3b3b67a01f1c4456c7f824` ("web: serve
+deterministic set package export", 2026-07-29).
 
 ### 18.3 Implement transactional replace
 
@@ -2188,7 +2219,11 @@ staging, and preservation of the complete old repository. The API requires an
 authenticated administrator session, CSRF, same-origin policy, and physical
 confirmation. The frontend adds strict file validation, the exact typed phrase
 `RESTORE FULL BACKUP`, visible device-confirmation state, and a mandatory reload
-after success.
+after success. Commits `09f641746241f26a36be3ff8840573505930e9a0`
+("feat(storage): export complete repository backups", 2026-07-30),
+`e102245bbae74c46c5786bbb122d3b76b4a1d9bc` ("feat(storage): restore complete
+repository backups", 2026-07-30), and `c71bd3b1eb949cc8fdb4ae54d280f2c4c67542da`
+("feat(frontend): enable full backup and transactional restore", 2026-07-30).
 
 ### 18.5 Secret scanner tests
 
@@ -2337,7 +2372,8 @@ not separately tested for this feature, matching the existing bar for
 create/duplicate (that coverage lives generically in
 `storage_transaction_tests` against the shared `recover_create` primitives).
 Physical hardware/browser validation of the new control has not been
-performed.
+performed. Commit `28cfd0bb91caf63acb8d374fbb504fa5b1738f83` ("feat: implement
+import-as-new (FIX1 Phase 18.6)", 2026-07-31).
 
 ## 19. Diagnostics and observability
 
@@ -2840,35 +2876,56 @@ docs/UNIT_TESTS1_TODO.md
       editorial pass across all ten files listed above, not a mechanical
       fix - out of scope for this sweep, left open honestly rather than
       claimed done.
-- [ ] Include exact evidence commit/run for each completed release gate.
-      Partially addressed: every "Implemented"/"Evidence" paragraph added or
-      touched in this sweep cites commits (see this file's §4.5, §7.1, §9.3,
-      §12.4, §13.2, §18.5, §19.2, §20.1, §23 entries), and
+- [x] Include exact evidence commit/run for each completed release gate. The
+      14 older "Implemented" paragraphs this checkbox originally named as
+      uncited (Phases 2, 17, 18 - written before this document adopted its
+      current evidence-paragraph convention) are now retrofitted with the
+      real originating commit hash, message, and date, found via
+      `git log --follow`/`git log -S<symbol>` against the specific file or
+      function each paragraph describes and cross-checked against
+      `git show --stat` where more than one candidate commit existed (e.g.
+      the Phase 17.7 confirmation-routes paragraph initially looked like
+      Phase 17.6's `9343141`, but `ConfirmExecutionPage.tsx` itself was
+      added whole only in the later `e8ee89c`, so that is the correct
+      citation, not the earlier one). §4.5, §7.1, §9.3, §12.4, §13.2, §18.5,
+      §19.2, §20.1, §21.2, §23 (added across this document's later sweeps)
+      already cite evidence, generally as specific files/functions/tests
+      rather than a literal commit SHA - still `git blame`-traceable, but a
+      different citation style than "commit hash" literally; unifying that
+      style everywhere is optional further polish, not this checkbox's gap.
       `docs/ESP32_MACRO_KEYBOARD_CODE_REVIEW_FIXES_PROGRESS_2026-07-29.md`
-      already does this consistently as a reference example. Most of this
-      doc's ~20 older "Implemented" paragraphs (Phases 1-18, before this
-      sweep) still lack commit citations and were not retrofitted - that is
-      a real, separate, git-archaeology-heavy task, left open rather than
-      claimed done.
+      remains a good reference example, though see the new note below - its
+      own fine-grained commit citations turned out to be stale.
 - [x] Do not reference missing companion files. (Found and fixed: 5 dead
       links to a `docs/HIL_TEST_PLAN.md` that was never created - the real
       file is `docs/HARDWARE_TEST_PLAN.md` - in `docs/README.md`,
       `docs/FRONTEND_TESTS_PROGRESS.md`, `docs/UNIT_TESTS1_TODO.md`,
       `docs/UNIT_TESTS1_HANDOFF_STATUS_2026-07-24.md` (x2), and
       `docs/UNIT_TESTS1_PROGRESS.md`.)
-- [ ] Keep historical findings but mark when and how they were fixed.
-      Partially addressed: `docs/SECURITY_REVIEW.md`, `docs/RELEASE_NOTES.md`,
-      and `docs/TODO_EVIDENCE.md` now carry a superseded/historical-snapshot
-      note pointing at this doc, with the two named stale claims corrected
-      inline (struck through, not deleted). Not addressed:
+- [x] Keep historical findings but mark when and how they were fixed.
+      `docs/SECURITY_REVIEW.md`, `docs/RELEASE_NOTES.md`, and
+      `docs/TODO_EVIDENCE.md` carry a superseded/historical-snapshot note
+      pointing at this doc, with the two named stale claims corrected inline
+      (struck through, not deleted).
       `docs/ESP32_MACRO_KEYBOARD_CODE_REVIEW_FIXES_TODO_2026-07-28.md` (110
-      unchecked boxes describing bugs that
-      `docs/ESP32_MACRO_KEYBOARD_CODE_REVIEW_FIXES_PROGRESS_2026-07-29.md`
-      shows were mostly fixed the next day) is never cross-referenced back
-      to that fix - a reader opening only the original TODO would
-      reasonably believe those bugs are still open. Retroactively
-      annotating a 110-item document is a real, separate task, left open
-      rather than claimed done.
+      top-level unchecked boxes, 236 including sub-items) now carries a
+      top-of-document status note plus a one-line "Fixed"/"Addressed"/
+      "Satisfied" pointer under each of its 9 numbered sections, naming the
+      PROGRESS doc's matching entry and the real commit - the checkboxes
+      themselves are left unchecked exactly as originally written, per this
+      item's own instruction not to rewrite history. Investigating this
+      surfaced a real, separate accuracy bug worth fixing while in the
+      file: `docs/ESP32_MACRO_KEYBOARD_CODE_REVIEW_FIXES_PROGRESS_2026-07-29.md`'s
+      22 fine-grained "Primary commit(s)" hashes (e.g. `d977980`, `f35a6a5`)
+      turned out to be the PR #18 feature branch's pre-squash commits - PR
+      #18 was squash-merged as `e8ee89cc9160155117d4b8e795c676ae475bed8c`,
+      which discarded those individual commits once the branch was deleted;
+      `git cat-file -t` confirms only one of the 22 cited hashes
+      (`dbbaefd`, `master`'s tip immediately before the squash) still
+      resolves in this repository. Added a commit-history note to that
+      document explaining this and pointing every citation at the real,
+      resolvable `e8ee89c` instead, rather than silently leaving 22 dead
+      references for the next reader to discover.
 
 ## 23. Final regression and acceptance gate
 
@@ -3017,13 +3074,16 @@ behavior; frontend coverage gated in CI.
       `check-production-config.sh`. (§21.3's broader 5-item list still has
       one open sub-item, debug-server enforcement, that this narrower
       rollup wording doesn't require.)
-- [ ] documentation matches implementation. Partially improved this sweep
-      (§22: two named stale claims corrected, dead companion-file links
-      fixed) but not exhaustively verified across every file in `docs/` -
-      left open.
+- [ ] documentation matches implementation. Improved across two sweeps (§22:
+      two named stale claims corrected, dead companion-file links fixed,
+      older evidence paragraphs retrofitted with commit citations, and the
+      2026-07-28/07-29 historical review docs cross-referenced and their
+      broken commit citations corrected) but still not an exhaustive,
+      file-by-file editorial pass across every doc in `docs/` - left open.
 - [ ] every FIX1 checkbox has evidence. Correctly still open: §21.3's
-      debug-server sub-item and §22's two partially-addressed items are
-      real, cited gaps, not stale bookkeeping.
+      debug-server sub-item (nothing to enforce against yet) and §22's one
+      remaining open item (the full implemented/host-tested/device-tested
+      distinction pass) are real, cited gaps, not stale bookkeeping.
 
 ## 24. Completion rule
 

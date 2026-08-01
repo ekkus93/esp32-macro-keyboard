@@ -9,6 +9,22 @@ code review of `master`
 dependency, and release-gate issues found in the review without broadening scope
 into unrelated product work.
 
+**Status note (added 2026-08-01):** This document is a historical snapshot,
+not a live task list - the checkboxes below are left unchecked exactly as
+originally written. Sections 1-7 (every concrete fix) were implemented the
+next day, 2026-07-29, per
+`docs/ESP32_MACRO_KEYBOARD_CODE_REVIEW_FIXES_PROGRESS_2026-07-29.md`, and
+squash-merged into `master` as commit
+`e8ee89cc9160155117d4b8e795c676ae475bed8c` ("Harden procedure, storage,
+execution, and release gates (#18)"). Section 8 (doc sync) was addressed by
+that same PROGRESS document and by this repository's later, more thorough
+FIX1 documentation sweep (see
+`docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md`
+§22). Section 9 (final regression checklist) was satisfied - see the PROGRESS
+document's "Validation status". A reader who opens only this file should not
+conclude any of these issues are still open; see the per-section notes below
+for exactly where each was fixed.
+
 ## 0. Rules for this fix pass
 
 - Read `docs/TODO.md` and the relevant implementation files before changing code.
@@ -27,6 +43,9 @@ into unrelated product work.
   checkout, plus any targeted audit or documentation checks added below.
 
 ## 1. Fix backend procedure progress authority
+
+> **Fixed** 2026-07-29, commit `e8ee89c` - see PROGRESS doc's "Procedure
+> progress authority".
 
 ### Problem
 
@@ -117,6 +136,9 @@ if (result == APP_ERROR_NONE &&
 
 ## 2. Fix `storage_atomic.c` descriptor leak on temp/backup collision paths
 
+> **Fixed** 2026-07-29, commit `e8ee89c` - see PROGRESS doc's "Atomic-write
+> descriptor cleanup".
+
 ### Problem
 
 `create_temporary_file()` opens a temporary file and then checks whether the
@@ -195,6 +217,10 @@ the priority in the helper name or comments.
 - [ ] `./scripts/check-all.sh` passes.
 
 ## 3. Resolve execution submission API contract mismatch
+
+> **Fixed** 2026-07-29, commit `e8ee89c` - see PROGRESS doc's "Execution
+> submission contract" and "Phase 17.7 execution confirmation and
+> submission".
 
 ### Problem
 
@@ -316,6 +342,9 @@ Alternative option:
 
 ## 4. Triage and fix npm audit findings intentionally
 
+> **Fixed** 2026-07-29, commit `e8ee89c` - see PROGRESS doc's "Dependency
+> audit".
+
 ### Problem
 
 The latest validation logs reported `18 vulnerabilities`, including `16 high`
@@ -378,6 +407,9 @@ release cannot ignore critical/high findings without an explicit triage record.
 
 ## 5. Make the permanent web quality gate match the validated feature gates
 
+> **Fixed** 2026-07-29, commits `dbbaefd` and `e8ee89c` - see PROGRESS doc's
+> "Frontend and CI quality gates".
+
 ### Problem
 
 The Phase 17.6 one-shot validation ran frontend format checking and coverage, but
@@ -429,6 +461,9 @@ be explicit and easy to audit.
 
 ## 6. Harden release CI reproducibility
 
+> **Fixed** 2026-07-29, commits `dbbaefd` and `e8ee89c` - see PROGRESS doc's
+> "Frontend and CI quality gates" (`docs/CI_REPRODUCIBILITY.md`).
+
 ### Problem
 
 The main `Quality` workflow uses `ubuntu-latest`, while the validated one-shot
@@ -477,6 +512,11 @@ feature work, but not release-ready.
 - [ ] `./scripts/check-all.sh` passes locally or in the pinned CI environment.
 
 ## 7. Align package schemas with byte-oriented string limits
+
+> **Fixed** 2026-07-29, commit `e8ee89c` - see PROGRESS doc's "Package schema
+> accuracy". (Import enforcement itself was explicitly deferred to Phase 18 -
+> see PROGRESS doc's "Intentionally deferred scope" - and was later
+> implemented; see FIX1 TODO §18.1-§18.6.)
 
 ### Problem
 
@@ -534,6 +574,11 @@ This becomes important for Phase 18 import/export and backup/restore work.
 
 ## 8. Synchronize docs with actual implemented and deferred scope
 
+> **Addressed** 2026-07-29 by the PROGRESS doc itself and commit `e8ee89c`,
+> and superseded by this repository's later, more thorough FIX1
+> documentation sweep (`docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md`
+> §22), which has its own open items tracked there rather than here.
+
 ### Problem
 
 Some implementation status is correctly tracked in progress documents, but
@@ -582,6 +627,9 @@ contracts and quality gates, so the docs need to stay precise.
 - [ ] `./scripts/check-all.sh` passes.
 
 ## 9. Add final regression checklist for this fix pass
+
+> **Satisfied** 2026-07-29 - see PROGRESS doc's "Validation status" (Host
+> Tests run `30455828432`, Browser Tests run `30455823494`, both passed).
 
 ### Required targeted checks
 

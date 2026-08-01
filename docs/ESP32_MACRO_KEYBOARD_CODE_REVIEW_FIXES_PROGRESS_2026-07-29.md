@@ -7,6 +7,18 @@
 
 **Review:** draft PR #18
 
+**Commit-history note (added 2026-08-01):** PR #18 was squash-merged into
+`master` as commit `e8ee89cc9160155117d4b8e795c676ae475bed8c` ("Harden
+procedure, storage, execution, and release gates (#18)", 2026-07-29). The
+per-section "Primary commit(s)" hashes below were the feature branch's
+individual commits at review time; none of them (except `dbbaefd`, `master`'s
+tip immediately before the squash) are reachable in this repository anymore -
+squash-merging discards the source branch's intermediate commits once the
+branch itself is deleted. They are left as originally written for the
+historical record, but a reader trying to resolve one today should use
+`e8ee89c` instead - `git show --stat e8ee89c` covers every file this document
+describes as fixed.
+
 ## Completed implementation
 
 ### Procedure progress authority
@@ -100,7 +112,8 @@ Primary commit: `c4440a2`.
 - Route, timeout, preview, global fallback, stale-data, submission, and identity
   regression tests are committed.
 
-Final implementation commit before documentation sync: `9fb7130`.
+Final implementation commit before documentation sync: `9fb7130` (see the
+commit-history note above - not reachable today; squashed into `e8ee89c`).
 
 ### Phase 17.9 management surfaces
 
@@ -123,7 +136,8 @@ Final implementation commit before documentation sync: `9fb7130`.
 - Chrome absence is a hard failure; there is no jsdom substitution for the
   browser acceptance gate.
 
-Final implementation commit before documentation sync: `ac12c50`.
+Final implementation commit before documentation sync: `ac12c50` (see the
+commit-history note above - not reachable today; squashed into `e8ee89c`).
 
 ## Intentionally deferred scope
 
