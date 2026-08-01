@@ -1,11 +1,12 @@
 idf_component_register(
     SRCS
-    "app_main.c"
+    "serial_console.c"
     INCLUDE_DIRS
-    "."
+    "include"
     REQUIRES
-    app_core
-    serial_console
+    macro_model
+    wifi_ap
+    console
 )
 
 target_compile_options(

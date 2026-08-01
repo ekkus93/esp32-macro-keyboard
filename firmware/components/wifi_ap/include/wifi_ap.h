@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "app_error.h"
 #include "subsystem_health.h"
@@ -30,6 +31,27 @@ typedef struct {
 app_error_code_t wifi_ap_start(const char *ssid, const char *passphrase);
 app_error_code_t wifi_ap_stop(void);
 wifi_ap_status_t wifi_ap_get_status(void);
+
+#define WIFI_STA_IP_STRING_BYTES 16U
+
+/* Connects to an existing Wi-Fi network in station mode - SPEC.md's
+ * previously deferred "station mode" feature, implemented at the repository
+ * owner's explicit request to support serial-console-driven Wi-Fi
+ * debugging (see firmware/components/serial_console). Deliberately not
+ * part of the reviewed production security model: this is a debug/dev
+ * command surface, not gated by session/CSRF/physical confirmation the way
+ * the HTTP API is.
+ *
+ * Runs alongside the existing AP (switches to WIFI_MODE_APSTA), so the
+ * device's own SoftAP keeps serving setup clients. Blocks the calling task
+ * up to timeout_ms waiting for a DHCP lease; on success writes the
+ * dotted-quad IP address into out_ip (out_ip_size must be at least
+ * WIFI_STA_IP_STRING_BYTES). Returns APP_ERROR_INTERNAL if the target AP
+ * rejects or drops the connection (wrong password, not found, etc.) before
+ * a lease is obtained, or APP_ERROR_TIMEOUT if no outcome is observed
+ * within timeout_ms. */
+app_error_code_t wifi_ap_connect_station(const char *ssid, const char *password,
+                                         uint32_t timeout_ms, char *out_ip, size_t out_ip_size);
 /* True when the AP still holds any acquired resource and must be stopped/cleaned
  * up (FIX1 §11.2); used by the lifecycle owner to decide whether teardown is
  * required. */

@@ -69,7 +69,8 @@ Version 0.1 MUST NOT attempt to provide:
 - USB host functionality;
 - Bluetooth HID;
 - cloud accounts, cloud synchronization, or internet routing;
-- station-mode Wi-Fi;
+- station-mode Wi-Fi as a product feature (a development-only station-mode
+  command exists on the physical serial console; see §26);
 - macro-set merge conflict resolution;
 - server-side JavaScript, React Server Components, or Node.js on the device;
 - TLS termination on the isolated SoftAP;
@@ -1435,11 +1436,18 @@ Version 0.1 is complete only when:
 
 ## 26. Deferred features
 
+Station mode was previously listed here. It is now implemented, but only as
+a development/debugging facility reached over the physical serial console
+(`firmware/components/serial_console`), not as a product feature: the
+device still creates its own protected SoftAP for normal operation, station
+credentials are not persisted across reboots, and no product screen exposes
+joining an existing network. Promoting it to a product feature would still
+need its own specification pass.
+
 Potential later work includes:
 
 - additional keyboard layouts;
 - platform-specific Unicode entry;
-- station mode;
 - mDNS;
 - web OTA management;
 - encrypted backup packages;

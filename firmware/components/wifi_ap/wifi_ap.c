@@ -1,17 +1,23 @@
 #include "wifi_ap.h"
 
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "app_error.h"
 #include "esp_event.h"
+#include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "wifi_ap_ops.h"
 #include "wifi_ap_state.h"
+
+static const char *const TAG = "wifi_ap";
 
 static portMUX_TYPE status_lock = portMUX_INITIALIZER_UNLOCKED;
 static wifi_ap_status_t status = {
@@ -198,4 +204,108 @@ app_error_code_t wifi_ap_stop(void) {
 
 bool wifi_ap_owns_resources(void) {
     return engine_initialized && wifi_ap_engine_owns_resources(&engine);
+}
+
+/* --- Station mode (debug console feature; see wifi_ap.h) --- */
+
+static esp_netif_t *sta_netif;
+static bool sta_netif_created;
+static SemaphoreHandle_t sta_outcome_semaphore;
+static volatile bool sta_got_ip;
+static volatile uint32_t sta_ip_addr;
+static volatile int32_t sta_disconnect_reason;
+
+static void station_event(void *argument, esp_event_base_t base, int32_t event_id,
+                          void *event_data) {
+    (void)argument;
+    if (base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        const wifi_event_sta_disconnected_t *disconnected = event_data;
+        sta_disconnect_reason = disconnected != NULL ? disconnected->reason : -1;
+        ESP_LOGW(TAG, "station disconnected, reason %" PRId32, sta_disconnect_reason);
+        if (sta_outcome_semaphore != NULL) {
+            xSemaphoreGive(sta_outcome_semaphore);
+        }
+    } else if (base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        const ip_event_got_ip_t *got_ip = event_data;
+        sta_got_ip = true;
+        sta_ip_addr = got_ip != NULL ? got_ip->ip_info.ip.addr : 0U;
+        if (sta_outcome_semaphore != NULL) {
+            xSemaphoreGive(sta_outcome_semaphore);
+        }
+    }
+}
+
+static app_error_code_t ensure_station_netif(void) {
+    if (sta_netif_created) {
+        return APP_ERROR_NONE;
+    }
+    if (esp_netif_init() != ESP_OK) {
+        return APP_ERROR_INTERNAL;
+    }
+    const esp_err_t event_loop_result = esp_event_loop_create_default();
+    if (event_loop_result != ESP_OK && event_loop_result != ESP_ERR_INVALID_STATE) {
+        return APP_ERROR_INTERNAL;
+    }
+    sta_netif = esp_netif_create_default_wifi_sta();
+    if (sta_netif == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
+    if (esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, station_event, NULL) !=
+            ESP_OK ||
+        esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, station_event, NULL) != ESP_OK) {
+        return APP_ERROR_INTERNAL;
+    }
+    sta_netif_created = true;
+    return APP_ERROR_NONE;
+}
+
+app_error_code_t wifi_ap_connect_station(const char *ssid, const char *password,
+                                         uint32_t timeout_ms, char *out_ip, size_t out_ip_size) {
+    if (ssid == NULL || password == NULL || out_ip == NULL ||
+        out_ip_size < WIFI_STA_IP_STRING_BYTES || strlen(ssid) == 0U ||
+        strlen(ssid) >= sizeof(((wifi_sta_config_t *)NULL)->ssid) ||
+        strlen(password) >= sizeof(((wifi_sta_config_t *)NULL)->password)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+
+    const app_error_code_t netif_result = ensure_station_netif();
+    if (netif_result != APP_ERROR_NONE) {
+        return netif_result;
+    }
+    if (sta_outcome_semaphore == NULL) {
+        sta_outcome_semaphore = xSemaphoreCreateBinary();
+        if (sta_outcome_semaphore == NULL) {
+            return APP_ERROR_INTERNAL;
+        }
+    }
+    (void)xSemaphoreTake(sta_outcome_semaphore, 0);
+    sta_got_ip = false;
+    sta_disconnect_reason = 0;
+
+    if (esp_wifi_set_mode(WIFI_MODE_APSTA) != ESP_OK) {
+        return APP_ERROR_INTERNAL;
+    }
+    wifi_config_t configuration = {0};
+    memcpy(configuration.sta.ssid, ssid, strlen(ssid));
+    memcpy(configuration.sta.password, password, strlen(password));
+    if (esp_wifi_set_config(WIFI_IF_STA, &configuration) != ESP_OK) {
+        return APP_ERROR_INTERNAL;
+    }
+    if (esp_wifi_connect() != ESP_OK) {
+        return APP_ERROR_INTERNAL;
+    }
+
+    const TickType_t ticks_to_wait = pdMS_TO_TICKS(timeout_ms);
+    if (xSemaphoreTake(sta_outcome_semaphore, ticks_to_wait) != pdTRUE) {
+        return APP_ERROR_TIMEOUT;
+    }
+    if (!sta_got_ip) {
+        return APP_ERROR_INTERNAL;
+    }
+    const uint32_t address = sta_ip_addr;
+    const int written =
+        snprintf(out_ip, out_ip_size, "%lu.%lu.%lu.%lu", (unsigned long)(address & 0xFFU),
+                 (unsigned long)((address >> 8) & 0xFFU), (unsigned long)((address >> 16) & 0xFFU),
+                 (unsigned long)((address >> 24) & 0xFFU));
+    return written > 0 && (size_t)written < out_ip_size ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
 }

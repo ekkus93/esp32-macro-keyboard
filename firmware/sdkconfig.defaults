@@ -15,6 +15,13 @@ CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK=y
 CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
 CONFIG_HTTPD_MAX_URI_LEN=256
 
+# NOTE: do NOT set CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y here. On the
+# ESP32-S3 the USB-Serial-JTAG peripheral and the USB-OTG controller share
+# one internal PHY/pin pair, so routing the console there prevents TinyUSB
+# from enumerating the device as a USB HID keyboard at all. Verified on
+# hardware. The console lives on UART0 instead - see
+# firmware/components/serial_console/serial_console.c.
+
 # The ESP-IDF default (3584 bytes) overflows main_task during provisioned
 # startup: start_normal_mode() -> storage_recover() descends through
 # storage_transaction_recover_restores_with_ops() -> posix_open_directory()
