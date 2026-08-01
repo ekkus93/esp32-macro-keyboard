@@ -21,6 +21,7 @@ import {
 } from "./guards";
 import {
   isFactoryResetAccepted,
+  isFullDiagnostics,
   isQuarantineList,
   isSetDeletion,
   isStorageHealth,
@@ -32,6 +33,7 @@ import type {
   ExecutionStatus,
   ExecutionSubmitRequest,
   FactoryResetAccepted,
+  FullDiagnostics,
   LoginResponse,
   Macro,
   MacroSet,
@@ -483,4 +485,8 @@ export async function getStorageHealth(): Promise<StorageHealth> {
 
 export async function getQuarantine(): Promise<QuarantineList> {
   return apiRequest("/api/v1/diagnostics/quarantine", {}, isQuarantineList);
+}
+
+export async function getFullDiagnostics(): Promise<FullDiagnostics> {
+  return apiRequest("/api/v1/diagnostics", {}, isFullDiagnostics);
 }

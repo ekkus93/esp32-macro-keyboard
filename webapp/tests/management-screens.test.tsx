@@ -59,10 +59,64 @@ describe("management screens", () => {
       "1 quarantine record is damaged",
     );
     expect(buttonWithText("Run full storage verification").disabled).toBe(true);
-    expect(buttonWithText("Load full diagnostics").disabled).toBe(true);
+    expect(buttonWithText("Load full diagnostics").disabled).toBe(false);
     expect(getFetchCalls().map((call) => call.url)).toEqual([
       "/api/v1/diagnostics/storage",
       "/api/v1/diagnostics/quarantine",
+    ]);
+    await view.unmount();
+  });
+
+  test("loads full subsystem diagnostics on demand", async () => {
+    planJsonResponse(
+      success({
+        verified: false,
+        webMounted: true,
+        dataMounted: true,
+        quarantineCount: 0,
+        damagedQuarantineCount: 0,
+      }),
+    );
+    planJsonResponse(success({ damagedCount: 0, items: [] }));
+    planJsonResponse(
+      success({
+        buildId: "abcdef0123456789",
+        firmwareVersion: "1.2.3",
+        schemaVersion: 1,
+        resetReason: "power-on",
+        uptimeMs: 60000,
+        freeHeapBytes: 200000,
+        minFreeHeapBytes: 150000,
+        stack: { controlsWords: 512, executorWords: 1024 },
+        webfs: { ok: true, totalBytes: 1000000, usedBytes: 400000 },
+        userdata: { ok: true, totalBytes: 2000000, usedBytes: 900000 },
+        quarantine: { ok: true, count: 0, damagedCount: 0 },
+        executionState: "idle",
+        subsystems: [
+          { name: "app_core", state: "healthy" },
+          { name: "storage", state: "healthy" },
+          { name: "repository", state: "healthy" },
+          { name: "auth", state: "healthy" },
+          { name: "usb", state: "healthy" },
+          { name: "executor", state: "healthy" },
+          { name: "controls", state: "degraded" },
+          { name: "wifi", state: "healthy" },
+          { name: "http", state: "healthy" },
+        ],
+      }),
+    );
+    const view = await render(<DiagnosticsPage />);
+    await flushReact();
+
+    await click(buttonWithText("Load full diagnostics"));
+    await flushReact();
+
+    expect(document.body.textContent).toContain("abcdef0123456789");
+    expect(document.body.textContent).toContain("controls: degraded");
+    expect(getFetchCalls().map((call) => call.url)).toEqual([
+      "/api/v1/diagnostics/storage",
+      "/api/v1/diagnostics/quarantine",
+      "/api/v1/diagnostics",
     ]);
     await view.unmount();
   });

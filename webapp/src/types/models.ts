@@ -211,3 +211,49 @@ export interface QuarantineList {
   damagedCount: number;
   items: QuarantineEntry[];
 }
+
+export type SubsystemHealthState =
+  | "healthy"
+  | "degraded"
+  | "unavailable"
+  | "recovering"
+  | "failed"
+  | "unknown";
+
+export interface DiagnosticsSubsystem {
+  name: string;
+  state: SubsystemHealthState;
+}
+
+export interface DiagnosticsCapacity {
+  ok: boolean;
+  totalBytes: number;
+  usedBytes: number;
+}
+
+export interface DiagnosticsQuarantineSummary {
+  ok: boolean;
+  count: number;
+  damagedCount: number;
+}
+
+export interface DiagnosticsStack {
+  controlsWords: number;
+  executorWords: number;
+}
+
+export interface FullDiagnostics {
+  buildId: string;
+  firmwareVersion: string;
+  schemaVersion: number;
+  resetReason: string;
+  uptimeMs: number;
+  freeHeapBytes: number;
+  minFreeHeapBytes: number;
+  stack: DiagnosticsStack;
+  webfs: DiagnosticsCapacity;
+  userdata: DiagnosticsCapacity;
+  quarantine: DiagnosticsQuarantineSummary;
+  executionState: string;
+  subsystems: DiagnosticsSubsystem[];
+}
