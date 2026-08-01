@@ -126,7 +126,7 @@ app_error_code_t web_adapter_build_diagnostics_json(const web_diagnostics_snapsh
         return APP_ERROR_INVALID_ARGUMENT;
     }
     json_writer_t writer = {.buffer = output, .capacity = output_size};
-    writer_append_text(&writer, "{\"ok\":true,\"data\":{\"buildId\":\"");
+    writer_append_text(&writer, "{\"buildId\":\"");
     writer_append_escaped(&writer, snapshot->build_id);
     writer_append_text(&writer, "\",\"firmwareVersion\":\"");
     writer_append_escaped(&writer, snapshot->firmware_version);
@@ -168,7 +168,7 @@ app_error_code_t web_adapter_build_diagnostics_json(const web_diagnostics_snapsh
                               subsystem_health_state_string(snapshot->subsystems[index].state));
         writer_append_text(&writer, "\"}");
     }
-    writer_append_text(&writer, "]}}");
+    writer_append_text(&writer, "]}");
     const app_error_code_t result = writer_finish(&writer);
     if (result != APP_ERROR_NONE) {
         output[0] = '\0';
