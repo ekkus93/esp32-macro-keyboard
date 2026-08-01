@@ -2228,25 +2228,99 @@ Retain primary and cleanup errors separately.
 
 Include:
 
-- [ ] build ID;
-- [ ] firmware and schema versions;
-- [ ] reset reason and uptime;
-- [ ] heap;
-- [ ] task stack high-water marks;
-- [ ] webfs/userdata capacity;
-- [ ] quarantine count;
-- [ ] current execution state;
-- [ ] subsystem health.
+- [x] build ID;
+- [x] firmware and schema versions;
+- [x] reset reason and uptime;
+- [x] heap;
+- [x] task stack high-water marks;
+- [x] webfs/userdata capacity;
+- [x] quarantine count;
+- [x] current execution state;
+- [x] subsystem health.
 
 Exclude all secret material and raw macro source.
 
+Implemented: `GET /api/v1/diagnostics` (new `WEB_API_ROUTE_DIAGNOSTICS_FULL`)
+dispatches through the same authenticated `web_api_administration.c` path as
+the existing `/api/v1/diagnostics/storage` and `/api/v1/diagnostics/quarantine`
+routes it sits alongside, rather than the unauthenticated `/api/v1/status`
+pattern first considered - diagnostics is materially more sensitive (heap,
+stack marks, reset reason, every subsystem's health) than those two, so it
+should not be less protected than its siblings. Collection lives in new
+`web_server_diagnostics.c`: build ID is a bounded hex prefix of the ELF
+SHA-256 (`esp_app_get_elf_sha256`, no CI-injected build identifier exists in
+this codebase yet); firmware version from `esp_app_get_description()`;
+schema version from the existing `APP_SCHEMA_VERSION`; reset reason from
+`esp_reset_reason()` mapped to a stable string vocabulary; uptime from
+`esp_timer_get_time()`; heap from `esp_get_free_heap_size()`/
+`esp_get_minimum_free_heap_size()`; stack high-water marks from two new
+getters, `device_controls_stack_high_water_mark()` and
+`macro_executor_stack_high_water_mark()` - the only two components that keep
+an accessible FreeRTOS task handle, so reporting is scoped to those two
+rather than inventing new task-handle plumbing for USB/HTTP, whose worker
+tasks are owned internally by TinyUSB/esp_http_server; webfs/userdata
+capacity from new `storage_partition_capacity()` (`esp_littlefs_info()`);
+quarantine count from the existing `storage_quarantine_list()`; execution
+state from the existing `macro_executor_get_status()`; subsystem health from
+all nine §19.1 getters. Capacity and quarantine results carry an explicit
+`ok` flag so a query failure is reflected in the response (zeroed fields,
+`ok:false`) instead of being fabricated or silently omitted - the JSON shape
+never changes based on success or failure. Redaction is structural:
+`web_diagnostics_snapshot_t` (new, `web_server/include/web_diagnostics.h`)
+has no field capable of holding a credential, token, or macro source, so
+nothing needs scrubbing before encoding. JSON encoding is a new portable,
+host-tested `web_adapter_build_diagnostics_json` in
+`web_server_adapter_json.c`, matching the existing `web_adapter_build_status_json`
+pattern of encoding already-resolved values rather than reading live state
+itself. Frontend: `webapp/src/features/settings/DiagnosticsPage.tsx`'s
+previously-disabled "Load full diagnostics" button now calls a new
+`getFullDiagnostics()` (`webapp/src/api/routes.ts`), validated by a new
+`isFullDiagnostics` guard (`webapp/src/api/managementGuards.ts`) against new
+`FullDiagnostics`/`DiagnosticsSubsystem`/`DiagnosticsCapacity`/
+`DiagnosticsQuarantineSummary` types, and renders build identity, heap,
+stack marks, capacities, quarantine, execution state, and a badge per
+subsystem.
+
+Architectural prerequisite: app-lifecycle health tracking moved from
+`app_core` to `support` (`app_lifecycle_health.h`/`.c`, renamed from
+`app_core_health`) because `web_server` cannot depend on `app_core` -
+`app_core` already depends on `web_server`, so the reverse dependency would
+cycle - yet the diagnostics route still needs to read app-lifecycle health
+alongside the other eight subsystems. This mirrors `subsystem_health.h`
+itself already living in `support` rather than in any one subsystem.
+
 ### 19.3 Add diagnostic tests
 
-- [ ] exact allowed fields;
-- [ ] secret sentinels absent;
-- [ ] bounded output;
-- [ ] behavior when a subsystem health query fails;
-- [ ] no false healthy state when cleanup is incomplete.
+- [x] exact allowed fields;
+- [x] secret sentinels absent;
+- [x] bounded output;
+- [x] behavior when a subsystem health query fails;
+- [x] no false healthy state when cleanup is incomplete.
+
+Implemented: five host tests in
+`tests/host/test_web_server_adapter_diagnostics_json.inc` (run as part of
+`web_server_adapter_tests`) exercise `web_adapter_build_diagnostics_json`
+directly rather than the ESP-IDF-coupled collection code, matching how the
+existing `/api/v1/status` and `/api/v1/limits` JSON builders are tested -
+`test_diagnostics_exact_allowed_fields` asserts every expected key is
+present and exactly nine subsystem entries appear; `test_diagnostics_secret_sentinels_absent`
+asserts the encoded output never contains password/passphrase/setup-code/
+session-token/CSRF/cookie/macro-source/SSID substrings;
+`test_diagnostics_bounded_output` feeds worst-case-length strings and
+`SIZE_MAX`/`UINT64_MAX` values and asserts the result still fits, and that
+an undersized output buffer fails closed (`APP_ERROR_INTERNAL`, empty
+output) rather than truncating silently;
+`test_diagnostics_failed_query_never_fabricates_data` sets the webfs/
+quarantine `ok` flags false and asserts the JSON reports `"ok":false` with
+zeroed fields rather than fabricated data, while an untouched sibling field
+(userdata) still encodes its real values; `test_diagnostics_no_false_healthy_state`
+sets one subsystem to FAILED and one to DEGRADED and asserts both round-trip
+faithfully, never reading back as healthy. Route-level coverage in
+`tests/host/test_web_api_core.c` covers the new `WEB_API_ROUTE_DIAGNOSTICS_FULL`
+path parsing, GET-only method allowlist, and session requirement. Frontend
+coverage: a new `management-screens.test.tsx` case drives the "Load full
+diagnostics" button end to end against a faked `/api/v1/diagnostics`
+response and asserts the rendered subsystem badges.
 
 ## 20. Hardware and integration validation
 
