@@ -271,6 +271,19 @@ add_test(NAME executor_health COMMAND executor_health_tests)
 set_tests_properties(executor_health PROPERTIES LABELS "executor")
 
 add_executable(
+    http_health_tests test_http_health.c ../../firmware/components/web_server/http_health.c
+)
+target_include_directories(
+    http_health_tests
+    PRIVATE ../../firmware/components/web_server/include ../../firmware/components/support/include
+            ../../firmware/components/macro_model/include
+)
+target_link_libraries(http_health_tests PRIVATE test_support)
+target_compile_options(http_health_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME http_health COMMAND http_health_tests)
+set_tests_properties(http_health PROPERTIES LABELS "web")
+
+add_executable(
     usb_keyboard_tests test_usb_keyboard.c
                        ../../firmware/components/usb_keyboard/usb_keyboard_state.c
 )

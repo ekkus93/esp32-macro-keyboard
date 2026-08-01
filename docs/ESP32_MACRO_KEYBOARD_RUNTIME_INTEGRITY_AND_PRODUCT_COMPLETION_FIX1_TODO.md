@@ -2145,7 +2145,7 @@ Add stable health snapshots for:
 - [x] executor;
 - [x] controls;
 - [x] Wi-Fi;
-- [ ] HTTP.
+- [x] HTTP.
 
 Implemented (app lifecycle): `app_core_health.c` (new, portable, host-testable)
 derives a stable `subsystem_health_state_t` purely from recorded fields —
@@ -2211,6 +2211,16 @@ alongside the engine's existing state machine) derives a
 machine reports `WIFI_AP_ERROR`, UNAVAILABLE while stopped, RECOVERING while
 starting (not yet serving clients — the closest fit in the shared vocabulary
 for "in progress, not yet healthy"), HEALTHY once ready.
+
+Implemented (HTTP): unlike controls/Wi-Fi, the web_server component had no
+existing health tracking, so `http_health.h`/`.c` (new, in the `web_server`
+component, same portable/host-testable shape as the other from-scratch
+subsystems) tracks a primary error from `web_server_start()` and a cleanup
+error/incomplete flag from `web_server_stop()`, recorded from `app_core.c`'s
+existing `adapter_http_start`/`adapter_http_stop` call sites — the same
+convention used for every other subsystem in this section, so app_core.c
+remains the single place that orchestrates and records startup/shutdown
+health.
 
 Retain primary and cleanup errors separately.
 

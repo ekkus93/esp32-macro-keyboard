@@ -34,12 +34,14 @@ idf_component_register(
     "web_content.c"
     "web_setup_core.c"
     "web_setup_json.c"
+    "http_health.c"
     INCLUDE_DIRS
     "include"
     PRIV_INCLUDE_DIRS
     "."
     REQUIRES
     macro_model
+    support
     macro_executor
     macro_parser
     usb_keyboard

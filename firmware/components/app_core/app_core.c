@@ -13,6 +13,7 @@
 #include "device_controls.h"
 #include "esp_log.h"
 #include "executor_health.h"
+#include "http_health.h"
 #include "macro_executor.h"
 #include "nvs_flash.h"
 #include "provisioning.h"
@@ -139,12 +140,16 @@ static app_error_code_t adapter_wifi_start(void *context, const char *ssid,
 static app_error_code_t adapter_http_start(void *context,
                                            const web_server_config_t *configuration) {
     (void)context;
-    return web_server_start(configuration);
+    const app_error_code_t result = web_server_start(configuration);
+    http_health_record_primary(result);
+    return result;
 }
 
 static app_error_code_t adapter_http_stop(void *context) {
     (void)context;
-    return web_server_stop();
+    const app_error_code_t result = web_server_stop();
+    http_health_record_cleanup(result, result != APP_ERROR_NONE);
+    return result;
 }
 
 static app_error_code_t adapter_wifi_stop(void *context) {
@@ -295,6 +300,7 @@ app_error_code_t app_core_start(void) {
     auth_health_reset();
     usb_health_reset();
     executor_health_reset();
+    http_health_reset();
     const app_core_ops_t operations = {
         .context = NULL,
         .nvs_init = adapter_nvs_init,
