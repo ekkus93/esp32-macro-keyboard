@@ -8,6 +8,7 @@ idf_component_register(
     "web_server_static.c"
     "web_server_setup.c"
     "web_server_lifecycle.c"
+    "web_server_diagnostics.c"
     "web_server_api.c"
     "web_server_adapter_common.c"
     "web_server_adapter_body_auth.c"
@@ -50,6 +51,7 @@ idf_component_register(
     provisioning
     device_controls
     storage
+    esp_app_format
     esp_http_server
     esp_timer
     esp_system

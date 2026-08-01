@@ -289,3 +289,8 @@ app_error_code_t macro_executor_cancel(void) {
 macro_execution_status_t macro_executor_get_status(void) {
     return macro_executor_engine_get_status(&engine);
 }
+
+size_t macro_executor_stack_high_water_mark(void) {
+    return executor_task_handle != NULL ? (size_t)uxTaskGetStackHighWaterMark(executor_task_handle)
+                                        : 0U;
+}

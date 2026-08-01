@@ -153,6 +153,7 @@ add_executable(
     web_server_adapter_tests
     test_web_server_adapter.c
     ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/support/subsystem_health.c
     ../../firmware/components/web_server/web_server_adapter_common.c
     ../../firmware/components/web_server/web_server_adapter_body_auth.c
     ../../firmware/components/web_server/web_server_adapter_json.c
@@ -166,7 +167,8 @@ add_executable(
 target_include_directories(
     web_server_adapter_tests
     PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/auth/include
-            ../../firmware/components/web_server
+            ../../firmware/components/web_server ../../firmware/components/web_server/include
+            ../../firmware/components/support/include
 )
 target_link_libraries(web_server_adapter_tests PRIVATE test_support)
 target_compile_options(web_server_adapter_tests PRIVATE ${STRICT_WARNINGS})
@@ -766,6 +768,8 @@ target_include_directories(
             ../../firmware/components/macro_executor/include
             ../../firmware/components/auth/include
             ../../firmware/components/web_server
+            ../../firmware/components/web_server/include
+            ../../firmware/components/support/include
 )
 target_link_libraries(web_request_policy_tests PRIVATE test_support)
 target_compile_options(web_request_policy_tests PRIVATE ${STRICT_WARNINGS})

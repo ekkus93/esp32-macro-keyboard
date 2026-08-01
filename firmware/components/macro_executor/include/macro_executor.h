@@ -50,4 +50,10 @@ app_error_code_t macro_executor_submit(macro_execution_request_t *request);
 app_error_code_t macro_executor_cancel(void);
 macro_execution_status_t macro_executor_get_status(void);
 
+/* Executor task stack high-water mark in words for Phase 19 diagnostics (FIX1
+ * handoff §7.1), or 0 when the task isn't running. Not host-testable (reads
+ * FreeRTOS state directly); the diagnostics aggregator reaches it through an
+ * injected ops seam. */
+size_t macro_executor_stack_high_water_mark(void);
+
 #endif

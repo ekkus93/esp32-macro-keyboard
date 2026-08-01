@@ -413,3 +413,8 @@ app_error_code_t device_controls_wait_for_confirmation(unsigned int timeout_ms) 
 device_controls_health_t device_controls_get_health(void) {
     return device_controls_engine_get_health(&engine);
 }
+
+size_t device_controls_stack_high_water_mark(void) {
+    return controls_task_handle != NULL ? (size_t)uxTaskGetStackHighWaterMark(controls_task_handle)
+                                        : 0U;
+}

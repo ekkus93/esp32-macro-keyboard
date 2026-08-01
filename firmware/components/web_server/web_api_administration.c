@@ -308,6 +308,8 @@ app_error_code_t web_api_handle_administration(const web_api_call_t *call,
         return web_api_admin_boundary_handle(call, response);
     case WEB_API_ROUTE_DIAGNOSTICS_QUARANTINE:
         return handle_quarantine(response);
+    case WEB_API_ROUTE_DIAGNOSTICS_FULL:
+        return web_diagnostics_handle(response);
     default:
         return APP_ERROR_NOT_FOUND;
     }

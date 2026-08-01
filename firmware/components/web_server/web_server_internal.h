@@ -8,6 +8,7 @@
 #include "esp_http_server.h"
 #include "macro_executor.h"
 #include "usb_keyboard.h"
+#include "web_api_response.h"
 #include "web_server.h"
 #include "web_server_adapter.h"
 #include "web_setup_core.h"
@@ -54,5 +55,7 @@ esp_err_t setup_restart_handler(httpd_req_t *request);
 app_error_code_t web_server_setup_init(const web_server_config_t *configuration);
 app_error_code_t web_server_setup_deinit(void);
 bool web_server_setup_owns_resources(void);
+
+app_error_code_t web_diagnostics_handle(web_api_response_t *response);
 
 #endif

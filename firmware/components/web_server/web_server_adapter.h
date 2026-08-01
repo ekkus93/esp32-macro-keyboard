@@ -7,6 +7,7 @@
 
 #include "app_error.h"
 #include "macro_limits.h"
+#include "web_diagnostics.h"
 
 #define WEB_ADAPTER_RECEIVE_TIMEOUT (-2)
 #define WEB_ADAPTER_TIMEOUT_RETRIES_MAX 4U
@@ -71,6 +72,8 @@ app_error_code_t web_adapter_build_status_json(const char *version, const char *
                                                uint32_t wifi_clients, const char *execution_state,
                                                char *output, size_t output_size);
 app_error_code_t web_adapter_build_limits_json(char *output, size_t output_size);
+app_error_code_t web_adapter_build_diagnostics_json(const web_diagnostics_snapshot_t *snapshot,
+                                                    char *output, size_t output_size);
 app_error_code_t web_adapter_open_static_file(const char *uri, bool accept_gzip, const char *mount,
                                               web_adapter_open_fn open_file, void *context,
                                               web_adapter_static_file_t *out_file);

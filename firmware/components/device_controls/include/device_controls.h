@@ -2,6 +2,7 @@
 #define DEVICE_CONTROLS_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "app_error.h"
 #include "subsystem_health.h"
@@ -40,5 +41,11 @@ device_controls_health_t device_controls_get_health(void);
  * any error or specific-failure flag is set (never HEALTHY while one is),
  * UNAVAILABLE if the controls task isn't running, HEALTHY otherwise. */
 subsystem_health_state_t device_controls_health_derive_state(device_controls_health_t health);
+
+/* Controls task stack high-water mark in words for Phase 19 diagnostics (FIX1
+ * handoff §7.1), or 0 when the task isn't running. Not host-testable (reads
+ * FreeRTOS state directly); the diagnostics aggregator reaches it through an
+ * injected ops seam. */
+size_t device_controls_stack_high_water_mark(void);
 
 #endif

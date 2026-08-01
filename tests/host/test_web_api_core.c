@@ -56,6 +56,8 @@ static void test_route_parsing(void) {
     check_route("/api/v1/settings/change-password", WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD);
     check_route("/api/v1/device/factory-reset", WEB_API_ROUTE_DEVICE_FACTORY_RESET);
     check_route("/api/v1/diagnostics/storage/check", WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK);
+    check_route("/api/v1/diagnostics/quarantine", WEB_API_ROUTE_DIAGNOSTICS_QUARANTINE);
+    check_route("/api/v1/diagnostics", WEB_API_ROUTE_DIAGNOSTICS_FULL);
     check_route("/api/v1/backup", WEB_API_ROUTE_BACKUP);
 
     web_api_path_t path = {0};
@@ -98,6 +100,10 @@ static void test_route_policy(void) {
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
     TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_DELETE));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_DIAGNOSTICS_FULL, WEB_API_METHOD_GET));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_DIAGNOSTICS_FULL, WEB_API_METHOD_POST));
+    TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_DIAGNOSTICS_FULL));
+    TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DIAGNOSTICS_FULL));
 }
 
 static void test_error_status_mapping(void) {

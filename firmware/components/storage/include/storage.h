@@ -110,6 +110,13 @@ app_error_code_t storage_quarantine_file(const char *source_path, const char *re
                                          storage_quarantine_entry_t *out_entry);
 app_error_code_t storage_quarantine_list(storage_quarantine_list_t *out_list);
 app_error_code_t storage_quarantine_recover_all(void);
+
+/* Total/used bytes for a mounted LittleFS partition (STORAGE_WEB_PARTITION or
+ * STORAGE_DATA_PARTITION), for Phase 19 diagnostics (FIX1 handoff §7.1). Not
+ * host-testable (queries the mounted LittleFS partition directly); the
+ * diagnostics aggregator reaches it through an injected ops seam. */
+app_error_code_t storage_partition_capacity(const char *partition_label, size_t *out_total_bytes,
+                                            size_t *out_used_bytes);
 app_error_code_t storage_transaction_write_manifest(const storage_transaction_manifest_t *manifest);
 
 #endif

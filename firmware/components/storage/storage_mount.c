@@ -70,3 +70,13 @@ app_error_code_t storage_unmount_all(void) {
 storage_mount_state_t storage_mount_state(void) {
     return mount_state;
 }
+
+app_error_code_t storage_partition_capacity(const char *partition_label, size_t *out_total_bytes,
+                                            size_t *out_used_bytes) {
+    if (partition_label == NULL || out_total_bytes == NULL || out_used_bytes == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    return esp_littlefs_info(partition_label, out_total_bytes, out_used_bytes) == ESP_OK
+               ? APP_ERROR_NONE
+               : APP_ERROR_IO;
+}
