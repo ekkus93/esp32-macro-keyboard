@@ -9,6 +9,7 @@ actionlint
 shell_files=(
 	scripts/*.sh tests/scripts/*.sh tests/scripts/fakes/run-clang-tidy
 	tests/scripts/fakes/npm tests/scripts/fakes/littlefs-python
+	tests/scripts/fakes/idf.py
 )
 
 shellcheck "${shell_files[@]}"
@@ -23,8 +24,8 @@ bash -n "${shell_files[@]}"
 # (FIX1 Phase 14.5), the bounded Phase 18.1 package reader, the reviewed
 # npm-audit exception policy, the Phase 18.5 secret-sentinel scanner, the
 # Phase 18.5 frontend persisted-state policy, the Phase 21.1 release-budget
-# gate, the SPEC §23 webfs packaging pipeline, and the bounded CI status
-# issue generator.
+# gate, the SPEC §23 webfs packaging pipeline and flash manifest, and the
+# bounded CI status issue generator.
 bash tests/scripts/test-check-firmware.sh
 bash tests/scripts/test-clang-tidy-include-cycle.sh
 bash tests/scripts/test-static-analysis-policy.sh
@@ -37,6 +38,7 @@ bash tests/scripts/test-storage-package.sh
 bash tests/scripts/test-check-frontend-persisted-state.sh
 bash tests/scripts/test-check-release-budgets.sh
 bash tests/scripts/test-build-webfs-image.sh
+bash tests/scripts/test-generate-flash-manifest.sh
 python3 tests/scripts/test-check-npm-audit.py
 python3 tests/scripts/test-secret-sentinel.py
 python3 tools/ci_status/test_publish_status.py

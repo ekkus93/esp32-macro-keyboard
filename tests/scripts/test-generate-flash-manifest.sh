@@ -1,0 +1,186 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+readonly repo_root
+readonly generator="${repo_root}/scripts/generate-flash-manifest.sh"
+readonly fakes_dir="${repo_root}/tests/scripts/fakes"
+temporary_dir="$(mktemp -d)"
+readonly temporary_dir
+trap 'rm -rf -- "${temporary_dir}"' EXIT
+
+export PATH="${fakes_dir}:${PATH}"
+export IDF_PATH="${fakes_dir}/fake_idf_path"
+
+pass_count=0
+
+readonly build_dir="${temporary_dir}/build"
+readonly sdkconfig="${temporary_dir}/sdkconfig"
+readonly component_lock="${temporary_dir}/dependencies.lock"
+readonly frontend_lock="${temporary_dir}/package-lock.json"
+readonly output_file="${temporary_dir}/flash-manifest.json"
+
+common_args() {
+	printf '%s\n' \
+		--build-dir "${build_dir}" \
+		--sdkconfig "${sdkconfig}" \
+		--component-lock "${component_lock}" \
+		--frontend-lock "${frontend_lock}" \
+		--output "${output_file}"
+}
+
+write_fixtures() {
+	local production="$1"
+	rm -rf -- "${build_dir}"
+	mkdir -p -- "${build_dir}/partition_table"
+	cat >"${build_dir}/flasher_args.json" <<'JSON'
+{
+    "flash_settings": {"flash_mode": "dio", "flash_size": "8MB", "flash_freq": "80m"},
+    "flash_files": {
+        "0x0": "bootloader/bootloader.bin",
+        "0x20000": "esp32_macro_keyboard.bin",
+        "0x8000": "partition_table/partition-table.bin",
+        "0xf000": "ota_data_initial.bin"
+    }
+}
+JSON
+	: >"${build_dir}/partition_table/partition-table.bin"
+	if [ "${production}" = "production" ]; then
+		printf '# CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG is not set\n' >"${sdkconfig}"
+		printf '# CONFIG_APP_MANUFACTURING_PROVISIONING_LOG is not set\n' >>"${sdkconfig}"
+	else
+		printf 'CONFIG_APP_MANUFACTURING_PROVISIONING_LOG=y\n' >"${sdkconfig}"
+	fi
+	printf 'fixture component lock\n' >"${component_lock}"
+	printf 'fixture frontend lock\n' >"${frontend_lock}"
+	rm -f -- "${output_file}"
+}
+
+expect_pass() {
+	local name="$1"
+	shift
+	local -a args
+	mapfile -t args < <(common_args)
+	if ! bash "${generator}" "${args[@]}" "$@" >"${temporary_dir}/output" 2>&1; then
+		printf 'FAIL: %s unexpectedly failed\n' "${name}" >&2
+		cat -- "${temporary_dir}/output" >&2
+		exit 1
+	fi
+	pass_count=$((pass_count + 1))
+}
+
+expect_fail() {
+	local name="$1"
+	local expected="$2"
+	shift 2
+	local -a args
+	mapfile -t args < <(common_args)
+	if bash "${generator}" "${args[@]}" "$@" >"${temporary_dir}/output" 2>&1; then
+		printf 'FAIL: %s unexpectedly passed\n' "${name}" >&2
+		cat -- "${temporary_dir}/output" >&2
+		exit 1
+	fi
+	if ! grep -F -- "${expected}" "${temporary_dir}/output" >/dev/null; then
+		printf 'FAIL: %s did not report %s\n' "${name}" "${expected}" >&2
+		cat -- "${temporary_dir}/output" >&2
+		exit 1
+	fi
+	pass_count=$((pass_count + 1))
+}
+
+field() {
+	python3 -c "import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])" \
+		"${output_file}" "$1"
+}
+
+# Happy path, no webfs image present: the manifest is written with every
+# required SPEC §23 field and the four ESP-IDF flash files, unchanged from
+# flasher_args.json.
+write_fixtures production
+expect_pass 'happy path, no webfs image'
+[ "$(field buildType)" = "production" ] || {
+	printf 'FAIL: expected buildType=production\n' >&2
+	exit 1
+}
+[ "$(field espIdfVersion)" = "ESP-IDF v5.5.5" ] || {
+	printf 'FAIL: unexpected espIdfVersion: %s\n' "$(field espIdfVersion)" >&2
+	exit 1
+}
+[ "$(python3 -c "import json; print(len(json.load(open('${output_file}'))['gitCommit']))")" = 40 ] || {
+	printf 'FAIL: gitCommit is not a 40-character SHA\n' >&2
+	exit 1
+}
+[ "$(python3 -c "import json; print('webfs.bin' in json.load(open('${output_file}'))['flashFiles'].values())")" = "False" ] || {
+	printf 'FAIL: webfs.bin listed without a webfs image present\n' >&2
+	exit 1
+}
+
+# A manufacturing-provisioning-log build must be recorded as "development",
+# not silently reported as production.
+write_fixtures development
+expect_pass 'development build type'
+[ "$(field buildType)" = "development" ] || {
+	printf 'FAIL: expected buildType=development, got %s\n' "$(field buildType)" >&2
+	exit 1
+}
+
+# When scripts/build-webfs-image.sh has already produced a webfs.bin, the
+# manifest must include it at its real resolved partition offset.
+write_fixtures production
+: >"${build_dir}/webfs.bin"
+FAKE_WEBFS_OFFSET=0x520000 expect_pass 'webfs image present'
+[ "$(python3 -c "import json; print(json.load(open('${output_file}'))['flashFiles'].get('0x520000'))")" = "webfs.bin" ] || {
+	printf 'FAIL: webfs.bin not recorded at the resolved offset\n' >&2
+	exit 1
+}
+
+# A lockfile hash must actually reflect the lockfile's real content, not a
+# placeholder - changing the fixture must change the recorded hash.
+write_fixtures production
+expect_pass 'baseline lock hash'
+baseline_hash="$(field managedComponentLockSha256)"
+printf 'different fixture content\n' >"${component_lock}"
+expect_pass 'changed lock hash'
+[ "$(field managedComponentLockSha256)" != "${baseline_hash}" ] || {
+	printf 'FAIL: managedComponentLockSha256 did not change with lockfile content\n' >&2
+	exit 1
+}
+
+# Missing required build artifacts must fail closed with a clear message,
+# not a bare Python traceback.
+write_fixtures production
+rm -f -- "${build_dir}/flasher_args.json"
+expect_fail 'missing flasher_args.json' 'flasher_args.json not found'
+
+write_fixtures production
+rm -f -- "${sdkconfig}"
+expect_fail 'missing sdkconfig' "${sdkconfig} not found"
+
+write_fixtures production
+rm -f -- "${component_lock}"
+expect_fail 'missing component lockfile' 'managed-component lockfile not found'
+
+write_fixtures production
+rm -f -- "${frontend_lock}"
+expect_fail 'missing frontend lockfile' 'frontend lockfile not found'
+
+# idf.py missing from PATH entirely must fail closed with the exact
+# export.sh guidance, not a bare "command not found". Every other required
+# artifact check runs first, so this must be the only thing removed.
+write_fixtures production
+if PATH="/usr/bin:/bin" IDF_PATH="${IDF_PATH}" bash "${generator}" \
+	--build-dir "${build_dir}" --sdkconfig "${sdkconfig}" \
+	--component-lock "${component_lock}" --frontend-lock "${frontend_lock}" \
+	--output "${output_file}" >"${temporary_dir}/output" 2>&1; then
+	printf 'FAIL: missing idf.py unexpectedly passed\n' >&2
+	cat -- "${temporary_dir}/output" >&2
+	exit 1
+fi
+if ! grep -F -- 'source the pinned ESP-IDF v5.5.5 export.sh first' "${temporary_dir}/output" >/dev/null; then
+	printf 'FAIL: missing idf.py did not report the export.sh guidance\n' >&2
+	cat -- "${temporary_dir}/output" >&2
+	exit 1
+fi
+pass_count=$((pass_count + 1))
+
+printf 'generate-flash-manifest regression tests passed: %d\n' "${pass_count}"

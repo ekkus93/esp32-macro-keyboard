@@ -2631,9 +2631,9 @@ them to match every other script in `scripts/`.
   webfs image today. This was a real gap worth its own tracked item; not
   fixed here since automating it (deciding where in the build it hooks in,
   what "flash manifest" means concretely) was its own scoped task, not a
-  measurement. **Closed 2026-08-01** for the webfs-packaging half of this
-  gap: see §21.1's `scripts/build-webfs-image.sh` entry. The "generate flash
-  manifest" half remains open, tracked in the same §21.1 entry.
+  measurement. **Closed 2026-08-01**, both halves: see §21.1's
+  `scripts/build-webfs-image.sh` and `scripts/generate-flash-manifest.sh`
+  entries.
 - **Static RAM**: DIRAM 113,571 of 341,760 bytes used (33.23%): `.text`
   71,775 + `.data` 21,860 + `.bss` 19,936 bytes (`idf.py -C firmware size`).
   IRAM 16,384/16,384 bytes (100%, expected - fixed-size instruction cache
@@ -2799,13 +2799,35 @@ passing it would turn the corresponding check from an explicit skip into a
 real, enforced gate with no further script changes needed, and that is
 exactly what happened.
 
-SPEC §23's build pipeline still has one unautomated stage beyond webfs
-packaging: "generate flash manifest" (recording git commit, dirty state,
-ESP-IDF version, managed-component lock hash, frontend lockfile hash, build
-type, and timestamp into a committed artifact). `scripts/build-webfs-image.sh`
-only covers the webfs-specific stages (gzip variants, staging, LittleFS
-image); it does not produce this manifest. Left open as a real, narrower,
-separately-scoped gap - not silently folded into "webfs packaging is done."
+SPEC §23's final build-pipeline stage, "generate flash manifest", is now
+also automated: `scripts/generate-flash-manifest.sh` (new, 2026-08-01) reads
+a completed `idf.py -C firmware build`'s own `flasher_args.json` and
+resolved `sdkconfig`, and records every field SPEC §23 requires - git
+commit (`git rev-parse HEAD`), dirty/clean state (`git status --porcelain`),
+ESP-IDF version (`idf.py --version`), managed-component lock hash (sha256 of
+`firmware/dependencies.lock` - cross-checked against §20.1's manually
+computed value, an exact match), frontend lockfile hash (sha256 of
+`webapp/package-lock.json`), build type, and a build timestamp - into
+`firmware/build/flash-manifest.json`, alongside the resolved flash-file
+offset list (bootloader/partition-table/otadata/app from `flasher_args.json`,
+plus `webfs.bin` at its real resolved partition offset, via
+`gen_esp32part.py` against the built partition table, if
+`scripts/build-webfs-image.sh` has already produced one). "Build type" is
+derived from this codebase's actual safety model rather than an invented
+Debug/Release axis: "development" if the *resolved* `sdkconfig` for this
+specific build has either credential-logging Kconfig option
+(`CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG`/`CONFIG_APP_MANUFACTURING_PROVISIONING_LOG`)
+enabled, "production" otherwise - distinct from
+`check-production-config.sh`, which checks the *committed*
+`sdkconfig.defaults` (never enables these) rather than a specific resolved
+build that could locally differ. The timestamp does not weaken "release
+builds MUST be reproducible from committed sources and lockfiles": it is
+metadata about when the manifest was assembled, never embedded in the
+flashed binaries themselves. Wired into `check-all.sh` between
+`build-webfs-image.sh` and `check-release-budgets.sh`. Regression-tested in
+`tests/scripts/test-generate-flash-manifest.sh` (10 cases, fake `idf.py` and
+a fake `gen_esp32part.py` under a fake `$IDF_PATH`). SPEC §23's build
+pipeline has no remaining unautomated stage.
 
 ### 21.2 Pin GitHub Actions
 

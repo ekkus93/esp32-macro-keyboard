@@ -15,6 +15,7 @@ bash ./scripts/check-frontend-persisted-state.sh
 bash ./scripts/check-setup-route-isolation.sh
 ./scripts/check-firmware.sh
 bash ./scripts/build-webfs-image.sh
+bash ./scripts/generate-flash-manifest.sh
 bash ./scripts/check-release-budgets.sh
 ./scripts/check-webapp.sh
 ./scripts/check-scripts.sh
