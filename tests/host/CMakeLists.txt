@@ -25,6 +25,7 @@ add_library(
     support/test_assert.c
     support/test_memory.c
     support/test_temp_dir.c
+    support/test_secret_sentinel.c
     fakes/fake_call_log.c
     fakes/fake_clock.c
     fakes/fake_random.c
@@ -37,6 +38,10 @@ add_library(
 )
 target_include_directories(test_support PUBLIC support fakes)
 target_compile_definitions(test_support PUBLIC _POSIX_C_SOURCE=200809L)
+set(SECRET_SENTINEL_SCANNER "${CMAKE_SOURCE_DIR}/../../scripts/check-secret-sentinel.py")
+target_compile_definitions(
+    test_support PRIVATE TEST_SECRET_SENTINEL_SCANNER_PATH="${SECRET_SENTINEL_SCANNER}"
+)
 target_compile_options(test_support PRIVATE ${STRICT_WARNINGS})
 
 add_executable(test_support_tests test_support.c)

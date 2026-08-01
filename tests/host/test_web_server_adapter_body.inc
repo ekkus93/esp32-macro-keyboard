@@ -6,6 +6,7 @@
 
 #include "auth.h"
 #include "test_assert.h"
+#include "test_secret_sentinel.h"
 #include "web_server_adapter.h"
 
 #define TOKEN "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"

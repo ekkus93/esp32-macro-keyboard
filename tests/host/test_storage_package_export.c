@@ -13,6 +13,7 @@
 #include "storage_package_internal.h"
 #include "storage_repository.h"
 #include "test_assert.h"
+#include "test_secret_sentinel.h"
 
 #define SET_ID "11111111-1111-4111-8111-111111111111"
 #define LOCAL_ID "22222222-2222-4222-8222-222222222222"
@@ -172,7 +173,7 @@ static macro_t make_macro(const char *id, macro_scope_t scope, const app_uuid_t 
 static fake_export_context_t valid_context(void) {
     static char local_source[] = "a";
     static char global_source[] = "b";
-    static char unused_source[] = "c";
+    static char unused_source[] = SECRET_SENTINEL;
     static macro_t local_macros[1];
     static macro_t global_macros[2];
     static procedure_step_t steps[2];
@@ -283,6 +284,29 @@ static void test_deterministic_export_and_filtering(void) {
 
     storage_package_free(first);
     storage_package_free(second);
+    storage_package_reset_export_ops_for_test();
+}
+
+static void test_export_output_passes_secret_sentinel_scanner(void) {
+    /* FIX1 18.5: production-path proof, not a reimplemented substring check.
+     * unused_source (an unreferenced global macro, excluded from this set's
+     * export by the real filtering logic) is SECRET_SENTINEL itself, so this
+     * exercises the real scripts/check-secret-sentinel.py - all 7 encodings
+     * it checks - against the real export output of a repository that
+     * genuinely holds the sentinel, just outside this export's scope. */
+    fake_export_context_t context = valid_context();
+    const storage_package_export_ops_t operations = fake_operations(&context);
+    storage_package_set_export_ops_for_test(&operations);
+
+    char *output = NULL;
+    size_t output_length = 0U;
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE, storage_package_export_set(&context.set.id, true, &output, &output_length));
+
+    const char *outputs[] = {output};
+    test_assert_no_secret_sentinel(SECRET_SENTINEL, outputs, 1U);
+
+    storage_package_free(output);
     storage_package_reset_export_ops_for_test();
 }
 
@@ -413,6 +437,7 @@ static void test_argument_and_operations_validation(void) {
 
 int main(void) {
     test_deterministic_export_and_filtering();
+    test_export_output_passes_secret_sentinel_scanner();
     test_progress_is_optional_and_stale_progress_is_omitted();
     test_failure_cleanup_and_primary_error_preservation();
     test_unresolved_reference_fails_closed();

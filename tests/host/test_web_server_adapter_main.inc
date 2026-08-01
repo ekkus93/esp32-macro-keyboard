@@ -6,6 +6,7 @@ int main(void)
     test_json_envelopes();
     test_diagnostics_exact_allowed_fields();
     test_diagnostics_secret_sentinels_absent();
+    test_diagnostics_output_passes_secret_sentinel_scanner();
     test_diagnostics_bounded_output();
     test_diagnostics_failed_query_never_fabricates_data();
     test_diagnostics_no_false_healthy_state();

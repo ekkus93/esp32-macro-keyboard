@@ -84,6 +84,26 @@ static void test_diagnostics_secret_sentinels_absent(void)
     }
 }
 
+static void test_diagnostics_output_passes_secret_sentinel_scanner(void)
+{
+    /* FIX1 18.5: production-path proof, not a reimplemented substring check.
+     * web_diagnostics_snapshot_t has no field capable of holding a secret, so
+     * unlike set export/backup there is no fixture location to embed the
+     * sentinel in; this proves the invariant against a real secret that
+     * exists elsewhere in the same process (e.g. a real auth session token
+     * held by a concurrent request), using the real
+     * scripts/check-secret-sentinel.py (all 7 encodings it checks) against
+     * the real web_adapter_build_diagnostics_json output. */
+    static const char secret_sentinel[] = "phase18_5_diagnostics_secret_Q4tR8wZ1nH6vX3sB";
+    const web_diagnostics_snapshot_t snapshot = default_diagnostics_snapshot();
+    char output[2048U];
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
+
+    const char *outputs[] = {output};
+    test_assert_no_secret_sentinel(secret_sentinel, outputs, 1U);
+}
+
 static void test_diagnostics_bounded_output(void)
 {
     web_diagnostics_snapshot_t snapshot = default_diagnostics_snapshot();

@@ -12,6 +12,7 @@
 #include "storage_package_internal.h"
 #include "storage_repository.h"
 #include "test_assert.h"
+#include "test_secret_sentinel.h"
 
 #define SET_A_ID "11111111-1111-4111-8111-111111111111"
 #define SET_B_ID "12121212-1212-4212-8212-121212121212"
@@ -313,6 +314,32 @@ static void test_backup_contains_complete_repository_deterministically(void) {
     storage_package_reset_backup_ops_for_test();
 }
 
+static void test_backup_output_passes_secret_sentinel_scanner(void) {
+    /* FIX1 18.5: production-path proof, not a reimplemented substring check.
+     * A full backup covers the entire repository (no scope filtering), so
+     * unlike set export there is no "referenced vs. unreferenced" boundary
+     * to exploit here; the property under test is that
+     * storage_package_export_backup - which only ever reads set/macro/
+     * procedure/progress repository data - cannot leak a real secret that
+     * exists elsewhere in the same process, checked with the real
+     * scripts/check-secret-sentinel.py (all 7 encodings it checks) against
+     * the real backup output. */
+    fake_backup_context_t context = valid_context();
+    const storage_package_backup_ops_t operations = fake_operations(&context);
+    storage_package_set_backup_ops_for_test(&operations);
+
+    char *output = NULL;
+    size_t output_length = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_package_export_backup(true, &output, &output_length));
+
+    const char *outputs[] = {output};
+    test_assert_no_secret_sentinel(SECRET_SENTINEL, outputs, 1U);
+
+    storage_package_free(output);
+    storage_package_reset_backup_ops_for_test();
+}
+
 static void test_progress_is_optional(void) {
     fake_backup_context_t context = valid_context();
     const storage_package_backup_ops_t operations = fake_operations(&context);
@@ -359,6 +386,7 @@ static void test_failure_preserves_primary_error_and_cleans_partial_snapshot(voi
 
 int main(void) {
     test_backup_contains_complete_repository_deterministically();
+    test_backup_output_passes_secret_sentinel_scanner();
     test_progress_is_optional();
     test_cross_set_reference_fails_closed();
     test_failure_preserves_primary_error_and_cleans_partial_snapshot();
