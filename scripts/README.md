@@ -7,6 +7,9 @@ These first-party scripts are the authoritative local entry points:
 - `verify-toolchain.sh` rejects the wrong ESP-IDF or Node.js version.
 - `check-format.sh` checks first-party C/CMake/shell/frontend formatting.
 - `check-firmware.sh` builds and analyzes the production firmware.
+- `check-stack-usage.sh` fails the build when a first-party stack frame grows
+  large enough to threaten a FreeRTOS task stack (host sanitizers cannot see
+  this class: x86 thread stacks are megabytes).
 - `build-device-tests.sh` builds the ESP32-S3 Unity device-test image.
 - `check-webapp.sh`, `check-scripts.sh`, and `check-docs.sh` run scoped checks.
 - `run-tests.sh` configures, builds, and runs the host CTest suite.

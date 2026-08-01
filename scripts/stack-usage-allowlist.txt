@@ -1,0 +1,69 @@
+# Stack-usage allowlist for scripts/check-stack-usage.sh
+#
+# Format:  <max_bytes> <path>:<function>
+# Lines starting with # are comments.
+#
+# This file is a RATCHET, not an amnesty:
+#
+#   * an unlisted function over the gate's threshold fails the build;
+#   * a listed function that GROWS beyond its recorded number fails the build;
+#   * a listed function that no longer exists fails the build (no rot);
+#   * shrinking a frame means lowering its number (or deleting the line) in the
+#     same change.
+#
+# WHY THIS GATE EXISTS
+#
+# Host tests run on x86, where a thread stack is megabytes, so a multi-kilobyte
+# local is legal and neither AddressSanitizer nor Valgrind has anything to
+# report. On the ESP32-S3 the same function runs on a FreeRTOS task stack of a
+# few KiB (main_task 8 KiB, httpd 24 KiB). Before this gate existed the only way
+# to find these was to crash real hardware, one crash at a time.
+#
+# KNOWN-BROKEN ENTRIES (exceed the 24 KiB httpd task stack; these crash today)
+#
+#   handle_progress_action   ~45 KB  procedure-progress complete/skip endpoints
+#   handle_progress_resource ~30 KB  procedure-progress read/replace/reset
+#   snapshot_load_locked     ~42 KB  full-backup export path
+#
+# Each holds several multi-kilobyte structs at once
+# (storage_progress_snapshot_t, procedure_t, procedure_progress_t). The fix is
+# to heap-allocate them, as storage_macro_list_t and storage_procedure_list_t
+# already do, and as storage_repository_tree_validate now does (that one was
+# ~388 KB - larger than the entire free heap - and is now ~1.6 KB).
+#
+# The remaining sub-24 KB entries are latent rather than actively crashing: they
+# fit the httpd stack today but leave little margin, and would overflow the
+# 8 KiB main_task if ever reached from startup.
+#
+# Baseline measured 2026-08-01 during first hardware bring-up.
+#
+45424 firmware/components/web_server/web_api_procedures.c:handle_progress_action
+42336 firmware/components/storage/storage_package_backup.c:snapshot_load_locked
+29984 firmware/components/web_server/web_api_procedures.c:handle_progress_resource
+20304 firmware/components/storage/storage_package_restore.c:restore_locked
+18720 firmware/components/storage/storage_package_import.c:import_locked
+17936 firmware/components/storage/storage_package_replace.c:replace_locked
+16560 firmware/components/storage/storage_set_tree.c:storage_set_tree_validate
+16320 firmware/components/storage/storage_repository_progress.c:storage_progress_read_locked$part$0
+15648 firmware/components/storage/storage_repository_progress.c:write_progress_locked
+15408 firmware/components/storage/storage_package.c:validate_progress_object$part$0.isra
+15392 firmware/components/storage/storage_repository_progress.c:progress_reset_locked
+15104 firmware/components/storage/storage_repository_procedures.c:procedure_reorder_locked
+15072 firmware/components/storage/storage_package_export.c:snapshot_load_progress
+15056 firmware/components/storage/storage_atomic_validators.c:validate_progress
+14848 firmware/components/storage/storage_repository_macros.c:macro_reorder_locked
+8464 firmware/components/storage/storage_repository_procedures.c:procedure_create_locked
+8112 firmware/components/storage/storage_repository_procedures.c:procedure_delete_locked
+7888 firmware/components/storage/storage_repository_macros.c:macro_delete_locked
+7792 firmware/components/storage/storage_repository_macros.c:macro_create_locked$part$0
+7728 firmware/components/storage/storage_set_tree.c:validate_order
+7712 firmware/components/storage/storage_repository_procedures.c:storage_procedure_list_locked$part$0
+7712 firmware/components/storage/storage_repository_set_operations.c:write_duplicate_order
+7696 firmware/components/storage/storage_repository_procedures.c:procedure_order_index.constprop
+7488 firmware/components/web_server/web_api_macros.c:handle_reorder
+7456 firmware/components/storage/storage_atomic_validators.c:validate_index
+7456 firmware/components/storage/storage_repository_macros.c:storage_macro_list_locked$part$0
+7456 firmware/components/web_server/web_api_procedures.c:handle_reorder
+7456 firmware/components/web_server/web_api_sets.c:handle_set_reorder.isra
+5584 firmware/components/storage/storage_transaction.c:storage_transaction_recover_all_with_ops$part$0
+4736 firmware/components/storage/storage_repository_set_operations.c:storage_set_duplicate_locked
