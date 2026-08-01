@@ -10,6 +10,7 @@ set(EXTRA_COMPONENT_DIRS
     "${CMAKE_CURRENT_LIST_DIR}/../components/usb_keyboard"
     "${CMAKE_CURRENT_LIST_DIR}/../components/macro_executor"
     "${CMAKE_CURRENT_LIST_DIR}/../components/auth"
+    "${CMAKE_CURRENT_LIST_DIR}/../components/support"
 )
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)

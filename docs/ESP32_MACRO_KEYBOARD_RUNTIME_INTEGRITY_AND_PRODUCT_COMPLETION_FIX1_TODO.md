@@ -2143,7 +2143,7 @@ Add stable health snapshots for:
 - [x] authentication;
 - [x] USB;
 - [x] executor;
-- [ ] controls;
+- [x] controls;
 - [ ] Wi-Fi;
 - [ ] HTTP.
 
@@ -2185,6 +2185,21 @@ Implemented (executor): `executor_health.c` tracks executor task lifecycle
 health (init/deinit), distinct from a single execution's own result
 (`macro_execution_status_t`, already surfaced separately as the current
 execution state) — recorded from `app_core.c`'s existing executor adapters.
+
+Implemented (controls): unlike the other subsystems, `device_controls_health_t`
+already existed (12 fields: last/cleanup/confirmation/cancel errors,
+task-running flag, and 7 specific failure flags) with a getter,
+`device_controls_get_health()`, that had zero callers anywhere in the
+codebase — so this item adapts the existing struct instead of adding new
+tracking. `device_controls_health_derive_state()` (new, in
+`device_controls_logic.c`, alongside the engine's existing health logic)
+derives a `subsystem_health_state_t` from it: FAILED if any error or
+specific-failure flag is set, UNAVAILABLE if the controls task isn't running,
+HEALTHY otherwise. Verified by reading `device_controls_logic.c`/
+`device_controls.c` that every field is a genuine-failure-only signal —
+`device_controls_wait_for_confirmation()`'s normal user-timeout path returns
+`APP_ERROR_TIMEOUT` directly without touching the health struct — so it is
+safe to treat every set field as unhealthy.
 
 Retain primary and cleanup errors separately.
 

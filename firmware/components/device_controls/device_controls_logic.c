@@ -7,6 +7,7 @@
 
 #include "app_error.h"
 #include "device_controls.h"
+#include "subsystem_health.h"
 
 bool device_controls_level_is_pressed(int level, int active_level) {
     return (active_level == 0 || active_level == 1) && level == active_level;
@@ -324,6 +325,21 @@ device_controls_health_t device_controls_engine_get_health(device_controls_engin
         health.last_error = APP_ERROR_INTERNAL;
     }
     return health;
+}
+
+subsystem_health_state_t device_controls_health_derive_state(device_controls_health_t health) {
+    if (health.last_error != APP_ERROR_NONE || health.cleanup_error != APP_ERROR_NONE ||
+        health.last_confirmation_error != APP_ERROR_NONE ||
+        health.last_cancel_error != APP_ERROR_NONE || health.indicator_output_failed ||
+        health.confirmation_signal_failed || health.cancel_request_failed ||
+        health.gpio_read_failed || health.gpio_configuration_failed || health.task_start_failed ||
+        health.task_stop_failed) {
+        return SUBSYSTEM_HEALTH_FAILED;
+    }
+    if (!health.task_running) {
+        return SUBSYSTEM_HEALTH_UNAVAILABLE;
+    }
+    return SUBSYSTEM_HEALTH_HEALTHY;
 }
 
 bool device_controls_engine_owns_resources(const device_controls_engine_t *engine) {

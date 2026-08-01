@@ -344,6 +344,74 @@ static void test_health_categories(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_controls_engine_deinit(&engine, 100U));
 }
 
+static void test_health_derive_state(void) {
+    device_controls_health_t health = {0};
+    health.task_running = true;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_HEALTHY, device_controls_health_derive_state(health));
+
+    health.task_running = false;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_UNAVAILABLE, device_controls_health_derive_state(health));
+
+    health = (device_controls_health_t){0};
+    health.task_running = true;
+    health.last_error = APP_ERROR_IO;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
+
+    health = (device_controls_health_t){0};
+    health.task_running = true;
+    health.cleanup_error = APP_ERROR_INTERNAL;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
+
+    health = (device_controls_health_t){0};
+    health.task_running = true;
+    health.last_confirmation_error = APP_ERROR_TIMEOUT;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
+
+    health = (device_controls_health_t){0};
+    health.task_running = true;
+    health.last_cancel_error = APP_ERROR_TIMEOUT;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
+
+    health = (device_controls_health_t){0};
+    health.task_running = true;
+    health.indicator_output_failed = true;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
+
+    health = (device_controls_health_t){0};
+    health.task_running = true;
+    health.confirmation_signal_failed = true;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
+
+    health = (device_controls_health_t){0};
+    health.task_running = true;
+    health.cancel_request_failed = true;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
+
+    health = (device_controls_health_t){0};
+    health.task_running = true;
+    health.gpio_read_failed = true;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
+
+    health = (device_controls_health_t){0};
+    health.task_running = true;
+    health.gpio_configuration_failed = true;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
+
+    health = (device_controls_health_t){0};
+    health.task_running = true;
+    health.task_start_failed = true;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
+
+    health = (device_controls_health_t){0};
+    health.task_running = true;
+    health.task_stop_failed = true;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
+
+    health = (device_controls_health_t){0};
+    health.last_error = APP_ERROR_IO;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
+}
+
 static void debounce_press(device_controls_engine_t *engine, bool confirmation, bool cancel) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_button(engine, confirmation, cancel, 0U).error);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_button(engine, confirmation, cancel, 20U).error);
@@ -488,6 +556,7 @@ int main(void) {
     test_indicators();
     test_validation_and_partial_init();
     test_health_categories();
+    test_health_derive_state();
     test_runtime_failures();
     test_stop_failures();
     test_cleanup_retry_and_idempotence();

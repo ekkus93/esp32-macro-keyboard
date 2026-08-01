@@ -292,7 +292,7 @@ target_include_directories(
     device_controls_tests
     PRIVATE ../../firmware/components/macro_model/include
             ../../firmware/components/device_controls/include
-            ../../firmware/components/device_controls
+            ../../firmware/components/device_controls ../../firmware/components/support/include
 )
 target_link_libraries(device_controls_tests PRIVATE test_support)
 target_compile_options(device_controls_tests PRIVATE ${STRICT_WARNINGS})

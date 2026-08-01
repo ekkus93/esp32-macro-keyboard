@@ -1,5 +1,9 @@
 #include "app_core_health.h"
 
+#include "app_core.h"
+#include "app_error.h"
+#include "subsystem_health.h"
+
 typedef struct {
     app_error_code_t primary_error;
     app_error_code_t cleanup_error;

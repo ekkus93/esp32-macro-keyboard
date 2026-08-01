@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include "app_error.h"
+#include "subsystem_health.h"
 
 typedef enum {
     DEVICE_INDICATOR_BOOTING = 0,
@@ -33,5 +34,11 @@ app_error_code_t device_controls_deinit(void);
 void device_controls_set_indicator(device_indicator_state_t state);
 app_error_code_t device_controls_wait_for_confirmation(unsigned int timeout_ms);
 device_controls_health_t device_controls_get_health(void);
+
+/* Derives a stable subsystem_health_state_t for Phase 19 diagnostics (FIX1
+ * handoff §7.1) from the existing device_controls_health_t fields: FAILED if
+ * any error or specific-failure flag is set (never HEALTHY while one is),
+ * UNAVAILABLE if the controls task isn't running, HEALTHY otherwise. */
+subsystem_health_state_t device_controls_health_derive_state(device_controls_health_t health);
 
 #endif

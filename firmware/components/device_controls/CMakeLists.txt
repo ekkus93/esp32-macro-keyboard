@@ -10,6 +10,7 @@ idf_component_register(
     macro_model
     macro_executor
     driver
+    support
 )
 
 target_compile_options(
