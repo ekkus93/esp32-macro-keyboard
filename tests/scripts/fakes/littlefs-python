@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Fake littlefs-python for the build-webfs-image.sh regression tests. Only
+# understands the exact `create <source> <destination> --fs-size=N
+# --name-max=N --block-size=N` invocation build-webfs-image.sh makes.
+# Records the full argument list (one per line) to FAKE_LITTLEFS_ARGS_FILE
+# so a test can assert exact flags, and on success writes an all-0xFF
+# (erased-flash) image of the requested --fs-size to the destination path -
+# real littlefs-python output would have some non-0xFF used blocks, but
+# tests here only care about invocation wiring, not real filesystem
+# encoding. FAKE_LITTLEFS_STATUS controls success/failure.
+set -euo pipefail
+
+if [ -n "${FAKE_LITTLEFS_ARGS_FILE:-}" ]; then
+	printf '%s\n' "$@" >"${FAKE_LITTLEFS_ARGS_FILE}"
+fi
+
+if [ "${FAKE_LITTLEFS_STATUS:-0}" -ne 0 ]; then
+	printf 'fake littlefs-python: simulated failure\n' >&2
+	exit "${FAKE_LITTLEFS_STATUS}"
+fi
+
+if [ "${1:-}" != "create" ]; then
+	printf 'fake littlefs-python: unexpected subcommand: %s\n' "${1:-}" >&2
+	exit 2
+fi
+source_dir="$2"
+destination="$3"
+[ -d "${source_dir}" ] || {
+	printf 'fake littlefs-python: source directory missing: %s\n' "${source_dir}" >&2
+	exit 2
+}
+
+fs_size=0
+for arg in "$@"; do
+	case "${arg}" in
+	--fs-size=*)
+		fs_size="${arg#--fs-size=}"
+		;;
+	esac
+done
+
+mkdir -p -- "$(dirname -- "${destination}")"
+head -c "${fs_size}" /dev/zero | tr '\0' '\377' >"${destination}"

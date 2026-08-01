@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Fake npm for the build-webfs-image.sh regression tests. Only understands
+# `npm --prefix <dir> run build`: on success it writes a small, realistic
+# dist/ tree under <dir>; FAKE_NPM_STATUS controls success/failure without
+# needing a real Vite build. All other invocations are an error - this fake
+# has exactly one caller to imitate.
+set -euo pipefail
+
+if [ "${1:-}" != "--prefix" ] || [ "${3:-}" != "run" ] || [ "${4:-}" != "build" ]; then
+	printf 'fake npm: unexpected arguments: %s\n' "$*" >&2
+	exit 2
+fi
+prefix_dir="$2"
+
+if [ "${FAKE_NPM_STATUS:-0}" -ne 0 ]; then
+	printf 'fake npm: simulated build failure\n' >&2
+	exit "${FAKE_NPM_STATUS}"
+fi
+
+dist_dir="${prefix_dir}/dist"
+rm -rf -- "${dist_dir}"
+mkdir -p -- "${dist_dir}/assets"
+printf '<!doctype html><title>fake</title>\n' >"${dist_dir}/index.html"
+printf 'body{color:red}\n' >"${dist_dir}/assets/index.css"
+printf 'console.log("fake");\n' >"${dist_dir}/assets/index.js"

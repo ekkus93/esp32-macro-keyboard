@@ -24,7 +24,7 @@ Monorepo, no root build file. Work happens in these areas:
 The lint/test scripts assume the exact versions CI installs (see `.github/workflows/{quality,host-tests}.yml`). Mismatched versions produce spurious format/lint diffs. On Ubuntu 24.04 ("noble"):
 
 - apt (`clang-format` 18, `clang-tidy` 18, `shellcheck` 0.9.0, `libcjson-dev`, `jq`): `sudo apt-get install --yes clang-format clang-tidy shellcheck libcjson-dev jq`
-- pip: `python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0 gcovr==8.6` (`cmakelang` provides `cmake-format`/`cmake-lint`)
+- pip: `python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0 gcovr==8.6 littlefs-python==0.15.0` (`cmakelang` provides `cmake-format`/`cmake-lint`; `littlefs-python` is required by `scripts/build-webfs-image.sh`, part of `check-all.sh`, and is pinned to the version `firmware/managed_components/joltwallet__littlefs/image-building-requirements.txt` uses)
 - go: `go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0 github.com/rhysd/actionlint/cmd/actionlint@v1.7.12` (`actionlint` lints `.github/workflows/*.yml` as part of `check-scripts.sh`)
 - `markdownlint-cli2` 0.23.2 comes from `npm --prefix webapp ci` (it's a pinned devDependency); `check-docs.sh` runs the local `webapp/node_modules/.bin` copy, not a global one.
 

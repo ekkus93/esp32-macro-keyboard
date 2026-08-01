@@ -32,6 +32,10 @@ webapp/.vite/
 coverage/
 test-results/
 
+# Web filesystem packaging staging (scripts/build-webfs-image.sh); the real
+# image lands in firmware/build/webfs.bin, already covered by *.bin above
+firmware/webfs/dist/
+
 # Python generated output
 __pycache__/
 *.pyc

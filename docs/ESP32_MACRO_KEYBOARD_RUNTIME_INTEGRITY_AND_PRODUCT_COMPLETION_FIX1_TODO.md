@@ -2628,10 +2628,12 @@ them to match every other script in `scripts/`.
   is available (pulled in by the `joltwallet__littlefs` managed component)
   but never called from any `CMakeLists.txt`, and no script generates gzip
   variants. `idf.py -C firmware build` alone does not produce a populated
-  webfs image today. This is a real gap worth its own tracked item; not
+  webfs image today. This was a real gap worth its own tracked item; not
   fixed here since automating it (deciding where in the build it hooks in,
-  what "flash manifest" means concretely) is its own scoped task, not a
-  measurement.
+  what "flash manifest" means concretely) was its own scoped task, not a
+  measurement. **Closed 2026-08-01** for the webfs-packaging half of this
+  gap: see §21.1's `scripts/build-webfs-image.sh` entry. The "generate flash
+  manifest" half remains open, tracked in the same §21.1 entry.
 - **Static RAM**: DIRAM 113,571 of 341,760 bytes used (33.23%): `.text`
   71,775 + `.data` 21,860 + `.bss` 19,936 bytes (`idf.py -C firmware size`).
   IRAM 16,384/16,384 bytes (100%, expected - fixed-size instruction cache
@@ -2754,10 +2756,19 @@ data comes in:
   Currently 49.8%.
 - webfs image vs. partition: fail above 85% of the `webfs` partition
   (891,289 of 1,048,576 bytes) - web assets need less growth headroom than
-  firmware. **Optional**: no build step generates this image yet (the
-  SPEC §23 packaging-pipeline gap noted below), so this check is skipped
-  with a clear `[SKIP]` line unless `--webfs-image <path>` is passed
-  explicitly; it does not fail the gate by default.
+  firmware. As of 2026-08-01 this is a real, enforced gate rather than an
+  optional skip: `scripts/build-webfs-image.sh` (new) automates SPEC §23's
+  previously-manual webfs packaging pipeline (build the production
+  frontend, gzip every asset, stage it, package it into a LittleFS image
+  via `littlefs-python`, sized and parameterized identically to
+  `littlefs_create_partition_image()`'s own invocation) and writes
+  `firmware/build/webfs.bin`, the exact path this script already
+  auto-detected. Wired into `check-all.sh` immediately after
+  `check-firmware.sh` and before this script. Verified the produced image's
+  real used-byte count (417,792 bytes) exactly matches §20.1's manual
+  measurement. Regression-tested in
+  `tests/scripts/test-build-webfs-image.sh` (9 cases, fake `npm`/
+  `littlefs-python`).
 - userdata minimum free space: after reserving 8 KiB for fixed structural
   overhead (schema/index files), the partition must still have at least
   256 KiB usable for real macro/procedure/progress content - not a check
@@ -2777,15 +2788,24 @@ data comes in:
   `{"controls_stack_words": 1208, "executor_stack_words": 3200}` - e.g.
   captured from a real `/api/v1/diagnostics` response.
 
-The webfs and stack-margin checks remain genuinely non-fatal-by-default in
-CI today because their inputs don't exist yet in an automated form (no
-webfs packaging pipeline, no hardware in CI) - this is the same honestly-
-scoped gap already recorded elsewhere in this document (FIX1 §20.1's webfs
-finding; FIX1 §18.5's Wi-Fi-radio-conflict reasoning for why live device
-measurement isn't available from this session). The script is written so
-that once either artifact becomes available, passing it turns the
-corresponding check from an explicit skip into a real, enforced gate with
-no further script changes needed.
+The stack-margin check remains genuinely non-fatal-by-default in CI today
+because its input doesn't exist yet in an automated form (no hardware in
+CI) - this is the same honestly-scoped gap already recorded elsewhere in
+this document (FIX1 §18.5's Wi-Fi-radio-conflict reasoning for why live
+device measurement isn't available from this session). The webfs check was
+the same kind of gap until `scripts/build-webfs-image.sh` closed it (see
+above): the script was written so that once an artifact became available,
+passing it would turn the corresponding check from an explicit skip into a
+real, enforced gate with no further script changes needed, and that is
+exactly what happened.
+
+SPEC §23's build pipeline still has one unautomated stage beyond webfs
+packaging: "generate flash manifest" (recording git commit, dirty state,
+ESP-IDF version, managed-component lock hash, frontend lockfile hash, build
+type, and timestamp into a committed artifact). `scripts/build-webfs-image.sh`
+only covers the webfs-specific stages (gzip variants, staging, LittleFS
+image); it does not produce this manifest. Left open as a real, narrower,
+separately-scoped gap - not silently folded into "webfs packaging is done."
 
 ### 21.2 Pin GitHub Actions
 
@@ -3092,10 +3112,11 @@ behavior; frontend coverage gated in CI.
 
 - [x] firmware/webfs/heap/stack budgets enforced. See §21.1 -
       `scripts/check-release-budgets.sh` now enforces all five, wired into
-      `check-all.sh`. (The webfs-image and stack-margin checks are
-      skip-by-default until their input artifacts exist in automated form -
-      no webfs packaging pipeline, no hardware in CI - documented in §21.1
-      as an honestly-scoped limitation, not silently passed.)
+      `check-all.sh`. The webfs-image check is a real enforced gate as of
+      `scripts/build-webfs-image.sh` (see §21.1); the stack-margin check
+      remains skip-by-default until its input exists in automated form - no
+      hardware in CI - documented in §21.1 as an honestly-scoped limitation,
+      not silently passed.
 - [x] CI actions pinned. See §21.2 - all 21 `uses:` lines across all five
       workflow files are now pinned to commit SHAs.
 - [x] production configuration rejects development bypasses. See §21.3 -
