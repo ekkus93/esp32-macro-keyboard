@@ -2428,15 +2428,85 @@ idf.py -C firmware build
 
 Record:
 
-- [ ] exact commit;
-- [ ] IDF version;
-- [ ] component lock hash;
-- [ ] application binary size;
-- [ ] partition headroom;
-- [ ] webfs image size;
-- [ ] static RAM;
-- [ ] peak heap;
-- [ ] task stack high-water marks.
+- [x] exact commit;
+- [x] IDF version;
+- [x] component lock hash;
+- [x] application binary size;
+- [x] partition headroom;
+- [x] webfs image size;
+- [x] static RAM;
+- [x] peak heap;
+- [x] task stack high-water marks.
+
+Implemented: ran the exact four commands above on the attached ESP32-S3
+(QFN56 rev v0.2, 8MB PSRAM) at `/dev/ttyACM0`, all green -
+`./scripts/check-all.sh` exit 0, `idf.py -C firmware fullclean` then
+`idf.py -C firmware build` clean, `./scripts/build-device-tests.sh` clean.
+Following that last command literally as documented (`./scripts/...`, not
+`bash scripts/...`) surfaced a real, unrelated defect: `build-device-tests.sh`
+and 7 other scripts were missing their executable bit (`git diff --stat`
+showed only mode changes, no content changes), so the exact documented
+invocation failed with "Permission denied" until fixed - `chmod +x` restores
+them to match every other script in `scripts/`.
+
+- **Commit**: `1062f22daced2d1e63472b0e0679ddcfc946dd35` (no C/TS source
+  changed since; the executable-bit fix and this entry land in commits
+  immediately after).
+- **IDF version**: v5.5.5 (`idf.py --version`).
+- **Component lock hash**: sha256
+  `149601bd0cba778c72d6e27db618e13d5bcf4c432882279e03475b734558c6a3` of the
+  committed `firmware/dependencies.lock`.
+- **Application binary size**: 1,044,432 bytes (`0xfefd0`).
+- **Partition headroom**: 1,577,008 of 2,621,440 bytes free (60.2%) in the
+  `ota_0`/`ota_1` app partitions (`0x280000` each).
+- **webfs image size**: 417,792 of 1,048,576 bytes used (39.9%; 60.1%
+  headroom), measured by manually reproducing SPEC §23's still-unautomated
+  packaging steps - `npm --prefix webapp run build`, `gzip -9` every output
+  file into a `.gz` sibling (matching `web_adapter_open_static_file`'s
+  compressed-variant lookup), then generating the partition image with the
+  same `littlefs-python create <dir> <image> --fs-size=1048576
+  --name-max=64 --block-size=4096` invocation
+  `managed_components/joltwallet__littlefs/project_include.cmake`'s
+  `littlefs_create_partition_image()` uses internally, then counting
+  non-erased 4096-byte blocks in the resulting image. **Finding**: SPEC §23's
+  build pipeline ("generate gzip variants → copy production assets into
+  `firmware/webfs` → generate web-assets LittleFS image → generate flash
+  manifest") has no corresponding script yet - `littlefs_create_partition_image`
+  is available (pulled in by the `joltwallet__littlefs` managed component)
+  but never called from any `CMakeLists.txt`, and no script generates gzip
+  variants. `idf.py -C firmware build` alone does not produce a populated
+  webfs image today. This is a real gap worth its own tracked item; not
+  fixed here since automating it (deciding where in the build it hooks in,
+  what "flash manifest" means concretely) is its own scoped task, not a
+  measurement.
+- **Static RAM**: DIRAM 113,571 of 341,760 bytes used (33.23%): `.text`
+  71,775 + `.data` 21,860 + `.bss` 19,936 bytes (`idf.py -C firmware size`).
+  IRAM 16,384/16,384 bytes (100%, expected - fixed-size instruction cache
+  region).
+- **Peak heap / task stack high-water marks**: measured via a temporary,
+  reverted-before-commit instrumentation patch (`app_main.c` sampled
+  `esp_get_free_heap_size()`/`esp_get_minimum_free_heap_size()`/
+  `device_controls_stack_high_water_mark()`/`macro_executor_stack_high_water_mark()`
+  - the same production functions the §19.2 diagnostics route uses - every
+  5s for 30s after `app_core_start()`, over the serial console) rather than
+  the live HTTP diagnostics route: reaching that route needs a client on the
+  device's SoftAP, and this machine has exactly one Wi-Fi radio, which is
+  also this session's own network path (see FIX1 TODO §18.5's "Implemented
+  (logs, frontend persisted state)" entry for the same constraint in full).
+  Free heap settled at 245,148 bytes; minimum-ever free heap (the peak-usage
+  watermark) was 244,452 bytes, i.e. peak transient usage during startup
+  never dipped more than ~700 bytes below the settled resting state.
+  Controls task stack high-water mark: 1,288 words at first sample, falling
+  to 1,208 words by the fourth (still healthy headroom, not a leak signal -
+  just real variation in call depth across the button-poll loop). Executor
+  task stack high-water mark read 0 throughout: the device remains
+  unprovisioned (first-boot setup mode, per the same Wi-Fi constraint above
+  preventing completion of the setup wizard), and the executor task is only
+  started in normal mode - `macro_executor_stack_high_water_mark()`
+  correctly reports 0 for "task not running" by design, not an actual
+  operating high-water mark. A future session that completes provisioning
+  (or gets a second network path to the device) should re-take this one
+  measurement with the executor actually running.
 
 ### 20.2 USB host matrix
 
