@@ -14,3 +14,15 @@ CONFIG_FREERTOS_CHECK_STACKOVERFLOW_CANARY=y
 CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK=y
 CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
 CONFIG_HTTPD_MAX_URI_LEN=256
+
+# The ESP-IDF default (3584 bytes) overflows main_task during provisioned
+# startup: start_normal_mode() -> storage_recover() descends through
+# storage_transaction_recover_restores_with_ops() -> posix_open_directory()
+# -> esp_vfs_opendir() -> vfs_littlefs_opendir(), and LittleFS directory
+# opening is stack-hungry. Observed on real ESP32-S3 hardware as a
+# boot-loop: "Guru Meditation Error: Core 0 panic'ed (Double exception)"
+# immediately after "stage complete: storage_mount", with a backtrace
+# ending in _xt_context_save. Only reachable once the device is actually
+# provisioned (setup mode skips storage recovery entirely), which is why
+# it went unseen until first real provisioning.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
