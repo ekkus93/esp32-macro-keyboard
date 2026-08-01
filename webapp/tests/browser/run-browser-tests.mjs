@@ -237,6 +237,10 @@ async function startApplicationServer() {
               actionCount: 1,
               available: completed,
               cancellationRequested: false,
+              acceptedMs: 1000,
+              startedMs: 1010,
+              completedMs: completed ? 1200 : 0,
+              currentAction: completed ? "none" : "key",
             },
           });
           if (completed) {

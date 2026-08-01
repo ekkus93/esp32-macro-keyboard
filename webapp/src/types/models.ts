@@ -177,6 +177,12 @@ export interface ExecutionStatus {
   actionCount: number;
   available: boolean;
   cancellationRequested: boolean;
+  /** Monotonic device-uptime milliseconds, not wall-clock time; 0 until set. */
+  acceptedMs: number;
+  startedMs: number;
+  completedMs: number;
+  /** Redacted action-type summary only: "key" | "chord" | "delay" | "none". */
+  currentAction: string;
 }
 
 export interface CancelAccepted {

@@ -64,6 +64,10 @@ static void test_recovery_after_each_terminal_outcome(void)
         TEST_CHECK(!engine.busy);
         TEST_CHECK(!engine.cancellation_requested);
         TEST_CHECK_EQ_U64(1U, fake.free_count);
+        /* Every terminal outcome (success, cancellation, failure, timeout)
+         * clears current_action and stamps completed_ms via finish_execution. */
+        TEST_CHECK_EQ_STRING("none", engine.status.current_action);
+        TEST_CHECK_EQ_U64(fake.now_ms, engine.status.completed_ms);
 
         fake.press_result = APP_ERROR_NONE;
         fake.wait_failure_on = 0U;
@@ -90,11 +94,15 @@ static void test_cancel_and_status_lock_failures(void)
     const macro_execution_status_t null_status = macro_executor_engine_get_status(NULL);
     TEST_CHECK(null_status.state == EXECUTION_FAILED);
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, null_status.error);
+    /* The fail-closed default status must still carry the fixed-vocabulary
+     * current_action string, never a NULL pointer (FIX1 §12.4). */
+    TEST_CHECK_EQ_STRING("none", null_status.current_action);
 
     fake_call_log_fail_on(&fake.calls, "lock", 1U);
     const macro_execution_status_t failed_status = macro_executor_engine_get_status(&engine);
     TEST_CHECK(failed_status.state == EXECUTION_FAILED);
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, failed_status.error);
+    TEST_CHECK_EQ_STRING("none", failed_status.current_action);
 }
 
 /* FIX1 §12.4: a key release that fails only after an otherwise successful run is

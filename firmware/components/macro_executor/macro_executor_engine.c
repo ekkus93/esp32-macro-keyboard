@@ -12,6 +12,20 @@
 
 #define EXECUTION_WATCHDOG_MARGIN_MS 1000U
 #define CANCELLATION_SLICE_MS 10U
+#define CURRENT_ACTION_NONE "none"
+
+static const char *action_type_string(macro_action_type_t type) {
+    switch (type) {
+    case MACRO_ACTION_KEY:
+        return "key";
+    case MACRO_ACTION_CHORD:
+        return "chord";
+    case MACRO_ACTION_DELAY:
+        return "delay";
+    default:
+        return CURRENT_ACTION_NONE;
+    }
+}
 
 static bool operations_valid(const macro_executor_ops_t *ops) {
     return ops != NULL && ops->lock != NULL && ops->unlock != NULL && ops->queue_send != NULL &&
@@ -113,6 +127,8 @@ static app_error_code_t finish_execution(macro_executor_engine_t *engine,
     status.release_error = engine->ops.usb_release_all(engine->ops.context);
     status.state = state;
     status.error = primary_error;
+    status.completed_ms = engine->ops.now_ms(engine->ops.context);
+    status.current_action = CURRENT_ACTION_NONE;
     const app_error_code_t publish_result = publish_status(engine, status);
     const app_error_code_t reset_result = reset_terminal_flags(engine);
     if (publish_result != APP_ERROR_NONE || reset_result != APP_ERROR_NONE) {
@@ -136,6 +152,7 @@ app_error_code_t macro_executor_engine_init(macro_executor_engine_t *engine,
     engine->ops = *ops;
     engine->status.state = EXECUTION_IDLE;
     engine->status.available = true;
+    engine->status.current_action = CURRENT_ACTION_NONE;
     return APP_ERROR_NONE;
 }
 
@@ -154,6 +171,7 @@ app_error_code_t macro_executor_engine_submit(macro_executor_engine_t *engine,
     if (result != APP_ERROR_NONE) {
         return result;
     }
+    request->accepted_ms = engine->ops.now_ms(engine->ops.context);
     if (!engine->ops.usb_ready(engine->ops.context)) {
         return APP_ERROR_USB_NOT_READY;
     }
@@ -212,6 +230,7 @@ macro_execution_status_t macro_executor_engine_get_status(macro_executor_engine_
     macro_execution_status_t result = {
         .state = EXECUTION_FAILED,
         .error = APP_ERROR_INTERNAL,
+        .current_action = CURRENT_ACTION_NONE,
     };
     if (engine == NULL || lock_engine(engine) != APP_ERROR_NONE) {
         return result;
@@ -265,6 +284,8 @@ app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
         .available = true,
         .action_index = 0U,
         .action_count = request->plan.action_count,
+        .accepted_ms = request->accepted_ms,
+        .current_action = CURRENT_ACTION_NONE,
     };
     app_error_code_t result = publish_status(engine, status);
     if (result != APP_ERROR_NONE) {
@@ -275,11 +296,13 @@ app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
     }
 
     const uint32_t started = engine->ops.now_ms(engine->ops.context);
+    status.started_ms = started;
     const uint32_t watchdog_ms = request->plan.estimated_duration_ms + EXECUTION_WATCHDOG_MARGIN_MS;
     engine->deadline = started + watchdog_ms;
 
     for (size_t index = 0U; index < request->plan.action_count; ++index) {
         status.action_index = index;
+        status.current_action = action_type_string(request->plan.actions[index].type);
         result = publish_status(engine, status);
         if (result != APP_ERROR_NONE) {
             break;

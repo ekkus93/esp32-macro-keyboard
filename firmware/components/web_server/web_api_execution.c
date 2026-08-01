@@ -79,12 +79,15 @@ static app_error_code_t execution_status_json(const macro_execution_status_t *st
         "{\"executionId\":\"%s\",\"setId\":\"%s\",\"macroId\":\"%s\","
         "\"macroRevision\":%lu,\"state\":\"%s\",\"error\":\"%s\","
         "\"releaseError\":\"%s\",\"actionIndex\":%lu,\"actionCount\":%lu,"
-        "\"available\":%s,\"cancellationRequested\":%s}",
+        "\"available\":%s,\"cancellationRequested\":%s,\"acceptedMs\":%lu,"
+        "\"startedMs\":%lu,\"completedMs\":%lu,\"currentAction\":\"%s\"}",
         status->execution_id.value, status->set_id.value, status->macro_id.value,
         (unsigned long)status->macro_revision, execution_state_string(status->state),
         app_error_code_string(status->error), app_error_code_string(status->release_error),
         (unsigned long)status->action_index, (unsigned long)status->action_count,
-        status->available ? "true" : "false", status->cancellation_requested ? "true" : "false");
+        status->available ? "true" : "false", status->cancellation_requested ? "true" : "false",
+        (unsigned long)status->accepted_ms, (unsigned long)status->started_ms,
+        (unsigned long)status->completed_ms, status->current_action);
     if (length < 0 || (size_t)length >= output_size) {
         output[0] = '\0';
         return APP_ERROR_INTERNAL;

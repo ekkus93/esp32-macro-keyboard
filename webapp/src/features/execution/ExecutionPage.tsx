@@ -79,6 +79,9 @@ export function ExecutionPage({
           ? "Waiting for device status…"
           : `${String(execution.actionIndex)} / ${String(execution.actionCount)}`}
       </p>
+      {execution !== null && execution.currentAction !== "none" ? (
+        <p>Current action: {execution.currentAction}</p>
+      ) : null}
       {execution?.cancellationRequested === true ? (
         <p role="status">Cancellation has been requested.</p>
       ) : null}

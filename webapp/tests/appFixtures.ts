@@ -150,6 +150,10 @@ export function executionStatus(
     actionCount,
     available: true,
     cancellationRequested: false,
+    acceptedMs: 1000,
+    startedMs: state === "idle" ? 0 : 1010,
+    completedMs: state === "idle" || state === "running" ? 0 : 1200,
+    currentAction: state === "running" ? "key" : "none",
   };
 }
 

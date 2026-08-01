@@ -28,6 +28,13 @@ typedef struct {
     uint32_t key_press_ms;
     uint32_t inter_key_ms;
     macro_plan_t plan;
+    /* Set by macro_executor_engine_submit() from the injected monotonic clock
+     * (the same ops.now_ms() the watchdog already uses), before the request is
+     * queued - the "accepted" instant for FIX1 §12.4's observability metadata.
+     * Carried through the request queue so macro_executor_engine_execute() can
+     * copy it into the published status alongside its own started/completed
+     * stamps. */
+    uint32_t accepted_ms;
 } macro_execution_request_t;
 
 typedef struct {
@@ -42,6 +49,23 @@ typedef struct {
     size_t action_count;
     bool available;
     bool cancellation_requested;
+    /* Monotonic milliseconds (ops.now_ms(), never wall-clock/RTC - this
+     * device has no synchronized time source) for FIX1 §12.4's observability
+     * metadata: when the request was accepted (queued), when execution
+     * actually began (dequeued and the watchdog armed), and when it reached
+     * any terminal state (success, cancellation, failure, or timeout alike).
+     * All three are 0 until set; completed_ms - started_ms is a meaningful
+     * duration for every terminal outcome, not just EXECUTION_COMPLETED. */
+    uint32_t accepted_ms;
+    uint32_t started_ms;
+    uint32_t completed_ms;
+    /* Redacted-by-construction summary of what the executor is doing right
+     * now: the compiled action's type ("key"/"chord"/"delay"), never the key
+     * usage code, modifiers, or any macro content. "none" outside of an
+     * in-flight action (idle, or any terminal state). Always one of this
+     * fixed vocabulary, matching execution_state_string()'s convention -
+     * never NULL. */
+    const char *current_action;
 } macro_execution_status_t;
 
 app_error_code_t macro_executor_init(void);

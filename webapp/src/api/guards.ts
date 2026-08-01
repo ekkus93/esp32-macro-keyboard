@@ -458,6 +458,10 @@ export function isExecutionStatus(value: unknown): value is ExecutionStatus {
       "actionCount",
       "available",
       "cancellationRequested",
+      "acceptedMs",
+      "startedMs",
+      "completedMs",
+      "currentAction",
     ])
   ) {
     return false;
@@ -473,7 +477,11 @@ export function isExecutionStatus(value: unknown): value is ExecutionStatus {
     isNonNegativeInteger(value.actionIndex) &&
     isNonNegativeInteger(value.actionCount) &&
     typeof value.available === "boolean" &&
-    typeof value.cancellationRequested === "boolean"
+    typeof value.cancellationRequested === "boolean" &&
+    isNonNegativeInteger(value.acceptedMs) &&
+    isNonNegativeInteger(value.startedMs) &&
+    isNonNegativeInteger(value.completedMs) &&
+    typeof value.currentAction === "string"
   );
 }
 

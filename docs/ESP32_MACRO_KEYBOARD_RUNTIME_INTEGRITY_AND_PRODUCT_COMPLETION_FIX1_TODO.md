@@ -1331,15 +1331,68 @@ Add `EXECUTION_TIMED_OUT` or retain `EXECUTION_FAILED` with a required
       fields on every `/api/v1/executions/current` response. Stale
       checkbox - the JSON shape this note said would be "designed" in
       Phase 16 was designed and shipped there.)
-- [ ] Add accepted, started, and completed timestamps. Genuinely still
-      open: `macro_execution_status_t` has no timestamp fields at all, and
-      no consumer (API or diagnostics) references one. Needs a design
-      decision (what timestamps, what format, RTC vs. monotonic clock)
-      before implementing, not just verification - left open.
-- [ ] Add current action summary. Genuinely still open, same reason: no
-      `action_summary`/`current_action` field or mechanism exists anywhere
-      in the executor, API, or diagnostics route, and what a "current
-      action summary" should even contain has never been designed.
+- [x] Add accepted, started, and completed timestamps. Design: this device
+      has no synchronized wall-clock/RTC, so all three are monotonic
+      milliseconds from the same `ops.now_ms()` seam
+      `macro_executor_engine.c` already used for the watchdog deadline -
+      no new clock plumbing needed. `accepted_ms` is stamped in
+      `macro_executor_engine_submit()` (before the request is queued) and
+      carried on `macro_execution_request_t.accepted_ms` through the
+      FreeRTOS queue (`macro_executor.c`'s `adapter_queue_send()` copies
+      the whole struct); `started_ms` is stamped in
+      `macro_executor_engine_execute()` right after the initial `RUNNING`
+      publish; `completed_ms` is stamped in `finish_execution()` for every
+      terminal outcome alike (`EXECUTION_COMPLETED`/`CANCELLED`/`FAILED`/
+      `TIMED_OUT`), so `completed_ms - started_ms` is a meaningful
+      duration regardless of how the run ended. All three fields are
+      `uint32_t accepted_ms`/`started_ms`/`completed_ms` on
+      `macro_execution_status_t`
+      (`firmware/components/macro_executor/include/macro_executor.h`),
+      zero until set. The fail-closed default status returned by
+      `macro_executor_engine_get_status()` when the engine is `NULL` or
+      the lock fails also carries a defined value (0), matching the "0
+      until set" convention. Exposed on `/api/v1/executions/current` as
+      `acceptedMs`/`startedMs`/`completedMs`
+      (`web_api_execution.c`'s `execution_status_json()`), and on the
+      frontend's `ExecutionStatus` type/guard
+      (`webapp/src/types/models.ts`, `webapp/src/api/guards.ts`). Host
+      test evidence:
+      `test_timestamps_and_current_action_track_execution` in
+      `tests/host/executor_execution_tests.inc` asserts `accepted_ms` is
+      captured at submit time (before any clock advance) and carried
+      unchanged into every published status, `started_ms` is stamped at
+      execute entry, and `completed_ms` matches the clock at the terminal
+      publish; `test_recovery_after_each_terminal_outcome` in
+      `tests/host/executor_terminal_tests.inc` asserts `completed_ms` is
+      stamped for all four terminal outcomes (success, cancellation,
+      failure, timeout), not just success. `./scripts/run-tests.sh
+      executor` passes (host fakes only; not hardware-validated).
+- [x] Add current action summary. Design: redaction-by-construction, the
+      same pattern already used for the diagnostics route (§19.2/19.3) -
+      `current_action` is a fixed-vocabulary `const char *` on
+      `macro_execution_status_t`
+      (`firmware/components/macro_executor/include/macro_executor.h`)
+      that can only ever be `"key"`/`"chord"`/`"delay"` (the compiled
+      action's type, via `action_type_string()` in
+      `macro_executor_engine.c`) or `"none"`, never the key usage code,
+      modifiers, or any macro source content, and never `NULL`. It is set
+      per-action in the `macro_executor_engine_execute()` loop right
+      before each action's status publish, and reset to `"none"` on
+      init (`macro_executor_engine_init()`), in the initial
+      pre-execution publish, and in `finish_execution()` for every
+      terminal outcome. Exposed on `/api/v1/executions/current` as
+      `currentAction`, and on the frontend as `ExecutionStatus.currentAction`
+      with a "Current action: …" line in `ExecutionPage.tsx` when not
+      `"none"`. Host test evidence: the same
+      `test_timestamps_and_current_action_track_execution` test asserts
+      the published status carries `"key"` then `"delay"` as those
+      actions run and `"none"` once the run completes;
+      `test_cancel_and_status_lock_failures` in
+      `tests/host/executor_terminal_tests.inc` asserts the fail-closed
+      default status (`NULL` engine or a failed lock) also carries
+      `"none"`, never `NULL`. `./scripts/run-tests.sh executor` and the
+      frontend suite (`npm --prefix webapp run test`, 131 tests) both
+      pass (host fakes/jsdom only; not hardware-validated).
 - [x] Add tests for key-release failure after otherwise successful execution.
 
 ## 13. Fix device-controls shutdown and failure visibility
@@ -2910,9 +2963,9 @@ server-owned submission and ownership-transfer-before-202 pattern;
 cancellation status mapping (404/409/500/503/202,
 `test_web_execution_route_policy.c`); `release_error` surfaced through
 `web_api_execution.c` and logged on the logout path; "no automatic next
-step" per `docs/SPEC.md` §304-305/§1423. (Phase 12's still-open execution
-timestamps/current-action-summary items, §12.4, are observability metadata
-not required by this specific rollup wording.)
+step" per `docs/SPEC.md` §304-305/§1423. (Phase 12's execution
+timestamps/current-action-summary items, §12.4, are now also closed - see
+that section for evidence.)
 
 ### Product workflows
 
