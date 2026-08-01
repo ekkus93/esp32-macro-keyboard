@@ -14,6 +14,7 @@ target_include_directories(
             "${CMAKE_SOURCE_DIR}/../../firmware/components/wifi_ap/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/provisioning/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/provisioning"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/support/include"
 )
 target_link_libraries(provisioning_bootstrap_tests PRIVATE test_support)
 target_compile_options(provisioning_bootstrap_tests PRIVATE ${STRICT_WARNINGS})
@@ -31,6 +32,7 @@ target_include_directories(
             "${CMAKE_SOURCE_DIR}/../../firmware/components/wifi_ap/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/provisioning/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/support/include"
 )
 target_link_libraries(web_setup_tests PRIVATE test_support)
 target_compile_options(web_setup_tests PRIVATE ${STRICT_WARNINGS})
@@ -49,6 +51,7 @@ target_include_directories(
             "${CMAKE_SOURCE_DIR}/../../firmware/components/wifi_ap/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/provisioning/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/support/include"
 )
 target_link_libraries(web_setup_json_tests PRIVATE PkgConfig::CJSON test_support)
 target_compile_options(web_setup_json_tests PRIVATE ${STRICT_WARNINGS})
@@ -237,10 +240,10 @@ target_include_directories(
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/support/include"
 )
 target_compile_definitions(
-    web_api_set_export_tests
-    PRIVATE STORAGE_DATA_MOUNT="/tmp/esp32-macro-keyboard-web-package"
+    web_api_set_export_tests PRIVATE STORAGE_DATA_MOUNT="/tmp/esp32-macro-keyboard-web-package"
 )
 target_link_libraries(web_api_set_export_tests PRIVATE PkgConfig::CJSON test_support)
 target_compile_options(web_api_set_export_tests PRIVATE ${STRICT_WARNINGS})

@@ -303,7 +303,7 @@ add_executable(wifi_ap_tests test_wifi_ap.c ../../firmware/components/wifi_ap/wi
 target_include_directories(
     wifi_ap_tests
     PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/wifi_ap/include
-            ../../firmware/components/wifi_ap
+            ../../firmware/components/wifi_ap ../../firmware/components/support/include
 )
 target_link_libraries(wifi_ap_tests PRIVATE test_support)
 target_compile_options(wifi_ap_tests PRIVATE ${STRICT_WARNINGS})
@@ -316,9 +316,12 @@ add_executable(
 )
 target_include_directories(
     provisioning_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/auth/include
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/auth/include
             ../../firmware/components/wifi_ap/include
-            ../../firmware/components/provisioning/include ../../firmware/components/provisioning
+            ../../firmware/components/provisioning/include
+            ../../firmware/components/provisioning
+            ../../firmware/components/support/include
 )
 target_link_libraries(provisioning_tests PRIVATE test_support)
 target_compile_options(provisioning_tests PRIVATE ${STRICT_WARNINGS})
@@ -704,9 +707,12 @@ add_executable(
 )
 target_include_directories(
     provisioning_settings_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/auth/include
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/auth/include
             ../../firmware/components/wifi_ap/include
-            ../../firmware/components/provisioning/include ../../firmware/components/provisioning
+            ../../firmware/components/provisioning/include
+            ../../firmware/components/provisioning
+            ../../firmware/components/support/include
 )
 target_link_libraries(provisioning_settings_tests PRIVATE test_support)
 target_compile_options(provisioning_settings_tests PRIVATE ${STRICT_WARNINGS})
@@ -815,6 +821,7 @@ target_include_directories(
             ../../firmware/components/storage/include
             ../../firmware/components/storage
             ../../firmware/components/web_server
+            ../../firmware/components/support/include
 )
 target_link_libraries(web_api_json_tests PRIVATE PkgConfig::CJSON test_support)
 target_compile_options(web_api_json_tests PRIVATE ${STRICT_WARNINGS})
@@ -901,6 +908,7 @@ target_include_directories(
             ../../firmware/components/storage/include
             ../../firmware/components/storage
             ../../firmware/components/web_server
+            ../../firmware/components/support/include
 )
 target_compile_definitions(
     web_api_repository_handlers_tests

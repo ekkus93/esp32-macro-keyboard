@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "fake_wifi_backend.h"
+#include "subsystem_health.h"
 #include "test_assert.h"
 #include "wifi_ap_state.h"
 
@@ -472,6 +473,33 @@ static void test_start_enforces_operation_sequence(void) {
     fake_call_log_verify(&fixture.backend.calls);
 }
 
+static void test_health_derive_state(void) {
+    wifi_ap_status_t status = {
+        .state = WIFI_AP_READY,
+        .client_count = 0U,
+        .last_error = APP_ERROR_NONE,
+        .cleanup_error = APP_ERROR_NONE,
+    };
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_HEALTHY, wifi_ap_health_derive_state(status));
+
+    status.state = WIFI_AP_STOPPED;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_UNAVAILABLE, wifi_ap_health_derive_state(status));
+
+    status.state = WIFI_AP_STARTING;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_RECOVERING, wifi_ap_health_derive_state(status));
+
+    status.state = WIFI_AP_ERROR;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, wifi_ap_health_derive_state(status));
+
+    status.state = WIFI_AP_READY;
+    status.last_error = APP_ERROR_INTERNAL;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, wifi_ap_health_derive_state(status));
+
+    status.last_error = APP_ERROR_NONE;
+    status.cleanup_error = APP_ERROR_INTERNAL;
+    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, wifi_ap_health_derive_state(status));
+}
+
 int main(void) {
     test_start_enforces_operation_sequence();
     test_operation_validation();
@@ -482,6 +510,7 @@ int main(void) {
     test_start_cleanup_failure_is_visible_and_retriable();
     test_stop_failure_matrix_and_retry();
     test_stop_when_already_stopped();
+    test_health_derive_state();
     puts("Wi-Fi AP tests passed");
     return EXIT_SUCCESS;
 }

@@ -8,6 +8,7 @@ idf_component_register(
     "."
     REQUIRES
     macro_model
+    support
     esp_wifi
     esp_event
     esp_netif

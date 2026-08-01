@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "app_error.h"
+#include "subsystem_health.h"
 #include "wifi_ap.h"
 #include "wifi_ap_ops.h"
 
@@ -216,6 +217,20 @@ app_error_code_t wifi_ap_engine_stop(wifi_ap_engine_t *engine) {
         current.last_error != APP_ERROR_NONE ? current.last_error : cleanup_error;
     publish_status(engine, WIFI_AP_ERROR, 0U, original, cleanup_error);
     return cleanup_error;
+}
+
+subsystem_health_state_t wifi_ap_health_derive_state(wifi_ap_status_t status) {
+    if (status.last_error != APP_ERROR_NONE || status.cleanup_error != APP_ERROR_NONE ||
+        status.state == WIFI_AP_ERROR) {
+        return SUBSYSTEM_HEALTH_FAILED;
+    }
+    if (status.state == WIFI_AP_STOPPED) {
+        return SUBSYSTEM_HEALTH_UNAVAILABLE;
+    }
+    if (status.state == WIFI_AP_STARTING) {
+        return SUBSYSTEM_HEALTH_RECOVERING;
+    }
+    return SUBSYSTEM_HEALTH_HEALTHY;
 }
 
 bool wifi_ap_engine_owns_resources(const wifi_ap_engine_t *engine) {

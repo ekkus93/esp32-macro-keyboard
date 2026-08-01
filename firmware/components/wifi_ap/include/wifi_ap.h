@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "app_error.h"
+#include "subsystem_health.h"
 
 #define WIFI_AP_SSID_MAX_BYTES 32U
 #define WIFI_AP_PASSPHRASE_MIN_BYTES 12U
@@ -33,5 +34,12 @@ wifi_ap_status_t wifi_ap_get_status(void);
  * up (FIX1 §11.2); used by the lifecycle owner to decide whether teardown is
  * required. */
 bool wifi_ap_owns_resources(void);
+
+/* Derives a stable subsystem_health_state_t for Phase 19 diagnostics (FIX1
+ * handoff §7.1) from the existing wifi_ap_status_t: FAILED if an error is
+ * recorded or the state machine is in WIFI_AP_ERROR, UNAVAILABLE while
+ * stopped, RECOVERING while starting (not yet serving clients), HEALTHY once
+ * ready. */
+subsystem_health_state_t wifi_ap_health_derive_state(wifi_ap_status_t status);
 
 #endif

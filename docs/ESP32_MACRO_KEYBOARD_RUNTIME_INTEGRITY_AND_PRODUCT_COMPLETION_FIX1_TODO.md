@@ -2144,7 +2144,7 @@ Add stable health snapshots for:
 - [x] USB;
 - [x] executor;
 - [x] controls;
-- [ ] Wi-Fi;
+- [x] Wi-Fi;
 - [ ] HTTP.
 
 Implemented (app lifecycle): `app_core_health.c` (new, portable, host-testable)
@@ -2200,6 +2200,17 @@ HEALTHY otherwise. Verified by reading `device_controls_logic.c`/
 `device_controls_wait_for_confirmation()`'s normal user-timeout path returns
 `APP_ERROR_TIMEOUT` directly without touching the health struct — so it is
 safe to treat every set field as unhealthy.
+
+Implemented (Wi-Fi): like controls, `wifi_ap_status_t` (state, client count,
+last/cleanup errors) already existed with a getter, `wifi_ap_get_status()`,
+consumed only by `web_server_status_limits.c` for client-count reporting —
+so this item adapts the existing struct rather than adding new tracking.
+`wifi_ap_health_derive_state()` (new, in `wifi_ap_state.c`, host-testable
+alongside the engine's existing state machine) derives a
+`subsystem_health_state_t`: FAILED if an error is recorded or the state
+machine reports `WIFI_AP_ERROR`, UNAVAILABLE while stopped, RECOVERING while
+starting (not yet serving clients — the closest fit in the shared vocabulary
+for "in progress, not yet healthy"), HEALTHY once ready.
 
 Retain primary and cleanup errors separately.
 
