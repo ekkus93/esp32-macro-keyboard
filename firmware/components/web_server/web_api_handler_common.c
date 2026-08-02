@@ -32,21 +32,6 @@ static app_error_code_t finish_json(cJSON *root, char **out_json) {
     return APP_ERROR_NONE;
 }
 
-static cJSON *parse_serialized(char *json, size_t length) {
-    if (json == NULL) {
-        return NULL;
-    }
-    const char *parse_end = NULL;
-    cJSON *item = cJSON_ParseWithLengthOpts(json, length, &parse_end, false);
-    const bool complete = item != NULL && parse_end != NULL && (size_t)(parse_end - json) == length;
-    cJSON_free(json);
-    if (!complete) {
-        cJSON_Delete(item);
-        return NULL;
-    }
-    return item;
-}
-
 static bool size_to_json_number(size_t value, double *out_number) {
     if (out_number == NULL || value > UINT32_MAX) {
         return false;
@@ -170,82 +155,6 @@ app_error_code_t web_api_handler_macro_list_json(const storage_macro_list_t *lis
         }
     }
     return finish_json(array, out_json);
-}
-
-app_error_code_t web_api_handler_procedure_json(const procedure_t *procedure, char **out_json) {
-    size_t length = 0U;
-    return procedure == NULL
-               ? APP_ERROR_INVALID_ARGUMENT
-               : storage_repository_serialize_procedure_json(procedure, out_json, &length);
-}
-
-static cJSON *procedure_summary(const procedure_t *procedure) {
-    double step_count = 0.0;
-    if (!size_to_json_number(procedure->step_count, &step_count)) {
-        return NULL;
-    }
-    cJSON *item = cJSON_CreateObject();
-    if (item == NULL ||
-        !cJSON_AddNumberToObject(item, "schema_version", procedure->schema_version) ||
-        !cJSON_AddStringToObject(item, "id", procedure->id.value) ||
-        !cJSON_AddNumberToObject(item, "revision", procedure->revision) ||
-        !cJSON_AddStringToObject(item, "set_id", procedure->set_id.value) ||
-        !cJSON_AddStringToObject(item, "name", procedure->name) ||
-        !cJSON_AddStringToObject(item, "description", procedure->description) ||
-        !cJSON_AddNumberToObject(item, "step_count", step_count) ||
-        !cJSON_AddNumberToObject(item, "sort_order", procedure->sort_order)) {
-        cJSON_Delete(item);
-        return NULL;
-    }
-    return item;
-}
-
-app_error_code_t web_api_handler_procedure_list_json(const storage_procedure_list_t *list,
-                                                     char **out_json) {
-    if (list == NULL || out_json == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    cJSON *array = cJSON_CreateArray();
-    if (array == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
-    for (size_t index = 0U; index < list->count; ++index) {
-        cJSON *item = procedure_summary(&list->items[index]);
-        if (item == NULL || !cJSON_AddItemToArray(array, item)) {
-            cJSON_Delete(item);
-            cJSON_Delete(array);
-            return APP_ERROR_INTERNAL;
-        }
-    }
-    return finish_json(array, out_json);
-}
-
-app_error_code_t web_api_handler_progress_json(const storage_progress_snapshot_t *snapshot,
-                                               char **out_json) {
-    if (snapshot == NULL || out_json == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    char *progress_json = NULL;
-    size_t progress_length = 0U;
-    app_error_code_t result = storage_repository_serialize_progress_json(
-        &snapshot->progress, &progress_json, &progress_length);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    cJSON *progress = parse_serialized(progress_json, progress_length);
-    cJSON *root = cJSON_CreateObject();
-    if (progress == NULL || root == NULL ||
-        !cJSON_AddStringToObject(root, "status",
-                                 snapshot->status == STORAGE_PROGRESS_STATUS_STALE ? "stale"
-                                                                                   : "current") ||
-        !cJSON_AddNumberToObject(root, "currentProcedureRevision",
-                                 snapshot->current_procedure_revision) ||
-        !cJSON_AddItemToObject(root, "progress", progress)) {
-        cJSON_Delete(progress);
-        cJSON_Delete(root);
-        return APP_ERROR_INTERNAL;
-    }
-    return finish_json(root, out_json);
 }
 
 app_error_code_t web_api_handler_settings_json(const provisioning_settings_t *settings,

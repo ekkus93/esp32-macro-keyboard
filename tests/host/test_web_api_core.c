@@ -44,8 +44,6 @@ static void test_route_parsing(void) {
     check_route("/api/v1/sets/" SET_ID "/macros/" MACRO_ID, WEB_API_ROUTE_SET_MACRO);
     check_route("/api/v1/sets/" SET_ID "/macros/" MACRO_ID "/validate",
                 WEB_API_ROUTE_SET_MACRO_VALIDATE);
-    check_route("/api/v1/sets/" SET_ID "/procedures/" PROCEDURE_ID "/progress/skip",
-                WEB_API_ROUTE_PROGRESS_SKIP);
     check_route("/api/v1/executions", WEB_API_ROUTE_EXECUTIONS);
     check_route("/api/v1/executions/current", WEB_API_ROUTE_EXECUTION_CURRENT);
     check_route("/api/v1/executions/current/cancel", WEB_API_ROUTE_EXECUTION_CANCEL);
@@ -71,6 +69,13 @@ static void test_route_parsing(void) {
     /* Global macros were removed (SPEC §7.2): every macro is reached through
      * its set, so the old /global tree must not resolve to anything. */
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, web_api_parse_path("/api/v1/global/macros", &path));
+    /* Procedures were removed (SPEC §7.1): a set has macros and nothing else,
+       so the procedures subtree must not resolve. */
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
+                         web_api_parse_path("/api/v1/sets/" SET_ID "/procedures", &path));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NOT_FOUND,
+        web_api_parse_path("/api/v1/sets/" SET_ID "/procedures/" PROCEDURE_ID, &path));
     /* Quarantine was removed (SPEC §13.6); its diagnostics route must not
        resolve either. */
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,

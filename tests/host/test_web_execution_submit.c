@@ -14,22 +14,17 @@
 #define SET_ID "11111111-1111-4111-8111-111111111111"
 #define OTHER_SET_ID "11111111-1111-4111-8111-999999999999"
 #define MACRO_ID "22222222-2222-4222-8222-222222222222"
-#define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
-#define STEP_ID "44444444-4444-4444-8444-444444444444"
 #define OTHER_STEP_ID "44444444-4444-4444-8444-999999999999"
 #define EXECUTION_ID "55555555-5555-4555-8555-555555555555"
 
 typedef struct {
     app_error_code_t read_result;
-    app_error_code_t procedure_result;
     app_error_code_t compile_result;
     app_error_code_t uuid_result;
     app_error_code_t submit_result;
     uint32_t revision;
     bool macro_set_matches;
-    bool procedure_matches;
     size_t read_calls;
-    size_t procedure_calls;
     size_t compile_calls;
     size_t uuid_calls;
     size_t submit_calls;
@@ -47,7 +42,6 @@ static fixture_t fixture_defaults(void) {
     return (fixture_t){
         .revision = 7U,
         .macro_set_matches = true,
-        .procedure_matches = true,
     };
 }
 
@@ -73,31 +67,6 @@ static app_error_code_t read_macro(void *context, const app_uuid_t *set_id,
     out_macro->source = malloc(2U);
     TEST_CHECK(out_macro->source != NULL);
     memcpy(out_macro->source, "a", 2U);
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t read_procedure(void *context, const app_uuid_t *set_id,
-                                       const app_uuid_t *procedure_id, procedure_t *out_procedure) {
-    fixture_t *fixture = context;
-    ++fixture->procedure_calls;
-    TEST_CHECK_EQ_STRING(SET_ID, set_id->value);
-    TEST_CHECK_EQ_STRING(PROCEDURE_ID, procedure_id->value);
-    if (fixture->procedure_result != APP_ERROR_NONE) {
-        return fixture->procedure_result;
-    }
-    out_procedure->schema_version = 1U;
-    out_procedure->id = uuid(PROCEDURE_ID);
-    out_procedure->revision = 1U;
-    out_procedure->set_id = uuid(SET_ID);
-    out_procedure->steps = calloc(1U, sizeof(*out_procedure->steps));
-    TEST_CHECK(out_procedure->steps != NULL);
-    out_procedure->step_count = 1U;
-    out_procedure->steps[0] = (procedure_step_t){
-        .id = uuid(fixture->procedure_matches ? STEP_ID : OTHER_STEP_ID),
-        .type = PROCEDURE_STEP_MACRO,
-        .has_macro_id = true,
-        .macro_id = uuid(MACRO_ID),
-    };
     return APP_ERROR_NONE;
 }
 
@@ -162,7 +131,6 @@ static web_execution_ops_t operations(fixture_t *fixture) {
     return (web_execution_ops_t){
         .context = fixture,
         .macro_read = read_macro,
-        .procedure_read = read_procedure,
         .compile = compile_macro,
         .plan_free = free_plan,
         .uuid_generate = generate_uuid,
@@ -176,14 +144,6 @@ static web_execution_submit_request_t request(void) {
         .macro_id = uuid(MACRO_ID),
         .macro_revision = 7U,
     };
-}
-
-static web_execution_submit_request_t procedure_request(void) {
-    web_execution_submit_request_t submission = request();
-    submission.has_procedure_context = true;
-    submission.procedure_id = uuid(PROCEDURE_ID);
-    submission.step_id = uuid(STEP_ID);
-    return submission;
 }
 
 static app_error_code_t submit_fixture(fixture_t *fixture,
@@ -234,21 +194,6 @@ static void test_pre_compile_failures(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
                          submit_fixture(&fixture, &submission, &accepted, &parse_error));
     TEST_CHECK_EQ_U64(0U, fixture.compile_calls);
-
-    const web_execution_submit_request_t contextual = procedure_request();
-    fixture = fixture_defaults();
-    fixture.procedure_result = APP_ERROR_NOT_FOUND;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
-                         submit_fixture(&fixture, &contextual, &accepted, &parse_error));
-    TEST_CHECK_EQ_U64(1U, fixture.procedure_calls);
-    TEST_CHECK_EQ_U64(0U, fixture.read_calls);
-
-    fixture = fixture_defaults();
-    fixture.procedure_matches = false;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         submit_fixture(&fixture, &contextual, &accepted, &parse_error));
-    TEST_CHECK_EQ_U64(1U, fixture.procedure_calls);
-    TEST_CHECK_EQ_U64(0U, fixture.read_calls);
 }
 
 static void test_post_compile_cleanup_matrix(void) {

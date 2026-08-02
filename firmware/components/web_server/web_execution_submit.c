@@ -12,54 +12,14 @@
 #include "macro_parser.h"
 
 static bool operations_valid(const web_execution_ops_t *operations) {
-    return operations != NULL && operations->macro_read != NULL &&
-           operations->procedure_read != NULL && operations->compile != NULL &&
+    return operations != NULL && operations->macro_read != NULL && operations->compile != NULL &&
            operations->plan_free != NULL && operations->uuid_generate != NULL &&
            operations->submit != NULL;
 }
 
 static bool request_valid(const web_execution_submit_request_t *request) {
-    if (request == NULL || !app_uuid_is_valid_string(request->set_id.value) ||
-        !app_uuid_is_valid_string(request->macro_id.value) || request->macro_revision == 0U) {
-        return false;
-    }
-    if (!request->has_procedure_context) {
-        return true;
-    }
-    return app_uuid_is_valid_string(request->procedure_id.value) &&
-           app_uuid_is_valid_string(request->step_id.value);
-}
-
-static bool procedure_context_matches(const procedure_t *procedure,
-                                      const web_execution_submit_request_t *request) {
-    if (procedure == NULL || request == NULL ||
-        !app_uuid_equal(&procedure->set_id, &request->set_id)) {
-        return false;
-    }
-    for (size_t index = 0U; index < procedure->step_count; ++index) {
-        const procedure_step_t *step = &procedure->steps[index];
-        if (app_uuid_equal(&step->id, &request->step_id)) {
-            return step->type == PROCEDURE_STEP_MACRO && step->has_macro_id &&
-                   app_uuid_equal(&step->macro_id, &request->macro_id);
-        }
-    }
-    return false;
-}
-
-static app_error_code_t validate_procedure_context(const web_execution_submit_request_t *request,
-                                                   const web_execution_ops_t *operations) {
-    if (!request->has_procedure_context) {
-        return APP_ERROR_NONE;
-    }
-    procedure_t procedure = {0};
-    const app_error_code_t result = operations->procedure_read(
-        operations->context, &request->set_id, &request->procedure_id, &procedure);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    const bool matches = procedure_context_matches(&procedure, request);
-    macro_model_free_procedure(&procedure);
-    return matches ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
+    return request != NULL && app_uuid_is_valid_string(request->set_id.value) &&
+           app_uuid_is_valid_string(request->macro_id.value) && request->macro_revision != 0U;
 }
 
 app_error_code_t web_execution_submit_persisted(const web_execution_submit_request_t *request,
@@ -77,13 +37,8 @@ app_error_code_t web_execution_submit_persisted(const web_execution_submit_reque
         return APP_ERROR_INVALID_ARGUMENT;
     }
 
-    app_error_code_t result = validate_procedure_context(request, operations);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-
     macro_t macro = {0};
-    result =
+    app_error_code_t result =
         operations->macro_read(operations->context, &request->set_id, &request->macro_id, &macro);
     if (result != APP_ERROR_NONE) {
         return result;

@@ -36,20 +36,6 @@ static bool is_macro_route(web_api_route_t route) {
     }
 }
 
-static bool is_procedure_route(web_api_route_t route) {
-    switch (route) {
-    case WEB_API_ROUTE_SET_PROCEDURES:
-    case WEB_API_ROUTE_SET_PROCEDURE:
-    case WEB_API_ROUTE_SET_PROCEDURES_REORDER:
-    case WEB_API_ROUTE_PROCEDURE_PROGRESS:
-    case WEB_API_ROUTE_PROGRESS_COMPLETE:
-    case WEB_API_ROUTE_PROGRESS_SKIP:
-        return true;
-    default:
-        return false;
-    }
-}
-
 static bool is_execution_route(web_api_route_t route) {
     switch (route) {
     case WEB_API_ROUTE_EXECUTIONS:
@@ -70,9 +56,6 @@ app_error_code_t web_api_dispatch(const web_api_call_t *call, web_api_response_t
     }
     if (is_macro_route(call->path.route)) {
         return web_api_handle_macros(call, response);
-    }
-    if (is_procedure_route(call->path.route)) {
-        return web_api_handle_procedures(call, response);
     }
     if (is_execution_route(call->path.route)) {
         return web_api_handle_execution(call, response);

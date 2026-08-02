@@ -16,9 +16,6 @@ typedef struct {
     app_uuid_t set_id;
     app_uuid_t macro_id;
     uint32_t macro_revision;
-    bool has_procedure_context;
-    app_uuid_t procedure_id;
-    app_uuid_t step_id;
 } web_execution_submit_request_t;
 
 typedef struct {
@@ -30,9 +27,6 @@ typedef struct {
 typedef app_error_code_t (*web_execution_macro_read_fn)(void *context, const app_uuid_t *set_id,
                                                         const app_uuid_t *macro_id,
                                                         macro_t *out_macro);
-typedef app_error_code_t (*web_execution_procedure_read_fn)(void *context, const app_uuid_t *set_id,
-                                                            const app_uuid_t *procedure_id,
-                                                            procedure_t *out_procedure);
 typedef app_error_code_t (*web_execution_compile_fn)(void *context, const char *source,
                                                      size_t source_length,
                                                      const macro_compile_options_t *options,
@@ -46,7 +40,6 @@ typedef app_error_code_t (*web_execution_submit_fn)(void *context,
 typedef struct {
     void *context;
     web_execution_macro_read_fn macro_read;
-    web_execution_procedure_read_fn procedure_read;
     web_execution_compile_fn compile;
     web_execution_plan_free_fn plan_free;
     web_execution_uuid_generate_fn uuid_generate;

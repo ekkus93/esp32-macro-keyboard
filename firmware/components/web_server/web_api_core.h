@@ -34,12 +34,6 @@ typedef enum {
     WEB_API_ROUTE_SET_MACRO_VALIDATE,
     WEB_API_ROUTE_SET_MACRO_DUPLICATE,
     WEB_API_ROUTE_SET_MACROS_REORDER,
-    WEB_API_ROUTE_SET_PROCEDURES,
-    WEB_API_ROUTE_SET_PROCEDURE,
-    WEB_API_ROUTE_SET_PROCEDURES_REORDER,
-    WEB_API_ROUTE_PROCEDURE_PROGRESS,
-    WEB_API_ROUTE_PROGRESS_COMPLETE,
-    WEB_API_ROUTE_PROGRESS_SKIP,
     WEB_API_ROUTE_EXECUTIONS,
     WEB_API_ROUTE_EXECUTION_CURRENT,
     WEB_API_ROUTE_EXECUTION_CANCEL,
@@ -61,8 +55,6 @@ typedef struct {
     app_uuid_t set_id;
     bool has_macro_id;
     app_uuid_t macro_id;
-    bool has_procedure_id;
-    app_uuid_t procedure_id;
     bool has_execution_id;
     app_uuid_t execution_id;
 } web_api_path_t;

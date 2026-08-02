@@ -888,7 +888,6 @@ add_executable(
     ../../firmware/components/web_server/web_api_handler_common.c
     ../../firmware/components/web_server/web_api_sets.c
     ../../firmware/components/web_server/web_api_macros.c
-    ../../firmware/components/web_server/web_api_procedures.c
 )
 target_include_directories(
     web_api_repository_handlers_tests

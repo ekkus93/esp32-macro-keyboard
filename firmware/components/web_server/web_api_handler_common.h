@@ -19,11 +19,6 @@ app_error_code_t web_api_handler_set_json(const macro_set_t *set, char **out_jso
 app_error_code_t web_api_handler_set_list_json(const storage_set_list_t *list, char **out_json);
 app_error_code_t web_api_handler_macro_json(const macro_t *macro, char **out_json);
 app_error_code_t web_api_handler_macro_list_json(const storage_macro_list_t *list, char **out_json);
-app_error_code_t web_api_handler_procedure_json(const procedure_t *procedure, char **out_json);
-app_error_code_t web_api_handler_procedure_list_json(const storage_procedure_list_t *list,
-                                                     char **out_json);
-app_error_code_t web_api_handler_progress_json(const storage_progress_snapshot_t *snapshot,
-                                               char **out_json);
 app_error_code_t web_api_handler_settings_json(const provisioning_settings_t *settings,
                                                char **out_json);
 void web_api_handler_json_free(char *json);

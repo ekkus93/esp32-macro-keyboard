@@ -29,12 +29,6 @@ static app_error_code_t read_macro(void *context, const app_uuid_t *set_id,
     return storage_macro_read(set_id, macro_id, out_macro);
 }
 
-static app_error_code_t read_procedure(void *context, const app_uuid_t *set_id,
-                                       const app_uuid_t *procedure_id, procedure_t *out_procedure) {
-    (void)context;
-    return storage_procedure_read(set_id, procedure_id, out_procedure);
-}
-
 static app_error_code_t compile_macro(void *context, const char *source, size_t source_length,
                                       const macro_compile_options_t *options,
                                       macro_plan_t *out_plan, macro_parse_error_t *out_error) {
@@ -61,7 +55,6 @@ static web_execution_ops_t execution_operations(void) {
     return (web_execution_ops_t){
         .context = NULL,
         .macro_read = read_macro,
-        .procedure_read = read_procedure,
         .compile = compile_macro,
         .plan_free = free_plan,
         .uuid_generate = generate_uuid,

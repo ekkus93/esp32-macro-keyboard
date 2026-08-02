@@ -111,28 +111,6 @@ static void test_resource_request_boundary(void) {
     TEST_CHECK_EQ_STRING("a", macro.source);
     macro_model_free_macro(&macro);
 
-    const char valid_procedure[] =
-        "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":1,\"set_id\":\"" SET_ID
-        "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{"
-        "\"id\":\"" STEP_ID "\",\"type\":\"macro\",\"title\":\"Step\",\"macro_id\":\"" MACRO_ID
-        "\",\"required\":true,\"auto_complete_on_success\":false}],\"sort_order\":0}";
-    procedure_t procedure = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_api_json_parse_procedure_resource(
-                             valid_procedure, sizeof(valid_procedure) - 1U, &procedure));
-    TEST_CHECK_EQ_U64(1U, procedure.step_count);
-    macro_model_free_procedure(&procedure);
-
-    const char valid_progress[] =
-        "{\"schema_version\":1,\"set_id\":\"" SET_ID "\",\"procedure_id\":\"" PROCEDURE_ID
-        "\",\"procedure_revision\":1,\"current_step_id\":\"" STEP_ID
-        "\",\"completed_step_ids\":[],\"skipped_step_ids\":[]}";
-    procedure_progress_t progress = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_api_json_parse_progress_resource(
-                             valid_progress, sizeof(valid_progress) - 1U, &progress));
-    TEST_CHECK_EQ_U64(1U, progress.procedure_revision);
-
     static const char *const invalid_sets[] = {
         "{}",
         "{\"schema_version\":1,\"id\":\"" SET_ID
@@ -153,12 +131,6 @@ static void test_resource_request_boundary(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_api_json_parse_macro_resource("{}", 2U, &macro));
     TEST_CHECK(macro.source == NULL);
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_json_parse_procedure_resource("{}", 2U, &procedure));
-    TEST_CHECK(procedure.steps == NULL);
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_json_parse_progress_resource("{}", 2U, &progress));
-    TEST_CHECK_EQ_U64(0U, progress.procedure_revision);
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_api_json_parse_set_resource(valid_set, sizeof(valid_set) - 1U, NULL));
 }
@@ -224,18 +196,17 @@ static void test_execution_submit_matrix(void) {
     web_execution_submit_request_t request = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_api_json_parse_execution_submit(base, sizeof(base) - 1U, &request));
-    TEST_CHECK(!request.has_procedure_context);
     TEST_CHECK_EQ_U64(7U, request.macro_revision);
 
+    /* An execution is a macro and a set (SPEC 18); a sourceContext member is
+       now an unknown field and must be rejected. */
     const char contextual[] =
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"sourceContext\":{\"procedureId\":\"" PROCEDURE_ID
         "\",\"stepId\":\"" STEP_ID "\"}}";
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_execution_submit(
-                                             contextual, sizeof(contextual) - 1U, &request));
-    TEST_CHECK(request.has_procedure_context);
-    TEST_CHECK_EQ_STRING(PROCEDURE_ID, request.procedure_id.value);
-    TEST_CHECK_EQ_STRING(STEP_ID, request.step_id.value);
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        web_api_json_parse_execution_submit(contextual, sizeof(contextual) - 1U, &request));
 
     static const char *const invalid[] = {
         "{}",
@@ -266,56 +237,9 @@ static void test_execution_submit_matrix(void) {
             APP_ERROR_INVALID_ARGUMENT,
             web_api_json_parse_execution_submit(invalid[index], strlen(invalid[index]), &request));
         TEST_CHECK_EQ_U64(0U, request.macro_revision);
-        TEST_CHECK(!request.has_procedure_context);
     }
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_api_json_parse_execution_submit(base, sizeof(base) - 1U, NULL));
-}
-
-static void test_progress_action_matrix(void) {
-    const char complete[] = "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID "\"}";
-    web_api_progress_action_t action = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_progress_action(
-                                             complete, sizeof(complete) - 1U, false, &action));
-    TEST_CHECK_EQ_U64(3U, action.expected_procedure_revision);
-    TEST_CHECK(!action.confirmed);
-
-    const char skip[] =
-        "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID "\",\"confirmed\":true}";
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE, web_api_json_parse_progress_action(skip, sizeof(skip) - 1U, true, &action));
-    TEST_CHECK(action.confirmed);
-
-    static const char *const invalid_complete[] = {
-        "{}",
-        "{\"expectedProcedureRevision\":0,\"stepId\":\"" STEP_ID "\"}",
-        "{\"expectedProcedureRevision\":3,\"stepId\":\"bad\"}",
-        "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID "\",\"confirmed\":true}",
-        "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID "\"}x",
-    };
-    for (size_t index = 0U; index < sizeof(invalid_complete) / sizeof(invalid_complete[0]);
-         ++index) {
-        TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                             web_api_json_parse_progress_action(invalid_complete[index],
-                                                                strlen(invalid_complete[index]),
-                                                                false, &action));
-    }
-
-    static const char *const invalid_skip[] = {
-        "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID "\"}",
-        "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID "\",\"confirmed\":false}",
-        "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID "\",\"confirmed\":\"true\"}",
-        "{\"expectedProcedureRevision\":3,\"stepId\":\"" STEP_ID
-        "\",\"confirmed\":true,\"extra\":1}",
-    };
-    for (size_t index = 0U; index < sizeof(invalid_skip) / sizeof(invalid_skip[0]); ++index) {
-        TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                             web_api_json_parse_progress_action(
-                                 invalid_skip[index], strlen(invalid_skip[index]), true, &action));
-    }
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        web_api_json_parse_progress_action(complete, sizeof(complete) - 1U, false, NULL));
 }
 
 static void test_settings_update_matrix(void) {
@@ -381,7 +305,6 @@ int main(void) {
     test_resource_request_boundary();
     test_uuid_order_matrix();
     test_execution_submit_matrix();
-    test_progress_action_matrix();
     test_settings_update_matrix();
     test_embedded_nul_rejected();
     return 0;

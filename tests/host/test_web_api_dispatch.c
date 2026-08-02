@@ -12,7 +12,6 @@ typedef enum {
     HANDLER_NONE = 0,
     HANDLER_SETS,
     HANDLER_MACROS,
-    HANDLER_PROCEDURES,
     HANDLER_EXECUTION,
     HANDLER_ADMINISTRATION,
 } handler_group_t;
@@ -41,11 +40,6 @@ app_error_code_t web_api_handle_macros(const web_api_call_t *call, web_api_respo
     return record_handler(HANDLER_MACROS, call, response);
 }
 
-app_error_code_t web_api_handle_procedures(const web_api_call_t *call,
-                                           web_api_response_t *response) {
-    return record_handler(HANDLER_PROCEDURES, call, response);
-}
-
 app_error_code_t web_api_handle_execution(const web_api_call_t *call,
                                           web_api_response_t *response) {
     return record_handler(HANDLER_EXECUTION, call, response);
@@ -71,12 +65,6 @@ static const dispatch_case_t dispatch_cases[] = {
     {WEB_API_ROUTE_SET_MACRO_VALIDATE, HANDLER_MACROS},
     {WEB_API_ROUTE_SET_MACRO_DUPLICATE, HANDLER_MACROS},
     {WEB_API_ROUTE_SET_MACROS_REORDER, HANDLER_MACROS},
-    {WEB_API_ROUTE_SET_PROCEDURES, HANDLER_PROCEDURES},
-    {WEB_API_ROUTE_SET_PROCEDURE, HANDLER_PROCEDURES},
-    {WEB_API_ROUTE_SET_PROCEDURES_REORDER, HANDLER_PROCEDURES},
-    {WEB_API_ROUTE_PROCEDURE_PROGRESS, HANDLER_PROCEDURES},
-    {WEB_API_ROUTE_PROGRESS_COMPLETE, HANDLER_PROCEDURES},
-    {WEB_API_ROUTE_PROGRESS_SKIP, HANDLER_PROCEDURES},
     {WEB_API_ROUTE_EXECUTIONS, HANDLER_EXECUTION},
     {WEB_API_ROUTE_EXECUTION_CURRENT, HANDLER_EXECUTION},
     {WEB_API_ROUTE_EXECUTION_CANCEL, HANDLER_EXECUTION},

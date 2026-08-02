@@ -17,8 +17,6 @@
  * readability-magic-numbers exempts only 1-4 by default; these positional
  * counts would otherwise read as magic numbers. */
 #define WEB_API_SEGMENTS_MACRO_SUBACTION 5U
-#define WEB_API_SEGMENTS_PROCEDURE_PROGRESS 5U
-#define WEB_API_SEGMENTS_PROGRESS_ACTION 6U
 
 typedef struct {
     char *items[WEB_API_MAX_SEGMENTS];
@@ -90,35 +88,6 @@ static app_error_code_t match_set_macro_routes(const path_segments_t *segments,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t match_set_procedure_routes(const path_segments_t *segments,
-                                                   web_api_path_t *out_path) {
-    if (segments->count == 4U && text_equal(segments->items[3], "reorder")) {
-        out_path->route = WEB_API_ROUTE_SET_PROCEDURES_REORDER;
-        return APP_ERROR_NONE;
-    }
-    if (!parse_uuid_segment(segments->items[3], &out_path->procedure_id)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    out_path->has_procedure_id = true;
-    if (segments->count == 4U) {
-        out_path->route = WEB_API_ROUTE_SET_PROCEDURE;
-    } else if (segments->count == WEB_API_SEGMENTS_PROCEDURE_PROGRESS &&
-               text_equal(segments->items[4], "progress")) {
-        out_path->route = WEB_API_ROUTE_PROCEDURE_PROGRESS;
-    } else if (segments->count == WEB_API_SEGMENTS_PROGRESS_ACTION &&
-               text_equal(segments->items[4], "progress") &&
-               text_equal(segments->items[WEB_API_SEGMENTS_PROGRESS_ACTION - 1U], "complete")) {
-        out_path->route = WEB_API_ROUTE_PROGRESS_COMPLETE;
-    } else if (segments->count == WEB_API_SEGMENTS_PROGRESS_ACTION &&
-               text_equal(segments->items[4], "progress") &&
-               text_equal(segments->items[WEB_API_SEGMENTS_PROGRESS_ACTION - 1U], "skip")) {
-        out_path->route = WEB_API_ROUTE_PROGRESS_SKIP;
-    } else {
-        return APP_ERROR_NOT_FOUND;
-    }
-    return APP_ERROR_NONE;
-}
-
 static app_error_code_t match_set_routes(const path_segments_t *segments,
                                          web_api_path_t *out_path) {
     if (segments->count == 1U) {
@@ -154,8 +123,6 @@ static app_error_code_t match_set_routes(const path_segments_t *segments,
             out_path->route = WEB_API_ROUTE_SET_EXPORT;
         } else if (text_equal(segments->items[2], "macros")) {
             out_path->route = WEB_API_ROUTE_SET_MACROS;
-        } else if (text_equal(segments->items[2], "procedures")) {
-            out_path->route = WEB_API_ROUTE_SET_PROCEDURES;
         } else {
             return APP_ERROR_NOT_FOUND;
         }
@@ -163,9 +130,6 @@ static app_error_code_t match_set_routes(const path_segments_t *segments,
     }
     if (text_equal(segments->items[2], "macros")) {
         return match_set_macro_routes(segments, out_path);
-    }
-    if (text_equal(segments->items[2], "procedures")) {
-        return match_set_procedure_routes(segments, out_path);
     }
     return APP_ERROR_NOT_FOUND;
 }
@@ -308,12 +272,9 @@ bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method)
         return method == WEB_API_METHOD_GET;
     case WEB_API_ROUTE_SETS:
     case WEB_API_ROUTE_SET_MACROS:
-    case WEB_API_ROUTE_SET_PROCEDURES:
         return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_POST;
     case WEB_API_ROUTE_SET:
     case WEB_API_ROUTE_SET_MACRO:
-    case WEB_API_ROUTE_SET_PROCEDURE:
-    case WEB_API_ROUTE_PROCEDURE_PROGRESS:
         return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_PUT ||
                method == WEB_API_METHOD_DELETE;
     case WEB_API_ROUTE_SETTINGS:
@@ -332,9 +293,6 @@ bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method)
     case WEB_API_ROUTE_SET_MACRO_VALIDATE:
     case WEB_API_ROUTE_SET_MACRO_DUPLICATE:
     case WEB_API_ROUTE_SET_MACROS_REORDER:
-    case WEB_API_ROUTE_SET_PROCEDURES_REORDER:
-    case WEB_API_ROUTE_PROGRESS_COMPLETE:
-    case WEB_API_ROUTE_PROGRESS_SKIP:
     case WEB_API_ROUTE_EXECUTIONS:
     case WEB_API_ROUTE_EXECUTION_CANCEL:
     case WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD:
