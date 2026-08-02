@@ -131,14 +131,14 @@ describe("set management", () => {
     await click(buttonWithText("Create set"));
     await setInputValue(
       requiredElement("#set-name", HTMLInputElement),
-      "New Chromebook workflow",
+      "New bench workflow",
     );
 
     const created: MacroSet = {
       schema_version: 1,
       id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       revision: 1,
-      name: "New Chromebook workflow",
+      name: "New bench workflow",
     };
     planJsonResponse(success(created), 201);
     await submit(requiredElement('[role="dialog"] form', HTMLFormElement));
@@ -148,12 +148,10 @@ describe("set management", () => {
     expect(getFetchCalls()[0]?.method).toBe("POST");
     expect(jsonBody(0)).toMatchObject({
       revision: 1,
-      name: "New Chromebook workflow",
+      name: "New bench workflow",
     });
     expect(onSetsChanged).toHaveBeenCalledWith([macroSet, created]);
-    expect(document.body.textContent).toContain(
-      "Created New Chromebook workflow.",
-    );
+    expect(document.body.textContent).toContain("Created New bench workflow.");
     await view.unmount();
   });
 

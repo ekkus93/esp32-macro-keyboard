@@ -40,9 +40,9 @@ None of these is a coverage measurement. This is a worklist, not a score.
 
 | | Statements | Unmapped |
 | --- | --- | --- |
-| MUST NOT | 72 | 26 |
+| MUST NOT | 72 | 12 |
 | MUST | 183 | 24 |
-| **Total** | **255** | **50** |
+| **Total** | **255** | **36** |
 
 ## Prohibitions (`MUST NOT`) — do these first
 
@@ -59,20 +59,20 @@ cheapest place to find real gaps.
 | §1.1 | L47 | quarantine or archival of damaged files | gate-enforced | check-removed-features.sh (gate script) |
 | §1.1 | L48 | staging, trash, and transaction directories | gate-enforced | check-removed-features.sh (gate script) |
 | §2 | L62 | The words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, and | **UNMAPPED** | — |
-| §4 | L95 | arbitrary Unicode typing | **UNMAPPED** | — |
-| §4 | L96 | any awareness of what the target computer is: no host operating-system detection, no hardware detection, and no behavior conditional on either | **UNMAPPED** | — |
-| §4 | L98 | automatic execution of the next macro in a set | **UNMAPPED** | — |
-| §4 | L99 | guided procedures, instruction steps, checkpoint steps, or progress tracking (see §1.1) | **UNMAPPED** | — |
-| §4 | L101 | global or shared macros (see §1.1) | **UNMAPPED** | — |
-| §4 | L102 | unattended command chains triggered by boot, Wi-Fi connection, or USB connection | **UNMAPPED** | — |
-| §4 | L104 | USB host functionality | **UNMAPPED** | — |
-| §4 | L105 | Bluetooth HID | **UNMAPPED** | — |
-| §4 | L106 | cloud accounts, cloud synchronization, or internet routing | **UNMAPPED** | — |
-| §4 | L107 | ~~station-mode Wi-Fi as a product feature~~ — **amended 2026-08-02.** Station mode was a non-goal, on the reasoning that the SoftAP is the whole product surface and joining a network adds attack surface for no user benefit. It was then explicitly requested: set the network from the serial console, have it persist across a power cycle, and rejoin unaided at boot. Persisting and rejoining are product behaviour, not a development-only console command, so keeping this bullet while §15.2 describes the behaviour would leave the specification contradicting itself. The constraints that made it a non-goal are preserved in §15.2 instead: the access point starts first and unconditionally, a join failure is non-fatal, and at most one network is ever remembered | **UNMAPPED** | — |
-| §4 | L118 | macro-set merge conflict resolution | **UNMAPPED** | — |
-| §4 | L119 | server-side JavaScript, React Server Components, or Node.js on the device | **UNMAPPED** | — |
-| §4 | L120 | TLS termination on the isolated SoftAP | **UNMAPPED** | — |
-| §4 | L121 | automatic filesystem formatting after a mount or integrity failure | **UNMAPPED** | — |
+| §4 | L95 | arbitrary Unicode typing | gate-enforced | check-removed-features.sh (gate script) |
+| §4 | L96 | any awareness of what the target computer is: no host operating-system detection, no hardware detection, and no behavior conditional on either | gate-enforced | check-removed-features.sh (gate script) |
+| §4 | L98 | automatic execution of the next macro in a set | gate-enforced | check-removed-features.sh (gate script) |
+| §4 | L99 | guided procedures, instruction steps, checkpoint steps, or progress tracking (see §1.1) | gate-enforced | check-removed-features.sh (gate script) |
+| §4 | L101 | global or shared macros (see §1.1) | gate-enforced | check-removed-features.sh (gate script) |
+| §4 | L102 | unattended command chains triggered by boot, Wi-Fi connection, or USB connection | gate-enforced | check-removed-features.sh (gate script) |
+| §4 | L104 | USB host functionality | gate-enforced | check-removed-features.sh (gate script) |
+| §4 | L105 | Bluetooth HID | gate-enforced | check-removed-features.sh (gate script) |
+| §4 | L106 | cloud accounts, cloud synchronization, or internet routing | gate-enforced | check-removed-features.sh (gate script) |
+| §4 | L107 | ~~station-mode Wi-Fi as a product feature~~ — **amended 2026-08-02.** Station mode was a non-goal, on the reasoning that the SoftAP is the whole product surface and joining a network adds attack surface for no user benefit. It was then explicitly requested: set the network from the serial console, have it persist across a power cycle, and rejoin unaided at boot. Persisting and rejoining are product behaviour, not a development-only console command, so keeping this bullet while §15.2 describes the behaviour would leave the specification contradicting itself. The constraints that made it a non-goal are preserved in §15.2 instead: the access point starts first and unconditionally, a join failure is non-fatal, and at most one network is ever remembered | gate-enforced | check-removed-features.sh (gate script) |
+| §4 | L118 | macro-set merge conflict resolution | gate-enforced | check-removed-features.sh (gate script) |
+| §4 | L119 | server-side JavaScript, React Server Components, or Node.js on the device | gate-enforced | check-removed-features.sh (gate script) |
+| §4 | L120 | TLS termination on the isolated SoftAP | gate-enforced | check-removed-features.sh (gate script) |
+| §4 | L121 | automatic filesystem formatting after a mount or integrity failure | gate-enforced | check-removed-features.sh (gate script) |
 | §5.2 | L154 | The hardware MUST NOT require any button, jumper, or other component to be added | referenced | device_controls → runtime_failures |
 | §5.3 | L176 | file, and test it. It MUST NOT silently fall back to another filesystem or USB | **UNMAPPED** | — |
 | §6 | L239 | and Vite output are generated or third-party content and MUST NOT be linted as | **UNMAPPED** | — |

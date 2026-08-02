@@ -25,7 +25,7 @@ export const macroSet = {
   schema_version: 1,
   id: setId,
   revision: 2,
-  name: "Lab Chromebook workflow",
+  name: "Lab bench workflow",
 } as const;
 
 export const macro = {

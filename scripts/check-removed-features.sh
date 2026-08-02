@@ -28,6 +28,15 @@ PATTERNS = [
     r"WEB_API_ROUTE_(SET_)?PROCEDURES?|WEB_API_ROUTE_PROCEDURE_PROGRESS",
     r"progress_resource|procedure_progress|progress_complete|progress_skip",
     r"global_macro|shared_macro|api/v1/global",
+    # SPEC 1.1 rejects "any field, screen, or code path specific to Chromebooks,
+    # ChromeOS, Debian, or any other particular target machine". SPEC 4 puts it
+    # positively: no host detection, no behaviour conditional on the target. The
+    # device types what it is told to type and does not know what is listening.
+    #
+    # Test fixtures count. A suite whose sample data is "Lab Chromebook
+    # workflow" quietly reinstates the assumption the revision removed, and is
+    # where a target-specific field would first look reasonable.
+    r"chromebook|chrome ?os|\bdebian\b",
     r"quarantine",
     r"STORAGE_(STAGING|TRASH|TRANSACTIONS)|/staging|/trash|/transactions",
     r"transaction_(begin|commit|rollback|journal)",
@@ -38,6 +47,10 @@ SOURCES = [
     "firmware/test_app/main",
     "webapp/src",
     "tests/host",
+    # The frontend suite lives here rather than beside the code, and was outside
+    # this check until its fixtures turned out to be named after a target
+    # machine -- exactly what SPEC 1.1 rejects.
+    "webapp/tests",
 ]
 SUFFIXES = {".c", ".h", ".inc", ".ts", ".tsx"}
 SKIP_DIRS = {"build", "build-coverage", "node_modules", "managed_components"}
@@ -50,9 +63,19 @@ SKIP_DIRS = {"build", "build-coverage", "node_modules", "managed_components"}
 # offending token often lands on a continuation line rather than the first one.
 MARKER = "removed-feature-ok:"
 MARKER_LOOKBACK = 3
+# A table of rejected inputs is a block of legitimate mentions, and marking each
+# line of it would bury the data in annotations. These bracket the whole run.
+BLOCK_OPEN = "removed-feature-ok-begin:"
+BLOCK_CLOSE = "removed-feature-ok-end:"
 COMMENT = re.compile(r"^\s*(\*|//|/\*)")
+# A wrapped /* ... */ comment continues on lines with no marker of their own, so
+# matching only the first line still flagged prose. Tracked as a block instead.
+BLOCK_COMMENT_OPEN = re.compile(r"/\*(?!.*\*/)")
+BLOCK_COMMENT_CLOSE = re.compile(r"\*/")
 
-matcher = re.compile("|".join(f"({p})" for p in PATTERNS))
+# Case-insensitive throughout: a removed feature reintroduced as `Quarantine`
+# or `Chromebook` is the same feature.
+matcher = re.compile("|".join(f"({p})" for p in PATTERNS), re.IGNORECASE)
 findings = []
 
 for root in SOURCES:
@@ -65,8 +88,21 @@ for root in SOURCES:
         if SKIP_DIRS.intersection(path.parts):
             continue
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        in_block = False
+        in_comment = False
         for number, line in enumerate(lines, 1):
-            if COMMENT.match(line) or not matcher.search(line):
+            if BLOCK_OPEN in line:
+                in_block = True
+            if BLOCK_CLOSE in line:
+                in_block = False
+                continue
+            was_comment = in_comment
+            if in_comment and BLOCK_COMMENT_CLOSE.search(line):
+                in_comment = False
+            elif not in_comment and BLOCK_COMMENT_OPEN.search(line):
+                in_comment = True
+            if (in_block or was_comment or in_comment
+                    or COMMENT.match(line) or not matcher.search(line)):
                 continue
             window = lines[max(0, number - 1 - MARKER_LOOKBACK):number]
             if any(MARKER in candidate for candidate in window):

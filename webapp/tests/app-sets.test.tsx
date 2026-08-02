@@ -34,14 +34,14 @@ describe("server-backed set selection", () => {
     const view = await render(<App />);
     await flushReact();
 
-    expect(document.body.textContent).toContain("Lab Chromebook workflow");
+    expect(document.body.textContent).toContain("Lab bench workflow");
     expect(document.body.textContent).toContain("Workshop desktop workflow");
 
     await setInputValue(
       requiredElement("#set-search", HTMLInputElement),
       "Workshop",
     );
-    expect(document.body.textContent).not.toContain("Lab Chromebook workflow");
+    expect(document.body.textContent).not.toContain("Lab bench workflow");
     expect(document.body.textContent).toContain("Workshop desktop workflow");
     await view.unmount();
   });
@@ -74,7 +74,7 @@ describe("server-backed set selection", () => {
       JSON.stringify({ expectedRevision: settings.revision }),
     );
     expect(document.querySelector(".app-header")?.textContent).toContain(
-      "Lab Chromebook workflow",
+      "Lab bench workflow",
     );
     expect(
       window.localStorage.getItem("esp32-macro-keyboard.recent-set-ids"),

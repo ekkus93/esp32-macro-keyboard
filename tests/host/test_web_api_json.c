@@ -9,7 +9,9 @@
 
 #define SET_ID "11111111-1111-4111-8111-111111111111"
 #define MACRO_ID "22222222-2222-4222-8222-222222222222"
+/* removed-feature-ok: fixture for asserting the field is now rejected */
 #define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
+/* removed-feature-ok: fixture for asserting the field is now rejected */
 #define STEP_ID "44444444-4444-4444-8444-444444444444"
 
 static void test_expected_revision_matrix(void) {
@@ -30,6 +32,7 @@ static void test_expected_revision_matrix(void) {
         "{\"expectedRevision\":7}x",
         "{\"expectedRevision\":",
     };
+    /* removed-feature-ok-end: */
     for (size_t index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); ++index) {
         revision = 99U;
         TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
@@ -199,7 +202,9 @@ static void test_execution_submit_matrix(void) {
     TEST_CHECK_EQ_U64(7U, request.macro_revision);
 
     /* An execution is a macro and a set (SPEC 18); a sourceContext member is
-       now an unknown field and must be rejected. */
+       now an unknown field and must be rejected.
+       removed-feature-ok-begin: every mention below is an input asserted to be
+       rejected, which is how the removal of procedures is proved. */
     const char contextual[] =
         "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"sourceContext\":{\"procedureId\":\"" PROCEDURE_ID

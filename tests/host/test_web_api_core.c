@@ -9,6 +9,7 @@
 
 #define SET_ID "11111111-1111-4111-8111-111111111111"
 #define MACRO_ID "22222222-2222-4222-8222-222222222222"
+/* removed-feature-ok: fixture for asserting the field is now rejected */
 #define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
 #define EXECUTION_ID "44444444-4444-4444-8444-444444444444"
 
@@ -71,12 +72,14 @@ static void test_route_parsing(void) {
     /* removed-feature-ok: asserts the route is gone */
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, web_api_parse_path("/api/v1/global/macros", &path));
     /* Procedures were removed (SPEC §7.1): a set has macros and nothing else,
-       so the procedures subtree must not resolve. */
+       so the procedures subtree must not resolve.
+       removed-feature-ok-begin: the routes named below are asserted absent. */
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
                          web_api_parse_path("/api/v1/sets/" SET_ID "/procedures", &path));
     TEST_CHECK_APP_ERROR(
         APP_ERROR_NOT_FOUND,
         web_api_parse_path("/api/v1/sets/" SET_ID "/procedures/" PROCEDURE_ID, &path));
+    /* removed-feature-ok-end: */
     /* Quarantine was removed (SPEC §13.6); its diagnostics route must not
        resolve either. */
     /* removed-feature-ok: asserts the route is gone */

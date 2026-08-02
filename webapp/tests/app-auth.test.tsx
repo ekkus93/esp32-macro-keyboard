@@ -75,7 +75,7 @@ describe("application authentication", () => {
     expect(loginCall?.method).toBe("POST");
     expect(loginCall?.body).toBe(JSON.stringify({ password: "correct horse" }));
     expect(document.body.textContent).toContain("Choose a macro set");
-    expect(document.body.textContent).toContain("Lab Chromebook workflow");
+    expect(document.body.textContent).toContain("Lab bench workflow");
 
     planJsonResponse({ ok: true, data: {} });
     await apiRequest(
