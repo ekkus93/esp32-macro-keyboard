@@ -53,7 +53,6 @@ static void test_route_parsing(void) {
     check_route("/api/v1/settings/change-password", WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD);
     check_route("/api/v1/device/factory-reset", WEB_API_ROUTE_DEVICE_FACTORY_RESET);
     check_route("/api/v1/diagnostics/storage/check", WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK);
-    check_route("/api/v1/diagnostics/quarantine", WEB_API_ROUTE_DIAGNOSTICS_QUARANTINE);
     check_route("/api/v1/diagnostics", WEB_API_ROUTE_DIAGNOSTICS_FULL);
     check_route("/api/v1/backup", WEB_API_ROUTE_BACKUP);
 
@@ -72,6 +71,10 @@ static void test_route_parsing(void) {
     /* Global macros were removed (SPEC §7.2): every macro is reached through
      * its set, so the old /global tree must not resolve to anything. */
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, web_api_parse_path("/api/v1/global/macros", &path));
+    /* Quarantine was removed (SPEC §13.6); its diagnostics route must not
+       resolve either. */
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
+                         web_api_parse_path("/api/v1/diagnostics/quarantine", &path));
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
                          web_api_parse_path("/api/v1/global/macros/" MACRO_ID, &path));
 }

@@ -26,7 +26,7 @@ static void test_success_envelope(void) {
 static void test_raw_package_response(void) {
     static const char package[] =
         "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":[],\"macros\":[],"
-        "\"global_macros\":[],\"procedures\":[],\"progress\":[]}";
+        "\"procedures\":[],\"progress\":[]}";
     char *owned = malloc(sizeof(package));
     TEST_CHECK(owned != NULL);
     memcpy(owned, package, sizeof(package));

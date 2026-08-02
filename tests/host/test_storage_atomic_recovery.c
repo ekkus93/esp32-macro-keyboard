@@ -126,11 +126,12 @@ static void test_reconcile_decision(void) {
     TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_NOTHING, storage_atomic_reconcile_decide(NULL));
 
     /* Conflicting: more than one temporary or backup, even with a canonical. */
-    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE,
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_DISCARD_ARTIFACTS,
                       decide(false, 2U, true, 0U, false, false));
-    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE,
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_DISCARD_ARTIFACTS,
                       decide(false, 0U, false, 2U, true, false));
-    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE, decide(true, 2U, true, 1U, true, false));
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_DISCARD_ARTIFACTS,
+                      decide(true, 2U, true, 1U, true, false));
 
     /* Canonical present is authoritative; stragglers are cleaned regardless of
      * their validity. */
@@ -149,9 +150,9 @@ static void test_reconcile_decision(void) {
                       decide(false, 1U, true, 1U, true, true));
 
     /* Canonical absent with a corrupt backup: nothing safe to restore. */
-    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE,
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_DISCARD_ARTIFACTS,
                       decide(false, 0U, false, 1U, false, false));
-    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE,
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_DISCARD_ARTIFACTS,
                       decide(false, 1U, true, 1U, false, false));
 
     /* Canonical absent, only a temporary: an interrupted write is rolled back
@@ -164,7 +165,7 @@ static void test_reconcile_decision(void) {
     /* Roll-forward proven: activate a valid temporary, discard a corrupt one. */
     TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_ACTIVATE_TEMPORARY,
                       decide(false, 1U, true, 0U, false, true));
-    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE,
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_DISCARD_ARTIFACTS,
                       decide(false, 1U, false, 0U, false, true));
 }
 

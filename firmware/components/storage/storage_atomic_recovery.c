@@ -134,7 +134,7 @@ storage_atomic_reconcile_decide(const storage_atomic_reconcile_state_t *state) {
     /* More than one temporary or backup for a single destination is two
      * interrupted writes racing: conflicting, discard the artifacts. */
     if (state->temporary_count > 1U || state->backup_count > 1U) {
-        return STORAGE_ATOMIC_RECONCILE_QUARANTINE;
+        return STORAGE_ATOMIC_RECONCILE_DISCARD_ARTIFACTS;
     }
     if (state->canonical_present) {
         /* The canonical file is fully written (the atomic barrier only publishes
@@ -150,7 +150,7 @@ storage_atomic_reconcile_decide(const storage_atomic_reconcile_state_t *state) {
      * the corrupt backup rather than resurrect bad state. */
     if (state->backup_count == 1U) {
         return state->backup_valid ? STORAGE_ATOMIC_RECONCILE_RESTORE_BACKUP
-                                   : STORAGE_ATOMIC_RECONCILE_QUARANTINE;
+                                   : STORAGE_ATOMIC_RECONCILE_DISCARD_ARTIFACTS;
     }
     /* Only a temporary remains. A temporary is by definition an incomplete write
      * (the barrier would have published the canonical name otherwise), so when the
@@ -161,7 +161,7 @@ storage_atomic_reconcile_decide(const storage_atomic_reconcile_state_t *state) {
     if (state->temporary_count == 1U) {
         if (state->roll_forward_proven) {
             return state->temporary_valid ? STORAGE_ATOMIC_RECONCILE_ACTIVATE_TEMPORARY
-                                          : STORAGE_ATOMIC_RECONCILE_QUARANTINE;
+                                          : STORAGE_ATOMIC_RECONCILE_DISCARD_ARTIFACTS;
         }
         return STORAGE_ATOMIC_RECONCILE_DISCARD_TEMPORARY;
     }
@@ -411,7 +411,7 @@ static app_error_code_t execute_reconcile_action(const storage_fs_ops_t *operati
             remove_destination_artifacts(operations, list, destination, true);
         return result == APP_ERROR_NONE ? sync_parent(operations, destination) : result;
     }
-    case STORAGE_ATOMIC_RECONCILE_QUARANTINE:
+    case STORAGE_ATOMIC_RECONCILE_DISCARD_ARTIFACTS:
         return discard_destination_artifacts(operations, list, destination);
     default:
         return APP_ERROR_INTERNAL;

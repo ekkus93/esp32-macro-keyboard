@@ -66,7 +66,7 @@ typedef enum {
     STORAGE_ATOMIC_RECONCILE_RESTORE_BACKUP,     /* rename backup -> canonical; delete temporary */
     STORAGE_ATOMIC_RECONCILE_ACTIVATE_TEMPORARY, /* rename temporary -> canonical; delete backup */
     STORAGE_ATOMIC_RECONCILE_DISCARD_TEMPORARY,  /* delete temporary; canonical stays absent */
-    STORAGE_ATOMIC_RECONCILE_QUARANTINE, /* malformed or conflicting: quarantine artifacts */
+    STORAGE_ATOMIC_RECONCILE_DISCARD_ARTIFACTS, /* malformed or conflicting: delete the artifacts */
 } storage_atomic_reconcile_action_t;
 
 /* The observed on-disk state of one destination and its artifacts. `*_valid` is

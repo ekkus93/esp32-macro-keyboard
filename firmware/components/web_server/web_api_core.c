@@ -223,9 +223,6 @@ static app_error_code_t match_simple_routes(const path_segments_t *segments,
                text_equal(segments->items[1], "storage") &&
                text_equal(segments->items[2], "check")) {
         out_path->route = WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK;
-    } else if (segments->count == 2U && text_equal(segments->items[0], "diagnostics") &&
-               text_equal(segments->items[1], "quarantine")) {
-        out_path->route = WEB_API_ROUTE_DIAGNOSTICS_QUARANTINE;
     } else if (segments->count == 1U && text_equal(segments->items[0], "diagnostics")) {
         out_path->route = WEB_API_ROUTE_DIAGNOSTICS_FULL;
     } else if (segments->count == 1U && text_equal(segments->items[0], "backup")) {
@@ -307,7 +304,6 @@ app_error_code_t web_api_parse_path(const char *uri, web_api_path_t *out_path) {
 bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method) {
     switch (route) {
     case WEB_API_ROUTE_AUTH_SESSION:
-    case WEB_API_ROUTE_DIAGNOSTICS_QUARANTINE:
     case WEB_API_ROUTE_DIAGNOSTICS_FULL:
         return method == WEB_API_METHOD_GET;
     case WEB_API_ROUTE_SETS:

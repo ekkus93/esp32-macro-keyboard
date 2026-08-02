@@ -590,7 +590,7 @@ static void test_concurrency_lock_failures_are_visible(void) {
 }
 
 int main(void) {
-    /* The public set/quarantine/recovery functions serialize behind the repository
+    /* The public set and recovery functions serialize behind the repository
      * mutation lock (FIX1 §9); the default host backend must be initialized before
      * any of them is exercised. */
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());

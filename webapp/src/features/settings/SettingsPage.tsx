@@ -241,7 +241,7 @@ export function SettingsPage({
         </article>
         <article className="validation-card">
           <h3>Diagnostics</h3>
-          <p>Inspect live mount health and redacted quarantine records.</p>
+          <p>Inspect live mount health.</p>
           <button
             onClick={() => {
               navigate("diagnostics");
