@@ -2667,15 +2667,58 @@ them to match every other script in `scripts/`.
 
 Run and record Linux and ChromeOS:
 
-- [ ] enumeration;
-- [ ] disconnect/reconnect;
-- [ ] suspend/resume;
-- [ ] printable text;
-- [ ] chords;
-- [ ] delay cancellation;
-- [ ] rapid typing cancellation;
-- [ ] disconnect during execution;
-- [ ] release-all observation.
+- [ ] enumeration; **Linux: done. ChromeOS: not run.**
+- [ ] disconnect/reconnect; (needs physical cable manipulation)
+- [ ] suspend/resume; (needs host suspend)
+- [ ] printable text; **Linux: done. ChromeOS: not run.**
+- [ ] chords; **Linux: done. ChromeOS: not run.**
+- [ ] delay cancellation; **Linux: done. ChromeOS: not run.**
+- [ ] rapid typing cancellation; **Linux: done. ChromeOS: not run.**
+- [ ] disconnect during execution; (needs physical cable manipulation)
+- [ ] release-all observation. **Linux: done. ChromeOS: not run.**
+
+Every checkbox stays open because each requires **both** Linux and ChromeOS.
+Six of the nine now have real Linux evidence; no ChromeOS host has been
+involved at any point, and three items need physical cable/host manipulation
+nobody has performed. The Linux results, on the attached ESP32-S3 (device
+`9C139EA87739`), are:
+
+- **enumeration**: the native USB port enumerates as `303a:4001`
+  "ESP32 Macro Keyboard", which the kernel binds as `USB HID v1.11 Keyboard`
+  and exposes at
+  `/dev/input/by-id/usb-ESP32_Macro_Keyboard_Project_..._-event-kbd`. Two
+  prerequisites had to be fixed first: `CONFIG_ESP_MAIN_TASK_STACK_SIZE`
+  (the device boot-looped once provisioned) and the USB-Serial-JTAG console,
+  which held the shared USB PHY and silently prevented TinyUSB from
+  enumerating at all.
+- **printable text**: `hello world` submitted through
+  `POST /api/v1/executions` produced exactly `hello world` when the raw HID
+  reports from `/dev/hidraw*` were decoded - not a screen-scrape of a text
+  editor, the actual 8-byte boot-protocol reports.
+- **chords**: `{CTRL+A}` produced a single report carrying modifier bit
+  `0x01` concurrently with usage `0x04`, i.e. a real chord rather than two
+  sequential keystrokes.
+- **delay cancellation**: `ab{DELAY:3000}cd` cancelled 1.2 s into the delay
+  typed exactly `ab` and never `cd`, reached terminal state `cancelled`
+  (not `completed`), and emitted its last keystroke 118 ms after the cancel
+  request was sent.
+- **rapid typing cancellation**: a 62-character macro at 5 ms press /
+  5 ms inter-key, cancelled 250 ms in, typed the strict prefix
+  `the quick brown`, reached `cancelled`, and emitted its last keystroke
+  50 ms after the cancel request.
+- **release-all observation**: every run above ended with an all-zero HID
+  report (no modifiers, no usages held), which is the direct evidence that
+  no key remained pressed after completion or cancellation.
+
+Method: keystrokes are read from the kernel's `hidraw` node for this
+device's VID/PID and decoded as boot-protocol reports, so the evidence is
+what the device actually put on the wire. `scripts/install-hid-udev-rule.sh`
+grants that read access, scoped to `303a:4001`. Executions were submitted
+over the device's real HTTP API while it was joined to a normal Wi-Fi
+network via the `wifi-connect` serial-console command.
+
+Not evidence of ChromeOS behaviour, and not evidence for the three
+physical-manipulation items.
 
 ### 20.3 SoftAP/browser integration
 
