@@ -269,14 +269,20 @@ static app_error_code_t write_macros(const char *staging, const cJSON *array,
                                      const app_uuid_t *set_id) {
     char directory[APP_PATH_MAX_BYTES];
     app_error_code_t result = join_path(staging, "macros", directory, sizeof(directory));
-    storage_uuid_order_t order = {0};
+    /* storage_uuid_order_t is ~4 KB; keep it off the task stack. */
+    storage_uuid_order_t *order = calloc(1U, sizeof(*order));
+    if (order == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
     const int count = cJSON_GetArraySize(array);
     for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
-        result = write_macro_node(directory, cJSON_GetArrayItem(array, index), set_id, &order);
+        result = write_macro_node(directory, cJSON_GetArrayItem(array, index), set_id, order);
     }
-    return result == APP_ERROR_NONE
-               ? write_order(staging, "macro-order.json", &order, APP_MACROS_PER_SET_MAX)
-               : result;
+    if (result == APP_ERROR_NONE) {
+        result = write_order(staging, "macro-order.json", order, APP_MACROS_PER_SET_MAX);
+    }
+    free(order);
+    return result;
 }
 
 static app_error_code_t write_procedure_node(const char *directory, const cJSON *node,
@@ -316,32 +322,43 @@ static app_error_code_t write_procedures(const char *staging, const cJSON *array
                                          const app_uuid_t *set_id) {
     char directory[APP_PATH_MAX_BYTES];
     app_error_code_t result = join_path(staging, "procedures", directory, sizeof(directory));
-    storage_uuid_order_t order = {0};
+    /* storage_uuid_order_t is ~4 KB; keep it off the task stack. */
+    storage_uuid_order_t *order = calloc(1U, sizeof(*order));
+    if (order == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
     const int count = cJSON_GetArraySize(array);
     for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
-        result = write_procedure_node(directory, cJSON_GetArrayItem(array, index), set_id, &order);
+        result = write_procedure_node(directory, cJSON_GetArrayItem(array, index), set_id, order);
     }
-    return result == APP_ERROR_NONE
-               ? write_order(staging, "procedure-order.json", &order, APP_PROCEDURES_PER_SET_MAX)
-               : result;
+    if (result == APP_ERROR_NONE) {
+        result = write_order(staging, "procedure-order.json", order, APP_PROCEDURES_PER_SET_MAX);
+    }
+    free(order);
+    return result;
 }
 
 static app_error_code_t write_progress_node(const char *directory, const cJSON *node,
                                             const app_uuid_t *set_id) {
-    procedure_progress_t progress = {0};
-    app_error_code_t result = parse_progress_node(node, &progress);
-    if (result == APP_ERROR_NONE && !app_uuid_equal(&progress.set_id, set_id)) {
+    /* procedure_progress_t is ~16 KB (two app_uuid_t[APP_STEPS_PER_PROCEDURE_MAX]
+     * arrays) and this runs on a task stack of a few KiB. */
+    procedure_progress_t *progress = calloc(1U, sizeof(*progress));
+    if (progress == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
+    app_error_code_t result = parse_progress_node(node, progress);
+    if (result == APP_ERROR_NONE && !app_uuid_equal(&progress->set_id, set_id)) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
     char *json = NULL;
     size_t length = 0U;
     if (result == APP_ERROR_NONE) {
-        result = storage_repository_serialize_progress_json(&progress, &json, &length);
+        result = storage_repository_serialize_progress_json(progress, &json, &length);
     }
     char name[APP_UUID_STRING_LENGTH + sizeof(PACKAGE_JSON_SUFFIX)];
     char path[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
-        const int written = snprintf(name, sizeof(name), "%s.json", progress.procedure_id.value);
+        const int written = snprintf(name, sizeof(name), "%s.json", progress->procedure_id.value);
         result = written >= 0 && (size_t)written < sizeof(name)
                      ? join_path(directory, name, path, sizeof(path))
                      : APP_ERROR_INVALID_ARGUMENT;
@@ -350,6 +367,7 @@ static app_error_code_t write_progress_node(const char *directory, const cJSON *
         result = write_json_file(path, json, length);
     }
     cJSON_free(json);
+    free(progress);
     return result;
 }
 

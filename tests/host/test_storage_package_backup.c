@@ -203,20 +203,14 @@ static fake_backup_context_t valid_context(void) {
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid(SET_A_ID),
         .revision = 1U,
-        .sort_order = 0,
     };
     context.sets.items[1] = (macro_set_t){
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid(SET_B_ID),
         .revision = 2U,
-        .sort_order = 1,
     };
     snprintf(context.sets.items[0].name, sizeof(context.sets.items[0].name), "Set A");
     snprintf(context.sets.items[1].name, sizeof(context.sets.items[1].name), "Set B");
-    snprintf(context.sets.items[0].keyboard_layout, sizeof(context.sets.items[0].keyboard_layout),
-             "en-US");
-    snprintf(context.sets.items[1].keyboard_layout, sizeof(context.sets.items[1].keyboard_layout),
-             "en-US");
 
     local_a[0] = make_macro(LOCAL_A_ID, &context.sets.items[0].id, "Local A", local_a_source);
     local_b[0] = make_macro(LOCAL_B_ID, &context.sets.items[1].id, "Local B", local_b_source);
@@ -246,7 +240,6 @@ static fake_backup_context_t valid_context(void) {
         .set_id = context.sets.items[0].id,
         .steps = &steps[0],
         .step_count = 1U,
-        .sort_order = 0,
     };
     procedures_b[0] = (procedure_t){
         .schema_version = APP_SCHEMA_VERSION,
@@ -255,7 +248,6 @@ static fake_backup_context_t valid_context(void) {
         .set_id = context.sets.items[1].id,
         .steps = &steps[1],
         .step_count = 1U,
-        .sort_order = 0,
     };
     snprintf(procedures_a[0].name, sizeof(procedures_a[0].name), "Procedure A");
     snprintf(procedures_b[0].name, sizeof(procedures_b[0].name), "Procedure B");

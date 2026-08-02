@@ -32,25 +32,18 @@ interface SetFieldErrors {
   name?: string;
 }
 
+/* The device returns sets in index order (SPEC 12.3), which is the user's
+   order; the UI must preserve it rather than impose one of its own. */
 function sortedSets(sets: readonly MacroSet[]): MacroSet[] {
-  return [...sets].sort(
-    (left, right) =>
-      left.sort_order - right.sort_order || left.name.localeCompare(right.name),
-  );
+  return [...sets];
 }
 
-function newSet(sortOrder: number): MacroSet {
+function newSet(): MacroSet {
   return {
     schema_version: 1,
     id: crypto.randomUUID(),
     revision: 1,
     name: "",
-    description: "",
-    manufacturer: "",
-    model: "",
-    board: "",
-    keyboard_layout: "en-US",
-    sort_order: sortOrder,
   };
 }
 
@@ -61,22 +54,6 @@ function validateSet(set: MacroSet): SetFieldErrors {
     errors.name = "Name is required.";
   } else if (nameBytes > limits.setNameBytes) {
     errors.name = `Name exceeds ${String(limits.setNameBytes)} UTF-8 bytes.`;
-  }
-  if (utf8ByteLength(set.description) > limits.descriptionBytes) {
-    errors.description = `Description exceeds ${String(
-      limits.descriptionBytes,
-    )} UTF-8 bytes.`;
-  }
-  if (utf8ByteLength(set.manufacturer) > limits.manufacturerBytes) {
-    errors.manufacturer = `Manufacturer exceeds ${String(
-      limits.manufacturerBytes,
-    )} UTF-8 bytes.`;
-  }
-  if (utf8ByteLength(set.model) > limits.modelBytes) {
-    errors.model = `Model exceeds ${String(limits.modelBytes)} UTF-8 bytes.`;
-  }
-  if (utf8ByteLength(set.board) > limits.boardBytes) {
-    errors.board = `Board exceeds ${String(limits.boardBytes)} UTF-8 bytes.`;
   }
   return errors;
 }
@@ -310,7 +287,7 @@ export function SetManagementPage({
           onClick={() => {
             setMessage(null);
             setError(null);
-            setEditor({ mode: "create", set: newSet(ordered.length) });
+            setEditor({ mode: "create", set: newSet() });
           }}
           type="button"
         >
@@ -348,7 +325,6 @@ export function SetManagementPage({
                       </span>
                     ) : null}
                   </div>
-                  <p>{set.description || "No description"}</p>
                   <dl className="metadata">
                     <dt>Position</dt>
                     <dd>
@@ -356,12 +332,6 @@ export function SetManagementPage({
                     </dd>
                     <dt>Revision</dt>
                     <dd>{String(set.revision)}</dd>
-                    <dt>Device</dt>
-                    <dd>
-                      {[set.manufacturer, set.model, set.board]
-                        .filter((value) => value.length > 0)
-                        .join(" · ") || "Not specified"}
-                    </dd>
                   </dl>
                 </div>
 
@@ -490,46 +460,6 @@ export function SetManagementPage({
                 updateEditor("name", value);
               }}
               value={editor.set.name}
-            />
-            <TextField
-              error={editorErrors.description}
-              id="set-description"
-              label="Description"
-              maximumBytes={limits.descriptionBytes}
-              onChange={(value) => {
-                updateEditor("description", value);
-              }}
-              value={editor.set.description}
-            />
-            <TextField
-              error={editorErrors.manufacturer}
-              id="set-manufacturer"
-              label="Manufacturer"
-              maximumBytes={limits.manufacturerBytes}
-              onChange={(value) => {
-                updateEditor("manufacturer", value);
-              }}
-              value={editor.set.manufacturer}
-            />
-            <TextField
-              error={editorErrors.model}
-              id="set-model"
-              label="Model"
-              maximumBytes={limits.modelBytes}
-              onChange={(value) => {
-                updateEditor("model", value);
-              }}
-              value={editor.set.model}
-            />
-            <TextField
-              error={editorErrors.board}
-              id="set-board"
-              label="Board"
-              maximumBytes={limits.boardBytes}
-              onChange={(value) => {
-                updateEditor("board", value);
-              }}
-              value={editor.set.board}
             />
             <ErrorBanner message={error} />
             <div className="form-actions">

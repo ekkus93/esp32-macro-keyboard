@@ -15,19 +15,12 @@ const firstSet = {
   id: setId,
   revision: 2,
   name: "Lab Chromebook workflow",
-  description: "ChromeOS conversion and Debian installation",
-  manufacturer: "Example",
-  model: "Model 14",
-  board: "board-14",
-  keyboard_layout: "en-US",
-  sort_order: 0,
 };
 const secondSet = {
   ...firstSet,
   id: secondSetId,
   revision: 3,
   name: "Second workflow",
-  sort_order: 1,
 };
 const macro = {
   schema_version: 1,
@@ -167,13 +160,13 @@ async function startApplicationServer() {
             "Browser reorder request did not contain the complete ID order.",
           );
           state.lastOrder = [...body.ids];
-          state.sets = body.ids.map((id, index) => {
+          state.sets = body.ids.map((id) => {
             const found = state.sets.find((set) => set.id === id);
             assert(
               found !== undefined,
               `Unknown reordered set ID: ${String(id)}`,
             );
-            return { ...found, sort_order: index };
+            return found;
           });
           sendJson(response, 200, { ok: true, data: state.sets });
           return;

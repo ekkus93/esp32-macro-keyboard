@@ -47,17 +47,13 @@ export interface Settings {
   activeSetId: string | null;
 }
 
+/* A set is a name and an ordered list of macros (SPEC 12.1). Set order lives
+   in the index and is the order the API returns them in. */
 export interface MacroSet {
   schema_version: 1;
   id: string;
   revision: number;
   name: string;
-  description: string;
-  manufacturer: string;
-  model: string;
-  board: string;
-  keyboard_layout: "en-US";
-  sort_order: number;
 }
 
 export interface SetDeletion {

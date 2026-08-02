@@ -142,8 +142,10 @@ app_error_code_t web_api_json_parse_set_resource(const char *body, size_t body_l
         return APP_ERROR_INVALID_ARGUMENT;
     }
     static const char *const fields[] = {
-        "schema_version", "id",    "revision",        "name",       "description", "manufacturer",
-        "model",          "board", "keyboard_layout", "sort_order",
+        "schema_version",
+        "id",
+        "revision",
+        "name",
     };
     app_error_code_t result =
         validate_resource_fields(body, body_length, fields, sizeof(fields) / sizeof(fields[0]));

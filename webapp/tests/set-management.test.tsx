@@ -21,7 +21,6 @@ const secondSet: MacroSet = {
   id: secondSetId,
   revision: 3,
   name: "Second workflow",
-  sort_order: 1,
 };
 
 function success(data: unknown): object {
@@ -40,12 +39,7 @@ describe("set management", () => {
   test("offers keyboard reorder alternatives and commits exact order", async () => {
     setCsrfToken("csrf-reorder");
     const onSetsChanged = vi.fn<(sets: MacroSet[]) => void>();
-    planJsonResponse(
-      success([
-        { ...secondSet, sort_order: 0 },
-        { ...macroSet, sort_order: 1 },
-      ]),
-    );
+    planJsonResponse(success([secondSet, macroSet]));
     const view = await render(
       <SetManagementPage
         onSetsChanged={onSetsChanged}
@@ -66,10 +60,7 @@ describe("set management", () => {
 
     expect(getFetchCalls()[0]?.url).toBe("/api/v1/sets/order");
     expect(jsonBody(0)).toEqual({ ids: [secondSetId, setId] });
-    expect(onSetsChanged).toHaveBeenCalledWith([
-      { ...secondSet, sort_order: 0 },
-      { ...macroSet, sort_order: 1 },
-    ]);
+    expect(onSetsChanged).toHaveBeenCalledWith([secondSet, macroSet]);
     expect(document.body.textContent).toContain(
       `Moved ${macroSet.name} to position 2.`,
     );
@@ -143,12 +134,6 @@ describe("set management", () => {
       id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       revision: 1,
       name: "New Chromebook workflow",
-      description: "",
-      manufacturer: "",
-      model: "",
-      board: "",
-      keyboard_layout: "en-US",
-      sort_order: 1,
     };
     planJsonResponse(success(created), 201);
     await submit(requiredElement('[role="dialog"] form', HTMLFormElement));
@@ -159,8 +144,6 @@ describe("set management", () => {
     expect(jsonBody(0)).toMatchObject({
       revision: 1,
       name: "New Chromebook workflow",
-      keyboard_layout: "en-US",
-      sort_order: 1,
     });
     expect(onSetsChanged).toHaveBeenCalledWith([macroSet, created]);
     expect(document.body.textContent).toContain(

@@ -27,9 +27,7 @@
 
 static const char SET_INDEX_JSON[] = "{\"schema_version\":1,\"ids\":[\"" SET_ID "\"]}";
 static const char SET_JSON[] =
-    "{\"schema_version\":1,\"id\":\"" SET_ID
-    "\",\"revision\":7,\"name\":\"Set\",\"description\":\"\",\"manufacturer\":\"\","
-    "\"model\":\"\",\"board\":\"\",\"keyboard_layout\":\"en-US\",\"sort_order\":0}";
+    "{\"schema_version\":1,\"id\":\"" SET_ID "\",\"revision\":7,\"name\":\"Set\"}";
 static const char LOCAL_MACRO_JSON[] =
     "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
     "\",\"revision\":1,\"name\":\"Local\",\"source\":\"a\","

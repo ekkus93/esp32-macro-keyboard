@@ -80,10 +80,8 @@ static macro_set_t make_set(void) {
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid(SET_ID),
         .revision = 1U,
-        .sort_order = 0,
     };
     TEST_CHECK(snprintf(set.name, sizeof(set.name), "Export Set") > 0);
-    TEST_CHECK(snprintf(set.keyboard_layout, sizeof(set.keyboard_layout), "en-US") > 0);
     return set;
 }
 
@@ -115,7 +113,6 @@ static procedure_t make_procedure(const app_uuid_t *set_id) {
         .revision = 1U,
         .set_id = *set_id,
         .step_count = 2U,
-        .sort_order = 0,
     };
     TEST_CHECK(snprintf(procedure.name, sizeof(procedure.name), "Export Procedure") > 0);
     procedure.steps = calloc(procedure.step_count, sizeof(*procedure.steps));

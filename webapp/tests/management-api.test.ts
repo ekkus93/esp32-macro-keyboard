@@ -25,7 +25,6 @@ const secondSet = {
   id: secondSetId,
   revision: 1,
   name: "Second set",
-  sort_order: 1,
 };
 
 function success(data: unknown): object {
@@ -46,7 +45,7 @@ describe("management API contracts", () => {
     planJsonResponse(success(macroSet), 201);
     planJsonResponse(success({ ...macroSet, revision: 3 }));
     planJsonResponse(success(secondSet), 201);
-    planJsonResponse(success([secondSet, { ...macroSet, sort_order: 1 }]));
+    planJsonResponse(success([secondSet, macroSet]));
     planJsonResponse(success({ deleted: true, id: secondSetId }));
 
     await createSet(macroSet);

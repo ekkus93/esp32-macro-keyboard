@@ -30,9 +30,7 @@ function recordRecentSet(setId: string): void {
 }
 
 function searchableText(set: MacroSet): string {
-  return [set.name, set.description, set.manufacturer, set.model, set.board]
-    .join(" ")
-    .toLocaleLowerCase();
+  return set.name.toLocaleLowerCase();
 }
 
 interface SetSelectionPageProps {
@@ -72,7 +70,8 @@ export function SetSelectionPage({
             (rightRecent ?? Number.MAX_SAFE_INTEGER)
           );
         }
-        return left.sort_order - right.sort_order;
+        /* The device returns sets in index order (SPEC 12.3); preserve it. */
+        return 0;
       });
   }, [query, recentIds, sets]);
 
@@ -132,14 +131,7 @@ export function SetSelectionPage({
                       </span>
                     ) : null}
                   </div>
-                  <p>{set.description || "No description"}</p>
                   <dl className="metadata">
-                    <dt>Manufacturer</dt>
-                    <dd>{set.manufacturer || "Not specified"}</dd>
-                    <dt>Model</dt>
-                    <dd>{set.model || "Not specified"}</dd>
-                    <dt>Board</dt>
-                    <dd>{set.board || "Not specified"}</dd>
                     <dt>Revision</dt>
                     <dd>{String(set.revision)}</dd>
                   </dl>

@@ -15,16 +15,10 @@
 #define STEP_ID "44444444-4444-4444-8444-444444444444"
 #define OTHER_STEP_ID "45454545-4545-4545-8545-454545454545"
 
-#define SET_OBJECT                                                                                 \
-    "{\"schema_version\":1,\"id\":\"" SET_ID                                                       \
-    "\",\"revision\":1,\"name\":\"Set\",\"description\":\"\",\"manufacturer\":\"\","               \
-    "\"model\":\"\",\"board\":\"\",\"keyboard_layout\":\"en-US\",\"sort_order\":0}"
+#define SET_OBJECT "{\"schema_version\":1,\"id\":\"" SET_ID "\",\"revision\":1,\"name\":\"Set\"}"
 
 #define OTHER_SET_OBJECT                                                                           \
-    "{\"schema_version\":1,\"id\":\"" OTHER_SET_ID                                                 \
-    "\",\"revision\":1,\"name\":\"Other\",\"description\":\"\",\"manufacturer\":"                  \
-    "\"\",\"model\":\"\",\"board\":\"\",\"keyboard_layout\":\"en-US\","                            \
-    "\"sort_order\":1}"
+    "{\"schema_version\":1,\"id\":\"" OTHER_SET_ID "\",\"revision\":1,\"name\":\"Other\"}"
 
 #define LOCAL_MACRO_OBJECT                                                                         \
     "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID                                               \
@@ -110,11 +104,9 @@ static void test_top_level_contract(void) {
 }
 
 static void test_object_and_reference_validation(void) {
-    const char unknown_set_field[] = PACKAGE_PREFIX(
-        "set") "{\"schema_version\":1,\"id\":\"" SET_ID
-               "\",\"revision\":1,\"name\":\"Set\",\"description\":\"\",\"manufacturer\":\"\","
-               "\"model\":\"\",\"board\":\"\",\"keyboard_layout\":\"en-US\",\"sort_order\":0,"
-               "\"future\":true}" PACKAGE_SUFFIX;
+    const char unknown_set_field[] = PACKAGE_PREFIX("set") "{\"schema_version\":1,\"id\":\"" SET_ID
+                                                           "\",\"revision\":1,\"name\":\"Set\",,"
+                                                           "\"future\":true}" PACKAGE_SUFFIX;
     const char duplicate_set[] = PACKAGE_PREFIX("backup") SET_OBJECT "," SET_OBJECT PACKAGE_SUFFIX;
     const char wrong_set_count[] =
         PACKAGE_PREFIX("set") SET_OBJECT "," OTHER_SET_OBJECT PACKAGE_SUFFIX;

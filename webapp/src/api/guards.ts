@@ -170,18 +170,7 @@ export function isSettings(value: unknown): value is Settings {
 export function isMacroSet(value: unknown): value is MacroSet {
   if (
     !isRecord(value) ||
-    !hasExactKeys(value, [
-      "schema_version",
-      "id",
-      "revision",
-      "name",
-      "description",
-      "manufacturer",
-      "model",
-      "board",
-      "keyboard_layout",
-      "sort_order",
-    ])
+    !hasExactKeys(value, ["schema_version", "id", "revision", "name"])
   ) {
     return false;
   }
@@ -190,13 +179,7 @@ export function isMacroSet(value: unknown): value is MacroSet {
     isUuid(value.id) &&
     isPositiveInteger(value.revision) &&
     typeof value.name === "string" &&
-    value.name.length > 0 &&
-    typeof value.description === "string" &&
-    typeof value.manufacturer === "string" &&
-    typeof value.model === "string" &&
-    typeof value.board === "string" &&
-    value.keyboard_layout === "en-US" &&
-    isNonNegativeInteger(value.sort_order)
+    value.name.length > 0
   );
 }
 

@@ -475,7 +475,6 @@ static app_error_code_t import_locked(const app_uuid_t *new_set_id,
     if (result == APP_ERROR_NONE) {
         new_set.id = *new_set_id;
         new_set.revision = 1U;
-        new_set.sort_order = (int32_t)index.count;
     }
     const package_import_rewrite_t rewrite = {
         .source_set_id = &document->source_set.id,

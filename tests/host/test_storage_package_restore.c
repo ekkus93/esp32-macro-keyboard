@@ -31,9 +31,7 @@
 static const char BACKUP_PACKAGE[] =
     "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":[{"
     "\"schema_version\":1,\"id\":\"" SET_ID
-    "\",\"revision\":7,\"name\":\"Restored\",\"description\":\"\","
-    "\"manufacturer\":\"\",\"model\":\"\",\"board\":\"\","
-    "\"keyboard_layout\":\"en-US\",\"sort_order\":0}],\"macros\":[{"
+    "\",\"revision\":7,\"name\":\"Restored\"}],\"macros\":[{"
     "\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID "\",\"revision\":1,\"name\":\"Local\","
     "\"source\":\"a\",\"favorite\":false,\"key_press_ms\":8,"
     "\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}],\"procedures\":[{\"schema_version\":1,"

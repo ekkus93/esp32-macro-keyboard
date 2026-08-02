@@ -182,10 +182,8 @@ static fake_export_context_t valid_context(void) {
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid(SET_ID),
         .revision = 1U,
-        .sort_order = 0,
     };
     snprintf(context.set.name, sizeof(context.set.name), "Set");
-    snprintf(context.set.keyboard_layout, sizeof(context.set.keyboard_layout), "en-US");
 
     const app_uuid_t other_set_id = uuid(OTHER_SET_ID);
     local_macros[0] = make_macro(LOCAL_ID, &context.set.id, "Local", local_source);
@@ -211,7 +209,6 @@ static fake_export_context_t valid_context(void) {
         .set_id = context.set.id,
         .steps = steps,
         .step_count = 1U,
-        .sort_order = 0,
     };
     snprintf(procedures[0].name, sizeof(procedures[0].name), "Procedure");
     context.procedures = procedures;
@@ -401,7 +398,6 @@ static void test_output_limit_is_enforced(void) {
             .set_id = context.set.id,
             .steps = slice,
             .step_count = APP_STEPS_PER_PROCEDURE_MAX,
-            .sort_order = (int32_t)index,
         };
         snprintf(procedures[index].name, sizeof(procedures[index].name), "Procedure %zu", index);
     }

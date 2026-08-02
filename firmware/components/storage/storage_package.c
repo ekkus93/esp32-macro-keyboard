@@ -906,8 +906,10 @@ static app_error_code_t external_object_result(app_error_code_t result) {
 
 static app_error_code_t parse_exact_set(const json_span_t *object, macro_set_t *out_set) {
     static const char *const fields[] = {
-        "schema_version", "id",    "revision",        "name",       "description", "manufacturer",
-        "model",          "board", "keyboard_layout", "sort_order",
+        "schema_version",
+        "id",
+        "revision",
+        "name",
     };
     cJSON *root = NULL;
     app_error_code_t result = storage_json_parse_exact_object(

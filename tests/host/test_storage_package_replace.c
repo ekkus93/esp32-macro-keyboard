@@ -30,9 +30,7 @@
 static const char PACKAGE[] =
     "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":["
     "{\"schema_version\":1,\"id\":\"" SET_ID
-    "\",\"revision\":7,\"name\":\"Replacement\",\"description\":\"new\","
-    "\"manufacturer\":\"Vendor\",\"model\":\"Model\",\"board\":\"Board\","
-    "\"keyboard_layout\":\"en-US\",\"sort_order\":0}],\"macros\":["
+    "\",\"revision\":7,\"name\":\"Replacement\"}],\"macros\":["
     "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
     "\",\"revision\":4,\"name\":\"Local\",\"source\":\"a\","
     "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID
@@ -99,10 +97,8 @@ static void create_current_set(void) {
         .schema_version = APP_SCHEMA_VERSION,
         .id = id,
         .revision = 3U,
-        .sort_order = 0,
     };
     memcpy(set.name, "Current", sizeof("Current"));
-    memcpy(set.keyboard_layout, "en-US", sizeof("en-US"));
     char set_path[APP_PATH_MAX_BYTES];
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_make_set_path(&id, set_path, sizeof(set_path)));
     make_directory(set_path);

@@ -311,7 +311,6 @@ static app_error_code_t storage_set_duplicate_locked(const app_uuid_t *source_id
     if (result == APP_ERROR_NONE) {
         duplicate.id = *duplicate_id;
         duplicate.revision = 1U;
-        duplicate.sort_order = (int32_t)index.count;
         result =
             copy_text(duplicate.name, sizeof(duplicate.name), duplicate_name, APP_NAME_MAX_BYTES);
     }

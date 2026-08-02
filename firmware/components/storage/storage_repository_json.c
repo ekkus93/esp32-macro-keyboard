@@ -38,17 +38,6 @@ static app_error_code_t checked_json_u32(const cJSON *object, const char *name, 
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t parse_sort_order(const cJSON *root, int32_t *out_sort_order) {
-    const cJSON *sort_order = cJSON_GetObjectItemCaseSensitive(root, "sort_order");
-    if (!cJSON_IsNumber(sort_order) || sort_order->valuedouble < (double)INT32_MIN ||
-        sort_order->valuedouble > (double)INT32_MAX ||
-        sort_order->valuedouble != (double)(int32_t)sort_order->valuedouble) {
-        return APP_ERROR_STORAGE_CORRUPT;
-    }
-    *out_sort_order = (int32_t)sort_order->valuedouble;
-    return APP_ERROR_NONE;
-}
-
 static app_error_code_t parse_set_fields(const cJSON *root, macro_set_t *out_set) {
     app_error_code_t result =
         checked_json_u32(root, "schema_version", 1U, &out_set->schema_version);
@@ -70,30 +59,6 @@ static app_error_code_t parse_set_fields(const cJSON *root, macro_set_t *out_set
     }
     if (result == APP_ERROR_NONE) {
         result = checked_json_string(root, "name", out_set->name, sizeof(out_set->name), true);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = checked_json_string(root, "description", out_set->description,
-                                     sizeof(out_set->description), false);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = checked_json_string(root, "manufacturer", out_set->manufacturer,
-                                     sizeof(out_set->manufacturer), false);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = checked_json_string(root, "model", out_set->model, sizeof(out_set->model), false);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = checked_json_string(root, "board", out_set->board, sizeof(out_set->board), false);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = checked_json_string(root, "keyboard_layout", out_set->keyboard_layout,
-                                     sizeof(out_set->keyboard_layout), true);
-        if (result == APP_ERROR_NONE && strcmp(out_set->keyboard_layout, "en-US") != 0) {
-            result = APP_ERROR_STORAGE_CORRUPT;
-        }
-    }
-    if (result == APP_ERROR_NONE) {
-        result = parse_sort_order(root, &out_set->sort_order);
     }
     return result;
 }
@@ -124,8 +89,7 @@ app_error_code_t storage_repository_serialize_set_json(const macro_set_t *set, c
                                                        size_t *out_length) {
     if (set == NULL || out_json == NULL || out_length == NULL ||
         set->schema_version != APP_SCHEMA_VERSION || set->revision == 0U ||
-        !app_uuid_is_valid_string(set->id.value) || set->name[0] == '\0' ||
-        strcmp(set->keyboard_layout, "en-US") != 0) {
+        !app_uuid_is_valid_string(set->id.value) || set->name[0] == '\0') {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     *out_json = NULL;
@@ -136,13 +100,7 @@ app_error_code_t storage_repository_serialize_set_json(const macro_set_t *set, c
         cJSON_AddNumberToObject(root, "schema_version", (double)set->schema_version) == NULL ||
         cJSON_AddStringToObject(root, "id", set->id.value) == NULL ||
         cJSON_AddNumberToObject(root, "revision", (double)set->revision) == NULL ||
-        cJSON_AddStringToObject(root, "name", set->name) == NULL ||
-        cJSON_AddStringToObject(root, "description", set->description) == NULL ||
-        cJSON_AddStringToObject(root, "manufacturer", set->manufacturer) == NULL ||
-        cJSON_AddStringToObject(root, "model", set->model) == NULL ||
-        cJSON_AddStringToObject(root, "board", set->board) == NULL ||
-        cJSON_AddStringToObject(root, "keyboard_layout", set->keyboard_layout) == NULL ||
-        cJSON_AddNumberToObject(root, "sort_order", (double)set->sort_order) == NULL) {
+        cJSON_AddStringToObject(root, "name", set->name) == NULL) {
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;
     }

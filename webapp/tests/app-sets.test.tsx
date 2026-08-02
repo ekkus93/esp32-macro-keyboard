@@ -22,11 +22,6 @@ const secondSet = {
   ...macroSet,
   id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   name: "Workshop desktop workflow",
-  description: "Desktop imaging",
-  manufacturer: "Other",
-  model: "Desktop 2",
-  board: "desktop-board",
-  sort_order: 1,
 };
 
 describe("server-backed set selection", () => {
@@ -40,12 +35,11 @@ describe("server-backed set selection", () => {
     await flushReact();
 
     expect(document.body.textContent).toContain("Lab Chromebook workflow");
-    expect(document.body.textContent).toContain("board-14");
     expect(document.body.textContent).toContain("Workshop desktop workflow");
 
     await setInputValue(
       requiredElement("#set-search", HTMLInputElement),
-      "desktop-board",
+      "Workshop",
     );
     expect(document.body.textContent).not.toContain("Lab Chromebook workflow");
     expect(document.body.textContent).toContain("Workshop desktop workflow");

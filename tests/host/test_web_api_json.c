@@ -94,10 +94,8 @@ static void test_resource_mutation_matrix(void) {
 }
 
 static void test_resource_request_boundary(void) {
-    const char valid_set[] = "{\"schema_version\":1,\"id\":\"" SET_ID
-                             "\",\"revision\":1,\"name\":\"Set\",\"description\":\"\","
-                             "\"manufacturer\":\"\",\"model\":\"\",\"board\":\"\","
-                             "\"keyboard_layout\":\"en-US\",\"sort_order\":0}";
+    const char valid_set[] =
+        "{\"schema_version\":1,\"id\":\"" SET_ID "\",\"revision\":1,\"name\":\"Set\"}";
     macro_set_t set = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_api_json_parse_set_resource(valid_set, sizeof(valid_set) - 1U, &set));
@@ -138,13 +136,9 @@ static void test_resource_request_boundary(void) {
     static const char *const invalid_sets[] = {
         "{}",
         "{\"schema_version\":1,\"id\":\"" SET_ID
-        "\",\"revision\":1,\"name\":\"Set\",\"description\":\"\","
-        "\"manufacturer\":\"\",\"model\":\"\",\"board\":\"\","
-        "\"keyboard_layout\":\"en-US\",\"sort_order\":0,\"extra\":true}",
+        "\",\"revision\":1,\"name\":\"Set\",,\"extra\":true}",
         "{\"schema_version\":1,\"schema_version\":1,\"id\":\"" SET_ID
-        "\",\"revision\":1,\"name\":\"Set\",\"description\":\"\","
-        "\"manufacturer\":\"\",\"model\":\"\",\"board\":\"\","
-        "\"keyboard_layout\":\"en-US\",\"sort_order\":0}",
+        "\",\"revision\":1,\"name\":\"Set\"}",
         "{\"schema_version\":1}x",
         "{",
     };

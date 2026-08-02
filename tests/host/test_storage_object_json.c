@@ -98,7 +98,6 @@ static procedure_t procedure_value(void) {
         .revision = 3U,
         .set_id = uuid_value(2U),
         .step_count = 2U,
-        .sort_order = -4,
     };
     TEST_CHECK_EQ_INT(9, snprintf(procedure.name, sizeof(procedure.name), "%s", "Provision"));
     TEST_CHECK_EQ_INT(4,

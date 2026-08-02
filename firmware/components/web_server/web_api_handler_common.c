@@ -97,13 +97,7 @@ static cJSON *set_summary(const macro_set_t *set) {
     if (item == NULL || !cJSON_AddNumberToObject(item, "schema_version", set->schema_version) ||
         !cJSON_AddStringToObject(item, "id", set->id.value) ||
         !cJSON_AddNumberToObject(item, "revision", set->revision) ||
-        !cJSON_AddStringToObject(item, "name", set->name) ||
-        !cJSON_AddStringToObject(item, "description", set->description) ||
-        !cJSON_AddStringToObject(item, "manufacturer", set->manufacturer) ||
-        !cJSON_AddStringToObject(item, "model", set->model) ||
-        !cJSON_AddStringToObject(item, "board", set->board) ||
-        !cJSON_AddStringToObject(item, "keyboard_layout", set->keyboard_layout) ||
-        !cJSON_AddNumberToObject(item, "sort_order", set->sort_order)) {
+        !cJSON_AddStringToObject(item, "name", set->name)) {
         cJSON_Delete(item);
         return NULL;
     }

@@ -70,11 +70,6 @@ static macro_set_t make_set(uint32_t value) {
         .revision = 1U,
     };
     TEST_CHECK(snprintf(set.name, sizeof(set.name), "Procedure repository set") > 0);
-    TEST_CHECK(snprintf(set.description, sizeof(set.description), "Procedure tests") > 0);
-    TEST_CHECK(snprintf(set.manufacturer, sizeof(set.manufacturer), "Test") > 0);
-    TEST_CHECK(snprintf(set.model, sizeof(set.model), "Model") > 0);
-    TEST_CHECK(snprintf(set.board, sizeof(set.board), "board") > 0);
-    TEST_CHECK(snprintf(set.keyboard_layout, sizeof(set.keyboard_layout), "en-US") > 0);
     return set;
 }
 
@@ -116,7 +111,6 @@ static procedure_t make_procedure(uint32_t value, const macro_set_t *set,
         .revision = 1U,
         .set_id = set->id,
         .step_count = 3U,
-        .sort_order = 99,
     };
     TEST_CHECK(snprintf(procedure.name, sizeof(procedure.name), "%s", name) > 0);
     TEST_CHECK(snprintf(procedure.description, sizeof(procedure.description), "Guided procedure") >

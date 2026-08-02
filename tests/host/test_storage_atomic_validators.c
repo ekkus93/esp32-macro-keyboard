@@ -67,11 +67,6 @@ static macro_set_t make_set(const char *id_text) {
     set.id = parse_uuid(id_text);
     set.revision = 1U;
     TEST_CHECK(snprintf(set.name, sizeof(set.name), "Validator Set") > 0);
-    TEST_CHECK(snprintf(set.description, sizeof(set.description), "desc") > 0);
-    TEST_CHECK(snprintf(set.manufacturer, sizeof(set.manufacturer), "Test") > 0);
-    TEST_CHECK(snprintf(set.model, sizeof(set.model), "Model") > 0);
-    TEST_CHECK(snprintf(set.board, sizeof(set.board), "board") > 0);
-    TEST_CHECK(snprintf(set.keyboard_layout, sizeof(set.keyboard_layout), "en-US") > 0);
     return set;
 }
 
@@ -125,7 +120,6 @@ static void write_procedure_json(const char *path, const char *id_text, const ch
         .set_id = parse_uuid(set_id_text),
         .steps = steps,
         .step_count = 1U,
-        .sort_order = 0,
     };
     TEST_CHECK(snprintf(procedure.name, sizeof(procedure.name), "Validator Procedure") > 0);
     char *json = NULL;

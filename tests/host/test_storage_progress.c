@@ -55,11 +55,6 @@ static macro_set_t make_set(void) {
         .revision = 1U,
     };
     TEST_CHECK(snprintf(set.name, sizeof(set.name), "Progress set") > 0);
-    TEST_CHECK(snprintf(set.description, sizeof(set.description), "Progress tests") > 0);
-    TEST_CHECK(snprintf(set.manufacturer, sizeof(set.manufacturer), "Test") > 0);
-    TEST_CHECK(snprintf(set.model, sizeof(set.model), "Model") > 0);
-    TEST_CHECK(snprintf(set.board, sizeof(set.board), "board") > 0);
-    TEST_CHECK(snprintf(set.keyboard_layout, sizeof(set.keyboard_layout), "en-US") > 0);
     return set;
 }
 

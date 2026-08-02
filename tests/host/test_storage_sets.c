@@ -70,19 +70,13 @@ static app_uuid_t make_uuid(uint32_t value) {
     return uuid;
 }
 
-static macro_set_t make_set(uint32_t value, const char *name, int32_t sort_order) {
+static macro_set_t make_set(uint32_t value, const char *name) {
     TEST_CHECK(name != NULL);
     macro_set_t set = {0};
     set.schema_version = APP_SCHEMA_VERSION;
     set.id = make_uuid(value);
     set.revision = 1U;
     TEST_CHECK(snprintf(set.name, sizeof(set.name), "%s", name) > 0);
-    TEST_CHECK(snprintf(set.description, sizeof(set.description), "Repository test") > 0);
-    TEST_CHECK(snprintf(set.manufacturer, sizeof(set.manufacturer), "Test") > 0);
-    TEST_CHECK(snprintf(set.model, sizeof(set.model), "Model") > 0);
-    TEST_CHECK(snprintf(set.board, sizeof(set.board), "board") > 0);
-    TEST_CHECK(snprintf(set.keyboard_layout, sizeof(set.keyboard_layout), "en-US") > 0);
-    set.sort_order = sort_order;
     return set;
 }
 
@@ -139,7 +133,7 @@ static void test_argument_validation(void) {
     reset_store();
     storage_set_list_t list = {0};
     macro_set_t output = {0};
-    macro_set_t set = make_set(1U, "Arguments", 0);
+    macro_set_t set = make_set(1U, "Arguments");
 
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_set_list(NULL));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_set_read(NULL, &output));
@@ -159,9 +153,9 @@ static void test_argument_validation(void) {
 
 static void test_crud_ordering_revisions_and_cleanup(void) {
     reset_store();
-    macro_set_t first = make_set(10U, "First", 30);
-    macro_set_t second = make_set(20U, "Second", -10);
-    macro_set_t third = make_set(30U, "Third", 5);
+    macro_set_t first = make_set(10U, "First");
+    macro_set_t second = make_set(20U, "Second");
+    macro_set_t third = make_set(30U, "Third");
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&first));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&second));
@@ -218,7 +212,7 @@ static void test_crud_ordering_revisions_and_cleanup(void) {
 
 static void test_revision_overflow_is_rejected(void) {
     reset_store();
-    macro_set_t set = make_set(40U, "Maximum revision", 0);
+    macro_set_t set = make_set(40U, "Maximum revision");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
 
     set.revision = UINT32_MAX;
@@ -239,11 +233,11 @@ static void test_set_limit_and_stable_order(void) {
         char name[APP_NAME_MAX_BYTES + 1U];
         const int written = snprintf(name, sizeof(name), "Set %" PRIu32, index);
         TEST_CHECK(written > 0 && (size_t)written < sizeof(name));
-        macro_set_t set = make_set(1000U + index, name, (int32_t)index);
+        macro_set_t set = make_set(1000U + index, name);
         TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
     }
 
-    macro_set_t extra = make_set(9000U, "One too many", 0);
+    macro_set_t extra = make_set(9000U, "One too many");
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL, storage_set_create(&extra));
 
     storage_set_list_t list = {0};
@@ -257,7 +251,7 @@ static void test_set_limit_and_stable_order(void) {
 
 static void test_corrupt_set_is_discarded(void) {
     reset_store();
-    macro_set_t set = make_set(50U, "Corrupt JSON", 0);
+    macro_set_t set = make_set(50U, "Corrupt JSON");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
 
     char path[APP_PATH_MAX_BYTES];
@@ -274,8 +268,8 @@ static void test_corrupt_set_is_discarded(void) {
 
 static void test_mismatched_object_id_is_discarded(void) {
     reset_store();
-    macro_set_t expected = make_set(60U, "Expected", 0);
-    macro_set_t wrong = make_set(61U, "Wrong ID", 0);
+    macro_set_t expected = make_set(60U, "Expected");
+    macro_set_t wrong = make_set(61U, "Wrong ID");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&expected));
     rewrite_set_file(&expected.id, &wrong);
 
@@ -292,7 +286,7 @@ static void test_mismatched_object_id_is_discarded(void) {
 
 static void test_duplicate_index_is_discarded_and_output_cleared(void) {
     reset_store();
-    macro_set_t set = make_set(70U, "Duplicate index", 0);
+    macro_set_t set = make_set(70U, "Duplicate index");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
 
     char index_json[256U];
@@ -311,7 +305,7 @@ static void test_duplicate_index_is_discarded_and_output_cleared(void) {
 
 static void test_create_recovery(void) {
     reset_store();
-    macro_set_t set = make_set(80U, "Interrupted Create", 0);
+    macro_set_t set = make_set(80U, "Interrupted Create");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
 
     char destination[APP_PATH_MAX_BYTES];
@@ -347,7 +341,7 @@ static void test_create_recovery(void) {
 
 static void test_delete_recovery(void) {
     reset_store();
-    macro_set_t set = make_set(90U, "Interrupted Delete", 0);
+    macro_set_t set = make_set(90U, "Interrupted Delete");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
 
     char source[APP_PATH_MAX_BYTES];
@@ -479,7 +473,7 @@ static app_error_code_t interloper_delete(void) {
  * each read-check-write atomic, so the second sees the bumped revision. */
 static void test_concurrency_same_revision_updates_conflict(void) {
     reset_store();
-    macro_set_t set = make_set(1U, "Serialize", 0);
+    macro_set_t set = make_set(1U, "Serialize");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
 
     macro_set_t first = set;
@@ -498,7 +492,7 @@ static void test_concurrency_same_revision_updates_conflict(void) {
  * concurrently is blocked. */
 static void test_concurrency_recovery_excludes_mutation(void) {
     reset_store();
-    macro_set_t set = make_set(1U, "RecoveryRace", 0);
+    macro_set_t set = make_set(1U, "RecoveryRace");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
     g_interloper_id = set.id;
 
@@ -517,11 +511,11 @@ static void test_concurrency_recovery_excludes_mutation(void) {
  * interloping delete is blocked. */
 static void test_concurrency_create_excludes_delete(void) {
     reset_store();
-    macro_set_t existing = make_set(1U, "Existing", 0);
+    macro_set_t existing = make_set(1U, "Existing");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&existing));
     g_interloper_id = existing.id;
 
-    macro_set_t created = make_set(2U, "Created", 1);
+    macro_set_t created = make_set(2U, "Created");
     g_mx = (mx_lock_state_t){.interloper = interloper_delete, .interloper_armed = true};
     storage_repository_lock_set_ops(&mx_ops);
     const app_error_code_t result = storage_set_create(&created);
@@ -558,7 +552,7 @@ static const storage_repository_lock_ops_t gate_ops = {
  * refuses the mutation outright. */
 static void test_concurrency_lock_failures_are_visible(void) {
     reset_store();
-    macro_set_t set = make_set(1U, "LockFail", 0);
+    macro_set_t set = make_set(1U, "LockFail");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
 
     /* Give fails after a successful write: result must be INTERNAL, not NONE. */

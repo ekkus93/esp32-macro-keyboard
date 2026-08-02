@@ -22,13 +22,9 @@ typedef struct {
     uint32_t schema_version;
     app_uuid_t id;
     uint32_t revision;
+    /* A set is a name and an ordered list of macros (SPEC 12.1). Set order
+     * lives in index.json's ordered set_ids and nowhere else. */
     char name[APP_NAME_MAX_BYTES + 1U];
-    char description[APP_DESCRIPTION_MAX_BYTES + 1U];
-    char manufacturer[APP_MANUFACTURER_MAX_BYTES + 1U];
-    char model[APP_MODEL_MAX_BYTES + 1U];
-    char board[APP_BOARD_MAX_BYTES + 1U];
-    char keyboard_layout[MACRO_KEYBOARD_LAYOUT_BYTES];
-    int32_t sort_order;
 } macro_set_t;
 
 typedef struct {

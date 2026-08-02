@@ -31,12 +31,6 @@ export const macroSet = {
   id: setId,
   revision: 2,
   name: "Lab Chromebook workflow",
-  description: "ChromeOS conversion and Debian installation",
-  manufacturer: "Example",
-  model: "Model 14",
-  board: "board-14",
-  keyboard_layout: "en-US",
-  sort_order: 0,
 } as const;
 
 export const macro = {

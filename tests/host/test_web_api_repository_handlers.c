@@ -93,15 +93,8 @@ static macro_set_t make_set(void) {
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid(SET_ID),
         .revision = 1U,
-        .sort_order = 0,
     };
     TEST_CHECK(snprintf(set.name, sizeof(set.name), "Handler Set") > 0);
-    TEST_CHECK(snprintf(set.description, sizeof(set.description), "Repository-backed API test") >
-               0);
-    TEST_CHECK(snprintf(set.manufacturer, sizeof(set.manufacturer), "Test") > 0);
-    TEST_CHECK(snprintf(set.model, sizeof(set.model), "Model") > 0);
-    TEST_CHECK(snprintf(set.board, sizeof(set.board), "board") > 0);
-    TEST_CHECK(snprintf(set.keyboard_layout, sizeof(set.keyboard_layout), "en-US") > 0);
     return set;
 }
 
