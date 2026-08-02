@@ -347,7 +347,6 @@ static storage_atomic_validate_fn validator_for_type(storage_atomic_object_type_
     case STORAGE_ATOMIC_OBJECT_TRANSACTION_MANIFEST:
         return validate_transaction_manifest;
     case STORAGE_ATOMIC_OBJECT_UNKNOWN:
-    case STORAGE_ATOMIC_OBJECT_SETTINGS:
     default:
         return NULL;
     }

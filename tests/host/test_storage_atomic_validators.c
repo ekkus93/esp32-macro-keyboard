@@ -335,14 +335,12 @@ static void test_transaction_manifest_validator(void) {
 
 static void test_dispatch_refuses_without_validator(void) {
     reset_store();
-    /* Every reachable destination classification now has a validator (macro,
-     * procedure, and progress joined schema marker/index/set-metadata/
-     * transaction-manifest in this phase). STORAGE_ATOMIC_OBJECT_SETTINGS
-     * still has none, but settings have no atomic-write file representation
-     * at all - storage_atomic_classify_destination() never returns that
-     * classification for any real path - so the only reachable "no
-     * validator" case left is a genuinely unrecognized destination.
-     * Recovery must refuse to activate that candidate. */
+    /* Every classification storage_atomic_classify_destination() can produce
+     * now has a validator, so the only reachable "no validator" case is a
+     * genuinely unrecognized destination. Recovery must refuse to activate
+     * that candidate. (Settings are not represented here at all: they live in
+     * encrypted NVS rather than as a LittleFS object, so there is no
+     * atomic-write destination for a settings validator to guard.) */
     const char *unknown_dest = STORAGE_DATA_MOUNT "/mystery.dat";
     const char *unknown_candidate = STORAGE_DATA_MOUNT "/mystery.dat.tmp." OP_UUID;
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, validate(unknown_dest, unknown_candidate));

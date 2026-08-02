@@ -678,10 +678,21 @@ static app_error_code_t ensure_directory(const char *path) {
 }
 ```
 
-- [ ] Verify permissions where supported by LittleFS.
-      (Directories are created 0750; LittleFS permission support is limited, so a
-      full permission assertion is a device-observable item. The host filesystem
-      does not preserve the mode identically, so it is not asserted on host.)
+- [x] Verify permissions where supported by LittleFS. Verified: LittleFS
+      supports **no** permission bits, so the scope of this item is empty.
+      In the pinned `joltwallet/littlefs` component,
+      `vfs_littlefs_mkdir()` carries the comment `/* Note: mode is currently
+      unused */` and passes only the path to `lfs_mkdir()`, discarding the
+      mode argument; `vfs_littlefs_stat()` sets `st->st_mode` to exactly
+      `S_IFREG` or `S_IFDIR`, the file-type bit alone, with no `rwx` bits.
+      Permission bits are therefore neither stored nor returned, so the 0750
+      passed to `ensure_directory()` has no observable effect on the device
+      and no runtime assertion could distinguish one mode from another.
+      This is a source-level conclusion about the filesystem, not a runtime
+      measurement - deliberately, because no runtime observation can
+      contradict a filesystem that never records the data. Recorded rather
+      than left open, because "where supported by LittleFS" is satisfied
+      vacuously: nothing is supported.
 - [x] Reject symlink-like or unsupported types in host tests.
 
 ### 6.3 Add mount rollback tests
@@ -757,7 +768,17 @@ Provide validators for:
 - [x] macro object;
 - [x] procedure object;
 - [x] progress object;
-- [ ] settings object;
+- [x] settings object; **not applicable, and the dead enum member is now
+      removed.** Settings are not a LittleFS object: provisioning state lives
+      in encrypted NVS via `nvs_set_blob()` (`provisioning.c`), which provides
+      its own atomicity, so there is no atomic-write destination for a
+      settings validator to guard.
+      `storage_atomic_classify_destination()` never returned
+      `STORAGE_ATOMIC_OBJECT_SETTINGS` for any path, making it an enum value
+      no code could produce - dead code advertising a capability that does not
+      exist. It and its `NULL`-returning `case` are deleted, so every value
+      the classifier can produce now has a real validator and the "every
+      classified type has a validator" invariant holds without an exception.
 - [x] quarantine record.
 
 Implemented (macro/procedure/progress): Phase 15 (fully complete) implements
@@ -2953,11 +2974,30 @@ when that option is rejected. All four regression-tested in
 Remaining gap: "remote assets enabled" is enforced, just by a different
 script not called from `check-production-config.sh` -
 `scripts/verify-no-remote-assets.sh`, run against `webapp/dist` from
-`check-webapp.sh`. "Debug server enabled" has no enforcement anywhere,
-though there is also nothing to enforce against yet - no debug-server
-Kconfig option or HTTP route exists in the firmware today. Left as an open
-checkbox rather than checked-by-vacuous-truth: if a debug server is ever
-added, nothing today would fail a production build that leaves it enabled.
+`check-webapp.sh`.
+
+"Debug server enabled" is now a real, deliberate exception rather than a
+vacuous one. `firmware/components/serial_console` provides an interactive
+UART0 console (`wifi-connect`, `wifi-status`) that is compiled into every
+build and accepts commands with no session, CSRF token, or physical
+confirmation. That is a debug interface in exactly the sense this checkbox
+means, and no gate rejects it.
+
+It stays that way by an explicit decision of this repository's owner: the
+threat model treats physical possession of the board as trust, so the
+USB-UART surface is intentionally open while the network surface is not.
+That split is verified rather than assumed - see FIX1 §20.3, where the
+device rejects unauthenticated reads, missing/forged CSRF, cross-origin
+requests, and forged sessions, and rate-limits brute-force logins.
+
+Gating the console behind a Kconfig option was implemented and then
+deliberately reverted: defaulting it off removed the console from ordinary
+development builds, which is the workflow this project actually depends on,
+in exchange for protecting a release process that does not yet exist. The
+checkbox is therefore left open and honest. Before any release to third
+parties, the console should be excluded from the shipped image - that is the
+work this item is tracking, and it is a release-time concern, not a defect
+in the current firmware.
 
 ## 22. Synchronize documentation
 

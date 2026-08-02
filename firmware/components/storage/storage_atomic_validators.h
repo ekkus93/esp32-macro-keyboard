@@ -21,9 +21,15 @@ typedef struct {
 typedef app_error_code_t (*storage_atomic_validate_fn)(void *context,
                                                        const storage_atomic_candidate_t *candidate);
 
-/* The storage object types an atomic-write destination can name. Every active
- * repository object type has an object-specific validator so recovery cannot
- * activate syntactically valid but semantically mismatched bytes. */
+/* The storage object types an atomic-write destination can name. Every value
+ * here is producible by storage_atomic_classify_destination() and has an
+ * object-specific validator, so recovery cannot activate syntactically valid
+ * but semantically mismatched bytes.
+ *
+ * Settings deliberately have no member: they are not a LittleFS object at all.
+ * Provisioning state lives in encrypted NVS (nvs_set_blob in
+ * provisioning.c), which has its own atomicity, so there is no atomic-write
+ * destination for a settings validator to guard. */
 typedef enum {
     STORAGE_ATOMIC_OBJECT_UNKNOWN = 0,
     STORAGE_ATOMIC_OBJECT_TRANSACTION_MANIFEST,
@@ -36,7 +42,6 @@ typedef enum {
     STORAGE_ATOMIC_OBJECT_MACRO,
     STORAGE_ATOMIC_OBJECT_PROCEDURE,
     STORAGE_ATOMIC_OBJECT_PROGRESS,
-    STORAGE_ATOMIC_OBJECT_SETTINGS,
 } storage_atomic_object_type_t;
 
 /* Classify a canonical destination path into its storage object type
