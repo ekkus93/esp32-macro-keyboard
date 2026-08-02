@@ -12,6 +12,13 @@ control latency) genuinely remains open there.
 
 ## 0.1.0 — unreleased
 
+**Release blocker — unauthenticated serial console.** Builds include an
+interactive UART0 command console (`wifi-connect`, `wifi-status`) that takes
+no session, CSRF token, or physical confirmation. It is an intentional
+development interface under the trust model in `docs/SPEC.md` §16.5, where
+physical possession of the board is the authorization. It MUST be excluded
+from any image shipped to third parties; FIX1 §21.3 tracks that work.
+
 Implemented foundations include the strict project toolchain, bounded macro
 model/parser, safe storage primitives, USB/executor state machines, controls,
 protected SoftAP/authentication, bounded HTTP/static serving, and a mobile-first

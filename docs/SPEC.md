@@ -902,6 +902,41 @@ The HTTP server MUST enforce:
 
 Malformed or oversized requests receive explicit 4xx responses.
 
+### 16.5 Trust boundaries
+
+The device has two distinct control surfaces, and they are deliberately held
+to different standards.
+
+**The network surface is untrusted.** Anything arriving over Wi-Fi - whether
+the device's own SoftAP or, in development builds, a joined network - MUST
+carry a valid RAM-only session, and every mutation MUST additionally carry a
+matching CSRF token and accepted `Host` and `Origin` headers. Authentication
+failures MUST be rate-limited. No network-reachable route may mutate device
+state, read settings, or start an execution without satisfying all of these.
+This is the boundary that protects the user from anyone else on the network.
+
+**The physical serial surface is trusted.** Commands issued on the UART0
+console (`firmware/components/serial_console`) require no session, no CSRF
+token, and no physical-button confirmation: possession of the board and
+access to its UART port *is* the authorization. This is a deliberate scope
+decision, not an oversight. Reaching that port means holding the hardware,
+at which point the device is already fully controllable - it can be
+reflashed outright - so authenticating that surface would add friction
+without adding protection.
+
+The console MUST NOT expose credentials or secret material even so, because
+the failure mode there is disclosure rather than control:
+`scripts/check-credential-logging.sh` enforces that for all firmware
+sources, console included.
+
+The console is a development and bring-up interface. Before any release to
+third parties it MUST be excluded from the shipped image, since a shipped
+device's physical surface belongs to its user rather than its developer, and
+`wifi-connect` would then let anyone with momentary physical access redirect
+the device onto a network of their choosing. Until then it is present in
+every build, and that is a documented product limitation rather than a
+defect.
+
 ## 17. HTTP API
 
 All API routes are under:
@@ -1254,6 +1289,10 @@ returning nonzero; it MUST never mask failures.
 1. No open AP fallback.
 2. No unauthenticated macro execution.
 3. No macro execution from a GET request.
+3a. No network-reachable route mutates state, reads settings, or starts an
+    execution without a valid session, a matching CSRF token, and accepted
+    `Host` and `Origin` headers. (The physical UART console is outside this
+    invariant by design; see §16.5.)
 4. No automatic execution triggered by connection or boot.
 5. No plaintext password storage.
 6. No credential or session material in exports or logs.

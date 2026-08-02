@@ -31,6 +31,25 @@ menu itself has not yet been run on hardware — see
 [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) for exactly
 what that one device-executed result covers.
 
+## Known product limitation: unauthenticated serial console
+
+Every build currently includes an interactive command console on UART0
+(`wifi-connect`, `wifi-status`). It accepts commands with **no session, CSRF
+token, or physical-button confirmation** — possession of the board and access
+to its UART port is the authorization.
+
+This is deliberate. Reaching that port means holding the hardware, which
+already allows reflashing the device outright, so authenticating it would add
+friction without adding protection. The network surface is held to the
+opposite standard: every Wi-Fi-reachable route requires a valid session, and
+mutations additionally require a matching CSRF token and accepted
+`Host`/`Origin`, with rate-limited authentication. See
+[`docs/SPEC.md`](docs/SPEC.md) §16.5.
+
+Before any release to third parties this console must be excluded from the
+shipped image, because a shipped device's physical surface belongs to its
+user rather than its developer.
+
 ## Toolchain
 
 - ESP-IDF `v5.5.5` exactly

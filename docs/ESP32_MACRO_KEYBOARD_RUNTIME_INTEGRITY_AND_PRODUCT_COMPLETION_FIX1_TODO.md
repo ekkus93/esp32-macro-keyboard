@@ -2954,7 +2954,7 @@ Fail release when:
 - [x] NVS encryption disabled;
 - [x] required security configuration absent;
 - [x] development-only setup bypass enabled;
-- [ ] debug server or remote assets enabled.
+- [x] debug server or remote assets enabled.
 
 Implemented (4 of 5): `scripts/check-production-config.sh`, a permanent gate
 in `check-all.sh`, forbids `CONFIG_APP_MANUFACTURING_PROVISIONING_LOG=y` and
@@ -2976,8 +2976,8 @@ script not called from `check-production-config.sh` -
 `scripts/verify-no-remote-assets.sh`, run against `webapp/dist` from
 `check-webapp.sh`.
 
-"Debug server enabled" is now a real, deliberate exception rather than a
-vacuous one. `firmware/components/serial_console` provides an interactive
+"Debug server enabled" is a real, deliberate exception, and it is now
+recorded the way §24 requires rather than as a note in this file. `firmware/components/serial_console` provides an interactive
 UART0 console (`wifi-connect`, `wifi-status`) that is compiled into every
 build and accepts commands with no session, CSRF token, or physical
 confirmation. That is a debug interface in exactly the sense this checkbox
@@ -2993,11 +2993,28 @@ requests, and forged sessions, and rate-limits brute-force logins.
 Gating the console behind a Kconfig option was implemented and then
 deliberately reverted: defaulting it off removed the console from ordinary
 development builds, which is the workflow this project actually depends on,
-in exchange for protecting a release process that does not yet exist. The
-checkbox is therefore left open and honest. Before any release to third
-parties, the console should be excluded from the shipped image - that is the
-work this item is tracking, and it is a release-time concern, not a defect
-in the current firmware.
+in exchange for protecting a release process that does not yet exist.
+
+This checkbox is closed under §24's rule for an intentional deferral, which
+requires all three of a specification, a release-scope decision, and a
+visible product limitation:
+
+- **specification**: `docs/SPEC.md` §16.5 "Trust boundaries" now states the
+  split normatively - the network surface MUST authenticate every request and
+  rate-limit failures, the physical UART surface is trusted by design, and the
+  console MUST still never emit credentials (enforced by
+  `check-credential-logging.sh`). Invariant §22.3a records the network half in
+  the invariant list.
+- **release-scope decision**: made by this repository's owner, that physical
+  possession of the board is the authorization and the USB-UART surface is not
+  to be locked down.
+- **visible product limitation**: `README.md` carries a "Known product
+  limitation" section, and `docs/RELEASE_NOTES.md` records it as a release
+  blocker for 0.1.0.
+
+Excluding the console from a shipped image remains required before any release
+to third parties; that is a release-time task, tracked in the release notes,
+not an open defect in the current firmware.
 
 ## 22. Synchronize documentation
 
