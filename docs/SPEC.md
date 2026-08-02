@@ -17,10 +17,16 @@ application. An authenticated user selects a macro set, picks a macro from that
 set's ordered list, and explicitly sends it as keyboard input to the target
 computer.
 
-The primary motivating workflow is converting multiple Chromebook makes and
-models from ChromeOS to Debian. Each Chromebook model gets its own macro set
-holding, in the order they are used, the commands that model needs. The user
-selects the set for the machine in front of them and sends the macros in turn.
+The product is **generic**. It types text and key combinations at a computer on
+request. It has no knowledge of what that computer is, what operating system it
+runs, or what the macros are for.
+
+Converting Chromebooks from ChromeOS to Debian is one thing a user might keep
+macros for. It is an example, not a requirement, and no part of the firmware or
+the web application may be built around it. Earlier revisions of this document
+named it as the product's purpose and grew per-set `manufacturer`, `model`, and
+`board` fields, "guided conversion procedures", and a shared macro library out of
+that mistake. All of it is removed.
 
 This specification is normative. `docs/TODO.md` defines the implementation
 sequence for this specification.
@@ -34,6 +40,9 @@ product** and MUST NOT be reintroduced without a deliberate amendment:
 
 - procedures, instruction steps, and checkpoint steps;
 - per-procedure progress tracking;
+- global or shared macros; a macro belongs to exactly one set;
+- any field, screen, or code path specific to Chromebooks, ChromeOS, Debian, or
+  any other particular target machine;
 - buttons of any kind, and any hardware added to the board;
 - quarantine or archival of damaged files;
 - staging, trash, and transaction directories.
@@ -82,11 +91,12 @@ The product MUST:
 Version 0.1 MUST NOT attempt to provide:
 
 - arbitrary Unicode typing;
-- automatic host operating-system detection;
-- automatic Chromebook make, model, or board detection;
+- any awareness of what the target computer is: no host operating-system
+  detection, no hardware detection, and no behavior conditional on either;
 - automatic execution of the next macro in a set;
 - guided procedures, instruction steps, checkpoint steps, or progress tracking
   (see §1.1);
+- global or shared macros (see §1.1);
 - unattended command chains triggered by boot, Wi-Fi connection, or USB
   connection;
 - USB host functionality;
@@ -225,15 +235,15 @@ first-party source.
 A **macro set** is a name and an ordered list of macros. That is the entire
 structure; there is no level between a set and a macro.
 
-A set is the active workspace for one device model or purpose. Examples:
+A set is the active workspace for whatever the user groups together. The device
+attaches no meaning to that grouping:
 
 ```text
-HP Chromebook 11 G6 EE
-├── Open Crosh
-├── Enter shell
-├── Download MrChromebox utility
-├── Run firmware utility
-└── Install Debian
+Build server login
+├── Focus terminal
+├── Type username
+├── Type password
+└── Start the build
 ```
 
 Set order is user-controlled and meaningful: it is the order the user works
@@ -246,7 +256,12 @@ automatically switch the active set.
 ### 7.2 Macro
 
 A **macro** is source text compiled into a bounded sequence of keyboard actions.
-Macros may be set-owned or shared globally.
+
+Every macro belongs to exactly one set. There is no shared or global macro
+library, and a macro carries no `scope` field. If the user wants the same macro
+in two sets, they duplicate the set or copy the text; on this device a duplicated
+macro costs a few hundred bytes, while a second macro library cost 16 KiB of
+empty directory metadata to save perhaps 3 KiB of duplication.
 
 ### 7.3 Active execution
 
@@ -356,8 +371,7 @@ Deletion MUST:
 3. require a deliberate confirmation, including typed set name for destructive
    deletion;
 4. remove the set file and update the set index;
-5. retain shared/global macros;
-6. return the UI to set selection when the active set is deleted.
+5. return the UI to set selection when the active set is deleted.
 
 Deletion is permanent. There is no trash directory and no undelete: the device
 does not have the storage to keep a copy of everything the user has thrown away
@@ -370,9 +384,12 @@ A set export MUST be a single versioned JSON package containing:
 - package format identifier and version;
 - the set name and identity;
 - the set's macros, in order;
-- resolved copies of referenced shared macros;
 - keyboard-layout requirements;
 - integrity metadata.
+
+A set package is self-contained by construction: every macro it needs is inside
+it, because a macro cannot live anywhere but in a set. Import therefore has no
+external dependency to verify.
 
 It MUST NOT contain:
 
@@ -678,7 +695,7 @@ A set is a name and an ordered list of macros. Required fields:
   "schema_version": 1,
   "id": "uuid",
   "revision": 1,
-  "name": "HP Chromebook 11 G6 EE",
+  "name": "Build server login",
   "macros": []
 }
 ```
@@ -687,9 +704,10 @@ A set is a name and an ordered list of macros. Required fields:
 order; there is no separate order file and no `sort_order` field on a macro.
 
 Earlier revisions specified `description`, `manufacturer`, `model`, `board`, and
-`keyboard_layout` on a set. They are removed. The first four duplicate what the
-user already put in the name, and the layout is a device-wide property in version
-0.1 (§10.1), not a per-set one.
+`keyboard_layout` on a set. They are removed. `manufacturer`, `model`, and
+`board` existed only because the specification mistook one user's Chromebook
+workflow for the product (§1); `description` duplicates the name; and the layout
+is a device-wide property in version 0.1 (§10.1), not a per-set one.
 
 ### 12.2 Macro
 
@@ -700,21 +718,17 @@ Required fields:
   "schema_version": 1,
   "id": "uuid",
   "revision": 1,
-  "scope": "set",
-  "set_id": "uuid",
-  "name": "Download MrChromebox utility",
-  "source": "cd; curl -LO mrchromebox.tech/firmware-util.sh{ENTER}",
-  "favorite": false,
+  "name": "Start the build",
+  "source": "make -j8{ENTER}",
   "key_press_ms": 8,
   "inter_key_ms": 15
 }
 ```
 
-For a shared macro, `scope` is `global` and `set_id` is absent.
-
-A set-owned macro is stored inline in its set's `macros` array, so `set_id` is
-redundant within the file and MAY be omitted there; it is required in API
-responses and export packages, where the macro appears outside its set.
+A macro is stored inline in its set's `macros` array. It carries no `scope` and
+no `set_id`: there is exactly one place a macro can be, and the file it is in
+identifies the set. API responses and export packages MAY carry the owning set ID
+as an envelope field, but it is not part of the object.
 
 ### 12.3 Set index
 
@@ -777,20 +791,20 @@ The web-assets filesystem and user-data filesystem are separate mounts.
 
 ### 13.3 Logical user-data layout
 
-The `userdata` partition is **512 KiB**. The layout MUST be flat: one file per
-set, one index file, one file for global macros.
+The `userdata` partition is **512 KiB**. The layout MUST be flat: one index file
+and one file per set.
 
 ```text
 /data/
 ├── index.json              schema version, active set, set order
-├── global.json             shared macros, in order
 └── sets/
     └── <set-id>.json       set name and its ordered macros
 ```
 
-This is the whole tree. There MUST NOT be a per-set directory, a per-object
-file, a separate order file, a `staging/` directory, a `trash/` directory, a
-`transactions/` directory, or a `quarantine/` directory.
+This is the whole tree: two paths and one object type. There MUST NOT be a
+per-set directory, a per-object file, a separate order file, a global or shared
+macro store, a `staging/` directory, a `trash/` directory, a `transactions/`
+directory, or a `quarantine/` directory.
 
 The reason is measured, not stylistic. LittleFS on this device uses 4096-byte
 blocks and represents each directory as a metadata pair, so **every directory
@@ -1051,11 +1065,6 @@ DELETE /api/v1/sets/{set_id}/macros/{macro_id}
 POST   /api/v1/sets/{set_id}/macros/{macro_id}/validate
 POST   /api/v1/sets/{set_id}/macros/reorder
 
-GET    /api/v1/global/macros
-POST   /api/v1/global/macros
-PUT    /api/v1/global/macros/{macro_id}
-DELETE /api/v1/global/macros/{macro_id}
-
 POST   /api/v1/executions
 GET    /api/v1/executions/current
 POST   /api/v1/executions/{execution_id}/confirm
@@ -1074,8 +1083,9 @@ GET    /api/v1/backup
 POST   /api/v1/restore
 ```
 
-There are no procedure or progress routes. `GET /api/v1/diagnostics/quarantine`
-existed in an earlier revision and is removed (§13.6).
+There are no procedure routes, no progress routes, and no `/api/v1/global/macros`
+routes. `GET /api/v1/diagnostics/quarantine` existed in an earlier revision and
+is removed (§13.6). Every macro is reached through its set.
 
 The API implementation MAY consolidate routes where memory constraints justify
 it, but external behavior and resource boundaries MUST remain equivalent and be
@@ -1575,7 +1585,6 @@ Potential later work includes:
 - web OTA management;
 - encrypted backup packages;
 - merge import;
-- global macro conflict UI;
 - OLED display;
 - Bluetooth HID;
 - execution history;
@@ -1587,9 +1596,14 @@ Potential later work includes:
 Deferred features MUST NOT be partially or silently enabled in version 0.1.
 
 The items in §1.1 — procedures, instruction and checkpoint steps, progress
-tracking, buttons, added hardware, quarantine — are **not** deferred. They are
-rejected. Reintroducing any of them requires an amendment to §1.1 that states
-what changed about the storage budget or the product to justify it.
+tracking, global macros, target-machine-specific behavior, buttons, added
+hardware, quarantine — are **not** deferred. They are rejected. Reintroducing any
+of them requires an amendment to §1.1 that states what changed about the storage
+budget or the product to justify it.
+
+The general rule behind §1.1: this is a generic device that types what it is told
+to type. A feature that only makes sense for one user's particular task belongs
+in that user's macro text, not in the firmware.
 
 ## 27. Handoff manifest
 
