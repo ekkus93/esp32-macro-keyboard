@@ -199,6 +199,36 @@ static void test_success_requires_code_and_confirmation(void) {
     TEST_CHECK(memcmp(zero_request, &request, sizeof(request)) == 0);
 }
 
+/* SPEC 15.2: a stored station network is cleared by an explicit empty SSID, and
+ * by nothing else. First-run setup claims the device -- it sets the AP
+ * credentials, the administrator password, and two policy flags -- and says
+ * nothing about the network the device was told to join. Discarding it here is
+ * a side effect the specification does not authorise.
+ *
+ * This is the third time the same defect has appeared: a writer that rebuilds a
+ * shared record with a designated initialiser, so every field it does not name
+ * is silently zeroed. storage_set_reorder dropped the active set the same way.
+ * Found on hardware -- the device came back from setup on its access point
+ * alone, having forgotten the network it had been joining since boot. */
+static void test_setup_preserves_a_stored_station_network(void) {
+    fake_setup_t fake = {0};
+    web_setup_core_t core;
+    initialize(&core, &fake);
+    fake.current.has_station = true;
+    TEST_CHECK_EQ_INT(11, snprintf(fake.current.station_ssid, sizeof(fake.current.station_ssid),
+                                   "%s", "example-net"));
+    TEST_CHECK_EQ_INT(8, snprintf(fake.current.station_password,
+                                  sizeof(fake.current.station_password), "%s", "not-real"));
+
+    web_setup_submission_t request = submission();
+    provisioning_config_t committed;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_setup_core_submit(&core, &request, &committed));
+
+    TEST_CHECK(committed.has_station);
+    TEST_CHECK_EQ_STRING("example-net", committed.station_ssid);
+    TEST_CHECK_EQ_STRING("not-real", committed.station_password);
+}
+
 static void test_wrong_code_fails_before_storage(void) {
     fake_setup_t fake = {0};
     web_setup_core_t core;
@@ -312,6 +342,7 @@ static void test_restart_failure_visible(void) {
 int main(void) {
     test_init_and_state();
     test_success_requires_code_and_confirmation();
+    test_setup_preserves_a_stored_station_network();
     test_wrong_code_fails_before_storage();
     test_confirmation_failure();
     test_manufacturing_bypass();

@@ -152,15 +152,20 @@ static provisioning_config_t
 replacement_configuration(const provisioning_config_t *current,
                           const web_setup_submission_t *submission,
                           const auth_password_record_t *password_record) {
-    provisioning_config_t replacement = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .revision = current->revision,
-        .credential_version = PROVISIONING_CREDENTIAL_VERSION_INITIAL,
-        .provisioned = true,
-        .password_record = *password_record,
-        .require_physical_confirmation = submission->require_physical_confirmation,
-        .always_select_set = submission->always_select_set,
-    };
+    /* Start from the loaded record. Setup decides the AP credentials, the
+     * administrator password, and two policy flags; every other field it does
+     * not name belongs to whoever set it. Building a fresh struct here silently
+     * discarded the stored station network (SPEC 15.2 clears that on an explicit
+     * empty SSID and on nothing else), which on hardware meant a device that
+     * came back from setup on its access point alone. */
+    provisioning_config_t replacement = *current;
+    replacement.schema_version = APP_SCHEMA_VERSION;
+    replacement.revision = current->revision;
+    replacement.credential_version = PROVISIONING_CREDENTIAL_VERSION_INITIAL;
+    replacement.provisioned = true;
+    replacement.password_record = *password_record;
+    replacement.require_physical_confirmation = submission->require_physical_confirmation;
+    replacement.always_select_set = submission->always_select_set;
     memcpy(replacement.ap_ssid, submission->ap_ssid, sizeof(replacement.ap_ssid));
     memcpy(replacement.ap_passphrase, submission->ap_passphrase, sizeof(replacement.ap_passphrase));
     return replacement;
