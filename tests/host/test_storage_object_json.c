@@ -21,8 +21,6 @@ static macro_t set_macro(void) {
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid_value(1U),
         .revision = 1U,
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
         .set_id = uuid_value(2U),
         .source = "TYPE hello",
         .source_length = 10U,
@@ -50,19 +48,6 @@ static void test_macro_round_trip(void) {
     TEST_CHECK_EQ_STRING(input.source, output.source);
     TEST_CHECK(output.favorite);
     TEST_CHECK_EQ_U64(input.key_press_ms, output.key_press_ms);
-    macro_model_free_macro(&output);
-    cJSON_free(json);
-
-    macro_t global = input;
-    global.scope = MACRO_SCOPE_GLOBAL;
-    global.has_set_id = false;
-    memset(&global.set_id, 0, sizeof(global.set_id));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_serialize_macro_json(&global, &json, &length));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_parse_macro_json(json, length, &output));
-    TEST_CHECK(output.scope == MACRO_SCOPE_GLOBAL);
-    TEST_CHECK(!output.has_set_id);
     macro_model_free_macro(&output);
     cJSON_free(json);
 }

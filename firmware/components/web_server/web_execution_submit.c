@@ -10,7 +10,6 @@
 #include "macro_executor.h"
 #include "macro_model.h"
 #include "macro_parser.h"
-#include "storage_repository.h"
 
 static bool operations_valid(const web_execution_ops_t *operations) {
     return operations != NULL && operations->macro_read != NULL &&
@@ -45,26 +44,6 @@ static bool procedure_context_matches(const procedure_t *procedure,
         }
     }
     return false;
-}
-
-static app_error_code_t load_macro_snapshot(const web_execution_submit_request_t *request,
-                                            const web_execution_ops_t *operations,
-                                            macro_t *out_macro) {
-    storage_macro_location_t location = {
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
-        .set_id = request->set_id,
-    };
-    app_error_code_t result =
-        operations->macro_read(operations->context, &location, &request->macro_id, out_macro);
-    if (result != APP_ERROR_NOT_FOUND) {
-        return result;
-    }
-    location = (storage_macro_location_t){
-        .scope = MACRO_SCOPE_GLOBAL,
-        .has_set_id = false,
-    };
-    return operations->macro_read(operations->context, &location, &request->macro_id, out_macro);
 }
 
 static app_error_code_t validate_procedure_context(const web_execution_submit_request_t *request,
@@ -104,13 +83,13 @@ app_error_code_t web_execution_submit_persisted(const web_execution_submit_reque
     }
 
     macro_t macro = {0};
-    result = load_macro_snapshot(request, operations, &macro);
+    result =
+        operations->macro_read(operations->context, &request->set_id, &request->macro_id, &macro);
     if (result != APP_ERROR_NONE) {
         return result;
     }
     if (macro.revision != request->macro_revision ||
-        (macro.scope == MACRO_SCOPE_SET &&
-         (!macro.has_set_id || !app_uuid_equal(&macro.set_id, &request->set_id)))) {
+        !app_uuid_equal(&macro.set_id, &request->set_id)) {
         macro_model_free_macro(&macro);
         return APP_ERROR_CONFLICT;
     }

@@ -53,11 +53,8 @@ static void reset_store(void) {
     static const char *const paths[] = {
         STORAGE_DATA_MOUNT,
         STORAGE_DATA_MOUNT "/sets",
-        STORAGE_DATA_MOUNT "/global",
-        STORAGE_DATA_MOUNT "/global/macros",
         STORAGE_DATA_MOUNT "/staging",
         STORAGE_DATA_MOUNT "/trash",
-        STORAGE_DATA_MOUNT "/quarantine",
         STORAGE_DATA_MOUNT "/transactions",
     };
     for (size_t index = 0U; index < (sizeof(paths) / sizeof(paths[0])); ++index) {
@@ -81,31 +78,13 @@ static macro_set_t make_set(uint32_t value) {
     return set;
 }
 
-static storage_macro_location_t set_location(const macro_set_t *set) {
-    return (storage_macro_location_t){
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
-        .set_id = set->id,
-    };
-}
-
-static storage_macro_location_t global_location(void) {
-    return (storage_macro_location_t){
-        .scope = MACRO_SCOPE_GLOBAL,
-        .has_set_id = false,
-    };
-}
-
-static macro_t make_macro(uint32_t value, const storage_macro_location_t *location,
-                          const char *name) {
+static macro_t make_macro(uint32_t value, const app_uuid_t *set_id, const char *name) {
     static const char source[] = "TEXT procedure";
     macro_t macro = {
         .schema_version = APP_SCHEMA_VERSION,
         .id = make_uuid(value),
         .revision = 1U,
-        .scope = location->scope,
-        .has_set_id = location->has_set_id,
-        .set_id = location->set_id,
+        .set_id = *set_id,
         .source_length = sizeof(source) - 1U,
         .favorite = false,
         .key_press_ms = 8U,
@@ -118,20 +97,19 @@ static macro_t make_macro(uint32_t value, const storage_macro_location_t *locati
     return macro;
 }
 
-static void create_set_and_macros(macro_set_t *out_set, macro_t *out_set_macro,
-                                  macro_t *out_global_macro) {
+static void create_set_and_macros(macro_set_t *out_set, macro_t *out_first_macro,
+                                  macro_t *out_second_macro) {
     *out_set = make_set(100U);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(out_set));
-    const storage_macro_location_t local = set_location(out_set);
-    const storage_macro_location_t global = global_location();
-    *out_set_macro = make_macro(10U, &local, "Set macro");
-    *out_global_macro = make_macro(20U, &global, "Global macro");
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&local, out_set_macro));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&global, out_global_macro));
+    *out_first_macro = make_macro(10U, &out_set->id, "First macro");
+    *out_second_macro = make_macro(20U, &out_set->id, "Second macro");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&out_set->id, out_first_macro));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&out_set->id, out_second_macro));
 }
 
-static procedure_t make_procedure(uint32_t value, const macro_set_t *set, const macro_t *set_macro,
-                                  const macro_t *global_macro, const char *name) {
+static procedure_t make_procedure(uint32_t value, const macro_set_t *set,
+                                  const macro_t *first_macro, const macro_t *second_macro,
+                                  const char *name) {
     procedure_t procedure = {
         .schema_version = APP_SCHEMA_VERSION,
         .id = make_uuid(value),
@@ -151,7 +129,7 @@ static procedure_t make_procedure(uint32_t value, const macro_set_t *set, const 
         .required = true,
         .auto_complete_on_success = true,
         .has_macro_id = true,
-        .macro_id = set_macro->id,
+        .macro_id = first_macro->id,
     };
     TEST_CHECK(
         snprintf(procedure.steps[0].title, sizeof(procedure.steps[0].title), "Run set macro") > 0);
@@ -161,7 +139,7 @@ static procedure_t make_procedure(uint32_t value, const macro_set_t *set, const 
         .required = true,
         .auto_complete_on_success = false,
         .has_macro_id = true,
-        .macro_id = global_macro->id,
+        .macro_id = second_macro->id,
     };
     TEST_CHECK(snprintf(procedure.steps[1].title, sizeof(procedure.steps[1].title),
                         "Run global macro") > 0);
@@ -206,10 +184,10 @@ static void assert_procedure_equal(const procedure_t *expected, const procedure_
 static void test_argument_validation(void) {
     reset_store();
     macro_set_t set;
-    macro_t set_macro;
-    macro_t global_macro;
-    create_set_and_macros(&set, &set_macro, &global_macro);
-    procedure_t procedure = make_procedure(1000U, &set, &set_macro, &global_macro, "Arguments");
+    macro_t first_macro;
+    macro_t second_macro;
+    create_set_and_macros(&set, &first_macro, &second_macro);
+    procedure_t procedure = make_procedure(1000U, &set, &first_macro, &second_macro, "Arguments");
     procedure_t output = {0};
     storage_procedure_list_t list = {0};
 
@@ -230,18 +208,18 @@ static void test_argument_validation(void) {
     procedure.set_id = make_uuid(999U);
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_procedure_create(&set.id, &procedure));
     macro_model_free_procedure(&procedure);
-    macro_model_free_macro(&set_macro);
-    macro_model_free_macro(&global_macro);
+    macro_model_free_macro(&first_macro);
+    macro_model_free_macro(&second_macro);
 }
 
 static void test_crud_and_order(void) {
     reset_store();
     macro_set_t set;
-    macro_t set_macro;
-    macro_t global_macro;
-    create_set_and_macros(&set, &set_macro, &global_macro);
-    procedure_t first = make_procedure(1100U, &set, &set_macro, &global_macro, "First");
-    procedure_t second = make_procedure(1200U, &set, &set_macro, &global_macro, "Second");
+    macro_t first_macro;
+    macro_t second_macro;
+    create_set_and_macros(&set, &first_macro, &second_macro);
+    procedure_t first = make_procedure(1100U, &set, &first_macro, &second_macro, "First");
+    procedure_t second = make_procedure(1200U, &set, &first_macro, &second_macro, "Second");
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_create(&set.id, &first));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_create(&set.id, &second));
@@ -305,21 +283,21 @@ static void test_crud_and_order(void) {
 
     macro_model_free_procedure(&first);
     macro_model_free_procedure(&second);
-    macro_model_free_macro(&set_macro);
-    macro_model_free_macro(&global_macro);
+    macro_model_free_macro(&first_macro);
+    macro_model_free_macro(&second_macro);
 }
 
 static void test_reference_validation(void) {
     reset_store();
     macro_set_t set;
-    macro_t set_macro;
-    macro_t global_macro;
-    create_set_and_macros(&set, &set_macro, &global_macro);
-    procedure_t procedure = make_procedure(1300U, &set, &set_macro, &global_macro, "References");
+    macro_t first_macro;
+    macro_t second_macro;
+    create_set_and_macros(&set, &first_macro, &second_macro);
+    procedure_t procedure = make_procedure(1300U, &set, &first_macro, &second_macro, "References");
 
     procedure.steps[0].macro_id = make_uuid(9999U);
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, storage_procedure_create(&set.id, &procedure));
-    procedure.steps[0].macro_id = set_macro.id;
+    procedure.steps[0].macro_id = first_macro.id;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_create(&set.id, &procedure));
 
     procedure_t replacement = procedure;
@@ -328,34 +306,21 @@ static void test_reference_validation(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
                          storage_procedure_update(&set.id, &replacement, 1U, &output));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_read(&set.id, &procedure.id, &output));
-    TEST_CHECK_EQ_UUID(&global_macro.id, &output.steps[1].macro_id);
+    TEST_CHECK_EQ_UUID(&second_macro.id, &output.steps[1].macro_id);
     macro_model_free_procedure(&output);
 
-    const storage_macro_location_t local = set_location(&set);
-    const storage_macro_location_t global = global_location();
-    macro_t duplicate_scope = make_macro(50U, &local, "Ambiguous local");
-    macro_t duplicate_global = make_macro(50U, &global, "Ambiguous global");
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&local, &duplicate_scope));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&global, &duplicate_global));
-    procedure_t ambiguous =
-        make_procedure(1400U, &set, &duplicate_scope, &global_macro, "Ambiguous");
-    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_procedure_create(&set.id, &ambiguous));
-
-    macro_model_free_procedure(&ambiguous);
-    macro_model_free_macro(&duplicate_scope);
-    macro_model_free_macro(&duplicate_global);
     macro_model_free_procedure(&procedure);
-    macro_model_free_macro(&set_macro);
-    macro_model_free_macro(&global_macro);
+    macro_model_free_macro(&first_macro);
+    macro_model_free_macro(&second_macro);
 }
 
-static void test_corrupt_and_stale_references_are_quarantined(void) {
+static void test_corrupt_and_stale_references_are_discarded(void) {
     reset_store();
     macro_set_t set;
-    macro_t set_macro;
-    macro_t global_macro;
-    create_set_and_macros(&set, &set_macro, &global_macro);
-    procedure_t procedure = make_procedure(1500U, &set, &set_macro, &global_macro, "Corrupt");
+    macro_t first_macro;
+    macro_t second_macro;
+    create_set_and_macros(&set, &first_macro, &second_macro);
+    procedure_t procedure = make_procedure(1500U, &set, &first_macro, &second_macro, "Corrupt");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_create(&set.id, &procedure));
 
     char path[APP_PATH_MAX_BYTES];
@@ -369,21 +334,17 @@ static void test_corrupt_and_stale_references_are_quarantined(void) {
     TEST_CHECK(output.steps == NULL);
     TEST_CHECK(!path_exists(path));
 
-    storage_quarantine_list_t quarantine = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_quarantine_list(&quarantine));
-    TEST_CHECK_EQ_U64(1U, quarantine.count);
-    TEST_CHECK_EQ_STRING(path, quarantine.items[0].source_path);
     macro_model_free_procedure(&procedure);
-    macro_model_free_macro(&set_macro);
-    macro_model_free_macro(&global_macro);
+    macro_model_free_macro(&first_macro);
+    macro_model_free_macro(&second_macro);
 
     reset_store();
-    create_set_and_macros(&set, &set_macro, &global_macro);
-    procedure = make_procedure(1600U, &set, &set_macro, &global_macro, "Stale reference");
+    create_set_and_macros(&set, &first_macro, &second_macro);
+    procedure = make_procedure(1600U, &set, &first_macro, &second_macro, "Stale reference");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_create(&set.id, &procedure));
     char macro_path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_macro_path(&set.id, &set_macro.id, macro_path,
-                                                                 sizeof(macro_path)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_macro_path(&set.id, &first_macro.id,
+                                                                 macro_path, sizeof(macro_path)));
     TEST_CHECK(unlink(macro_path) == 0);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          storage_make_procedure_path(&set.id, &procedure.id, path, sizeof(path)));
@@ -392,17 +353,17 @@ static void test_corrupt_and_stale_references_are_quarantined(void) {
     TEST_CHECK(!path_exists(path));
 
     macro_model_free_procedure(&procedure);
-    macro_model_free_macro(&set_macro);
-    macro_model_free_macro(&global_macro);
+    macro_model_free_macro(&first_macro);
+    macro_model_free_macro(&second_macro);
 }
 
 static void test_missing_set_empty_steps_and_revision_overflow(void) {
     reset_store();
     macro_set_t set;
-    macro_t set_macro;
-    macro_t global_macro;
-    create_set_and_macros(&set, &set_macro, &global_macro);
-    procedure_t procedure = make_procedure(1700U, &set, &set_macro, &global_macro, "Limits");
+    macro_t first_macro;
+    macro_t second_macro;
+    create_set_and_macros(&set, &first_macro, &second_macro);
+    procedure_t procedure = make_procedure(1700U, &set, &first_macro, &second_macro, "Limits");
 
     const app_uuid_t absent_set = make_uuid(999U);
     procedure.set_id = absent_set;
@@ -431,8 +392,8 @@ static void test_missing_set_empty_steps_and_revision_overflow(void) {
     TEST_CHECK(output.steps == NULL);
 
     macro_model_free_procedure(&procedure);
-    macro_model_free_macro(&set_macro);
-    macro_model_free_macro(&global_macro);
+    macro_model_free_macro(&first_macro);
+    macro_model_free_macro(&second_macro);
 }
 
 int main(void) {
@@ -440,7 +401,7 @@ int main(void) {
     test_argument_validation();
     test_crud_and_order();
     test_reference_validation();
-    test_corrupt_and_stale_references_are_quarantined();
+    test_corrupt_and_stale_references_are_discarded();
     test_missing_set_empty_steps_and_revision_overflow();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());

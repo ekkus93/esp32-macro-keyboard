@@ -23,10 +23,10 @@
 #define WEB_EXECUTION_DETAILS_RESPONSE_BYTES 192U
 #include "web_server_internal.h"
 
-static app_error_code_t read_macro(void *context, const storage_macro_location_t *location,
+static app_error_code_t read_macro(void *context, const app_uuid_t *set_id,
                                    const app_uuid_t *macro_id, macro_t *out_macro) {
     (void)context;
-    return storage_macro_read(location, macro_id, out_macro);
+    return storage_macro_read(set_id, macro_id, out_macro);
 }
 
 static app_error_code_t read_procedure(void *context, const app_uuid_t *set_id,

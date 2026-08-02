@@ -91,11 +91,8 @@ static void reset_store(void) {
     static const char *const paths[] = {
         STORAGE_DATA_MOUNT,
         STORAGE_DATA_MOUNT "/sets",
-        STORAGE_DATA_MOUNT "/global",
-        STORAGE_DATA_MOUNT "/global/macros",
         STORAGE_DATA_MOUNT "/staging",
         STORAGE_DATA_MOUNT "/trash",
-        STORAGE_DATA_MOUNT "/quarantine",
         STORAGE_DATA_MOUNT "/transactions",
     };
     for (size_t index = 0U; index < (sizeof(paths) / sizeof(paths[0])); ++index) {
@@ -258,7 +255,7 @@ static void test_set_limit_and_stable_order(void) {
     }
 }
 
-static void test_corrupt_set_is_quarantined(void) {
+static void test_corrupt_set_is_discarded(void) {
     reset_store();
     macro_set_t set = make_set(50U, "Corrupt JSON", 0);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
@@ -273,16 +270,9 @@ static void test_corrupt_set_is_quarantined(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_set_read(&set.id, &output));
     TEST_CHECK(!path_exists(path));
     TEST_CHECK_EQ_U64(0U, output.revision);
-
-    storage_quarantine_list_t quarantine = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_quarantine_list(&quarantine));
-    TEST_CHECK_EQ_U64(1U, quarantine.count);
-    TEST_CHECK_EQ_STRING(path, quarantine.items[0].source_path);
-    TEST_CHECK(strstr(quarantine.items[0].reason, "invalid set") != NULL);
-    TEST_CHECK(path_exists(quarantine.items[0].evidence_path));
 }
 
-static void test_mismatched_object_id_is_quarantined(void) {
+static void test_mismatched_object_id_is_discarded(void) {
     reset_store();
     macro_set_t expected = make_set(60U, "Expected", 0);
     macro_set_t wrong = make_set(61U, "Wrong ID", 0);
@@ -298,14 +288,9 @@ static void test_mismatched_object_id_is_quarantined(void) {
     TEST_CHECK_EQ_U64(0U, output.revision);
     TEST_CHECK(output.id.value[0] == '\0');
     TEST_CHECK(!path_exists(path));
-
-    storage_quarantine_list_t quarantine = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_quarantine_list(&quarantine));
-    TEST_CHECK_EQ_U64(1U, quarantine.count);
-    TEST_CHECK_EQ_STRING(path, quarantine.items[0].source_path);
 }
 
-static void test_duplicate_index_is_quarantined_and_output_cleared(void) {
+static void test_duplicate_index_is_discarded_and_output_cleared(void) {
     reset_store();
     macro_set_t set = make_set(70U, "Duplicate index", 0);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
@@ -322,12 +307,6 @@ static void test_duplicate_index_is_quarantined_and_output_cleared(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_set_list(&list));
     TEST_CHECK_EQ_U64(0U, list.count);
     TEST_CHECK(!path_exists(STORAGE_SET_INDEX_FILE_PATH));
-
-    storage_quarantine_list_t quarantine = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_quarantine_list(&quarantine));
-    TEST_CHECK_EQ_U64(1U, quarantine.count);
-    TEST_CHECK_EQ_STRING(STORAGE_SET_INDEX_FILE_PATH, quarantine.items[0].source_path);
-    TEST_CHECK(strstr(quarantine.items[0].reason, "ordering index") != NULL);
 }
 
 static void test_create_recovery(void) {
@@ -620,9 +599,9 @@ int main(void) {
     test_crud_ordering_revisions_and_cleanup();
     test_revision_overflow_is_rejected();
     test_set_limit_and_stable_order();
-    test_corrupt_set_is_quarantined();
-    test_mismatched_object_id_is_quarantined();
-    test_duplicate_index_is_quarantined_and_output_cleared();
+    test_corrupt_set_is_discarded();
+    test_mismatched_object_id_is_discarded();
+    test_duplicate_index_is_discarded_and_output_cleared();
     test_create_recovery();
     test_delete_recovery();
     test_unknown_transaction_is_preserved();

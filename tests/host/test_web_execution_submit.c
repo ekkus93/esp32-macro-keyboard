@@ -26,7 +26,6 @@ typedef struct {
     app_error_code_t uuid_result;
     app_error_code_t submit_result;
     uint32_t revision;
-    macro_scope_t macro_scope;
     bool macro_set_matches;
     bool procedure_matches;
     size_t read_calls;
@@ -47,29 +46,24 @@ static app_uuid_t uuid(const char *text) {
 static fixture_t fixture_defaults(void) {
     return (fixture_t){
         .revision = 7U,
-        .macro_scope = MACRO_SCOPE_SET,
         .macro_set_matches = true,
         .procedure_matches = true,
     };
 }
 
-static app_error_code_t read_macro(void *context, const storage_macro_location_t *location,
+static app_error_code_t read_macro(void *context, const app_uuid_t *set_id,
                                    const app_uuid_t *macro_id, macro_t *out_macro) {
     fixture_t *fixture = context;
     ++fixture->read_calls;
     TEST_CHECK_EQ_STRING(MACRO_ID, macro_id->value);
+    TEST_CHECK_EQ_STRING(SET_ID, set_id->value);
     if (fixture->read_result != APP_ERROR_NONE) {
         return fixture->read_result;
-    }
-    if (location->scope != fixture->macro_scope) {
-        return APP_ERROR_NOT_FOUND;
     }
     *out_macro = (macro_t){
         .schema_version = 1U,
         .id = uuid(MACRO_ID),
         .revision = fixture->revision,
-        .scope = fixture->macro_scope,
-        .has_set_id = fixture->macro_scope == MACRO_SCOPE_SET,
         .set_id = uuid(fixture->macro_set_matches ? SET_ID : OTHER_SET_ID),
         .source_length = 1U,
         .key_press_ms = 8U,
@@ -214,15 +208,6 @@ static void test_success_and_global_fallback(void) {
     TEST_CHECK_EQ_U64(0U, fixture.free_calls);
     TEST_CHECK(fixture.accepted_plan.actions != NULL);
     release_accepted_plan(&fixture);
-
-    fixture = fixture_defaults();
-    fixture.macro_scope = MACRO_SCOPE_GLOBAL;
-    memset(&accepted, 0, sizeof(accepted));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         submit_fixture(&fixture, &submission, &accepted, &parse_error));
-    TEST_CHECK_EQ_U64(2U, fixture.read_calls);
-    TEST_CHECK_EQ_U64(0U, fixture.free_calls);
-    release_accepted_plan(&fixture);
 }
 
 static void test_pre_compile_failures(void) {
@@ -241,7 +226,7 @@ static void test_pre_compile_failures(void) {
     fixture.read_result = APP_ERROR_NOT_FOUND;
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
                          submit_fixture(&fixture, &submission, &accepted, &parse_error));
-    TEST_CHECK_EQ_U64(2U, fixture.read_calls);
+    TEST_CHECK_EQ_U64(1U, fixture.read_calls);
     TEST_CHECK_EQ_U64(0U, fixture.compile_calls);
 
     fixture = fixture_defaults();

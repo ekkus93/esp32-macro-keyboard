@@ -123,22 +123,14 @@ static app_error_code_t validate_resource_fields(const char *body, size_t body_l
     return valid ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
 }
 
+/* Every macro belongs to a set (SPEC §7.2), so `set_id` is required and there
+ * is no scope discriminator. */
 static app_error_code_t validate_macro_resource_fields(const char *body, size_t body_length) {
-    static const char *const base_fields[] = {
-        "schema_version", "id",       "revision",     "scope",        "name",
+    static const char *const fields[] = {
+        "schema_version", "id",       "revision",     "set_id",       "name",
         "source",         "favorite", "key_press_ms", "inter_key_ms",
     };
-    static const char *const set_fields[] = {
-        "schema_version", "id",       "revision",     "scope",        "name",
-        "source",         "favorite", "key_press_ms", "inter_key_ms", "set_id",
-    };
-    cJSON *root = parse_exact_document(body, body_length);
-    const bool valid =
-        root != NULL &&
-        (exact_fields(root, base_fields, sizeof(base_fields) / sizeof(base_fields[0])) ||
-         exact_fields(root, set_fields, sizeof(set_fields) / sizeof(set_fields[0])));
-    cJSON_Delete(root);
-    return valid ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
+    return validate_resource_fields(body, body_length, fields, sizeof(fields) / sizeof(fields[0]));
 }
 
 app_error_code_t web_api_json_parse_set_resource(const char *body, size_t body_length,

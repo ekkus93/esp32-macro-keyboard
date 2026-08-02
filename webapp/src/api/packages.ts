@@ -6,7 +6,6 @@ interface PackageDocumentBase {
   schema_version: 1;
   sets: unknown[];
   macros: unknown[];
-  global_macros: unknown[];
   procedures: unknown[];
   progress: unknown[];
 }
@@ -34,7 +33,6 @@ const packageKeys = [
   "package_type",
   "sets",
   "macros",
-  "global_macros",
   "procedures",
   "progress",
 ] as const;
@@ -52,7 +50,6 @@ function hasExactPackageShape(value: unknown): value is PackageDocumentBase & {
     value.schema_version === 1 &&
     Array.isArray(value.sets) &&
     Array.isArray(value.macros) &&
-    Array.isArray(value.global_macros) &&
     Array.isArray(value.procedures) &&
     Array.isArray(value.progress)
   );

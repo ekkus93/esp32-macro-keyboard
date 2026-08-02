@@ -38,11 +38,8 @@ static void reset_store(void) {
     static const char *const paths[] = {
         STORAGE_DATA_MOUNT,
         STORAGE_DATA_MOUNT "/sets",
-        STORAGE_DATA_MOUNT "/global",
-        STORAGE_DATA_MOUNT "/global/macros",
         STORAGE_DATA_MOUNT "/staging",
         STORAGE_DATA_MOUNT "/trash",
-        STORAGE_DATA_MOUNT "/quarantine",
         STORAGE_DATA_MOUNT "/transactions",
     };
     for (size_t index = 0U; index < (sizeof(paths) / sizeof(paths[0])); ++index) {
@@ -199,7 +196,7 @@ static void test_procedure_revision_change_is_visible_as_stale(void) {
     macro_model_free_procedure(&procedure);
 }
 
-static void test_corrupt_progress_is_quarantined(void) {
+static void test_corrupt_progress_is_discarded(void) {
     reset_store();
     macro_set_t set;
     procedure_t procedure;
@@ -220,10 +217,6 @@ static void test_corrupt_progress_is_quarantined(void) {
 
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_progress_read(&identity, &snapshot));
     TEST_CHECK(!path_exists(path));
-    storage_quarantine_list_t quarantine = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_quarantine_list(&quarantine));
-    TEST_CHECK_EQ_U64(1U, quarantine.count);
-    TEST_CHECK_EQ_STRING(path, quarantine.items[0].source_path);
     macro_model_free_procedure(&procedure);
 }
 
@@ -267,7 +260,7 @@ int main(void) {
     test_reset_read_and_update();
     test_invalid_step_and_overlap_are_rejected();
     test_procedure_revision_change_is_visible_as_stale();
-    test_corrupt_progress_is_quarantined();
+    test_corrupt_progress_is_discarded();
     test_procedure_delete_removes_progress();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());

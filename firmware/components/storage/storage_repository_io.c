@@ -237,6 +237,23 @@ app_error_code_t storage_repository_remove_manifest_with_ops(const app_uuid_t *t
     return storage_repository_map_error_number(unlink_error);
 }
 
+/* A corrupt object is deleted, not preserved. This device has 512 KiB of
+ * storage; keeping damaged copies of files spends space to no purpose, nothing
+ * ever read them back, and the caller reports the failure to the client
+ * instead. A file that is already gone is the desired state, not an error. */
+app_error_code_t storage_repository_discard_corrupt_file(const char *path) {
+    if (path == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const storage_fs_ops_t *operations = storage_fs_ops_posix();
+    if (operations->unlink_path(operations->context, path) == 0) {
+        return APP_ERROR_NONE;
+    }
+    const int unlink_error = errno;
+    return unlink_error == ENOENT ? APP_ERROR_NONE
+                                  : storage_repository_map_error_number(unlink_error);
+}
+
 app_error_code_t storage_repository_remove_manifest(const app_uuid_t *transaction_id) {
     return storage_repository_remove_manifest_with_ops(transaction_id, storage_fs_ops_posix());
 }

@@ -5,7 +5,7 @@
 #include "storage_repository.h" /* storage_repository_lock_init / _deinit */
 
 /* The repository mutation lock (FIX1 §7.5 / §9). Every public repository function
- * -- set CRUD, quarantine mutation, and startup recovery -- serializes its whole
+ * -- set CRUD and startup recovery -- serializes its whole
  * read-check-write transaction behind this single non-recursive lock. Internal
  * helpers invoked while it is held use `_locked` naming and must not reacquire it.
  *

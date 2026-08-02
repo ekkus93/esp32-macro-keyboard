@@ -54,7 +54,7 @@ function newUuid(): string {
 }
 
 function macroBelongsToSet(macro: Macro, setId: string): boolean {
-  return macro.scope === "set" && macro.set_id === setId;
+  return macro.set_id === setId;
 }
 
 export function MacroEditorPage({

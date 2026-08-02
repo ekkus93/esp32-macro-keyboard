@@ -17,10 +17,8 @@
 
 #define SET_ID "11111111-1111-4111-8111-111111111111"
 #define LOCAL_MACRO_ID "22222222-2222-4222-8222-222222222222"
-#define GLOBAL_MACRO_ID "23232323-2323-4232-8232-232323232323"
 #define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
 #define LOCAL_STEP_ID "44444444-4444-4444-8444-444444444444"
-#define GLOBAL_STEP_ID "45454545-4545-4545-8545-454545454545"
 
 static const char SET_JSON[] =
     "{\"schema_version\":1,\"id\":\"" SET_ID
@@ -28,18 +26,12 @@ static const char SET_JSON[] =
     "\"model\":\"\",\"board\":\"\",\"keyboard_layout\":\"en-US\",\"sort_order\":0}";
 static const char LOCAL_MACRO_JSON[] =
     "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
-    "\",\"revision\":1,\"scope\":\"set\",\"name\":\"Local\",\"source\":\"a\","
+    "\",\"revision\":1,\"name\":\"Local\",\"source\":\"a\","
     "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}";
-static const char GLOBAL_MACRO_JSON[] =
-    "{\"schema_version\":1,\"id\":\"" GLOBAL_MACRO_ID
-    "\",\"revision\":2,\"scope\":\"global\",\"name\":\"Global\",\"source\":\"b\","
-    "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15}";
 static const char PROCEDURE_JSON[] =
     "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":3,\"set_id\":\"" SET_ID
     "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{\"id\":\"" LOCAL_STEP_ID
     "\",\"type\":\"macro\",\"title\":\"Local\",\"macro_id\":\"" LOCAL_MACRO_ID
-    "\",\"required\":true,\"auto_complete_on_success\":false},{\"id\":\"" GLOBAL_STEP_ID
-    "\",\"type\":\"macro\",\"title\":\"Global\",\"macro_id\":\"" GLOBAL_MACRO_ID
     "\",\"required\":true,\"auto_complete_on_success\":false}],\"sort_order\":0}";
 static const char PROGRESS_JSON[] =
     "{\"schema_version\":1,\"set_id\":\"" SET_ID "\",\"procedure_id\":\"" PROCEDURE_ID
@@ -73,11 +65,6 @@ static void reset_storage(void) {
     TEST_CHECK((size_t)written < sizeof(command));
     TEST_CHECK_EQ_INT(0, system(command));
     make_directory(STORAGE_DATA_MOUNT);
-    char path[APP_PATH_MAX_BYTES];
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "global");
-    make_directory(path);
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT "/global", "macros");
-    make_directory(path);
 }
 
 static void create_valid_tree(char *out_set_path, size_t out_set_path_size) {
@@ -114,8 +101,6 @@ static void create_valid_tree(char *out_set_path, size_t out_set_path_size) {
     join_path(directory_path, sizeof(directory_path), out_set_path, "progress");
     join_path(path, sizeof(path), directory_path, PROCEDURE_ID ".json");
     write_text(path, PROGRESS_JSON);
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT "/global/macros", GLOBAL_MACRO_ID ".json");
-    write_text(path, GLOBAL_MACRO_JSON);
 }
 
 static app_uuid_t set_id(void) {
@@ -174,7 +159,7 @@ static void test_references_and_progress_integrity(void) {
     char set_path[APP_PATH_MAX_BYTES];
     create_valid_tree(set_path, sizeof(set_path));
     char path[APP_PATH_MAX_BYTES];
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT "/global/macros", GLOBAL_MACRO_ID ".json");
+    join_path(path, sizeof(path), set_path, "macros/" LOCAL_MACRO_ID ".json");
     TEST_CHECK_EQ_INT(0, unlink(path));
     const app_uuid_t id = set_id();
     TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT, storage_set_tree_validate(set_path, &id, 7U));

@@ -5,7 +5,6 @@ import {
   deleteSet,
   duplicateSet,
   factoryResetDevice,
-  getQuarantine,
   getStorageHealth,
   reorderSets,
   resetSettings,
@@ -105,34 +104,18 @@ describe("management API contracts", () => {
     expect(bodyAt(1)).toEqual({ expectedRevision: settings.revision });
   });
 
-  test("validates redacted storage and quarantine data", async () => {
+  test("validates redacted storage data", async () => {
     planJsonResponse(
       success({
         verified: false,
         webMounted: true,
         dataMounted: true,
-        quarantineCount: 1,
-        damagedQuarantineCount: 0,
-      }),
-    );
-    planJsonResponse(
-      success({
-        damagedCount: 0,
-        items: [
-          {
-            id: secondSetId,
-            sourcePath: "/data/sets/damaged.json",
-            evidencePath: "/data/quarantine/evidence.json",
-            reason: "invalid JSON",
-          },
-        ],
       }),
     );
 
     await expect(getStorageHealth()).resolves.toMatchObject({
       dataMounted: true,
     });
-    await expect(getQuarantine()).resolves.toMatchObject({ damagedCount: 0 });
   });
 
   test("fails closed on incomplete factory-reset acknowledgement", async () => {

@@ -24,7 +24,6 @@
 #define SET_ID "11111111-1111-4111-8111-111111111111"
 #define OTHER_SET_ID "12121212-1212-4212-8212-121212121212"
 #define LOCAL_MACRO_ID "22222222-2222-4222-8222-222222222222"
-#define GLOBAL_MACRO_ID "23232323-2323-4232-8232-232323232323"
 #define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
 #define STEP_ID "44444444-4444-4444-8444-444444444444"
 
@@ -35,15 +34,12 @@ static const char PACKAGE[] =
     "\"manufacturer\":\"Vendor\",\"model\":\"Model\",\"board\":\"Board\","
     "\"keyboard_layout\":\"en-US\",\"sort_order\":0}],\"macros\":["
     "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
-    "\",\"revision\":4,\"scope\":\"set\",\"name\":\"Local\",\"source\":\"a\","
+    "\",\"revision\":4,\"name\":\"Local\",\"source\":\"a\","
     "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID
-    "\"}],\"global_macros\":["
-    "{\"schema_version\":1,\"id\":\"" GLOBAL_MACRO_ID
-    "\",\"revision\":2,\"scope\":\"global\",\"name\":\"Global\",\"source\":\"b\","
-    "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15}],\"procedures\":["
+    "\"}],\"procedures\":["
     "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":3,\"set_id\":\"" SET_ID
     "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{\"id\":\"" STEP_ID
-    "\",\"type\":\"macro\",\"title\":\"Step\",\"macro_id\":\"" GLOBAL_MACRO_ID
+    "\",\"type\":\"macro\",\"title\":\"Step\",\"macro_id\":\"" LOCAL_MACRO_ID
     "\",\"required\":true,\"auto_complete_on_success\":false}],\"sort_order\":0}],"
     "\"progress\":[{\"schema_version\":1,\"set_id\":\"" SET_ID "\",\"procedure_id\":\"" PROCEDURE_ID
     "\",\"procedure_revision\":3,\"current_step_id\":\"" STEP_ID
@@ -74,15 +70,16 @@ static void reset_storage(void) {
     TEST_CHECK_EQ_INT(0, system(command));
     make_directory(STORAGE_DATA_MOUNT);
     static const char *const roots[] = {
-        "transactions", "staging", "sets", "trash", "global", "quarantine",
+        "transactions",
+        "staging",
+        "sets",
+        "trash",
     };
     char path[APP_PATH_MAX_BYTES];
     for (size_t index = 0U; index < sizeof(roots) / sizeof(roots[0]); ++index) {
         join_path(path, sizeof(path), STORAGE_DATA_MOUNT, roots[index]);
         make_directory(path);
     }
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT "/global", "macros");
-    make_directory(path);
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_lock_init());
 }
 
@@ -127,31 +124,6 @@ static void create_current_set(void) {
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_write_index(&index));
 }
 
-static void create_global_macro(const char *source) {
-    macro_t macro = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .id = parse_id(GLOBAL_MACRO_ID),
-        .revision = 2U,
-        .scope = MACRO_SCOPE_GLOBAL,
-        .has_set_id = false,
-        .source = (char *)source,
-        .source_length = strlen(source),
-        .favorite = false,
-        .key_press_ms = 8U,
-        .inter_key_ms = 15U,
-    };
-    memcpy(macro.name, "Global", sizeof("Global"));
-    char *json = NULL;
-    size_t length = 0U;
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      storage_repository_serialize_macro_json(&macro, &json, &length));
-    char path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      storage_make_global_macro_path(&macro.id, path, sizeof(path)));
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_atomic_write(path, json, length, true));
-    cJSON_free(json);
-}
-
 static bool directory_empty(const char *path) {
     DIR *directory = opendir(path);
     TEST_CHECK(directory != NULL);
@@ -175,7 +147,6 @@ static bool directory_empty(const char *path) {
 static void prepare_valid_state(void) {
     reset_storage();
     create_current_set();
-    create_global_macro("b");
 }
 
 static void assert_current_revision(uint32_t revision) {
@@ -203,21 +174,6 @@ static void test_invalid_and_conflict_inputs_do_not_mutate(void) {
     assert_current_revision(3U);
 }
 
-static void test_global_dependency_must_match(void) {
-    reset_storage();
-    create_current_set();
-    macro_set_t committed = {0};
-    const app_uuid_t id = parse_id(SET_ID);
-    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT, storage_package_replace_set(
-                                              &id, 3U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
-    assert_current_revision(3U);
-
-    create_global_macro("c");
-    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT, storage_package_replace_set(
-                                              &id, 3U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
-    assert_current_revision(3U);
-}
-
 static void test_valid_replace_commits_complete_tree(void) {
     prepare_valid_state();
     macro_set_t committed = {0};
@@ -228,14 +184,9 @@ static void test_valid_replace_commits_complete_tree(void) {
     TEST_CHECK_EQ_STRING("Replacement", committed.name);
     assert_current_revision(7U);
 
-    storage_macro_location_t location = {
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
-        .set_id = id,
-    };
     macro_t macro = {0};
     const app_uuid_t macro_id = parse_id(LOCAL_MACRO_ID);
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_macro_read(&location, &macro_id, &macro));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_macro_read(&id, &macro_id, &macro));
     TEST_CHECK_EQ_U64(4U, macro.revision);
     macro_model_free_macro(&macro);
 
@@ -265,7 +216,6 @@ static void test_valid_replace_commits_complete_tree(void) {
 
 int main(void) {
     test_invalid_and_conflict_inputs_do_not_mutate();
-    test_global_dependency_must_match();
     test_valid_replace_commits_complete_tree();
     reset_storage();
     storage_repository_lock_deinit();

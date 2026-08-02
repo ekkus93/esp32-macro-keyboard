@@ -25,7 +25,6 @@
 #define NEW_SET_ID_1 "55555555-5555-4555-8555-555555555555"
 #define NEW_SET_ID_2 "66666666-6666-4666-8666-666666666666"
 #define LOCAL_MACRO_ID "22222222-2222-4222-8222-222222222222"
-#define GLOBAL_MACRO_ID "23232323-2323-4232-8232-232323232323"
 #define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
 #define STEP_ID "44444444-4444-4444-8444-444444444444"
 
@@ -36,15 +35,12 @@ static const char PACKAGE[] =
     "\"manufacturer\":\"Vendor\",\"model\":\"Model\",\"board\":\"Board\","
     "\"keyboard_layout\":\"en-US\",\"sort_order\":0}],\"macros\":["
     "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
-    "\",\"revision\":4,\"scope\":\"set\",\"name\":\"Local\",\"source\":\"a\","
+    "\",\"revision\":4,\"name\":\"Local\",\"source\":\"a\","
     "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID
-    "\"}],\"global_macros\":["
-    "{\"schema_version\":1,\"id\":\"" GLOBAL_MACRO_ID
-    "\",\"revision\":2,\"scope\":\"global\",\"name\":\"Global\",\"source\":\"b\","
-    "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15}],\"procedures\":["
+    "\"}],\"procedures\":["
     "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":3,\"set_id\":\"" SET_ID
     "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{\"id\":\"" STEP_ID
-    "\",\"type\":\"macro\",\"title\":\"Step\",\"macro_id\":\"" GLOBAL_MACRO_ID
+    "\",\"type\":\"macro\",\"title\":\"Step\",\"macro_id\":\"" LOCAL_MACRO_ID
     "\",\"required\":true,\"auto_complete_on_success\":false}],\"sort_order\":0}],"
     "\"progress\":[{\"schema_version\":1,\"set_id\":\"" SET_ID "\",\"procedure_id\":\"" PROCEDURE_ID
     "\",\"procedure_revision\":3,\"current_step_id\":\"" STEP_ID
@@ -75,15 +71,16 @@ static void reset_storage(void) {
     TEST_CHECK_EQ_INT(0, system(command));
     make_directory(STORAGE_DATA_MOUNT);
     static const char *const roots[] = {
-        "transactions", "staging", "sets", "trash", "global", "quarantine",
+        "transactions",
+        "staging",
+        "sets",
+        "trash",
     };
     char path[APP_PATH_MAX_BYTES];
     for (size_t index = 0U; index < sizeof(roots) / sizeof(roots[0]); ++index) {
         join_path(path, sizeof(path), STORAGE_DATA_MOUNT, roots[index]);
         make_directory(path);
     }
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT "/global", "macros");
-    make_directory(path);
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_lock_init());
 }
 
@@ -126,31 +123,6 @@ static void create_current_set(void) {
                       storage_atomic_write(path, empty_order, strlen(empty_order), true));
     storage_set_index_t index = {.ids = {id}, .count = 1U};
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_write_index(&index));
-}
-
-static void create_global_macro(const char *source) {
-    macro_t macro = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .id = parse_id(GLOBAL_MACRO_ID),
-        .revision = 2U,
-        .scope = MACRO_SCOPE_GLOBAL,
-        .has_set_id = false,
-        .source = (char *)source,
-        .source_length = strlen(source),
-        .favorite = false,
-        .key_press_ms = 8U,
-        .inter_key_ms = 15U,
-    };
-    memcpy(macro.name, "Global", sizeof("Global"));
-    char *json = NULL;
-    size_t length = 0U;
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      storage_repository_serialize_macro_json(&macro, &json, &length));
-    char path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      storage_make_global_macro_path(&macro.id, path, sizeof(path)));
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_atomic_write(path, json, length, true));
-    cJSON_free(json);
 }
 
 static bool directory_empty(const char *path) {
@@ -197,7 +169,6 @@ static void write_empty_index(void) {
 static void test_invalid_arguments_and_collision_do_not_mutate(void) {
     reset_storage();
     create_current_set();
-    create_global_macro("b");
     macro_set_t committed = {0};
     const app_uuid_t new_id = parse_id(NEW_SET_ID_1);
     const app_uuid_t existing_id = parse_id(SET_ID);
@@ -215,27 +186,9 @@ static void test_invalid_arguments_and_collision_do_not_mutate(void) {
     assert_index_count(1U);
 }
 
-static void test_global_dependency_must_match(void) {
-    reset_storage();
-    write_empty_index();
-    macro_set_t committed = {0};
-    const app_uuid_t new_id = parse_id(NEW_SET_ID_1);
-    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT, storage_package_import_set(
-                                              &new_id, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
-    assert_not_created(NEW_SET_ID_1);
-    assert_index_count(0U);
-
-    create_global_macro("c");
-    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT, storage_package_import_set(
-                                              &new_id, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
-    assert_not_created(NEW_SET_ID_1);
-    assert_index_count(0U);
-}
-
 static void test_valid_import_assigns_new_identity_and_resets_revisions(void) {
     reset_storage();
     write_empty_index();
-    create_global_macro("b");
     macro_set_t committed = {0};
     const app_uuid_t new_id = parse_id(NEW_SET_ID_1);
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_package_import_set(&new_id, PACKAGE,
@@ -247,16 +200,10 @@ static void test_valid_import_assigns_new_identity_and_resets_revisions(void) {
     /* The package's own embedded set id must never be materialized. */
     assert_not_created(SET_ID);
 
-    storage_macro_location_t location = {
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
-        .set_id = new_id,
-    };
     macro_t macro = {0};
     const app_uuid_t macro_id = parse_id(LOCAL_MACRO_ID);
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_macro_read(&location, &macro_id, &macro));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_macro_read(&new_id, &macro_id, &macro));
     TEST_CHECK_EQ_U64(1U, macro.revision);
-    TEST_CHECK(macro.has_set_id);
     TEST_CHECK(app_uuid_equal(&new_id, &macro.set_id));
     macro_model_free_macro(&macro);
 
@@ -342,7 +289,6 @@ static app_error_code_t interloper_delete_unrelated_set(void) {
 static void test_concurrency_import_excludes_mutation(void) {
     reset_storage();
     write_empty_index();
-    create_global_macro("b");
     const app_uuid_t new_id = parse_id(NEW_SET_ID_1);
 
     g_mx =
@@ -362,7 +308,6 @@ static void test_concurrency_import_excludes_mutation(void) {
 static void test_repeated_import_produces_distinct_sets(void) {
     reset_storage();
     write_empty_index();
-    create_global_macro("b");
     macro_set_t first = {0};
     macro_set_t second = {0};
     const app_uuid_t first_id = parse_id(NEW_SET_ID_1);
@@ -383,7 +328,6 @@ static void test_repeated_import_produces_distinct_sets(void) {
 
 int main(void) {
     test_invalid_arguments_and_collision_do_not_mutate();
-    test_global_dependency_must_match();
     test_valid_import_assigns_new_identity_and_resets_revisions();
     test_repeated_import_produces_distinct_sets();
     test_concurrency_import_excludes_mutation();

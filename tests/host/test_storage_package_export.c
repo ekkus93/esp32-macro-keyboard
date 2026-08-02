@@ -17,24 +17,25 @@
 
 #define SET_ID "11111111-1111-4111-8111-111111111111"
 #define LOCAL_ID "22222222-2222-4222-8222-222222222222"
-#define GLOBAL_ID "33333333-3333-4333-8333-333333333333"
-#define UNUSED_GLOBAL_ID "34343434-3434-4434-8434-343434343434"
+#define OTHER_SET_ID "33333333-3333-4333-8333-333333333333"
+#define OTHER_SET_MACRO_ID "34343434-3434-4434-8434-343434343434"
 #define PROCEDURE_ID "44444444-4444-4444-8444-444444444444"
 #define LOCAL_STEP_ID "55555555-5555-4555-8555-555555555555"
-#define GLOBAL_STEP_ID "56565656-5656-4656-8656-565656565656"
 #define SECRET_SENTINEL "phase18_5_admin_secret_N7vY5jR3xQ9mK2pL"
 
 typedef struct {
     macro_set_t set;
     macro_t *local_macros;
     size_t local_macro_count;
-    macro_t *global_macros;
-    size_t global_macro_count;
+    /* Macros of a different set: present in the repository, outside this
+     * export's scope. */
+    macro_t *other_macros;
+    size_t other_macro_count;
     procedure_t *procedures;
     size_t procedure_count;
     storage_progress_snapshot_t progress;
     app_error_code_t local_list_result;
-    app_error_code_t global_list_result;
+    app_error_code_t other_list_result;
     app_error_code_t procedure_list_result;
     app_error_code_t progress_result;
     app_error_code_t unlock_result;
@@ -73,11 +74,11 @@ static app_error_code_t fake_set_read(void *context, const app_uuid_t *set_id,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t fake_macro_list(void *context, const storage_macro_location_t *location,
+static app_error_code_t fake_macro_list(void *context, const app_uuid_t *set_id,
                                         storage_macro_list_t *out_list) {
     fake_export_context_t *fake = context;
     memset(out_list, 0, sizeof(*out_list));
-    if (location->scope == MACRO_SCOPE_SET) {
+    if (app_uuid_equal(set_id, &fake->set.id)) {
         if (fake->local_list_result != APP_ERROR_NONE) {
             return fake->local_list_result;
         }
@@ -85,11 +86,11 @@ static app_error_code_t fake_macro_list(void *context, const storage_macro_locat
         out_list->count = fake->local_macro_count;
         return APP_ERROR_NONE;
     }
-    if (fake->global_list_result != APP_ERROR_NONE) {
-        return fake->global_list_result;
+    if (fake->other_list_result != APP_ERROR_NONE) {
+        return fake->other_list_result;
     }
-    out_list->items = fake->global_macros;
-    out_list->count = fake->global_macro_count;
+    out_list->items = fake->other_macros;
+    out_list->count = fake->other_macro_count;
     return APP_ERROR_NONE;
 }
 
@@ -149,14 +150,12 @@ static storage_package_export_ops_t fake_operations(fake_export_context_t *conte
     };
 }
 
-static macro_t make_macro(const char *id, macro_scope_t scope, const app_uuid_t *set_id,
-                          const char *name, char *source) {
+static macro_t make_macro(const char *id, const app_uuid_t *set_id, const char *name,
+                          char *source) {
     macro_t macro = {
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid(id),
         .revision = 1U,
-        .scope = scope,
-        .has_set_id = scope == MACRO_SCOPE_SET,
         .source = source,
         .source_length = strlen(source),
         .favorite = false,
@@ -172,11 +171,10 @@ static macro_t make_macro(const char *id, macro_scope_t scope, const app_uuid_t 
 
 static fake_export_context_t valid_context(void) {
     static char local_source[] = "a";
-    static char global_source[] = "b";
     static char unused_source[] = SECRET_SENTINEL;
     static macro_t local_macros[1];
-    static macro_t global_macros[2];
-    static procedure_step_t steps[2];
+    static macro_t other_macros[1];
+    static procedure_step_t steps[1];
     static procedure_t procedures[1];
 
     fake_export_context_t context = {0};
@@ -189,15 +187,14 @@ static fake_export_context_t valid_context(void) {
     snprintf(context.set.name, sizeof(context.set.name), "Set");
     snprintf(context.set.keyboard_layout, sizeof(context.set.keyboard_layout), "en-US");
 
-    local_macros[0] = make_macro(LOCAL_ID, MACRO_SCOPE_SET, &context.set.id, "Local", local_source);
-    global_macros[0] =
-        make_macro(GLOBAL_ID, MACRO_SCOPE_GLOBAL, NULL, "Referenced global", global_source);
-    global_macros[1] = make_macro(UNUSED_GLOBAL_ID, MACRO_SCOPE_GLOBAL, NULL, "Unreferenced secret",
-                                  unused_source);
+    const app_uuid_t other_set_id = uuid(OTHER_SET_ID);
+    local_macros[0] = make_macro(LOCAL_ID, &context.set.id, "Local", local_source);
+    other_macros[0] =
+        make_macro(OTHER_SET_MACRO_ID, &other_set_id, "Unreferenced secret", unused_source);
     context.local_macros = local_macros;
     context.local_macro_count = 1U;
-    context.global_macros = global_macros;
-    context.global_macro_count = 2U;
+    context.other_macros = other_macros;
+    context.other_macro_count = 1U;
 
     steps[0] = (procedure_step_t){
         .id = uuid(LOCAL_STEP_ID),
@@ -207,21 +204,13 @@ static fake_export_context_t valid_context(void) {
         .macro_id = local_macros[0].id,
     };
     snprintf(steps[0].title, sizeof(steps[0].title), "Local step");
-    steps[1] = (procedure_step_t){
-        .id = uuid(GLOBAL_STEP_ID),
-        .type = PROCEDURE_STEP_MACRO,
-        .required = true,
-        .has_macro_id = true,
-        .macro_id = global_macros[0].id,
-    };
-    snprintf(steps[1].title, sizeof(steps[1].title), "Global step");
     procedures[0] = (procedure_t){
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid(PROCEDURE_ID),
         .revision = 1U,
         .set_id = context.set.id,
         .steps = steps,
-        .step_count = 2U,
+        .step_count = 1U,
         .sort_order = 0,
     };
     snprintf(procedures[0].name, sizeof(procedures[0].name), "Procedure");
@@ -254,8 +243,7 @@ static void test_deterministic_export_and_filtering(void) {
                          storage_package_export_set(&context.set.id, true, &first, &first_length));
     TEST_CHECK(first != NULL);
     TEST_CHECK(first_length == strlen(first));
-    TEST_CHECK(strstr(first, GLOBAL_ID) != NULL);
-    TEST_CHECK(strstr(first, UNUSED_GLOBAL_ID) == NULL);
+    TEST_CHECK(strstr(first, OTHER_SET_MACRO_ID) == NULL);
     TEST_CHECK(strstr(first, "Unreferenced secret") == NULL);
     TEST_CHECK(strstr(first, "\"progress\":[{") != NULL);
     TEST_CHECK(strstr(first, SECRET_SENTINEL) == NULL);
@@ -266,7 +254,6 @@ static void test_deterministic_export_and_filtering(void) {
         storage_package_validate(first, first_length, STORAGE_PACKAGE_KIND_SET, &summary));
     TEST_CHECK_EQ_U64(1U, summary.set_count);
     TEST_CHECK_EQ_U64(1U, summary.local_macro_count);
-    TEST_CHECK_EQ_U64(1U, summary.global_macro_count);
     TEST_CHECK_EQ_U64(1U, summary.procedure_count);
     TEST_CHECK_EQ_U64(1U, summary.progress_count);
 
@@ -278,7 +265,7 @@ static void test_deterministic_export_and_filtering(void) {
     TEST_CHECK(memcmp(first, second, first_length) == 0);
     TEST_CHECK_EQ_U64(2U, context.lock_take_count);
     TEST_CHECK_EQ_U64(2U, context.lock_give_count);
-    TEST_CHECK_EQ_U64(4U, context.macro_free_count);
+    TEST_CHECK_EQ_U64(2U, context.macro_free_count);
     TEST_CHECK_EQ_U64(2U, context.procedure_free_count);
     TEST_CHECK_EQ_U64(2U, context.progress_read_count);
 
@@ -289,8 +276,8 @@ static void test_deterministic_export_and_filtering(void) {
 
 static void test_export_output_passes_secret_sentinel_scanner(void) {
     /* FIX1 18.5: production-path proof, not a reimplemented substring check.
-     * unused_source (an unreferenced global macro, excluded from this set's
-     * export by the real filtering logic) is SECRET_SENTINEL itself, so this
+     * unused_source (a macro of a different set, outside this export's scope)
+     * is SECRET_SENTINEL itself, so this
      * exercises the real scripts/check-secret-sentinel.py - all 7 encodings
      * it checks - against the real export output of a repository that
      * genuinely holds the sentinel, just outside this export's scope. */
@@ -335,7 +322,7 @@ static void test_progress_is_optional_and_stale_progress_is_omitted(void) {
 
 static void test_failure_cleanup_and_primary_error_preservation(void) {
     fake_export_context_t context = valid_context();
-    context.global_list_result = APP_ERROR_IO;
+    context.local_list_result = APP_ERROR_IO;
     context.unlock_result = APP_ERROR_INTERNAL;
     const storage_package_export_ops_t operations = fake_operations(&context);
     storage_package_set_export_ops_for_test(&operations);
@@ -348,14 +335,16 @@ static void test_failure_cleanup_and_primary_error_preservation(void) {
     TEST_CHECK_EQ_U64(0U, length);
     TEST_CHECK_EQ_U64(1U, context.lock_take_count);
     TEST_CHECK_EQ_U64(1U, context.lock_give_count);
-    TEST_CHECK_EQ_U64(2U, context.macro_free_count);
+    TEST_CHECK_EQ_U64(1U, context.macro_free_count);
     TEST_CHECK_EQ_U64(1U, context.procedure_free_count);
     storage_package_reset_export_ops_for_test();
 }
 
 static void test_unresolved_reference_fails_closed(void) {
     fake_export_context_t context = valid_context();
-    context.global_macro_count = 0U;
+    /* A step referencing a macro the set does not contain must fail the export
+     * rather than emit a dangling reference. */
+    context.local_macro_count = 0U;
     const storage_package_export_ops_t operations = fake_operations(&context);
     storage_package_set_export_ops_for_test(&operations);
 
@@ -367,15 +356,19 @@ static void test_unresolved_reference_fails_closed(void) {
     storage_package_reset_export_ops_for_test();
 }
 
+/* With global macros gone a single set's macros can no longer reach the 512 KiB
+ * package ceiling on their own (100 x 4096 bytes of source is roughly 446 KiB),
+ * so the overflow is driven by procedures, which are also per-set. */
 static void test_output_limit_is_enforced(void) {
     fake_export_context_t context = valid_context();
     char *large_source = malloc(APP_MACRO_SOURCE_MAX_BYTES + 1U);
     macro_t *local_macros = calloc(APP_MACROS_PER_SET_MAX, sizeof(*local_macros));
-    macro_t *global_macros = calloc(APP_MACROS_PER_SET_MAX, sizeof(*global_macros));
-    procedure_step_t *steps = calloc(APP_MACROS_PER_SET_MAX, sizeof(*steps));
+    procedure_t *procedures = calloc(APP_PROCEDURES_PER_SET_MAX, sizeof(*procedures));
+    procedure_step_t *steps =
+        calloc((size_t)APP_PROCEDURES_PER_SET_MAX * APP_STEPS_PER_PROCEDURE_MAX, sizeof(*steps));
     TEST_CHECK(large_source != NULL);
     TEST_CHECK(local_macros != NULL);
-    TEST_CHECK(global_macros != NULL);
+    TEST_CHECK(procedures != NULL);
     TEST_CHECK(steps != NULL);
     memset(large_source, 'a', APP_MACRO_SOURCE_MAX_BYTES);
     large_source[APP_MACRO_SOURCE_MAX_BYTES] = '\0';
@@ -383,26 +376,39 @@ static void test_output_limit_is_enforced(void) {
     for (size_t index = 0U; index < APP_MACROS_PER_SET_MAX; ++index) {
         char id[APP_UUID_BUFFER_LENGTH];
         snprintf(id, sizeof(id), "10000000-0000-4000-8000-%012zu", index);
-        local_macros[index] =
-            make_macro(id, MACRO_SCOPE_SET, &context.set.id, "Large local", large_source);
+        local_macros[index] = make_macro(id, &context.set.id, "Large local", large_source);
+    }
+    for (size_t index = 0U; index < APP_PROCEDURES_PER_SET_MAX; ++index) {
+        char id[APP_UUID_BUFFER_LENGTH];
         snprintf(id, sizeof(id), "20000000-0000-4000-8000-%012zu", index);
-        global_macros[index] =
-            make_macro(id, MACRO_SCOPE_GLOBAL, NULL, "Large global", large_source);
-        steps[index] = (procedure_step_t){
-            .id = uuid(LOCAL_STEP_ID),
-            .type = PROCEDURE_STEP_MACRO,
-            .required = true,
-            .has_macro_id = true,
-            .macro_id = global_macros[index].id,
+        procedure_step_t *slice = &steps[index * APP_STEPS_PER_PROCEDURE_MAX];
+        for (size_t step = 0U; step < APP_STEPS_PER_PROCEDURE_MAX; ++step) {
+            char step_id[APP_UUID_BUFFER_LENGTH];
+            snprintf(step_id, sizeof(step_id), "30000000-%04zu-4000-8000-%012zu", index, step);
+            slice[step] = (procedure_step_t){
+                .id = uuid(step_id),
+                .type = PROCEDURE_STEP_MACRO,
+                .required = true,
+                .has_macro_id = true,
+                .macro_id = local_macros[step % APP_MACROS_PER_SET_MAX].id,
+            };
+            snprintf(slice[step].title, sizeof(slice[step].title), "Step %zu", step);
+        }
+        procedures[index] = (procedure_t){
+            .schema_version = APP_SCHEMA_VERSION,
+            .id = uuid(id),
+            .revision = 1U,
+            .set_id = context.set.id,
+            .steps = slice,
+            .step_count = APP_STEPS_PER_PROCEDURE_MAX,
+            .sort_order = (int32_t)index,
         };
-        snprintf(steps[index].title, sizeof(steps[index].title), "Step %zu", index);
+        snprintf(procedures[index].name, sizeof(procedures[index].name), "Procedure %zu", index);
     }
     context.local_macros = local_macros;
     context.local_macro_count = APP_MACROS_PER_SET_MAX;
-    context.global_macros = global_macros;
-    context.global_macro_count = APP_MACROS_PER_SET_MAX;
-    context.procedures[0].steps = steps;
-    context.procedures[0].step_count = APP_MACROS_PER_SET_MAX;
+    context.procedures = procedures;
+    context.procedure_count = APP_PROCEDURES_PER_SET_MAX;
     context.progress_result = APP_ERROR_NOT_FOUND;
 
     const storage_package_export_ops_t operations = fake_operations(&context);
@@ -415,7 +421,7 @@ static void test_output_limit_is_enforced(void) {
 
     storage_package_reset_export_ops_for_test();
     free(steps);
-    free(global_macros);
+    free(procedures);
     free(local_macros);
     free(large_source);
 }

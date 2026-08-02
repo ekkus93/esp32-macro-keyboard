@@ -222,19 +222,7 @@ describe("execution confirmation", () => {
     await view.unmount();
   });
 
-  test("falls back to a persisted global macro", async () => {
-    const globalMacro: Macro = {
-      schema_version: macro.schema_version,
-      id: macro.id,
-      revision: macro.revision,
-      scope: "global",
-      name: macro.name,
-      source: macro.source,
-      favorite: macro.favorite,
-      key_press_ms: macro.key_press_ms,
-      inter_key_ms: macro.inter_key_ms,
-    };
-
+  test("does not look outside the active set for a missing macro", async () => {
     planJsonResponse(
       {
         ok: false,
@@ -242,16 +230,16 @@ describe("execution confirmation", () => {
       },
       404,
     );
-    planJsonResponse(success(globalMacro));
-    planJsonResponse(success(procedure));
-    planJsonResponse(success(validation));
 
     const view = await renderConfirmation();
-    expect(document.body.textContent).toContain("Global macro");
-    expect(getFetchCalls()[1]?.url).toBe(`/api/v1/global/macros/${macroId}`);
-    expect(getFetchCalls()[3]?.url).toBe(
-      `/api/v1/global/macros/${macroId}/validate`,
+    /* Every macro belongs to exactly one set (SPEC 7.2): a 404 from the set
+       route is final, and no /api/v1/global/... request may follow it. */
+    expect(getFetchCalls().some((call) => call.url.includes("/global/"))).toBe(
+      false,
     );
+    expect(
+      getFetchCalls().some((call) => call.url === "/api/v1/executions"),
+    ).toBe(false);
     await view.unmount();
   });
 });

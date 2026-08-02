@@ -32,33 +32,10 @@ static app_error_code_t respond_operation_error(web_api_response_t *response,
 
 static app_error_code_t send_storage_snapshot(web_api_response_t *response) {
     const storage_mount_state_t mounts = storage_mount_state();
-    /* Heap-allocated, not a stack local: storage_quarantine_list_t is far
-     * larger than the httpd task stack (see web_server_lifecycle.c), so a
-     * stack local here overflows it and panics the device. */
-    storage_quarantine_list_t *quarantine = calloc(1U, sizeof(*quarantine));
-    if (quarantine == NULL) {
-        return respond_error(response, web_api_http_status_for_error(APP_ERROR_INTERNAL),
-                             APP_ERROR_INTERNAL, "storage health unavailable");
-    }
-    const app_error_code_t result = storage_quarantine_list(quarantine);
-    if (result != APP_ERROR_NONE) {
-        free(quarantine);
-        return respond_error(response, web_api_http_status_for_error(result), result,
-                             "storage health unavailable");
-    }
-    /* Copy the two scalars out and release the large allocation before
-     * building the response, so no path can leak it. */
-    const unsigned long quarantine_count = (unsigned long)quarantine->count;
-    const unsigned long damaged_count = (unsigned long)quarantine->damaged_count;
-    free(quarantine);
-
     char data[WEB_ADMIN_STORAGE_HEALTH_RESPONSE_BYTES];
     const int length =
-        snprintf(data, sizeof(data),
-                 "{\"verified\":false,\"webMounted\":%s,\"dataMounted\":%s,"
-                 "\"quarantineCount\":%lu,\"damagedQuarantineCount\":%lu}",
-                 mounts.web_mounted ? "true" : "false", mounts.data_mounted ? "true" : "false",
-                 quarantine_count, damaged_count);
+        snprintf(data, sizeof(data), "{\"verified\":false,\"webMounted\":%s,\"dataMounted\":%s}",
+                 mounts.web_mounted ? "true" : "false", mounts.data_mounted ? "true" : "false");
     return length < 0 || (size_t)length >= sizeof(data)
                ? APP_ERROR_INTERNAL
                : web_api_response_success(response, WEB_HTTP_STATUS_OK, data);
@@ -89,10 +66,6 @@ static void describe_backup_failure(const storage_package_failure_t *failure, ch
     int written = 0;
     if (failure->kind == STORAGE_PACKAGE_OBJECT_NONE) {
         written = snprintf(buffer, buffer_size, "backup unavailable");
-    } else if (failure->has_object_id && failure->global_scope) {
-        written =
-            snprintf(buffer, buffer_size, "backup unavailable: global %s %s could not be read",
-                     kind, failure->object_id.value);
     } else if (failure->has_object_id && failure->has_set_id) {
         written =
             snprintf(buffer, buffer_size, "backup unavailable: %s %s in set %s could not be read",

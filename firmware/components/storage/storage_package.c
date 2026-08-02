@@ -17,17 +17,16 @@
 
 #define STORAGE_PACKAGE_MAX_JSON_DEPTH 64U
 #define STORAGE_PACKAGE_FIELD_NAME_BYTES 32U
-#define STORAGE_PACKAGE_FIELD_COUNT 8U
+#define STORAGE_PACKAGE_FIELD_COUNT 7U
 /* "skipped" is the only optional member. A complete backup omits it entirely,
  * so complete packages are byte-identical to those written before partial
  * backups existed and remain readable by anything that predates this field. */
 #define STORAGE_PACKAGE_OPTIONAL_FIELDS (UINT32_C(1) << PACKAGE_FIELD_SKIPPED)
-#define STORAGE_PACKAGE_ARRAY_COUNT 5U
+#define STORAGE_PACKAGE_ARRAY_COUNT 4U
 #define STORAGE_PACKAGE_LOCAL_MACROS_MAX                                                           \
     ((size_t)APP_MACRO_SETS_MAX * (size_t)APP_MACROS_PER_SET_MAX)
 #define STORAGE_PACKAGE_PROCEDURES_MAX                                                             \
     ((size_t)APP_MACRO_SETS_MAX * (size_t)APP_PROCEDURES_PER_SET_MAX)
-#define STORAGE_PACKAGE_GLOBAL_MACROS_MAX ((size_t)APP_MACROS_PER_SET_MAX)
 #define STORAGE_PACKAGE_JSON_FRAME_COUNT (STORAGE_PACKAGE_MAX_JSON_DEPTH + 1U)
 #define JSON_UNICODE_ESCAPE_DIGITS 4U
 #define JSON_DECIMAL_RADIX 10U
@@ -48,7 +47,6 @@ typedef enum {
     PACKAGE_FIELD_TYPE,
     PACKAGE_FIELD_SETS,
     PACKAGE_FIELD_MACROS,
-    PACKAGE_FIELD_GLOBAL_MACROS,
     PACKAGE_FIELD_PROCEDURES,
     PACKAGE_FIELD_PROGRESS,
     PACKAGE_FIELD_SKIPPED,
@@ -57,7 +55,6 @@ typedef enum {
 typedef enum {
     PACKAGE_ARRAY_SETS = 0,
     PACKAGE_ARRAY_MACROS,
-    PACKAGE_ARRAY_GLOBAL_MACROS,
     PACKAGE_ARRAY_PROCEDURES,
     PACKAGE_ARRAY_PROGRESS,
     PACKAGE_ARRAY_COUNT,
@@ -75,7 +72,6 @@ typedef struct {
 
 typedef struct {
     app_uuid_t id;
-    macro_scope_t scope;
     app_uuid_t set_id;
 } package_macro_metadata_t;
 
@@ -122,16 +118,10 @@ typedef struct {
     size_t progress_count;
 } package_validation_state_t;
 
-typedef struct {
-    package_validation_state_t *state;
-    macro_scope_t expected_scope;
-} macro_validation_context_t;
-
 typedef app_error_code_t (*package_object_callback_t)(const json_span_t *object, void *context);
 
 static const char *const PACKAGE_FIELDS[STORAGE_PACKAGE_FIELD_COUNT] = {
-    "schema_version", "package_type", "sets",     "macros",
-    "global_macros",  "procedures",   "progress", "skipped",
+    "schema_version", "package_type", "sets", "macros", "procedures", "progress", "skipped",
 };
 
 static void skip_whitespace(json_cursor_t *cursor) {
@@ -567,8 +557,6 @@ static package_array_t package_array_for_field(size_t field_index) {
         return PACKAGE_ARRAY_SETS;
     case PACKAGE_FIELD_MACROS:
         return PACKAGE_ARRAY_MACROS;
-    case PACKAGE_FIELD_GLOBAL_MACROS:
-        return PACKAGE_ARRAY_GLOBAL_MACROS;
     case PACKAGE_FIELD_PROCEDURES:
         return PACKAGE_ARRAY_PROCEDURES;
     case PACKAGE_FIELD_PROGRESS:
@@ -828,11 +816,8 @@ static void free_validation_state(package_validation_state_t *state) {
 static app_error_code_t allocate_validation_state(const storage_package_summary_t *summary,
                                                   package_validation_state_t *out_state) {
     memset(out_state, 0, sizeof(*out_state));
-    if (summary->local_macro_count > SIZE_MAX - summary->global_macro_count) {
-        return APP_ERROR_MACRO_LIMIT;
-    }
     out_state->set_capacity = summary->set_count;
-    out_state->macro_capacity = summary->local_macro_count + summary->global_macro_count;
+    out_state->macro_capacity = summary->local_macro_count;
     out_state->procedure_capacity = summary->procedure_count;
     out_state->progress_capacity = summary->progress_count;
 
@@ -966,23 +951,18 @@ static app_error_code_t compile_package_macro(const macro_t *macro) {
 }
 
 static app_error_code_t validate_macro_object(const json_span_t *object, void *context) {
-    macro_validation_context_t *macro_context = context;
-    if (macro_context == NULL || macro_context->state == NULL ||
-        macro_context->state->macro_count >= macro_context->state->macro_capacity) {
+    package_validation_state_t *state = context;
+    if (state == NULL || state->macro_count >= state->macro_capacity) {
         return APP_ERROR_INTERNAL;
     }
-    package_validation_state_t *state = macro_context->state;
     macro_t macro = {0};
     app_error_code_t result = external_object_result(
         storage_repository_parse_macro_json(object->data, object->length, &macro));
-    if (result == APP_ERROR_NONE && macro.scope != macro_context->expected_scope) {
-        result = APP_ERROR_INVALID_ARGUMENT;
-    }
     if (result == APP_ERROR_NONE && find_macro_index(state, &macro.id) != SIZE_MAX) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
     size_t set_index = SIZE_MAX;
-    if (result == APP_ERROR_NONE && macro.scope == MACRO_SCOPE_SET) {
+    if (result == APP_ERROR_NONE) {
         set_index = find_set_index(state, &macro.set_id);
         if (set_index == SIZE_MAX || state->set_macro_counts[set_index] >= APP_MACROS_PER_SET_MAX) {
             result = APP_ERROR_INVALID_ARGUMENT;
@@ -994,7 +974,6 @@ static app_error_code_t validate_macro_object(const json_span_t *object, void *c
     if (result == APP_ERROR_NONE) {
         package_macro_metadata_t *metadata = &state->macros[state->macro_count];
         metadata->id = macro.id;
-        metadata->scope = macro.scope;
         metadata->set_id = macro.set_id;
         ++state->macro_count;
         if (set_index != SIZE_MAX) {
@@ -1017,8 +996,7 @@ static bool procedure_macro_references_valid(const package_validation_state_t *s
             return false;
         }
         const package_macro_metadata_t *macro = &state->macros[macro_index];
-        if (macro->scope == MACRO_SCOPE_SET &&
-            !app_uuid_equal(&macro->set_id, &procedure->set_id)) {
+        if (!app_uuid_equal(&macro->set_id, &procedure->set_id)) {
             return false;
         }
     }
@@ -1134,11 +1112,6 @@ static app_error_code_t count_package_arrays(const package_document_t *document,
                                     &out_summary->local_macro_count);
     }
     if (result == APP_ERROR_NONE) {
-        result = visit_object_array(&document->arrays[PACKAGE_ARRAY_GLOBAL_MACROS],
-                                    STORAGE_PACKAGE_GLOBAL_MACROS_MAX, NULL, NULL,
-                                    &out_summary->global_macro_count);
-    }
-    if (result == APP_ERROR_NONE) {
         result = visit_object_array(&document->arrays[PACKAGE_ARRAY_PROCEDURES],
                                     STORAGE_PACKAGE_PROCEDURES_MAX, NULL, NULL,
                                     &out_summary->procedure_count);
@@ -1169,23 +1142,10 @@ static app_error_code_t validate_package_objects(const package_document_t *docum
         result = visit_object_array(&document->arrays[PACKAGE_ARRAY_SETS], state.set_capacity,
                                     validate_set_object, &state, &visited);
     }
-    macro_validation_context_t local_macros = {
-        .state = &state,
-        .expected_scope = MACRO_SCOPE_SET,
-    };
     if (result == APP_ERROR_NONE) {
         result =
             visit_object_array(&document->arrays[PACKAGE_ARRAY_MACROS], summary->local_macro_count,
-                               validate_macro_object, &local_macros, &visited);
-    }
-    macro_validation_context_t global_macros = {
-        .state = &state,
-        .expected_scope = MACRO_SCOPE_GLOBAL,
-    };
-    if (result == APP_ERROR_NONE) {
-        result = visit_object_array(&document->arrays[PACKAGE_ARRAY_GLOBAL_MACROS],
-                                    summary->global_macro_count, validate_macro_object,
-                                    &global_macros, &visited);
+                               validate_macro_object, &state, &visited);
     }
     if (result == APP_ERROR_NONE) {
         result = visit_object_array(&document->arrays[PACKAGE_ARRAY_PROCEDURES],
@@ -1198,8 +1158,7 @@ static app_error_code_t validate_package_objects(const package_document_t *docum
                                validate_progress_object, &state, &visited);
     }
     if (result == APP_ERROR_NONE &&
-        (state.set_count != summary->set_count ||
-         state.macro_count != summary->local_macro_count + summary->global_macro_count ||
+        (state.set_count != summary->set_count || state.macro_count != summary->local_macro_count ||
          state.procedure_count != summary->procedure_count ||
          state.progress_count != summary->progress_count)) {
         result = APP_ERROR_INTERNAL;

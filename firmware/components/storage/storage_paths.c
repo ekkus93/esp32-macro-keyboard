@@ -47,16 +47,6 @@ static app_error_code_t finish_path(char *buffer, size_t buffer_size, int writte
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_make_global_macro_path(const app_uuid_t *macro_id, char *buffer,
-                                                size_t buffer_size) {
-    if (!valid_path_argument(macro_id, buffer, buffer_size)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const int written =
-        snprintf(buffer, buffer_size, STORAGE_DATA_MOUNT "/global/macros/%s.json", macro_id->value);
-    return finish_path(buffer, buffer_size, written);
-}
-
 app_error_code_t storage_make_set_macro_order_path(const app_uuid_t *set_id, char *buffer,
                                                    size_t buffer_size) {
     if (!valid_path_argument(set_id, buffer, buffer_size)) {

@@ -9,7 +9,7 @@ typedef struct {
     app_error_code_t (*lock_take)(void *context);
     app_error_code_t (*lock_give)(void *context);
     app_error_code_t (*set_read)(void *context, const app_uuid_t *set_id, macro_set_t *out_set);
-    app_error_code_t (*macro_list)(void *context, const storage_macro_location_t *location,
+    app_error_code_t (*macro_list)(void *context, const app_uuid_t *set_id,
                                    storage_macro_list_t *out_list);
     void (*macro_list_free)(void *context, storage_macro_list_t *list);
     app_error_code_t (*procedure_list)(void *context, const app_uuid_t *set_id,
@@ -30,7 +30,7 @@ typedef struct {
     app_error_code_t (*set_list)(void *context, storage_set_list_t *out_list,
                                  storage_object_ref_t *out_failed,
                                  storage_skip_record_t *out_skips);
-    app_error_code_t (*macro_list)(void *context, const storage_macro_location_t *location,
+    app_error_code_t (*macro_list)(void *context, const app_uuid_t *set_id,
                                    storage_macro_list_t *out_list, storage_object_ref_t *out_failed,
                                    storage_skip_record_t *out_skips);
     void (*macro_list_free)(void *context, storage_macro_list_t *list);

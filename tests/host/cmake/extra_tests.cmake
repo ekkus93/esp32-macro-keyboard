@@ -97,7 +97,6 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_sets.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_macros.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_lock.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_quarantine.c"
 )
 target_include_directories(
     storage_macro_repository_tests
@@ -135,7 +134,6 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_macros.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_procedures.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_lock.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_quarantine.c"
 )
 target_include_directories(
     storage_procedure_repository_tests

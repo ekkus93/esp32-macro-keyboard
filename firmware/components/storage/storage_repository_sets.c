@@ -16,7 +16,6 @@
 #include "macro_model.h"
 #include "storage.h"
 #include "storage_object_json.h"
-#include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_sets_internal.h"
@@ -147,10 +146,8 @@ app_error_code_t storage_set_read_locked(const app_uuid_t *set_id, macro_set_t *
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     if (result == APP_ERROR_STORAGE_CORRUPT) {
-        storage_quarantine_entry_t entry = {0};
-        const app_error_code_t quarantine_result =
-            storage_quarantine_file_locked(path, "invalid set metadata", &entry);
-        return quarantine_result == APP_ERROR_NONE ? result : quarantine_result;
+        const app_error_code_t discard = storage_repository_discard_corrupt_file(path);
+        return discard == APP_ERROR_NONE ? result : discard;
     }
     return result;
 }

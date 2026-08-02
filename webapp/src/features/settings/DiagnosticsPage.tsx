@@ -1,15 +1,10 @@
 import { useEffect, useState } from "react";
 import { errorText } from "../../api/errors";
-import {
-  getFullDiagnostics,
-  getQuarantine,
-  getStorageHealth,
-} from "../../api/routes";
+import { getFullDiagnostics, getStorageHealth } from "../../api/routes";
 import { ErrorBanner } from "../../components/ErrorBanner";
 import { StatusBadge } from "../../components/StatusBadge";
 import type {
   FullDiagnostics,
-  QuarantineList,
   StorageHealth,
   SubsystemHealthState,
 } from "../../types/models";
@@ -44,7 +39,6 @@ function subsystemBadgeState(
 
 export function DiagnosticsPage(): React.JSX.Element {
   const [health, setHealth] = useState<StorageHealth | null>(null);
-  const [quarantine, setQuarantine] = useState<QuarantineList | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadVersion, setLoadVersion] = useState(0);
@@ -71,11 +65,10 @@ export function DiagnosticsPage(): React.JSX.Element {
     let active = true;
     setLoading(true);
     setError(null);
-    void Promise.all([getStorageHealth(), getQuarantine()])
-      .then(([loadedHealth, loadedQuarantine]) => {
+    void getStorageHealth()
+      .then((loadedHealth) => {
         if (active) {
           setHealth(loadedHealth);
-          setQuarantine(loadedQuarantine);
         }
       })
       .catch((loadError: unknown) => {
@@ -100,8 +93,8 @@ export function DiagnosticsPage(): React.JSX.Element {
           <p className="eyebrow dark">Redacted device state</p>
           <h2 id="diagnostics-title">Storage diagnostics</h2>
           <p>
-            Live mount and quarantine records are shown without credentials,
-            tokens, or macro source.
+            Live mount state is shown without credentials, tokens, or macro
+            source.
           </p>
         </div>
         <button
@@ -149,10 +142,6 @@ export function DiagnosticsPage(): React.JSX.Element {
                 ? "Verified"
                 : "Not run — Phase 19 verification service is unavailable"}
             </dd>
-            <dt>Quarantine records</dt>
-            <dd>{String(health.quarantineCount)}</dd>
-            <dt>Damaged records</dt>
-            <dd>{String(health.damagedQuarantineCount)}</dd>
           </dl>
           <button disabled type="button">
             Run full storage verification
@@ -162,56 +151,6 @@ export function DiagnosticsPage(): React.JSX.Element {
             verification operation.
           </p>
         </article>
-      )}
-
-      {quarantine === null ? null : (
-        <section aria-labelledby="quarantine-title">
-          <div className="management-title-row">
-            <h3 id="quarantine-title">Quarantine</h3>
-            <StatusBadge
-              label={
-                quarantine.items.length === 0
-                  ? "No quarantined records"
-                  : `${String(quarantine.items.length)} quarantined records`
-              }
-              state={quarantine.items.length === 0 ? "good" : "warning"}
-            />
-          </div>
-          {quarantine.items.length === 0 ? (
-            <p role="status">No recovery evidence is currently quarantined.</p>
-          ) : (
-            <ol className="management-list">
-              {quarantine.items.map((entry) => (
-                <li className="card" key={entry.id}>
-                  <div>
-                    <h4>{entry.reason || "Unspecified quarantine reason"}</h4>
-                    <dl className="metadata">
-                      <dt>Record ID</dt>
-                      <dd>
-                        <code>{entry.id}</code>
-                      </dd>
-                      <dt>Source</dt>
-                      <dd>
-                        <code>{entry.sourcePath}</code>
-                      </dd>
-                      <dt>Evidence</dt>
-                      <dd>
-                        <code>{entry.evidencePath}</code>
-                      </dd>
-                    </dl>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-          {quarantine.damagedCount > 0 ? (
-            <p className="error-message" role="alert">
-              {String(quarantine.damagedCount)} quarantine record
-              {quarantine.damagedCount === 1 ? " is" : "s are"} damaged and
-              cannot be treated as complete recovery evidence.
-            </p>
-          ) : null}
-        </section>
       )}
 
       <article
@@ -271,12 +210,6 @@ export function DiagnosticsPage(): React.JSX.Element {
               <dd>
                 {fullDiagnostics.userdata.ok
                   ? `${formatBytes(fullDiagnostics.userdata.usedBytes)} of ${formatBytes(fullDiagnostics.userdata.totalBytes)} used`
-                  : "Unavailable"}
-              </dd>
-              <dt>Quarantine</dt>
-              <dd>
-                {fullDiagnostics.quarantine.ok
-                  ? `${String(fullDiagnostics.quarantine.count)} record(s), ${String(fullDiagnostics.quarantine.damagedCount)} damaged`
                   : "Unavailable"}
               </dd>
               <dt>Execution state</dt>

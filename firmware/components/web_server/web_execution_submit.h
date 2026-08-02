@@ -27,8 +27,7 @@ typedef struct {
     uint32_t estimated_duration_ms;
 } web_execution_accepted_t;
 
-typedef app_error_code_t (*web_execution_macro_read_fn)(void *context,
-                                                        const storage_macro_location_t *location,
+typedef app_error_code_t (*web_execution_macro_read_fn)(void *context, const app_uuid_t *set_id,
                                                         const app_uuid_t *macro_id,
                                                         macro_t *out_macro);
 typedef app_error_code_t (*web_execution_procedure_read_fn)(void *context, const app_uuid_t *set_id,

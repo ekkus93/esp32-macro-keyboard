@@ -27,42 +27,23 @@ function success(data: unknown): object {
 }
 
 describe("management screens", () => {
-  test("shows live redacted storage and quarantine data", async () => {
+  test("shows live redacted storage data", async () => {
     planJsonResponse(
       success({
         verified: false,
         webMounted: true,
         dataMounted: true,
-        quarantineCount: 1,
-        damagedQuarantineCount: 1,
-      }),
-    );
-    planJsonResponse(
-      success({
-        damagedCount: 1,
-        items: [
-          {
-            id: "99999999-9999-4999-8999-999999999999",
-            sourcePath: "/data/sets/source.json",
-            evidencePath: "/data/quarantine/evidence.json",
-            reason: "checksum mismatch",
-          },
-        ],
       }),
     );
     const view = await render(<DiagnosticsPage />);
     await flushReact();
 
     expect(document.body.textContent).toContain("Required filesystems mounted");
-    expect(document.body.textContent).toContain("checksum mismatch");
-    expect(document.body.textContent).toContain(
-      "1 quarantine record is damaged",
-    );
     expect(buttonWithText("Run full storage verification").disabled).toBe(true);
     expect(buttonWithText("Load full diagnostics").disabled).toBe(false);
+    /* Quarantine was removed (SPEC 13.6): the screen must not request it. */
     expect(getFetchCalls().map((call) => call.url)).toEqual([
       "/api/v1/diagnostics/storage",
-      "/api/v1/diagnostics/quarantine",
     ]);
     await view.unmount();
   });
@@ -73,11 +54,8 @@ describe("management screens", () => {
         verified: false,
         webMounted: true,
         dataMounted: true,
-        quarantineCount: 0,
-        damagedQuarantineCount: 0,
       }),
     );
-    planJsonResponse(success({ damagedCount: 0, items: [] }));
     planJsonResponse(
       success({
         buildId: "abcdef0123456789",
@@ -90,7 +68,6 @@ describe("management screens", () => {
         stack: { controlsWords: 512, executorWords: 1024 },
         webfs: { ok: true, totalBytes: 1000000, usedBytes: 400000 },
         userdata: { ok: true, totalBytes: 2000000, usedBytes: 900000 },
-        quarantine: { ok: true, count: 0, damagedCount: 0 },
         executionState: "idle",
         subsystems: [
           { name: "app_core", state: "healthy" },
@@ -115,7 +92,6 @@ describe("management screens", () => {
     expect(document.body.textContent).toContain("controls: degraded");
     expect(getFetchCalls().map((call) => call.url)).toEqual([
       "/api/v1/diagnostics/storage",
-      "/api/v1/diagnostics/quarantine",
       "/api/v1/diagnostics",
     ]);
     await view.unmount();
@@ -154,7 +130,6 @@ describe("management screens", () => {
       package_type: "set",
       sets: [replacement],
       macros: [],
-      global_macros: [],
       procedures: [],
       progress: [],
     } as const;
@@ -224,7 +199,6 @@ describe("management screens", () => {
       package_type: "backup",
       sets: [macroSet],
       macros: [],
-      global_macros: [],
       procedures: [],
       progress: [],
     } as const;
@@ -290,7 +264,6 @@ describe("management screens", () => {
       package_type: "set",
       sets: [macroSet],
       macros: [],
-      global_macros: [],
       procedures: [],
       progress: [],
     });
@@ -327,7 +300,6 @@ describe("management screens", () => {
       package_type: "backup",
       sets: [macroSet],
       macros: [],
-      global_macros: [],
       procedures: [],
       progress: [],
     });

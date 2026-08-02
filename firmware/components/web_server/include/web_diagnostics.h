@@ -34,12 +34,6 @@ typedef struct {
 } web_diagnostics_capacity_t;
 
 typedef struct {
-    bool ok;
-    size_t count;
-    size_t damaged_count;
-} web_diagnostics_quarantine_t;
-
-typedef struct {
     char build_id[WEB_DIAGNOSTICS_BUILD_ID_MAX_BYTES];
     char firmware_version[WEB_DIAGNOSTICS_VERSION_MAX_BYTES];
     uint32_t schema_version;
@@ -51,7 +45,6 @@ typedef struct {
     size_t executor_stack_high_water_mark;
     web_diagnostics_capacity_t webfs;
     web_diagnostics_capacity_t userdata;
-    web_diagnostics_quarantine_t quarantine;
     const char *execution_state;
     web_diagnostics_subsystem_t subsystems[WEB_DIAGNOSTICS_SUBSYSTEM_COUNT];
 } web_diagnostics_snapshot_t;

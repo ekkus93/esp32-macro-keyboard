@@ -9,7 +9,6 @@
 #include "cJSON.h"
 #include "macro_model.h"
 #include "provisioning.h"
-#include "storage.h"
 #include "storage_object_json.h"
 #include "storage_repository.h"
 #include "web_api_core.h"
@@ -136,10 +135,6 @@ app_error_code_t web_api_handler_macro_json(const macro_t *macro, char **out_jso
                          : storage_repository_serialize_macro_json(macro, out_json, &length);
 }
 
-static const char *macro_scope_string(macro_scope_t scope) {
-    return scope == MACRO_SCOPE_GLOBAL ? "global" : "set";
-}
-
 static cJSON *macro_summary(const macro_t *macro) {
     double source_bytes = 0.0;
     if (!size_to_json_number(macro->source_length, &source_bytes)) {
@@ -149,7 +144,6 @@ static cJSON *macro_summary(const macro_t *macro) {
     if (item == NULL || !cJSON_AddNumberToObject(item, "schema_version", macro->schema_version) ||
         !cJSON_AddStringToObject(item, "id", macro->id.value) ||
         !cJSON_AddNumberToObject(item, "revision", macro->revision) ||
-        !cJSON_AddStringToObject(item, "scope", macro_scope_string(macro->scope)) ||
         !cJSON_AddStringToObject(item, "name", macro->name) ||
         !cJSON_AddBoolToObject(item, "favorite", macro->favorite) ||
         !cJSON_AddNumberToObject(item, "key_press_ms", macro->key_press_ms) ||
@@ -158,7 +152,7 @@ static cJSON *macro_summary(const macro_t *macro) {
         cJSON_Delete(item);
         return NULL;
     }
-    if (macro->has_set_id && !cJSON_AddStringToObject(item, "set_id", macro->set_id.value)) {
+    if (!cJSON_AddStringToObject(item, "set_id", macro->set_id.value)) {
         cJSON_Delete(item);
         return NULL;
     }
@@ -282,40 +276,6 @@ app_error_code_t web_api_handler_settings_json(const provisioning_settings_t *se
     if (!added) {
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;
-    }
-    return finish_json(root, out_json);
-}
-
-app_error_code_t web_api_handler_quarantine_json(const storage_quarantine_list_t *list,
-                                                 char **out_json) {
-    if (list == NULL || out_json == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    double damaged_count = 0.0;
-    if (!size_to_json_number(list->damaged_count, &damaged_count)) {
-        return APP_ERROR_INTERNAL;
-    }
-    cJSON *root = cJSON_CreateObject();
-    cJSON *items = cJSON_CreateArray();
-    if (root == NULL || items == NULL ||
-        !cJSON_AddNumberToObject(root, "damagedCount", damaged_count) ||
-        !cJSON_AddItemToObject(root, "items", items)) {
-        cJSON_Delete(items);
-        cJSON_Delete(root);
-        return APP_ERROR_INTERNAL;
-    }
-    for (size_t index = 0U; index < list->count; ++index) {
-        const storage_quarantine_entry_t *entry = &list->items[index];
-        cJSON *item = cJSON_CreateObject();
-        if (item == NULL || !cJSON_AddStringToObject(item, "id", entry->id.value) ||
-            !cJSON_AddStringToObject(item, "sourcePath", entry->source_path) ||
-            !cJSON_AddStringToObject(item, "evidencePath", entry->evidence_path) ||
-            !cJSON_AddStringToObject(item, "reason", entry->reason) ||
-            !cJSON_AddItemToArray(items, item)) {
-            cJSON_Delete(item);
-            cJSON_Delete(root);
-            return APP_ERROR_INTERNAL;
-        }
     }
     return finish_json(root, out_json);
 }

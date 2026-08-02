@@ -8,7 +8,6 @@
     "format",
     "format_version",
     "sets",
-    "global_macros",
     "include_progress",
     "integrity"
   ],
@@ -24,13 +23,6 @@
       "maxItems": 50,
       "items": {
         "$ref": "macro-set-package.schema.json"
-      }
-    },
-    "global_macros": {
-      "type": "array",
-      "maxItems": 100,
-      "items": {
-        "$ref": "macro-set-package.schema.json#/$defs/macro"
       }
     },
     "include_progress": {

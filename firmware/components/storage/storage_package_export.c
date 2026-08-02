@@ -32,7 +32,6 @@ typedef struct {
 typedef struct {
     macro_set_t set;
     storage_macro_list_t local_macros;
-    storage_macro_list_t global_macros;
     storage_procedure_list_t procedures;
     storage_progress_snapshot_t *progress;
     bool *progress_present;
@@ -68,11 +67,10 @@ static app_error_code_t production_set_read(void *context, const app_uuid_t *set
     return storage_set_read_locked(set_id, out_set);
 }
 
-static app_error_code_t production_macro_list(void *context,
-                                              const storage_macro_location_t *location,
+static app_error_code_t production_macro_list(void *context, const app_uuid_t *set_id,
                                               storage_macro_list_t *out_list) {
     (void)context;
-    return storage_macro_list_locked(location, out_list);
+    return storage_macro_list_locked(set_id, out_list);
 }
 
 static void production_macro_list_free(void *context, storage_macro_list_t *list) {
@@ -218,7 +216,6 @@ static void snapshot_free(set_export_snapshot_t *snapshot) {
         return;
     }
     export_operations.macro_list_free(export_operations.context, &snapshot->local_macros);
-    export_operations.macro_list_free(export_operations.context, &snapshot->global_macros);
     export_operations.procedure_list_free(export_operations.context, &snapshot->procedures);
     free(snapshot->progress);
     free(snapshot->progress_present);
@@ -263,23 +260,9 @@ static app_error_code_t snapshot_load_locked(const app_uuid_t *set_id, bool incl
                                              set_export_snapshot_t *out_snapshot) {
     app_error_code_t result =
         export_operations.set_read(export_operations.context, set_id, &out_snapshot->set);
-    const storage_macro_location_t local_location = {
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
-        .set_id = *set_id,
-    };
     if (result == APP_ERROR_NONE) {
-        result = export_operations.macro_list(export_operations.context, &local_location,
+        result = export_operations.macro_list(export_operations.context, set_id,
                                               &out_snapshot->local_macros);
-    }
-    const storage_macro_location_t global_location = {
-        .scope = MACRO_SCOPE_GLOBAL,
-        .has_set_id = false,
-        .set_id = {{0}},
-    };
-    if (result == APP_ERROR_NONE) {
-        result = export_operations.macro_list(export_operations.context, &global_location,
-                                              &out_snapshot->global_macros);
     }
     if (result == APP_ERROR_NONE) {
         result = export_operations.procedure_list(export_operations.context, set_id,
@@ -315,23 +298,14 @@ static size_t macro_index(const storage_macro_list_t *list, const app_uuid_t *ma
     return SIZE_MAX;
 }
 
-static app_error_code_t validate_snapshot(const set_export_snapshot_t *snapshot,
-                                          bool *global_referenced) {
+static app_error_code_t validate_snapshot(const set_export_snapshot_t *snapshot) {
     if (snapshot->local_macros.count > APP_MACROS_PER_SET_MAX ||
-        snapshot->global_macros.count > APP_MACROS_PER_SET_MAX ||
         snapshot->procedures.count > APP_PROCEDURES_PER_SET_MAX) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
     for (size_t index = 0U; index < snapshot->local_macros.count; ++index) {
         const macro_t *macro = &snapshot->local_macros.items[index];
-        if (macro->scope != MACRO_SCOPE_SET || !macro->has_set_id ||
-            !app_uuid_equal(&macro->set_id, &snapshot->set.id)) {
-            return APP_ERROR_STORAGE_CORRUPT;
-        }
-    }
-    for (size_t index = 0U; index < snapshot->global_macros.count; ++index) {
-        const macro_t *macro = &snapshot->global_macros.items[index];
-        if (macro->scope != MACRO_SCOPE_GLOBAL || macro->has_set_id) {
+        if (!app_uuid_equal(&macro->set_id, &snapshot->set.id)) {
             return APP_ERROR_STORAGE_CORRUPT;
         }
     }
@@ -345,13 +319,8 @@ static app_error_code_t validate_snapshot(const set_export_snapshot_t *snapshot,
             if (!step->has_macro_id) {
                 continue;
             }
-            const size_t local_index = macro_index(&snapshot->local_macros, &step->macro_id);
-            const size_t global_index = macro_index(&snapshot->global_macros, &step->macro_id);
-            if ((local_index == SIZE_MAX) == (global_index == SIZE_MAX)) {
+            if (macro_index(&snapshot->local_macros, &step->macro_id) == SIZE_MAX) {
                 return APP_ERROR_STORAGE_CORRUPT;
-            }
-            if (global_index != SIZE_MAX) {
-                global_referenced[global_index] = true;
             }
         }
     }
@@ -423,8 +392,7 @@ static app_error_code_t append_progress_array(package_writer_t *writer,
     return result;
 }
 
-static app_error_code_t serialize_snapshot(const set_export_snapshot_t *snapshot,
-                                           const bool *global_referenced, char **out_data,
+static app_error_code_t serialize_snapshot(const set_export_snapshot_t *snapshot, char **out_data,
                                            size_t *out_length) {
     package_writer_t writer = {0};
     app_error_code_t result =
@@ -437,12 +405,6 @@ static app_error_code_t serialize_snapshot(const set_export_snapshot_t *snapshot
     }
     if (result == APP_ERROR_NONE) {
         result = append_macro_array(&writer, &snapshot->local_macros, NULL);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = writer_append_text(&writer, ",\"global_macros\":");
-    }
-    if (result == APP_ERROR_NONE) {
-        result = append_macro_array(&writer, &snapshot->global_macros, global_referenced);
     }
     if (result == APP_ERROR_NONE) {
         result = writer_append_text(&writer, ",\"procedures\":");
@@ -461,12 +423,6 @@ static app_error_code_t serialize_snapshot(const set_export_snapshot_t *snapshot
         result = writer_append_text(&writer, "}");
     }
 
-    size_t referenced_global_count = 0U;
-    for (size_t index = 0U; index < snapshot->global_macros.count; ++index) {
-        if (global_referenced[index]) {
-            ++referenced_global_count;
-        }
-    }
     storage_package_summary_t summary = {0};
     if (result == APP_ERROR_NONE) {
         result = storage_package_validate(writer.data, writer.length, STORAGE_PACKAGE_KIND_SET,
@@ -474,7 +430,6 @@ static app_error_code_t serialize_snapshot(const set_export_snapshot_t *snapshot
     }
     if (result == APP_ERROR_NONE &&
         (summary.set_count != 1U || summary.local_macro_count != snapshot->local_macros.count ||
-         summary.global_macro_count != referenced_global_count ||
          summary.procedure_count != snapshot->procedures.count ||
          summary.progress_count != progress_count)) {
         result = APP_ERROR_INTERNAL;
@@ -503,20 +458,12 @@ app_error_code_t storage_package_export_set(const app_uuid_t *set_id, bool inclu
 
     set_export_snapshot_t snapshot = {0};
     app_error_code_t result = snapshot_load(set_id, include_progress, &snapshot);
-    bool *global_referenced = NULL;
-    if (result == APP_ERROR_NONE && snapshot.global_macros.count != 0U) {
-        global_referenced = calloc(snapshot.global_macros.count, sizeof(*global_referenced));
-        if (global_referenced == NULL) {
-            result = APP_ERROR_INTERNAL;
-        }
+    if (result == APP_ERROR_NONE) {
+        result = validate_snapshot(&snapshot);
     }
     if (result == APP_ERROR_NONE) {
-        result = validate_snapshot(&snapshot, global_referenced);
+        result = serialize_snapshot(&snapshot, out_data, out_length);
     }
-    if (result == APP_ERROR_NONE) {
-        result = serialize_snapshot(&snapshot, global_referenced, out_data, out_length);
-    }
-    free(global_referenced);
     snapshot_free(&snapshot);
     return result;
 }

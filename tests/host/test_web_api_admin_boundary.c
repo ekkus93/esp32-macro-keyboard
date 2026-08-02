@@ -15,11 +15,9 @@
 
 static const char BACKUP_DOCUMENT[] =
     "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":[],"
-    "\"macros\":[],\"global_macros\":[],\"procedures\":[],\"progress\":[]}";
+    "\"macros\":[],\"procedures\":[],\"progress\":[]}";
 
 static storage_mount_state_t mount_state;
-static storage_quarantine_list_t quarantine_list;
-static app_error_code_t quarantine_result;
 static app_error_code_t backup_result;
 static storage_package_failure_t backup_failure;
 static app_error_code_t restore_result;
@@ -29,14 +27,6 @@ static size_t restore_body_length;
 
 storage_mount_state_t storage_mount_state(void) {
     return mount_state;
-}
-
-app_error_code_t storage_quarantine_list(storage_quarantine_list_t *out_list) {
-    if (out_list == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    *out_list = quarantine_list;
-    return quarantine_result;
 }
 
 app_error_code_t storage_package_export_backup_detail(bool include_progress, char **out_data,
@@ -99,11 +89,6 @@ static void reset_fixture(void) {
         .web_mounted = true,
         .data_mounted = true,
     };
-    quarantine_list = (storage_quarantine_list_t){
-        .count = 2U,
-        .damaged_count = 1U,
-    };
-    quarantine_result = APP_ERROR_NONE;
     backup_result = APP_ERROR_NONE;
     memset(&backup_failure, 0, sizeof(backup_failure));
     restore_result = APP_ERROR_NONE;
@@ -127,8 +112,6 @@ static void test_storage_snapshot_is_redacted_and_not_verified(void) {
     TEST_CHECK(strstr(response.body, "\"verified\":false") != NULL);
     TEST_CHECK(strstr(response.body, "\"webMounted\":true") != NULL);
     TEST_CHECK(strstr(response.body, "\"dataMounted\":true") != NULL);
-    TEST_CHECK(strstr(response.body, "\"quarantineCount\":2") != NULL);
-    TEST_CHECK(strstr(response.body, "\"damagedQuarantineCount\":1") != NULL);
     assert_absent(response.body, "password");
     assert_absent(response.body, "passphrase");
     assert_absent(response.body, "token");
@@ -136,19 +119,6 @@ static void test_storage_snapshot_is_redacted_and_not_verified(void) {
     assert_absent(response.body, "source");
     assert_absent(response.body, "salt");
     assert_absent(response.body, "hash");
-    web_api_response_free(&response);
-}
-
-static void test_storage_snapshot_failure_is_visible(void) {
-    reset_fixture();
-    quarantine_result = APP_ERROR_IO;
-    const web_api_call_t call =
-        call_for(WEB_API_ROUTE_DIAGNOSTICS_STORAGE, WEB_API_METHOD_GET, NULL);
-    web_api_response_t response = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
-    TEST_CHECK_EQ_U64(500U, response.status);
-    TEST_CHECK(strstr(response.body, "storage health unavailable") != NULL);
-    TEST_CHECK(strstr(response.body, "\"ok\":false") != NULL);
     web_api_response_free(&response);
 }
 
@@ -209,24 +179,6 @@ static void test_backup_failure_names_the_offending_macro(void) {
     TEST_CHECK(strstr(response.body, "71cc0195-1111-4111-8111-111111111111") != NULL);
     TEST_CHECK(strstr(response.body, "15c7daee-2222-4222-8222-222222222222") != NULL);
     TEST_CHECK(strstr(response.body, "macro") != NULL);
-    web_api_response_free(&response);
-}
-
-/* A global macro belongs to no set, so the message must not invent one. */
-static void test_backup_failure_names_a_global_macro_without_a_set(void) {
-    reset_fixture();
-    backup_result = APP_ERROR_MACRO_SYNTAX;
-    backup_failure.kind = STORAGE_PACKAGE_OBJECT_MACRO;
-    backup_failure.global_scope = true;
-    backup_failure.has_object_id = true;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_parse("33333333-3333-4333-8333-333333333333",
-                                                        &backup_failure.object_id));
-    const web_api_call_t call = call_for(WEB_API_ROUTE_BACKUP, WEB_API_METHOD_GET, NULL);
-    web_api_response_t response = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
-    TEST_CHECK(strstr(response.body, "global macro") != NULL);
-    TEST_CHECK(strstr(response.body, "33333333-3333-4333-8333-333333333333") != NULL);
-    TEST_CHECK(strstr(response.body, "in set") == NULL);
     web_api_response_free(&response);
 }
 
@@ -299,12 +251,10 @@ static void test_invalid_boundary_inputs(void) {
 
 int main(void) {
     test_storage_snapshot_is_redacted_and_not_verified();
-    test_storage_snapshot_failure_is_visible();
     test_storage_check_never_reports_false_success();
     test_backup_returns_raw_validated_package();
     test_backup_failure_is_visible();
     test_backup_failure_names_the_offending_macro();
-    test_backup_failure_names_a_global_macro_without_a_set();
     test_backup_failure_without_detail_stays_plain();
     test_restore_delegates_complete_package();
     test_restore_failure_is_visible();

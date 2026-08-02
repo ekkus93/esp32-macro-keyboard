@@ -13,7 +13,6 @@
 #include "macro_model.h"
 #include "storage.h"
 #include "storage_object_json.h"
-#include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_procedures_internal.h"
@@ -66,10 +65,11 @@ static app_error_code_t progress_file_path(const storage_procedure_identity_t *i
     return storage_make_progress_path(&identity->set_id, &identity->procedure_id, path, path_size);
 }
 
-static app_error_code_t quarantine_progress(const char *path, const char *reason) {
-    storage_quarantine_entry_t entry = {0};
-    const app_error_code_t quarantine = storage_quarantine_file_locked(path, reason, &entry);
-    return quarantine == APP_ERROR_NONE ? APP_ERROR_STORAGE_CORRUPT : quarantine;
+/* The specific reason is not carried out of here: the caller learns only that
+ * the object was unreadable and was deleted (SPEC 13.6). */
+static app_error_code_t discard_progress(const char *path) {
+    const app_error_code_t discard = storage_repository_discard_corrupt_file(path);
+    return discard == APP_ERROR_NONE ? APP_ERROR_STORAGE_CORRUPT : discard;
 }
 
 static app_error_code_t read_progress_object_locked(const storage_procedure_identity_t *identity,
@@ -96,7 +96,7 @@ static app_error_code_t read_progress_object_locked(const storage_procedure_iden
     }
     if (result == APP_ERROR_STORAGE_CORRUPT) {
         memset(out_progress, 0, sizeof(*out_progress));
-        return quarantine_progress(path, "invalid procedure progress object");
+        return discard_progress(path);
     }
     return result;
 }
@@ -126,7 +126,7 @@ storage_progress_read_locked_with_buffer(const storage_procedure_identity_t *ide
     procedure_t procedure = {0};
     result = storage_procedure_read_locked(identity, &procedure);
     if (result == APP_ERROR_NOT_FOUND) {
-        return quarantine_progress(path, "progress references missing procedure");
+        return discard_progress(path);
     }
     if (result != APP_ERROR_NONE) {
         return result;
@@ -141,7 +141,7 @@ storage_progress_read_locked_with_buffer(const storage_procedure_identity_t *ide
     }
     if (!progress_steps_belong_to_procedure(progress, &procedure)) {
         macro_model_free_procedure(&procedure);
-        return quarantine_progress(path, "progress references unknown procedure step");
+        return discard_progress(path);
     }
 
     out_snapshot->status = STORAGE_PROGRESS_STATUS_CURRENT;

@@ -34,7 +34,6 @@ typedef struct {
 typedef struct {
     size_t set_count;
     size_t local_macro_count;
-    size_t global_macro_count;
     size_t procedure_count;
     size_t progress_count;
 } tree_counts_t;
@@ -47,7 +46,6 @@ typedef struct {
 static const tree_entry_t LOGICAL_ROOT_ENTRIES[] = {
     {.name = "set-index.json", .directory = false},
     {.name = "sets", .directory = true},
-    {.name = "global", .directory = true},
 };
 
 static const tree_entry_t SET_ROOT_ENTRIES[] = {
@@ -57,11 +55,6 @@ static const tree_entry_t SET_ROOT_ENTRIES[] = {
     {.name = "macros", .directory = true},
     {.name = "procedures", .directory = true},
     {.name = "progress", .directory = true},
-};
-
-static const tree_entry_t GLOBAL_ROOT_ENTRIES[] = {
-    {.name = "macro-order.json", .directory = false},
-    {.name = "macros", .directory = true},
 };
 
 static app_error_code_t map_error_number(int error_number) {
@@ -418,8 +411,7 @@ static app_error_code_t validate_set_directory_membership(const char *path,
 
 static app_error_code_t append_macro_file(tree_writer_t *writer, bool *first, const char *path,
                                           const app_uuid_t *expected_id,
-                                          const app_uuid_t *expected_set_id,
-                                          macro_scope_t expected_scope) {
+                                          const app_uuid_t *expected_set_id) {
     char *data = NULL;
     size_t length = 0U;
     app_error_code_t result = read_bounded(path, STORAGE_MACRO_FILE_MAX_BYTES, &data, &length);
@@ -427,11 +419,8 @@ static app_error_code_t append_macro_file(tree_writer_t *writer, bool *first, co
     if (result == APP_ERROR_NONE) {
         result = normalize_object_error(storage_repository_parse_macro_json(data, length, &macro));
     }
-    if (result == APP_ERROR_NONE &&
-        (!app_uuid_equal(&macro.id, expected_id) || macro.scope != expected_scope ||
-         (expected_scope == MACRO_SCOPE_SET &&
-          (!macro.has_set_id || !app_uuid_equal(&macro.set_id, expected_set_id))) ||
-         (expected_scope == MACRO_SCOPE_GLOBAL && macro.has_set_id))) {
+    if (result == APP_ERROR_NONE && (!app_uuid_equal(&macro.id, expected_id) ||
+                                     !app_uuid_equal(&macro.set_id, expected_set_id))) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     if (result == APP_ERROR_NONE) {
@@ -549,8 +538,7 @@ static app_error_code_t append_ordered_macros(tree_writer_t *writer, bool *first
         }
         result = join_path(path, sizeof(path), directory, name);
         if (result == APP_ERROR_NONE) {
-            result =
-                append_macro_file(writer, first, path, &order->ids[index], set_id, MACRO_SCOPE_SET);
+            result = append_macro_file(writer, first, path, &order->ids[index], set_id);
         }
         if (result == APP_ERROR_NONE) {
             ++counts->local_macro_count;
@@ -736,60 +724,6 @@ static app_error_code_t append_all_local_macros(tree_writer_t *writer, const cha
     return result == APP_ERROR_NONE ? writer_text(writer, "]") : result;
 }
 
-static app_error_code_t append_global_macros(tree_writer_t *writer, const char *root,
-                                             tree_counts_t *counts) {
-    char global_root[APP_PATH_MAX_BYTES];
-    app_error_code_t result = join_path(global_root, sizeof(global_root), root, "global");
-    if (result == APP_ERROR_NONE) {
-        result =
-            validate_topology(global_root, GLOBAL_ROOT_ENTRIES,
-                              sizeof(GLOBAL_ROOT_ENTRIES) / sizeof(GLOBAL_ROOT_ENTRIES[0]), false);
-    }
-    char path[APP_PATH_MAX_BYTES];
-    /* Heap-allocated: storage_uuid_order_t is several kilobytes and these
-     * helpers run on task stacks measured in single-digit KiB. See
-     * scripts/check-stack-usage.sh. */
-    storage_uuid_order_t *order = calloc(1U, sizeof(*order));
-    if (order == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
-    if (result == APP_ERROR_NONE) {
-        result = join_path(path, sizeof(path), global_root, "macro-order.json");
-    }
-    if (result == APP_ERROR_NONE) {
-        result = read_order(path, APP_MACROS_PER_SET_MAX, order);
-    }
-    char directory[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        result = join_path(directory, sizeof(directory), global_root, "macros");
-    }
-    if (result == APP_ERROR_NONE) {
-        result = validate_directory_membership(directory, order, true);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = writer_text(writer, "[");
-    }
-    bool first = true;
-    for (size_t index = 0U; result == APP_ERROR_NONE && index < order->count; ++index) {
-        char name[APP_UUID_STRING_LENGTH + sizeof(TREE_JSON_SUFFIX)];
-        const int written = snprintf(name, sizeof(name), "%s.json", order->ids[index].value);
-        if (written < 0 || (size_t)written >= sizeof(name)) {
-            result = APP_ERROR_STORAGE_CORRUPT;
-            break;
-        }
-        result = join_path(path, sizeof(path), directory, name);
-        if (result == APP_ERROR_NONE) {
-            result = append_macro_file(writer, &first, path, &order->ids[index], NULL,
-                                       MACRO_SCOPE_GLOBAL);
-        }
-        if (result == APP_ERROR_NONE) {
-            ++counts->global_macro_count;
-        }
-    }
-    free(order);
-    return result == APP_ERROR_NONE ? writer_text(writer, "]") : result;
-}
-
 static app_error_code_t append_all_procedures(tree_writer_t *writer, const char *root,
                                               const storage_set_index_t *index,
                                               storage_uuid_order_t *orders, tree_counts_t *counts) {
@@ -877,12 +811,6 @@ app_error_code_t storage_repository_tree_validate(const char *root) {
         result = append_all_local_macros(&writer, root, index, &counts);
     }
     if (result == APP_ERROR_NONE) {
-        result = writer_text(&writer, ",\"global_macros\":");
-    }
-    if (result == APP_ERROR_NONE) {
-        result = append_global_macros(&writer, root, &counts);
-    }
-    if (result == APP_ERROR_NONE) {
         result = writer_text(&writer, ",\"procedures\":");
     }
     if (result == APP_ERROR_NONE) {
@@ -904,7 +832,6 @@ app_error_code_t storage_repository_tree_validate(const char *root) {
     }
     if (result == APP_ERROR_NONE && (summary.set_count != counts.set_count ||
                                      summary.local_macro_count != counts.local_macro_count ||
-                                     summary.global_macro_count != counts.global_macro_count ||
                                      summary.procedure_count != counts.procedure_count ||
                                      summary.progress_count != counts.progress_count)) {
         result = APP_ERROR_STORAGE_CORRUPT;

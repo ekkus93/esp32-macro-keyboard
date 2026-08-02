@@ -16,12 +16,6 @@ typedef struct {
     size_t count;
 } storage_set_list_t;
 
-typedef struct {
-    macro_scope_t scope;
-    bool has_set_id;
-    app_uuid_t set_id;
-} storage_macro_location_t;
-
 /* Identifies the single object a bulk read stopped on. List reads abort at the
  * first unreadable object and otherwise discard which one it was, which left
  * callers reporting failures they could not attribute to anything. */
@@ -91,25 +85,22 @@ app_error_code_t storage_set_duplicate(const app_uuid_t *source_id, uint32_t exp
                                        macro_set_t *out_duplicate);
 app_error_code_t storage_set_reorder(const app_uuid_t *ordered_ids, size_t count);
 
-app_error_code_t storage_macro_list(const storage_macro_location_t *location,
-                                    storage_macro_list_t *out_list);
+/* Every macro is addressed by its owning set (SPEC §7.2). */
+app_error_code_t storage_macro_list(const app_uuid_t *set_id, storage_macro_list_t *out_list);
 void storage_macro_list_free(storage_macro_list_t *list);
-app_error_code_t storage_macro_create(const storage_macro_location_t *location,
-                                      const macro_t *macro);
-app_error_code_t storage_macro_read(const storage_macro_location_t *location,
-                                    const app_uuid_t *macro_id, macro_t *out_macro);
-app_error_code_t storage_macro_update(const storage_macro_location_t *location,
-                                      const macro_t *replacement, uint32_t expected_revision,
-                                      macro_t *out_updated);
-app_error_code_t storage_macro_delete(const storage_macro_location_t *location,
-                                      const app_uuid_t *macro_id, uint32_t expected_revision,
+app_error_code_t storage_macro_create(const app_uuid_t *set_id, const macro_t *macro);
+app_error_code_t storage_macro_read(const app_uuid_t *set_id, const app_uuid_t *macro_id,
+                                    macro_t *out_macro);
+app_error_code_t storage_macro_update(const app_uuid_t *set_id, const macro_t *replacement,
+                                      uint32_t expected_revision, macro_t *out_updated);
+app_error_code_t storage_macro_delete(const app_uuid_t *set_id, const app_uuid_t *macro_id,
+                                      uint32_t expected_revision,
                                       storage_reference_list_t *out_references);
-app_error_code_t storage_macro_duplicate(const storage_macro_location_t *location,
-                                         const app_uuid_t *source_id,
+app_error_code_t storage_macro_duplicate(const app_uuid_t *set_id, const app_uuid_t *source_id,
                                          const app_uuid_t *duplicate_id, const char *duplicate_name,
                                          macro_t *out_duplicate);
-app_error_code_t storage_macro_reorder(const storage_macro_location_t *location,
-                                       const app_uuid_t *ordered_ids, size_t count);
+app_error_code_t storage_macro_reorder(const app_uuid_t *set_id, const app_uuid_t *ordered_ids,
+                                       size_t count);
 
 app_error_code_t storage_procedure_list(const app_uuid_t *set_id,
                                         storage_procedure_list_t *out_list);

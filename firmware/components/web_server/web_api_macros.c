@@ -24,21 +24,6 @@
 #define WEB_MACRO_VALIDATION_DETAILS_BYTES 192U
 #define WEB_MACRO_VALIDATION_RESPONSE_BYTES 160U
 
-static storage_macro_location_t location_for_call(const web_api_call_t *call) {
-    if (call->path.route == WEB_API_ROUTE_GLOBAL_MACROS ||
-        call->path.route == WEB_API_ROUTE_GLOBAL_MACRO ||
-        call->path.route == WEB_API_ROUTE_GLOBAL_MACRO_VALIDATE ||
-        call->path.route == WEB_API_ROUTE_GLOBAL_MACRO_DUPLICATE ||
-        call->path.route == WEB_API_ROUTE_GLOBAL_MACROS_REORDER) {
-        return (storage_macro_location_t){.scope = MACRO_SCOPE_GLOBAL};
-    }
-    return (storage_macro_location_t){
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
-        .set_id = call->path.set_id,
-    };
-}
-
 static app_error_code_t respond_error(web_api_response_t *response, app_error_code_t result,
                                       const char *message, const char *details) {
     return web_api_handler_error(response, result, message, details);
@@ -55,23 +40,18 @@ static app_error_code_t send_macro(web_api_response_t *response, unsigned int st
     return result;
 }
 
-static bool macro_matches_path(const macro_t *macro, const storage_macro_location_t *location,
+static bool macro_matches_path(const macro_t *macro, const app_uuid_t *set_id,
                                const app_uuid_t *path_id) {
-    if (macro == NULL || location == NULL || path_id == NULL ||
-        !app_uuid_equal(&macro->id, path_id) || macro->scope != location->scope) {
-        return false;
-    }
-    return location->scope == MACRO_SCOPE_GLOBAL
-               ? !macro->has_set_id
-               : macro->has_set_id && app_uuid_equal(&macro->set_id, &location->set_id);
+    return macro != NULL && set_id != NULL && path_id != NULL &&
+           app_uuid_equal(&macro->id, path_id) && app_uuid_equal(&macro->set_id, set_id);
 }
 
 static app_error_code_t handle_collection(const web_api_call_t *call,
                                           web_api_response_t *response) {
-    const storage_macro_location_t location = location_for_call(call);
+    const app_uuid_t *set_id = &call->path.set_id;
     if (call->method == WEB_API_METHOD_GET) {
         storage_macro_list_t list = {0};
-        app_error_code_t result = storage_macro_list(&location, &list);
+        app_error_code_t result = storage_macro_list(set_id, &list);
         char *json = NULL;
         if (result == APP_ERROR_NONE) {
             result = web_api_handler_macro_list_json(&list, &json);
@@ -92,18 +72,15 @@ static app_error_code_t handle_collection(const web_api_call_t *call,
     app_error_code_t result =
         web_api_json_parse_macro_resource(call->body, call->body_length, &macro);
     if (result == APP_ERROR_NONE &&
-        (macro.revision != 1U || macro.scope != location.scope ||
-         (location.scope == MACRO_SCOPE_SET &&
-          (!macro.has_set_id || !app_uuid_equal(&macro.set_id, &location.set_id))) ||
-         (location.scope == MACRO_SCOPE_GLOBAL && macro.has_set_id))) {
+        (macro.revision != 1U || !app_uuid_equal(&macro.set_id, set_id))) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_macro_create(&location, &macro);
+        result = storage_macro_create(set_id, &macro);
     }
     macro_t committed = {0};
     if (result == APP_ERROR_NONE) {
-        result = storage_macro_read(&location, &macro.id, &committed);
+        result = storage_macro_read(set_id, &macro.id, &committed);
     }
     macro_model_free_macro(&macro);
     if (result != APP_ERROR_NONE) {
@@ -140,10 +117,10 @@ static app_error_code_t reference_details_json(const storage_reference_list_t *r
 }
 
 static app_error_code_t handle_item(const web_api_call_t *call, web_api_response_t *response) {
-    const storage_macro_location_t location = location_for_call(call);
+    const app_uuid_t *set_id = &call->path.set_id;
     if (call->method == WEB_API_METHOD_GET) {
         macro_t macro = {0};
-        app_error_code_t result = storage_macro_read(&location, &call->path.macro_id, &macro);
+        app_error_code_t result = storage_macro_read(set_id, &call->path.macro_id, &macro);
         if (result == APP_ERROR_NONE) {
             result = send_macro(response, WEB_HTTP_STATUS_OK, &macro);
         } else {
@@ -167,13 +144,13 @@ static app_error_code_t handle_item(const web_api_call_t *call, web_api_response
                                                        mutation.resource_length, &replacement);
         }
         if (result == APP_ERROR_NONE &&
-            !macro_matches_path(&replacement, &location, &call->path.macro_id)) {
+            !macro_matches_path(&replacement, set_id, &call->path.macro_id)) {
             result = APP_ERROR_INVALID_ARGUMENT;
         }
         macro_t committed = {0};
         if (result == APP_ERROR_NONE) {
-            result = storage_macro_update(&location, &replacement, mutation.expected_revision,
-                                          &committed);
+            result =
+                storage_macro_update(set_id, &replacement, mutation.expected_revision, &committed);
         }
         macro_model_free_macro(&replacement);
         web_api_json_free_resource_mutation(&mutation);
@@ -190,8 +167,7 @@ static app_error_code_t handle_item(const web_api_call_t *call, web_api_response
         web_api_json_parse_expected_revision(call->body, call->body_length, &expected_revision);
     storage_reference_list_t references = {0};
     if (result == APP_ERROR_NONE) {
-        result =
-            storage_macro_delete(&location, &call->path.macro_id, expected_revision, &references);
+        result = storage_macro_delete(set_id, &call->path.macro_id, expected_revision, &references);
     }
     if (result == APP_ERROR_CONFLICT && references.count > 0U) {
         char *details = NULL;
@@ -224,9 +200,9 @@ static app_error_code_t handle_reorder(const web_api_call_t *call, web_api_respo
                                           .maximum_count = APP_MACROS_PER_SET_MAX,
                                       },
                                       &order);
-    const storage_macro_location_t location = location_for_call(call);
+    const app_uuid_t *set_id = &call->path.set_id;
     if (result == APP_ERROR_NONE) {
-        result = storage_macro_reorder(&location, order.ids, order.count);
+        result = storage_macro_reorder(set_id, order.ids, order.count);
     }
     return result == APP_ERROR_NONE
                ? web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, "{\"reordered\":true}")
@@ -234,12 +210,11 @@ static app_error_code_t handle_reorder(const web_api_call_t *call, web_api_respo
 }
 
 static app_error_code_t handle_validate(const web_api_call_t *call, web_api_response_t *response) {
-    const storage_macro_location_t location = location_for_call(call);
+    const app_uuid_t *set_id = &call->path.set_id;
     macro_t candidate = {0};
     app_error_code_t result =
         web_api_json_parse_macro_resource(call->body, call->body_length, &candidate);
-    if (result == APP_ERROR_NONE &&
-        !macro_matches_path(&candidate, &location, &call->path.macro_id)) {
+    if (result == APP_ERROR_NONE && !macro_matches_path(&candidate, set_id, &call->path.macro_id)) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
     macro_plan_t plan = {0};
@@ -309,10 +284,10 @@ static app_error_code_t handle_duplicate(const web_api_call_t *call, web_api_res
     char duplicate_name[APP_MACRO_NAME_MAX_BYTES + 1U] = {0};
     app_error_code_t result =
         parse_duplicate(call, &duplicate_id, duplicate_name, sizeof(duplicate_name));
-    const storage_macro_location_t location = location_for_call(call);
+    const app_uuid_t *set_id = &call->path.set_id;
     macro_t duplicate = {0};
     if (result == APP_ERROR_NONE) {
-        result = storage_macro_duplicate(&location, &call->path.macro_id, &duplicate_id,
+        result = storage_macro_duplicate(set_id, &call->path.macro_id, &duplicate_id,
                                          duplicate_name, &duplicate);
     }
     if (result != APP_ERROR_NONE) {
@@ -329,19 +304,14 @@ app_error_code_t web_api_handle_macros(const web_api_call_t *call, web_api_respo
     }
     switch (call->path.route) {
     case WEB_API_ROUTE_SET_MACROS:
-    case WEB_API_ROUTE_GLOBAL_MACROS:
         return handle_collection(call, response);
     case WEB_API_ROUTE_SET_MACRO:
-    case WEB_API_ROUTE_GLOBAL_MACRO:
         return handle_item(call, response);
     case WEB_API_ROUTE_SET_MACROS_REORDER:
-    case WEB_API_ROUTE_GLOBAL_MACROS_REORDER:
         return handle_reorder(call, response);
     case WEB_API_ROUTE_SET_MACRO_VALIDATE:
-    case WEB_API_ROUTE_GLOBAL_MACRO_VALIDATE:
         return handle_validate(call, response);
     case WEB_API_ROUTE_SET_MACRO_DUPLICATE:
-    case WEB_API_ROUTE_GLOBAL_MACRO_DUPLICATE:
         return handle_duplicate(call, response);
     default:
         return APP_ERROR_NOT_FOUND;

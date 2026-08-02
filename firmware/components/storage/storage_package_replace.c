@@ -16,21 +16,18 @@
 #include "storage.h"
 #include "storage_fs_ops.h"
 #include "storage_object_json.h"
-#include "storage_repository.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
-#include "storage_repository_macros_internal.h"
 #include "storage_repository_sets_internal.h"
 #include "storage_set_tree_internal.h"
 #include "storage_transaction_internal.h"
 
-#define PACKAGE_REPLACE_ARRAY_COUNT 5U
+#define PACKAGE_REPLACE_ARRAY_COUNT 4U
 #define PACKAGE_JSON_SUFFIX ".json"
 
 typedef enum {
     PACKAGE_REPLACE_SETS = 0,
     PACKAGE_REPLACE_MACROS,
-    PACKAGE_REPLACE_GLOBAL_MACROS,
     PACKAGE_REPLACE_PROCEDURES,
     PACKAGE_REPLACE_PROGRESS,
 } package_replace_array_t;
@@ -178,7 +175,6 @@ static app_error_code_t open_document(const char *data, size_t length,
     static const char *const names[PACKAGE_REPLACE_ARRAY_COUNT] = {
         [PACKAGE_REPLACE_SETS] = "sets",
         [PACKAGE_REPLACE_MACROS] = "macros",
-        [PACKAGE_REPLACE_GLOBAL_MACROS] = "global_macros",
         [PACKAGE_REPLACE_PROCEDURES] = "procedures",
         [PACKAGE_REPLACE_PROGRESS] = "progress",
     };
@@ -198,60 +194,6 @@ static app_error_code_t open_document(const char *data, size_t length,
         return result;
     }
     out_document->root = root;
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t canonical_macro_json(const macro_t *macro, char **out_json,
-                                             size_t *out_length) {
-    return storage_repository_serialize_macro_json(macro, out_json, out_length);
-}
-
-static app_error_code_t verify_global_dependency(const cJSON *node) {
-    macro_t package_macro = {0};
-    app_error_code_t result = parse_macro_node(node, &package_macro);
-    if (result == APP_ERROR_NONE &&
-        (package_macro.scope != MACRO_SCOPE_GLOBAL || package_macro.has_set_id)) {
-        result = APP_ERROR_INVALID_ARGUMENT;
-    }
-    macro_t stored = {0};
-    if (result == APP_ERROR_NONE) {
-        const storage_macro_location_t location = {
-            .scope = MACRO_SCOPE_GLOBAL,
-        };
-        result = storage_macro_read_locked(&location, &package_macro.id, &stored);
-        if (result == APP_ERROR_NOT_FOUND) {
-            result = APP_ERROR_CONFLICT;
-        }
-    }
-    char *package_json = NULL;
-    char *stored_json = NULL;
-    size_t package_length = 0U;
-    size_t stored_length = 0U;
-    if (result == APP_ERROR_NONE) {
-        result = canonical_macro_json(&package_macro, &package_json, &package_length);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = canonical_macro_json(&stored, &stored_json, &stored_length);
-    }
-    if (result == APP_ERROR_NONE && (package_length != stored_length ||
-                                     memcmp(package_json, stored_json, package_length) != 0)) {
-        result = APP_ERROR_CONFLICT;
-    }
-    cJSON_free(package_json);
-    cJSON_free(stored_json);
-    macro_model_free_macro(&package_macro);
-    macro_model_free_macro(&stored);
-    return result;
-}
-
-static app_error_code_t verify_global_dependencies(const cJSON *array) {
-    const int count = cJSON_GetArraySize(array);
-    for (int index = 0; index < count; ++index) {
-        const app_error_code_t result = verify_global_dependency(cJSON_GetArrayItem(array, index));
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-    }
     return APP_ERROR_NONE;
 }
 
@@ -296,8 +238,7 @@ static app_error_code_t write_macro_node(const char *directory, const cJSON *nod
     macro_t macro = {0};
     app_error_code_t result = parse_macro_node(node, &macro);
     if (result == APP_ERROR_NONE &&
-        (macro.scope != MACRO_SCOPE_SET || !macro.has_set_id ||
-         !app_uuid_equal(&macro.set_id, set_id) || order->count >= APP_MACROS_PER_SET_MAX)) {
+        (!app_uuid_equal(&macro.set_id, set_id) || order->count >= APP_MACROS_PER_SET_MAX)) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
     char *json = NULL;
@@ -518,9 +459,6 @@ static app_error_code_t replace_locked(const app_uuid_t *target_set_id, uint32_t
     app_error_code_t result = storage_set_read_locked(target_set_id, &current);
     if (result == APP_ERROR_NONE && current.revision != expected_revision) {
         result = APP_ERROR_CONFLICT;
-    }
-    if (result == APP_ERROR_NONE) {
-        result = verify_global_dependencies(document->arrays[PACKAGE_REPLACE_GLOBAL_MACROS]);
     }
     app_uuid_t transaction_id = {0};
     if (result == APP_ERROR_NONE) {

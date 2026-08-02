@@ -14,7 +14,9 @@
 #include "storage_json.h"
 #include "storage_object_json.h"
 
-#define MACRO_FIELD_COUNT 10U
+/* Every field is required: a macro always belongs to a set, so `set_id` is no
+ * longer optional and the `scope` discriminator is gone (SPEC §12.2). */
+#define MACRO_FIELD_COUNT 9U
 #define MACRO_REQUIRED_FIELD_COUNT 9U
 #define PROCEDURE_FIELD_COUNT 8U
 #define PROGRESS_FIELD_COUNT 7U
@@ -22,12 +24,11 @@
 #define MACRO_STEP_FIELD_COUNT 6U
 #define MANUAL_STEP_FIELD_COUNT 5U
 #define KEY_PRESS_STORAGE_MAX_MS 1000U
-#define MACRO_SCOPE_BUFFER_BYTES sizeof("global")
 #define PROCEDURE_STEP_TYPE_BUFFER_BYTES sizeof("instruction")
 
 static const char *const MACRO_FIELDS[MACRO_FIELD_COUNT] = {
-    "schema_version", "id",       "revision",     "scope",        "name",
-    "source",         "favorite", "key_press_ms", "inter_key_ms", "set_id",
+    "schema_version", "id",       "revision",     "set_id",       "name",
+    "source",         "favorite", "key_press_ms", "inter_key_ms",
 };
 static const char *const PROCEDURE_FIELDS[PROCEDURE_FIELD_COUNT] = {
     "schema_version", "id", "revision", "set_id", "name", "description", "steps", "sort_order",
@@ -81,31 +82,7 @@ static bool macro_shape_valid(const macro_t *macro) {
     if (!canonical_buffer(macro->name, sizeof(macro->name), &name_length) || name_length == 0U) {
         return false;
     }
-    if (macro->scope == MACRO_SCOPE_SET) {
-        return macro->has_set_id && app_uuid_is_valid_string(macro->set_id.value);
-    }
-    return macro->scope == MACRO_SCOPE_GLOBAL && !macro->has_set_id && uuid_zero(&macro->set_id);
-}
-
-static app_error_code_t parse_scope(const cJSON *root, macro_t *out_macro) {
-    char scope[MACRO_SCOPE_BUFFER_BYTES];
-    app_error_code_t result = storage_json_get_string(root, "scope", scope, sizeof(scope), true);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    if (strcmp(scope, "set") == 0) {
-        if (!storage_json_has_field(root, "set_id")) {
-            return APP_ERROR_STORAGE_CORRUPT;
-        }
-        out_macro->scope = MACRO_SCOPE_SET;
-        out_macro->has_set_id = true;
-        return storage_json_get_uuid(root, "set_id", &out_macro->set_id);
-    }
-    if (strcmp(scope, "global") != 0 || storage_json_has_field(root, "set_id")) {
-        return APP_ERROR_STORAGE_CORRUPT;
-    }
-    out_macro->scope = MACRO_SCOPE_GLOBAL;
-    return APP_ERROR_NONE;
+    return app_uuid_is_valid_string(macro->set_id.value);
 }
 
 app_error_code_t storage_repository_parse_macro_json(const char *data, size_t length,
@@ -130,7 +107,7 @@ app_error_code_t storage_repository_parse_macro_json(const char *data, size_t le
         result = storage_json_get_u32(root, "revision", 1U, UINT32_MAX, &out_macro->revision);
     }
     if (result == APP_ERROR_NONE) {
-        result = parse_scope(root, out_macro);
+        result = storage_json_get_uuid(root, "set_id", &out_macro->set_id);
     }
     if (result == APP_ERROR_NONE) {
         result =
@@ -162,14 +139,9 @@ app_error_code_t storage_repository_parse_macro_json(const char *data, size_t le
 }
 
 static app_error_code_t add_macro_fields(cJSON *root, const macro_t *macro) {
-    const char *scope = macro->scope == MACRO_SCOPE_SET ? "set" : "global";
     if (cJSON_AddNumberToObject(root, "schema_version", (double)macro->schema_version) == NULL ||
         cJSON_AddStringToObject(root, "id", macro->id.value) == NULL ||
         cJSON_AddNumberToObject(root, "revision", (double)macro->revision) == NULL ||
-        cJSON_AddStringToObject(root, "scope", scope) == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
-    if (macro->scope == MACRO_SCOPE_SET &&
         cJSON_AddStringToObject(root, "set_id", macro->set_id.value) == NULL) {
         return APP_ERROR_INTERNAL;
     }

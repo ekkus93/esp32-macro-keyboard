@@ -148,13 +148,7 @@ app_error_code_t web_adapter_build_diagnostics_json(const web_diagnostics_snapsh
     append_capacity(&writer, "webfs", &snapshot->webfs);
     writer_append_text(&writer, ",");
     append_capacity(&writer, "userdata", &snapshot->userdata);
-    writer_append_text(&writer, ",\"quarantine\":{\"ok\":");
-    writer_append_text(&writer, snapshot->quarantine.ok ? "true" : "false");
-    writer_append_text(&writer, ",\"count\":");
-    append_uint64(&writer, (uint64_t)snapshot->quarantine.count);
-    writer_append_text(&writer, ",\"damagedCount\":");
-    append_uint64(&writer, (uint64_t)snapshot->quarantine.damaged_count);
-    writer_append_text(&writer, "},\"executionState\":\"");
+    writer_append_text(&writer, ",\"executionState\":\"");
     writer_append_escaped(&writer, snapshot->execution_state);
     writer_append_text(&writer, "\",\"subsystems\":[");
     for (size_t index = 0U; index < WEB_DIAGNOSTICS_SUBSYSTEM_COUNT; ++index) {

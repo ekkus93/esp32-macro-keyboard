@@ -37,7 +37,6 @@ export function createMacroDraft(setId: string, macroId: string): Macro {
     schema_version: 1,
     id: macroId,
     revision: 1,
-    scope: "set",
     set_id: setId,
     name: "",
     source: "",
@@ -50,8 +49,7 @@ export function createMacroDraft(setId: string, macroId: string): Macro {
 export function macroFingerprint(macro: Macro): string {
   return JSON.stringify([
     macro.id,
-    macro.scope,
-    macro.set_id ?? null,
+    macro.set_id,
     macro.name,
     macro.source,
     macro.favorite,

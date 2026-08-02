@@ -93,9 +93,8 @@ static app_error_code_t adapter_storage_recover(void *context) {
         storage_health_record_primary(transactions);
         return transactions;
     }
-    const app_error_code_t quarantine = storage_quarantine_recover_all();
-    storage_health_record_primary(quarantine);
-    return quarantine;
+    storage_health_record_primary(transactions);
+    return transactions;
 }
 
 static app_error_code_t adapter_repository_init(void *context) {

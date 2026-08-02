@@ -10,7 +10,6 @@
     "package_type",
     "sets",
     "macros",
-    "global_macros",
     "procedures",
     "progress"
   ],
@@ -30,13 +29,6 @@
       }
     },
     "macros": {
-      "type": "array",
-      "maxItems": 100,
-      "items": {
-        "$ref": "#/$defs/macro"
-      }
-    },
-    "global_macros": {
       "type": "array",
       "maxItems": 100,
       "items": {
@@ -131,7 +123,7 @@
         "schema_version",
         "id",
         "revision",
-        "scope",
+        "set_id",
         "name",
         "source",
         "favorite",
@@ -148,12 +140,6 @@
         "revision": {
           "type": "integer",
           "minimum": 1
-        },
-        "scope": {
-          "enum": [
-            "set",
-            "global"
-          ]
         },
         "set_id": {
           "$ref": "#/$defs/uuid"
@@ -182,33 +168,7 @@
           "minimum": 0,
           "maximum": 10000
         }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "scope": {
-                "const": "set"
-              }
-            },
-            "required": [
-              "scope"
-            ]
-          },
-          "then": {
-            "required": [
-              "set_id"
-            ]
-          },
-          "else": {
-            "not": {
-              "required": [
-                "set_id"
-              ]
-            }
-          }
-        }
-      ]
+      }
     },
     "macro_step": {
       "type": "object",

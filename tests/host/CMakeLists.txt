@@ -385,7 +385,6 @@ add_executable(
     ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/storage/storage_repository_index.c
     ../../firmware/components/storage/storage_repository_sets.c
-    ../../firmware/components/storage/storage_quarantine.c
     ../../firmware/components/storage/storage_repository_lock.c
 )
 target_include_directories(
@@ -420,7 +419,6 @@ add_executable(
     ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/storage/storage_repository_index.c
     ../../firmware/components/storage/storage_repository_sets.c
-    ../../firmware/components/storage/storage_quarantine.c
     ../../firmware/components/storage/storage_repository_lock.c
 )
 target_include_directories(
@@ -569,30 +567,6 @@ add_test(NAME storage_set_tree COMMAND storage_set_tree_tests)
 set_tests_properties(storage_set_tree PROPERTIES LABELS "storage")
 
 add_executable(
-    storage_quarantine_tests
-    test_storage_quarantine.c
-    ../../firmware/components/macro_model/app_error.c
-    ../../firmware/components/macro_model/app_uuid.c
-    ../../firmware/components/storage/storage_fs_ops.c
-    ../../firmware/components/storage/storage_atomic.c
-    ../../firmware/components/storage/storage_quarantine.c
-    ../../firmware/components/storage/storage_repository_lock.c
-)
-target_include_directories(
-    storage_quarantine_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
-            ../../firmware/components/storage
-)
-target_compile_definitions(
-    storage_quarantine_tests
-    PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-quarantine-data"
-)
-target_link_libraries(storage_quarantine_tests PRIVATE PkgConfig::CJSON test_support)
-target_compile_options(storage_quarantine_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME storage_quarantine COMMAND storage_quarantine_tests)
-set_tests_properties(storage_quarantine PROPERTIES LABELS "storage")
-
-add_executable(
     storage_repository_tests
     test_storage_repository.c
     ../../firmware/components/macro_model/app_error.c
@@ -610,7 +584,6 @@ add_executable(
     ../../firmware/components/storage/storage_repository_index.c
     ../../firmware/components/storage/storage_repository_sets.c
     ../../firmware/components/storage/storage_repository_lock.c
-    ../../firmware/components/storage/storage_quarantine.c
 )
 target_include_directories(
     storage_repository_tests
@@ -646,7 +619,6 @@ set(STORAGE_OBJECT_REPOSITORY_SOURCES
     ../../firmware/components/storage/storage_repository_macros.c
     ../../firmware/components/storage/storage_repository_procedures.c
     ../../firmware/components/storage/storage_repository_progress.c
-    ../../firmware/components/storage/storage_quarantine.c
 )
 
 add_executable(

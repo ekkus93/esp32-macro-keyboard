@@ -15,7 +15,6 @@
 #include "macro_limits.h"
 #include "storage_atomic_internal.h"
 #include "storage_fs_ops.h"
-#include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 #include "storage_set_tree_internal.h"
@@ -585,13 +584,9 @@ static app_error_code_t directory_has_entries_with_ops(const char *path,
         if (end) {
             break;
         }
-        /* Quarantine staging directories (FIX1 §8.1) also live under /data/staging
-         * and are reconciled by quarantine recovery, which runs after this check.
-         * Skip them so a leftover quarantine staging entry is not misreported as a
-         * stray transaction staging entry. */
-        if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0 && name[0] != '.' &&
-            strncmp(name, STORAGE_QUARANTINE_STAGING_PREFIX,
-                    sizeof(STORAGE_QUARANTINE_STAGING_PREFIX) - 1U) != 0) {
+        /* Only transaction staging directories live under /data/staging now, so
+         * any non-hidden entry is a stray transaction staging entry. */
+        if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0 && name[0] != '.') {
             *out_has_entries = true;
             break;
         }

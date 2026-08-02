@@ -12,7 +12,6 @@ static web_diagnostics_snapshot_t default_diagnostics_snapshot(void)
         .executor_stack_high_water_mark = 1024U,
         .webfs = {.ok = true, .total_bytes = 1000000U, .used_bytes = 400000U},
         .userdata = {.ok = true, .total_bytes = 2000000U, .used_bytes = 900000U},
-        .quarantine = {.ok = true, .count = 2U, .damaged_count = 1U},
         .execution_state = "idle",
         .subsystems =
             {
@@ -51,7 +50,7 @@ static void test_diagnostics_exact_allowed_fields(void)
         "\"buildId\":",  "\"firmwareVersion\":", "\"schemaVersion\":", "\"resetReason\":",
         "\"uptimeMs\":", "\"freeHeapBytes\":",   "\"minFreeHeapBytes\":", "\"stack\":",
         "\"controlsWords\":", "\"executorWords\":", "\"webfs\":", "\"userdata\":",
-        "\"quarantine\":", "\"count\":", "\"damagedCount\":", "\"executionState\":",
+        "\"executionState\":",
         "\"subsystems\":", "\"totalBytes\":", "\"usedBytes\":",
     };
     for (size_t index = 0U; index < sizeof(expected_keys) / sizeof(expected_keys[0]); ++index) {
@@ -120,8 +119,6 @@ static void test_diagnostics_bounded_output(void)
     snapshot.webfs.used_bytes = SIZE_MAX;
     snapshot.userdata.total_bytes = SIZE_MAX;
     snapshot.userdata.used_bytes = SIZE_MAX;
-    snapshot.quarantine.count = SIZE_MAX;
-    snapshot.quarantine.damaged_count = SIZE_MAX;
 
     char output[2048U];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
@@ -141,14 +138,11 @@ static void test_diagnostics_failed_query_never_fabricates_data(void)
 {
     web_diagnostics_snapshot_t snapshot = default_diagnostics_snapshot();
     snapshot.webfs = (web_diagnostics_capacity_t){.ok = false, .total_bytes = 0U, .used_bytes = 0U};
-    snapshot.quarantine =
-        (web_diagnostics_quarantine_t){.ok = false, .count = 0U, .damaged_count = 0U};
 
     char output[2048U];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
     TEST_CHECK(strstr(output, "\"webfs\":{\"ok\":false,\"totalBytes\":0,\"usedBytes\":0}") != NULL);
-    TEST_CHECK(strstr(output, "\"quarantine\":{\"ok\":false,\"count\":0,\"damagedCount\":0}") != NULL);
     /* userdata was left healthy, so its data must still come through untouched. */
     TEST_CHECK(strstr(output, "\"userdata\":{\"ok\":true,\"totalBytes\":2000000,\"usedBytes\":900000}") !=
               NULL);

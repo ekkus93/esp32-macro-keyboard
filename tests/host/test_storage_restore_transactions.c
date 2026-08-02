@@ -96,10 +96,6 @@ static void create_repository(const char *root, const char *marker) {
     make_directory(path);
     checked_path(path, sizeof(path), root, "sets/marker.txt");
     write_text(path, marker);
-    checked_path(path, sizeof(path), root, "global");
-    make_directory(path);
-    checked_path(path, sizeof(path), root, "global/marker.txt");
-    write_text(path, marker);
 }
 
 static bool file_has_text(const char *path, const char *expected) {
@@ -120,10 +116,6 @@ static bool repository_has_marker(const char *root, const char *marker) {
         return false;
     }
     checked_path(path, sizeof(path), root, "sets/marker.txt");
-    if (!file_has_text(path, marker)) {
-        return false;
-    }
-    checked_path(path, sizeof(path), root, "global/marker.txt");
     return file_has_text(path, marker);
 }
 

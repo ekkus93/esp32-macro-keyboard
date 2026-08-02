@@ -12,7 +12,6 @@
 #include "cJSON.h"
 #include "macro_limits.h"
 #include "storage.h"
-#include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 
@@ -68,10 +67,8 @@ app_error_code_t storage_repository_load_index_path(const char *path,
     const app_error_code_t parse_result = storage_repository_parse_index(data, length, out_index);
     free(data);
     if (parse_result == APP_ERROR_STORAGE_CORRUPT) {
-        storage_quarantine_entry_t entry = {0};
-        const app_error_code_t quarantine_result =
-            storage_quarantine_file_locked(path, "invalid ordering index", &entry);
-        return quarantine_result == APP_ERROR_NONE ? parse_result : quarantine_result;
+        const app_error_code_t discard = storage_repository_discard_corrupt_file(path);
+        return discard == APP_ERROR_NONE ? parse_result : discard;
     }
     return parse_result;
 }
@@ -121,40 +118,25 @@ static app_error_code_t initialize_fresh_storage(void) {
     if (!index_exists && errno != ENOENT) {
         return storage_repository_map_file_error();
     }
-    struct stat global_metadata;
-    const bool global_order_exists = stat(STORAGE_GLOBAL_ORDER_FILE_PATH, &global_metadata) == 0;
-    if (!global_order_exists && errno != ENOENT) {
-        return storage_repository_map_file_error();
-    }
     bool sets_have_entries = false;
-    bool global_macros_have_entries = false;
     app_error_code_t result =
         storage_repository_directory_has_entries(STORAGE_DATA_MOUNT "/sets", &sets_have_entries);
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_directory_has_entries(STORAGE_DATA_MOUNT "/global/macros",
-                                                          &global_macros_have_entries);
-    }
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    if (index_exists || global_order_exists || sets_have_entries || global_macros_have_entries) {
+    if (index_exists || sets_have_entries) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
     result = storage_repository_ensure_initial_file(STORAGE_SCHEMA_FILE_PATH, schema);
     if (result == APP_ERROR_NONE) {
         result = storage_repository_ensure_initial_file(STORAGE_SET_INDEX_FILE_PATH, empty_index);
     }
-    if (result == APP_ERROR_NONE) {
-        result =
-            storage_repository_ensure_initial_file(STORAGE_GLOBAL_ORDER_FILE_PATH, empty_index);
-    }
     return result;
 }
 
 static app_error_code_t verify_existing_storage_layout(void) {
     struct stat metadata;
-    if (stat(STORAGE_SET_INDEX_FILE_PATH, &metadata) != 0 ||
-        stat(STORAGE_GLOBAL_ORDER_FILE_PATH, &metadata) != 0) {
+    if (stat(STORAGE_SET_INDEX_FILE_PATH, &metadata) != 0) {
         return errno == ENOENT ? APP_ERROR_STORAGE_CORRUPT : storage_repository_map_file_error();
     }
     return APP_ERROR_NONE;
@@ -182,10 +164,9 @@ static app_error_code_t validate_schema_marker(void) {
     if (schema_valid) {
         return APP_ERROR_NONE;
     }
-    storage_quarantine_entry_t entry = {0};
-    const app_error_code_t quarantine_result = storage_quarantine_file_locked(
-        STORAGE_SCHEMA_FILE_PATH, "invalid storage schema marker", &entry);
-    return quarantine_result == APP_ERROR_NONE ? APP_ERROR_STORAGE_CORRUPT : quarantine_result;
+    const app_error_code_t discard =
+        storage_repository_discard_corrupt_file(STORAGE_SCHEMA_FILE_PATH);
+    return discard == APP_ERROR_NONE ? APP_ERROR_STORAGE_CORRUPT : discard;
 }
 
 static app_error_code_t storage_repository_init_locked(void) {
@@ -205,12 +186,7 @@ static app_error_code_t storage_repository_init_locked(void) {
     }
 
     storage_set_index_t index = {0};
-    result = storage_repository_load_index(&index);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    storage_set_index_t global_order = {0};
-    return storage_repository_load_index_path(STORAGE_GLOBAL_ORDER_FILE_PATH, &global_order);
+    return storage_repository_load_index(&index);
 }
 
 app_error_code_t storage_repository_init(void) {

@@ -41,8 +41,7 @@
         "firmware",
         "usb",
         "wifi",
-        "storage",
-        "quarantine"
+        "storage"
       ]
     }
   }

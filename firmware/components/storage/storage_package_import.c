@@ -15,20 +15,17 @@
 #include "macro_model.h"
 #include "storage.h"
 #include "storage_object_json.h"
-#include "storage_repository.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
-#include "storage_repository_macros_internal.h"
 #include "storage_repository_sets_internal.h"
 #include "storage_set_tree_internal.h"
 
-#define PACKAGE_IMPORT_ARRAY_COUNT 5U
+#define PACKAGE_IMPORT_ARRAY_COUNT 4U
 #define PACKAGE_IMPORT_JSON_SUFFIX ".json"
 
 typedef enum {
     PACKAGE_IMPORT_SETS = 0,
     PACKAGE_IMPORT_MACROS,
-    PACKAGE_IMPORT_GLOBAL_MACROS,
     PACKAGE_IMPORT_PROCEDURES,
     PACKAGE_IMPORT_PROGRESS,
 } package_import_array_t;
@@ -151,7 +148,6 @@ static app_error_code_t open_document(const char *data, size_t length,
     static const char *const names[PACKAGE_IMPORT_ARRAY_COUNT] = {
         [PACKAGE_IMPORT_SETS] = "sets",
         [PACKAGE_IMPORT_MACROS] = "macros",
-        [PACKAGE_IMPORT_GLOBAL_MACROS] = "global_macros",
         [PACKAGE_IMPORT_PROCEDURES] = "procedures",
         [PACKAGE_IMPORT_PROGRESS] = "progress",
     };
@@ -171,56 +167,6 @@ static app_error_code_t open_document(const char *data, size_t length,
         return result;
     }
     out_document->root = root;
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t verify_global_dependency(const cJSON *node) {
-    macro_t package_macro = {0};
-    app_error_code_t result = parse_macro_node(node, &package_macro);
-    if (result == APP_ERROR_NONE &&
-        (package_macro.scope != MACRO_SCOPE_GLOBAL || package_macro.has_set_id)) {
-        result = APP_ERROR_INVALID_ARGUMENT;
-    }
-    macro_t stored = {0};
-    if (result == APP_ERROR_NONE) {
-        const storage_macro_location_t location = {
-            .scope = MACRO_SCOPE_GLOBAL,
-        };
-        result = storage_macro_read_locked(&location, &package_macro.id, &stored);
-        if (result == APP_ERROR_NOT_FOUND) {
-            result = APP_ERROR_CONFLICT;
-        }
-    }
-    char *package_json = NULL;
-    char *stored_json = NULL;
-    size_t package_length = 0U;
-    size_t stored_length = 0U;
-    if (result == APP_ERROR_NONE) {
-        result =
-            storage_repository_serialize_macro_json(&package_macro, &package_json, &package_length);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_serialize_macro_json(&stored, &stored_json, &stored_length);
-    }
-    if (result == APP_ERROR_NONE && (package_length != stored_length ||
-                                     memcmp(package_json, stored_json, package_length) != 0)) {
-        result = APP_ERROR_CONFLICT;
-    }
-    cJSON_free(package_json);
-    cJSON_free(stored_json);
-    macro_model_free_macro(&package_macro);
-    macro_model_free_macro(&stored);
-    return result;
-}
-
-static app_error_code_t verify_global_dependencies(const cJSON *array) {
-    const int count = cJSON_GetArraySize(array);
-    for (int index = 0; index < count; ++index) {
-        const app_error_code_t result = verify_global_dependency(cJSON_GetArrayItem(array, index));
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-    }
     return APP_ERROR_NONE;
 }
 
@@ -265,8 +211,7 @@ static app_error_code_t write_import_macro_node(const char *directory, const cJS
                                                 storage_uuid_order_t *order) {
     macro_t macro = {0};
     app_error_code_t result = parse_macro_node(node, &macro);
-    if (result == APP_ERROR_NONE && (macro.scope != MACRO_SCOPE_SET || !macro.has_set_id ||
-                                     !app_uuid_equal(&macro.set_id, rewrite->source_set_id) ||
+    if (result == APP_ERROR_NONE && (!app_uuid_equal(&macro.set_id, rewrite->source_set_id) ||
                                      order->count >= APP_MACROS_PER_SET_MAX)) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
@@ -525,9 +470,6 @@ static app_error_code_t import_locked(const app_uuid_t *new_set_id,
     app_error_code_t result = storage_repository_load_index(&index);
     if (result == APP_ERROR_NONE) {
         result = import_set_accepts_new_id(&index, new_set_id);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = verify_global_dependencies(document->arrays[PACKAGE_IMPORT_GLOBAL_MACROS]);
     }
     macro_set_t new_set = document->source_set;
     if (result == APP_ERROR_NONE) {

@@ -23,10 +23,8 @@
 
 #define SET_ID "11111111-1111-4111-8111-111111111111"
 #define LOCAL_MACRO_ID "22222222-2222-4222-8222-222222222222"
-#define GLOBAL_MACRO_ID "23232323-2323-4232-8232-232323232323"
 #define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
 #define LOCAL_STEP_ID "44444444-4444-4444-8444-444444444444"
-#define GLOBAL_STEP_ID "45454545-4545-4545-8545-454545454545"
 #define RESTORE_TX_ID_A "66666666-6666-4666-8666-666666666666"
 #define RESTORE_TX_ID_B "77777777-7777-4777-8777-777777777777"
 
@@ -36,20 +34,13 @@ static const char BACKUP_PACKAGE[] =
     "\",\"revision\":7,\"name\":\"Restored\",\"description\":\"\","
     "\"manufacturer\":\"\",\"model\":\"\",\"board\":\"\","
     "\"keyboard_layout\":\"en-US\",\"sort_order\":0}],\"macros\":[{"
-    "\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
-    "\",\"revision\":1,\"scope\":\"set\",\"name\":\"Local\","
+    "\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID "\",\"revision\":1,\"name\":\"Local\","
     "\"source\":\"a\",\"favorite\":false,\"key_press_ms\":8,"
-    "\"inter_key_ms\":15,\"set_id\":\"" SET_ID
-    "\"}],\"global_macros\":[{\"schema_version\":1,\"id\":\"" GLOBAL_MACRO_ID
-    "\",\"revision\":2,\"scope\":\"global\",\"name\":\"Global\","
-    "\"source\":\"b\",\"favorite\":false,\"key_press_ms\":8,"
-    "\"inter_key_ms\":15}],\"procedures\":[{\"schema_version\":1,"
+    "\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}],\"procedures\":[{\"schema_version\":1,"
     "\"id\":\"" PROCEDURE_ID "\",\"revision\":3,\"set_id\":\"" SET_ID
     "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{"
     "\"id\":\"" LOCAL_STEP_ID
     "\",\"type\":\"macro\",\"title\":\"Local\",\"macro_id\":\"" LOCAL_MACRO_ID
-    "\",\"required\":true,\"auto_complete_on_success\":false},{\"id\":\"" GLOBAL_STEP_ID
-    "\",\"type\":\"macro\",\"title\":\"Global\",\"macro_id\":\"" GLOBAL_MACRO_ID
     "\",\"required\":true,\"auto_complete_on_success\":false}],"
     "\"sort_order\":0}],\"progress\":[{\"schema_version\":1,\"set_id\":\"" SET_ID
     "\",\"procedure_id\":\"" PROCEDURE_ID
@@ -113,19 +104,18 @@ static void create_repository_layout(void) {
     make_directory(STORAGE_DATA_MOUNT);
     char path[APP_PATH_MAX_BYTES];
     static const char *const directories[] = {
-        "transactions", "staging", "trash", "quarantine", "sets", "global",
+        "transactions",
+        "staging",
+        "trash",
+        "sets",
     };
     for (size_t index = 0U; index < sizeof(directories) / sizeof(directories[0]); ++index) {
         join_path(path, sizeof(path), STORAGE_DATA_MOUNT, directories[index]);
         make_directory(path);
     }
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "global/macros");
-    make_directory(path);
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "schema.json");
     write_text(path, "{\"schema_version\":1}");
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "set-index.json");
-    write_text(path, "{\"schema_version\":1,\"ids\":[]}");
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "global/macro-order.json");
     write_text(path, "{\"schema_version\":1,\"ids\":[]}");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_tree_validate(STORAGE_DATA_MOUNT));
 }
@@ -330,7 +320,7 @@ static void test_invalid_backup_does_not_mutate_repository(void) {
     create_empty_repository();
     static const char invalid[] =
         "{\"schema_version\":1,\"package_type\":\"macro-set\",\"sets\":[],"
-        "\"macros\":[],\"global_macros\":[],\"procedures\":[],\"progress\":[]}";
+        "\"macros\":[],\"procedures\":[],\"progress\":[]}";
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          storage_package_restore_backup(invalid, sizeof(invalid) - 1U));
     assert_repository_remains_empty();

@@ -18,7 +18,6 @@
 #include "macro_limits.h"
 #include "macro_model.h"
 #include "macro_parser.h"
-#include "storage.h"
 #include "storage_object_json.h"
 
 #define SET_TREE_JSON_SUFFIX ".json"
@@ -317,8 +316,7 @@ static app_error_code_t validate_local_macro_file(const char *path, const app_uu
     }
     free(data);
     if (result == APP_ERROR_NONE &&
-        (!app_uuid_equal(&macro.id, filename_id) || macro.scope != MACRO_SCOPE_SET ||
-         !macro.has_set_id || !app_uuid_equal(&macro.set_id, set_id))) {
+        (!app_uuid_equal(&macro.id, filename_id) || !app_uuid_equal(&macro.set_id, set_id))) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     if (result == APP_ERROR_NONE) {
@@ -371,67 +369,12 @@ static app_error_code_t validate_macro_directory(const char *set_path, const app
     return result;
 }
 
-static app_error_code_t global_macro_path(const app_uuid_t *macro_id, char *path,
-                                          size_t path_size) {
-    const int written =
-        snprintf(path, path_size, STORAGE_DATA_MOUNT "/global/macros/%s.json", macro_id->value);
-    return written >= 0 && (size_t)written < path_size ? APP_ERROR_NONE : APP_ERROR_STORAGE_CORRUPT;
-}
-
-static app_error_code_t global_macro_exists(const app_uuid_t *macro_id, bool *out_exists) {
-    *out_exists = false;
-    char path[APP_PATH_MAX_BYTES];
-    app_error_code_t result = global_macro_path(macro_id, path, sizeof(path));
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    struct stat metadata;
-    if (stat(path, &metadata) == 0) {
-        if (!S_ISREG(metadata.st_mode)) {
-            return APP_ERROR_STORAGE_CORRUPT;
-        }
-        *out_exists = true;
-        return APP_ERROR_NONE;
-    }
-    return errno == ENOENT ? APP_ERROR_NONE : map_error_number(errno);
-}
-
-static app_error_code_t validate_global_macro(const app_uuid_t *macro_id) {
-    char path[APP_PATH_MAX_BYTES];
-    app_error_code_t result = global_macro_path(macro_id, path, sizeof(path));
-    char *data = NULL;
-    size_t length = 0U;
-    if (result == APP_ERROR_NONE) {
-        result = read_bounded_file(path, STORAGE_MACRO_FILE_MAX_BYTES, &data, &length);
-    }
-    macro_t macro = {0};
-    if (result == APP_ERROR_NONE) {
-        result = normalize_object_error(storage_repository_parse_macro_json(data, length, &macro));
-    }
-    free(data);
-    if (result == APP_ERROR_NONE && (!app_uuid_equal(&macro.id, macro_id) ||
-                                     macro.scope != MACRO_SCOPE_GLOBAL || macro.has_set_id)) {
-        result = APP_ERROR_STORAGE_CORRUPT;
-    }
-    if (result == APP_ERROR_NONE) {
-        result = compile_macro(&macro);
-    }
-    macro_model_free_macro(&macro);
-    return result;
-}
-
 static app_error_code_t validate_macro_reference(const app_uuid_t *macro_id,
                                                  const set_tree_state_t *state) {
-    const bool local = uuid_list_contains(state->macros.ids, state->macros.count, macro_id);
-    bool global = false;
-    app_error_code_t result = global_macro_exists(macro_id, &global);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    if (local == global) {
-        return APP_ERROR_STORAGE_CORRUPT;
-    }
-    return global ? validate_global_macro(macro_id) : APP_ERROR_NONE;
+    /* A step may only reference a macro in its own set (SPEC §7.2). */
+    return uuid_list_contains(state->macros.ids, state->macros.count, macro_id)
+               ? APP_ERROR_NONE
+               : APP_ERROR_STORAGE_CORRUPT;
 }
 
 static app_error_code_t add_procedure(set_tree_state_t *state, const procedure_t *procedure) {

@@ -70,13 +70,7 @@ describe("application routing", () => {
           verified: false,
           webMounted: true,
           dataMounted: true,
-          quarantineCount: 0,
-          damagedQuarantineCount: 0,
         },
-      });
-      planJsonResponse({
-        ok: true,
-        data: { damagedCount: 0, items: [] },
       });
     }
     const view = await render(<App />);

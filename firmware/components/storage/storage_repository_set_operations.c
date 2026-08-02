@@ -79,7 +79,6 @@ static app_error_code_t write_duplicate_macro(const char *staging, const macro_t
                                               const app_uuid_t *duplicate_set_id) {
     macro_t duplicate = *source;
     duplicate.revision = 1U;
-    duplicate.has_set_id = true;
     duplicate.set_id = *duplicate_set_id;
     char *json = NULL;
     size_t json_length = 0U;
@@ -317,14 +316,9 @@ static app_error_code_t storage_set_duplicate_locked(const app_uuid_t *source_id
             copy_text(duplicate.name, sizeof(duplicate.name), duplicate_name, APP_NAME_MAX_BYTES);
     }
 
-    const storage_macro_location_t source_location = {
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
-        .set_id = *source_id,
-    };
     storage_macro_list_t macros = {0};
     if (result == APP_ERROR_NONE) {
-        result = storage_macro_list_locked(&source_location, &macros);
+        result = storage_macro_list_locked(source_id, &macros);
     }
     storage_procedure_list_t procedures = {0};
     if (result == APP_ERROR_NONE) {

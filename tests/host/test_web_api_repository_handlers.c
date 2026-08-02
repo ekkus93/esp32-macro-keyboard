@@ -25,7 +25,6 @@
 #define SET_DUPLICATE_ID "11111111-1111-4111-8111-222222222222"
 #define MACRO_ID "22222222-2222-4222-8222-222222222222"
 #define MACRO_DUPLICATE_ID "22222222-2222-4222-8222-333333333333"
-#define GLOBAL_MACRO_ID "22222222-2222-4222-8222-444444444444"
 #define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
 #define STEP_ONE_ID "44444444-4444-4444-8444-444444444444"
 #define STEP_TWO_ID "44444444-4444-4444-8444-555555555555"
@@ -67,11 +66,8 @@ static void reset_store(void) {
     static const char *const paths[] = {
         STORAGE_DATA_MOUNT,
         STORAGE_DATA_MOUNT "/sets",
-        STORAGE_DATA_MOUNT "/global",
-        STORAGE_DATA_MOUNT "/global/macros",
         STORAGE_DATA_MOUNT "/staging",
         STORAGE_DATA_MOUNT "/trash",
-        STORAGE_DATA_MOUNT "/quarantine",
         STORAGE_DATA_MOUNT "/transactions",
     };
     for (size_t index = 0U; index < sizeof(paths) / sizeof(paths[0]); ++index) {
@@ -109,14 +105,12 @@ static macro_set_t make_set(void) {
     return set;
 }
 
-static macro_t make_macro(const char *macro_id, macro_scope_t scope) {
+static macro_t make_macro(const char *macro_id) {
     static const char source[] = "ab";
     macro_t macro = {
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid(macro_id),
         .revision = 1U,
-        .scope = scope,
-        .has_set_id = scope == MACRO_SCOPE_SET,
         .set_id = uuid(SET_ID),
         .favorite = false,
         .key_press_ms = 8U,
@@ -324,7 +318,7 @@ static void test_set_routes(void) {
 }
 
 static void test_macro_routes(void) {
-    macro_t macro = make_macro(MACRO_ID, MACRO_SCOPE_SET);
+    macro_t macro = make_macro(MACRO_ID);
     char *json = serialize_macro(&macro);
     web_api_response_t response = invoke(web_api_handle_macros, WEB_API_ROUTE_SET_MACROS,
                                          WEB_API_METHOD_POST, json, SET_ID, NULL, NULL);
@@ -370,22 +364,6 @@ static void test_macro_routes(void) {
                       order_body, SET_ID, NULL, NULL);
     expect_status(&response, 200U, "\"reordered\":true");
 
-    macro_t global = make_macro(GLOBAL_MACRO_ID, MACRO_SCOPE_GLOBAL);
-    global.has_set_id = false;
-    memset(&global.set_id, 0, sizeof(global.set_id));
-    json = serialize_macro(&global);
-    response = invoke(web_api_handle_macros, WEB_API_ROUTE_GLOBAL_MACROS, WEB_API_METHOD_POST, json,
-                      NULL, NULL, NULL);
-    expect_status(&response, 201U, GLOBAL_MACRO_ID);
-    cJSON_free(json);
-    response = invoke(web_api_handle_macros, WEB_API_ROUTE_GLOBAL_MACROS, WEB_API_METHOD_GET, NULL,
-                      NULL, NULL, NULL);
-    expect_status(&response, 200U, GLOBAL_MACRO_ID);
-    response = invoke(web_api_handle_macros, WEB_API_ROUTE_GLOBAL_MACRO, WEB_API_METHOD_DELETE,
-                      "{\"expectedRevision\":1}", NULL, GLOBAL_MACRO_ID, NULL);
-    expect_status(&response, 200U, "\"deleted\":true");
-
-    macro_model_free_macro(&global);
     macro_model_free_macro(&macro);
 }
 
@@ -542,13 +520,9 @@ static void test_procedure_and_progress_routes(void) {
                                                           &duplicate_readback));
     TEST_CHECK_EQ_U64(1U, duplicate_readback.revision);
     storage_macro_list_t duplicate_macros = {0};
-    const storage_macro_location_t duplicate_location = {
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
-        .set_id = {.value = SET_DUPLICATE_ID},
-    };
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_macro_list(&duplicate_location, &duplicate_macros));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        storage_macro_list(&(app_uuid_t){.value = SET_DUPLICATE_ID}, &duplicate_macros));
     TEST_CHECK_EQ_U64(2U, duplicate_macros.count);
     storage_macro_list_free(&duplicate_macros);
     storage_procedure_list_t duplicate_procedures = {0};

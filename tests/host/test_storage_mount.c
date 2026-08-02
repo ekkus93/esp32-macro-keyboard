@@ -143,9 +143,9 @@ static void test_unmount_continues_after_one_failure(void) {
 /* ---- storage_prepare_directories: topology validation (real filesystem) ---- */
 
 static const char *const required_dirs[] = {
-    STORAGE_DATA_MOUNT "/sets",          STORAGE_DATA_MOUNT "/global",
-    STORAGE_DATA_MOUNT "/global/macros", STORAGE_DATA_MOUNT "/staging",
-    STORAGE_DATA_MOUNT "/trash",         STORAGE_DATA_MOUNT "/quarantine",
+    STORAGE_DATA_MOUNT "/sets",
+    STORAGE_DATA_MOUNT "/staging",
+    STORAGE_DATA_MOUNT "/trash",
     STORAGE_DATA_MOUNT "/transactions",
 };
 
@@ -178,11 +178,6 @@ static void test_prepare_directories_creates_and_is_idempotent(void) {
 static void test_regular_file_collides_with_each_required_directory(void) {
     for (size_t index = 0U; index < (sizeof(required_dirs) / sizeof(required_dirs[0])); ++index) {
         reset_data_root();
-        /* The only nested directory (/global/macros) needs its parent present so
-         * the colliding regular file can be created inside it. */
-        if (strcmp(required_dirs[index], STORAGE_DATA_MOUNT "/global/macros") == 0) {
-            TEST_CHECK(mkdir(STORAGE_DATA_MOUNT "/global", 0750) == 0);
-        }
         make_regular_file(required_dirs[index]);
         /* A regular file where a directory is required is a corrupt topology. */
         TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_prepare_directories());

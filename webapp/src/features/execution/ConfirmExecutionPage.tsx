@@ -3,12 +3,10 @@ import { ApiError } from "../../api/client";
 import { errorText } from "../../api/errors";
 import {
   getDeviceStatus,
-  getGlobalMacro,
   getSetMacro,
   getSetProcedure,
   getSettings,
   submitExecution,
-  validateGlobalMacro,
   validateSetMacro,
 } from "../../api/routes";
 import { ErrorBanner } from "../../components/ErrorBanner";
@@ -54,27 +52,17 @@ interface ConfirmExecutionPageProps {
   target: ExecutionConfirmationTarget;
 }
 
-async function loadPersistedMacro(
-  setId: string,
-  macroId: string,
-): Promise<Macro> {
-  try {
-    return await getSetMacro(setId, macroId);
-  } catch (error: unknown) {
-    if (!(error instanceof ApiError) || error.status !== 404) {
-      throw error;
-    }
-    return getGlobalMacro(macroId);
-  }
+/* Every macro belongs to exactly one set (SPEC 7.2), so there is no
+   second place to look when the set does not have it. */
+function loadPersistedMacro(setId: string, macroId: string): Promise<Macro> {
+  return getSetMacro(setId, macroId);
 }
 
 function validatePersistedMacro(
   activeSetId: string,
   macro: Macro,
 ): Promise<MacroValidation> {
-  return macro.scope === "set"
-    ? validateSetMacro(activeSetId, macro)
-    : validateGlobalMacro(macro);
+  return validateSetMacro(activeSetId, macro);
 }
 
 function macroIdentityIssue(
@@ -85,7 +73,7 @@ function macroIdentityIssue(
   if (macro.id !== requestedMacroId) {
     return "The device returned a different macro than the requested macro.";
   }
-  if (macro.scope === "set" && macro.set_id !== activeSetId) {
+  if (macro.set_id !== activeSetId) {
     return "The requested macro does not belong to the active macro set.";
   }
   return null;
@@ -155,7 +143,6 @@ function sameMacroSnapshot(left: Macro, right: Macro): boolean {
   return (
     left.id === right.id &&
     left.revision === right.revision &&
-    left.scope === right.scope &&
     left.set_id === right.set_id &&
     left.source === right.source &&
     left.key_press_ms === right.key_press_ms &&
@@ -478,10 +465,7 @@ export function ConfirmExecutionPage({
       <article className="card confirmation-summary">
         <div>
           <h3>{loaded.macro.name}</h3>
-          <p>
-            {loaded.macro.scope === "global" ? "Global macro" : "Set macro"} ·
-            revision {String(loaded.macro.revision)}
-          </p>
+          <p>Revision {String(loaded.macro.revision)}</p>
           <p>Active set: {activeSet.name}</p>
         </div>
       </article>

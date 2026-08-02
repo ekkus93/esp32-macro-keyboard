@@ -170,35 +170,6 @@ static app_error_code_t match_set_routes(const path_segments_t *segments,
     return APP_ERROR_NOT_FOUND;
 }
 
-static app_error_code_t match_global_routes(const path_segments_t *segments,
-                                            web_api_path_t *out_path) {
-    if (segments->count < 2U || !text_equal(segments->items[1], "macros")) {
-        return APP_ERROR_NOT_FOUND;
-    }
-    if (segments->count == 2U) {
-        out_path->route = WEB_API_ROUTE_GLOBAL_MACROS;
-        return APP_ERROR_NONE;
-    }
-    if (segments->count == 3U && text_equal(segments->items[2], "reorder")) {
-        out_path->route = WEB_API_ROUTE_GLOBAL_MACROS_REORDER;
-        return APP_ERROR_NONE;
-    }
-    if (!parse_uuid_segment(segments->items[2], &out_path->macro_id)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    out_path->has_macro_id = true;
-    if (segments->count == 3U) {
-        out_path->route = WEB_API_ROUTE_GLOBAL_MACRO;
-    } else if (segments->count == 4U && text_equal(segments->items[3], "validate")) {
-        out_path->route = WEB_API_ROUTE_GLOBAL_MACRO_VALIDATE;
-    } else if (segments->count == 4U && text_equal(segments->items[3], "duplicate")) {
-        out_path->route = WEB_API_ROUTE_GLOBAL_MACRO_DUPLICATE;
-    } else {
-        return APP_ERROR_NOT_FOUND;
-    }
-    return APP_ERROR_NONE;
-}
-
 static app_error_code_t match_execution_routes(const path_segments_t *segments,
                                                web_api_path_t *out_path) {
     if (segments->count == 1U) {
@@ -322,8 +293,6 @@ app_error_code_t web_api_parse_path(const char *uri, web_api_path_t *out_path) {
     }
     if (text_equal(segments.items[0], "sets")) {
         result = match_set_routes(&segments, out_path);
-    } else if (text_equal(segments.items[0], "global")) {
-        result = match_global_routes(&segments, out_path);
     } else if (text_equal(segments.items[0], "executions")) {
         result = match_execution_routes(&segments, out_path);
     } else {
@@ -343,12 +312,10 @@ bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method)
         return method == WEB_API_METHOD_GET;
     case WEB_API_ROUTE_SETS:
     case WEB_API_ROUTE_SET_MACROS:
-    case WEB_API_ROUTE_GLOBAL_MACROS:
     case WEB_API_ROUTE_SET_PROCEDURES:
         return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_POST;
     case WEB_API_ROUTE_SET:
     case WEB_API_ROUTE_SET_MACRO:
-    case WEB_API_ROUTE_GLOBAL_MACRO:
     case WEB_API_ROUTE_SET_PROCEDURE:
     case WEB_API_ROUTE_PROCEDURE_PROGRESS:
         return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_PUT ||
@@ -369,9 +336,6 @@ bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method)
     case WEB_API_ROUTE_SET_MACRO_VALIDATE:
     case WEB_API_ROUTE_SET_MACRO_DUPLICATE:
     case WEB_API_ROUTE_SET_MACROS_REORDER:
-    case WEB_API_ROUTE_GLOBAL_MACRO_VALIDATE:
-    case WEB_API_ROUTE_GLOBAL_MACRO_DUPLICATE:
-    case WEB_API_ROUTE_GLOBAL_MACROS_REORDER:
     case WEB_API_ROUTE_SET_PROCEDURES_REORDER:
     case WEB_API_ROUTE_PROGRESS_COMPLETE:
     case WEB_API_ROUTE_PROGRESS_SKIP:

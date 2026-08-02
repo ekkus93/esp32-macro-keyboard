@@ -43,7 +43,6 @@ export const macro = {
   schema_version: 1,
   id: macroId,
   revision: 7,
-  scope: "set",
   set_id: setId,
   name: "Open terminal",
   source: "{CTRL+ALT+T}",

@@ -22,7 +22,6 @@ import {
 import {
   isFactoryResetAccepted,
   isFullDiagnostics,
-  isQuarantineList,
   isSetDeletion,
   isStorageHealth,
 } from "./managementGuards";
@@ -41,7 +40,6 @@ import type {
   Procedure,
   ProcedureProgressSnapshot,
   ProcedureSummary,
-  QuarantineList,
   RestartAccepted,
   SessionStatus,
   SetDeletion,
@@ -283,10 +281,6 @@ function setMacroPath(setId: string, macroId: string): string {
   return `${setMacrosPath(setId)}/${encodeURIComponent(macroId)}`;
 }
 
-function globalMacroPath(macroId: string): string {
-  return `/api/v1/global/macros/${encodeURIComponent(macroId)}`;
-}
-
 export async function listSetMacros(setId: string): Promise<Macro[]> {
   return apiRequest(setMacrosPath(setId), {}, isMacroList);
 }
@@ -296,10 +290,6 @@ export async function getSetMacro(
   macroId: string,
 ): Promise<Macro> {
   return apiRequest(setMacroPath(setId, macroId), {}, isMacro);
-}
-
-export async function getGlobalMacro(macroId: string): Promise<Macro> {
-  return apiRequest(globalMacroPath(macroId), {}, isMacro);
 }
 
 export async function createSetMacro(
@@ -340,19 +330,6 @@ export async function validateSetMacro(
 ): Promise<MacroValidation> {
   return apiRequest(
     `${setMacroPath(setId, macro.id)}/validate`,
-    {
-      method: "POST",
-      body: JSON.stringify(macro),
-    },
-    isMacroValidation,
-  );
-}
-
-export async function validateGlobalMacro(
-  macro: Macro,
-): Promise<MacroValidation> {
-  return apiRequest(
-    `${globalMacroPath(macro.id)}/validate`,
     {
       method: "POST",
       body: JSON.stringify(macro),
@@ -481,10 +458,6 @@ export async function cancelCurrentExecution(): Promise<CancelAccepted> {
 
 export async function getStorageHealth(): Promise<StorageHealth> {
   return apiRequest("/api/v1/diagnostics/storage", {}, isStorageHealth);
-}
-
-export async function getQuarantine(): Promise<QuarantineList> {
-  return apiRequest("/api/v1/diagnostics/quarantine", {}, isQuarantineList);
 }
 
 export async function getFullDiagnostics(): Promise<FullDiagnostics> {

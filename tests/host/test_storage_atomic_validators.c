@@ -53,15 +53,12 @@ static app_uuid_t parse_uuid(const char *text) {
 static void reset_store(void) {
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     make_directory(STORAGE_DATA_MOUNT);
-    make_directory(STORAGE_DATA_MOUNT "/global");
-    make_directory(STORAGE_DATA_MOUNT "/global/macros");
     make_directory(STORAGE_DATA_MOUNT "/sets");
     make_directory(STORAGE_DATA_MOUNT "/sets/" SET_UUID);
     make_directory(STORAGE_DATA_MOUNT "/sets/" SET_UUID "/macros");
     make_directory(STORAGE_DATA_MOUNT "/sets/" SET_UUID "/procedures");
     make_directory(STORAGE_DATA_MOUNT "/sets/" SET_UUID "/progress");
     make_directory(STORAGE_DATA_MOUNT "/transactions");
-    make_directory(STORAGE_DATA_MOUNT "/quarantine");
 }
 
 static macro_set_t make_set(const char *id_text) {
@@ -95,8 +92,6 @@ static void write_macro_json(const char *path, const char *id_text, const char *
         .schema_version = APP_SCHEMA_VERSION,
         .id = parse_uuid(id_text),
         .revision = 1U,
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
         .set_id = parse_uuid(set_id_text),
         .source = source,
         .source_length = strlen(source),
@@ -180,14 +175,15 @@ static void test_classifier(void) {
                       storage_atomic_classify_destination(STORAGE_DATA_MOUNT "/schema.json"));
     TEST_CHECK_EQ_INT(STORAGE_ATOMIC_OBJECT_SET_INDEX,
                       storage_atomic_classify_destination(STORAGE_DATA_MOUNT "/set-index.json"));
+    /* The global macro store was removed (SPEC §7.2); its order file is no
+     * longer a recognized atomic-write object. */
     TEST_CHECK_EQ_INT(
-        STORAGE_ATOMIC_OBJECT_GLOBAL_MACRO_INDEX,
+        STORAGE_ATOMIC_OBJECT_UNKNOWN,
         storage_atomic_classify_destination(STORAGE_DATA_MOUNT "/global/macro-order.json"));
     TEST_CHECK_EQ_INT(
         STORAGE_ATOMIC_OBJECT_TRANSACTION_MANIFEST,
         storage_atomic_classify_destination(STORAGE_DATA_MOUNT "/transactions/" SET_UUID ".bin"));
-    /* The dir-per-entry quarantine layout (FIX1 §8) has no per-file quarantine
-     * artifacts, so a flat /data/quarantine/<uuid>.json path is no longer a
+    /* Quarantine was removed (SPEC §13.6); a /data/quarantine path is not a
      * recognized atomic-write object. */
     TEST_CHECK_EQ_INT(
         STORAGE_ATOMIC_OBJECT_UNKNOWN,
@@ -230,11 +226,6 @@ static void test_index_validators(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, validate(set_dest, set_candidate));
     write_text(set_candidate, "{\"schema_version\":9,\"ids\":[]}");
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, validate(set_dest, set_candidate));
-
-    const char *global_dest = STORAGE_DATA_MOUNT "/global/macro-order.json";
-    const char *global_candidate = STORAGE_DATA_MOUNT "/global/macro-order.json.tmp." OP_UUID;
-    write_text(global_candidate, "{\"schema_version\":1,\"ids\":[]}");
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, validate(global_dest, global_candidate));
 }
 
 static void test_set_metadata_validator(void) {

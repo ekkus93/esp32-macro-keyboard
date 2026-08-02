@@ -12,8 +12,6 @@
 /* Keyboard-layout code buffer, e.g. "en-US" plus a terminator. */
 #define MACRO_KEYBOARD_LAYOUT_BYTES 6U
 
-typedef enum { MACRO_SCOPE_SET = 0, MACRO_SCOPE_GLOBAL } macro_scope_t;
-
 typedef enum {
     PROCEDURE_STEP_MACRO = 0,
     PROCEDURE_STEP_INSTRUCTION,
@@ -37,8 +35,8 @@ typedef struct {
     uint32_t schema_version;
     app_uuid_t id;
     uint32_t revision;
-    macro_scope_t scope;
-    bool has_set_id;
+    /* Every macro belongs to exactly one set (SPEC §7.2). There is no global or
+     * shared macro library, so this is always populated. */
     app_uuid_t set_id;
     char name[APP_MACRO_NAME_MAX_BYTES + 1U];
     char *source;

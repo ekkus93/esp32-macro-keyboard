@@ -80,24 +80,6 @@ static void fill_capacity(const char *partition_label, web_diagnostics_capacity_
     };
 }
 
-static void fill_quarantine(web_diagnostics_quarantine_t *out_quarantine) {
-    /* Heap-allocated, not a stack local: storage_quarantine_list_t is far
-     * larger than the httpd task stack (see web_server_lifecycle.c), so a
-     * stack local here overflows it and panics the device. */
-    storage_quarantine_list_t *list = calloc(1U, sizeof(*list));
-    if (list == NULL) {
-        *out_quarantine = (web_diagnostics_quarantine_t){.ok = false};
-        return;
-    }
-    const app_error_code_t result = storage_quarantine_list(list);
-    *out_quarantine = (web_diagnostics_quarantine_t){
-        .ok = result == APP_ERROR_NONE,
-        .count = result == APP_ERROR_NONE ? list->count : 0U,
-        .damaged_count = result == APP_ERROR_NONE ? list->damaged_count : 0U,
-    };
-    free(list);
-}
-
 static void fill_subsystems(web_diagnostics_subsystem_t *out_subsystems) {
     size_t index = 0U;
     out_subsystems[index++] = (web_diagnostics_subsystem_t){
@@ -136,7 +118,6 @@ static web_diagnostics_snapshot_t collect_diagnostics(void) {
     snapshot.executor_stack_high_water_mark = macro_executor_stack_high_water_mark();
     fill_capacity(STORAGE_WEB_PARTITION, &snapshot.webfs);
     fill_capacity(STORAGE_DATA_PARTITION, &snapshot.userdata);
-    fill_quarantine(&snapshot.quarantine);
     snapshot.execution_state = execution_state_string(macro_executor_get_status().state);
     fill_subsystems(snapshot.subsystems);
     return snapshot;

@@ -30,11 +30,6 @@ static bool is_macro_route(web_api_route_t route) {
     case WEB_API_ROUTE_SET_MACRO_VALIDATE:
     case WEB_API_ROUTE_SET_MACRO_DUPLICATE:
     case WEB_API_ROUTE_SET_MACROS_REORDER:
-    case WEB_API_ROUTE_GLOBAL_MACROS:
-    case WEB_API_ROUTE_GLOBAL_MACRO:
-    case WEB_API_ROUTE_GLOBAL_MACRO_VALIDATE:
-    case WEB_API_ROUTE_GLOBAL_MACRO_DUPLICATE:
-    case WEB_API_ROUTE_GLOBAL_MACROS_REORDER:
         return true;
     default:
         return false;

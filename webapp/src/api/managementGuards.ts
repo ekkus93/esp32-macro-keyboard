@@ -1,13 +1,9 @@
-import { limits } from "../types/limits";
 import type {
   DiagnosticsCapacity,
-  DiagnosticsQuarantineSummary,
   DiagnosticsStack,
   DiagnosticsSubsystem,
   FactoryResetAccepted,
   FullDiagnostics,
-  QuarantineEntry,
-  QuarantineList,
   SetDeletion,
   StorageHealth,
   SubsystemHealthState,
@@ -62,42 +58,10 @@ export function isFactoryResetAccepted(
 export function isStorageHealth(value: unknown): value is StorageHealth {
   return (
     isRecord(value) &&
-    hasExactKeys(value, [
-      "verified",
-      "webMounted",
-      "dataMounted",
-      "quarantineCount",
-      "damagedQuarantineCount",
-    ]) &&
+    hasExactKeys(value, ["verified", "webMounted", "dataMounted"]) &&
     typeof value.verified === "boolean" &&
     typeof value.webMounted === "boolean" &&
-    typeof value.dataMounted === "boolean" &&
-    isNonNegativeInteger(value.quarantineCount) &&
-    isNonNegativeInteger(value.damagedQuarantineCount) &&
-    value.damagedQuarantineCount <= value.quarantineCount
-  );
-}
-
-function isQuarantineEntry(value: unknown): value is QuarantineEntry {
-  return (
-    isRecord(value) &&
-    hasExactKeys(value, ["id", "sourcePath", "evidencePath", "reason"]) &&
-    isUuid(value.id) &&
-    isBoundedString(value.sourcePath, 512) &&
-    isBoundedString(value.evidencePath, 512) &&
-    isBoundedString(value.reason, limits.descriptionBytes)
-  );
-}
-
-export function isQuarantineList(value: unknown): value is QuarantineList {
-  return (
-    isRecord(value) &&
-    hasExactKeys(value, ["damagedCount", "items"]) &&
-    isNonNegativeInteger(value.damagedCount) &&
-    Array.isArray(value.items) &&
-    value.items.every(isQuarantineEntry) &&
-    value.damagedCount <= value.items.length &&
-    new Set(value.items.map((entry) => entry.id)).size === value.items.length
+    typeof value.dataMounted === "boolean"
   );
 }
 
@@ -137,19 +101,6 @@ function isDiagnosticsCapacity(value: unknown): value is DiagnosticsCapacity {
   );
 }
 
-function isDiagnosticsQuarantineSummary(
-  value: unknown,
-): value is DiagnosticsQuarantineSummary {
-  return (
-    isRecord(value) &&
-    hasExactKeys(value, ["ok", "count", "damagedCount"]) &&
-    typeof value.ok === "boolean" &&
-    isNonNegativeInteger(value.count) &&
-    isNonNegativeInteger(value.damagedCount) &&
-    value.damagedCount <= value.count
-  );
-}
-
 function isDiagnosticsStack(value: unknown): value is DiagnosticsStack {
   return (
     isRecord(value) &&
@@ -173,7 +124,6 @@ export function isFullDiagnostics(value: unknown): value is FullDiagnostics {
       "stack",
       "webfs",
       "userdata",
-      "quarantine",
       "executionState",
       "subsystems",
     ]) &&
@@ -187,7 +137,6 @@ export function isFullDiagnostics(value: unknown): value is FullDiagnostics {
     isDiagnosticsStack(value.stack) &&
     isDiagnosticsCapacity(value.webfs) &&
     isDiagnosticsCapacity(value.userdata) &&
-    isDiagnosticsQuarantineSummary(value.quarantine) &&
     isBoundedString(value.executionState, 64) &&
     Array.isArray(value.subsystems) &&
     value.subsystems.length === 9 &&

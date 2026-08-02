@@ -16,7 +16,7 @@
 
 #define STORAGE_RESTORE_STAGING_DIR_MODE 0700
 
-static const char *const RESTORE_ITEMS[] = {"set-index.json", "sets", "global"};
+static const char *const RESTORE_ITEMS[] = {"set-index.json", "sets"};
 
 static app_error_code_t map_error_number(int error_number) {
     if (error_number == ENOENT) {

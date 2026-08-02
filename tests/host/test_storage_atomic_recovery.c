@@ -161,7 +161,7 @@ static void test_reconcile_decision(void) {
                       decide(false, 1U, true, 0U, false, false));
     TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_DISCARD_TEMPORARY,
                       decide(false, 1U, false, 0U, false, false));
-    /* Roll-forward proven: activate a valid temporary, quarantine a corrupt one. */
+    /* Roll-forward proven: activate a valid temporary, discard a corrupt one. */
     TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_ACTIVATE_TEMPORARY,
                       decide(false, 1U, true, 0U, false, true));
     TEST_CHECK_EQ_INT(STORAGE_ATOMIC_RECONCILE_QUARANTINE,
@@ -169,18 +169,6 @@ static void test_reconcile_decision(void) {
 }
 
 /* ---- Executor tests (real POSIX filesystem under STORAGE_DATA_MOUNT). ---- */
-
-static size_t g_uuid_counter = 0U;
-
-static app_error_code_t test_generate_uuid(void *context, app_uuid_t *out_uuid) {
-    (void)context;
-    ++g_uuid_counter;
-    char text[APP_UUID_BUFFER_LENGTH];
-    const int written =
-        snprintf(text, sizeof(text), "0a1b2c3d-0000-4000-8000-%012zx", g_uuid_counter);
-    TEST_CHECK(written == (int)APP_UUID_STRING_LENGTH);
-    return app_uuid_parse(text, out_uuid);
-}
 
 static bool path_exists(const char *path) {
     struct stat metadata;
@@ -204,37 +192,16 @@ static void write_text_file(const char *path, const char *text) {
     TEST_CHECK(close(descriptor) == 0);
 }
 
-static size_t directory_entry_count(const char *path) {
-    DIR *directory = opendir(path);
-    TEST_CHECK(directory != NULL);
-    size_t count = 0U;
-    while (true) {
-        errno = 0;
-        const struct dirent *entry = readdir(directory);
-        if (entry == NULL) {
-            TEST_CHECK(errno == 0);
-            break;
-        }
-        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-            ++count;
-        }
-    }
-    TEST_CHECK(closedir(directory) == 0);
-    return count;
-}
-
 static void recovery_reset_store(void) {
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     make_directory(STORAGE_DATA_MOUNT);
-    make_directory(STORAGE_DATA_MOUNT "/global");
     make_directory(STORAGE_DATA_MOUNT "/sets");
     make_directory(STORAGE_DATA_MOUNT "/transactions");
-    make_directory(STORAGE_DATA_MOUNT "/quarantine");
     make_directory(STORAGE_DATA_MOUNT "/staging");
 }
 
 static app_error_code_t run_recovery(void) {
-    return storage_atomic_recover_all_with_ops(storage_fs_ops_posix(), test_generate_uuid, NULL);
+    return storage_atomic_recover_all_with_ops(storage_fs_ops_posix());
 }
 
 static void test_executor_keep_canonical(void) {
@@ -274,31 +241,29 @@ static void test_executor_discard_temporary(void) {
     TEST_CHECK(!path_exists(temporary));
 }
 
-static void test_executor_quarantine_conflict(void) {
+static void test_executor_discard_conflict(void) {
     recovery_reset_store();
     const char *first = STORAGE_DATA_MOUNT "/set-index.json.tmp." OP_UUID;
     const char *second = STORAGE_DATA_MOUNT "/set-index.json.tmp." OP_UUID_2;
     write_text_file(first, "one");
     write_text_file(second, "two");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, run_recovery());
-    /* Two temporaries for one destination conflict: both are quarantined. The
-     * dir-per-entry layout (FIX1 §8) stores each as one committed subdirectory. */
+    /* Two temporaries for one destination conflict: both are deleted outright
+     * and nothing is archived (SPEC §13.6). */
     TEST_CHECK(!path_exists(first));
     TEST_CHECK(!path_exists(second));
-    TEST_CHECK_EQ_U64(2U, directory_entry_count(STORAGE_DATA_MOUNT "/quarantine"));
 }
 
-static void test_executor_quarantine_corrupt_backup(void) {
+static void test_executor_discard_corrupt_backup(void) {
     recovery_reset_store();
     const char *canonical = STORAGE_DATA_MOUNT "/set-index.json";
     const char *backup = STORAGE_DATA_MOUNT "/set-index.json.bak." OP_UUID;
     write_text_file(backup, "not a valid index");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, run_recovery());
-    /* Canonical absent + corrupt backup: nothing safe to restore, so quarantine.
-     * One committed subdirectory holds the quarantined artifact (FIX1 §8). */
+    /* Canonical absent + corrupt backup: nothing safe to restore, so the
+     * corrupt backup is deleted rather than resurrected (SPEC §13.6). */
     TEST_CHECK(!path_exists(canonical));
     TEST_CHECK(!path_exists(backup));
-    TEST_CHECK_EQ_U64(1U, directory_entry_count(STORAGE_DATA_MOUNT "/quarantine"));
 }
 
 /* ---- §7.5 crash-consistency matrix: interrupt after each atomic-write step. ----
@@ -383,8 +348,8 @@ int main(void) {
     test_executor_keep_canonical();
     test_executor_restore_backup();
     test_executor_discard_temporary();
-    test_executor_quarantine_conflict();
-    test_executor_quarantine_corrupt_backup();
+    test_executor_discard_conflict();
+    test_executor_discard_corrupt_backup();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     test_parse_temporary();
     test_parse_backup();

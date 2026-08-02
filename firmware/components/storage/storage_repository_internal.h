@@ -14,7 +14,6 @@
 #define STORAGE_INDEX_FILE_MAX_BYTES 4096U
 #define STORAGE_SCHEMA_FILE_PATH STORAGE_DATA_MOUNT "/schema.json"
 #define STORAGE_SET_INDEX_FILE_PATH STORAGE_DATA_MOUNT "/set-index.json"
-#define STORAGE_GLOBAL_ORDER_FILE_PATH STORAGE_DATA_MOUNT "/global/macro-order.json"
 
 typedef struct {
     app_uuid_t ids[APP_MACRO_SETS_MAX];
@@ -40,6 +39,9 @@ app_error_code_t storage_repository_set_file_path(const app_uuid_t *set_id, char
 app_error_code_t storage_repository_remove_manifest_with_ops(const app_uuid_t *transaction_id,
                                                              const storage_fs_ops_t *operations);
 app_error_code_t storage_repository_remove_manifest(const app_uuid_t *transaction_id);
+/* Deletes a file whose contents could not be parsed. Replaces quarantine:
+ * damaged data is discarded and the failure is reported, not archived. */
+app_error_code_t storage_repository_discard_corrupt_file(const char *path);
 app_error_code_t storage_repository_make_directory_with_ops(const char *path,
                                                             const storage_fs_ops_t *operations);
 app_error_code_t storage_repository_make_directory(const char *path);

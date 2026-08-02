@@ -86,7 +86,6 @@ Set replacement uses `POST /api/v1/sets/import` with an exact wrapper:
     "package_type": "set",
     "sets": [],
     "macros": [],
-    "global_macros": [],
     "procedures": [],
     "progress": []
   }
@@ -95,9 +94,9 @@ Set replacement uses `POST /api/v1/sets/import` with an exact wrapper:
 
 The package must contain exactly one set whose ID matches `targetSetId`. The
 current set revision must match `expectedRevision`, and the replacement revision
-comes from the validated package. Referenced global macros are dependencies: they
-must already exist with identical canonical content and are never modified by set
-replacement. The server writes a durable transaction manifest, stages and validates
+comes from the validated package. A set package is self-contained: every macro it
+references is inside it, so replacement has no external dependency to verify. The
+server writes a durable transaction manifest, stages and validates
 the complete replacement tree, atomically activates it, updates the set index, and
 recovers or rolls forward interrupted activation on startup. Physical confirmation
 is required before the request reaches the mutation handler.
@@ -113,8 +112,8 @@ identity and revision.
 
 ### Macros
 
-Set-owned routes are under `/api/v1/sets/{setId}/macros`; shared routes are under
-`/api/v1/global/macros`.
+Every macro belongs to exactly one set (SPEC §7.2), so all macro routes are under
+`/api/v1/sets/{setId}/macros`. There is no `/api/v1/global/macros`.
 
 | Method | Suffix | Purpose |
 | --- | --- | --- |
@@ -193,10 +192,9 @@ executor to 503, and accepted cancellation to 202.
 
 | Method | Route | Purpose |
 | --- | --- | --- |
-| GET | `/api/v1/diagnostics/storage` | Redacted mount and quarantine health |
+| GET | `/api/v1/diagnostics/storage` | Redacted mount health |
 | POST | `/api/v1/diagnostics/storage/check` | Run the bounded storage check boundary |
-| GET | `/api/v1/diagnostics/quarantine` | List redacted quarantine records |
-| GET | `/api/v1/diagnostics` | Redacted build identity, heap, stack marks, storage capacity, quarantine count, current execution state, and per-subsystem health |
+| GET | `/api/v1/diagnostics` | Redacted build identity, heap, stack marks, storage capacity, current execution state, and per-subsystem health |
 | GET | `/api/v1/backup` | Download a deterministic full logical-repository backup |
 | POST | `/api/v1/restore` | Restore a complete backup all-or-nothing |
 
@@ -209,25 +207,24 @@ exact top-level shape:
   "package_type": "backup",
   "sets": [],
   "macros": [],
-  "global_macros": [],
   "procedures": [],
   "progress": []
 }
 ```
 
-The package contains every set, set-local macro, global macro, procedure, order,
-and optional current progress. It is deterministic, bounded by
-`APP_IMPORT_PACKAGE_MAX_BYTES`, and revalidated before response. It excludes
-administrator credentials, AP credentials, sessions, CSRF material, setup
-secrets, provisioning state, encryption keys, schema markers, quarantine, and
-transaction evidence by construction.
+The package contains every set, its macros in order, its procedures, and
+optional current progress. There is no global or shared macro library (SPEC
+§7.2). It is deterministic, bounded by `APP_IMPORT_PACKAGE_MAX_BYTES`, and
+revalidated before response. It excludes administrator credentials, AP
+credentials, sessions, CSRF material, setup secrets, provisioning state,
+encryption keys, schema markers, and transaction evidence by construction.
 
 `POST /api/v1/restore` accepts the raw backup package as its request body. It
 requires an authenticated administrator session, a matching CSRF token, accepted
 same-origin transport policy, and physical device confirmation. The server fully
 validates the package before mutation, writes a durable `PREPARED` manifest,
 materializes and validates a complete staged repository, and then replaces only
-`set-index.json`, `sets/`, and `global/`. The restore transaction recovers at
+`set-index.json` and `sets/`. The restore transaction recovers at
 startup before ordinary set transactions. Every durable phase is idempotent and
 resolves to either the complete old logical repository or the complete restored
 logical repository; contradictory evidence fails closed and is preserved.
@@ -244,8 +241,8 @@ success so no stale in-memory repository state survives.
 
 `GET /api/v1/diagnostics` excludes all secret material and raw macro source by
 construction (its response type has no field capable of holding either);
-`/api/v1/diagnostics/storage` and `/api/v1/diagnostics/quarantine` remain the
-narrower, pre-existing storage- and quarantine-specific views alongside it.
+`/api/v1/diagnostics/storage` remains the narrower, pre-existing
+storage-specific view alongside it.
 
 ## Status rules
 

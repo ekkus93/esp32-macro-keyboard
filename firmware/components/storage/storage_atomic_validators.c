@@ -106,9 +106,6 @@ storage_atomic_object_type_t storage_atomic_classify_destination(const char *des
     if (strcmp(destination, STORAGE_SET_INDEX_FILE_PATH) == 0) {
         return STORAGE_ATOMIC_OBJECT_SET_INDEX;
     }
-    if (strcmp(destination, STORAGE_GLOBAL_ORDER_FILE_PATH) == 0) {
-        return STORAGE_ATOMIC_OBJECT_GLOBAL_MACRO_INDEX;
-    }
     if (match_prefixed_uuid(destination, STORAGE_DATA_MOUNT "/transactions/", ".bin", NULL)) {
         return STORAGE_ATOMIC_OBJECT_TRANSACTION_MANIFEST;
     }
@@ -123,9 +120,7 @@ storage_atomic_object_type_t storage_atomic_classify_destination(const char *des
         return STORAGE_ATOMIC_OBJECT_PROCEDURE_INDEX;
     }
     set_object_identity_t identity = {0};
-    if (match_set_object(destination, "macros", &identity) ||
-        match_prefixed_uuid(destination, STORAGE_DATA_MOUNT "/global/macros/", ".json",
-                            &identity.object_id)) {
+    if (match_set_object(destination, "macros", &identity)) {
         return STORAGE_ATOMIC_OBJECT_MACRO;
     }
     if (match_set_object(destination, "procedures", &identity)) {
@@ -168,7 +163,6 @@ static size_t order_limit_for_type(storage_atomic_object_type_t type) {
     switch (type) {
     case STORAGE_ATOMIC_OBJECT_SET_INDEX:
         return APP_MACRO_SETS_MAX;
-    case STORAGE_ATOMIC_OBJECT_GLOBAL_MACRO_INDEX:
     case STORAGE_ATOMIC_OBJECT_SET_MACRO_INDEX:
         return APP_MACROS_PER_SET_MAX;
     case STORAGE_ATOMIC_OBJECT_PROCEDURE_INDEX:
@@ -230,10 +224,7 @@ static app_error_code_t validate_set_metadata(void *context,
 static app_error_code_t validate_macro(void *context, const storage_atomic_candidate_t *candidate) {
     const validate_context_t *validation = context;
     set_object_identity_t identity = {0};
-    const bool set_local = match_set_object(candidate->destination, "macros", &identity);
-    if (!set_local &&
-        !match_prefixed_uuid(candidate->destination, STORAGE_DATA_MOUNT "/global/macros/", ".json",
-                             &identity.object_id)) {
+    if (!match_set_object(candidate->destination, "macros", &identity)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     char *data = NULL;
@@ -248,9 +239,7 @@ static app_error_code_t validate_macro(void *context, const storage_atomic_candi
     if (result == APP_ERROR_NONE && !app_uuid_equal(&identity.object_id, &macro.id)) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
-    if (result == APP_ERROR_NONE &&
-        (set_local != (macro.scope == MACRO_SCOPE_SET) ||
-         (set_local && !app_uuid_equal(&identity.set_id, &macro.set_id)))) {
+    if (result == APP_ERROR_NONE && !app_uuid_equal(&identity.set_id, &macro.set_id)) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     macro_model_free_macro(&macro);
@@ -332,7 +321,6 @@ static storage_atomic_validate_fn validator_for_type(storage_atomic_object_type_
     case STORAGE_ATOMIC_OBJECT_SCHEMA_MARKER:
         return validate_schema_marker;
     case STORAGE_ATOMIC_OBJECT_SET_INDEX:
-    case STORAGE_ATOMIC_OBJECT_GLOBAL_MACRO_INDEX:
     case STORAGE_ATOMIC_OBJECT_SET_MACRO_INDEX:
     case STORAGE_ATOMIC_OBJECT_PROCEDURE_INDEX:
         return validate_index;

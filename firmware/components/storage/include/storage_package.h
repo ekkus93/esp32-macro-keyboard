@@ -18,7 +18,6 @@ typedef struct {
     size_t package_bytes;
     size_t set_count;
     size_t local_macro_count;
-    size_t global_macro_count;
     size_t procedure_count;
     size_t progress_count;
 } storage_package_summary_t;
@@ -41,8 +40,6 @@ typedef enum {
 
 typedef struct {
     storage_package_object_kind_t kind;
-    /* True for a macro that belongs to no set (global scope). */
-    bool global_scope;
     bool has_set_id;
     app_uuid_t set_id;
     /* The object itself, when the failing read could identify it. */
@@ -57,7 +54,6 @@ typedef struct {
 
 typedef struct {
     storage_package_object_kind_t kind;
-    bool global_scope;
     bool has_set_id;
     app_uuid_t set_id;
     app_uuid_t object_id;

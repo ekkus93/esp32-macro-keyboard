@@ -26,8 +26,6 @@ app_error_code_t web_api_handler_progress_json(const storage_progress_snapshot_t
                                                char **out_json);
 app_error_code_t web_api_handler_settings_json(const provisioning_settings_t *settings,
                                                char **out_json);
-app_error_code_t web_api_handler_quarantine_json(const storage_quarantine_list_t *list,
-                                                 char **out_json);
 void web_api_handler_json_free(char *json);
 
 #endif

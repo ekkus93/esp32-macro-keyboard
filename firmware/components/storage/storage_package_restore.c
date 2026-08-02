@@ -21,13 +21,12 @@
 #include "storage_repository_tree_internal.h"
 #include "storage_transaction_internal.h"
 
-#define PACKAGE_RESTORE_ARRAY_COUNT 5U
+#define PACKAGE_RESTORE_ARRAY_COUNT 4U
 #define PACKAGE_JSON_SUFFIX ".json"
 
 typedef enum {
     PACKAGE_RESTORE_SETS = 0,
     PACKAGE_RESTORE_MACROS,
-    PACKAGE_RESTORE_GLOBAL_MACROS,
     PACKAGE_RESTORE_PROCEDURES,
     PACKAGE_RESTORE_PROGRESS,
 } package_restore_array_t;
@@ -160,7 +159,6 @@ static app_error_code_t open_document(const char *data, size_t length,
     static const char *const names[PACKAGE_RESTORE_ARRAY_COUNT] = {
         [PACKAGE_RESTORE_SETS] = "sets",
         [PACKAGE_RESTORE_MACROS] = "macros",
-        [PACKAGE_RESTORE_GLOBAL_MACROS] = "global_macros",
         [PACKAGE_RESTORE_PROCEDURES] = "procedures",
         [PACKAGE_RESTORE_PROGRESS] = "progress",
     };
@@ -336,8 +334,7 @@ static app_error_code_t write_set_macros(const package_restore_document_t *docum
         macro_t macro = {0};
         result = parse_macro_node(
             cJSON_GetArrayItem(document->arrays[PACKAGE_RESTORE_MACROS], index), &macro);
-        const bool belongs = result == APP_ERROR_NONE && macro.scope == MACRO_SCOPE_SET &&
-                             macro.has_set_id && app_uuid_equal(&macro.set_id, &set->id);
+        const bool belongs = result == APP_ERROR_NONE && app_uuid_equal(&macro.set_id, &set->id);
         if (result == APP_ERROR_NONE && belongs) {
             if (order.count >= APP_MACROS_PER_SET_MAX) {
                 result = APP_ERROR_INVALID_ARGUMENT;
@@ -389,14 +386,25 @@ static app_error_code_t write_set_progress(const package_restore_document_t *doc
     char directory[APP_PATH_MAX_BYTES];
     app_error_code_t result = join_path(set_root, "progress", directory, sizeof(directory));
     const int count = cJSON_GetArraySize(document->arrays[PACKAGE_RESTORE_PROGRESS]);
+    if (result != APP_ERROR_NONE || count == 0) {
+        return result;
+    }
+    /* procedure_progress_t is ~16 KB (two app_uuid_t[APP_STEPS_PER_PROCEDURE_MAX]
+     * arrays). Restore runs on a task stack of a few KiB, so it lives on the
+     * heap: one allocation, one free, one exit. */
+    procedure_progress_t *progress = calloc(1U, sizeof(*progress));
+    if (progress == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
     for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
-        procedure_progress_t progress = {0};
+        memset(progress, 0, sizeof(*progress));
         result = parse_progress_node(
-            cJSON_GetArrayItem(document->arrays[PACKAGE_RESTORE_PROGRESS], index), &progress);
-        if (result == APP_ERROR_NONE && app_uuid_equal(&progress.set_id, &set->id)) {
-            result = write_progress_object(directory, &progress);
+            cJSON_GetArrayItem(document->arrays[PACKAGE_RESTORE_PROGRESS], index), progress);
+        if (result == APP_ERROR_NONE && app_uuid_equal(&progress->set_id, &set->id)) {
+            result = write_progress_object(directory, progress);
         }
     }
+    free(progress);
     return result;
 }
 
@@ -404,13 +412,17 @@ static app_error_code_t materialize_sets(const package_restore_document_t *docum
                                          const char *staging) {
     char sets_root[APP_PATH_MAX_BYTES];
     app_error_code_t result = join_path(staging, "sets", sets_root, sizeof(sets_root));
-    storage_set_index_t index = {0};
+    /* storage_set_index_t is several KiB; keep it off the task stack. */
+    storage_set_index_t *index = calloc(1U, sizeof(*index));
+    if (index == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
     const int count = cJSON_GetArraySize(document->arrays[PACKAGE_RESTORE_SETS]);
     for (int item = 0; result == APP_ERROR_NONE && item < count; ++item) {
         macro_set_t set = {0};
         result =
             parse_set_node(cJSON_GetArrayItem(document->arrays[PACKAGE_RESTORE_SETS], item), &set);
-        if (result == APP_ERROR_NONE && index.count >= APP_MACRO_SETS_MAX) {
+        if (result == APP_ERROR_NONE && index->count >= APP_MACRO_SETS_MAX) {
             result = APP_ERROR_INVALID_ARGUMENT;
         }
         char set_root[APP_PATH_MAX_BYTES];
@@ -430,41 +442,14 @@ static app_error_code_t materialize_sets(const package_restore_document_t *docum
             result = write_set_progress(document, &set, set_root);
         }
         if (result == APP_ERROR_NONE) {
-            index.ids[index.count++] = set.id;
+            index->ids[index->count++] = set.id;
         }
     }
-    return result == APP_ERROR_NONE ? write_set_index(staging, &index) : result;
-}
-
-static app_error_code_t materialize_globals(const package_restore_document_t *document,
-                                            const char *staging) {
-    char global_root[APP_PATH_MAX_BYTES];
-    char directory[APP_PATH_MAX_BYTES];
-    app_error_code_t result = join_path(staging, "global", global_root, sizeof(global_root));
     if (result == APP_ERROR_NONE) {
-        result = join_path(global_root, "macros", directory, sizeof(directory));
+        result = write_set_index(staging, index);
     }
-    storage_uuid_order_t order = {0};
-    const int count = cJSON_GetArraySize(document->arrays[PACKAGE_RESTORE_GLOBAL_MACROS]);
-    for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
-        macro_t macro = {0};
-        result = parse_macro_node(
-            cJSON_GetArrayItem(document->arrays[PACKAGE_RESTORE_GLOBAL_MACROS], index), &macro);
-        if (result == APP_ERROR_NONE && (macro.scope != MACRO_SCOPE_GLOBAL || macro.has_set_id ||
-                                         order.count >= APP_MACROS_PER_SET_MAX)) {
-            result = APP_ERROR_INVALID_ARGUMENT;
-        }
-        if (result == APP_ERROR_NONE) {
-            result = write_macro_object(directory, &macro);
-        }
-        if (result == APP_ERROR_NONE) {
-            order.ids[order.count++] = macro.id;
-        }
-        macro_model_free_macro(&macro);
-    }
-    return result == APP_ERROR_NONE
-               ? write_order_file(global_root, "macro-order.json", &order, APP_MACROS_PER_SET_MAX)
-               : result;
+    free(index);
+    return result;
 }
 
 static app_error_code_t create_staging(const app_uuid_t *transaction_id, char *staging,
@@ -475,36 +460,19 @@ static app_error_code_t create_staging(const app_uuid_t *transaction_id, char *s
         return APP_ERROR_INVALID_ARGUMENT;
     }
     app_error_code_t result = make_directory(staging);
-    static const char *const roots[] = {"sets", "global"};
-    for (size_t index = 0U; result == APP_ERROR_NONE && index < sizeof(roots) / sizeof(roots[0]);
-         ++index) {
+    if (result == APP_ERROR_NONE) {
         char path[APP_PATH_MAX_BYTES];
-        result = join_path(staging, roots[index], path, sizeof(path));
+        result = join_path(staging, "sets", path, sizeof(path));
         if (result == APP_ERROR_NONE) {
             result = make_directory(path);
         }
-    }
-    char global_root[APP_PATH_MAX_BYTES];
-    char global_macros[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        result = join_path(staging, "global", global_root, sizeof(global_root));
-    }
-    if (result == APP_ERROR_NONE) {
-        result = join_path(global_root, "macros", global_macros, sizeof(global_macros));
-    }
-    if (result == APP_ERROR_NONE) {
-        result = make_directory(global_macros);
     }
     return result;
 }
 
 static app_error_code_t materialize_staging(const package_restore_document_t *document,
                                             const char *staging) {
-    app_error_code_t result = materialize_sets(document, staging);
-    if (result == APP_ERROR_NONE) {
-        result = materialize_globals(document, staging);
-    }
-    return result;
+    return materialize_sets(document, staging);
 }
 
 static app_error_code_t copy_manifest_path(char *destination, size_t destination_size,

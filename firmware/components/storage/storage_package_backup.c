@@ -47,7 +47,6 @@ typedef struct {
 typedef struct {
     backup_set_snapshot_t *sets;
     size_t set_count;
-    storage_macro_list_t global_macros;
 } backup_snapshot_t;
 
 #ifndef ESP_PLATFORM
@@ -109,13 +108,12 @@ static app_error_code_t production_set_list(void *context, storage_set_list_t *o
     return result;
 }
 
-static app_error_code_t production_macro_list(void *context,
-                                              const storage_macro_location_t *location,
+static app_error_code_t production_macro_list(void *context, const app_uuid_t *set_id,
                                               storage_macro_list_t *out_list,
                                               storage_object_ref_t *out_failed,
                                               storage_skip_record_t *out_skips) {
     (void)context;
-    return storage_macro_list_detail_locked(location, out_list, out_failed, out_skips);
+    return storage_macro_list_detail_locked(set_id, out_list, out_failed, out_skips);
 }
 
 static void production_macro_list_free(void *context, storage_macro_list_t *list) {
@@ -276,7 +274,6 @@ static void backup_snapshot_free(backup_snapshot_t *snapshot) {
     for (size_t index = 0U; index < snapshot->set_count; ++index) {
         set_snapshot_free(&snapshot->sets[index]);
     }
-    backup_operations.macro_list_free(backup_operations.context, &snapshot->global_macros);
     free(snapshot->sets);
     memset(snapshot, 0, sizeof(*snapshot));
 }
@@ -286,8 +283,7 @@ static void backup_snapshot_free(backup_snapshot_t *snapshot) {
 #define BACKUP_SKIP_SCRATCH 8U
 
 static void fold_skips(storage_package_skip_report_t *report, storage_package_object_kind_t kind,
-                       bool global_scope, const app_uuid_t *set_id,
-                       const storage_skip_record_t *skips) {
+                       const app_uuid_t *set_id, const storage_skip_record_t *skips) {
     if (report == NULL || skips == NULL || skips->total == 0U) {
         return;
     }
@@ -299,7 +295,6 @@ static void fold_skips(storage_package_skip_report_t *report, storage_package_ob
         storage_package_skipped_object_t *entry = &report->items[report->count];
         memset(entry, 0, sizeof(*entry));
         entry->kind = kind;
-        entry->global_scope = global_scope;
         if (set_id != NULL) {
             entry->has_set_id = true;
             entry->set_id = *set_id;
@@ -333,13 +328,12 @@ static void note_skipped_object(storage_package_skip_report_t *report,
 }
 
 static void record_failure(storage_package_failure_t *out_failure,
-                           storage_package_object_kind_t kind, bool global_scope,
-                           const app_uuid_t *set_id, const storage_object_ref_t *object) {
+                           storage_package_object_kind_t kind, const app_uuid_t *set_id,
+                           const storage_object_ref_t *object) {
     if (out_failure == NULL || out_failure->kind != STORAGE_PACKAGE_OBJECT_NONE) {
         return; /* keep the first failure: it is the one that stopped the export */
     }
     out_failure->kind = kind;
-    out_failure->global_scope = global_scope;
     if (set_id != NULL) {
         out_failure->has_set_id = true;
         out_failure->set_id = *set_id;
@@ -383,8 +377,7 @@ static app_error_code_t load_set_progress(backup_set_snapshot_t *snapshot,
         }
         if (result != APP_ERROR_NONE) {
             const storage_object_ref_t failed = {.has_id = true, .id = identity.procedure_id};
-            record_failure(out_failure, STORAGE_PACKAGE_OBJECT_PROGRESS, false, &identity.set_id,
-                           &failed);
+            record_failure(out_failure, STORAGE_PACKAGE_OBJECT_PROGRESS, &identity.set_id, &failed);
             outcome = result;
             break;
         }
@@ -402,11 +395,6 @@ static app_error_code_t load_set_snapshot(const macro_set_t *set, bool include_p
                                           storage_package_failure_t *out_failure,
                                           storage_package_skip_report_t *out_skipped) {
     out_snapshot->set = *set;
-    const storage_macro_location_t location = {
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
-        .set_id = set->id,
-    };
     storage_object_ref_t failed = {0};
     storage_object_ref_t scratch[BACKUP_SKIP_SCRATCH];
     storage_skip_record_t skips = {
@@ -416,22 +404,22 @@ static app_error_code_t load_set_snapshot(const macro_set_t *set, bool include_p
         .total = 0U,
     };
     app_error_code_t result = backup_operations.macro_list(
-        backup_operations.context, &location, &out_snapshot->local_macros, &failed, &skips);
+        backup_operations.context, &set->id, &out_snapshot->local_macros, &failed, &skips);
     if (result != APP_ERROR_NONE) {
-        record_failure(out_failure, STORAGE_PACKAGE_OBJECT_MACRO, false, &set->id, &failed);
+        record_failure(out_failure, STORAGE_PACKAGE_OBJECT_MACRO, &set->id, &failed);
         return result;
     }
-    fold_skips(out_skipped, STORAGE_PACKAGE_OBJECT_MACRO, false, &set->id, &skips);
+    fold_skips(out_skipped, STORAGE_PACKAGE_OBJECT_MACRO, &set->id, &skips);
 
     skips.count = 0U;
     skips.total = 0U;
     result = backup_operations.procedure_list(backup_operations.context, &set->id,
                                               &out_snapshot->procedures, &failed, &skips);
     if (result != APP_ERROR_NONE) {
-        record_failure(out_failure, STORAGE_PACKAGE_OBJECT_PROCEDURE, false, &set->id, &failed);
+        record_failure(out_failure, STORAGE_PACKAGE_OBJECT_PROCEDURE, &set->id, &failed);
         return result;
     }
-    fold_skips(out_skipped, STORAGE_PACKAGE_OBJECT_PROCEDURE, false, &set->id, &skips);
+    fold_skips(out_skipped, STORAGE_PACKAGE_OBJECT_PROCEDURE, &set->id, &skips);
 
     if (out_snapshot->procedures.count != 0U) {
         out_snapshot->procedure_included =
@@ -471,9 +459,9 @@ static app_error_code_t snapshot_load_locked(bool include_progress, backup_snaps
     app_error_code_t result =
         backup_operations.set_list(backup_operations.context, set_list, &set_failed, &set_skips);
     if (result != APP_ERROR_NONE) {
-        record_failure(out_failure, STORAGE_PACKAGE_OBJECT_SET, false, NULL, &set_failed);
+        record_failure(out_failure, STORAGE_PACKAGE_OBJECT_SET, NULL, &set_failed);
     }
-    fold_skips(out_skipped, STORAGE_PACKAGE_OBJECT_SET, false, NULL, &set_skips);
+    fold_skips(out_skipped, STORAGE_PACKAGE_OBJECT_SET, NULL, &set_skips);
     if (result == APP_ERROR_NONE && set_list->count > APP_MACRO_SETS_MAX) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
@@ -488,27 +476,6 @@ static app_error_code_t snapshot_load_locked(bool include_progress, backup_snaps
     for (size_t index = 0U; result == APP_ERROR_NONE && index < set_list->count; ++index) {
         result = load_set_snapshot(&set_list->items[index], include_progress,
                                    &out_snapshot->sets[index], out_failure, out_skipped);
-    }
-    const storage_macro_location_t global_location = {
-        .scope = MACRO_SCOPE_GLOBAL,
-        .has_set_id = false,
-        .set_id = {{0}},
-    };
-    if (result == APP_ERROR_NONE) {
-        storage_object_ref_t failed = {0};
-        storage_object_ref_t scratch[BACKUP_SKIP_SCRATCH];
-        storage_skip_record_t skips = {
-            .items = scratch,
-            .capacity = BACKUP_SKIP_SCRATCH,
-            .count = 0U,
-            .total = 0U,
-        };
-        result = backup_operations.macro_list(backup_operations.context, &global_location,
-                                              &out_snapshot->global_macros, &failed, &skips);
-        if (result != APP_ERROR_NONE) {
-            record_failure(out_failure, STORAGE_PACKAGE_OBJECT_MACRO, true, NULL, &failed);
-        }
-        fold_skips(out_skipped, STORAGE_PACKAGE_OBJECT_MACRO, true, NULL, &skips);
     }
     free(set_list);
     return result;
@@ -551,16 +518,14 @@ static bool set_ids_unique(const backup_snapshot_t *snapshot) {
     return true;
 }
 
-static app_error_code_t validate_set_snapshot(const backup_snapshot_t *backup,
-                                              const backup_set_snapshot_t *snapshot) {
+static app_error_code_t validate_set_snapshot(const backup_set_snapshot_t *snapshot) {
     if (snapshot->local_macros.count > APP_MACROS_PER_SET_MAX ||
         snapshot->procedures.count > APP_PROCEDURES_PER_SET_MAX) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
     for (size_t index = 0U; index < snapshot->local_macros.count; ++index) {
         const macro_t *macro = &snapshot->local_macros.items[index];
-        if (macro->scope != MACRO_SCOPE_SET || !macro->has_set_id ||
-            !app_uuid_equal(&macro->set_id, &snapshot->set.id)) {
+        if (!app_uuid_equal(&macro->set_id, &snapshot->set.id)) {
             return APP_ERROR_STORAGE_CORRUPT;
         }
     }
@@ -576,11 +541,8 @@ static app_error_code_t validate_set_snapshot(const backup_snapshot_t *backup,
             if (!procedure->steps[step].has_macro_id) {
                 continue;
             }
-            const bool local =
-                macro_index(&snapshot->local_macros, &procedure->steps[step].macro_id) != SIZE_MAX;
-            const bool global =
-                macro_index(&backup->global_macros, &procedure->steps[step].macro_id) != SIZE_MAX;
-            if (local == global) {
+            if (macro_index(&snapshot->local_macros, &procedure->steps[step].macro_id) ==
+                SIZE_MAX) {
                 return APP_ERROR_STORAGE_CORRUPT;
             }
         }
@@ -610,11 +572,8 @@ static void prune_dangling_procedures(backup_snapshot_t *snapshot,
                 if (!procedure->steps[step].has_macro_id) {
                     continue;
                 }
-                const bool local =
+                intact =
                     macro_index(&set->local_macros, &procedure->steps[step].macro_id) != SIZE_MAX;
-                const bool global = macro_index(&snapshot->global_macros,
-                                                &procedure->steps[step].macro_id) != SIZE_MAX;
-                intact = local != global;
             }
             if (!intact) {
                 set->procedure_included[index] = false;
@@ -631,23 +590,14 @@ static void prune_dangling_procedures(backup_snapshot_t *snapshot,
 
 static app_error_code_t validate_snapshot(const backup_snapshot_t *snapshot,
                                           storage_package_failure_t *out_failure) {
-    if (snapshot->set_count > APP_MACRO_SETS_MAX ||
-        snapshot->global_macros.count > APP_MACROS_PER_SET_MAX || !set_ids_unique(snapshot)) {
+    if (snapshot->set_count > APP_MACRO_SETS_MAX || !set_ids_unique(snapshot)) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
-    for (size_t index = 0U; index < snapshot->global_macros.count; ++index) {
-        const macro_t *macro = &snapshot->global_macros.items[index];
-        if (macro->scope != MACRO_SCOPE_GLOBAL || macro->has_set_id) {
-            const storage_object_ref_t failed = {.has_id = true, .id = macro->id};
-            record_failure(out_failure, STORAGE_PACKAGE_OBJECT_MACRO, true, NULL, &failed);
-            return APP_ERROR_STORAGE_CORRUPT;
-        }
-    }
     for (size_t index = 0U; index < snapshot->set_count; ++index) {
-        const app_error_code_t result = validate_set_snapshot(snapshot, &snapshot->sets[index]);
+        const app_error_code_t result = validate_set_snapshot(&snapshot->sets[index]);
         if (result != APP_ERROR_NONE) {
-            record_failure(out_failure, STORAGE_PACKAGE_OBJECT_SET, false,
-                           &snapshot->sets[index].set.id, NULL);
+            record_failure(out_failure, STORAGE_PACKAGE_OBJECT_SET, &snapshot->sets[index].set.id,
+                           NULL);
             return result;
         }
     }
@@ -691,20 +641,6 @@ static app_error_code_t append_local_macros(backup_writer_t *writer,
             if (result == APP_ERROR_NONE) {
                 ++*out_count;
             }
-        }
-    }
-    return result == APP_ERROR_NONE ? writer_append_text(writer, "]") : result;
-}
-
-static app_error_code_t append_global_macros(backup_writer_t *writer,
-                                             const storage_macro_list_t *list) {
-    app_error_code_t result = writer_append_text(writer, "[");
-    for (size_t index = 0U; result == APP_ERROR_NONE && index < list->count; ++index) {
-        if (index != 0U) {
-            result = writer_append_text(writer, ",");
-        }
-        if (result == APP_ERROR_NONE) {
-            result = writer_append_macro(writer, &list->items[index]);
         }
     }
     return result == APP_ERROR_NONE ? writer_append_text(writer, "]") : result;
@@ -807,10 +743,9 @@ static app_error_code_t append_skipped(backup_writer_t *writer,
                          index == 0U ? "" : ",", skipped_kind_text(entry->kind),
                          entry->object_id.value, entry->set_id.value);
         } else {
-            written =
-                snprintf(item, sizeof(item), "%s{\"kind\":\"%s\",\"id\":\"%s\",\"scope\":\"%s\"}",
-                         index == 0U ? "" : ",", skipped_kind_text(entry->kind),
-                         entry->object_id.value, entry->global_scope ? "global" : "device");
+            written = snprintf(item, sizeof(item), "%s{\"kind\":\"%s\",\"id\":\"%s\"}",
+                               index == 0U ? "" : ",", skipped_kind_text(entry->kind),
+                               entry->object_id.value);
         }
         if (written < 0 || (size_t)written >= sizeof(item)) {
             return APP_ERROR_INTERNAL;
@@ -835,12 +770,6 @@ static app_error_code_t serialize_snapshot(const backup_snapshot_t *snapshot, ch
     }
     if (result == APP_ERROR_NONE) {
         result = append_local_macros(&writer, snapshot, &local_count);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = writer_append_text(&writer, ",\"global_macros\":");
-    }
-    if (result == APP_ERROR_NONE) {
-        result = append_global_macros(&writer, &snapshot->global_macros);
     }
     size_t procedure_count = 0U;
     if (result == APP_ERROR_NONE) {
@@ -870,7 +799,6 @@ static app_error_code_t serialize_snapshot(const backup_snapshot_t *snapshot, ch
     }
     if (result == APP_ERROR_NONE &&
         (summary.set_count != snapshot->set_count || summary.local_macro_count != local_count ||
-         summary.global_macro_count != snapshot->global_macros.count ||
          summary.procedure_count != procedure_count || summary.progress_count != progress_count)) {
         result = APP_ERROR_INTERNAL;
     }

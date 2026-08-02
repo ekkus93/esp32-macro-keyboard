@@ -65,14 +65,12 @@ export interface SetDeletion {
   id: string;
 }
 
-export type MacroScope = "set" | "global";
-
 export interface Macro {
   schema_version: 1;
   id: string;
   revision: number;
-  scope: MacroScope;
-  set_id?: string;
+  /* Every macro belongs to exactly one set (SPEC 7.2). */
+  set_id: string;
   name: string;
   source: string;
   favorite: boolean;
@@ -202,20 +200,6 @@ export interface StorageHealth {
   verified: boolean;
   webMounted: boolean;
   dataMounted: boolean;
-  quarantineCount: number;
-  damagedQuarantineCount: number;
-}
-
-export interface QuarantineEntry {
-  id: string;
-  sourcePath: string;
-  evidencePath: string;
-  reason: string;
-}
-
-export interface QuarantineList {
-  damagedCount: number;
-  items: QuarantineEntry[];
 }
 
 export type SubsystemHealthState =
@@ -237,12 +221,6 @@ export interface DiagnosticsCapacity {
   usedBytes: number;
 }
 
-export interface DiagnosticsQuarantineSummary {
-  ok: boolean;
-  count: number;
-  damagedCount: number;
-}
-
 export interface DiagnosticsStack {
   controlsWords: number;
   executorWords: number;
@@ -259,7 +237,6 @@ export interface FullDiagnostics {
   stack: DiagnosticsStack;
   webfs: DiagnosticsCapacity;
   userdata: DiagnosticsCapacity;
-  quarantine: DiagnosticsQuarantineSummary;
   executionState: string;
   subsystems: DiagnosticsSubsystem[];
 }

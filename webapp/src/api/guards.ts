@@ -220,43 +220,30 @@ function isBoundedString(
   );
 }
 
+/* Every macro belongs to exactly one set (SPEC 7.2): `set_id` is required and
+   there is no scope discriminator. */
 export function isMacro(value: unknown): value is Macro {
-  if (!isRecord(value) || (value.scope !== "set" && value.scope !== "global")) {
-    return false;
-  }
-  const expectedKeys =
-    value.scope === "set"
-      ? [
-          "schema_version",
-          "id",
-          "revision",
-          "scope",
-          "set_id",
-          "name",
-          "source",
-          "favorite",
-          "key_press_ms",
-          "inter_key_ms",
-        ]
-      : [
-          "schema_version",
-          "id",
-          "revision",
-          "scope",
-          "name",
-          "source",
-          "favorite",
-          "key_press_ms",
-          "inter_key_ms",
-        ];
-  if (!hasExactKeys(value, expectedKeys)) {
+  if (
+    !isRecord(value) ||
+    !hasExactKeys(value, [
+      "schema_version",
+      "id",
+      "revision",
+      "set_id",
+      "name",
+      "source",
+      "favorite",
+      "key_press_ms",
+      "inter_key_ms",
+    ])
+  ) {
     return false;
   }
   return (
     value.schema_version === 1 &&
     isUuid(value.id) &&
     isPositiveInteger(value.revision) &&
-    (value.scope === "global" || isUuid(value.set_id)) &&
+    isUuid(value.set_id) &&
     isBoundedString(value.name, limits.macroNameBytes, true) &&
     isBoundedString(value.source, limits.macroSourceBytes, false) &&
     typeof value.favorite === "boolean" &&

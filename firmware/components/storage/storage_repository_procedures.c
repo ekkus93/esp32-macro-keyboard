@@ -17,7 +17,6 @@
 #include "macro_model.h"
 #include "storage.h"
 #include "storage_object_json.h"
-#include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_macros_internal.h"
@@ -77,39 +76,16 @@ static app_error_code_t write_procedure_order(const app_uuid_t *set_id,
                : result;
 }
 
-static app_error_code_t read_macro_candidate(const storage_macro_location_t *location,
-                                             const app_uuid_t *macro_id, bool *out_exists) {
+/* A step may only reference a macro in its own set (SPEC §7.2), so this is a
+ * single lookup rather than a set-then-global search. */
+static app_error_code_t validate_macro_reference_locked(const app_uuid_t *set_id,
+                                                        const app_uuid_t *macro_id) {
     macro_t macro = {0};
-    const app_error_code_t result = storage_macro_read_locked(location, macro_id, &macro);
+    const app_error_code_t result = storage_macro_read_locked(set_id, macro_id, &macro);
     if (result == APP_ERROR_NONE) {
-        *out_exists = true;
         macro_model_free_macro(&macro);
-        return APP_ERROR_NONE;
     }
-    *out_exists = false;
-    return result == APP_ERROR_NOT_FOUND ? APP_ERROR_NONE : result;
-}
-
-static app_error_code_t
-validate_macro_reference_locked(const storage_macro_location_t *set_location,
-                                const app_uuid_t *macro_id) {
-    const storage_macro_location_t global_location = {
-        .scope = MACRO_SCOPE_GLOBAL,
-        .has_set_id = false,
-    };
-    bool set_exists = false;
-    bool global_exists = false;
-    app_error_code_t result = read_macro_candidate(set_location, macro_id, &set_exists);
-    if (result == APP_ERROR_NONE) {
-        result = read_macro_candidate(&global_location, macro_id, &global_exists);
-    }
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    if (set_exists && global_exists) {
-        return APP_ERROR_CONFLICT;
-    }
-    return set_exists || global_exists ? APP_ERROR_NONE : APP_ERROR_NOT_FOUND;
+    return result;
 }
 
 static app_error_code_t validate_procedure_shape(const procedure_t *procedure) {
@@ -122,18 +98,13 @@ static app_error_code_t validate_procedure_shape(const procedure_t *procedure) {
 }
 
 static app_error_code_t validate_procedure_references_locked(const procedure_t *procedure) {
-    const storage_macro_location_t set_location = {
-        .scope = MACRO_SCOPE_SET,
-        .has_set_id = true,
-        .set_id = procedure->set_id,
-    };
     for (size_t index = 0U; index < procedure->step_count; ++index) {
         const procedure_step_t *step = &procedure->steps[index];
         if (step->type != PROCEDURE_STEP_MACRO) {
             continue;
         }
         const app_error_code_t result =
-            validate_macro_reference_locked(&set_location, &step->macro_id);
+            validate_macro_reference_locked(&procedure->set_id, &step->macro_id);
         if (result != APP_ERROR_NONE) {
             return result;
         }
@@ -141,10 +112,11 @@ static app_error_code_t validate_procedure_references_locked(const procedure_t *
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t quarantine_procedure(const char *path, const char *reason) {
-    storage_quarantine_entry_t entry = {0};
-    const app_error_code_t quarantine = storage_quarantine_file_locked(path, reason, &entry);
-    return quarantine == APP_ERROR_NONE ? APP_ERROR_STORAGE_CORRUPT : quarantine;
+/* The specific reason is not carried out of here: the caller learns only that
+ * the object was unreadable and was deleted (SPEC 13.6). */
+static app_error_code_t discard_procedure(const char *path) {
+    const app_error_code_t discard = storage_repository_discard_corrupt_file(path);
+    return discard == APP_ERROR_NONE ? APP_ERROR_STORAGE_CORRUPT : discard;
 }
 
 static app_error_code_t procedure_read_object_locked(const app_uuid_t *set_id,
@@ -180,13 +152,13 @@ static app_error_code_t procedure_read_object_locked(const app_uuid_t *set_id,
             result == APP_ERROR_STORAGE_CORRUPT) {
             macro_model_free_procedure(out_procedure);
             memset(out_procedure, 0, sizeof(*out_procedure));
-            return quarantine_procedure(path, "invalid procedure macro reference");
+            return discard_procedure(path);
         }
     }
     if (result == APP_ERROR_STORAGE_CORRUPT) {
         macro_model_free_procedure(out_procedure);
         memset(out_procedure, 0, sizeof(*out_procedure));
-        return quarantine_procedure(path, "invalid procedure object");
+        return discard_procedure(path);
     }
     return result;
 }

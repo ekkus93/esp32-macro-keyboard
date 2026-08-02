@@ -11,7 +11,6 @@
 #define SET_ID "11111111-1111-4111-8111-111111111111"
 #define OTHER_SET_ID "12121212-1212-4212-8212-121212121212"
 #define LOCAL_MACRO_ID "22222222-2222-4222-8222-222222222222"
-#define GLOBAL_MACRO_ID "23232323-2323-4232-8232-232323232323"
 #define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
 #define STEP_ID "44444444-4444-4444-8444-444444444444"
 #define OTHER_STEP_ID "45454545-4545-4545-8545-454545454545"
@@ -29,13 +28,8 @@
 
 #define LOCAL_MACRO_OBJECT                                                                         \
     "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID                                               \
-    "\",\"revision\":1,\"scope\":\"set\",\"name\":\"Local\",\"source\":\"a\","                     \
+    "\",\"revision\":1,\"name\":\"Local\",\"source\":\"a\","                                       \
     "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}"
-
-#define GLOBAL_MACRO_OBJECT                                                                        \
-    "{\"schema_version\":1,\"id\":\"" GLOBAL_MACRO_ID                                              \
-    "\",\"revision\":1,\"scope\":\"global\",\"name\":\"Global\",\"source\":\"b\","                 \
-    "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15}"
 
 #define PROCEDURE_OBJECT                                                                           \
     "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":1,\"set_id\":\"" SET_ID        \
@@ -52,8 +46,8 @@
     "{\"schema_version\":1,\"package_type\":\"" TYPE_VALUE "\",\"sets\":["
 
 #define PACKAGE_SUFFIX                                                                             \
-    "],\"macros\":[" LOCAL_MACRO_OBJECT "],\"global_macros\":[" GLOBAL_MACRO_OBJECT                \
-    "],\"procedures\":[" PROCEDURE_OBJECT "],\"progress\":[" PROGRESS_OBJECT "]}"
+    "],\"macros\":[" LOCAL_MACRO_OBJECT "],\"procedures\":[" PROCEDURE_OBJECT                      \
+    "],\"progress\":[" PROGRESS_OBJECT "]}"
 
 static const char VALID_SET_PACKAGE[] = PACKAGE_PREFIX("set") SET_OBJECT PACKAGE_SUFFIX;
 static const char VALID_BACKUP_PACKAGE[] = PACKAGE_PREFIX("backup") SET_OBJECT PACKAGE_SUFFIX;
@@ -67,7 +61,6 @@ static void test_valid_set_and_backup_packages(void) {
     TEST_CHECK_EQ_U64(sizeof(VALID_SET_PACKAGE) - 1U, summary.package_bytes);
     TEST_CHECK_EQ_U64(1U, summary.set_count);
     TEST_CHECK_EQ_U64(1U, summary.local_macro_count);
-    TEST_CHECK_EQ_U64(1U, summary.global_macro_count);
     TEST_CHECK_EQ_U64(1U, summary.procedure_count);
     TEST_CHECK_EQ_U64(1U, summary.progress_count);
 
@@ -85,22 +78,22 @@ static void test_top_level_contract(void) {
         "{}",
         "[]",
         "{\"schema_version\":2,\"package_type\":\"set\",\"sets\":[],\"macros\":[],"
-        "\"global_macros\":[],\"procedures\":[],\"progress\":[]}",
+        "\"procedures\":[],\"progress\":[]}",
         "{\"schema_version\":1,\"package_type\":\"future\",\"sets\":[],\"macros\":[],"
-        "\"global_macros\":[],\"procedures\":[],\"progress\":[]}",
+        "\"procedures\":[],\"progress\":[]}",
         "{\"schema_version\":1,\"schema_version\":1,\"package_type\":\"set\","
-        "\"sets\":[],\"macros\":[],\"global_macros\":[],\"procedures\":[],"
+        "\"sets\":[],\"macros\":[],\"procedures\":[],"
         "\"progress\":[]}",
         "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":[],\"macros\":[],"
-        "\"global_macros\":[],\"procedures\":[],\"progress\":[],\"future\":true}",
+        "\"procedures\":[],\"progress\":[],\"future\":true}",
         "{\"schema_version\":1,\"package_type\":\"se\\u0000t\",\"sets\":[],"
-        "\"macros\":[],\"global_macros\":[],\"procedures\":[],\"progress\":[]}",
+        "\"macros\":[],\"procedures\":[],\"progress\":[]}",
         "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":{},\"macros\":[],"
-        "\"global_macros\":[],\"procedures\":[],\"progress\":[]}",
+        "\"procedures\":[],\"progress\":[]}",
         "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":[1],\"macros\":[],"
-        "\"global_macros\":[],\"procedures\":[],\"progress\":[]}",
+        "\"procedures\":[],\"progress\":[]}",
         "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":[],\"macros\":[],"
-        "\"global_macros\":[],\"procedures\":[],\"progress\":[]}x",
+        "\"procedures\":[],\"progress\":[]}x",
     };
     storage_package_summary_t summary = {0};
     for (size_t index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); ++index) {
@@ -127,21 +120,18 @@ static void test_object_and_reference_validation(void) {
         PACKAGE_PREFIX("set") SET_OBJECT "," OTHER_SET_OBJECT PACKAGE_SUFFIX;
     const char bad_macro_syntax[] = PACKAGE_PREFIX("set") SET_OBJECT
         "],\"macros\":[{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
-        "\",\"revision\":1,\"scope\":\"set\",\"name\":\"Bad\",\"source\":\"{BAD}\","
+        "\",\"revision\":1,\"name\":\"Bad\",\"source\":\"{BAD}\","
         "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID
-        "\"}],\"global_macros\":[],\"procedures\":[],\"progress\":[]}";
+        "\"}],\"procedures\":[],\"progress\":[]}";
     const char duplicate_macro[] = PACKAGE_PREFIX("set") SET_OBJECT
-        "],\"macros\":[" LOCAL_MACRO_OBJECT
-        "],\"global_macros\":[{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
-        "\",\"revision\":1,\"scope\":\"global\",\"name\":\"Duplicate\",\"source\":\"b\","
-        "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15}],\"procedures\":[],"
-        "\"progress\":[]}";
+        "],\"macros\":[" LOCAL_MACRO_OBJECT ",{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
+        "\",\"revision\":1,\"name\":\"Duplicate\",\"source\":\"b\","
+        "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID
+        "\"}],\"procedures\":[],\"progress\":[]}";
     const char missing_macro_reference[] = PACKAGE_PREFIX("set") SET_OBJECT
-        "],\"macros\":[],\"global_macros\":[],\"procedures\":[" PROCEDURE_OBJECT
-        "],\"progress\":[]}";
+        "],\"macros\":[],\"procedures\":[" PROCEDURE_OBJECT "],\"progress\":[]}";
     const char bad_progress_step[] = PACKAGE_PREFIX("set") SET_OBJECT
-        "],\"macros\":[" LOCAL_MACRO_OBJECT
-        "],\"global_macros\":[],\"procedures\":[" PROCEDURE_OBJECT
+        "],\"macros\":[" LOCAL_MACRO_OBJECT "],\"procedures\":[" PROCEDURE_OBJECT
         "],\"progress\":[{\"schema_version\":1,\"set_id\":\"" SET_ID
         "\",\"procedure_id\":\"" PROCEDURE_ID
         "\",\"procedure_revision\":1,\"current_step_id\":\"" OTHER_STEP_ID

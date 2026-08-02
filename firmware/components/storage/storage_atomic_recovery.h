@@ -87,16 +87,13 @@ storage_atomic_reconcile_action_t
 storage_atomic_reconcile_decide(const storage_atomic_reconcile_state_t *state);
 
 /* Enumerate every leftover atomic-write artifact across the storage tree
- * (the mount root, global/, transactions/, and every sets/ and staging/
+ * (the mount root, transactions/, and every sets/ and staging/
  * subdirectory), group them by destination, and reconcile each destination with
  * storage_atomic_reconcile_decide -- executing the chosen action with every
- * rename/unlink/parent-sync checked and quarantining malformed or conflicting
+ * rename/unlink/parent-sync checked and discarding malformed or conflicting
  * artifacts. Every destination is attempted even if one fails; the first error is
- * returned. Must run before transaction recovery. `generate_uuid` is used when an
- * artifact must be quarantined. */
-app_error_code_t storage_atomic_recover_all_with_ops(const storage_fs_ops_t *operations,
-                                                     storage_uuid_generate_fn generate_uuid,
-                                                     void *uuid_context);
+ * returned. Must run before transaction recovery. */
+app_error_code_t storage_atomic_recover_all_with_ops(const storage_fs_ops_t *operations);
 
 /* Production entry point (declared in storage.h): reconcile using the POSIX
  * filesystem backend. */

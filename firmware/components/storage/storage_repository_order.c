@@ -9,7 +9,6 @@
 #include "cJSON.h"
 #include "storage.h"
 #include "storage_object_json.h"
-#include "storage_quarantine_internal.h"
 #include "storage_repository_internal.h"
 
 app_error_code_t storage_repository_load_order_locked(const char *path, size_t maximum_count,
@@ -27,10 +26,8 @@ app_error_code_t storage_repository_load_order_locked(const char *path, size_t m
     result = storage_repository_parse_order_json(data, length, out_order, maximum_count);
     free(data);
     if (result == APP_ERROR_STORAGE_CORRUPT) {
-        storage_quarantine_entry_t entry = {0};
-        const app_error_code_t quarantine =
-            storage_quarantine_file_locked(path, "invalid object ordering", &entry);
-        return quarantine == APP_ERROR_NONE ? result : quarantine;
+        const app_error_code_t discard = storage_repository_discard_corrupt_file(path);
+        return discard == APP_ERROR_NONE ? result : discard;
     }
     return result;
 }

@@ -6,7 +6,7 @@ The repository has three test layers:
   parser and model, macro executor, authentication and sessions, HTTP security and
   the server adapter, application startup and rollback, USB keyboard state, device
   controls, Wi-Fi AP state, and storage (atomic writes, parent-directory
-  durability, repository I/O, transaction recovery, quarantine, and set CRUD with
+  durability, repository I/O, transaction recovery, corruption handling, and set CRUD with
   deterministic fault injection). It also runs under AddressSanitizer/UBSan and
   produces gated native coverage.
 - `webapp/` builds a Vitest suite for the API client and application workflows.
