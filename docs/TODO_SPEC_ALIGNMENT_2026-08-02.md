@@ -488,29 +488,44 @@ reading. By arithmetic the new layout should be ~8 KiB for `/data` + ~8 KiB for
 before. That is a calculation, not a measurement. The device check is still owed
 and is listed in Phase 5.4's hardware run.
 
-### 4b — Move the active set into the index
+### 4b — Move the active set into the index — **Done, commit `a2fdb4e`**
 
-**Not started.** The remaining half of 4.4.
+24 files, +300/−327. `./scripts/check-all.sh` exits 0; 51/51 host and 118/118
+webapp tests pass. The index is now SPEC §12.3 in full.
 
-`active_set_id` currently lives in the provisioning NVS blob, baked into its
-binary wire format (`WIRE_ACTIVE_SET_OFFSET` in `provisioning_core.c`) and
-surfaced through `/api/v1/settings` as `activeSetId`. SPEC §12.3 puts it in the
-index, and SPEC §14 does not list it among what NVS stores.
+- [x] `active_set_id` in `storage_set_index_t`, in the index JSON, and in its
+  parse/serialize — including the rule that an active set absent from `set_ids`
+  is a **corrupt index**, not a hint to drop silently.
+- [x] `storage_set_select` and `storage_active_set_read`. Selection reads the set
+  first, so it rejects an id that is in the index but whose file is missing or
+  damaged; re-selecting the already-active set writes nothing.
+- [x] Removed `has_active_set` / `active_set_id` from `provisioning_config_t`,
+  `provisioning_settings_t`, and the NVS wire format, along with
+  `provisioning_clear_active_set_if_matches`. `PROVISIONING_RECORD_BYTES`
+  206 → 168.
+- [x] `/api/v1/settings` and `/api/v1/sets/{id}/select` point at the index.
 
-It was left out of 4a on purpose: adding the field to the index while NVS still
-owned it would give the device two authorities for which set is active, which is
-worse than one commit with the field missing.
+**What the move actually buys.** Deleting the active set now clears the
+selection in the *same atomic index write* that removes the set from the order.
+Before, that was a storage write plus an NVS commit — two durable operations
+that could disagree if either failed.
 
-- [ ] Add `active_set_id` to `storage_set_index_t`, to the index JSON, and to
-  its parse/serialize — including the rule that an active set not present in
-  `set_ids` is a corrupt index, not a hint to drop silently.
-- [ ] Add a repository entry point that selects the active set, and make
-  `clear_matching_active_set` clear it in the index rather than through
-  `provisioning_clear_active_set_if_matches`.
-- [ ] Remove `has_active_set` / `active_set_id` from `settings_t` and from the
-  provisioning NVS wire format, and bump/verify that format's own versioning.
-- [ ] Point `/api/v1/settings` and `/api/v1/sets/{id}/select` at the index.
-  The API shape does not change: `activeSetId` stays in the settings response.
+**One deliberate API narrowing.** `GET /settings` still reports `activeSetId`
+(clients want the whole operational state in one round trip), but `PUT
+/settings` now **rejects** it as an unknown field. Accepting it would gate a
+storage change on the settings revision, which is the two-authority problem
+wearing a different hat. `POST /sets/{setId}/select` is the only way to move the
+active set, and it no longer burns a settings revision. The webapp was only
+echoing the current value back unchanged, so nothing it could do was lost.
+
+**Old NVS blobs fail closed.** A 206-byte record read by this firmware trips the
+existing exact-length check and is reported corrupt rather than misparsed —
+confirmed by reading that path. No migration was written (4.5).
+
+**A seam disappeared.** The host-side settings-ops hooks in
+`storage_repository_sets.c` existed only to stub provisioning out of the set
+repository. With the index owning the active set there is nothing to stub, so
+the seam, its two test hooks, and the `ESP_PLATFORM` split around them are gone.
 
 **Done means:** a device with 3 sets of 5 macros reports `usedBytes` in the low
 tens of KiB rather than 98,304, and `check-all.sh` exits 0.
