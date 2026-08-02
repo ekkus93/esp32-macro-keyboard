@@ -267,21 +267,41 @@ were removed.
 Independent of the firmware once 2a has landed, because the API surface is
 already gone.
 
-- [ ] Delete `webapp/src/features/procedures/` (1,082 lines).
-- [ ] Delete `Procedure`, `ProcedureSummary`, `ProcedureStep`,
+**Done — commit `0b214fc`** (32 files, +69/-2,596). `./scripts/check-all.sh`
+exited 0; 54/54 host and 118/118 webapp tests pass.
+
+- [x] Delete `webapp/src/features/procedures/` (1,082 lines).
+- [x] Delete `Procedure`, `ProcedureSummary`, `ProcedureStep`,
   `ProcedureProgress` and their guards from `types/models.ts` and
   `api/guards.ts`; delete the procedure and progress functions from
   `api/routes.ts`.
-- [ ] Remove the Procedures entry from the bottom navigation and the
-  `#/procedures` route; the nav becomes `Macros | Sets | Settings`. SPEC §9,
-  §9.1.
-- [ ] Remove procedure context from the confirm-execution flow.
-- [ ] Update the screen list to SPEC §9's fifteen screens.
-- [ ] Delete `tests/app-procedures.test.tsx` and the procedure fixtures in
+- [x] Remove the Procedures entry from the bottom navigation and the
+  `#/procedures` route. The nav was **reordered** to `Macros | Sets | Settings`
+  to match SPEC §9, not merely stripped of its middle entry.
+- [x] Remove procedure context from the confirm-execution flow.
+  `ExecutionConfirmationTarget` loses `sourceContext`, so `/confirm` now takes
+  exactly one macro ID.
+- [x] Update the screen list to SPEC §9's fifteen screens.
+- [x] Delete `tests/app-procedures.test.tsx` and the procedure fixtures in
   `tests/appFixtures.ts`.
-- [ ] Remove procedure and progress routes from `docs/API.md`, and the
+- [x] Remove procedure and progress routes from `docs/API.md`, and the
   `procedure`/`progress` definitions from
-  `docs/schemas/macro-set-package.schema.json`.
+  `docs/schemas/macro-set-package.schema.json`. Also removed:
+  `include_progress` from `docs/schemas/all-data-backup.schema.json`, and the
+  now-orphaned `macro_step`/`manual_step` definitions that only the deleted
+  `procedure` definition referenced.
+
+**Two deletions made only after confirming nothing else used them:**
+`pages/DeferredPage.tsx` existed solely as the procedure-editor stub, and
+`.instruction-body` in `styles.css` was referenced only by the deleted
+procedure workflow.
+
+**Coverage kept rather than dropped:** `routing-confirmation.test.ts` had
+asserted that a nested procedure context *parsed correctly*. That case is now
+inverted into a rejection case — a stale bookmark carrying procedure context
+must be refused outright, not silently reinterpreted as a plain macro
+confirmation. The two identifiers it needs are declared locally in the test,
+commented as the shape of a stale link rather than as fixtures.
 
 **Gate before committing:** `./scripts/check-all.sh` exits 0.
 
