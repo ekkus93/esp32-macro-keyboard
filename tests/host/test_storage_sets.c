@@ -524,12 +524,90 @@ static void test_measured_user_data_tracks_set_files(void) {
     TEST_CHECK_EQ_U64(0U, excluded);
 }
 
+/* SPEC 7.1: "Set order is user-controlled and meaningful... Firmware MUST
+ * preserve it exactly and MUST NOT reorder, sort, or renumber on its own."
+ *
+ * storage_set_reorder had no test at all before this. These are written from
+ * the requirement, not from the implementation. */
+static void test_reorder_preserves_the_requested_order_exactly(void) {
+    reset_store();
+    macro_set_t a = make_set(300U, "Alpha");
+    macro_set_t b = make_set(301U, "Bravo");
+    macro_set_t c = make_set(302U, "Charlie");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&a));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&b));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&c));
+
+    /* Deliberately NOT sorted by id, name, or creation order: the point is that
+     * firmware stores what it was given. */
+    const app_uuid_t requested[] = {c.id, a.id, b.id};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_reorder(requested, 3U));
+
+    storage_set_list_t list = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_list(&list));
+    TEST_CHECK_EQ_U64(3U, list.count);
+    for (size_t index = 0U; index < 3U; ++index) {
+        TEST_CHECK_EQ_UUID(&requested[index], &list.items[index].id);
+    }
+}
+
+/* A reorder must be a permutation of exactly the sets that exist. Dropping one,
+ * adding an unknown one, or repeating one is a conflict -- not a partial reorder
+ * applied as far as it goes, which would renumber on the firmware's own
+ * initiative. */
+static void test_reorder_rejects_anything_but_a_permutation(void) {
+    reset_store();
+    macro_set_t a = make_set(310U, "Alpha");
+    macro_set_t b = make_set(311U, "Bravo");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&a));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&b));
+    const app_uuid_t stranger = make_uuid(999U);
+
+    const app_uuid_t missing_one[] = {a.id};
+    const app_uuid_t repeated[] = {a.id, a.id};
+    const app_uuid_t unknown[] = {a.id, stranger};
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_set_reorder(missing_one, 1U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_set_reorder(repeated, 2U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_set_reorder(unknown, 2U));
+
+    /* Every rejection left the original order untouched. */
+    storage_set_list_t list = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_list(&list));
+    TEST_CHECK_EQ_U64(2U, list.count);
+    TEST_CHECK_EQ_UUID(&a.id, &list.items[0].id);
+    TEST_CHECK_EQ_UUID(&b.id, &list.items[1].id);
+}
+
+/* SPEC 10.1: "The user MUST explicitly select the active set. Firmware MUST NOT
+ * infer or automatically switch the active set." Reordering is not selecting,
+ * so it must leave the selection exactly where it was. */
+static void test_reorder_does_not_disturb_the_active_set(void) {
+    reset_store();
+    macro_set_t a = make_set(320U, "Alpha");
+    macro_set_t b = make_set(321U, "Bravo");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&a));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&b));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_select(&b.id));
+
+    const app_uuid_t swapped[] = {b.id, a.id};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_reorder(swapped, 2U));
+
+    bool present = false;
+    app_uuid_t active = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_active_set_read(&present, &active));
+    TEST_CHECK(present);
+    TEST_CHECK_EQ_UUID(&b.id, &active);
+}
+
 int main(void) {
     /* The public set and recovery functions serialize behind the repository
      * mutation lock (FIX1 §9); the default host backend must be initialized before
      * any of them is exercised. */
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
     test_argument_validation();
+    test_reorder_preserves_the_requested_order_exactly();
+    test_reorder_rejects_anything_but_a_permutation();
+    test_reorder_does_not_disturb_the_active_set();
     test_measured_user_data_tracks_set_files();
     test_repository_deinit_is_a_safe_noop();
     test_crud_ordering_revisions_and_cleanup();

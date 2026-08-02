@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <strings.h>
 
 #include "app_core_ops.h"
 #include "app_core_sequence.h"

@@ -109,8 +109,8 @@ bool provisioning_config_is_valid(const provisioning_config_t *configuration) {
     size_t station_password_length = 0U;
     if (!canonical_string(configuration->station_ssid, sizeof(configuration->station_ssid),
                           &station_ssid_length) ||
-        !canonical_string(configuration->station_password,
-                          sizeof(configuration->station_password), &station_password_length)) {
+        !canonical_string(configuration->station_password, sizeof(configuration->station_password),
+                          &station_password_length)) {
         return false;
     }
     /* has_station and a non-empty SSID must agree: a flag without a network, or
@@ -527,7 +527,6 @@ app_error_code_t provisioning_core_get_station(provisioning_core_t *core, char *
         return APP_ERROR_NOT_FOUND;
     }
     memcpy(out_ssid, core->current.station_ssid, strlen(core->current.station_ssid));
-    memcpy(out_password, core->current.station_password,
-           strlen(core->current.station_password));
+    memcpy(out_password, core->current.station_password, strlen(core->current.station_password));
     return APP_ERROR_NONE;
 }

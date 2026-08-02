@@ -495,6 +495,7 @@ add_executable(
     ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/storage/storage_repository_index.c
     ../../firmware/components/storage/storage_repository_sets.c
+    ../../firmware/components/storage/storage_repository_set_operations.c
     ../../firmware/components/storage/storage_repository_document.c
     ../../firmware/components/storage/storage_repository_lock.c
 )

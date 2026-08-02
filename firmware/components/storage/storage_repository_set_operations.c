@@ -204,7 +204,13 @@ static app_error_code_t storage_set_reorder_locked(const app_uuid_t *ordered_ids
     if (!order_has_exact_members(&current, ordered_ids, count)) {
         return APP_ERROR_CONFLICT;
     }
-    storage_set_index_t replacement = {.count = count};
+    /* Start from the loaded index rather than a blank one: it carries the
+     * active set and the index revision, and reordering must not disturb
+     * either. Building a fresh struct here silently cleared the selection
+     * (SPEC 10.1 -- firmware MUST NOT switch the active set on its own). */
+    storage_set_index_t replacement = current;
+    replacement.count = count;
+    memset(replacement.ids, 0, sizeof(replacement.ids));
     if (count > 0U) {
         memcpy(replacement.ids, ordered_ids, count * sizeof(*ordered_ids));
     }
