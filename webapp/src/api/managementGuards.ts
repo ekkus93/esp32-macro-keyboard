@@ -58,10 +58,22 @@ export function isFactoryResetAccepted(
 export function isStorageHealth(value: unknown): value is StorageHealth {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ["verified", "webMounted", "dataMounted"]) &&
+    hasExactKeys(value, [
+      "verified",
+      "webMounted",
+      "dataMounted",
+      "usedBytes",
+      "totalBytes",
+      "remainingBytes",
+      "setFileMaxBytes",
+    ]) &&
     typeof value.verified === "boolean" &&
     typeof value.webMounted === "boolean" &&
-    typeof value.dataMounted === "boolean"
+    typeof value.dataMounted === "boolean" &&
+    isNonNegativeInteger(value.usedBytes) &&
+    isNonNegativeInteger(value.totalBytes) &&
+    isNonNegativeInteger(value.remainingBytes) &&
+    isNonNegativeInteger(value.setFileMaxBytes)
   );
 }
 

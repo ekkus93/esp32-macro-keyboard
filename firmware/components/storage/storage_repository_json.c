@@ -239,9 +239,15 @@ app_error_code_t storage_set_document_serialize(const storage_set_document_t *do
         return result;
     }
     const size_t length = strlen(json);
-    if (length == 0U || length > STORAGE_SET_FILE_MAX_BYTES) {
+    if (length == 0U) {
         cJSON_free(json);
-        return APP_ERROR_MACRO_LIMIT;
+        return APP_ERROR_INTERNAL;
+    }
+    /* Over the per-set byte budget is a storage-capacity refusal (507), not a
+     * malformed object (SPEC 10.7, 17). */
+    if (length > STORAGE_SET_FILE_MAX_BYTES) {
+        cJSON_free(json);
+        return APP_ERROR_STORAGE_FULL;
     }
     *out_json = json;
     *out_length = length;

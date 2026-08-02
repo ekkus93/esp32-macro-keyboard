@@ -109,11 +109,19 @@ describe("management API contracts", () => {
         verified: false,
         webMounted: true,
         dataMounted: true,
+        usedBytes: 20480,
+        totalBytes: 491520,
+        remainingBytes: 471040,
+        setFileMaxBytes: 32768,
       }),
     );
 
     await expect(getStorageHealth()).resolves.toMatchObject({
       dataMounted: true,
+      usedBytes: 20480,
+      totalBytes: 491520,
+      remainingBytes: 471040,
+      setFileMaxBytes: 32768,
     });
   });
 

@@ -66,6 +66,10 @@ describe("application routing", () => {
           verified: false,
           webMounted: true,
           dataMounted: true,
+          usedBytes: 20480,
+          totalBytes: 491520,
+          remainingBytes: 471040,
+          setFileMaxBytes: 32768,
         },
       });
     }

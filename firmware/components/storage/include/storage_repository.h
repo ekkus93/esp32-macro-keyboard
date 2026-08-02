@@ -63,6 +63,13 @@ app_error_code_t storage_set_reorder(const app_uuid_t *ordered_ids, size_t count
  * `storage_set_select` requires the set to exist. Selection is always explicit;
  * nothing infers or auto-switches the active set (SPEC 10.1). */
 app_error_code_t storage_active_set_read(bool *out_has_active_set, app_uuid_t *out_set_id);
+
+/* Bytes every set file currently occupies, excluding `exclude_set_id` when it is
+ * non-NULL. Measures the filesystem rather than trusting the per-object limits,
+ * which is what SPEC 10.7 requires: those limits alone would permit 20 MB of
+ * user data on a 512 KiB partition. */
+app_error_code_t storage_repository_measure_user_data(const app_uuid_t *exclude_set_id,
+                                                      size_t *out_bytes);
 app_error_code_t storage_set_select(const app_uuid_t *set_id);
 
 /* Every macro is addressed by its owning set (SPEC §7.2). */

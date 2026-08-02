@@ -7,6 +7,7 @@
 #include "app_uuid.h"
 #include "storage.h"
 #include "storage_package.h"
+#include "storage_repository.h"
 #include "test_assert.h"
 #include "web_api_admin_boundary.h"
 #include "web_api_core.h"
@@ -21,6 +22,8 @@ static storage_mount_state_t mount_state;
 static app_error_code_t backup_result;
 static storage_package_failure_t backup_failure;
 static app_error_code_t restore_result;
+static size_t measured_user_bytes;
+static app_error_code_t measure_result;
 static storage_restore_report_t restore_report;
 static char restore_body[256U];
 static size_t restore_body_length;
@@ -73,6 +76,18 @@ app_error_code_t storage_package_restore_backup(const char *data, size_t length,
     return restore_result;
 }
 
+/* The admin boundary reads measured storage use for the diagnostics snapshot
+   (SPEC 10.7); this stands in for the repository. */
+app_error_code_t storage_repository_measure_user_data(const app_uuid_t *exclude_set_id,
+                                                      size_t *out_bytes) {
+    (void)exclude_set_id;
+    if (out_bytes == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    *out_bytes = measured_user_bytes;
+    return measure_result;
+}
+
 void storage_package_free(char *data) {
     free(data);
 }
@@ -94,6 +109,8 @@ static void reset_fixture(void) {
     backup_result = APP_ERROR_NONE;
     memset(&backup_failure, 0, sizeof(backup_failure));
     restore_result = APP_ERROR_NONE;
+    measured_user_bytes = 0U;
+    measure_result = APP_ERROR_NONE;
     memset(&restore_report, 0, sizeof(restore_report));
     restore_body[0] = '\0';
     restore_body_length = 0U;
@@ -193,6 +210,35 @@ static void test_backup_failure_without_detail_stays_plain(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
     TEST_CHECK(strstr(response.body, "backup unavailable") != NULL);
     TEST_CHECK(strstr(response.body, "could not be read") == NULL);
+    web_api_response_free(&response);
+}
+
+/* SPEC 10.7: the client must be able to see how much room is left before it
+ * tries a write, so the snapshot publishes measured use alongside the budget. */
+static void test_storage_snapshot_publishes_remaining_space(void) {
+    reset_fixture();
+    measured_user_bytes = 100U * 1024U;
+    const web_api_call_t call =
+        call_for(WEB_API_ROUTE_DIAGNOSTICS_STORAGE, WEB_API_METHOD_GET, NULL);
+    web_api_response_t response = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
+    TEST_CHECK_EQ_U64(200U, response.status);
+    TEST_CHECK(strstr(response.body, "\"usedBytes\":102400") != NULL);
+    TEST_CHECK(strstr(response.body, "\"totalBytes\":491520") != NULL);
+    TEST_CHECK(strstr(response.body, "\"remainingBytes\":389120") != NULL);
+    web_api_response_free(&response);
+}
+
+/* Remaining space is clamped at zero rather than underflowing into a huge
+ * number when measured use somehow exceeds the budget. */
+static void test_storage_snapshot_clamps_remaining_at_zero(void) {
+    reset_fixture();
+    measured_user_bytes = 600U * 1024U;
+    const web_api_call_t call =
+        call_for(WEB_API_ROUTE_DIAGNOSTICS_STORAGE, WEB_API_METHOD_GET, NULL);
+    web_api_response_t response = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
+    TEST_CHECK(strstr(response.body, "\"remainingBytes\":0") != NULL);
     web_api_response_free(&response);
 }
 
@@ -311,6 +357,8 @@ int main(void) {
     test_backup_failure_is_visible();
     test_backup_failure_names_the_offending_macro();
     test_backup_failure_without_detail_stays_plain();
+    test_storage_snapshot_publishes_remaining_space();
+    test_storage_snapshot_clamps_remaining_at_zero();
     test_restore_delegates_complete_package();
     test_restore_failure_is_visible();
     test_partial_restore_reports_per_set_outcomes();

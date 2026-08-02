@@ -504,12 +504,33 @@ static void test_concurrency_lock_failures_are_visible(void) {
     TEST_CHECK_EQ_U64(2U, current.revision);
 }
 
+/* Measured use counts the bytes actually on disk. */
+static void test_measured_user_data_tracks_set_files(void) {
+    reset_store();
+    size_t empty_bytes = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_measure_user_data(NULL, &empty_bytes));
+    TEST_CHECK_EQ_U64(0U, empty_bytes);
+
+    macro_set_t set = make_set(210U, "Measured");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
+    size_t with_set = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_measure_user_data(NULL, &with_set));
+    TEST_CHECK(with_set > 0U);
+
+    /* Excluding the only set brings the total back to zero, which is what makes
+       a rewrite measure its replacement rather than double-counting. */
+    size_t excluded = 99U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_measure_user_data(&set.id, &excluded));
+    TEST_CHECK_EQ_U64(0U, excluded);
+}
+
 int main(void) {
     /* The public set and recovery functions serialize behind the repository
      * mutation lock (FIX1 §9); the default host backend must be initialized before
      * any of them is exercised. */
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
     test_argument_validation();
+    test_measured_user_data_tracks_set_files();
     test_repository_deinit_is_a_safe_noop();
     test_crud_ordering_revisions_and_cleanup();
     test_revision_overflow_is_rejected();

@@ -33,6 +33,10 @@ describe("management screens", () => {
         verified: false,
         webMounted: true,
         dataMounted: true,
+        usedBytes: 20480,
+        totalBytes: 491520,
+        remainingBytes: 471040,
+        setFileMaxBytes: 32768,
       }),
     );
     const view = await render(<DiagnosticsPage />);
@@ -54,6 +58,10 @@ describe("management screens", () => {
         verified: false,
         webMounted: true,
         dataMounted: true,
+        usedBytes: 20480,
+        totalBytes: 491520,
+        remainingBytes: 471040,
+        setFileMaxBytes: 32768,
       }),
     );
     planJsonResponse(

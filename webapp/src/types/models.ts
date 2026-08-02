@@ -134,6 +134,13 @@ export interface StorageHealth {
   verified: boolean;
   webMounted: boolean;
   dataMounted: boolean;
+  /* SPEC 10.7: the byte budget, measured rather than inferred from the
+     per-object limits, so the UI can stop the user before a write is refused
+     with 507. */
+  usedBytes: number;
+  totalBytes: number;
+  remainingBytes: number;
+  setFileMaxBytes: number;
 }
 
 export type SubsystemHealthState =

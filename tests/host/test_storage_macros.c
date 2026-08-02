@@ -268,9 +268,56 @@ static void test_missing_set_and_revision_overflow(void) {
     macro_model_free_macro(&macro);
 }
 
+/* SPEC 10.7: writes are measured against the byte budget, not just the
+ * per-object limits, and an over-budget write is refused as a storage-capacity
+ * failure rather than being allowed to fill the partition. */
+static void test_oversized_set_file_is_refused(void) {
+    reset_store();
+    macro_set_t set = make_set(200U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
+
+    /* One macro whose source alone exceeds the 32 KiB set-file budget is
+       impossible (sources are capped at 4096 bytes), so fill the set until the
+       serialized file passes the limit. */
+    char source[APP_MACRO_SOURCE_MAX_BYTES + 1U];
+    memset(source, 'a', APP_MACRO_SOURCE_MAX_BYTES);
+    source[APP_MACRO_SOURCE_MAX_BYTES] = '\0';
+
+    app_error_code_t result = APP_ERROR_NONE;
+    size_t created = 0U;
+    for (uint32_t index = 0U; index < APP_MACROS_PER_SET_MAX; ++index) {
+        macro_t macro = {
+            .schema_version = APP_SCHEMA_VERSION,
+            .id = make_uuid(3000U + index),
+            .revision = 1U,
+            .set_id = set.id,
+            .source = source,
+            .source_length = APP_MACRO_SOURCE_MAX_BYTES,
+            .key_press_ms = 8U,
+            .inter_key_ms = 15U,
+        };
+        TEST_CHECK(snprintf(macro.name, sizeof(macro.name), "Macro %" PRIu32, index) > 0);
+        result = storage_macro_create(&set.id, &macro);
+        if (result != APP_ERROR_NONE) {
+            break;
+        }
+        ++created;
+    }
+    /* The budget, not the macro count, is what stops it. */
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL, result);
+    TEST_CHECK(created < APP_MACROS_PER_SET_MAX);
+
+    /* The refusal left the set intact at its last good state. */
+    storage_macro_list_t list = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_list(&set.id, &list));
+    TEST_CHECK_EQ_U64(created, list.count);
+    storage_macro_list_free(&list);
+}
+
 int main(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
     test_argument_validation();
+    test_oversized_set_file_is_refused();
     test_set_local_crud_duplicate_and_order();
     test_corrupt_set_file_is_discarded();
     test_missing_set_and_revision_overflow();

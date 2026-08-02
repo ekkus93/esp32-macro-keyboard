@@ -7,8 +7,10 @@
 
 #include "app_error.h"
 #include "cJSON.h"
+#include "macro_limits.h"
 #include "storage.h"
 #include "storage_package.h"
+#include "storage_repository.h"
 #include "web_api_core.h"
 #include "web_api_handlers.h"
 #include "web_api_response.h"
@@ -32,12 +34,29 @@ static app_error_code_t respond_operation_error(web_api_response_t *response,
     return respond_error(response, web_api_http_status_for_error(result), result, message);
 }
 
+/* SPEC 10.7: the client is told how many bytes remain so it can stop the user
+ * before a write is attempted, rather than discovering the budget through a 507.
+ * usedBytes is measured from the set files themselves, not inferred from the
+ * per-object limits. */
 static app_error_code_t send_storage_snapshot(web_api_response_t *response) {
     const storage_mount_state_t mounts = storage_mount_state();
+    size_t used_bytes = 0U;
+    const app_error_code_t measured = mounts.data_mounted
+                                          ? storage_repository_measure_user_data(NULL, &used_bytes)
+                                          : APP_ERROR_NONE;
+    if (measured != APP_ERROR_NONE) {
+        return respond_operation_error(response, measured, "could not measure storage use");
+    }
+    const size_t remaining =
+        used_bytes >= APP_USER_DATA_MAX_BYTES ? 0U : APP_USER_DATA_MAX_BYTES - used_bytes;
     char data[WEB_ADMIN_STORAGE_HEALTH_RESPONSE_BYTES];
-    const int length =
-        snprintf(data, sizeof(data), "{\"verified\":false,\"webMounted\":%s,\"dataMounted\":%s}",
-                 mounts.web_mounted ? "true" : "false", mounts.data_mounted ? "true" : "false");
+    const int length = snprintf(
+        data, sizeof(data),
+        "{\"verified\":false,\"webMounted\":%s,\"dataMounted\":%s,"
+        "\"usedBytes\":%zu,\"totalBytes\":%zu,\"remainingBytes\":%zu,"
+        "\"setFileMaxBytes\":%zu}",
+        mounts.web_mounted ? "true" : "false", mounts.data_mounted ? "true" : "false", used_bytes,
+        (size_t)APP_USER_DATA_MAX_BYTES, remaining, (size_t)APP_SET_FILE_MAX_BYTES);
     return length < 0 || (size_t)length >= sizeof(data)
                ? APP_ERROR_INTERNAL
                : web_api_response_success(response, WEB_HTTP_STATUS_OK, data);

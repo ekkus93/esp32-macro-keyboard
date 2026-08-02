@@ -13,6 +13,14 @@
 #define APP_MACROS_PER_SET_MAX 100U
 #define APP_MACRO_SETS_MAX 50U
 #define APP_IMPORT_PACKAGE_MAX_BYTES (512U * 1024U)
+
+/* SPEC 10.7. The per-object limits above bound one macro; these bound the bytes
+ * actually written. Without them the table permits 50 sets x 100 macros x 4096
+ * bytes = 20 MB on a 512 KiB partition, so every write is measured against them
+ * before it is committed and an over-budget write is rejected with 507
+ * (SPEC 17) rather than filling the filesystem. */
+#define APP_SET_FILE_MAX_BYTES (32U * 1024U)
+#define APP_USER_DATA_MAX_BYTES (480U * 1024U)
 #define APP_KEY_PRESS_DEFAULT_MS 8U
 #define APP_INTER_KEY_DEFAULT_MS 15U
 #define APP_PHYSICAL_CONFIRM_TIMEOUT_MS 20000U

@@ -8,12 +8,11 @@
 #include "macro_limits.h"
 #include "macro_model.h"
 
-/* A set file holds the set's metadata and its macros inline (SPEC 12.1), so its
- * bound is the same as a single-set package: the largest thing a user can put in
- * one set. The storage budget (SPEC 10.7) is what actually keeps a device from
- * filling up; this is the parse bound that stops a corrupt length field from
- * being trusted. */
-#define STORAGE_SET_FILE_MAX_BYTES APP_IMPORT_PACKAGE_MAX_BYTES
+/* SPEC 10.7's nominal set-file limit, which is the real bound on a set: the
+ * per-macro limits above would permit 100 x 4096 bytes of source in one set,
+ * far more than this, and the byte budget is what stops that from being written
+ * to a 512 KiB partition. */
+#define STORAGE_SET_FILE_MAX_BYTES APP_SET_FILE_MAX_BYTES
 #define STORAGE_MACRO_FILE_MAX_BYTES 8192U
 #define STORAGE_INDEX_FILE_MAX_BYTES 8192U
 
