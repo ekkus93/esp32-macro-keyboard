@@ -80,7 +80,6 @@ export function SettingsPage({
         expectedRevision: settings.revision,
         requirePhysicalConfirmation,
         alwaysSelectSet,
-        activeSetId: settings.activeSetId,
       });
       onUpdated(committed);
       setMessage(`Saved settings revision ${String(committed.revision)}.`);

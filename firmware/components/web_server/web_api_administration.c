@@ -11,9 +11,7 @@
 #include "auth.h"
 #include "cJSON.h"
 #include "macro_limits.h"
-#include "macro_model.h"
 #include "provisioning.h"
-#include "storage_repository.h"
 #include "web_api_admin_boundary.h"
 #include "web_api_core.h"
 #include "web_api_handler_common.h"
@@ -165,10 +163,6 @@ static app_error_code_t handle_settings(const web_api_call_t *call, web_api_resp
     uint32_t expected_revision = 0U;
     app_error_code_t result = web_api_json_parse_settings_update(call->body, call->body_length,
                                                                  &replacement, &expected_revision);
-    if (result == APP_ERROR_NONE && replacement.has_active_set) {
-        macro_set_t selected = {0};
-        result = storage_set_read(&replacement.active_set_id, &selected);
-    }
     provisioning_settings_t committed = {0};
     if (result == APP_ERROR_NONE) {
         result = provisioning_settings_update(&replacement, expected_revision, &committed);
@@ -245,7 +239,6 @@ static app_error_code_t handle_reset_settings(const web_api_call_t *call,
          * provisioning_core.c default_configuration(). */
         .require_physical_confirmation = false,
         .always_select_set = true,
-        .has_active_set = false,
     };
     provisioning_settings_t committed = {0};
     if (result == APP_ERROR_NONE) {

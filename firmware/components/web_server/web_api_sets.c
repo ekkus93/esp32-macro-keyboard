@@ -148,15 +148,16 @@ static app_error_code_t handle_select(const web_api_call_t *call, web_api_respon
     if (result == APP_ERROR_NONE) {
         result = storage_set_read(&call->path.set_id, &set);
     }
-    provisioning_settings_t settings = {0};
+    /* Selection is a repository write now (SPEC 12.3): it records the active set
+     * in the index beside the set order, so deleting the active set can clear it
+     * in one atomic write. The response still carries settings, because the
+     * client wants the whole operational state back in one round trip. */
     if (result == APP_ERROR_NONE) {
-        result = provisioning_settings_read(&settings);
+        result = storage_set_select(&call->path.set_id);
     }
     provisioning_settings_t committed = {0};
     if (result == APP_ERROR_NONE) {
-        settings.has_active_set = true;
-        settings.active_set_id = call->path.set_id;
-        result = provisioning_settings_update(&settings, expected_revision, &committed);
+        result = provisioning_settings_read(&committed);
     }
     if (result != APP_ERROR_NONE) {
         return respond_result(response, result, "could not select set");

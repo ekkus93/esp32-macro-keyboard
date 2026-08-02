@@ -76,13 +76,6 @@ static void secure_zero(void *context, void *memory, size_t size) {
     }
 }
 
-static app_uuid_t make_uuid(void) {
-    app_uuid_t uuid = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         app_uuid_parse("12345678-0000-4000-8000-000000000001", &uuid));
-    return uuid;
-}
-
 static provisioning_core_t initialized_core(settings_store_t *store) {
     const provisioning_ops_t operations = {
         .context = store,
@@ -99,7 +92,11 @@ static provisioning_core_t initialized_core(settings_store_t *store) {
     return core;
 }
 
-static void test_redacted_settings_round_trip_and_clear(void) {
+/* The active set is no longer part of settings -- it lives in the set index
+ * (SPEC 12.3), and its clear-on-delete behaviour is covered by
+ * test_storage_active_set_delete.c. What remains here is the settings round trip
+ * and its revision handling. */
+static void test_redacted_settings_round_trip(void) {
     settings_store_t store = {0};
     provisioning_core_t core = initialized_core(&store);
     provisioning_settings_t settings = {0};
@@ -109,36 +106,14 @@ static void test_redacted_settings_round_trip_and_clear(void) {
     TEST_CHECK(settings.always_select_set);
     /* Off by default: the device must be usable with no button on it. */
     TEST_CHECK(!settings.require_physical_confirmation);
-    TEST_CHECK(!settings.has_active_set);
 
     settings.always_select_set = false;
-    settings.has_active_set = true;
-    settings.active_set_id = make_uuid();
     provisioning_settings_t committed = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          provisioning_core_settings_update(&core, &settings, 0U, &committed));
     TEST_CHECK_EQ_U64(1U, committed.revision);
     TEST_CHECK(!committed.always_select_set);
-    TEST_CHECK(committed.has_active_set);
-    TEST_CHECK_EQ_UUID(&settings.active_set_id, &committed.active_set_id);
     TEST_CHECK_EQ_U64(1U, store.commit_count);
-
-    bool cleared = true;
-    const app_uuid_t other = {
-        .value = "87654321-0000-4000-8000-000000000002",
-    };
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         provisioning_core_clear_active_set_if_matches(&core, &other, &cleared));
-    TEST_CHECK(!cleared);
-    TEST_CHECK_EQ_U64(1U, store.commit_count);
-
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_clear_active_set_if_matches(
-                                             &core, &settings.active_set_id, &cleared));
-    TEST_CHECK(cleared);
-    TEST_CHECK_EQ_U64(2U, store.commit_count);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_settings_read(&core, &committed));
-    TEST_CHECK_EQ_U64(2U, committed.revision);
-    TEST_CHECK(!committed.has_active_set);
 
     TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
                          provisioning_core_settings_update(&core, &settings, 0U, &committed));
@@ -153,18 +128,22 @@ static void test_settings_validation(void) {
         .revision = 0U,
         .require_physical_confirmation = true,
         .always_select_set = true,
-        .has_active_set = true,
     };
     provisioning_settings_t output = {0};
+    settings.schema_version = 99U;
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          provisioning_core_settings_update(&core, &settings, 0U, &output));
+    settings.schema_version = APP_SCHEMA_VERSION;
+    /* A replacement whose revision disagrees with expected_revision is a
+     * malformed request, not a conflict. */
+    settings.revision = 5U;
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         provisioning_core_clear_active_set_if_matches(&core, NULL, NULL));
+                         provisioning_core_settings_update(&core, &settings, 0U, &output));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_deinit(&core));
 }
 
 int main(void) {
-    test_redacted_settings_round_trip_and_clear();
+    test_redacted_settings_round_trip();
     test_settings_validation();
     puts("provisioning settings tests passed");
     return EXIT_SUCCESS;

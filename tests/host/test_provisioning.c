@@ -134,7 +134,6 @@ static provisioning_config_t valid_configuration(uint32_t revision) {
         .provisioned = true,
         .require_physical_confirmation = true,
         .always_select_set = false,
-        .has_active_set = true,
     };
     TEST_CHECK_EQ_INT(
         14, snprintf(configuration.ap_ssid, sizeof(configuration.ap_ssid), "%s", "Macro Keyboard"));
@@ -143,9 +142,6 @@ static provisioning_config_t valid_configuration(uint32_t revision) {
     memset(configuration.password_record.salt, 0x11, sizeof(configuration.password_record.salt));
     memset(configuration.password_record.hash, 0x22, sizeof(configuration.password_record.hash));
     configuration.password_record.iterations = AUTH_PBKDF2_ITERATIONS;
-    TEST_CHECK_EQ_INT(36, snprintf(configuration.active_set_id.value,
-                                   sizeof(configuration.active_set_id.value), "%s",
-                                   "12345678-1234-4234-9234-123456789abc"));
     return configuration;
 }
 
@@ -222,7 +218,6 @@ static void test_init_and_default_load(void) {
     /* Off by default: the device must be usable with no button on it. */
     TEST_CHECK(!loaded.require_physical_confirmation);
     TEST_CHECK(loaded.always_select_set);
-    TEST_CHECK(!loaded.has_active_set);
     TEST_CHECK(fake.secure_zero_calls > 0U);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_deinit(&core));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_deinit(&core));
@@ -260,14 +255,6 @@ static void test_configuration_validation(void) {
     configuration = valid_configuration(0U);
     configuration.credential_version = 0U;
     TEST_CHECK(!provisioning_config_is_valid(&configuration));
-    configuration = valid_configuration(0U);
-    configuration.active_set_id.value[14] = 'g';
-    TEST_CHECK(!provisioning_config_is_valid(&configuration));
-    configuration = valid_configuration(0U);
-    configuration.has_active_set = false;
-    TEST_CHECK(!provisioning_config_is_valid(&configuration));
-    memset(&configuration.active_set_id, 0, sizeof(configuration.active_set_id));
-    TEST_CHECK(provisioning_config_is_valid(&configuration));
 
     provisioning_config_t unprovisioned = {
         .schema_version = APP_SCHEMA_VERSION,
@@ -402,7 +389,6 @@ static void test_clear_credentials(void) {
     TEST_CHECK_EQ_U64(2U, loaded.credential_version);
     TEST_CHECK_EQ_STRING("", loaded.ap_ssid);
     TEST_CHECK_EQ_STRING("", loaded.ap_passphrase);
-    TEST_CHECK(loaded.has_active_set);
 
     set_u32(fake.durable, RECORD_CREDENTIAL_VERSION_OFFSET, UINT32_MAX);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_load(&core, &loaded));

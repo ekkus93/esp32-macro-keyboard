@@ -6,14 +6,13 @@
 #include <string.h>
 
 #include "app_error.h"
-#include "app_uuid.h"
 #include "auth.h"
 #include "macro_limits.h"
 #include "provisioning.h"
 #include "wifi_ap.h"
 
 #define WIRE_UINT32_BYTES 4U
-#define WIRE_BOOLEAN_COUNT 4U
+#define WIRE_BOOLEAN_COUNT 3U
 #define WIRE_MAGIC_OFFSET 0U
 #define WIRE_SCHEMA_OFFSET 4U
 #define WIRE_REVISION_OFFSET 8U
@@ -24,13 +23,12 @@
 #define WIRE_SALT_OFFSET (WIRE_PASSPHRASE_OFFSET + WIFI_AP_PASSPHRASE_MAX_BYTES + 1U)
 #define WIRE_HASH_OFFSET (WIRE_SALT_OFFSET + AUTH_SALT_BYTES)
 #define WIRE_ITERATIONS_OFFSET (WIRE_HASH_OFFSET + AUTH_HASH_BYTES)
-#define WIRE_ACTIVE_SET_OFFSET (WIRE_ITERATIONS_OFFSET + WIRE_UINT32_BYTES)
 #define U32_BYTE_MASK UINT32_C(0xff)
 #define U32_BYTE_ONE_SHIFT 8U
 #define U32_BYTE_TWO_SHIFT 16U
 #define U32_BYTE_THREE_SHIFT 24U
 
-_Static_assert(WIRE_ACTIVE_SET_OFFSET + APP_UUID_BUFFER_LENGTH == PROVISIONING_RECORD_BYTES,
+_Static_assert(WIRE_ITERATIONS_OFFSET + WIRE_UINT32_BYTES == PROVISIONING_RECORD_BYTES,
                "provisioning wire layout must match the fixed record size");
 
 static const uint8_t RECORD_MAGIC[WIRE_UINT32_BYTES] = {'P', 'R', 'O', 'V'};
@@ -104,13 +102,6 @@ bool provisioning_config_is_valid(const provisioning_config_t *configuration) {
                           &passphrase_length)) {
         return false;
     }
-    if (configuration->has_active_set) {
-        if (!app_uuid_is_valid_string(configuration->active_set_id.value)) {
-            return false;
-        }
-    } else if (!all_zero(&configuration->active_set_id, sizeof(configuration->active_set_id))) {
-        return false;
-    }
     if (!configuration->provisioned) {
         return credentials_empty(configuration);
     }
@@ -130,7 +121,6 @@ static provisioning_config_t default_configuration(void) {
          * or the `confirm` serial-console command. */
         .require_physical_confirmation = false,
         .always_select_set = true,
-        .has_active_set = false,
     };
 }
 
@@ -147,7 +137,6 @@ static app_error_code_t encode_configuration(const provisioning_config_t *config
     output[WIRE_FLAGS_OFFSET] = configuration->provisioned ? 1U : 0U;
     output[WIRE_FLAGS_OFFSET + 1U] = configuration->require_physical_confirmation ? 1U : 0U;
     output[WIRE_FLAGS_OFFSET + 2U] = configuration->always_select_set ? 1U : 0U;
-    output[WIRE_FLAGS_OFFSET + 3U] = configuration->has_active_set ? 1U : 0U;
 
     size_t length = 0U;
     if (!canonical_string(configuration->ap_ssid, sizeof(configuration->ap_ssid), &length)) {
@@ -162,10 +151,6 @@ static app_error_code_t encode_configuration(const provisioning_config_t *config
     memcpy(output + WIRE_SALT_OFFSET, configuration->password_record.salt, AUTH_SALT_BYTES);
     memcpy(output + WIRE_HASH_OFFSET, configuration->password_record.hash, AUTH_HASH_BYTES);
     put_u32(output, WIRE_ITERATIONS_OFFSET, configuration->password_record.iterations);
-    if (configuration->has_active_set) {
-        memcpy(output + WIRE_ACTIVE_SET_OFFSET, configuration->active_set_id.value,
-               APP_UUID_BUFFER_LENGTH);
-    }
     return APP_ERROR_NONE;
 }
 
@@ -178,7 +163,7 @@ static app_error_code_t decode_configuration(provisioning_core_t *core,
                                              provisioning_config_t *out_configuration) {
     if (memcmp(input + WIRE_MAGIC_OFFSET, RECORD_MAGIC, sizeof(RECORD_MAGIC)) != 0 ||
         !flag_valid(input[WIRE_FLAGS_OFFSET]) || !flag_valid(input[WIRE_FLAGS_OFFSET + 1U]) ||
-        !flag_valid(input[WIRE_FLAGS_OFFSET + 2U]) || !flag_valid(input[WIRE_FLAGS_OFFSET + 3U])) {
+        !flag_valid(input[WIRE_FLAGS_OFFSET + 2U])) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
     provisioning_config_t configuration = {0};
@@ -188,15 +173,12 @@ static app_error_code_t decode_configuration(provisioning_core_t *core,
     configuration.provisioned = input[WIRE_FLAGS_OFFSET] != 0U;
     configuration.require_physical_confirmation = input[WIRE_FLAGS_OFFSET + 1U] != 0U;
     configuration.always_select_set = input[WIRE_FLAGS_OFFSET + 2U] != 0U;
-    configuration.has_active_set = input[WIRE_FLAGS_OFFSET + 3U] != 0U;
     memcpy(configuration.ap_ssid, input + WIRE_SSID_OFFSET, sizeof(configuration.ap_ssid));
     memcpy(configuration.ap_passphrase, input + WIRE_PASSPHRASE_OFFSET,
            sizeof(configuration.ap_passphrase));
     memcpy(configuration.password_record.salt, input + WIRE_SALT_OFFSET, AUTH_SALT_BYTES);
     memcpy(configuration.password_record.hash, input + WIRE_HASH_OFFSET, AUTH_HASH_BYTES);
     configuration.password_record.iterations = get_u32(input, WIRE_ITERATIONS_OFFSET);
-    memcpy(configuration.active_set_id.value, input + WIRE_ACTIVE_SET_OFFSET,
-           APP_UUID_BUFFER_LENGTH);
     if (!provisioning_config_is_valid(&configuration)) {
         core->operations.secure_zero(core->operations.context, &configuration,
                                      sizeof(configuration));
@@ -363,19 +345,11 @@ settings_from_configuration(const provisioning_config_t *configuration) {
         .revision = configuration->revision,
         .require_physical_confirmation = configuration->require_physical_confirmation,
         .always_select_set = configuration->always_select_set,
-        .has_active_set = configuration->has_active_set,
-        .active_set_id = configuration->active_set_id,
     };
 }
 
 static bool settings_valid(const provisioning_settings_t *settings) {
-    if (settings == NULL || settings->schema_version != APP_SCHEMA_VERSION) {
-        return false;
-    }
-    if (settings->has_active_set) {
-        return app_uuid_is_valid_string(settings->active_set_id.value);
-    }
-    return all_zero(&settings->active_set_id, sizeof(settings->active_set_id));
+    return settings != NULL && settings->schema_version == APP_SCHEMA_VERSION;
 }
 
 app_error_code_t provisioning_core_settings_read(provisioning_core_t *core,
@@ -409,8 +383,6 @@ app_error_code_t provisioning_core_settings_update(provisioning_core_t *core,
     provisioning_config_t candidate = core->current;
     candidate.require_physical_confirmation = replacement->require_physical_confirmation;
     candidate.always_select_set = replacement->always_select_set;
-    candidate.has_active_set = replacement->has_active_set;
-    candidate.active_set_id = replacement->active_set_id;
     provisioning_config_t committed = {0};
     const app_error_code_t result =
         provisioning_core_commit(core, &candidate, expected_revision, &committed);
@@ -419,32 +391,6 @@ app_error_code_t provisioning_core_settings_update(provisioning_core_t *core,
     }
     core->operations.secure_zero(core->operations.context, &candidate, sizeof(candidate));
     core->operations.secure_zero(core->operations.context, &committed, sizeof(committed));
-    return result;
-}
-
-app_error_code_t provisioning_core_clear_active_set_if_matches(provisioning_core_t *core,
-                                                               const app_uuid_t *set_id,
-                                                               bool *out_cleared) {
-    if (out_cleared != NULL) {
-        *out_cleared = false;
-    }
-    if (core == NULL || set_id == NULL || !core->initialized || !core->loaded ||
-        !app_uuid_is_valid_string(set_id->value)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (!core->current.has_active_set || !app_uuid_equal(&core->current.active_set_id, set_id)) {
-        return APP_ERROR_NONE;
-    }
-
-    provisioning_settings_t replacement = settings_from_configuration(&core->current);
-    replacement.has_active_set = false;
-    memset(&replacement.active_set_id, 0, sizeof(replacement.active_set_id));
-    provisioning_settings_t committed = {0};
-    const app_error_code_t result =
-        provisioning_core_settings_update(core, &replacement, core->current.revision, &committed);
-    if (result == APP_ERROR_NONE && out_cleared != NULL) {
-        *out_cleared = true;
-    }
     return result;
 }
 

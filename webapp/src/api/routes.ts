@@ -51,11 +51,12 @@ export interface SetupSubmission {
   alwaysSelectSet: boolean;
 }
 
+/* No activeSetId: the active set is repository state (SPEC 12.3) and moves only
+   through selectSet(). The settings response still reports it. */
 export interface SettingsUpdate {
   expectedRevision: number;
   requirePhysicalConfirmation: boolean;
   alwaysSelectSet: boolean;
-  activeSetId: string | null;
 }
 
 export interface SetDuplicateRequest {

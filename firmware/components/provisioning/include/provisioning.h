@@ -21,8 +21,6 @@ typedef struct {
     auth_password_record_t password_record;
     bool require_physical_confirmation;
     bool always_select_set;
-    bool has_active_set;
-    app_uuid_t active_set_id;
 } provisioning_config_t;
 
 typedef struct {
@@ -30,8 +28,6 @@ typedef struct {
     uint32_t revision;
     bool require_physical_confirmation;
     bool always_select_set;
-    bool has_active_set;
-    app_uuid_t active_set_id;
 } provisioning_settings_t;
 
 app_error_code_t provisioning_init(void);
@@ -43,8 +39,6 @@ app_error_code_t provisioning_settings_read(provisioning_settings_t *out_setting
 app_error_code_t provisioning_settings_update(const provisioning_settings_t *replacement,
                                               uint32_t expected_revision,
                                               provisioning_settings_t *out_committed);
-app_error_code_t provisioning_clear_active_set_if_matches(const app_uuid_t *set_id,
-                                                          bool *out_cleared);
 app_error_code_t provisioning_clear_credentials(void);
 app_error_code_t provisioning_factory_reset(void);
 app_error_code_t provisioning_deinit(void);

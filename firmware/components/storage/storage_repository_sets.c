@@ -21,47 +21,6 @@
 #include "storage_repository_lock.h"
 #include "storage_repository_sets_internal.h"
 
-#ifdef ESP_PLATFORM
-#include "provisioning.h"
-#endif
-
-#ifdef ESP_PLATFORM
-static app_error_code_t clear_matching_active_set(const app_uuid_t *set_id) {
-    return provisioning_clear_active_set_if_matches(set_id, NULL);
-}
-#else
-static app_error_code_t host_clear_no_active_set(void *context, const app_uuid_t *set_id) {
-    (void)context;
-    (void)set_id;
-    return APP_ERROR_NONE;
-}
-
-static storage_repository_set_settings_ops_t settings_operations = {
-    .context = NULL,
-    .clear_active_set_if_matches = host_clear_no_active_set,
-};
-
-void storage_repository_sets_set_settings_ops_for_test(
-    const storage_repository_set_settings_ops_t *operations) {
-    if (operations == NULL || operations->clear_active_set_if_matches == NULL) {
-        storage_repository_sets_reset_settings_ops_for_test();
-        return;
-    }
-    settings_operations = *operations;
-}
-
-void storage_repository_sets_reset_settings_ops_for_test(void) {
-    settings_operations = (storage_repository_set_settings_ops_t){
-        .context = NULL,
-        .clear_active_set_if_matches = host_clear_no_active_set,
-    };
-}
-
-static app_error_code_t clear_matching_active_set(const app_uuid_t *set_id) {
-    return settings_operations.clear_active_set_if_matches(settings_operations.context, set_id);
-}
-#endif
-
 /* Public set functions serialize their whole read-check-write transaction behind
  * the repository mutation lock (FIX1 §7.5); the `_locked` helpers below do the
  * work and must be called only with the lock held, never reacquiring it. */
@@ -267,10 +226,6 @@ static app_error_code_t storage_set_delete_locked(const app_uuid_t *set_id,
     if (current.revision != expected_revision) {
         return APP_ERROR_CONFLICT;
     }
-    result = clear_matching_active_set(set_id);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
     storage_set_index_t index = {0};
     result = storage_repository_load_index(&index);
     if (result != APP_ERROR_NONE) {
@@ -287,6 +242,14 @@ static app_error_code_t storage_set_delete_locked(const app_uuid_t *set_id,
         return APP_ERROR_STORAGE_CORRUPT;
     }
 
+    /* Deleting the active set clears it, in the same write that drops it from
+     * the order -- the two cannot disagree because they are one file (SPEC
+     * 12.3). The UI returns to set selection (SPEC 8.6 step 5). */
+    if (index.has_active_set && app_uuid_equal(&index.active_set_id, set_id)) {
+        index.has_active_set = false;
+        memset(&index.active_set_id, 0, sizeof(index.active_set_id));
+    }
+
     /* Deletion is permanent (SPEC 8.6). The index is written first so the set
      * stops being referenced before its bytes go: an interruption between the
      * two leaves an unreferenced file, which every reader ignores because they
@@ -300,4 +263,67 @@ static app_error_code_t storage_set_delete_locked(const app_uuid_t *set_id,
         return result;
     }
     return storage_repository_remove_set_file(set_id);
+}
+
+static app_error_code_t storage_set_select_locked(const app_uuid_t *set_id) {
+    /* Reading the set first is what makes selection reject an id that is in the
+     * index but whose file is missing or damaged, rather than activating a set
+     * the user cannot use. */
+    macro_set_t set = {0};
+    app_error_code_t result = storage_set_read_locked(set_id, &set);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    storage_set_index_t index = {0};
+    result = storage_repository_load_index(&index);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    bool present = false;
+    for (size_t item = 0U; item < index.count; ++item) {
+        present = present || app_uuid_equal(&index.ids[item], set_id);
+    }
+    if (!present) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    if (index.has_active_set && app_uuid_equal(&index.active_set_id, set_id)) {
+        /* Already active: nothing to write, and no revision to burn. */
+        return APP_ERROR_NONE;
+    }
+    index.has_active_set = true;
+    index.active_set_id = *set_id;
+    return storage_repository_write_index(&index);
+}
+
+app_error_code_t storage_set_select(const app_uuid_t *set_id) {
+    if (set_id == NULL || !app_uuid_is_valid_string(set_id->value)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const app_error_code_t lock = storage_repository_lock_take();
+    if (lock != APP_ERROR_NONE) {
+        return lock;
+    }
+    const app_error_code_t result = storage_set_select_locked(set_id);
+    const app_error_code_t unlock = storage_repository_lock_give();
+    return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
+}
+
+app_error_code_t storage_active_set_read(bool *out_has_active_set, app_uuid_t *out_set_id) {
+    if (out_has_active_set == NULL || out_set_id == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    *out_has_active_set = false;
+    memset(out_set_id, 0, sizeof(*out_set_id));
+    const app_error_code_t lock = storage_repository_lock_take();
+    if (lock != APP_ERROR_NONE) {
+        return lock;
+    }
+    storage_set_index_t index = {0};
+    const app_error_code_t result = storage_repository_load_index(&index);
+    if (result == APP_ERROR_NONE) {
+        *out_has_active_set = index.has_active_set;
+        *out_set_id = index.active_set_id;
+    }
+    const app_error_code_t unlock = storage_repository_lock_give();
+    return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }

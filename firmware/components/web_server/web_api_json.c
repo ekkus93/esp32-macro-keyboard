@@ -302,19 +302,21 @@ app_error_code_t web_api_json_parse_settings_update(const char *body, size_t bod
         return APP_ERROR_INVALID_ARGUMENT;
     }
     cJSON *root = parse_exact_document(body, body_length);
+    /* activeSetId is deliberately NOT accepted here. The active set is
+     * repository state (SPEC 12.3); letting a settings PUT move it would mean
+     * gating a storage change on the settings revision, which is the
+     * two-authority problem in another form. Selection is POST
+     * /sets/{setId}/select. */
     static const char *const fields[] = {"expectedRevision", "requirePhysicalConfirmation",
-                                         "alwaysSelectSet", "activeSetId"};
+                                         "alwaysSelectSet"};
     const cJSON *require_confirmation =
         root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "requirePhysicalConfirmation");
     const cJSON *always_select =
         root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "alwaysSelectSet");
-    const cJSON *active_set =
-        root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "activeSetId");
     uint32_t expected_revision = 0U;
-    if (root == NULL || !exact_fields(root, fields, 4U) ||
+    if (root == NULL || !exact_fields(root, fields, 3U) ||
         !read_revision(root, "expectedRevision", &expected_revision) ||
-        !cJSON_IsBool(require_confirmation) || !cJSON_IsBool(always_select) ||
-        (!cJSON_IsNull(active_set) && !cJSON_IsString(active_set))) {
+        !cJSON_IsBool(require_confirmation) || !cJSON_IsBool(always_select)) {
         cJSON_Delete(root);
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -324,14 +326,6 @@ app_error_code_t web_api_json_parse_settings_update(const char *body, size_t bod
         .require_physical_confirmation = cJSON_IsTrue(require_confirmation),
         .always_select_set = cJSON_IsTrue(always_select),
     };
-    if (cJSON_IsString(active_set)) {
-        if (active_set->valuestring == NULL ||
-            app_uuid_parse(active_set->valuestring, &settings.active_set_id) != APP_ERROR_NONE) {
-            cJSON_Delete(root);
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        settings.has_active_set = true;
-    }
     cJSON_Delete(root);
     *out_settings = settings;
     *out_expected_revision = expected_revision;

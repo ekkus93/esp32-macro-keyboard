@@ -11,16 +11,19 @@
 #include "storage.h"
 #include "storage_repository.h"
 #include "storage_repository_lock.h"
-#include "storage_repository_sets_internal.h"
 #include "test_assert.h"
 #include "test_temp_dir.h"
 
-typedef struct {
-    app_uuid_t active_set_id;
-    bool has_active_set;
-    app_error_code_t failure;
-    size_t call_count;
-} settings_fixture_t;
+/*
+ * The active set lives in the index (SPEC 12.3), beside the set order. That is
+ * what makes "delete the active set" a single atomic write rather than a
+ * storage write plus an NVS write that could disagree, which is what these
+ * tests exist to pin.
+ *
+ * Their predecessor injected a fake settings backend to observe a separate
+ * clear-active-set call. There is no such call any more, so the seam and its
+ * stub are gone; the observable behaviour is checked through the index itself.
+ */
 
 static app_uuid_t make_uuid(uint32_t value) {
     char text[APP_UUID_BUFFER_LENGTH];
@@ -32,19 +35,6 @@ static app_uuid_t make_uuid(uint32_t value) {
     return uuid;
 }
 
-static app_error_code_t clear_active_set(void *context, const app_uuid_t *set_id) {
-    settings_fixture_t *fixture = context;
-    ++fixture->call_count;
-    if (fixture->failure != APP_ERROR_NONE) {
-        return fixture->failure;
-    }
-    if (fixture->has_active_set && app_uuid_equal(&fixture->active_set_id, set_id)) {
-        fixture->has_active_set = false;
-        memset(&fixture->active_set_id, 0, sizeof(fixture->active_set_id));
-    }
-    return APP_ERROR_NONE;
-}
-
 static void make_directory(const char *path) {
     TEST_CHECK(mkdir(path, 0750) == 0 || errno == EEXIST);
 }
@@ -54,24 +44,10 @@ static bool path_exists(const char *path) {
     return stat(path, &metadata) == 0;
 }
 
-static void reset_store(settings_fixture_t *fixture) {
+static void reset_store(void) {
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
-    static const char *const paths[] = {
-        STORAGE_DATA_MOUNT,
-        STORAGE_DATA_MOUNT "/sets",
-        STORAGE_DATA_MOUNT "/staging",
-        STORAGE_DATA_MOUNT "/trash",
-        STORAGE_DATA_MOUNT "/transactions",
-    };
-    for (size_t index = 0U; index < (sizeof(paths) / sizeof(paths[0])); ++index) {
-        make_directory(paths[index]);
-    }
-    *fixture = (settings_fixture_t){0};
-    const storage_repository_set_settings_ops_t operations = {
-        .context = fixture,
-        .clear_active_set_if_matches = clear_active_set,
-    };
-    storage_repository_sets_set_settings_ops_for_test(&operations);
+    make_directory(STORAGE_DATA_MOUNT);
+    make_directory(STORAGE_DATA_MOUNT "/sets");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_init());
 }
 
@@ -85,64 +61,112 @@ static macro_set_t make_set(uint32_t value) {
     return set;
 }
 
-static void test_matching_active_set_is_cleared_before_delete(void) {
-    settings_fixture_t fixture;
-    reset_store(&fixture);
+static void assert_active_set(bool expected_present, const app_uuid_t *expected_id) {
+    bool present = true;
+    app_uuid_t active = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_active_set_read(&present, &active));
+    TEST_CHECK_EQ_INT((int)expected_present, (int)present);
+    if (expected_present) {
+        TEST_CHECK_EQ_UUID(expected_id, &active);
+    }
+}
+
+/* SPEC 10.1: nothing infers an active set. A fresh repository has none. */
+static void test_fresh_repository_has_no_active_set(void) {
+    reset_store();
+    assert_active_set(false, NULL);
+}
+
+static void test_select_requires_an_existing_set(void) {
+    reset_store();
+    const app_uuid_t absent = make_uuid(99U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, storage_set_select(&absent));
+    assert_active_set(false, NULL);
+}
+
+static void test_select_records_the_active_set(void) {
+    reset_store();
     macro_set_t set = make_set(10U);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
-    fixture.has_active_set = true;
-    fixture.active_set_id = set.id;
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_select(&set.id));
+    assert_active_set(true, &set.id);
+}
+
+/* Deleting the active set clears it in the same write that removes it from the
+ * order: the two cannot disagree, because they are one file. */
+static void test_deleting_the_active_set_clears_it(void) {
+    reset_store();
+    macro_set_t set = make_set(20U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_select(&set.id));
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_delete(&set.id, 1U));
-    TEST_CHECK_EQ_U64(1U, fixture.call_count);
-    TEST_CHECK(!fixture.has_active_set);
+    assert_active_set(false, NULL);
     char path[APP_PATH_MAX_BYTES];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_set_path(&set.id, path, sizeof(path)));
     TEST_CHECK(!path_exists(path));
 }
 
-static void test_settings_failure_blocks_filesystem_delete(void) {
-    settings_fixture_t fixture;
-    reset_store(&fixture);
-    macro_set_t set = make_set(20U);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
-    fixture.has_active_set = true;
-    fixture.active_set_id = set.id;
-    fixture.failure = APP_ERROR_STORAGE_UNAVAILABLE;
-
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, storage_set_delete(&set.id, 1U));
-    TEST_CHECK_EQ_U64(1U, fixture.call_count);
-    TEST_CHECK(fixture.has_active_set);
-    char path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_set_path(&set.id, path, sizeof(path)));
-    TEST_CHECK(path_exists(path));
-    macro_set_t readback = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_read(&set.id, &readback));
-}
-
-static void test_nonmatching_active_set_is_preserved(void) {
-    settings_fixture_t fixture;
-    reset_store(&fixture);
+static void test_deleting_another_set_preserves_the_active_set(void) {
+    reset_store();
     macro_set_t deleted = make_set(30U);
     macro_set_t active = make_set(31U);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&deleted));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&active));
-    fixture.has_active_set = true;
-    fixture.active_set_id = active.id;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_select(&active.id));
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_delete(&deleted.id, 1U));
-    TEST_CHECK(fixture.has_active_set);
-    TEST_CHECK_EQ_UUID(&active.id, &fixture.active_set_id);
+    assert_active_set(true, &active.id);
+}
+
+/* A failed delete must leave both halves untouched -- the set still readable and
+ * still active -- rather than clearing the selection for a set that is still
+ * there. A stale expected revision is the reachable way to fail one. */
+static void test_failed_delete_preserves_the_active_set(void) {
+    reset_store();
+    macro_set_t set = make_set(40U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_select(&set.id));
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_set_delete(&set.id, 99U));
+    assert_active_set(true, &set.id);
+    macro_set_t readback = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_read(&set.id, &readback));
+}
+
+/* Re-selecting the set that is already active is a no-op that must not burn an
+ * index revision. */
+static void test_reselecting_the_active_set_is_idempotent(void) {
+    reset_store();
+    macro_set_t set = make_set(50U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_select(&set.id));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_select(&set.id));
+    assert_active_set(true, &set.id);
+}
+
+static void test_invalid_arguments_are_rejected(void) {
+    reset_store();
+    bool present = false;
+    app_uuid_t active = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_set_select(NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_active_set_read(NULL, &active));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_active_set_read(&present, NULL));
 }
 
 int main(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
-    test_matching_active_set_is_cleared_before_delete();
-    test_settings_failure_blocks_filesystem_delete();
-    test_nonmatching_active_set_is_preserved();
-    storage_repository_sets_reset_settings_ops_for_test();
+    test_fresh_repository_has_no_active_set();
+    test_select_requires_an_existing_set();
+    test_select_records_the_active_set();
+    test_deleting_the_active_set_clears_it();
+    test_deleting_another_set_preserves_the_active_set();
+    test_failed_delete_preserves_the_active_set();
+    test_reselecting_the_active_set_is_idempotent();
+    test_invalid_arguments_are_rejected();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
-    puts("storage active-set deletion tests passed");
+    puts("storage active-set tests passed");
     return EXIT_SUCCESS;
 }

@@ -56,6 +56,15 @@ app_error_code_t storage_set_duplicate(const app_uuid_t *source_id, uint32_t exp
                                        macro_set_t *out_duplicate);
 app_error_code_t storage_set_reorder(const app_uuid_t *ordered_ids, size_t count);
 
+/* The active set lives in the index (SPEC 12.3), not in NVS: it is a property of
+ * the macro-set repository, and keeping it beside the set order is what lets
+ * deleting the active set clear it in the same atomic index write.
+ *
+ * `storage_set_select` requires the set to exist. Selection is always explicit;
+ * nothing infers or auto-switches the active set (SPEC 10.1). */
+app_error_code_t storage_active_set_read(bool *out_has_active_set, app_uuid_t *out_set_id);
+app_error_code_t storage_set_select(const app_uuid_t *set_id);
+
 /* Every macro is addressed by its owning set (SPEC §7.2). */
 app_error_code_t storage_macro_list(const app_uuid_t *set_id, storage_macro_list_t *out_list);
 void storage_macro_list_free(storage_macro_list_t *list);

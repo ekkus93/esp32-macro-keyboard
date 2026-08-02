@@ -16,11 +16,13 @@
  * second file recording the same number is a second thing to keep in step. */
 #define STORAGE_INDEX_FILE_PATH STORAGE_DATA_MOUNT "/index.json"
 
-/* SPEC 12.3, less `active_set_id`, which Phase 4b moves here from the
- * provisioning NVS blob. `revision` is the index's own revision, not any
- * set's. */
+/* SPEC 12.3. `revision` is the index's own revision, not any set's.
+ * `has_active_set` is false until the user selects one -- SPEC 10.1 forbids
+ * inferring or automatically switching the active set. */
 typedef struct {
     uint32_t revision;
+    bool has_active_set;
+    app_uuid_t active_set_id;
     app_uuid_t ids[APP_MACRO_SETS_MAX];
     size_t count;
 } storage_set_index_t;

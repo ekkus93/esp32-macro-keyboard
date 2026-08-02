@@ -131,12 +131,13 @@ describe("server-backed set selection", () => {
     const call = getFetchCalls()[5];
     expect(call?.url).toBe("/api/v1/settings");
     expect(call?.method).toBe("PUT");
+    /* No activeSetId: the active set is repository state (SPEC 12.3) and moves
+       only through the select route, so a settings PUT must not carry it. */
     expect(call?.body).toBe(
       JSON.stringify({
         expectedRevision: settings.revision,
         requirePhysicalConfirmation: settings.requirePhysicalConfirmation,
         alwaysSelectSet: false,
-        activeSetId: settings.activeSetId,
       }),
     );
     await view.unmount();

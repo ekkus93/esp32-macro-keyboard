@@ -7,7 +7,7 @@
 
 #include "provisioning.h"
 
-#define PROVISIONING_RECORD_BYTES 206U
+#define PROVISIONING_RECORD_BYTES 168U
 
 typedef struct {
     void *context;
@@ -41,9 +41,6 @@ app_error_code_t provisioning_core_settings_update(provisioning_core_t *core,
                                                    const provisioning_settings_t *replacement,
                                                    uint32_t expected_revision,
                                                    provisioning_settings_t *out_committed);
-app_error_code_t provisioning_core_clear_active_set_if_matches(provisioning_core_t *core,
-                                                               const app_uuid_t *set_id,
-                                                               bool *out_cleared);
 app_error_code_t provisioning_core_clear_credentials(provisioning_core_t *core);
 app_error_code_t provisioning_core_factory_reset(provisioning_core_t *core);
 app_error_code_t provisioning_core_deinit(provisioning_core_t *core);

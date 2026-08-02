@@ -70,6 +70,13 @@ session tokens, CSRF tokens, setup secrets, or encryption material.
 | POST | `/api/v1/sets/import` | Transactionally replace the selected set |
 | POST | `/api/v1/sets/import-new` | Import a package as a brand-new set with a fresh identity |
 
+The active set is recorded in the set index (SPEC §12.3), not in settings. It is
+reported as `activeSetId` in the settings response for convenience, but it is
+read-only there: `PUT /api/v1/settings` rejects `activeSetId` as an unknown
+field, and `POST /api/v1/sets/{setId}/select` is the only way to move it.
+Deleting the active set clears the selection in the same atomic index write that
+removes the set from the order.
+
 Set duplication requires a new UUID, name, and the source expected revision. The
 new set and all copied set-owned objects begin at revision 1. Set export returns
 the raw, validated package with its exact byte length.

@@ -243,35 +243,37 @@ static void test_execution_submit_matrix(void) {
 }
 
 static void test_settings_update_matrix(void) {
-    const char active[] = "{\"expectedRevision\":4,\"requirePhysicalConfirmation\":true,"
-                          "\"alwaysSelectSet\":false,\"activeSetId\":\"" SET_ID "\"}";
+    const char body[] = "{\"expectedRevision\":4,\"requirePhysicalConfirmation\":true,"
+                        "\"alwaysSelectSet\":false}";
     provisioning_settings_t settings = {0};
     uint32_t revision = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_settings_update(
-                                             active, sizeof(active) - 1U, &settings, &revision));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_settings_update(body, sizeof(body) - 1U,
+                                                                            &settings, &revision));
     TEST_CHECK_EQ_U64(4U, revision);
     TEST_CHECK(settings.require_physical_confirmation);
-    TEST_CHECK(settings.has_active_set);
-    TEST_CHECK_EQ_STRING(SET_ID, settings.active_set_id.value);
+    TEST_CHECK(!settings.always_select_set);
 
-    const char no_active[] = "{\"expectedRevision\":5,\"requirePhysicalConfirmation\":false,"
-                             "\"alwaysSelectSet\":true,\"activeSetId\":null}";
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_api_json_parse_settings_update(no_active, sizeof(no_active) - 1U,
-                                                            &settings, &revision));
+    const char other[] = "{\"expectedRevision\":5,\"requirePhysicalConfirmation\":false,"
+                         "\"alwaysSelectSet\":true}";
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_settings_update(
+                                             other, sizeof(other) - 1U, &settings, &revision));
     TEST_CHECK_EQ_U64(5U, revision);
     TEST_CHECK(!settings.require_physical_confirmation);
     TEST_CHECK(settings.always_select_set);
-    TEST_CHECK(!settings.has_active_set);
 
     static const char *const invalid[] = {
         "{}",
         "{\"expectedRevision\":4,\"requirePhysicalConfirmation\":1,"
+        "\"alwaysSelectSet\":false}",
+        /* activeSetId is repository state now (SPEC 12.3), so a settings PUT
+           carrying it is an unknown field and must be rejected rather than
+           silently ignored. */
+        "{\"expectedRevision\":4,\"requirePhysicalConfirmation\":true,"
+        "\"alwaysSelectSet\":false,\"activeSetId\":\"" SET_ID "\"}",
+        "{\"expectedRevision\":4,\"requirePhysicalConfirmation\":true,"
         "\"alwaysSelectSet\":false,\"activeSetId\":null}",
         "{\"expectedRevision\":4,\"requirePhysicalConfirmation\":true,"
-        "\"alwaysSelectSet\":false,\"activeSetId\":\"bad\"}",
-        "{\"expectedRevision\":4,\"requirePhysicalConfirmation\":true,"
-        "\"alwaysSelectSet\":false,\"activeSetId\":null,\"extra\":true}",
+        "\"alwaysSelectSet\":false,\"extra\":true}",
         "{\"expectedRevision\":4,\"requirePhysicalConfirmation\":true,"
         "\"alwaysSelectSet\":false,\"activeSetId\":null}x",
     };
@@ -283,12 +285,10 @@ static void test_settings_update_matrix(void) {
                                  invalid[index], strlen(invalid[index]), &settings, &revision));
         TEST_CHECK_EQ_U64(0U, revision);
     }
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        web_api_json_parse_settings_update(active, sizeof(active) - 1U, NULL, &revision));
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        web_api_json_parse_settings_update(active, sizeof(active) - 1U, &settings, NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_api_json_parse_settings_update(
+                                                         body, sizeof(body) - 1U, NULL, &revision));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_api_json_parse_settings_update(
+                                                         body, sizeof(body) - 1U, &settings, NULL));
 }
 
 static void test_embedded_nul_rejected(void) {

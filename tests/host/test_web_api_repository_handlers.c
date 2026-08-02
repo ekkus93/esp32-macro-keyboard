@@ -226,9 +226,15 @@ static void test_set_routes(void) {
     response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_SELECT, WEB_API_METHOD_POST,
                       "{\"expectedRevision\":1}", SET_ID, NULL);
     expect_status(&response, 200U, SET_ID);
-    TEST_CHECK(settings_store.has_active_set);
-    TEST_CHECK_EQ_STRING(SET_ID, settings_store.active_set_id.value);
-    TEST_CHECK_EQ_U64(2U, settings_store.revision);
+    /* Selection is a repository write now (SPEC 12.3), so it is observed in the
+     * index rather than in the settings store -- and it must NOT burn a settings
+     * revision, because settings did not change. */
+    bool has_active_set = false;
+    app_uuid_t active_set_id = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_active_set_read(&has_active_set, &active_set_id));
+    TEST_CHECK(has_active_set);
+    TEST_CHECK_EQ_STRING(SET_ID, active_set_id.value);
+    TEST_CHECK_EQ_U64(1U, settings_store.revision);
 
     response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_IMPORT, WEB_API_METHOD_POST, "{}",
                       NULL, NULL);

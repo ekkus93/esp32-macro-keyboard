@@ -171,10 +171,20 @@ app_error_code_t web_api_handler_settings_json(const provisioning_settings_t *se
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;
     }
+    /* activeSetId is read from the set index, not from settings: the active set
+     * is repository state (SPEC 12.3), and NVS no longer holds a copy of it. It
+     * stays in this response because clients need it in one round trip, but it
+     * is read-only here -- selection goes through POST /sets/{setId}/select. */
+    bool has_active_set = false;
+    app_uuid_t active_set_id = {0};
+    const app_error_code_t active = storage_active_set_read(&has_active_set, &active_set_id);
+    if (active != APP_ERROR_NONE) {
+        cJSON_Delete(root);
+        return active;
+    }
     const bool added =
-        settings->has_active_set
-            ? cJSON_AddStringToObject(root, "activeSetId", settings->active_set_id.value) != NULL
-            : cJSON_AddNullToObject(root, "activeSetId") != NULL;
+        has_active_set ? cJSON_AddStringToObject(root, "activeSetId", active_set_id.value) != NULL
+                       : cJSON_AddNullToObject(root, "activeSetId") != NULL;
     if (!added) {
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;

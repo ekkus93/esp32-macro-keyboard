@@ -160,7 +160,6 @@ replacement_configuration(const provisioning_config_t *current,
         .password_record = *password_record,
         .require_physical_confirmation = submission->require_physical_confirmation,
         .always_select_set = submission->always_select_set,
-        .has_active_set = false,
     };
     memcpy(replacement.ap_ssid, submission->ap_ssid, sizeof(replacement.ap_ssid));
     memcpy(replacement.ap_passphrase, submission->ap_passphrase, sizeof(replacement.ap_passphrase));
