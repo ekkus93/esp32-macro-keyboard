@@ -9,22 +9,17 @@ import { ExecutionPage } from "./features/execution/ExecutionPage";
 import { ExecutionResultPage } from "./features/execution/ExecutionResultPage";
 import { MacroEditorPage } from "./features/macros/MacroEditorPage";
 import { MacroLibraryPage } from "./features/macros/MacroLibraryPage";
-import { ProcedureLibraryPage } from "./features/procedures/ProcedureLibraryPage";
-import { ProcedureWorkflowPage } from "./features/procedures/ProcedureWorkflowPage";
 import { SetManagementPage } from "./features/sets/SetManagementPage";
 import { SetSelectionPage } from "./features/sets/SetSelectionPage";
 import { DiagnosticsPage } from "./features/settings/DiagnosticsPage";
 import { PackageOperationsPage } from "./features/settings/PackageOperationsPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
-import { DeferredPage } from "./pages/DeferredPage";
 import {
   executionConfirmationTargetFromHash,
   macroEditorTargetFromHash,
   navigate,
   navigateToMacroConfirmation,
   navigateToMacroEditor,
-  navigateToProcedure,
-  procedureTargetFromHash,
   routeFromHash,
 } from "./routing";
 import type { Screen } from "./routing";
@@ -221,40 +216,6 @@ function AuthenticatedApp({
               setExpectedExecutionId(null);
               window.location.hash = executionReturnHash;
             }}
-          />
-        );
-      case "procedures":
-        return (
-          <ProcedureLibraryPage
-            activeSet={activeSet}
-            onOpen={(procedureId) => {
-              navigateToProcedure(procedureId);
-            }}
-          />
-        );
-      case "procedure":
-        return (
-          <ProcedureWorkflowPage
-            activeSet={activeSet}
-            key={`${activeSet?.id ?? "none"}:${routeHash}`}
-            mode="overview"
-            target={procedureTargetFromHash("procedure")}
-          />
-        );
-      case "instruction":
-        return (
-          <ProcedureWorkflowPage
-            activeSet={activeSet}
-            key={`${activeSet?.id ?? "none"}:${routeHash}`}
-            mode="step"
-            target={procedureTargetFromHash("instruction")}
-          />
-        );
-      case "procedure-editor":
-        return (
-          <DeferredPage
-            message="Procedure editing remains separate from the Phase 17.9 set-management scope."
-            title="Edit procedure"
           />
         );
       case "macros":

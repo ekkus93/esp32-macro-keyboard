@@ -6,8 +6,6 @@ interface PackageDocumentBase {
   schema_version: 1;
   sets: unknown[];
   macros: unknown[];
-  procedures: unknown[];
-  progress: unknown[];
 }
 
 export interface SetPackageDocument extends PackageDocumentBase {
@@ -33,8 +31,6 @@ const packageKeys = [
   "package_type",
   "sets",
   "macros",
-  "procedures",
-  "progress",
 ] as const;
 
 function hasExactPackageShape(value: unknown): value is PackageDocumentBase & {
@@ -49,9 +45,7 @@ function hasExactPackageShape(value: unknown): value is PackageDocumentBase & {
     packageKeys.every((key) => keys.includes(key)) &&
     value.schema_version === 1 &&
     Array.isArray(value.sets) &&
-    Array.isArray(value.macros) &&
-    Array.isArray(value.procedures) &&
-    Array.isArray(value.progress)
+    Array.isArray(value.macros)
   );
 }
 

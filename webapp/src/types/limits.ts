@@ -10,11 +10,6 @@ export const limits = {
   delayMs: 10_000,
   durationMs: 300_000,
   macrosPerSet: 100,
-  proceduresPerSet: 50,
-  stepsPerProcedure: 200,
-  procedureNameBytes: 64,
-  stepTitleBytes: 96,
-  stepBodyBytes: 1024,
   macroSets: 50,
   importBytes: 512 * 1024,
 } as const;

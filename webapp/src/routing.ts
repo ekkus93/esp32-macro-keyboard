@@ -1,9 +1,5 @@
 export const screens = [
   "sets",
-  "procedures",
-  "procedure",
-  "instruction",
-  "procedure-editor",
   "macros",
   "macro-editor",
   "confirm",
@@ -25,24 +21,8 @@ export type MacroEditorTarget =
   | { kind: "edit"; macroId: string }
   | { kind: "invalid" };
 
-export type ProcedureTarget =
-  | { kind: "valid"; procedureId: string; stepId: string | null }
-  | { kind: "invalid" };
-
 export type ExecutionConfirmationTarget =
-  | {
-      kind: "valid";
-      macroId: string;
-      sourceContext: null;
-    }
-  | {
-      kind: "valid";
-      macroId: string;
-      sourceContext: {
-        procedureId: string;
-        stepId: string;
-      };
-    }
+  | { kind: "valid"; macroId: string }
   | { kind: "invalid" };
 
 const uuidPattern =
@@ -97,33 +77,6 @@ export function macroEditorTargetFromHash(): MacroEditorTarget {
   return macroId === null ? { kind: "invalid" } : { kind: "edit", macroId };
 }
 
-export function procedureTargetFromHash(
-  expectedRoute: "procedure" | "instruction",
-): ProcedureTarget {
-  const [route, query] = hashRouteAndQuery();
-  if (route !== expectedRoute) {
-    return { kind: "invalid" };
-  }
-  const parameters = new URLSearchParams(query);
-  const expectedKeys =
-    expectedRoute === "procedure" ? ["procedureId"] : ["procedureId", "stepId"];
-  if (!hasExactKeys(parameters, expectedKeys)) {
-    return { kind: "invalid" };
-  }
-  const procedureId = validUuidParameter(parameters, "procedureId");
-  const stepId =
-    expectedRoute === "instruction"
-      ? validUuidParameter(parameters, "stepId")
-      : null;
-  if (
-    procedureId === null ||
-    (expectedRoute === "instruction" && stepId === null)
-  ) {
-    return { kind: "invalid" };
-  }
-  return { kind: "valid", procedureId, stepId };
-}
-
 export function executionConfirmationTargetFromHash(): ExecutionConfirmationTarget {
   const [route, query] = hashRouteAndQuery();
   if (route !== "confirm") {
@@ -131,24 +84,10 @@ export function executionConfirmationTargetFromHash(): ExecutionConfirmationTarg
   }
   const parameters = new URLSearchParams(query);
   const macroId = validUuidParameter(parameters, "macroId");
-  if (macroId === null) {
+  if (macroId === null || !hasExactKeys(parameters, ["macroId"])) {
     return { kind: "invalid" };
   }
-  if (hasExactKeys(parameters, ["macroId"])) {
-    return { kind: "valid", macroId, sourceContext: null };
-  }
-  if (!hasExactKeys(parameters, ["macroId", "procedureId", "stepId"])) {
-    return { kind: "invalid" };
-  }
-  const procedureId = validUuidParameter(parameters, "procedureId");
-  const stepId = validUuidParameter(parameters, "stepId");
-  return procedureId === null || stepId === null
-    ? { kind: "invalid" }
-    : {
-        kind: "valid",
-        macroId,
-        sourceContext: { procedureId, stepId },
-      };
+  return { kind: "valid", macroId };
 }
 
 export function navigate(target: Screen): void {
@@ -170,31 +109,4 @@ export function replaceMacroEditorTarget(macroId: string): void {
 
 export function navigateToMacroConfirmation(macroId: string): void {
   window.location.hash = `/confirm?macroId=${encodeURIComponent(macroId)}`;
-}
-
-export function navigateToProcedure(procedureId: string): void {
-  window.location.hash = `/procedure?procedureId=${encodeURIComponent(
-    procedureId,
-  )}`;
-}
-
-export function navigateToProcedureStep(
-  procedureId: string,
-  stepId: string,
-): void {
-  window.location.hash = `/instruction?procedureId=${encodeURIComponent(
-    procedureId,
-  )}&stepId=${encodeURIComponent(stepId)}`;
-}
-
-export function navigateToProcedureMacroConfirmation(
-  procedureId: string,
-  stepId: string,
-  macroId: string,
-): void {
-  window.location.hash = `/confirm?procedureId=${encodeURIComponent(
-    procedureId,
-  )}&stepId=${encodeURIComponent(stepId)}&macroId=${encodeURIComponent(
-    macroId,
-  )}`;
 }

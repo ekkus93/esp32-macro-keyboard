@@ -32,10 +32,6 @@ describe("application routing", () => {
 
   test.each([
     ["/sets", "Choose a macro set"],
-    ["/procedures", "Procedures"],
-    ["/procedure", "Procedure"],
-    ["/instruction", "Instruction"],
-    ["/procedure-editor", "Edit procedure"],
     ["/macros", "Macros"],
     ["/macro-editor", "Create macro"],
     ["/confirm", "Confirm send"],

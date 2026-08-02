@@ -64,16 +64,15 @@ session tokens, CSRF tokens, setup secrets, or encryption material.
 | GET, POST | `/api/v1/sets` | List or create sets |
 | PUT | `/api/v1/sets/order` | Replace the complete set order |
 | GET, PUT, DELETE | `/api/v1/sets/{setId}` | Read, revise, or delete one set |
-| POST | `/api/v1/sets/{setId}/duplicate` | Atomically duplicate metadata, macros, procedures, and order without progress |
+| POST | `/api/v1/sets/{setId}/duplicate` | Atomically duplicate metadata, macros, and order |
 | POST | `/api/v1/sets/{setId}/select` | Select the active set |
 | GET | `/api/v1/sets/{setId}/export` | Export one deterministic macro-set package |
 | POST | `/api/v1/sets/import` | Transactionally replace the selected set |
 | POST | `/api/v1/sets/import-new` | Import a package as a brand-new set with a fresh identity |
 
 Set duplication requires a new UUID, name, and the source expected revision. The
-new set and all copied set-owned objects begin at revision 1. Progress is not
-copied. Set export returns the raw, validated Phase 18 package with its exact byte
-length.
+new set and all copied set-owned objects begin at revision 1. Set export returns
+the raw, validated package with its exact byte length.
 
 Set replacement uses `POST /api/v1/sets/import` with an exact wrapper:
 
@@ -85,9 +84,7 @@ Set replacement uses `POST /api/v1/sets/import` with an exact wrapper:
     "schema_version": 1,
     "package_type": "set",
     "sets": [],
-    "macros": [],
-    "procedures": [],
-    "progress": []
+    "macros": []
   }
 }
 ```
@@ -102,9 +99,9 @@ recovers or rolls forward interrupted activation on startup. Physical confirmati
 is required before the request reaches the mutation handler.
 
 `POST /api/v1/sets/import-new` accepts the same raw package body (no
-`targetSetId`/`expectedRevision` wrapper) and assigns every set, macro,
-procedure, and progress object a fresh identity with every revision reset to
-1, rather than replacing an existing set. It is non-destructive, so unlike set
+`targetSetId`/`expectedRevision` wrapper) and assigns every set and macro a
+fresh identity with every revision reset to 1, rather than replacing an
+existing set. It is non-destructive, so unlike set
 replacement it does not require physical confirmation. It reuses the same
 package-parsing/validation pipeline as replacement, recovers deterministically
 via a dedicated durable manifest type, and returns the committed set's
@@ -122,28 +119,6 @@ Every macro belongs to exactly one set (SPEC §7.2), so all macro routes are und
 | POST | `/{macroId}/validate` | Compile without execution and return exact action count and duration |
 | POST | `/{macroId}/duplicate` | Duplicate with a new UUID and name |
 | POST | `/reorder` | Replace the complete macro order |
-
-Referenced macros cannot be deleted. A conflict response includes a bounded list
-of referencing procedure IDs.
-
-### Procedures and progress
-
-| Method | Route shape | Purpose |
-| --- | --- | --- |
-| GET, POST | `/sets/{setId}/procedures` | List or create procedures |
-| GET, PUT, DELETE | `/sets/{setId}/procedures/{procedureId}` | Read, revise, or delete |
-| POST | `/sets/{setId}/procedures/reorder` | Replace procedure order |
-| GET, PUT, DELETE | `/sets/{setId}/procedures/{procedureId}/progress` | Read, replace, or reset progress |
-| POST | `.../progress/complete` | Complete the current step |
-| POST | `.../progress/skip` | Skip the current step with explicit JSON confirmation |
-
-The server owns procedure ordering. Complete and skip requests must target the
-stored `current_step_id`; an existing but non-current step returns `409 Conflict`
-and leaves progress unchanged. An unknown step ID is invalid input rather than a
-conflict. Stale progress remains visible after a procedure revision changes, but
-stale progress actions return `409 Conflict` and are never silently reconciled.
-The client must reload and explicitly reset progress against the current
-procedure revision.
 
 ### Execution
 
@@ -164,25 +139,9 @@ Standalone execution request:
 }
 ```
 
-Procedure-context execution request:
-
-```json
-{
-  "setId": "11111111-1111-4111-8111-111111111111",
-  "macroId": "22222222-2222-4222-8222-222222222222",
-  "macroRevision": 7,
-  "sourceContext": {
-    "procedureId": "33333333-3333-4333-8333-333333333333",
-    "stepId": "44444444-4444-4444-8444-444444444444"
-  }
-}
-```
-
-`sourceContext` is optional, but when present it must contain exactly both IDs.
-`null`, partial context, extra context fields, and flat top-level `procedureId` or
-`stepId` fields are rejected. Clients never submit macro source. The server loads
-the persisted macro, checks its revision and optional procedure-step context,
-and compiles that stored source. `202 Accepted` is returned only after the
+The three fields above are the complete request; any extra field is rejected.
+Clients never submit macro source. The server loads the persisted macro, checks
+its revision, and compiles that stored source. `202 Accepted` is returned only after the
 executor owns the validated plan. Physical confirmation is required when the
 persisted setting enables it. Cancellation maps no current execution to 404,
 terminal or repeat cancellation to 409, internal failure to 500, unavailable
@@ -206,15 +165,12 @@ exact top-level shape:
   "schema_version": 1,
   "package_type": "backup",
   "sets": [],
-  "macros": [],
-  "procedures": [],
-  "progress": []
+  "macros": []
 }
 ```
 
-The package contains every set, its macros in order, its procedures, and
-optional current progress. There is no global or shared macro library (SPEC
-§7.2). It is deterministic, bounded by `APP_IMPORT_PACKAGE_MAX_BYTES`, and
+The package contains every set and its macros in order. There is no global or
+shared macro library (SPEC §7.2). It is deterministic, bounded by `APP_IMPORT_PACKAGE_MAX_BYTES`, and
 revalidated before response. It excludes administrator credentials, AP
 credentials, sessions, CSRF material, setup secrets, provisioning state,
 encryption keys, schema markers, and transaction evidence by construction.

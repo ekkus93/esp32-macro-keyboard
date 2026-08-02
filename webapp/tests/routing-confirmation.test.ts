@@ -2,10 +2,14 @@ import { describe, expect, test } from "vitest";
 import {
   executionConfirmationTargetFromHash,
   navigateToMacroConfirmation,
-  navigateToProcedureMacroConfirmation,
 } from "../src/routing";
-import { macroId, macroStepId, procedureId } from "./appFixtures";
+import { macroId } from "./appFixtures";
 import { setHashSilently } from "./fakeLocation";
+
+/* Not fixtures: procedures no longer exist in the domain. These are only the
+   shape of a stale bookmark, kept so the rejection cases below stay real. */
+const staleProcedureId = "44444444-4444-4444-8444-444444444444";
+const staleStepId = "66666666-6666-4666-8666-666666666666";
 
 describe("execution confirmation routing", () => {
   test("parses a standalone macro confirmation", () => {
@@ -13,28 +17,17 @@ describe("execution confirmation routing", () => {
     expect(executionConfirmationTargetFromHash()).toEqual({
       kind: "valid",
       macroId,
-      sourceContext: null,
-    });
-  });
-
-  test("parses exact nested procedure context identifiers", () => {
-    setHashSilently(
-      `/confirm?stepId=${macroStepId}&macroId=${macroId}&procedureId=${procedureId}`,
-    );
-    expect(executionConfirmationTargetFromHash()).toEqual({
-      kind: "valid",
-      macroId,
-      sourceContext: {
-        procedureId,
-        stepId: macroStepId,
-      },
     });
   });
 
   test.each([
     "/confirm",
-    `/confirm?macroId=${macroId}&procedureId=${procedureId}`,
-    `/confirm?macroId=${macroId}&stepId=${macroStepId}`,
+    /* Procedure context is no longer part of the route (SPEC 9.1). A stale
+       link carrying it must be rejected outright rather than silently
+       reinterpreted as a plain macro confirmation. */
+    `/confirm?stepId=${staleStepId}&macroId=${macroId}&procedureId=${staleProcedureId}`,
+    `/confirm?macroId=${macroId}&procedureId=${staleProcedureId}`,
+    `/confirm?macroId=${macroId}&stepId=${staleStepId}`,
     `/confirm?macroId=${macroId}&extra=true`,
     `/confirm?macroId=${macroId}&macroId=${macroId}`,
     `/confirm?macroId=not-a-uuid`,
@@ -44,13 +37,8 @@ describe("execution confirmation routing", () => {
     expect(executionConfirmationTargetFromHash()).toEqual({ kind: "invalid" });
   });
 
-  test("navigation helpers always open a preview instead of executing", () => {
+  test("navigation helper always opens a preview instead of executing", () => {
     navigateToMacroConfirmation(macroId);
     expect(window.location.hash).toBe(`#/confirm?macroId=${macroId}`);
-
-    navigateToProcedureMacroConfirmation(procedureId, macroStepId, macroId);
-    expect(window.location.hash).toBe(
-      `#/confirm?procedureId=${procedureId}&stepId=${macroStepId}&macroId=${macroId}`,
-    );
   });
 });

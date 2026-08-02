@@ -8,7 +8,6 @@
     "format",
     "format_version",
     "sets",
-    "include_progress",
     "integrity"
   ],
   "properties": {
@@ -24,9 +23,6 @@
       "items": {
         "$ref": "macro-set-package.schema.json"
       }
-    },
-    "include_progress": {
-      "type": "boolean"
     },
     "integrity": {
       "$ref": "macro-set-package.schema.json#/$defs/integrity"

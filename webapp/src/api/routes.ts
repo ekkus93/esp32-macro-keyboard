@@ -11,9 +11,6 @@ import {
   isMacroSet,
   isMacroSetList,
   isMacroValidation,
-  isProcedure,
-  isProcedureProgressSnapshot,
-  isProcedureSummaryList,
   isRestartAccepted,
   isSessionStatus,
   isSettings,
@@ -37,9 +34,6 @@ import type {
   Macro,
   MacroSet,
   MacroValidation,
-  Procedure,
-  ProcedureProgressSnapshot,
-  ProcedureSummary,
   RestartAccepted,
   SessionStatus,
   SetDeletion,
@@ -335,98 +329,6 @@ export async function validateSetMacro(
       body: JSON.stringify(macro),
     },
     isMacroValidation,
-  );
-}
-
-function setProceduresPath(setId: string): string {
-  return `${setPath(setId)}/procedures`;
-}
-
-function setProcedurePath(setId: string, procedureId: string): string {
-  return `${setProceduresPath(setId)}/${encodeURIComponent(procedureId)}`;
-}
-
-function procedureProgressPath(setId: string, procedureId: string): string {
-  return `${setProcedurePath(setId, procedureId)}/progress`;
-}
-
-export async function listSetProcedures(
-  setId: string,
-): Promise<ProcedureSummary[]> {
-  return apiRequest(setProceduresPath(setId), {}, isProcedureSummaryList);
-}
-
-export async function getSetProcedure(
-  setId: string,
-  procedureId: string,
-): Promise<Procedure> {
-  return apiRequest(setProcedurePath(setId, procedureId), {}, isProcedure);
-}
-
-export async function getProcedureProgress(
-  setId: string,
-  procedureId: string,
-): Promise<ProcedureProgressSnapshot> {
-  return apiRequest(
-    procedureProgressPath(setId, procedureId),
-    {},
-    isProcedureProgressSnapshot,
-  );
-}
-
-export async function resetProcedureProgress(
-  setId: string,
-  procedureId: string,
-  expectedProcedureRevision: number,
-): Promise<ProcedureProgressSnapshot> {
-  return apiRequest(
-    procedureProgressPath(setId, procedureId),
-    {
-      method: "DELETE",
-      body: JSON.stringify({
-        expectedRevision: expectedProcedureRevision,
-      }),
-    },
-    isProcedureProgressSnapshot,
-  );
-}
-
-export async function completeProcedureStep(
-  setId: string,
-  procedureId: string,
-  expectedProcedureRevision: number,
-  stepId: string,
-): Promise<ProcedureProgressSnapshot> {
-  return apiRequest(
-    `${procedureProgressPath(setId, procedureId)}/complete`,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        expectedProcedureRevision,
-        stepId,
-      }),
-    },
-    isProcedureProgressSnapshot,
-  );
-}
-
-export async function skipProcedureStep(
-  setId: string,
-  procedureId: string,
-  expectedProcedureRevision: number,
-  stepId: string,
-): Promise<ProcedureProgressSnapshot> {
-  return apiRequest(
-    `${procedureProgressPath(setId, procedureId)}/skip`,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        expectedProcedureRevision,
-        stepId,
-        confirmed: true,
-      }),
-    },
-    isProcedureProgressSnapshot,
   );
 }
 

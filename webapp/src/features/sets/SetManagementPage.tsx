@@ -483,7 +483,7 @@ export function SetManagementPage({
       </AccessibleDialog>
 
       <AccessibleDialog
-        description="The duplicate receives a new identity and revision 1. Procedure progress is not copied."
+        description="The duplicate receives a new identity and revision 1."
         onClose={closeDialogs}
         open={duplicateSource !== null}
         title="Duplicate macro set"

@@ -4,14 +4,13 @@ import { errorText } from "../../api/errors";
 import {
   getDeviceStatus,
   getSetMacro,
-  getSetProcedure,
   getSettings,
   submitExecution,
   validateSetMacro,
 } from "../../api/routes";
 import { ErrorBanner } from "../../components/ErrorBanner";
 import type { ExecutionConfirmationTarget } from "../../routing";
-import { navigate, navigateToProcedureStep } from "../../routing";
+import { navigate } from "../../routing";
 import type {
   DeviceStatus,
   ExecutionAccepted,
@@ -19,13 +18,9 @@ import type {
   Macro,
   MacroSet,
   MacroValidation,
-  Procedure,
-  ProcedureStep,
   Settings,
 } from "../../types/models";
 import "./ConfirmExecutionPage.css";
-
-type ProcedureMacroStep = Extract<ProcedureStep, { type: "macro" }>;
 
 type SubmissionStage =
   | "idle"
@@ -33,15 +28,9 @@ type SubmissionStage =
   | "physical-confirmation"
   | "submitting";
 
-interface LoadedProcedureContext {
-  procedure: Procedure;
-  step: ProcedureMacroStep;
-}
-
 interface LoadedConfirmation {
   macro: Macro;
   validation: MacroValidation;
-  procedureContext: LoadedProcedureContext | null;
 }
 
 interface ConfirmExecutionPageProps {
@@ -79,35 +68,6 @@ function macroIdentityIssue(
   return null;
 }
 
-function procedureContext(
-  activeSetId: string,
-  macroId: string,
-  target: ExecutionConfirmationTarget,
-  procedure: Procedure | null,
-): LoadedProcedureContext | null {
-  if (target.kind !== "valid" || target.sourceContext === null) {
-    return null;
-  }
-  const sourceContext = target.sourceContext;
-  const contextMatches =
-    procedure?.id === sourceContext.procedureId &&
-    procedure.set_id === activeSetId;
-  if (!contextMatches) {
-    throw new Error(
-      "The procedure context no longer belongs to the active macro set.",
-    );
-  }
-  const step = procedure.steps.find(
-    (candidate) => candidate.id === sourceContext.stepId,
-  );
-  if (step?.type !== "macro" || step.macro_id !== macroId) {
-    throw new Error(
-      "The procedure step no longer references the selected macro.",
-    );
-  }
-  return { procedure, step };
-}
-
 async function loadConfirmation(
   activeSet: MacroSet,
   target: Extract<ExecutionConfirmationTarget, { kind: "valid" }>,
@@ -118,25 +78,8 @@ async function loadConfirmation(
     throw new Error(identityIssue);
   }
 
-  const procedurePromise: Promise<Procedure | null> =
-    target.sourceContext === null
-      ? Promise.resolve(null)
-      : getSetProcedure(activeSet.id, target.sourceContext.procedureId);
-  const [validation, loadedProcedure] = await Promise.all([
-    validatePersistedMacro(activeSet.id, macro),
-    procedurePromise,
-  ]);
-
-  return {
-    macro,
-    validation,
-    procedureContext: procedureContext(
-      activeSet.id,
-      macro.id,
-      target,
-      loadedProcedure,
-    ),
-  };
+  const validation = await validatePersistedMacro(activeSet.id, macro);
+  return { macro, validation };
 }
 
 function sameMacroSnapshot(left: Macro, right: Macro): boolean {
@@ -160,38 +103,11 @@ function sameValidationSnapshot(
   );
 }
 
-function sameProcedureContext(
-  left: LoadedProcedureContext | null,
-  right: LoadedProcedureContext | null,
-): boolean {
-  if (left === null || right === null) {
-    return left === right;
-  }
-  return (
-    left.procedure.id === right.procedure.id &&
-    left.procedure.revision === right.procedure.revision &&
-    left.step.id === right.step.id &&
-    left.step.macro_id === right.step.macro_id
-  );
+function returnHash(): string {
+  return "/macros";
 }
 
-function returnHash(target: ExecutionConfirmationTarget): string {
-  if (target.kind !== "valid" || target.sourceContext === null) {
-    return "/macros";
-  }
-  return `/instruction?procedureId=${encodeURIComponent(
-    target.sourceContext.procedureId,
-  )}&stepId=${encodeURIComponent(target.sourceContext.stepId)}`;
-}
-
-function returnToSource(target: ExecutionConfirmationTarget): void {
-  if (target.kind === "valid" && target.sourceContext !== null) {
-    navigateToProcedureStep(
-      target.sourceContext.procedureId,
-      target.sourceContext.stepId,
-    );
-    return;
-  }
+function returnToSource(): void {
   navigate("macros");
 }
 
@@ -271,7 +187,7 @@ export function ConfirmExecutionPage({
       reasons.push("The active macro set changed after this preview opened.");
     }
     if (stale) {
-      reasons.push("The macro or procedure changed after this preview loaded.");
+      reasons.push("The macro changed after this preview loaded.");
     }
     if (currentStatus.usbState !== "ready") {
       reasons.push(
@@ -321,13 +237,12 @@ export function ConfirmExecutionPage({
       }
       if (
         !sameMacroSnapshot(loaded.macro, latest.macro) ||
-        !sameValidationSnapshot(loaded.validation, latest.validation) ||
-        !sameProcedureContext(loaded.procedureContext, latest.procedureContext)
+        !sameValidationSnapshot(loaded.validation, latest.validation)
       ) {
         setLoaded(latest);
         setStale(true);
         setSubmitError(
-          "The macro or procedure changed on the device. Review the latest preview before sending.",
+          "The macro changed on the device. Review the latest preview before sending.",
         );
         return;
       }
@@ -356,12 +271,9 @@ export function ConfirmExecutionPage({
         setId: activeSet.id,
         macroId: latest.macro.id,
         macroRevision: latest.macro.revision,
-        ...(target.sourceContext === null
-          ? {}
-          : { sourceContext: target.sourceContext }),
       };
       const accepted = await submitExecution(request);
-      onAccepted(accepted, returnHash(target));
+      onAccepted(accepted, returnHash());
     } catch (error: unknown) {
       if (error instanceof ApiError && error.status === 409) {
         setStale(true);
@@ -377,8 +289,7 @@ export function ConfirmExecutionPage({
       <section aria-labelledby="confirm-execution-title">
         <h2 id="confirm-execution-title">Confirm send</h2>
         <p className="error-message" role="alert">
-          The confirmation URL must contain one macro ID and either both
-          procedure context IDs or neither context ID.
+          The confirmation URL must contain exactly one macro ID.
         </p>
         <button
           onClick={() => {
@@ -430,7 +341,7 @@ export function ConfirmExecutionPage({
             </button>
             <button
               onClick={() => {
-                returnToSource(target);
+                returnToSource();
               }}
               type="button"
             >
@@ -442,7 +353,6 @@ export function ConfirmExecutionPage({
     );
   }
 
-  const procedure = loaded.procedureContext;
   const submitting = stage !== "idle";
 
   return (
@@ -487,17 +397,6 @@ export function ConfirmExecutionPage({
         </dl>
       </div>
 
-      {procedure === null ? null : (
-        <div className="validation-card">
-          <h3>Procedure context</h3>
-          <p>{procedure.procedure.name}</p>
-          <p>
-            Step: {procedure.step.title} · procedure revision{" "}
-            {String(procedure.procedure.revision)}
-          </p>
-        </div>
-      )}
-
       <div className="validation-card">
         <h3>Readiness</h3>
         <dl className="metadata">
@@ -532,8 +431,7 @@ export function ConfirmExecutionPage({
 
       {stage === "preflight" ? (
         <div className="confirmation-panel" role="status" aria-live="assertive">
-          Rechecking the macro, procedure context, USB state, executor, and
-          confirmation policy…
+          Rechecking the macro, USB state, executor, and confirmation policy…
         </div>
       ) : null}
       {stage === "physical-confirmation" ? (
@@ -557,7 +455,7 @@ export function ConfirmExecutionPage({
         <button
           disabled={submitting}
           onClick={() => {
-            returnToSource(target);
+            returnToSource();
           }}
           type="button"
         >

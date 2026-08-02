@@ -1,14 +1,7 @@
 # Web Application Tests
 
 Vitest covers the runtime-validated API client, setup/login/session behavior,
-set selection, execution status, the macro library/editor, and the persisted
-procedure workflow.
-
-Procedure tests verify list and progress loading, explicit not-started state,
-current-step rendering, previous/next review, instruction completion,
-checkpoint confirmation, confirmed skip, stale-progress reset, macro
-Send/Resend navigation, and the invariant that no progress transition
-automatically submits an execution.
+set selection, execution status, and the macro library/editor.
 
 Still required:
 

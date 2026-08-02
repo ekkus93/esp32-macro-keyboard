@@ -4,21 +4,10 @@ import {
   isMacro,
   isMacroSet,
   isMacroValidation,
-  isProcedure,
-  isProcedureProgressSnapshot,
-  isProcedureSummary,
   isSessionStatus,
   isSettings,
 } from "../src/api/guards";
-import {
-  executionStatus,
-  macro,
-  macroSet,
-  procedure,
-  procedureProgressSnapshot,
-  procedureSummary,
-  settings,
-} from "./appFixtures";
+import { executionStatus, macro, macroSet, settings } from "./appFixtures";
 
 describe("API response guards", () => {
   test("accepts exact server resource shapes", () => {
@@ -34,9 +23,6 @@ describe("API response guards", () => {
         estimatedDurationMs: 69,
       }),
     ).toBe(true);
-    expect(isProcedureSummary(procedureSummary)).toBe(true);
-    expect(isProcedure(procedure)).toBe(true);
-    expect(isProcedureProgressSnapshot(procedureProgressSnapshot())).toBe(true);
     expect(isSettings(settings)).toBe(true);
     expect(isExecutionStatus(executionStatus("timed_out"))).toBe(true);
   });
@@ -50,19 +36,6 @@ describe("API response guards", () => {
         valid: true,
         actionCount: 4097,
         estimatedDurationMs: 69,
-      }),
-    ).toBe(false);
-    expect(
-      isProcedure({
-        ...procedure,
-        steps: [procedure.steps[0], procedure.steps[0], procedure.steps[2]],
-      }),
-    ).toBe(false);
-    expect(
-      isProcedureProgressSnapshot({
-        ...procedureProgressSnapshot(),
-        status: "current",
-        currentProcedureRevision: procedure.revision + 1,
       }),
     ).toBe(false);
     expect(isSessionStatus({ authenticated: true })).toBe(false);

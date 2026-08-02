@@ -26,9 +26,6 @@ export function ExecutionResultPage({
     <article className="card">
       <div>
         <h2>{executionResultTitle(execution)}</h2>
-        <p>
-          The next procedure step is ready but will not execute automatically.
-        </p>
         {execution.error.length > 0 ? (
           <p>Execution error: {execution.error}</p>
         ) : null}

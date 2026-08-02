@@ -130,8 +130,6 @@ describe("management screens", () => {
       package_type: "set",
       sets: [replacement],
       macros: [],
-      procedures: [],
-      progress: [],
     } as const;
     const packageText = JSON.stringify(packageDocument);
     const file = new File([packageText], "replacement.json", {
@@ -199,8 +197,6 @@ describe("management screens", () => {
       package_type: "backup",
       sets: [macroSet],
       macros: [],
-      procedures: [],
-      progress: [],
     } as const;
     const backupText = JSON.stringify(backupDocument);
     const file = new File([backupText], "full-backup.json", {
@@ -264,8 +260,6 @@ describe("management screens", () => {
       package_type: "set",
       sets: [macroSet],
       macros: [],
-      procedures: [],
-      progress: [],
     });
     planTextResponse(packageText, 200, "application/json");
     const saveFile = vi.fn<(filename: string, text: string) => void>();
@@ -300,8 +294,6 @@ describe("management screens", () => {
       package_type: "backup",
       sets: [macroSet],
       macros: [],
-      procedures: [],
-      progress: [],
     });
     planTextResponse(backupText, 200, "application/json");
     const saveFile = vi.fn<(filename: string, text: string) => void>();

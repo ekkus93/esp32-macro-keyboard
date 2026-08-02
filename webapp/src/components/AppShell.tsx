@@ -36,14 +36,6 @@ function navigationActive(route: Screen, target: Screen): boolean {
   if (target === "sets") {
     return ["sets", "manage-sets", "set-editor", "delete-set"].includes(route);
   }
-  if (target === "procedures") {
-    return [
-      "procedures",
-      "procedure",
-      "instruction",
-      "procedure-editor",
-    ].includes(route);
-  }
   if (target === "macros") {
     return [
       "macros",
@@ -69,10 +61,10 @@ export function AppShell({
   onReconnect,
   logoutDisabled,
 }: AppShellProps): React.JSX.Element {
+  /* Order fixed by SPEC 9: Macros | Sets | Settings. */
   const navigation = [
-    ["sets", "Sets"],
-    ["procedures", "Procedures"],
     ["macros", "Macros"],
+    ["sets", "Sets"],
     ["settings", "Settings"],
   ] as const satisfies readonly (readonly [Screen, string])[];
 

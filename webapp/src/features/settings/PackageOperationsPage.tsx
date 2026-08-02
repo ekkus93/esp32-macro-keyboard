@@ -389,7 +389,7 @@ export function PackageOperationsPage({
             <p>
               {activeSet === null
                 ? "Select an active set before choosing a transactional replacement target."
-                : `Stage, validate, and atomically replace ${activeSet.name}, including local macros, procedures, ordering, and progress.`}
+                : `Stage, validate, and atomically replace ${activeSet.name}, including its macros and their ordering.`}
             </p>
             <label htmlFor="replacement-package">Replacement package</label>
             <input
@@ -462,7 +462,7 @@ export function PackageOperationsPage({
             <p>
               {activeSet === null
                 ? "Select an active set before exporting a macro-set package."
-                : `Export ${activeSet.name} with set-local macros, referenced global macros, procedures, and current progress.`}
+                : `Export ${activeSet.name} with its macros and their ordering.`}
             </p>
             <button
               className="primary"
@@ -483,8 +483,8 @@ export function PackageOperationsPage({
           <article className="validation-card">
             <h3>Create full backup</h3>
             <p>
-              Download every set, local and global macro, procedure, ordering
-              record, and current progress from one locked repository snapshot.
+              Download every set, macro, and ordering record from one locked
+              repository snapshot.
             </p>
             <button
               className="primary"

@@ -15,9 +15,6 @@ import {
   macro,
   macroId,
   macroSet,
-  macroStepId,
-  procedure,
-  procedureId,
   settings,
 } from "./appFixtures";
 import {
@@ -34,13 +31,9 @@ const validation = {
   estimatedDurationMs: 31,
 } as const;
 
-const procedureTarget: ExecutionConfirmationTarget = {
+const macroTarget: ExecutionConfirmationTarget = {
   kind: "valid",
   macroId,
-  sourceContext: {
-    procedureId,
-    stepId: macroStepId,
-  },
 };
 
 type AcceptedHandler = (
@@ -64,9 +57,8 @@ function requestBody(callIndex: number): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
-function planProcedureConfirmationLoad(loadedMacro: Macro = macro): void {
+function planConfirmationLoad(loadedMacro: Macro = macro): void {
   planJsonResponse(success(loadedMacro));
-  planJsonResponse(success(procedure));
   planJsonResponse(success(validation));
 }
 
@@ -84,7 +76,7 @@ async function renderConfirmation(
       onAccepted={options.onAccepted ?? (() => undefined)}
       settings={options.currentSettings ?? settings}
       status={options.currentStatus ?? deviceStatus}
-      target={options.target ?? procedureTarget}
+      target={options.target ?? macroTarget}
     />,
   );
   await flushReact();
@@ -92,15 +84,14 @@ async function renderConfirmation(
 }
 
 describe("execution confirmation", () => {
-  test("loads a persisted macro and exact procedure context without executing", async () => {
-    planProcedureConfirmationLoad();
+  test("loads a persisted macro without executing", async () => {
+    planConfirmationLoad();
     const view = await renderConfirmation();
 
     expect(document.body.textContent).toContain("Confirm send");
     expect(document.body.textContent).toContain("Open terminal");
-    expect(document.body.textContent).toContain("Install Debian");
     expect(document.body.textContent).toContain("Ready to request execution.");
-    expect(getFetchCalls()).toHaveLength(3);
+    expect(getFetchCalls()).toHaveLength(2);
     expect(
       getFetchCalls().some((call) => call.url === "/api/v1/executions"),
     ).toBe(false);
@@ -108,7 +99,7 @@ describe("execution confirmation", () => {
   });
 
   test("disables Send with a visible USB explanation", async () => {
-    planProcedureConfirmationLoad();
+    planConfirmationLoad();
     const view = await renderConfirmation({
       currentStatus: { ...deviceStatus, usbState: "disconnected" },
     });
@@ -120,16 +111,15 @@ describe("execution confirmation", () => {
     await view.unmount();
   });
 
-  test("rechecks state, waits for device confirmation, and submits nested context", async () => {
+  test("rechecks state, waits for device confirmation, and submits", async () => {
     setCsrfToken("csrf-token");
     const onAccepted = vi.fn<AcceptedHandler>();
-    planProcedureConfirmationLoad();
+    planConfirmationLoad();
     const view = await renderConfirmation({ onAccepted });
 
     planJsonResponse(success(deviceStatus));
     planJsonResponse(success(settings));
     planJsonResponse(success(macro));
-    planJsonResponse(success(procedure));
     planJsonResponse(success(validation));
 
     const submission = {
@@ -159,10 +149,6 @@ describe("execution confirmation", () => {
       setId: macroSet.id,
       macroId,
       macroRevision: macro.revision,
-      sourceContext: {
-        procedureId,
-        stepId: macroStepId,
-      },
     });
 
     const resolveSubmission = submission.resolve;
@@ -190,21 +176,20 @@ describe("execution confirmation", () => {
         actionCount: validation.actionCount,
         estimatedDurationMs: validation.estimatedDurationMs,
       },
-      `/instruction?procedureId=${procedureId}&stepId=${macroStepId}`,
+      "/macros",
     );
     await view.unmount();
   });
 
   test("does not submit when the macro changes during preflight", async () => {
     setCsrfToken("csrf-token");
-    planProcedureConfirmationLoad();
+    planConfirmationLoad();
     const view = await renderConfirmation();
 
     const revisedMacro = { ...macro, revision: macro.revision + 1 };
     planJsonResponse(success(deviceStatus));
     planJsonResponse(success(settings));
     planJsonResponse(success(revisedMacro));
-    planJsonResponse(success(procedure));
     planJsonResponse(success(validation));
 
     await click(buttonWithText("Send now"));

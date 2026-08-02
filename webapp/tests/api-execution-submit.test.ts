@@ -5,8 +5,6 @@ import { getFetchCalls, planJsonResponse } from "./fakeFetch";
 
 const setId = "11111111-1111-4111-8111-111111111111";
 const macroId = "22222222-2222-4222-8222-222222222222";
-const procedureId = "33333333-3333-4333-8333-333333333333";
-const stepId = "44444444-4444-4444-8444-444444444444";
 const executionId = "55555555-5555-4555-8555-555555555555";
 
 function accepted(): { ok: true; data: Record<string, unknown> } {
@@ -44,24 +42,6 @@ describe("submitExecution", () => {
       setId,
       macroId,
       macroRevision: 7,
-    });
-  });
-
-  test("nests complete procedure context and does not flatten it", async () => {
-    planJsonResponse(accepted(), 202);
-    const request: ExecutionSubmitRequest = {
-      setId,
-      macroId,
-      macroRevision: 7,
-      sourceContext: { procedureId, stepId },
-    };
-
-    await submitExecution(request);
-    expect(parseJsonBody(getFetchCalls()[0]?.body)).toEqual({
-      setId,
-      macroId,
-      macroRevision: 7,
-      sourceContext: { procedureId, stepId },
     });
   });
 
