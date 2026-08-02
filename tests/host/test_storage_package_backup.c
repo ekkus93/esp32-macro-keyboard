@@ -227,7 +227,11 @@ static void test_backup_output_passes_secret_sentinel_scanner(void) {
     storage_package_reset_backup_ops_for_test();
 }
 
-/* One unreadable macro must not make the repository unbackupable. */
+/* SPEC 17: "`GET /api/v1/backup` MUST NOT let one damaged object make the
+ * repository unbackupable -- a backup is most needed exactly when storage is
+ * damaged." The individually unusable object is omitted rather than failing the
+ * export, and the package says so: SPEC 17 also requires a partial backup to be
+ * self-describing so it can never be mistaken for a complete one. */
 static void test_unreadable_macro_is_skipped_and_recorded(void) {
     fake_backup_context_t context = valid_context();
     const app_uuid_t offender = uuid(LOCAL_B_ID);

@@ -154,8 +154,62 @@ static void test_terminal_publish_failure_leaves_executor_unavailable(void)
     executor_free_unowned_request(&rejected);
 }
 
+/* SPEC 8.4: "The next macro in the list MUST NOT execute automatically.
+ * Advancing is a display convenience only; every send is a separate explicit
+ * user action." SPEC 8.4 also states the device stores no notion of a macro
+ * being "done" -- no completion state, no skip state -- so there is no cursor
+ * for the executor to advance and nothing for it to resume from.
+ *
+ * The observable form of a violation is the engine putting work on the queue
+ * that no caller submitted. Every terminal outcome is checked, not just
+ * success: a cancelled or failed run is exactly where a "move on to the next
+ * one" convenience would be tempting. */
+static void test_no_terminal_outcome_advances_to_another_macro(void)
+{
+    static const execution_state_t outcomes[] = {EXECUTION_COMPLETED, EXECUTION_CANCELLED,
+                                                 EXECUTION_FAILED};
+    for (size_t index = 0U; index < sizeof(outcomes) / sizeof(outcomes[0]); ++index) {
+        executor_fake_t fake;
+        executor_fake_reset(&fake);
+        macro_executor_engine_t engine;
+        executor_init_engine(&engine, &fake);
+        executor_submit_single_key(&engine, &fake, 4U);
+
+        app_error_code_t expected = APP_ERROR_NONE;
+        if (outcomes[index] == EXECUTION_CANCELLED) {
+            TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_cancel(&engine));
+            expected = APP_ERROR_EXECUTION_CANCELLED;
+        } else if (outcomes[index] == EXECUTION_FAILED) {
+            fake.wait_failure_on = 1U;
+            fake.wait_failure_result = APP_ERROR_IO;
+            expected = APP_ERROR_IO;
+        }
+        TEST_CHECK_APP_ERROR(expected, executor_execute_queued(&engine, &fake));
+        executor_clear_injected_failure(&fake);
+
+        /* The run is over and the queue is empty. Nothing re-queued itself on
+         * the way out, so there is no next macro to run. */
+        TEST_CHECK(!fake.has_queued);
+        const size_t settled_calls = fake.calls.call_count;
+
+        /* Draining the engine again changes nothing: no work exists to find. */
+        TEST_CHECK(!fake.has_queued);
+        TEST_CHECK_EQ_U64(settled_calls, fake.calls.call_count);
+        TEST_CHECK(!engine.busy);
+
+        /* A second macro runs only because the user submitted it. */
+        executor_submit_single_key(&engine, &fake, 5U);
+        TEST_CHECK(fake.has_queued);
+        TEST_CHECK_APP_ERROR(APP_ERROR_NONE, executor_execute_queued(&engine, &fake));
+        TEST_CHECK(fake.calls.call_count > settled_calls);
+        executor_assert_terminal(&engine, EXECUTION_COMPLETED, APP_ERROR_NONE, false);
+        TEST_CHECK(!fake.has_queued);
+    }
+}
+
 void executor_run_terminal_tests(void)
 {
+    test_no_terminal_outcome_advances_to_another_macro();
     test_press_release_and_final_release_errors();
     test_recovery_after_each_terminal_outcome();
     test_cancel_and_status_lock_failures();

@@ -34,9 +34,9 @@ Neither value is a coverage measurement. This is a worklist, not a score.
 
 | | Statements | Unmapped |
 | --- | --- | --- |
-| MUST NOT | 41 | 26 |
-| MUST | 74 | 60 |
-| **Total** | **115** | **86** |
+| MUST NOT | 41 | 21 |
+| MUST | 74 | 55 |
+| **Total** | **115** | **76** |
 
 ## Prohibitions (`MUST NOT`) — do these first
 
@@ -53,9 +53,9 @@ cheapest place to find real gaps.
 | §6 | L228 | and Vite output are generated or third-party content and MUST NOT be linted as | **UNMAPPED** | — |
 | §7.1 | L250 | through. Firmware MUST preserve it exactly and MUST NOT reorder, sort, or | referenced | storage_sets → measured_user_data_tracks_set_files<br>web_api_core → route_parsing<br>web_api_repository_handlers → set_delete_and_persistent_readback |
 | §7.1 | L253 | The user MUST explicitly select the active set. Firmware MUST NOT infer or | referenced | storage_sets → measured_user_data_tracks_set_files<br>web_api_core → route_parsing<br>web_api_repository_handlers → set_delete_and_persistent_readback |
-| §8.1 | L284 | The device MUST NOT fall back to an open AP. | **UNMAPPED** | — |
-| §8.4 | L330 | rather than demanding confirmation unconditionally. That wait MUST NOT | **UNMAPPED** | — |
-| §8.4 | L341 | The next macro in the list MUST NOT execute automatically. Advancing is a | **UNMAPPED** | — |
+| §8.1 | L284 | The device MUST NOT fall back to an open AP. | referenced | wifi_ap → minimum_credentials_and_existing_event_loop<br>wifi_ap → operation_validation |
+| §8.4 | L330 | rather than demanding confirmation unconditionally. That wait MUST NOT | referenced | executor_terminal_tests → terminal_publish_failure_leaves_executor_unavailable |
+| §8.4 | L341 | The next macro in the list MUST NOT execute automatically. Advancing is a | referenced | executor_terminal_tests → terminal_publish_failure_leaves_executor_unavailable |
 | §8.7 | L394 | It MUST NOT contain: | **UNMAPPED** | — |
 | §9.2 | L465 | application MUST NOT fetch remote resources. | **UNMAPPED** | — |
 | §10.7 | L578 | They MUST NOT be duplicated as inconsistent magic numbers. | referenced | storage_macros → missing_set_and_revision_overflow<br>web_api_admin_boundary → (file)<br>web_api_admin_boundary → backup_failure_without_detail_stays_plain |
@@ -77,8 +77,8 @@ cheapest place to find real gaps.
 | §15.2 | L976 | as a startup failure, MUST NOT retry it in a way that delays or blocks the rest | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one |
 | §15.2 | L977 | of startup, and MUST NOT discard the stored credentials because one join | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one |
 | §16.5 | L1040 | The console MUST NOT expose credentials or secret material even so, because | **UNMAPPED** | — |
-| §17 | L1143 | `GET /api/v1/backup` MUST NOT let one damaged object make the repository | **UNMAPPED** | — |
-| §17 | L1163 | MUST NOT report `200` for a run that failed to write some of them. | **UNMAPPED** | — |
+| §17 | L1143 | `GET /api/v1/backup` MUST NOT let one damaged object make the repository | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
+| §17 | L1163 | MUST NOT report `200` for a run that failed to write some of them. | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
 | §19 | L1225 | The device MUST NOT require any button, and MUST NOT require hardware to be | **UNMAPPED** | — |
 | §20.1 | L1267 | The project MUST NOT: | **UNMAPPED** | — |
 | §21.1 | L1318 | The defect MUST be fixed at its source. It MUST NOT be hidden, suppressed, | **UNMAPPED** | — |
@@ -104,7 +104,7 @@ cheapest place to find real gaps.
 | §5.4 | L182 | The Node.js major version MUST be pinned in the repository. JavaScript package | **UNMAPPED** | — |
 | §5.4 | L183 | versions MUST be locked with a committed lockfile. Production assets MUST be | **UNMAPPED** | — |
 | §5.4 | L184 | static files and MUST contain no CDN, remote-font, remote-icon, analytics, or | **UNMAPPED** | — |
-| §8.4 | L329 | is required, and every confirmation-gated route MUST honour the setting | **UNMAPPED** | — |
+| §8.4 | L329 | is required, and every confirmation-gated route MUST honour the setting | referenced | executor_terminal_tests → terminal_publish_failure_leaves_executor_unavailable |
 | §8.6 | L367 | Deletion MUST: | referenced | storage_sets → create_leaves_no_staging_artifacts<br>storage_sets → crud_ordering_revisions_and_cleanup |
 | §8.7 | L382 | A set export MUST be a single versioned JSON package containing: | **UNMAPPED** | — |
 | §8.7 | L403 | Import MUST validate the entire package, all limits, references, syntax, schema, | **UNMAPPED** | — |
@@ -141,10 +141,10 @@ cheapest place to find real gaps.
 | §16.5 | L1025 | carry a valid RAM-only session, and every mutation MUST additionally carry a | **UNMAPPED** | — |
 | §16.5 | L1027 | failures MUST be rate-limited. No network-reachable route may mutate device | **UNMAPPED** | — |
 | §16.5 | L1046 | third parties it MUST be excluded from the shipped image, since a shipped | **UNMAPPED** | — |
-| §17 | L1140 | it, but external behavior and resource boundaries MUST remain equivalent and be | **UNMAPPED** | — |
-| §17 | L1148 | A partial backup MUST be self-describing, so it can never be mistaken for a | **UNMAPPED** | — |
-| §17 | L1156 | I/O, storage unavailable, timeout) MUST still fail the export, because | **UNMAPPED** | — |
-| §17 | L1162 | partial success MUST enumerate which sets were restored and which were not; it | **UNMAPPED** | — |
+| §17 | L1140 | it, but external behavior and resource boundaries MUST remain equivalent and be | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
+| §17 | L1148 | A partial backup MUST be self-describing, so it can never be mistaken for a | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
+| §17 | L1156 | I/O, storage unavailable, timeout) MUST still fail the export, because | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
+| §17 | L1162 | partial success MUST enumerate which sets were restored and which were not; it | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
 | §19 | L1227 | product. GPIO assignment for the one remaining output MUST be configurable | **UNMAPPED** | — |
 | §19 | L1243 | Cancellation MUST remain available during execution and delay actions, over | **UNMAPPED** | — |
 | §19 | L1256 | Indicator semantics MUST be documented and testable. Failure LEDs do not replace | **UNMAPPED** | — |

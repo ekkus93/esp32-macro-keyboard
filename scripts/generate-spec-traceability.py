@@ -66,15 +66,27 @@ def statements():
     return found
 
 
+def sources():
+    """Every host-test source, including the .inc fragments.
+
+    Several suites -- auth, the executor, web security, the web-server adapter --
+    keep their test bodies in .inc files that a single test_*.c includes. Scanning
+    only test_*.c made every citation in those fragments invisible, which would
+    have reported covered sections as unmapped.
+    """
+    directory = ROOT / "tests/host"
+    return sorted(directory.glob("test_*.c")) + sorted(directory.glob("*.inc"))
+
+
 def citations():
     cites = collections.defaultdict(set)
-    for path in sorted(ROOT.joinpath("tests/host").glob("test_*.c")):
-        suite = path.stem[len("test_"):]
+    for path in sources():
+        suite = path.stem[len("test_"):] if path.stem.startswith("test_") else path.stem
         function = None
         for line in path.read_text().splitlines():
-            match = re.match(r"^static void (test_\w+)\(", line)
+            match = re.match(r"^(?:static )?void (\w*test_?\w+)\(", line)
             if match:
-                function = match.group(1)[len("test_"):]
+                function = match.group(1).removeprefix("test_")
             for cite in re.finditer(r"SPEC\s*§?\s*(\d+(?:\.\d+)?)", line):
                 cites[cite.group(1)].add(f"{suite} → {function or '(file)'}")
     return cites

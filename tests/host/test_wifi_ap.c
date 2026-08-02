@@ -198,6 +198,12 @@ static void test_operation_validation(void) {
 #undef CHECK_MISSING
 }
 
+/* SPEC 8.1: "The device MUST NOT fall back to an open AP." The engine has no
+ * open-AP mode to fall back to -- credentials that would produce one are
+ * refused before any backend call, and every configuration it does publish
+ * carries WPA2/WPA3-PSK with PMF required. Both halves are asserted here: that
+ * bad credentials never reach the radio, and that good ones are never
+ * downgraded. */
 static void test_credentials_and_configuration(void) {
     wifi_fixture_t fixture;
     reset_fixture(&fixture);
@@ -256,6 +262,10 @@ static void test_minimum_credentials_and_existing_event_loop(void) {
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, wifi_ap_engine_start(&engine, "s", "123456789012"));
     TEST_CHECK_EQ_STRING("s", fixture.configuration.ssid);
     TEST_CHECK_EQ_STRING("123456789012", fixture.configuration.passphrase);
+    /* SPEC 8.1: the shortest legal passphrase is still a secured AP. Encryption
+     * is not something the weakest accepted credential trades away. */
+    TEST_CHECK(fixture.configuration.wpa2_wpa3_psk);
+    TEST_CHECK(fixture.configuration.pmf_required);
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, wifi_ap_engine_stop(&engine));
 }
 

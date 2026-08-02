@@ -65,6 +65,37 @@ See `docs/CLAUDE_CODE_HANDOFF_2026-07-31.md` for full context. Currently in forc
 - Don't claim physical hardware validation from compilation, host fakes, or CI device builds alone.
 - Never commit or expose real credentials, tokens, keys, or flash dumps — use generated disposable credentials for security testing.
 
-## Hardware flashing
+## Hardware: the two USB ports do different jobs
 
-Use the board's **native USB port** (D+/D-), not the USB-UART port: `cd firmware/test_app && idf.py -B build -p /dev/ttyACM0 flash monitor` (exit monitor with `Ctrl+]`). `sdkconfig` is gitignored; only `sdkconfig.defaults` is tracked.
+The board exposes two USB connectors and they are **not interchangeable**. Confirm
+with `lsusb` and `ls -l /dev/ttyACM*` before assuming any path — the numbering
+depends on plug order, and the vendor IDs are the reliable identifier.
+
+| Port | Enumerates as | Typically | Use it for |
+| --- | --- | --- | --- |
+| **Native USB** (D+/D−, the ESP32-S3's own USB peripheral) | `303a:4001` running the app (TinyUSB HID), `303a:1001` (USB-Serial/JTAG) otherwise | `/dev/ttyACM0`, `hidraw*` | Flashing, `esptool`, **HID validation**, boot/log output |
+| **USB-UART bridge** (a separate CH340/CP210x chip on UART0) | `1a86:55d3` (CH340) or `10c4:ea60` (CP210x) | `/dev/ttyACM1` or `/dev/ttyUSB0` | **The interactive serial console** |
+
+**The interactive console is on the UART bridge, not on native USB.**
+`sdkconfig` sets `CONFIG_ESP_CONSOLE_UART_DEFAULT=y` with
+`CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y`, so `esp_console` reads stdin
+from **UART0** while USB-Serial-JTAG is the *secondary* console — it mirrors log
+output but **accepts no input**. Typing `wifi-connect`, `confirm`, or `cancel`
+into `/dev/ttyACM0` produces no reply and no error; the bytes are simply
+discarded. Send console commands to the UART bridge.
+
+Reading `/dev/ttyACM0` with pyserial also stalls unless the port was just opened:
+the USB-Serial-JTAG peripheral gates its TX on the CDC handshake that
+`serial.Serial(...)` performs on open, and that same handshake resets the chip.
+
+```bash
+lsusb | grep -E '303a|1a86|10c4'          # identify before choosing a path
+cd firmware/test_app && idf.py -B build -p /dev/ttyACM0 flash monitor   # exit: Ctrl+]
+```
+
+`sdkconfig` is gitignored; only `sdkconfig.defaults` is tracked. Enabling
+`CONFIG_APP_MANUFACTURING_PROVISIONING_LOG=y` there is how a device gets
+re-provisioned after an NVS erase — it prints one-time credentials to the
+console. **Revert it and reflash a production build afterwards**;
+`check-production-config.sh` rejects it, and those credentials must be stored
+outside the repository (`~/.config/esp32-macro-keyboard/hil/`, mode 600).

@@ -338,7 +338,11 @@ diagnostics JSON shape.
   flag version drift").
 - Real ESP32-S3 hardware is attached at `/dev/ttyACM0`, confirmed via
   `esptool chip_id`: ESP32-S3 QFN56 rev v0.2, 8MB PSRAM. Do not use
-  `/dev/ttyUSB0` (a separate CP210x UART bridge) for flashing.
+  the UART bridge for flashing.
+  **Corrected 2026-08-02:** the bridge on this bench is a CH340 (`1a86:55d3`)
+  at `/dev/ttyACM1`, not a CP210x at `/dev/ttyUSB0`, and it is not merely an
+  alternative flashing path — it carries the **interactive serial console**,
+  which native USB does not. See the port table in `CLAUDE.md`.
 
 ## Where to look first when resuming
 

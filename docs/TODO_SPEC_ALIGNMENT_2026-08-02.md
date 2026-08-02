@@ -628,12 +628,54 @@ is the worklist; it is generated, and `check-docs.sh` fails if it drifts.
   erase, each fail exactly one test. A tenth was written and then deleted —
   `test_corrupt_persisted_records` already asserted it.
 
-**Known gap, not covered by any host test.** The boot behaviour in SPEC §15.2 —
-access point first and unconditional, station join attempted after, join failure
-logged and ignored — lives in `app_core.c`, which has no host test at all. The
+- [x] **8.3 SPEC §8.1 / §8.4 / §17.** Three more prohibitions. §8.4 ("the next
+  macro MUST NOT execute automatically") had no test: a new one drives every
+  terminal outcome — completed, cancelled, failed — and asserts the engine never
+  puts work on the queue that no caller submitted. Verified non-vacuous by
+  mutation: making the engine re-queue after `plan_free` fails it at
+  `executor_terminal_tests.inc:192`. §8.1 and §17 turned out to be already
+  covered but uncited, so they gained citations plus the assertions that were
+  missing (the shortest legal passphrase is still checked for WPA2/WPA3-PSK and
+  PMF, so encryption is not something the weakest accepted credential trades
+  away).
+
+**Blind spot found in the tooling.** The generator scanned only
+`tests/host/test_*.c`, so every citation in the 20 `.inc` fragments — where the
+auth, executor, web-security, and web-server-adapter tests actually live — was
+invisible and would have reported covered sections as unmapped. It now scans
+those too.
+
+### 8.4 SPEC §15.2 boot behaviour — proven on hardware
+
+Not reachable from any host test: it lives in `app_core.c`, which has none. The
 traceability matrix reports those §15.2 prohibitions as "referenced" only because
-citations are section-level; nothing exercises them. Only hardware can currently
-prove that behaviour.
+citations are section-level. Verified directly instead, on a **production** build
+(manufacturing banner absent), after erasing NVS and re-provisioning:
+
+```text
+I (1272) wifi:mode : softAP (9c:13:9e:a8:77:39)
+I (1352) esp_netif_lwip: DHCP server started on interface WIFI_AP_DEF with IP: 192.168.4.1
+I (1452) wifi:mode : sta (9c:13:9e:a8:77:38) + softAP (9c:13:9e:a8:77:39)
+I (1572) wifi:connected with <bench-ssid>, aid = 6, channel 6, BW20
+I (5672) app_core: joined saved Wi-Fi network, IP address: 192.168.88.108
+```
+
+The access point is up and serving DHCP at 192.168.4.1 **before** station mode is
+added, the AP is retained alongside it, and the join used credentials read from
+NVS with no console command issued after the reset. That is SPEC §15.2's required
+ordering and the persistence requirement, on real hardware.
+
+**Still unproven:** the failure half of §15.2 — that a join which fails or times
+out is logged and ignored, leaving the device AP-only. It cannot be reached from
+the bench, because `wifi-connect` verifies credentials by joining *before* storing
+them, so there is no supported way to persist a network that will not answer.
+Closing it needs either an unreachable stored network injected some other way, or
+a host test around `app_core`'s startup sequence.
+
+**Device state:** unprovisioned (NVS was erased to clear the stale 168-byte
+record), running a production build, station credentials stored and working.
+Bootstrap AP passphrase and setup code are in
+`~/.config/esp32-macro-keyboard/hil/`, mode 600, never in the repository.
 
 ---
 
