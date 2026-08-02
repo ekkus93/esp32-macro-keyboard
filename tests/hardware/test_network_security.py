@@ -109,6 +109,7 @@ def main():
     print("\n" + "=" * 58)
     passed = sum(1 for r in results if r)
     print(f"  {passed}/{len(results)} checks passed")
+    device.logout()
     return 0 if all(results) else 1
 
 

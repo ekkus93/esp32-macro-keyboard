@@ -36,7 +36,7 @@ class Device:
             f"{self.base}{path}", data=data, headers=headers, method=method
         )
         try:
-            with urllib.request.urlopen(request, timeout=20) as response:
+            with urllib.request.urlopen(request, timeout=45) as response:
                 payload = response.read().decode()
                 set_cookie = response.headers.get("Set-Cookie")
                 status = response.status
@@ -68,6 +68,31 @@ class Device:
 
     def delete(self, path, body=None, **kw):
         return self._request("DELETE", path, body, **kw)
+
+    def logout(self):
+        """Release the session.
+
+        Sessions are RAM-only and the table is bounded (APP_SESSION_TABLE_MAX),
+        so a harness that logs in on every run without logging out will exhaust
+        it and every later login fails 503. The firmware is right to refuse;
+        the caller has to clean up after itself.
+        """
+        if self.cookie is None:
+            return
+        try:
+            self.post("/api/v1/auth/logout")
+        except Exception:
+            pass
+        self.cookie = None
+        self.csrf = None
+
+    def __enter__(self):
+        self.login()
+        return self
+
+    def __exit__(self, *exc):
+        self.logout()
+        return False
 
     def login(self):
         password = hil_state.admin_password()

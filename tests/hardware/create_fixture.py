@@ -69,6 +69,7 @@ def main():
 
     hil_state.save_fixture({"set_id": set_id, "macros": created})
     print(f"\nfixture saved ({len(created)}/{len(macros)} macros)")
+    d.logout()
     return 0 if len(created) == len(macros) else 1
 
 

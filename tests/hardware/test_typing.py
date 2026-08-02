@@ -79,6 +79,7 @@ def main():
     print("\n" + "=" * 58)
     for name, ok in results.items():
         print(f"  {name:<16} {'PASS' if ok else 'FAIL'}")
+    device.logout()
     return 0 if all(results.values()) else 1
 
 
