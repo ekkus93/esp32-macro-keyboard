@@ -18,7 +18,6 @@ typedef struct {
     app_error_code_t confirmation_result;
     size_t validation_calls;
     size_t confirmation_calls;
-    bool saw_null_csrf;
 } fixture_t;
 
 typedef struct {
@@ -56,13 +55,9 @@ static app_error_code_t get_header(void *context, const char *name, char *output
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t validate(void *context, const char *session_token, const char *csrf_token) {
+static app_error_code_t validate(void *context, const char *session_token) {
     fixture_t *fixture = context;
     TEST_CHECK_EQ_STRING(TOKEN, session_token);
-    fixture->saw_null_csrf = csrf_token == NULL;
-    if (csrf_token != NULL) {
-        TEST_CHECK_EQ_STRING(TOKEN, csrf_token);
-    }
     ++fixture->validation_calls;
     return fixture->validation_result;
 }
@@ -155,8 +150,6 @@ static void evaluate_success(const route_case_t *route_case) {
     TEST_CHECK_EQ_U64(1U, fixture.validation_calls);
     TEST_CHECK_EQ_U64(web_api_route_requires_physical_confirmation(route_case->route) ? 1U : 0U,
                       fixture.confirmation_calls);
-    TEST_CHECK(fixture.saw_null_csrf ==
-               !web_api_route_requires_csrf(route_case->route, route_case->method));
 }
 
 static void evaluate_missing_header(const route_case_t *route_case, const char *header,
@@ -177,23 +170,6 @@ static void evaluate_missing_header(const route_case_t *route_case, const char *
     TEST_CHECK(error != APP_ERROR_NONE);
     TEST_CHECK_EQ_INT(expected_failure, failure);
     TEST_CHECK_EQ_U64(expected_status, web_request_policy_http_status(failure, error));
-}
-
-static void evaluate_origin_failure(const route_case_t *route_case) {
-    fixture_t fixture = {
-        .content_type = "application/json",
-        .origin = "http://invalid.local",
-        .validation_result = APP_ERROR_NONE,
-        .confirmation_result = APP_ERROR_NONE,
-    };
-    const web_request_policy_ops_t ops = operations(&fixture);
-    const web_request_policy_input_t policy = input(route_case->route, route_case->method);
-    web_request_policy_result_t result = {0};
-    web_request_policy_failure_t failure = WEB_REQUEST_POLICY_FAILURE_NONE;
-    TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
-                         web_request_policy_evaluate(&policy, &ops, &result, &failure));
-    TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_ORIGIN, failure);
-    TEST_CHECK_EQ_U64(403U, web_request_policy_http_status(failure, APP_ERROR_AUTH_REQUIRED));
 }
 
 static void evaluate_content_type_failure(const route_case_t *route_case) {
@@ -253,13 +229,7 @@ static void test_complete_route_policy_matrix(void) {
     for (size_t index = 0U; index < sizeof(route_cases) / sizeof(route_cases[0]); ++index) {
         const route_case_t *route_case = &route_cases[index];
         evaluate_success(route_case);
-        evaluate_missing_header(route_case, "Host", WEB_REQUEST_POLICY_FAILURE_HOST, 403U);
-        evaluate_origin_failure(route_case);
         evaluate_missing_header(route_case, "Cookie", WEB_REQUEST_POLICY_FAILURE_COOKIE, 401U);
-        if (web_api_route_requires_csrf(route_case->route, route_case->method)) {
-            evaluate_missing_header(route_case, "X-CSRF-Token", WEB_REQUEST_POLICY_FAILURE_CSRF,
-                                    403U);
-        }
         evaluate_content_type_failure(route_case);
         evaluate_confirmation_failure(route_case);
         evaluate_body_limit_failure(route_case);
@@ -284,14 +254,13 @@ static void test_success_and_generated_request_id(void) {
     TEST_CHECK_EQ_U64(1U, fixture.validation_calls);
 }
 
-/* SPEC 16.2: "Every mutating request MUST provide a valid CSRF token tied to
- * the session." The complement is the interesting half and the one a
- * conservative implementation gets wrong: a GET is not a mutation, so demanding
- * a token there would break ordinary reads without adding protection. */
+/* SPEC 16.2: the session cookie is the whole credential. It is HttpOnly and
+ * SameSite=Strict, so a cross-site page cannot cause it to be sent -- which is
+ * what the second token used to defend against. A request carrying a valid
+ * cookie and nothing else is authenticated. */
 /* SPEC 24.4 item: CSRF */
 static void test_get_does_not_require_csrf(void) {
     fixture_t fixture = {
-        .missing = "X-CSRF-Token",
         .validation_result = APP_ERROR_NONE,
     };
     const web_request_policy_ops_t ops = operations(&fixture);
@@ -300,7 +269,7 @@ static void test_get_does_not_require_csrf(void) {
     web_request_policy_failure_t failure = WEB_REQUEST_POLICY_FAILURE_NONE;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_request_policy_evaluate(&policy, &ops, &result, &failure));
-    TEST_CHECK(fixture.saw_null_csrf);
+    TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_NONE, failure);
     TEST_CHECK_EQ_U64(1U, fixture.validation_calls);
 }
 
@@ -323,16 +292,6 @@ static void test_failure_statuses(void) {
 
     fixture = (fixture_t){
         .content_type = "application/json",
-        .origin = "http://invalid.local",
-    };
-    ops = operations(&fixture);
-    TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
-                         web_request_policy_evaluate(&policy, &ops, &result, &failure));
-    TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_ORIGIN, failure);
-    TEST_CHECK_EQ_U64(403U, web_request_policy_http_status(failure, APP_ERROR_AUTH_REQUIRED));
-
-    fixture = (fixture_t){
-        .content_type = "application/json",
         .origin = "http://192.168.4.1",
         .missing = "Cookie",
     };
@@ -341,16 +300,6 @@ static void test_failure_statuses(void) {
                          web_request_policy_evaluate(&policy, &ops, &result, &failure));
     TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_COOKIE, failure);
     TEST_CHECK_EQ_U64(401U, web_request_policy_http_status(failure, APP_ERROR_AUTH_REQUIRED));
-
-    fixture = (fixture_t){
-        .content_type = "application/json",
-        .origin = "http://192.168.4.1",
-        .missing = "X-CSRF-Token",
-    };
-    ops = operations(&fixture);
-    TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
-                         web_request_policy_evaluate(&policy, &ops, &result, &failure));
-    TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_CSRF, failure);
 
     fixture = (fixture_t){
         .content_type = "application/json",

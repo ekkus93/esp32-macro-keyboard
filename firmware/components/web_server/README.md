@@ -5,7 +5,7 @@ JSON responses, and static frontend delivery.
 
 Implemented API routes currently cover status, limits, login, logout, current
 execution polling, and current-execution cancellation. Mutating routes require a
-valid session, CSRF token, accepted `Host`, and accepted `Origin`.
+valid session cookie (SPEC 16.2).
 
 Static paths are normalized, traversal and backslash paths are rejected, files are
 streamed in bounded chunks, and pre-generated gzip variants are supported. Static

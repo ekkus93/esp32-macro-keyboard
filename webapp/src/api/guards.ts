@@ -124,19 +124,16 @@ export function isSetupState(value: unknown): value is SetupState {
 export function isSessionStatus(value: unknown): value is SessionStatus {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ["authenticated", "csrfToken"]) &&
-    value.authenticated === true &&
-    typeof value.csrfToken === "string" &&
-    value.csrfToken.length > 0
+    hasExactKeys(value, ["authenticated"]) &&
+    value.authenticated === true
   );
 }
 
 export function isLoginResponse(value: unknown): value is LoginResponse {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ["csrfToken"]) &&
-    typeof value.csrfToken === "string" &&
-    value.csrfToken.length > 0
+    hasExactKeys(value, ["authenticated"]) &&
+    value.authenticated === true
   );
 }
 

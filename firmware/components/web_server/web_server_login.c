@@ -115,8 +115,7 @@ esp_err_t login_handler(httpd_req_t *request) {
     }
     char response[LOGIN_RESPONSE_BYTES];
     const int response_length =
-        snprintf(response, sizeof(response), "{\"ok\":true,\"data\":{\"csrfToken\":\"%s\"}}",
-                 session.csrf_token);
+        snprintf(response, sizeof(response), "{\"ok\":true,\"data\":{\"authenticated\":true}}");
     if (response_length < 0 || (size_t)response_length >= sizeof(response)) {
         const app_error_code_t logout_result = auth_session_logout(session.session_token);
         return send_error(request, "500 Internal Server Error",

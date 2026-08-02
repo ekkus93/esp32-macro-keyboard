@@ -39,15 +39,10 @@ export class ApiError extends Error {
   }
 }
 
-let csrfToken: string | null = null;
 const unauthorizedListeners = new Set<() => void>();
 const defaultTimeoutMs = 10_000;
 const maximumTimeoutMs = 60_000;
 const maximumRawJsonBytes = 512 * 1024;
-
-export function setCsrfToken(token: string | null): void {
-  csrfToken = token;
-}
 
 export function subscribeUnauthorized(listener: () => void): () => void {
   unauthorizedListeners.add(listener);
@@ -159,7 +154,6 @@ function handleUnauthorized(
   if (response.status !== 401) {
     return;
   }
-  setCsrfToken(null);
   if (options.notifyOnUnauthorized !== false) {
     notifyUnauthorized();
   }
@@ -200,8 +194,6 @@ function declaredContentLength(response: Response): number | null {
   return parsed;
 }
 
-const mutationMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-
 export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
@@ -222,9 +214,6 @@ export async function apiRequest<T>(
   headers.set("Accept", "application/json");
   if (init.body !== undefined && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
-  }
-  if (csrfToken !== null && mutationMethods.has(method)) {
-    headers.set("X-CSRF-Token", csrfToken);
   }
 
   try {

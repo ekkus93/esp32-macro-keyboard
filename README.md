@@ -34,16 +34,17 @@ what that one device-executed result covers.
 ## Known product limitation: unauthenticated serial console
 
 Every build currently includes an interactive command console on UART0
-(`wifi-connect`, `wifi-status`). It accepts commands with **no session, CSRF
-token, or physical-button confirmation** — possession of the board and access
+(`wifi-connect`, `wifi-status`). It accepts commands with **no session or
+physical-button confirmation** — possession of the board and access
 to its UART port is the authorization.
 
 This is deliberate. Reaching that port means holding the hardware, which
 already allows reflashing the device outright, so authenticating it would add
 friction without adding protection. The network surface is held to the
 opposite standard: every Wi-Fi-reachable route requires a valid session, and
-mutations additionally require a matching CSRF token and accepted
-`Host`/`Origin`, with rate-limited authentication. See
+authentication is rate-limited. The session cookie is `HttpOnly` and
+`SameSite=Strict`, which is what stops another site driving the device through
+a browser (SPEC §16.2). See
 [`docs/SPEC.md`](docs/SPEC.md) §16.5.
 
 Before any release to third parties this console must be excluded from the

@@ -39,7 +39,7 @@ wifi_ap_status_t wifi_ap_get_status(void);
  * owner's explicit request to support serial-console-driven Wi-Fi
  * debugging (see firmware/components/serial_console). Deliberately not
  * part of the reviewed production security model: this is a debug/dev
- * command surface, not gated by session/CSRF/physical confirmation the way
+ * command surface, not gated by session or physical confirmation the way
  * the HTTP API is.
  *
  * Runs alongside the existing AP (switches to WIFI_MODE_APSTA), so the

@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, vi } from "vitest";
-import { setCsrfToken } from "../src/api/client";
 import {
   assertNoPendingFetchPlans,
   installFakeFetch,
@@ -27,7 +26,6 @@ beforeEach(() => {
   resetFakeLocation();
   resetFakeFetch();
   installFakeFetch();
-  setCsrfToken(null);
   consoleErrors = [];
   unhandledRejections = [];
   vi.spyOn(console, "error").mockImplementation((...arguments_: unknown[]) => {

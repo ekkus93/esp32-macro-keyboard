@@ -1,6 +1,6 @@
 # Authentication Feature
 
-The login form is connected to `/api/v1/auth/login`, stores the returned CSRF token
+The login form is connected to `/api/v1/auth/login`, relies on the session cookie
 in application memory, and displays structured API failures.
 
 First-run provisioning is currently a refusal/status screen because persistent

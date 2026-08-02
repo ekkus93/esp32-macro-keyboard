@@ -7,7 +7,6 @@
 #include "test_assert.h"
 #include "web_content.h"
 #include "web_cookie.h"
-#include "web_origin.h"
 #include "web_static_path.h"
 
 #define TOKEN "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"

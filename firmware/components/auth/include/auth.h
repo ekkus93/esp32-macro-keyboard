@@ -23,7 +23,6 @@ typedef struct {
 
 typedef struct {
     char session_token[AUTH_TOKEN_HEX_BYTES];
-    char csrf_token[AUTH_TOKEN_HEX_BYTES];
     uint64_t expires_at_us;
 } auth_session_view_t;
 
@@ -34,10 +33,7 @@ app_error_code_t auth_password_create(const char *password, size_t password_leng
 app_error_code_t auth_password_verify(const char *password, size_t password_length,
                                       const auth_password_record_t *record, bool *out_matches);
 app_error_code_t auth_session_create(auth_session_view_t *out_session);
-app_error_code_t auth_session_validate(const char *session_token, const char *csrf_token);
-app_error_code_t auth_session_validate_read_only(const char *session_token);
-app_error_code_t auth_session_get_csrf_token(const char *session_token, char *out_csrf_token,
-                                             size_t output_size);
+app_error_code_t auth_session_validate(const char *session_token);
 app_error_code_t auth_session_logout(const char *session_token);
 app_error_code_t auth_login_attempt_allowed(uint32_t *out_retry_after_seconds);
 app_error_code_t auth_login_record_failure(void);

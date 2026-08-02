@@ -13,7 +13,6 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "provisioning.h"
-#include "web_origin.h"
 #include "web_server.h"
 #include "web_setup_core.h"
 #include "web_setup_json.h"
@@ -160,14 +159,6 @@ static bool get_header(httpd_req_t *request, const char *name, char *output, siz
            httpd_req_get_hdr_value_str(request, name, output, output_size) == ESP_OK;
 }
 
-static bool setup_origin_allowed(httpd_req_t *request) {
-    char host[HTTP_HEADER_MAX_BYTES];
-    char origin[HTTP_HEADER_MAX_BYTES];
-    return get_header(request, "Host", host, sizeof(host)) &&
-           get_header(request, "Origin", origin, sizeof(origin)) &&
-           web_origin_matches_host(origin, host);
-}
-
 static bool setup_json_content_type(httpd_req_t *request) {
     char content_type[SETUP_CONTENT_TYPE_BYTES];
     if (!get_header(request, "Content-Type", content_type, sizeof(content_type))) {
@@ -229,10 +220,6 @@ esp_err_t setup_credentials_handler(httpd_req_t *request) {
         return send_error(request, "503 Service Unavailable", APP_ERROR_CONFLICT,
                           "setup service unavailable");
     }
-    if (!setup_origin_allowed(request)) {
-        return send_error(request, "401 Unauthorized", APP_ERROR_AUTH_REQUIRED,
-                          "invalid setup origin");
-    }
     if (!setup_json_content_type(request)) {
         return send_error(request, "415 Unsupported Media Type", APP_ERROR_INVALID_ARGUMENT,
                           "content type must be application/json");
@@ -274,10 +261,6 @@ esp_err_t setup_complete_handler(httpd_req_t *request) {
         return send_error(request, "503 Service Unavailable", APP_ERROR_CONFLICT,
                           "setup service unavailable");
     }
-    if (!setup_origin_allowed(request)) {
-        return send_error(request, "401 Unauthorized", APP_ERROR_AUTH_REQUIRED,
-                          "invalid setup origin");
-    }
     const web_setup_state_t state = web_setup_core_get_state(&server_setup_core);
     if (!state.completed) {
         return send_error(request, "409 Conflict", APP_ERROR_CONFLICT,
@@ -290,10 +273,6 @@ esp_err_t setup_restart_handler(httpd_req_t *request) {
     if (!server_setup_core.initialized) {
         return send_error(request, "503 Service Unavailable", APP_ERROR_CONFLICT,
                           "setup service unavailable");
-    }
-    if (!setup_origin_allowed(request)) {
-        return send_error(request, "401 Unauthorized", APP_ERROR_AUTH_REQUIRED,
-                          "invalid setup origin");
     }
     const app_error_code_t result = web_setup_core_restart(&server_setup_core);
     if (result != APP_ERROR_NONE) {

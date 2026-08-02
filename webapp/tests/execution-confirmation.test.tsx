@@ -1,6 +1,5 @@
 import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
-import { setCsrfToken } from "../src/api/client";
 import { ConfirmExecutionPage } from "../src/features/execution/ConfirmExecutionPage";
 import type { ExecutionConfirmationTarget } from "../src/routing";
 import type {
@@ -116,7 +115,6 @@ describe("execution confirmation", () => {
   // SPEC 24.5 item: send preview
 
   test("rechecks state, waits for device confirmation, and submits", async () => {
-    setCsrfToken("csrf-token");
     const onAccepted = vi.fn<AcceptedHandler>();
     planConfirmationLoad();
     const view = await renderConfirmation({ onAccepted });
@@ -146,9 +144,6 @@ describe("execution confirmation", () => {
     const submitCallIndex = getFetchCalls().length - 1;
     expect(getFetchCalls()[submitCallIndex]?.url).toBe("/api/v1/executions");
     expect(getFetchCalls()[submitCallIndex]?.method).toBe("POST");
-    expect(getFetchCalls()[submitCallIndex]?.headers.get("X-CSRF-Token")).toBe(
-      "csrf-token",
-    );
     expect(requestBody(submitCallIndex)).toEqual({
       setId: macroSet.id,
       macroId,
@@ -186,7 +181,6 @@ describe("execution confirmation", () => {
   });
 
   test("does not submit when the macro changes during preflight", async () => {
-    setCsrfToken("csrf-token");
     planConfirmationLoad();
     const view = await renderConfirmation();
 

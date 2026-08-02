@@ -123,14 +123,11 @@ static app_error_code_t parse_password_change(const web_api_call_t *call,
 }
 
 static app_error_code_t handle_session(const web_api_call_t *call, web_api_response_t *response) {
-    char csrf_token[AUTH_TOKEN_HEX_BYTES] = {0};
-    app_error_code_t result =
-        auth_session_get_csrf_token(call->session_token, csrf_token, sizeof(csrf_token));
+    /* Reaching this handler at all means the session cookie validated, which is
+     * now the entire answer: there is no second token to hand back (SPEC 16.2). */
+    (void)call;
     char *json = NULL;
-    if (result == APP_ERROR_NONE) {
-        result = web_api_handler_session_json(csrf_token, &json);
-    }
-    secure_zero(csrf_token, sizeof(csrf_token));
+    app_error_code_t result = web_api_handler_session_json(&json);
     if (result == APP_ERROR_NONE) {
         result = web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, json);
     } else {

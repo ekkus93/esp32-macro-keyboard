@@ -5,7 +5,6 @@ This component currently implements:
 - PBKDF2-HMAC-SHA-256 password records with random salts
 - bounded login throttling
 - RAM-only expiring sessions
-- random CSRF tokens
 - constant-time token comparison
 - explicit error propagation
 

@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import {
-  ApiError,
-  setCsrfToken,
-  subscribeUnauthorized,
-} from "../../api/client";
+import { ApiError, subscribeUnauthorized } from "../../api/client";
 import { errorText } from "../../api/errors";
 import {
   getDeviceStatus,
@@ -90,7 +86,6 @@ export function SessionBoundary({
   useEffect(
     () =>
       subscribeUnauthorized(() => {
-        setCsrfToken(null);
         setState({ kind: "login" });
       }),
     [],

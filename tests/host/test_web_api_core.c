@@ -100,8 +100,6 @@ static void test_route_policy(void) {
     TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE));
     TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_EXECUTION_CANCEL, WEB_API_METHOD_POST));
     TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_SETTINGS));
-    TEST_CHECK(web_api_route_requires_csrf(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
-    TEST_CHECK(!web_api_route_requires_csrf(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_FACTORY_RESET));
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SET_IMPORT));
     TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SET_IMPORT_NEW));

@@ -119,7 +119,7 @@ export function planAuthenticatedBootstrap(
   });
   planJsonResponse({
     ok: true,
-    data: { authenticated: true, csrfToken: "csrf-restored" },
+    data: { authenticated: true },
   });
   planJsonResponse({
     ok: true,
@@ -140,7 +140,7 @@ export function planAuthenticatedBootstrap(
 export function planPostLoginBootstrap(): void {
   planJsonResponse({
     ok: true,
-    data: { csrfToken: "csrf-123" },
+    data: { authenticated: true },
   });
   planJsonResponse({ ok: true, data: deviceStatus });
   planJsonResponse({ ok: true, data: settings });

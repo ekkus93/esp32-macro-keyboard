@@ -108,17 +108,8 @@ app_error_code_t auth_session_create(auth_session_view_t *out_session) {
     return auth_core_session_create(&auth_core, out_session);
 }
 
-app_error_code_t auth_session_validate(const char *session_token, const char *csrf_token) {
-    return auth_core_session_validate(&auth_core, session_token, csrf_token);
-}
-
-app_error_code_t auth_session_validate_read_only(const char *session_token) {
-    return auth_core_session_validate_read_only(&auth_core, session_token);
-}
-
-app_error_code_t auth_session_get_csrf_token(const char *session_token, char *out_csrf_token,
-                                             size_t output_size) {
-    return auth_core_session_get_csrf_token(&auth_core, session_token, out_csrf_token, output_size);
+app_error_code_t auth_session_validate(const char *session_token) {
+    return auth_core_session_validate(&auth_core, session_token);
 }
 
 app_error_code_t auth_session_logout(const char *session_token) {

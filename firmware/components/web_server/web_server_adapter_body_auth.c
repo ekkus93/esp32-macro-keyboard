@@ -5,7 +5,6 @@
 #include "app_error.h"
 #include "auth.h"
 #include "web_cookie.h"
-#include "web_origin.h"
 
 app_error_code_t web_adapter_read_bounded_body(size_t content_length, char *buffer,
                                                size_t buffer_size, size_t maximum_length,
@@ -51,15 +50,8 @@ app_error_code_t web_adapter_authorize_mutation(web_adapter_get_header_fn get_he
         token_size < AUTH_TOKEN_HEX_BYTES) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    char host[256U];
-    char origin[256U];
     char cookie[256U];
-    char csrf[AUTH_TOKEN_HEX_BYTES];
-    if (get_header(context, "Host", host, sizeof(host)) != APP_ERROR_NONE ||
-        get_header(context, "Origin", origin, sizeof(origin)) != APP_ERROR_NONE ||
-        !web_origin_matches_host(origin, host) ||
-        get_header(context, "Cookie", cookie, sizeof(cookie)) != APP_ERROR_NONE ||
-        get_header(context, "X-CSRF-Token", csrf, sizeof(csrf)) != APP_ERROR_NONE) {
+    if (get_header(context, "Cookie", cookie, sizeof(cookie)) != APP_ERROR_NONE) {
         return APP_ERROR_AUTH_REQUIRED;
     }
     const app_error_code_t cookie_result =
@@ -68,7 +60,7 @@ app_error_code_t web_adapter_authorize_mutation(web_adapter_get_header_fn get_he
         out_session_token[0] = '\0';
         return cookie_result;
     }
-    const app_error_code_t validation = validate(context, out_session_token, csrf);
+    const app_error_code_t validation = validate(context, out_session_token);
     if (validation != APP_ERROR_NONE) {
         out_session_token[0] = '\0';
     }

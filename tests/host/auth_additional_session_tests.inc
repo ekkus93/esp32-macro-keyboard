@@ -15,20 +15,15 @@ static void test_session_token_formats_and_failures(void)
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, auth_core_session_create(&core, NULL));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_session_create(&core, &session));
 
+    /* The session token is the whole credential now, so a single altered
+       character has to be the difference between a session and no session. */
     char wrong_session[AUTH_TOKEN_HEX_BYTES];
-    char wrong_csrf[AUTH_TOKEN_HEX_BYTES];
     memcpy(wrong_session, session.session_token, sizeof(wrong_session));
-    memcpy(wrong_csrf, session.csrf_token, sizeof(wrong_csrf));
     mutate_token(wrong_session, wrong_session[0] == '0' ? '1' : '0');
-    mutate_token(wrong_csrf, wrong_csrf[0] == '0' ? '1' : '0');
     TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
-                         auth_core_session_validate(&core,
-                                                    wrong_session,
-                                                    session.csrf_token));
-    TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
-                         auth_core_session_validate(&core,
-                                                    session.session_token,
-                                                    wrong_csrf));
+                         auth_core_session_validate(&core, wrong_session));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         auth_core_session_validate(&core, session.session_token));
 
     char long_token[AUTH_TOKEN_HEX_BYTES + 1U];
     memset(long_token, 'a', sizeof(long_token) - 1U);
@@ -40,13 +35,13 @@ static void test_session_token_formats_and_failures(void)
     memcpy(non_hex, session.session_token, sizeof(non_hex));
     non_hex[0] = 'g';
     TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
-                         auth_core_session_validate(&core, "short", session.csrf_token));
+                         auth_core_session_validate(&core, "short"));
     TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
-                         auth_core_session_validate(&core, long_token, session.csrf_token));
+                         auth_core_session_validate(&core, long_token));
     TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
-                         auth_core_session_validate(&core, uppercase, session.csrf_token));
+                         auth_core_session_validate(&core, uppercase));
     TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
-                         auth_core_session_validate(&core, non_hex, session.csrf_token));
+                         auth_core_session_validate(&core, non_hex));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          auth_core_session_logout(&core, "short"));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
@@ -76,9 +71,7 @@ static void test_session_token_formats_and_failures(void)
     fake.now_us += 1000000U;
     fake_call_log_fail_on(&fake.calls, "unlock", 1U);
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL,
-                         auth_core_session_validate(&core,
-                                                    session.session_token,
-                                                    session.csrf_token));
+                         auth_core_session_validate(&core, session.session_token));
     TEST_CHECK_EQ_U64(expiry_before_unlock, core.sessions[0].view.expires_at_us);
     fake.calls.failure_name = NULL;
     fake.calls.failure_occurrence = 0U;

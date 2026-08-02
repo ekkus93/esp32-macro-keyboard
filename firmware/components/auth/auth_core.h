@@ -30,11 +30,7 @@ app_error_code_t auth_core_password_verify(auth_core_t *core, const char *passwo
                                            size_t password_length,
                                            const auth_password_record_t *record, bool *out_matches);
 app_error_code_t auth_core_session_create(auth_core_t *core, auth_session_view_t *out_session);
-app_error_code_t auth_core_session_validate(auth_core_t *core, const char *session_token,
-                                            const char *csrf_token);
-app_error_code_t auth_core_session_validate_read_only(auth_core_t *core, const char *session_token);
-app_error_code_t auth_core_session_get_csrf_token(auth_core_t *core, const char *session_token,
-                                                  char *out_csrf_token, size_t output_size);
+app_error_code_t auth_core_session_validate(auth_core_t *core, const char *session_token);
 app_error_code_t auth_core_session_logout(auth_core_t *core, const char *session_token);
 app_error_code_t auth_core_login_attempt_allowed(auth_core_t *core,
                                                  uint32_t *out_retry_after_seconds);

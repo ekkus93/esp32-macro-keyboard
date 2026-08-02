@@ -32,11 +32,10 @@ export interface SetupState {
 
 export interface SessionStatus {
   authenticated: true;
-  csrfToken: string;
 }
 
 export interface LoginResponse {
-  csrfToken: string;
+  authenticated: true;
 }
 
 export interface Settings {

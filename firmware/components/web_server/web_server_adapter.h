@@ -17,8 +17,7 @@ typedef int (*web_adapter_receive_fn)(void *context, char *buffer, size_t capaci
 typedef app_error_code_t (*web_adapter_get_header_fn)(void *context, const char *name, char *buffer,
                                                       size_t buffer_size);
 typedef app_error_code_t (*web_adapter_validate_session_fn)(void *context,
-                                                            const char *session_token,
-                                                            const char *csrf_token);
+                                                            const char *session_token);
 
 typedef void *(*web_adapter_open_fn)(void *context, const char *path);
 typedef int (*web_adapter_read_fn)(void *context, void *handle, uint8_t *buffer, size_t capacity,

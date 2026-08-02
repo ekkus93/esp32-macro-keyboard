@@ -96,25 +96,16 @@ static bool token_exists(const auth_core_t *core, const char *token) {
 app_error_code_t auth_core_generate_session_tokens(auth_core_t *core, auth_session_view_t *view) {
     for (size_t attempt = 0U; attempt < AUTH_CORE_TOKEN_GENERATION_ATTEMPTS; ++attempt) {
         memset(view->session_token, 0, sizeof(view->session_token));
-        memset(view->csrf_token, 0, sizeof(view->csrf_token));
-        app_error_code_t result = random_hex(core, view->session_token, sizeof(view->session_token),
-                                             APP_SESSION_TOKEN_BYTES);
-        if (result == APP_ERROR_NONE) {
-            result =
-                random_hex(core, view->csrf_token, sizeof(view->csrf_token), APP_CSRF_TOKEN_BYTES);
-        }
+        const app_error_code_t result = random_hex(
+            core, view->session_token, sizeof(view->session_token), APP_SESSION_TOKEN_BYTES);
         if (result != APP_ERROR_NONE) {
             return result;
         }
-        if (!auth_core_constant_time_equal((const uint8_t *)view->session_token,
-                                           (const uint8_t *)view->csrf_token,
-                                           AUTH_TOKEN_HEX_BYTES - 1U) &&
-            !token_exists(core, view->session_token)) {
+        if (!token_exists(core, view->session_token)) {
             return APP_ERROR_NONE;
         }
     }
     memset(view->session_token, 0, sizeof(view->session_token));
-    memset(view->csrf_token, 0, sizeof(view->csrf_token));
     return APP_ERROR_INTERNAL;
 }
 

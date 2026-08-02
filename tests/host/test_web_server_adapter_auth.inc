@@ -47,14 +47,11 @@ static app_error_code_t get_authorization_header(void *context,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t validate_authorization(void *context,
-                                                const char *session_token,
-                                                const char *csrf_token)
+static app_error_code_t validate_authorization(void *context, const char *session_token)
 {
     authorization_fake_t *fake = context;
     TEST_CHECK(fake != NULL);
     TEST_CHECK_EQ_STRING(TOKEN, session_token);
-    TEST_CHECK_EQ_STRING(TOKEN, csrf_token);
     ++fake->validation_calls;
     return fake->validation_result;
 }
@@ -70,20 +67,8 @@ static void test_mutation_authorization(void)
                                                         session_token,
                                                         sizeof(session_token)));
     TEST_CHECK_EQ_STRING(TOKEN, session_token);
-    TEST_CHECK_EQ_STRING("Host,Origin,Cookie,X-CSRF-Token", fake.call_order);
+    TEST_CHECK_EQ_STRING("Cookie", fake.call_order);
     TEST_CHECK_EQ_U64(1U, fake.validation_calls);
-
-    fake = (authorization_fake_t){.invalid_origin = true};
-    memcpy(session_token, "dirty", sizeof("dirty"));
-    TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
-                         web_adapter_authorize_mutation(get_authorization_header,
-                                                        validate_authorization,
-                                                        &fake,
-                                                        session_token,
-                                                        sizeof(session_token)));
-    TEST_CHECK_EQ_STRING("", session_token);
-    TEST_CHECK_EQ_STRING("Host,Origin", fake.call_order);
-    TEST_CHECK_EQ_U64(0U, fake.validation_calls);
 
     fake = (authorization_fake_t){.missing_header = "Cookie"};
     TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,

@@ -83,9 +83,6 @@ describe("application authentication", () => {
       { method: "POST", body: "{}" },
       isEmptyRecord,
     );
-    expect(getFetchCalls().at(-1)?.headers.get("X-CSRF-Token")).toBe(
-      "csrf-123",
-    );
     await view.unmount();
   });
 
@@ -133,7 +130,6 @@ describe("application authentication", () => {
     const logoutCall = getFetchCalls().at(-1);
     expect(logoutCall?.url).toBe("/api/v1/auth/logout");
     expect(logoutCall?.method).toBe("POST");
-    expect(logoutCall?.headers.get("X-CSRF-Token")).toBe("csrf-restored");
     expect(document.body.textContent).toContain("Administrator password");
     await view.unmount();
   });

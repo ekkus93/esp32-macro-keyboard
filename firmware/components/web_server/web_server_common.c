@@ -136,10 +136,9 @@ static app_error_code_t get_header_adapter(void *context, const char *name, char
     return web_server_get_header(context, name, buffer, buffer_size);
 }
 
-static app_error_code_t validate_session_adapter(void *context, const char *session_token,
-                                                 const char *csrf_token) {
+static app_error_code_t validate_session_adapter(void *context, const char *session_token) {
     (void)context;
-    return auth_session_validate(session_token, csrf_token);
+    return auth_session_validate(session_token);
 }
 
 app_error_code_t authorize_mutation(httpd_req_t *request, char *out_session_token) {

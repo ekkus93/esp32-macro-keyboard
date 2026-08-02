@@ -72,51 +72,26 @@ static void test_sessions(void) {
     auth_session_view_t session;
     TEST_CHECK(auth_core_session_create(&core, &session) == APP_ERROR_NONE);
     TEST_CHECK(strlen(session.session_token) == AUTH_TOKEN_HEX_BYTES - 1U);
-    TEST_CHECK(strlen(session.csrf_token) == AUTH_TOKEN_HEX_BYTES - 1U);
-    TEST_CHECK(strcmp(session.session_token, session.csrf_token) != 0);
     const uint64_t original_expiry = session.expires_at_us;
-    TEST_CHECK(auth_core_session_validate(&core, session.session_token, session.csrf_token) ==
-               APP_ERROR_NONE);
-    TEST_CHECK(auth_core_session_validate_read_only(&core, session.session_token) ==
-               APP_ERROR_NONE);
-    char restored_csrf[AUTH_TOKEN_HEX_BYTES] = {0};
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE, auth_core_session_get_csrf_token(&core, session.session_token,
-                                                         restored_csrf,
-                                                         sizeof(restored_csrf)));
-    TEST_CHECK_EQ_STRING(session.csrf_token, restored_csrf);
+    TEST_CHECK(auth_core_session_validate(&core, session.session_token) == APP_ERROR_NONE);
 
+    /* A validated request extends the idle window; a rejected one must not, or
+       an attacker guessing tokens would keep a session alive indefinitely. */
     fake.now_us += 1000000U;
-    TEST_CHECK(auth_core_session_validate(&core, session.session_token, session.csrf_token) ==
-               APP_ERROR_NONE);
+    TEST_CHECK(auth_core_session_validate(&core, session.session_token) == APP_ERROR_NONE);
     TEST_CHECK(core.sessions[0].view.expires_at_us > original_expiry);
 
     char wrong[AUTH_TOKEN_HEX_BYTES];
-    memcpy(wrong, session.csrf_token, sizeof(wrong));
+    memcpy(wrong, session.session_token, sizeof(wrong));
     wrong[0] = wrong[0] == '0' ? '1' : '0';
     const uint64_t expiry_before_failure = core.sessions[0].view.expires_at_us;
-    TEST_CHECK(auth_core_session_validate(&core, session.session_token, wrong) ==
-               APP_ERROR_AUTH_REQUIRED);
+    TEST_CHECK(auth_core_session_validate(&core, wrong) == APP_ERROR_AUTH_REQUIRED);
     TEST_CHECK_EQ_U64(expiry_before_failure, core.sessions[0].view.expires_at_us);
-    TEST_CHECK(auth_core_session_validate(&core, "short", wrong) == APP_ERROR_AUTH_REQUIRED);
-    TEST_CHECK(auth_core_session_validate_read_only(&core, wrong) == APP_ERROR_AUTH_REQUIRED);
-    memset(restored_csrf, 'x', sizeof(restored_csrf));
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_AUTH_REQUIRED,
-        auth_core_session_get_csrf_token(&core, wrong, restored_csrf, sizeof(restored_csrf)));
-    TEST_CHECK_EQ_U64(0U, restored_csrf[0]);
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         auth_core_session_get_csrf_token(
-                             &core, session.session_token, restored_csrf, 1U));
-    TEST_CHECK_EQ_U64(0U, restored_csrf[0]);
-    TEST_CHECK(auth_core_session_validate_read_only(NULL, session.session_token) ==
-               APP_ERROR_AUTH_REQUIRED);
+    TEST_CHECK(auth_core_session_validate(&core, "short") == APP_ERROR_AUTH_REQUIRED);
+    TEST_CHECK(auth_core_session_validate(NULL, session.session_token) == APP_ERROR_AUTH_REQUIRED);
 
     TEST_CHECK(auth_core_session_logout(&core, session.session_token) == APP_ERROR_NONE);
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_AUTH_REQUIRED,
-        auth_core_session_get_csrf_token(&core, session.session_token, restored_csrf,
-                                         sizeof(restored_csrf)));
+    TEST_CHECK(auth_core_session_validate(&core, session.session_token) == APP_ERROR_AUTH_REQUIRED);
     TEST_CHECK(auth_core_session_logout(&core, session.session_token) == APP_ERROR_NOT_FOUND);
 }
 
@@ -134,8 +109,8 @@ static void test_session_expiry_and_capacity(void) {
     TEST_CHECK(auth_core_session_create(&core, &extra) == APP_ERROR_CONFLICT);
 
     fake.now_us = sessions[0].expires_at_us;
-    TEST_CHECK(auth_core_session_validate(&core, sessions[0].session_token,
-                                          sessions[0].csrf_token) == APP_ERROR_AUTH_REQUIRED);
+    TEST_CHECK(auth_core_session_validate(&core, sessions[0].session_token) ==
+               APP_ERROR_AUTH_REQUIRED);
     TEST_CHECK(auth_core_session_create(&core, &extra) == APP_ERROR_NONE);
 }
 

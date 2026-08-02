@@ -1,6 +1,5 @@
 import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
-import { setCsrfToken } from "../src/api/client";
 import { SetManagementPage } from "../src/features/sets/SetManagementPage";
 import type { MacroSet } from "../src/types/models";
 import { macroSet, setId, settings } from "./appFixtures";
@@ -38,7 +37,6 @@ function jsonBody(index: number): unknown {
 describe("set management", () => {
   // SPEC 24.5 item: including that a reorder round-trips through the API
   test("offers keyboard reorder alternatives and commits exact order", async () => {
-    setCsrfToken("csrf-reorder");
     const onSetsChanged = vi.fn<(sets: MacroSet[]) => void>();
     planJsonResponse(success([secondSet, macroSet]));
     const view = await render(
@@ -119,7 +117,6 @@ describe("set management", () => {
   // SPEC 24.5 item: live validation
 
   test("creates a set only after UTF-8 validation succeeds", async () => {
-    setCsrfToken("csrf-create");
     const onSetsChanged = vi.fn<(sets: MacroSet[]) => void>();
     const view = await render(
       <SetManagementPage
@@ -158,7 +155,6 @@ describe("set management", () => {
   // SPEC 24.5 item: import/export/delete confirmations
 
   test("prevents active-set deletion and requires exact name for another set", async () => {
-    setCsrfToken("csrf-delete");
     const onSetsChanged = vi.fn<(sets: MacroSet[]) => void>();
     const view = await render(
       <SetManagementPage

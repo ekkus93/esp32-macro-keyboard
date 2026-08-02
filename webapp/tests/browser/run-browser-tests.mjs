@@ -137,7 +137,7 @@ async function startApplicationServer() {
         if (method === "GET" && url.pathname === "/api/v1/auth/session") {
           sendJson(response, 200, {
             ok: true,
-            data: { authenticated: true, csrfToken: "browser-csrf" },
+            data: { authenticated: true },
           });
           return;
         }

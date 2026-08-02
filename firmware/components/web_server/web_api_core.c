@@ -328,11 +328,6 @@ bool web_api_route_requires_session(web_api_route_t route) {
     return route != WEB_API_ROUTE_UNKNOWN;
 }
 
-bool web_api_route_requires_csrf(web_api_route_t route, web_api_method_t method) {
-    (void)route;
-    return method != WEB_API_METHOD_GET;
-}
-
 /* Every confirmation-gated route honours the requirePhysicalConfirmation
  * setting. These six used to demand a button press unconditionally, ignoring
  * the setting entirely, which made the device unusable without a physical

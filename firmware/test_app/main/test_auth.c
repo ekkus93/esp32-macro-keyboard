@@ -47,11 +47,9 @@ TEST_CASE("authentication adapters create and validate secrets", "[device][auth]
 
     auth_session_view_t session = {0};
     TEST_ASSERT_EQUAL(APP_ERROR_NONE, auth_session_create(&session));
-    TEST_ASSERT_EQUAL(APP_ERROR_NONE,
-                      auth_session_validate(session.session_token, session.csrf_token));
+    TEST_ASSERT_EQUAL(APP_ERROR_NONE, auth_session_validate(session.session_token));
     TEST_ASSERT_EQUAL(APP_ERROR_NONE, auth_session_logout(session.session_token));
-    TEST_ASSERT_EQUAL(APP_ERROR_AUTH_REQUIRED,
-                      auth_session_validate(session.session_token, session.csrf_token));
+    TEST_ASSERT_EQUAL(APP_ERROR_AUTH_REQUIRED, auth_session_validate(session.session_token));
 
     memset(&record, 0, sizeof(record));
     memset(&vector, 0, sizeof(vector));

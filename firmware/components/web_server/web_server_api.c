@@ -41,11 +41,9 @@ static app_error_code_t policy_get_header(void *context, const char *name, char 
                : web_server_get_header(request_context->request, name, output, output_size);
 }
 
-static app_error_code_t policy_validate_session(void *context, const char *session_token,
-                                                const char *csrf_token) {
+static app_error_code_t policy_validate_session(void *context, const char *session_token) {
     (void)context;
-    return csrf_token == NULL ? auth_session_validate_read_only(session_token)
-                              : auth_session_validate(session_token, csrf_token);
+    return auth_session_validate(session_token);
 }
 
 static app_error_code_t policy_generate_request_id(void *context, char *output,
@@ -160,15 +158,9 @@ static const char *policy_failure_message(web_request_policy_failure_t failure) 
         return "application/json content type required";
     case WEB_REQUEST_POLICY_FAILURE_BODY_LIMIT:
         return "request body exceeds route limit";
-    case WEB_REQUEST_POLICY_FAILURE_HOST:
-        return "host validation failed";
-    case WEB_REQUEST_POLICY_FAILURE_ORIGIN:
-        return "origin validation failed";
     case WEB_REQUEST_POLICY_FAILURE_COOKIE:
     case WEB_REQUEST_POLICY_FAILURE_SESSION:
         return "authentication required";
-    case WEB_REQUEST_POLICY_FAILURE_CSRF:
-        return "CSRF validation failed";
     case WEB_REQUEST_POLICY_FAILURE_REQUEST_ID:
         return "invalid request ID";
     case WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION:

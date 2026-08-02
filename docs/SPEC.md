@@ -310,8 +310,8 @@ Kconfig option that is disabled in release builds.
 4. Failed authentication is rate-limited.
 5. Successful authentication creates an in-memory session and an `HttpOnly`,
    `SameSite=Strict`, `Path=/` cookie.
-6. Mutating requests require a per-session CSRF token and a valid same-origin
-   request.
+6. Every subsequent request carries that cookie, which is the whole credential
+   (§16.2).
 
 ### 8.3 Select macro set
 
@@ -1000,11 +1000,29 @@ attempt failed — the network may simply be down.
 - The session table is bounded.
 - Session-table exhaustion returns an explicit error.
 
-### 16.2 CSRF and origin checks
+### 16.2 Session credential
 
-Every mutating request MUST provide a valid CSRF token tied to the session.
-Requests with unexpected `Origin` or `Host` values are rejected. CORS is disabled
-except for explicitly documented development builds.
+**Amended 2026-08-02.** The session cookie is the entire credential. It is
+issued on successful login, and it MUST be `HttpOnly` and `SameSite=Strict`.
+
+This revision removed a CSRF token and a `Host`/`Origin` check that sat on top
+of it. The token was redundant: `SameSite=Strict` means a browser will not
+attach the cookie to a request initiated from another site at all, which is the
+attack a CSRF token exists to stop. Carrying both was one mechanism doing
+another's job, at the cost of a token to mint, store, return, and attach to
+every mutation.
+
+The `Host`/`Origin` check went with it, and that one was a real trade rather
+than a redundancy: it defended against DNS rebinding, where a page on the
+public internet points its own hostname at the device's address. Authenticated
+routes are still safe, because that page cannot obtain the session cookie --
+the cookie belongs to the device's origin, not the attacker's. Unauthenticated
+routes (`/api/v1/setup-state`, the login route itself, static assets) become
+reachable that way. This was accepted deliberately for a device whose only
+network is an isolated access point on a bench. A product shipped to third
+parties should reinstate it.
+
+CORS remains disabled.
 
 ### 16.3 Login throttling
 
@@ -1033,15 +1051,14 @@ to different standards.
 
 **The network surface is untrusted.** Anything arriving over Wi-Fi - whether
 the device's own SoftAP or, in development builds, a joined network - MUST
-carry a valid RAM-only session, and every mutation MUST additionally carry a
-matching CSRF token and accepted `Host` and `Origin` headers. Authentication
-failures MUST be rate-limited. No network-reachable route may mutate device
+carry a valid RAM-only session cookie (§16.2). Authentication failures MUST be
+rate-limited. No network-reachable route may mutate device
 state, read settings, or start an execution without satisfying all of these.
 This is the boundary that protects the user from anyone else on the network.
 
 **The physical serial surface is trusted.** Commands issued on the UART0
-console (`firmware/components/serial_console`) require no session, no CSRF
-token, and no physical confirmation: possession of the board and
+console (`firmware/components/serial_console`) require no session and no
+physical confirmation: possession of the board and
 access to its UART port *is* the authorization. This is a deliberate scope
 decision, not an oversight. Reaching that port means holding the hardware,
 at which point the device is already fully controllable - it can be
@@ -1181,7 +1198,7 @@ Important status codes:
 202 Accepted              execution accepted
 400 Bad Request           malformed request
 401 Unauthorized          login required or invalid
-403 Forbidden             CSRF, origin, or policy failure
+403 Forbidden             policy failure
 404 Not Found             resource absent
 409 Conflict              busy, stale revision, or duplicate conflict
 413 Content Too Large     body or package over limit
@@ -1436,7 +1453,7 @@ returning nonzero; it MUST never mask failures.
 2. No unauthenticated macro execution.
 3. No macro execution from a GET request.
 3a. No network-reachable route mutates state, reads settings, or starts an
-    execution without a valid session, a matching CSRF token, and accepted
+    execution without a valid session cookie, and accepted
     `Host` and `Origin` headers. (The physical UART console is outside this
     invariant by design; see §16.5.)
 4. No automatic execution triggered by connection or boot.
@@ -1551,7 +1568,7 @@ Tests MUST cover:
 - authentication and logout;
 - rate limiting;
 - session expiry;
-- CSRF;
+- session cookie required on every route;
 - host/origin validation;
 - body and upload limits;
 - invalid content type;

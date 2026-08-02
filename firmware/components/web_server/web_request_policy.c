@@ -5,11 +5,9 @@
 #include <string.h>
 
 #include "app_error.h"
-#include "auth.h"
 #include "web_api_core.h"
 #include "web_cookie.h"
 #include "web_http_status.h"
-#include "web_origin.h"
 
 #define WEB_POLICY_HEADER_BYTES 256U
 
@@ -82,30 +80,6 @@ static app_error_code_t enforce_body_content_type(const web_request_policy_input
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t enforce_host_and_origin(const web_request_policy_input_t *input,
-                                                const web_request_policy_ops_t *operations,
-                                                web_request_policy_result_t *out_result,
-                                                web_request_policy_failure_t *out_failure) {
-    char host[WEB_POLICY_HEADER_BYTES] = {0};
-    if (read_required_header(operations, "Host", host, sizeof(host)) != APP_ERROR_NONE) {
-        return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_HOST,
-                    APP_ERROR_AUTH_REQUIRED);
-    }
-    char origin[WEB_POLICY_HEADER_BYTES] = {0};
-    const app_error_code_t origin_result =
-        operations->get_header(operations->context, "Origin", origin, sizeof(origin));
-    if (web_api_route_requires_csrf(input->route, input->method)) {
-        if (origin_result != APP_ERROR_NONE || !web_origin_matches_host(origin, host)) {
-            return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_ORIGIN,
-                        APP_ERROR_AUTH_REQUIRED);
-        }
-    } else if (origin_result == APP_ERROR_NONE && !web_origin_matches_host(origin, host)) {
-        return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_ORIGIN,
-                    APP_ERROR_AUTH_REQUIRED);
-    }
-    return APP_ERROR_NONE;
-}
-
 static app_error_code_t enforce_session(const web_request_policy_input_t *input,
                                         const web_request_policy_ops_t *operations,
                                         web_request_policy_result_t *out_result,
@@ -120,18 +94,12 @@ static app_error_code_t enforce_session(const web_request_policy_input_t *input,
         return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_COOKIE,
                     APP_ERROR_AUTH_REQUIRED);
     }
-    char csrf[AUTH_TOKEN_HEX_BYTES] = {0};
-    const char *csrf_token = NULL;
-    if (web_api_route_requires_csrf(input->route, input->method)) {
-        if (read_required_header(operations, "X-CSRF-Token", csrf, sizeof(csrf)) !=
-            APP_ERROR_NONE) {
-            return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_CSRF,
-                        APP_ERROR_AUTH_REQUIRED);
-        }
-        csrf_token = csrf;
-    }
+    /* The session cookie is HttpOnly and SameSite=Strict, so a cross-site page
+     * cannot cause it to be sent at all -- which is the attack a CSRF token
+     * defends against. Carrying both was one mechanism doing another's job
+     * (SPEC 16.2). */
     const app_error_code_t validation =
-        operations->validate_session(operations->context, out_result->session_token, csrf_token);
+        operations->validate_session(operations->context, out_result->session_token);
     if (validation != APP_ERROR_NONE) {
         return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_SESSION, validation);
     }
@@ -174,7 +142,6 @@ app_error_code_t web_request_policy_evaluate(const web_request_policy_input_t *i
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    result = enforce_host_and_origin(input, operations, out_result, out_failure);
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -196,9 +163,6 @@ unsigned int web_request_policy_http_status(web_request_policy_failure_t failure
         return WEB_HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE;
     case WEB_REQUEST_POLICY_FAILURE_BODY_LIMIT:
         return WEB_HTTP_STATUS_PAYLOAD_TOO_LARGE;
-    case WEB_REQUEST_POLICY_FAILURE_HOST:
-    case WEB_REQUEST_POLICY_FAILURE_ORIGIN:
-    case WEB_REQUEST_POLICY_FAILURE_CSRF:
     case WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION:
         return WEB_HTTP_STATUS_FORBIDDEN;
     case WEB_REQUEST_POLICY_FAILURE_COOKIE:

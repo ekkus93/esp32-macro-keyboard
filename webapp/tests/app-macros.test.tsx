@@ -1,6 +1,5 @@
 import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
-import { setCsrfToken } from "../src/api/client";
 import { MacroEditorPage } from "../src/features/macros/MacroEditorPage";
 import { MacroLibraryPage } from "../src/features/macros/MacroLibraryPage";
 import { macro, macroId, macroSet } from "./appFixtures";
@@ -60,7 +59,6 @@ describe("server-backed macros", () => {
 
   test("loads, validates, and updates an existing macro", async () => {
     vi.useFakeTimers();
-    setCsrfToken("csrf-token");
     planJsonResponse({ ok: true, data: macro });
     planJsonResponse({ ok: true, data: validResult });
     const view = await render(
@@ -152,7 +150,6 @@ describe("server-backed macros", () => {
 
   test("inserts directives, validates, and creates a macro", async () => {
     vi.useFakeTimers();
-    setCsrfToken("csrf-token");
     const view = await render(
       <MacroEditorPage
         activeSet={macroSet}
@@ -199,7 +196,6 @@ describe("server-backed macros", () => {
 
   test("surfaces stale-revision conflicts without overwriting the draft", async () => {
     vi.useFakeTimers();
-    setCsrfToken("csrf-token");
     planJsonResponse({ ok: true, data: macro });
     planJsonResponse({ ok: true, data: validResult });
     const view = await render(

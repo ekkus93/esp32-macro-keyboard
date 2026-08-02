@@ -497,8 +497,8 @@ export function PackageOperationsPage({
               {backingUp ? "Creating backup…" : "Create full backup"}
             </button>
             <p className="field-help">
-              The backup excludes credentials, sessions, CSRF material,
-              provisioning secrets, and encryption keys.
+              The backup excludes credentials, sessions, provisioning secrets,
+              and encryption keys.
             </p>
           </article>
         </div>

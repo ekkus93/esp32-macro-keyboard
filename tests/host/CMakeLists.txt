@@ -138,9 +138,7 @@ set_tests_properties(auth PROPERTIES LABELS "auth")
 
 add_executable(
     web_security_tests
-    test_web_security.c
-    ../../firmware/components/web_server/web_cookie.c
-    ../../firmware/components/web_server/web_origin.c
+    test_web_security.c ../../firmware/components/web_server/web_cookie.c
     ../../firmware/components/web_server/web_static_path.c
     ../../firmware/components/web_server/web_content.c
 )
@@ -165,7 +163,6 @@ add_executable(
     ../../firmware/components/web_server/web_server_adapter_static_stream.c
     ../../firmware/components/web_server/web_server_adapter_lifecycle.c
     ../../firmware/components/web_server/web_cookie.c
-    ../../firmware/components/web_server/web_origin.c
     ../../firmware/components/web_server/web_static_path.c
     ../../firmware/components/web_server/web_content.c
 )
@@ -644,7 +641,6 @@ add_executable(
     ../../firmware/components/web_server/web_api_core.c
     ../../firmware/components/web_server/web_request_policy.c
     ../../firmware/components/web_server/web_cookie.c
-    ../../firmware/components/web_server/web_origin.c
 )
 target_include_directories(
     web_request_policy_tests

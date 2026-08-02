@@ -30,7 +30,6 @@ idf_component_register(
     "web_execution_submit.c"
     "web_execution_route_policy.c"
     "web_cookie.c"
-    "web_origin.c"
     "web_static_path.c"
     "web_content.c"
     "web_setup_core.c"

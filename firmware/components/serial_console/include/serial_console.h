@@ -8,7 +8,7 @@
  * debug/development feature added at the repository owner's explicit
  * request: it is deliberately outside SPEC.md's reviewed production
  * security model. Unlike the HTTP API, commands issued here require no
- * session, CSRF token, or physical confirmation - physical/USB access to
+ * session or physical confirmation - physical/USB access to
  * this port is implicitly trusted. Registers every serial-console command
  * and starts the REPL task; returns once the REPL task is running. */
 app_error_code_t serial_console_start(void);

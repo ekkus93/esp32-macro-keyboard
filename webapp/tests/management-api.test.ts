@@ -1,5 +1,4 @@
 import { describe, expect, test } from "vitest";
-import { setCsrfToken } from "../src/api/client";
 import {
   createSet,
   deleteSet,
@@ -41,7 +40,6 @@ function bodyAt(index: number): unknown {
 
 describe("management API contracts", () => {
   test("serializes create, update, duplicate, reorder, and delete exactly", async () => {
-    setCsrfToken("csrf-management");
     planJsonResponse(success(macroSet), 201);
     planJsonResponse(success({ ...macroSet, revision: 3 }));
     planJsonResponse(success(secondSet), 201);
@@ -77,13 +75,9 @@ describe("management API contracts", () => {
     });
     expect(bodyAt(3)).toEqual({ ids: [secondSetId, setId] });
     expect(bodyAt(4)).toEqual({ expectedRevision: secondSet.revision });
-    for (const call of getFetchCalls()) {
-      expect(call.headers.get("X-CSRF-Token")).toBe("csrf-management");
-    }
   });
 
   test("uses bounded administration requests and strict acknowledgements", async () => {
-    setCsrfToken("csrf-admin");
     planJsonResponse(success({ restartScheduled: true }), 202);
     planJsonResponse(success({ ...settings, revision: settings.revision + 1 }));
     planJsonResponse(

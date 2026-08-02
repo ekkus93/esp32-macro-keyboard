@@ -1,4 +1,4 @@
-import { apiRequest, setCsrfToken } from "./client";
+import { apiRequest } from "./client";
 import { isExecutionAccepted } from "./executionGuards";
 import {
   isCancelAccepted,
@@ -106,7 +106,6 @@ export async function getSession(): Promise<SessionStatus> {
     {},
     isSessionStatus,
   );
-  setCsrfToken(response.csrfToken);
   return response;
 }
 
@@ -120,13 +119,11 @@ export async function login(password: string): Promise<LoginResponse> {
     isLoginResponse,
     { notifyOnUnauthorized: false },
   );
-  setCsrfToken(response.csrfToken);
   return response;
 }
 
 export async function logout(): Promise<void> {
   await apiRequest("/api/v1/auth/logout", { method: "POST" }, isEmptyRecord);
-  setCsrfToken(null);
 }
 
 export async function getSettings(): Promise<Settings> {

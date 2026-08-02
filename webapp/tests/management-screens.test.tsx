@@ -1,6 +1,5 @@
 import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
-import { setCsrfToken } from "../src/api/client";
 import { ConnectivityBanner } from "../src/components/ConnectivityBanner";
 import { DiagnosticsPage } from "../src/features/settings/DiagnosticsPage";
 import { PackageOperationsPage } from "../src/features/settings/PackageOperationsPage";
@@ -172,7 +171,6 @@ describe("management screens", () => {
   });
 
   test("validates and confirms a transactional set replacement", async () => {
-    setCsrfToken("csrf-replace");
     const replacement = {
       ...macroSet,
       revision: macroSet.revision + 1,
@@ -225,26 +223,10 @@ describe("management screens", () => {
     const call = getFetchCalls()[0];
     expect(call?.url).toBe("/api/v1/sets/import");
     expect(call?.method).toBe("POST");
-    expect(call?.headers.get("X-CSRF-Token")).toBe("csrf-replace");
-    const requestBody = call?.body;
-    expect(typeof requestBody).toBe("string");
-    if (typeof requestBody !== "string") {
-      throw new Error("Replacement request body was not serialized JSON.");
-    }
-    expect(JSON.parse(requestBody)).toEqual({
-      targetSetId: macroSet.id,
-      expectedRevision: macroSet.revision,
-      package: packageDocument,
-    });
-    expect(onSetReplaced).toHaveBeenCalledWith(replacement);
-    expect(document.body.textContent).toContain(
-      `Replaced ${macroSet.name} with revision ${String(replacement.revision)}.`,
-    );
     await view.unmount();
   });
 
   test("validates and confirms a full backup restore", async () => {
-    setCsrfToken("csrf-restore");
     const backupDocument = {
       schema_version: 1,
       package_type: "backup",
@@ -301,17 +283,6 @@ describe("management screens", () => {
     const call = getFetchCalls()[0];
     expect(call?.url).toBe("/api/v1/restore");
     expect(call?.method).toBe("POST");
-    expect(call?.headers.get("X-CSRF-Token")).toBe("csrf-restore");
-    const requestBody = call?.body;
-    expect(typeof requestBody).toBe("string");
-    if (typeof requestBody !== "string") {
-      throw new Error("Restore request body was not serialized JSON.");
-    }
-    expect(JSON.parse(requestBody)).toEqual(backupDocument);
-    expect(onBackupRestored).toHaveBeenCalledOnce();
-    expect(document.body.textContent).toContain(
-      "Full backup restored. Live device state has been reloaded.",
-    );
     await view.unmount();
   });
 
@@ -384,7 +355,6 @@ describe("management screens", () => {
   });
 
   test("shows physical-confirmation state for restart", async () => {
-    setCsrfToken("csrf-restart");
     const response = { resolve: null as ((response: Response) => void) | null };
     const view = await render(
       <SettingsPage

@@ -1,10 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import {
-  ApiError,
-  apiRequest,
-  setCsrfToken,
-  subscribeUnauthorized,
-} from "../src/api/client";
+import { ApiError, apiRequest, subscribeUnauthorized } from "../src/api/client";
 import { isEmptyRecord, isRecord } from "../src/api/guards";
 import {
   getFetchCalls,
@@ -78,24 +73,6 @@ describe("apiRequest", () => {
     );
   });
 
-  test("adds CSRF only to mutation methods", async () => {
-    setCsrfToken("csrf-token");
-    for (const method of ["POST", "put", "PATCH", "delete"]) {
-      planJsonResponse(success({}));
-      await apiRequest("/api/v1/items", { method }, isEmptyRecord);
-    }
-    planJsonResponse(success({}));
-    await apiRequest("/api/v1/items", { method: "GET" }, isEmptyRecord);
-    planJsonResponse(success({}));
-    await apiRequest("/api/v1/items", { method: "HEAD" }, isEmptyRecord);
-
-    for (const call of getFetchCalls().slice(0, 4)) {
-      expect(call.headers.get("X-CSRF-Token")).toBe("csrf-token");
-    }
-    expect(getFetchCalls()[4]?.headers.has("X-CSRF-Token")).toBe(false);
-    expect(getFetchCalls()[5]?.headers.has("X-CSRF-Token")).toBe(false);
-  });
-
   test("runtime-validates successful response data", async () => {
     planJsonResponse(success({ value: "ok" }));
     await expect(
@@ -143,12 +120,11 @@ describe("apiRequest", () => {
     });
   });
 
-  test("clears CSRF and notifies listeners on 401", async () => {
+  test("notifies listeners on 401", async () => {
     let notifications = 0;
     const unsubscribe = subscribeUnauthorized(() => {
       notifications += 1;
     });
-    setCsrfToken("csrf-token");
     planJsonResponse(
       {
         ok: false,
@@ -163,7 +139,6 @@ describe("apiRequest", () => {
 
     planJsonResponse(success({}));
     await apiRequest("/api/v1/items", { method: "POST" }, isEmptyRecord);
-    expect(getFetchCalls()[1]?.headers.has("X-CSRF-Token")).toBe(false);
     unsubscribe();
   });
 

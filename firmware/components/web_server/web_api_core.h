@@ -65,7 +65,6 @@ app_error_code_t web_api_parse_path(const char *uri, web_api_path_t *out_path);
 bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method);
 bool web_api_route_requires_body(web_api_route_t route, web_api_method_t method);
 bool web_api_route_requires_session(web_api_route_t route);
-bool web_api_route_requires_csrf(web_api_route_t route, web_api_method_t method);
 bool web_api_route_requires_physical_confirmation(web_api_route_t route);
 bool web_api_physical_confirmation_required(web_api_route_t route,
                                             bool execution_confirmation_enabled);

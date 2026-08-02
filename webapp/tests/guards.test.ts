@@ -11,9 +11,7 @@ import { executionStatus, macro, macroSet, settings } from "./appFixtures";
 
 describe("API response guards", () => {
   test("accepts exact server resource shapes", () => {
-    expect(
-      isSessionStatus({ authenticated: true, csrfToken: "csrf-token" }),
-    ).toBe(true);
+    expect(isSessionStatus({ authenticated: true })).toBe(true);
     expect(isMacroSet(macroSet)).toBe(true);
     expect(isMacro(macro)).toBe(true);
     expect(
@@ -38,11 +36,10 @@ describe("API response guards", () => {
         estimatedDurationMs: 69,
       }),
     ).toBe(false);
-    expect(isSessionStatus({ authenticated: true })).toBe(false);
+    expect(isSessionStatus({ authenticated: false })).toBe(false);
     expect(
       isSessionStatus({
         authenticated: true,
-        csrfToken: "csrf-token",
         sessionToken: "must not pass",
       }),
     ).toBe(false);
