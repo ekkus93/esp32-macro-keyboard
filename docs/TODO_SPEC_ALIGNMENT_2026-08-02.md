@@ -532,66 +532,77 @@ tens of KiB rather than 98,304, and `check-all.sh` exits 0.
 
 ---
 
-## Phase 5 — Fix restore
+## Phase 5 — Fix restore — **Done (5.1–5.3), commit `89479b5`**
 
-**Depends on:** Phase 4. Do not attempt earlier.
-
-`POST /api/v1/restore` has never worked. The stack overflow is fixed; it now
-trips the task watchdog because it performs the whole tree rewrite
-synchronously on the HTTP server task, starving the idle task for over five
-seconds.
-
-- [ ] **5.1 Restore writes each set file atomically** and is explicitly not
-  atomic across sets. SPEC §13.5.
-- [ ] **5.2 Restore runs on the worker task** (`web_server_async.c`), not the
-  httpd task. SPEC §13.5.
-- [ ] **5.3 The response reports per-set outcomes.** A partial restore
-  enumerates which sets were written and which were not, and MUST NOT return
-  `200` for a run that failed to write some of them. SPEC §17.
-- [ ] **5.4 Prove it on hardware.** `tests/hardware/test_backup_restore.py`
-  against a real device, with the transcript recorded. Host tests and CI builds
-  do not count.
-
----
-
-## Phase 6 — Enforce the storage budget
-
-Today the limits table permits 50 sets × 100 macros × 4096 bytes = 20 MB on a
-512 KiB partition. Nothing measures actual bytes.
-
-- [ ] **6.1 Measure before committing a write** and reject an over-budget write
-  with `507`, rather than filling the filesystem. SPEC §10.7, §17.
-- [ ] **6.2 Publish remaining space** through `/api/v1/limits` or
-  `/api/v1/diagnostics/storage` so the web app can gate the user before the
-  request is made.
-- [ ] **6.3 Add the nominal limits** (32 KiB per set file, 480 KiB total) to the
-  centralized limits header, not as scattered literals. SPEC §10.7.
+- [x] **5.1 Restore writes each set file atomically** and is explicitly not
+  atomic across sets. It no longer stops at the first set it cannot write:
+  aborting threw away every set after a failure for no reason, when each file is
+  independently atomic. Only the sets actually written go into the index, so the
+  index never names a set whose file is missing.
+- [x] **5.2 Restore runs on the worker task.** **The watchdog bug was still
+  live, and not where this item implied.** Restore *did* move to the worker —
+  but only when physical confirmation was enabled, and confirmation is **off by
+  default**. In the default configuration the whole write loop still ran on the
+  httpd task. The offload predicate now has two independent reasons: a
+  confirmation wait, or work long enough to trip the watchdog on its own
+  (`web_api_route_requires_worker`: restore, import, import-new).
+  `web_api_request_requires_confirmation` was renamed to
+  `..._requires_worker`, because it had stopped being about confirmation.
+- [x] **5.3 The response reports per-set outcomes.** A complete restore returns
+  200 with `setsRestored`/`setsFailed` and the per-set list. A partial restore is
+  **not** a 200 and goes out through the error envelope with the same per-set
+  detail attached. The status comes from the *first* per-set failure, so storage
+  exhaustion still reads as 507 instead of being flattened to 500.
+- [ ] **5.4 Prove it on hardware.** **NOT DONE and not claimed.** Needs
+  `tests/hardware/test_backup_restore.py` against a real device with the
+  transcript recorded. Host tests and CI builds do not count. This is the only
+  open item in the entire plan.
 
 ---
 
-## Phase 7 — Close the remaining spec gaps
+## Phase 6 — Enforce the storage budget — **Done, commit `dc62e68`**
 
-Small items that SPEC requires and the code does not yet do. Each is
-independent; none blocks anything else.
+- [x] **6.1 Measure before committing a write.** `storage_repository_measure_user_data`
+  walks the sets directory and sums the files actually there, rather than
+  trusting the per-object limits — which alone permit 50 × 100 × 4096 = 20 MB on
+  a 512 KiB partition. The set being rewritten is excluded, because its old bytes
+  are being replaced rather than added to. Over-budget is `APP_ERROR_STORAGE_FULL`
+  (507), not `APP_ERROR_MACRO_LIMIT` (422): it is a capacity refusal, and 422
+  would tell the user their object was malformed when it was not.
+- [x] **6.2 Publish remaining space.** `GET /api/v1/diagnostics/storage` carries
+  `usedBytes`, `totalBytes`, `remainingBytes`, `setFileMaxBytes`.
+  `remainingBytes` is clamped at zero rather than underflowing.
+- [x] **6.3 Add the nominal limits** — `APP_SET_FILE_MAX_BYTES` (32 KiB) and
+  `APP_USER_DATA_MAX_BYTES` (480 KiB) in `macro_limits.h`.
+  `STORAGE_SET_FILE_MAX_BYTES` now points at the nominal limit instead of the
+  512 KiB package bound it had been borrowing.
 
-- [ ] **7.1 Report *why* a file was discarded.** SPEC §13.6 requires the object
-  **and its error** to be surfaced. Today the path is reported and the reason is
-  not: `discard_progress`/`discard_procedure` took a `reason` string that was
-  already being discarded, and the dead parameter was removed in `a6ec5a3`
-  rather than left to imply it was used. These files compile for host tests too,
-  so `ESP_LOG` is not available in them — this needs a decision about where the
-  reason goes (returned error detail, a bounded in-RAM record, or a diagnostics
-  field).
-- [ ] **7.2 Add the diagnostics fields SPEC §20.3 now names:** stray temporary
-  files removed at boot, and objects deleted as corrupt since boot with their
-  paths and errors. Neither exists.
-- [ ] **7.3 Reconcile `docs/TODO.md`.** It is 1,481 lines planning the
-  pre-2026-08-02 product — procedures, buttons, the directory tree. Either
-  retire it in favour of this document or rewrite it. Leaving two contradictory
-  plans in `docs/` is how this project got here.
-- [ ] **7.4 Audit the FIX1 documents** (`*_FIX1_*.md`, ~5 files) for tasks that
-  reference removed subsystems, and mark them struck rather than leaving them to
-  read as open work.
+---
+
+## Phase 7 — Close the remaining spec gaps — **Done, commit `fe27378`**
+
+- [x] **7.1 Report *why* a file was discarded.** New `storage_incidents.{c,h}`:
+  a bounded in-RAM table of path + error. The decision the item asked for:
+  **recorded, not logged and not persisted.** These files compile for host tests
+  where `ESP_LOG` does not exist, and a log line is not reachable through the API
+  anyway; persisting it would rebuild the quarantine mechanism this replaced,
+  competing with the user's own data on a 512 KiB partition (SPEC §13.6).
+  `storage_repository_discard_corrupt_file` regained the `reason` parameter that
+  `a6ec5a3` removed — live this time, and recorded *before* the unlink so the
+  incident survives even if the unlink fails.
+- [x] **7.2 Add the SPEC §20.3 diagnostics fields** — `temporariesRemovedAtBoot`,
+  `discardedObjectCount`, and `discardedObjects[]` with path and error.
+- [x] **7.3 Reconcile `docs/TODO.md`.** Retired. Its 1,481 lines planned
+  procedures, steps, checkpoints, progress, global macros, quarantine,
+  transactions, and the per-set directory tree; building from it would
+  reintroduce everything these seven phases removed. Replaced with a pointer to
+  `SPEC.md` and this document; the original stays in git history.
+- [x] **7.4 Audit the FIX1 documents.** Six files, ~5,900 lines, 356 references
+  to removed subsystems. Each carries a header marking anything naming those
+  subsystems as struck and pointing at SPEC §1.1, and naming what still applies:
+  storage durability, the repository lock, auth, the executor, USB HID, Wi-Fi,
+  the web server. Striking 356 individual lines would have been change for its
+  own sake.
 
 ---
 
