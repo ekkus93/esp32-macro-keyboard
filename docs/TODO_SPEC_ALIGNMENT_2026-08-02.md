@@ -444,25 +444,73 @@ Target layout (SPEC §13.3):
     └── <set-id>.json       set name and its ordered macros
 ```
 
-- [ ] **4.1 Write the new repository.** One file per set holding the set's name
-  and its `macros` array inline. Read = parse one file. Write = serialize one
-  file, `.tmp`, `rename()`.
-- [ ] **4.2 Delete per-object paths and order files.** `macro-order.json`,
-  `set.json`, `macros/`, and `storage_repository_order.c` all disappear: array
-  order in the set file **is** the order. SPEC §12.1.
-- [x] **4.3 Delete the tree walkers.** Already done in 2b (`43dab8d`):
-  `storage_repository_tree.c` and `storage_set_tree.c` were deleted rather than
-  rewritten. What Phase 4 still owes is the *other half* of that decision —
-  removing the now-vacuous validator seam those files fed. Four production
-  validators currently return `APP_ERROR_NONE` with a comment explaining why
-  (`storage_transaction.c` is gone, so they live in `storage_package_replace.c`
-  and `storage_package_restore.c`), and the function-pointer plumbing was kept
-  deliberately so this phase removes it on purpose rather than by accident.
-- [ ] **4.4 Rewrite `index.json`** to SPEC §12.3: `schema_version`, `revision`,
-  `active_set_id`, `set_ids`. Firmware MUST NOT reconstruct it from a directory
-  listing — that discards the user's set order, the one thing it holds.
-- [ ] **4.5 Migration: none.** There is no released version and no v0.1.0 tag.
-  A device holding the old layout is reflashed. Do not write migration code.
+### 4a — Flat layout — **Done, commit `317b795`**
+
+30 files, +1,114/−1,575. Storage component 7,155 → 6,696 lines.
+`./scripts/check-all.sh` exits 0; 51/51 host tests pass.
+
+- [x] **4.1 Write the new repository.** `storage_repository_document.c` loads one
+  set file into a `storage_set_document_t` and stores one back; every set and
+  macro operation is written on top of those two functions. Macro create,
+  update, delete, duplicate and reorder are each one write, where the old layout
+  needed an object write plus an order-file write that could disagree with it.
+- [x] **4.2 Delete per-object paths and order files.** `storage_repository_order.c`,
+  `macro-order.json`, `set.json`, and `macros/` are gone. `storage_paths.c` drops
+  from three path helpers to one. `schema.json` went too — the index carries
+  `schema_version`, and a second file recording the same number is a second thing
+  that can disagree.
+- [x] **4.3 Delete the tree walkers.** Done in 2b; the vacuous validator seam
+  they fed went with the transaction layer in Phase 3.
+- [x] **4.4 Rewrite `index.json`** — *partially*. Renamed from `set-index.json`
+  and rewritten to `schema_version` / `revision` / `set_ids`. **`active_set_id`
+  is deliberately still missing — see 4b.**
+- [x] **4.5 Migration: none.** No migration code was written.
+
+**Two consequences worth recording:**
+
+- **Replacement is atomic again.** Phase 3's one weak spot is closed: a set is
+  one file, so `storage_package_replace_set` is a single `storage_atomic_write`
+  and an interruption leaves either the complete old set or the complete new one.
+- **A stored macro carries no `set_id`** (SPEC §12.2) — the file identifies the
+  set, and parsing stamps it on. Packages and API responses still carry it as the
+  envelope field §12.2 permits, so the macro JSON helpers survive and are now
+  used only by the package layer.
+
+**The size estimate was wrong, and here is why.** The phase predicted
+`firmware/components/storage` well under 3,000 lines; it is 6,696. Roughly 2,900
+of what remains is the package format (`storage_package*.c`), which 4a did not
+touch — the estimate implicitly assumed the package layer shrank with the
+repository, and it did not. The repository layer itself is now small.
+
+**⚠ Not verified on hardware.** The "done means" measure below is a device
+reading. By arithmetic the new layout should be ~8 KiB for `/data` + ~8 KiB for
+`/data/sets` + one 4 KiB block per set file ≈ 28 KiB for 3 sets, against 98,304
+before. That is a calculation, not a measurement. The device check is still owed
+and is listed in Phase 5.4's hardware run.
+
+### 4b — Move the active set into the index
+
+**Not started.** The remaining half of 4.4.
+
+`active_set_id` currently lives in the provisioning NVS blob, baked into its
+binary wire format (`WIRE_ACTIVE_SET_OFFSET` in `provisioning_core.c`) and
+surfaced through `/api/v1/settings` as `activeSetId`. SPEC §12.3 puts it in the
+index, and SPEC §14 does not list it among what NVS stores.
+
+It was left out of 4a on purpose: adding the field to the index while NVS still
+owned it would give the device two authorities for which set is active, which is
+worse than one commit with the field missing.
+
+- [ ] Add `active_set_id` to `storage_set_index_t`, to the index JSON, and to
+  its parse/serialize — including the rule that an active set not present in
+  `set_ids` is a corrupt index, not a hint to drop silently.
+- [ ] Add a repository entry point that selects the active set, and make
+  `clear_matching_active_set` clear it in the index rather than through
+  `provisioning_clear_active_set_if_matches`.
+- [ ] Remove `has_active_set` / `active_set_id` from `settings_t` and from the
+  provisioning NVS wire format, and bump/verify that format's own versioning.
+- [ ] Point `/api/v1/settings` and `/api/v1/sets/{id}/select` at the index.
+  The API shape does not change: `activeSetId` stays in the settings response.
 
 **Done means:** a device with 3 sets of 5 macros reports `usedBytes` in the low
 tens of KiB rather than 98,304, and `check-all.sh` exits 0.
