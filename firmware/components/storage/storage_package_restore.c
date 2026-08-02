@@ -560,13 +560,23 @@ static app_error_code_t restore_locked(const package_restore_document_t *documen
         result = written >= 0 && (size_t)written < sizeof(staging) ? APP_ERROR_NONE
                                                                    : APP_ERROR_INVALID_ARGUMENT;
     }
-    storage_transaction_manifest_t manifest = {0};
+    /* storage_transaction_manifest_t is ~20 KB. As a stack local it put this
+     * frame past the 24 KiB httpd task stack once anything ran beneath it -
+     * and everything does: write_manifest descends through littlefs, the flash
+     * driver, and esp_partition_find. Verified on hardware before this change:
+     * POST /api/v1/restore tripped the stack canary on the `http` task every
+     * time ("Stack canary watchpoint triggered (http)"), so restore could never
+     * have completed for any user. One allocation, one free, single exit. */
+    storage_transaction_manifest_t *manifest = calloc(1U, sizeof(*manifest));
+    if (manifest == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
     if (result == APP_ERROR_NONE) {
-        result = initialize_manifest(&transaction_id, staging, &manifest);
+        result = initialize_manifest(&transaction_id, staging, manifest);
     }
     bool manifest_written = false;
     if (result == APP_ERROR_NONE) {
-        result = storage_transaction_write_manifest(&manifest);
+        result = storage_transaction_write_manifest(manifest);
         manifest_written = result == APP_ERROR_NONE;
     }
     if (result == APP_ERROR_NONE) {
@@ -579,17 +589,15 @@ static app_error_code_t restore_locked(const package_restore_document_t *documen
         result = storage_repository_tree_validate(staging);
     }
     if (result == APP_ERROR_NONE) {
-        manifest.phase = STORAGE_TRANSACTION_STAGED;
-        result = storage_transaction_write_manifest(&manifest);
+        manifest->phase = STORAGE_TRANSACTION_STAGED;
+        result = storage_transaction_write_manifest(manifest);
     }
     if (result == APP_ERROR_NONE) {
-        result = recover_restore(&manifest);
-    } else if (manifest_written && manifest.phase == STORAGE_TRANSACTION_PREPARED) {
-        const app_error_code_t rollback = recover_restore(&manifest);
-        if (rollback != APP_ERROR_NONE) {
-            return result;
-        }
+        result = recover_restore(manifest);
+    } else if (manifest_written && manifest->phase == STORAGE_TRANSACTION_PREPARED) {
+        (void)recover_restore(manifest);
     }
+    free(manifest);
     return result;
 }
 

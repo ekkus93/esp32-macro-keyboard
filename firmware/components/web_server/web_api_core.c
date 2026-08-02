@@ -415,12 +415,18 @@ bool web_api_route_requires_csrf(web_api_route_t route, web_api_method_t method)
     return method != WEB_API_METHOD_GET;
 }
 
-bool web_api_physical_confirmation_required(web_api_route_t route,
-                                            bool execution_confirmation_enabled) {
-    if (route == WEB_API_ROUTE_EXECUTIONS) {
-        return execution_confirmation_enabled;
+/* Every confirmation-gated route honours the requirePhysicalConfirmation
+ * setting. These six used to demand a button press unconditionally, ignoring
+ * the setting entirely, which made the device unusable without a physical
+ * button on it - SPEC.md only ever described physical confirmation as a mode
+ * that may be enabled, never as mandatory. With the setting off, nothing on the
+ * device requires a button; with it on, confirmation can be given by the
+ * confirm button or the `confirm` serial-console command. */
+bool web_api_physical_confirmation_required(web_api_route_t route, bool confirmation_enabled) {
+    if (!confirmation_enabled) {
+        return false;
     }
-    return route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD ||
+    return route == WEB_API_ROUTE_EXECUTIONS || route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD ||
            route == WEB_API_ROUTE_DEVICE_RESTART || route == WEB_API_ROUTE_DEVICE_RESET_SETTINGS ||
            route == WEB_API_ROUTE_DEVICE_FACTORY_RESET || route == WEB_API_ROUTE_SET_IMPORT ||
            route == WEB_API_ROUTE_RESTORE;

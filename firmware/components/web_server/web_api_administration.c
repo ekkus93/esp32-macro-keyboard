@@ -242,7 +242,9 @@ static app_error_code_t handle_reset_settings(const web_api_call_t *call,
     const provisioning_settings_t replacement = {
         .schema_version = APP_SCHEMA_VERSION,
         .revision = expected_revision,
-        .require_physical_confirmation = true,
+        /* Reset restores the default, which is off - see
+         * provisioning_core.c default_configuration(). */
+        .require_physical_confirmation = false,
         .always_select_set = true,
         .has_active_set = false,
     };
@@ -253,7 +255,7 @@ static app_error_code_t handle_reset_settings(const web_api_call_t *call,
     if (result != APP_ERROR_NONE) {
         return web_api_handler_error(response, result, "could not reset settings", NULL);
     }
-    server_configuration.require_physical_confirmation = true;
+    server_configuration.require_physical_confirmation = false;
     return send_settings(response, &committed);
 }
 

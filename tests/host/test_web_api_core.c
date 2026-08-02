@@ -94,7 +94,17 @@ static void test_route_policy(void) {
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_EXECUTIONS));
     TEST_CHECK(web_api_physical_confirmation_required(WEB_API_ROUTE_EXECUTIONS, true));
     TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_EXECUTIONS, false));
-    TEST_CHECK(web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_FACTORY_RESET, false));
+    /* Every gated route honours the setting - none may demand a button press
+     * unconditionally, or the device is unusable without hardware on it. */
+    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_FACTORY_RESET, false));
+    TEST_CHECK(web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_FACTORY_RESET, true));
+    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_RESTORE, false));
+    TEST_CHECK(web_api_physical_confirmation_required(WEB_API_ROUTE_RESTORE, true));
+    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_SET_IMPORT, false));
+    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_RESTART, false));
+    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_RESET_SETTINGS, false));
+    TEST_CHECK(
+        !web_api_physical_confirmation_required(WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD, false));
     TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_SET_MACRO, true));
     TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SET_MACRO));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));

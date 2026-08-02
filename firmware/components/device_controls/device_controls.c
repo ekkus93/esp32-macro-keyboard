@@ -410,6 +410,17 @@ app_error_code_t device_controls_wait_for_confirmation(unsigned int timeout_ms) 
                : APP_ERROR_TIMEOUT;
 }
 
+app_error_code_t device_controls_signal_confirmation(void) {
+    if (confirmation_semaphore == NULL) {
+        return APP_ERROR_CONFLICT;
+    }
+    const device_controls_health_t health = device_controls_engine_get_health(&engine);
+    if (!health.task_running || stop_requested()) {
+        return APP_ERROR_CONFLICT;
+    }
+    return xSemaphoreGive(confirmation_semaphore) == pdTRUE ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
+}
+
 device_controls_health_t device_controls_get_health(void) {
     return device_controls_engine_get_health(&engine);
 }

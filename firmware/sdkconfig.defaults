@@ -32,4 +32,38 @@ CONFIG_HTTPD_MAX_URI_LEN=256
 # ending in _xt_context_save. Only reachable once the device is actually
 # provisioned (setup mode skips storage recovery entirely), which is why
 # it went unseen until first real provisioning.
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+# 8192 was itself a fix for a boot loop in this same path. It is still not
+# enough: an interrupted restore leaves a PREPARED transaction manifest, and
+# the boot-time recovery of it descends
+# storage_transaction_recover_restores -> recover_prepared ->
+# validate_repository -> storage_repository_tree_validate -> append_sets ->
+# validate_set_directory_membership, overflowing the 8 KiB stack. Observed on
+# hardware as "Stack canary watchpoint triggered (main)" on every boot after a
+# restore crashed - i.e. a failed restore bricked the device into a boot loop
+# that no amount of power-cycling clears.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
+
+# This board is an ESP32-S3R8: `esptool chip_id` reports
+# "Features: WiFi, BLE, Embedded PSRAM 8MB (AP_3v3)", i.e. 8 MB of embedded
+# OCTAL SPI PSRAM. It was present and unused for the whole project - the chip
+# survey recorded it in docs while the build left CONFIG_SPIRAM unset (the
+# ESP-IDF default), so the device ran on internal SRAM alone with ~208 KB of
+# free heap while 8 MB sat idle.
+#
+# MODE_OCT is not a guess and not interchangeable: setting QUAD on an octal
+# part (or the reverse) leaves the device unable to boot. Re-check with
+# `esptool.py chip_id` before changing boards.
+#
+# What this does and does not fix: it raises the heap ceiling, which is what
+# APP_IMPORT_PACKAGE_MAX_BYTES (512 KiB) needs - read_call_body() calloc()s the
+# whole request body, and 512 KiB never fit in internal RAM. It does NOT help
+# task stacks: FreeRTOS stacks must live in internal SRAM, so stack-overflow
+# defects are unaffected by PSRAM.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_USE_MALLOC=y
+# Allocations below this stay in internal SRAM, so small hot allocations keep
+# internal-RAM latency and only large buffers (like request bodies) go to PSRAM.
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=4096
+CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y

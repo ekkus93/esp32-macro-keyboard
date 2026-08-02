@@ -34,6 +34,13 @@ app_error_code_t device_controls_init(void);
 app_error_code_t device_controls_deinit(void);
 void device_controls_set_indicator(device_indicator_state_t state);
 app_error_code_t device_controls_wait_for_confirmation(unsigned int timeout_ms);
+
+/* Gives the confirmation signal without a button press, so a device with no
+ * confirm button wired to it is still fully usable. Backs the `confirm`
+ * serial-console command; the physical button, when present, does exactly the
+ * same thing. Returns APP_ERROR_CONFLICT when the controls task is not
+ * running. */
+app_error_code_t device_controls_signal_confirmation(void);
 device_controls_health_t device_controls_get_health(void);
 
 /* Derives a stable subsystem_health_state_t for Phase 19 diagnostics (FIX1

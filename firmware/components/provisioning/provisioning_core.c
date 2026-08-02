@@ -125,7 +125,10 @@ static provisioning_config_t default_configuration(void) {
         .revision = 0U,
         .credential_version = 0U,
         .provisioned = false,
-        .require_physical_confirmation = true,
+        /* Off by default: the device must be fully usable with nothing attached
+         * to it but a USB cable. Enabling it requires a confirm button on GPIO0
+         * or the `confirm` serial-console command. */
+        .require_physical_confirmation = false,
         .always_select_set = true,
         .has_active_set = false,
     };

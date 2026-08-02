@@ -3,7 +3,9 @@
 #include <stdio.h>
 
 #include "app_error.h"
+#include "device_controls.h"
 #include "esp_console.h"
+#include "macro_executor.h"
 #include "wifi_ap.h"
 
 #define WIFI_CONNECT_TIMEOUT_MS 15000U
@@ -42,7 +44,56 @@ static int command_wifi_status(int argc, char **argv) {
     return 0;
 }
 
+/* The device deliberately requires no buttons and no added hardware. These two
+ * commands provide, over the UART console, the only two things the physical
+ * confirm and cancel buttons ever did - so a bare board with a USB cable is a
+ * complete product. */
+static int command_confirm(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
+    const app_error_code_t result = device_controls_signal_confirmation();
+    if (result == APP_ERROR_NONE) {
+        printf("confirmation sent\n");
+        return 0;
+    }
+    printf("confirmation failed: %s\n", app_error_code_string(result));
+    return 1;
+}
+
+static int command_cancel(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
+    const app_error_code_t result = macro_executor_cancel();
+    if (result == APP_ERROR_NONE) {
+        printf("cancellation requested\n");
+        return 0;
+    }
+    if (result == APP_ERROR_NOT_FOUND) {
+        printf("nothing is executing\n");
+        return 0;
+    }
+    printf("cancellation failed: %s\n", app_error_code_string(result));
+    return 1;
+}
+
 static void register_commands(void) {
+    const esp_console_cmd_t confirm_command = {
+        .command = "confirm",
+        .help = "Give physical confirmation for a pending request, in place of "
+                "pressing the confirm button.",
+        .hint = NULL,
+        .func = command_confirm,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&confirm_command));
+
+    const esp_console_cmd_t cancel_command = {
+        .command = "cancel",
+        .help = "Cancel the running macro, in place of pressing the cancel button.",
+        .hint = NULL,
+        .func = command_cancel,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cancel_command));
+
     const esp_console_cmd_t wifi_connect_command = {
         .command = "wifi-connect",
         .help = "Join an existing Wi-Fi network in station mode (the device's own "

@@ -107,7 +107,8 @@ static void test_redacted_settings_round_trip_and_clear(void) {
     TEST_CHECK_EQ_U64(APP_SCHEMA_VERSION, settings.schema_version);
     TEST_CHECK_EQ_U64(0U, settings.revision);
     TEST_CHECK(settings.always_select_set);
-    TEST_CHECK(settings.require_physical_confirmation);
+    /* Off by default: the device must be usable with no button on it. */
+    TEST_CHECK(!settings.require_physical_confirmation);
     TEST_CHECK(!settings.has_active_set);
 
     settings.always_select_set = false;

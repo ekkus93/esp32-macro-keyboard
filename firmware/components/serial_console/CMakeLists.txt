@@ -5,6 +5,8 @@ idf_component_register(
     "include"
     REQUIRES
     macro_model
+    device_controls
+    macro_executor
     wifi_ap
     console
 )

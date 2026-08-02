@@ -219,7 +219,8 @@ static void test_init_and_default_load(void) {
     TEST_CHECK_EQ_U64(APP_SCHEMA_VERSION, loaded.schema_version);
     TEST_CHECK_EQ_U64(0U, loaded.revision);
     TEST_CHECK(!loaded.provisioned);
-    TEST_CHECK(loaded.require_physical_confirmation);
+    /* Off by default: the device must be usable with no button on it. */
+    TEST_CHECK(!loaded.require_physical_confirmation);
     TEST_CHECK(loaded.always_select_set);
     TEST_CHECK(!loaded.has_active_set);
     TEST_CHECK(fake.secure_zero_calls > 0U);
