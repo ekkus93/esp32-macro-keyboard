@@ -22,6 +22,14 @@ typedef struct {
     app_uuid_t set_id;
 } storage_macro_location_t;
 
+/* Identifies the single object a bulk read stopped on. List reads abort at the
+ * first unreadable object and otherwise discard which one it was, which left
+ * callers reporting failures they could not attribute to anything. */
+typedef struct {
+    bool has_id;
+    app_uuid_t id;
+} storage_object_ref_t;
+
 typedef struct {
     macro_t *items;
     size_t count;

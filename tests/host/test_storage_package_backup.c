@@ -33,6 +33,9 @@ typedef struct {
     storage_procedure_list_t procedures[2];
     storage_progress_snapshot_t progress[2];
     app_error_code_t local_result[2];
+    /* Which macro the fake reports as the one it stopped on. */
+    app_uuid_t local_failed_id[2];
+    bool local_failed_known[2];
     app_error_code_t unlock_result;
     size_t lock_take_count;
     size_t lock_give_count;
@@ -75,9 +78,13 @@ static app_error_code_t fake_set_list(void *context, storage_set_list_t *out_lis
 }
 
 static app_error_code_t fake_macro_list(void *context, const storage_macro_location_t *location,
-                                        storage_macro_list_t *out_list) {
+                                        storage_macro_list_t *out_list,
+                                        storage_object_ref_t *out_failed) {
     fake_backup_context_t *fake = context;
     memset(out_list, 0, sizeof(*out_list));
+    if (out_failed != NULL) {
+        memset(out_failed, 0, sizeof(*out_failed));
+    }
     if (location->scope == MACRO_SCOPE_GLOBAL) {
         *out_list = fake->globals;
         return APP_ERROR_NONE;
@@ -87,6 +94,10 @@ static app_error_code_t fake_macro_list(void *context, const storage_macro_locat
         return APP_ERROR_NOT_FOUND;
     }
     if (fake->local_result[index] != APP_ERROR_NONE) {
+        if (out_failed != NULL && fake->local_failed_known[index]) {
+            out_failed->has_id = true;
+            out_failed->id = fake->local_failed_id[index];
+        }
         return fake->local_result[index];
     }
     *out_list = fake->local[index];
@@ -100,8 +111,12 @@ static void fake_macro_list_free(void *context, storage_macro_list_t *list) {
 }
 
 static app_error_code_t fake_procedure_list(void *context, const app_uuid_t *set_id,
-                                            storage_procedure_list_t *out_list) {
+                                            storage_procedure_list_t *out_list,
+                                            storage_object_ref_t *out_failed) {
     fake_backup_context_t *fake = context;
+    if (out_failed != NULL) {
+        memset(out_failed, 0, sizeof(*out_failed));
+    }
     const size_t index = set_index(fake, set_id);
     if (index == SIZE_MAX) {
         return APP_ERROR_NOT_FOUND;
@@ -384,12 +399,79 @@ static void test_failure_preserves_primary_error_and_cleans_partial_snapshot(voi
     storage_package_reset_backup_ops_for_test();
 }
 
+/* A backup aborts on the first unreadable object. Reporting only that it failed
+ * gave the user nothing to act on, so the export must say which object stopped
+ * it. */
+static void test_failure_names_the_offending_macro(void) {
+    fake_backup_context_t context = valid_context();
+    const app_uuid_t offender = uuid(LOCAL_B_ID);
+    context.local_result[1] = APP_ERROR_MACRO_SYNTAX;
+    context.local_failed_known[1] = true;
+    context.local_failed_id[1] = offender;
+    const storage_package_backup_ops_t operations = fake_operations(&context);
+    storage_package_set_backup_ops_for_test(&operations);
+    char *data = NULL;
+    size_t length = 0U;
+    storage_package_failure_t failure = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_MACRO_SYNTAX,
+                         storage_package_export_backup_detail(true, &data, &length, &failure));
+    TEST_CHECK(data == NULL);
+    TEST_CHECK(failure.kind == STORAGE_PACKAGE_OBJECT_MACRO);
+    TEST_CHECK(!failure.global_scope);
+    TEST_CHECK(failure.has_object_id);
+    TEST_CHECK(app_uuid_equal(&failure.object_id, &offender));
+    TEST_CHECK(failure.has_set_id);
+    TEST_CHECK(app_uuid_equal(&failure.set_id, &context.sets.items[1].id));
+    storage_package_reset_backup_ops_for_test();
+}
+
+/* When the reader cannot say which object failed, the set is still reported;
+ * the caller must never be handed a half-populated identity it might print. */
+static void test_failure_without_object_id_still_names_the_set(void) {
+    fake_backup_context_t context = valid_context();
+    context.local_result[1] = APP_ERROR_IO;
+    context.local_failed_known[1] = false;
+    const storage_package_backup_ops_t operations = fake_operations(&context);
+    storage_package_set_backup_ops_for_test(&operations);
+    char *data = NULL;
+    size_t length = 0U;
+    storage_package_failure_t failure = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO,
+                         storage_package_export_backup_detail(true, &data, &length, &failure));
+    TEST_CHECK(failure.kind == STORAGE_PACKAGE_OBJECT_MACRO);
+    TEST_CHECK(!failure.has_object_id);
+    TEST_CHECK(failure.has_set_id);
+    TEST_CHECK(app_uuid_equal(&failure.set_id, &context.sets.items[1].id));
+    storage_package_reset_backup_ops_for_test();
+}
+
+/* A successful export must not leave stale identity behind. */
+static void test_success_reports_no_failure(void) {
+    fake_backup_context_t context = valid_context();
+    const storage_package_backup_ops_t operations = fake_operations(&context);
+    storage_package_set_backup_ops_for_test(&operations);
+    char *data = NULL;
+    size_t length = 0U;
+    storage_package_failure_t failure = {.kind = STORAGE_PACKAGE_OBJECT_MACRO,
+                                         .has_object_id = true};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_package_export_backup_detail(true, &data, &length, &failure));
+    TEST_CHECK(failure.kind == STORAGE_PACKAGE_OBJECT_NONE);
+    TEST_CHECK(!failure.has_object_id);
+    TEST_CHECK(!failure.has_set_id);
+    storage_package_free(data);
+    storage_package_reset_backup_ops_for_test();
+}
+
 int main(void) {
     test_backup_contains_complete_repository_deterministically();
     test_backup_output_passes_secret_sentinel_scanner();
     test_progress_is_optional();
     test_cross_set_reference_fails_closed();
     test_failure_preserves_primary_error_and_cleans_partial_snapshot();
+    test_failure_names_the_offending_macro();
+    test_failure_without_object_id_still_names_the_set();
+    test_success_reports_no_failure();
     puts("storage package backup tests passed");
     return 0;
 }

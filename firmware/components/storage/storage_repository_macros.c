@@ -141,8 +141,12 @@ static app_error_code_t write_macro_order(const storage_macro_location_t *locati
                : result;
 }
 
-app_error_code_t storage_macro_list_locked(const storage_macro_location_t *location,
-                                           storage_macro_list_t *out_list) {
+app_error_code_t storage_macro_list_detail_locked(const storage_macro_location_t *location,
+                                                  storage_macro_list_t *out_list,
+                                                  storage_object_ref_t *out_failed) {
+    if (out_failed != NULL) {
+        memset(out_failed, 0, sizeof(*out_failed));
+    }
     if (!location_valid(location) || out_list == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -160,6 +164,12 @@ app_error_code_t storage_macro_list_locked(const storage_macro_location_t *locat
     for (; loaded < order.count; ++loaded) {
         result = storage_macro_read_locked(location, &order.ids[loaded], &items[loaded]);
         if (result != APP_ERROR_NONE) {
+            /* Captured before unwinding: this is the only point that knows
+             * which macro failed, and the caller needs it to name the object. */
+            if (out_failed != NULL) {
+                out_failed->has_id = true;
+                out_failed->id = order.ids[loaded];
+            }
             break;
         }
     }
@@ -173,6 +183,11 @@ app_error_code_t storage_macro_list_locked(const storage_macro_location_t *locat
     out_list->items = items;
     out_list->count = order.count;
     return APP_ERROR_NONE;
+}
+
+app_error_code_t storage_macro_list_locked(const storage_macro_location_t *location,
+                                           storage_macro_list_t *out_list) {
+    return storage_macro_list_detail_locked(location, out_list, NULL);
 }
 
 static app_error_code_t write_macro_object(const storage_macro_location_t *location,

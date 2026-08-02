@@ -84,9 +84,10 @@ static app_error_code_t production_set_list(void *context, storage_set_list_t *o
 
 static app_error_code_t production_macro_list(void *context,
                                               const storage_macro_location_t *location,
-                                              storage_macro_list_t *out_list) {
+                                              storage_macro_list_t *out_list,
+                                              storage_object_ref_t *out_failed) {
     (void)context;
-    return storage_macro_list_locked(location, out_list);
+    return storage_macro_list_detail_locked(location, out_list, out_failed);
 }
 
 static void production_macro_list_free(void *context, storage_macro_list_t *list) {
@@ -95,9 +96,10 @@ static void production_macro_list_free(void *context, storage_macro_list_t *list
 }
 
 static app_error_code_t production_procedure_list(void *context, const app_uuid_t *set_id,
-                                                  storage_procedure_list_t *out_list) {
+                                                  storage_procedure_list_t *out_list,
+                                                  storage_object_ref_t *out_failed) {
     (void)context;
-    return storage_procedure_list_locked(set_id, out_list);
+    return storage_procedure_list_detail_locked(set_id, out_list, out_failed);
 }
 
 static void production_procedure_list_free(void *context, storage_procedure_list_t *list) {
@@ -249,7 +251,26 @@ static void backup_snapshot_free(backup_snapshot_t *snapshot) {
     memset(snapshot, 0, sizeof(*snapshot));
 }
 
-static app_error_code_t load_set_progress(backup_set_snapshot_t *snapshot) {
+static void record_failure(storage_package_failure_t *out_failure,
+                           storage_package_object_kind_t kind, bool global_scope,
+                           const app_uuid_t *set_id, const storage_object_ref_t *object) {
+    if (out_failure == NULL || out_failure->kind != STORAGE_PACKAGE_OBJECT_NONE) {
+        return; /* keep the first failure: it is the one that stopped the export */
+    }
+    out_failure->kind = kind;
+    out_failure->global_scope = global_scope;
+    if (set_id != NULL) {
+        out_failure->has_set_id = true;
+        out_failure->set_id = *set_id;
+    }
+    if (object != NULL && object->has_id) {
+        out_failure->has_object_id = true;
+        out_failure->object_id = object->id;
+    }
+}
+
+static app_error_code_t load_set_progress(backup_set_snapshot_t *snapshot,
+                                          storage_package_failure_t *out_failure) {
     if (snapshot->procedures.count == 0U) {
         return APP_ERROR_NONE;
     }
@@ -280,6 +301,9 @@ static app_error_code_t load_set_progress(backup_set_snapshot_t *snapshot) {
             continue;
         }
         if (result != APP_ERROR_NONE) {
+            const storage_object_ref_t failed = {.has_id = true, .id = identity.procedure_id};
+            record_failure(out_failure, STORAGE_PACKAGE_OBJECT_PROGRESS, false, &identity.set_id,
+                           &failed);
             outcome = result;
             break;
         }
@@ -293,27 +317,35 @@ static app_error_code_t load_set_progress(backup_set_snapshot_t *snapshot) {
 }
 
 static app_error_code_t load_set_snapshot(const macro_set_t *set, bool include_progress,
-                                          backup_set_snapshot_t *out_snapshot) {
+                                          backup_set_snapshot_t *out_snapshot,
+                                          storage_package_failure_t *out_failure) {
     out_snapshot->set = *set;
     const storage_macro_location_t location = {
         .scope = MACRO_SCOPE_SET,
         .has_set_id = true,
         .set_id = set->id,
     };
+    storage_object_ref_t failed = {0};
     app_error_code_t result = backup_operations.macro_list(backup_operations.context, &location,
-                                                           &out_snapshot->local_macros);
-    if (result == APP_ERROR_NONE) {
-        result = backup_operations.procedure_list(backup_operations.context, &set->id,
-                                                  &out_snapshot->procedures);
+                                                           &out_snapshot->local_macros, &failed);
+    if (result != APP_ERROR_NONE) {
+        record_failure(out_failure, STORAGE_PACKAGE_OBJECT_MACRO, false, &set->id, &failed);
+        return result;
     }
-    if (result == APP_ERROR_NONE && include_progress) {
-        result = load_set_progress(out_snapshot);
+    result = backup_operations.procedure_list(backup_operations.context, &set->id,
+                                              &out_snapshot->procedures, &failed);
+    if (result != APP_ERROR_NONE) {
+        record_failure(out_failure, STORAGE_PACKAGE_OBJECT_PROCEDURE, false, &set->id, &failed);
+        return result;
+    }
+    if (include_progress) {
+        result = load_set_progress(out_snapshot, out_failure);
     }
     return result;
 }
 
-static app_error_code_t snapshot_load_locked(bool include_progress,
-                                             backup_snapshot_t *out_snapshot) {
+static app_error_code_t snapshot_load_locked(bool include_progress, backup_snapshot_t *out_snapshot,
+                                             storage_package_failure_t *out_failure) {
     /* storage_set_list_t inlines macro_set_t[APP_MACRO_SETS_MAX] and so is
      * ~29 KB. As a stack local it put this frame at ~42 KB, far past the httpd
      * task stack that serves GET /api/v1/backup, panicking the device. One
@@ -336,7 +368,7 @@ static app_error_code_t snapshot_load_locked(bool include_progress,
     }
     for (size_t index = 0U; result == APP_ERROR_NONE && index < set_list->count; ++index) {
         result = load_set_snapshot(&set_list->items[index], include_progress,
-                                   &out_snapshot->sets[index]);
+                                   &out_snapshot->sets[index], out_failure);
     }
     const storage_macro_location_t global_location = {
         .scope = MACRO_SCOPE_GLOBAL,
@@ -344,20 +376,25 @@ static app_error_code_t snapshot_load_locked(bool include_progress,
         .set_id = {{0}},
     };
     if (result == APP_ERROR_NONE) {
+        storage_object_ref_t failed = {0};
         result = backup_operations.macro_list(backup_operations.context, &global_location,
-                                              &out_snapshot->global_macros);
+                                              &out_snapshot->global_macros, &failed);
+        if (result != APP_ERROR_NONE) {
+            record_failure(out_failure, STORAGE_PACKAGE_OBJECT_MACRO, true, NULL, &failed);
+        }
     }
     free(set_list);
     return result;
 }
 
-static app_error_code_t snapshot_load(bool include_progress, backup_snapshot_t *out_snapshot) {
+static app_error_code_t snapshot_load(bool include_progress, backup_snapshot_t *out_snapshot,
+                                      storage_package_failure_t *out_failure) {
     memset(out_snapshot, 0, sizeof(*out_snapshot));
     const app_error_code_t lock = backup_operations.lock_take(backup_operations.context);
     if (lock != APP_ERROR_NONE) {
         return lock;
     }
-    app_error_code_t result = snapshot_load_locked(include_progress, out_snapshot);
+    app_error_code_t result = snapshot_load_locked(include_progress, out_snapshot, out_failure);
     const app_error_code_t unlock = backup_operations.lock_give(backup_operations.context);
     if (result == APP_ERROR_NONE && unlock != APP_ERROR_NONE) {
         result = APP_ERROR_INTERNAL;
@@ -419,7 +456,8 @@ static app_error_code_t validate_set_snapshot(const backup_snapshot_t *backup,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t validate_snapshot(const backup_snapshot_t *snapshot) {
+static app_error_code_t validate_snapshot(const backup_snapshot_t *snapshot,
+                                          storage_package_failure_t *out_failure) {
     if (snapshot->set_count > APP_MACRO_SETS_MAX ||
         snapshot->global_macros.count > APP_MACROS_PER_SET_MAX || !set_ids_unique(snapshot)) {
         return APP_ERROR_STORAGE_CORRUPT;
@@ -427,12 +465,16 @@ static app_error_code_t validate_snapshot(const backup_snapshot_t *snapshot) {
     for (size_t index = 0U; index < snapshot->global_macros.count; ++index) {
         const macro_t *macro = &snapshot->global_macros.items[index];
         if (macro->scope != MACRO_SCOPE_GLOBAL || macro->has_set_id) {
+            const storage_object_ref_t failed = {.has_id = true, .id = macro->id};
+            record_failure(out_failure, STORAGE_PACKAGE_OBJECT_MACRO, true, NULL, &failed);
             return APP_ERROR_STORAGE_CORRUPT;
         }
     }
     for (size_t index = 0U; index < snapshot->set_count; ++index) {
         const app_error_code_t result = validate_set_snapshot(snapshot, &snapshot->sets[index]);
         if (result != APP_ERROR_NONE) {
+            record_failure(out_failure, STORAGE_PACKAGE_OBJECT_SET, false,
+                           &snapshot->sets[index].set.id, NULL);
             return result;
         }
     }
@@ -600,25 +642,34 @@ static app_error_code_t serialize_snapshot(const backup_snapshot_t *snapshot, ch
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_package_export_backup(bool include_progress, char **out_data,
-                                               size_t *out_length) {
+app_error_code_t storage_package_export_backup_detail(bool include_progress, char **out_data,
+                                                      size_t *out_length,
+                                                      storage_package_failure_t *out_failure) {
     if (out_data != NULL) {
         *out_data = NULL;
     }
     if (out_length != NULL) {
         *out_length = 0U;
     }
+    if (out_failure != NULL) {
+        memset(out_failure, 0, sizeof(*out_failure));
+    }
     if (out_data == NULL || out_length == NULL || !backup_operations_valid()) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     backup_snapshot_t snapshot = {0};
-    app_error_code_t result = snapshot_load(include_progress, &snapshot);
+    app_error_code_t result = snapshot_load(include_progress, &snapshot, out_failure);
     if (result == APP_ERROR_NONE) {
-        result = validate_snapshot(&snapshot);
+        result = validate_snapshot(&snapshot, out_failure);
     }
     if (result == APP_ERROR_NONE) {
         result = serialize_snapshot(&snapshot, out_data, out_length);
     }
     backup_snapshot_free(&snapshot);
     return result;
+}
+
+app_error_code_t storage_package_export_backup(bool include_progress, char **out_data,
+                                               size_t *out_length) {
+    return storage_package_export_backup_detail(include_progress, out_data, out_length, NULL);
 }

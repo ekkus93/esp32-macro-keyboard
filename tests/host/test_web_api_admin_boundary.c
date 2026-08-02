@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "app_error.h"
+#include "app_uuid.h"
 #include "storage.h"
 #include "storage_package.h"
 #include "test_assert.h"
@@ -20,6 +21,7 @@ static storage_mount_state_t mount_state;
 static storage_quarantine_list_t quarantine_list;
 static app_error_code_t quarantine_result;
 static app_error_code_t backup_result;
+static storage_package_failure_t backup_failure;
 static app_error_code_t restore_result;
 static bool backup_include_progress;
 static char restore_body[256U];
@@ -37,15 +39,22 @@ app_error_code_t storage_quarantine_list(storage_quarantine_list_t *out_list) {
     return quarantine_result;
 }
 
-app_error_code_t storage_package_export_backup(bool include_progress, char **out_data,
-                                               size_t *out_length) {
+app_error_code_t storage_package_export_backup_detail(bool include_progress, char **out_data,
+                                                      size_t *out_length,
+                                                      storage_package_failure_t *out_failure) {
     backup_include_progress = include_progress;
+    if (out_failure != NULL) {
+        memset(out_failure, 0, sizeof(*out_failure));
+    }
     if (out_data == NULL || out_length == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     *out_data = NULL;
     *out_length = 0U;
     if (backup_result != APP_ERROR_NONE) {
+        if (out_failure != NULL) {
+            *out_failure = backup_failure;
+        }
         return backup_result;
     }
     const size_t length = sizeof(BACKUP_DOCUMENT) - 1U;
@@ -94,6 +103,7 @@ static void reset_fixture(void) {
     };
     quarantine_result = APP_ERROR_NONE;
     backup_result = APP_ERROR_NONE;
+    memset(&backup_failure, 0, sizeof(backup_failure));
     restore_result = APP_ERROR_NONE;
     backup_include_progress = false;
     restore_body[0] = '\0';
@@ -178,6 +188,59 @@ static void test_backup_failure_is_visible(void) {
     web_api_response_free(&response);
 }
 
+/* The whole point of the failure detail: the response must say which object
+ * blocked the backup, or the user has nothing to act on. */
+static void test_backup_failure_names_the_offending_macro(void) {
+    reset_fixture();
+    backup_result = APP_ERROR_MACRO_SYNTAX;
+    backup_failure.kind = STORAGE_PACKAGE_OBJECT_MACRO;
+    backup_failure.has_object_id = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_parse("71cc0195-1111-4111-8111-111111111111",
+                                                        &backup_failure.object_id));
+    backup_failure.has_set_id = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_parse("15c7daee-2222-4222-8222-222222222222",
+                                                        &backup_failure.set_id));
+    const web_api_call_t call = call_for(WEB_API_ROUTE_BACKUP, WEB_API_METHOD_GET, NULL);
+    web_api_response_t response = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
+    TEST_CHECK_EQ_U64(422U, response.status);
+    TEST_CHECK(strstr(response.body, "71cc0195-1111-4111-8111-111111111111") != NULL);
+    TEST_CHECK(strstr(response.body, "15c7daee-2222-4222-8222-222222222222") != NULL);
+    TEST_CHECK(strstr(response.body, "macro") != NULL);
+    web_api_response_free(&response);
+}
+
+/* A global macro belongs to no set, so the message must not invent one. */
+static void test_backup_failure_names_a_global_macro_without_a_set(void) {
+    reset_fixture();
+    backup_result = APP_ERROR_MACRO_SYNTAX;
+    backup_failure.kind = STORAGE_PACKAGE_OBJECT_MACRO;
+    backup_failure.global_scope = true;
+    backup_failure.has_object_id = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_parse("33333333-3333-4333-8333-333333333333",
+                                                        &backup_failure.object_id));
+    const web_api_call_t call = call_for(WEB_API_ROUTE_BACKUP, WEB_API_METHOD_GET, NULL);
+    web_api_response_t response = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
+    TEST_CHECK(strstr(response.body, "global macro") != NULL);
+    TEST_CHECK(strstr(response.body, "33333333-3333-4333-8333-333333333333") != NULL);
+    TEST_CHECK(strstr(response.body, "in set") == NULL);
+    web_api_response_free(&response);
+}
+
+/* When nothing could be identified the message must stay the plain one rather
+ * than claim a partial identity. */
+static void test_backup_failure_without_detail_stays_plain(void) {
+    reset_fixture();
+    backup_result = APP_ERROR_STORAGE_FULL;
+    const web_api_call_t call = call_for(WEB_API_ROUTE_BACKUP, WEB_API_METHOD_GET, NULL);
+    web_api_response_t response = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
+    TEST_CHECK(strstr(response.body, "backup unavailable") != NULL);
+    TEST_CHECK(strstr(response.body, "could not be read") == NULL);
+    web_api_response_free(&response);
+}
+
 static void test_restore_delegates_complete_package(void) {
     reset_fixture();
     const web_api_call_t call =
@@ -238,6 +301,9 @@ int main(void) {
     test_storage_check_never_reports_false_success();
     test_backup_returns_raw_validated_package();
     test_backup_failure_is_visible();
+    test_backup_failure_names_the_offending_macro();
+    test_backup_failure_names_a_global_macro_without_a_set();
+    test_backup_failure_without_detail_stays_plain();
     test_restore_delegates_complete_package();
     test_restore_failure_is_visible();
     test_remaining_package_boundaries_are_explicit();

@@ -236,8 +236,12 @@ static app_error_code_t procedure_read_locked(const app_uuid_t *set_id,
     return storage_procedure_read_locked(&identity, out_procedure);
 }
 
-app_error_code_t storage_procedure_list_locked(const app_uuid_t *set_id,
-                                               storage_procedure_list_t *out_list) {
+app_error_code_t storage_procedure_list_detail_locked(const app_uuid_t *set_id,
+                                                      storage_procedure_list_t *out_list,
+                                                      storage_object_ref_t *out_failed) {
+    if (out_failed != NULL) {
+        memset(out_failed, 0, sizeof(*out_failed));
+    }
     if (set_id == NULL || out_list == NULL || !app_uuid_is_valid_string(set_id->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -258,6 +262,12 @@ app_error_code_t storage_procedure_list_locked(const app_uuid_t *set_id,
     for (; loaded < order.count; ++loaded) {
         result = procedure_read_object_locked(set_id, &order.ids[loaded], &items[loaded]);
         if (result != APP_ERROR_NONE) {
+            /* Captured before unwinding: this is the only point that knows
+             * which procedure failed, and the caller needs it to name it. */
+            if (out_failed != NULL) {
+                out_failed->has_id = true;
+                out_failed->id = order.ids[loaded];
+            }
             break;
         }
         items[loaded].sort_order = (int32_t)loaded;
@@ -272,6 +282,11 @@ app_error_code_t storage_procedure_list_locked(const app_uuid_t *set_id,
     out_list->items = items;
     out_list->count = order.count;
     return APP_ERROR_NONE;
+}
+
+app_error_code_t storage_procedure_list_locked(const app_uuid_t *set_id,
+                                               storage_procedure_list_t *out_list) {
+    return storage_procedure_list_detail_locked(set_id, out_list, NULL);
 }
 
 static app_error_code_t write_procedure_object(const app_uuid_t *set_id,
