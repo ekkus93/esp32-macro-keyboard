@@ -18,17 +18,14 @@ def main():
     d.login()
 
     set_id = v4()
+    # SPEC 12.1: a set is a name and its ordered macros. description,
+    # manufacturer, model, board, keyboard_layout and sort_order were removed in
+    # the 2026-08-02 revision and the device rejects them as unknown fields.
     macro_set = {
         "schema_version": 1,
         "id": set_id,
         "revision": 1,
         "name": "HIL Typing Tests",
-        "description": "Hardware-in-the-loop keystroke verification (FIX1 20.2)",
-        "manufacturer": "n/a",
-        "model": "n/a",
-        "board": "n/a",
-        "keyboard_layout": "en-US",
-        "sort_order": 0,
     }
     status, payload = d.post("/api/v1/sets", macro_set)
     if status not in (200, 201):
@@ -48,15 +45,15 @@ def main():
     created = {}
     for key, spec in macros.items():
         macro_id = v4()
+        # SPEC 12.2: no scope discriminator and no favorite flag. set_id stays
+        # as the envelope field the API still carries.
         body = {
             "schema_version": 1,
             "id": macro_id,
             "revision": 1,
-            "scope": "set",
             "set_id": set_id,
             "name": spec["name"],
             "source": spec["source"],
-            "favorite": False,
             "key_press_ms": 8,
             "inter_key_ms": 15,
         }

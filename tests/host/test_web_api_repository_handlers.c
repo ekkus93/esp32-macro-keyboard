@@ -223,8 +223,11 @@ static void test_set_routes(void) {
         expect_status(&response, 422U, "could not create set");
     }
 
-    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_SELECT, WEB_API_METHOD_POST,
-                      "{\"expectedRevision\":1}", SET_ID, NULL);
+    /* Selection takes an empty body: it is idempotent and has no revision the
+     * client holds (SPEC 12.3). It used to require the settings revision, which
+     * became meaningless when the active set left settings. */
+    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_SELECT, WEB_API_METHOD_POST, "{}",
+                      SET_ID, NULL);
     expect_status(&response, 200U, SET_ID);
     /* Selection is a repository write now (SPEC 12.3), so it is observed in the
      * index rather than in the settings store -- and it must NOT burn a settings

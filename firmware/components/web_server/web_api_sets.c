@@ -140,18 +140,20 @@ static app_error_code_t handle_set_item(const web_api_call_t *call, web_api_resp
     return web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, data);
 }
 
+/* Selection is a repository write (SPEC 12.3): it records the active set in the
+ * index beside the set order, so deleting the active set clears it in one atomic
+ * write. The response still carries settings, because the client wants the whole
+ * operational state back in one round trip.
+ *
+ * There is deliberately NO expectedRevision. Selection used to be a settings
+ * update and carried the settings revision; Phase 4b moved the active set out of
+ * settings, which left that parameter parsed but never compared against
+ * anything -- while the route still rejected a body without it. Selection is
+ * idempotent and has no revision the client holds, so the body is now empty.
+ * Found by the hardware harness, which sent `{}` and got 422. */
 static app_error_code_t handle_select(const web_api_call_t *call, web_api_response_t *response) {
-    uint32_t expected_revision = 0U;
-    app_error_code_t result =
-        web_api_json_parse_expected_revision(call->body, call->body_length, &expected_revision);
     macro_set_t set = {0};
-    if (result == APP_ERROR_NONE) {
-        result = storage_set_read(&call->path.set_id, &set);
-    }
-    /* Selection is a repository write now (SPEC 12.3): it records the active set
-     * in the index beside the set order, so deleting the active set can clear it
-     * in one atomic write. The response still carries settings, because the
-     * client wants the whole operational state back in one round trip. */
+    app_error_code_t result = storage_set_read(&call->path.set_id, &set);
     if (result == APP_ERROR_NONE) {
         result = storage_set_select(&call->path.set_id);
     }
