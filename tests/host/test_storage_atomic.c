@@ -145,6 +145,7 @@ static void test_create_and_replace(void) {
     test_temp_dir_remove(&directory);
 }
 
+/* SPEC 24.2 item: short writes */
 static void test_short_io_is_completed(void) {
     test_temp_dir_t directory = {0};
     test_temp_dir_create(&directory);
@@ -167,6 +168,7 @@ static void test_short_io_is_completed(void) {
     test_temp_dir_remove(&directory);
 }
 
+/* SPEC 24.2 item: interruption between writing `.tmp` and `rename()` */
 static void test_failures_preserve_destination(void) {
     static const fake_fs_operation_t operations_to_fail[] = {
         FAKE_FS_WRITE,

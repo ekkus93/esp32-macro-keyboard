@@ -1,3 +1,4 @@
+/* SPEC 24.4 item: host/origin validation */
 static void test_origin_boundaries(void)
 {
     TEST_CHECK(web_origin_matches_host("http://192.168.4.1", "192.168.4.1"));

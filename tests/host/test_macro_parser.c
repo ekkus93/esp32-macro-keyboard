@@ -96,6 +96,7 @@ static void test_null_empty_and_output_arguments(void) {
     TEST_CHECK_EQ_U64(0U, plan.estimated_duration_ms);
 }
 
+/* SPEC 24.1 item: source and action limits */
 static void test_source_and_action_limits(void) {
     char *source = malloc(APP_MACRO_SOURCE_MAX_BYTES + 1U);
     TEST_CHECK(source != NULL);
@@ -153,6 +154,7 @@ static void test_timing_boundaries(void) {
     TEST_CHECK_EQ_STRING("estimated duration limit exceeded", error.message);
 }
 
+/* SPEC 24.1 item: delay boundaries */
 static void test_delay_boundaries(void) {
     expect_success_length("{DELAY:1}", strlen("{DELAY:1}"), NULL, 1U, 1U);
     expect_success_length("{DELAY:10000}", strlen("{DELAY:10000}"), NULL, 1U, APP_DELAY_MAX_MS);
@@ -162,6 +164,8 @@ static void test_delay_boundaries(void) {
     expect_failure("{DELAY:-1}", APP_ERROR_MACRO_SYNTAX);
 }
 
+/* SPEC 24.1 item: every allowed modifier combination
+ * SPEC 24.1 item: malformed chords */
 static void test_named_keys_and_modifiers(void) {
     static const char *const named_keys[] = {
         "ENTER",    "TAB", "ESC",  "BACKSPACE", "DELETE", "INSERT", "HOME", "END", "PAGEUP",
@@ -204,6 +208,7 @@ static void test_named_keys_and_modifiers(void) {
     expect_failure("{CTRL+}", APP_ERROR_MACRO_SYNTAX);
 }
 
+/* SPEC 24.1 item: newline and tab normalization */
 static void test_case_whitespace_and_line_endings(void) {
     expect_failure("{enter}", APP_ERROR_MACRO_SYNTAX);
     expect_failure("{ ENTER}", APP_ERROR_MACRO_SYNTAX);
@@ -233,6 +238,8 @@ static void test_case_whitespace_and_line_endings(void) {
     TEST_CHECK_EQ_U64(2U, error.column);
 }
 
+/* SPEC 24.1 item: unknown directives
+ * SPEC 24.1 item: exact error offsets */
 static void test_error_locations_and_directive_boundaries(void) {
     const macro_parse_error_t multiline =
         expect_failure_length("A\n{BAD}", 7U, NULL, APP_ERROR_MACRO_SYNTAX);
@@ -262,6 +269,7 @@ static void test_error_locations_and_directive_boundaries(void) {
     TEST_CHECK_EQ_STRING("invalid directive", error_64.message);
 }
 
+/* SPEC 24.1 item: brace escaping */
 static void test_braces_and_character_policy(void) {
     expect_success("{{literal braces}}", 16U);
     expect_success("{{{ENTER}}}", 3U);
@@ -284,6 +292,7 @@ static void test_braces_and_character_policy(void) {
     TEST_CHECK_EQ_U64(1U, nul.byte_offset);
 }
 
+/* SPEC 24.1 item: cancellation-safe compiled plans */
 static void test_output_plan_reuse_contract(void) {
     macro_plan_t plan = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_compile("first", 5U, NULL, &plan, NULL));
@@ -296,6 +305,7 @@ static void test_output_plan_reuse_contract(void) {
     macro_plan_free(&plan);
 }
 
+/* SPEC 24.1 item: property/fuzz inputs */
 static void test_fuzz_corpus(void) {
     unsigned int state = 0x13579bdfU;
     char source[128U];
@@ -319,6 +329,9 @@ static void test_fuzz_corpus(void) {
     }
 }
 
+/* SPEC 24.1 item: every supported ASCII character
+ * SPEC 24.1 item: shifted punctuation
+ * SPEC 24.3 item: ASCII-to-HID mapping */
 static void test_printable_ascii(void) {
     for (int value = 0x20; value <= 0x7e; ++value) {
         macro_hid_key_t key = {0U, 0U};
@@ -328,6 +341,7 @@ static void test_printable_ascii(void) {
     TEST_CHECK(!macro_keymap_us_printable('a', NULL));
 }
 
+/* SPEC 24.1 item: every named key */
 static void test_named_key_usages(void) {
     /*
      * SPEC 10.3: each named key must compile to its canonical US HID usage.

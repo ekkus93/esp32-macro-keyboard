@@ -275,6 +275,7 @@ static void test_press_reports_and_waits(void) {
     TEST_CHECK_EQ_U64(3U, fixture.total_delay_ms);
 }
 
+/* SPEC 24.3 item: disconnect and suspend */
 static void test_press_stops_on_disconnect_and_timeout(void) {
     usb_fixture_t fixture;
     reset_fixture(&fixture);

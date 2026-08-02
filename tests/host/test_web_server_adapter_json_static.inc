@@ -71,6 +71,7 @@ static void *open_static_file(void *context, const char *path)
  * because their name changes when their content does, while index.html keeps
  * the same name forever and must be revalidated or a device would serve a stale
  * application indefinitely after an update. */
+/* SPEC 24.4 item: path traversal */
 static void test_static_file_selection(void)
 {
     web_adapter_static_file_t file;

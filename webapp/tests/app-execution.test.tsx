@@ -32,6 +32,7 @@ async function renderExecution(
 }
 
 describe("execution workflow", () => {
+  // SPEC 24.5 item: progress polling
   test("polls immediately and displays running progress", async () => {
     const view = await renderExecution();
     expect(getFetchCalls()).toHaveLength(6);
@@ -115,6 +116,8 @@ describe("execution workflow", () => {
     await vi.advanceTimersByTimeAsync(1_500);
     expect(getFetchCalls()).toHaveLength(6);
   });
+
+  // SPEC 24.5 item: cancellation
 
   test("posts cancellation without claiming completion", async () => {
     const view = await renderExecution();

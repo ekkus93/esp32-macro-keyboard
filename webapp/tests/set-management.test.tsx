@@ -36,6 +36,7 @@ function jsonBody(index: number): unknown {
 }
 
 describe("set management", () => {
+  // SPEC 24.5 item: including that a reorder round-trips through the API
   test("offers keyboard reorder alternatives and commits exact order", async () => {
     setCsrfToken("csrf-reorder");
     const onSetsChanged = vi.fn<(sets: MacroSet[]) => void>();
@@ -66,6 +67,8 @@ describe("set management", () => {
     );
     await view.unmount();
   });
+
+  // SPEC 24.5 item: keyboard and touch accessibility
 
   test("traps modal focus, closes with Escape, and restores focus", async () => {
     const view = await render(
@@ -113,6 +116,8 @@ describe("set management", () => {
     await view.unmount();
   });
 
+  // SPEC 24.5 item: live validation
+
   test("creates a set only after UTF-8 validation succeeds", async () => {
     setCsrfToken("csrf-create");
     const onSetsChanged = vi.fn<(sets: MacroSet[]) => void>();
@@ -151,6 +156,8 @@ describe("set management", () => {
     );
     await view.unmount();
   });
+
+  // SPEC 24.5 item: import/export/delete confirmations
 
   test("prevents active-set deletion and requires exact name for another set", async () => {
     setCsrfToken("csrf-delete");

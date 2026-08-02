@@ -46,6 +46,10 @@ describe("server-backed set selection", () => {
     await view.unmount();
   });
 
+  // SPEC 24.5 item: set switching
+
+  // SPEC 24.5 item: active-set visibility
+
   test("selects a set with the settings revision and updates the header", async () => {
     setHashSilently("/sets");
     planAuthenticatedBootstrap({ activeSetId: null });
@@ -77,6 +81,8 @@ describe("server-backed set selection", () => {
     ).toContain(setId);
     await view.unmount();
   });
+
+  // SPEC 24.5 item: stale-edit conflict UI
 
   test("shows revision conflicts instead of silently accepting selection", async () => {
     setHashSilently("/sets");

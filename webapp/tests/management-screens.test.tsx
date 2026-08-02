@@ -55,6 +55,45 @@ describe("management screens", () => {
     await view.unmount();
   });
 
+  // SPEC 24.5 item: storage error UI
+  test("surfaces a storage read failure instead of showing nothing", async () => {
+    /* The success path above is the easy one. This is the path that matters:
+       storage diagnostics is the screen a user opens precisely when the device
+       is misbehaving, so a failure to read storage health has to say so. The
+       failure modes it must not have are showing an empty screen that looks
+       healthy, or leaving the verification button live as though the numbers
+       behind it were real. */
+    planJsonResponse(
+      {
+        ok: false,
+        error: { code: "storage_unavailable", message: "storage unavailable" },
+      },
+      503,
+    );
+    const view = await render(<DiagnosticsPage />);
+    await flushReact();
+
+    const alert = document.querySelector<HTMLElement>("[role='alert']");
+    expect(alert).not.toBeNull();
+    expect(alert?.textContent).toContain("storage unavailable");
+
+    /* No health was read, so nothing may claim the filesystems are mounted, and
+       the whole storage-health panel stays absent rather than rendering with
+       empty or zeroed figures. An action whose meaning depends on numbers the
+       page does not have is not offered at all -- stronger than offering it
+       disabled, and the behaviour this asserts. */
+    expect(document.body.textContent).not.toContain(
+      "Required filesystems mounted",
+    );
+    expect(
+      Array.from(document.querySelectorAll("button")).find(
+        (button) =>
+          button.textContent?.trim() === "Run full storage verification",
+      ),
+    ).toBeUndefined();
+    await view.unmount();
+  });
+
   test("loads full subsystem diagnostics on demand", async () => {
     planJsonResponse(
       success({

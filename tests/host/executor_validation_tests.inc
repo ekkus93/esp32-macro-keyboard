@@ -67,6 +67,7 @@ static void test_engine_and_request_validation(void)
     executor_free_unowned_request(&request);
 }
 
+/* SPEC 24.3 item: busy rejection */
 static void test_submission_ownership_and_recovery(void)
 {
     executor_fake_t fake;

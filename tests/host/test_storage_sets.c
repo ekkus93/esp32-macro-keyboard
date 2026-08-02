@@ -126,6 +126,7 @@ static void test_argument_validation(void) {
     TEST_CHECK_EQ_U64(0U, list.count);
 }
 
+/* SPEC 24.2 item: create/read/update/delete */
 static void test_crud_ordering_revisions_and_cleanup(void) {
     reset_store();
     macro_set_t first = make_set(10U, "First");
@@ -224,6 +225,7 @@ static void test_set_limit_and_stable_order(void) {
     }
 }
 
+/* SPEC 24.2 item: corrupt JSON, including that the corrupt file is deleted */
 static void test_corrupt_set_is_discarded(void) {
     reset_store();
     macro_set_t set = make_set(50U, "Corrupt JSON");
@@ -323,6 +325,7 @@ static void test_delete_is_permanent_and_leaves_no_trash(void) {
  * because the listing has no set order in it -- rebuilding would silently
  * replace the user's order with whatever the filesystem returns. A repository
  * with set files but no index is corrupt and must say so. */
+/* SPEC 24.2 item: an index naming a set file that is absent */
 static void test_index_is_not_rebuilt_from_the_sets_directory(void) {
     reset_store();
     macro_set_t set = make_set(120U, "Orphaned by index loss");
@@ -413,6 +416,7 @@ static app_error_code_t interloper_delete(void) {
 
 /* Two updates with the same expected revision cannot both succeed: the lock makes
  * each read-check-write atomic, so the second sees the bumped revision. */
+/* SPEC 24.2 item: stale revisions */
 static void test_concurrency_same_revision_updates_conflict(void) {
     reset_store();
     macro_set_t set = make_set(1U, "Serialize");
@@ -533,6 +537,7 @@ static void test_measured_user_data_tracks_set_files(void) {
  *
  * storage_set_reorder had no test at all before this. These are written from
  * the requirement, not from the implementation. */
+/* SPEC 24.2 item: macro order preserved exactly across write, reboot */
 static void test_reorder_preserves_the_requested_order_exactly(void) {
     reset_store();
     macro_set_t a = make_set(300U, "Alpha");

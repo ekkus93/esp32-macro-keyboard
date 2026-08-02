@@ -1,3 +1,6 @@
+/* SPEC 24.3 item: press and release sequence
+ * SPEC 24.3 item: chords
+ * SPEC 24.3 item: delays */
 static void test_action_order_delay_and_status_progress(void)
 {
     executor_fake_t fake;
@@ -48,6 +51,8 @@ static void test_action_order_delay_and_status_progress(void)
     executor_assert_terminal(&engine, EXECUTION_COMPLETED, APP_ERROR_NONE, false);
 }
 
+/* SPEC 24.3 item: cancel during text
+ * SPEC 24.3 item: cancel during delay */
 static void test_cancel_before_and_during_actions(void)
 {
     executor_fake_t fake;
@@ -139,6 +144,7 @@ static void test_timestamps_and_current_action_track_execution(void)
     executor_assert_terminal(&engine, EXECUTION_COMPLETED, APP_ERROR_NONE, false);
 }
 
+/* SPEC 24.3 item: timeout */
 static void test_watchdog_and_wait_failures(void)
 {
     executor_fake_t fake;

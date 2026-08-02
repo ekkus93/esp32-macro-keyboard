@@ -91,6 +91,7 @@ static void test_web_mount_failure(void) {
     TEST_CHECK_EQ_U64(0U, fake.unmount_web_calls);
 }
 
+/* SPEC 24.2 item: no-format mount failure */
 static void test_data_mount_failure_web_unmount_ok(void) {
     mount_fake_t fake = {.mount_data_result = APP_ERROR_STORAGE_UNAVAILABLE};
     const storage_mount_ops_t ops = make_ops(&fake);

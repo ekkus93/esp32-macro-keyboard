@@ -221,6 +221,7 @@ static void test_concurrency_restore_excludes_mutation(void) {
 
 /* A storage-full failure part-way through must not leave a half-written set
  * behind pretending to be real data. */
+/* SPEC 24.2 item: partial restore reporting per-set outcomes */
 static void test_storage_full_during_restore_leaves_no_partial_set(void) {
     create_empty_repository();
     inject_set_write_storage_full = true;

@@ -63,6 +63,7 @@ static void reset_store(void) {
     make_directory(STORAGE_DATA_MOUNT "/sets");
 }
 
+/* SPEC 24.2 item: boot cleanup of stray `.tmp` files */
 static void test_stray_temporary_is_removed_at_boot(void) {
     reset_store();
     storage_incidents_reset();

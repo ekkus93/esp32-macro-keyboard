@@ -125,6 +125,7 @@ static void write_empty_index(void) {
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_write_index(&index));
 }
 
+/* SPEC 24.4 item: import validation */
 static void test_invalid_arguments_and_collision_do_not_mutate(void) {
     reset_storage();
     create_current_set();
@@ -145,6 +146,7 @@ static void test_invalid_arguments_and_collision_do_not_mutate(void) {
     assert_index_count(1U);
 }
 
+/* SPEC 24.2 item: import as new */
 static void test_valid_import_assigns_new_identity_and_resets_revisions(void) {
     reset_storage();
     write_empty_index();

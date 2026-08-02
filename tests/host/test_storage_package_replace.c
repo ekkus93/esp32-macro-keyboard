@@ -111,6 +111,7 @@ static void test_invalid_and_conflict_inputs_do_not_mutate(void) {
     assert_current_revision(3U);
 }
 
+/* SPEC 24.2 item: replace import */
 static void test_valid_replace_commits_complete_tree(void) {
     prepare_valid_state();
     macro_set_t committed = {0};

@@ -288,6 +288,7 @@ static void test_success_and_generated_request_id(void) {
  * the session." The complement is the interesting half and the one a
  * conservative implementation gets wrong: a GET is not a mutation, so demanding
  * a token there would break ordinary reads without adding protection. */
+/* SPEC 24.4 item: CSRF */
 static void test_get_does_not_require_csrf(void) {
     fixture_t fixture = {
         .missing = "X-CSRF-Token",
@@ -303,6 +304,8 @@ static void test_get_does_not_require_csrf(void) {
     TEST_CHECK_EQ_U64(1U, fixture.validation_calls);
 }
 
+/* SPEC 24.4 item: explicit status codes
+ * SPEC 24.4 item: busy execution */
 static void test_failure_statuses(void) {
     web_request_policy_result_t result = {0};
     web_request_policy_failure_t failure = WEB_REQUEST_POLICY_FAILURE_NONE;
@@ -389,6 +392,8 @@ static void test_failure_statuses(void) {
  * ordering matters as much as the limits: a body over its route limit is
  * refused before headers are examined, so an oversized request cannot make the
  * server do header work proportional to what it is about to reject. */
+/* SPEC 24.4 item: body and upload limits
+ * SPEC 24.4 item: invalid content type */
 static void test_body_limit_precedes_headers(void) {
     fixture_t fixture = {0};
     const web_request_policy_ops_t ops = operations(&fixture);

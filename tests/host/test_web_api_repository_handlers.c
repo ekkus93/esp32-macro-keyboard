@@ -363,6 +363,7 @@ static void test_session_json_redaction(void) {
  * every existing test. That is the exact shape of the `expectedRevision`
  * defect: asserting what the handler replies instead of what the specification
  * requires. */
+/* SPEC 24.4 item: stale revisions */
 static void test_stale_revision_does_not_overwrite_a_newer_edit(void) {
     reset_store();
     macro_set_t set = make_set();

@@ -787,6 +787,7 @@ static void test_residual_ownership_queries_trigger_cleanup(void) {
  * hardest, because the sequence is holding exactly those values as it brings
  * subsystems up. The manufacturing banner is the single deliberate exception,
  * gated behind a Kconfig option the production gate rejects. */
+/* SPEC 24.4 item: redaction */
 static void test_stage_logs_are_redacted(void) {
     app_core_fixture_t fixture;
     reset_fixture(&fixture);

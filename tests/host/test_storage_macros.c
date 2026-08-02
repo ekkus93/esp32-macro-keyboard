@@ -269,6 +269,7 @@ static void test_missing_set_and_revision_overflow(void) {
 /* SPEC 10.7: writes are measured against the byte budget, not just the
  * per-object limits, and an over-budget write is refused as a storage-capacity
  * failure rather than being allowed to fill the partition. */
+/* SPEC 24.2 item: rejection of an over-budget write with `507` */
 static void test_oversized_set_file_is_refused(void) {
     reset_store();
     macro_set_t set = make_set(200U);

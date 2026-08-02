@@ -8,6 +8,7 @@
  * into whatever has focus until something releases it. A failed release is
  * recorded separately in release_error so it cannot be mistaken for the
  * primary cause of the run failing. */
+/* SPEC 24.3 item: final release-all on every terminal path */
 static void test_press_release_and_final_release_errors(void)
 {
     executor_fake_t fake;

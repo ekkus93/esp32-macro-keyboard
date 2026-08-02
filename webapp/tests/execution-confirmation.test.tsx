@@ -98,6 +98,8 @@ describe("execution confirmation", () => {
     await view.unmount();
   });
 
+  // SPEC 24.5 item: disabled Send when USB is unavailable
+
   test("disables Send with a visible USB explanation", async () => {
     planConfirmationLoad();
     const view = await renderConfirmation({
@@ -110,6 +112,8 @@ describe("execution confirmation", () => {
     );
     await view.unmount();
   });
+
+  // SPEC 24.5 item: send preview
 
   test("rechecks state, waits for device confirmation, and submits", async () => {
     setCsrfToken("csrf-token");

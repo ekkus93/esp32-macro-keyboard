@@ -62,6 +62,7 @@ static void test_derive_failures_zero_outputs(void) {
     TEST_CHECK_EQ_U64(AUTH_HASH_BYTES, fake.last_zero_length);
 }
 
+/* SPEC 24.4 item: authentication and logout */
 static void test_sessions(void) {
     auth_fake_t fake;
     fake_reset(&fake);
@@ -119,6 +120,7 @@ static void test_sessions(void) {
     TEST_CHECK(auth_core_session_logout(&core, session.session_token) == APP_ERROR_NOT_FOUND);
 }
 
+/* SPEC 24.4 item: session expiry */
 static void test_session_expiry_and_capacity(void) {
     auth_fake_t fake;
     fake_reset(&fake);
@@ -137,6 +139,7 @@ static void test_session_expiry_and_capacity(void) {
     TEST_CHECK(auth_core_session_create(&core, &extra) == APP_ERROR_NONE);
 }
 
+/* SPEC 24.4 item: rate limiting */
 static void test_rate_limit(void) {
     auth_fake_t fake;
     fake_reset(&fake);
