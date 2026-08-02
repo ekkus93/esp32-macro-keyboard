@@ -171,100 +171,94 @@ Nothing here compiles until all of it is done, so this is one commit by
 necessity. Work in the order given: the CMake edits must come first or the
 build fails to *configure* and hides every compile error behind it.
 
-**Attempt 2 (2026-08-02) got the firmware roughly 80% cut and stopped.** The
-work is on `stash@{0}` ("WIP 2b: …, firmware ~80% (does not build)"). What is
-already done there, and what is left, in order:
+**Done — commit `43dab8d`** (58 files, +185/-6,637). All items below landed in
+one commit; `./scripts/check-all.sh` exited 0 and 54/54 host tests pass.
 
-**Done in the stash:** all CMake edits; the eleven file deletions (including
-both tree-walkers and their internal headers); `storage_repository.h` trimmed
-to SPEC §12; `macro_model.h` trimmed and `macro_model_free_procedure` gone;
-the reference-integrity scan removed from `storage_repository_macros.c` and the
-conflict path from `web_api_macros.c`; `storage_repository_objects_json.c` and
-`storage_object_json.h` stripped; `macro_limits.h` procedure limits removed;
-`web_server_adapter_json.c` limits response fixed;
-`storage_atomic_validators.{c,h}` procedure/progress object kinds removed.
-
-**Left to do, in dependency order:**
-
-1. `storage_atomic_validators.c` — `validate_index` is now unused; it was only
-   reachable through the procedure-order object kind.
-2. `storage_package.c` — `validate_procedure_object`, `validate_progress_object`,
-   `procedure_macro_references_valid`, `procedure_has_step`,
-   `progress_step_references_valid`, the two field enumerators, the two array
-   slots, the two summary counters, and their allocation-table entries.
-3. `storage_package_export.c`, `_backup.c`, `_import.c`, `_replace.c`,
-   `_restore.c` — the procedure/progress writers and readers, plus
-   `prune_dangling_procedures` / `procedure_included` in `_backup.c`.
-4. `storage_repository_set_operations.c` — `write_duplicate_procedure` and the
-   procedure half of `create_duplicate_staging`.
-5. `include_progress` on the three export entry points.
-6. The ~20 host test files.
-
-**A decision this attempt made, which needs stating in the commit message:**
-the tree-walkers (`storage_set_tree.c`, `storage_repository_tree.c`, 1,517
-lines) were **deleted rather than rewritten**, per the field note. Their callers
-in `storage_package_import.c`, `_replace.c`, and `_restore.c` lose their
+**The tree-walker decision, as taken:** `storage_set_tree.c` and
+`storage_repository_tree.c` (1,517 lines) were **deleted, not rewritten**. The
+four production validators that called them now return `APP_ERROR_NONE` with a
+comment saying so, which means import, replace and restore lose their
 post-materialization tree-shape re-check. The incoming package is still fully
-validated by `storage_package.c` before anything is written, so what is lost is
-the belt-and-braces second check of a directory layout that Phase 4 deletes
-outright. Say so plainly in the commit rather than letting it pass silently.
+validated by `storage_package_validate()` before a single byte is written, so
+what is lost is the belt-and-braces second check of a directory layout Phase 4
+deletes outright. The function-pointer seam was kept deliberately, so the
+transaction recovery paths stay testable with an injected failing validator and
+so Phase 4 removes the plumbing on purpose rather than by accident.
 
-- [ ] **CMake first.** Delete the `storage_procedure_repository_tests` and
+**Two latent defects were found and fixed while cutting**, both left by the
+earlier partial pass and neither caught by the compiler:
+
+- `storage_atomic_validators.c` — deleting the `PROCEDURE_INDEX` case had also
+  deleted `return validate_index;`, so `SET_INDEX` and `SET_MACRO_INDEX` fell
+  through to `validate_set_metadata`. Every order file would have been rejected
+  as corrupt during recovery. (This is what the earlier note calling
+  `validate_index` "unused" had actually observed.)
+- `storage_package_backup.c` — the `fold_skips()` call for macros had been cut
+  along with the procedure block surrounding it, which would have silently
+  stopped reporting skipped macros in partial backups.
+
+**Coverage preserved rather than dropped**, in three places where deleting the
+procedure test would have taken unrelated assertions with it — the same trap
+2a's note warned about:
+
+- `test_storage_object_json.c` — the order round-trip lived inside the progress
+  test; extracted as `test_order_round_trip`.
+- `test_storage_package_export.c` — the output-limit test had been reworked in
+  the previous session to overflow via procedures. A maximal set of plain macro
+  sources is only ~446 KiB, so it now drives the 512 KiB writer ceiling with
+  sources made of quote characters, which double on JSON escaping.
+- `test_storage_atomic_validators.c` — the classifier still asserts a
+  procedures path now classifies as `UNKNOWN`, rather than dropping the case.
+
+**Stack ratchet:** `storage_set_duplicate_locked` hit 6448 bytes against an
+allowed 4736, because the now-smaller `write_duplicate_order` began inlining
+into it. Fixed at source by heap-allocating the ~3.7 KB `storage_uuid_order_t`,
+not by recording a larger number. Two allowlist entries naming deleted frames
+were removed.
+
+- [x] **CMake first.** Delete the `storage_procedure_repository_tests` and
   `storage_progress_repository_tests` targets and every reference to
   `storage_repository_procedures.c` / `storage_repository_progress.c` in
   `tests/host/CMakeLists.txt`, `tests/host/cmake/extra_tests.cmake`, and
   `firmware/components/storage/CMakeLists.txt`. Delete
   `tests/host/test_storage_procedures.c` and `test_storage_progress.c`.
-- [ ] Delete `storage_repository_procedures.c`,
+- [x] Delete `storage_repository_procedures.c`,
   `storage_repository_progress.c`, and
   `storage_repository_procedures_internal.h` (1,250 lines).
-- [ ] Delete from `storage_repository.h`: `storage_procedure_list_t`,
+- [x] Delete from `storage_repository.h`: `storage_procedure_list_t`,
   `storage_procedure_identity_t`, `storage_progress_status_t`,
   `storage_progress_snapshot_t`, `storage_reference_list_t`,
   `STORAGE_REFERENCE_DETAIL_MAX_IDS`, and all eleven procedure/progress entry
   points. `storage_macro_delete` loses its `out_references` out-parameter.
-- [ ] Delete the reference-integrity scan from `storage_repository_macros.c`
-  (`step_references_macro`, `add_reference`, `parse_procedure_filename`,
-  `read_reference_scan_procedure`, `procedure_references_macro`,
-  `scan_procedure_entry`, `scan_set_procedure_references`,
-  `find_macro_references`, `procedure_reference_scan_t`) and the
-  `APP_ERROR_CONFLICT`-on-referenced-macro path, plus `reference_details_json`
-  and the `"macro is referenced by procedures"` response in `web_api_macros.c`.
-  **This is the single largest reason the transaction machinery exists** —
-  removing it is what makes Phase 3 possible.
-- [ ] Delete `procedure_t`, `procedure_step_t`, `procedure_progress_t`,
+- [x] Delete the reference-integrity scan from `storage_repository_macros.c`
+  and the `APP_ERROR_CONFLICT`-on-referenced-macro path, plus
+  `reference_details_json` and the `"macro is referenced by procedures"`
+  response in `web_api_macros.c`.
+- [x] Delete `procedure_t`, `procedure_step_t`, `procedure_progress_t`,
   `procedure_step_type_t`, and `macro_model_free_procedure` from
-  `macro_model.h`/`macro_model.c`, and `MACRO_KEYBOARD_LAYOUT_BYTES`, which
-  Phase 1 left unused.
-- [ ] Delete `APP_PROCEDURES_PER_SET_MAX` and `APP_STEPS_PER_PROCEDURE_MAX`
+  `macro_model.h`/`macro_model.c`, and `MACRO_KEYBOARD_LAYOUT_BYTES`.
+- [x] Delete `APP_PROCEDURES_PER_SET_MAX` and `APP_STEPS_PER_PROCEDURE_MAX`
   from `macro_limits.h` and from the `/api/v1/limits` response. SPEC §10.7.
-- [ ] Delete `STORAGE_PROCEDURE_FILE_MAX_BYTES`,
+- [x] Delete `STORAGE_PROCEDURE_FILE_MAX_BYTES`,
   `STORAGE_PROGRESS_FILE_MAX_BYTES`, and the now-vacuous
   `STORAGE_ORDER_MAX_IDS >= APP_PROCEDURES_PER_SET_MAX` assertion from
   `storage_object_json.h`; delete the procedure/progress/step parsers,
   serializers, and field tables from `storage_repository_objects_json.c`.
-- [ ] Delete `procedures` and `progress` from the package format
-  (`storage_package.c`: two field enumerators, two array slots, two summary
-  counters, `validate_procedure_object`, `validate_progress_object`,
-  `procedure_macro_references_valid`, `procedure_has_step`,
-  `progress_step_references_valid`, and their allocation-table entries), from
+- [x] Delete `procedures` and `progress` from the package format, from
   `storage_package_summary_t`, and from `storage_package_object_kind_t`.
-- [ ] **Remove `include_progress`** from `storage_package_export_set`,
+- [x] **Remove `include_progress`** from `storage_package_export_set`,
   `storage_package_export_backup`, and `storage_package_export_backup_detail`.
-  It threads through the whole export API and becomes meaningless.
-- [ ] Delete `prune_dangling_procedures` and `procedure_included` from
+- [x] Delete `prune_dangling_procedures` and `procedure_included` from
   `storage_package_backup.c`; delete the procedure/progress writers from
   `storage_package_import.c`, `_replace.c`, and `_restore.c`; delete
   `write_duplicate_procedure` and the procedure half of
   `create_duplicate_staging` from `storage_repository_set_operations.c`.
-- [ ] Delete `procedure-order.json`, `procedures/`, and `progress/` from
+- [x] Delete `procedure-order.json`, `procedures/`, and `progress/` from
   `storage_paths.c`, `storage_mount_topology.c`, and
-  `storage_atomic_validators.c` (including the
-  `STORAGE_ATOMIC_OBJECT_PROCEDURE*`/`_PROGRESS` object kinds).
-- [ ] **`storage_set_tree.c` and `storage_repository_tree.c`: do not rewrite.**
-  See the field notes below.
-- [ ] Strip procedure and progress fixtures from the remaining 21 host test
-  files.
+  `storage_atomic_validators.c`.
+- [x] **`storage_set_tree.c` and `storage_repository_tree.c`: deleted, not
+  rewritten.** See the decision recorded above.
+- [x] Strip procedure and progress fixtures from the remaining host test files.
 
 **Gate before committing:** `./scripts/check-all.sh` exits 0.
 
