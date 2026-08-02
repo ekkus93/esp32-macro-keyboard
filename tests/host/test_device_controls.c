@@ -7,34 +7,6 @@
 #include "device_controls_logic.h"
 #include "test_assert.h"
 
-static void test_basic_logic(void) {
-    TEST_CHECK(device_controls_level_is_pressed(0, 0));
-    TEST_CHECK(!device_controls_level_is_pressed(1, 0));
-    TEST_CHECK(device_controls_level_is_pressed(1, 1));
-    TEST_CHECK(!device_controls_level_is_pressed(0, 1));
-    TEST_CHECK(!device_controls_level_is_pressed(0, -1));
-    TEST_CHECK(!device_controls_level_is_pressed(1, 2));
-
-    device_controls_debounce_t button = {0};
-    TEST_CHECK(!device_controls_debounce_update(&button, true));
-    TEST_CHECK(!device_controls_debounce_update(&button, true));
-    TEST_CHECK(device_controls_debounce_update(&button, true));
-    for (size_t index = 0U; index < 300U; ++index) {
-        TEST_CHECK(!device_controls_debounce_update(&button, true));
-    }
-    TEST_CHECK_EQ_U64(DEVICE_CONTROLS_DEBOUNCE_SAMPLES, button.candidate_count);
-    TEST_CHECK(!device_controls_debounce_update(&button, false));
-    TEST_CHECK(!device_controls_debounce_update(&button, false));
-    TEST_CHECK(!device_controls_debounce_update(&button, false));
-    TEST_CHECK(!button.stable);
-    TEST_CHECK(!device_controls_debounce_update(NULL, true));
-
-    for (size_t index = 0U; index < 99U; ++index) {
-        TEST_CHECK(!device_controls_debounce_update(&button, (index % 2U) == 0U));
-        TEST_CHECK_EQ_U64(1U, button.candidate_count);
-    }
-}
-
 typedef struct {
     device_indicator_state_t state;
     uint32_t elapsed_ms;
@@ -123,12 +95,6 @@ static bool fake_stopped(void *context) {
     return fake->stopped_signal_result;
 }
 
-static app_error_code_t fake_cancel(void *context) {
-    fake_controls_t *fake = context;
-    ++fake->cancel_calls;
-    return fake->cancel_result;
-}
-
 static app_error_code_t fake_write(void *context, bool enabled) {
     fake_controls_t *fake = context;
     (void)enabled;
@@ -196,7 +162,6 @@ static device_controls_ops_t fake_ops(fake_controls_t *fake) {
         .unlock = fake_unlock,
         .signal_confirmation = fake_confirmation,
         .signal_stopped = fake_stopped,
-        .cancel_execution = fake_cancel,
         .write_indicator = fake_write,
         .request_stop = fake_request_stop,
         .clear_stop_request = fake_clear_stop,
@@ -229,30 +194,27 @@ static void invalidate_operation(device_controls_ops_t *operations, size_t index
         operations->signal_stopped = NULL;
         break;
     case 4U:
-        operations->cancel_execution = NULL;
-        break;
-    case 5U:
         operations->write_indicator = NULL;
         break;
-    case 6U:
+    case 5U:
         operations->request_stop = NULL;
         break;
-    case 7U:
+    case 6U:
         operations->clear_stop_request = NULL;
         break;
-    case 8U:
+    case 7U:
         operations->wait_stopped = NULL;
         break;
-    case 9U:
+    case 8U:
         operations->set_safe_output = NULL;
         break;
-    case 10U:
+    case 9U:
         operations->reset_pin = NULL;
         break;
-    case 11U:
+    case 10U:
         operations->delete_confirmation_signal = NULL;
         break;
-    case 12U:
+    case 11U:
         operations->delete_stopped_signal = NULL;
         break;
     default:
@@ -277,13 +239,10 @@ static void start_engine(device_controls_engine_t *engine, fake_controls_t *fake
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_controls_engine_task_started(engine));
 }
 
-static device_controls_poll_result_t
-poll_button(device_controls_engine_t *engine, bool confirmation, bool cancel, uint32_t elapsed_ms) {
-    return device_controls_engine_poll(engine, (device_controls_poll_input_t){
-                                                   .confirmation_pressed = confirmation,
-                                                   .cancel_pressed = cancel,
-                                                   .elapsed_ms = elapsed_ms,
-                                               });
+static device_controls_poll_result_t poll_tick(device_controls_engine_t *engine,
+                                               uint32_t elapsed_ms) {
+    return device_controls_engine_poll(engine,
+                                       (device_controls_poll_input_t){.elapsed_ms = elapsed_ms});
 }
 
 static void test_validation_and_partial_init(void) {
@@ -293,14 +252,14 @@ static void test_validation_and_partial_init(void) {
     device_controls_ops_t operations = fake_ops(&fake);
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          device_controls_engine_init(NULL, &operations));
-    for (size_t index = 0U; index < 13U; ++index) {
+    for (size_t index = 0U; index < 12U; ++index) {
         operations = fake_ops(&fake);
         invalidate_operation(&operations, index);
         TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                              device_controls_engine_init(&engine, &operations));
     }
     TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, device_controls_engine_acquire_resource(
-                                                 NULL, DEVICE_CONTROLS_RESOURCE_CONFIRM_PIN));
+                                                 NULL, DEVICE_CONTROLS_RESOURCE_STATUS_PIN));
     TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, device_controls_engine_task_started(NULL));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, device_controls_engine_deinit(NULL, 100U));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, device_controls_engine_deinit(&engine, 0U));
@@ -317,9 +276,9 @@ static void test_validation_and_partial_init(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, device_controls_engine_acquire_resource(
                                                          &engine, (device_controls_resource_t)99));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_controls_engine_acquire_resource(
-                                             &engine, DEVICE_CONTROLS_RESOURCE_CONFIRM_PIN));
+                                             &engine, DEVICE_CONTROLS_RESOURCE_STATUS_PIN));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_controls_engine_deinit(&engine, 100U));
-    TEST_CHECK_EQ_U64(1U, fake.reset_calls[DEVICE_CONTROLS_PIN_CONFIRM]);
+    TEST_CHECK_EQ_U64(1U, fake.reset_calls[DEVICE_CONTROLS_PIN_STATUS]);
 }
 
 static void test_health_categories(void) {
@@ -369,27 +328,12 @@ static void test_health_derive_state(void) {
 
     health = (device_controls_health_t){0};
     health.task_running = true;
-    health.last_cancel_error = APP_ERROR_TIMEOUT;
-    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
-
-    health = (device_controls_health_t){0};
-    health.task_running = true;
     health.indicator_output_failed = true;
     TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
 
     health = (device_controls_health_t){0};
     health.task_running = true;
     health.confirmation_signal_failed = true;
-    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
-
-    health = (device_controls_health_t){0};
-    health.task_running = true;
-    health.cancel_request_failed = true;
-    TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
-
-    health = (device_controls_health_t){0};
-    health.task_running = true;
-    health.gpio_read_failed = true;
     TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
 
     health = (device_controls_health_t){0};
@@ -412,53 +356,20 @@ static void test_health_derive_state(void) {
     TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, device_controls_health_derive_state(health));
 }
 
-static void debounce_press(device_controls_engine_t *engine, bool confirmation, bool cancel) {
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_button(engine, confirmation, cancel, 0U).error);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_button(engine, confirmation, cancel, 20U).error);
-}
-
 static void test_runtime_failures(void) {
     fake_controls_t fake;
     fake_init(&fake);
     device_controls_engine_t engine;
     start_engine(&engine, &fake);
 
-    fake.confirmation_signal_result = false;
-    debounce_press(&engine, true, false);
-    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, poll_button(&engine, true, false, 40U).error);
-    device_controls_health_t health = device_controls_engine_get_health(&engine);
-    TEST_CHECK(health.confirmation_signal_failed);
-    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, health.last_confirmation_error);
-
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_button(&engine, false, false, 60U).error);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_button(&engine, false, false, 80U).error);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_button(&engine, false, false, 100U).error);
-    fake.cancel_result = APP_ERROR_IO;
-    debounce_press(&engine, false, true);
-    TEST_CHECK_APP_ERROR(APP_ERROR_IO, poll_button(&engine, false, true, 160U).error);
-    health = device_controls_engine_get_health(&engine);
-    TEST_CHECK(health.cancel_request_failed);
-    TEST_CHECK_APP_ERROR(APP_ERROR_IO, health.last_cancel_error);
-
-    fake.cancel_result = APP_ERROR_NOT_FOUND;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_button(&engine, false, false, 180U).error);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_button(&engine, false, false, 200U).error);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_button(&engine, false, false, 220U).error);
-    debounce_press(&engine, false, true);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_button(&engine, false, true, 280U).error);
-
-    device_controls_poll_result_t result =
-        device_controls_engine_poll(&engine, (device_controls_poll_input_t){
-                                                 .confirmation_pressed = true,
-                                                 .cancel_pressed = true,
-                                                 .gpio_read_error = APP_ERROR_IO,
-                                             });
-    TEST_CHECK_APP_ERROR(APP_ERROR_IO, result.error);
-    health = device_controls_engine_get_health(&engine);
-    TEST_CHECK(health.gpio_read_failed);
+    /* With no buttons the poll loop only drives the indicator, so that is the
+     * only thing that can fail in it. Confirmation is signalled out of band by
+     * device_controls_signal_confirmation(), not sampled here. */
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_tick(&engine, 40U).error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_tick(&engine, 60U).error);
 
     fake.write_result = APP_ERROR_IO;
-    TEST_CHECK_APP_ERROR(APP_ERROR_IO, poll_button(&engine, false, false, 300U).error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, poll_tick(&engine, 300U).error);
     TEST_CHECK(device_controls_engine_get_health(&engine).indicator_output_failed);
 }
 
@@ -494,20 +405,20 @@ static void test_cleanup_retry_and_idempotence(void) {
     fake_init(&fake);
     fake.complete_stop_during_wait = true;
     fake.safe_result = APP_ERROR_IO;
-    fake.reset_results[DEVICE_CONTROLS_PIN_CONFIRM] = APP_ERROR_INTERNAL;
+    fake.reset_results[DEVICE_CONTROLS_PIN_STATUS] = APP_ERROR_INTERNAL;
     device_controls_engine_t engine;
     start_engine(&engine, &fake);
     TEST_CHECK_APP_ERROR(APP_ERROR_IO, device_controls_engine_deinit(&engine, 100U));
     TEST_CHECK_EQ_U64(1U, fake.safe_calls);
-    TEST_CHECK_EQ_U64(1U, fake.reset_calls[DEVICE_CONTROLS_PIN_CONFIRM]);
-    TEST_CHECK_EQ_U64(1U, fake.reset_calls[DEVICE_CONTROLS_PIN_CANCEL]);
+    TEST_CHECK_EQ_U64(1U, fake.reset_calls[DEVICE_CONTROLS_PIN_STATUS]);
+    TEST_CHECK_EQ_U64(1U, fake.reset_calls[DEVICE_CONTROLS_PIN_STATUS]);
     TEST_CHECK_EQ_U64(1U, fake.reset_calls[DEVICE_CONTROLS_PIN_STATUS]);
     TEST_CHECK_EQ_U64(1U, fake.delete_confirmation_calls);
     TEST_CHECK_EQ_U64(1U, fake.delete_stopped_calls);
     TEST_CHECK(device_controls_engine_owns_resources(&engine));
 
     fake.safe_result = APP_ERROR_NONE;
-    fake.reset_results[DEVICE_CONTROLS_PIN_CONFIRM] = APP_ERROR_NONE;
+    fake.reset_results[DEVICE_CONTROLS_PIN_STATUS] = APP_ERROR_NONE;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_controls_engine_deinit(&engine, 100U));
     TEST_CHECK(!device_controls_engine_owns_resources(&engine));
     TEST_CHECK(device_controls_engine_task_stop_confirmed(&engine));
@@ -515,7 +426,7 @@ static void test_cleanup_retry_and_idempotence(void) {
     const unsigned int confirmations = fake.confirmation_signals;
     const unsigned int stopped = fake.stopped_signals;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_controls_engine_deinit(&engine, 100U));
-    const device_controls_poll_result_t after = poll_button(&engine, true, true, 100U);
+    const device_controls_poll_result_t after = poll_tick(&engine, 100U);
     TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, after.error);
     TEST_CHECK(!after.continue_running);
     TEST_CHECK_EQ_U64(writes, fake.write_calls);
@@ -552,7 +463,6 @@ static void test_lock_failures_and_empty_health(void) {
 }
 
 int main(void) {
-    test_basic_logic();
     test_indicators();
     test_validation_and_partial_init();
     test_health_categories();

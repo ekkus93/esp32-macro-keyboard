@@ -9,29 +9,6 @@
 #include "device_controls.h"
 #include "subsystem_health.h"
 
-bool device_controls_level_is_pressed(int level, int active_level) {
-    return (active_level == 0 || active_level == 1) && level == active_level;
-}
-
-bool device_controls_debounce_update(device_controls_debounce_t *button, bool sample) {
-    if (button == NULL) {
-        return false;
-    }
-    if (sample != button->candidate) {
-        button->candidate = sample;
-        button->candidate_count = 1U;
-        return false;
-    }
-    if (button->candidate_count < DEVICE_CONTROLS_DEBOUNCE_SAMPLES) {
-        ++button->candidate_count;
-    }
-    if (button->candidate_count == DEVICE_CONTROLS_DEBOUNCE_SAMPLES && button->stable != sample) {
-        button->stable = sample;
-        return sample;
-    }
-    return false;
-}
-
 /* Status-LED blink patterns as (period, on-time) in milliseconds. */
 #define INDICATOR_BOOTING_PERIOD_MS 1000U
 #define INDICATOR_BOOTING_ON_MS 250U
@@ -70,10 +47,10 @@ bool device_controls_indicator_on(device_indicator_phase_t phase) {
 static bool operations_valid(const device_controls_ops_t *operations) {
     return operations != NULL && operations->lock != NULL && operations->unlock != NULL &&
            operations->signal_confirmation != NULL && operations->signal_stopped != NULL &&
-           operations->cancel_execution != NULL && operations->write_indicator != NULL &&
-           operations->request_stop != NULL && operations->clear_stop_request != NULL &&
-           operations->wait_stopped != NULL && operations->set_safe_output != NULL &&
-           operations->reset_pin != NULL && operations->delete_confirmation_signal != NULL &&
+           operations->write_indicator != NULL && operations->request_stop != NULL &&
+           operations->clear_stop_request != NULL && operations->wait_stopped != NULL &&
+           operations->set_safe_output != NULL && operations->reset_pin != NULL &&
+           operations->delete_confirmation_signal != NULL &&
            operations->delete_stopped_signal != NULL;
 }
 
@@ -92,13 +69,6 @@ static void set_failure_flag(device_controls_health_t *health, device_controls_f
     case DEVICE_CONTROLS_FAILURE_CONFIRMATION:
         health->confirmation_signal_failed = true;
         health->last_confirmation_error = error;
-        break;
-    case DEVICE_CONTROLS_FAILURE_CANCEL:
-        health->cancel_request_failed = true;
-        health->last_cancel_error = error;
-        break;
-    case DEVICE_CONTROLS_FAILURE_GPIO_READ:
-        health->gpio_read_failed = true;
         break;
     case DEVICE_CONTROLS_FAILURE_GPIO_CONFIGURATION:
         health->gpio_configuration_failed = true;
@@ -207,12 +177,6 @@ app_error_code_t device_controls_engine_acquire_resource(device_controls_engine_
     case DEVICE_CONTROLS_RESOURCE_STOPPED_SIGNAL:
         engine->stopped_signal_owned = true;
         break;
-    case DEVICE_CONTROLS_RESOURCE_CONFIRM_PIN:
-        engine->confirm_pin_owned = true;
-        break;
-    case DEVICE_CONTROLS_RESOURCE_CANCEL_PIN:
-        engine->cancel_pin_owned = true;
-        break;
     case DEVICE_CONTROLS_RESOURCE_STATUS_PIN:
         engine->status_pin_owned = true;
         break;
@@ -245,28 +209,10 @@ device_controls_poll_result_t device_controls_engine_poll(device_controls_engine
         return result;
     }
 
+    /* Nothing is sampled here any more: with no buttons on the device the poll
+     * loop exists only to drive the status indicator. Confirmation arrives
+     * asynchronously from device_controls_signal_confirmation(). */
     result.continue_running = true;
-    if (input.gpio_read_error != APP_ERROR_NONE) {
-        const app_error_code_t failure = record_runtime_failure(engine, input.gpio_read_error,
-                                                                DEVICE_CONTROLS_FAILURE_GPIO_READ);
-        record_first_error(failure, &result.error);
-    } else {
-        if (device_controls_debounce_update(&engine->confirmation, input.confirmation_pressed) &&
-            !engine->operations.signal_confirmation(engine->operations.context)) {
-            const app_error_code_t failure = record_runtime_failure(
-                engine, APP_ERROR_INTERNAL, DEVICE_CONTROLS_FAILURE_CONFIRMATION);
-            record_first_error(failure, &result.error);
-        }
-        if (device_controls_debounce_update(&engine->cancel, input.cancel_pressed)) {
-            const app_error_code_t cancel =
-                engine->operations.cancel_execution(engine->operations.context);
-            if (cancel != APP_ERROR_NONE && cancel != APP_ERROR_NOT_FOUND) {
-                const app_error_code_t failure =
-                    record_runtime_failure(engine, cancel, DEVICE_CONTROLS_FAILURE_CANCEL);
-                record_first_error(failure, &result.error);
-            }
-        }
-    }
 
     device_indicator_state_t indicator = DEVICE_INDICATOR_FATAL;
     const app_error_code_t indicator_state_result = get_indicator_state(engine, &indicator);
@@ -329,11 +275,9 @@ device_controls_health_t device_controls_engine_get_health(device_controls_engin
 
 subsystem_health_state_t device_controls_health_derive_state(device_controls_health_t health) {
     if (health.last_error != APP_ERROR_NONE || health.cleanup_error != APP_ERROR_NONE ||
-        health.last_confirmation_error != APP_ERROR_NONE ||
-        health.last_cancel_error != APP_ERROR_NONE || health.indicator_output_failed ||
-        health.confirmation_signal_failed || health.cancel_request_failed ||
-        health.gpio_read_failed || health.gpio_configuration_failed || health.task_start_failed ||
-        health.task_stop_failed) {
+        health.last_confirmation_error != APP_ERROR_NONE || health.indicator_output_failed ||
+        health.confirmation_signal_failed || health.gpio_configuration_failed ||
+        health.task_start_failed || health.task_stop_failed) {
         return SUBSYSTEM_HEALTH_FAILED;
     }
     if (!health.task_running) {
@@ -343,9 +287,8 @@ subsystem_health_state_t device_controls_health_derive_state(device_controls_hea
 }
 
 bool device_controls_engine_owns_resources(const device_controls_engine_t *engine) {
-    return engine != NULL &&
-           (engine->confirmation_signal_owned || engine->stopped_signal_owned ||
-            engine->confirm_pin_owned || engine->cancel_pin_owned || engine->status_pin_owned);
+    return engine != NULL && (engine->confirmation_signal_owned || engine->stopped_signal_owned ||
+                              engine->status_pin_owned);
 }
 
 bool device_controls_engine_task_stop_confirmed(const device_controls_engine_t *engine) {
@@ -384,13 +327,7 @@ static app_error_code_t cleanup_resources(device_controls_engine_t *engine) {
     }
 
     app_error_code_t result =
-        cleanup_pin(engine, DEVICE_CONTROLS_PIN_CONFIRM, &engine->confirm_pin_owned);
-    record_cleanup_failure(engine, result, DEVICE_CONTROLS_FAILURE_GENERIC, &first_error);
-
-    result = cleanup_pin(engine, DEVICE_CONTROLS_PIN_CANCEL, &engine->cancel_pin_owned);
-    record_cleanup_failure(engine, result, DEVICE_CONTROLS_FAILURE_GENERIC, &first_error);
-
-    result = cleanup_pin(engine, DEVICE_CONTROLS_PIN_STATUS, &engine->status_pin_owned);
+        cleanup_pin(engine, DEVICE_CONTROLS_PIN_STATUS, &engine->status_pin_owned);
     record_cleanup_failure(engine, result, DEVICE_CONTROLS_FAILURE_GENERIC, &first_error);
 
     if (engine->confirmation_signal_owned) {

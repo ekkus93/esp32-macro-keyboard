@@ -19,12 +19,9 @@ typedef struct {
     app_error_code_t last_error;
     app_error_code_t cleanup_error;
     app_error_code_t last_confirmation_error;
-    app_error_code_t last_cancel_error;
     bool task_running;
     bool indicator_output_failed;
     bool confirmation_signal_failed;
-    bool cancel_request_failed;
-    bool gpio_read_failed;
     bool gpio_configuration_failed;
     bool task_start_failed;
     bool task_stop_failed;

@@ -2803,46 +2803,23 @@ Interrupt real hardware after each storage transaction phase.
 
 ### 20.5 Physical controls
 
-Measure:
+**Struck from scope 2026-08-01: this product has no buttons.**
 
-- [ ] cancellation latency during 10-second delay; (needs a press of the
-      physical cancel button)
-- [ ] cancellation latency during rapid typing; (needs a press of the
-      physical cancel button)
-- [x] confirmation timeout;
-- [ ] reset gesture duration; (needs a physical button gesture)
-- [ ] accidental short-press rejection. (needs a physical button gesture)
+These five items measured cancel-button latency, a confirmation timeout, a
+reset-gesture duration, and short-press rejection. Four of them tested hardware
+that does not exist - the cancel button was assigned GPIO4, which a bare devkit
+does not break out - and the reset gestures were never implemented in firmware
+at all. Requiring the remaining one made six API routes demand a press the
+device had been configured not to need, which in turn hid a stack-overflow
+crash in `restore_locked` for the entire project.
 
-**confirmation timeout** was measured on the attached ESP32-S3 (device
-`9C139EA87739`) on 2026-08-01. `POST /api/v1/restore` hard-requires physical
-confirmation, so leaving the button unpressed times the window exactly. Eight
-consecutive requests, no button press, each returning
-`403 {"code":"timeout","message":"physical confirmation failed"}`:
+The button code is removed (`device_controls` now owns only the status
+indicator and the confirmation signal). Confirmation and cancellation are
+serial-console commands, `confirm` and `cancel`. Physical confirmation is off
+by default.
 
-```text
-20.01  20.02  20.01  20.02  20.03  20.03  20.02  20.03   (seconds)
-```
-
-That matches `APP_PHYSICAL_CONFIRM_TIMEOUT_MS` (20000, `macro_limits.h`) to
-within 30 ms, the overhead of an HTTP round trip over Wi-Fi. Reproducible with
-`tests/hardware/test_backup_restore.py` and
-`tests/hardware/test_httpd_concurrency.py`.
-
-The timeout is enforced by `device_controls_wait_for_confirmation()`, which
-returns `APP_ERROR_TIMEOUT` when the confirmation semaphore is not given inside
-the window. These runs also confirm the controls task was alive and polling
-throughout: a stopped controls task returns `APP_ERROR_CONFLICT`, not
-`APP_ERROR_TIMEOUT`.
-
-Measured after the wait moved off the HTTP server task
-(`firmware/components/web_server/web_server_async.c`); the window itself is
-unchanged, but the device now stays responsive during it.
-
-The other four items all need a physical button press, which no automated
-harness here can produce. Note that the confirm button is GPIO0 (the BOARD's
-BOOT button) but the cancel button is `CONFIG_APP_CANCEL_BUTTON_GPIO=4`, which
-a bare devkit does not expose as a button - the two cancellation-latency items
-need a switch or jumper on GPIO4 before they can be measured at all.
+The confirmation timeout was measured before removal and remains valid:
+20.01-20.03 s across eight runs, matching `APP_PHYSICAL_CONFIRM_TIMEOUT_MS`.
 
 ## 21. Release budgets and immutable CI
 

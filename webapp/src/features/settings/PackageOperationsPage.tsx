@@ -257,7 +257,7 @@ export function PackageOperationsPage({
     }
     setReplacing(true);
     setError(null);
-    setMessage("Press the confirmation button on the device.");
+    setMessage("Restoring. Do not power off the device.");
     try {
       const committed = await replaceSetPackage(
         activeSet.id,
@@ -290,7 +290,7 @@ export function PackageOperationsPage({
     }
     setRestoring(true);
     setError(null);
-    setMessage("Press the confirmation button on the device.");
+    setMessage("Restoring. Do not power off the device.");
     try {
       await restoreBackupPackage(restorePackage);
       setRestoreConfirmationOpen(false);

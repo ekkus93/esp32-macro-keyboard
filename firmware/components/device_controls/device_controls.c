@@ -11,7 +11,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-#include "macro_executor.h"
 #include "sdkconfig.h"
 
 #define CONTROL_POLL_MS 20U
@@ -48,11 +47,6 @@ static bool adapter_signal_confirmation(void *context) {
 static bool adapter_signal_stopped(void *context) {
     (void)context;
     return controls_stopped != NULL && xSemaphoreGive(controls_stopped) == pdTRUE;
-}
-
-static app_error_code_t adapter_cancel_execution(void *context) {
-    (void)context;
-    return macro_executor_cancel();
 }
 
 static app_error_code_t adapter_write_indicator(void *context, bool enabled) {
@@ -100,20 +94,13 @@ static app_error_code_t adapter_set_safe_output(void *context) {
 }
 
 static gpio_num_t pin_number(device_controls_pin_t pin) {
-    switch (pin) {
-    case DEVICE_CONTROLS_PIN_CONFIRM:
-        return (gpio_num_t)CONFIG_APP_CONFIRM_BUTTON_GPIO;
-    case DEVICE_CONTROLS_PIN_CANCEL:
-        return (gpio_num_t)CONFIG_APP_CANCEL_BUTTON_GPIO;
-    case DEVICE_CONTROLS_PIN_STATUS:
-    default:
-        return (gpio_num_t)CONFIG_APP_STATUS_LED_GPIO;
-    }
+    (void)pin;
+    return (gpio_num_t)CONFIG_APP_STATUS_LED_GPIO;
 }
 
 static app_error_code_t adapter_reset_pin(void *context, device_controls_pin_t pin) {
     (void)context;
-    if (pin < DEVICE_CONTROLS_PIN_CONFIRM || pin > DEVICE_CONTROLS_PIN_STATUS) {
+    if (pin != DEVICE_CONTROLS_PIN_STATUS) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     return gpio_reset_pin(pin_number(pin)) == ESP_OK ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
@@ -142,7 +129,6 @@ static device_controls_ops_t controls_operations(void) {
         .unlock = adapter_unlock,
         .signal_confirmation = adapter_signal_confirmation,
         .signal_stopped = adapter_signal_stopped,
-        .cancel_execution = adapter_cancel_execution,
         .write_indicator = adapter_write_indicator,
         .request_stop = adapter_request_stop,
         .clear_stop_request = adapter_clear_stop_request,
@@ -161,28 +147,6 @@ static bool stop_requested(void) {
     return requested;
 }
 
-typedef struct {
-    bool confirmation_pressed;
-    bool cancel_pressed;
-} button_state_t;
-
-static app_error_code_t read_buttons(button_state_t *out_buttons) {
-    if (out_buttons == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const int confirmation_level = gpio_get_level((gpio_num_t)CONFIG_APP_CONFIRM_BUTTON_GPIO);
-    const int cancel_level = gpio_get_level((gpio_num_t)CONFIG_APP_CANCEL_BUTTON_GPIO);
-    if ((confirmation_level != 0 && confirmation_level != 1) ||
-        (cancel_level != 0 && cancel_level != 1)) {
-        return APP_ERROR_IO;
-    }
-    out_buttons->confirmation_pressed =
-        device_controls_level_is_pressed(confirmation_level, CONFIG_APP_BUTTON_ACTIVE_LEVEL);
-    out_buttons->cancel_pressed =
-        device_controls_level_is_pressed(cancel_level, CONFIG_APP_BUTTON_ACTIVE_LEVEL);
-    return APP_ERROR_NONE;
-}
-
 static void log_controls_error(const char *operation, app_error_code_t error) {
     ESP_LOGE(TAG, "%s failed: %s", operation, app_error_code_string(error));
 }
@@ -190,17 +154,12 @@ static void log_controls_error(const char *operation, app_error_code_t error) {
 static void controls_task(void *context) {
     (void)context;
     while (true) {
-        button_state_t buttons = {0};
-        const app_error_code_t read_result = read_buttons(&buttons);
         const uint64_t elapsed = (uint64_t)xTaskGetTickCount() * (uint64_t)portTICK_PERIOD_MS;
-        const device_controls_poll_result_t result = device_controls_engine_poll(
-            &engine, (device_controls_poll_input_t){
-                         .confirmation_pressed = buttons.confirmation_pressed,
-                         .cancel_pressed = buttons.cancel_pressed,
-                         .stop_requested = stop_requested(),
-                         .gpio_read_error = read_result,
-                         .elapsed_ms = (uint32_t)elapsed,
-                     });
+        const device_controls_poll_result_t result =
+            device_controls_engine_poll(&engine, (device_controls_poll_input_t){
+                                                     .stop_requested = stop_requested(),
+                                                     .elapsed_ms = (uint32_t)elapsed,
+                                                 });
         if (result.error != APP_ERROR_NONE) {
             log_controls_error("controls poll", result.error);
         }
@@ -217,14 +176,8 @@ static bool valid_gpio_number(int gpio) {
 }
 
 static bool configuration_valid(void) {
-    return valid_gpio_number(CONFIG_APP_CONFIRM_BUTTON_GPIO) &&
-           valid_gpio_number(CONFIG_APP_CANCEL_BUTTON_GPIO) &&
-           valid_gpio_number(CONFIG_APP_STATUS_LED_GPIO) &&
-           (CONFIG_APP_BUTTON_ACTIVE_LEVEL == 0 || CONFIG_APP_BUTTON_ACTIVE_LEVEL == 1) &&
-           (CONFIG_APP_LED_ACTIVE_LEVEL == 0 || CONFIG_APP_LED_ACTIVE_LEVEL == 1) &&
-           CONFIG_APP_CONFIRM_BUTTON_GPIO != CONFIG_APP_CANCEL_BUTTON_GPIO &&
-           CONFIG_APP_CONFIRM_BUTTON_GPIO != CONFIG_APP_STATUS_LED_GPIO &&
-           CONFIG_APP_CANCEL_BUTTON_GPIO != CONFIG_APP_STATUS_LED_GPIO;
+    return valid_gpio_number(CONFIG_APP_STATUS_LED_GPIO) &&
+           (CONFIG_APP_LED_ACTIVE_LEVEL == 0 || CONFIG_APP_LED_ACTIVE_LEVEL == 1);
 }
 
 static app_error_code_t acquire_resource(device_controls_resource_t resource) {
@@ -244,28 +197,6 @@ static app_error_code_t record_init_failure(app_error_code_t primary,
         log_controls_error("controls init cleanup", cleanup);
     }
     return primary;
-}
-
-static app_error_code_t configure_input_pins(void) {
-    app_error_code_t result = acquire_resource(DEVICE_CONTROLS_RESOURCE_CONFIRM_PIN);
-    if (result == APP_ERROR_NONE) {
-        result = acquire_resource(DEVICE_CONTROLS_RESOURCE_CANCEL_PIN);
-    }
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    const uint64_t input_mask = (1ULL << (unsigned int)CONFIG_APP_CONFIRM_BUTTON_GPIO) |
-                                (1ULL << (unsigned int)CONFIG_APP_CANCEL_BUTTON_GPIO);
-    const gpio_config_t input = {
-        .pin_bit_mask = input_mask,
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en =
-            CONFIG_APP_BUTTON_ACTIVE_LEVEL == 0 ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE,
-        .pull_down_en =
-            CONFIG_APP_BUTTON_ACTIVE_LEVEL == 1 ? GPIO_PULLDOWN_ENABLE : GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    return gpio_config(&input) == ESP_OK ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
 }
 
 static app_error_code_t configure_output_pin(void) {
@@ -329,11 +260,6 @@ app_error_code_t device_controls_init(void) {
     if (!configuration_valid()) {
         return record_init_failure(APP_ERROR_INVALID_ARGUMENT,
                                    DEVICE_CONTROLS_FAILURE_GPIO_CONFIGURATION);
-    }
-
-    result = configure_input_pins();
-    if (result != APP_ERROR_NONE) {
-        return record_init_failure(result, DEVICE_CONTROLS_FAILURE_GPIO_CONFIGURATION);
     }
     result = configure_output_pin();
     if (result != APP_ERROR_NONE) {

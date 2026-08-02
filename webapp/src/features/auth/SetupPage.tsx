@@ -89,7 +89,8 @@ export function SetupPage({ initialState }: SetupPageProps): React.JSX.Element {
       </p>
       {state.physicalConfirmationRequired ? (
         <p role="status">
-          Press the device confirmation button when the firmware requests it.
+          Send the confirm command on the device serial console when the
+          firmware requests it.
         </p>
       ) : null}
       <form

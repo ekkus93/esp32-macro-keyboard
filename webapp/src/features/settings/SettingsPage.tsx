@@ -320,7 +320,10 @@ export function SettingsPage({
               role="status"
               aria-live="assertive"
             >
-              <strong>Press the confirmation button on the device.</strong>
+              <strong>
+                Send the <code>confirm</code> command on the device serial
+                console.
+              </strong>
               <p>
                 The operation will not proceed unless the device accepts the
                 physical confirmation before the bounded request timeout.

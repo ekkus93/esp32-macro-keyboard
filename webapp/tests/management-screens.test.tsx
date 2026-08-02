@@ -379,7 +379,7 @@ describe("management screens", () => {
     await flushReact();
 
     expect(document.body.textContent).toContain(
-      "Press the confirmation button on the device.",
+      "Send the confirm command on the device serial console.",
     );
     expect(getFetchCalls()[0]?.url).toBe("/api/v1/device/restart");
     expect(getFetchCalls()[0]?.method).toBe("POST");

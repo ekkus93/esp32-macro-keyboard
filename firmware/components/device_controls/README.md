@@ -1,11 +1,17 @@
 # Device Controls Component
 
-This component owns physical input and status indication for the ESP32-S3 device.
+This component owns status indication and the confirmation signal for the
+ESP32-S3 device.
 
-Implemented foundations include debounced button handling, bounded confirmation
-and cancellation signaling, and thread-safe status LED updates. Cancellation while
-the executor is idle must not manufacture a fatal state.
+**There are no buttons.** The confirm and cancel buttons this component used to
+poll were specified for hardware no board here exposes - cancel defaulted to
+GPIO4, which a bare devkit does not break out - and requiring them made the
+device unusable. Their two functions are now serial-console commands, `confirm`
+and `cancel` (see `components/serial_console`). Credential-reset and
+factory-reset gestures were never implemented and are not planned; a reset is a
+network request like any other.
 
-Credential-reset and factory-reset gestures remain unimplemented and require
-separate timing, confirmation, and hardware tests before they may be documented as
-available. Normal short presses must never trigger a destructive reset.
+What remains: thread-safe status LED updates, and a confirmation signal that
+`device_controls_signal_confirmation()` gives on behalf of the `confirm`
+command. Physical confirmation is off by default, so nothing on the device
+requires it at all.

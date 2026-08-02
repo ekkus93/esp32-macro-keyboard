@@ -8,7 +8,6 @@ idf_component_register(
     "."
     REQUIRES
     macro_model
-    macro_executor
     driver
     support
 )

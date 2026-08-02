@@ -6,13 +6,11 @@
 
 #include "device_controls.h"
 
-#define DEVICE_CONTROLS_DEBOUNCE_SAMPLES 3U
-
-typedef struct {
-    bool stable;
-    bool candidate;
-    uint8_t candidate_count;
-} device_controls_debounce_t;
+/* This device has no buttons. It never did: the confirm and cancel buttons were
+ * specified for hardware that no board here exposes (cancel was GPIO4), and the
+ * only thing they ever did is now available as the `confirm` and `cancel`
+ * serial-console commands. What remains of this component is the status
+ * indicator and the confirmation signal those commands drive. */
 
 /* Inputs to the indicator blink computation: the current indicator state and
  * how long (ms) it has been active. */
@@ -21,17 +19,11 @@ typedef struct {
     uint32_t elapsed_ms;
 } device_indicator_phase_t;
 
-typedef enum {
-    DEVICE_CONTROLS_PIN_CONFIRM = 0,
-    DEVICE_CONTROLS_PIN_CANCEL,
-    DEVICE_CONTROLS_PIN_STATUS
-} device_controls_pin_t;
+typedef enum { DEVICE_CONTROLS_PIN_STATUS = 0 } device_controls_pin_t;
 
 typedef enum {
     DEVICE_CONTROLS_RESOURCE_CONFIRM_SIGNAL = 0,
     DEVICE_CONTROLS_RESOURCE_STOPPED_SIGNAL,
-    DEVICE_CONTROLS_RESOURCE_CONFIRM_PIN,
-    DEVICE_CONTROLS_RESOURCE_CANCEL_PIN,
     DEVICE_CONTROLS_RESOURCE_STATUS_PIN
 } device_controls_resource_t;
 
@@ -39,8 +31,6 @@ typedef enum {
     DEVICE_CONTROLS_FAILURE_GENERIC = 0,
     DEVICE_CONTROLS_FAILURE_INDICATOR,
     DEVICE_CONTROLS_FAILURE_CONFIRMATION,
-    DEVICE_CONTROLS_FAILURE_CANCEL,
-    DEVICE_CONTROLS_FAILURE_GPIO_READ,
     DEVICE_CONTROLS_FAILURE_GPIO_CONFIGURATION,
     DEVICE_CONTROLS_FAILURE_TASK_START,
     DEVICE_CONTROLS_FAILURE_TASK_STOP
@@ -52,7 +42,6 @@ typedef struct {
     bool (*unlock)(void *context);
     bool (*signal_confirmation)(void *context);
     bool (*signal_stopped)(void *context);
-    app_error_code_t (*cancel_execution)(void *context);
     app_error_code_t (*write_indicator)(void *context, bool enabled);
     void (*request_stop)(void *context);
     void (*clear_stop_request)(void *context);
@@ -64,10 +53,7 @@ typedef struct {
 } device_controls_ops_t;
 
 typedef struct {
-    bool confirmation_pressed;
-    bool cancel_pressed;
     bool stop_requested;
-    app_error_code_t gpio_read_error;
     uint32_t elapsed_ms;
 } device_controls_poll_input_t;
 
@@ -78,21 +64,15 @@ typedef struct {
 
 typedef struct {
     device_controls_ops_t operations;
-    device_controls_debounce_t confirmation;
-    device_controls_debounce_t cancel;
     device_indicator_state_t indicator_state;
     device_controls_health_t health;
     bool initialized;
     bool task_stop_confirmed;
     bool confirmation_signal_owned;
     bool stopped_signal_owned;
-    bool confirm_pin_owned;
-    bool cancel_pin_owned;
     bool status_pin_owned;
 } device_controls_engine_t;
 
-bool device_controls_level_is_pressed(int level, int active_level);
-bool device_controls_debounce_update(device_controls_debounce_t *button, bool sample);
 bool device_controls_indicator_on(device_indicator_phase_t phase);
 app_error_code_t device_controls_engine_init(device_controls_engine_t *engine,
                                              const device_controls_ops_t *operations);

@@ -147,7 +147,7 @@ describe("execution confirmation", () => {
     await flushReact();
 
     expect(document.body.textContent).toContain(
-      "Press the confirmation button on the device.",
+      "Send the confirm command on the device serial console.",
     );
     const submitCallIndex = getFetchCalls().length - 1;
     expect(getFetchCalls()[submitCallIndex]?.url).toBe("/api/v1/executions");

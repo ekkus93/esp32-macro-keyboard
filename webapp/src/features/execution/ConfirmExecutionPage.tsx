@@ -554,7 +554,9 @@ export function ConfirmExecutionPage({
       ) : null}
       {stage === "physical-confirmation" ? (
         <div className="confirmation-panel" role="status" aria-live="assertive">
-          <strong>Press the confirmation button on the device.</strong>
+          <strong>
+            Send the <code>confirm</code> command on the device serial console.
+          </strong>
           <p>
             Keystrokes will not begin unless the device accepts the physical
             confirmation. Do not press the button to let the request time out.

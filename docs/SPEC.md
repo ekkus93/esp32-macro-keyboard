@@ -297,8 +297,11 @@ A setting MAY change startup behavior to open the last selected set.
 5. The application displays a decoded preview, duration estimate, active set,
    macro name, and current USB state.
 6. The user focuses the target computer and explicitly selects **Send Now**.
-7. If physical confirmation mode is enabled, the request waits for the device
-   confirmation button and expires after a bounded timeout. That wait MUST NOT
+7. If physical confirmation mode is enabled - it is off by default - the
+   request waits for confirmation and expires after a bounded timeout.
+   Confirmation is supplied by the `confirm` serial-console command; no button
+   is required, and every confirmation-gated route MUST honour the setting
+   rather than demanding confirmation unconditionally. That wait MUST NOT
    run on the HTTP server task: `esp_http_server` serves every socket from a
    single task, so waiting there makes the whole device unreachable for the
    duration of the window. Confirmation-gated requests are handed to a worker
@@ -1128,13 +1131,20 @@ GPIO assignment MUST be configurable through Kconfig and a board profile.
 
 Required logical controls:
 
-- cancel button;
-- confirmation button, which MAY share the cancel button through a deliberate
-  short-press/long-press design;
-- credential-reset/factory-reset boot gesture;
-- status indicator.
+- a status indicator.
 
-The cancel action MUST remain available during execution and delay actions.
+The device MUST NOT require any button, and MUST NOT require hardware to be
+added to the board. Earlier revisions of this document specified cancel and
+confirmation buttons and a reset boot gesture; that was a mistake. No board
+used by this project exposes them (the cancel button was assigned GPIO4, which
+a bare devkit does not break out), the reset gesture was never implemented, and
+making six API routes demand a press rendered the device unusable while
+concealing a crash in the code the press was gating.
+
+Those functions are serial-console commands instead: `confirm` supplies
+physical confirmation when it is enabled, and `cancel` stops a running macro.
+Cancellation MUST remain available during execution and delay actions, over
+both the API (`POST /api/v1/executions/current/cancel`) and the console.
 
 Suggested indicator meanings:
 

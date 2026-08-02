@@ -1,24 +1,14 @@
 menu "ESP32 Macro Keyboard"
 
-config APP_CONFIRM_BUTTON_GPIO
-    int "Confirmation button GPIO"
-    range 0 48
-    default 0
-
-config APP_CANCEL_BUTTON_GPIO
-    int "Cancellation button GPIO"
-    range 0 48
-    default 4
-
+# The device has no buttons. Confirmation and cancellation are serial-console
+# commands (`confirm`, `cancel`) - see components/serial_console. The former
+# button options are deliberately not kept as unused settings: a configurable
+# GPIO for hardware that does not exist is how the cancel button ended up
+# defaulted to GPIO4, a pin no devkit here exposes.
 config APP_STATUS_LED_GPIO
     int "Status LED GPIO"
     range 0 48
     default 2
-
-config APP_BUTTON_ACTIVE_LEVEL
-    int "Button active level"
-    range 0 1
-    default 0
 
 config APP_LED_ACTIVE_LEVEL
     int "LED active level"
