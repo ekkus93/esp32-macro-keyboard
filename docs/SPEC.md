@@ -1078,6 +1078,38 @@ the device onto a network of their choosing. Until then it is present in
 every build, and that is a documented product limitation rather than a
 defect.
 
+### 16.6 Credential reset
+
+**Added 2026-08-02.** Credential reset appeared in §14 and §24.6 as a list item
+and was defined nowhere, so the firmware carried a
+`provisioning_clear_credentials()` that was implemented, exported, host-tested,
+and reachable from nothing. This section is the definition it needed.
+
+Credential reset is the recovery path for a forgotten administrator password.
+It MUST clear the administrator password verifier and its salt, and the AP SSID
+and passphrase, and it MUST mark the device unprovisioned so first-run setup
+(§8.1) runs again.
+
+It MUST preserve everything the user did not lose: the device name, the settings
+(startup-set behavior, execution policy, timing defaults), the stored station
+network (§15.2), and every macro set and macro. This is what distinguishes it
+from factory reset, which erases the whole provisioning record. A user who
+forgets a password MUST NOT have to choose between recovering the device and
+keeping their macros.
+
+Each reset increments a credential version, so a device MUST refuse the
+operation rather than wrap that counter.
+
+**It is a console command, not a route.** Reaching the UART port is already the
+authorization (§16.5). Over the network the same operation would be a
+de-provisioning primitive available to anyone who could reach it, and the
+physical confirmation that would have to gate it is off by default (§19). The
+command requires an explicit confirmation word, which is not a security control
+-- anyone at the port can type it -- but stops a mistyped command from costing
+someone their password.
+
+The device restarts into setup after a successful reset.
+
 ## 17. HTTP API
 
 All API routes are under:

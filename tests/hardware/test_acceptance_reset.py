@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""the specification (section 24.6) acceptance: power-cycle persistence, factory reset, re-provisioning.
+"""Hardware acceptance: power-cycle persistence, factory reset, re-provisioning.
 
-Three of the eleven items the specification (section 24.6) requires, run end to end against the real
+Four of the eleven hardware-acceptance items required, run end to end against the real
 device. They are one script because they are one story: data has to survive an
 ordinary restart, factory reset has to actually destroy it, and the device has
 to be usable again afterwards. Testing any one of them alone leaves the device
@@ -9,6 +9,7 @@ in a state the next one has to undo.
 
     SPEC 24.6 item: power-cycle persistence
     SPEC 24.6 item: factory reset
+    SPEC 24.6 item: credential reset
 
 What this deliberately does NOT claim: a true power cycle. This restarts the
 device over its own API, which re-runs the whole boot path including the NVS and
@@ -29,6 +30,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import hil_state  # noqa: E402
+import provision_device  # noqa: E402
 from device_client import Device  # noqa: E402
 
 SET_NAME = "Acceptance persistence set"
@@ -55,6 +57,27 @@ def post_expecting_reboot(device: Device, path: str) -> None:
         raise SystemExit(f"error: {path} was refused: {status} {payload}")
 
 
+def console_command(command: str, seconds: int = 6) -> str:
+    """Send one console command and return what the device printed back."""
+    import serial  # noqa: PLC0415
+
+    port = serial.Serial(hil_state.DEFAULT_CONSOLE, 115200, timeout=1)
+    try:
+        time.sleep(0.3)
+        while port.in_waiting:
+            port.read(port.in_waiting)
+        port.write((command + "\n").encode())
+        port.flush()
+        deadline, data = time.time() + seconds, b""
+        while time.time() < deadline:
+            chunk = port.read(4096)
+            if chunk:
+                data += chunk
+    finally:
+        port.close()
+    return data.decode("utf-8", "replace")
+
+
 def capture_boot_log(seconds: int = 20) -> str:
     """Reset the device over the console and return what it prints while booting."""
     import serial  # noqa: PLC0415
@@ -73,6 +96,26 @@ def capture_boot_log(seconds: int = 20) -> str:
     finally:
         port.close()
     return data.decode("utf-8", "replace")
+
+
+def rejoin_wifi(attempts: int = 4) -> str:
+    """Rejoin the bench network over the console, retrying a transient refusal.
+
+    The firmware attempts a stored network once and does not retry (section
+    15.2), and an association can fail for reasons that have nothing to do with
+    this test -- a busy channel, the device's own access point renegotiating
+    after a reset. Failing an acceptance run on the first refusal would be
+    reporting the radio, not the firmware.
+    """
+    last = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return hil_state.connect_wifi()
+        except SystemExit as error:
+            last = error
+            report(f"join attempt {attempt} failed", "retrying")
+            time.sleep(5)
+    raise SystemExit(f"error: could not rejoin Wi-Fi after {attempts} attempts: {last}")
 
 
 def report(step: str, detail: str = "") -> None:
@@ -140,7 +183,17 @@ def create_fixture(device: Device) -> tuple[str, str]:
 
 def main() -> int:
     ip = hil_state.device_ip()
-    print(f"the specification (section 24.6) acceptance against {ip}")
+    print(f"hardware acceptance against {ip}")
+
+    # Runs that stop midway leave the device unprovisioned, and an unprovisioned
+    # device has no login route at all -- the failure is a 405, which reads like
+    # a harness bug rather than a starting state. Start from a known one.
+    status, _ = Device(ip).get("/api/v1/setup-state")
+    if status != 404:
+        print("\n0. device is unprovisioned; running setup first")
+        if provision_device.main() != 0:
+            raise SystemExit("error: could not provision the device to start from")
+        wait_for_provisioning(ip, provisioned=True)
 
     print("\n1. power-cycle persistence")
     device = Device(ip)
@@ -156,12 +209,12 @@ def main() -> int:
         wait_for_provisioning(ip, provisioned=True, timeout_s=60)
         report("device answered again", f"at {ip}, having rejoined Wi-Fi unaided")
     except SystemExit:
-        # the specification (section 15.2) makes a failed join non-fatal and does not retry it, so a
+        # section 15.2 makes a failed join non-fatal and does not retry it, so a
         # single transient failure leaves the device on its access point until
         # something intervenes. That is the specified behaviour; recover over
         # the console rather than failing a persistence test for a radio.
-        report("no answer", "rejoining over the console (the specification (section 15.2) does not retry)")
-        hil_state.connect_wifi()
+        report("no answer", "rejoining over the console (firmware does not retry a failed join)")
+        rejoin_wifi()
         wait_for_provisioning(ip, provisioned=True, timeout_s=60)
 
     device = Device(ip)
@@ -187,17 +240,15 @@ def main() -> int:
 
     # It comes back on its access point only: factory reset clears the whole
     # provisioning record, station credentials included, which is the one time
-    # the specification (section 15.2) permits them to be discarded without an explicit empty SSID.
+    # section 15.2 permits them to be discarded without an explicit empty SSID.
     print("   the device is now AP-only; rejoining Wi-Fi over the console")
     time.sleep(12)
-    address = hil_state.connect_wifi()
+    address = rejoin_wifi()
     report("rejoined", address)
     wait_for_provisioning(address, provisioned=False, timeout_s=45)
     report("PASS", "device is unprovisioned and its data is gone")
 
     print("\n3. re-provisioning, and the station network surviving setup")
-    import provision_device  # noqa: PLC0415
-
     if provision_device.main() != 0:
         raise SystemExit("error: re-provisioning failed")
 
@@ -205,7 +256,7 @@ def main() -> int:
     # from scratch and drop the station credentials, so the device came back
     # from setup on its access point alone.
     #
-    # Reachability is the wrong evidence for it. the specification (section 15.2) attempts the join
+    # Reachability is the wrong evidence for it. section 15.2 attempts the join
     # once and does not retry, so a device that kept its credentials can still
     # fail to associate, and rejoining over the console to check would rewrite
     # the very record under test. The boot log distinguishes the two: a device
@@ -223,7 +274,55 @@ def main() -> int:
     report("PASS", "credentials survived setup; the device attempted the stored network"
                    + (" and joined it" if joined else " (association failed this boot)"))
 
-    print("\nAll the specification (section 24.6) items in this script passed.")
+    print("\n4. credential reset")
+    # section 16.6: this is the forgotten-password path, and what makes it worth
+    # having separately from factory reset is what it keeps. Create something to
+    # lose first, so "the macros survived" is an assertion rather than a hope.
+    device = Device(address)
+    device.login()
+    kept_set_id, kept_macro_id = create_fixture(device)
+    report("created", f"set {kept_set_id}, to be preserved across the reset")
+
+    # A mistyped command must not cost anyone their password.
+    refusal = console_command("credential-reset")
+    if "usage:" not in refusal:
+        raise SystemExit(f"error: bare credential-reset was not refused:\n{refusal}")
+    report("bare command refused", "confirmation word required")
+
+    output = console_command("credential-reset confirm", seconds=8)
+    if "credentials cleared" not in output:
+        raise SystemExit(f"error: credential reset did not report success:\n{output}")
+    report("issued", "waiting for the device to come back unprovisioned")
+
+    # The stored network is one of the things it must preserve, so the device
+    # should return on its own -- unlike after a factory reset, which clears it.
+    try:
+        wait_for_provisioning(address, provisioned=False, timeout_s=90)
+        report("rejoined unaided", "the saved network survived the reset")
+    except SystemExit:
+        report("no answer", "rejoining over the console")
+        rejoin_wifi()
+        wait_for_provisioning(address, provisioned=False, timeout_s=60)
+    report("PASS", "device is unprovisioned")
+
+    if provision_device.main() != 0:
+        raise SystemExit("error: re-provisioning after credential reset failed")
+    wait_for_provisioning(address, provisioned=True)
+
+    device = Device(address)
+    device.login()
+    status, payload = device.get(f"/api/v1/sets/{kept_set_id}")
+    if status != 200 or payload["data"]["name"] != SET_NAME:
+        raise SystemExit(
+            "error: credential reset destroyed the macro sets, which is exactly "
+            f"what separates it from a factory reset: {status} {payload}"
+        )
+    status, payload = device.get(f"/api/v1/sets/{kept_set_id}/macros/{kept_macro_id}")
+    if status != 200 or payload["data"]["source"] != MACRO_SOURCE:
+        raise SystemExit(f"error: the macro did not survive credential reset: {status}")
+    report("PASS", "macro sets survived; only the credentials were cleared")
+
+    print("\nAll section 24.6 items in this script passed.")
     print(json.dumps({"device": address, "setId": set_id, "macroId": macro_id}, indent=2))
     return 0
 

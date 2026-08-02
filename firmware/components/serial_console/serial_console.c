@@ -1,10 +1,14 @@
 #include "serial_console.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "app_error.h"
 #include "device_controls.h"
 #include "esp_console.h"
+#include "esp_system.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "macro_executor.h"
 #include "provisioning.h"
 #include "wifi_ap.h"
@@ -83,6 +87,41 @@ static int command_cancel(int argc, char **argv) {
     return 1;
 }
 
+/* SPEC 16.6. Clears the administrator password and the AP credentials and
+ * leaves everything else -- device name, settings, the stored Wi-Fi network,
+ * and every macro set -- untouched, so a forgotten password costs the password
+ * and nothing more. Factory reset remains the sledgehammer.
+ *
+ * Console-only, and deliberately so (SPEC 16.5): over the network this would be
+ * a de-provisioning primitive for anyone who could reach it, and the physical
+ * confirmation that would have to gate it is off by default. Possession of the
+ * board is already the authorization here.
+ *
+ * The confirmation word is not security -- anyone at the port can type it. It
+ * exists so that a mistyped command cannot cost someone their password. */
+#define CREDENTIAL_RESET_CONFIRMATION "confirm"
+#define CREDENTIAL_RESET_FLUSH_MS 250U
+
+static int command_credential_reset(int argc, char **argv) {
+    if (argc != 2 || strcmp(argv[1], CREDENTIAL_RESET_CONFIRMATION) != 0) {
+        printf("usage: credential-reset " CREDENTIAL_RESET_CONFIRMATION "\n");
+        printf("clears the administrator password and AP credentials, then restarts\n");
+        printf("into setup. Macro sets, settings, and the saved Wi-Fi network are kept.\n");
+        return 1;
+    }
+    const app_error_code_t result = provisioning_clear_credentials();
+    if (result != APP_ERROR_NONE) {
+        printf("credential reset failed: %s\n", app_error_code_string(result));
+        return 1;
+    }
+    printf("credentials cleared; restarting into setup\n");
+    /* Let the console drain before the reset takes the UART with it: a reset
+     * whose only report never leaves the buffer looks like a hang. */
+    fflush(stdout);
+    vTaskDelay(pdMS_TO_TICKS(CREDENTIAL_RESET_FLUSH_MS));
+    esp_restart();
+}
+
 static void register_commands(void) {
     const esp_console_cmd_t confirm_command = {
         .command = "confirm",
@@ -117,6 +156,15 @@ static void register_commands(void) {
         .func = command_wifi_status,
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&wifi_status_command));
+
+    const esp_console_cmd_t credential_reset_command = {
+        .command = "credential-reset",
+        .help = "Clear the administrator password and AP credentials and restart into "
+                "setup. Macro sets, settings, and the saved Wi-Fi network are kept.",
+        .hint = CREDENTIAL_RESET_CONFIRMATION,
+        .func = command_credential_reset,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&credential_reset_command));
 }
 
 app_error_code_t serial_console_start(void) {
