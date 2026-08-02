@@ -63,12 +63,13 @@ static void make_directory(const char *path) {
 
 static void reset_store(void) {
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
+    /* SPEC 13.3: the index file and the sets directory are the whole tree.
+     * staging/, trash/, and transactions/ were created here until Phase 3
+     * removed the subsystems that used them; leaving them behind would let a
+     * regression that wrote to a forbidden path go unnoticed. */
     static const char *const paths[] = {
         STORAGE_DATA_MOUNT,
         STORAGE_DATA_MOUNT "/sets",
-        STORAGE_DATA_MOUNT "/staging",
-        STORAGE_DATA_MOUNT "/trash",
-        STORAGE_DATA_MOUNT "/transactions",
     };
     for (size_t index = 0U; index < sizeof(paths) / sizeof(paths[0]); ++index) {
         make_directory(paths[index]);
@@ -353,6 +354,55 @@ static void test_session_json_redaction(void) {
     web_api_handler_json_free(json);
 }
 
+/* SPEC 13.7: "A stale revision returns `409 Conflict` with the current resource
+ * metadata. The server MUST NOT silently overwrite a newer edit."
+ *
+ * The 409 is the visible half, and it was already asserted. The prohibition is
+ * the other half -- that the rejected write left the stored resource alone --
+ * and nothing checked it. A handler that answered 409 and wrote anyway passed
+ * every existing test. That is the exact shape of the `expectedRevision`
+ * defect: asserting what the handler replies instead of what the specification
+ * requires. */
+static void test_stale_revision_does_not_overwrite_a_newer_edit(void) {
+    reset_store();
+    macro_set_t set = make_set();
+    char *json = serialize_set(&set);
+    web_api_response_t response =
+        invoke(web_api_handle_sets, WEB_API_ROUTE_SETS, WEB_API_METHOD_POST, json, NULL, NULL);
+    expect_status(&response, 201U, "Handler Set");
+    cJSON_free(json);
+
+    /* One writer edits successfully, carrying the set past revision 1. */
+    TEST_CHECK(snprintf(set.name, sizeof(set.name), "Winning Edit") > 0);
+    json = serialize_set(&set);
+    char *mutation = mutation_body(1U, json);
+    response =
+        invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_PUT, mutation, SET_ID, NULL);
+    expect_status(&response, 200U, "Winning Edit");
+    cJSON_free(mutation);
+    cJSON_free(json);
+
+    /* A second writer, still holding revision 1, tries to land a different name. */
+    TEST_CHECK(snprintf(set.name, sizeof(set.name), "Clobbering Edit") > 0);
+    json = serialize_set(&set);
+    mutation = mutation_body(1U, json);
+    response =
+        invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_PUT, mutation, SET_ID, NULL);
+    TEST_CHECK_EQ_U64(409U, response.status);
+    web_api_response_free(&response);
+    cJSON_free(mutation);
+    cJSON_free(json);
+
+    /* The requirement itself: read the resource back and confirm the newer edit
+     * is intact and the stale one never landed. */
+    response =
+        invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_GET, NULL, SET_ID, NULL);
+    TEST_CHECK_EQ_U64(200U, response.status);
+    TEST_CHECK(strstr(response.body, "Winning Edit") != NULL);
+    TEST_CHECK(strstr(response.body, "Clobbering Edit") == NULL);
+    web_api_response_free(&response);
+}
+
 int main(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
     reset_store();
@@ -360,6 +410,7 @@ int main(void) {
     test_set_routes();
     test_macro_routes();
     test_set_delete_and_persistent_readback();
+    test_stale_revision_does_not_overwrite_a_newer_edit();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
     return 0;

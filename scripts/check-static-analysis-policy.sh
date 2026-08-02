@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# SPEC 21.1: a defect "MUST be fixed at its source. It MUST NOT be hidden,
+# suppressed," and SPEC 21.4: first-party source and project configuration
+# "MUST NOT use warning suppression as a resolution." Both are properties of the
+# tree, not of a running function; this script is where they are enforced.
+#
 # Enforce the FIX1 static-analysis exception policy (RESPONSES Q2 /
 # docs/STATIC_ANALYSIS_EXCEPTIONS.md). Fails when:
 #   - the set of disabled clang-tidy checks differs from the approved three

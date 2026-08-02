@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# SPEC 16.5: "The console MUST NOT expose credentials or secret material even
+# so, because the failure mode there is disclosure rather than control" -- and
+# SPEC 16.5 names this script as the enforcement for all firmware sources, the
+# console included.
+
 readonly source_root="${1:-firmware}"
 
 python3 - "${source_root}" <<'PY2'

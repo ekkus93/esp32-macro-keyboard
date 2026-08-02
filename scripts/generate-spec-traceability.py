@@ -43,10 +43,16 @@ direction.
 - **referenced** — at least one test cites this section. That is a *weak* signal:
   it means someone had the section in mind, not that this particular sentence is
   covered. Verify before trusting it.
-- **UNMAPPED** — no test anywhere cites this section. Certainly not deliberately
+- **gate-enforced** — no test cites it, but a `scripts/check-*.sh` that runs on
+  every `check-all.sh` does. Some prohibitions are properties of the tree, not
+  behaviours of a function: "MUST NOT fetch remote resources" and "MUST NOT use
+  warning suppression" cannot be unit-tested, and a script that fails the build
+  is the stronger enforcement. Listing them as unmapped understated coverage;
+  calling them tests would overstate it.
+- **UNMAPPED** — nothing anywhere cites this section. Certainly not deliberately
   covered.
 
-Neither value is a coverage measurement. This is a worklist, not a score.
+None of these is a coverage measurement. This is a worklist, not a score.
 """
 
 
@@ -78,6 +84,23 @@ def sources():
     return sorted(directory.glob("test_*.c")) + sorted(directory.glob("*.inc"))
 
 
+def enforcers():
+    """Gate scripts that cite a SPEC section.
+
+    Not every prohibition is a unit test. "MUST NOT fetch remote resources" and
+    "MUST NOT use warning suppression" are properties of the tree, enforced by
+    scripts/check-*.sh on every run of check-all.sh. Counting those sections as
+    unmapped understated real coverage; crediting them as tests would overstate
+    it. They are listed separately and marked.
+    """
+    cites = collections.defaultdict(set)
+    for path in sorted((ROOT / "scripts").glob("*.sh")) + sorted((ROOT / "scripts").glob("*.py")):
+        for line in path.read_text().splitlines():
+            for cite in re.finditer(r"SPEC\s*§?\s*(\d+(?:\.\d+)?)", line):
+                cites[cite.group(1)].add(f"{path.name} (gate script)")
+    return cites
+
+
 def citations():
     cites = collections.defaultdict(set)
     for path in sources():
@@ -92,26 +115,36 @@ def citations():
     return cites
 
 
-def table(rows, cites):
+def table(rows, cites, gates):
     lines = [
-        "| Section | SPEC line | Requirement | Status | Test(s) referencing this section |",
+        "| Section | SPEC line | Requirement | Status | Referencing test / enforcer |",
         "| --- | --- | --- | --- | --- |",
     ]
     for row in rows:
         referencing = sorted(cites.get(row["sec_num"], ()))
-        status = "referenced" if referencing else "**UNMAPPED**"
+        enforcing = sorted(gates.get(row["sec_num"], ()))
+        if referencing:
+            status = "referenced"
+        elif enforcing:
+            status = "gate-enforced"
+        else:
+            status = "**UNMAPPED**"
         text = row["text"].replace("|", "\\|")
+        both = referencing + enforcing
         lines.append(f"| §{row['sec_num']} | L{row['line']} | {text} | {status} | "
-                     f"{'<br>'.join(referencing) if referencing else '—'} |")
+                     f"{'<br>'.join(both) if both else '—'} |")
     return "\n".join(lines)
 
 
-def render(found, cites):
+def render(found, cites, gates):
+    def covered(statement):
+        return statement["sec_num"] in cites or statement["sec_num"] in gates
+
     prohibitions = [s for s in found if s["kind"] == "MUST NOT"]
     requirements = [s for s in found if s["kind"] == "MUST"]
-    unmapped = [s for s in found if s["sec_num"] not in cites]
-    unmapped_prohibitions = [s for s in prohibitions if s["sec_num"] not in cites]
-    unmapped_requirements = [s for s in requirements if s["sec_num"] not in cites]
+    unmapped = [s for s in found if not covered(s)]
+    unmapped_prohibitions = [s for s in prohibitions if not covered(s)]
+    unmapped_requirements = [s for s in requirements if not covered(s)]
     return "\n".join([
         PREAMBLE,
         "## Totals",
@@ -127,19 +160,19 @@ def render(found, cites):
         "A prohibition has no happy path, so nothing covers it by accident. These are the",
         "cheapest place to find real gaps.",
         "",
-        table(prohibitions, cites),
+        table(prohibitions, cites, gates),
         "",
         "## Requirements (`MUST`)",
         "",
-        table(requirements, cites),
+        table(requirements, cites, gates),
         "",
     ])
 
 
 def main():
-    found, cites = statements(), citations()
-    rendered = render(found, cites)
-    unmapped = len([s for s in found if s["sec_num"] not in cites])
+    found, cites, gates = statements(), citations(), enforcers()
+    rendered = render(found, cites, gates)
+    unmapped = len([s for s in found if s["sec_num"] not in cites and s["sec_num"] not in gates])
     summary = f"{len(found)} normative statements, {unmapped} in sections no test cites"
 
     if "--check" in sys.argv[1:]:

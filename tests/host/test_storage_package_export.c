@@ -182,6 +182,14 @@ static void test_deterministic_export_and_filtering(void) {
     storage_package_reset_export_ops_for_test();
 }
 
+/* SPEC 8.7 lists what a package MUST NOT contain: AP credentials, password
+ * verifiers, session tokens, setup codes, device keys, other device secrets.
+ * This is the test for that prohibition. The two structural guards that back it
+ * up are elsewhere and deliberately not duplicated here: the package validator
+ * accepts a fixed allowlist of keys, so an added top-level field fails to
+ * validate; and a content scan for forbidden words cannot be written soundly,
+ * because it cannot tell a leaked key from a set a user named "Password
+ * Notes". */
 static void test_export_output_passes_secret_sentinel_scanner(void) {
     /* FIX1 18.5: production-path proof, not a reimplemented substring check.
      * unused_source (a macro of a different set, outside this export's scope)
