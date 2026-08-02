@@ -171,6 +171,44 @@ Nothing here compiles until all of it is done, so this is one commit by
 necessity. Work in the order given: the CMake edits must come first or the
 build fails to *configure* and hides every compile error behind it.
 
+**Attempt 2 (2026-08-02) got the firmware roughly 80% cut and stopped.** The
+work is on `stash@{0}` ("WIP 2b: …, firmware ~80% (does not build)"). What is
+already done there, and what is left, in order:
+
+**Done in the stash:** all CMake edits; the eleven file deletions (including
+both tree-walkers and their internal headers); `storage_repository.h` trimmed
+to SPEC §12; `macro_model.h` trimmed and `macro_model_free_procedure` gone;
+the reference-integrity scan removed from `storage_repository_macros.c` and the
+conflict path from `web_api_macros.c`; `storage_repository_objects_json.c` and
+`storage_object_json.h` stripped; `macro_limits.h` procedure limits removed;
+`web_server_adapter_json.c` limits response fixed;
+`storage_atomic_validators.{c,h}` procedure/progress object kinds removed.
+
+**Left to do, in dependency order:**
+
+1. `storage_atomic_validators.c` — `validate_index` is now unused; it was only
+   reachable through the procedure-order object kind.
+2. `storage_package.c` — `validate_procedure_object`, `validate_progress_object`,
+   `procedure_macro_references_valid`, `procedure_has_step`,
+   `progress_step_references_valid`, the two field enumerators, the two array
+   slots, the two summary counters, and their allocation-table entries.
+3. `storage_package_export.c`, `_backup.c`, `_import.c`, `_replace.c`,
+   `_restore.c` — the procedure/progress writers and readers, plus
+   `prune_dangling_procedures` / `procedure_included` in `_backup.c`.
+4. `storage_repository_set_operations.c` — `write_duplicate_procedure` and the
+   procedure half of `create_duplicate_staging`.
+5. `include_progress` on the three export entry points.
+6. The ~20 host test files.
+
+**A decision this attempt made, which needs stating in the commit message:**
+the tree-walkers (`storage_set_tree.c`, `storage_repository_tree.c`, 1,517
+lines) were **deleted rather than rewritten**, per the field note. Their callers
+in `storage_package_import.c`, `_replace.c`, and `_restore.c` lose their
+post-materialization tree-shape re-check. The incoming package is still fully
+validated by `storage_package.c` before anything is written, so what is lost is
+the belt-and-braces second check of a directory layout that Phase 4 deletes
+outright. Say so plainly in the commit rather than letting it pass silently.
+
 - [ ] **CMake first.** Delete the `storage_procedure_repository_tests` and
   `storage_progress_repository_tests` targets and every reference to
   `storage_repository_procedures.c` / `storage_repository_progress.c` in
