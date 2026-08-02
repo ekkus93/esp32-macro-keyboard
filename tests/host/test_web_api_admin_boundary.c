@@ -21,6 +21,7 @@ static storage_mount_state_t mount_state;
 static app_error_code_t backup_result;
 static storage_package_failure_t backup_failure;
 static app_error_code_t restore_result;
+static storage_restore_report_t restore_report;
 static char restore_body[256U];
 static size_t restore_body_length;
 
@@ -57,13 +58,17 @@ app_error_code_t storage_package_export_backup_detail(char **out_data, size_t *o
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_package_restore_backup(const char *data, size_t length) {
+app_error_code_t storage_package_restore_backup(const char *data, size_t length,
+                                                storage_restore_report_t *out_report) {
     restore_body_length = 0U;
     restore_body[0] = '\0';
     if (data != NULL && length < sizeof(restore_body)) {
         memcpy(restore_body, data, length);
         restore_body[length] = '\0';
         restore_body_length = length;
+    }
+    if (out_report != NULL) {
+        *out_report = restore_report;
     }
     return restore_result;
 }
@@ -89,6 +94,7 @@ static void reset_fixture(void) {
     backup_result = APP_ERROR_NONE;
     memset(&backup_failure, 0, sizeof(backup_failure));
     restore_result = APP_ERROR_NONE;
+    memset(&restore_report, 0, sizeof(restore_report));
     restore_body[0] = '\0';
     restore_body_length = 0U;
 }
@@ -204,6 +210,8 @@ static void test_restore_delegates_complete_package(void) {
     web_api_response_free(&response);
 }
 
+/* A restore that never reached the write loop has no per-set outcomes, so it is
+ * reported as an ordinary error. */
 static void test_restore_failure_is_visible(void) {
     reset_fixture();
     restore_result = APP_ERROR_INVALID_ARGUMENT;
@@ -213,6 +221,58 @@ static void test_restore_failure_is_visible(void) {
     TEST_CHECK_EQ_U64(422U, response.status);
     TEST_CHECK(strstr(response.body, "restore failed") != NULL);
     TEST_CHECK(strstr(response.body, "\"ok\":false") != NULL);
+    web_api_response_free(&response);
+}
+
+/* SPEC 13.5, 17: a partial restore enumerates which sets landed and which did
+ * not, and MUST NOT be reported as 200. */
+static void test_partial_restore_reports_per_set_outcomes(void) {
+    reset_fixture();
+    restore_report.count = 2U;
+    restore_report.written = 1U;
+    restore_report.failed = 1U;
+    restore_report.first_failure = APP_ERROR_STORAGE_FULL;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_parse("11111111-1111-4111-8111-111111111111",
+                                                        &restore_report.items[0].set_id));
+    restore_report.items[0].result = APP_ERROR_NONE;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_parse("22222222-2222-4222-8222-222222222222",
+                                                        &restore_report.items[1].set_id));
+    restore_report.items[1].result = APP_ERROR_STORAGE_FULL;
+    restore_result = APP_ERROR_STORAGE_FULL;
+
+    const web_api_call_t call =
+        call_for(WEB_API_ROUTE_RESTORE, WEB_API_METHOD_POST, BACKUP_DOCUMENT);
+    web_api_response_t response = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
+
+    /* Not 200, and the status reflects the actual fault rather than a generic
+     * 500. */
+    TEST_CHECK_EQ_U64(507U, response.status);
+    TEST_CHECK(strstr(response.body, "\"ok\":false") != NULL);
+    TEST_CHECK(strstr(response.body, "restore did not write every set") != NULL);
+    TEST_CHECK(strstr(response.body, "\"restored\":false") != NULL);
+    TEST_CHECK(strstr(response.body, "\"setsRestored\":1") != NULL);
+    TEST_CHECK(strstr(response.body, "\"setsFailed\":1") != NULL);
+    TEST_CHECK(strstr(response.body, "11111111-1111-4111-8111-111111111111") != NULL);
+    TEST_CHECK(strstr(response.body, "22222222-2222-4222-8222-222222222222") != NULL);
+    web_api_response_free(&response);
+}
+
+/* A complete restore still enumerates the sets, so a client never has to guess
+ * whether an empty list means "none" or "not reported". */
+static void test_complete_restore_enumerates_sets(void) {
+    reset_fixture();
+    restore_report.count = 1U;
+    restore_report.written = 1U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_parse("33333333-3333-4333-8333-333333333333",
+                                                        &restore_report.items[0].set_id));
+    const web_api_call_t call =
+        call_for(WEB_API_ROUTE_RESTORE, WEB_API_METHOD_POST, BACKUP_DOCUMENT);
+    web_api_response_t response = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
+    TEST_CHECK_EQ_U64(200U, response.status);
+    TEST_CHECK(strstr(response.body, "\"setsFailed\":0") != NULL);
+    TEST_CHECK(strstr(response.body, "33333333-3333-4333-8333-333333333333") != NULL);
     web_api_response_free(&response);
 }
 
@@ -253,6 +313,8 @@ int main(void) {
     test_backup_failure_without_detail_stays_plain();
     test_restore_delegates_complete_package();
     test_restore_failure_is_visible();
+    test_partial_restore_reports_per_set_outcomes();
+    test_complete_restore_enumerates_sets();
     test_remaining_package_boundaries_are_explicit();
     test_invalid_boundary_inputs();
     return 0;

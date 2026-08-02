@@ -232,7 +232,15 @@ describe("management screens", () => {
       requiredElement("#restore-confirmation", HTMLInputElement),
       "RESTORE FULL BACKUP",
     );
-    planJsonResponse(success({ restored: true, reloadRequired: true }));
+    planJsonResponse(
+      success({
+        restored: true,
+        reloadRequired: true,
+        setsRestored: 1,
+        setsFailed: 0,
+        sets: [{ setId: macroSet.id, restored: true }],
+      }),
+    );
     await click(buttonWithText("Confirm full restore"));
     await flushReact();
 

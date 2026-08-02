@@ -180,35 +180,10 @@ static app_error_code_t materialize_one_set(const package_restore_document_t *do
     return result;
 }
 
-static app_error_code_t materialize_sets(const package_restore_document_t *document) {
-    /* storage_set_index_t is several KiB; keep it off the task stack. */
-    storage_set_index_t *index = calloc(1U, sizeof(*index));
-    if (index == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
-    app_error_code_t result = APP_ERROR_NONE;
-    const int count = cJSON_GetArraySize(document->arrays[PACKAGE_RESTORE_SETS]);
-    for (int item = 0; result == APP_ERROR_NONE && item < count; ++item) {
-        macro_set_t set = {0};
-        result =
-            parse_set_node(cJSON_GetArrayItem(document->arrays[PACKAGE_RESTORE_SETS], item), &set);
-        if (result == APP_ERROR_NONE && index->count >= APP_MACRO_SETS_MAX) {
-            result = APP_ERROR_INVALID_ARGUMENT;
-        }
-        if (result == APP_ERROR_NONE) {
-            result = materialize_one_set(document, &set);
-        }
-        if (result == APP_ERROR_NONE) {
-            index->ids[index->count++] = set.id;
-        }
-    }
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_write_index(index);
-    }
-    free(index);
-    return result;
-}
-
+/* Clears the existing repository so the backup's sets can be written in its
+ * place. Only sets/ is touched: /data holds the index and sets/ and nothing
+ * else (SPEC 13.3), and the index is rewritten at the end from the sets that
+ * actually landed. */
 static app_error_code_t clear_existing_sets(void) {
     char sets_root[APP_PATH_MAX_BYTES];
     app_error_code_t result = join_path(STORAGE_DATA_MOUNT, "sets", sets_root, sizeof(sets_root));
@@ -218,36 +193,95 @@ static app_error_code_t clear_existing_sets(void) {
     return result == APP_ERROR_NONE ? make_directory(sets_root) : result;
 }
 
-/* SPEC 13.5: restore is the only operation that writes more than one file, and
- * it is explicitly NOT atomic across sets -- it must not pretend to be. The
- * transaction manifest it used to write claimed an all-or-nothing guarantee the
- * design does not want and a 512 KiB partition cannot pay for, since honouring
- * it meant keeping a whole second copy of the repository in a trash directory.
- *
- * What this does now: clear sets/, then write each set from the backup. Every
- * individual file lands atomically via storage_atomic_write. An interruption
- * leaves the sets written so far, and the ones not yet written are simply
- * absent.
- *
- * Still owed by Phase 5, and deliberately not attempted here: per-set success
- * and failure reported back to the client, and running the whole loop on the
- * worker task instead of the httpd task. */
-static app_error_code_t restore_locked(const package_restore_document_t *document) {
+static void record_outcome(storage_restore_report_t *report, const app_uuid_t *set_id,
+                           app_error_code_t result) {
+    if (report->count < APP_MACRO_SETS_MAX) {
+        report->items[report->count].set_id = *set_id;
+        report->items[report->count].result = result;
+        ++report->count;
+    }
+    if (result == APP_ERROR_NONE) {
+        ++report->written;
+        return;
+    }
+    ++report->failed;
+    if (report->first_failure == APP_ERROR_NONE) {
+        report->first_failure = result;
+    }
+}
+
+/* SPEC 13.5: restore is the only multi-file operation and is explicitly NOT
+ * atomic across sets. It therefore does NOT stop at the first set it cannot
+ * write -- stopping would throw away every set after the failure for no reason,
+ * when each set file is independently atomic. Every set is attempted, each
+ * outcome is recorded, and only the sets that were actually written go into the
+ * index, so the index never names a set whose file is missing. */
+static app_error_code_t materialize_sets(const package_restore_document_t *document,
+                                         storage_restore_report_t *report) {
+    /* storage_set_index_t is several KiB; keep it off the task stack. */
+    storage_set_index_t *index = calloc(1U, sizeof(*index));
+    if (index == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
+    app_error_code_t fatal = APP_ERROR_NONE;
+    const int count = cJSON_GetArraySize(document->arrays[PACKAGE_RESTORE_SETS]);
+    for (int item = 0; fatal == APP_ERROR_NONE && item < count; ++item) {
+        macro_set_t set = {0};
+        /* A set node that will not parse is a malformed package, not a
+         * per-set failure: the package was validated before any of this ran, so
+         * this can only mean the document changed underneath us. */
+        fatal =
+            parse_set_node(cJSON_GetArrayItem(document->arrays[PACKAGE_RESTORE_SETS], item), &set);
+        if (fatal != APP_ERROR_NONE) {
+            break;
+        }
+        if (index->count >= APP_MACRO_SETS_MAX) {
+            fatal = APP_ERROR_INVALID_ARGUMENT;
+            break;
+        }
+        const app_error_code_t written = materialize_one_set(document, &set);
+        record_outcome(report, &set.id, written);
+        if (written == APP_ERROR_NONE) {
+            index->ids[index->count++] = set.id;
+        }
+    }
+    /* The index is written even for a partial restore: the sets that landed are
+     * real and the user must be able to reach them. */
+    if (fatal == APP_ERROR_NONE) {
+        fatal = storage_repository_write_index(index);
+    }
+    free(index);
+    return fatal;
+}
+
+static app_error_code_t restore_locked(const package_restore_document_t *document,
+                                       storage_restore_report_t *report) {
     app_error_code_t result = clear_existing_sets();
     if (result == APP_ERROR_NONE) {
-        result = materialize_sets(document);
+        result = materialize_sets(document, report);
     }
     return result;
 }
 
-app_error_code_t storage_package_restore_backup(const char *data, size_t length) {
+app_error_code_t storage_package_restore_backup(const char *data, size_t length,
+                                                storage_restore_report_t *out_report) {
+    if (out_report != NULL) {
+        memset(out_report, 0, sizeof(*out_report));
+    }
     if (data == NULL || length == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
+    }
+    /* ~2 KB; allocated even when the caller does not want it, so the write loop
+     * has somewhere to record outcomes without a NULL check per set. */
+    storage_restore_report_t *report = calloc(1U, sizeof(*report));
+    if (report == NULL) {
+        return APP_ERROR_INTERNAL;
     }
     storage_package_summary_t summary = {0};
     app_error_code_t result =
         storage_package_validate(data, length, STORAGE_PACKAGE_KIND_BACKUP, &summary);
     if (result != APP_ERROR_NONE) {
+        free(report);
         return result;
     }
     package_restore_document_t document = {0};
@@ -256,12 +290,21 @@ app_error_code_t storage_package_restore_backup(const char *data, size_t length)
         result = storage_repository_lock_take();
     }
     if (result == APP_ERROR_NONE) {
-        result = restore_locked(&document);
+        result = restore_locked(&document, report);
         const app_error_code_t unlock = storage_repository_lock_give();
         if (result == APP_ERROR_NONE && unlock != APP_ERROR_NONE) {
             result = APP_ERROR_INTERNAL;
         }
     }
     close_document(&document);
+    /* A run that could not write every set is not a success (SPEC 17), even
+     * though the sets that landed are durable and indexed. */
+    if (result == APP_ERROR_NONE && report->failed != 0U) {
+        result = report->first_failure;
+    }
+    if (out_report != NULL) {
+        *out_report = *report;
+    }
+    free(report);
     return result;
 }

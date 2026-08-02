@@ -6,6 +6,7 @@
 
 #include "app_error.h"
 #include "app_uuid.h"
+#include "macro_limits.h"
 #include "macro_model.h"
 
 typedef enum {
@@ -74,7 +75,31 @@ app_error_code_t storage_package_export_backup(char **out_data, size_t *out_leng
 app_error_code_t storage_package_export_backup_detail(char **out_data, size_t *out_length,
                                                       storage_package_failure_t *out_failure,
                                                       storage_package_skip_report_t *out_skipped);
-app_error_code_t storage_package_restore_backup(const char *data, size_t length);
+/* Per-set outcome of a restore. Restore is explicitly NOT atomic across sets
+ * (SPEC 13.5), so the caller is told exactly which sets were written and which
+ * were not, and a run that failed any of them must not be reported as success
+ * (SPEC 17). */
+typedef struct {
+    app_uuid_t set_id;
+    /* APP_ERROR_NONE when this set's file was written in full. */
+    app_error_code_t result;
+} storage_restore_set_outcome_t;
+
+typedef struct {
+    storage_restore_set_outcome_t items[APP_MACRO_SETS_MAX];
+    size_t count;
+    size_t written;
+    size_t failed;
+    /* The first failure encountered, so the caller can pick an HTTP status that
+     * reflects the actual fault (storage-full vs I/O) rather than flattening
+     * every partial restore to one code. */
+    app_error_code_t first_failure;
+} storage_restore_report_t;
+
+/* out_report may be NULL. Returns APP_ERROR_NONE only when every set in the
+ * package was written. */
+app_error_code_t storage_package_restore_backup(const char *data, size_t length,
+                                                storage_restore_report_t *out_report);
 app_error_code_t storage_package_replace_set(const app_uuid_t *target_set_id,
                                              uint32_t expected_revision, const char *data,
                                              size_t length, macro_set_t *out_set);

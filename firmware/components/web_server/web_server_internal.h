@@ -61,7 +61,10 @@ esp_err_t web_api_send_status_error(httpd_req_t *request, unsigned int status,
 
 /* True when this request would block the handler in the physical-confirmation
  * wait, and so must not run on the httpd task. */
-bool web_api_request_requires_confirmation(httpd_req_t *request);
+/* True when this request must be handed to the async worker rather than served
+ * on the httpd task -- because it waits for physical confirmation, because its
+ * own work is long enough to trip the task watchdog, or both (SPEC 13.5). */
+bool web_api_request_requires_worker(httpd_req_t *request);
 
 /* Async offload for confirmation-gated requests. web_server_async_dispatch
  * takes ownership of the request on success; the caller must return its result

@@ -354,6 +354,19 @@ bool web_api_route_requires_physical_confirmation(web_api_route_t route) {
     return web_api_physical_confirmation_required(route, true);
 }
 
+/* Routes whose WORK is long, independent of any confirmation wait.
+ *
+ * esp_http_server serves every socket from one task (SPEC 13.5), so a
+ * multi-second write loop there starves the idle task and trips the task
+ * watchdog. Restore rewrites every set file and import rewrites one whole set,
+ * and physical confirmation is OFF by default -- so gating the worker handoff on
+ * confirmation alone left exactly these two running on the httpd task in the
+ * default configuration, which is the watchdog bug SPEC 13.5 names. */
+bool web_api_route_requires_worker(web_api_route_t route) {
+    return route == WEB_API_ROUTE_RESTORE || route == WEB_API_ROUTE_SET_IMPORT ||
+           route == WEB_API_ROUTE_SET_IMPORT_NEW;
+}
+
 unsigned int web_api_http_status_for_error(app_error_code_t error) {
     switch (error) {
     case APP_ERROR_NONE:

@@ -336,7 +336,7 @@ esp_err_t web_api_send_status_error(httpd_req_t *request, unsigned int status,
     return result;
 }
 
-bool web_api_request_requires_confirmation(httpd_req_t *request) {
+bool web_api_request_requires_worker(httpd_req_t *request) {
     web_api_method_t method = WEB_API_METHOD_GET;
     web_api_path_t path = {0};
     if (request == NULL || method_from_request(request, &method) != APP_ERROR_NONE ||
@@ -346,8 +346,11 @@ bool web_api_request_requires_confirmation(httpd_req_t *request) {
          * let the normal path produce the proper error response. */
         return false;
     }
-    return web_api_physical_confirmation_required(
-        path.route, server_configuration.require_physical_confirmation);
+    /* Either reason is enough to leave the httpd task: a confirmation wait, or a
+     * write loop long enough to trip the watchdog on its own. */
+    return web_api_route_requires_worker(path.route) ||
+           web_api_physical_confirmation_required(
+               path.route, server_configuration.require_physical_confirmation);
 }
 
 esp_err_t web_api_handle_call(httpd_req_t *request, bool *out_should_restart) {
@@ -388,7 +391,7 @@ esp_err_t api_handler(httpd_req_t *request) {
      * waiting for the button. esp_http_server serves every socket from a single
      * task, so running that wait here would freeze all other clients for the
      * whole window; hand those requests to the async worker instead. */
-    if (web_api_request_requires_confirmation(request)) {
+    if (web_api_request_requires_worker(request)) {
         return web_server_async_dispatch(request);
     }
 

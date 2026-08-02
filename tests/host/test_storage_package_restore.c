@@ -133,7 +133,7 @@ static void assert_repository_remains_empty(void) {
 static void test_complete_backup_restores_every_set(void) {
     create_empty_repository();
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_restore_backup(
-                                             BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U));
+                                             BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U, NULL));
 
     char path[APP_PATH_MAX_BYTES];
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "index.json");
@@ -210,7 +210,7 @@ static void test_concurrency_restore_excludes_mutation(void) {
         (mx_lock_state_t){.interloper = interloper_delete_restored_set, .interloper_armed = true};
     storage_repository_lock_set_ops(&mx_ops);
     const app_error_code_t result =
-        storage_package_restore_backup(BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U);
+        storage_package_restore_backup(BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U, NULL);
     storage_repository_lock_set_ops(NULL);
 
     TEST_CHECK(g_mx.interloper_ran);
@@ -225,7 +225,7 @@ static void test_storage_full_during_restore_leaves_no_partial_set(void) {
     create_empty_repository();
     inject_set_write_storage_full = true;
     const app_error_code_t result =
-        storage_package_restore_backup(BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U);
+        storage_package_restore_backup(BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U, NULL);
     inject_set_write_storage_full = false;
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL, result);
     assert_repository_remains_empty();
@@ -237,15 +237,16 @@ static void test_invalid_backup_does_not_mutate_repository(void) {
         "{\"schema_version\":1,\"package_type\":\"macro-set\",\"sets\":[],"
         "\"macros\":[]}";
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_package_restore_backup(invalid, sizeof(invalid) - 1U));
+                         storage_package_restore_backup(invalid, sizeof(invalid) - 1U, NULL));
     assert_repository_remains_empty();
 }
 
 static void test_restore_requires_initialized_repository_lock(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
     create_repository_layout();
-    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, storage_package_restore_backup(
-                                                 BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INTERNAL,
+        storage_package_restore_backup(BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U, NULL));
     assert_repository_remains_empty();
 }
 

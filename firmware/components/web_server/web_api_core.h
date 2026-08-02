@@ -70,6 +70,10 @@ bool web_api_route_requires_physical_confirmation(web_api_route_t route);
 bool web_api_physical_confirmation_required(web_api_route_t route,
                                             bool execution_confirmation_enabled);
 unsigned int web_api_http_status_for_error(app_error_code_t error);
+
+/* True when the route's own work is too long to run on the httpd task, whether
+ * or not physical confirmation is enabled (SPEC 13.5). */
+bool web_api_route_requires_worker(web_api_route_t route);
 unsigned int web_api_cancel_http_status(const macro_execution_status_t *status,
                                         app_error_code_t cancel_result);
 

@@ -21,9 +21,21 @@ export interface PackageDownload {
   byteLength: number;
 }
 
+/* Restore is not atomic across sets (SPEC 13.5), so a success response still
+   enumerates which sets landed. A run that failed any of them is not a 200 and
+   arrives as an API error instead, with the same per-set detail attached. */
+export interface RestoreSetOutcome {
+  setId: string;
+  restored: boolean;
+  error?: string;
+}
+
 export interface RestoreResult {
   restored: true;
   reloadRequired: true;
+  setsRestored: number;
+  setsFailed: number;
+  sets: RestoreSetOutcome[];
 }
 
 const packageKeys = [
@@ -65,12 +77,29 @@ export function isBackupPackageDocument(
   return hasExactPackageShape(value) && value.package_type === "backup";
 }
 
+function isRestoreSetOutcome(value: unknown): value is RestoreSetOutcome {
+  if (!isRecord(value) || typeof value.setId !== "string") {
+    return false;
+  }
+  if (typeof value.restored !== "boolean") {
+    return false;
+  }
+  const keys = Object.keys(value);
+  return value.restored
+    ? keys.length === 2
+    : keys.length === 3 && typeof value.error === "string";
+}
+
 function isRestoreResult(value: unknown): value is RestoreResult {
   return (
     isRecord(value) &&
-    Object.keys(value).length === 2 &&
+    Object.keys(value).length === 5 &&
     value.restored === true &&
-    value.reloadRequired === true
+    value.reloadRequired === true &&
+    typeof value.setsRestored === "number" &&
+    value.setsFailed === 0 &&
+    Array.isArray(value.sets) &&
+    value.sets.every(isRestoreSetOutcome)
   );
 }
 

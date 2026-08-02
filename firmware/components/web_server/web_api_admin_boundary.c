@@ -1,10 +1,12 @@
 #include "web_api_admin_boundary.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "app_error.h"
+#include "cJSON.h"
 #include "storage.h"
 #include "storage_package.h"
 #include "web_api_core.h"
@@ -101,12 +103,98 @@ static app_error_code_t send_backup(web_api_response_t *response) {
     return result;
 }
 
+/* Renders the per-set outcomes of a restore (SPEC 13.5, 17). Included on both
+ * success and failure, because "which sets are on the device now" is exactly
+ * what the client needs to know either way. */
+static app_error_code_t restore_outcomes_json(const storage_restore_report_t *report,
+                                              cJSON *parent) {
+    cJSON *sets = cJSON_CreateArray();
+    if (sets == NULL || !cJSON_AddItemToObject(parent, "sets", sets)) {
+        cJSON_Delete(sets);
+        return APP_ERROR_INTERNAL;
+    }
+    for (size_t index = 0U; index < report->count; ++index) {
+        cJSON *entry = cJSON_CreateObject();
+        if (entry == NULL || !cJSON_AddItemToArray(sets, entry)) {
+            cJSON_Delete(entry);
+            return APP_ERROR_INTERNAL;
+        }
+        const bool restored = report->items[index].result == APP_ERROR_NONE;
+        if (cJSON_AddStringToObject(entry, "setId", report->items[index].set_id.value) == NULL ||
+            cJSON_AddBoolToObject(entry, "restored", restored) == NULL) {
+            return APP_ERROR_INTERNAL;
+        }
+        if (!restored &&
+            cJSON_AddStringToObject(entry, "error",
+                                    app_error_code_string(report->items[index].result)) == NULL) {
+            return APP_ERROR_INTERNAL;
+        }
+    }
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t restore_response_json(const storage_restore_report_t *report, bool complete,
+                                              char **out_json) {
+    *out_json = NULL;
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
+    app_error_code_t result = APP_ERROR_NONE;
+    if (cJSON_AddBoolToObject(root, "restored", complete) == NULL ||
+        cJSON_AddBoolToObject(root, "reloadRequired", true) == NULL ||
+        cJSON_AddNumberToObject(root, "setsRestored", (double)report->written) == NULL ||
+        cJSON_AddNumberToObject(root, "setsFailed", (double)report->failed) == NULL) {
+        result = APP_ERROR_INTERNAL;
+    }
+    if (result == APP_ERROR_NONE) {
+        result = restore_outcomes_json(report, root);
+    }
+    char *json = NULL;
+    if (result == APP_ERROR_NONE) {
+        json = cJSON_PrintUnformatted(root);
+        result = json == NULL ? APP_ERROR_INTERNAL : APP_ERROR_NONE;
+    }
+    cJSON_Delete(root);
+    *out_json = json;
+    return result;
+}
+
 static app_error_code_t restore_backup(const web_api_call_t *call, web_api_response_t *response) {
-    const app_error_code_t result = storage_package_restore_backup(call->body, call->body_length);
-    return result == APP_ERROR_NONE
-               ? web_api_response_success(response, WEB_HTTP_STATUS_OK,
-                                          "{\"restored\":true,\"reloadRequired\":true}")
-               : respond_operation_error(response, result, "restore failed");
+    storage_restore_report_t report = {0};
+    const app_error_code_t result =
+        storage_package_restore_backup(call->body, call->body_length, &report);
+    /* A restore that never reached the write loop -- a malformed package, a lock
+     * failure -- has no per-set outcomes to report, so it is an ordinary error. */
+    if (result != APP_ERROR_NONE && report.count == 0U) {
+        return respond_operation_error(response, result, "restore failed");
+    }
+    char *json = NULL;
+    const app_error_code_t rendered =
+        restore_response_json(&report, result == APP_ERROR_NONE, &json);
+    if (rendered != APP_ERROR_NONE) {
+        return respond_operation_error(response, rendered, "restore failed");
+    }
+    app_error_code_t sent = APP_ERROR_NONE;
+    if (result == APP_ERROR_NONE) {
+        sent = web_api_response_success(response, WEB_HTTP_STATUS_OK, json);
+    } else {
+        /* A partial restore MUST NOT be a 200 (SPEC 17), so it goes out through
+         * the error envelope -- but the per-set outcomes travel with it as
+         * details, because "which sets are on the device now" is precisely what
+         * the client needs after a failure. The status comes from the first
+         * per-set failure, so storage exhaustion still reads as 507 rather than
+         * being flattened into a generic 500. */
+        const web_api_error_spec_t spec = {
+            .status = web_api_http_status_for_error(result),
+            .code = result,
+            .message = "restore did not write every set",
+            .details_json = json,
+        };
+        sent = web_api_response_error(response, &spec);
+    }
+    cJSON_free(json);
+    return sent;
 }
 
 static app_error_code_t unavailable(web_api_response_t *response, const char *message) {
