@@ -2,9 +2,9 @@
 
 **Document status:** Authoritative implementation specification
 **Product version:** 0.1
-**Target hardware:** ESP32-S3 with native USB device wiring
+**Target hardware:** ESP32-S3R8 with native USB device wiring and octal PSRAM
 **Firmware framework:** ESP-IDF v5.5.5, exact release tag
-**Last updated:** 2026-07-22
+**Last updated:** 2026-08-02
 
 ## 1. Purpose
 
@@ -13,18 +13,38 @@ The ESP32 Macro Keyboard is a self-contained USB keyboard automation appliance.
 The device connects to a target computer through the ESP32-S3 native USB
 peripheral and enumerates as a standard USB HID keyboard. At the same time, the
 device creates a password-protected Wi-Fi access point and serves a local web
-application. An authenticated user can select an ordered set of macros, follow a
-guided procedure, and explicitly send the current macro as keyboard input to the
-target computer.
+application. An authenticated user selects a macro set, picks a macro from that
+set's ordered list, and explicitly sends it as keyboard input to the target
+computer.
 
 The primary motivating workflow is converting multiple Chromebook makes and
-models from ChromeOS to Debian. Each Chromebook model can have a distinct macro
-set containing the commands and manual instructions required for that model.
-The user explicitly selects the set for the current machine and proceeds through
-the ordered steps.
+models from ChromeOS to Debian. Each Chromebook model gets its own macro set
+holding, in the order they are used, the commands that model needs. The user
+selects the set for the machine in front of them and sends the macros in turn.
 
 This specification is normative. `docs/TODO.md` defines the implementation
 sequence for this specification.
+
+### 1.1 Scope of this revision
+
+This device is a microcontroller with 512 KiB of user storage. The 2026-08-02
+revision removed features that were specified without ever being requested and
+that the storage budget does not support. The following are **not part of this
+product** and MUST NOT be reintroduced without a deliberate amendment:
+
+- procedures, instruction steps, and checkpoint steps;
+- per-procedure progress tracking;
+- buttons of any kind, and any hardware added to the board;
+- quarantine or archival of damaged files;
+- staging, trash, and transaction directories.
+
+`docs/HANDOFF_2026-08-02_SIMPLIFICATION.md` records the reasoning and the
+measurements behind these removals.
+
+The implementation has not finished catching up with this revision: procedure,
+progress, and transaction code is still present in the firmware and the web
+application. This document states the required end state; `docs/TODO.md` tracks
+the work to reach it. Where the two disagree, this document wins.
 
 ## 2. Normative language
 
@@ -43,9 +63,10 @@ The product MUST:
 2. Provide a local, mobile-first web application over an ESP32-S3 SoftAP.
 3. Let the user create, edit, duplicate, reorder, delete, import, and export
    macro sets.
-4. Let each macro set contain ordered procedures and a macro library.
-5. Let procedures contain both executable macro steps and non-executable manual
-   instruction steps.
+4. Let each macro set hold an ordered list of macros, and let the user reorder
+   that list.
+5. Operate with no buttons and no hardware added to the board: a bare devkit and
+   a USB cable are a complete product.
 6. Require an explicit user action before every macro execution.
 7. Show the active macro set, USB state, execution state, and errors clearly.
 8. Stop safely and release every key after completion, cancellation, USB loss,
@@ -63,7 +84,9 @@ Version 0.1 MUST NOT attempt to provide:
 - arbitrary Unicode typing;
 - automatic host operating-system detection;
 - automatic Chromebook make, model, or board detection;
-- automatic execution of the next procedure step;
+- automatic execution of the next macro in a set;
+- guided procedures, instruction steps, checkpoint steps, or progress tracking
+  (see §1.1);
 - unattended command chains triggered by boot, Wi-Fi connection, or USB
   connection;
 - USB host functionality;
@@ -106,6 +129,17 @@ IDF_TARGET=esp32s3
 The hardware MUST expose the ESP32-S3 native USB D+ and D- signals. A board with
 separate native-USB and USB-to-UART connectors is strongly preferred during
 development.
+
+The hardware MUST NOT require any button, jumper, or other component to be added
+to the board beyond what a stock devkit provides. See §19.
+
+The reference module is the ESP32-S3R8, which carries 8 MB of embedded **octal**
+SPI PSRAM. The build MUST enable it (`CONFIG_SPIRAM`, `CONFIG_SPIRAM_MODE_OCT`,
+`CONFIG_SPIRAM_USE_MALLOC`). Octal is not interchangeable with quad here: a build
+configured for quad mode on this module does not boot. PSRAM raises the free heap
+from roughly 200 KiB to roughly 8 MB, which is what makes whole-package backup
+and restore bodies affordable. FreeRTOS task stacks MUST still come from internal
+SRAM; PSRAM cannot host them.
 
 ### 5.3 Managed components
 
@@ -188,52 +222,33 @@ first-party source.
 
 ### 7.1 Macro set
 
-A **macro set** is the active workspace for one device model or purpose.
+A **macro set** is a name and an ordered list of macros. That is the entire
+structure; there is no level between a set and a macro.
 
-Examples:
+A set is the active workspace for one device model or purpose. Examples:
 
-- HP Chromebook 11 G6 EE;
-- Dell Chromebook 11 3120;
-- Acer Chromebook C720;
-- Generic ChromeOS recovery.
+```text
+HP Chromebook 11 G6 EE
+├── Open Crosh
+├── Enter shell
+├── Download MrChromebox utility
+├── Run firmware utility
+└── Install Debian
+```
+
+Set order is user-controlled and meaningful: it is the order the user works
+through. Firmware MUST preserve it exactly and MUST NOT reorder, sort, or
+renumber on its own.
 
 The user MUST explicitly select the active set. Firmware MUST NOT infer or
 automatically switch the active set.
 
-### 7.2 Procedure
-
-A **procedure** is an ordered workflow within a macro set. A procedure contains
-one or more steps and stores independent progress.
-
-Example:
-
-```text
-HP Chromebook 11 G6 EE
-└── ChromeOS to Debian 13
-    ├── Enter Developer Mode
-    ├── Open Crosh
-    ├── Enter shell
-    ├── Download MrChromebox utility
-    ├── Run firmware utility
-    └── Install Debian
-```
-
-### 7.3 Procedure step
-
-Version 0.1 supports:
-
-- `macro`: references a set-owned or shared macro;
-- `instruction`: displays manual instructions and requires explicit completion;
-- `checkpoint`: asks the user to confirm an expected result before continuing.
-
-A delay is a macro action, not a standalone procedure step.
-
-### 7.4 Macro
+### 7.2 Macro
 
 A **macro** is source text compiled into a bounded sequence of keyboard actions.
 Macros may be set-owned or shared globally.
 
-### 7.5 Active execution
+### 7.3 Active execution
 
 An **active execution** is the one macro currently being emitted over USB. Only
 one execution may exist at a time.
@@ -277,27 +292,23 @@ Kconfig option that is disabled in release builds.
 The default startup behavior is **always ask which macro set to use**.
 
 1. The set selector lists recent and all sets.
-2. Each card shows name, manufacturer, model, optional board identifier,
-   procedure count, macro count, and last-used time.
+2. Each card shows the set name, its macro count, and its last-used time.
 3. The user explicitly selects a set.
 4. The active set is visible in the application header on every operational
    page.
-5. Switching sets saves progress and cancels any pending, not-yet-started
-   confirmation request.
+5. Switching sets cancels any pending, not-yet-started confirmation request.
 6. Switching is prohibited while a macro is actively typing.
 
 A setting MAY change startup behavior to open the last selected set.
 
-### 8.4 Run a procedure
+### 8.4 Send a macro
 
-1. The user selects a procedure in the active set.
-2. The application opens at the first incomplete step.
-3. The current step is expanded and future steps remain visible.
-4. For a macro step, the user selects **Send**.
-5. The application displays a decoded preview, duration estimate, active set,
+1. The application shows the active set's macros in their stored order.
+2. The user selects **Send** on a macro.
+3. The application displays a decoded preview, duration estimate, active set,
    macro name, and current USB state.
-6. The user focuses the target computer and explicitly selects **Send Now**.
-7. If physical confirmation mode is enabled - it is off by default - the
+4. The user focuses the target computer and explicitly selects **Send Now**.
+5. If physical confirmation mode is enabled - it is off by default - the
    request waits for confirmation and expires after a bounded timeout.
    Confirmation is supplied by the `confirm` serial-console command; no button
    is required, and every confirmation-gated route MUST honour the setting
@@ -306,34 +317,28 @@ A setting MAY change startup behavior to open the last selected set.
    single task, so waiting there makes the whole device unreachable for the
    duration of the window. Confirmation-gated requests are handed to a worker
    task (`web_server_async.c`), leaving the server responsive throughout.
-   Because one button press cannot disambiguate two pending confirmations, at
+   Because one confirmation command cannot disambiguate two pending requests, at
    most one such request is accepted at a time; a second concurrent one is
    rejected with `409` rather than queued.
-8. Firmware starts execution only if USB is ready and the executor is idle.
-9. Progress is displayed until the executor reports completed, cancelled, or
-   failed.
-10. A successfully completed macro step may be marked complete automatically.
-11. The next step becomes current but MUST NOT execute automatically.
-12. Manual instruction and checkpoint steps require explicit completion.
+6. Firmware starts execution only if USB is ready and the executor is idle.
+7. Execution progress is displayed until the executor reports completed,
+   cancelled, or failed.
+8. The next macro in the list MUST NOT execute automatically. Advancing is a
+   display convenience only; every send is a separate explicit user action.
 
-The user may revisit, resend, skip with confirmation, or reset procedure
-progress.
+The user may resend any macro at any time. The device stores no notion of a
+macro being "done": there is no completion state, no skip state, and no progress
+record. Which macros the user has already run is the user's business.
 
-### 8.5 Direct macro execution
-
-The user may open the active set's macro library and send a macro outside a
-procedure. The same preview, confirmation, executor, progress, cancellation, and
-failure rules apply.
-
-### 8.6 Manage sets
+### 8.5 Manage sets
 
 The user may:
 
 - create an empty set;
-- duplicate an existing set without copying progress by default;
+- duplicate an existing set;
 - rename a set;
-- edit metadata;
 - reorder sets;
+- reorder the macros within a set;
 - export one set;
 - import a set as new or replace an existing set;
 - delete a set;
@@ -342,7 +347,7 @@ The user may:
 
 Merge import is not supported in version 0.1.
 
-### 8.7 Delete set
+### 8.6 Delete set
 
 Deletion MUST:
 
@@ -350,25 +355,23 @@ Deletion MUST:
 2. show exactly what will be removed;
 3. require a deliberate confirmation, including typed set name for destructive
    deletion;
-4. rename the set directory into `/data/trash/` as one transaction;
-5. update the set index transactionally;
-6. retain shared/global macros;
-7. return the UI to set selection when the active set is deleted.
+4. remove the set file and update the set index;
+5. retain shared/global macros;
+6. return the UI to set selection when the active set is deleted.
 
-Permanent trash cleanup occurs only after successful transaction recovery or an
-explicit cleanup operation.
+Deletion is permanent. There is no trash directory and no undelete: the device
+does not have the storage to keep a copy of everything the user has thrown away
+(see §13). The confirmation in step 3 is the safeguard.
 
-### 8.8 Import and export
+### 8.7 Import and export
 
 A set export MUST be a single versioned JSON package containing:
 
 - package format identifier and version;
-- set metadata;
-- set-owned macros;
-- procedures and ordered steps;
+- the set name and identity;
+- the set's macros, in order;
 - resolved copies of referenced shared macros;
 - keyboard-layout requirements;
-- optional procedure progress;
 - integrity metadata.
 
 It MUST NOT contain:
@@ -385,8 +388,11 @@ and available space before modifying active data. The supported conflict choices
 are:
 
 - import as a new independent set;
-- replace an existing set transactionally;
+- replace an existing set;
 - cancel.
+
+Because a set is a single file, replacement is a single atomic `rename()` (§13.4)
+and needs no staging area or transaction manifest.
 
 ## 9. Web application information architecture
 
@@ -397,22 +403,18 @@ Required screens:
 1. First-run setup
 2. Login
 3. Choose macro set
-4. Procedures home
-5. Procedure execution
-6. Manual instruction/checkpoint step
-7. Edit procedure and reorder steps
-8. Macro library
-9. Macro editor
-10. Send confirmation
-11. Execution progress and cancel
-12. Completion, cancellation, and failure results
-13. Manage macro sets
-14. Create or duplicate macro set
-15. Import macro set
-16. Export macro set
-17. Delete macro set confirmation
-18. Settings
-19. Storage diagnostics
+4. Macro list for the active set, in order, with reordering
+5. Macro editor
+6. Send confirmation
+7. Execution progress and cancel
+8. Completion, cancellation, and failure results
+9. Manage macro sets
+10. Create or duplicate macro set
+11. Import macro set
+12. Export macro set
+13. Delete macro set confirmation
+14. Settings
+15. Storage diagnostics
 
 The persistent operational header MUST show:
 
@@ -425,7 +427,7 @@ The persistent operational header MUST show:
 The primary bottom navigation after set selection SHOULD be:
 
 ```text
-Procedures | Macros | Settings
+Macros | Sets | Settings
 ```
 
 ### 9.1 Routing
@@ -434,7 +436,6 @@ The application SHOULD use hash routing:
 
 ```text
 /#/sets
-/#/procedures
 /#/macros
 /#/settings
 ```
@@ -550,14 +551,22 @@ compiled actions              4096
 delay per directive        10,000 ms
 estimated total duration        300 s
 macros per set                  100
-procedures per set               50
-steps per procedure             200
 macro sets                       50
+set file bytes               32 KiB
+total user data bytes       480 KiB
 import package bytes        512 KiB
 ```
 
 Limits MUST be centralized, visible through the API, and tested at boundaries.
 They MUST NOT be duplicated as inconsistent magic numbers.
+
+The nominal per-set and total limits are far below the arithmetic product of the
+per-object limits, and that is deliberate: 50 sets of 100 macros of 4096 bytes is
+20 MB against a 512 KiB partition. Firmware MUST enforce the storage limits by
+measuring actual serialized size before committing a write, not by trusting the
+count limits, and MUST reject an over-budget write with `507` (§17) rather than
+filling the filesystem. The web application SHOULD surface remaining space and
+gate the user before the request is made.
 
 ## 11. USB HID keyboard subsystem
 
@@ -657,9 +666,12 @@ real-time clock. Revisions and IDs are authoritative.
 IDs SHOULD be random UUID version 4 strings created from the hardware random
 number generator.
 
+Objects carry no field that the product does not use. A field that exists only
+because it might be useful later is a defect on this device, not future-proofing.
+
 ### 12.1 Macro set
 
-Required fields:
+A set is a name and an ordered list of macros. Required fields:
 
 ```json
 {
@@ -667,14 +679,17 @@ Required fields:
   "id": "uuid",
   "revision": 1,
   "name": "HP Chromebook 11 G6 EE",
-  "description": "ChromeOS, MrChromebox, and Debian workflows",
-  "manufacturer": "HP",
-  "model": "Chromebook 11 G6 EE",
-  "board": "SNAPPY",
-  "keyboard_layout": "en-US",
-  "sort_order": 10
+  "macros": []
 }
 ```
+
+`macros` is the ordered list defined in §12.2. Array order **is** the user's
+order; there is no separate order file and no `sort_order` field on a macro.
+
+Earlier revisions specified `description`, `manufacturer`, `model`, `board`, and
+`keyboard_layout` on a set. They are removed. The first four duplicate what the
+user already put in the name, and the layout is a device-wide property in version
+0.1 (§10.1), not a per-set one.
 
 ### 12.2 Macro
 
@@ -697,44 +712,33 @@ Required fields:
 
 For a shared macro, `scope` is `global` and `set_id` is absent.
 
-### 12.3 Procedure
+A set-owned macro is stored inline in its set's `macros` array, so `set_id` is
+redundant within the file and MAY be omitted there; it is required in API
+responses and export packages, where the macro appears outside its set.
 
-Required fields:
+### 12.3 Set index
+
+The index is the order of the sets themselves, plus which set is active:
 
 ```json
 {
   "schema_version": 1,
-  "id": "uuid",
   "revision": 1,
-  "set_id": "uuid",
-  "name": "ChromeOS to Debian 13",
-  "description": "Guided conversion procedure",
-  "steps": [
-    {
-      "id": "uuid",
-      "type": "instruction",
-      "title": "Enter Developer Mode",
-      "body": "Follow the device-specific recovery sequence.",
-      "required": true
-    },
-    {
-      "id": "uuid",
-      "type": "macro",
-      "title": "Open Crosh",
-      "macro_id": "uuid",
-      "required": true,
-      "auto_complete_on_success": true
-    }
-  ]
+  "active_set_id": "uuid",
+  "set_ids": ["uuid", "uuid"]
 }
 ```
 
-### 12.4 Progress
+A set ID in the index with no corresponding set file, or a set file not named in
+the index, is a corruption of the index and is handled under §13.6. Firmware MUST
+NOT silently reconstruct the index from a directory listing, because doing so
+discards the user's set order — the one thing the index exists to hold.
 
-Progress is keyed by user-visible procedure ID and set ID and stores completed,
-skipped, and current step IDs plus the procedure revision it applies to.
-Procedure edits MUST reconcile progress explicitly; they MUST NOT silently mark
-new steps complete.
+### 12.4 Objects that do not exist
+
+There is no procedure object, no step object, and no progress object. There is
+no `completed`, `skipped`, `current_step`, or `auto_complete_on_success` field
+anywhere in the data model. See §1.1.
 
 ## 13. Persistent storage
 
@@ -754,6 +758,11 @@ Exact sizes are defined in `firmware/partitions.csv` and MUST be validated
 against the selected module flash size. OTA-ready layout is required even though
 the web-based OTA user experience is deferred.
 
+The current layout gives the web assets 1 MiB and user data **512 KiB**. Two OTA
+application slots of 2.5 MiB each consume most of the 8 MiB part, so user storage
+is not expandable without giving up OTA. Every storage decision in this section
+follows from that 512 KiB figure.
+
 ### 13.2 Mount policy
 
 The web-assets filesystem and user-data filesystem are separate mounts.
@@ -768,46 +777,68 @@ The web-assets filesystem and user-data filesystem are separate mounts.
 
 ### 13.3 Logical user-data layout
 
+The `userdata` partition is **512 KiB**. The layout MUST be flat: one file per
+set, one index file, one file for global macros.
+
 ```text
 /data/
-├── schema.json
-├── set-index.json
-├── sets/
-│   └── <set-id>/
-│       ├── set.json
-│       ├── macro-order.json
-│       ├── macros/
-│       ├── procedures/
-│       └── progress/
-├── global/
-│   ├── macro-order.json
-│   └── macros/
-├── staging/
-├── trash/
-└── quarantine/
+├── index.json              schema version, active set, set order
+├── global.json             shared macros, in order
+└── sets/
+    └── <set-id>.json       set name and its ordered macros
 ```
+
+This is the whole tree. There MUST NOT be a per-set directory, a per-object
+file, a separate order file, a `staging/` directory, a `trash/` directory, a
+`transactions/` directory, or a `quarantine/` directory.
+
+The reason is measured, not stylistic. LittleFS on this device uses 4096-byte
+blocks and represents each directory as a metadata pair, so **every directory
+costs 8 KiB** whether or not it holds anything, while a file under roughly 512
+bytes is inlined into its parent's metadata for free. A device observed on
+2026-08-01 reported 98,304 bytes used — 24 blocks, all of it directory metadata
+for 12 directories — while holding 1,370 bytes of actual user data. A layout with
+a directory per set spends the partition on empty structure before the user has
+stored anything.
+
+One file per set rather than one file for everything: a write duplicates only the
+set being edited instead of the whole repository, which is what makes roughly
+480 KiB usable rather than roughly 252 KiB.
 
 ### 13.4 Atomic file update
 
 Every update MUST:
 
-1. serialize into a bounded buffer or bounded stream;
-2. validate the serialized object;
-3. write to a unique file in the same filesystem;
-4. flush, synchronize when supported, and close;
-5. reopen and validate the temporary file;
-6. atomically rename the old file to a backup or transaction location;
-7. atomically rename the temporary file to its final path;
-8. update indexes transactionally;
-9. remove backup state only after the complete operation succeeds.
+1. serialize into a bounded buffer;
+2. validate the serialized bytes;
+3. reject the write if it would exceed the storage budget (§10.7), returning
+   `507`;
+4. write to `<target>.tmp` in the same directory;
+5. flush, synchronize when supported, and close;
+6. reopen and validate the temporary file;
+7. `rename()` it over the target path.
 
-A failed write MUST leave the prior committed object intact.
+POSIX `rename()` is atomic, so an interruption at any point leaves either the
+complete old file or the complete new one. Nothing else is needed and nothing
+else is permitted: there is no `.bak` file, no backup copy, and no second
+generation of any object retained on the device.
 
-### 13.5 Transactions
+Boot recovery is, in its entirety: delete any `*.tmp` file found under `/data`.
+An interrupted write is indistinguishable from one that never started, which is
+the correct outcome.
 
-Multi-file operations such as set import, replacement, duplication, and deletion
-MUST use staging plus an explicit transaction manifest. Startup recovery MUST
-either complete or roll back an interrupted transaction deterministically.
+### 13.5 Multi-file operations
+
+Restore is the only operation that writes more than one file. It is therefore
+**not atomic across sets**, and MUST NOT pretend to be: each set file is written
+atomically by §13.4 and the response reports per-set success or failure. A
+partial restore leaves each individual set either fully old or fully new, and
+tells the client exactly which are which.
+
+Restore MUST NOT perform the whole rewrite synchronously on the HTTP server task.
+`esp_http_server` serves every socket from one task, so a multi-second write loop
+there starves the idle task and trips the task watchdog. Restore is handled on a
+worker task (§8.4, `web_server_async.c`).
 
 No code may:
 
@@ -820,11 +851,21 @@ No code may:
 
 ### 13.6 Corruption handling
 
-An invalid object is moved to quarantine only after its original path and error
-are recorded. The UI exposes the issue. Quarantine does not count as successful
-recovery of the affected object.
+A file that fails to parse or validate is **deleted, and the failure is reported
+to the caller** with the path and the error. It is not archived, not renamed into
+a holding area, and not left in place to fail again on every subsequent read.
 
-The device MUST preserve evidence needed to diagnose corruption.
+This is a deliberate trade against the general principle of preserving evidence.
+On a 512 KiB partition, keeping a copy of every damaged object is a denial of
+service against the user's own data, and the earlier quarantine mechanism cost
+over a thousand lines to store what the user cannot act on anyway. The device
+reports what was lost; it does not hoard it.
+
+The error MUST name the object and MUST be surfaced through the API and the UI.
+Deleting a corrupt file MUST NOT be reported as successful recovery.
+
+`GET /api/v1/backup` (§17) is the mechanism for preserving data ahead of a
+problem, and it is required to work even when individual objects are damaged.
 
 ### 13.7 Optimistic concurrency
 
@@ -845,8 +886,7 @@ NVS stores only small device configuration, including:
 - credential-reset state;
 - schema version.
 
-Macro sets, procedures, macros, progress, imports, and web assets do not belong
-in NVS.
+Macro sets, macros, imports, and web assets do not belong in NVS.
 
 Passwords MUST NOT be stored in plaintext. Use a per-password random salt and a
 documented password-based key derivation function available through the
@@ -927,7 +967,7 @@ This is the boundary that protects the user from anyone else on the network.
 
 **The physical serial surface is trusted.** Commands issued on the UART0
 console (`firmware/components/serial_console`) require no session, no CSRF
-token, and no physical-button confirmation: possession of the board and
+token, and no physical confirmation: possession of the board and
 access to its UART port *is* the authorization. This is a deliberate scope
 decision, not an oversight. Reaching that port means holding the hardware,
 at which point the device is already fully controllable - it can be
@@ -1016,15 +1056,6 @@ POST   /api/v1/global/macros
 PUT    /api/v1/global/macros/{macro_id}
 DELETE /api/v1/global/macros/{macro_id}
 
-GET    /api/v1/sets/{set_id}/procedures
-POST   /api/v1/sets/{set_id}/procedures
-GET    /api/v1/sets/{set_id}/procedures/{procedure_id}
-PUT    /api/v1/sets/{set_id}/procedures/{procedure_id}
-DELETE /api/v1/sets/{set_id}/procedures/{procedure_id}
-POST   /api/v1/sets/{set_id}/procedures/reorder
-PUT    /api/v1/sets/{set_id}/procedures/{procedure_id}/progress
-DELETE /api/v1/sets/{set_id}/procedures/{procedure_id}/progress
-
 POST   /api/v1/executions
 GET    /api/v1/executions/current
 POST   /api/v1/executions/{execution_id}/confirm
@@ -1043,6 +1074,9 @@ GET    /api/v1/backup
 POST   /api/v1/restore
 ```
 
+There are no procedure or progress routes. `GET /api/v1/diagnostics/quarantine`
+existed in an earlier revision and is removed (§13.6).
+
 The API implementation MAY consolidate routes where memory constraints justify
 it, but external behavior and resource boundaries MUST remain equivalent and be
 documented.
@@ -1050,9 +1084,7 @@ documented.
 `GET /api/v1/backup` MUST NOT let one damaged object make the repository
 unbackupable — a backup is most needed exactly when storage is damaged. Objects
 that are individually unusable are omitted from the package rather than failing
-the export, and a procedure whose steps reference an omitted macro is omitted
-too, because the package validator requires every referenced macro to be
-present.
+the export.
 
 A partial backup MUST be self-describing, so it can never be mistaken for a
 complete one. It carries an optional top-level `skipped` object recording the
@@ -1066,6 +1098,10 @@ I/O, storage unavailable, timeout) MUST still fail the export, because
 continuing past it would silently drop objects that are perfectly good and
 present a truncated backup as a whole one. A failed export names the object it
 stopped on.
+
+`POST /api/v1/restore` reports per-set outcomes (§13.5). A response reporting
+partial success MUST enumerate which sets were restored and which were not; it
+MUST NOT report `200` for a run that failed to write some of them.
 
 Important status codes:
 
@@ -1127,19 +1163,21 @@ history is deferred.
 
 ## 19. Physical controls and indicators
 
-GPIO assignment MUST be configurable through Kconfig and a board profile.
+The device MUST NOT require any button, and MUST NOT require hardware to be
+added to the board. A stock ESP32-S3 devkit and a USB cable are a complete
+product. GPIO assignment for the one remaining output MUST be configurable
+through Kconfig and a board profile.
 
 Required logical controls:
 
 - a status indicator.
 
-The device MUST NOT require any button, and MUST NOT require hardware to be
-added to the board. Earlier revisions of this document specified cancel and
-confirmation buttons and a reset boot gesture; that was a mistake. No board
-used by this project exposes them (the cancel button was assigned GPIO4, which
-a bare devkit does not break out), the reset gesture was never implemented, and
-making six API routes demand a press rendered the device unusable while
-concealing a crash in the code the press was gating.
+Earlier revisions of this document specified cancel and confirmation buttons and
+a reset boot gesture; that was a mistake. No board used by this project exposes
+them (the cancel button was assigned GPIO4, which a bare devkit does not break
+out), the reset gesture was never implemented, and making six API routes demand
+a press rendered the device unusable while concealing a crash in the code the
+press was gating.
 
 Those functions are serial-console commands instead: `confirm` supplies
 physical confirmation when it is enabled, and `cancel` stops a running macro.
@@ -1202,7 +1240,8 @@ The diagnostics page and API expose:
 - web-assets and user-data mount state;
 - capacity, used space, and free space;
 - object counts;
-- quarantine, trash, staging, and pending transaction counts;
+- stray temporary files removed at boot (§13.4);
+- objects deleted as corrupt since boot, with their paths and errors (§13.6);
 - last storage integrity result;
 - executor state;
 - reset reason.
@@ -1341,7 +1380,13 @@ returning nonzero; it MUST never mask failures.
 12. No stale-revision overwrite.
 13. No retained modifier key after any terminal path.
 14. No automatic formatting after mount failure.
-15. No silent recovery that destroys evidence or user data.
+15. No silent recovery that destroys user data. Deleting an unreadable object is
+    permitted and required (§13.6), but only when the object, its path, and its
+    error are reported to the caller and exposed in diagnostics. Discarding data
+    without saying so is a defect.
+16. No second on-device copy of user data. There is no trash, no quarantine, and
+    no backup file; the only transient duplicate is the `.tmp` file of a write in
+    progress (§13.4).
 
 ## 23. Build and packaging pipeline
 
@@ -1401,17 +1446,17 @@ Tests MUST cover:
 - create/read/update/delete;
 - stale revisions;
 - short writes;
-- full filesystem;
-- interrupted transaction stages;
-- corrupt JSON;
-- missing references;
-- orphan files;
-- quarantine;
-- trash recovery;
+- full filesystem, and rejection of an over-budget write with `507`;
+- interruption between writing `.tmp` and `rename()`, in both orders;
+- boot cleanup of stray `.tmp` files;
+- corrupt JSON, including that the corrupt file is deleted and the failure
+  reported;
+- an index naming a set file that is absent, and a set file the index omits;
+- macro order preserved exactly across write, reboot, export, and restore;
 - import as new;
-- replace import rollback;
-- no-format mount failure;
-- migration success and rollback.
+- replace import;
+- partial restore reporting per-set outcomes;
+- no-format mount failure.
 
 ### 24.3 USB and executor
 
@@ -1454,7 +1499,7 @@ Tests MUST cover:
 - every required screen;
 - active-set visibility;
 - set switching;
-- macro/procedure ordering;
+- set and macro ordering, including that a reorder round-trips through the API;
 - live validation;
 - send preview;
 - disabled Send when USB is unavailable;
@@ -1476,8 +1521,8 @@ At minimum, acceptance testing MUST include:
 - power-cycle persistence;
 - repeated USB reconnects;
 - repeated AP reconnects;
-- full conversion procedure dry run using harmless text targets;
-- physical cancel response;
+- a full set of macros sent in order against a harmless text target;
+- cancellation over both the API and the `cancel` console command;
 - credential reset;
 - factory reset;
 - user-data preservation across firmware slot switch.
@@ -1493,15 +1538,17 @@ Version 0.1 is complete only when:
 4. The device starts a protected SoftAP without an open fallback.
 5. An authenticated user can create, select, rename, duplicate, export, import,
    replace, and delete macro sets.
-6. The user can reorder sets, procedures, macros, and procedure steps.
+6. The user can reorder sets and can reorder the macros within a set, and that
+   order survives reboot, export, and restore.
 7. The user can create and edit valid macros and receives exact errors for
    invalid source.
 8. The user can execute a macro only through explicit confirmation.
-9. Procedure progress advances without automatically executing the next step.
+9. The device requires no button and no added hardware to perform any product
+   function.
 10. Cancellation works during text and delays.
 11. Every tested terminal execution path releases all keys.
-12. Power loss during representative storage transactions preserves either the
-    old or new committed state.
+12. Power loss during a representative write preserves either the old or the new
+    committed state, and boot removes any stray `.tmp` file.
 13. A mount failure does not format storage.
 14. Import failures do not partially modify active data.
 15. The web application works without internet access and fits its partition.
@@ -1530,7 +1577,6 @@ Potential later work includes:
 - merge import;
 - global macro conflict UI;
 - OLED display;
-- more physical macro buttons;
 - Bluetooth HID;
 - execution history;
 - signed macro-set packages;
@@ -1540,6 +1586,11 @@ Potential later work includes:
 
 Deferred features MUST NOT be partially or silently enabled in version 0.1.
 
+The items in §1.1 — procedures, instruction and checkpoint steps, progress
+tracking, buttons, added hardware, quarantine — are **not** deferred. They are
+rejected. Reintroducing any of them requires an amendment to §1.1 that states
+what changed about the storage budget or the product to justify it.
+
 ## 27. Handoff manifest
 
 The authoritative design handoff currently consists of:
@@ -1547,6 +1598,7 @@ The authoritative design handoff currently consists of:
 - `docs/SPEC.md`;
 - `docs/TODO.md`;
 - `docs/README.md`;
+- `docs/HANDOFF_2026-08-02_SIMPLIFICATION.md`;
 - `docs/mockups/README.md`.
 
 Individual mockup SVG and PNG files are not currently part of the handoff and
