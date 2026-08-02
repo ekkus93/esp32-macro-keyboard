@@ -14,6 +14,7 @@
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/task.h"
 #include "wifi_ap_ops.h"
 #include "wifi_ap_state.h"
 
@@ -278,6 +279,16 @@ app_error_code_t wifi_ap_connect_station(const char *ssid, const char *password,
             return APP_ERROR_INTERNAL;
         }
     }
+    /* Drop any station session already up. esp_wifi_connect() otherwise fails
+     * with "sta is connected, disconnect before connecting to new ap", which
+     * made this command non-idempotent: re-running it after a successful
+     * connect reported a timeout even though the device was fine. The short
+     * delay lets the resulting STA_DISCONNECTED event land before the
+     * semaphore is drained, so it cannot be mistaken for this attempt's
+     * outcome. */
+    (void)esp_wifi_disconnect();
+    vTaskDelay(pdMS_TO_TICKS(100));
+
     (void)xSemaphoreTake(sta_outcome_semaphore, 0);
     sta_got_ip = false;
     sta_disconnect_reason = 0;

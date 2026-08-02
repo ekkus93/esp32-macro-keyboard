@@ -38,6 +38,10 @@ test-results/
 # image lands in firmware/build/webfs.bin, already covered by *.bin above
 firmware/webfs/dist/
 
+# Hardware-in-the-loop bench state: Wi-Fi credentials, the device
+# administrator password, and per-device fixtures. Never commit.
+tests/hardware/.local/
+
 # Python generated output
 __pycache__/
 *.pyc
