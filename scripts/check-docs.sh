@@ -13,3 +13,7 @@ yamllint .github firmware/main/idf_component.yml
 for schema in docs/schemas/*.json; do
 	jq empty "${schema}"
 done
+
+# The traceability matrix is generated. If it can drift from SPEC.md silently,
+# it stops being a worklist and becomes a stale reassurance.
+python3 scripts/generate-spec-traceability.py --check

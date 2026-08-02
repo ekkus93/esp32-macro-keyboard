@@ -355,6 +355,10 @@ static void test_corrupt_persisted_records(void) {
     provisioning_core_t reader;
     provisioning_config_t loaded;
 
+    /* SPEC 14: a record whose length does not match the current layout is
+     * corrupt, not something to parse on a best-effort basis. This is what
+     * turned "the record grew when station fields were added" into a clean
+     * refusal rather than fields silently read from the wrong offsets. */
     fake.durable_size -= 1U;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_init(&reader, &operations));
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, provisioning_core_load(&reader, &loaded));
@@ -457,6 +461,269 @@ static void test_load_error_and_uninitialized_calls(void) {
     TEST_CHECK_EQ_U64(0U, configuration.schema_version);
 }
 
+/*
+ * Station credentials (SPEC 14, 15.2).
+ *
+ * These are written from the requirements rather than from the code: the
+ * feature shipped with none of this pinned, and the class of defect it invites
+ * -- a writer that rebuilds the record from scratch and silently drops fields
+ * it does not know about -- has already bitten this codebase once, in
+ * storage_set_reorder.
+ *
+ * The SSIDs and passphrases below are invented. Real bench credentials never
+ * appear in this repository.
+ */
+
+#define STATION_SSID "example-network"
+#define STATION_PASSWORD "not-a-real-passphrase"
+
+typedef struct {
+    char ssid[WIFI_AP_SSID_MAX_BYTES + 1U];
+    char password[WIFI_AP_PASSPHRASE_MAX_BYTES + 1U];
+} station_buffers_t;
+
+static app_error_code_t read_station(provisioning_core_t *core, station_buffers_t *buffers) {
+    return provisioning_core_get_station(core, buffers->ssid, sizeof(buffers->ssid),
+                                         buffers->password, sizeof(buffers->password));
+}
+
+/* Whether the durable record still contains a given string anywhere in its
+ * bytes. Used to prove a cleared passphrase is actually gone rather than merely
+ * unreferenced. */
+static bool durable_contains(const fake_provisioning_t *fake, const char *needle) {
+    const size_t length = strlen(needle);
+    if (length == 0U || length > sizeof(fake->durable)) {
+        return false;
+    }
+    for (size_t offset = 0U; offset + length <= sizeof(fake->durable); ++offset) {
+        if (memcmp(fake->durable + offset, needle, length) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/* A device that has never been given a network is AP-only, and that is the
+ * defined initial state rather than a fault (SPEC 15.2). */
+static void test_no_stored_network_is_the_initial_state(void) {
+    fake_provisioning_t fake;
+    fake_init(&fake);
+    provisioning_core_t core = {0};
+    provisioning_config_t committed = {0};
+    commit_valid(&core, &fake, &committed);
+
+    station_buffers_t buffers;
+    memset(&buffers, 'x', sizeof(buffers));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, read_station(&core, &buffers));
+    /* SPEC 14 confinement: the not-found path must not leave the caller holding
+     * whatever its buffer happened to contain. */
+    TEST_CHECK_EQ_STRING("", buffers.ssid);
+    TEST_CHECK_EQ_STRING("", buffers.password);
+}
+
+/* The whole point of storing them: the device rejoins on its own after being
+ * unplugged (SPEC 15.2). A fresh core over the same durable bytes is what a
+ * power cycle actually is. */
+static void test_station_credentials_survive_a_power_cycle(void) {
+    fake_provisioning_t fake;
+    fake_init(&fake);
+    provisioning_core_t core = {0};
+    provisioning_config_t committed = {0};
+    commit_valid(&core, &fake, &committed);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         provisioning_core_set_station(&core, STATION_SSID, STATION_PASSWORD));
+
+    provisioning_core_t rebooted = {0};
+    const provisioning_ops_t operations = fake_operations(&fake);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_init(&rebooted, &operations));
+    provisioning_config_t loaded = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_load(&rebooted, &loaded));
+
+    station_buffers_t buffers;
+    memset(&buffers, 0, sizeof(buffers));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, read_station(&rebooted, &buffers));
+    TEST_CHECK_EQ_STRING(STATION_SSID, buffers.ssid);
+    TEST_CHECK_EQ_STRING(STATION_PASSWORD, buffers.password);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_deinit(&rebooted));
+}
+
+/* Storing a network rewrites the one shared record, so it is exactly the shape
+ * of change that drops fields the writer forgot about. Everything else in the
+ * record must come back unchanged (SPEC 14). */
+static void test_storing_a_network_disturbs_nothing_else(void) {
+    fake_provisioning_t fake;
+    fake_init(&fake);
+    provisioning_core_t core = {0};
+    provisioning_config_t before = {0};
+    commit_valid(&core, &fake, &before);
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         provisioning_core_set_station(&core, STATION_SSID, STATION_PASSWORD));
+
+    provisioning_config_t after = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_load(&core, &after));
+    TEST_CHECK_EQ_STRING(before.ap_ssid, after.ap_ssid);
+    TEST_CHECK_EQ_STRING(before.ap_passphrase, after.ap_passphrase);
+    TEST_CHECK_EQ_INT(
+        0, memcmp(&before.password_record, &after.password_record, sizeof(before.password_record)));
+    TEST_CHECK_EQ_U64(before.credential_version, after.credential_version);
+    TEST_CHECK(after.provisioned);
+    TEST_CHECK_EQ_INT(before.require_physical_confirmation ? 1 : 0,
+                      after.require_physical_confirmation ? 1 : 0);
+    TEST_CHECK_EQ_INT(before.always_select_set ? 1 : 0, after.always_select_set ? 1 : 0);
+    /* One durable change means exactly one revision. */
+    TEST_CHECK_EQ_U64(before.revision + 1U, after.revision);
+    TEST_CHECK(after.has_station);
+}
+
+/* At most one network is remembered; storing replaces rather than accumulates
+ * (SPEC 15.2). */
+static void test_storing_a_network_replaces_the_previous_one(void) {
+    fake_provisioning_t fake;
+    fake_init(&fake);
+    provisioning_core_t core = {0};
+    provisioning_config_t committed = {0};
+    commit_valid(&core, &fake, &committed);
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         provisioning_core_set_station(&core, "first-network", "first-passphrase"));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         provisioning_core_set_station(&core, STATION_SSID, STATION_PASSWORD));
+
+    station_buffers_t buffers;
+    memset(&buffers, 0, sizeof(buffers));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, read_station(&core, &buffers));
+    TEST_CHECK_EQ_STRING(STATION_SSID, buffers.ssid);
+    TEST_CHECK_EQ_STRING(STATION_PASSWORD, buffers.password);
+    /* Replaced, not appended: no trace of the old one is left in the record. */
+    TEST_CHECK(!durable_contains(&fake, "first-network"));
+    TEST_CHECK(!durable_contains(&fake, "first-passphrase"));
+}
+
+/* An empty SSID clears the stored network (SPEC 15.2), and clearing must
+ * actually erase the passphrase rather than orphan it (SPEC 14). */
+static void test_empty_ssid_clears_the_stored_network(void) {
+    fake_provisioning_t fake;
+    fake_init(&fake);
+    provisioning_core_t core = {0};
+    provisioning_config_t committed = {0};
+    commit_valid(&core, &fake, &committed);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         provisioning_core_set_station(&core, STATION_SSID, STATION_PASSWORD));
+    TEST_CHECK(durable_contains(&fake, STATION_PASSWORD));
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_set_station(&core, "", NULL));
+
+    station_buffers_t buffers;
+    memset(&buffers, 0, sizeof(buffers));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, read_station(&core, &buffers));
+    TEST_CHECK(!durable_contains(&fake, STATION_PASSWORD));
+    TEST_CHECK(!durable_contains(&fake, STATION_SSID));
+
+    /* NULL is the same instruction as an empty string, and clearing an already
+     * clear record is not an error. */
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_set_station(&core, NULL, NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, read_station(&core, &buffers));
+}
+
+/* Over-long input is refused outright, and refusing it must leave the network
+ * already stored exactly as it was. */
+static void test_oversized_credentials_are_refused_without_side_effects(void) {
+    fake_provisioning_t fake;
+    fake_init(&fake);
+    provisioning_core_t core = {0};
+    provisioning_config_t committed = {0};
+    commit_valid(&core, &fake, &committed);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         provisioning_core_set_station(&core, STATION_SSID, STATION_PASSWORD));
+
+    char long_ssid[WIFI_AP_SSID_MAX_BYTES + 2U];
+    memset(long_ssid, 'a', sizeof(long_ssid) - 1U);
+    long_ssid[sizeof(long_ssid) - 1U] = '\0';
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         provisioning_core_set_station(&core, long_ssid, STATION_PASSWORD));
+
+    char long_password[WIFI_AP_PASSPHRASE_MAX_BYTES + 2U];
+    memset(long_password, 'b', sizeof(long_password) - 1U);
+    long_password[sizeof(long_password) - 1U] = '\0';
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         provisioning_core_set_station(&core, STATION_SSID, long_password));
+
+    station_buffers_t buffers;
+    memset(&buffers, 0, sizeof(buffers));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, read_station(&core, &buffers));
+    TEST_CHECK_EQ_STRING(STATION_SSID, buffers.ssid);
+    TEST_CHECK_EQ_STRING(STATION_PASSWORD, buffers.password);
+}
+
+/* A buffer that cannot hold the longest legal value is rejected rather than
+ * filled with a truncated one (SPEC 14). */
+static void test_undersized_output_buffers_are_rejected(void) {
+    fake_provisioning_t fake;
+    fake_init(&fake);
+    provisioning_core_t core = {0};
+    provisioning_config_t committed = {0};
+    commit_valid(&core, &fake, &committed);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         provisioning_core_set_station(&core, STATION_SSID, STATION_PASSWORD));
+
+    station_buffers_t buffers;
+    memset(&buffers, 0, sizeof(buffers));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         provisioning_core_get_station(&core, buffers.ssid,
+                                                       sizeof(buffers.ssid) - 1U, buffers.password,
+                                                       sizeof(buffers.password)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         provisioning_core_get_station(&core, buffers.ssid, sizeof(buffers.ssid),
+                                                       buffers.password,
+                                                       sizeof(buffers.password) - 1U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         provisioning_core_get_station(&core, NULL, sizeof(buffers.ssid),
+                                                       buffers.password, sizeof(buffers.password)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         provisioning_core_get_station(&core, buffers.ssid, sizeof(buffers.ssid),
+                                                       NULL, sizeof(buffers.password)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, read_station(NULL, &buffers));
+}
+
+/* The flag and the SSID are two encodings of one fact. A record where they
+ * disagree is corrupt, in either direction. */
+static void test_station_flag_and_ssid_must_agree(void) {
+    provisioning_config_t configuration = valid_configuration(0U);
+    TEST_CHECK(provisioning_config_is_valid(&configuration));
+
+    configuration.has_station = true;
+    TEST_CHECK(!provisioning_config_is_valid(&configuration));
+
+    configuration = valid_configuration(0U);
+    TEST_CHECK_EQ_INT((int)strlen(STATION_SSID),
+                      snprintf(configuration.station_ssid, sizeof(configuration.station_ssid), "%s",
+                               STATION_SSID));
+    TEST_CHECK(!provisioning_config_is_valid(&configuration));
+    configuration.has_station = true;
+    TEST_CHECK(provisioning_config_is_valid(&configuration));
+}
+
+/* Nothing may be stored or read before the record has been loaded: the write
+ * path starts from the loaded configuration, so acting on an unloaded core
+ * would commit defaults over real data. */
+static void test_station_access_requires_a_loaded_core(void) {
+    fake_provisioning_t fake;
+    fake_init(&fake);
+    provisioning_core_t core = {0};
+    station_buffers_t buffers;
+    memset(&buffers, 0, sizeof(buffers));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         provisioning_core_set_station(&core, STATION_SSID, STATION_PASSWORD));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, read_station(&core, &buffers));
+
+    const provisioning_ops_t operations = fake_operations(&fake);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_init(&core, &operations));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         provisioning_core_set_station(&core, STATION_SSID, STATION_PASSWORD));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, read_station(&core, &buffers));
+}
+
 int main(void) {
     test_init_and_default_load();
     test_configuration_validation();
@@ -467,6 +734,15 @@ int main(void) {
     test_revision_exhaustion();
     test_factory_reset();
     test_load_error_and_uninitialized_calls();
+    test_no_stored_network_is_the_initial_state();
+    test_station_credentials_survive_a_power_cycle();
+    test_storing_a_network_disturbs_nothing_else();
+    test_storing_a_network_replaces_the_previous_one();
+    test_empty_ssid_clears_the_stored_network();
+    test_oversized_credentials_are_refused_without_side_effects();
+    test_undersized_output_buffers_are_rejected();
+    test_station_flag_and_ssid_must_agree();
+    test_station_access_requires_a_loaded_core();
     puts("provisioning tests passed");
     return EXIT_SUCCESS;
 }

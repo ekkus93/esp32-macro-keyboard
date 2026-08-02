@@ -893,6 +893,7 @@ NVS stores only small device configuration, including:
 
 - device name;
 - AP SSID and credential material;
+- station SSID and passphrase, when a network has been joined (§15.2);
 - password verifier and salts;
 - startup-set behavior;
 - execution policy;
@@ -902,13 +903,33 @@ NVS stores only small device configuration, including:
 
 Macro sets, macros, imports, and web assets do not belong in NVS.
 
-Passwords MUST NOT be stored in plaintext. Use a per-password random salt and a
+The administrator password MUST NOT be stored in plaintext, nor in any form from
+which the password can be recovered. Use a per-password random salt and a
 documented password-based key derivation function available through the
 ESP-IDF/mbedTLS environment. Constant-time comparison is required.
 
-## 15. Wi-Fi access point
+Wi-Fi passphrases — both the AP's own and a stored station passphrase — are
+necessarily recoverable, because the radio must be handed the passphrase itself
+on every join. They are therefore stored as-is, and the guarantee that protects
+them is confinement rather than hashing: firmware MUST NOT emit either
+passphrase in a log line, an API response, a backup archive, or a diagnostics
+report. A caller that needs an SSID MUST NOT be handed a copy of the whole
+configuration record to pick it out of, because that record also carries the
+password verifier, its salt, and the AP passphrase.
 
-Version 0.1 operates as a SoftAP only.
+All configuration lives in a single fixed-size record with a fixed field layout.
+A stored record whose length does not match the current layout MUST be rejected
+as corrupt rather than parsed on a best-effort basis: a short read of a record
+whose fields have moved yields plausible-looking garbage, and silently accepting
+it is worse than refusing to start.
+
+## 15. Wi-Fi
+
+The device always operates its own access point (§15.1). It MAY additionally
+join one existing network as a station (§15.2). The access point is the
+guaranteed control path and does not depend on any external network.
+
+### 15.1 Access point
 
 Defaults:
 
@@ -927,6 +948,34 @@ silently continue as though the web application were available.
 
 A captive-portal helper MAY redirect common connectivity-check requests to the
 local application, but `192.168.4.1` remains the authoritative address.
+
+### 15.2 Station mode
+
+Station credentials are optional. With none stored, the device is access-point
+only, and that is the defined initial state rather than a fault.
+
+At most one network is remembered. Storing a network replaces the previous one;
+firmware MUST NOT keep a list, and MUST NOT scan for, rank, or join any network
+it was not explicitly given.
+
+Credentials are set through the serial console (`wifi-connect <ssid>
+<password>`). The console verifies the credentials by joining the network before
+storing them, so a typo is reported rather than persisted. They are written to
+the same provisioning record described in §14 that every other durable setting
+uses — there is no second store and no separate file — and so they survive a
+power cycle. An empty SSID clears the stored network.
+
+At boot the access point is started first and unconditionally; the station join
+is attempted only afterwards. This ordering is required. §15.1 makes access-point
+availability a fatal-if-absent property, so it MUST NOT be made to wait on, or
+depend on, an external network being present, in range, or still accepting the
+stored passphrase.
+
+A station join that fails, times out, or is refused MUST be logged and otherwise
+ignored: the device continues as access-point only. Firmware MUST NOT treat it
+as a startup failure, MUST NOT retry it in a way that delays or blocks the rest
+of startup, and MUST NOT discard the stored credentials because one join
+attempt failed — the network may simply be down.
 
 ## 16. Authentication and request security
 

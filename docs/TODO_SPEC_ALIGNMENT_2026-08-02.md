@@ -606,6 +606,37 @@ tens of KiB rather than 98,304, and `check-all.sh` exits 0.
 
 ---
 
+## Phase 8 — Test against the specification, not the implementation
+
+Opened after the `expectedRevision` defect: six tests asserted a requirement the
+handler invented, and hardware found it in a minute. `docs/SPEC_TEST_TRACEABILITY.md`
+is the worklist; it is generated, and `check-docs.sh` fails if it drifts.
+
+- [x] **8.1 SPEC §7.1 / §10.1 — set order and active-set selection.** Three
+  tests written from the requirement. The third failed on its first run:
+  `storage_set_reorder_locked` rebuilt the index from a blank struct and dropped
+  `has_active_set` / `active_set_id`, so reordering silently deselected the
+  active set. Phase 4b added those fields without auditing every writer. Fixed
+  and covered in `e906f18`.
+- [x] **8.2 SPEC §14 / §15.2 — station credentials.** Nine tests: absent is the
+  initial state, credentials survive a power cycle, storing one disturbs nothing
+  else in the record, storing replaces rather than accumulates, an empty SSID
+  clears and actually erases the passphrase bytes, oversized input is refused
+  without side effects, undersized output buffers are refused, and the flag and
+  SSID must agree. All nine passed on the first run, so each was checked by
+  mutating the source: dropping an unrelated field, and skipping the passphrase
+  erase, each fail exactly one test. A tenth was written and then deleted —
+  `test_corrupt_persisted_records` already asserted it.
+
+**Known gap, not covered by any host test.** The boot behaviour in SPEC §15.2 —
+access point first and unconditional, station join attempted after, join failure
+logged and ignored — lives in `app_core.c`, which has no host test at all. The
+traceability matrix reports those §15.2 prohibitions as "referenced" only because
+citations are section-level; nothing exercises them. Only hardware can currently
+prove that behaviour.
+
+---
+
 ## Acceptance
 
 The sequence is complete when all of SPEC §25 holds, and specifically:
