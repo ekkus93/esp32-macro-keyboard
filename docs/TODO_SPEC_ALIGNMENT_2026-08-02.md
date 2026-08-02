@@ -117,117 +117,171 @@ struct carries a field no code reads, and `check-all.sh` exits 0.
 The largest single cut, and the one that makes Phase 3 tractable. A macro set is
 a name and an ordered list of macros; there is no level between them.
 
-**Depends on:** Phase 1 (not strictly, but the serializers are smaller after it).
-**Estimated size:** ~1,250 lines of dedicated firmware code, plus references in
-41 firmware files, 29 webapp files, and 23 host test files.
+**Depends on:** Phase 1.
+**Size:** ~1,250 lines of dedicated firmware code, plus references in 41
+firmware files, 29 webapp files, and 23 host test files.
 
-**Attempted 2026-08-02 and abandoned mid-phase.** The firmware routes, the
-model types, the repository header, the package field tables, the macro
-reference scan, and the set-duplicate path were all cut before the session ran
-out; the work is on the `stash` entry *"WIP Phase 2: procedures/progress
-removal, incomplete (does not build)"*. It was stashed rather than committed
-because the tree did not compile — landing a broken commit is worse than
-landing nothing.
+**This phase lands in three commits, not one.** An attempt on 2026-08-02 tried
+it as a single cut, ran out of session with the tree not compiling, and was
+stashed rather than committed (`WIP Phase 2: procedures/progress removal,
+incomplete (does not build)`). The seams below are where that attempt found the
+build goes green on its own; they are the whole reason this phase is written
+this way.
 
-What that attempt learned, so the next one plans rather than discovers:
+Before starting, read `## Phase 2 field notes` at the end of this section.
 
-- **Do it in two commits, not one.** The firmware cut has a natural seam: the
-  web API layer (routes, handlers, JSON, execution context) compiles green on
-  its own once `web_api_procedures.c` is gone, *before* the model types are
-  touched. Cut the API first, land it, then cut the model.
-- **`storage_set_tree.c` is the single largest consumer** — 105 compile errors
-  once `procedure_t` disappears, more than any other file. Budget for it
-  specifically; it validates the per-set directory tree and Phase 4 deletes it
-  outright, so consider whether Phase 2 should simply stop calling it and let
-  Phase 4 remove it, rather than rewriting it twice.
-- **Ordered work list, by compile-error count after the model types go:**
-  `storage_set_tree.c` (105), `storage_repository_objects_json.c` (24),
-  `storage_atomic_validators.c` (22), `storage_package_import.c` (18),
-  `storage_package_replace.c` (14), then `web_execution_submit.c` and
-  `macro_limits.h` (2 each).
-- **The test CMake needs editing before the build will even configure.**
-  Deleting a source file breaks `add_executable` with "No SOURCES given"
-  rather than a compile error, which hides every real error behind a CMake
-  failure. Remove the targets in `tests/host/CMakeLists.txt` and
-  `tests/host/cmake/extra_tests.cmake` in the same step as the file deletions.
-- **`include_progress` threads through the export/backup API** as a parameter
-  on `storage_package_export_set`, `storage_package_export_backup`, and
-  `storage_package_export_backup_detail`. It becomes meaningless and should go
-  in this phase, which the original list did not mention.
+### 2a — Web API layer (first commit)
 
-### 2.1 Firmware model
+Compiles green **before** the model types are touched, because nothing here
+outlives `procedure_t`. Land it on its own.
 
-- [ ] Delete `procedure_t`, `procedure_step_t`, `procedure_progress_t`, and
-  `procedure_step_type_t` from `macro_model.h`, plus
-  `macro_model_free_procedure`.
+- [ ] Delete `web_api_procedures.c` and its `HANDLER_PROCEDURES` dispatch arm,
+  and remove the source from `firmware/components/web_server/CMakeLists.txt` and
+  from `web_api_repository_handlers_tests` in `tests/host/CMakeLists.txt`.
+- [ ] Delete `WEB_API_ROUTE_SET_PROCEDURES`, `_SET_PROCEDURE`,
+  `_SET_PROCEDURES_REORDER`, `_PROCEDURE_PROGRESS`, `_PROGRESS_COMPLETE`,
+  `_PROGRESS_SKIP` from `web_api_core.h`, plus `match_set_procedure_routes`,
+  the `"procedures"` arms in `match_set_routes`, the method policy entries, the
+  body-limit entries, and `has_procedure_id`/`procedure_id` from
+  `web_api_path_t`.
+- [ ] Delete `web_api_json_parse_procedure_resource`,
+  `_parse_progress_resource`, `_parse_progress_action`,
+  `web_api_progress_action_t`, and `read_execution_source_context`. The
+  execution submit body becomes exactly `{setId, macroId, macroRevision}`.
+- [ ] Delete `has_procedure_context`, `procedure_id`, `step_id`, and
+  `procedure_read` from `web_execution_submit_request_t`/`web_execution_ops_t`,
+  and `validate_procedure_context`/`procedure_context_matches` from
+  `web_execution_submit.c`. An execution is a macro and a set (SPEC §18).
+- [ ] Delete `web_api_handler_procedure_json`, `_procedure_list_json`,
+  `_progress_json`, and `procedure_summary` from `web_api_handler_common.c`.
+- [ ] Add a negative assertion that `/api/v1/sets/{id}/procedures` no longer
+  resolves — the same class of leftover as the quarantine diagnostics route,
+  which parsed for a full commit after its handler was deleted (`52d74dc`).
+
+**Gate before committing:** `./scripts/check-all.sh` exits 0.
+
+### 2b — Storage and model (second commit)
+
+Nothing here compiles until all of it is done, so this is one commit by
+necessity. Work in the order given: the CMake edits must come first or the
+build fails to *configure* and hides every compile error behind it.
+
+- [ ] **CMake first.** Delete the `storage_procedure_repository_tests` and
+  `storage_progress_repository_tests` targets and every reference to
+  `storage_repository_procedures.c` / `storage_repository_progress.c` in
+  `tests/host/CMakeLists.txt`, `tests/host/cmake/extra_tests.cmake`, and
+  `firmware/components/storage/CMakeLists.txt`. Delete
+  `tests/host/test_storage_procedures.c` and `test_storage_progress.c`.
+- [ ] Delete `storage_repository_procedures.c`,
+  `storage_repository_progress.c`, and
+  `storage_repository_procedures_internal.h` (1,250 lines).
+- [ ] Delete from `storage_repository.h`: `storage_procedure_list_t`,
+  `storage_procedure_identity_t`, `storage_progress_status_t`,
+  `storage_progress_snapshot_t`, `storage_reference_list_t`,
+  `STORAGE_REFERENCE_DETAIL_MAX_IDS`, and all eleven procedure/progress entry
+  points. `storage_macro_delete` loses its `out_references` out-parameter.
+- [ ] Delete the reference-integrity scan from `storage_repository_macros.c`
+  (`step_references_macro`, `add_reference`, `parse_procedure_filename`,
+  `read_reference_scan_procedure`, `procedure_references_macro`,
+  `scan_procedure_entry`, `scan_set_procedure_references`,
+  `find_macro_references`, `procedure_reference_scan_t`) and the
+  `APP_ERROR_CONFLICT`-on-referenced-macro path, plus `reference_details_json`
+  and the `"macro is referenced by procedures"` response in `web_api_macros.c`.
+  **This is the single largest reason the transaction machinery exists** —
+  removing it is what makes Phase 3 possible.
+- [ ] Delete `procedure_t`, `procedure_step_t`, `procedure_progress_t`,
+  `procedure_step_type_t`, and `macro_model_free_procedure` from
+  `macro_model.h`/`macro_model.c`, and `MACRO_KEYBOARD_LAYOUT_BYTES`, which
+  Phase 1 left unused.
 - [ ] Delete `APP_PROCEDURES_PER_SET_MAX` and `APP_STEPS_PER_PROCEDURE_MAX`
-  from the limits header and from the `/api/v1/limits` response. SPEC §10.7.
-
-### 2.2 Firmware storage
-
-- [ ] Delete `storage_repository_procedures.c` and
-  `storage_repository_progress.c` (1,250 lines).
-- [ ] Delete the procedure/progress entry points from `storage_repository.h`
-  and `storage_repository_internal.h`, and `storage_procedure_identity_t`,
-  `storage_progress_snapshot_t`, `storage_procedure_list_t`,
-  `storage_reference_list_t`.
-- [ ] Delete `procedure-order.json`, `procedures/`, and `progress/` handling
-  from `storage_paths.c`, `storage_mount_topology.c`,
-  `storage_atomic_validators.c`, `storage_repository_tree.c`, and
-  `storage_set_tree.c`.
-- [ ] Delete the reference-integrity scan
-  (`scan_set_procedure_references`, `find_macro_references`) and the
-  `APP_ERROR_CONFLICT`-on-referenced-macro path from macro delete. With no
-  steps, nothing can reference a macro. **This is the single largest reason the
-  transaction machinery exists** — removing it is what makes Phase 3 possible.
+  from `macro_limits.h` and from the `/api/v1/limits` response. SPEC §10.7.
+- [ ] Delete `STORAGE_PROCEDURE_FILE_MAX_BYTES`,
+  `STORAGE_PROGRESS_FILE_MAX_BYTES`, and the now-vacuous
+  `STORAGE_ORDER_MAX_IDS >= APP_PROCEDURES_PER_SET_MAX` assertion from
+  `storage_object_json.h`; delete the procedure/progress/step parsers,
+  serializers, and field tables from `storage_repository_objects_json.c`.
 - [ ] Delete `procedures` and `progress` from the package format
   (`storage_package.c`: two field enumerators, two array slots, two summary
   counters, `validate_procedure_object`, `validate_progress_object`,
-  `procedure_macro_references_valid`), and from export, backup, import,
-  replace, and restore.
+  `procedure_macro_references_valid`, `procedure_has_step`,
+  `progress_step_references_valid`, and their allocation-table entries), from
+  `storage_package_summary_t`, and from `storage_package_object_kind_t`.
+- [ ] **Remove `include_progress`** from `storage_package_export_set`,
+  `storage_package_export_backup`, and `storage_package_export_backup_detail`.
+  It threads through the whole export API and becomes meaningless.
 - [ ] Delete `prune_dangling_procedures` and `procedure_included` from
-  `storage_package_backup.c` — they exist only to drop procedures orphaned by a
-  skipped macro.
+  `storage_package_backup.c`; delete the procedure/progress writers from
+  `storage_package_import.c`, `_replace.c`, and `_restore.c`; delete
+  `write_duplicate_procedure` and the procedure half of
+  `create_duplicate_staging` from `storage_repository_set_operations.c`.
+- [ ] Delete `procedure-order.json`, `procedures/`, and `progress/` from
+  `storage_paths.c`, `storage_mount_topology.c`, and
+  `storage_atomic_validators.c` (including the
+  `STORAGE_ATOMIC_OBJECT_PROCEDURE*`/`_PROGRESS` object kinds).
+- [ ] **`storage_set_tree.c` and `storage_repository_tree.c`: do not rewrite.**
+  See the field notes below.
+- [ ] Strip procedure and progress fixtures from the remaining 21 host test
+  files.
 
-### 2.3 Firmware web API
+**Gate before committing:** `./scripts/check-all.sh` exits 0.
 
-- [ ] Delete `WEB_API_ROUTE_SET_PROCEDURES`, `_SET_PROCEDURE`,
-  `_SET_PROCEDURES_REORDER`, `_PROCEDURE_PROGRESS`, `_PROGRESS_COMPLETE`,
-  `_PROGRESS_SKIP` from `web_api_core.h`, their path matching in
-  `web_api_core.c`, their method policy, and their dispatch entries.
-- [ ] Delete `web_api_procedures.c` and its `HANDLER_PROCEDURES` dispatch arm.
-- [ ] Delete the procedure-context fields from `web_execution_submit`
-  (`has_procedure_context`, `procedure_id`, `step_id`,
-  `validate_procedure_context`, `procedure_read`). An execution is a macro and a
-  set; nothing else. SPEC §18.
+### 2c — Web application (third commit)
 
-### 2.4 Webapp
+Independent of the firmware once 2a has landed, because the API surface is
+already gone.
 
 - [ ] Delete `webapp/src/features/procedures/` (1,082 lines).
-- [ ] Delete `Procedure`, `ProcedureStep`, `ProcedureProgress` and their guards
-  from `types/models.ts` and `api/guards.ts`; delete the procedure and progress
-  functions from `api/routes.ts`.
+- [ ] Delete `Procedure`, `ProcedureSummary`, `ProcedureStep`,
+  `ProcedureProgress` and their guards from `types/models.ts` and
+  `api/guards.ts`; delete the procedure and progress functions from
+  `api/routes.ts`.
 - [ ] Remove the Procedures entry from the bottom navigation and the
   `#/procedures` route; the nav becomes `Macros | Sets | Settings`. SPEC §9,
   §9.1.
 - [ ] Remove procedure context from the confirm-execution flow.
 - [ ] Update the screen list to SPEC §9's fifteen screens.
+- [ ] Delete `tests/app-procedures.test.tsx` and the procedure fixtures in
+  `tests/appFixtures.ts`.
+- [ ] Remove procedure and progress routes from `docs/API.md`, and the
+  `procedure`/`progress` definitions from
+  `docs/schemas/macro-set-package.schema.json`.
 
-### 2.5 Tests and docs
+**Gate before committing:** `./scripts/check-all.sh` exits 0.
 
-- [ ] Delete `tests/host/test_storage_procedures.c` and
-  `test_storage_progress.c`; remove their CMake targets; strip procedure and
-  progress fixtures from the other 21 host test files.
-- [ ] Remove procedure and progress routes from `docs/API.md` and the schemas.
-- [ ] Add a regression assertion that `/api/v1/sets/{id}/procedures` no longer
-  resolves — the same class of leftover as the quarantine diagnostics route,
-  which parsed for a full commit after its handler was deleted.
+### Phase 2 field notes
+
+From the abandoned 2026-08-02 attempt. These are the things that cost time.
+
+**The tree-walkers are a trap.** `storage_set_tree.c` (674 lines) produced 105
+compile errors the moment `procedure_t` disappeared — more than any other file,
+by a factor of four. Both it and `storage_repository_tree.c` (843 lines) exist
+to validate a per-set **directory tree**, and **Phase 4 deletes both outright**.
+Rewriting them here means doing the work twice. Prefer: stop calling them in
+2b (the callers are `storage_package_replace.c`, `storage_package_import.c`,
+and `storage_package_restore.c`) and let Phase 4 delete the files. If that
+proves impossible, say so in the commit message rather than quietly rewriting
+1,500 lines that are about to be deleted.
+
+**CMake fails before the compiler runs.** Deleting a `.c` file that a test
+target names produces `No SOURCES given to target: …` at *configure* time, which
+aborts the build before a single compile error is printed. Every real error
+stays invisible until the CMake edits land. Do them first — that is why 2b
+lists them as step one.
+
+**Compile-error counts after the model types go**, as a work estimate:
+`storage_set_tree.c` 105, `storage_repository_objects_json.c` 24,
+`storage_atomic_validators.c` 22, `storage_package_import.c` 18,
+`storage_package_replace.c` 14, `web_execution_submit.c` 2, `macro_limits.h` 2.
+
+**Watch the stack ratchet.** Phase 1 tripped it three times: shrinking a struct
+changes inlining, and a ~16 KB `procedure_progress_t` or ~4 KB
+`storage_uuid_order_t` that used to sit in a separate frame suddenly lands in
+its caller. Phase 2 deletes `procedure_progress_t` entirely, so the pressure
+should fall — but check, do not assume, and fix at source.
 
 **Done means:** `grep -ri "procedure\|progress" firmware webapp/src tests/host`
 returns only execution-progress hits (SPEC §18's `action index and total`), and
 `check-all.sh` exits 0.
-
----
 
 ## Phase 3 — Remove transactions, staging, and trash
 
