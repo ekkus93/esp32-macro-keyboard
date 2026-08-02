@@ -41,8 +41,8 @@ None of these is a coverage measurement. This is a worklist, not a score.
 | | Statements | Unmapped |
 | --- | --- | --- |
 | MUST NOT | 73 | 13 |
-| MUST | 186 | 19 |
-| **Total** | **259** | **32** |
+| MUST | 186 | 17 |
+| **Total** | **259** | **30** |
 
 ## Prohibitions (`MUST NOT`) — do these first
 
@@ -76,8 +76,8 @@ cheapest place to find real gaps.
 | §5.2 | L154 | The hardware MUST NOT require any button, jumper, or other component to be added | referenced | device_controls → runtime_failures |
 | §5.3 | L176 | file, and test it. It MUST NOT silently fall back to another filesystem or USB | **UNMAPPED** | — |
 | §6 | L239 | and Vite output are generated or third-party content and MUST NOT be linted as | **UNMAPPED** | — |
-| §7.1 | L261 | through. Firmware MUST preserve it exactly and MUST NOT reorder, sort, or | referenced | storage_sets → measured_user_data_tracks_set_files<br>web_api_core → route_parsing<br>web_api_repository_handlers → set_delete_and_persistent_readback |
-| §7.1 | L264 | The user MUST explicitly select the active set. Firmware MUST NOT infer or | referenced | storage_sets → measured_user_data_tracks_set_files<br>web_api_core → route_parsing<br>web_api_repository_handlers → set_delete_and_persistent_readback |
+| §7.1 | L261 | through. Firmware MUST preserve it exactly and MUST NOT reorder, sort, or | referenced | full_set_in_order → (file)<br>storage_sets → measured_user_data_tracks_set_files<br>web_api_core → route_parsing<br>web_api_repository_handlers → set_delete_and_persistent_readback |
+| §7.1 | L264 | The user MUST explicitly select the active set. Firmware MUST NOT infer or | referenced | full_set_in_order → (file)<br>storage_sets → measured_user_data_tracks_set_files<br>web_api_core → route_parsing<br>web_api_repository_handlers → set_delete_and_persistent_readback |
 | §8.1 | L295 | The device MUST NOT fall back to an open AP. | referenced | wifi_ap → minimum_credentials_and_existing_event_loop<br>wifi_ap → operation_validation |
 | §8.4 | L341 | rather than demanding confirmation unconditionally. That wait MUST NOT | referenced | executor_terminal_tests → terminal_publish_failure_leaves_executor_unavailable |
 | §8.4 | L352 | The next macro in the list MUST NOT execute automatically. Advancing is a | referenced | executor_terminal_tests → terminal_publish_failure_leaves_executor_unavailable |
@@ -106,7 +106,7 @@ cheapest place to find real gaps.
 | §15.2 | L986 | ignored: the device continues as access-point only. Firmware MUST NOT treat it | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
 | §15.2 | L987 | as a startup failure, MUST NOT retry it in a way that delays or blocks the rest | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
 | §15.2 | L988 | of startup, and MUST NOT discard the stored credentials because one join | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
-| §16.5 | L1068 | The console MUST NOT expose credentials or secret material even so, because | gate-enforced | check-credential-logging.sh (gate script) |
+| §16.5 | L1068 | The console MUST NOT expose credentials or secret material even so, because | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
 | §16.6 | L1097 | forgets a password MUST NOT have to choose between recovering the device and | **UNMAPPED** | — |
 | §17 | L1203 | `GET /api/v1/backup` MUST NOT let one damaged object make the repository | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
 | §17 | L1223 | MUST NOT report `200` for a run that failed to write some of them. | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
@@ -204,9 +204,9 @@ cheapest place to find real gaps.
 | §16.4 | L1041 | upload size limit | referenced | web_request_policy → failure_statuses |
 | §16.4 | L1042 | filename and ID validation | referenced | web_request_policy → failure_statuses |
 | §16.4 | L1043 | correct content type | referenced | web_request_policy → failure_statuses |
-| §16.5 | L1053 | the device's own SoftAP or, in development builds, a joined network - MUST | gate-enforced | check-credential-logging.sh (gate script) |
-| §16.5 | L1054 | carry a valid RAM-only session cookie (§16.2). Authentication failures MUST be | gate-enforced | check-credential-logging.sh (gate script) |
-| §16.5 | L1074 | third parties it MUST be excluded from the shipped image, since a shipped | gate-enforced | check-credential-logging.sh (gate script) |
+| §16.5 | L1053 | the device's own SoftAP or, in development builds, a joined network - MUST | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
+| §16.5 | L1054 | carry a valid RAM-only session cookie (§16.2). Authentication failures MUST be | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
+| §16.5 | L1074 | third parties it MUST be excluded from the shipped image, since a shipped | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
 | §16.6 | L1089 | It MUST clear the administrator password verifier and its salt, and the AP SSID | **UNMAPPED** | — |
 | §16.6 | L1090 | and passphrase, and it MUST mark the device unprovisioned so first-run setup | **UNMAPPED** | — |
 | §16.6 | L1093 | It MUST preserve everything the user did not lose: the device name, the settings | **UNMAPPED** | — |
@@ -310,8 +310,8 @@ cheapest place to find real gaps.
 | §24.6 | L1640 | power-cycle persistence | referenced | acceptance_reset → (file) |
 | §24.6 | L1641 | repeated USB reconnects | **UNMAPPED** | — |
 | §24.6 | L1642 | repeated AP reconnects | **UNMAPPED** | — |
-| §24.6 | L1643 | a full set of macros sent in order against a harmless text target | **UNMAPPED** | — |
-| §24.6 | L1644 | cancellation over both the API and the `cancel` console command | **UNMAPPED** | — |
+| §24.6 | L1643 | a full set of macros sent in order against a harmless text target | referenced | full_set_in_order → (file) |
+| §24.6 | L1644 | cancellation over both the API and the `cancel` console command | referenced | cancellation → (file) |
 | §24.6 | L1645 | credential reset | referenced | acceptance_reset → (file) |
 | §24.6 | L1646 | factory reset | referenced | acceptance_reset → (file) |
 | §24.6 | L1647 | user-data preservation across firmware slot switch | **UNMAPPED** | — |

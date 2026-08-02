@@ -10,10 +10,18 @@ before the device could survive its own first authenticated API call.
 
 ## What they verify
 
-| Script | FIX1 §20.2 items |
+| Script | What it proves |
 | --- | --- |
+| `provision_device.py` | takes an unprovisioned device through first-run setup |
 | `test_typing.py` | printable text, chords, release-all observation |
-| `test_cancellation.py` | delay cancellation, rapid typing cancellation |
+| `test_cancellation.py` | cancellation over the API **and** the console `cancel` command, during a delay and mid-typing |
+| `test_full_set_in_order.py` | every macro in a set, in stored order, against a harmless target |
+| `test_acceptance_reset.py` | power-cycle persistence, factory reset, re-provisioning, credential reset |
+
+Run order matters only in that everything needs a provisioned device;
+`test_acceptance_reset.py` provisions one itself if it finds the device
+unprovisioned, and `create_fixture.py` builds the set the typing and
+cancellation scripts expect.
 
 Evidence comes from the kernel's `hidraw` node for this project's USB VID/PID
 (`303a:4001`), decoded as 8-byte boot-protocol reports — the bytes the device

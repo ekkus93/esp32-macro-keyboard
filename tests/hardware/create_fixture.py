@@ -40,7 +40,7 @@ def main():
     macros = {
         "text": {"name": "plain text", "source": "hello world"},
         "chord": {"name": "chord", "source": "{CTRL+A}"},
-        "delay": {"name": "delay", "source": "ab{DELAY 3000}cd"},
+        "delay": {"name": "delay", "source": "ab{DELAY:3000}cd"},
     }
     created = {}
     for key, spec in macros.items():

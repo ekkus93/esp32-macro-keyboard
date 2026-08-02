@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
-"""FIX1 20.2 hardware typing tests: submit real macros and verify the exact
-USB HID reports the device emits."""
+"""Hardware typing tests: submit real macros and verify the exact USB HID
+reports the device emits.
+
+Evidence comes from the kernel's hidraw node, decoded as 8-byte boot-protocol
+reports -- the bytes that went down the wire, not text scraped from an editor.
+That is what makes it possible to assert things a screen capture cannot: that a
+chord set the modifier bit concurrently with the usage code, and that the final
+report is all-zero with no key left held.
+"""
 
 import sys
 import time

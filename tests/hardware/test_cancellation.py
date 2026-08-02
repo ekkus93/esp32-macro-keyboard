@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
-"""FIX1 20.2 hardware cancellation tests.
+"""Hardware cancellation tests, against real USB HID reports.
 
-Verifies, against real USB HID reports:
+    SPEC 24.6 item: cancellation over both the API and the `cancel` console command
+
+The specification requires both paths, and they are genuinely different code:
+the API route runs on the HTTP worker, the console command runs on the console
+task, and both have to reach the one executor task. Testing one proves nothing
+about the other.
+
+Verifies:
   * cancellation during a long delay stops the macro before the remaining keys
   * cancellation during rapid typing stops mid-stream
   * both reach the `cancelled` terminal state, not `completed`
@@ -30,11 +37,9 @@ def ensure_rapid_macro(device, fixture):
         "schema_version": 1,
         "id": macro_id,
         "revision": 1,
-        "scope": "set",
         "set_id": fixture["set_id"],
         "name": "rapid typing",
         "source": RAPID_TEXT,
-        "favorite": False,
         "key_press_ms": 5,
         "inter_key_ms": 5,
     }
@@ -55,9 +60,8 @@ def ensure_delay_macro(device, fixture):
         return existing
     macro_id = str(uuid.uuid4())
     body = {
-        "schema_version": 1, "id": macro_id, "revision": 1, "scope": "set",
-        "set_id": fixture["set_id"], "name": "delay cancel", "source": DELAY_SOURCE,
-        "favorite": False, "key_press_ms": 8, "inter_key_ms": 15,
+        "schema_version": 1, "id": macro_id, "revision": 1,         "set_id": fixture["set_id"], "name": "delay cancel", "source": DELAY_SOURCE,
+        "key_press_ms": 8, "inter_key_ms": 15,
     }
     status, payload = device.post(f"/api/v1/sets/{fixture['set_id']}/macros", body)
     if status not in (200, 201):
@@ -69,7 +73,27 @@ def ensure_delay_macro(device, fixture):
     return entry
 
 
-def run_cancel_test(device, fixture, macro_key, cancel_after, label, expect_prefix=None):
+def cancel_over_console():
+    """Issue `cancel` on the UART console.
+
+    A separate path from the API route in every respect that matters: a
+    different task, no session, no HTTP. SPEC 16.5 makes the console trusted
+    because physical access already implies control.
+    """
+    import serial  # noqa: PLC0415
+
+    port = serial.Serial(hil_state.DEFAULT_CONSOLE, 115200, timeout=1)
+    try:
+        time.sleep(0.1)
+        port.write(b"cancel\n")
+        port.flush()
+    finally:
+        port.close()
+    return "console"
+
+
+def run_cancel_test(device, fixture, macro_key, cancel_after, label, expect_prefix=None,
+                    over_console=False):
     macro = fixture["macros"][macro_key]
     print(f"\n--- {label} ---")
     with Capture() as capture:
@@ -88,7 +112,11 @@ def run_cancel_test(device, fixture, macro_key, cancel_after, label, expect_pref
 
         time.sleep(cancel_after)
         cancel_sent = time.monotonic()
-        cstatus, cpayload = device.post("/api/v1/executions/current/cancel")
+        if over_console:
+            cancel_over_console()
+            cstatus = "console"
+        else:
+            cstatus, _ = device.post("/api/v1/executions/current/cancel")
         cancel_ack = time.monotonic()
 
         # wait for a terminal state
@@ -133,15 +161,27 @@ def main():
 
     results = {}
     # 'ab{DELAY 3000}cd': cancel inside the 3 s delay -> only "ab" should type.
-    results["delay cancellation"] = run_cancel_test(
+    results["delay cancellation (API)"] = run_cancel_test(
         device, fixture, "delay2", cancel_after=1.2,
-        label="delay cancellation (ab{DELAY:3000}cd, cancel during delay)",
+        label="delay cancellation (API, cancel during the delay)",
         expect_prefix="ab")
     time.sleep(1.5)
     # rapid typing: cancel mid-stream -> a strict prefix of the source.
-    results["rapid typing cancellation"] = run_cancel_test(
+    results["rapid typing cancellation (API)"] = run_cancel_test(
         device, fixture, "rapid", cancel_after=0.25,
-        label="rapid typing cancellation (cancel mid-stream)")
+        label="rapid typing cancellation (API, cancel mid-stream)")
+    time.sleep(1.5)
+
+    # Both paths are required. Same assertions, different route in.
+    results["delay cancellation (console)"] = run_cancel_test(
+        device, fixture, "delay2", cancel_after=1.2,
+        label="delay cancellation (console `cancel` command)",
+        expect_prefix="ab", over_console=True)
+    time.sleep(1.5)
+    results["rapid typing cancellation (console)"] = run_cancel_test(
+        device, fixture, "rapid", cancel_after=0.25,
+        label="rapid typing cancellation (console `cancel` command)",
+        over_console=True)
 
     print("\n" + "=" * 60)
     for name, ok in results.items():

@@ -466,7 +466,7 @@ async function assertTouchTargets(cdp) {
 /*
  * SPEC 24.5 item: responsive mobile layout
  * SPEC 9: "The application MUST be mobile-first and usable from a desktop
- * browser", and SPEC 24.5 requires tests to cover responsive mobile layout.
+ * browser", and section 24.5 requires tests to cover responsive mobile layout.
  *
  * This cannot be asserted in the vitest suite: jsdom has no box model, applies
  * no media queries, and reports every element as zero-sized, so the only thing

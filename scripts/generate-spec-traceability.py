@@ -20,7 +20,9 @@ C_FUNCTION = re.compile(r"^(?:static )?void (\w*test_?\w+)\(")
 # it("...") / test("...") / describe("..."), quoted with ' or " or a backtick.
 VITEST_CASE = re.compile(r"""^\s*(?:it|test|describe)(?:\.\w+)?\(\s*['"`]([^'"`]+)""")
 # `SPEC 24.1 item: every named key` -- attaches to one row of an expanded list.
-ITEM_CITE = re.compile(r"SPEC\s*§?\s*(\d+(?:\.\d+)?)\s+item:\s*(.+)$")
+# MULTILINE so the `$` anchors per line: citations() scans line by line, but
+# conflicting_citations() scans whole files and silently matched nothing without it.
+ITEM_CITE = re.compile(r"SPEC\s*§?\s*(\d+(?:\.\d+)?)\s+item:\s*(.+)$", re.MULTILINE)
 # A section-level citation, which an item citation is NOT: without the lookahead,
 # "SPEC 24.3 item: chords" also reads as a citation of all of section 24.3, and
 # one covered item would mark the whole checklist referenced.
@@ -290,9 +292,36 @@ def render(found, cites, gates, items):
     ])
 
 
+def conflicting_citations():
+    """Files that cite individual items of a section AND the section bare.
+
+    A bare `SPEC 24.6` marks all eleven of its items referenced. Writing that in
+    the same file as `SPEC 24.6 item: factory reset` is almost always a slip,
+    and it silently converts two proved items into eleven claimed ones -- the
+    exact over-claim this document exists to prevent. It has happened twice.
+    """
+    conflicts = []
+    for path in sources():
+        text = path.read_text()
+        sections = {m.group(1) for m in ITEM_CITE.finditer(text)}
+        for section in sorted(sections):
+            bare = re.compile(r"SPEC\s*§?\s*" + re.escape(section) + r"(?!\s+item:)")
+            if bare.search(text):
+                conflicts.append(f"{path.relative_to(ROOT)} cites SPEC {section} both "
+                                 f"by item and bare")
+    return conflicts
+
+
 def main():
     found, cites, gates = statements(), citations(), enforcers()
     items = item_citations()
+    conflicts = conflicting_citations()
+    if conflicts:
+        print("error: a bare section citation would mark every item referenced:",
+              file=sys.stderr)
+        for conflict in conflicts:
+            print(f"  {conflict}", file=sys.stderr)
+        return 1
     rendered = render(found, cites, gates, items)
     unmapped = len([s for s in found
                     if not matching_items(s, items)
