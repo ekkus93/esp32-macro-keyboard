@@ -177,7 +177,6 @@ static macro_t make_macro(const char *id, const app_uuid_t *set_id, const char *
         .revision = 1U,
         .source = source,
         .source_length = strlen(source),
-        .favorite = false,
         .key_press_ms = APP_KEY_PRESS_DEFAULT_MS,
         .inter_key_ms = APP_INTER_KEY_DEFAULT_MS,
     };

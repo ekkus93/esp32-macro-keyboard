@@ -16,8 +16,8 @@
 
 /* Every field is required: a macro always belongs to a set, so `set_id` is no
  * longer optional and the `scope` discriminator is gone (SPEC §12.2). */
-#define MACRO_FIELD_COUNT 9U
-#define MACRO_REQUIRED_FIELD_COUNT 9U
+#define MACRO_FIELD_COUNT 8U
+#define MACRO_REQUIRED_FIELD_COUNT 8U
 #define PROCEDURE_FIELD_COUNT 8U
 #define PROGRESS_FIELD_COUNT 7U
 #define ORDER_FIELD_COUNT 2U
@@ -27,8 +27,7 @@
 #define PROCEDURE_STEP_TYPE_BUFFER_BYTES sizeof("instruction")
 
 static const char *const MACRO_FIELDS[MACRO_FIELD_COUNT] = {
-    "schema_version", "id",       "revision",     "set_id",       "name",
-    "source",         "favorite", "key_press_ms", "inter_key_ms",
+    "schema_version", "id", "revision", "set_id", "name", "source", "key_press_ms", "inter_key_ms",
 };
 static const char *const PROCEDURE_FIELDS[PROCEDURE_FIELD_COUNT] = {
     "schema_version", "id", "revision", "set_id", "name", "description", "steps", "sort_order",
@@ -119,9 +118,6 @@ app_error_code_t storage_repository_parse_macro_json(const char *data, size_t le
                                               &out_macro->source, &out_macro->source_length);
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_json_get_bool(root, "favorite", &out_macro->favorite);
-    }
-    if (result == APP_ERROR_NONE) {
         result = storage_json_get_u32(root, "key_press_ms", 1U, KEY_PRESS_STORAGE_MAX_MS,
                                       &out_macro->key_press_ms);
     }
@@ -147,7 +143,6 @@ static app_error_code_t add_macro_fields(cJSON *root, const macro_t *macro) {
     }
     return cJSON_AddStringToObject(root, "name", macro->name) != NULL &&
                    cJSON_AddStringToObject(root, "source", macro->source) != NULL &&
-                   cJSON_AddBoolToObject(root, "favorite", macro->favorite) != NULL &&
                    cJSON_AddNumberToObject(root, "key_press_ms", (double)macro->key_press_ms) !=
                        NULL &&
                    cJSON_AddNumberToObject(root, "inter_key_ms", (double)macro->inter_key_ms) !=

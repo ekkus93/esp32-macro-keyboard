@@ -34,8 +34,7 @@ static const char PACKAGE[] =
     "\",\"revision\":7,\"name\":\"Replacement\"}],\"macros\":["
     "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
     "\",\"revision\":4,\"name\":\"Local\",\"source\":\"a\","
-    "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID
-    "\"}],\"procedures\":["
+    "\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}],\"procedures\":["
     "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":3,\"set_id\":\"" SET_ID
     "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{\"id\":\"" STEP_ID
     "\",\"type\":\"macro\",\"title\":\"Step\",\"macro_id\":\"" LOCAL_MACRO_ID

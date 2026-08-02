@@ -82,7 +82,6 @@ static void test_macro_cleanup_is_idempotent(void) {
         .revision = 7U,
         .source = duplicate_text("macro source"),
         .source_length = strlen("macro source"),
-        .favorite = true,
         .key_press_ms = 8U,
         .inter_key_ms = 15U,
     };
@@ -91,7 +90,6 @@ static void test_macro_cleanup_is_idempotent(void) {
     TEST_CHECK_EQ_U64(0U, macro.source_length);
     TEST_CHECK_EQ_U64(APP_SCHEMA_VERSION, macro.schema_version);
     TEST_CHECK_EQ_U64(7U, macro.revision);
-    TEST_CHECK(macro.favorite);
     TEST_CHECK_EQ_U64(8U, macro.key_press_ms);
     TEST_CHECK_EQ_U64(15U, macro.inter_key_ms);
 

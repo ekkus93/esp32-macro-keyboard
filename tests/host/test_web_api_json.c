@@ -103,7 +103,7 @@ static void test_resource_request_boundary(void) {
 
     const char valid_macro[] =
         "{\"schema_version\":1,\"id\":\"" MACRO_ID "\",\"revision\":1,\"name\":\"Macro\","
-        "\"source\":\"a\",\"favorite\":false,\"key_press_ms\":8,"
+        "\"source\":\"a\",\"key_press_ms\":8,"
         "\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}";
     macro_t macro = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_macro_resource(

@@ -88,7 +88,7 @@ Do it first so those phases are diffing less code.
 **Depends on:** nothing.
 **Estimated size:** ~300 lines across ~15 files.
 
-- [ ] **1.1 Remove Chromebook-era set metadata.** Delete `description`,
+- [x] **1.1 Remove Chromebook-era set metadata.** `a8ac67f`. Delete `description`,
   `manufacturer`, `model`, and `board` from `macro_set_t`
   (`firmware/components/macro_model/include/macro_model.h`), from the set JSON
   reader/writer (`storage_repository_objects_json.c`), from the web API resource
@@ -97,14 +97,14 @@ Do it first so those phases are diffing less code.
   fixture and package literal.
   SPEC §12.1. These four fields exist only because the founding spec mistook one
   user's Chromebook workflow for the product.
-- [ ] **1.2 Remove `keyboard_layout` from the set.** Version 0.1 is US English
+- [x] **1.2 Remove `keyboard_layout` from the set.** `a8ac67f`. Version 0.1 is US English
   device-wide (SPEC §10.1); a per-set copy is a field nothing reads.
-- [ ] **1.3 Remove `sort_order` from the set.** Set order is `index.json`'s
+- [x] **1.3 Remove `sort_order` from the set.** `a8ac67f`. Set order is `index.json`'s
   ordered `set_ids` array and nothing else. Two sources of truth for order is
   how order gets silently lost. SPEC §12.1, §12.3.
-- [ ] **1.4 Remove `favorite` from `macro_t`.** The user orders the list; a
+- [x] **1.4 Remove `favorite` from `macro_t`.** `a6eb528`. The user orders the list; a
   favourite flag is a second, weaker ordering. SPEC §12.2.
-- [ ] **1.5 Update the schemas.** `docs/schemas/macro-set-package.schema.json`
+- [x] **1.5 Update the schemas.** `a6eb528`. `docs/schemas/macro-set-package.schema.json`
   and `docs/schemas/all-data-backup.schema.json`.
 
 **Done means:** the four objects in SPEC §12 match the structs byte for byte, no

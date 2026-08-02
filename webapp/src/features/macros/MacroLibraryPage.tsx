@@ -130,10 +130,7 @@ export function MacroLibraryPage({
           <article className="card" key={macro.id}>
             <div>
               <h3>{macro.name}</h3>
-              <p>
-                Revision {String(macro.revision)}
-                {macro.favorite ? " · Favorite" : ""}
-              </p>
+              <p>Revision {String(macro.revision)}</p>
               <p>
                 {String(utf8ByteLength(macro.source))} source bytes · press{" "}
                 {String(macro.key_press_ms)} ms · gap{" "}

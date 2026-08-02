@@ -91,7 +91,6 @@ static macro_t make_macro(const char *id, const app_uuid_t *set_id, const char *
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid(id),
         .revision = 1U,
-        .favorite = false,
         .key_press_ms = APP_KEY_PRESS_DEFAULT_MS,
         .inter_key_ms = APP_INTER_KEY_DEFAULT_MS,
         .source_length = strlen(source),

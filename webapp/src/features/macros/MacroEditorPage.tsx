@@ -395,18 +395,6 @@ export function MacroEditorPage({
           </span>
         </label>
 
-        <label className="checkbox-row" htmlFor="macro-favorite">
-          <input
-            checked={draft.favorite}
-            id="macro-favorite"
-            onChange={(event) => {
-              updateDraft({ favorite: event.currentTarget.checked });
-            }}
-            type="checkbox"
-          />
-          Favorite
-        </label>
-
         <div className="timing-grid">
           <label htmlFor="macro-key-press">
             Key press time (ms)

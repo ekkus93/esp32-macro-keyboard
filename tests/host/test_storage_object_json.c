@@ -24,7 +24,6 @@ static macro_t set_macro(void) {
         .set_id = uuid_value(2U),
         .source = "TYPE hello",
         .source_length = 10U,
-        .favorite = true,
         .key_press_ms = 8U,
         .inter_key_ms = 15U,
     };
@@ -46,7 +45,6 @@ static void test_macro_round_trip(void) {
     TEST_CHECK_EQ_UUID(&input.set_id, &output.set_id);
     TEST_CHECK_EQ_STRING(input.name, output.name);
     TEST_CHECK_EQ_STRING(input.source, output.source);
-    TEST_CHECK(output.favorite);
     TEST_CHECK_EQ_U64(input.key_press_ms, output.key_press_ms);
     macro_model_free_macro(&output);
     cJSON_free(json);
@@ -56,7 +54,7 @@ static void test_macro_rejects_noncanonical_json(void) {
     static const char unknown[] =
         "{\"schema_version\":1,\"id\":\"00000001-0000-4000-8000-000000000001\","
         "\"revision\":1,\"scope\":\"global\",\"name\":\"x\",\"source\":\"\","
-        "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"extra\":1}";
+        "\"key_press_ms\":8,\"inter_key_ms\":15,\"extra\":1}";
     macro_t output = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
                          storage_repository_parse_macro_json(unknown, strlen(unknown), &output));
@@ -64,21 +62,21 @@ static void test_macro_rejects_noncanonical_json(void) {
     static const char duplicate[] =
         "{\"schema_version\":1,\"id\":\"00000001-0000-4000-8000-000000000001\","
         "\"revision\":1,\"scope\":\"global\",\"name\":\"x\",\"name\":\"y\","
-        "\"source\":\"\",\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15}";
+        "\"source\":\"\",\"key_press_ms\":8,\"inter_key_ms\":15}";
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_repository_parse_macro_json(
                                                         duplicate, strlen(duplicate), &output));
 
     static const char trailing[] =
         "{\"schema_version\":1,\"id\":\"00000001-0000-4000-8000-000000000001\","
         "\"revision\":1,\"scope\":\"global\",\"name\":\"x\",\"source\":\"\","
-        "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15}garbage";
+        "\"key_press_ms\":8,\"inter_key_ms\":15}garbage";
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
                          storage_repository_parse_macro_json(trailing, strlen(trailing), &output));
 
     static const char embedded_nul[] =
         "{\"schema_version\":1,\"id\":\"00000001-0000-4000-8000-000000000001\","
         "\"revision\":1,\"scope\":\"global\",\"name\":\"x\\u0000hidden\","
-        "\"source\":\"\",\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15}";
+        "\"source\":\"\",\"key_press_ms\":8,\"inter_key_ms\":15}";
     TEST_CHECK_APP_ERROR(
         APP_ERROR_STORAGE_CORRUPT,
         storage_repository_parse_macro_json(embedded_nul, strlen(embedded_nul), &output));
@@ -86,7 +84,7 @@ static void test_macro_rejects_noncanonical_json(void) {
     static const char wrong_scope[] =
         "{\"schema_version\":1,\"id\":\"00000001-0000-4000-8000-000000000001\","
         "\"revision\":1,\"scope\":\"set\",\"name\":\"x\",\"source\":\"\","
-        "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15}";
+        "\"key_press_ms\":8,\"inter_key_ms\":15}";
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_repository_parse_macro_json(
                                                         wrong_scope, strlen(wrong_scope), &output));
 }

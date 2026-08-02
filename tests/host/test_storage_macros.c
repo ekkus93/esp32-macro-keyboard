@@ -82,7 +82,6 @@ static macro_t make_macro(uint32_t value, const app_uuid_t *set_id, const char *
         .id = make_uuid(value),
         .revision = 1U,
         .set_id = *set_id,
-        .favorite = false,
         .key_press_ms = 20U,
         .inter_key_ms = 15U,
     };
@@ -106,7 +105,6 @@ static void assert_macro_equal(const macro_t *expected, const macro_t *actual) {
     TEST_CHECK_EQ_STRING(expected->name, actual->name);
     TEST_CHECK_EQ_STRING(expected->source, actual->source);
     TEST_CHECK_EQ_U64(expected->source_length, actual->source_length);
-    TEST_CHECK_EQ_INT((int)expected->favorite, (int)actual->favorite);
     TEST_CHECK_EQ_U64(expected->key_press_ms, actual->key_press_ms);
     TEST_CHECK_EQ_U64(expected->inter_key_ms, actual->inter_key_ms);
 }
@@ -167,7 +165,6 @@ static void test_set_local_crud_duplicate_and_order(void) {
 
     macro_t replacement = first;
     TEST_CHECK(snprintf(replacement.name, sizeof(replacement.name), "First updated") > 0);
-    replacement.favorite = true;
     macro_t updated = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
                          storage_macro_update(location, &replacement, 2U, &updated));
@@ -175,7 +172,6 @@ static void test_set_local_crud_duplicate_and_order(void) {
                          storage_macro_update(location, &replacement, 1U, &updated));
     TEST_CHECK_EQ_U64(2U, updated.revision);
     TEST_CHECK_EQ_STRING("First updated", updated.name);
-    TEST_CHECK(updated.favorite);
     macro_model_free_macro(&updated);
 
     const app_uuid_t duplicate_id = make_uuid(30U);

@@ -31,7 +31,7 @@ static const char SET_JSON[] =
 static const char LOCAL_MACRO_JSON[] =
     "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
     "\",\"revision\":1,\"name\":\"Local\",\"source\":\"a\","
-    "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}";
+    "\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}";
 static const char PROCEDURE_JSON[] =
     "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":3,\"set_id\":\"" SET_ID
     "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{\"id\":\"" LOCAL_STEP_ID

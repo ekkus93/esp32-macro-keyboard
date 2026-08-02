@@ -139,7 +139,6 @@ static cJSON *macro_summary(const macro_t *macro) {
         !cJSON_AddStringToObject(item, "id", macro->id.value) ||
         !cJSON_AddNumberToObject(item, "revision", macro->revision) ||
         !cJSON_AddStringToObject(item, "name", macro->name) ||
-        !cJSON_AddBoolToObject(item, "favorite", macro->favorite) ||
         !cJSON_AddNumberToObject(item, "key_press_ms", macro->key_press_ms) ||
         !cJSON_AddNumberToObject(item, "inter_key_ms", macro->inter_key_ms) ||
         !cJSON_AddNumberToObject(item, "source_bytes", source_bytes)) {

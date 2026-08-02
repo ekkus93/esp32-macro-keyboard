@@ -105,7 +105,6 @@ static macro_t make_macro(const char *macro_id) {
         .id = uuid(macro_id),
         .revision = 1U,
         .set_id = uuid(SET_ID),
-        .favorite = false,
         .key_press_ms = 8U,
         .inter_key_ms = 15U,
         .source_length = sizeof(source) - 1U,

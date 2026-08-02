@@ -90,7 +90,6 @@ static void write_macro_json(const char *path, const char *id_text, const char *
         .set_id = parse_uuid(set_id_text),
         .source = source,
         .source_length = strlen(source),
-        .favorite = false,
         .key_press_ms = APP_KEY_PRESS_DEFAULT_MS,
         .inter_key_ms = APP_INTER_KEY_DEFAULT_MS,
     };

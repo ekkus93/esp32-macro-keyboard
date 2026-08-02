@@ -37,7 +37,6 @@ typedef struct {
     char name[APP_MACRO_NAME_MAX_BYTES + 1U];
     char *source;
     size_t source_length;
-    bool favorite;
     uint32_t key_press_ms;
     uint32_t inter_key_ms;
 } macro_t;

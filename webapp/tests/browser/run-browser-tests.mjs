@@ -29,7 +29,6 @@ const macro = {
   set_id: setId,
   name: "Open terminal",
   source: "{CTRL+ALT+T}",
-  favorite: true,
   key_press_ms: 8,
   inter_key_ms: 15,
 };

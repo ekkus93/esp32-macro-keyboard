@@ -40,7 +40,6 @@ export function createMacroDraft(setId: string, macroId: string): Macro {
     set_id: setId,
     name: "",
     source: "",
-    favorite: false,
     key_press_ms: 8,
     inter_key_ms: 15,
   };
@@ -52,7 +51,6 @@ export function macroFingerprint(macro: Macro): string {
     macro.set_id,
     macro.name,
     macro.source,
-    macro.favorite,
     macro.key_press_ms,
     macro.inter_key_ms,
   ]);

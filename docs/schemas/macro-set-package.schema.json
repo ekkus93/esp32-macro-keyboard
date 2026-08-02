@@ -63,13 +63,7 @@
         "schema_version",
         "id",
         "revision",
-        "name",
-        "description",
-        "manufacturer",
-        "model",
-        "board",
-        "keyboard_layout",
-        "sort_order"
+        "name"
       ],
       "properties": {
         "schema_version": {
@@ -87,32 +81,6 @@
           "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_NAME_MAX_BYTES = 64 UTF-8 bytes.",
           "minLength": 1,
           "maxLength": 64
-        },
-        "description": {
-          "type": "string",
-          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_DESCRIPTION_MAX_BYTES = 256 UTF-8 bytes.",
-          "maxLength": 256
-        },
-        "manufacturer": {
-          "type": "string",
-          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_MANUFACTURER_MAX_BYTES = 64 UTF-8 bytes.",
-          "maxLength": 64
-        },
-        "model": {
-          "type": "string",
-          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_MODEL_MAX_BYTES = 64 UTF-8 bytes.",
-          "maxLength": 64
-        },
-        "board": {
-          "type": "string",
-          "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_BOARD_MAX_BYTES = 32 UTF-8 bytes.",
-          "maxLength": 32
-        },
-        "keyboard_layout": {
-          "const": "en-US"
-        },
-        "sort_order": {
-          "type": "integer"
         }
       }
     },
@@ -126,7 +94,6 @@
         "set_id",
         "name",
         "source",
-        "favorite",
         "key_press_ms",
         "inter_key_ms"
       ],
@@ -154,9 +121,6 @@
           "type": "string",
           "$comment": "maxLength is a schema-level code-point limit; import validation must enforce APP_MACRO_SOURCE_MAX_BYTES = 4096 UTF-8 bytes before compilation or mutation.",
           "maxLength": 4096
-        },
-        "favorite": {
-          "type": "boolean"
         },
         "key_press_ms": {
           "type": "integer",

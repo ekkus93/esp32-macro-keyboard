@@ -69,7 +69,6 @@ export interface Macro {
   set_id: string;
   name: string;
   source: string;
-  favorite: boolean;
   key_press_ms: number;
   inter_key_ms: number;
 }

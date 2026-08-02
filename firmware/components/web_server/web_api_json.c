@@ -127,8 +127,8 @@ static app_error_code_t validate_resource_fields(const char *body, size_t body_l
  * is no scope discriminator. */
 static app_error_code_t validate_macro_resource_fields(const char *body, size_t body_length) {
     static const char *const fields[] = {
-        "schema_version", "id",       "revision",     "set_id",       "name",
-        "source",         "favorite", "key_press_ms", "inter_key_ms",
+        "schema_version", "id",     "revision",     "set_id",
+        "name",           "source", "key_press_ms", "inter_key_ms",
     };
     return validate_resource_fields(body, body_length, fields, sizeof(fields) / sizeof(fields[0]));
 }

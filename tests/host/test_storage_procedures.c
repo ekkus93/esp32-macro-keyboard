@@ -81,7 +81,6 @@ static macro_t make_macro(uint32_t value, const app_uuid_t *set_id, const char *
         .revision = 1U,
         .set_id = *set_id,
         .source_length = sizeof(source) - 1U,
-        .favorite = false,
         .key_press_ms = 8U,
         .inter_key_ms = 15U,
     };

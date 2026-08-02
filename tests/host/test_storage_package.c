@@ -23,7 +23,7 @@
 #define LOCAL_MACRO_OBJECT                                                                         \
     "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID                                               \
     "\",\"revision\":1,\"name\":\"Local\",\"source\":\"a\","                                       \
-    "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}"
+    "\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}"
 
 #define PROCEDURE_OBJECT                                                                           \
     "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":1,\"set_id\":\"" SET_ID        \
@@ -113,12 +113,12 @@ static void test_object_and_reference_validation(void) {
     const char bad_macro_syntax[] = PACKAGE_PREFIX("set") SET_OBJECT
         "],\"macros\":[{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
         "\",\"revision\":1,\"name\":\"Bad\",\"source\":\"{BAD}\","
-        "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID
+        "\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID
         "\"}],\"procedures\":[],\"progress\":[]}";
     const char duplicate_macro[] = PACKAGE_PREFIX("set") SET_OBJECT
         "],\"macros\":[" LOCAL_MACRO_OBJECT ",{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
         "\",\"revision\":1,\"name\":\"Duplicate\",\"source\":\"b\","
-        "\"favorite\":false,\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID
+        "\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID
         "\"}],\"procedures\":[],\"progress\":[]}";
     const char missing_macro_reference[] = PACKAGE_PREFIX("set") SET_OBJECT
         "],\"macros\":[],\"procedures\":[" PROCEDURE_OBJECT "],\"progress\":[]}";

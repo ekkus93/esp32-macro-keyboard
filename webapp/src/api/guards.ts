@@ -215,7 +215,6 @@ export function isMacro(value: unknown): value is Macro {
       "set_id",
       "name",
       "source",
-      "favorite",
       "key_press_ms",
       "inter_key_ms",
     ])
@@ -229,7 +228,6 @@ export function isMacro(value: unknown): value is Macro {
     isUuid(value.set_id) &&
     isBoundedString(value.name, limits.macroNameBytes, true) &&
     isBoundedString(value.source, limits.macroSourceBytes, false) &&
-    typeof value.favorite === "boolean" &&
     isNonNegativeInteger(value.key_press_ms) &&
     isNonNegativeInteger(value.inter_key_ms)
   );
