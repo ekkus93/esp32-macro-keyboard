@@ -47,30 +47,43 @@
 # storage_uuid_order_t, storage_set_index_t). The fix is always to heap-allocate
 # with a single free on a single exit path.
 #
+# CURRENT STATUS (updated after the 2026-08-01 reduction pass)
+#
+# 13 frames remain over the threshold, down from 31. Every one fits the 24 KiB
+# httpd task stack; the largest is restore_locked at ~20 KB.
+#
+# Two changes did most of the work:
+#
+#   * STORAGE_ORDER_MAX_IDS was APP_STEPS_PER_PROCEDURE_MAX (200) although an
+#     order list only ever holds macro, procedure, or set identifiers - at most
+#     APP_MACROS_PER_SET_MAX (100). Right-sizing it halved storage_uuid_order_t
+#     from ~8 KB to ~4 KB and removed nine frames outright.
+#   * The three storage_repository_progress.c functions now keep their ~16 KB
+#     procedure_progress_t buffers on the heap.
+#
+# What is left is dominated by procedure_progress_t (~16 KB: two
+# app_uuid_t[APP_STEPS_PER_PROCEDURE_MAX] arrays, which is a genuine bound, not
+# over-provisioning) appearing inside the package import/export/replace/restore
+# paths. Those need the same treatment: one allocation, one free, one exit.
+#
+# A caution for whoever does that, learned the hard way here: callers are
+# allowed to alias a progress buffer into the output snapshot
+# (test_storage_progress.c passes &snapshot.progress alongside &snapshot), so a
+# copy taken before the output is cleared is load-bearing. Removing one looks
+# safe and is not.
+#
 # Baseline measured 2026-08-01 during first hardware bring-up.
 #
 20304 firmware/components/storage/storage_package_restore.c:restore_locked
 18720 firmware/components/storage/storage_package_import.c:import_locked
-17936 firmware/components/storage/storage_package_replace.c:replace_locked
+18528 firmware/components/storage/storage_package_replace.c:storage_package_replace_set
 16560 firmware/components/storage/storage_set_tree.c:storage_set_tree_validate
-16320 firmware/components/storage/storage_repository_progress.c:storage_progress_read_locked$part$0
-15648 firmware/components/storage/storage_repository_progress.c:write_progress_locked
 15408 firmware/components/storage/storage_package.c:validate_progress_object$part$0.isra
-15392 firmware/components/storage/storage_repository_progress.c:progress_reset_locked
-15104 firmware/components/storage/storage_repository_procedures.c:procedure_reorder_locked
 15072 firmware/components/storage/storage_package_export.c:snapshot_load_progress
-14848 firmware/components/storage/storage_repository_macros.c:macro_reorder_locked
-8464 firmware/components/storage/storage_repository_procedures.c:procedure_create_locked
-8112 firmware/components/storage/storage_repository_procedures.c:procedure_delete_locked
-7888 firmware/components/storage/storage_repository_macros.c:macro_delete_locked
-7792 firmware/components/storage/storage_repository_macros.c:macro_create_locked$part$0
-7728 firmware/components/storage/storage_set_tree.c:validate_order
-7712 firmware/components/storage/storage_repository_procedures.c:storage_procedure_list_locked$part$0
-7712 firmware/components/storage/storage_repository_set_operations.c:write_duplicate_order
-7696 firmware/components/storage/storage_repository_procedures.c:procedure_order_index.constprop
-7488 firmware/components/web_server/web_api_macros.c:handle_reorder
-7456 firmware/components/storage/storage_repository_macros.c:storage_macro_list_locked$part$0
-7456 firmware/components/web_server/web_api_procedures.c:handle_reorder
-7456 firmware/components/web_server/web_api_sets.c:handle_set_reorder.isra
+7712 firmware/components/storage/storage_repository_procedures.c:procedure_reorder_locked
+7456 firmware/components/storage/storage_repository_macros.c:macro_reorder_locked
 5584 firmware/components/storage/storage_transaction.c:storage_transaction_recover_all_with_ops$part$0
+4768 firmware/components/storage/storage_repository_procedures.c:procedure_create_locked
 4736 firmware/components/storage/storage_repository_set_operations.c:storage_set_duplicate_locked
+4416 firmware/components/storage/storage_repository_procedures.c:procedure_delete_locked
+4192 firmware/components/storage/storage_repository_macros.c:macro_delete_locked
