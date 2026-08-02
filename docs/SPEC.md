@@ -50,10 +50,12 @@ product** and MUST NOT be reintroduced without a deliberate amendment:
 `docs/HANDOFF_2026-08-02_SIMPLIFICATION.md` records the reasoning and the
 measurements behind these removals.
 
-The implementation has not finished catching up with this revision: procedure,
-progress, and transaction code is still present in the firmware and the web
-application. This document states the required end state; `docs/TODO.md` tracks
-the work to reach it. Where the two disagree, this document wins.
+The implementation has caught up with this revision as of 2026-08-02: procedures,
+progress tracking, global macros, quarantine, and the staging, trash, and
+transaction directories are gone from the firmware, the web application, and the
+tests. `scripts/check-removed-features.sh` fails the build if any of them
+reappears, because a rejected feature is only rejected for as long as something
+checks. Where this document and any other disagree, this document wins.
 
 ## 2. Normative language
 
@@ -102,8 +104,17 @@ Version 0.1 MUST NOT attempt to provide:
 - USB host functionality;
 - Bluetooth HID;
 - cloud accounts, cloud synchronization, or internet routing;
-- station-mode Wi-Fi as a product feature (a development-only station-mode
-  command exists on the physical serial console; see §26);
+- ~~station-mode Wi-Fi as a product feature~~ — **amended 2026-08-02.** Station
+  mode was a non-goal, on the reasoning that the SoftAP is the whole product
+  surface and joining a network adds attack surface for no user benefit. It was
+  then explicitly requested: set the network from the serial console, have it
+  persist across a power cycle, and rejoin unaided at boot. Persisting and
+  rejoining are product behaviour, not a development-only console command, so
+  keeping this bullet while §15.2 describes the behaviour would leave the
+  specification contradicting itself. The constraints that made it a non-goal
+  are preserved in §15.2 instead: the access point starts first and
+  unconditionally, a join failure is non-fatal, and at most one network is ever
+  remembered;
 - macro-set merge conflict resolution;
 - server-side JavaScript, React Server Components, or Node.js on the device;
 - TLS termination on the isolated SoftAP;

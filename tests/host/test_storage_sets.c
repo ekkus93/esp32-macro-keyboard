@@ -172,6 +172,7 @@ static void test_crud_ordering_revisions_and_cleanup(void) {
                          storage_make_set_path(&second.id, deleted_path, sizeof(deleted_path)));
     /* Permanent: the set's bytes are gone, not moved aside (SPEC 8.6). */
     TEST_CHECK(!path_exists(deleted_path));
+    /* removed-feature-ok: asserts the directory is gone */
     TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/trash"));
 
     memset(&list, 0xa5, sizeof(list));
@@ -287,7 +288,9 @@ static void test_create_leaves_no_staging_artifacts(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          storage_make_set_path(&set.id, destination, sizeof(destination)));
     TEST_CHECK(path_exists(destination));
+    /* removed-feature-ok: asserts the directory is gone */
     TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/staging"));
+    /* removed-feature-ok: asserts the directory is gone */
     TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/transactions"));
 
     storage_set_list_t list = {0};
@@ -309,6 +312,7 @@ static void test_delete_is_permanent_and_leaves_no_trash(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_delete(&set.id, 1U));
 
     TEST_CHECK(!path_exists(source));
+    /* removed-feature-ok: asserts the directory is gone */
     TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/trash"));
     storage_set_list_t list = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_list(&list));

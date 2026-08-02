@@ -12,6 +12,8 @@ cd "${repo_root}"
 bash ./scripts/check-production-config.sh
 bash ./scripts/check-credential-logging.sh
 bash ./scripts/check-mount-policy.sh
+bash ./scripts/check-layer-boundaries.sh
+bash ./scripts/check-removed-features.sh
 bash ./scripts/check-frontend-persisted-state.sh
 bash ./scripts/check-setup-route-isolation.sh
 ./scripts/check-firmware.sh

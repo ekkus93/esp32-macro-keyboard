@@ -306,6 +306,10 @@ typedef struct {
     const char *forbidden_later_call;
 } start_failure_case_t;
 
+/* SPEC 15.1: AP startup failure is a visible fatal network state. Every point
+ * at which start can fail must leave the published status in WIFI_AP_ERROR
+ * carrying that error, rather than an optimistic state a caller could mistake
+ * for a working access point. */
 static void test_start_failure_matrix(void) {
     static const start_failure_case_t cases[] = {
         {FAKE_WIFI_NETIF_INIT, (int)APP_ERROR_STORAGE_UNAVAILABLE, APP_ERROR_STORAGE_UNAVAILABLE,

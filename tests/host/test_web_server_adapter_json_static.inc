@@ -110,4 +110,29 @@ static void test_static_file_selection(void)
                                                       open_static_file,
                                                       &fake,
                                                       &file));
+
+    /* SPEC 13.2: "Web-assets failure MUST NOT expose an unauthenticated fallback
+     * UI." The whole web-assets partition being unavailable is not a special
+     * case here -- every open simply fails, including the one for "/". The
+     * requirement is that this produces nothing to serve: no handle, no
+     * content type, no path left pointing at something a caller might send. A
+     * built-in "storage unavailable" page substituted at this point would be
+     * exactly the unauthenticated fallback the specification forbids, because
+     * the static route is reachable before any session exists. */
+    open_fake_t unavailable = {.available_count = 0U};
+    memset(&file, 0xff, sizeof(file));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
+                         web_adapter_open_static_file("/",
+                                                      true,
+                                                      "/web",
+                                                      open_static_file,
+                                                      &unavailable,
+                                                      &file));
+    /* Both candidates were tried and both failed: the gzip variant and the
+     * plain one. Nothing was invented in their place. */
+    TEST_CHECK_EQ_U64(2U, unavailable.open_count);
+    TEST_CHECK(file.handle == NULL);
+    TEST_CHECK(file.content_type == NULL);
+    TEST_CHECK_EQ_STRING("", file.path);
+    TEST_CHECK(!file.compressed);
 }

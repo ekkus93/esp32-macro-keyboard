@@ -68,6 +68,7 @@ static void test_route_parsing(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, web_api_parse_path("/api/v1/unknown", &path));
     /* Global macros were removed (SPEC §7.2): every macro is reached through
      * its set, so the old /global tree must not resolve to anything. */
+    /* removed-feature-ok: asserts the route is gone */
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, web_api_parse_path("/api/v1/global/macros", &path));
     /* Procedures were removed (SPEC §7.1): a set has macros and nothing else,
        so the procedures subtree must not resolve. */
@@ -78,8 +79,10 @@ static void test_route_parsing(void) {
         web_api_parse_path("/api/v1/sets/" SET_ID "/procedures/" PROCEDURE_ID, &path));
     /* Quarantine was removed (SPEC §13.6); its diagnostics route must not
        resolve either. */
+    /* removed-feature-ok: asserts the route is gone */
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
                          web_api_parse_path("/api/v1/diagnostics/quarantine", &path));
+    /* removed-feature-ok: asserts the route is gone */
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
                          web_api_parse_path("/api/v1/global/macros/" MACRO_ID, &path));
 }

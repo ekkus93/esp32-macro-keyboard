@@ -708,6 +708,12 @@ static void test_normal_failure_matrix(void) {
         TEST_CHECK_EQ_U64(1U, call_count(&fixture, "indicator_fatal"));
         TEST_CHECK_EQ_U64(0U, call_count(&fixture, "bootstrap_derive"));
         if (point == NORMAL_FAILURE_WIFI) {
+            /* SPEC 15.1: "AP startup failure is a visible fatal network state.
+             * The firmware MUST NOT silently continue as though the web
+             * application were available." Visible is the indicator_fatal call
+             * asserted above; not continuing is this: the HTTP server is never
+             * started, so there is no listener to suggest the application is
+             * reachable when no network exists to reach it over. */
             TEST_CHECK_EQ_U64(0U, call_count(&fixture, "http_start"));
         }
         if (point == NORMAL_FAILURE_HTTP) {

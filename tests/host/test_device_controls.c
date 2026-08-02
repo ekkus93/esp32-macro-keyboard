@@ -362,9 +362,19 @@ static void test_runtime_failures(void) {
     device_controls_engine_t engine;
     start_engine(&engine, &fake);
 
-    /* With no buttons the poll loop only drives the indicator, so that is the
-     * only thing that can fail in it. Confirmation is signalled out of band by
-     * device_controls_signal_confirmation(), not sampled here. */
+    /* SPEC 19 and SPEC 5.2: "The device MUST NOT require any button, and MUST
+     * NOT require hardware to be added to the board. A stock ESP32-S3 devkit and
+     * a USB cable are a complete product."
+     *
+     * That requirement is visible here as an absence. With no buttons the poll
+     * loop only drives the indicator, so that is the only thing that can fail in
+     * it; there is no input to sample, and the ops seam offers no way to sample
+     * one. Confirmation arrives out of band from
+     * device_controls_signal_confirmation(), which the `confirm` serial-console
+     * command calls -- so a bare board with a USB cable can satisfy every
+     * confirmation-gated route. A regression that reintroduced button polling
+     * would have to add an input operation to the seam and a read to this loop,
+     * and this test would then be asserting the wrong thing. */
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_tick(&engine, 40U).error);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, poll_tick(&engine, 60U).error);
 
