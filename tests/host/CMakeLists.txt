@@ -377,6 +377,7 @@ add_executable(
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_paths.c
     ../../firmware/components/storage/storage_repository_io.c
+    ../../firmware/components/storage/storage_incidents.c
     ../../firmware/components/storage/storage_repository_json.c
     ../../firmware/components/storage/storage_json.c
     ../../firmware/components/storage/storage_repository_objects_json.c
@@ -459,6 +460,7 @@ add_executable(
     ../../firmware/components/storage/storage_atomic.c
     ../../firmware/components/storage/storage_paths.c
     ../../firmware/components/storage/storage_repository_io.c
+    ../../firmware/components/storage/storage_incidents.c
 )
 target_include_directories(
     storage_repository_io_tests
@@ -487,6 +489,7 @@ add_executable(
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_paths.c
     ../../firmware/components/storage/storage_repository_io.c
+    ../../firmware/components/storage/storage_incidents.c
     ../../firmware/components/storage/storage_repository_json.c
     ../../firmware/components/storage/storage_json.c
     ../../firmware/components/storage/storage_repository_objects_json.c
@@ -516,6 +519,7 @@ set(STORAGE_OBJECT_REPOSITORY_SOURCES
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_paths.c
     ../../firmware/components/storage/storage_repository_io.c
+    ../../firmware/components/storage/storage_incidents.c
     ../../firmware/components/storage/storage_repository_json.c
     ../../firmware/components/storage/storage_json.c
     ../../firmware/components/storage/storage_repository_objects_json.c
@@ -760,6 +764,7 @@ set_tests_properties(web_api_dispatch PROPERTIES LABELS "web")
 add_executable(
     web_api_admin_boundary_tests
     test_web_api_admin_boundary.c
+    ../../firmware/components/storage/storage_incidents.c
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/macro_model/app_uuid.c
     ../../firmware/components/web_server/web_api_core.c

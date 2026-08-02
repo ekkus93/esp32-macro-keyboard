@@ -1,5 +1,18 @@
 # ESP32 Macro Keyboard FIX1 Specification
 
+> **⚠ Superseded in part (2026-08-02).** This document predates the
+> specification revision that removed procedures, steps, checkpoints, progress
+> tracking, the global macro library, quarantine, the multi-file transaction
+> layer, and the per-set directory tree. Any task here that names one of those
+> subsystems is **struck** — it describes work on code that no longer exists,
+> and must not be implemented.
+>
+> What remains valid is everything about the parts that survived: storage
+> durability, the repository lock, authentication, the executor, USB HID, Wi-Fi,
+> and the web server. For current scope see `docs/SPEC.md`; for what was removed
+> and why, see `docs/SPEC.md` §1.1 and
+> `docs/TODO_SPEC_ALIGNMENT_2026-08-02.md`.
+
 **Document type:** Authoritative corrective implementation specification
 **Repository:** `ekkus93/esp32-macro-keyboard`
 **Target branch:** `master`

@@ -6,6 +6,7 @@
 #include "app_error.h"
 #include "app_uuid.h"
 #include "storage.h"
+#include "storage_incidents.h"
 #include "storage_package.h"
 #include "storage_repository.h"
 #include "test_assert.h"
@@ -226,7 +227,26 @@ static void test_storage_snapshot_publishes_remaining_space(void) {
     TEST_CHECK(strstr(response.body, "\"usedBytes\":102400") != NULL);
     TEST_CHECK(strstr(response.body, "\"totalBytes\":491520") != NULL);
     TEST_CHECK(strstr(response.body, "\"remainingBytes\":389120") != NULL);
+    /* SPEC 20.3: what boot recovery cleaned up and what was thrown away. */
+    TEST_CHECK(strstr(response.body, "\"temporariesRemovedAtBoot\":0") != NULL);
+    TEST_CHECK(strstr(response.body, "\"discardedObjects\":[]") != NULL);
     web_api_response_free(&response);
+}
+
+/* A discarded object is reported with its path AND its error (SPEC 13.6). */
+static void test_storage_snapshot_reports_discarded_objects(void) {
+    reset_fixture();
+    storage_incidents_reset();
+    storage_incident_record_discard("/data/sets/broken.json", APP_ERROR_STORAGE_CORRUPT);
+    const web_api_call_t call =
+        call_for(WEB_API_ROUTE_DIAGNOSTICS_STORAGE, WEB_API_METHOD_GET, NULL);
+    web_api_response_t response = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
+    TEST_CHECK(strstr(response.body, "\"discardedObjectCount\":1") != NULL);
+    TEST_CHECK(strstr(response.body, "/data/sets/broken.json") != NULL);
+    TEST_CHECK(strstr(response.body, app_error_code_string(APP_ERROR_STORAGE_CORRUPT)) != NULL);
+    web_api_response_free(&response);
+    storage_incidents_reset();
 }
 
 /* Remaining space is clamped at zero rather than underflowing into a huge
@@ -359,6 +379,7 @@ int main(void) {
     test_backup_failure_without_detail_stays_plain();
     test_storage_snapshot_publishes_remaining_space();
     test_storage_snapshot_clamps_remaining_at_zero();
+    test_storage_snapshot_reports_discarded_objects();
     test_restore_delegates_complete_package();
     test_restore_failure_is_visible();
     test_partial_restore_reports_per_set_outcomes();

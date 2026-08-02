@@ -41,9 +41,11 @@ app_error_code_t
 storage_repository_ensure_initial_file_with_ops(const char *path, const char *contents,
                                                 const storage_fs_ops_t *operations);
 app_error_code_t storage_repository_ensure_initial_file(const char *path, const char *contents);
-/* Deletes a file whose contents could not be parsed. Replaces quarantine:
- * damaged data is discarded and the failure is reported, not archived. */
-app_error_code_t storage_repository_discard_corrupt_file(const char *path);
+/* Deletes a file whose contents could not be parsed, and records the path AND
+ * the reason it was discarded (SPEC 13.6) so both reach the API and the UI.
+ * Replaces quarantine: damaged data is discarded and the failure is reported,
+ * not archived. */
+app_error_code_t storage_repository_discard_corrupt_file(const char *path, app_error_code_t reason);
 app_error_code_t storage_repository_make_directory_with_ops(const char *path,
                                                             const storage_fs_ops_t *operations);
 app_error_code_t storage_repository_make_directory(const char *path);

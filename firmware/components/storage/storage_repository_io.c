@@ -1,3 +1,4 @@
+#include "storage_incidents.h"
 #include "storage_repository_internal.h"
 
 #include <errno.h>
@@ -185,10 +186,15 @@ app_error_code_t storage_repository_ensure_initial_file(const char *path, const 
     return storage_repository_ensure_initial_file_with_ops(path, contents, storage_fs_ops_posix());
 }
 
-app_error_code_t storage_repository_discard_corrupt_file(const char *path) {
+app_error_code_t storage_repository_discard_corrupt_file(const char *path,
+                                                         app_error_code_t reason) {
     if (path == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
+    /* Recorded before the unlink, so the incident survives even if the unlink
+     * itself fails -- the object is unusable either way, and the user needs to
+     * know which one and why. */
+    storage_incident_record_discard(path, reason);
     const storage_fs_ops_t *operations = storage_fs_ops_posix();
     if (operations->unlink_path(operations->context, path) == 0) {
         return APP_ERROR_NONE;

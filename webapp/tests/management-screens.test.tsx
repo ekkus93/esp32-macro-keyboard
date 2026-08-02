@@ -37,6 +37,9 @@ describe("management screens", () => {
         totalBytes: 491520,
         remainingBytes: 471040,
         setFileMaxBytes: 32768,
+        temporariesRemovedAtBoot: 0,
+        discardedObjectCount: 0,
+        discardedObjects: [],
       }),
     );
     const view = await render(<DiagnosticsPage />);
@@ -62,6 +65,9 @@ describe("management screens", () => {
         totalBytes: 491520,
         remainingBytes: 471040,
         setFileMaxBytes: 32768,
+        temporariesRemovedAtBoot: 0,
+        discardedObjectCount: 0,
+        discardedObjects: [],
       }),
     );
     planJsonResponse(

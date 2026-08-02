@@ -52,7 +52,7 @@ app_error_code_t storage_repository_load_set_document(const app_uuid_t *set_id,
     }
     if (result == APP_ERROR_STORAGE_CORRUPT) {
         /* SPEC 13.6: discard the damaged file and report the failure. */
-        const app_error_code_t discard = storage_repository_discard_corrupt_file(path);
+        const app_error_code_t discard = storage_repository_discard_corrupt_file(path, result);
         return discard == APP_ERROR_NONE ? result : discard;
     }
     return result;

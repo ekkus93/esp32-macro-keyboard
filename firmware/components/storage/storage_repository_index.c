@@ -117,7 +117,8 @@ app_error_code_t storage_repository_load_index_path(const char *path,
     const app_error_code_t parse_result = storage_repository_parse_index(data, length, out_index);
     free(data);
     if (parse_result == APP_ERROR_STORAGE_CORRUPT) {
-        const app_error_code_t discard = storage_repository_discard_corrupt_file(path);
+        const app_error_code_t discard =
+            storage_repository_discard_corrupt_file(path, parse_result);
         return discard == APP_ERROR_NONE ? parse_result : discard;
     }
     return parse_result;

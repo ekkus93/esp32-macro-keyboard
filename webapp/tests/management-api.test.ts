@@ -113,6 +113,9 @@ describe("management API contracts", () => {
         totalBytes: 491520,
         remainingBytes: 471040,
         setFileMaxBytes: 32768,
+        temporariesRemovedAtBoot: 0,
+        discardedObjectCount: 0,
+        discardedObjects: [],
       }),
     );
 
@@ -122,6 +125,9 @@ describe("management API contracts", () => {
       totalBytes: 491520,
       remainingBytes: 471040,
       setFileMaxBytes: 32768,
+      temporariesRemovedAtBoot: 0,
+      discardedObjectCount: 0,
+      discardedObjects: [],
     });
   });
 

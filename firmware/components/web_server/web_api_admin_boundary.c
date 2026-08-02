@@ -9,6 +9,7 @@
 #include "cJSON.h"
 #include "macro_limits.h"
 #include "storage.h"
+#include "storage_incidents.h"
 #include "storage_package.h"
 #include "storage_repository.h"
 #include "web_api_core.h"
@@ -49,17 +50,57 @@ static app_error_code_t send_storage_snapshot(web_api_response_t *response) {
     }
     const size_t remaining =
         used_bytes >= APP_USER_DATA_MAX_BYTES ? 0U : APP_USER_DATA_MAX_BYTES - used_bytes;
-    char data[WEB_ADMIN_STORAGE_HEALTH_RESPONSE_BYTES];
-    const int length = snprintf(
-        data, sizeof(data),
-        "{\"verified\":false,\"webMounted\":%s,\"dataMounted\":%s,"
-        "\"usedBytes\":%zu,\"totalBytes\":%zu,\"remainingBytes\":%zu,"
-        "\"setFileMaxBytes\":%zu}",
-        mounts.web_mounted ? "true" : "false", mounts.data_mounted ? "true" : "false", used_bytes,
-        (size_t)APP_USER_DATA_MAX_BYTES, remaining, (size_t)APP_SET_FILE_MAX_BYTES);
-    return length < 0 || (size_t)length >= sizeof(data)
-               ? APP_ERROR_INTERNAL
-               : web_api_response_success(response, WEB_HTTP_STATUS_OK, data);
+
+    storage_incident_report_t incidents = {0};
+    storage_incidents_snapshot(&incidents);
+
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
+    app_error_code_t result = APP_ERROR_NONE;
+    if (cJSON_AddBoolToObject(root, "verified", false) == NULL ||
+        cJSON_AddBoolToObject(root, "webMounted", mounts.web_mounted) == NULL ||
+        cJSON_AddBoolToObject(root, "dataMounted", mounts.data_mounted) == NULL ||
+        cJSON_AddNumberToObject(root, "usedBytes", (double)used_bytes) == NULL ||
+        cJSON_AddNumberToObject(root, "totalBytes", (double)APP_USER_DATA_MAX_BYTES) == NULL ||
+        cJSON_AddNumberToObject(root, "remainingBytes", (double)remaining) == NULL ||
+        cJSON_AddNumberToObject(root, "setFileMaxBytes", (double)APP_SET_FILE_MAX_BYTES) == NULL ||
+        /* SPEC 20.3: stray temporaries removed at boot, and objects discarded as
+         * corrupt since boot with their paths and errors. */
+        cJSON_AddNumberToObject(root, "temporariesRemovedAtBoot",
+                                (double)incidents.temporaries_removed) == NULL ||
+        cJSON_AddNumberToObject(root, "discardedObjectCount", (double)incidents.total) == NULL) {
+        result = APP_ERROR_INTERNAL;
+    }
+    cJSON *discarded = cJSON_CreateArray();
+    if (result == APP_ERROR_NONE &&
+        (discarded == NULL || !cJSON_AddItemToObject(root, "discardedObjects", discarded))) {
+        cJSON_Delete(discarded);
+        result = APP_ERROR_INTERNAL;
+    }
+    for (size_t index = 0U; result == APP_ERROR_NONE && index < incidents.count; ++index) {
+        cJSON *entry = cJSON_CreateObject();
+        if (entry == NULL || !cJSON_AddItemToArray(discarded, entry) ||
+            cJSON_AddStringToObject(entry, "path", incidents.items[index].path) == NULL ||
+            cJSON_AddStringToObject(entry, "error",
+                                    app_error_code_string(incidents.items[index].error)) == NULL) {
+            cJSON_Delete(entry);
+            result = APP_ERROR_INTERNAL;
+        }
+    }
+    char *json = NULL;
+    if (result == APP_ERROR_NONE) {
+        json = cJSON_PrintUnformatted(root);
+        result = json == NULL ? APP_ERROR_INTERNAL : APP_ERROR_NONE;
+    }
+    cJSON_Delete(root);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    const app_error_code_t sent = web_api_response_success(response, WEB_HTTP_STATUS_OK, json);
+    cJSON_free(json);
+    return sent;
 }
 
 static const char *backup_object_kind_name(storage_package_object_kind_t kind) {

@@ -13,6 +13,7 @@
 #include "macro_limits.h"
 #include "storage.h"
 #include "storage_fs_ops.h"
+#include "storage_incidents.h"
 
 #define TEMPORARY_SUFFIX ".tmp"
 
@@ -96,7 +97,11 @@ static void visit_entry(const storage_fs_ops_t *operations, const char *root, co
         if (unlink_error != ENOENT) {
             record_failure(outcome, map_error_number(unlink_error));
         }
+        return;
     }
+    /* SPEC 20.3: diagnostics reports how many interrupted writes boot recovery
+     * cleaned up, so a device that keeps losing power is visible as such. */
+    storage_incident_record_temporary_removed();
 }
 
 static app_error_code_t sweep_directory(const storage_fs_ops_t *operations, const char *root,

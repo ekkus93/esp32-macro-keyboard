@@ -11,6 +11,7 @@
 #include "app_error.h"
 #include "storage.h"
 #include "storage_atomic_recovery.h"
+#include "storage_incidents.h"
 #include "test_assert.h"
 #include "test_temp_dir.h"
 
@@ -64,6 +65,7 @@ static void reset_store(void) {
 
 static void test_stray_temporary_is_removed_at_boot(void) {
     reset_store();
+    storage_incidents_reset();
     write_text(STORAGE_DATA_MOUNT "/set-index.json", "{\"schema_version\":1,\"ids\":[]}");
     write_text(STORAGE_DATA_MOUNT "/set-index.json.tmp", "{\"partial\":");
 
@@ -73,6 +75,12 @@ static void test_stray_temporary_is_removed_at_boot(void) {
     char output[64U];
     read_text(STORAGE_DATA_MOUNT "/set-index.json", output, sizeof(output));
     TEST_CHECK_EQ_STRING("{\"schema_version\":1,\"ids\":[]}", output);
+
+    /* SPEC 20.3: diagnostics reports how many interrupted writes boot recovery
+     * cleaned up, so repeated power loss is visible rather than silent. */
+    storage_incident_report_t report = {0};
+    storage_incidents_snapshot(&report);
+    TEST_CHECK_EQ_U64(1U, report.temporaries_removed);
 }
 
 /* An interrupted write that never reached its rename leaves the destination

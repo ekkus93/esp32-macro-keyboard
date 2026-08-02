@@ -11,6 +11,7 @@
 
 #include "cJSON.h"
 #include "storage.h"
+#include "storage_incidents.h"
 #include "storage_repository.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
@@ -314,9 +315,53 @@ static void test_oversized_set_file_is_refused(void) {
     storage_macro_list_free(&list);
 }
 
+/* SPEC 13.6: a discarded object is reported with its path AND the reason it was
+ * discarded. The reason used to be dropped on the floor; this pins that it is
+ * not. */
+static void test_discarded_object_records_path_and_reason(void) {
+    reset_store();
+    storage_incidents_reset();
+    macro_set_t set;
+    create_set(&set);
+    macro_t macro = make_macro(70U, &set.id, "Doomed", "TEXT doomed");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&set.id, &macro));
+    macro_model_free_macro(&macro);
+
+    char path[APP_PATH_MAX_BYTES];
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_set_path(&set.id, path, sizeof(path)));
+    static const char invalid[] = "{not json";
+    write_file(path, invalid, sizeof(invalid) - 1U);
+
+    macro_set_t output = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_set_read(&set.id, &output));
+
+    storage_incident_report_t report = {0};
+    storage_incidents_snapshot(&report);
+    TEST_CHECK_EQ_U64(1U, report.total);
+    TEST_CHECK_EQ_U64(1U, report.count);
+    TEST_CHECK_EQ_STRING(path, report.items[0].path);
+    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_CORRUPT, report.items[0].error);
+}
+
+/* The table is bounded, and `total` still counts everything so a caller can tell
+ * that more was lost than it can enumerate. */
+static void test_discard_record_is_bounded_but_counts_everything(void) {
+    storage_incidents_reset();
+    for (size_t index = 0U; index < STORAGE_INCIDENT_MAX + 3U; ++index) {
+        storage_incident_record_discard("/data/sets/x.json", APP_ERROR_STORAGE_CORRUPT);
+    }
+    storage_incident_report_t report = {0};
+    storage_incidents_snapshot(&report);
+    TEST_CHECK_EQ_U64(STORAGE_INCIDENT_MAX, report.count);
+    TEST_CHECK_EQ_U64(STORAGE_INCIDENT_MAX + 3U, report.total);
+    storage_incidents_reset();
+}
+
 int main(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
     test_argument_validation();
+    test_discarded_object_records_path_and_reason();
+    test_discard_record_is_bounded_but_counts_everything();
     test_oversized_set_file_is_refused();
     test_set_local_crud_duplicate_and_order();
     test_corrupt_set_file_is_discarded();

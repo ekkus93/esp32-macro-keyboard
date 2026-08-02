@@ -141,6 +141,15 @@ export interface StorageHealth {
   totalBytes: number;
   remainingBytes: number;
   setFileMaxBytes: number;
+  /* SPEC 20.3: what the device cleaned up or threw away, and why. */
+  temporariesRemovedAtBoot: number;
+  discardedObjectCount: number;
+  discardedObjects: DiscardedObject[];
+}
+
+export interface DiscardedObject {
+  path: string;
+  error: string;
 }
 
 export type SubsystemHealthState =

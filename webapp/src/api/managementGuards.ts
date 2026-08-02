@@ -5,6 +5,7 @@ import type {
   FactoryResetAccepted,
   FullDiagnostics,
   SetDeletion,
+  DiscardedObject,
   StorageHealth,
   SubsystemHealthState,
 } from "../types/models";
@@ -55,6 +56,15 @@ export function isFactoryResetAccepted(
   );
 }
 
+function isDiscardedObject(value: unknown): value is DiscardedObject {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["path", "error"]) &&
+    typeof value.path === "string" &&
+    typeof value.error === "string"
+  );
+}
+
 export function isStorageHealth(value: unknown): value is StorageHealth {
   return (
     isRecord(value) &&
@@ -66,6 +76,9 @@ export function isStorageHealth(value: unknown): value is StorageHealth {
       "totalBytes",
       "remainingBytes",
       "setFileMaxBytes",
+      "temporariesRemovedAtBoot",
+      "discardedObjectCount",
+      "discardedObjects",
     ]) &&
     typeof value.verified === "boolean" &&
     typeof value.webMounted === "boolean" &&
@@ -73,7 +86,11 @@ export function isStorageHealth(value: unknown): value is StorageHealth {
     isNonNegativeInteger(value.usedBytes) &&
     isNonNegativeInteger(value.totalBytes) &&
     isNonNegativeInteger(value.remainingBytes) &&
-    isNonNegativeInteger(value.setFileMaxBytes)
+    isNonNegativeInteger(value.setFileMaxBytes) &&
+    isNonNegativeInteger(value.temporariesRemovedAtBoot) &&
+    isNonNegativeInteger(value.discardedObjectCount) &&
+    Array.isArray(value.discardedObjects) &&
+    value.discardedObjects.every(isDiscardedObject)
   );
 }
 
