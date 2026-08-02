@@ -27,25 +27,6 @@ static void make_directory(const char *path) {
     TEST_CHECK(mkdir(path, 0750) == 0 || errno == EEXIST);
 }
 
-static size_t directory_entry_count(const char *path) {
-    DIR *directory = opendir(path);
-    TEST_CHECK(directory != NULL);
-    size_t count = 0U;
-    while (true) {
-        errno = 0;
-        struct dirent *entry = readdir(directory);
-        if (entry == NULL) {
-            TEST_CHECK(errno == 0);
-            break;
-        }
-        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-            ++count;
-        }
-    }
-    TEST_CHECK(closedir(directory) == 0);
-    return count;
-}
-
 static void write_file(const char *path, const char *data, size_t length) {
     TEST_CHECK(path != NULL);
     TEST_CHECK(data != NULL || length == 0U);
@@ -82,18 +63,15 @@ static macro_set_t make_set(uint32_t value, const char *name) {
 
 static void reset_store(void) {
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
+    /* SPEC 13.3: /data holds the set index and sets/, and nothing else. */
     static const char *const paths[] = {
         STORAGE_DATA_MOUNT,
         STORAGE_DATA_MOUNT "/sets",
-        STORAGE_DATA_MOUNT "/staging",
-        STORAGE_DATA_MOUNT "/trash",
-        STORAGE_DATA_MOUNT "/transactions",
     };
     for (size_t index = 0U; index < (sizeof(paths) / sizeof(paths[0])); ++index) {
         make_directory(paths[index]);
     }
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_init());
-    TEST_CHECK_EQ_U64(0U, directory_entry_count(STORAGE_DATA_MOUNT "/transactions"));
 }
 
 static void assert_set_layout(const macro_set_t *set) {
@@ -161,7 +139,6 @@ static void test_crud_ordering_revisions_and_cleanup(void) {
     assert_set_layout(&first);
     assert_set_layout(&second);
     assert_set_layout(&third);
-    TEST_CHECK_EQ_U64(0U, directory_entry_count(STORAGE_DATA_MOUNT "/transactions"));
 
     TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_set_create(&second));
 
@@ -194,9 +171,9 @@ static void test_crud_ordering_revisions_and_cleanup(void) {
     char deleted_path[APP_PATH_MAX_BYTES];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          storage_make_set_path(&second.id, deleted_path, sizeof(deleted_path)));
+    /* Permanent: the set's bytes are gone, not moved aside (SPEC 8.6). */
     TEST_CHECK(!path_exists(deleted_path));
-    TEST_CHECK_EQ_U64(0U, directory_entry_count(STORAGE_DATA_MOUNT "/transactions"));
-    TEST_CHECK_EQ_U64(1U, directory_entry_count(STORAGE_DATA_MOUNT "/trash"));
+    TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/trash"));
 
     memset(&list, 0xa5, sizeof(list));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_list(&list));
@@ -301,92 +278,44 @@ static void test_duplicate_index_is_discarded_and_output_cleared(void) {
     TEST_CHECK(!path_exists(STORAGE_SET_INDEX_FILE_PATH));
 }
 
-static void test_create_recovery(void) {
+/* Creation writes the set at its final path and only then adds it to the index,
+ * so there is never a staging directory and never an index entry pointing at a
+ * set that is not fully on disk (SPEC 13.3). */
+static void test_create_leaves_no_staging_artifacts(void) {
     reset_store();
-    macro_set_t set = make_set(80U, "Interrupted Create");
+    macro_set_t set = make_set(80U, "Direct Create");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
 
     char destination[APP_PATH_MAX_BYTES];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          storage_make_set_path(&set.id, destination, sizeof(destination)));
-    const app_uuid_t transaction_id = make_uuid(8000U);
-    char staging[APP_PATH_MAX_BYTES];
-    const int staging_length =
-        snprintf(staging, sizeof(staging), STORAGE_DATA_MOUNT "/staging/%s", transaction_id.value);
-    TEST_CHECK(staging_length > 0 && (size_t)staging_length < sizeof(staging));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_set_index_presence(&set.id, false));
-    TEST_CHECK(rename(destination, staging) == 0);
-
-    storage_transaction_manifest_t manifest = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .id = transaction_id,
-        .type = STORAGE_TRANSACTION_IMPORT_SET,
-        .phase = STORAGE_TRANSACTION_STAGED,
-        .replacement_revision = 1U,
-    };
-    TEST_CHECK(snprintf(manifest.staging, sizeof(manifest.staging), "%s", staging) > 0);
-    TEST_CHECK(snprintf(manifest.destination, sizeof(manifest.destination), "%s", destination) > 0);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_transaction_write_manifest(&manifest));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_transaction_recover_all());
+    TEST_CHECK(path_exists(destination));
+    TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/staging"));
+    TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/transactions"));
 
     storage_set_list_t list = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_list(&list));
     TEST_CHECK_EQ_U64(1U, list.count);
-    TEST_CHECK(path_exists(destination));
-    TEST_CHECK(!path_exists(staging));
-    TEST_CHECK_EQ_U64(0U, directory_entry_count(STORAGE_DATA_MOUNT "/transactions"));
 }
 
-static void test_delete_recovery(void) {
+/* Deletion is permanent (SPEC 8.6): the set's bytes are gone, not moved to a
+ * trash directory that a 512 KiB partition cannot afford. */
+static void test_delete_is_permanent_and_leaves_no_trash(void) {
     reset_store();
-    macro_set_t set = make_set(90U, "Interrupted Delete");
+    macro_set_t set = make_set(90U, "Permanent Delete");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
 
     char source[APP_PATH_MAX_BYTES];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_set_path(&set.id, source, sizeof(source)));
-    const app_uuid_t transaction_id = make_uuid(9000U);
-    char backup[APP_PATH_MAX_BYTES];
-    const int backup_length = snprintf(backup, sizeof(backup), STORAGE_DATA_MOUNT "/trash/%s-%s",
-                                       set.id.value, transaction_id.value);
-    TEST_CHECK(backup_length > 0 && (size_t)backup_length < sizeof(backup));
+    TEST_CHECK(path_exists(source));
 
-    storage_transaction_manifest_t manifest = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .id = transaction_id,
-        .type = STORAGE_TRANSACTION_DELETE_SET,
-        .phase = STORAGE_TRANSACTION_PREPARED,
-        .expected_revision = 1U,
-    };
-    TEST_CHECK(snprintf(manifest.source, sizeof(manifest.source), "%s", source) > 0);
-    TEST_CHECK(snprintf(manifest.backup, sizeof(manifest.backup), "%s", backup) > 0);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_transaction_write_manifest(&manifest));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_transaction_recover_all());
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_delete(&set.id, 1U));
 
+    TEST_CHECK(!path_exists(source));
+    TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/trash"));
     storage_set_list_t list = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_list(&list));
     TEST_CHECK_EQ_U64(0U, list.count);
-    TEST_CHECK(!path_exists(source));
-    TEST_CHECK(path_exists(backup));
-    TEST_CHECK_EQ_U64(0U, directory_entry_count(STORAGE_DATA_MOUNT "/transactions"));
-}
-
-static void test_unknown_transaction_is_preserved(void) {
-    reset_store();
-    const app_uuid_t transaction_id = make_uuid(10000U);
-    storage_transaction_manifest_t manifest = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .id = transaction_id,
-        .type = STORAGE_TRANSACTION_RESTORE,
-        .phase = STORAGE_TRANSACTION_PREPARED,
-    };
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_transaction_write_manifest(&manifest));
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_transaction_recover_all());
-
-    char path[APP_PATH_MAX_BYTES];
-    const int written = snprintf(path, sizeof(path), STORAGE_DATA_MOUNT "/transactions/%s.bin",
-                                 transaction_id.value);
-    TEST_CHECK(written > 0 && (size_t)written < sizeof(path));
-    TEST_CHECK(path_exists(path));
 }
 
 static void test_missing_initialized_index_is_not_recreated(void) {
@@ -458,11 +387,6 @@ static const storage_repository_lock_ops_t mx_ops = {
     .deinit = mx_noop,
 };
 
-static app_error_code_t interloper_read(void) {
-    macro_set_t out = {0};
-    return storage_set_read(&g_interloper_id, &out);
-}
-
 static app_error_code_t interloper_delete(void) {
     return storage_set_delete(&g_interloper_id, 1U);
 }
@@ -488,23 +412,6 @@ static void test_concurrency_same_revision_updates_conflict(void) {
 
 /* Startup recovery holds the lock for its whole pass, so an API mutation arriving
  * concurrently is blocked. */
-static void test_concurrency_recovery_excludes_mutation(void) {
-    reset_store();
-    macro_set_t set = make_set(1U, "RecoveryRace");
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
-    g_interloper_id = set.id;
-
-    g_mx = (mx_lock_state_t){.interloper = interloper_read, .interloper_armed = true};
-    storage_repository_lock_set_ops(&mx_ops);
-    const app_error_code_t result = storage_transaction_recover_all();
-    storage_repository_lock_set_ops(NULL);
-
-    TEST_CHECK(g_mx.interloper_ran);
-    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, g_mx.interloper_result);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, result);
-    TEST_CHECK(!g_mx.held);
-}
-
 /* A create and a delete cannot race the index: while create holds the lock, an
  * interloping delete is blocked. */
 static void test_concurrency_create_excludes_delete(void) {
@@ -594,12 +501,10 @@ int main(void) {
     test_corrupt_set_is_discarded();
     test_mismatched_object_id_is_discarded();
     test_duplicate_index_is_discarded_and_output_cleared();
-    test_create_recovery();
-    test_delete_recovery();
-    test_unknown_transaction_is_preserved();
+    test_create_leaves_no_staging_artifacts();
+    test_delete_is_permanent_and_leaves_no_trash();
     test_missing_initialized_index_is_not_recreated();
     test_concurrency_same_revision_updates_conflict();
-    test_concurrency_recovery_excludes_mutation();
     test_concurrency_create_excludes_delete();
     test_concurrency_lock_failures_are_visible();
     /* Import/restore serialization (FIX1 §9.3) is deferred with the import/restore

@@ -76,25 +76,14 @@ static app_error_code_t adapter_storage_mount(void *context) {
     return lock;
 }
 
+/* Boot recovery is now one step (SPEC 13.4): unlink every stray *.tmp. The two
+ * transaction-recovery passes that used to follow it are gone with the
+ * transaction layer itself. */
 static app_error_code_t adapter_storage_recover(void *context) {
     (void)context;
     const app_error_code_t atomic = storage_atomic_recover_all();
-    if (atomic != APP_ERROR_NONE) {
-        storage_health_record_primary(atomic);
-        return atomic;
-    }
-    const app_error_code_t restores = storage_transaction_recover_restores();
-    if (restores != APP_ERROR_NONE) {
-        storage_health_record_primary(restores);
-        return restores;
-    }
-    const app_error_code_t transactions = storage_transaction_recover_all();
-    if (transactions != APP_ERROR_NONE) {
-        storage_health_record_primary(transactions);
-        return transactions;
-    }
-    storage_health_record_primary(transactions);
-    return transactions;
+    storage_health_record_primary(atomic);
+    return atomic;
 }
 
 static app_error_code_t adapter_repository_init(void *context) {

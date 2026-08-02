@@ -173,15 +173,13 @@ static app_error_code_t storage_set_list_locked(storage_set_list_t *out_list) {
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t storage_repository_create_set_staging(const macro_set_t *set,
-                                                              const app_uuid_t *transaction_id,
-                                                              char *staging, size_t staging_size) {
-    const int staging_length =
-        snprintf(staging, staging_size, STORAGE_DATA_MOUNT "/staging/%s", transaction_id->value);
-    if (staging_length < 0 || (size_t)staging_length >= staging_size) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    app_error_code_t result = storage_repository_make_directory(staging);
+/* Written straight to its final location: there is no staging directory to
+ * assemble into and rename from (SPEC 13.3). The set is not referenced by the
+ * index until every file below is on disk, so an interruption leaves an
+ * unreferenced directory rather than a dangling index entry. */
+static app_error_code_t storage_repository_write_set_tree(const macro_set_t *set,
+                                                          const char *destination) {
+    app_error_code_t result = storage_repository_make_directory(destination);
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -189,7 +187,7 @@ static app_error_code_t storage_repository_create_set_staging(const macro_set_t 
     static const char *const child_names[] = {"macros"};
     for (size_t child = 0U; child < (sizeof(child_names) / sizeof(child_names[0])); ++child) {
         char path[APP_PATH_MAX_BYTES];
-        const int written = snprintf(path, sizeof(path), "%s/%s", staging, child_names[child]);
+        const int written = snprintf(path, sizeof(path), "%s/%s", destination, child_names[child]);
         if (written < 0 || (size_t)written >= sizeof(path)) {
             return APP_ERROR_INVALID_ARGUMENT;
         }
@@ -206,7 +204,7 @@ static app_error_code_t storage_repository_create_set_staging(const macro_set_t 
         return result;
     }
     char path[APP_PATH_MAX_BYTES];
-    int written = snprintf(path, sizeof(path), "%s/set.json", staging);
+    int written = snprintf(path, sizeof(path), "%s/set.json", destination);
     if (written < 0 || (size_t)written >= sizeof(path)) {
         cJSON_free(json);
         return APP_ERROR_INVALID_ARGUMENT;
@@ -220,7 +218,7 @@ static app_error_code_t storage_repository_create_set_staging(const macro_set_t 
     static const char empty_order[] = "{\"schema_version\":1,\"ids\":[]}";
     const char *const order_names[] = {"macro-order.json"};
     for (size_t order = 0U; order < (sizeof(order_names) / sizeof(order_names[0])); ++order) {
-        written = snprintf(path, sizeof(path), "%s/%s", staging, order_names[order]);
+        written = snprintf(path, sizeof(path), "%s/%s", destination, order_names[order]);
         if (written < 0 || (size_t)written >= sizeof(path)) {
             return APP_ERROR_INVALID_ARGUMENT;
         }
@@ -271,66 +269,21 @@ static app_error_code_t storage_set_create_locked(const macro_set_t *set) {
         return result;
     }
 
-    app_uuid_t transaction_id = {0};
-    result = app_uuid_generate(&transaction_id);
+    result = storage_repository_write_set_tree(set, destination);
     if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    char staging[APP_PATH_MAX_BYTES] = {0};
-    result = storage_repository_create_set_staging(set, &transaction_id, staging, sizeof(staging));
-    if (result != APP_ERROR_NONE) {
-        if (staging[0] != '\0') {
-            const app_error_code_t cleanup_result = storage_repository_remove_tree(staging);
-            if (cleanup_result != APP_ERROR_NONE) {
-                return cleanup_result;
-            }
-        }
-        return result;
-    }
-
-    storage_transaction_manifest_t manifest = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .id = transaction_id,
-        .type = STORAGE_TRANSACTION_IMPORT_SET,
-        .phase = STORAGE_TRANSACTION_STAGED,
-        .expected_revision = 0U,
-        .replacement_revision = set->revision,
-    };
-    const int staging_copy = snprintf(manifest.staging, sizeof(manifest.staging), "%s", staging);
-    const int destination_copy =
-        snprintf(manifest.destination, sizeof(manifest.destination), "%s", destination);
-    if (staging_copy < 0 || (size_t)staging_copy >= sizeof(manifest.staging) ||
-        destination_copy < 0 || (size_t)destination_copy >= sizeof(manifest.destination)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    result = storage_transaction_write_manifest(&manifest);
-    if (result != APP_ERROR_NONE) {
-        const app_error_code_t cleanup_result = storage_repository_remove_tree(staging);
+        const app_error_code_t cleanup_result = storage_repository_remove_tree(destination);
         return cleanup_result == APP_ERROR_NONE ? result : cleanup_result;
     }
-    if (rename(staging, destination) != 0) {
-        return storage_repository_map_file_error();
-    }
-    manifest.phase = STORAGE_TRANSACTION_ACTIVATED;
-    result = storage_transaction_write_manifest(&manifest);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
 
+    /* Index last: until this write lands the new directory is unreferenced, and
+     * an unreferenced directory is invisible rather than corrupt. */
     index.ids[index.count++] = set->id;
     result = storage_repository_write_index(&index);
     if (result != APP_ERROR_NONE) {
-        if (rename(destination, staging) != 0) {
-            return APP_ERROR_IO;
-        }
-        return result;
+        const app_error_code_t cleanup_result = storage_repository_remove_tree(destination);
+        return cleanup_result == APP_ERROR_NONE ? result : cleanup_result;
     }
-    manifest.phase = STORAGE_TRANSACTION_INDEXED;
-    result = storage_transaction_write_manifest(&manifest);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    return storage_repository_remove_manifest(&transaction_id);
+    return APP_ERROR_NONE;
 }
 
 static app_error_code_t storage_set_update_locked(const macro_set_t *replacement,
@@ -404,65 +357,29 @@ static app_error_code_t storage_set_delete_locked(const app_uuid_t *set_id,
         return APP_ERROR_STORAGE_CORRUPT;
     }
 
-    app_uuid_t transaction_id = {0};
-    result = app_uuid_generate(&transaction_id);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
     char source[APP_PATH_MAX_BYTES];
     result = storage_make_set_path(set_id, source, sizeof(source));
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    char trash[APP_PATH_MAX_BYTES];
-    const int trash_length = snprintf(trash, sizeof(trash), STORAGE_DATA_MOUNT "/trash/%s-%s",
-                                      set_id->value, transaction_id.value);
-    if (trash_length < 0 || (size_t)trash_length >= sizeof(trash)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
 
-    storage_transaction_manifest_t manifest = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .id = transaction_id,
-        .type = STORAGE_TRANSACTION_DELETE_SET,
-        .phase = STORAGE_TRANSACTION_PREPARED,
-        .expected_revision = expected_revision,
-        .replacement_revision = 0U,
-    };
-    const int source_copy = snprintf(manifest.source, sizeof(manifest.source), "%s", source);
-    const int trash_copy = snprintf(manifest.backup, sizeof(manifest.backup), "%s", trash);
-    if (source_copy < 0 || (size_t)source_copy >= sizeof(manifest.source) || trash_copy < 0 ||
-        (size_t)trash_copy >= sizeof(manifest.backup)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    result = storage_transaction_write_manifest(&manifest);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    if (rename(source, trash) != 0) {
-        return storage_repository_map_file_error();
-    }
-    manifest.phase = STORAGE_TRANSACTION_BACKED_UP;
-    result = storage_transaction_write_manifest(&manifest);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-
+    /* Deletion is permanent (SPEC 8.6): the set is removed, not renamed into a
+     * trash directory. The typed-name confirmation in the UI is the safeguard,
+     * and a 512 KiB partition cannot afford to keep a copy of everything the
+     * user has discarded.
+     *
+     * The index is written first so the set stops being referenced before its
+     * bytes go. An interruption between the two leaves an unreferenced
+     * directory -- invisible to every reader, since all of them enumerate
+     * through the index -- rather than an index entry pointing at a
+     * half-removed set. */
     for (size_t item = found; item + 1U < index.count; ++item) {
         index.ids[item] = index.ids[item + 1U];
     }
     --index.count;
     result = storage_repository_write_index(&index);
     if (result != APP_ERROR_NONE) {
-        if (rename(trash, source) != 0) {
-            return APP_ERROR_IO;
-        }
         return result;
     }
-    manifest.phase = STORAGE_TRANSACTION_INDEXED;
-    result = storage_transaction_write_manifest(&manifest);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    return storage_repository_remove_manifest(&transaction_id);
+    return storage_repository_remove_tree(source);
 }

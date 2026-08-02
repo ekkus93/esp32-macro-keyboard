@@ -147,13 +147,13 @@ static app_error_code_t write_json_file(const char *path, const char *json, size
     return storage_atomic_write(path, json, length, true);
 }
 
-static app_error_code_t write_import_set(const char *staging, const macro_set_t *set) {
+static app_error_code_t write_import_set(const char *set_root, const macro_set_t *set) {
     char *json = NULL;
     size_t length = 0U;
     app_error_code_t result = storage_repository_serialize_set_json(set, &json, &length);
     char path[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
-        result = join_path(staging, "set.json", path, sizeof(path));
+        result = join_path(set_root, "set.json", path, sizeof(path));
     }
     if (result == APP_ERROR_NONE) {
         result = write_json_file(path, json, length);
@@ -162,7 +162,7 @@ static app_error_code_t write_import_set(const char *staging, const macro_set_t 
     return result;
 }
 
-static app_error_code_t write_import_order(const char *staging, const char *name,
+static app_error_code_t write_import_order(const char *set_root, const char *name,
                                            const storage_uuid_order_t *order, size_t maximum) {
     char *json = NULL;
     size_t length = 0U;
@@ -170,7 +170,7 @@ static app_error_code_t write_import_order(const char *staging, const char *name
         storage_repository_serialize_order_json(order, maximum, &json, &length);
     char path[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
-        result = join_path(staging, name, path, sizeof(path));
+        result = join_path(set_root, name, path, sizeof(path));
     }
     if (result == APP_ERROR_NONE) {
         result = write_json_file(path, json, length);
@@ -216,10 +216,10 @@ static app_error_code_t write_import_macro_node(const char *directory, const cJS
     return result;
 }
 
-static app_error_code_t write_import_macros(const char *staging, const cJSON *array,
+static app_error_code_t write_import_macros(const char *set_root, const cJSON *array,
                                             const package_import_rewrite_t *rewrite) {
     char directory[APP_PATH_MAX_BYTES];
-    app_error_code_t result = join_path(staging, "macros", directory, sizeof(directory));
+    app_error_code_t result = join_path(set_root, "macros", directory, sizeof(directory));
     storage_uuid_order_t order = {0};
     const int count = cJSON_GetArraySize(array);
     for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
@@ -227,23 +227,20 @@ static app_error_code_t write_import_macros(const char *staging, const cJSON *ar
             write_import_macro_node(directory, cJSON_GetArrayItem(array, index), rewrite, &order);
     }
     return result == APP_ERROR_NONE
-               ? write_import_order(staging, "macro-order.json", &order, APP_MACROS_PER_SET_MAX)
+               ? write_import_order(set_root, "macro-order.json", &order, APP_MACROS_PER_SET_MAX)
                : result;
 }
 
-static app_error_code_t create_staging(const app_uuid_t *transaction_id, char *staging,
-                                       size_t staging_size) {
-    const int written =
-        snprintf(staging, staging_size, STORAGE_DATA_MOUNT "/staging/%s", transaction_id->value);
-    if (written < 0 || (size_t)written >= staging_size) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    app_error_code_t result = storage_repository_make_directory(staging);
+/* The set directory is created at its final path: import-new always writes a
+ * brand-new identity that nothing references yet, so there is nothing to stage
+ * away from and nothing to swap (SPEC 13.3). */
+static app_error_code_t create_set_directories(const char *set_root) {
+    app_error_code_t result = storage_repository_make_directory(set_root);
     static const char *const children[] = {"macros"};
     for (size_t index = 0U;
          result == APP_ERROR_NONE && index < sizeof(children) / sizeof(children[0]); ++index) {
         char path[APP_PATH_MAX_BYTES];
-        result = join_path(staging, children[index], path, sizeof(path));
+        result = join_path(set_root, children[index], path, sizeof(path));
         if (result == APP_ERROR_NONE) {
             result = storage_repository_make_directory(path);
         }
@@ -251,13 +248,13 @@ static app_error_code_t create_staging(const app_uuid_t *transaction_id, char *s
     return result;
 }
 
-static app_error_code_t materialize_staging(const package_import_document_t *document,
-                                            const macro_set_t *new_set,
-                                            const package_import_rewrite_t *rewrite,
-                                            const char *staging) {
-    app_error_code_t result = write_import_set(staging, new_set);
+static app_error_code_t materialize_set(const package_import_document_t *document,
+                                        const macro_set_t *new_set,
+                                        const package_import_rewrite_t *rewrite,
+                                        const char *set_root) {
+    app_error_code_t result = write_import_set(set_root, new_set);
     if (result == APP_ERROR_NONE) {
-        result = write_import_macros(staging, document->arrays[PACKAGE_IMPORT_MACROS], rewrite);
+        result = write_import_macros(set_root, document->arrays[PACKAGE_IMPORT_MACROS], rewrite);
     }
     return result;
 }
@@ -284,54 +281,6 @@ static app_error_code_t import_set_accepts_new_id(const storage_set_index_t *ind
     return errno == ENOENT ? APP_ERROR_NONE : map_error_number(errno);
 }
 
-static app_error_code_t activate_import(const macro_set_t *new_set, storage_set_index_t *index,
-                                        const app_uuid_t *transaction_id, const char *staging) {
-    char destination[APP_PATH_MAX_BYTES];
-    app_error_code_t result = storage_make_set_path(&new_set->id, destination, sizeof(destination));
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    storage_transaction_manifest_t manifest = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .id = *transaction_id,
-        .type = STORAGE_TRANSACTION_IMPORT_PACKAGE_SET,
-        .phase = STORAGE_TRANSACTION_STAGED,
-        .expected_revision = 0U,
-        .replacement_revision = new_set->revision,
-    };
-    const int staging_copy = snprintf(manifest.staging, sizeof(manifest.staging), "%s", staging);
-    const int destination_copy =
-        snprintf(manifest.destination, sizeof(manifest.destination), "%s", destination);
-    if (staging_copy < 0 || (size_t)staging_copy >= sizeof(manifest.staging) ||
-        destination_copy < 0 || (size_t)destination_copy >= sizeof(manifest.destination)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    result = storage_transaction_write_manifest(&manifest);
-    if (result != APP_ERROR_NONE) {
-        const app_error_code_t cleanup = storage_repository_remove_tree(staging);
-        return cleanup == APP_ERROR_NONE ? result : cleanup;
-    }
-    if (rename(staging, destination) != 0) {
-        return map_error_number(errno);
-    }
-    manifest.phase = STORAGE_TRANSACTION_ACTIVATED;
-    result = storage_transaction_write_manifest(&manifest);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    index->ids[index->count++] = new_set->id;
-    result = storage_repository_write_index(index);
-    if (result != APP_ERROR_NONE) {
-        if (rename(destination, staging) != 0) {
-            return APP_ERROR_IO;
-        }
-        return result;
-    }
-    manifest.phase = STORAGE_TRANSACTION_INDEXED;
-    result = storage_transaction_write_manifest(&manifest);
-    return result == APP_ERROR_NONE ? storage_repository_remove_manifest(transaction_id) : result;
-}
-
 static app_error_code_t import_locked(const app_uuid_t *new_set_id,
                                       package_import_document_t *document, macro_set_t *out_set) {
     storage_set_index_t index = {0};
@@ -348,21 +297,23 @@ static app_error_code_t import_locked(const app_uuid_t *new_set_id,
         .source_set_id = &document->source_set.id,
         .new_set_id = new_set_id,
     };
-    app_uuid_t transaction_id = {0};
+    char destination[APP_PATH_MAX_BYTES] = {0};
     if (result == APP_ERROR_NONE) {
-        result = app_uuid_generate(&transaction_id);
-    }
-    char staging[APP_PATH_MAX_BYTES] = {0};
-    if (result == APP_ERROR_NONE) {
-        result = create_staging(&transaction_id, staging, sizeof(staging));
+        result = storage_make_set_path(&new_set.id, destination, sizeof(destination));
     }
     if (result == APP_ERROR_NONE) {
-        result = materialize_staging(document, &new_set, &rewrite, staging);
+        result = create_set_directories(destination);
     }
     if (result == APP_ERROR_NONE) {
-        result = activate_import(&new_set, &index, &transaction_id, staging);
-    } else if (staging[0] != '\0') {
-        const app_error_code_t cleanup = storage_repository_remove_tree(staging);
+        result = materialize_set(document, &new_set, &rewrite, destination);
+    }
+    if (result == APP_ERROR_NONE) {
+        /* Index last: the imported set is unreferenced until this write lands. */
+        index.ids[index.count++] = new_set.id;
+        result = storage_repository_write_index(&index);
+    }
+    if (result != APP_ERROR_NONE && destination[0] != '\0') {
+        const app_error_code_t cleanup = storage_repository_remove_tree(destination);
         if (cleanup != APP_ERROR_NONE) {
             result = cleanup;
         }

@@ -34,11 +34,6 @@ app_error_code_t storage_repository_map_file_error(void) {
     return storage_repository_map_error_number(errno);
 }
 
-static app_error_code_t production_uuid_generate(void *context, app_uuid_t *out_uuid) {
-    (void)context;
-    return app_uuid_generate(out_uuid);
-}
-
 app_error_code_t storage_repository_read_bounded_file_with_ops(const char *path, size_t maximum,
                                                                char **out_data, size_t *out_length,
                                                                const storage_fs_ops_t *operations) {
@@ -171,11 +166,10 @@ app_error_code_t storage_repository_directory_has_entries(const char *path, bool
                                                              out_has_entries);
 }
 
-app_error_code_t storage_repository_ensure_initial_file_with_ops(
-    const char *path, const char *contents, const storage_fs_ops_t *operations,
-    storage_uuid_generate_fn generate_uuid, void *uuid_context) {
-    if (path == NULL || contents == NULL || !storage_fs_ops_is_valid(operations) ||
-        generate_uuid == NULL) {
+app_error_code_t
+storage_repository_ensure_initial_file_with_ops(const char *path, const char *contents,
+                                                const storage_fs_ops_t *operations) {
+    if (path == NULL || contents == NULL || !storage_fs_ops_is_valid(operations)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     struct stat metadata;
@@ -186,61 +180,13 @@ app_error_code_t storage_repository_ensure_initial_file_with_ops(
     if (stat_error != ENOENT) {
         return storage_repository_map_error_number(stat_error);
     }
-    return storage_atomic_write_with_ops(path, contents, strlen(contents), true, operations,
-                                         generate_uuid, uuid_context);
+    return storage_atomic_write_with_ops(path, contents, strlen(contents), true, operations);
 }
 
 app_error_code_t storage_repository_ensure_initial_file(const char *path, const char *contents) {
-    return storage_repository_ensure_initial_file_with_ops(path, contents, storage_fs_ops_posix(),
-                                                           production_uuid_generate, NULL);
+    return storage_repository_ensure_initial_file_with_ops(path, contents, storage_fs_ops_posix());
 }
 
-app_error_code_t storage_repository_set_file_path(const app_uuid_t *set_id, char *buffer,
-                                                  size_t buffer_size) {
-    char directory[APP_PATH_MAX_BYTES];
-    const app_error_code_t result = storage_make_set_path(set_id, directory, sizeof(directory));
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    const int written = snprintf(buffer, buffer_size, "%s/set.json", directory);
-    return written >= 0 && (size_t)written < buffer_size ? APP_ERROR_NONE
-                                                         : APP_ERROR_INVALID_ARGUMENT;
-}
-
-static app_error_code_t storage_repository_transaction_path(const app_uuid_t *transaction_id,
-                                                            char *buffer, size_t buffer_size) {
-    if (transaction_id == NULL || buffer == NULL ||
-        !app_uuid_is_valid_string(transaction_id->value)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const int written = snprintf(buffer, buffer_size, STORAGE_DATA_MOUNT "/transactions/%s.bin",
-                                 transaction_id->value);
-    return written >= 0 && (size_t)written < buffer_size ? APP_ERROR_NONE
-                                                         : APP_ERROR_INVALID_ARGUMENT;
-}
-
-app_error_code_t storage_repository_remove_manifest_with_ops(const app_uuid_t *transaction_id,
-                                                             const storage_fs_ops_t *operations) {
-    if (!storage_fs_ops_is_valid(operations)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    char path[APP_PATH_MAX_BYTES];
-    const app_error_code_t result =
-        storage_repository_transaction_path(transaction_id, path, sizeof(path));
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    if (operations->unlink_path(operations->context, path) == 0) {
-        return APP_ERROR_NONE;
-    }
-    const int unlink_error = errno;
-    return storage_repository_map_error_number(unlink_error);
-}
-
-/* A corrupt object is deleted, not preserved. This device has 512 KiB of
- * storage; keeping damaged copies of files spends space to no purpose, nothing
- * ever read them back, and the caller reports the failure to the client
- * instead. A file that is already gone is the desired state, not an error. */
 app_error_code_t storage_repository_discard_corrupt_file(const char *path) {
     if (path == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -254,8 +200,16 @@ app_error_code_t storage_repository_discard_corrupt_file(const char *path) {
                                   : storage_repository_map_error_number(unlink_error);
 }
 
-app_error_code_t storage_repository_remove_manifest(const app_uuid_t *transaction_id) {
-    return storage_repository_remove_manifest_with_ops(transaction_id, storage_fs_ops_posix());
+app_error_code_t storage_repository_set_file_path(const app_uuid_t *set_id, char *buffer,
+                                                  size_t buffer_size) {
+    char directory[APP_PATH_MAX_BYTES];
+    const app_error_code_t result = storage_make_set_path(set_id, directory, sizeof(directory));
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    const int written = snprintf(buffer, buffer_size, "%s/set.json", directory);
+    return written >= 0 && (size_t)written < buffer_size ? APP_ERROR_NONE
+                                                         : APP_ERROR_INVALID_ARGUMENT;
 }
 
 app_error_code_t storage_repository_make_directory_with_ops(const char *path,

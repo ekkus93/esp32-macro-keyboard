@@ -86,8 +86,6 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_atomic.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_fs_ops.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_paths.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_transaction.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_transaction_replace.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_io.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_json.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_json.c"

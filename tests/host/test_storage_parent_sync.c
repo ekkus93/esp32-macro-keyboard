@@ -15,11 +15,6 @@
 #include "test_assert.h"
 #include "test_temp_dir.h"
 
-typedef struct {
-    size_t next_value;
-    size_t calls;
-} uuid_sequence_t;
-
 static int adapter_open(void *context, const char *path, int flags, mode_t mode) {
     return fake_fs_open(context, path, flags, mode);
 }
@@ -70,18 +65,6 @@ static storage_fs_ops_t make_operations(fake_fs_backend_t *filesystem) {
     };
 }
 
-static app_error_code_t generate_uuid(void *context, app_uuid_t *out_uuid) {
-    uuid_sequence_t *sequence = context;
-    if (sequence == NULL || out_uuid == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    ++sequence->calls;
-    ++sequence->next_value;
-    const int written = snprintf(out_uuid->value, sizeof(out_uuid->value),
-                                 "00000000-0000-4000-8000-%012zu", sequence->next_value);
-    return written == (int)APP_UUID_STRING_LENGTH ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
-}
-
 static void make_path(char *output, size_t output_size, const test_temp_dir_t *directory,
                       const char *name) {
     const int written = snprintf(output, output_size, "%s/%s", directory->path, name);
@@ -89,10 +72,8 @@ static void make_path(char *output, size_t output_size, const test_temp_dir_t *d
     TEST_CHECK((size_t)written < output_size);
 }
 
-static void make_operation_path(char *output, size_t output_size, const char *path,
-                                const char *kind) {
-    const int written =
-        snprintf(output, output_size, "%s.%s.00000000-0000-4000-8000-000000000001", path, kind);
+static void make_temporary_path(char *output, size_t output_size, const char *path) {
+    const int written = snprintf(output, output_size, "%s.tmp", path);
     TEST_CHECK(written > 0);
     TEST_CHECK((size_t)written < output_size);
 }
@@ -123,20 +104,17 @@ static bool path_exists(const char *path) {
 }
 
 static app_error_code_t atomic_write(const char *path, const char *text,
-                                     storage_fs_ops_t *operations, uuid_sequence_t *uuids,
-                                     fake_fs_backend_t *filesystem) {
+                                     storage_fs_ops_t *operations, fake_fs_backend_t *filesystem) {
     return storage_atomic_write_with_ops_and_parent_sync(path, text, strlen(text), true, operations,
-                                                         generate_uuid, uuids, adapter_sync_parent,
-                                                         filesystem);
+                                                         adapter_sync_parent, filesystem);
 }
 
+/* There is no .bak file in the design (SPEC 13.4), so the only artifact a write
+ * can leave behind is its temporary. */
 static void assert_no_operation_files(const char *path) {
     char temporary[APP_PATH_MAX_BYTES];
-    char backup[APP_PATH_MAX_BYTES];
-    make_operation_path(temporary, sizeof(temporary), path, "tmp");
-    make_operation_path(backup, sizeof(backup), path, "bak");
+    make_temporary_path(temporary, sizeof(temporary), path);
     TEST_CHECK(!path_exists(temporary));
-    TEST_CHECK(!path_exists(backup));
 }
 
 static void test_missing_parent_sync_is_rejected(void) {
@@ -148,11 +126,10 @@ static void test_missing_parent_sync_is_rejected(void) {
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
     storage_fs_ops_t operations = make_operations(&filesystem);
-    uuid_sequence_t uuids = {0};
 
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, storage_atomic_write_with_ops_and_parent_sync(
-                                                      path, "new", strlen("new"), true, &operations,
-                                                      generate_uuid, &uuids, NULL, &filesystem));
+    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
+                      storage_atomic_write_with_ops_and_parent_sync(
+                          path, "new", strlen("new"), true, &operations, NULL, &filesystem));
     TEST_CHECK_EQ_U64(0U, filesystem.calls.call_count);
     TEST_CHECK(!path_exists(path));
     test_temp_dir_remove(&directory);
@@ -167,18 +144,16 @@ static void test_create_and_replace_barrier_counts(void) {
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
     storage_fs_ops_t operations = make_operations(&filesystem);
-    uuid_sequence_t uuids = {0};
 
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      atomic_write(path, "first", &operations, &uuids, &filesystem));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, atomic_write(path, "first", &operations, &filesystem));
     TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_SYNC_PARENT]);
     assert_no_operation_files(path);
 
+    /* Replacing an existing file costs exactly one parent sync, same as
+     * creating it: there is no backup rename to barrier separately. */
     fake_fs_backend_reset(&filesystem);
-    uuids = (uuid_sequence_t){0};
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      atomic_write(path, "second", &operations, &uuids, &filesystem));
-    TEST_CHECK_EQ_U64(2U, filesystem.operation_counts[FAKE_FS_SYNC_PARENT]);
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, atomic_write(path, "second", &operations, &filesystem));
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_SYNC_PARENT]);
     char output[32U];
     read_text(path, output, sizeof(output));
     TEST_CHECK_EQ_STRING("second", output);
@@ -186,7 +161,35 @@ static void test_create_and_replace_barrier_counts(void) {
     test_temp_dir_remove(&directory);
 }
 
-static void test_create_activation_barrier_failure_rolls_back(void) {
+/* A failed rename cannot half-replace the destination: the old bytes are still
+ * there, unmodified, and the temporary is cleaned up. This is the property the
+ * .bak ladder used to reconstruct after the fact -- a single rename has it by
+ * construction. */
+static void test_rename_failure_preserves_old_destination(void) {
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char path[APP_PATH_MAX_BYTES];
+    make_path(path, sizeof(path), &directory, "replace.json");
+    write_text(path, "old");
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    fake_fs_backend_fail_on(&filesystem, FAKE_FS_RENAME, 1U, EIO);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+
+    TEST_CHECK_EQ_INT(APP_ERROR_IO, atomic_write(path, "new", &operations, &filesystem));
+    char output[32U];
+    read_text(path, output, sizeof(output));
+    TEST_CHECK_EQ_STRING("old", output);
+    /* The parent is never synced, because nothing was durably changed. */
+    TEST_CHECK_EQ_U64(0U, filesystem.operation_counts[FAKE_FS_SYNC_PARENT]);
+    assert_no_operation_files(path);
+    test_temp_dir_remove(&directory);
+}
+
+/* A create that fails at rename must leave no destination at all, and no
+ * temporary either. */
+static void test_rename_failure_on_create_leaves_nothing(void) {
     test_temp_dir_t directory = {0};
     test_temp_dir_create(&directory);
     char path[APP_PATH_MAX_BYTES];
@@ -194,93 +197,37 @@ static void test_create_activation_barrier_failure_rolls_back(void) {
 
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
+    fake_fs_backend_fail_on(&filesystem, FAKE_FS_RENAME, 1U, ENOSPC);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+
+    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_FULL, atomic_write(path, "new", &operations, &filesystem));
+    TEST_CHECK(!path_exists(path));
+    assert_no_operation_files(path);
+    test_temp_dir_remove(&directory);
+}
+
+/* The rename has already happened when the parent sync fails, so the new
+ * content IS the destination. The error is reported and the write is NOT
+ * undone: rolling back here would mean renaming a committed object away again,
+ * which is exactly the second-copy behaviour SPEC 13.4 removed. */
+static void test_parent_sync_failure_after_rename_is_reported_not_undone(void) {
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char path[APP_PATH_MAX_BYTES];
+    make_path(path, sizeof(path), &directory, "replace.json");
+    write_text(path, "old");
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
     fake_fs_backend_fail_on(&filesystem, FAKE_FS_SYNC_PARENT, 1U, EIO);
     storage_fs_ops_t operations = make_operations(&filesystem);
-    uuid_sequence_t uuids = {0};
 
-    TEST_CHECK_EQ_INT(APP_ERROR_IO, atomic_write(path, "new", &operations, &uuids, &filesystem));
-    TEST_CHECK(!path_exists(path));
-    TEST_CHECK_EQ_U64(2U, filesystem.operation_counts[FAKE_FS_SYNC_PARENT]);
-    assert_no_operation_files(path);
-    test_temp_dir_remove(&directory);
-}
-
-static void test_backup_barrier_failure_preserves_old_destination(void) {
-    test_temp_dir_t directory = {0};
-    test_temp_dir_create(&directory);
-    char path[APP_PATH_MAX_BYTES];
-    make_path(path, sizeof(path), &directory, "replace.json");
-    write_text(path, "old");
-
-    fake_fs_backend_t filesystem;
-    fake_fs_backend_reset(&filesystem);
-    fake_fs_backend_fail_on(&filesystem, FAKE_FS_SYNC_PARENT, 1U, ENOSPC);
-    storage_fs_ops_t operations = make_operations(&filesystem);
-    uuid_sequence_t uuids = {0};
-
-    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_FULL,
-                      atomic_write(path, "new", &operations, &uuids, &filesystem));
-    char output[32U];
-    read_text(path, output, sizeof(output));
-    TEST_CHECK_EQ_STRING("old", output);
-    TEST_CHECK_EQ_U64(2U, filesystem.operation_counts[FAKE_FS_SYNC_PARENT]);
-    assert_no_operation_files(path);
-    test_temp_dir_remove(&directory);
-}
-
-static void test_activation_barrier_failure_preserves_old_destination(void) {
-    test_temp_dir_t directory = {0};
-    test_temp_dir_create(&directory);
-    char path[APP_PATH_MAX_BYTES];
-    make_path(path, sizeof(path), &directory, "replace.json");
-    write_text(path, "old");
-
-    fake_fs_backend_t filesystem;
-    fake_fs_backend_reset(&filesystem);
-    fake_fs_backend_fail_on(&filesystem, FAKE_FS_SYNC_PARENT, 2U, EIO);
-    storage_fs_ops_t operations = make_operations(&filesystem);
-    uuid_sequence_t uuids = {0};
-
-    TEST_CHECK_EQ_INT(APP_ERROR_IO, atomic_write(path, "new", &operations, &uuids, &filesystem));
-    char output[32U];
-    read_text(path, output, sizeof(output));
-    TEST_CHECK_EQ_STRING("old", output);
-    TEST_CHECK_EQ_U64(3U, filesystem.operation_counts[FAKE_FS_SYNC_PARENT]);
-    TEST_CHECK_EQ_U64(4U, filesystem.operation_counts[FAKE_FS_RENAME]);
-    assert_no_operation_files(path);
-    test_temp_dir_remove(&directory);
-}
-
-static void test_restore_failure_compensates_with_new_destination(void) {
-    test_temp_dir_t directory = {0};
-    test_temp_dir_create(&directory);
-    char path[APP_PATH_MAX_BYTES];
-    make_path(path, sizeof(path), &directory, "replace.json");
-    write_text(path, "old");
-
-    fake_fs_backend_t filesystem;
-    fake_fs_backend_reset(&filesystem);
-    fake_fs_backend_add_failure(&filesystem, FAKE_FS_SYNC_PARENT, 2U, EIO);
-    fake_fs_backend_add_failure(&filesystem, FAKE_FS_RENAME, 4U, EACCES);
-    storage_fs_ops_t operations = make_operations(&filesystem);
-    uuid_sequence_t uuids = {0};
-
-    TEST_CHECK_EQ_INT(APP_ERROR_IO, atomic_write(path, "new", &operations, &uuids, &filesystem));
+    TEST_CHECK_EQ_INT(APP_ERROR_IO, atomic_write(path, "new", &operations, &filesystem));
     char output[32U];
     read_text(path, output, sizeof(output));
     TEST_CHECK_EQ_STRING("new", output);
-
-    char temporary[APP_PATH_MAX_BYTES];
-    char backup[APP_PATH_MAX_BYTES];
-    make_operation_path(temporary, sizeof(temporary), path, "tmp");
-    make_operation_path(backup, sizeof(backup), path, "bak");
-    TEST_CHECK(!path_exists(temporary));
-    TEST_CHECK(path_exists(backup));
-    read_text(backup, output, sizeof(output));
-    TEST_CHECK_EQ_STRING("old", output);
-    TEST_CHECK_EQ_U64(5U, filesystem.operation_counts[FAKE_FS_RENAME]);
-    TEST_CHECK_EQ_U64(3U, filesystem.operation_counts[FAKE_FS_SYNC_PARENT]);
-    TEST_CHECK_EQ_INT(0, unlink(backup));
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_RENAME]);
+    assert_no_operation_files(path);
     test_temp_dir_remove(&directory);
 }
 
@@ -293,27 +240,25 @@ static void test_parent_sync_enforces_operation_sequence(void) {
     fake_fs_backend_t filesystem;
     fake_fs_backend_reset(&filesystem);
     storage_fs_ops_t operations = make_operations(&filesystem);
-    uuid_sequence_t uuids = {0};
 
     /*
      * Strict fake enforcement (UNIT_TESTS1 L915) for the durable atomic-write
-     * sequence: the plain atomic-write ordering followed by a parent-directory
-     * fsync (fs_sync_parent) after the rename. Strict mode aborts on any
+     * sequence: stage the temporary, verify it by reading it back, rename it
+     * over the destination, then fsync the parent directory. Strict mode aborts on any
      * unexpected, missing, or out-of-order operation, locking the crash-safety
      * barrier that makes the rename durable. If fs_sync_parent were dropped or
      * moved before the rename, this test would abort.
      */
     static const char *const expected[] = {
-        "fs_open", "fs_stat", "fs_write", "fs_sync", "fs_close",  "fs_open",
-        "fs_read", "fs_read", "fs_close", "fs_stat", "fs_rename", "fs_sync_parent",
+        "fs_open", "fs_write", "fs_sync",  "fs_close",  "fs_open",
+        "fs_read", "fs_read",  "fs_close", "fs_rename", "fs_sync_parent",
     };
     fake_call_log_set_strict(&filesystem.calls, true);
     for (size_t index = 0U; index < (sizeof(expected) / sizeof(expected[0])); ++index) {
         fake_call_log_expect(&filesystem.calls, expected[index]);
     }
 
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      atomic_write(path, "value", &operations, &uuids, &filesystem));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, atomic_write(path, "value", &operations, &filesystem));
     fake_call_log_verify(&filesystem.calls);
 
     test_temp_dir_remove(&directory);
@@ -323,10 +268,9 @@ int main(void) {
     test_missing_parent_sync_is_rejected();
     test_create_and_replace_barrier_counts();
     test_parent_sync_enforces_operation_sequence();
-    test_create_activation_barrier_failure_rolls_back();
-    test_backup_barrier_failure_preserves_old_destination();
-    test_activation_barrier_failure_preserves_old_destination();
-    test_restore_failure_compensates_with_new_destination();
+    test_rename_failure_preserves_old_destination();
+    test_rename_failure_on_create_leaves_nothing();
+    test_parent_sync_failure_after_rename_is_reported_not_undone();
     puts("storage parent sync tests passed");
     return EXIT_SUCCESS;
 }

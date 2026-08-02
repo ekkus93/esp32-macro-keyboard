@@ -142,11 +142,9 @@ static void test_unmount_continues_after_one_failure(void) {
 
 /* ---- storage_prepare_directories: topology validation (real filesystem) ---- */
 
+/* SPEC 13.3: /data holds the set index and sets/, and nothing else. */
 static const char *const required_dirs[] = {
     STORAGE_DATA_MOUNT "/sets",
-    STORAGE_DATA_MOUNT "/staging",
-    STORAGE_DATA_MOUNT "/trash",
-    STORAGE_DATA_MOUNT "/transactions",
 };
 
 static bool is_directory(const char *path) {

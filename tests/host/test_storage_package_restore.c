@@ -22,8 +22,6 @@
 
 #define SET_ID "11111111-1111-4111-8111-111111111111"
 #define LOCAL_MACRO_ID "22222222-2222-4222-8222-222222222222"
-#define RESTORE_TX_ID_A "66666666-6666-4666-8666-666666666666"
-#define RESTORE_TX_ID_B "77777777-7777-4777-8777-777777777777"
 
 static const char BACKUP_PACKAGE[] =
     "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":[{"
@@ -33,7 +31,7 @@ static const char BACKUP_PACKAGE[] =
     "\"source\":\"a\",\"key_press_ms\":8,"
     "\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}]}";
 
-static bool inject_staging_storage_full;
+static bool inject_set_write_storage_full;
 
 app_error_code_t __real_storage_atomic_write(const char *path, const void *data, size_t data_length,
                                              bool sync_required);
@@ -51,7 +49,9 @@ static bool path_has_suffix(const char *path, const char *suffix) {
 
 app_error_code_t __wrap_storage_atomic_write(const char *path, const void *data, size_t data_length,
                                              bool sync_required) {
-    if (inject_staging_storage_full && path != NULL && strstr(path, "/staging/") != NULL &&
+    /* Sets are materialized straight into /data/sets/ now that staging is gone
+     * (SPEC 13.3), so the injection point is the set file itself. */
+    if (inject_set_write_storage_full && path != NULL && strstr(path, "/sets/") != NULL &&
         path_has_suffix(path, "/set.json")) {
         return APP_ERROR_STORAGE_FULL;
     }
@@ -85,16 +85,12 @@ static void remove_storage(void) {
 }
 
 static void create_repository_layout(void) {
-    inject_staging_storage_full = false;
+    inject_set_write_storage_full = false;
     remove_storage();
     make_directory(STORAGE_DATA_MOUNT);
     char path[APP_PATH_MAX_BYTES];
-    static const char *const directories[] = {
-        "transactions",
-        "staging",
-        "trash",
-        "sets",
-    };
+    /* SPEC 13.3: /data holds the set index and sets/, and nothing else. */
+    static const char *const directories[] = {"sets"};
     for (size_t index = 0U; index < sizeof(directories) / sizeof(directories[0]); ++index) {
         join_path(path, sizeof(path), STORAGE_DATA_MOUNT, directories[index]);
         make_directory(path);
@@ -109,26 +105,6 @@ static void create_empty_repository(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
     create_repository_layout();
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
-}
-
-static bool directory_empty(const char *path) {
-    DIR *directory = opendir(path);
-    TEST_CHECK(directory != NULL);
-    bool empty = true;
-    while (true) {
-        errno = 0;
-        const struct dirent *entry = readdir(directory);
-        if (entry == NULL) {
-            TEST_CHECK_EQ_INT(0, errno);
-            break;
-        }
-        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-            empty = false;
-            break;
-        }
-    }
-    TEST_CHECK_EQ_INT(0, closedir(directory));
-    return empty;
 }
 
 static char *read_text(const char *path) {
@@ -158,43 +134,9 @@ static void assert_repository_remains_empty(void) {
     free(schema);
 }
 
-static storage_transaction_manifest_t make_restore_manifest(const char *transaction_id) {
-    storage_transaction_manifest_t manifest = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .type = STORAGE_TRANSACTION_RESTORE,
-        .phase = STORAGE_TRANSACTION_PREPARED,
-    };
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_parse(transaction_id, &manifest.id));
-    const int source = snprintf(manifest.source, sizeof(manifest.source), "%s", STORAGE_DATA_MOUNT);
-    const int staging = snprintf(manifest.staging, sizeof(manifest.staging),
-                                 STORAGE_DATA_MOUNT "/staging/%s", transaction_id);
-    const int destination =
-        snprintf(manifest.destination, sizeof(manifest.destination), "%s", STORAGE_DATA_MOUNT);
-    const int backup = snprintf(manifest.backup, sizeof(manifest.backup),
-                                STORAGE_DATA_MOUNT "/trash/restore-%s", transaction_id);
-    TEST_CHECK(source > 0 && (size_t)source < sizeof(manifest.source));
-    TEST_CHECK(staging > 0 && (size_t)staging < sizeof(manifest.staging));
-    TEST_CHECK(destination > 0 && (size_t)destination < sizeof(manifest.destination));
-    TEST_CHECK(backup > 0 && (size_t)backup < sizeof(manifest.backup));
-    return manifest;
-}
-
-static void stage_prepared_restore(const char *transaction_id) {
-    const storage_transaction_manifest_t manifest = make_restore_manifest(transaction_id);
-    make_directory(manifest.staging);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_transaction_write_manifest(&manifest));
-}
-
-static void assert_transaction_evidence_empty(void) {
-    char path[APP_PATH_MAX_BYTES];
-    static const char *const evidence_roots[] = {"transactions", "staging", "trash"};
-    for (size_t item = 0U; item < sizeof(evidence_roots) / sizeof(evidence_roots[0]); ++item) {
-        join_path(path, sizeof(path), STORAGE_DATA_MOUNT, evidence_roots[item]);
-        TEST_CHECK(directory_empty(path));
-    }
-}
-
-static void test_complete_backup_restores_atomically(void) {
+/* SPEC 13.5: restore is deliberately not atomic across sets. What it must still
+ * guarantee is that each set it does write lands complete. */
+static void test_complete_backup_restores_every_set(void) {
     create_empty_repository();
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_restore_backup(
                                              BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U));
@@ -213,7 +155,6 @@ static void test_complete_backup_restores_atomically(void) {
     char *schema = read_text(path);
     TEST_CHECK_EQ_STRING("{\"schema_version\":1}", schema);
     free(schema);
-    assert_transaction_evidence_empty();
 }
 
 /* Mutual-exclusion prover: models one non-recursive lock. On the armed take it
@@ -288,15 +229,16 @@ static void test_concurrency_restore_excludes_mutation(void) {
     TEST_CHECK(!g_mx.held);
 }
 
-static void test_storage_full_during_staging_rolls_back(void) {
+/* A storage-full failure part-way through must not leave a half-written set
+ * behind pretending to be real data. */
+static void test_storage_full_during_restore_leaves_no_partial_set(void) {
     create_empty_repository();
-    inject_staging_storage_full = true;
+    inject_set_write_storage_full = true;
     const app_error_code_t result =
         storage_package_restore_backup(BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U);
-    inject_staging_storage_full = false;
+    inject_set_write_storage_full = false;
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL, result);
     assert_repository_remains_empty();
-    assert_transaction_evidence_empty();
 }
 
 static void test_invalid_backup_does_not_mutate_repository(void) {
@@ -307,36 +249,6 @@ static void test_invalid_backup_does_not_mutate_repository(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          storage_package_restore_backup(invalid, sizeof(invalid) - 1U));
     assert_repository_remains_empty();
-    char path[APP_PATH_MAX_BYTES];
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "transactions");
-    TEST_CHECK(directory_empty(path));
-}
-
-static void test_startup_recovery_rolls_back_prepared_restore(void) {
-    create_empty_repository();
-    stage_prepared_restore(RESTORE_TX_ID_A);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_transaction_recover_restores());
-    assert_repository_remains_empty();
-    assert_transaction_evidence_empty();
-}
-
-static void test_startup_recovery_rejects_multiple_restore_manifests(void) {
-    create_empty_repository();
-    stage_prepared_restore(RESTORE_TX_ID_A);
-    stage_prepared_restore(RESTORE_TX_ID_B);
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_transaction_recover_restores());
-    assert_repository_remains_empty();
-    char path[APP_PATH_MAX_BYTES];
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "transactions");
-    TEST_CHECK(!directory_empty(path));
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "staging");
-    TEST_CHECK(!directory_empty(path));
-}
-
-static void test_empty_startup_recovery_is_noop(void) {
-    create_empty_repository();
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_transaction_recover_restores());
-    assert_repository_remains_empty();
 }
 
 static void test_restore_requires_initialized_repository_lock(void) {
@@ -345,19 +257,13 @@ static void test_restore_requires_initialized_repository_lock(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, storage_package_restore_backup(
                                                  BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U));
     assert_repository_remains_empty();
-    char path[APP_PATH_MAX_BYTES];
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "transactions");
-    TEST_CHECK(directory_empty(path));
 }
 
 int main(void) {
-    test_complete_backup_restores_atomically();
+    test_complete_backup_restores_every_set();
     test_concurrency_restore_excludes_mutation();
-    test_storage_full_during_staging_rolls_back();
+    test_storage_full_during_restore_leaves_no_partial_set();
     test_invalid_backup_does_not_mutate_repository();
-    test_startup_recovery_rolls_back_prepared_restore();
-    test_startup_recovery_rejects_multiple_restore_manifests();
-    test_empty_startup_recovery_is_noop();
     test_restore_requires_initialized_repository_lock();
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
     remove_storage();

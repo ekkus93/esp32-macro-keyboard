@@ -6,8 +6,6 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/macro_keymap_us.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_restore.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_transaction_restore.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_transaction_restore_recovery.c"
 )
 target_include_directories(
     storage_package_restore_tests

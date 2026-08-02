@@ -31,11 +31,10 @@ static app_error_code_t ensure_directory(const char *path) {
 }
 
 app_error_code_t storage_prepare_directories(void) {
+    /* SPEC 13.3: /data holds the set index and sets/, and nothing else. There
+     * is no staging, trash, or transactions directory. */
     static const char *const paths[] = {
         STORAGE_DATA_MOUNT "/sets",
-        STORAGE_DATA_MOUNT "/staging",
-        STORAGE_DATA_MOUNT "/trash",
-        STORAGE_DATA_MOUNT "/transactions",
     };
     for (size_t index = 0U; index < (sizeof(paths) / sizeof(paths[0])); ++index) {
         const app_error_code_t result = ensure_directory(paths[index]);

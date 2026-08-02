@@ -30,15 +30,12 @@ app_error_code_t storage_repository_read_bounded_file(const char *path, size_t m
 app_error_code_t storage_repository_directory_has_entries_with_ops(
     const char *path, const storage_fs_ops_t *operations, bool *out_has_entries);
 app_error_code_t storage_repository_directory_has_entries(const char *path, bool *out_has_entries);
-app_error_code_t storage_repository_ensure_initial_file_with_ops(
-    const char *path, const char *contents, const storage_fs_ops_t *operations,
-    storage_uuid_generate_fn generate_uuid, void *uuid_context);
+app_error_code_t
+storage_repository_ensure_initial_file_with_ops(const char *path, const char *contents,
+                                                const storage_fs_ops_t *operations);
 app_error_code_t storage_repository_ensure_initial_file(const char *path, const char *contents);
 app_error_code_t storage_repository_set_file_path(const app_uuid_t *set_id, char *buffer,
                                                   size_t buffer_size);
-app_error_code_t storage_repository_remove_manifest_with_ops(const app_uuid_t *transaction_id,
-                                                             const storage_fs_ops_t *operations);
-app_error_code_t storage_repository_remove_manifest(const app_uuid_t *transaction_id);
 /* Deletes a file whose contents could not be parsed. Replaces quarantine:
  * damaged data is discarded and the failure is reported, not archived. */
 app_error_code_t storage_repository_discard_corrupt_file(const char *path);

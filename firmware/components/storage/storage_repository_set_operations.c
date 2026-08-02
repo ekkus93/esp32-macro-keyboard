@@ -55,14 +55,14 @@ static app_error_code_t make_child_directory(const char *parent, const char *nam
     return storage_repository_make_directory(path);
 }
 
-static app_error_code_t write_duplicate_metadata(const char *staging,
+static app_error_code_t write_duplicate_metadata(const char *set_root,
                                                  const macro_set_t *duplicate) {
     char *json = NULL;
     size_t json_length = 0U;
     app_error_code_t result = storage_repository_serialize_set_json(duplicate, &json, &json_length);
     char path[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
-        const int written = snprintf(path, sizeof(path), "%s/set.json", staging);
+        const int written = snprintf(path, sizeof(path), "%s/set.json", set_root);
         if (written < 0 || (size_t)written >= sizeof(path)) {
             result = APP_ERROR_INVALID_ARGUMENT;
         }
@@ -74,7 +74,7 @@ static app_error_code_t write_duplicate_metadata(const char *staging,
     return write_json_file(path, json, json_length);
 }
 
-static app_error_code_t write_duplicate_macro(const char *staging, const macro_t *source,
+static app_error_code_t write_duplicate_macro(const char *set_root, const macro_t *source,
                                               const app_uuid_t *duplicate_set_id) {
     macro_t duplicate = *source;
     duplicate.revision = 1U;
@@ -86,7 +86,7 @@ static app_error_code_t write_duplicate_macro(const char *staging, const macro_t
     char path[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
         const int written =
-            snprintf(path, sizeof(path), "%s/macros/%s.json", staging, duplicate.id.value);
+            snprintf(path, sizeof(path), "%s/macros/%s.json", set_root, duplicate.id.value);
         if (written < 0 || (size_t)written >= sizeof(path)) {
             result = APP_ERROR_INVALID_ARGUMENT;
         }
@@ -98,7 +98,7 @@ static app_error_code_t write_duplicate_macro(const char *staging, const macro_t
     return write_json_file(path, json, json_length);
 }
 
-static app_error_code_t write_duplicate_order(const char *staging, const char *filename,
+static app_error_code_t write_duplicate_order(const char *set_root, const char *filename,
                                               size_t maximum_count, const app_uuid_t *ids,
                                               size_t count) {
     /* storage_uuid_order_t is ~3.7 KB. With the procedure half of the duplicate
@@ -120,7 +120,7 @@ static app_error_code_t write_duplicate_order(const char *staging, const char *f
     free(order);
     char path[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
-        const int written = snprintf(path, sizeof(path), "%s/%s", staging, filename);
+        const int written = snprintf(path, sizeof(path), "%s/%s", set_root, filename);
         if (written < 0 || (size_t)written >= sizeof(path)) {
             result = APP_ERROR_INVALID_ARGUMENT;
         }
@@ -132,24 +132,20 @@ static app_error_code_t write_duplicate_order(const char *staging, const char *f
     return write_json_file(path, json, json_length);
 }
 
-static app_error_code_t create_duplicate_staging(const macro_set_t *duplicate,
-                                                 const storage_macro_list_t *macros,
-                                                 const app_uuid_t *transaction_id, char *staging,
-                                                 size_t staging_size) {
-    const int staging_length =
-        snprintf(staging, staging_size, STORAGE_DATA_MOUNT "/staging/%s", transaction_id->value);
-    if (staging_length < 0 || (size_t)staging_length >= staging_size) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    app_error_code_t result = storage_repository_make_directory(staging);
+/* Written straight to the duplicate's final path: there is no set_root
+ * directory (SPEC 13.3). */
+static app_error_code_t write_duplicate_tree(const macro_set_t *duplicate,
+                                             const storage_macro_list_t *macros,
+                                             const char *set_root) {
+    app_error_code_t result = storage_repository_make_directory(set_root);
     static const char *const child_names[] = {"macros"};
     for (size_t index = 0U;
          result == APP_ERROR_NONE && index < sizeof(child_names) / sizeof(child_names[0]);
          ++index) {
-        result = make_child_directory(staging, child_names[index]);
+        result = make_child_directory(set_root, child_names[index]);
     }
     if (result == APP_ERROR_NONE) {
-        result = write_duplicate_metadata(staging, duplicate);
+        result = write_duplicate_metadata(set_root, duplicate);
     }
 
     app_uuid_t *ordered_ids =
@@ -159,10 +155,10 @@ static app_error_code_t create_duplicate_staging(const macro_set_t *duplicate,
     }
     for (size_t index = 0U; result == APP_ERROR_NONE && index < macros->count; ++index) {
         ordered_ids[index] = macros->items[index].id;
-        result = write_duplicate_macro(staging, &macros->items[index], &duplicate->id);
+        result = write_duplicate_macro(set_root, &macros->items[index], &duplicate->id);
     }
     if (result == APP_ERROR_NONE) {
-        result = write_duplicate_order(staging, "macro-order.json", APP_MACROS_PER_SET_MAX,
+        result = write_duplicate_order(set_root, "macro-order.json", APP_MACROS_PER_SET_MAX,
                                        ordered_ids, macros->count);
     }
     free(ordered_ids);
@@ -198,52 +194,6 @@ static app_error_code_t index_accepts_duplicate(const storage_set_index_t *index
         return APP_ERROR_CONFLICT;
     }
     return errno == ENOENT ? APP_ERROR_NONE : storage_repository_map_file_error();
-}
-
-static app_error_code_t activate_duplicate(const macro_set_t *duplicate, storage_set_index_t *index,
-                                           const app_uuid_t *transaction_id, const char *staging) {
-    char destination[APP_PATH_MAX_BYTES];
-    app_error_code_t result =
-        storage_make_set_path(&duplicate->id, destination, sizeof(destination));
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    storage_transaction_manifest_t manifest = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .id = *transaction_id,
-        .type = STORAGE_TRANSACTION_DUPLICATE_SET,
-        .phase = STORAGE_TRANSACTION_STAGED,
-        .expected_revision = 0U,
-        .replacement_revision = duplicate->revision,
-    };
-    const int staging_copy = snprintf(manifest.staging, sizeof(manifest.staging), "%s", staging);
-    const int destination_copy =
-        snprintf(manifest.destination, sizeof(manifest.destination), "%s", destination);
-    if (staging_copy < 0 || (size_t)staging_copy >= sizeof(manifest.staging) ||
-        destination_copy < 0 || (size_t)destination_copy >= sizeof(manifest.destination)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    result = storage_transaction_write_manifest(&manifest);
-    if (result != APP_ERROR_NONE) {
-        const app_error_code_t cleanup = storage_repository_remove_tree(staging);
-        return cleanup == APP_ERROR_NONE ? result : cleanup;
-    }
-    if (rename(staging, destination) != 0) {
-        return storage_repository_map_file_error();
-    }
-    manifest.phase = STORAGE_TRANSACTION_ACTIVATED;
-    result = storage_transaction_write_manifest(&manifest);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    index->ids[index->count++] = duplicate->id;
-    result = storage_repository_write_index(index);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    manifest.phase = STORAGE_TRANSACTION_INDEXED;
-    result = storage_transaction_write_manifest(&manifest);
-    return result == APP_ERROR_NONE ? storage_repository_remove_manifest(transaction_id) : result;
 }
 
 static app_error_code_t storage_set_duplicate_locked(const app_uuid_t *source_id,
@@ -288,19 +238,21 @@ static app_error_code_t storage_set_duplicate_locked(const app_uuid_t *source_id
     if (result == APP_ERROR_NONE) {
         result = storage_macro_list_locked(source_id, &macros);
     }
-    app_uuid_t transaction_id = {0};
+    char destination[APP_PATH_MAX_BYTES] = {0};
     if (result == APP_ERROR_NONE) {
-        result = app_uuid_generate(&transaction_id);
-    }
-    char staging[APP_PATH_MAX_BYTES] = {0};
-    if (result == APP_ERROR_NONE) {
-        result = create_duplicate_staging(&duplicate, &macros, &transaction_id, staging,
-                                          sizeof(staging));
+        result = storage_make_set_path(&duplicate.id, destination, sizeof(destination));
     }
     if (result == APP_ERROR_NONE) {
-        result = activate_duplicate(&duplicate, &index, &transaction_id, staging);
-    } else if (staging[0] != '\0') {
-        const app_error_code_t cleanup = storage_repository_remove_tree(staging);
+        result = write_duplicate_tree(&duplicate, &macros, destination);
+    }
+    if (result == APP_ERROR_NONE) {
+        /* Index last, as in set creation: the duplicate is unreferenced until
+         * this write lands. */
+        index.ids[index.count++] = duplicate.id;
+        result = storage_repository_write_index(&index);
+    }
+    if (result != APP_ERROR_NONE && destination[0] != '\0') {
+        const app_error_code_t cleanup = storage_repository_remove_tree(destination);
         if (cleanup != APP_ERROR_NONE) {
             result = cleanup;
         }
@@ -312,7 +264,6 @@ static app_error_code_t storage_set_duplicate_locked(const app_uuid_t *source_id
     }
     return result;
 }
-
 app_error_code_t storage_set_duplicate(const app_uuid_t *source_id, uint32_t expected_revision,
                                        const app_uuid_t *duplicate_id, const char *duplicate_name,
                                        macro_set_t *out_duplicate) {

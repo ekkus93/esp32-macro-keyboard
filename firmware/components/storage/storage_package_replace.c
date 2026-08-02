@@ -19,7 +19,6 @@
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_sets_internal.h"
-#include "storage_transaction_internal.h"
 
 #define PACKAGE_REPLACE_ARRAY_COUNT 2U
 #define PACKAGE_JSON_SUFFIX ".json"
@@ -34,41 +33,6 @@ typedef struct {
     const cJSON *arrays[PACKAGE_REPLACE_ARRAY_COUNT];
     macro_set_t replacement;
 } package_replace_document_t;
-
-static app_error_code_t package_uuid_generate(void *context, app_uuid_t *out_uuid) {
-    (void)context;
-    return app_uuid_generate(out_uuid);
-}
-
-static app_error_code_t package_index_presence(void *context, const app_uuid_t *set_id,
-                                               bool should_be_present) {
-    (void)context;
-    return storage_repository_set_index_presence(set_id, should_be_present);
-}
-
-/* The on-disk tree-shape re-check is gone: storage_set_tree.c and
- * storage_repository_tree.c were deleted with procedures and progress, because
- * the layout they walked is itself replaced by the flat /data/sets/<id>.json
- * scheme. Every package is still fully validated by storage_package_validate()
- * before a single byte is written, so what is missing here is the second,
- * belt-and-braces pass over freshly materialized directories - not the only
- * check. The seam is kept so the transaction recovery paths stay testable with
- * an injected failing validator, and so Phase 4 removes the plumbing on
- * purpose rather than by accident. */
-static app_error_code_t package_validate_tree(void *context, const char *path,
-                                              const app_uuid_t *set_id,
-                                              uint32_t expected_revision) {
-    (void)context;
-    (void)path;
-    (void)set_id;
-    (void)expected_revision;
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t package_remove_tree(void *context, const char *path) {
-    (void)context;
-    return storage_repository_remove_tree(path);
-}
 
 static app_error_code_t map_error_number(int error_number) {
     if (error_number == ENOSPC) {
@@ -186,13 +150,13 @@ static app_error_code_t write_json_file(const char *path, const char *json, size
     return storage_atomic_write(path, json, length, true);
 }
 
-static app_error_code_t write_set(const char *staging, const macro_set_t *set) {
+static app_error_code_t write_set(const char *set_root, const macro_set_t *set) {
     char *json = NULL;
     size_t length = 0U;
     app_error_code_t result = storage_repository_serialize_set_json(set, &json, &length);
     char path[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
-        result = join_path(staging, "set.json", path, sizeof(path));
+        result = join_path(set_root, "set.json", path, sizeof(path));
     }
     if (result == APP_ERROR_NONE) {
         result = write_json_file(path, json, length);
@@ -201,7 +165,7 @@ static app_error_code_t write_set(const char *staging, const macro_set_t *set) {
     return result;
 }
 
-static app_error_code_t write_order(const char *staging, const char *name,
+static app_error_code_t write_order(const char *set_root, const char *name,
                                     const storage_uuid_order_t *order, size_t maximum) {
     char *json = NULL;
     size_t length = 0U;
@@ -209,7 +173,7 @@ static app_error_code_t write_order(const char *staging, const char *name,
         storage_repository_serialize_order_json(order, maximum, &json, &length);
     char path[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
-        result = join_path(staging, name, path, sizeof(path));
+        result = join_path(set_root, name, path, sizeof(path));
     }
     if (result == APP_ERROR_NONE) {
         result = write_json_file(path, json, length);
@@ -250,10 +214,10 @@ static app_error_code_t write_macro_node(const char *directory, const cJSON *nod
     return result;
 }
 
-static app_error_code_t write_macros(const char *staging, const cJSON *array,
+static app_error_code_t write_macros(const char *set_root, const cJSON *array,
                                      const app_uuid_t *set_id) {
     char directory[APP_PATH_MAX_BYTES];
-    app_error_code_t result = join_path(staging, "macros", directory, sizeof(directory));
+    app_error_code_t result = join_path(set_root, "macros", directory, sizeof(directory));
     /* storage_uuid_order_t is ~4 KB; keep it off the task stack. */
     storage_uuid_order_t *order = calloc(1U, sizeof(*order));
     if (order == NULL) {
@@ -264,25 +228,19 @@ static app_error_code_t write_macros(const char *staging, const cJSON *array,
         result = write_macro_node(directory, cJSON_GetArrayItem(array, index), set_id, order);
     }
     if (result == APP_ERROR_NONE) {
-        result = write_order(staging, "macro-order.json", order, APP_MACROS_PER_SET_MAX);
+        result = write_order(set_root, "macro-order.json", order, APP_MACROS_PER_SET_MAX);
     }
     free(order);
     return result;
 }
 
-static app_error_code_t create_staging(const app_uuid_t *transaction_id, char *staging,
-                                       size_t staging_size) {
-    const int written =
-        snprintf(staging, staging_size, STORAGE_DATA_MOUNT "/staging/%s", transaction_id->value);
-    if (written < 0 || (size_t)written >= staging_size) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    app_error_code_t result = make_directory(staging);
+static app_error_code_t create_set_directories(const char *set_root) {
+    app_error_code_t result = make_directory(set_root);
     static const char *const children[] = {"macros"};
     for (size_t index = 0U;
          result == APP_ERROR_NONE && index < sizeof(children) / sizeof(children[0]); ++index) {
         char path[APP_PATH_MAX_BYTES];
-        result = join_path(staging, children[index], path, sizeof(path));
+        result = join_path(set_root, children[index], path, sizeof(path));
         if (result == APP_ERROR_NONE) {
             result = make_directory(path);
         }
@@ -290,67 +248,30 @@ static app_error_code_t create_staging(const app_uuid_t *transaction_id, char *s
     return result;
 }
 
-static app_error_code_t materialize_staging(const package_replace_document_t *document,
-                                            const char *staging) {
-    app_error_code_t result = write_set(staging, &document->replacement);
+static app_error_code_t materialize_set(const package_replace_document_t *document,
+                                        const char *set_root) {
+    app_error_code_t result = write_set(set_root, &document->replacement);
     if (result == APP_ERROR_NONE) {
-        result = write_macros(staging, document->arrays[PACKAGE_REPLACE_MACROS],
+        result = write_macros(set_root, document->arrays[PACKAGE_REPLACE_MACROS],
                               &document->replacement.id);
     }
     return result;
 }
 
-static app_error_code_t copy_manifest_path(char *destination, size_t destination_size,
-                                           const char *source) {
-    const int written = snprintf(destination, destination_size, "%s", source);
-    return written >= 0 && (size_t)written < destination_size ? APP_ERROR_NONE
-                                                              : APP_ERROR_INVALID_ARGUMENT;
-}
-
-static app_error_code_t initialize_manifest(const app_uuid_t *transaction_id,
-                                            const macro_set_t *current,
-                                            const macro_set_t *replacement, const char *staging,
-                                            storage_transaction_manifest_t *out_manifest) {
-    memset(out_manifest, 0, sizeof(*out_manifest));
-    out_manifest->schema_version = APP_SCHEMA_VERSION;
-    out_manifest->id = *transaction_id;
-    out_manifest->type = STORAGE_TRANSACTION_REPLACE_SET;
-    out_manifest->phase = STORAGE_TRANSACTION_PREPARED;
-    out_manifest->expected_revision = current->revision;
-    out_manifest->replacement_revision = replacement->revision;
-    char destination[APP_PATH_MAX_BYTES];
-    app_error_code_t result =
-        storage_make_set_path(&replacement->id, destination, sizeof(destination));
-    char backup[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        const int written = snprintf(backup, sizeof(backup), STORAGE_DATA_MOUNT "/trash/%s-%s",
-                                     replacement->id.value, transaction_id->value);
-        result = written >= 0 && (size_t)written < sizeof(backup) ? APP_ERROR_NONE
-                                                                  : APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (result == APP_ERROR_NONE) {
-        result =
-            copy_manifest_path(out_manifest->source, sizeof(out_manifest->source), destination);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = copy_manifest_path(out_manifest->staging, sizeof(out_manifest->staging), staging);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = copy_manifest_path(out_manifest->destination, sizeof(out_manifest->destination),
-                                    destination);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = copy_manifest_path(out_manifest->backup, sizeof(out_manifest->backup), backup);
-    }
-    return result;
-}
-
-static app_error_code_t recover_replace(storage_transaction_manifest_t *manifest) {
-    return storage_transaction_recover_replace_with_ops(
-        manifest, storage_fs_ops_posix(), package_uuid_generate, NULL, package_index_presence, NULL,
-        package_validate_tree, NULL, package_remove_tree, NULL);
-}
-
+/* SPEC 8.7 replacement, without the transaction machinery.
+ *
+ * A set is still a directory of files at this point in the sequence, so the old
+ * tree is removed and the new one written in its place. That is NOT atomic: an
+ * interruption between the two leaves the set partially written while the index
+ * still references it, and it will read back as corrupt -- which SPEC 13.6
+ * handles by reporting and deleting it, not by silently substituting a default.
+ * The old contents are gone either way, because the design forbids keeping a
+ * second on-device copy to roll back to (SPEC 22, invariant 16).
+ *
+ * Phase 4 closes this window completely: once a set is a single file, the whole
+ * replacement is one `storage_atomic_write`, and `rename()` makes it atomic
+ * with no staging directory and no manifest. This is the one place in Phase 3
+ * where crash-safety is temporarily weaker than what it replaced. */
 static app_error_code_t replace_locked(const app_uuid_t *target_set_id, uint32_t expected_revision,
                                        package_replace_document_t *document, macro_set_t *out_set) {
     macro_set_t current = {0};
@@ -358,44 +279,18 @@ static app_error_code_t replace_locked(const app_uuid_t *target_set_id, uint32_t
     if (result == APP_ERROR_NONE && current.revision != expected_revision) {
         result = APP_ERROR_CONFLICT;
     }
-    app_uuid_t transaction_id = {0};
+    char destination[APP_PATH_MAX_BYTES] = {0};
     if (result == APP_ERROR_NONE) {
-        result = app_uuid_generate(&transaction_id);
-    }
-    char staging[APP_PATH_MAX_BYTES] = {0};
-    storage_transaction_manifest_t manifest = {0};
-    bool manifest_written = false;
-    if (result == APP_ERROR_NONE) {
-        const int written = snprintf(staging, sizeof(staging), STORAGE_DATA_MOUNT "/staging/%s",
-                                     transaction_id.value);
-        result = written >= 0 && (size_t)written < sizeof(staging) ? APP_ERROR_NONE
-                                                                   : APP_ERROR_INVALID_ARGUMENT;
+        result = storage_make_set_path(target_set_id, destination, sizeof(destination));
     }
     if (result == APP_ERROR_NONE) {
-        result = initialize_manifest(&transaction_id, &current, &document->replacement, staging,
-                                     &manifest);
+        result = storage_repository_remove_tree(destination);
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_transaction_write_manifest(&manifest);
-        manifest_written = result == APP_ERROR_NONE;
+        result = create_set_directories(destination);
     }
     if (result == APP_ERROR_NONE) {
-        result = create_staging(&transaction_id, staging, sizeof(staging));
-    }
-    if (result == APP_ERROR_NONE) {
-        result = materialize_staging(document, staging);
-    }
-    if (result == APP_ERROR_NONE) {
-        manifest.phase = STORAGE_TRANSACTION_STAGED;
-        result = storage_transaction_write_manifest(&manifest);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = recover_replace(&manifest);
-    } else if (manifest_written) {
-        const app_error_code_t rollback = recover_replace(&manifest);
-        if (rollback != APP_ERROR_NONE) {
-            return result;
-        }
+        result = materialize_set(document, destination);
     }
     if (result == APP_ERROR_NONE) {
         result = storage_set_read_locked(target_set_id, out_set);

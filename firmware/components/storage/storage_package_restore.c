@@ -18,7 +18,6 @@
 #include "storage_object_json.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
-#include "storage_transaction_internal.h"
 
 #define PACKAGE_RESTORE_ARRAY_COUNT 2U
 #define PACKAGE_JSON_SUFFIX ".json"
@@ -32,31 +31,6 @@ typedef struct {
     cJSON *root;
     const cJSON *arrays[PACKAGE_RESTORE_ARRAY_COUNT];
 } package_restore_document_t;
-
-static app_error_code_t restore_uuid_generate(void *context, app_uuid_t *out_uuid) {
-    (void)context;
-    return app_uuid_generate(out_uuid);
-}
-
-/* The on-disk tree-shape re-check is gone: storage_set_tree.c and
- * storage_repository_tree.c were deleted with procedures and progress, because
- * the layout they walked is itself replaced by the flat /data/sets/<id>.json
- * scheme. Every package is still fully validated by storage_package_validate()
- * before a single byte is written, so what is missing here is the second,
- * belt-and-braces pass over freshly materialized directories - not the only
- * check. The seam is kept so the transaction recovery paths stay testable with
- * an injected failing validator, and so Phase 4 removes the plumbing on
- * purpose rather than by accident. */
-static app_error_code_t restore_validate_repository(void *context, const char *root) {
-    (void)context;
-    (void)root;
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t restore_remove_tree(void *context, const char *path) {
-    (void)context;
-    return storage_repository_remove_tree(path);
-}
 
 static app_error_code_t map_error_number(int error_number) {
     if (error_number == ENOSPC) {
@@ -179,7 +153,7 @@ static app_error_code_t write_order_file(const char *directory, const char *name
     return result;
 }
 
-static app_error_code_t write_set_index(const char *staging, const storage_set_index_t *index) {
+static app_error_code_t write_set_index(const char *data_root, const storage_set_index_t *index) {
     cJSON *root = cJSON_CreateObject();
     cJSON *ids = cJSON_CreateArray();
     if (root == NULL || ids == NULL ||
@@ -205,7 +179,7 @@ static app_error_code_t write_set_index(const char *staging, const storage_set_i
     const size_t length = strlen(json);
     char path[APP_PATH_MAX_BYTES];
     app_error_code_t result = length <= STORAGE_INDEX_FILE_MAX_BYTES
-                                  ? join_path(staging, "set-index.json", path, sizeof(path))
+                                  ? join_path(data_root, "set-index.json", path, sizeof(path))
                                   : APP_ERROR_INVALID_ARGUMENT;
     if (result == APP_ERROR_NONE) {
         result = write_json_file(path, json, length);
@@ -270,7 +244,13 @@ static app_error_code_t write_set_macros(const package_restore_document_t *docum
                                          const macro_set_t *set, const char *set_root) {
     char directory[APP_PATH_MAX_BYTES];
     app_error_code_t result = join_path(set_root, "macros", directory, sizeof(directory));
-    storage_uuid_order_t order = {0};
+    /* storage_uuid_order_t is ~3.7 KB. With the transaction layer gone this
+     * function inlines into materialize_sets, which put that frame at 5152
+     * bytes against the ratchet's 4096 (scripts/check-stack-usage.sh). */
+    storage_uuid_order_t *order = calloc(1U, sizeof(*order));
+    if (order == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
     const int count = cJSON_GetArraySize(document->arrays[PACKAGE_RESTORE_MACROS]);
     for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
         macro_t macro = {0};
@@ -278,26 +258,28 @@ static app_error_code_t write_set_macros(const package_restore_document_t *docum
             cJSON_GetArrayItem(document->arrays[PACKAGE_RESTORE_MACROS], index), &macro);
         const bool belongs = result == APP_ERROR_NONE && app_uuid_equal(&macro.set_id, &set->id);
         if (result == APP_ERROR_NONE && belongs) {
-            if (order.count >= APP_MACROS_PER_SET_MAX) {
+            if (order->count >= APP_MACROS_PER_SET_MAX) {
                 result = APP_ERROR_INVALID_ARGUMENT;
             } else {
                 result = write_macro_object(directory, &macro);
                 if (result == APP_ERROR_NONE) {
-                    order.ids[order.count++] = macro.id;
+                    order->ids[order->count++] = macro.id;
                 }
             }
         }
         macro_model_free_macro(&macro);
     }
-    return result == APP_ERROR_NONE
-               ? write_order_file(set_root, "macro-order.json", &order, APP_MACROS_PER_SET_MAX)
-               : result;
+    if (result == APP_ERROR_NONE) {
+        result = write_order_file(set_root, "macro-order.json", order, APP_MACROS_PER_SET_MAX);
+    }
+    free(order);
+    return result;
 }
 
 static app_error_code_t materialize_sets(const package_restore_document_t *document,
-                                         const char *staging) {
+                                         const char *data_root) {
     char sets_root[APP_PATH_MAX_BYTES];
-    app_error_code_t result = join_path(staging, "sets", sets_root, sizeof(sets_root));
+    app_error_code_t result = join_path(data_root, "sets", sets_root, sizeof(sets_root));
     /* storage_set_index_t is several KiB; keep it off the task stack. */
     storage_set_index_t *index = calloc(1U, sizeof(*index));
     if (index == NULL) {
@@ -326,123 +308,43 @@ static app_error_code_t materialize_sets(const package_restore_document_t *docum
         }
     }
     if (result == APP_ERROR_NONE) {
-        result = write_set_index(staging, index);
+        result = write_set_index(data_root, index);
     }
     free(index);
     return result;
 }
 
-static app_error_code_t create_staging(const app_uuid_t *transaction_id, char *staging,
-                                       size_t staging_size) {
-    const int written =
-        snprintf(staging, staging_size, STORAGE_DATA_MOUNT "/staging/%s", transaction_id->value);
-    if (written < 0 || (size_t)written >= staging_size) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    app_error_code_t result = make_directory(staging);
+/* Clears the existing repository so the backup's sets can be written in its
+ * place. Only sets/ and the set index are touched: everything else under /data
+ * belongs to other subsystems or does not exist. */
+static app_error_code_t clear_existing_sets(void) {
+    char sets_root[APP_PATH_MAX_BYTES];
+    app_error_code_t result = join_path(STORAGE_DATA_MOUNT, "sets", sets_root, sizeof(sets_root));
     if (result == APP_ERROR_NONE) {
-        char path[APP_PATH_MAX_BYTES];
-        result = join_path(staging, "sets", path, sizeof(path));
-        if (result == APP_ERROR_NONE) {
-            result = make_directory(path);
-        }
+        result = storage_repository_remove_tree(sets_root);
     }
-    return result;
+    return result == APP_ERROR_NONE ? make_directory(sets_root) : result;
 }
 
-static app_error_code_t materialize_staging(const package_restore_document_t *document,
-                                            const char *staging) {
-    return materialize_sets(document, staging);
-}
-
-static app_error_code_t copy_manifest_path(char *destination, size_t destination_size,
-                                           const char *source) {
-    const int written = snprintf(destination, destination_size, "%s", source);
-    return written >= 0 && (size_t)written < destination_size ? APP_ERROR_NONE
-                                                              : APP_ERROR_INVALID_ARGUMENT;
-}
-
-static app_error_code_t initialize_manifest(const app_uuid_t *transaction_id, const char *staging,
-                                            storage_transaction_manifest_t *out_manifest) {
-    memset(out_manifest, 0, sizeof(*out_manifest));
-    out_manifest->schema_version = APP_SCHEMA_VERSION;
-    out_manifest->id = *transaction_id;
-    out_manifest->type = STORAGE_TRANSACTION_RESTORE;
-    out_manifest->phase = STORAGE_TRANSACTION_PREPARED;
-    char backup[APP_PATH_MAX_BYTES];
-    const int written = snprintf(backup, sizeof(backup), STORAGE_DATA_MOUNT "/trash/restore-%s",
-                                 transaction_id->value);
-    app_error_code_t result = written >= 0 && (size_t)written < sizeof(backup)
-                                  ? APP_ERROR_NONE
-                                  : APP_ERROR_INVALID_ARGUMENT;
-    if (result == APP_ERROR_NONE) {
-        result = copy_manifest_path(out_manifest->source, sizeof(out_manifest->source),
-                                    STORAGE_DATA_MOUNT);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = copy_manifest_path(out_manifest->staging, sizeof(out_manifest->staging), staging);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = copy_manifest_path(out_manifest->destination, sizeof(out_manifest->destination),
-                                    STORAGE_DATA_MOUNT);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = copy_manifest_path(out_manifest->backup, sizeof(out_manifest->backup), backup);
-    }
-    return result;
-}
-
-static app_error_code_t recover_restore(storage_transaction_manifest_t *manifest) {
-    return storage_transaction_recover_restore_with_ops(
-        manifest, storage_fs_ops_posix(), restore_uuid_generate, NULL, restore_validate_repository,
-        NULL, restore_remove_tree, NULL);
-}
-
+/* SPEC 13.5: restore is the only operation that writes more than one file, and
+ * it is explicitly NOT atomic across sets -- it must not pretend to be. The
+ * transaction manifest it used to write claimed an all-or-nothing guarantee the
+ * design does not want and a 512 KiB partition cannot pay for, since honouring
+ * it meant keeping a whole second copy of the repository in a trash directory.
+ *
+ * What this does now: clear sets/, then write each set from the backup. Every
+ * individual file lands atomically via storage_atomic_write. An interruption
+ * leaves the sets written so far, and the ones not yet written are simply
+ * absent.
+ *
+ * Still owed by Phase 5, and deliberately not attempted here: per-set success
+ * and failure reported back to the client, and running the whole loop on the
+ * worker task instead of the httpd task. */
 static app_error_code_t restore_locked(const package_restore_document_t *document) {
-    app_uuid_t transaction_id = {0};
-    app_error_code_t result = app_uuid_generate(&transaction_id);
-    char staging[APP_PATH_MAX_BYTES] = {0};
+    app_error_code_t result = clear_existing_sets();
     if (result == APP_ERROR_NONE) {
-        const int written = snprintf(staging, sizeof(staging), STORAGE_DATA_MOUNT "/staging/%s",
-                                     transaction_id.value);
-        result = written >= 0 && (size_t)written < sizeof(staging) ? APP_ERROR_NONE
-                                                                   : APP_ERROR_INVALID_ARGUMENT;
+        result = materialize_sets(document, STORAGE_DATA_MOUNT);
     }
-    /* storage_transaction_manifest_t is ~20 KB. As a stack local it put this
-     * frame past the 24 KiB httpd task stack once anything ran beneath it -
-     * and everything does: write_manifest descends through littlefs, the flash
-     * driver, and esp_partition_find. Verified on hardware before this change:
-     * POST /api/v1/restore tripped the stack canary on the `http` task every
-     * time ("Stack canary watchpoint triggered (http)"), so restore could never
-     * have completed for any user. One allocation, one free, single exit. */
-    storage_transaction_manifest_t *manifest = calloc(1U, sizeof(*manifest));
-    if (manifest == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
-    if (result == APP_ERROR_NONE) {
-        result = initialize_manifest(&transaction_id, staging, manifest);
-    }
-    bool manifest_written = false;
-    if (result == APP_ERROR_NONE) {
-        result = storage_transaction_write_manifest(manifest);
-        manifest_written = result == APP_ERROR_NONE;
-    }
-    if (result == APP_ERROR_NONE) {
-        result = create_staging(&transaction_id, staging, sizeof(staging));
-    }
-    if (result == APP_ERROR_NONE) {
-        result = materialize_staging(document, staging);
-    }
-    if (result == APP_ERROR_NONE) {
-        manifest->phase = STORAGE_TRANSACTION_STAGED;
-        result = storage_transaction_write_manifest(manifest);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = recover_restore(manifest);
-    } else if (manifest_written && manifest->phase == STORAGE_TRANSACTION_PREPARED) {
-        (void)recover_restore(manifest);
-    }
-    free(manifest);
     return result;
 }
 
