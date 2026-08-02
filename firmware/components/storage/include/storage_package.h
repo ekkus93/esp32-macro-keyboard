@@ -50,13 +50,40 @@ typedef struct {
     app_uuid_t object_id;
 } storage_package_failure_t;
 
+/* How many skipped objects a partial backup enumerates individually. Beyond
+ * this the package still reports the true total, so a backup never understates
+ * how much it dropped. */
+#define STORAGE_PACKAGE_SKIP_REPORT_MAX 16U
+
+typedef struct {
+    storage_package_object_kind_t kind;
+    bool global_scope;
+    bool has_set_id;
+    app_uuid_t set_id;
+    app_uuid_t object_id;
+} storage_package_skipped_object_t;
+
+typedef struct {
+    storage_package_skipped_object_t items[STORAGE_PACKAGE_SKIP_REPORT_MAX];
+    /* Entries enumerated in items. */
+    size_t count;
+    /* Objects skipped overall; may exceed count. */
+    size_t total;
+} storage_package_skip_report_t;
+
 app_error_code_t storage_package_export_backup(bool include_progress, char **out_data,
                                                size_t *out_length);
-/* As storage_package_export_backup, but reports which object the export stopped
- * on. out_failure may be NULL. */
+/* As storage_package_export_backup, but tolerant: objects that are individually
+ * unusable are omitted and reported in out_skipped rather than failing the
+ * whole backup, so one bad object cannot make the repository unbackupable.
+ * Device-level errors still fail the export, and out_failure then names the
+ * object it stopped on. Both out params may be NULL; passing NULL for
+ * out_skipped does NOT restore the old abort-on-bad-object behaviour, it only
+ * discards the report. */
 app_error_code_t storage_package_export_backup_detail(bool include_progress, char **out_data,
                                                       size_t *out_length,
-                                                      storage_package_failure_t *out_failure);
+                                                      storage_package_failure_t *out_failure,
+                                                      storage_package_skip_report_t *out_skipped);
 app_error_code_t storage_package_restore_backup(const char *data, size_t length);
 app_error_code_t storage_package_replace_set(const app_uuid_t *target_set_id,
                                              uint32_t expected_revision, const char *data,

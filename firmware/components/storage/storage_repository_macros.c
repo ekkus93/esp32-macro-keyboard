@@ -141,9 +141,22 @@ static app_error_code_t write_macro_order(const storage_macro_location_t *locati
                : result;
 }
 
+static void record_skip(storage_skip_record_t *skips, const app_uuid_t *object_id) {
+    if (skips == NULL) {
+        return;
+    }
+    ++skips->total;
+    if (skips->items != NULL && skips->count < skips->capacity) {
+        skips->items[skips->count].has_id = true;
+        skips->items[skips->count].id = *object_id;
+        ++skips->count;
+    }
+}
+
 app_error_code_t storage_macro_list_detail_locked(const storage_macro_location_t *location,
                                                   storage_macro_list_t *out_list,
-                                                  storage_object_ref_t *out_failed) {
+                                                  storage_object_ref_t *out_failed,
+                                                  storage_skip_record_t *out_skips) {
     if (out_failed != NULL) {
         memset(out_failed, 0, sizeof(*out_failed));
     }
@@ -161,17 +174,27 @@ app_error_code_t storage_macro_list_detail_locked(const storage_macro_location_t
         return APP_ERROR_INTERNAL;
     }
     size_t loaded = 0U;
-    for (; loaded < order.count; ++loaded) {
-        result = storage_macro_read_locked(location, &order.ids[loaded], &items[loaded]);
-        if (result != APP_ERROR_NONE) {
-            /* Captured before unwinding: this is the only point that knows
-             * which macro failed, and the caller needs it to name the object. */
-            if (out_failed != NULL) {
-                out_failed->has_id = true;
-                out_failed->id = order.ids[loaded];
-            }
-            break;
+    for (size_t index = 0U; index < order.count; ++index) {
+        result = storage_macro_read_locked(location, &order.ids[index], &items[loaded]);
+        if (result == APP_ERROR_NONE) {
+            ++loaded;
+            continue;
         }
+        if (out_skips != NULL && app_error_is_object_fault(result)) {
+            /* Step over this one object and keep the rest: a single unreadable
+             * macro must not make the whole repository unreadable. */
+            memset(&items[loaded], 0, sizeof(items[loaded]));
+            record_skip(out_skips, &order.ids[index]);
+            result = APP_ERROR_NONE;
+            continue;
+        }
+        /* Captured before unwinding: this is the only point that knows which
+         * macro failed, and the caller needs it to name the object. */
+        if (out_failed != NULL) {
+            out_failed->has_id = true;
+            out_failed->id = order.ids[index];
+        }
+        break;
     }
     if (result != APP_ERROR_NONE) {
         for (size_t index = 0U; index < loaded; ++index) {
@@ -181,13 +204,13 @@ app_error_code_t storage_macro_list_detail_locked(const storage_macro_location_t
         return result;
     }
     out_list->items = items;
-    out_list->count = order.count;
+    out_list->count = loaded;
     return APP_ERROR_NONE;
 }
 
 app_error_code_t storage_macro_list_locked(const storage_macro_location_t *location,
                                            storage_macro_list_t *out_list) {
-    return storage_macro_list_detail_locked(location, out_list, NULL);
+    return storage_macro_list_detail_locked(location, out_list, NULL, NULL);
 }
 
 static app_error_code_t write_macro_object(const storage_macro_location_t *location,

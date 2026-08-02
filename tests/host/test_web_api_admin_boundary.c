@@ -41,7 +41,9 @@ app_error_code_t storage_quarantine_list(storage_quarantine_list_t *out_list) {
 
 app_error_code_t storage_package_export_backup_detail(bool include_progress, char **out_data,
                                                       size_t *out_length,
-                                                      storage_package_failure_t *out_failure) {
+                                                      storage_package_failure_t *out_failure,
+                                                      storage_package_skip_report_t *out_skipped) {
+    (void)out_skipped;
     backup_include_progress = include_progress;
     if (out_failure != NULL) {
         memset(out_failure, 0, sizeof(*out_failure));

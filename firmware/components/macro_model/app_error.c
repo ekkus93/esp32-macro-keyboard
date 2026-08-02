@@ -42,3 +42,18 @@ const char *app_error_code_string(app_error_code_t code) {
         return "unknown";
     }
 }
+
+bool app_error_is_object_fault(app_error_code_t error) {
+    switch (error) {
+    case APP_ERROR_STORAGE_CORRUPT:
+    case APP_ERROR_MACRO_SYNTAX:
+    case APP_ERROR_MACRO_LIMIT:
+    case APP_ERROR_INVALID_ARGUMENT:
+    case APP_ERROR_NOT_FOUND:
+        return true;
+    default:
+        /* APP_ERROR_INTERNAL (allocation), APP_ERROR_IO, storage unavailable,
+         * timeouts: the device is failing, not one object. */
+        return false;
+    }
+}

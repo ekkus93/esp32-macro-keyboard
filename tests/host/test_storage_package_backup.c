@@ -71,15 +71,20 @@ static app_error_code_t fake_lock_give(void *context) {
     return fake->unlock_result;
 }
 
-static app_error_code_t fake_set_list(void *context, storage_set_list_t *out_list) {
+static app_error_code_t fake_set_list(void *context, storage_set_list_t *out_list,
+                                      storage_object_ref_t *out_failed,
+                                      storage_skip_record_t *out_skips) {
     const fake_backup_context_t *fake = context;
+    (void)out_failed;
+    (void)out_skips;
     *out_list = fake->sets;
     return APP_ERROR_NONE;
 }
 
 static app_error_code_t fake_macro_list(void *context, const storage_macro_location_t *location,
                                         storage_macro_list_t *out_list,
-                                        storage_object_ref_t *out_failed) {
+                                        storage_object_ref_t *out_failed,
+                                        storage_skip_record_t *out_skips) {
     fake_backup_context_t *fake = context;
     memset(out_list, 0, sizeof(*out_list));
     if (out_failed != NULL) {
@@ -94,6 +99,16 @@ static app_error_code_t fake_macro_list(void *context, const storage_macro_locat
         return APP_ERROR_NOT_FOUND;
     }
     if (fake->local_result[index] != APP_ERROR_NONE) {
+        if (out_skips != NULL && app_error_is_object_fault(fake->local_result[index])) {
+            ++out_skips->total;
+            if (out_skips->items != NULL && out_skips->count < out_skips->capacity &&
+                fake->local_failed_known[index]) {
+                out_skips->items[out_skips->count].has_id = true;
+                out_skips->items[out_skips->count].id = fake->local_failed_id[index];
+                ++out_skips->count;
+            }
+            return APP_ERROR_NONE;
+        }
         if (out_failed != NULL && fake->local_failed_known[index]) {
             out_failed->has_id = true;
             out_failed->id = fake->local_failed_id[index];
@@ -112,8 +127,10 @@ static void fake_macro_list_free(void *context, storage_macro_list_t *list) {
 
 static app_error_code_t fake_procedure_list(void *context, const app_uuid_t *set_id,
                                             storage_procedure_list_t *out_list,
-                                            storage_object_ref_t *out_failed) {
+                                            storage_object_ref_t *out_failed,
+                                            storage_skip_record_t *out_skips) {
     fake_backup_context_t *fake = context;
+    (void)out_skips;
     if (out_failed != NULL) {
         memset(out_failed, 0, sizeof(*out_failed));
     }
@@ -368,16 +385,95 @@ static void test_progress_is_optional(void) {
     storage_package_reset_backup_ops_for_test();
 }
 
-static void test_cross_set_reference_fails_closed(void) {
+/* A procedure that references a macro outside its own set cannot go in the
+ * package - the validator rejects it - but it must no longer take the whole
+ * backup down with it. It is dropped, reported, and the rest is exported. */
+static void test_cross_set_reference_is_skipped_not_fatal(void) {
     fake_backup_context_t context = valid_context();
+    const app_uuid_t orphan = context.procedures[0].items[0].id;
     context.procedures[0].items[0].steps[0].macro_id = context.local[1].items[0].id;
     const storage_package_backup_ops_t operations = fake_operations(&context);
     storage_package_set_backup_ops_for_test(&operations);
     char *data = NULL;
     size_t length = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
-                         storage_package_export_backup(true, &data, &length));
+    storage_package_skip_report_t skipped = {0};
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE, storage_package_export_backup_detail(true, &data, &length, NULL, &skipped));
+    TEST_CHECK(data != NULL);
+    /* The offending procedure is gone from the package body. It still appears
+     * in the trailing "skipped" record - that is the whole point - so only the
+     * content before that record may be searched for it. */
+    const char *skipped_marker = strstr(data, "\"skipped\"");
+    TEST_CHECK(skipped_marker != NULL);
+    const char *orphan_in_body = strstr(data, orphan.value);
+    TEST_CHECK(orphan_in_body != NULL && orphan_in_body > skipped_marker);
+    TEST_CHECK(strstr(data, "\"total\":1") != NULL);
+    TEST_CHECK_EQ_U64(1U, skipped.total);
+    TEST_CHECK_EQ_U64(1U, skipped.count);
+    TEST_CHECK(skipped.items[0].kind == STORAGE_PACKAGE_OBJECT_PROCEDURE);
+    TEST_CHECK(app_uuid_equal(&skipped.items[0].object_id, &orphan));
+    storage_package_free(data);
+    storage_package_reset_backup_ops_for_test();
+}
+
+/* One unreadable macro must not make the repository unbackupable. */
+static void test_unreadable_macro_is_skipped_and_recorded(void) {
+    fake_backup_context_t context = valid_context();
+    const app_uuid_t offender = uuid(LOCAL_B_ID);
+    context.local_result[1] = APP_ERROR_MACRO_SYNTAX;
+    context.local_failed_known[1] = true;
+    context.local_failed_id[1] = offender;
+    const storage_package_backup_ops_t operations = fake_operations(&context);
+    storage_package_set_backup_ops_for_test(&operations);
+    char *data = NULL;
+    size_t length = 0U;
+    storage_package_skip_report_t skipped = {0};
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE, storage_package_export_backup_detail(true, &data, &length, NULL, &skipped));
+    TEST_CHECK(data != NULL);
+    TEST_CHECK(skipped.total >= 1U);
+    TEST_CHECK(skipped.items[0].kind == STORAGE_PACKAGE_OBJECT_MACRO);
+    TEST_CHECK(app_uuid_equal(&skipped.items[0].object_id, &offender));
+    TEST_CHECK(strstr(data, "\"skipped\"") != NULL);
+    TEST_CHECK(strstr(data, offender.value) != NULL);
+    storage_package_free(data);
+    storage_package_reset_backup_ops_for_test();
+}
+
+/* A partial package must still be a valid package: the emitted "skipped" record
+ * cannot make it unrestorable. */
+static void test_partial_package_still_validates(void) {
+    fake_backup_context_t context = valid_context();
+    context.local_result[1] = APP_ERROR_STORAGE_CORRUPT;
+    context.local_failed_known[1] = true;
+    context.local_failed_id[1] = uuid(LOCAL_B_ID);
+    const storage_package_backup_ops_t operations = fake_operations(&context);
+    storage_package_set_backup_ops_for_test(&operations);
+    char *data = NULL;
+    size_t length = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_package_export_backup_detail(true, &data, &length, NULL, NULL));
+    storage_package_summary_t summary = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_validate(
+                                             data, length, STORAGE_PACKAGE_KIND_BACKUP, &summary));
+    storage_package_free(data);
+    storage_package_reset_backup_ops_for_test();
+}
+
+/* A device-level fault is not a bad object: it must still fail the export
+ * rather than silently dropping good data. */
+static void test_device_fault_still_fails_the_export(void) {
+    fake_backup_context_t context = valid_context();
+    context.local_result[1] = APP_ERROR_IO;
+    const storage_package_backup_ops_t operations = fake_operations(&context);
+    storage_package_set_backup_ops_for_test(&operations);
+    char *data = NULL;
+    size_t length = 0U;
+    storage_package_skip_report_t skipped = {0};
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_IO, storage_package_export_backup_detail(true, &data, &length, NULL, &skipped));
     TEST_CHECK(data == NULL);
+    TEST_CHECK_EQ_U64(0U, skipped.total);
     storage_package_reset_backup_ops_for_test();
 }
 
@@ -399,13 +495,12 @@ static void test_failure_preserves_primary_error_and_cleans_partial_snapshot(voi
     storage_package_reset_backup_ops_for_test();
 }
 
-/* A backup aborts on the first unreadable object. Reporting only that it failed
- * gave the user nothing to act on, so the export must say which object stopped
- * it. */
+/* A device fault still aborts the export. Reporting only that it failed gave
+ * the user nothing to act on, so it must say which object stopped it. */
 static void test_failure_names_the_offending_macro(void) {
     fake_backup_context_t context = valid_context();
     const app_uuid_t offender = uuid(LOCAL_B_ID);
-    context.local_result[1] = APP_ERROR_MACRO_SYNTAX;
+    context.local_result[1] = APP_ERROR_IO;
     context.local_failed_known[1] = true;
     context.local_failed_id[1] = offender;
     const storage_package_backup_ops_t operations = fake_operations(&context);
@@ -413,8 +508,8 @@ static void test_failure_names_the_offending_macro(void) {
     char *data = NULL;
     size_t length = 0U;
     storage_package_failure_t failure = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_MACRO_SYNTAX,
-                         storage_package_export_backup_detail(true, &data, &length, &failure));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_IO, storage_package_export_backup_detail(true, &data, &length, &failure, NULL));
     TEST_CHECK(data == NULL);
     TEST_CHECK(failure.kind == STORAGE_PACKAGE_OBJECT_MACRO);
     TEST_CHECK(!failure.global_scope);
@@ -436,8 +531,8 @@ static void test_failure_without_object_id_still_names_the_set(void) {
     char *data = NULL;
     size_t length = 0U;
     storage_package_failure_t failure = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_IO,
-                         storage_package_export_backup_detail(true, &data, &length, &failure));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_IO, storage_package_export_backup_detail(true, &data, &length, &failure, NULL));
     TEST_CHECK(failure.kind == STORAGE_PACKAGE_OBJECT_MACRO);
     TEST_CHECK(!failure.has_object_id);
     TEST_CHECK(failure.has_set_id);
@@ -454,8 +549,8 @@ static void test_success_reports_no_failure(void) {
     size_t length = 0U;
     storage_package_failure_t failure = {.kind = STORAGE_PACKAGE_OBJECT_MACRO,
                                          .has_object_id = true};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_package_export_backup_detail(true, &data, &length, &failure));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE, storage_package_export_backup_detail(true, &data, &length, &failure, NULL));
     TEST_CHECK(failure.kind == STORAGE_PACKAGE_OBJECT_NONE);
     TEST_CHECK(!failure.has_object_id);
     TEST_CHECK(!failure.has_set_id);
@@ -467,7 +562,10 @@ int main(void) {
     test_backup_contains_complete_repository_deterministically();
     test_backup_output_passes_secret_sentinel_scanner();
     test_progress_is_optional();
-    test_cross_set_reference_fails_closed();
+    test_cross_set_reference_is_skipped_not_fatal();
+    test_unreadable_macro_is_skipped_and_recorded();
+    test_partial_package_still_validates();
+    test_device_fault_still_fails_the_export();
     test_failure_preserves_primary_error_and_cleans_partial_snapshot();
     test_failure_names_the_offending_macro();
     test_failure_without_object_id_still_names_the_set();

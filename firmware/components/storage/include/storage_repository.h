@@ -30,6 +30,16 @@ typedef struct {
     app_uuid_t id;
 } storage_object_ref_t;
 
+/* Collects the objects a tolerant bulk read stepped over. `total` counts every
+ * skipped object; `count` counts the ones that fit `items`, so a caller can
+ * always tell that more were dropped than it can enumerate. */
+typedef struct {
+    storage_object_ref_t *items;
+    size_t capacity;
+    size_t count;
+    size_t total;
+} storage_skip_record_t;
+
 typedef struct {
     macro_t *items;
     size_t count;

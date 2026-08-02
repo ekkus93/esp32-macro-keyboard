@@ -1,6 +1,8 @@
 #ifndef APP_ERROR_H
 #define APP_ERROR_H
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -31,5 +33,11 @@ const char *app_error_code_string(app_error_code_t code);
 #ifdef __cplusplus
 }
 #endif
+
+/* True when an error means "this one object is unusable" rather than "the
+ * device is failing". Only the former may be skipped by a tolerant bulk read:
+ * skipping an out-of-memory or I/O error would silently drop objects that are
+ * perfectly good, turning a device fault into invisible data loss. */
+bool app_error_is_object_fault(app_error_code_t error);
 
 #endif

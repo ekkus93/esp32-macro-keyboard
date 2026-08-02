@@ -17,7 +17,11 @@
 
 #define STORAGE_PACKAGE_MAX_JSON_DEPTH 64U
 #define STORAGE_PACKAGE_FIELD_NAME_BYTES 32U
-#define STORAGE_PACKAGE_FIELD_COUNT 7U
+#define STORAGE_PACKAGE_FIELD_COUNT 8U
+/* "skipped" is the only optional member. A complete backup omits it entirely,
+ * so complete packages are byte-identical to those written before partial
+ * backups existed and remain readable by anything that predates this field. */
+#define STORAGE_PACKAGE_OPTIONAL_FIELDS (UINT32_C(1) << PACKAGE_FIELD_SKIPPED)
 #define STORAGE_PACKAGE_ARRAY_COUNT 5U
 #define STORAGE_PACKAGE_LOCAL_MACROS_MAX                                                           \
     ((size_t)APP_MACRO_SETS_MAX * (size_t)APP_MACROS_PER_SET_MAX)
@@ -47,6 +51,7 @@ typedef enum {
     PACKAGE_FIELD_GLOBAL_MACROS,
     PACKAGE_FIELD_PROCEDURES,
     PACKAGE_FIELD_PROGRESS,
+    PACKAGE_FIELD_SKIPPED,
 } package_field_t;
 
 typedef enum {
@@ -125,7 +130,8 @@ typedef struct {
 typedef app_error_code_t (*package_object_callback_t)(const json_span_t *object, void *context);
 
 static const char *const PACKAGE_FIELDS[STORAGE_PACKAGE_FIELD_COUNT] = {
-    "schema_version", "package_type", "sets", "macros", "global_macros", "procedures", "progress",
+    "schema_version", "package_type", "sets",     "macros",
+    "global_macros",  "procedures",   "progress", "skipped",
 };
 
 static void skip_whitespace(json_cursor_t *cursor) {
@@ -582,6 +588,18 @@ static app_error_code_t parse_package_field(json_cursor_t *cursor, size_t field_
     if (field_index == PACKAGE_FIELD_TYPE) {
         return read_package_kind(cursor, &out_document->kind);
     }
+    if (field_index == PACKAGE_FIELD_SKIPPED) {
+        /* A record of what a partial backup dropped. It is descriptive only:
+         * restore never reads objects from it, so it is checked for shape and
+         * otherwise ignored. */
+        json_span_t skipped = {0};
+        const app_error_code_t captured = capture_json_value(cursor, &skipped);
+        if (captured != APP_ERROR_NONE) {
+            return captured;
+        }
+        return skipped.length != 0U && skipped.data[0] == '{' ? APP_ERROR_NONE
+                                                              : APP_ERROR_INVALID_ARGUMENT;
+    }
     const package_array_t array_index = package_array_for_field(field_index);
     if ((size_t)array_index >= STORAGE_PACKAGE_ARRAY_COUNT) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -652,8 +670,9 @@ parse_package_members(json_cursor_t *cursor, package_document_t *out_document, u
 static app_error_code_t finish_package_document(json_cursor_t *cursor, uint32_t seen,
                                                 const package_document_t *document) {
     skip_whitespace(cursor);
-    const uint32_t required = (UINT32_C(1) << STORAGE_PACKAGE_FIELD_COUNT) - UINT32_C(1);
-    return cursor->offset == cursor->length && seen == required &&
+    const uint32_t required = ((UINT32_C(1) << STORAGE_PACKAGE_FIELD_COUNT) - UINT32_C(1)) &
+                              ~STORAGE_PACKAGE_OPTIONAL_FIELDS;
+    return cursor->offset == cursor->length && (seen & required) == required &&
                    document->schema_version == APP_SCHEMA_VERSION
                ? APP_ERROR_NONE
                : APP_ERROR_INVALID_ARGUMENT;

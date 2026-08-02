@@ -119,7 +119,7 @@ static app_error_code_t send_backup(web_api_response_t *response) {
     size_t package_length = 0U;
     storage_package_failure_t failure = {0};
     app_error_code_t result =
-        storage_package_export_backup_detail(true, &package_json, &package_length, &failure);
+        storage_package_export_backup_detail(true, &package_json, &package_length, &failure, NULL);
     if (result != APP_ERROR_NONE) {
         char message[WEB_ADMIN_BACKUP_FAILURE_MESSAGE_BYTES];
         describe_backup_failure(&failure, message, sizeof(message));

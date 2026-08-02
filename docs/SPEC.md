@@ -1044,6 +1044,26 @@ The API implementation MAY consolidate routes where memory constraints justify
 it, but external behavior and resource boundaries MUST remain equivalent and be
 documented.
 
+`GET /api/v1/backup` MUST NOT let one damaged object make the repository
+unbackupable — a backup is most needed exactly when storage is damaged. Objects
+that are individually unusable are omitted from the package rather than failing
+the export, and a procedure whose steps reference an omitted macro is omitted
+too, because the package validator requires every referenced macro to be
+present.
+
+A partial backup MUST be self-describing, so it can never be mistaken for a
+complete one. It carries an optional top-level `skipped` object recording the
+true total and enumerating up to `STORAGE_PACKAGE_SKIP_REPORT_MAX` of the
+dropped objects. The field is written only when something was actually skipped:
+a complete backup is byte-identical to one produced before this behavior
+existed, and remains readable by anything predating the field.
+
+Skipping applies only to per-object faults. A device-level failure (allocation,
+I/O, storage unavailable, timeout) MUST still fail the export, because
+continuing past it would silently drop objects that are perfectly good and
+present a truncated backup as a whole one. A failed export names the object it
+stopped on.
+
 Important status codes:
 
 ```text
