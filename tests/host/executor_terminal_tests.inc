@@ -1,3 +1,13 @@
+/* SPEC 11.3: "After every normal key or chord action, firmware MUST emit a
+ * release-all report", and on any failure "firmware MUST attempt a release-all
+ * report and transition the execution to a terminal state."
+ *
+ * The release count is 2 in every case below, including the ones where the
+ * press itself failed and where the release itself failed: the report is
+ * attempted regardless, because a key the host believes is held down repeats
+ * into whatever has focus until something releases it. A failed release is
+ * recorded separately in release_error so it cannot be mistaken for the
+ * primary cause of the run failing. */
 static void test_press_release_and_final_release_errors(void)
 {
     executor_fake_t fake;

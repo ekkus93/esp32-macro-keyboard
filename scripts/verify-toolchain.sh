@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# SPEC 5.1: "The firmware MUST build against the exact signed ESP-IDF tag" and
+# "The build MUST reject an unrecognized ESP-IDF version."
+# SPEC 5.4: "The Node.js major version MUST be pinned in the repository."
+# Both are properties of the environment a build runs in, so this is where they
+# are enforced rather than in any test.
 readonly expected_idf="v5.5.5"
 readonly expected_target="esp32s3"
 readonly expected_node="24.18.0"

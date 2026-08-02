@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# SPEC 21.3: the quality gate MUST exclude third-party code and only third-party
+# code, and a diagnostic originating exclusively in a third-party header is the
+# only case where the tool may be told to ignore it.
 # SPEC 21.1: a defect "MUST be fixed at its source. It MUST NOT be hidden,
 # suppressed," and SPEC 21.4: first-party source and project configuration
 # "MUST NOT use warning suppression as a resolution." Both are properties of the

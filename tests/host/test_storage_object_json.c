@@ -92,6 +92,10 @@ static void test_macro_rejects_noncanonical_json(void) {
 /* The set file is the unit of storage now (SPEC 12.1): its macros live inline,
  * in the array order that IS the user's order. The order-file round trip this
  * replaced tested a JSON shape that no longer exists. */
+/* SPEC 12: "All persistent objects MUST contain: `schema_version`; stable ID;
+ * revision number". The round trip is where that is enforceable -- a field the
+ * writer omits or the reader ignores shows up as a document that does not come
+ * back equal to what went in. */
 static void test_set_document_round_trip(void) {
     /* set_macro()'s source is a string literal, so these are not freed. */
     macro_t macros[2] = {0};

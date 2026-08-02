@@ -284,6 +284,10 @@ static void test_success_and_generated_request_id(void) {
     TEST_CHECK_EQ_U64(1U, fixture.validation_calls);
 }
 
+/* SPEC 16.2: "Every mutating request MUST provide a valid CSRF token tied to
+ * the session." The complement is the interesting half and the one a
+ * conservative implementation gets wrong: a GET is not a mutation, so demanding
+ * a token there would break ordinary reads without adding protection. */
 static void test_get_does_not_require_csrf(void) {
     fixture_t fixture = {
         .missing = "X-CSRF-Token",
@@ -380,6 +384,11 @@ static void test_failure_statuses(void) {
     TEST_CHECK_EQ_U64(403U, web_request_policy_http_status(failure, APP_ERROR_TIMEOUT));
 }
 
+/* SPEC 16.4: "The HTTP server MUST enforce: route-specific body limits; header
+ * count and size limits where configurable; ... bounded parsing memory". The
+ * ordering matters as much as the limits: a body over its route limit is
+ * refused before headers are examined, so an oversized request cannot make the
+ * server do header work proportional to what it is about to reject. */
 static void test_body_limit_precedes_headers(void) {
     fixture_t fixture = {0};
     const web_request_policy_ops_t ops = operations(&fixture);

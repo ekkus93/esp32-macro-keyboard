@@ -321,6 +321,10 @@ static void test_report_failure(void) {
     TEST_CHECK_EQ_U64(1U, fixture.report_calls);
 }
 
+/* SPEC 11.3: "The executor MUST also clear its internal pressed-key state even
+ * when the transport cannot deliver the report." A key the device believes is
+ * held but never released types forever into whatever has focus, so the state
+ * must be cleared on the failure path too, not only when the report lands. */
 static void test_release_all(void) {
     usb_fixture_t fixture;
     reset_fixture(&fixture);

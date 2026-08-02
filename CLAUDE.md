@@ -43,6 +43,27 @@ Run scripts from the repo root. All frontend commands go through `npm --prefix w
 - Format check (no auto-fix): `./scripts/check-format.sh`. Auto-fix frontend only: `npm --prefix webapp run format:write`
 - Native coverage gate (line ≥90 / branch ≥80 on policy files): `./scripts/generate-native-coverage.sh`
 
+### Where the tests are, and the fast loops
+
+The two suites are in different places and neither sits beside the code it tests.
+
+| Suite | Location | Run just this |
+| --- | --- | --- |
+| Host C (52 `test_*.c` + 20 `.inc` fragments) | `tests/host/` | `./scripts/run-tests.sh [label]` |
+| Frontend vitest (17 files) | `webapp/tests/` — **not** under `webapp/src/` | `npm --prefix webapp run test` |
+| Browser (Playwright) | `webapp/tests/browser/` | `npm --prefix webapp run test:browser` |
+| On-device Unity | `firmware/test_app/` | flash it; see the port table above |
+| Hardware-in-the-loop (Python) | `tests/hardware/` | needs the board attached |
+
+`check-webapp.sh` runs the whole chain (`ci → typecheck → lint → stylelint →
+test → build → local-assets`), which is right before committing and slow while
+iterating — use `npm --prefix webapp run test` for the inner loop and the script
+before you commit.
+
+Several C suites keep their bodies in `.inc` fragments that one `test_*.c`
+includes (auth, executor, web security, web-server adapter), so grepping only
+`test_*.c` for a test will miss them.
+
 ## Hard rules
 
 - **No failure-hiding**: no `|| true`, no redirecting errors away, no warning suppression, no first-party lint/analyzer exclusions. Every first-party warning is a defect (`scripts/README.md`). CI runs clang-tidy with `WarningsAsErrors: '*'` and ESLint/stylelint with `--max-warnings=0`. Approved exceptions are tracked in `docs/STATIC_ANALYSIS_EXCEPTIONS.md` — don't add a new suppression without registering it there.

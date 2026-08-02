@@ -40,9 +40,9 @@ None of these is a coverage measurement. This is a worklist, not a score.
 
 | | Statements | Unmapped |
 | --- | --- | --- |
-| MUST NOT | 41 | 7 |
-| MUST | 74 | 37 |
-| **Total** | **115** | **44** |
+| MUST NOT | 41 | 6 |
+| MUST | 74 | 10 |
+| **Total** | **115** | **16** |
 
 ## Prohibitions (`MUST NOT`) — do these first
 
@@ -71,7 +71,7 @@ cheapest place to find real gaps.
 | §13.3 | L815 | This is the whole tree: two paths and one object type. There MUST NOT be a | referenced | storage_mount → unmount_continues_after_one_failure<br>storage_package_restore → (file)<br>storage_sets → (file)<br>storage_sets → duplicate_index_is_discarded_and_output_cleared<br>web_api_repository_handlers → (file) |
 | §13.5 | L858 | not atomic across sets**, and MUST NOT pretend to be: each set file is written | referenced | storage_package_restore → (file)<br>web_api_admin_boundary → restore_failure_is_visible |
 | §13.5 | L863 | Restore MUST NOT perform the whole rewrite synchronously on the HTTP server task. | referenced | storage_package_restore → (file)<br>web_api_admin_boundary → restore_failure_is_visible |
-| §13.6 | L890 | Deleting a corrupt file MUST NOT be reported as successful recovery. | referenced | storage_macros → oversized_set_file_is_refused<br>storage_macros → set_local_crud_duplicate_and_order<br>web_api_admin_boundary → storage_snapshot_publishes_remaining_space<br>web_api_core → route_parsing |
+| §13.6 | L890 | Deleting a corrupt file MUST NOT be reported as successful recovery. | referenced | management-screens → shows live redacted storage data<br>storage_macros → oversized_set_file_is_refused<br>storage_macros → set_local_crud_duplicate_and_order<br>web_api_admin_boundary → storage_snapshot_publishes_remaining_space<br>web_api_core → route_parsing |
 | §13.7 | L899 | resource metadata. The server MUST NOT silently overwrite a newer edit. | referenced | web_api_repository_handlers → session_json_redaction |
 | §14 | L917 | The administrator password MUST NOT be stored in plaintext, nor in any form from | referenced | provisioning → corrupt_persisted_records<br>provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → oversized_credentials_are_refused_without_side_effects<br>provisioning → station_credentials_survive_a_power_cycle<br>provisioning → storing_a_network_replaces_the_previous_one |
 | §14 | L925 | them is confinement rather than hashing: firmware MUST NOT emit either | referenced | provisioning → corrupt_persisted_records<br>provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → oversized_credentials_are_refused_without_side_effects<br>provisioning → station_credentials_survive_a_power_cycle<br>provisioning → storing_a_network_replaces_the_previous_one |
@@ -88,7 +88,7 @@ cheapest place to find real gaps.
 | §19 | L1236 | The device MUST NOT require any button, and MUST NOT require hardware to be | referenced | device_controls → runtime_failures |
 | §20.1 | L1278 | The project MUST NOT: | **UNMAPPED** | — |
 | §21.1 | L1329 | The defect MUST be fixed at its source. It MUST NOT be hidden, suppressed, | gate-enforced | check-static-analysis-policy.sh (gate script) |
-| §21.3 | L1363 | The project MUST NOT modify ESP-IDF, managed components, npm dependencies, or | **UNMAPPED** | — |
+| §21.3 | L1363 | The project MUST NOT modify ESP-IDF, managed components, npm dependencies, or | gate-enforced | check-static-analysis-policy.sh (gate script) |
 | §21.4 | L1373 | First-party source and project configuration MUST NOT use warning suppression as | gate-enforced | check-static-analysis-policy.sh (gate script) |
 | §26 | L1656 | Deferred features MUST NOT be partially or silently enabled in version 0.1. | gate-enforced | check-removed-features.sh (gate script) |
 | §27 | L1679 | MUST NOT be assumed to exist. Implement the pages from this specification until | **UNMAPPED** | — |
@@ -98,51 +98,51 @@ cheapest place to find real gaps.
 | Section | SPEC line | Requirement | Status | Referencing test / enforcer |
 | --- | --- | --- | --- | --- |
 | §3 | L70 | The product MUST: | **UNMAPPED** | — |
-| §5.1 | L129 | The firmware MUST build against the exact signed ESP-IDF tag: | **UNMAPPED** | — |
-| §5.1 | L135 | The build MUST reject an unrecognized ESP-IDF version. Development documentation | **UNMAPPED** | — |
-| §5.1 | L136 | and CI MUST clone ESP-IDF recursively from the exact tag rather than a moving | **UNMAPPED** | — |
+| §5.1 | L129 | The firmware MUST build against the exact signed ESP-IDF tag: | gate-enforced | verify-toolchain.sh (gate script) |
+| §5.1 | L135 | The build MUST reject an unrecognized ESP-IDF version. Development documentation | gate-enforced | verify-toolchain.sh (gate script) |
+| §5.1 | L136 | and CI MUST clone ESP-IDF recursively from the exact tag rather than a moving | gate-enforced | verify-toolchain.sh (gate script) |
 | §5.2 | L150 | The hardware MUST expose the ESP32-S3 native USB D+ and D- signals. A board with | referenced | device_controls → runtime_failures |
 | §5.2 | L158 | SPI PSRAM. The build MUST enable it (`CONFIG_SPIRAM`, `CONFIG_SPIRAM_MODE_OCT`, | referenced | device_controls → runtime_failures |
 | §5.2 | L162 | and restore bodies affordable. FreeRTOS task stacks MUST still come from internal | referenced | device_controls → runtime_failures |
 | §5.3 | L172 | All dependency resolutions MUST be pinned by committed manifest and lock files. | **UNMAPPED** | — |
 | §5.3 | L174 | component version is incompatible with ESP-IDF v5.5.5, the implementation MUST | **UNMAPPED** | — |
-| §5.4 | L185 | The frontend MUST use: | **UNMAPPED** | — |
-| §5.4 | L193 | The Node.js major version MUST be pinned in the repository. JavaScript package | **UNMAPPED** | — |
-| §5.4 | L194 | versions MUST be locked with a committed lockfile. Production assets MUST be | **UNMAPPED** | — |
-| §5.4 | L195 | static files and MUST contain no CDN, remote-font, remote-icon, analytics, or | **UNMAPPED** | — |
+| §5.4 | L185 | The frontend MUST use: | gate-enforced | verify-no-remote-assets.sh (gate script)<br>verify-toolchain.sh (gate script) |
+| §5.4 | L193 | The Node.js major version MUST be pinned in the repository. JavaScript package | gate-enforced | verify-no-remote-assets.sh (gate script)<br>verify-toolchain.sh (gate script) |
+| §5.4 | L194 | versions MUST be locked with a committed lockfile. Production assets MUST be | gate-enforced | verify-no-remote-assets.sh (gate script)<br>verify-toolchain.sh (gate script) |
+| §5.4 | L195 | static files and MUST contain no CDN, remote-font, remote-icon, analytics, or | gate-enforced | verify-no-remote-assets.sh (gate script)<br>verify-toolchain.sh (gate script) |
 | §8.4 | L340 | is required, and every confirmation-gated route MUST honour the setting | referenced | executor_terminal_tests → terminal_publish_failure_leaves_executor_unavailable |
 | §8.6 | L378 | Deletion MUST: | referenced | storage_sets → create_leaves_no_staging_artifacts<br>storage_sets → crud_ordering_revisions_and_cleanup |
 | §8.7 | L393 | A set export MUST be a single versioned JSON package containing: | referenced | storage_package_export → deterministic_export_and_filtering |
 | §8.7 | L414 | Import MUST validate the entire package, all limits, references, syntax, schema, | referenced | storage_package_export → deterministic_export_and_filtering |
-| §9 | L427 | The application MUST be mobile-first and usable from a desktop browser. | **UNMAPPED** | — |
-| §9 | L447 | The persistent operational header MUST show: | **UNMAPPED** | — |
+| §9 | L427 | The application MUST be mobile-first and usable from a desktop browser. | gate-enforced | generate-spec-traceability.py (gate script) |
+| §9 | L447 | The persistent operational header MUST show: | gate-enforced | generate-spec-traceability.py (gate script) |
 | §9.2 | L475 | All application assets MUST be bundled into the web-assets filesystem. The | gate-enforced | verify-no-remote-assets.sh (gate script) |
-| §9.3 | L480 | Vite output MUST use content-hashed filenames. JavaScript, CSS, SVG, and other | **UNMAPPED** | — |
-| §9.3 | L483 | The server MUST: | **UNMAPPED** | — |
+| §9.3 | L480 | Vite output MUST use content-hashed filenames. JavaScript, CSS, SVG, and other | referenced | web_server_adapter_json_static → json_envelopes |
+| §9.3 | L483 | The server MUST: | referenced | web_server_adapter_json_static → json_envelopes |
 | §10.6 | L565 | The parser MUST consume the entire source. | referenced | macro_parser → error_locations_and_directive_boundaries |
 | §10.6 | L566 | Parsing and compilation MUST complete before execution begins. | referenced | macro_parser → error_locations_and_directive_boundaries |
 | §10.6 | L567 | Validation errors MUST include byte offset, line, column, error code, and a | referenced | macro_parser → error_locations_and_directive_boundaries |
 | §10.7 | L588 | Limits MUST be centralized, visible through the API, and tested at boundaries. | referenced | storage_macros → missing_set_and_revision_overflow<br>web_api_admin_boundary → (file)<br>web_api_admin_boundary → backup_failure_without_detail_stays_plain |
 | §10.7 | L593 | MB against a 512 KiB partition. Firmware MUST enforce the storage limits by | referenced | storage_macros → missing_set_and_revision_overflow<br>web_api_admin_boundary → (file)<br>web_api_admin_boundary → backup_failure_without_detail_stays_plain |
 | §10.7 | L595 | count limits, and MUST reject an over-budget write with `507` (§17) rather than | referenced | storage_macros → missing_set_and_revision_overflow<br>web_api_admin_boundary → (file)<br>web_api_admin_boundary → backup_failure_without_detail_stays_plain |
-| §11.1 | L603 | The ESP32-S3 MUST enumerate as a USB HID keyboard using the native USB device | **UNMAPPED** | — |
-| §11.1 | L606 | USB descriptors MUST use project-owned manufacturer, product, and serial strings. | **UNMAPPED** | — |
-| §11.3 | L630 | After every normal key or chord action, firmware MUST emit a release-all report. | **UNMAPPED** | — |
-| §11.3 | L644 | firmware MUST attempt a release-all report and transition the execution to a | **UNMAPPED** | — |
-| §11.3 | L645 | terminal state. The executor MUST also clear its internal pressed-key state even | **UNMAPPED** | — |
+| §11.1 | L603 | The ESP32-S3 MUST enumerate as a USB HID keyboard using the native USB device | gate-enforced | check-usb-identity.sh (gate script) |
+| §11.1 | L606 | USB descriptors MUST use project-owned manufacturer, product, and serial strings. | gate-enforced | check-usb-identity.sh (gate script) |
+| §11.3 | L630 | After every normal key or chord action, firmware MUST emit a release-all report. | referenced | executor_terminal_tests → (file)<br>usb_keyboard → report_failure |
+| §11.3 | L644 | firmware MUST attempt a release-all report and transition the execution to a | referenced | executor_terminal_tests → (file)<br>usb_keyboard → report_failure |
+| §11.3 | L645 | terminal state. The executor MUST also clear its internal pressed-key state even | referenced | executor_terminal_tests → (file)<br>usb_keyboard → report_failure |
 | §11.5 | L678 | Cancellation MUST use a thread-safe flag, task notification, or equivalent | gate-enforced | check-layer-boundaries.sh (gate script) |
 | §11.5 | L679 | bounded mechanism and MUST remain responsive during delay actions. | gate-enforced | check-layer-boundaries.sh (gate script) |
-| §12 | L683 | All persistent objects MUST contain: | **UNMAPPED** | — |
-| §12.3 | L758 | the index, is a corruption of the index and is handled under §13.6. Firmware MUST | referenced | provisioning_settings → (file)<br>storage_active_set_delete → (file)<br>storage_sets → delete_is_permanent_and_leaves_no_trash<br>web_api_json → settings_update_matrix<br>web_api_repository_handlers → set_routes |
-| §13.1 | L782 | Exact sizes are defined in `firmware/partitions.csv` and MUST be validated | **UNMAPPED** | — |
+| §12 | L683 | All persistent objects MUST contain: | referenced | storage_object_json → macro_rejects_noncanonical_json |
+| §12.3 | L758 | the index, is a corruption of the index and is handled under §13.6. Firmware MUST | referenced | app-sets → persists real settings updates<br>provisioning_settings → (file)<br>storage_active_set_delete → (file)<br>storage_sets → delete_is_permanent_and_leaves_no_trash<br>web_api_json → settings_update_matrix<br>web_api_repository_handlers → set_routes |
+| §13.1 | L782 | Exact sizes are defined in `firmware/partitions.csv` and MUST be validated | gate-enforced | check-partitions.sh (gate script) |
 | §13.3 | L805 | The `userdata` partition is **512 KiB**. The layout MUST be flat: one index file | referenced | storage_mount → unmount_continues_after_one_failure<br>storage_package_restore → (file)<br>storage_sets → (file)<br>storage_sets → duplicate_index_is_discarded_and_output_cleared<br>web_api_repository_handlers → (file) |
 | §13.4 | L835 | Every update MUST: | referenced | storage_atomic → create_enforces_operation_sequence<br>storage_atomic_recovery → (file)<br>storage_atomic_recovery → stray_temporary_is_removed_at_boot<br>storage_parent_sync → (file)<br>storage_parent_sync → rename_failure_on_create_leaves_nothing |
-| §13.6 | L889 | The error MUST name the object and MUST be surfaced through the API and the UI. | referenced | storage_macros → oversized_set_file_is_refused<br>storage_macros → set_local_crud_duplicate_and_order<br>web_api_admin_boundary → storage_snapshot_publishes_remaining_space<br>web_api_core → route_parsing |
+| §13.6 | L889 | The error MUST name the object and MUST be surfaced through the API and the UI. | referenced | management-screens → shows live redacted storage data<br>storage_macros → oversized_set_file_is_refused<br>storage_macros → set_local_crud_duplicate_and_order<br>web_api_admin_boundary → storage_snapshot_publishes_remaining_space<br>web_api_core → route_parsing |
 | §14 | L932 | A stored record whose length does not match the current layout MUST be rejected | referenced | provisioning → corrupt_persisted_records<br>provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → oversized_credentials_are_refused_without_side_effects<br>provisioning → station_credentials_survive_a_power_cycle<br>provisioning → storing_a_network_replaces_the_previous_one |
 | §15.2 | L985 | A station join that fails, times out, or is refused MUST be logged and otherwise | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one |
-| §16.2 | L1005 | Every mutating request MUST provide a valid CSRF token tied to the session. | **UNMAPPED** | — |
-| §16.3 | L1012 | policy. The implementation MUST avoid unbounded per-IP state. | **UNMAPPED** | — |
-| §16.4 | L1016 | The HTTP server MUST enforce: | **UNMAPPED** | — |
+| §16.2 | L1005 | Every mutating request MUST provide a valid CSRF token tied to the session. | referenced | web_request_policy → success_and_generated_request_id |
+| §16.3 | L1012 | policy. The implementation MUST avoid unbounded per-IP state. | referenced | auth_additional_rate_tests → (file) |
+| §16.4 | L1016 | The HTTP server MUST enforce: | referenced | web_request_policy → failure_statuses |
 | §16.5 | L1035 | the device's own SoftAP or, in development builds, a joined network - MUST | gate-enforced | check-credential-logging.sh (gate script) |
 | §16.5 | L1036 | carry a valid RAM-only session, and every mutation MUST additionally carry a | gate-enforced | check-credential-logging.sh (gate script) |
 | §16.5 | L1038 | failures MUST be rate-limited. No network-reachable route may mutate device | gate-enforced | check-credential-logging.sh (gate script) |
@@ -155,13 +155,13 @@ cheapest place to find real gaps.
 | §19 | L1254 | Cancellation MUST remain available during execution and delay actions, over | referenced | device_controls → runtime_failures |
 | §19 | L1267 | Indicator semantics MUST be documented and testable. Failure LEDs do not replace | referenced | device_controls → runtime_failures |
 | §20.1 | L1274 | Every operation MUST return, log, or expose an explicit success or failure. | **UNMAPPED** | — |
-| §20.2 | L1291 | Logs MUST: | **UNMAPPED** | — |
+| §20.2 | L1291 | Logs MUST: | referenced | app_core → residual_ownership_queries_trigger_cleanup |
 | §20.3 | L1319 | A downloadable diagnostic report MUST redact secrets and macro source by | referenced | storage_atomic_recovery → stray_temporary_is_removed_at_boot<br>web_api_admin_boundary → storage_snapshot_publishes_remaining_space |
-| §21.3 | L1349 | The quality gate MUST exclude: | **UNMAPPED** | — |
-| §21.3 | L1366 | If a diagnostic originates exclusively in a third-party header, the tool MUST be | **UNMAPPED** | — |
-| §21.5 | L1429 | MUST run the authoritative local quality gate. CI MUST call the same command. | **UNMAPPED** | — |
-| §21.5 | L1430 | The script MUST fail on the first failed phase or aggregate failures while still | **UNMAPPED** | — |
-| §21.5 | L1431 | returning nonzero; it MUST never mask failures. | **UNMAPPED** | — |
+| §21.3 | L1349 | The quality gate MUST exclude: | gate-enforced | check-static-analysis-policy.sh (gate script) |
+| §21.3 | L1366 | If a diagnostic originates exclusively in a third-party header, the tool MUST be | gate-enforced | check-static-analysis-policy.sh (gate script) |
+| §21.5 | L1429 | MUST run the authoritative local quality gate. CI MUST call the same command. | gate-enforced | check-all.sh (gate script) |
+| §21.5 | L1430 | The script MUST fail on the first failed phase or aggregate failures while still | gate-enforced | check-all.sh (gate script) |
+| §21.5 | L1431 | returning nonzero; it MUST never mask failures. | gate-enforced | check-all.sh (gate script) |
 | §23 | L1477 | The firmware build MUST fail when the expected web assets are absent, stale | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
 | §23 | L1480 | The build MUST record: | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
 | §23 | L1490 | Release builds MUST be reproducible from committed sources and lockfiles. | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |

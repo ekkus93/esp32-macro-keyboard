@@ -1,3 +1,11 @@
+/* SPEC 16.3: "Authentication failures are rate-limited by a bounded global and
+ * client-aware policy. The implementation MUST avoid unbounded per-IP state."
+ *
+ * The bound is the point. A per-IP table is the obvious way to write throttling
+ * and the wrong one here: on a device with this much RAM, an attacker who can
+ * vary source addresses turns the defence into the memory exhaustion it was
+ * meant to prevent. auth_core keeps fixed state instead, so what is exercised
+ * below is a policy whose cost does not grow with the number of attackers. */
 static void test_complete_rate_limit_matrix(void)
 {
     auth_fake_t fake;

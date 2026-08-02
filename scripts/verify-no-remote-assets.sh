@@ -3,6 +3,8 @@ set -euo pipefail
 
 readonly directory="${1:?usage: verify-no-remote-assets.sh DIRECTORY}"
 
+# SPEC 5.4: production assets "MUST be static files and MUST contain no CDN,
+# remote-font, remote-icon, analytics, or" other remote reference.
 # SPEC 9.2: "the application MUST NOT fetch remote resources." Production web
 # assets are fully local, and that is a property of the built tree rather than
 # a behaviour any unit test can observe -- so this script is the enforcement.

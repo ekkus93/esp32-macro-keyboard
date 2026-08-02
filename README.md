@@ -59,6 +59,53 @@ user rather than its developer.
 
 See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
 
+## Build and test
+
+Everything below runs from the repository root and needs no hardware. Run
+scripts rather than the underlying tools directly — they pin versions and are
+what CI calls.
+
+```bash
+./scripts/check-all.sh          # everything, in the order CI runs it (several minutes)
+```
+
+That is the gate a change has to pass. While iterating, use the narrower loops:
+
+| Suite | Where the tests live | Run just this |
+| --- | --- | --- |
+| Host C — 52 `test_*.c` plus 20 `.inc` fragments | `tests/host/` | `./scripts/run-tests.sh` |
+| Frontend — 17 vitest files, 118 tests, ~2s | `webapp/tests/` (**not** `webapp/src/`) | `npm --prefix webapp run test` |
+| Browser (Playwright) | `webapp/tests/browser/` | `npm --prefix webapp run test:browser` |
+| On-device Unity | `firmware/test_app/` | see the next section |
+| Hardware-in-the-loop (Python) | `tests/hardware/` | needs the board attached |
+
+```bash
+./scripts/run-tests.sh storage            # one label: support parser storage executor auth
+                                          # web startup usb controls wifi model
+./scripts/run-tests.sh --sanitizers       # ASan + UBSan
+./scripts/run-tests.sh --coverage         # gcovr; one mode and one label at most
+./scripts/check-webapp.sh                 # full frontend chain: ci, typecheck, lint,
+                                          # stylelint, test, build, local-assets
+./scripts/check-firmware.sh               # ESP-IDF build plus clang-tidy
+```
+
+`check-webapp.sh` runs the whole frontend chain and is what to run before
+committing; `npm --prefix webapp run test` is the inner loop.
+
+The first frontend run needs dependencies installed, and Node must be exactly
+the pinned version:
+
+```bash
+nvm use                                   # reads .nvmrc (24.18.0)
+npm --prefix webapp ci
+```
+
+Firmware and device commands need the pinned ESP-IDF on `PATH` first:
+
+```bash
+. "$HOME/esp/esp-idf-v5.5.5/export.sh"
+```
+
 ## Run the ESP32-S3 device tests
 
 The device-test application uses ESP-IDF's Unity test menu. The current suite runs
@@ -87,11 +134,28 @@ your system, then flash and monitor it:
 
 ```bash
 cd firmware/test_app
-idf.py -B build -p /dev/ttyUSB0 flash monitor
+idf.py -B build -p /dev/ttyACM0 flash monitor
 ```
 
-Common Linux ports are `/dev/ttyUSB0` and `/dev/ttyACM0`. To leave the ESP-IDF
-monitor, press `Ctrl+]`.
+To leave the ESP-IDF monitor, press `Ctrl+]`.
+
+**The two USB connectors are not interchangeable.** Identify them by vendor ID
+rather than by device path, because the numbering depends on the order things
+were plugged in:
+
+```bash
+lsusb | grep -E '303a|1a86|10c4'
+```
+
+| Port | Enumerates as | Use it for |
+| --- | --- | --- |
+| Native USB (the ESP32-S3's own peripheral) | `303a:4001` running the app, `303a:1001` otherwise | flashing, `esptool`, HID validation, log output |
+| USB-UART bridge (a separate CH340/CP210x chip) | `1a86:55d3` or `10c4:ea60` | **the interactive serial console** |
+
+The production firmware sets `CONFIG_ESP_CONSOLE_UART_DEFAULT=y`, so the
+interactive console (`wifi-connect`, `wifi-status`, `confirm`, `cancel`) reads
+from UART0 on the bridge. USB-Serial-JTAG is the secondary console: it mirrors
+log output but accepts no input, and commands sent to it are silently discarded.
 
 When the Unity test application is idle, press Enter to display the test menu.
 Then enter one of these selectors:

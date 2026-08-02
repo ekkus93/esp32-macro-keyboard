@@ -782,6 +782,11 @@ static void test_residual_ownership_queries_trigger_cleanup(void) {
     TEST_CHECK_EQ_U64(1U, call_count(&fixture, "wifi_stop"));
 }
 
+/* SPEC 20.2: logs MUST "avoid passwords, tokens, raw cookie values, setup
+ * codes, and macro text that may contain secrets." Startup is where that is
+ * hardest, because the sequence is holding exactly those values as it brings
+ * subsystems up. The manufacturing banner is the single deliberate exception,
+ * gated behind a Kconfig option the production gate rejects. */
 static void test_stage_logs_are_redacted(void) {
     app_core_fixture_t fixture;
     reset_fixture(&fixture);

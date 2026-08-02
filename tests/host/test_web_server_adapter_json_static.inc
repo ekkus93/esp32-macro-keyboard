@@ -61,6 +61,16 @@ static void *open_static_file(void *context, const char *path)
     return NULL;
 }
 
+/* SPEC 9.3: "The server MUST: stream files in bounded chunks; set correct
+ * content types; set `Content-Encoding: gzip` when serving a gzip variant;
+ * cache hashed assets as immutable; serve `index.html` with revalidation or
+ * no-cache behavior; reject path traversal; never expose files under the
+ * user-data mount through the static-file handler."
+ *
+ * The two cache policies are not interchangeable: hashed assets are immutable
+ * because their name changes when their content does, while index.html keeps
+ * the same name forever and must be revalidated or a device would serve a stale
+ * application indefinitely after an update. */
 static void test_static_file_selection(void)
 {
     web_adapter_static_file_t file;

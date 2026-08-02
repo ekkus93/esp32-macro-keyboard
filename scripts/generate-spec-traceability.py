@@ -16,6 +16,10 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DOCUMENT = ROOT / "docs/SPEC_TEST_TRACEABILITY.md"
 
+C_FUNCTION = re.compile(r"^(?:static )?void (\w*test_?\w+)\(")
+# it("...") / test("...") / describe("..."), quoted with ' or " or a backtick.
+VITEST_CASE = re.compile(r"""^\s*(?:it|test|describe)(?:\.\w+)?\(\s*['"`]([^'"`]+)""")
+
 PREAMBLE = """# SPEC → test traceability
 
 Generated from `docs/SPEC.md` and `tests/host/test_*.c`. Regenerate with
@@ -73,15 +77,19 @@ def statements():
 
 
 def sources():
-    """Every host-test source, including the .inc fragments.
+    """Every test source: host C, the .inc fragments, and the frontend suite.
 
-    Several suites -- auth, the executor, web security, the web-server adapter --
-    keep their test bodies in .inc files that a single test_*.c includes. Scanning
-    only test_*.c made every citation in those fragments invisible, which would
-    have reported covered sections as unmapped.
+    Several C suites -- auth, the executor, web security, the web-server adapter
+    -- keep their test bodies in .inc files that a single test_*.c includes, and
+    the frontend's 17 vitest files live in webapp/tests/ rather than beside the
+    code. Scanning only tests/host/test_*.c made citations in either invisible,
+    which reports covered sections as unmapped. The specification covers the web
+    application (SPEC 9) as much as the firmware, so its tests count.
     """
-    directory = ROOT / "tests/host"
-    return sorted(directory.glob("test_*.c")) + sorted(directory.glob("*.inc"))
+    host = ROOT / "tests/host"
+    webapp = ROOT / "webapp/tests"
+    return (sorted(host.glob("test_*.c")) + sorted(host.glob("*.inc")) +
+            sorted(webapp.glob("*.test.ts")) + sorted(webapp.glob("*.test.tsx")))
 
 
 def enforcers():
@@ -105,9 +113,10 @@ def citations():
     cites = collections.defaultdict(set)
     for path in sources():
         suite = path.stem[len("test_"):] if path.stem.startswith("test_") else path.stem
+        suite = suite[: -len(".test")] if suite.endswith(".test") else suite
         function = None
         for line in path.read_text().splitlines():
-            match = re.match(r"^(?:static )?void (\w*test_?\w+)\(", line)
+            match = C_FUNCTION.match(line) or VITEST_CASE.match(line)
             if match:
                 function = match.group(1).removeprefix("test_")
             for cite in re.finditer(r"SPEC\s*§?\s*(\d+(?:\.\d+)?)", line):

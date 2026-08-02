@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# SPEC 13.1: "Exact sizes are defined in `firmware/partitions.csv` and MUST be
+# validated" -- against the real flash size, so a layout that overflows the part
+# is rejected before it is flashed rather than after.
 readonly csv="${1:-firmware/partitions.csv}"
 readonly flash_bytes=$((8 * 1024 * 1024))
 
