@@ -2805,11 +2805,44 @@ Interrupt real hardware after each storage transaction phase.
 
 Measure:
 
-- [ ] cancellation latency during 10-second delay;
-- [ ] cancellation latency during rapid typing;
-- [ ] confirmation timeout;
-- [ ] reset gesture duration;
-- [ ] accidental short-press rejection.
+- [ ] cancellation latency during 10-second delay; (needs a press of the
+      physical cancel button)
+- [ ] cancellation latency during rapid typing; (needs a press of the
+      physical cancel button)
+- [x] confirmation timeout;
+- [ ] reset gesture duration; (needs a physical button gesture)
+- [ ] accidental short-press rejection. (needs a physical button gesture)
+
+**confirmation timeout** was measured on the attached ESP32-S3 (device
+`9C139EA87739`) on 2026-08-01. `POST /api/v1/restore` hard-requires physical
+confirmation, so leaving the button unpressed times the window exactly. Eight
+consecutive requests, no button press, each returning
+`403 {"code":"timeout","message":"physical confirmation failed"}`:
+
+```text
+20.01  20.02  20.01  20.02  20.03  20.03  20.02  20.03   (seconds)
+```
+
+That matches `APP_PHYSICAL_CONFIRM_TIMEOUT_MS` (20000, `macro_limits.h`) to
+within 30 ms, the overhead of an HTTP round trip over Wi-Fi. Reproducible with
+`tests/hardware/test_backup_restore.py` and
+`tests/hardware/test_httpd_concurrency.py`.
+
+The timeout is enforced by `device_controls_wait_for_confirmation()`, which
+returns `APP_ERROR_TIMEOUT` when the confirmation semaphore is not given inside
+the window. These runs also confirm the controls task was alive and polling
+throughout: a stopped controls task returns `APP_ERROR_CONFLICT`, not
+`APP_ERROR_TIMEOUT`.
+
+Measured after the wait moved off the HTTP server task
+(`firmware/components/web_server/web_server_async.c`); the window itself is
+unchanged, but the device now stays responsive during it.
+
+The other four items all need a physical button press, which no automated
+harness here can produce. Note that the confirm button is GPIO0 (the BOARD's
+BOOT button) but the cancel button is `CONFIG_APP_CANCEL_BUTTON_GPIO=4`, which
+a bare devkit does not expose as a button - the two cancellation-latency items
+need a switch or jumper on GPIO4 before they can be measured at all.
 
 ## 21. Release budgets and immutable CI
 
