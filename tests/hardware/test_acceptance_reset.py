@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""SPEC 24.6 acceptance: power-cycle persistence, factory reset, re-provisioning.
+"""the specification (section 24.6) acceptance: power-cycle persistence, factory reset, re-provisioning.
 
-Three of the eleven items SPEC 24.6 requires, run end to end against the real
+Three of the eleven items the specification (section 24.6) requires, run end to end against the real
 device. They are one script because they are one story: data has to survive an
 ordinary restart, factory reset has to actually destroy it, and the device has
 to be usable again afterwards. Testing any one of them alone leaves the device
@@ -39,27 +39,71 @@ MACRO_SOURCE = "acceptance persistence check"
 REBOOT_TIMEOUT_S = 90
 
 
+def post_expecting_reboot(device: Device, path: str) -> None:
+    """POST a route that reboots the device.
+
+    The device restarts as it acknowledges, so the response often never
+    arrives. A timeout here is the expected outcome, not a failure -- the
+    verification is that the device comes back in the right state, which the
+    caller waits for.
+    """
+    try:
+        status, payload = device.post(path)
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return
+    if status not in (200, 202):
+        raise SystemExit(f"error: {path} was refused: {status} {payload}")
+
+
+def capture_boot_log(seconds: int = 20) -> str:
+    """Reset the device over the console and return what it prints while booting."""
+    import serial  # noqa: PLC0415
+
+    port = serial.Serial(hil_state.DEFAULT_CONSOLE, 115200, timeout=1)
+    try:
+        port.setDTR(False)
+        port.setRTS(True)
+        time.sleep(0.2)
+        port.setRTS(False)
+        deadline, data = time.time() + seconds, b""
+        while time.time() < deadline:
+            chunk = port.read(4096)
+            if chunk:
+                data += chunk
+    finally:
+        port.close()
+    return data.decode("utf-8", "replace")
+
+
 def report(step: str, detail: str = "") -> None:
     print(f"  {step}" + (f": {detail}" if detail else ""), flush=True)
 
 
-def wait_for_setup_state(ip: str, completed: bool, timeout_s: int = REBOOT_TIMEOUT_S) -> dict:
-    """Wait until the device answers with the expected provisioning state."""
+def wait_for_provisioning(ip: str, provisioned: bool, timeout_s: int = REBOOT_TIMEOUT_S) -> None:
+    """Wait until the device is up and in the expected provisioning state.
+
+    The two states are told apart by which routes exist rather than by a field:
+    a provisioned device removes the setup routes entirely, so /setup-state
+    answers 404, while an unprovisioned one serves it and reports
+    completed=false. Waiting on a field would have meant waiting forever on a
+    device that had finished setup.
+    """
     deadline = time.time() + timeout_s
     last = None
     while time.time() < deadline:
         time.sleep(2)
         try:
-            device = Device(ip)
-            status, payload = device.get("/api/v1/setup-state")
+            status, payload = Device(ip).get("/api/v1/setup-state")
         except (urllib.error.URLError, TimeoutError, OSError):
             continue
-        if status == 200 and isinstance(payload, dict) and payload.get("ok"):
-            last = payload["data"]
-            if last["completed"] == completed:
-                return last
+        last = (status, payload)
+        if provisioned and status == 404:
+            return
+        if (not provisioned and status == 200 and isinstance(payload, dict)
+                and payload.get("ok") and not payload["data"]["completed"]):
+            return
     raise SystemExit(
-        f"error: device did not report completed={completed} within {timeout_s}s "
+        f"error: device did not reach provisioned={provisioned} within {timeout_s}s "
         f"(last seen: {last})"
     )
 
@@ -96,7 +140,7 @@ def create_fixture(device: Device) -> tuple[str, str]:
 
 def main() -> int:
     ip = hil_state.device_ip()
-    print(f"SPEC 24.6 acceptance against {ip}")
+    print(f"the specification (section 24.6) acceptance against {ip}")
 
     print("\n1. power-cycle persistence")
     device = Device(ip)
@@ -104,17 +148,21 @@ def main() -> int:
     set_id, macro_id = create_fixture(device)
     report("created", f"set {set_id} with one macro")
 
-    # These take no body at all. Sending `{}` is a 422: the route policy rejects a
-# body on a route that has no fields, the same way /sets/{id}/select does.
-    status, _ = device.post("/api/v1/device/restart")
-    if status not in (200, 202):
-        raise SystemExit(f"error: restart was refused: {status}")
-    report("restart accepted", "waiting for the device to come back")
-    wait_for_setup_state(ip, completed=True)
-
-    # Reachable at the same address at all means the station credentials
-    # survived the restart and were used without a console command.
-    report("device answered again", f"at {ip}, so it rejoined Wi-Fi unaided")
+    # These take no body at all. Sending `{}` is a 422: the route policy rejects
+    # a body on a route with no fields, the same way /sets/{id}/select does.
+    post_expecting_reboot(device, "/api/v1/device/restart")
+    report("restart issued", "waiting for the device to come back")
+    try:
+        wait_for_provisioning(ip, provisioned=True, timeout_s=60)
+        report("device answered again", f"at {ip}, having rejoined Wi-Fi unaided")
+    except SystemExit:
+        # the specification (section 15.2) makes a failed join non-fatal and does not retry it, so a
+        # single transient failure leaves the device on its access point until
+        # something intervenes. That is the specified behaviour; recover over
+        # the console rather than failing a persistence test for a radio.
+        report("no answer", "rejoining over the console (the specification (section 15.2) does not retry)")
+        hil_state.connect_wifi()
+        wait_for_provisioning(ip, provisioned=True, timeout_s=60)
 
     device = Device(ip)
     device.login()
@@ -123,26 +171,28 @@ def main() -> int:
         raise SystemExit(f"error: the set did not survive the restart: {status} {payload}")
     status, payload = device.get(f"/api/v1/sets/{set_id}/macros")
     macros = payload["data"] if status == 200 else []
-    if not any(item["id"] == macro_id and item["source"] == MACRO_SOURCE for item in macros):
-        raise SystemExit(f"error: the macro did not survive the restart: {status} {payload}")
-    report("PASS", "set and macro survived, byte for byte")
+    if not any(item["id"] == macro_id for item in macros):
+        raise SystemExit(f"error: the macro is not in the set: {status} {payload}")
+    # The list is summaries; the source only comes back on the macro itself, and
+    # the source is the part that has to survive byte for byte -- it is what the
+    # device will type.
+    status, payload = device.get(f"/api/v1/sets/{set_id}/macros/{macro_id}")
+    if status != 200 or payload["data"]["source"] != MACRO_SOURCE:
+        raise SystemExit(f"error: the macro source did not survive: {status} {payload}")
+    report("PASS", "set and macro survived, source byte for byte")
 
     print("\n2. factory reset")
-    status, payload = device.post("/api/v1/device/factory-reset")
-    if status not in (200, 202):
-        raise SystemExit(f"error: factory reset was refused: {status} {payload}")
-    report("accepted", "waiting for the device to come back unprovisioned")
+    post_expecting_reboot(device, "/api/v1/device/factory-reset")
+    report("issued", "waiting for the device to come back unprovisioned")
 
     # It comes back on its access point only: factory reset clears the whole
     # provisioning record, station credentials included, which is the one time
-    # SPEC 15.2 permits them to be discarded without an explicit empty SSID.
+    # the specification (section 15.2) permits them to be discarded without an explicit empty SSID.
     print("   the device is now AP-only; rejoining Wi-Fi over the console")
     time.sleep(12)
     address = hil_state.connect_wifi()
     report("rejoined", address)
-    state = wait_for_setup_state(address, completed=False, timeout_s=30)
-    if state["completed"]:
-        raise SystemExit("error: the device is still provisioned after a factory reset")
+    wait_for_provisioning(address, provisioned=False, timeout_s=45)
     report("PASS", "device is unprovisioned and its data is gone")
 
     print("\n3. re-provisioning, and the station network surviving setup")
@@ -153,13 +203,27 @@ def main() -> int:
 
     # The regression this guards: setup used to rebuild the provisioning record
     # from scratch and drop the station credentials, so the device came back
-    # from setup on its access point alone. If it answers here, they survived.
-    state = wait_for_setup_state(address, completed=True)
-    if not state["completed"]:
-        raise SystemExit("error: the device did not come back provisioned")
-    report("PASS", "provisioned, and still reachable over Wi-Fi after the setup restart")
+    # from setup on its access point alone.
+    #
+    # Reachability is the wrong evidence for it. the specification (section 15.2) attempts the join
+    # once and does not retry, so a device that kept its credentials can still
+    # fail to associate, and rejoining over the console to check would rewrite
+    # the very record under test. The boot log distinguishes the two: a device
+    # that kept its credentials enters station mode and names the network,
+    # whether or not the association succeeds. One that lost them never leaves
+    # access-point mode.
+    log = capture_boot_log()
+    entered_station_mode = "mode : sta" in log
+    joined = "joined saved Wi-Fi network" in log
+    if not entered_station_mode:
+        raise SystemExit(
+            "error: the device never attempted a station join after setup, so "
+            "the stored network did not survive:\n" + log[-600:]
+        )
+    report("PASS", "credentials survived setup; the device attempted the stored network"
+                   + (" and joined it" if joined else " (association failed this boot)"))
 
-    print("\nAll SPEC 24.6 items in this script passed.")
+    print("\nAll the specification (section 24.6) items in this script passed.")
     print(json.dumps({"device": address, "setId": set_id, "macroId": macro_id}, indent=2))
     return 0
 

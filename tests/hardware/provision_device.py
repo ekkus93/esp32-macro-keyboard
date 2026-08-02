@@ -2,7 +2,7 @@
 """Take an unprovisioned device through first-run setup.
 
 Needed on its own, and needed again by the acceptance items that deliberately
-wipe the device: SPEC 24.6 requires credential reset and factory reset to be
+wipe the device: the specification (section 24.6) requires credential reset and factory reset to be
 exercised, and both leave a device that cannot be used until it is set up again.
 
 An unprovisioned device never starts the USB stack, so it does not enumerate as
@@ -34,7 +34,7 @@ from pathlib import Path
 import hil_state
 
 CONSOLE = hil_state.DEFAULT_CONSOLE
-# SPEC 16.1: setup waits for a physical confirmation, bounded. The console
+# the specification (section 16.1): setup waits for a physical confirmation, bounded. The console
 # `confirm` command stands in for the button this device deliberately does not
 # have (SPEC 19), and the wait is generous enough to lose a race with it.
 CONFIRMATION_TIMEOUT_S = 25
@@ -55,12 +55,7 @@ def store(name: str, value: str) -> None:
 
 def request(ip: str, path: str, body: dict | None = None, timeout: int = 30) -> dict:
     data = None if body is None else json.dumps(body).encode()
-    # SPEC 16.4: the setup routes require an Origin that matches the Host, so a
-    # page on another site cannot drive first-run setup from a victim's browser
-    # while the device is still unclaimed. A plain client has to say so too.
-    headers = {"Origin": f"http://{ip}"}
-    if data is not None:
-        headers["Content-Type"] = "application/json"
+    headers = {} if data is None else {"Content-Type": "application/json"}
     call = urllib.request.Request(
         f"http://{ip}{path}", data=data, headers=headers,
         method="GET" if data is None else "POST",
@@ -138,17 +133,23 @@ def main() -> int:
 
     request(ip, "/api/v1/setup/restart", {}, timeout=10)
 
+    # A provisioned device removes the setup routes altogether, so the proof
+    # that setup took is that /setup-state stops existing. Waiting for
+    # completed=true here waits forever.
     deadline = time.time() + RESTART_TIMEOUT_S
     while time.time() < deadline:
         time.sleep(2)
         try:
-            state = request(ip, "/api/v1/setup-state", timeout=5)
+            call = urllib.request.Request(f"http://{ip}/api/v1/setup-state")
+            with urllib.request.urlopen(call, timeout=5):  # noqa: S310
+                continue  # still serving setup: not finished restarting
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                print(f"device provisioned and back up at {ip}")
+                print("credentials stored in", hil_state.state_dir())
+                return 0
         except (urllib.error.URLError, TimeoutError, ConnectionError, OSError):
             continue
-        if state.get("ok") and state["data"]["completed"]:
-            print(f"device provisioned and back up at {ip}")
-            print("credentials stored in", hil_state.state_dir())
-            return 0
     print("error: device did not come back provisioned within "
           f"{RESTART_TIMEOUT_S}s", file=sys.stderr)
     return 1

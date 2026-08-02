@@ -143,11 +143,15 @@ def sources():
     """
     host = ROOT / "tests/host"
     webapp = ROOT / "webapp/tests"
+    hardware = ROOT / "tests/hardware"
     return (sorted(host.glob("test_*.c")) + sorted(host.glob("*.inc")) +
             sorted(webapp.glob("*.test.ts")) + sorted(webapp.glob("*.test.tsx")) +
             # Real-Chrome workflows. Some requirements -- responsive layout above
             # all -- are only observable in a browser that does layout.
-            sorted((webapp / "browser").glob("*.mjs")))
+            sorted((webapp / "browser").glob("*.mjs")) +
+            # Hardware-in-the-loop. These only run with a board attached, so a
+            # citation here means "proved on the bench", not "runs in CI".
+            sorted(hardware.glob("test_*.py")))
 
 
 def enforcers():

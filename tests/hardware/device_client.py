@@ -1,7 +1,8 @@
 """Minimal HTTP client for the ESP32 macro keyboard's API.
 
-Handles the session cookie, CSRF token, and Host/Origin same-origin policy the
-firmware enforces, so the hardware tests can drive real endpoints.
+The session cookie is the whole credential (SPEC 16.2). The CSRF token and the
+Host/Origin pair this client used to send were removed with the checks that
+required them.
 """
 
 import json
@@ -16,21 +17,15 @@ class Device:
         self.ip = ip or hil_state.device_ip()
         self.base = f"http://{self.ip}"
         self.cookie = None
-        self.csrf = None
 
     def _request(self, method, path, body=None, raw=False):
-        headers = {
-            "Host": self.ip,
-            "Origin": self.base,
-        }
+        headers = {}
         data = None
         if body is not None:
             data = json.dumps(body).encode()
             headers["Content-Type"] = "application/json"
         if self.cookie:
             headers["Cookie"] = self.cookie
-        if self.csrf and method != "GET":
-            headers["X-CSRF-Token"] = self.csrf
 
         request = urllib.request.Request(
             f"{self.base}{path}", data=data, headers=headers, method=method
@@ -84,7 +79,6 @@ class Device:
         except Exception:
             pass
         self.cookie = None
-        self.csrf = None
 
     def __enter__(self):
         self.login()
@@ -99,10 +93,7 @@ class Device:
         status, payload = self.post("/api/v1/auth/login", {"password": password})
         if status != 200:
             raise SystemExit(f"login failed: HTTP {status} {payload}")
-        # session endpoint returns the CSRF token for subsequent mutations
         status, payload = self.get("/api/v1/auth/session")
         if status != 200:
             raise SystemExit(f"session fetch failed: HTTP {status} {payload}")
-        data = payload.get("data", payload)
-        self.csrf = data.get("csrfToken") or data.get("csrf_token")
-        return data
+        return payload.get("data", payload)

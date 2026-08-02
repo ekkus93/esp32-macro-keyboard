@@ -41,8 +41,8 @@ None of these is a coverage measurement. This is a worklist, not a score.
 | | Statements | Unmapped |
 | --- | --- | --- |
 | MUST NOT | 72 | 12 |
-| MUST | 182 | 18 |
-| **Total** | **254** | **30** |
+| MUST | 182 | 16 |
+| **Total** | **254** | **28** |
 
 ## Prohibitions (`MUST NOT`) — do these first
 
@@ -181,11 +181,11 @@ cheapest place to find real gaps.
 | §11.3 | L645 | terminal state. The executor MUST also clear its internal pressed-key state even | referenced | executor_terminal_tests → (file)<br>usb_keyboard → report_failure |
 | §11.5 | L678 | Cancellation MUST use a thread-safe flag, task notification, or equivalent | gate-enforced | check-layer-boundaries.sh (gate script) |
 | §11.5 | L679 | bounded mechanism and MUST remain responsive during delay actions. | gate-enforced | check-layer-boundaries.sh (gate script) |
-| §12 | L685 | `schema_version` | referenced | storage_object_json → macro_rejects_noncanonical_json |
-| §12 | L686 | stable ID | referenced | storage_object_json → macro_rejects_noncanonical_json |
-| §12 | L687 | revision number | referenced | storage_object_json → macro_rejects_noncanonical_json |
-| §12 | L688 | creation timestamp or monotonic metadata where available | referenced | storage_object_json → macro_rejects_noncanonical_json |
-| §12 | L689 | update timestamp or monotonic metadata where available | referenced | storage_object_json → macro_rejects_noncanonical_json |
+| §12 | L685 | `schema_version` | referenced | acceptance_reset → (file)<br>storage_object_json → macro_rejects_noncanonical_json |
+| §12 | L686 | stable ID | referenced | acceptance_reset → (file)<br>storage_object_json → macro_rejects_noncanonical_json |
+| §12 | L687 | revision number | referenced | acceptance_reset → (file)<br>storage_object_json → macro_rejects_noncanonical_json |
+| §12 | L688 | creation timestamp or monotonic metadata where available | referenced | acceptance_reset → (file)<br>storage_object_json → macro_rejects_noncanonical_json |
+| §12 | L689 | update timestamp or monotonic metadata where available | referenced | acceptance_reset → (file)<br>storage_object_json → macro_rejects_noncanonical_json |
 | §12.3 | L758 | the index, is a corruption of the index and is handled under §13.6. Firmware MUST | referenced | app-sets → persists real settings updates<br>provisioning_settings → (file)<br>storage_active_set_delete → (file)<br>storage_sets → delete_is_permanent_and_leaves_no_trash<br>web_api_json → settings_update_matrix<br>web_api_repository_handlers → set_routes |
 | §13.1 | L782 | Exact sizes are defined in `firmware/partitions.csv` and MUST be validated | gate-enforced | check-partitions.sh (gate script) |
 | §13.3 | L805 | The `userdata` partition is **512 KiB**. The layout MUST be flat: one index file | referenced | storage_mount → unmount_continues_after_one_failure<br>storage_package_restore → (file)<br>storage_sets → (file)<br>storage_sets → duplicate_index_is_discarded_and_output_cleared<br>web_api_repository_handlers → (file) |
@@ -193,7 +193,7 @@ cheapest place to find real gaps.
 | §13.6 | L889 | The error MUST name the object and MUST be surfaced through the API and the UI. | referenced | management-screens → shows live redacted storage data<br>storage_macros → oversized_set_file_is_refused<br>storage_macros → set_local_crud_duplicate_and_order<br>web_api_admin_boundary → storage_snapshot_publishes_remaining_space<br>web_api_core → route_parsing |
 | §14 | L932 | A stored record whose length does not match the current layout MUST be rejected | referenced | provisioning → corrupt_persisted_records<br>provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → oversized_credentials_are_refused_without_side_effects<br>provisioning → station_credentials_survive_a_power_cycle<br>provisioning → storing_a_network_replaces_the_previous_one |
 | §15.2 | L985 | A station join that fails, times out, or is refused MUST be logged and otherwise | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
-| §16.2 | L1006 | issued on successful login, and it MUST be `HttpOnly` and `SameSite=Strict`. | referenced | web_request_policy → success_and_generated_request_id |
+| §16.2 | L1006 | issued on successful login, and it MUST be `HttpOnly` and `SameSite=Strict`. | referenced | network_security → (file)<br>web_request_policy → success_and_generated_request_id |
 | §16.3 | L1030 | policy. The implementation MUST avoid unbounded per-IP state. | referenced | auth_additional_rate_tests → (file) |
 | §16.4 | L1036 | route-specific body limits | referenced | web_request_policy → failure_statuses |
 | §16.4 | L1037 | header count and size limits where configurable | referenced | web_request_policy → failure_statuses |
@@ -302,11 +302,11 @@ cheapest place to find real gaps.
 | §24.6 | L1605 | Linux host | **UNMAPPED** | — |
 | §24.6 | L1606 | ChromeOS host when available | **UNMAPPED** | — |
 | §24.6 | L1607 | Windows host when available | **UNMAPPED** | — |
-| §24.6 | L1608 | power-cycle persistence | **UNMAPPED** | — |
+| §24.6 | L1608 | power-cycle persistence | referenced | acceptance_reset → (file) |
 | §24.6 | L1609 | repeated USB reconnects | **UNMAPPED** | — |
 | §24.6 | L1610 | repeated AP reconnects | **UNMAPPED** | — |
 | §24.6 | L1611 | a full set of macros sent in order against a harmless text target | **UNMAPPED** | — |
 | §24.6 | L1612 | cancellation over both the API and the `cancel` console command | **UNMAPPED** | — |
 | §24.6 | L1613 | credential reset | **UNMAPPED** | — |
-| §24.6 | L1614 | factory reset | **UNMAPPED** | — |
+| §24.6 | L1614 | factory reset | referenced | acceptance_reset → (file) |
 | §24.6 | L1615 | user-data preservation across firmware slot switch | **UNMAPPED** | — |

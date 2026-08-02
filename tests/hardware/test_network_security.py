@@ -3,8 +3,14 @@
 
 The USB-UART console is deliberately trusted (physical access implies trust).
 The network surface is not: anything arriving over Wi-Fi must present a valid
-session, a matching CSRF token, and an accepted Host/Origin, and repeated bad
-logins must be throttled. These tests assert that boundary on the device.
+session cookie, and repeated bad logins must be throttled. These tests assert
+that boundary on the device.
+
+The CSRF token and the Host/Origin pair were removed on 2026-08-02 (SPEC 16.2):
+the session cookie is HttpOnly and SameSite=Strict, which is what stops another
+site driving the device through a browser. The checks for them are gone from
+here too, because a test that asserts a removed policy fails for the right
+reason and the wrong cause.
 """
 
 import json
@@ -19,7 +25,7 @@ from device_client import Device
 def raw_request(ip, method, path, headers=None, body=None):
     """Issue a request with full control over headers (bypassing Device)."""
     data = json.dumps(body).encode() if body is not None else None
-    merged = {"Host": ip, "Origin": f"http://{ip}"}
+    merged = {}
     if data is not None:
         merged["Content-Type"] = "application/json"
     merged.update(headers or {})
@@ -62,29 +68,15 @@ def main():
     status, _ = device.get("/api/v1/sets")
     results.append(check("GET /api/v1/sets with session", status == 200, f"HTTP {status}"))
 
-    # --- CSRF --------------------------------------------------------------
-    print("\nCSRF is required for mutations:")
+    # --- the cookie is the whole credential (SPEC 16.2) ----------------------
+    print("\nmutations need the session cookie and nothing else:")
     status, _ = raw_request(ip, "POST", "/api/v1/executions/current/cancel",
                             headers={"Cookie": device.cookie})
-    results.append(check("mutation without CSRF token", status in (401, 403), f"HTTP {status}"))
-
-    status, _ = raw_request(ip, "POST", "/api/v1/executions/current/cancel",
-                            headers={"Cookie": device.cookie,
-                                     "X-CSRF-Token": "0" * 64})
-    results.append(check("mutation with wrong CSRF token", status in (401, 403), f"HTTP {status}"))
-
-    # --- Host / Origin ------------------------------------------------------
-    print("\nHost/Origin transport policy:")
-    status, _ = raw_request(ip, "GET", "/api/v1/sets",
-                            headers={"Cookie": device.cookie,
-                                     "Origin": "http://evil.example"})
-    results.append(check("cross-origin request", status in (401, 403), f"HTTP {status}"))
-
-    status, _ = raw_request(ip, "POST", "/api/v1/executions/current/cancel",
-                            headers={"Cookie": device.cookie,
-                                     "X-CSRF-Token": device.csrf,
-                                     "Origin": "http://evil.example"})
-    results.append(check("cross-origin mutation", status in (401, 403), f"HTTP {status}"))
+    results.append(check("mutation with only the session cookie",
+                         status not in (401, 403), f"HTTP {status}"))
+    status, _ = raw_request(ip, "POST", "/api/v1/executions/current/cancel")
+    results.append(check("mutation with no cookie is refused",
+                         status in (401, 403), f"HTTP {status}"))
 
     # --- session validity ---------------------------------------------------
     print("\nforged/expired sessions are refused:")
