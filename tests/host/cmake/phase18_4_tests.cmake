@@ -57,32 +57,3 @@ target_compile_options(
 add_test(NAME storage_restore_transaction COMMAND storage_restore_transaction_tests)
 set_tests_properties(storage_restore_transaction PROPERTIES LABELS "storage")
 
-add_executable(
-    storage_repository_tree_tests
-    "${CMAKE_SOURCE_DIR}/test_storage_repository_tree.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/app_error.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/app_uuid.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/macro_model.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/macro_parser.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/macro_keymap_us.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_json.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_json.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_objects_json.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_tree.c"
-)
-target_include_directories(
-    storage_repository_tree_tests
-    PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
-            "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
-            "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/include"
-            "${CMAKE_SOURCE_DIR}/../../firmware/components/storage"
-)
-target_compile_definitions(
-    storage_repository_tree_tests
-    PRIVATE STORAGE_DATA_MOUNT="/tmp/esp32-macro-keyboard-repository-tree"
-)
-target_link_libraries(storage_repository_tree_tests PRIVATE PkgConfig::CJSON test_support)
-target_compile_options(storage_repository_tree_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME storage_repository_tree COMMAND storage_repository_tree_tests)
-set_tests_properties(storage_repository_tree PROPERTIES LABELS "storage")

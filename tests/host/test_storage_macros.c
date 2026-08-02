@@ -117,7 +117,6 @@ static void test_argument_validation(void) {
     macro_t macro = make_macro(1U, location, "Arguments", "TEXT hello");
     macro_t output = {0};
     storage_macro_list_t list = {0};
-    storage_reference_list_t references = {0};
 
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_macro_list(NULL, &list));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_macro_list(location, NULL));
@@ -127,8 +126,7 @@ static void test_argument_validation(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_macro_read(location, &macro.id, NULL));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          storage_macro_update(location, &macro, 0U, &output));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_macro_delete(location, &macro.id, 0U, &references));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_macro_delete(location, &macro.id, 0U));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          storage_macro_duplicate(location, &macro.id, &macro.id, NULL, &output));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_macro_reorder(location, NULL, 1U));
@@ -200,73 +198,12 @@ static void test_set_local_crud_duplicate_and_order(void) {
                          storage_macro_reorder(location, wrong_members,
                                                sizeof(wrong_members) / sizeof(wrong_members[0])));
 
-    storage_reference_list_t references = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
-                         storage_macro_delete(location, &first.id, 1U, &references));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_macro_delete(location, &first.id, 2U, &references));
-    TEST_CHECK_EQ_U64(0U, references.count);
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_macro_delete(location, &first.id, 1U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_delete(location, &first.id, 2U));
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, storage_macro_read(location, &first.id, &readback));
 
     macro_model_free_macro(&first);
     macro_model_free_macro(&second);
-}
-
-static void write_procedure_reference(const macro_set_t *set, const macro_t *macro,
-                                      const app_uuid_t *procedure_id) {
-    procedure_step_t step = {
-        .id = make_uuid(700U),
-        .type = PROCEDURE_STEP_MACRO,
-        .required = true,
-        .has_macro_id = true,
-        .macro_id = macro->id,
-        .auto_complete_on_success = false,
-    };
-    TEST_CHECK(snprintf(step.title, sizeof(step.title), "Run referenced macro") > 0);
-    procedure_t procedure = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .id = *procedure_id,
-        .revision = 1U,
-        .set_id = set->id,
-        .steps = &step,
-        .step_count = 1U,
-    };
-    TEST_CHECK(snprintf(procedure.name, sizeof(procedure.name), "Reference procedure") > 0);
-    TEST_CHECK(snprintf(procedure.description, sizeof(procedure.description), "Reference test") >
-               0);
-
-    char *json = NULL;
-    size_t length = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_serialize_procedure_json(&procedure, &json, &length));
-    char path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_make_procedure_path(&set->id, procedure_id, path, sizeof(path)));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_atomic_write(path, json, length, true));
-    cJSON_free(json);
-}
-
-static void test_delete_reports_procedure_references(void) {
-    reset_store();
-    macro_set_t set;
-    create_set(&set);
-    const app_uuid_t *location = &set.id;
-    macro_t macro = make_macro(50U, location, "Referenced", "TEXT referenced");
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(location, &macro));
-    const app_uuid_t procedure_id = make_uuid(500U);
-    write_procedure_reference(&set, &macro, &procedure_id);
-
-    storage_reference_list_t references = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
-                         storage_macro_delete(location, &macro.id, 1U, &references));
-    TEST_CHECK_EQ_U64(1U, references.count);
-    TEST_CHECK(!references.truncated);
-    TEST_CHECK_EQ_UUID(&procedure_id, &references.ids[0]);
-
-    macro_t readback = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_read(location, &macro.id, &readback));
-    macro_model_free_macro(&readback);
-    macro_model_free_macro(&macro);
 }
 
 static void test_corrupt_macro_is_discarded(void) {
@@ -328,7 +265,6 @@ int main(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
     test_argument_validation();
     test_set_local_crud_duplicate_and_order();
-    test_delete_reports_procedure_references();
     test_corrupt_macro_is_discarded();
     test_missing_set_and_revision_overflow();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);

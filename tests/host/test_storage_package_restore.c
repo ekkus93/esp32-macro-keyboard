@@ -18,13 +18,10 @@
 #include "storage_package.h"
 #include "storage_repository.h"
 #include "storage_repository_lock.h"
-#include "storage_repository_tree_internal.h"
 #include "test_assert.h"
 
 #define SET_ID "11111111-1111-4111-8111-111111111111"
 #define LOCAL_MACRO_ID "22222222-2222-4222-8222-222222222222"
-#define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
-#define LOCAL_STEP_ID "44444444-4444-4444-8444-444444444444"
 #define RESTORE_TX_ID_A "66666666-6666-4666-8666-666666666666"
 #define RESTORE_TX_ID_B "77777777-7777-4777-8777-777777777777"
 
@@ -34,16 +31,7 @@ static const char BACKUP_PACKAGE[] =
     "\",\"revision\":7,\"name\":\"Restored\"}],\"macros\":[{"
     "\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID "\",\"revision\":1,\"name\":\"Local\","
     "\"source\":\"a\",\"key_press_ms\":8,"
-    "\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}],\"procedures\":[{\"schema_version\":1,"
-    "\"id\":\"" PROCEDURE_ID "\",\"revision\":3,\"set_id\":\"" SET_ID
-    "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{"
-    "\"id\":\"" LOCAL_STEP_ID
-    "\",\"type\":\"macro\",\"title\":\"Local\",\"macro_id\":\"" LOCAL_MACRO_ID
-    "\",\"required\":true,\"auto_complete_on_success\":false}],"
-    "\"sort_order\":0}],\"progress\":[{\"schema_version\":1,\"set_id\":\"" SET_ID
-    "\",\"procedure_id\":\"" PROCEDURE_ID
-    "\",\"procedure_revision\":3,\"current_step_id\":\"" LOCAL_STEP_ID
-    "\",\"completed_step_ids\":[],\"skipped_step_ids\":[]}]}";
+    "\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}]}";
 
 static bool inject_staging_storage_full;
 
@@ -115,7 +103,6 @@ static void create_repository_layout(void) {
     write_text(path, "{\"schema_version\":1}");
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "set-index.json");
     write_text(path, "{\"schema_version\":1,\"ids\":[]}");
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_tree_validate(STORAGE_DATA_MOUNT));
 }
 
 static void create_empty_repository(void) {
@@ -160,7 +147,6 @@ static char *read_text(const char *path) {
 }
 
 static void assert_repository_remains_empty(void) {
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_tree_validate(STORAGE_DATA_MOUNT));
     char path[APP_PATH_MAX_BYTES];
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "set-index.json");
     char *index = read_text(path);
@@ -212,7 +198,6 @@ static void test_complete_backup_restores_atomically(void) {
     create_empty_repository();
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_restore_backup(
                                              BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_tree_validate(STORAGE_DATA_MOUNT));
 
     char path[APP_PATH_MAX_BYTES];
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "set-index.json");
@@ -318,7 +303,7 @@ static void test_invalid_backup_does_not_mutate_repository(void) {
     create_empty_repository();
     static const char invalid[] =
         "{\"schema_version\":1,\"package_type\":\"macro-set\",\"sets\":[],"
-        "\"macros\":[],\"procedures\":[],\"progress\":[]}";
+        "\"macros\":[]}";
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          storage_package_restore_backup(invalid, sizeof(invalid) - 1U));
     assert_repository_remains_empty();

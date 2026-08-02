@@ -78,8 +78,6 @@
 18720 firmware/components/storage/storage_package_import.c:import_locked
 18528 firmware/components/storage/storage_package_replace.c:storage_package_replace_set
 16560 firmware/components/storage/storage_set_tree.c:storage_set_tree_validate
-15408 firmware/components/storage/storage_package.c:validate_progress_object$part$0.isra
-15072 firmware/components/storage/storage_package_export.c:snapshot_load_progress
 7712 firmware/components/storage/storage_repository_procedures.c:procedure_reorder_locked
 7456 firmware/components/storage/storage_repository_macros.c:macro_reorder_locked
 5584 firmware/components/storage/storage_transaction.c:storage_transaction_recover_all_with_ops$part$0

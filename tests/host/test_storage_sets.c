@@ -103,9 +103,7 @@ static void assert_set_layout(const macro_set_t *set) {
                          storage_make_set_path(&set->id, directory, sizeof(directory)));
     TEST_CHECK(path_exists(directory));
 
-    static const char *const children[] = {
-        "set.json", "macro-order.json", "procedure-order.json", "macros", "procedures", "progress",
-    };
+    static const char *const children[] = {"set.json", "macro-order.json", "macros"};
     for (size_t index = 0U; index < (sizeof(children) / sizeof(children[0])); ++index) {
         char path[APP_PATH_MAX_BYTES];
         const int written = snprintf(path, sizeof(path), "%s/%s", directory, children[index]);

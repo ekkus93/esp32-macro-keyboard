@@ -56,8 +56,6 @@ static void reset_store(void) {
     make_directory(STORAGE_DATA_MOUNT "/sets");
     make_directory(STORAGE_DATA_MOUNT "/sets/" SET_UUID);
     make_directory(STORAGE_DATA_MOUNT "/sets/" SET_UUID "/macros");
-    make_directory(STORAGE_DATA_MOUNT "/sets/" SET_UUID "/procedures");
-    make_directory(STORAGE_DATA_MOUNT "/sets/" SET_UUID "/progress");
     make_directory(STORAGE_DATA_MOUNT "/transactions");
 }
 
@@ -103,51 +101,6 @@ static void write_macro_json(const char *path, const char *id_text, const char *
     free(json);
 }
 
-static void write_procedure_json(const char *path, const char *id_text, const char *set_id_text) {
-    procedure_step_t steps[1] = {{
-        .id = parse_uuid(OP_UUID),
-        .type = PROCEDURE_STEP_MACRO,
-        .required = true,
-        .has_macro_id = true,
-        .macro_id = parse_uuid(OP_UUID),
-    }};
-    TEST_CHECK(snprintf(steps[0].title, sizeof(steps[0].title), "Step") > 0);
-    procedure_t procedure = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .id = parse_uuid(id_text),
-        .revision = 1U,
-        .set_id = parse_uuid(set_id_text),
-        .steps = steps,
-        .step_count = 1U,
-    };
-    TEST_CHECK(snprintf(procedure.name, sizeof(procedure.name), "Validator Procedure") > 0);
-    char *json = NULL;
-    size_t length = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_serialize_procedure_json(&procedure, &json, &length));
-    TEST_CHECK(json != NULL);
-    write_file(path, json, length);
-    free(json);
-}
-
-static void write_progress_json(const char *path, const char *procedure_id_text,
-                                const char *set_id_text) {
-    procedure_progress_t progress = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .set_id = parse_uuid(set_id_text),
-        .procedure_id = parse_uuid(procedure_id_text),
-        .procedure_revision = 1U,
-        .current_step_id = parse_uuid(OP_UUID),
-    };
-    char *json = NULL;
-    size_t length = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_serialize_progress_json(&progress, &json, &length));
-    TEST_CHECK(json != NULL);
-    write_file(path, json, length);
-    free(json);
-}
-
 static void write_manifest(const char *path, const char *id_text) {
     storage_transaction_manifest_t manifest = {0};
     manifest.schema_version = APP_SCHEMA_VERSION;
@@ -187,12 +140,9 @@ static void test_classifier(void) {
     TEST_CHECK_EQ_INT(STORAGE_ATOMIC_OBJECT_MACRO,
                       storage_atomic_classify_destination(
                           STORAGE_DATA_MOUNT "/sets/" SET_UUID "/macros/" OTHER_UUID ".json"));
-    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_OBJECT_PROCEDURE,
+    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_OBJECT_UNKNOWN,
                       storage_atomic_classify_destination(
                           STORAGE_DATA_MOUNT "/sets/" SET_UUID "/procedures/" OTHER_UUID ".json"));
-    TEST_CHECK_EQ_INT(STORAGE_ATOMIC_OBJECT_PROGRESS,
-                      storage_atomic_classify_destination(
-                          STORAGE_DATA_MOUNT "/sets/" SET_UUID "/progress/" OTHER_UUID ".json"));
     TEST_CHECK_EQ_INT(STORAGE_ATOMIC_OBJECT_UNKNOWN,
                       storage_atomic_classify_destination(STORAGE_DATA_MOUNT "/mystery.dat"));
     TEST_CHECK_EQ_INT(STORAGE_ATOMIC_OBJECT_UNKNOWN, storage_atomic_classify_destination(NULL));
@@ -261,45 +211,6 @@ static void test_macro_validator(void) {
     TEST_CHECK(validate(destination, candidate) != APP_ERROR_NONE);
 }
 
-static void test_procedure_validator(void) {
-    reset_store();
-    const char *destination =
-        STORAGE_DATA_MOUNT "/sets/" SET_UUID "/procedures/" OTHER_UUID ".json";
-    const char *candidate =
-        STORAGE_DATA_MOUNT "/sets/" SET_UUID "/procedures/" OTHER_UUID ".json.tmp." OP_UUID;
-
-    write_procedure_json(candidate, OTHER_UUID, SET_UUID);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, validate(destination, candidate));
-
-    write_procedure_json(candidate, OTHER_UUID, THIRD_UUID);
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, validate(destination, candidate));
-
-    write_procedure_json(candidate, THIRD_UUID, SET_UUID);
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, validate(destination, candidate));
-
-    write_text(candidate, "{\"not\":\"a procedure\"}");
-    TEST_CHECK(validate(destination, candidate) != APP_ERROR_NONE);
-}
-
-static void test_progress_validator(void) {
-    reset_store();
-    const char *destination = STORAGE_DATA_MOUNT "/sets/" SET_UUID "/progress/" OTHER_UUID ".json";
-    const char *candidate =
-        STORAGE_DATA_MOUNT "/sets/" SET_UUID "/progress/" OTHER_UUID ".json.tmp." OP_UUID;
-
-    write_progress_json(candidate, OTHER_UUID, SET_UUID);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, validate(destination, candidate));
-
-    write_progress_json(candidate, OTHER_UUID, THIRD_UUID);
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, validate(destination, candidate));
-
-    write_progress_json(candidate, THIRD_UUID, SET_UUID);
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, validate(destination, candidate));
-
-    write_text(candidate, "{\"not\":\"progress\"}");
-    TEST_CHECK(validate(destination, candidate) != APP_ERROR_NONE);
-}
-
 static void test_transaction_manifest_validator(void) {
     reset_store();
     const char *destination = STORAGE_DATA_MOUNT "/transactions/" SET_UUID ".bin";
@@ -336,8 +247,6 @@ int main(void) {
     test_index_validators();
     test_set_metadata_validator();
     test_macro_validator();
-    test_procedure_validator();
-    test_progress_validator();
     test_transaction_manifest_validator();
     test_dispatch_refuses_without_validator();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);

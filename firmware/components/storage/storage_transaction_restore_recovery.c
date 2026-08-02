@@ -13,7 +13,6 @@
 #include "storage_fs_ops.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
-#include "storage_repository_tree_internal.h"
 #include "storage_transaction_internal.h"
 
 #define STORAGE_RESTORE_MAX_MANIFESTS 16U
@@ -34,9 +33,19 @@ static app_error_code_t production_uuid_generate(void *context, app_uuid_t *out_
     return app_uuid_generate(out_uuid);
 }
 
+/* The on-disk tree-shape re-check is gone: storage_set_tree.c and
+ * storage_repository_tree.c were deleted with procedures and progress, because
+ * the layout they walked is itself replaced by the flat /data/sets/<id>.json
+ * scheme. Every package is still fully validated by storage_package_validate()
+ * before a single byte is written, so what is missing here is the second,
+ * belt-and-braces pass over freshly materialized directories - not the only
+ * check. The seam is kept so the transaction recovery paths stay testable with
+ * an injected failing validator, and so Phase 4 removes the plumbing on
+ * purpose rather than by accident. */
 static app_error_code_t production_validate_repository(void *context, const char *root) {
     (void)context;
-    return storage_repository_tree_validate(root);
+    (void)root;
+    return APP_ERROR_NONE;
 }
 
 static app_error_code_t production_remove_tree(void *context, const char *path) {

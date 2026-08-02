@@ -89,149 +89,9 @@ static void test_macro_rejects_noncanonical_json(void) {
                                                         wrong_scope, strlen(wrong_scope), &output));
 }
 
-static procedure_t procedure_value(void) {
-    procedure_t procedure = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .id = uuid_value(10U),
-        .revision = 3U,
-        .set_id = uuid_value(2U),
-        .step_count = 2U,
-    };
-    TEST_CHECK_EQ_INT(9, snprintf(procedure.name, sizeof(procedure.name), "%s", "Provision"));
-    TEST_CHECK_EQ_INT(4,
-                      snprintf(procedure.description, sizeof(procedure.description), "%s", "Test"));
-    procedure.steps = calloc(procedure.step_count, sizeof(*procedure.steps));
-    TEST_CHECK(procedure.steps != NULL);
-    procedure.steps[0] = (procedure_step_t){
-        .id = uuid_value(11U),
-        .type = PROCEDURE_STEP_MACRO,
-        .required = true,
-        .auto_complete_on_success = true,
-        .has_macro_id = true,
-        .macro_id = uuid_value(1U),
-    };
-    TEST_CHECK_EQ_INT(
-        4, snprintf(procedure.steps[0].title, sizeof(procedure.steps[0].title), "%s", "Type"));
-    procedure.steps[1] = (procedure_step_t){
-        .id = uuid_value(12U),
-        .type = PROCEDURE_STEP_CHECKPOINT,
-        .required = true,
-        .body = strdup("Confirm output"),
-        .body_length = 14U,
-    };
-    TEST_CHECK(procedure.steps[1].body != NULL);
-    TEST_CHECK_EQ_INT(
-        7, snprintf(procedure.steps[1].title, sizeof(procedure.steps[1].title), "%s", "Confirm"));
-    return procedure;
-}
-
-static void test_procedure_round_trip(void) {
-    procedure_t input = procedure_value();
+static void test_order_round_trip(void) {
     char *json = NULL;
     size_t length = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_serialize_procedure_json(&input, &json, &length));
-    procedure_t output = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_parse_procedure_json(json, length, &output));
-    TEST_CHECK_EQ_U64(2U, output.step_count);
-    TEST_CHECK(output.steps[0].type == PROCEDURE_STEP_MACRO);
-    TEST_CHECK_EQ_UUID(&input.steps[0].macro_id, &output.steps[0].macro_id);
-    TEST_CHECK(output.steps[1].type == PROCEDURE_STEP_CHECKPOINT);
-    TEST_CHECK_EQ_STRING("Confirm output", output.steps[1].body);
-    macro_model_free_procedure(&output);
-    macro_model_free_procedure(&input);
-    cJSON_free(json);
-}
-
-static void test_procedure_rejects_duplicate_steps(void) {
-    procedure_t input = procedure_value();
-    input.steps[1].id = input.steps[0].id;
-    char *json = NULL;
-    size_t length = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_repository_serialize_procedure_json(&input, &json, &length));
-    TEST_CHECK(json == NULL);
-    macro_model_free_procedure(&input);
-}
-
-static void test_procedure_rejects_unknown_and_duplicate_fields(void) {
-    procedure_t input = procedure_value();
-    char *json = NULL;
-    size_t length = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_serialize_procedure_json(&input, &json, &length));
-    TEST_CHECK(length > 1U);
-    static const char extra[] = ",\"unexpected\":true}";
-    char *with_extra = malloc(length + sizeof(extra));
-    TEST_CHECK(with_extra != NULL);
-    memcpy(with_extra, json, length - 1U);
-    memcpy(with_extra + length - 1U, extra, sizeof(extra));
-    procedure_t output = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
-                         storage_repository_parse_procedure_json(
-                             with_extra, (length - 1U) + sizeof(extra) - 1U, &output));
-    TEST_CHECK(output.steps == NULL);
-    free(with_extra);
-
-    static const char duplicate[] = ",\"name\":\"duplicate\"}";
-    char *with_duplicate = malloc(length + sizeof(duplicate));
-    TEST_CHECK(with_duplicate != NULL);
-    memcpy(with_duplicate, json, length - 1U);
-    memcpy(with_duplicate + length - 1U, duplicate, sizeof(duplicate));
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
-                         storage_repository_parse_procedure_json(
-                             with_duplicate, (length - 1U) + sizeof(duplicate) - 1U, &output));
-    TEST_CHECK(output.steps == NULL);
-    free(with_duplicate);
-    cJSON_free(json);
-    macro_model_free_procedure(&input);
-}
-
-static void test_procedure_rejects_empty_steps(void) {
-    procedure_t input = procedure_value();
-    macro_model_free_procedure(&input);
-    input.steps = NULL;
-    input.step_count = 0U;
-    char *json = NULL;
-    size_t length = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_repository_serialize_procedure_json(&input, &json, &length));
-    TEST_CHECK(json == NULL);
-}
-
-static procedure_progress_t progress_value(void) {
-    procedure_progress_t progress = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .set_id = uuid_value(2U),
-        .procedure_id = uuid_value(10U),
-        .procedure_revision = 3U,
-        .current_step_id = uuid_value(12U),
-        .completed_step_count = 1U,
-        .skipped_step_count = 1U,
-    };
-    progress.completed_step_ids[0] = uuid_value(11U);
-    progress.skipped_step_ids[0] = uuid_value(13U);
-    return progress;
-}
-
-static void test_progress_and_order_round_trip(void) {
-    procedure_progress_t progress = progress_value();
-    char *json = NULL;
-    size_t length = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_serialize_progress_json(&progress, &json, &length));
-    procedure_progress_t output = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_parse_progress_json(json, length, &output));
-    TEST_CHECK_EQ_UUID(&progress.current_step_id, &output.current_step_id);
-    TEST_CHECK_EQ_U64(1U, output.completed_step_count);
-    cJSON_free(json);
-
-    progress.skipped_step_ids[0] = progress.completed_step_ids[0];
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_repository_serialize_progress_json(&progress, &json, &length));
-
     storage_uuid_order_t order = {.count = 2U};
     order.ids[0] = uuid_value(1U);
     order.ids[1] = uuid_value(2U);
@@ -252,11 +112,7 @@ static void test_progress_and_order_round_trip(void) {
 int main(void) {
     test_macro_round_trip();
     test_macro_rejects_noncanonical_json();
-    test_procedure_round_trip();
-    test_procedure_rejects_duplicate_steps();
-    test_procedure_rejects_unknown_and_duplicate_fields();
-    test_procedure_rejects_empty_steps();
-    test_progress_and_order_round_trip();
+    test_order_round_trip();
     puts("storage object JSON tests passed");
     return EXIT_SUCCESS;
 }

@@ -18,16 +18,13 @@
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_sets_internal.h"
-#include "storage_set_tree_internal.h"
 
-#define PACKAGE_IMPORT_ARRAY_COUNT 4U
+#define PACKAGE_IMPORT_ARRAY_COUNT 2U
 #define PACKAGE_IMPORT_JSON_SUFFIX ".json"
 
 typedef enum {
     PACKAGE_IMPORT_SETS = 0,
     PACKAGE_IMPORT_MACROS,
-    PACKAGE_IMPORT_PROCEDURES,
-    PACKAGE_IMPORT_PROGRESS,
 } package_import_array_t;
 
 typedef struct {
@@ -37,7 +34,7 @@ typedef struct {
 } package_import_document_t;
 
 /* Rewrite target for materializing a parsed package under a brand-new set identity:
- * every macro/procedure/progress node in the package must already declare
+ * every macro node in the package must already declare
  * `source_set_id` (self-consistency with the package's own sets[0].id), and gets
  * `new_set_id` stamped on write, mirroring storage_repository_set_operations.c's
  * write_duplicate_macro pattern applied to package content instead of live objects. */
@@ -106,28 +103,6 @@ static app_error_code_t parse_macro_node(const cJSON *node, macro_t *out_macro) 
     return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
 }
 
-static app_error_code_t parse_procedure_node(const cJSON *node, procedure_t *out_procedure) {
-    char *json = NULL;
-    size_t length = 0U;
-    app_error_code_t result = node_json(node, &json, &length);
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_parse_procedure_json(json, length, out_procedure);
-    }
-    cJSON_free(json);
-    return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
-}
-
-static app_error_code_t parse_progress_node(const cJSON *node, procedure_progress_t *out_progress) {
-    char *json = NULL;
-    size_t length = 0U;
-    app_error_code_t result = node_json(node, &json, &length);
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_parse_progress_json(json, length, out_progress);
-    }
-    cJSON_free(json);
-    return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
-}
-
 static void close_document(package_import_document_t *document) {
     if (document == NULL) {
         return;
@@ -148,8 +123,6 @@ static app_error_code_t open_document(const char *data, size_t length,
     static const char *const names[PACKAGE_IMPORT_ARRAY_COUNT] = {
         [PACKAGE_IMPORT_SETS] = "sets",
         [PACKAGE_IMPORT_MACROS] = "macros",
-        [PACKAGE_IMPORT_PROCEDURES] = "procedures",
-        [PACKAGE_IMPORT_PROGRESS] = "progress",
     };
     for (size_t index = 0U; index < PACKAGE_IMPORT_ARRAY_COUNT; ++index) {
         out_document->arrays[index] = cJSON_GetObjectItemCaseSensitive(root, names[index]);
@@ -258,104 +231,6 @@ static app_error_code_t write_import_macros(const char *staging, const cJSON *ar
                : result;
 }
 
-static app_error_code_t write_import_procedure_node(const char *directory, const cJSON *node,
-                                                    const package_import_rewrite_t *rewrite,
-                                                    storage_uuid_order_t *order) {
-    procedure_t procedure = {0};
-    app_error_code_t result = parse_procedure_node(node, &procedure);
-    if (result == APP_ERROR_NONE && (!app_uuid_equal(&procedure.set_id, rewrite->source_set_id) ||
-                                     order->count >= APP_PROCEDURES_PER_SET_MAX)) {
-        result = APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (result == APP_ERROR_NONE) {
-        procedure.set_id = *rewrite->new_set_id;
-        procedure.revision = 1U;
-    }
-    char *json = NULL;
-    size_t length = 0U;
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_serialize_procedure_json(&procedure, &json, &length);
-    }
-    char name[APP_UUID_STRING_LENGTH + sizeof(PACKAGE_IMPORT_JSON_SUFFIX)];
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        const int written = snprintf(name, sizeof(name), "%s.json", procedure.id.value);
-        result = written >= 0 && (size_t)written < sizeof(name)
-                     ? join_path(directory, name, path, sizeof(path))
-                     : APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_json_file(path, json, length);
-    }
-    if (result == APP_ERROR_NONE) {
-        order->ids[order->count++] = procedure.id;
-    }
-    cJSON_free(json);
-    macro_model_free_procedure(&procedure);
-    return result;
-}
-
-static app_error_code_t write_import_procedures(const char *staging, const cJSON *array,
-                                                const package_import_rewrite_t *rewrite) {
-    char directory[APP_PATH_MAX_BYTES];
-    app_error_code_t result = join_path(staging, "procedures", directory, sizeof(directory));
-    storage_uuid_order_t order = {0};
-    const int count = cJSON_GetArraySize(array);
-    for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
-        result = write_import_procedure_node(directory, cJSON_GetArrayItem(array, index), rewrite,
-                                             &order);
-    }
-    return result == APP_ERROR_NONE ? write_import_order(staging, "procedure-order.json", &order,
-                                                         APP_PROCEDURES_PER_SET_MAX)
-                                    : result;
-}
-
-/* Progress records carry the procedure's revision at export time; every procedure
- * is rewritten to revision 1 on import (matching the fresh set/macro revisions), so
- * progress.procedure_revision must be rewritten to 1 too or storage_set_tree_validate's
- * cross-check against the staged procedure's actual revision fails closed. */
-static app_error_code_t write_import_progress_node(const char *directory, const cJSON *node,
-                                                   const package_import_rewrite_t *rewrite) {
-    procedure_progress_t progress = {0};
-    app_error_code_t result = parse_progress_node(node, &progress);
-    if (result == APP_ERROR_NONE && !app_uuid_equal(&progress.set_id, rewrite->source_set_id)) {
-        result = APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (result == APP_ERROR_NONE) {
-        progress.set_id = *rewrite->new_set_id;
-        progress.procedure_revision = 1U;
-    }
-    char *json = NULL;
-    size_t length = 0U;
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_serialize_progress_json(&progress, &json, &length);
-    }
-    char name[APP_UUID_STRING_LENGTH + sizeof(PACKAGE_IMPORT_JSON_SUFFIX)];
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        const int written = snprintf(name, sizeof(name), "%s.json", progress.procedure_id.value);
-        result = written >= 0 && (size_t)written < sizeof(name)
-                     ? join_path(directory, name, path, sizeof(path))
-                     : APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_json_file(path, json, length);
-    }
-    cJSON_free(json);
-    return result;
-}
-
-static app_error_code_t write_import_progress(const char *staging, const cJSON *array,
-                                              const package_import_rewrite_t *rewrite) {
-    char directory[APP_PATH_MAX_BYTES];
-    app_error_code_t result = join_path(staging, "progress", directory, sizeof(directory));
-    const int count = cJSON_GetArraySize(array);
-    for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
-        result = write_import_progress_node(directory, cJSON_GetArrayItem(array, index), rewrite);
-    }
-    return result;
-}
-
 static app_error_code_t create_staging(const app_uuid_t *transaction_id, char *staging,
                                        size_t staging_size) {
     const int written =
@@ -364,7 +239,7 @@ static app_error_code_t create_staging(const app_uuid_t *transaction_id, char *s
         return APP_ERROR_INVALID_ARGUMENT;
     }
     app_error_code_t result = storage_repository_make_directory(staging);
-    static const char *const children[] = {"macros", "procedures", "progress"};
+    static const char *const children[] = {"macros"};
     for (size_t index = 0U;
          result == APP_ERROR_NONE && index < sizeof(children) / sizeof(children[0]); ++index) {
         char path[APP_PATH_MAX_BYTES];
@@ -383,13 +258,6 @@ static app_error_code_t materialize_staging(const package_import_document_t *doc
     app_error_code_t result = write_import_set(staging, new_set);
     if (result == APP_ERROR_NONE) {
         result = write_import_macros(staging, document->arrays[PACKAGE_IMPORT_MACROS], rewrite);
-    }
-    if (result == APP_ERROR_NONE) {
-        result =
-            write_import_procedures(staging, document->arrays[PACKAGE_IMPORT_PROCEDURES], rewrite);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_import_progress(staging, document->arrays[PACKAGE_IMPORT_PROGRESS], rewrite);
     }
     return result;
 }
@@ -490,9 +358,6 @@ static app_error_code_t import_locked(const app_uuid_t *new_set_id,
     }
     if (result == APP_ERROR_NONE) {
         result = materialize_staging(document, &new_set, &rewrite, staging);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = storage_set_tree_validate(staging, new_set_id, 1U);
     }
     if (result == APP_ERROR_NONE) {
         result = activate_import(&new_set, &index, &transaction_id, staging);

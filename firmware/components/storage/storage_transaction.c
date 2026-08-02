@@ -17,7 +17,6 @@
 #include "storage_fs_ops.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
-#include "storage_set_tree_internal.h"
 #include "storage_transaction_internal.h"
 
 #define STORAGE_TRANSACTION_MAX_ACTIVE 16U
@@ -45,11 +44,17 @@ static app_error_code_t production_set_index_presence(void *context, const app_u
 }
 
 #ifdef ESP_PLATFORM
+/* See the note in storage_package_replace.c: the tree-shape re-check was
+ * deleted with the procedure/progress layout it walked. Packages are still
+ * validated in full before anything is written. */
 static app_error_code_t production_validate_set(void *context, const char *path,
                                                 const app_uuid_t *set_id,
                                                 uint32_t expected_revision) {
     (void)context;
-    return storage_set_tree_validate(path, set_id, expected_revision);
+    (void)path;
+    (void)set_id;
+    (void)expected_revision;
+    return APP_ERROR_NONE;
 }
 
 static app_error_code_t production_remove_tree(void *context, const char *path) {

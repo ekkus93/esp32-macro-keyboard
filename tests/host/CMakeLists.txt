@@ -539,34 +539,6 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
 
 add_executable(
-    storage_set_tree_tests
-    test_storage_set_tree.c
-    ../../firmware/components/macro_model/app_error.c
-    ../../firmware/components/macro_model/app_uuid.c
-    ../../firmware/components/macro_model/macro_model.c
-    ../../firmware/components/macro_parser/macro_parser.c
-    ../../firmware/components/macro_parser/macro_keymap_us.c
-    ../../firmware/components/storage/storage_json.c
-    ../../firmware/components/storage/storage_repository_json.c
-    ../../firmware/components/storage/storage_repository_objects_json.c
-    ../../firmware/components/storage/storage_set_tree.c
-)
-target_include_directories(
-    storage_set_tree_tests
-    PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/macro_parser/include
-            ../../firmware/components/storage/include ../../firmware/components/storage
-)
-target_compile_definitions(
-    storage_set_tree_tests
-    PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-set-tree-data"
-)
-target_link_libraries(storage_set_tree_tests PRIVATE PkgConfig::CJSON test_support)
-target_compile_options(storage_set_tree_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME storage_set_tree COMMAND storage_set_tree_tests)
-set_tests_properties(storage_set_tree PROPERTIES LABELS "storage")
-
-add_executable(
     storage_repository_tests
     test_storage_repository.c
     ../../firmware/components/macro_model/app_error.c
@@ -617,8 +589,6 @@ set(STORAGE_OBJECT_REPOSITORY_SOURCES
     ../../firmware/components/storage/storage_repository_lock.c
     ../../firmware/components/storage/storage_repository_order.c
     ../../firmware/components/storage/storage_repository_macros.c
-    ../../firmware/components/storage/storage_repository_procedures.c
-    ../../firmware/components/storage/storage_repository_progress.c
 )
 
 add_executable(
@@ -629,7 +599,6 @@ add_executable(
     ../../firmware/components/macro_parser/macro_keymap_us.c
     ../../firmware/components/storage/storage_package.c
     ../../firmware/components/storage/storage_package_replace.c
-    ../../firmware/components/storage/storage_set_tree.c
 )
 target_include_directories(
     storage_package_replace_tests
@@ -653,7 +622,6 @@ add_executable(
     ../../firmware/components/macro_parser/macro_keymap_us.c
     ../../firmware/components/storage/storage_package.c
     ../../firmware/components/storage/storage_package_import.c
-    ../../firmware/components/storage/storage_set_tree.c
 )
 target_include_directories(
     storage_package_import_tests
@@ -686,7 +654,6 @@ function(add_storage_object_repository_test target source mount_name)
     set_tests_properties(${target} PROPERTIES LABELS "storage")
 endfunction()
 
-add_storage_object_repository_test(storage_progress_repository_tests test_storage_progress.c p15p)
 add_storage_object_repository_test(
     storage_active_set_delete_tests test_storage_active_set_delete.c p15a
 )

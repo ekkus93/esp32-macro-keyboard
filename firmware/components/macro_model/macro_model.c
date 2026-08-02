@@ -28,19 +28,3 @@ void macro_model_free_macro(macro_t *macro) {
     macro->source = NULL;
     macro->source_length = 0U;
 }
-
-void macro_model_free_procedure(procedure_t *procedure) {
-    if (procedure == NULL) {
-        return;
-    }
-    if (procedure->steps != NULL) {
-        for (size_t index = 0U; index < procedure->step_count; ++index) {
-            free(procedure->steps[index].body);
-            procedure->steps[index].body = NULL;
-            procedure->steps[index].body_length = 0U;
-        }
-    }
-    free(procedure->steps);
-    procedure->steps = NULL;
-    procedure->step_count = 0U;
-}

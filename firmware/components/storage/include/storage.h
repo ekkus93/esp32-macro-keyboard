@@ -71,14 +71,6 @@ app_error_code_t storage_make_macro_path(const app_uuid_t *set_id, const app_uui
                                          char *buffer, size_t buffer_size);
 app_error_code_t storage_make_set_macro_order_path(const app_uuid_t *set_id, char *buffer,
                                                    size_t buffer_size);
-app_error_code_t storage_make_procedure_path(const app_uuid_t *set_id,
-                                             const app_uuid_t *procedure_id, char *buffer,
-                                             size_t buffer_size);
-app_error_code_t storage_make_procedure_order_path(const app_uuid_t *set_id, char *buffer,
-                                                   size_t buffer_size);
-app_error_code_t storage_make_progress_path(const app_uuid_t *set_id,
-                                            const app_uuid_t *procedure_id, char *buffer,
-                                            size_t buffer_size);
 app_error_code_t storage_atomic_write(const char *path, const void *data, size_t data_length,
                                       bool sync_required);
 app_error_code_t storage_atomic_recover_all(void);

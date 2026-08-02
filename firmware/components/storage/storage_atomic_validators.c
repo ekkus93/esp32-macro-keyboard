@@ -116,18 +116,9 @@ storage_atomic_object_type_t storage_atomic_classify_destination(const char *des
     if (match_set_order(destination, "macro-order.json", &set_id)) {
         return STORAGE_ATOMIC_OBJECT_SET_MACRO_INDEX;
     }
-    if (match_set_order(destination, "procedure-order.json", &set_id)) {
-        return STORAGE_ATOMIC_OBJECT_PROCEDURE_INDEX;
-    }
     set_object_identity_t identity = {0};
     if (match_set_object(destination, "macros", &identity)) {
         return STORAGE_ATOMIC_OBJECT_MACRO;
-    }
-    if (match_set_object(destination, "procedures", &identity)) {
-        return STORAGE_ATOMIC_OBJECT_PROCEDURE;
-    }
-    if (match_set_object(destination, "progress", &identity)) {
-        return STORAGE_ATOMIC_OBJECT_PROGRESS;
     }
     return STORAGE_ATOMIC_OBJECT_UNKNOWN;
 }
@@ -165,8 +156,6 @@ static size_t order_limit_for_type(storage_atomic_object_type_t type) {
         return APP_MACRO_SETS_MAX;
     case STORAGE_ATOMIC_OBJECT_SET_MACRO_INDEX:
         return APP_MACROS_PER_SET_MAX;
-    case STORAGE_ATOMIC_OBJECT_PROCEDURE_INDEX:
-        return APP_PROCEDURES_PER_SET_MAX;
     default:
         return 0U;
     }
@@ -246,63 +235,6 @@ static app_error_code_t validate_macro(void *context, const storage_atomic_candi
     return result;
 }
 
-static app_error_code_t validate_procedure(void *context,
-                                           const storage_atomic_candidate_t *candidate) {
-    const validate_context_t *validation = context;
-    set_object_identity_t identity = {0};
-    if (!match_set_object(candidate->destination, "procedures", &identity)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    char *data = NULL;
-    size_t length = 0U;
-    app_error_code_t result =
-        read_candidate(validation, candidate, STORAGE_PROCEDURE_FILE_MAX_BYTES, &data, &length);
-    procedure_t procedure = {0};
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_parse_procedure_json(data, length, &procedure);
-    }
-    free(data);
-    if (result == APP_ERROR_NONE && (!app_uuid_equal(&identity.object_id, &procedure.id) ||
-                                     !app_uuid_equal(&identity.set_id, &procedure.set_id))) {
-        result = APP_ERROR_STORAGE_CORRUPT;
-    }
-    macro_model_free_procedure(&procedure);
-    return result;
-}
-
-static app_error_code_t validate_progress(void *context,
-                                          const storage_atomic_candidate_t *candidate) {
-    const validate_context_t *validation = context;
-    set_object_identity_t identity = {0};
-    if (!match_set_object(candidate->destination, "progress", &identity)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    char *data = NULL;
-    size_t length = 0U;
-    app_error_code_t result =
-        read_candidate(validation, candidate, STORAGE_PROGRESS_FILE_MAX_BYTES, &data, &length);
-    /* procedure_progress_t is ~16 KB. This validator runs from
-     * storage_atomic_recover_all() during startup, i.e. on main_task's 8 KiB
-     * stack, so a stack local here made an interrupted progress write into an
-     * unbootable device. */
-    procedure_progress_t *progress = calloc(1U, sizeof(*progress));
-    if (progress == NULL) {
-        free(data);
-        return APP_ERROR_INTERNAL;
-    }
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_parse_progress_json(data, length, progress);
-    }
-    free(data);
-    if (result == APP_ERROR_NONE &&
-        (!app_uuid_equal(&identity.object_id, &progress->procedure_id) ||
-         !app_uuid_equal(&identity.set_id, &progress->set_id))) {
-        result = APP_ERROR_STORAGE_CORRUPT;
-    }
-    free(progress);
-    return result;
-}
-
 static app_error_code_t validate_transaction_manifest(void *context,
                                                       const storage_atomic_candidate_t *candidate) {
     const validate_context_t *validation = context;
@@ -322,16 +254,11 @@ static storage_atomic_validate_fn validator_for_type(storage_atomic_object_type_
         return validate_schema_marker;
     case STORAGE_ATOMIC_OBJECT_SET_INDEX:
     case STORAGE_ATOMIC_OBJECT_SET_MACRO_INDEX:
-    case STORAGE_ATOMIC_OBJECT_PROCEDURE_INDEX:
         return validate_index;
     case STORAGE_ATOMIC_OBJECT_SET_METADATA:
         return validate_set_metadata;
     case STORAGE_ATOMIC_OBJECT_MACRO:
         return validate_macro;
-    case STORAGE_ATOMIC_OBJECT_PROCEDURE:
-        return validate_procedure;
-    case STORAGE_ATOMIC_OBJECT_PROGRESS:
-        return validate_progress;
     case STORAGE_ATOMIC_OBJECT_TRANSACTION_MANIFEST:
         return validate_transaction_manifest;
     case STORAGE_ATOMIC_OBJECT_UNKNOWN:

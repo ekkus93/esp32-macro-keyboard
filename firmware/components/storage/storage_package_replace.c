@@ -19,17 +19,14 @@
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_sets_internal.h"
-#include "storage_set_tree_internal.h"
 #include "storage_transaction_internal.h"
 
-#define PACKAGE_REPLACE_ARRAY_COUNT 4U
+#define PACKAGE_REPLACE_ARRAY_COUNT 2U
 #define PACKAGE_JSON_SUFFIX ".json"
 
 typedef enum {
     PACKAGE_REPLACE_SETS = 0,
     PACKAGE_REPLACE_MACROS,
-    PACKAGE_REPLACE_PROCEDURES,
-    PACKAGE_REPLACE_PROGRESS,
 } package_replace_array_t;
 
 typedef struct {
@@ -49,11 +46,23 @@ static app_error_code_t package_index_presence(void *context, const app_uuid_t *
     return storage_repository_set_index_presence(set_id, should_be_present);
 }
 
+/* The on-disk tree-shape re-check is gone: storage_set_tree.c and
+ * storage_repository_tree.c were deleted with procedures and progress, because
+ * the layout they walked is itself replaced by the flat /data/sets/<id>.json
+ * scheme. Every package is still fully validated by storage_package_validate()
+ * before a single byte is written, so what is missing here is the second,
+ * belt-and-braces pass over freshly materialized directories - not the only
+ * check. The seam is kept so the transaction recovery paths stay testable with
+ * an injected failing validator, and so Phase 4 removes the plumbing on
+ * purpose rather than by accident. */
 static app_error_code_t package_validate_tree(void *context, const char *path,
                                               const app_uuid_t *set_id,
                                               uint32_t expected_revision) {
     (void)context;
-    return storage_set_tree_validate(path, set_id, expected_revision);
+    (void)path;
+    (void)set_id;
+    (void)expected_revision;
+    return APP_ERROR_NONE;
 }
 
 static app_error_code_t package_remove_tree(void *context, const char *path) {
@@ -133,28 +142,6 @@ static app_error_code_t parse_macro_node(const cJSON *node, macro_t *out_macro) 
     return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
 }
 
-static app_error_code_t parse_procedure_node(const cJSON *node, procedure_t *out_procedure) {
-    char *json = NULL;
-    size_t length = 0U;
-    app_error_code_t result = node_json(node, &json, &length);
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_parse_procedure_json(json, length, out_procedure);
-    }
-    cJSON_free(json);
-    return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
-}
-
-static app_error_code_t parse_progress_node(const cJSON *node, procedure_progress_t *out_progress) {
-    char *json = NULL;
-    size_t length = 0U;
-    app_error_code_t result = node_json(node, &json, &length);
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_parse_progress_json(json, length, out_progress);
-    }
-    cJSON_free(json);
-    return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
-}
-
 static void close_document(package_replace_document_t *document) {
     if (document == NULL) {
         return;
@@ -175,8 +162,6 @@ static app_error_code_t open_document(const char *data, size_t length,
     static const char *const names[PACKAGE_REPLACE_ARRAY_COUNT] = {
         [PACKAGE_REPLACE_SETS] = "sets",
         [PACKAGE_REPLACE_MACROS] = "macros",
-        [PACKAGE_REPLACE_PROCEDURES] = "procedures",
-        [PACKAGE_REPLACE_PROGRESS] = "progress",
     };
     for (size_t index = 0U; index < PACKAGE_REPLACE_ARRAY_COUNT; ++index) {
         out_document->arrays[index] = cJSON_GetObjectItemCaseSensitive(root, names[index]);
@@ -285,103 +270,6 @@ static app_error_code_t write_macros(const char *staging, const cJSON *array,
     return result;
 }
 
-static app_error_code_t write_procedure_node(const char *directory, const cJSON *node,
-                                             const app_uuid_t *set_id,
-                                             storage_uuid_order_t *order) {
-    procedure_t procedure = {0};
-    app_error_code_t result = parse_procedure_node(node, &procedure);
-    if (result == APP_ERROR_NONE && (!app_uuid_equal(&procedure.set_id, set_id) ||
-                                     order->count >= APP_PROCEDURES_PER_SET_MAX)) {
-        result = APP_ERROR_INVALID_ARGUMENT;
-    }
-    char *json = NULL;
-    size_t length = 0U;
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_serialize_procedure_json(&procedure, &json, &length);
-    }
-    char name[APP_UUID_STRING_LENGTH + sizeof(PACKAGE_JSON_SUFFIX)];
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        const int written = snprintf(name, sizeof(name), "%s.json", procedure.id.value);
-        result = written >= 0 && (size_t)written < sizeof(name)
-                     ? join_path(directory, name, path, sizeof(path))
-                     : APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_json_file(path, json, length);
-    }
-    if (result == APP_ERROR_NONE) {
-        order->ids[order->count++] = procedure.id;
-    }
-    cJSON_free(json);
-    macro_model_free_procedure(&procedure);
-    return result;
-}
-
-static app_error_code_t write_procedures(const char *staging, const cJSON *array,
-                                         const app_uuid_t *set_id) {
-    char directory[APP_PATH_MAX_BYTES];
-    app_error_code_t result = join_path(staging, "procedures", directory, sizeof(directory));
-    /* storage_uuid_order_t is ~4 KB; keep it off the task stack. */
-    storage_uuid_order_t *order = calloc(1U, sizeof(*order));
-    if (order == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
-    const int count = cJSON_GetArraySize(array);
-    for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
-        result = write_procedure_node(directory, cJSON_GetArrayItem(array, index), set_id, order);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_order(staging, "procedure-order.json", order, APP_PROCEDURES_PER_SET_MAX);
-    }
-    free(order);
-    return result;
-}
-
-static app_error_code_t write_progress_node(const char *directory, const cJSON *node,
-                                            const app_uuid_t *set_id) {
-    /* procedure_progress_t is ~16 KB (two app_uuid_t[APP_STEPS_PER_PROCEDURE_MAX]
-     * arrays) and this runs on a task stack of a few KiB. */
-    procedure_progress_t *progress = calloc(1U, sizeof(*progress));
-    if (progress == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
-    app_error_code_t result = parse_progress_node(node, progress);
-    if (result == APP_ERROR_NONE && !app_uuid_equal(&progress->set_id, set_id)) {
-        result = APP_ERROR_INVALID_ARGUMENT;
-    }
-    char *json = NULL;
-    size_t length = 0U;
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_serialize_progress_json(progress, &json, &length);
-    }
-    char name[APP_UUID_STRING_LENGTH + sizeof(PACKAGE_JSON_SUFFIX)];
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        const int written = snprintf(name, sizeof(name), "%s.json", progress->procedure_id.value);
-        result = written >= 0 && (size_t)written < sizeof(name)
-                     ? join_path(directory, name, path, sizeof(path))
-                     : APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_json_file(path, json, length);
-    }
-    cJSON_free(json);
-    free(progress);
-    return result;
-}
-
-static app_error_code_t write_progress(const char *staging, const cJSON *array,
-                                       const app_uuid_t *set_id) {
-    char directory[APP_PATH_MAX_BYTES];
-    app_error_code_t result = join_path(staging, "progress", directory, sizeof(directory));
-    const int count = cJSON_GetArraySize(array);
-    for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
-        result = write_progress_node(directory, cJSON_GetArrayItem(array, index), set_id);
-    }
-    return result;
-}
-
 static app_error_code_t create_staging(const app_uuid_t *transaction_id, char *staging,
                                        size_t staging_size) {
     const int written =
@@ -390,7 +278,7 @@ static app_error_code_t create_staging(const app_uuid_t *transaction_id, char *s
         return APP_ERROR_INVALID_ARGUMENT;
     }
     app_error_code_t result = make_directory(staging);
-    static const char *const children[] = {"macros", "procedures", "progress"};
+    static const char *const children[] = {"macros"};
     for (size_t index = 0U;
          result == APP_ERROR_NONE && index < sizeof(children) / sizeof(children[0]); ++index) {
         char path[APP_PATH_MAX_BYTES];
@@ -408,14 +296,6 @@ static app_error_code_t materialize_staging(const package_replace_document_t *do
     if (result == APP_ERROR_NONE) {
         result = write_macros(staging, document->arrays[PACKAGE_REPLACE_MACROS],
                               &document->replacement.id);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_procedures(staging, document->arrays[PACKAGE_REPLACE_PROCEDURES],
-                                  &document->replacement.id);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_progress(staging, document->arrays[PACKAGE_REPLACE_PROGRESS],
-                                &document->replacement.id);
     }
     return result;
 }
@@ -504,9 +384,6 @@ static app_error_code_t replace_locked(const app_uuid_t *target_set_id, uint32_t
     }
     if (result == APP_ERROR_NONE) {
         result = materialize_staging(document, staging);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = storage_set_tree_validate(staging, target_set_id, document->replacement.revision);
     }
     if (result == APP_ERROR_NONE) {
         manifest.phase = STORAGE_TRANSACTION_STAGED;

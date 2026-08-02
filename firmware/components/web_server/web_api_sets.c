@@ -470,7 +470,7 @@ static app_error_code_t handle_export(const web_api_call_t *call, web_api_respon
     char *package_json = NULL;
     size_t package_length = 0U;
     app_error_code_t result =
-        storage_package_export_set(&call->path.set_id, true, &package_json, &package_length);
+        storage_package_export_set(&call->path.set_id, &package_json, &package_length);
     if (result != APP_ERROR_NONE) {
         return respond_result(response, result, "could not export set");
     }

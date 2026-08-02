@@ -91,31 +91,6 @@ static app_error_code_t handle_collection(const web_api_call_t *call,
     return result;
 }
 
-static app_error_code_t reference_details_json(const storage_reference_list_t *references,
-                                               char **out_json) {
-    *out_json = NULL;
-    cJSON *root = cJSON_CreateObject();
-    cJSON *ids = cJSON_CreateArray();
-    if (root == NULL || ids == NULL ||
-        !cJSON_AddBoolToObject(root, "truncated", references->truncated) ||
-        !cJSON_AddItemToObject(root, "procedureIds", ids)) {
-        cJSON_Delete(ids);
-        cJSON_Delete(root);
-        return APP_ERROR_INTERNAL;
-    }
-    for (size_t index = 0U; index < references->count; ++index) {
-        cJSON *identifier = cJSON_CreateString(references->ids[index].value);
-        if (identifier == NULL || !cJSON_AddItemToArray(ids, identifier)) {
-            cJSON_Delete(identifier);
-            cJSON_Delete(root);
-            return APP_ERROR_INTERNAL;
-        }
-    }
-    *out_json = cJSON_PrintUnformatted(root);
-    cJSON_Delete(root);
-    return *out_json == NULL ? APP_ERROR_INTERNAL : APP_ERROR_NONE;
-}
-
 static app_error_code_t handle_item(const web_api_call_t *call, web_api_response_t *response) {
     const app_uuid_t *set_id = &call->path.set_id;
     if (call->method == WEB_API_METHOD_GET) {
@@ -165,20 +140,8 @@ static app_error_code_t handle_item(const web_api_call_t *call, web_api_response
     uint32_t expected_revision = 0U;
     app_error_code_t result =
         web_api_json_parse_expected_revision(call->body, call->body_length, &expected_revision);
-    storage_reference_list_t references = {0};
     if (result == APP_ERROR_NONE) {
-        result = storage_macro_delete(set_id, &call->path.macro_id, expected_revision, &references);
-    }
-    if (result == APP_ERROR_CONFLICT && references.count > 0U) {
-        char *details = NULL;
-        const app_error_code_t details_result = reference_details_json(&references, &details);
-        if (details_result != APP_ERROR_NONE) {
-            return details_result;
-        }
-        const app_error_code_t response_result =
-            respond_error(response, result, "macro is referenced by procedures", details);
-        cJSON_free(details);
-        return response_result;
+        result = storage_macro_delete(set_id, &call->path.macro_id, expected_revision);
     }
     if (result != APP_ERROR_NONE) {
         return respond_error(response, result, "could not delete macro", NULL);

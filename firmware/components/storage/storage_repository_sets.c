@@ -186,7 +186,7 @@ static app_error_code_t storage_repository_create_set_staging(const macro_set_t 
         return result;
     }
 
-    static const char *const child_names[] = {"macros", "procedures", "progress"};
+    static const char *const child_names[] = {"macros"};
     for (size_t child = 0U; child < (sizeof(child_names) / sizeof(child_names[0])); ++child) {
         char path[APP_PATH_MAX_BYTES];
         const int written = snprintf(path, sizeof(path), "%s/%s", staging, child_names[child]);
@@ -218,7 +218,7 @@ static app_error_code_t storage_repository_create_set_staging(const macro_set_t 
     }
 
     static const char empty_order[] = "{\"schema_version\":1,\"ids\":[]}";
-    const char *const order_names[] = {"macro-order.json", "procedure-order.json"};
+    const char *const order_names[] = {"macro-order.json"};
     for (size_t order = 0U; order < (sizeof(order_names) / sizeof(order_names[0])); ++order) {
         written = snprintf(path, sizeof(path), "%s/%s", staging, order_names[order]);
         if (written < 0 || (size_t)written >= sizeof(path)) {

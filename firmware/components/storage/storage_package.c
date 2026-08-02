@@ -17,16 +17,14 @@
 
 #define STORAGE_PACKAGE_MAX_JSON_DEPTH 64U
 #define STORAGE_PACKAGE_FIELD_NAME_BYTES 32U
-#define STORAGE_PACKAGE_FIELD_COUNT 7U
+#define STORAGE_PACKAGE_FIELD_COUNT 5U
 /* "skipped" is the only optional member. A complete backup omits it entirely,
  * so complete packages are byte-identical to those written before partial
  * backups existed and remain readable by anything that predates this field. */
 #define STORAGE_PACKAGE_OPTIONAL_FIELDS (UINT32_C(1) << PACKAGE_FIELD_SKIPPED)
-#define STORAGE_PACKAGE_ARRAY_COUNT 4U
+#define STORAGE_PACKAGE_ARRAY_COUNT 2U
 #define STORAGE_PACKAGE_LOCAL_MACROS_MAX                                                           \
     ((size_t)APP_MACRO_SETS_MAX * (size_t)APP_MACROS_PER_SET_MAX)
-#define STORAGE_PACKAGE_PROCEDURES_MAX                                                             \
-    ((size_t)APP_MACRO_SETS_MAX * (size_t)APP_PROCEDURES_PER_SET_MAX)
 #define STORAGE_PACKAGE_JSON_FRAME_COUNT (STORAGE_PACKAGE_MAX_JSON_DEPTH + 1U)
 #define JSON_UNICODE_ESCAPE_DIGITS 4U
 #define JSON_DECIMAL_RADIX 10U
@@ -47,16 +45,12 @@ typedef enum {
     PACKAGE_FIELD_TYPE,
     PACKAGE_FIELD_SETS,
     PACKAGE_FIELD_MACROS,
-    PACKAGE_FIELD_PROCEDURES,
-    PACKAGE_FIELD_PROGRESS,
     PACKAGE_FIELD_SKIPPED,
 } package_field_t;
 
 typedef enum {
     PACKAGE_ARRAY_SETS = 0,
     PACKAGE_ARRAY_MACROS,
-    PACKAGE_ARRAY_PROCEDURES,
-    PACKAGE_ARRAY_PROGRESS,
     PACKAGE_ARRAY_COUNT,
 } package_array_t;
 
@@ -76,17 +70,6 @@ typedef struct {
 } package_macro_metadata_t;
 
 typedef struct {
-    app_uuid_t id;
-    app_uuid_t set_id;
-    uint32_t revision;
-    json_span_t source;
-} package_procedure_metadata_t;
-
-typedef struct {
-    app_uuid_t procedure_id;
-} package_progress_metadata_t;
-
-typedef struct {
     size_t count;
     size_t item_size;
 } allocation_shape_t;
@@ -94,34 +77,24 @@ typedef struct {
 typedef enum {
     VALIDATION_ALLOCATION_SETS = 0,
     VALIDATION_ALLOCATION_MACROS,
-    VALIDATION_ALLOCATION_PROCEDURES,
-    VALIDATION_ALLOCATION_PROGRESS,
     VALIDATION_ALLOCATION_SET_MACRO_COUNTS,
-    VALIDATION_ALLOCATION_SET_PROCEDURE_COUNTS,
     VALIDATION_ALLOCATION_COUNT,
 } validation_allocation_t;
 
 typedef struct {
     package_set_metadata_t *sets;
     package_macro_metadata_t *macros;
-    package_procedure_metadata_t *procedures;
-    package_progress_metadata_t *progress;
     size_t *set_macro_counts;
-    size_t *set_procedure_counts;
     size_t set_capacity;
     size_t macro_capacity;
-    size_t procedure_capacity;
-    size_t progress_capacity;
     size_t set_count;
     size_t macro_count;
-    size_t procedure_count;
-    size_t progress_count;
 } package_validation_state_t;
 
 typedef app_error_code_t (*package_object_callback_t)(const json_span_t *object, void *context);
 
 static const char *const PACKAGE_FIELDS[STORAGE_PACKAGE_FIELD_COUNT] = {
-    "schema_version", "package_type", "sets", "macros", "procedures", "progress", "skipped",
+    "schema_version", "package_type", "sets", "macros", "skipped",
 };
 
 static void skip_whitespace(json_cursor_t *cursor) {
@@ -557,10 +530,6 @@ static package_array_t package_array_for_field(size_t field_index) {
         return PACKAGE_ARRAY_SETS;
     case PACKAGE_FIELD_MACROS:
         return PACKAGE_ARRAY_MACROS;
-    case PACKAGE_FIELD_PROCEDURES:
-        return PACKAGE_ARRAY_PROCEDURES;
-    case PACKAGE_FIELD_PROGRESS:
-        return PACKAGE_ARRAY_PROGRESS;
     case PACKAGE_FIELD_SCHEMA_VERSION:
     case PACKAGE_FIELD_TYPE:
     default:
@@ -806,10 +775,7 @@ static void free_validation_state(package_validation_state_t *state) {
     }
     free(state->sets);
     free(state->macros);
-    free(state->procedures);
-    free(state->progress);
     free(state->set_macro_counts);
-    free(state->set_procedure_counts);
     memset(state, 0, sizeof(*state));
 }
 
@@ -818,24 +784,15 @@ static app_error_code_t allocate_validation_state(const storage_package_summary_
     memset(out_state, 0, sizeof(*out_state));
     out_state->set_capacity = summary->set_count;
     out_state->macro_capacity = summary->local_macro_count;
-    out_state->procedure_capacity = summary->procedure_count;
-    out_state->progress_capacity = summary->progress_count;
 
     const allocation_shape_t shapes[VALIDATION_ALLOCATION_COUNT] = {
         [VALIDATION_ALLOCATION_SETS] = {.count = out_state->set_capacity,
                                         .item_size = sizeof(*out_state->sets)},
         [VALIDATION_ALLOCATION_MACROS] = {.count = out_state->macro_capacity,
                                           .item_size = sizeof(*out_state->macros)},
-        [VALIDATION_ALLOCATION_PROCEDURES] = {.count = out_state->procedure_capacity,
-                                              .item_size = sizeof(*out_state->procedures)},
-        [VALIDATION_ALLOCATION_PROGRESS] = {.count = out_state->progress_capacity,
-                                            .item_size = sizeof(*out_state->progress)},
         [VALIDATION_ALLOCATION_SET_MACRO_COUNTS] = {.count = out_state->set_capacity,
                                                     .item_size =
                                                         sizeof(*out_state->set_macro_counts)},
-        [VALIDATION_ALLOCATION_SET_PROCEDURE_COUNTS] = {.count = out_state->set_capacity,
-                                                        .item_size = sizeof(
-                                                            *out_state->set_procedure_counts)},
     };
     size_t allocation_bytes = 0U;
     for (size_t index = 0U; index < VALIDATION_ALLOCATION_COUNT; ++index) {
@@ -850,20 +807,8 @@ static app_error_code_t allocate_validation_state(const storage_package_summary_
         result = allocate_items(&shapes[VALIDATION_ALLOCATION_MACROS], (void **)&out_state->macros);
     }
     if (result == APP_ERROR_NONE) {
-        result = allocate_items(&shapes[VALIDATION_ALLOCATION_PROCEDURES],
-                                (void **)&out_state->procedures);
-    }
-    if (result == APP_ERROR_NONE) {
-        result =
-            allocate_items(&shapes[VALIDATION_ALLOCATION_PROGRESS], (void **)&out_state->progress);
-    }
-    if (result == APP_ERROR_NONE) {
         result = allocate_items(&shapes[VALIDATION_ALLOCATION_SET_MACRO_COUNTS],
                                 (void **)&out_state->set_macro_counts);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = allocate_items(&shapes[VALIDATION_ALLOCATION_SET_PROCEDURE_COUNTS],
-                                (void **)&out_state->set_procedure_counts);
     }
     if (result != APP_ERROR_NONE) {
         free_validation_state(out_state);
@@ -884,16 +829,6 @@ static size_t find_macro_index(const package_validation_state_t *state,
                                const app_uuid_t *macro_id) {
     for (size_t index = 0U; index < state->macro_count; ++index) {
         if (app_uuid_equal(&state->macros[index].id, macro_id)) {
-            return index;
-        }
-    }
-    return SIZE_MAX;
-}
-
-static size_t find_procedure_index(const package_validation_state_t *state,
-                                   const app_uuid_t *procedure_id) {
-    for (size_t index = 0U; index < state->procedure_count; ++index) {
-        if (app_uuid_equal(&state->procedures[index].id, procedure_id)) {
             return index;
         }
     }
@@ -986,123 +921,6 @@ static app_error_code_t validate_macro_object(const json_span_t *object, void *c
     return result;
 }
 
-static bool procedure_macro_references_valid(const package_validation_state_t *state,
-                                             const procedure_t *procedure) {
-    for (size_t index = 0U; index < procedure->step_count; ++index) {
-        const procedure_step_t *step = &procedure->steps[index];
-        if (!step->has_macro_id) {
-            continue;
-        }
-        const size_t macro_index = find_macro_index(state, &step->macro_id);
-        if (macro_index == SIZE_MAX) {
-            return false;
-        }
-        const package_macro_metadata_t *macro = &state->macros[macro_index];
-        if (!app_uuid_equal(&macro->set_id, &procedure->set_id)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-static app_error_code_t validate_procedure_object(const json_span_t *object, void *context) {
-    package_validation_state_t *state = context;
-    if (state == NULL || state->procedure_count >= state->procedure_capacity) {
-        return APP_ERROR_INTERNAL;
-    }
-    procedure_t procedure = {0};
-    app_error_code_t result = external_object_result(
-        storage_repository_parse_procedure_json(object->data, object->length, &procedure));
-    size_t set_index = SIZE_MAX;
-    if (result == APP_ERROR_NONE) {
-        set_index = find_set_index(state, &procedure.set_id);
-        if (set_index == SIZE_MAX ||
-            state->set_procedure_counts[set_index] >= APP_PROCEDURES_PER_SET_MAX ||
-            find_procedure_index(state, &procedure.id) != SIZE_MAX ||
-            !procedure_macro_references_valid(state, &procedure)) {
-            result = APP_ERROR_INVALID_ARGUMENT;
-        }
-    }
-    if (result == APP_ERROR_NONE) {
-        package_procedure_metadata_t *metadata = &state->procedures[state->procedure_count];
-        metadata->id = procedure.id;
-        metadata->set_id = procedure.set_id;
-        metadata->revision = procedure.revision;
-        metadata->source = *object;
-        ++state->procedure_count;
-        ++state->set_procedure_counts[set_index];
-    }
-    macro_model_free_procedure(&procedure);
-    return result;
-}
-
-static bool procedure_has_step(const procedure_t *procedure, const app_uuid_t *step_id) {
-    for (size_t index = 0U; index < procedure->step_count; ++index) {
-        if (app_uuid_equal(&procedure->steps[index].id, step_id)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-static bool progress_step_references_valid(const procedure_progress_t *progress,
-                                           const procedure_t *procedure) {
-    if (!procedure_has_step(procedure, &progress->current_step_id)) {
-        return false;
-    }
-    for (size_t index = 0U; index < progress->completed_step_count; ++index) {
-        if (!procedure_has_step(procedure, &progress->completed_step_ids[index])) {
-            return false;
-        }
-    }
-    for (size_t index = 0U; index < progress->skipped_step_count; ++index) {
-        if (!procedure_has_step(procedure, &progress->skipped_step_ids[index])) {
-            return false;
-        }
-    }
-    return true;
-}
-
-static app_error_code_t validate_progress_object(const json_span_t *object, void *context) {
-    package_validation_state_t *state = context;
-    if (state == NULL || state->progress_count >= state->progress_capacity) {
-        return APP_ERROR_INTERNAL;
-    }
-    procedure_progress_t progress = {0};
-    app_error_code_t result = external_object_result(
-        storage_repository_parse_progress_json(object->data, object->length, &progress));
-    const size_t procedure_index =
-        result == APP_ERROR_NONE ? find_procedure_index(state, &progress.procedure_id) : SIZE_MAX;
-    if (result == APP_ERROR_NONE && procedure_index == SIZE_MAX) {
-        result = APP_ERROR_INVALID_ARGUMENT;
-    }
-    for (size_t index = 0U; result == APP_ERROR_NONE && index < state->progress_count; ++index) {
-        if (app_uuid_equal(&state->progress[index].procedure_id, &progress.procedure_id)) {
-            result = APP_ERROR_INVALID_ARGUMENT;
-        }
-    }
-    procedure_t procedure = {0};
-    if (result == APP_ERROR_NONE) {
-        const package_procedure_metadata_t *metadata = &state->procedures[procedure_index];
-        if (!app_uuid_equal(&metadata->set_id, &progress.set_id) ||
-            metadata->revision != progress.procedure_revision) {
-            result = APP_ERROR_INVALID_ARGUMENT;
-        } else {
-            result = external_object_result(storage_repository_parse_procedure_json(
-                metadata->source.data, metadata->source.length, &procedure));
-        }
-    }
-    if (result == APP_ERROR_NONE && !progress_step_references_valid(&progress, &procedure)) {
-        result = APP_ERROR_INVALID_ARGUMENT;
-    }
-    macro_model_free_procedure(&procedure);
-    if (result == APP_ERROR_NONE) {
-        state->progress[state->progress_count].procedure_id = progress.procedure_id;
-        ++state->progress_count;
-    }
-    return result;
-}
-
 static app_error_code_t count_package_arrays(const package_document_t *document,
                                              storage_package_summary_t *out_summary) {
     app_error_code_t result =
@@ -1113,23 +931,11 @@ static app_error_code_t count_package_arrays(const package_document_t *document,
                                     STORAGE_PACKAGE_LOCAL_MACROS_MAX, NULL, NULL,
                                     &out_summary->local_macro_count);
     }
-    if (result == APP_ERROR_NONE) {
-        result = visit_object_array(&document->arrays[PACKAGE_ARRAY_PROCEDURES],
-                                    STORAGE_PACKAGE_PROCEDURES_MAX, NULL, NULL,
-                                    &out_summary->procedure_count);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = visit_object_array(&document->arrays[PACKAGE_ARRAY_PROGRESS],
-                                    STORAGE_PACKAGE_PROCEDURES_MAX, NULL, NULL,
-                                    &out_summary->progress_count);
-    }
     if (result != APP_ERROR_NONE) {
         return result;
     }
     if ((document->kind == STORAGE_PACKAGE_KIND_SET && out_summary->set_count != 1U) ||
-        out_summary->local_macro_count > out_summary->set_count * APP_MACROS_PER_SET_MAX ||
-        out_summary->procedure_count > out_summary->set_count * APP_PROCEDURES_PER_SET_MAX ||
-        out_summary->progress_count > out_summary->procedure_count) {
+        out_summary->local_macro_count > out_summary->set_count * APP_MACROS_PER_SET_MAX) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     return APP_ERROR_NONE;
@@ -1149,20 +955,8 @@ static app_error_code_t validate_package_objects(const package_document_t *docum
             visit_object_array(&document->arrays[PACKAGE_ARRAY_MACROS], summary->local_macro_count,
                                validate_macro_object, &state, &visited);
     }
-    if (result == APP_ERROR_NONE) {
-        result = visit_object_array(&document->arrays[PACKAGE_ARRAY_PROCEDURES],
-                                    state.procedure_capacity, validate_procedure_object, &state,
-                                    &visited);
-    }
-    if (result == APP_ERROR_NONE) {
-        result =
-            visit_object_array(&document->arrays[PACKAGE_ARRAY_PROGRESS], state.progress_capacity,
-                               validate_progress_object, &state, &visited);
-    }
-    if (result == APP_ERROR_NONE &&
-        (state.set_count != summary->set_count || state.macro_count != summary->local_macro_count ||
-         state.procedure_count != summary->procedure_count ||
-         state.progress_count != summary->progress_count)) {
+    if (result == APP_ERROR_NONE && (state.set_count != summary->set_count ||
+                                     state.macro_count != summary->local_macro_count)) {
         result = APP_ERROR_INTERNAL;
     }
     free_validation_state(&state);

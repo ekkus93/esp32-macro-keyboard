@@ -81,12 +81,10 @@ app_error_code_t web_adapter_build_limits_json(char *output, size_t output_size)
         snprintf(output, output_size,
                  "{\"ok\":true,\"data\":{\"macroNameBytes\":%u,\"macroSourceBytes\":%u,"
                  "\"compiledActions\":%u,\"delayMs\":%u,\"durationMs\":%u,"
-                 "\"macrosPerSet\":%u,\"proceduresPerSet\":%u,\"stepsPerProcedure\":%u,"
-                 "\"macroSets\":%u,\"importBytes\":%u}}",
+                 "\"macrosPerSet\":%u,\"macroSets\":%u,\"importBytes\":%u}}",
                  APP_MACRO_NAME_MAX_BYTES, APP_MACRO_SOURCE_MAX_BYTES, APP_COMPILED_ACTION_MAX,
                  APP_DELAY_MAX_MS, APP_ESTIMATED_DURATION_MAX_MS, APP_MACROS_PER_SET_MAX,
-                 APP_PROCEDURES_PER_SET_MAX, APP_STEPS_PER_PROCEDURE_MAX, APP_MACRO_SETS_MAX,
-                 APP_IMPORT_PACKAGE_MAX_BYTES);
+                 APP_MACRO_SETS_MAX, APP_IMPORT_PACKAGE_MAX_BYTES);
     if (length < 0 || (size_t)length >= output_size) {
         output[0] = '\0';
         return APP_ERROR_INTERNAL;

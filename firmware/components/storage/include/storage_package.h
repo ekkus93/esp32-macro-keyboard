@@ -18,15 +18,13 @@ typedef struct {
     size_t package_bytes;
     size_t set_count;
     size_t local_macro_count;
-    size_t procedure_count;
-    size_t progress_count;
 } storage_package_summary_t;
 
 app_error_code_t storage_package_validate(const char *data, size_t length,
                                           storage_package_kind_t expected_kind,
                                           storage_package_summary_t *out_summary);
-app_error_code_t storage_package_export_set(const app_uuid_t *set_id, bool include_progress,
-                                            char **out_data, size_t *out_length);
+app_error_code_t storage_package_export_set(const app_uuid_t *set_id, char **out_data,
+                                            size_t *out_length);
 /* Which object a failed export stopped on. A backup aborts on the first
  * unreadable object; without this the caller can only report that the backup
  * failed, leaving the user no way to find or repair the offending object. */
@@ -34,8 +32,6 @@ typedef enum {
     STORAGE_PACKAGE_OBJECT_NONE = 0,
     STORAGE_PACKAGE_OBJECT_SET,
     STORAGE_PACKAGE_OBJECT_MACRO,
-    STORAGE_PACKAGE_OBJECT_PROCEDURE,
-    STORAGE_PACKAGE_OBJECT_PROGRESS,
 } storage_package_object_kind_t;
 
 typedef struct {
@@ -67,8 +63,7 @@ typedef struct {
     size_t total;
 } storage_package_skip_report_t;
 
-app_error_code_t storage_package_export_backup(bool include_progress, char **out_data,
-                                               size_t *out_length);
+app_error_code_t storage_package_export_backup(char **out_data, size_t *out_length);
 /* As storage_package_export_backup, but tolerant: objects that are individually
  * unusable are omitted and reported in out_skipped rather than failing the
  * whole backup, so one bad object cannot make the repository unbackupable.
@@ -76,8 +71,7 @@ app_error_code_t storage_package_export_backup(bool include_progress, char **out
  * object it stopped on. Both out params may be NULL; passing NULL for
  * out_skipped does NOT restore the old abort-on-bad-object behaviour, it only
  * discards the report. */
-app_error_code_t storage_package_export_backup_detail(bool include_progress, char **out_data,
-                                                      size_t *out_length,
+app_error_code_t storage_package_export_backup_detail(char **out_data, size_t *out_length,
                                                       storage_package_failure_t *out_failure,
                                                       storage_package_skip_report_t *out_skipped);
 app_error_code_t storage_package_restore_backup(const char *data, size_t length);

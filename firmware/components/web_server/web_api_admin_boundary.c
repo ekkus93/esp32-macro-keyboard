@@ -47,10 +47,6 @@ static const char *backup_object_kind_name(storage_package_object_kind_t kind) {
         return "set";
     case STORAGE_PACKAGE_OBJECT_MACRO:
         return "macro";
-    case STORAGE_PACKAGE_OBJECT_PROCEDURE:
-        return "procedure";
-    case STORAGE_PACKAGE_OBJECT_PROGRESS:
-        return "procedure progress";
     case STORAGE_PACKAGE_OBJECT_NONE:
     default:
         return "object";
@@ -92,7 +88,7 @@ static app_error_code_t send_backup(web_api_response_t *response) {
     size_t package_length = 0U;
     storage_package_failure_t failure = {0};
     app_error_code_t result =
-        storage_package_export_backup_detail(true, &package_json, &package_length, &failure, NULL);
+        storage_package_export_backup_detail(&package_json, &package_length, &failure, NULL);
     if (result != APP_ERROR_NONE) {
         char message[WEB_ADMIN_BACKUP_FAILURE_MESSAGE_BYTES];
         describe_backup_failure(&failure, message, sizeof(message));

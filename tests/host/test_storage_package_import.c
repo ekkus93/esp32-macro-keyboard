@@ -25,23 +25,13 @@
 #define NEW_SET_ID_1 "55555555-5555-4555-8555-555555555555"
 #define NEW_SET_ID_2 "66666666-6666-4666-8666-666666666666"
 #define LOCAL_MACRO_ID "22222222-2222-4222-8222-222222222222"
-#define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
-#define STEP_ID "44444444-4444-4444-8444-444444444444"
 
-static const char PACKAGE[] =
-    "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":["
-    "{\"schema_version\":1,\"id\":\"" SET_ID
-    "\",\"revision\":7,\"name\":\"Replacement\"}],\"macros\":["
-    "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
-    "\",\"revision\":4,\"name\":\"Local\",\"source\":\"a\","
-    "\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}],\"procedures\":["
-    "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":3,\"set_id\":\"" SET_ID
-    "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{\"id\":\"" STEP_ID
-    "\",\"type\":\"macro\",\"title\":\"Step\",\"macro_id\":\"" LOCAL_MACRO_ID
-    "\",\"required\":true,\"auto_complete_on_success\":false}],\"sort_order\":0}],"
-    "\"progress\":[{\"schema_version\":1,\"set_id\":\"" SET_ID "\",\"procedure_id\":\"" PROCEDURE_ID
-    "\",\"procedure_revision\":3,\"current_step_id\":\"" STEP_ID
-    "\",\"completed_step_ids\":[],\"skipped_step_ids\":[]}]}";
+static const char PACKAGE[] = "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":["
+                              "{\"schema_version\":1,\"id\":\"" SET_ID
+                              "\",\"revision\":7,\"name\":\"Replacement\"}],\"macros\":["
+                              "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
+                              "\",\"revision\":4,\"name\":\"Local\",\"source\":\"a\","
+                              "\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}]}";
 
 static app_uuid_t parse_id(const char *value) {
     app_uuid_t id = {0};
@@ -102,7 +92,7 @@ static void create_current_set(void) {
     char set_path[APP_PATH_MAX_BYTES];
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_make_set_path(&id, set_path, sizeof(set_path)));
     make_directory(set_path);
-    static const char *const children[] = {"macros", "procedures", "progress"};
+    static const char *const children[] = {"macros"};
     char path[APP_PATH_MAX_BYTES];
     for (size_t index = 0U; index < sizeof(children) / sizeof(children[0]); ++index) {
         join_path(path, sizeof(path), set_path, children[index]);
@@ -111,9 +101,6 @@ static void create_current_set(void) {
     write_set_file(set_path, &set);
     static const char empty_order[] = "{\"schema_version\":1,\"ids\":[]}";
     join_path(path, sizeof(path), set_path, "macro-order.json");
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      storage_atomic_write(path, empty_order, strlen(empty_order), true));
-    join_path(path, sizeof(path), set_path, "procedure-order.json");
     TEST_CHECK_EQ_INT(APP_ERROR_NONE,
                       storage_atomic_write(path, empty_order, strlen(empty_order), true));
     storage_set_index_t index = {.ids = {id}, .count = 1U};
@@ -201,24 +188,6 @@ static void test_valid_import_assigns_new_identity_and_resets_revisions(void) {
     TEST_CHECK_EQ_U64(1U, macro.revision);
     TEST_CHECK(app_uuid_equal(&new_id, &macro.set_id));
     macro_model_free_macro(&macro);
-
-    procedure_t procedure = {0};
-    const app_uuid_t procedure_id = parse_id(PROCEDURE_ID);
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_procedure_read(&new_id, &procedure_id, &procedure));
-    TEST_CHECK_EQ_U64(1U, procedure.revision);
-    TEST_CHECK(app_uuid_equal(&new_id, &procedure.set_id));
-    macro_model_free_procedure(&procedure);
-
-    const storage_procedure_identity_t identity = {
-        .set_id = new_id,
-        .procedure_id = procedure_id,
-    };
-    storage_progress_snapshot_t progress = {0};
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_progress_read(&identity, &progress));
-    TEST_CHECK_EQ_U64(STORAGE_PROGRESS_STATUS_CURRENT, progress.status);
-    TEST_CHECK_EQ_U64(1U, progress.current_procedure_revision);
-    TEST_CHECK_EQ_U64(1U, progress.progress.procedure_revision);
-    TEST_CHECK(app_uuid_equal(&new_id, &progress.progress.set_id));
 
     TEST_CHECK(directory_empty(STORAGE_DATA_MOUNT "/transactions"));
     TEST_CHECK(directory_empty(STORAGE_DATA_MOUNT "/staging"));

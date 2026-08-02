@@ -17,8 +17,6 @@
 #include "storage_repository.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_macros_internal.h"
-#include "storage_repository_procedures_internal.h"
-#include "storage_repository_progress_internal.h"
 #include "storage_repository_sets_internal.h"
 #include "test_assert.h"
 #include "test_temp_dir.h"
@@ -31,8 +29,6 @@
 #define OTHER_SET_ID "29292929-2929-4292-8292-292929292929"
 #define SECOND_MACRO_ID "23232323-2323-4232-8232-232323232323"
 #define OTHER_SET_MACRO_ID "24242424-2424-4242-8242-242424242424"
-#define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
-#define LOCAL_STEP_ID "44444444-4444-4444-8444-444444444444"
 #define SECOND_STEP_ID "45454545-4545-4545-8545-454545454545"
 #define UNUSED_SENTINEL "SENTINEL-OTHER-SET-MACRO"
 
@@ -105,36 +101,6 @@ static macro_t make_macro(const char *id, const app_uuid_t *set_id, const char *
     return macro;
 }
 
-static procedure_t make_procedure(const app_uuid_t *set_id) {
-    procedure_t procedure = {
-        .schema_version = APP_SCHEMA_VERSION,
-        .id = uuid(PROCEDURE_ID),
-        .revision = 1U,
-        .set_id = *set_id,
-        .step_count = 2U,
-    };
-    TEST_CHECK(snprintf(procedure.name, sizeof(procedure.name), "Export Procedure") > 0);
-    procedure.steps = calloc(procedure.step_count, sizeof(*procedure.steps));
-    TEST_CHECK(procedure.steps != NULL);
-    procedure.steps[0] = (procedure_step_t){
-        .id = uuid(LOCAL_STEP_ID),
-        .type = PROCEDURE_STEP_MACRO,
-        .required = true,
-        .has_macro_id = true,
-        .macro_id = uuid(LOCAL_MACRO_ID),
-    };
-    TEST_CHECK(snprintf(procedure.steps[0].title, sizeof(procedure.steps[0].title), "Local") > 0);
-    procedure.steps[1] = (procedure_step_t){
-        .id = uuid(SECOND_STEP_ID),
-        .type = PROCEDURE_STEP_MACRO,
-        .required = true,
-        .has_macro_id = true,
-        .macro_id = uuid(SECOND_MACRO_ID),
-    };
-    TEST_CHECK(snprintf(procedure.steps[1].title, sizeof(procedure.steps[1].title), "Second") > 0);
-    return procedure;
-}
-
 static app_error_code_t export_lock_take(void *context) {
     (void)context;
     return storage_repository_lock_take();
@@ -162,24 +128,6 @@ static void export_macro_list_free(void *context, storage_macro_list_t *list) {
     storage_macro_list_free(list);
 }
 
-static app_error_code_t export_procedure_list(void *context, const app_uuid_t *set_id,
-                                              storage_procedure_list_t *out_list) {
-    (void)context;
-    return storage_procedure_list_locked(set_id, out_list);
-}
-
-static void export_procedure_list_free(void *context, storage_procedure_list_t *list) {
-    (void)context;
-    storage_procedure_list_free(list);
-}
-
-static app_error_code_t export_progress_read(void *context,
-                                             const storage_procedure_identity_t *identity,
-                                             storage_progress_snapshot_t *out_snapshot) {
-    (void)context;
-    return storage_progress_read_locked(identity, out_snapshot);
-}
-
 static void install_export_operations(void) {
     const storage_package_export_ops_t operations = {
         .context = NULL,
@@ -188,9 +136,6 @@ static void install_export_operations(void) {
         .set_read = export_set_read,
         .macro_list = export_macro_list,
         .macro_list_free = export_macro_list_free,
-        .procedure_list = export_procedure_list,
-        .procedure_list_free = export_procedure_list_free,
-        .progress_read = export_progress_read,
     };
     storage_package_set_export_ops_for_test(&operations);
 }
@@ -217,17 +162,6 @@ static void populate_store(void) {
                                 "unreferenced-secret-source");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&other_set.id, &unused));
     macro_model_free_macro(&unused);
-
-    procedure_t procedure = make_procedure(&set.id);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_procedure_create(&set.id, &procedure));
-    macro_model_free_procedure(&procedure);
-
-    const storage_procedure_identity_t identity = {
-        .set_id = set.id,
-        .procedure_id = uuid(PROCEDURE_ID),
-    };
-    storage_progress_snapshot_t progress = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_progress_reset(&identity, 1U, &progress));
 }
 
 static web_api_response_t invoke_export(const char *set_id) {
@@ -334,8 +268,6 @@ static void test_export_route(void) {
     TEST_CHECK(strstr(response.body, "\"ok\":true") == NULL);
     TEST_CHECK(strstr(response.body, LOCAL_MACRO_ID) != NULL);
     TEST_CHECK(strstr(response.body, SECOND_MACRO_ID) != NULL);
-    TEST_CHECK(strstr(response.body, PROCEDURE_ID) != NULL);
-    TEST_CHECK(strstr(response.body, LOCAL_STEP_ID) != NULL);
     TEST_CHECK(strstr(response.body, OTHER_SET_MACRO_ID) == NULL);
     TEST_CHECK(strstr(response.body, UNUSED_SENTINEL) == NULL);
 
@@ -345,8 +277,6 @@ static void test_export_route(void) {
                                                   STORAGE_PACKAGE_KIND_SET, &summary));
     TEST_CHECK_EQ_U64(1U, summary.set_count);
     TEST_CHECK_EQ_U64(2U, summary.local_macro_count);
-    TEST_CHECK_EQ_U64(1U, summary.procedure_count);
-    TEST_CHECK_EQ_U64(1U, summary.progress_count);
     web_api_response_free(&response);
 }
 

@@ -114,43 +114,6 @@ add_test(NAME storage_macro_repository COMMAND storage_macro_repository_tests)
 set_tests_properties(storage_macro_repository PROPERTIES LABELS "storage")
 
 add_executable(
-    storage_procedure_repository_tests
-    "${CMAKE_SOURCE_DIR}/test_storage_procedures.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/app_error.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/app_uuid.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/macro_model.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_atomic.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_fs_ops.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_paths.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_transaction.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_transaction_replace.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_io.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_json.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_json.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_objects_json.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_order.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_index.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_sets.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_macros.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_procedures.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_lock.c"
-)
-target_include_directories(
-    storage_procedure_repository_tests
-    PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
-            "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/include"
-            "${CMAKE_SOURCE_DIR}/../../firmware/components/storage"
-)
-target_compile_definitions(
-    storage_procedure_repository_tests
-    PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-procedure-data"
-)
-target_link_libraries(storage_procedure_repository_tests PRIVATE PkgConfig::CJSON test_support)
-target_compile_options(storage_procedure_repository_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME storage_procedure_repository COMMAND storage_procedure_repository_tests)
-set_tests_properties(storage_procedure_repository PROPERTIES LABELS "storage")
-
-add_executable(
     storage_package_tests
     "${CMAKE_SOURCE_DIR}/test_storage_package.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/app_error.c"
@@ -207,8 +170,7 @@ target_sources(
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_export.c"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_replace.c"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_import.c"
-            "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_set_tree.c"
-)
+        )
 
 add_executable(
     web_api_set_export_tests
@@ -220,7 +182,6 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_export.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_replace.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_import.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_set_tree.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_core.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_response.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_json.c"

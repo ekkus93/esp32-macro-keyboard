@@ -20,7 +20,6 @@
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_macros_internal.h"
-#include "storage_repository_procedures_internal.h"
 #include "storage_repository_sets_internal.h"
 
 static app_error_code_t copy_text(char *destination, size_t destination_size, const char *source,
@@ -99,41 +98,26 @@ static app_error_code_t write_duplicate_macro(const char *staging, const macro_t
     return write_json_file(path, json, json_length);
 }
 
-static app_error_code_t write_duplicate_procedure(const char *staging, const procedure_t *source,
-                                                  const app_uuid_t *duplicate_set_id) {
-    procedure_t duplicate = *source;
-    duplicate.revision = 1U;
-    duplicate.set_id = *duplicate_set_id;
-    char *json = NULL;
-    size_t json_length = 0U;
-    app_error_code_t result =
-        storage_repository_serialize_procedure_json(&duplicate, &json, &json_length);
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        const int written =
-            snprintf(path, sizeof(path), "%s/procedures/%s.json", staging, duplicate.id.value);
-        if (written < 0 || (size_t)written >= sizeof(path)) {
-            result = APP_ERROR_INVALID_ARGUMENT;
-        }
-    }
-    if (result != APP_ERROR_NONE) {
-        cJSON_free(json);
-        return result;
-    }
-    return write_json_file(path, json, json_length);
-}
-
 static app_error_code_t write_duplicate_order(const char *staging, const char *filename,
                                               size_t maximum_count, const app_uuid_t *ids,
                                               size_t count) {
-    storage_uuid_order_t order = {.count = count};
+    /* storage_uuid_order_t is ~3.7 KB. With the procedure half of the duplicate
+     * path gone this function is small enough for the compiler to inline into
+     * storage_set_duplicate_locked, which put that frame at 6448 bytes against
+     * the ratchet's 4736 (see scripts/check-stack-usage.sh). Heap, not stack. */
+    storage_uuid_order_t *order = calloc(1U, sizeof(*order));
+    if (order == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
+    order->count = count;
     if (count > 0U) {
-        memcpy(order.ids, ids, count * sizeof(*ids));
+        memcpy(order->ids, ids, count * sizeof(*ids));
     }
     char *json = NULL;
     size_t json_length = 0U;
     app_error_code_t result =
-        storage_repository_serialize_order_json(&order, maximum_count, &json, &json_length);
+        storage_repository_serialize_order_json(order, maximum_count, &json, &json_length);
+    free(order);
     char path[APP_PATH_MAX_BYTES];
     if (result == APP_ERROR_NONE) {
         const int written = snprintf(path, sizeof(path), "%s/%s", staging, filename);
@@ -150,7 +134,6 @@ static app_error_code_t write_duplicate_order(const char *staging, const char *f
 
 static app_error_code_t create_duplicate_staging(const macro_set_t *duplicate,
                                                  const storage_macro_list_t *macros,
-                                                 const storage_procedure_list_t *procedures,
                                                  const app_uuid_t *transaction_id, char *staging,
                                                  size_t staging_size) {
     const int staging_length =
@@ -159,7 +142,7 @@ static app_error_code_t create_duplicate_staging(const macro_set_t *duplicate,
         return APP_ERROR_INVALID_ARGUMENT;
     }
     app_error_code_t result = storage_repository_make_directory(staging);
-    static const char *const child_names[] = {"macros", "procedures", "progress"};
+    static const char *const child_names[] = {"macros"};
     for (size_t index = 0U;
          result == APP_ERROR_NONE && index < sizeof(child_names) / sizeof(child_names[0]);
          ++index) {
@@ -181,20 +164,6 @@ static app_error_code_t create_duplicate_staging(const macro_set_t *duplicate,
     if (result == APP_ERROR_NONE) {
         result = write_duplicate_order(staging, "macro-order.json", APP_MACROS_PER_SET_MAX,
                                        ordered_ids, macros->count);
-    }
-    free(ordered_ids);
-
-    ordered_ids = procedures->count == 0U ? NULL : calloc(procedures->count, sizeof(*ordered_ids));
-    if (result == APP_ERROR_NONE && procedures->count > 0U && ordered_ids == NULL) {
-        result = APP_ERROR_INTERNAL;
-    }
-    for (size_t index = 0U; result == APP_ERROR_NONE && index < procedures->count; ++index) {
-        ordered_ids[index] = procedures->items[index].id;
-        result = write_duplicate_procedure(staging, &procedures->items[index], &duplicate->id);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_duplicate_order(staging, "procedure-order.json", APP_PROCEDURES_PER_SET_MAX,
-                                       ordered_ids, procedures->count);
     }
     free(ordered_ids);
     return result;
@@ -319,19 +288,14 @@ static app_error_code_t storage_set_duplicate_locked(const app_uuid_t *source_id
     if (result == APP_ERROR_NONE) {
         result = storage_macro_list_locked(source_id, &macros);
     }
-    storage_procedure_list_t procedures = {0};
-    if (result == APP_ERROR_NONE) {
-        result = storage_procedure_list_locked(source_id, &procedures);
-    }
-
     app_uuid_t transaction_id = {0};
     if (result == APP_ERROR_NONE) {
         result = app_uuid_generate(&transaction_id);
     }
     char staging[APP_PATH_MAX_BYTES] = {0};
     if (result == APP_ERROR_NONE) {
-        result = create_duplicate_staging(&duplicate, &macros, &procedures, &transaction_id,
-                                          staging, sizeof(staging));
+        result = create_duplicate_staging(&duplicate, &macros, &transaction_id, staging,
+                                          sizeof(staging));
     }
     if (result == APP_ERROR_NONE) {
         result = activate_duplicate(&duplicate, &index, &transaction_id, staging);
@@ -343,7 +307,6 @@ static app_error_code_t storage_set_duplicate_locked(const app_uuid_t *source_id
     }
 
     storage_macro_list_free(&macros);
-    storage_procedure_list_free(&procedures);
     if (result == APP_ERROR_NONE) {
         *out_duplicate = duplicate;
     }

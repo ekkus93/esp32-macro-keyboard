@@ -11,9 +11,6 @@
 #define SET_ID "11111111-1111-4111-8111-111111111111"
 #define OTHER_SET_ID "12121212-1212-4212-8212-121212121212"
 #define LOCAL_MACRO_ID "22222222-2222-4222-8222-222222222222"
-#define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
-#define STEP_ID "44444444-4444-4444-8444-444444444444"
-#define OTHER_STEP_ID "45454545-4545-4545-8545-454545454545"
 
 #define SET_OBJECT "{\"schema_version\":1,\"id\":\"" SET_ID "\",\"revision\":1,\"name\":\"Set\"}"
 
@@ -25,23 +22,10 @@
     "\",\"revision\":1,\"name\":\"Local\",\"source\":\"a\","                                       \
     "\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}"
 
-#define PROCEDURE_OBJECT                                                                           \
-    "{\"schema_version\":1,\"id\":\"" PROCEDURE_ID "\",\"revision\":1,\"set_id\":\"" SET_ID        \
-    "\",\"name\":\"Procedure\",\"description\":\"\",\"steps\":[{\"id\":\"" STEP_ID                 \
-    "\",\"type\":\"macro\",\"title\":\"Step\",\"macro_id\":\"" LOCAL_MACRO_ID                      \
-    "\",\"required\":true,\"auto_complete_on_success\":false}],\"sort_order\":0}"
-
-#define PROGRESS_OBJECT                                                                            \
-    "{\"schema_version\":1,\"set_id\":\"" SET_ID "\",\"procedure_id\":\"" PROCEDURE_ID             \
-    "\",\"procedure_revision\":1,\"current_step_id\":\"" STEP_ID                                   \
-    "\",\"completed_step_ids\":[],\"skipped_step_ids\":[]}"
-
 #define PACKAGE_PREFIX(TYPE_VALUE)                                                                 \
     "{\"schema_version\":1,\"package_type\":\"" TYPE_VALUE "\",\"sets\":["
 
-#define PACKAGE_SUFFIX                                                                             \
-    "],\"macros\":[" LOCAL_MACRO_OBJECT "],\"procedures\":[" PROCEDURE_OBJECT                      \
-    "],\"progress\":[" PROGRESS_OBJECT "]}"
+#define PACKAGE_SUFFIX "],\"macros\":[" LOCAL_MACRO_OBJECT "]}"
 
 static const char VALID_SET_PACKAGE[] = PACKAGE_PREFIX("set") SET_OBJECT PACKAGE_SUFFIX;
 static const char VALID_BACKUP_PACKAGE[] = PACKAGE_PREFIX("backup") SET_OBJECT PACKAGE_SUFFIX;
@@ -55,8 +39,6 @@ static void test_valid_set_and_backup_packages(void) {
     TEST_CHECK_EQ_U64(sizeof(VALID_SET_PACKAGE) - 1U, summary.package_bytes);
     TEST_CHECK_EQ_U64(1U, summary.set_count);
     TEST_CHECK_EQ_U64(1U, summary.local_macro_count);
-    TEST_CHECK_EQ_U64(1U, summary.procedure_count);
-    TEST_CHECK_EQ_U64(1U, summary.progress_count);
 
     memset(&summary, 0, sizeof(summary));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
@@ -71,23 +53,17 @@ static void test_top_level_contract(void) {
     static const char *const invalid[] = {
         "{}",
         "[]",
-        "{\"schema_version\":2,\"package_type\":\"set\",\"sets\":[],\"macros\":[],"
-        "\"procedures\":[],\"progress\":[]}",
-        "{\"schema_version\":1,\"package_type\":\"future\",\"sets\":[],\"macros\":[],"
-        "\"procedures\":[],\"progress\":[]}",
+        "{\"schema_version\":2,\"package_type\":\"set\",\"sets\":[],\"macros\":[]}",
+        "{\"schema_version\":1,\"package_type\":\"future\",\"sets\":[],\"macros\":[]}",
         "{\"schema_version\":1,\"schema_version\":1,\"package_type\":\"set\","
-        "\"sets\":[],\"macros\":[],\"procedures\":[],"
-        "\"progress\":[]}",
+        "\"sets\":[],\"macros\":[]}",
         "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":[],\"macros\":[],"
-        "\"procedures\":[],\"progress\":[],\"future\":true}",
+        "\"future\":true}",
         "{\"schema_version\":1,\"package_type\":\"se\\u0000t\",\"sets\":[],"
-        "\"macros\":[],\"procedures\":[],\"progress\":[]}",
-        "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":{},\"macros\":[],"
-        "\"procedures\":[],\"progress\":[]}",
-        "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":[1],\"macros\":[],"
-        "\"procedures\":[],\"progress\":[]}",
-        "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":[],\"macros\":[],"
-        "\"procedures\":[],\"progress\":[]}x",
+        "\"macros\":[]}",
+        "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":{},\"macros\":[]}",
+        "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":[1],\"macros\":[]}",
+        "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":[],\"macros\":[]}x",
     };
     storage_package_summary_t summary = {0};
     for (size_t index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); ++index) {
@@ -113,22 +89,11 @@ static void test_object_and_reference_validation(void) {
     const char bad_macro_syntax[] = PACKAGE_PREFIX("set") SET_OBJECT
         "],\"macros\":[{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
         "\",\"revision\":1,\"name\":\"Bad\",\"source\":\"{BAD}\","
-        "\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID
-        "\"}],\"procedures\":[],\"progress\":[]}";
+        "\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}]}";
     const char duplicate_macro[] = PACKAGE_PREFIX("set") SET_OBJECT
         "],\"macros\":[" LOCAL_MACRO_OBJECT ",{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
         "\",\"revision\":1,\"name\":\"Duplicate\",\"source\":\"b\","
-        "\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID
-        "\"}],\"procedures\":[],\"progress\":[]}";
-    const char missing_macro_reference[] = PACKAGE_PREFIX("set") SET_OBJECT
-        "],\"macros\":[],\"procedures\":[" PROCEDURE_OBJECT "],\"progress\":[]}";
-    const char bad_progress_step[] = PACKAGE_PREFIX("set") SET_OBJECT
-        "],\"macros\":[" LOCAL_MACRO_OBJECT "],\"procedures\":[" PROCEDURE_OBJECT
-        "],\"progress\":[{\"schema_version\":1,\"set_id\":\"" SET_ID
-        "\",\"procedure_id\":\"" PROCEDURE_ID
-        "\",\"procedure_revision\":1,\"current_step_id\":\"" OTHER_STEP_ID
-        "\",\"completed_step_ids\":[],\"skipped_step_ids\":[]}]}";
-
+        "\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}]}";
     const struct {
         const char *data;
         size_t length;
@@ -144,10 +109,6 @@ static void test_object_and_reference_validation(void) {
         {bad_macro_syntax, sizeof(bad_macro_syntax) - 1U, APP_ERROR_MACRO_SYNTAX,
          STORAGE_PACKAGE_KIND_SET},
         {duplicate_macro, sizeof(duplicate_macro) - 1U, APP_ERROR_INVALID_ARGUMENT,
-         STORAGE_PACKAGE_KIND_SET},
-        {missing_macro_reference, sizeof(missing_macro_reference) - 1U, APP_ERROR_INVALID_ARGUMENT,
-         STORAGE_PACKAGE_KIND_SET},
-        {bad_progress_step, sizeof(bad_progress_step) - 1U, APP_ERROR_INVALID_ARGUMENT,
          STORAGE_PACKAGE_KIND_SET},
     };
     storage_package_summary_t summary = {0};

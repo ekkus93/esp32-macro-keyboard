@@ -15,13 +15,12 @@
 
 static const char BACKUP_DOCUMENT[] =
     "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":[],"
-    "\"macros\":[],\"procedures\":[],\"progress\":[]}";
+    "\"macros\":[]}";
 
 static storage_mount_state_t mount_state;
 static app_error_code_t backup_result;
 static storage_package_failure_t backup_failure;
 static app_error_code_t restore_result;
-static bool backup_include_progress;
 static char restore_body[256U];
 static size_t restore_body_length;
 
@@ -29,12 +28,10 @@ storage_mount_state_t storage_mount_state(void) {
     return mount_state;
 }
 
-app_error_code_t storage_package_export_backup_detail(bool include_progress, char **out_data,
-                                                      size_t *out_length,
+app_error_code_t storage_package_export_backup_detail(char **out_data, size_t *out_length,
                                                       storage_package_failure_t *out_failure,
                                                       storage_package_skip_report_t *out_skipped) {
     (void)out_skipped;
-    backup_include_progress = include_progress;
     if (out_failure != NULL) {
         memset(out_failure, 0, sizeof(*out_failure));
     }
@@ -92,7 +89,6 @@ static void reset_fixture(void) {
     backup_result = APP_ERROR_NONE;
     memset(&backup_failure, 0, sizeof(backup_failure));
     restore_result = APP_ERROR_NONE;
-    backup_include_progress = false;
     restore_body[0] = '\0';
     restore_body_length = 0U;
 }
@@ -141,7 +137,6 @@ static void test_backup_returns_raw_validated_package(void) {
     web_api_response_t response = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
     TEST_CHECK_EQ_U64(200U, response.status);
-    TEST_CHECK(backup_include_progress);
     TEST_CHECK_EQ_U64(sizeof(BACKUP_DOCUMENT) - 1U, response.body_length);
     TEST_CHECK_EQ_STRING(BACKUP_DOCUMENT, response.body);
     TEST_CHECK(strstr(response.body, "\"ok\":true") == NULL);
