@@ -72,6 +72,12 @@ static int start_server_adapter(void *context, void **out_handle) {
     if (httpd_start(&handle, &configuration) != ESP_OK) {
         return -1;
     }
+    /* Started after httpd so the worker only ever exists while there is a
+     * server whose requests it can own. */
+    if (web_server_async_start() != APP_ERROR_NONE) {
+        (void)httpd_stop(handle);
+        return -1;
+    }
     *out_handle = handle;
     return 0;
 }
@@ -89,6 +95,11 @@ static int register_route_adapter(void *context, void *handle, size_t route_inde
 
 static int stop_server_adapter(void *context, void *handle) {
     (void)context;
+    /* Stopped before httpd, because the worker may still own an async request
+     * that has to be completed while the server is alive. */
+    if (web_server_async_stop() != APP_ERROR_NONE) {
+        return -1;
+    }
     return httpd_stop((httpd_handle_t)handle) == ESP_OK ? 0 : -1;
 }
 

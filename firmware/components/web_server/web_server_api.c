@@ -332,13 +332,40 @@ static bool dispatch_api_call(const web_api_call_t *call, web_api_response_t *re
     return result == APP_ERROR_NONE && response->body != NULL;
 }
 
-esp_err_t api_handler(httpd_req_t *request) {
+esp_err_t web_api_send_status_error(httpd_req_t *request, unsigned int status,
+                                    app_error_code_t code, const char *message) {
+    web_api_response_t response = {0};
+    if (set_error_response(&response, status, code, message) != APP_ERROR_NONE) {
+        return ESP_FAIL;
+    }
+    const esp_err_t result = send_api_response(request, NULL, &response);
+    web_api_response_free(&response);
+    return result;
+}
+
+bool web_api_request_requires_confirmation(httpd_req_t *request) {
+    web_api_method_t method = WEB_API_METHOD_GET;
+    web_api_path_t path = {0};
+    if (request == NULL || method_from_request(request, &method) != APP_ERROR_NONE ||
+        web_api_parse_path(request->uri, &path) != APP_ERROR_NONE ||
+        !web_api_route_allows_method(path.route, method)) {
+        /* Malformed or misrouted requests never reach the confirmation wait;
+         * let the normal path produce the proper error response. */
+        return false;
+    }
+    return web_api_physical_confirmation_required(
+        path.route, server_configuration.require_physical_confirmation);
+}
+
+esp_err_t web_api_handle_call(httpd_req_t *request, bool *out_should_restart) {
     web_api_response_t response = {0};
     web_request_policy_result_t policy = {0};
     web_api_call_t call = {0};
     char *body = NULL;
     size_t body_limit = WEB_API_SMALL_BODY_MAX_BYTES;
     bool response_ready = false;
+
+    *out_should_restart = false;
 
     app_error_code_t result =
         prepare_api_call(request, &call, &response, &body_limit, &response_ready);
@@ -359,7 +386,22 @@ esp_err_t api_handler(httpd_req_t *request) {
     const esp_err_t send_result = send_api_response(request, policy.request_id, &response);
     free(body);
     web_api_response_free(&response);
-    if (send_result == ESP_OK && should_restart) {
+    *out_should_restart = send_result == ESP_OK && should_restart;
+    return send_result;
+}
+
+esp_err_t api_handler(httpd_req_t *request) {
+    /* Confirmation-gated routes block for up to APP_PHYSICAL_CONFIRM_TIMEOUT_MS
+     * waiting for the button. esp_http_server serves every socket from a single
+     * task, so running that wait here would freeze all other clients for the
+     * whole window; hand those requests to the async worker instead. */
+    if (web_api_request_requires_confirmation(request)) {
+        return web_server_async_dispatch(request);
+    }
+
+    bool should_restart = false;
+    const esp_err_t send_result = web_api_handle_call(request, &should_restart);
+    if (should_restart) {
         esp_restart();
     }
     return send_result;

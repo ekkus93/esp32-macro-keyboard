@@ -46,6 +46,29 @@ esp_err_t logout_handler(httpd_req_t *request);
 esp_err_t execution_handler(httpd_req_t *request);
 esp_err_t cancel_handler(httpd_req_t *request);
 esp_err_t api_handler(httpd_req_t *request);
+
+/* Runs a parsed API call to completion and sends its response. Separated from
+ * api_handler so the async worker can run the same path off the httpd task.
+ * Sets *out_should_restart when the caller must esp_restart() after the
+ * response has been sent (and, for async callers, after the request has been
+ * marked complete). */
+esp_err_t web_api_handle_call(httpd_req_t *request, bool *out_should_restart);
+
+/* Sends a bare JSON error envelope. Used by the async layer, which has to
+ * answer before a call is ever parsed. */
+esp_err_t web_api_send_status_error(httpd_req_t *request, unsigned int status,
+                                    app_error_code_t code, const char *message);
+
+/* True when this request would block the handler in the physical-confirmation
+ * wait, and so must not run on the httpd task. */
+bool web_api_request_requires_confirmation(httpd_req_t *request);
+
+/* Async offload for confirmation-gated requests. web_server_async_dispatch
+ * takes ownership of the request on success; the caller must return its result
+ * to httpd without touching the request again. */
+app_error_code_t web_server_async_start(void);
+app_error_code_t web_server_async_stop(void);
+esp_err_t web_server_async_dispatch(httpd_req_t *request);
 esp_err_t static_handler(httpd_req_t *request);
 esp_err_t setup_state_handler(httpd_req_t *request);
 esp_err_t setup_credentials_handler(httpd_req_t *request);

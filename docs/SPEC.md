@@ -298,7 +298,14 @@ A setting MAY change startup behavior to open the last selected set.
    macro name, and current USB state.
 6. The user focuses the target computer and explicitly selects **Send Now**.
 7. If physical confirmation mode is enabled, the request waits for the device
-   confirmation button and expires after a bounded timeout.
+   confirmation button and expires after a bounded timeout. That wait MUST NOT
+   run on the HTTP server task: `esp_http_server` serves every socket from a
+   single task, so waiting there makes the whole device unreachable for the
+   duration of the window. Confirmation-gated requests are handed to a worker
+   task (`web_server_async.c`), leaving the server responsive throughout.
+   Because one button press cannot disambiguate two pending confirmations, at
+   most one such request is accepted at a time; a second concurrent one is
+   rejected with `409` rather than queued.
 8. Firmware starts execution only if USB is ready and the executor is idle.
 9. Progress is displayed until the executor reports completed, cancelled, or
    failed.
