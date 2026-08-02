@@ -130,35 +130,40 @@ this way.
 
 Before starting, read `## Phase 2 field notes` at the end of this section.
 
-### 2a — Web API layer (first commit)
+### 2a — Web API layer (first commit) — DONE `4ab338c`
 
 Compiles green **before** the model types are touched, because nothing here
 outlives `procedure_t`. Land it on its own.
 
-- [ ] Delete `web_api_procedures.c` and its `HANDLER_PROCEDURES` dispatch arm,
+- [x] Delete `web_api_procedures.c` and its `HANDLER_PROCEDURES` dispatch arm,
   and remove the source from `firmware/components/web_server/CMakeLists.txt` and
   from `web_api_repository_handlers_tests` in `tests/host/CMakeLists.txt`.
-- [ ] Delete `WEB_API_ROUTE_SET_PROCEDURES`, `_SET_PROCEDURE`,
+- [x] Delete `WEB_API_ROUTE_SET_PROCEDURES`, `_SET_PROCEDURE`,
   `_SET_PROCEDURES_REORDER`, `_PROCEDURE_PROGRESS`, `_PROGRESS_COMPLETE`,
   `_PROGRESS_SKIP` from `web_api_core.h`, plus `match_set_procedure_routes`,
   the `"procedures"` arms in `match_set_routes`, the method policy entries, the
   body-limit entries, and `has_procedure_id`/`procedure_id` from
   `web_api_path_t`.
-- [ ] Delete `web_api_json_parse_procedure_resource`,
+- [x] Delete `web_api_json_parse_procedure_resource`,
   `_parse_progress_resource`, `_parse_progress_action`,
   `web_api_progress_action_t`, and `read_execution_source_context`. The
   execution submit body becomes exactly `{setId, macroId, macroRevision}`.
-- [ ] Delete `has_procedure_context`, `procedure_id`, `step_id`, and
+- [x] Delete `has_procedure_context`, `procedure_id`, `step_id`, and
   `procedure_read` from `web_execution_submit_request_t`/`web_execution_ops_t`,
   and `validate_procedure_context`/`procedure_context_matches` from
   `web_execution_submit.c`. An execution is a macro and a set (SPEC §18).
-- [ ] Delete `web_api_handler_procedure_json`, `_procedure_list_json`,
+- [x] Delete `web_api_handler_procedure_json`, `_procedure_list_json`,
   `_progress_json`, and `procedure_summary` from `web_api_handler_common.c`.
-- [ ] Add a negative assertion that `/api/v1/sets/{id}/procedures` no longer
+- [x] Add a negative assertion that `/api/v1/sets/{id}/procedures` no longer
   resolves — the same class of leftover as the quarantine diagnostics route,
   which parsed for a full commit after its handler was deleted (`52d74dc`).
 
-**Gate before committing:** `./scripts/check-all.sh` exits 0.
+**Gate:** `./scripts/check-all.sh` exited 0 (58/58 host, 131/131 webapp).
+
+Note for 2b: set duplication was covered only inside
+`test_procedure_and_progress_routes`. That coverage moved to
+`test_set_delete_and_persistent_readback` rather than being dropped —
+check for the same pattern before deleting any other procedure test.
 
 ### 2b — Storage and model (second commit)
 
