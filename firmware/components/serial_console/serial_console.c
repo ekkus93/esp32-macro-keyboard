@@ -6,6 +6,7 @@
 #include "device_controls.h"
 #include "esp_console.h"
 #include "macro_executor.h"
+#include "provisioning.h"
 #include "wifi_ap.h"
 
 #define WIFI_CONNECT_TIMEOUT_MS 15000U
@@ -23,6 +24,12 @@ static int command_wifi_connect(int argc, char **argv) {
         argv[1], argv[2], WIFI_CONNECT_TIMEOUT_MS, ip_address, sizeof(ip_address));
     if (result == APP_ERROR_NONE) {
         printf("connected, IP address: %s\n", ip_address);
+        /* Persist so the device rejoins on its own after a power cycle. Stored
+         * in the same NVS record as everything else it remembers. */
+        const app_error_code_t saved = provisioning_set_station(argv[1], argv[2]);
+        printf(saved == APP_ERROR_NONE ? "credentials saved; will reconnect at boot\n"
+                                       : "warning: connected but could not save credentials: %s\n",
+               app_error_code_string(saved));
         return 0;
     }
     printf("connection failed: %s\n", app_error_code_string(result));

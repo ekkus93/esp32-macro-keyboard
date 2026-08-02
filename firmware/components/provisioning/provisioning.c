@@ -275,3 +275,22 @@ app_error_code_t provisioning_deinit(void) {
 bool provisioning_owns_resources(void) {
     return provisioning_mutex != NULL || namespace_open || core.initialized;
 }
+
+app_error_code_t provisioning_set_station(const char *ssid, const char *password) {
+    app_error_code_t result = lock_provisioning();
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    result = provisioning_core_set_station(&core, ssid, password);
+    return finish_locked(result);
+}
+
+app_error_code_t provisioning_get_station(char *out_ssid, size_t ssid_size, char *out_password,
+                                          size_t password_size) {
+    app_error_code_t result = lock_provisioning();
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    result = provisioning_core_get_station(&core, out_ssid, ssid_size, out_password, password_size);
+    return finish_locked(result);
+}

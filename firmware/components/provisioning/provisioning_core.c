@@ -12,7 +12,7 @@
 #include "wifi_ap.h"
 
 #define WIRE_UINT32_BYTES 4U
-#define WIRE_BOOLEAN_COUNT 3U
+#define WIRE_BOOLEAN_COUNT 4U
 #define WIRE_MAGIC_OFFSET 0U
 #define WIRE_SCHEMA_OFFSET 4U
 #define WIRE_REVISION_OFFSET 8U
@@ -23,12 +23,15 @@
 #define WIRE_SALT_OFFSET (WIRE_PASSPHRASE_OFFSET + WIFI_AP_PASSPHRASE_MAX_BYTES + 1U)
 #define WIRE_HASH_OFFSET (WIRE_SALT_OFFSET + AUTH_SALT_BYTES)
 #define WIRE_ITERATIONS_OFFSET (WIRE_HASH_OFFSET + AUTH_HASH_BYTES)
+#define WIRE_STATION_SSID_OFFSET (WIRE_ITERATIONS_OFFSET + WIRE_UINT32_BYTES)
+#define WIRE_STATION_PASSWORD_OFFSET (WIRE_STATION_SSID_OFFSET + WIFI_AP_SSID_MAX_BYTES + 1U)
 #define U32_BYTE_MASK UINT32_C(0xff)
 #define U32_BYTE_ONE_SHIFT 8U
 #define U32_BYTE_TWO_SHIFT 16U
 #define U32_BYTE_THREE_SHIFT 24U
 
-_Static_assert(WIRE_ITERATIONS_OFFSET + WIRE_UINT32_BYTES == PROVISIONING_RECORD_BYTES,
+_Static_assert(WIRE_STATION_PASSWORD_OFFSET + WIFI_AP_PASSPHRASE_MAX_BYTES + 1U ==
+                   PROVISIONING_RECORD_BYTES,
                "provisioning wire layout must match the fixed record size");
 
 static const uint8_t RECORD_MAGIC[WIRE_UINT32_BYTES] = {'P', 'R', 'O', 'V'};
@@ -102,6 +105,19 @@ bool provisioning_config_is_valid(const provisioning_config_t *configuration) {
                           &passphrase_length)) {
         return false;
     }
+    size_t station_ssid_length = 0U;
+    size_t station_password_length = 0U;
+    if (!canonical_string(configuration->station_ssid, sizeof(configuration->station_ssid),
+                          &station_ssid_length) ||
+        !canonical_string(configuration->station_password,
+                          sizeof(configuration->station_password), &station_password_length)) {
+        return false;
+    }
+    /* has_station and a non-empty SSID must agree: a flag without a network, or
+     * a network the flag says is not there, is a corrupt record. */
+    if (configuration->has_station != (station_ssid_length > 0U)) {
+        return false;
+    }
     if (!configuration->provisioned) {
         return credentials_empty(configuration);
     }
@@ -137,6 +153,7 @@ static app_error_code_t encode_configuration(const provisioning_config_t *config
     output[WIRE_FLAGS_OFFSET] = configuration->provisioned ? 1U : 0U;
     output[WIRE_FLAGS_OFFSET + 1U] = configuration->require_physical_confirmation ? 1U : 0U;
     output[WIRE_FLAGS_OFFSET + 2U] = configuration->always_select_set ? 1U : 0U;
+    output[WIRE_FLAGS_OFFSET + 3U] = configuration->has_station ? 1U : 0U;
 
     size_t length = 0U;
     if (!canonical_string(configuration->ap_ssid, sizeof(configuration->ap_ssid), &length)) {
@@ -151,6 +168,10 @@ static app_error_code_t encode_configuration(const provisioning_config_t *config
     memcpy(output + WIRE_SALT_OFFSET, configuration->password_record.salt, AUTH_SALT_BYTES);
     memcpy(output + WIRE_HASH_OFFSET, configuration->password_record.hash, AUTH_HASH_BYTES);
     put_u32(output, WIRE_ITERATIONS_OFFSET, configuration->password_record.iterations);
+    memcpy(output + WIRE_STATION_SSID_OFFSET, configuration->station_ssid,
+           sizeof(configuration->station_ssid));
+    memcpy(output + WIRE_STATION_PASSWORD_OFFSET, configuration->station_password,
+           sizeof(configuration->station_password));
     return APP_ERROR_NONE;
 }
 
@@ -163,7 +184,7 @@ static app_error_code_t decode_configuration(provisioning_core_t *core,
                                              provisioning_config_t *out_configuration) {
     if (memcmp(input + WIRE_MAGIC_OFFSET, RECORD_MAGIC, sizeof(RECORD_MAGIC)) != 0 ||
         !flag_valid(input[WIRE_FLAGS_OFFSET]) || !flag_valid(input[WIRE_FLAGS_OFFSET + 1U]) ||
-        !flag_valid(input[WIRE_FLAGS_OFFSET + 2U])) {
+        !flag_valid(input[WIRE_FLAGS_OFFSET + 2U]) || !flag_valid(input[WIRE_FLAGS_OFFSET + 3U])) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
     provisioning_config_t configuration = {0};
@@ -173,6 +194,11 @@ static app_error_code_t decode_configuration(provisioning_core_t *core,
     configuration.provisioned = input[WIRE_FLAGS_OFFSET] != 0U;
     configuration.require_physical_confirmation = input[WIRE_FLAGS_OFFSET + 1U] != 0U;
     configuration.always_select_set = input[WIRE_FLAGS_OFFSET + 2U] != 0U;
+    configuration.has_station = input[WIRE_FLAGS_OFFSET + 3U] != 0U;
+    memcpy(configuration.station_ssid, input + WIRE_STATION_SSID_OFFSET,
+           sizeof(configuration.station_ssid));
+    memcpy(configuration.station_password, input + WIRE_STATION_PASSWORD_OFFSET,
+           sizeof(configuration.station_password));
     memcpy(configuration.ap_ssid, input + WIRE_SSID_OFFSET, sizeof(configuration.ap_ssid));
     memcpy(configuration.ap_passphrase, input + WIRE_PASSPHRASE_OFFSET,
            sizeof(configuration.ap_passphrase));
@@ -451,5 +477,57 @@ app_error_code_t provisioning_core_deinit(provisioning_core_t *core) {
     }
     const provisioning_ops_t operations = core->operations;
     operations.secure_zero(operations.context, core, sizeof(*core));
+    return APP_ERROR_NONE;
+}
+
+app_error_code_t provisioning_core_set_station(provisioning_core_t *core, const char *ssid,
+                                               const char *password) {
+    if (core == NULL || !core->initialized || !core->loaded) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const bool clearing = ssid == NULL || ssid[0] == '\0';
+    if (!clearing && (strlen(ssid) > WIFI_AP_SSID_MAX_BYTES ||
+                      (password != NULL && strlen(password) > WIFI_AP_PASSPHRASE_MAX_BYTES))) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+
+    provisioning_config_t candidate = core->current;
+    memset(candidate.station_ssid, 0, sizeof(candidate.station_ssid));
+    memset(candidate.station_password, 0, sizeof(candidate.station_password));
+    candidate.has_station = !clearing;
+    if (!clearing) {
+        memcpy(candidate.station_ssid, ssid, strlen(ssid));
+        if (password != NULL) {
+            memcpy(candidate.station_password, password, strlen(password));
+        }
+    }
+    provisioning_config_t committed = {0};
+    const app_error_code_t result =
+        provisioning_core_commit(core, &candidate, core->current.revision, &committed);
+    core->operations.secure_zero(core->operations.context, &candidate, sizeof(candidate));
+    core->operations.secure_zero(core->operations.context, &committed, sizeof(committed));
+    return result;
+}
+
+app_error_code_t provisioning_core_get_station(provisioning_core_t *core, char *out_ssid,
+                                               size_t ssid_size, char *out_password,
+                                               size_t password_size) {
+    if (out_ssid != NULL && ssid_size != 0U) {
+        memset(out_ssid, 0, ssid_size);
+    }
+    if (out_password != NULL && password_size != 0U) {
+        memset(out_password, 0, password_size);
+    }
+    if (core == NULL || !core->initialized || !core->loaded || out_ssid == NULL ||
+        out_password == NULL || ssid_size <= WIFI_AP_SSID_MAX_BYTES ||
+        password_size <= WIFI_AP_PASSPHRASE_MAX_BYTES) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (!core->current.has_station) {
+        return APP_ERROR_NOT_FOUND;
+    }
+    memcpy(out_ssid, core->current.station_ssid, strlen(core->current.station_ssid));
+    memcpy(out_password, core->current.station_password,
+           strlen(core->current.station_password));
     return APP_ERROR_NONE;
 }

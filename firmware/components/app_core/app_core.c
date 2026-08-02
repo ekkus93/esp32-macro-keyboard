@@ -119,10 +119,43 @@ static app_error_code_t adapter_controls_init(void *context) {
     return device_controls_init();
 }
 
+/* SPEC 15.1: start the SoftAP, then -- if station credentials were saved -- try
+ * to join that network as well. The AP always comes up first and always stays
+ * up: a failed join must never cost the user the only interface they can reach
+ * the device on, so a join failure is logged and otherwise ignored rather than
+ * failing the startup stage. */
+#define WIFI_STATION_BOOT_TIMEOUT_MS 15000U
+
 static app_error_code_t adapter_wifi_start(void *context, const char *ssid,
                                            const char *passphrase) {
     (void)context;
-    return wifi_ap_start(ssid, passphrase);
+    const app_error_code_t started = wifi_ap_start(ssid, passphrase);
+    if (started != APP_ERROR_NONE) {
+        return started;
+    }
+
+    /* Only the two fields this needs. Loading the whole provisioning record here
+     * would put the admin password verifier, its salt, and the AP passphrase on
+     * this task's stack to read an SSID. Both buffers are wiped before return. */
+    char station_ssid[WIFI_AP_SSID_MAX_BYTES + 1U] = {0};
+    char station_password[WIFI_AP_PASSPHRASE_MAX_BYTES + 1U] = {0};
+    if (provisioning_get_station(station_ssid, sizeof(station_ssid), station_password,
+                                 sizeof(station_password)) != APP_ERROR_NONE) {
+        return APP_ERROR_NONE;
+    }
+    char ip_address[WIFI_STA_IP_STRING_BYTES];
+    const app_error_code_t joined =
+        wifi_ap_connect_station(station_ssid, station_password, WIFI_STATION_BOOT_TIMEOUT_MS,
+                                ip_address, sizeof(ip_address));
+    explicit_bzero(station_password, sizeof(station_password));
+    explicit_bzero(station_ssid, sizeof(station_ssid));
+    if (joined == APP_ERROR_NONE) {
+        ESP_LOGI(TAG, "joined saved Wi-Fi network, IP address: %s", ip_address);
+    } else {
+        ESP_LOGW(TAG, "saved Wi-Fi network unavailable (%s); continuing as access point only",
+                 app_error_code_string(joined));
+    }
+    return APP_ERROR_NONE;
 }
 
 static app_error_code_t adapter_http_start(void *context,

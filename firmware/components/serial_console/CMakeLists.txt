@@ -8,6 +8,7 @@ idf_component_register(
     device_controls
     macro_executor
     wifi_ap
+    provisioning
     console
 )
 

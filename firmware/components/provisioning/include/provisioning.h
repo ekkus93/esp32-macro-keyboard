@@ -21,6 +21,13 @@ typedef struct {
     auth_password_record_t password_record;
     bool require_physical_confirmation;
     bool always_select_set;
+    /* Station-mode credentials for an existing Wi-Fi network, persisted in the
+     * same NVS record as everything else the device remembers. When present the
+     * device joins this network at boot and falls back to AP-only if it cannot
+     * (SPEC 15.1). An empty password is a valid open network. */
+    bool has_station;
+    char station_ssid[WIFI_AP_SSID_MAX_BYTES + 1U];
+    char station_password[WIFI_AP_PASSPHRASE_MAX_BYTES + 1U];
 } provisioning_config_t;
 
 typedef struct {
@@ -39,6 +46,17 @@ app_error_code_t provisioning_settings_read(provisioning_settings_t *out_setting
 app_error_code_t provisioning_settings_update(const provisioning_settings_t *replacement,
                                               uint32_t expected_revision,
                                               provisioning_settings_t *out_committed);
+/* Persists station-mode credentials, or clears them when ssid is NULL/empty.
+ * Commits to NVS immediately so they survive a power cycle. */
+app_error_code_t provisioning_set_station(const char *ssid, const char *password);
+
+/* Reads ONLY the station credentials. Deliberately not "load the whole config
+ * and pick two fields out of it": provisioning_config_t also holds the admin
+ * password verifier, its salt, and the AP passphrase, and a caller that wants an
+ * SSID has no business with a copy of those on its stack. Returns
+ * APP_ERROR_NOT_FOUND when no network has been saved. */
+app_error_code_t provisioning_get_station(char *out_ssid, size_t ssid_size, char *out_password,
+                                          size_t password_size);
 app_error_code_t provisioning_clear_credentials(void);
 app_error_code_t provisioning_factory_reset(void);
 app_error_code_t provisioning_deinit(void);
