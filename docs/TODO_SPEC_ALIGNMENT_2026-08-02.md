@@ -351,29 +351,78 @@ write primitive stays.
 `rename()` primitive that SPEC §13.4 requires. Only the multi-file transaction
 layer above it goes.
 
-- [ ] Delete `storage_transaction.c` (677 lines) and
-  `storage_transaction_restore.c` (335 lines): manifests, phases, staging
-  activation, and startup transaction recovery.
-- [ ] Delete `/data/staging/`, `/data/trash/`, and `/data/transactions/` from
+**Done — commit `8b550c6`** (37 files, +590/-5,961). The storage component went
+from 10,240 to 7,155 lines. `./scripts/check-all.sh` exited 0; 51/51 host tests
+pass.
+
+- [x] Delete `storage_transaction.c`, `storage_transaction_restore.c`,
+  `storage_transaction_replace.c`, `storage_transaction_restore_recovery.c` and
+  `storage_transaction_internal.h`.
+- [x] Delete `/data/staging/`, `/data/trash/`, and `/data/transactions/` from
   `storage_mount_topology.c` and every path helper. SPEC §13.3.
-- [ ] Reduce `storage_atomic_recovery.c` (491 lines) to SPEC §13.4's entire
-  recovery routine: **delete any `*.tmp` under `/data`**. The reconcile
-  decision table, artifact enumeration, backup restoration, and
-  `.bak` handling all go with it — there is no `.bak` file in the new design.
-- [ ] Delete `storage_atomic_validators.c` (360 lines). It validates candidate
-  files by object type during recovery; with recovery reduced to "delete stray
-  `.tmp`", nothing calls it.
-- [ ] Change set deletion to remove the set file and update the index, with no
-  trash rename. SPEC §8.6 — deletion is permanent, and the typed-name
-  confirmation is the safeguard.
-- [ ] Change set import/replace to a single `rename()` over the target set file.
-  SPEC §8.7.
+- [x] Reduce `storage_atomic_recovery.c` (491 → 150 lines) to SPEC §13.4's
+  entire recovery routine: delete any `*.tmp` under `/data`.
+- [x] Delete `storage_atomic_validators.{c,h}`.
+- [x] Set deletion removes the set and updates the index, with no trash rename.
+  SPEC §8.6.
+- [x] Set import/replace no longer stages and swaps. **See the caveat below.**
 
-**Done means:** `/data` contains only `index.json` and `sets/`; boot recovery is
-one function that unlinks `*.tmp`; `check-all.sh` exits 0.
+**`storage_atomic.c` was also simplified, 397 → 218 lines**, which the phase
+brief implied ("there is no `.bak` file in the new design") without listing.
+SPEC §13.4 permits nothing between verifying the temporary and renaming it, so
+the `.bak` swap and its rollback ladder are gone. That ladder was not merely
+redundant: renaming the destination aside before activating created a second
+on-device copy of every object being written (SPEC §22, invariant 16) and a
+window in which the canonical path did not exist at all. The temporary is now
+`<target>.tmp` rather than `<target>.tmp.<uuid>` — every writer holds the
+repository lock, so nothing can collide, and recovery can then be exactly
+"unlink every `*.tmp`". The uuid-generator seam that existed for that naming is
+removed from the atomic-write API.
 
-**Test coverage this phase must add** (SPEC §24.2): interruption between writing
-`.tmp` and `rename()` in both orders, and boot cleanup of a stray `.tmp`.
+**The ordering rule adopted at every mutation site:** the index is the
+authority, so content is written before it is referenced and unreferenced
+before it is removed. An interruption leaves an *unreferenced directory* —
+invisible, because every reader enumerates through the index — rather than an
+index entry pointing at a half-written or half-removed set.
+
+**⚠ One place where crash-safety is temporarily weaker than what it replaced.**
+Set replacement (`POST /api/v1/sets/import`) is not atomic in this phase. A set
+is still a directory of files, so the old tree is removed and the new one
+written in its place. An interruption leaves the set partially written while the
+index still references it; it reads back as corrupt, which SPEC §13.6 handles by
+reporting and deleting rather than silently substituting a default. The old
+contents are gone either way, because the design forbids keeping a second copy
+to roll back to. **Phase 4 closes this completely** — once a set is a single
+file the whole replacement is one `storage_atomic_write`. The comment on
+`replace_locked` says so at the call site.
+
+**Restore now matches SPEC §13.5 instead of contradicting it.** It no longer
+writes a manifest claiming an all-or-nothing guarantee across sets that the spec
+explicitly does not want. Per-set outcome reporting and moving the loop off the
+httpd task remain owed by Phase 5.
+
+**Done means:** ✅ `/data` contains only `set-index.json` and `sets/`; ✅ boot
+recovery is one function that unlinks `*.tmp`; ✅ `check-all.sh` exits 0.
+
+**Test coverage this phase added** (SPEC §24.2), in
+`test_storage_atomic_recovery.c` (rewritten) and `test_storage_parent_sync.c`:
+
+- boot cleanup of a stray `.tmp`;
+- a temporary whose destination never appeared is discarded, not activated;
+- nested set directories are swept;
+- only the exact `.tmp` suffix is removed — `tmp.json`, `a.tmp.json`,
+  `b.json.tmpx` and `c.json.temp` all survive;
+- a bare `".tmp"` names no destination and is left alone;
+- interruption on either side of the `rename()`: old destination byte-for-byte
+  intact on rename failure, nothing left behind on a failed create, and a
+  parent-sync failure *after* the rename reported but **not** undone — undoing a
+  committed rename is exactly the second-copy behaviour this phase removed.
+
+**Two notes for later phases.** `storage_repository_discard_corrupt_file` was
+accidentally cut alongside the manifest helpers it sat between and restored; the
+linker caught it. `write_set_macros` hit the stack ratchet at 5152 bytes once it
+began inlining into `materialize_sets`, fixed by heap-allocating the ~3.7 KB
+`storage_uuid_order_t`.
 
 ---
 
@@ -401,9 +450,14 @@ Target layout (SPEC §13.3):
 - [ ] **4.2 Delete per-object paths and order files.** `macro-order.json`,
   `set.json`, `macros/`, and `storage_repository_order.c` all disappear: array
   order in the set file **is** the order. SPEC §12.1.
-- [ ] **4.3 Delete the tree walkers.** `storage_repository_tree.c` (843 lines)
-  and `storage_set_tree.c` (674 lines) validate a directory tree that will no
-  longer exist.
+- [x] **4.3 Delete the tree walkers.** Already done in 2b (`43dab8d`):
+  `storage_repository_tree.c` and `storage_set_tree.c` were deleted rather than
+  rewritten. What Phase 4 still owes is the *other half* of that decision —
+  removing the now-vacuous validator seam those files fed. Four production
+  validators currently return `APP_ERROR_NONE` with a comment explaining why
+  (`storage_transaction.c` is gone, so they live in `storage_package_replace.c`
+  and `storage_package_restore.c`), and the function-pointer plumbing was kept
+  deliberately so this phase removes it on purpose rather than by accident.
 - [ ] **4.4 Rewrite `index.json`** to SPEC §12.3: `schema_version`, `revision`,
   `active_set_id`, `set_ids`. Firmware MUST NOT reconstruct it from a directory
   listing — that discards the user's set order, the one thing it holds.
