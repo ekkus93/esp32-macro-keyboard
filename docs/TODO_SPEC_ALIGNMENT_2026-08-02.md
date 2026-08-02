@@ -121,6 +121,40 @@ a name and an ordered list of macros; there is no level between them.
 **Estimated size:** ~1,250 lines of dedicated firmware code, plus references in
 41 firmware files, 29 webapp files, and 23 host test files.
 
+**Attempted 2026-08-02 and abandoned mid-phase.** The firmware routes, the
+model types, the repository header, the package field tables, the macro
+reference scan, and the set-duplicate path were all cut before the session ran
+out; the work is on the `stash` entry *"WIP Phase 2: procedures/progress
+removal, incomplete (does not build)"*. It was stashed rather than committed
+because the tree did not compile — landing a broken commit is worse than
+landing nothing.
+
+What that attempt learned, so the next one plans rather than discovers:
+
+- **Do it in two commits, not one.** The firmware cut has a natural seam: the
+  web API layer (routes, handlers, JSON, execution context) compiles green on
+  its own once `web_api_procedures.c` is gone, *before* the model types are
+  touched. Cut the API first, land it, then cut the model.
+- **`storage_set_tree.c` is the single largest consumer** — 105 compile errors
+  once `procedure_t` disappears, more than any other file. Budget for it
+  specifically; it validates the per-set directory tree and Phase 4 deletes it
+  outright, so consider whether Phase 2 should simply stop calling it and let
+  Phase 4 remove it, rather than rewriting it twice.
+- **Ordered work list, by compile-error count after the model types go:**
+  `storage_set_tree.c` (105), `storage_repository_objects_json.c` (24),
+  `storage_atomic_validators.c` (22), `storage_package_import.c` (18),
+  `storage_package_replace.c` (14), then `web_execution_submit.c` and
+  `macro_limits.h` (2 each).
+- **The test CMake needs editing before the build will even configure.**
+  Deleting a source file breaks `add_executable` with "No SOURCES given"
+  rather than a compile error, which hides every real error behind a CMake
+  failure. Remove the targets in `tests/host/CMakeLists.txt` and
+  `tests/host/cmake/extra_tests.cmake` in the same step as the file deletions.
+- **`include_progress` threads through the export/backup API** as a parameter
+  on `storage_package_export_set`, `storage_package_export_backup`, and
+  `storage_package_export_backup_detail`. It becomes meaningless and should go
+  in this phase, which the original list did not mention.
+
 ### 2.1 Firmware model
 
 - [ ] Delete `procedure_t`, `procedure_step_t`, `procedure_progress_t`, and
