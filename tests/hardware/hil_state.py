@@ -4,7 +4,7 @@ Everything the HIL tests need that is specific to *your* bench - Wi-Fi
 credentials, the administrator password, the device's current IP, the created
 fixture - lives in a state directory that is deliberately NOT committed:
 
-    tests/hardware/.local/          (gitignored; override with HIL_STATE_DIR)
+    ~/.config/esp32-macro-keyboard/hil/   (outside the repo; override with HIL_STATE_DIR)
         wifi.json                   {"ssid": "...", "password": "..."}
         admin_password.txt          the device's administrator password
         device_ip.txt               written by connect_wifi()
@@ -26,8 +26,15 @@ CONNECT_TIMEOUT_S = 25
 
 def state_dir() -> Path:
     """Bench-specific state directory (created on first use)."""
+    # Defaults OUTSIDE the repository. These files hold a Wi-Fi password, the
+    # device administrator password, and manufacturing secrets; this is a public
+    # repository, and .gitignore only stops `git add`. It does not stop
+    # `git add -f`, an archive of the working tree, a backup tool, or an editor
+    # that indexes the checkout. Keeping them out of the tree entirely is the
+    # only version of this that cannot go wrong.
     override = os.environ.get("HIL_STATE_DIR")
-    path = Path(override) if override else Path(__file__).resolve().parent / ".local"
+    default = Path.home() / ".config" / "esp32-macro-keyboard" / "hil"
+    path = Path(override) if override else default
     path.mkdir(parents=True, exist_ok=True)
     return path
 

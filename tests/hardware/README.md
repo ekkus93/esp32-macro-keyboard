@@ -51,8 +51,9 @@ with the usage code, and that the final report is all-zero (no key left held).
 
 ## Bench-specific state (never committed)
 
-Credentials and per-device state live in a gitignored directory —
-`tests/hardware/.local/`, or wherever `HIL_STATE_DIR` points:
+Credentials and per-device state live **outside the repository**, in
+`~/.config/esp32-macro-keyboard/hil/` by default, or wherever `HIL_STATE_DIR`
+points:
 
 | File | Contents |
 | --- | --- |
@@ -61,8 +62,14 @@ Credentials and per-device state live in a gitignored directory —
 | `device_ip.txt` | written by `hil_state.connect_wifi()` |
 | `fixture.json` | written by `create_fixture.py` |
 
-Nothing here reads or writes inside the repository, so a stray `git add`
-cannot capture a credential.
+Nothing here reads or writes inside the repository, so no `git` operation can
+capture a credential.
+
+This used to default to `tests/hardware/.local/` — inside the checkout, relying
+on `.gitignore`. That was wrong for a public repository: `.gitignore` stops
+`git add`, but not `git add -f`, not an archive of the working tree, not a
+backup tool, and not an editor that indexes the checkout. The default is now
+outside the tree.
 
 ## Running
 
