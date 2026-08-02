@@ -2724,16 +2724,43 @@ physical-manipulation items.
 
 Test:
 
-- [ ] first-run setup;
+- [ ] first-run setup; **exercised over HTTP, not a browser**
 - [ ] encrypted persistence after reboot;
-- [ ] login;
-- [ ] rate limiting;
-- [ ] Host/Origin behavior;
-- [ ] session expiry;
-- [ ] CRUD;
-- [ ] execution;
-- [ ] cancellation;
+- [ ] login; **exercised over HTTP, not a browser**
+- [ ] rate limiting; **verified on device**
+- [ ] Host/Origin behavior; **verified on device**
+- [ ] session expiry; **partially: forged sessions verified; expiry not**
+- [ ] CRUD; **exercised over HTTP, not a browser**
+- [ ] execution; **exercised over HTTP, not a browser**
+- [ ] cancellation; **exercised over HTTP, not a browser**
 - [ ] offline/reconnect.
+
+Every checkbox stays open: this section calls for **browser** integration
+against the device's own SoftAP, and none of the work below used a browser or
+the SoftAP. The device was joined to an ordinary Wi-Fi network (the
+`wifi-connect` development console command) and driven over HTTP from
+`tests/hardware/`. That is a real difference in fidelity - no CORS preflight,
+no cookie handling by a browser engine, no captive-portal behaviour - so the
+results below are evidence about the firmware's network boundary, not about
+browser integration.
+
+Network-boundary results, on the attached device (`tests/hardware/test_network_security.py`,
+11/11):
+
+- unauthenticated `GET /api/v1/sets`, `/api/v1/settings`, `/api/v1/diagnostics`
+  and unauthenticated `POST /api/v1/executions` all return `401`;
+- a mutation with a valid session but **no** CSRF token returns `403`, and with
+  a **wrong** CSRF token returns `401`;
+- a cross-origin read and a cross-origin mutation (valid session and CSRF, but
+  `Origin: http://evil.example`) both return `403`;
+- a forged session cookie returns `401`;
+- repeated bad-password logins are rate-limited, returning `429` on the sixth
+  attempt.
+
+This is the boundary that matters for this product: the USB-UART serial console
+is deliberately unauthenticated (physical possession of the board is treated as
+trust, per this repository's owner), so the network surface is the one that has
+to hold. It does.
 
 ### 20.4 Power interruption
 
