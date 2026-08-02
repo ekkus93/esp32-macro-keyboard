@@ -191,8 +191,15 @@ static app_error_code_t validate_index(void *context, const storage_atomic_candi
     app_error_code_t result =
         read_candidate(validation, candidate, STORAGE_ORDER_FILE_MAX_BYTES, &data, &length);
     if (result == APP_ERROR_NONE) {
-        storage_uuid_order_t order = {0};
-        result = storage_repository_parse_order_json(data, length, &order, maximum);
+        /* storage_uuid_order_t is ~8 KB and this also runs on main_task's
+         * 8 KiB stack during startup recovery. */
+        storage_uuid_order_t *order = calloc(1U, sizeof(*order));
+        if (order == NULL) {
+            free(data);
+            return APP_ERROR_INTERNAL;
+        }
+        result = storage_repository_parse_order_json(data, length, order, maximum);
+        free(order);
     }
     free(data);
     return result;
@@ -285,15 +292,25 @@ static app_error_code_t validate_progress(void *context,
     size_t length = 0U;
     app_error_code_t result =
         read_candidate(validation, candidate, STORAGE_PROGRESS_FILE_MAX_BYTES, &data, &length);
-    procedure_progress_t progress = {0};
+    /* procedure_progress_t is ~16 KB. This validator runs from
+     * storage_atomic_recover_all() during startup, i.e. on main_task's 8 KiB
+     * stack, so a stack local here made an interrupted progress write into an
+     * unbootable device. */
+    procedure_progress_t *progress = calloc(1U, sizeof(*progress));
+    if (progress == NULL) {
+        free(data);
+        return APP_ERROR_INTERNAL;
+    }
     if (result == APP_ERROR_NONE) {
-        result = storage_repository_parse_progress_json(data, length, &progress);
+        result = storage_repository_parse_progress_json(data, length, progress);
     }
     free(data);
-    if (result == APP_ERROR_NONE && (!app_uuid_equal(&identity.object_id, &progress.procedure_id) ||
-                                     !app_uuid_equal(&identity.set_id, &progress.set_id))) {
+    if (result == APP_ERROR_NONE &&
+        (!app_uuid_equal(&identity.object_id, &progress->procedure_id) ||
+         !app_uuid_equal(&identity.set_id, &progress->set_id))) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
+    free(progress);
     return result;
 }
 

@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "app_error.h"
@@ -180,42 +181,58 @@ static storage_procedure_identity_t progress_identity(const web_api_call_t *call
     };
 }
 
+/* Same reasoning as handle_progress_action: every branch here needs at least
+ * one ~16 KB procedure_progress_t, and the PUT branch needs two. Each branch
+ * therefore allocates, computes its response into `outcome`, frees, and
+ * returns - the response is built while the buffer is still live. */
+typedef struct {
+    procedure_progress_t replacement;
+    storage_progress_snapshot_t snapshot;
+} progress_resource_workspace_t;
+
 static app_error_code_t handle_progress_resource(const web_api_call_t *call,
                                                  web_api_response_t *response) {
     const storage_procedure_identity_t identity = progress_identity(call);
-    if (call->method == WEB_API_METHOD_GET) {
-        storage_progress_snapshot_t snapshot = {0};
-        const app_error_code_t result = storage_progress_read(&identity, &snapshot);
-        return result == APP_ERROR_NONE ? send_progress(response, &snapshot)
-                                        : respond_error(response, result, "progress not available");
-    }
-    if (call->method == WEB_API_METHOD_PUT) {
-        procedure_progress_t replacement = {0};
-        app_error_code_t result =
-            web_api_json_parse_progress_resource(call->body, call->body_length, &replacement);
-        if (result == APP_ERROR_NONE &&
-            (!app_uuid_equal(&replacement.set_id, &identity.set_id) ||
-             !app_uuid_equal(&replacement.procedure_id, &identity.procedure_id))) {
-            result = APP_ERROR_INVALID_ARGUMENT;
-        }
-        storage_progress_snapshot_t snapshot = {0};
-        if (result == APP_ERROR_NONE) {
-            result = storage_progress_update(&identity, &replacement, &snapshot);
-        }
-        return result == APP_ERROR_NONE
-                   ? send_progress(response, &snapshot)
-                   : respond_error(response, result, "could not update progress");
+
+    progress_resource_workspace_t *work = calloc(1U, sizeof(*work));
+    if (work == NULL) {
+        return respond_error(response, APP_ERROR_INTERNAL, "progress not available");
     }
 
-    uint32_t expected_revision = 0U;
-    app_error_code_t result =
-        web_api_json_parse_expected_revision(call->body, call->body_length, &expected_revision);
-    storage_progress_snapshot_t snapshot = {0};
-    if (result == APP_ERROR_NONE) {
-        result = storage_progress_reset(&identity, expected_revision, &snapshot);
+    app_error_code_t outcome;
+    if (call->method == WEB_API_METHOD_GET) {
+        const app_error_code_t result = storage_progress_read(&identity, &work->snapshot);
+        outcome = result == APP_ERROR_NONE
+                      ? send_progress(response, &work->snapshot)
+                      : respond_error(response, result, "progress not available");
+    } else if (call->method == WEB_API_METHOD_PUT) {
+        app_error_code_t result =
+            web_api_json_parse_progress_resource(call->body, call->body_length, &work->replacement);
+        if (result == APP_ERROR_NONE &&
+            (!app_uuid_equal(&work->replacement.set_id, &identity.set_id) ||
+             !app_uuid_equal(&work->replacement.procedure_id, &identity.procedure_id))) {
+            result = APP_ERROR_INVALID_ARGUMENT;
+        }
+        if (result == APP_ERROR_NONE) {
+            result = storage_progress_update(&identity, &work->replacement, &work->snapshot);
+        }
+        outcome = result == APP_ERROR_NONE
+                      ? send_progress(response, &work->snapshot)
+                      : respond_error(response, result, "could not update progress");
+    } else {
+        uint32_t expected_revision = 0U;
+        app_error_code_t result =
+            web_api_json_parse_expected_revision(call->body, call->body_length, &expected_revision);
+        if (result == APP_ERROR_NONE) {
+            result = storage_progress_reset(&identity, expected_revision, &work->snapshot);
+        }
+        outcome = result == APP_ERROR_NONE
+                      ? send_progress(response, &work->snapshot)
+                      : respond_error(response, result, "could not reset progress");
     }
-    return result == APP_ERROR_NONE ? send_progress(response, &snapshot)
-                                    : respond_error(response, result, "could not reset progress");
+
+    free(work);
+    return outcome;
 }
 
 static bool order_contains(const app_uuid_t *items, size_t count, const app_uuid_t *step_id) {
@@ -309,28 +326,49 @@ static app_error_code_t apply_progress_action(procedure_progress_t *replacement,
     return APP_ERROR_NONE;
 }
 
+/* procedure_progress_t carries two app_uuid_t[APP_STEPS_PER_PROCEDURE_MAX]
+ * arrays, so it is ~16 KB; this handler needs three of them live at once.
+ * Holding them as stack locals put the frame at ~45 KB, well past the httpd
+ * task stack, so the request panicked the device before it could reply. They
+ * are grouped into one heap workspace: a single allocation with a single
+ * free on a single exit path, which is what keeps the cleanup auditable. */
+typedef struct {
+    storage_progress_snapshot_t current;
+    procedure_progress_t replacement;
+    storage_progress_snapshot_t committed;
+} progress_action_workspace_t;
+
 static app_error_code_t handle_progress_action(const web_api_call_t *call,
                                                web_api_response_t *response, bool skipped) {
+    const char *const failure =
+        skipped ? "could not skip procedure step" : "could not complete procedure step";
     web_api_progress_action_t action = {0};
     storage_procedure_identity_t identity = {0};
-    storage_progress_snapshot_t current = {0};
     procedure_t procedure = {0};
     size_t step_index = 0U;
-    app_error_code_t result = load_progress_action_context(call, skipped, &action, &identity,
-                                                           &current, &procedure, &step_index);
-    procedure_progress_t replacement = current.progress;
-    if (result == APP_ERROR_NONE) {
-        result = apply_progress_action(&replacement, &procedure, &action, step_index, skipped);
+
+    progress_action_workspace_t *work = calloc(1U, sizeof(*work));
+    if (work == NULL) {
+        return respond_error(response, APP_ERROR_INTERNAL, failure);
     }
-    storage_progress_snapshot_t committed = {0};
+
+    app_error_code_t result = load_progress_action_context(call, skipped, &action, &identity,
+                                                           &work->current, &procedure, &step_index);
+    work->replacement = work->current.progress;
     if (result == APP_ERROR_NONE) {
-        result = storage_progress_update(&identity, &replacement, &committed);
+        result =
+            apply_progress_action(&work->replacement, &procedure, &action, step_index, skipped);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = storage_progress_update(&identity, &work->replacement, &work->committed);
     }
     macro_model_free_procedure(&procedure);
-    return result == APP_ERROR_NONE ? send_progress(response, &committed)
-                                    : respond_error(response, result,
-                                                    skipped ? "could not skip procedure step"
-                                                            : "could not complete procedure step");
+
+    const app_error_code_t outcome = result == APP_ERROR_NONE
+                                         ? send_progress(response, &work->committed)
+                                         : respond_error(response, result, failure);
+    free(work);
+    return outcome;
 }
 
 app_error_code_t web_api_handle_procedures(const web_api_call_t *call,

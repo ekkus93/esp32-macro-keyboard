@@ -259,26 +259,37 @@ static app_error_code_t load_set_progress(backup_set_snapshot_t *snapshot) {
     if (snapshot->progress == NULL || snapshot->progress_present == NULL) {
         return APP_ERROR_INTERNAL;
     }
+    /* storage_progress_snapshot_t is ~16 KB (two app_uuid_t
+     * [APP_STEPS_PER_PROCEDURE_MAX] arrays). Declaring it inside the loop put
+     * this frame at ~15 KB. One reused heap buffer, cleared per iteration,
+     * with a single free on a single exit. */
+    storage_progress_snapshot_t *progress = calloc(1U, sizeof(*progress));
+    if (progress == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
+    app_error_code_t outcome = APP_ERROR_NONE;
     for (size_t index = 0U; index < snapshot->procedures.count; ++index) {
         const storage_procedure_identity_t identity = {
             .set_id = snapshot->set.id,
             .procedure_id = snapshot->procedures.items[index].id,
         };
-        storage_progress_snapshot_t progress = {0};
+        memset(progress, 0, sizeof(*progress));
         const app_error_code_t result =
-            backup_operations.progress_read(backup_operations.context, &identity, &progress);
+            backup_operations.progress_read(backup_operations.context, &identity, progress);
         if (result == APP_ERROR_NOT_FOUND) {
             continue;
         }
         if (result != APP_ERROR_NONE) {
-            return result;
+            outcome = result;
+            break;
         }
-        if (progress.status == STORAGE_PROGRESS_STATUS_CURRENT) {
-            snapshot->progress[index] = progress;
+        if (progress->status == STORAGE_PROGRESS_STATUS_CURRENT) {
+            snapshot->progress[index] = *progress;
             snapshot->progress_present[index] = true;
         }
     }
-    return APP_ERROR_NONE;
+    free(progress);
+    return outcome;
 }
 
 static app_error_code_t load_set_snapshot(const macro_set_t *set, bool include_progress,
@@ -303,22 +314,29 @@ static app_error_code_t load_set_snapshot(const macro_set_t *set, bool include_p
 
 static app_error_code_t snapshot_load_locked(bool include_progress,
                                              backup_snapshot_t *out_snapshot) {
-    storage_set_list_t set_list = {0};
-    app_error_code_t result = backup_operations.set_list(backup_operations.context, &set_list);
-    if (result == APP_ERROR_NONE && set_list.count > APP_MACRO_SETS_MAX) {
+    /* storage_set_list_t inlines macro_set_t[APP_MACRO_SETS_MAX] and so is
+     * ~29 KB. As a stack local it put this frame at ~42 KB, far past the httpd
+     * task stack that serves GET /api/v1/backup, panicking the device. One
+     * allocation, one free, single exit. */
+    storage_set_list_t *set_list = calloc(1U, sizeof(*set_list));
+    if (set_list == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
+    app_error_code_t result = backup_operations.set_list(backup_operations.context, set_list);
+    if (result == APP_ERROR_NONE && set_list->count > APP_MACRO_SETS_MAX) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
-    if (result == APP_ERROR_NONE && set_list.count != 0U) {
-        out_snapshot->sets = calloc(set_list.count, sizeof(*out_snapshot->sets));
+    if (result == APP_ERROR_NONE && set_list->count != 0U) {
+        out_snapshot->sets = calloc(set_list->count, sizeof(*out_snapshot->sets));
         if (out_snapshot->sets == NULL) {
             result = APP_ERROR_INTERNAL;
         } else {
-            out_snapshot->set_count = set_list.count;
+            out_snapshot->set_count = set_list->count;
         }
     }
-    for (size_t index = 0U; result == APP_ERROR_NONE && index < set_list.count; ++index) {
-        result =
-            load_set_snapshot(&set_list.items[index], include_progress, &out_snapshot->sets[index]);
+    for (size_t index = 0U; result == APP_ERROR_NONE && index < set_list->count; ++index) {
+        result = load_set_snapshot(&set_list->items[index], include_progress,
+                                   &out_snapshot->sets[index]);
     }
     const storage_macro_location_t global_location = {
         .scope = MACRO_SCOPE_GLOBAL,
@@ -329,6 +347,7 @@ static app_error_code_t snapshot_load_locked(bool include_progress,
         result = backup_operations.macro_list(backup_operations.context, &global_location,
                                               &out_snapshot->global_macros);
     }
+    free(set_list);
     return result;
 }
 

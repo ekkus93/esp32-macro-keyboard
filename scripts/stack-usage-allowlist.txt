@@ -17,29 +17,38 @@
 # local is legal and neither AddressSanitizer nor Valgrind has anything to
 # report. On the ESP32-S3 the same function runs on a FreeRTOS task stack of a
 # few KiB (main_task 8 KiB, httpd 24 KiB). Before this gate existed the only way
-# to find these was to crash real hardware, one crash at a time.
+# to find these was to crash real hardware, one endpoint at a time.
 #
-# KNOWN-BROKEN ENTRIES (exceed the 24 KiB httpd task stack; these crash today)
+# CURRENT STATUS
 #
-#   handle_progress_action   ~45 KB  procedure-progress complete/skip endpoints
-#   handle_progress_resource ~30 KB  procedure-progress read/replace/reset
-#   snapshot_load_locked     ~42 KB  full-backup export path
+# Every remaining frame fits the 24 KiB httpd task stack (largest is
+# restore_locked at ~20 KB), so no HTTP endpoint is a guaranteed crash any more.
+# The previously known-broken frames are fixed:
 #
-# Each holds several multi-kilobyte structs at once
-# (storage_progress_snapshot_t, procedure_t, procedure_progress_t). The fix is
-# to heap-allocate them, as storage_macro_list_t and storage_procedure_list_t
-# already do, and as storage_repository_tree_validate now does (that one was
-# ~388 KB - larger than the entire free heap - and is now ~1.6 KB).
+#   storage_repository_tree_validate  388288 -> ~1.6 KB   (exceeded total heap)
+#   handle_progress_action             45424 ->    688
+#   snapshot_load_locked               42336 ->      0    (inlined)
+#   handle_progress_resource           29984 ->      0    (inlined)
+#   validate_progress                  15056 ->    128    (boot path)
+#   validate_index                      7456 ->     48    (boot path)
 #
-# The remaining sub-24 KB entries are latent rather than actively crashing: they
-# fit the httpd stack today but leave little margin, and would overflow the
-# 8 KiB main_task if ever reached from startup.
+# The two validators mattered disproportionately: they run from
+# storage_atomic_recover_all() during startup, on main_task's 8 KiB stack, so an
+# interrupted progress or index write would have left the device unbootable.
+#
+# REMAINING RISK
+#
+# The entries below fit the httpd stack but several exceed main_task's 8 KiB.
+# That is only a problem for functions reachable from startup recovery; the
+# known boot-path entry points are all small now, and the one that remains
+# listed (storage_transaction_recover_all_with_ops, ~5.6 KB) fits 8 KiB but
+# without much margin. The dominant cause throughout is the same: fixed-size
+# arrays as locals (procedure_progress_t's two app_uuid_t[200] arrays,
+# storage_uuid_order_t, storage_set_index_t). The fix is always to heap-allocate
+# with a single free on a single exit path.
 #
 # Baseline measured 2026-08-01 during first hardware bring-up.
 #
-45424 firmware/components/web_server/web_api_procedures.c:handle_progress_action
-42336 firmware/components/storage/storage_package_backup.c:snapshot_load_locked
-29984 firmware/components/web_server/web_api_procedures.c:handle_progress_resource
 20304 firmware/components/storage/storage_package_restore.c:restore_locked
 18720 firmware/components/storage/storage_package_import.c:import_locked
 17936 firmware/components/storage/storage_package_replace.c:replace_locked
@@ -50,7 +59,6 @@
 15392 firmware/components/storage/storage_repository_progress.c:progress_reset_locked
 15104 firmware/components/storage/storage_repository_procedures.c:procedure_reorder_locked
 15072 firmware/components/storage/storage_package_export.c:snapshot_load_progress
-15056 firmware/components/storage/storage_atomic_validators.c:validate_progress
 14848 firmware/components/storage/storage_repository_macros.c:macro_reorder_locked
 8464 firmware/components/storage/storage_repository_procedures.c:procedure_create_locked
 8112 firmware/components/storage/storage_repository_procedures.c:procedure_delete_locked
@@ -61,7 +69,6 @@
 7712 firmware/components/storage/storage_repository_set_operations.c:write_duplicate_order
 7696 firmware/components/storage/storage_repository_procedures.c:procedure_order_index.constprop
 7488 firmware/components/web_server/web_api_macros.c:handle_reorder
-7456 firmware/components/storage/storage_atomic_validators.c:validate_index
 7456 firmware/components/storage/storage_repository_macros.c:storage_macro_list_locked$part$0
 7456 firmware/components/web_server/web_api_procedures.c:handle_reorder
 7456 firmware/components/web_server/web_api_sets.c:handle_set_reorder.isra
