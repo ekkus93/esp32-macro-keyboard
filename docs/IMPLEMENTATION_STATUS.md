@@ -72,6 +72,16 @@ verified locally 2026-08-01, and continuously in CI on every push per
 - formatting, scripts, documentation, partition, production-configuration,
   and release-budget policy gates.
 
+## Validation assigned to manual owner testing
+
+ChromeOS USB-host validation (§20.2) and browser-against-SoftAP validation
+(§20.3) are assigned to the repository owner to perform manually, decided
+2026-08-01. No ChromeOS host is attached to the development machine and
+driving a browser against the device's own access point is outside what the
+automated harness in `tests/hardware/` can reach. The corresponding FIX1
+checkboxes remain open: the assignment records who does the work, not that
+it has been done.
+
 ## Release-blocking work still open
 
 - Phase 20: USB host matrix, SoftAP/browser integration, encrypted-NVS

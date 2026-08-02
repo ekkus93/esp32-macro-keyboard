@@ -2699,9 +2699,15 @@ Run and record Linux and ChromeOS:
 - [ ] release-all observation. **Linux: done. ChromeOS: not run.**
 
 Every checkbox stays open because each requires **both** Linux and ChromeOS.
-Six of the nine now have real Linux evidence; no ChromeOS host has been
-involved at any point, and three items need physical cable/host manipulation
-nobody has performed. The Linux results, on the attached ESP32-S3 (device
+Six of the nine now have real Linux evidence; three need physical cable/host
+manipulation nobody has performed.
+
+**ChromeOS validation is assigned to the repository owner as manual
+testing** (decision recorded 2026-08-01). It is not blocked and not
+forgotten: there is simply no ChromeOS host attached to the development
+machine, and driving one is outside what can be automated from here. These
+checkboxes stay open until that testing is actually performed and its
+results recorded here - an assignment is not evidence. The Linux results, on the attached ESP32-S3 (device
 `9C139EA87739`), are:
 
 - **enumeration**: the native USB port enumerates as `303a:4001`
@@ -2758,7 +2764,9 @@ Test:
 
 Every checkbox stays open: this section calls for **browser** integration
 against the device's own SoftAP, and none of the work below used a browser or
-the SoftAP. The device was joined to an ordinary Wi-Fi network (the
+the SoftAP. As with §20.2, **browser and ChromeOS validation are assigned to
+the repository owner as manual testing** (decision recorded 2026-08-01);
+these checkboxes stay open until that testing happens and is recorded. The device was joined to an ordinary Wi-Fi network (the
 `wifi-connect` development console command) and driven over HTTP from
 `tests/hardware/`. That is a real difference in fidelity - no CORS preflight,
 no cookie handling by a browser engine, no captive-portal behaviour - so the
