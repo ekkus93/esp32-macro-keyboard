@@ -13,10 +13,9 @@
 #include "cJSON.h"
 #include "macro_limits.h"
 #include "macro_model.h"
-#include "storage.h"
-#include "storage_fs_ops.h"
+#include "storage_json.h"
 #include "storage_object_json.h"
-#include "storage_repository_internal.h"
+#include "storage_repository_document.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_sets_internal.h"
 
@@ -34,41 +33,6 @@ typedef struct {
     macro_set_t replacement;
 } package_replace_document_t;
 
-static app_error_code_t map_error_number(int error_number) {
-    if (error_number == ENOSPC) {
-        return APP_ERROR_STORAGE_FULL;
-    }
-    if (error_number == ENOENT) {
-        return APP_ERROR_NOT_FOUND;
-    }
-    return APP_ERROR_IO;
-}
-
-static app_error_code_t join_path(const char *parent, const char *name, char *output,
-                                  size_t output_size) {
-    if (parent == NULL || name == NULL || output == NULL || output_size == 0U) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const int written = snprintf(output, output_size, "%s/%s", parent, name);
-    if (written < 0 || (size_t)written >= output_size) {
-        output[0] = '\0';
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t sync_parent(const char *path) {
-    return storage_fs_sync_parent_path(NULL, path) == 0 ? APP_ERROR_NONE : map_error_number(errno);
-}
-
-static app_error_code_t make_directory(const char *path) {
-    app_error_code_t result = storage_repository_make_directory(path);
-    if (result == APP_ERROR_NONE) {
-        result = sync_parent(path);
-    }
-    return result;
-}
-
 static app_error_code_t node_json(const cJSON *node, char **out_json, size_t *out_length) {
     if (node == NULL || out_json == NULL || out_length == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -84,14 +48,28 @@ static app_error_code_t node_json(const cJSON *node, char **out_json, size_t *ou
     return APP_ERROR_NONE;
 }
 
+/* A package `sets` entry is set metadata only; the package keeps sets and macros
+ * in sibling arrays, unlike the stored set file that holds its macros inline. */
 static app_error_code_t parse_set_node(const cJSON *node, macro_set_t *out_set) {
-    char *json = NULL;
-    size_t length = 0U;
-    app_error_code_t result = node_json(node, &json, &length);
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_parse_set_json(json, length, out_set);
+    memset(out_set, 0, sizeof(*out_set));
+    if (!cJSON_IsObject(node)) {
+        return APP_ERROR_INVALID_ARGUMENT;
     }
-    cJSON_free(json);
+    static const char *const fields[] = {"schema_version", "id", "revision", "name"};
+    app_error_code_t result = storage_json_check_object_fields(node, fields, 4U, 4U);
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_u32(node, "schema_version", APP_SCHEMA_VERSION,
+                                      APP_SCHEMA_VERSION, &out_set->schema_version);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_uuid(node, "id", &out_set->id);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_u32(node, "revision", 1U, UINT32_MAX, &out_set->revision);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_string(node, "name", out_set->name, sizeof(out_set->name), true);
+    }
     return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
 }
 
@@ -146,132 +124,55 @@ static app_error_code_t open_document(const char *data, size_t length,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t write_json_file(const char *path, const char *json, size_t length) {
-    return storage_atomic_write(path, json, length, true);
-}
-
-static app_error_code_t write_set(const char *set_root, const macro_set_t *set) {
-    char *json = NULL;
-    size_t length = 0U;
-    app_error_code_t result = storage_repository_serialize_set_json(set, &json, &length);
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        result = join_path(set_root, "set.json", path, sizeof(path));
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_json_file(path, json, length);
-    }
-    cJSON_free(json);
-    return result;
-}
-
-static app_error_code_t write_order(const char *set_root, const char *name,
-                                    const storage_uuid_order_t *order, size_t maximum) {
-    char *json = NULL;
-    size_t length = 0U;
-    app_error_code_t result =
-        storage_repository_serialize_order_json(order, maximum, &json, &length);
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        result = join_path(set_root, name, path, sizeof(path));
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_json_file(path, json, length);
-    }
-    cJSON_free(json);
-    return result;
-}
-
-static app_error_code_t write_macro_node(const char *directory, const cJSON *node,
-                                         const app_uuid_t *set_id, storage_uuid_order_t *order) {
-    macro_t macro = {0};
-    app_error_code_t result = parse_macro_node(node, &macro);
-    if (result == APP_ERROR_NONE &&
-        (!app_uuid_equal(&macro.set_id, set_id) || order->count >= APP_MACROS_PER_SET_MAX)) {
-        result = APP_ERROR_INVALID_ARGUMENT;
-    }
-    char *json = NULL;
-    size_t length = 0U;
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_serialize_macro_json(&macro, &json, &length);
-    }
-    char name[APP_UUID_STRING_LENGTH + sizeof(PACKAGE_JSON_SUFFIX)];
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        const int written = snprintf(name, sizeof(name), "%s.json", macro.id.value);
-        result = written >= 0 && (size_t)written < sizeof(name)
-                     ? join_path(directory, name, path, sizeof(path))
-                     : APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_json_file(path, json, length);
-    }
-    if (result == APP_ERROR_NONE) {
-        order->ids[order->count++] = macro.id;
-    }
-    cJSON_free(json);
-    macro_model_free_macro(&macro);
-    return result;
-}
-
-static app_error_code_t write_macros(const char *set_root, const cJSON *array,
-                                     const app_uuid_t *set_id) {
-    char directory[APP_PATH_MAX_BYTES];
-    app_error_code_t result = join_path(set_root, "macros", directory, sizeof(directory));
-    /* storage_uuid_order_t is ~4 KB; keep it off the task stack. */
-    storage_uuid_order_t *order = calloc(1U, sizeof(*order));
-    if (order == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
+/* Assembles the replacement set as one document. Macro identities and revisions
+ * come from the package unchanged: replacement substitutes the set's contents,
+ * it does not mint new identities the way import-new does. */
+static app_error_code_t materialize_set(const package_replace_document_t *document,
+                                        storage_set_document_t *out_stored) {
+    const cJSON *array = document->arrays[PACKAGE_REPLACE_MACROS];
     const int count = cJSON_GetArraySize(array);
-    for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
-        result = write_macro_node(directory, cJSON_GetArrayItem(array, index), set_id, order);
+    if (count < 0 || (size_t)count > APP_MACROS_PER_SET_MAX) {
+        return APP_ERROR_INVALID_ARGUMENT;
     }
-    if (result == APP_ERROR_NONE) {
-        result = write_order(set_root, "macro-order.json", order, APP_MACROS_PER_SET_MAX);
-    }
-    free(order);
-    return result;
-}
-
-static app_error_code_t create_set_directories(const char *set_root) {
-    app_error_code_t result = make_directory(set_root);
-    static const char *const children[] = {"macros"};
-    for (size_t index = 0U;
-         result == APP_ERROR_NONE && index < sizeof(children) / sizeof(children[0]); ++index) {
-        char path[APP_PATH_MAX_BYTES];
-        result = join_path(set_root, children[index], path, sizeof(path));
-        if (result == APP_ERROR_NONE) {
-            result = make_directory(path);
+    memset(out_stored, 0, sizeof(*out_stored));
+    out_stored->set = document->replacement;
+    if (count > 0) {
+        out_stored->macros = calloc((size_t)count, sizeof(*out_stored->macros));
+        if (out_stored->macros == NULL) {
+            return APP_ERROR_INTERNAL;
         }
     }
-    return result;
-}
-
-static app_error_code_t materialize_set(const package_replace_document_t *document,
-                                        const char *set_root) {
-    app_error_code_t result = write_set(set_root, &document->replacement);
-    if (result == APP_ERROR_NONE) {
-        result = write_macros(set_root, document->arrays[PACKAGE_REPLACE_MACROS],
-                              &document->replacement.id);
+    app_error_code_t result = APP_ERROR_NONE;
+    for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
+        macro_t macro = {0};
+        result = parse_macro_node(cJSON_GetArrayItem(array, index), &macro);
+        if (result == APP_ERROR_NONE && !app_uuid_equal(&macro.set_id, &document->replacement.id)) {
+            result = APP_ERROR_INVALID_ARGUMENT;
+        }
+        if (result != APP_ERROR_NONE) {
+            macro_model_free_macro(&macro);
+            break;
+        }
+        out_stored->macros[out_stored->macro_count] = macro;
+        ++out_stored->macro_count;
+    }
+    if (result != APP_ERROR_NONE) {
+        storage_set_document_free(out_stored);
     }
     return result;
 }
 
-/* SPEC 8.7 replacement, without the transaction machinery.
+/* SPEC 8.7 replacement, in one atomic write.
  *
- * A set is still a directory of files at this point in the sequence, so the old
- * tree is removed and the new one written in its place. That is NOT atomic: an
- * interruption between the two leaves the set partially written while the index
- * still references it, and it will read back as corrupt -- which SPEC 13.6
- * handles by reporting and deleting it, not by silently substituting a default.
- * The old contents are gone either way, because the design forbids keeping a
- * second on-device copy to roll back to (SPEC 22, invariant 16).
+ * A set is one file now, so the whole replacement is a single
+ * storage_atomic_write: stage `<set>.json.tmp`, verify it, rename it over the
+ * target. An interruption at any point leaves either the complete old set or
+ * the complete new one, with no staging directory, no manifest, and no window
+ * in which the set is half-written.
  *
- * Phase 4 closes this window completely: once a set is a single file, the whole
- * replacement is one `storage_atomic_write`, and `rename()` makes it atomic
- * with no staging directory and no manifest. This is the one place in Phase 3
- * where crash-safety is temporarily weaker than what it replaced. */
+ * Phase 3 had to remove the old tree and rebuild it in place, which was not
+ * atomic and said so at this call site. That window is closed.
+ */
 static app_error_code_t replace_locked(const app_uuid_t *target_set_id, uint32_t expected_revision,
                                        package_replace_document_t *document, macro_set_t *out_set) {
     macro_set_t current = {0};
@@ -279,19 +180,14 @@ static app_error_code_t replace_locked(const app_uuid_t *target_set_id, uint32_t
     if (result == APP_ERROR_NONE && current.revision != expected_revision) {
         result = APP_ERROR_CONFLICT;
     }
-    char destination[APP_PATH_MAX_BYTES] = {0};
+    storage_set_document_t stored = {0};
     if (result == APP_ERROR_NONE) {
-        result = storage_make_set_path(target_set_id, destination, sizeof(destination));
+        result = materialize_set(document, &stored);
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_repository_remove_tree(destination);
+        result = storage_repository_store_set_document(&stored);
     }
-    if (result == APP_ERROR_NONE) {
-        result = create_set_directories(destination);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = materialize_set(document, destination);
-    }
+    storage_set_document_free(&stored);
     if (result == APP_ERROR_NONE) {
         result = storage_set_read_locked(target_set_id, out_set);
     }

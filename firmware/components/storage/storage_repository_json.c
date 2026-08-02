@@ -1,6 +1,7 @@
 #include "storage_object_json.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,105 +11,232 @@
 #include "cJSON.h"
 #include "macro_limits.h"
 #include "macro_model.h"
+#include "storage_json.h"
 
-static app_error_code_t checked_json_string(const cJSON *object, const char *name,
-                                            char *destination, size_t destination_size,
-                                            bool require_nonempty) {
-    const cJSON *value = cJSON_GetObjectItemCaseSensitive(object, name);
-    if (!cJSON_IsString(value) || value->valuestring == NULL) {
-        return APP_ERROR_STORAGE_CORRUPT;
+/* SPEC 12.1: schema_version, id, revision, name, macros. Nothing else. */
+#define SET_FIELD_COUNT 5U
+/* SPEC 12.2, as stored: no set_id. The owning set is the file the macro is in. */
+#define STORED_MACRO_FIELD_COUNT 7U
+#define KEY_PRESS_STORAGE_MAX_MS 1000U
+
+static const char *const SET_FIELDS[SET_FIELD_COUNT] = {
+    "schema_version", "id", "revision", "name", "macros",
+};
+static const char *const STORED_MACRO_FIELDS[STORED_MACRO_FIELD_COUNT] = {
+    "schema_version", "id", "revision", "name", "source", "key_press_ms", "inter_key_ms",
+};
+
+void storage_set_document_free(storage_set_document_t *document) {
+    if (document == NULL) {
+        return;
     }
-    const size_t length = strlen(value->valuestring);
-    if ((require_nonempty && length == 0U) || length >= destination_size) {
-        return APP_ERROR_STORAGE_CORRUPT;
+    for (size_t index = 0U; index < document->macro_count; ++index) {
+        macro_model_free_macro(&document->macros[index]);
     }
-    memcpy(destination, value->valuestring, length + 1U);
-    return APP_ERROR_NONE;
+    free(document->macros);
+    memset(document, 0, sizeof(*document));
 }
 
-static app_error_code_t checked_json_u32(const cJSON *object, const char *name, uint32_t minimum,
-                                         uint32_t *out_value) {
-    const cJSON *value = cJSON_GetObjectItemCaseSensitive(object, name);
-    if (!cJSON_IsNumber(value) || value->valuedouble < (double)minimum ||
-        value->valuedouble > (double)UINT32_MAX ||
-        value->valuedouble != (double)(uint32_t)value->valuedouble) {
+static app_error_code_t parse_stored_macro(const cJSON *node, const app_uuid_t *owning_set_id,
+                                           macro_t *out_macro) {
+    memset(out_macro, 0, sizeof(*out_macro));
+    if (!cJSON_IsObject(node)) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
-    *out_value = (uint32_t)value->valuedouble;
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t parse_set_fields(const cJSON *root, macro_set_t *out_set) {
-    app_error_code_t result =
-        checked_json_u32(root, "schema_version", 1U, &out_set->schema_version);
-    if (result == APP_ERROR_NONE && out_set->schema_version != APP_SCHEMA_VERSION) {
-        result = APP_ERROR_STORAGE_CORRUPT;
+    app_error_code_t result = storage_json_check_object_fields(
+        node, STORED_MACRO_FIELDS, STORED_MACRO_FIELD_COUNT, STORED_MACRO_FIELD_COUNT);
+    uint32_t schema_version = 0U;
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_u32(node, "schema_version", APP_SCHEMA_VERSION,
+                                      APP_SCHEMA_VERSION, &schema_version);
     }
     if (result == APP_ERROR_NONE) {
-        char uuid_text[APP_UUID_BUFFER_LENGTH];
-        result = checked_json_string(root, "id", uuid_text, sizeof(uuid_text), true);
-        if (result == APP_ERROR_NONE) {
-            result = app_uuid_parse(uuid_text, &out_set->id);
-            if (result != APP_ERROR_NONE) {
-                result = APP_ERROR_STORAGE_CORRUPT;
+        out_macro->schema_version = schema_version;
+        result = storage_json_get_uuid(node, "id", &out_macro->id);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_u32(node, "revision", 1U, UINT32_MAX, &out_macro->revision);
+    }
+    if (result == APP_ERROR_NONE) {
+        result =
+            storage_json_get_string(node, "name", out_macro->name, sizeof(out_macro->name), true);
+    }
+    if (result == APP_ERROR_NONE) {
+        result =
+            storage_json_get_allocated_string(node, "source", APP_MACRO_SOURCE_MAX_BYTES, false,
+                                              &out_macro->source, &out_macro->source_length);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_u32(node, "key_press_ms", 1U, KEY_PRESS_STORAGE_MAX_MS,
+                                      &out_macro->key_press_ms);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_u32(node, "inter_key_ms", 0U, APP_DELAY_MAX_MS,
+                                      &out_macro->inter_key_ms);
+    }
+    if (result != APP_ERROR_NONE) {
+        macro_model_free_macro(out_macro);
+        memset(out_macro, 0, sizeof(*out_macro));
+        return result;
+    }
+    /* The set the macro belongs to is the file it was read from, so it is
+     * stamped here rather than trusted from the object (SPEC 12.2). */
+    out_macro->set_id = *owning_set_id;
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t parse_macro_array(const cJSON *root, storage_set_document_t *out_document) {
+    const cJSON *macros = cJSON_GetObjectItemCaseSensitive(root, "macros");
+    if (!cJSON_IsArray(macros)) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    const int count = cJSON_GetArraySize(macros);
+    if (count < 0 || (size_t)count > APP_MACROS_PER_SET_MAX) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    if (count == 0) {
+        return APP_ERROR_NONE;
+    }
+    out_document->macros = calloc((size_t)count, sizeof(*out_document->macros));
+    if (out_document->macros == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
+    for (int index = 0; index < count; ++index) {
+        const app_error_code_t result =
+            parse_stored_macro(cJSON_GetArrayItem(macros, index), &out_document->set.id,
+                               &out_document->macros[(size_t)index]);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+        out_document->macro_count = (size_t)index + 1U;
+        for (size_t prior = 0U; prior < (size_t)index; ++prior) {
+            if (app_uuid_equal(&out_document->macros[prior].id,
+                               &out_document->macros[(size_t)index].id)) {
+                return APP_ERROR_STORAGE_CORRUPT;
             }
         }
     }
-    if (result == APP_ERROR_NONE) {
-        result = checked_json_u32(root, "revision", 1U, &out_set->revision);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = checked_json_string(root, "name", out_set->name, sizeof(out_set->name), true);
-    }
-    return result;
+    return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_repository_parse_set_json(const char *data, size_t length,
-                                                   macro_set_t *out_set) {
-    if (data == NULL || out_set == NULL) {
+app_error_code_t storage_set_document_parse(const char *data, size_t length,
+                                            storage_set_document_t *out_document) {
+    if (out_document != NULL) {
+        memset(out_document, 0, sizeof(*out_document));
+    }
+    if (data == NULL || out_document == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    memset(out_set, 0, sizeof(*out_set));
-
-    cJSON *root = cJSON_ParseWithLength(data, length);
-    if (root == NULL || !cJSON_IsObject(root)) {
-        cJSON_Delete(root);
-        return APP_ERROR_STORAGE_CORRUPT;
+    cJSON *root = NULL;
+    app_error_code_t result =
+        storage_json_parse_exact_object(data, length, SET_FIELDS, SET_FIELD_COUNT, &root);
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_u32(root, "schema_version", APP_SCHEMA_VERSION,
+                                      APP_SCHEMA_VERSION, &out_document->set.schema_version);
     }
-
-    const app_error_code_t result = parse_set_fields(root, out_set);
-
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_uuid(root, "id", &out_document->set.id);
+    }
+    if (result == APP_ERROR_NONE) {
+        result =
+            storage_json_get_u32(root, "revision", 1U, UINT32_MAX, &out_document->set.revision);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_string(root, "name", out_document->set.name,
+                                         sizeof(out_document->set.name), true);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = parse_macro_array(root, out_document);
+    }
     cJSON_Delete(root);
     if (result != APP_ERROR_NONE) {
-        memset(out_set, 0, sizeof(*out_set));
+        storage_set_document_free(out_document);
     }
     return result;
 }
 
-app_error_code_t storage_repository_serialize_set_json(const macro_set_t *set, char **out_json,
-                                                       size_t *out_length) {
-    if (set == NULL || out_json == NULL || out_length == NULL ||
-        set->schema_version != APP_SCHEMA_VERSION || set->revision == 0U ||
-        !app_uuid_is_valid_string(set->id.value) || set->name[0] == '\0') {
+static app_error_code_t add_stored_macro(cJSON *array, const macro_t *macro) {
+    cJSON *node = cJSON_CreateObject();
+    if (node == NULL || !cJSON_AddItemToArray(array, node)) {
+        cJSON_Delete(node);
+        return APP_ERROR_INTERNAL;
+    }
+    return cJSON_AddNumberToObject(node, "schema_version", (double)macro->schema_version) != NULL &&
+                   cJSON_AddStringToObject(node, "id", macro->id.value) != NULL &&
+                   cJSON_AddNumberToObject(node, "revision", (double)macro->revision) != NULL &&
+                   cJSON_AddStringToObject(node, "name", macro->name) != NULL &&
+                   cJSON_AddStringToObject(node, "source", macro->source) != NULL &&
+                   cJSON_AddNumberToObject(node, "key_press_ms", (double)macro->key_press_ms) !=
+                       NULL &&
+                   cJSON_AddNumberToObject(node, "inter_key_ms", (double)macro->inter_key_ms) !=
+                       NULL
+               ? APP_ERROR_NONE
+               : APP_ERROR_INTERNAL;
+}
+
+static bool document_shape_valid(const storage_set_document_t *document) {
+    if (document == NULL || document->set.schema_version != APP_SCHEMA_VERSION ||
+        document->set.revision == 0U || !app_uuid_is_valid_string(document->set.id.value) ||
+        document->set.name[0] == '\0' || document->macro_count > APP_MACROS_PER_SET_MAX ||
+        (document->macro_count != 0U && document->macros == NULL)) {
+        return false;
+    }
+    for (size_t index = 0U; index < document->macro_count; ++index) {
+        const macro_t *macro = &document->macros[index];
+        if (macro->schema_version != APP_SCHEMA_VERSION || macro->revision == 0U ||
+            !app_uuid_is_valid_string(macro->id.value) || macro->name[0] == '\0' ||
+            macro->source == NULL || macro->source_length > APP_MACRO_SOURCE_MAX_BYTES ||
+            macro->key_press_ms == 0U || macro->key_press_ms > KEY_PRESS_STORAGE_MAX_MS ||
+            macro->inter_key_ms > APP_DELAY_MAX_MS) {
+            return false;
+        }
+        for (size_t prior = 0U; prior < index; ++prior) {
+            if (app_uuid_equal(&document->macros[prior].id, &macro->id)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+app_error_code_t storage_set_document_serialize(const storage_set_document_t *document,
+                                                char **out_json, size_t *out_length) {
+    if (out_json != NULL) {
+        *out_json = NULL;
+    }
+    if (out_length != NULL) {
+        *out_length = 0U;
+    }
+    if (!document_shape_valid(document) || out_json == NULL || out_length == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    *out_json = NULL;
-    *out_length = 0U;
 
     cJSON *root = cJSON_CreateObject();
-    if (root == NULL ||
-        cJSON_AddNumberToObject(root, "schema_version", (double)set->schema_version) == NULL ||
-        cJSON_AddStringToObject(root, "id", set->id.value) == NULL ||
-        cJSON_AddNumberToObject(root, "revision", (double)set->revision) == NULL ||
-        cJSON_AddStringToObject(root, "name", set->name) == NULL) {
+    cJSON *macros = cJSON_CreateArray();
+    if (root == NULL || macros == NULL ||
+        cJSON_AddNumberToObject(root, "schema_version", (double)document->set.schema_version) ==
+            NULL ||
+        cJSON_AddStringToObject(root, "id", document->set.id.value) == NULL ||
+        cJSON_AddNumberToObject(root, "revision", (double)document->set.revision) == NULL ||
+        cJSON_AddStringToObject(root, "name", document->set.name) == NULL ||
+        !cJSON_AddItemToObject(root, "macros", macros)) {
+        cJSON_Delete(macros);
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;
     }
 
-    char *json = cJSON_PrintUnformatted(root);
+    app_error_code_t result = APP_ERROR_NONE;
+    for (size_t index = 0U; result == APP_ERROR_NONE && index < document->macro_count; ++index) {
+        result = add_stored_macro(macros, &document->macros[index]);
+    }
+    char *json = NULL;
+    if (result == APP_ERROR_NONE) {
+        json = cJSON_PrintUnformatted(root);
+        result = json == NULL ? APP_ERROR_INTERNAL : APP_ERROR_NONE;
+    }
     cJSON_Delete(root);
-    if (json == NULL) {
-        return APP_ERROR_INTERNAL;
+    if (result != APP_ERROR_NONE) {
+        return result;
     }
     const size_t length = strlen(json);
     if (length == 0U || length > STORAGE_SET_FILE_MAX_BYTES) {

@@ -74,32 +74,31 @@ static void reset_store(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_init());
 }
 
+/* A set is exactly one file (SPEC 13.3): no directory, no set.json, no
+ * macro-order.json, no macros/ child. */
 static void assert_set_layout(const macro_set_t *set) {
     TEST_CHECK(set != NULL);
-    char directory[APP_PATH_MAX_BYTES];
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_make_set_path(&set->id, directory, sizeof(directory)));
-    TEST_CHECK(path_exists(directory));
+    char path[APP_PATH_MAX_BYTES];
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_set_path(&set->id, path, sizeof(path)));
+    TEST_CHECK(path_exists(path));
 
-    static const char *const children[] = {"set.json", "macro-order.json", "macros"};
-    for (size_t index = 0U; index < (sizeof(children) / sizeof(children[0])); ++index) {
-        char path[APP_PATH_MAX_BYTES];
-        const int written = snprintf(path, sizeof(path), "%s/%s", directory, children[index]);
-        TEST_CHECK(written > 0 && (size_t)written < sizeof(path));
-        TEST_CHECK(path_exists(path));
-    }
+    char directory[APP_PATH_MAX_BYTES];
+    const int written =
+        snprintf(directory, sizeof(directory), STORAGE_DATA_MOUNT "/sets/%s", set->id.value);
+    TEST_CHECK(written > 0 && (size_t)written < sizeof(directory));
+    TEST_CHECK(!path_exists(directory));
 }
 
 static void rewrite_set_file(const app_uuid_t *path_id, const macro_set_t *contents) {
     TEST_CHECK(path_id != NULL);
     TEST_CHECK(contents != NULL);
     char path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_set_file_path(path_id, path, sizeof(path)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_set_path(path_id, path, sizeof(path)));
     char *json = NULL;
     size_t json_length = 0U;
+    const storage_set_document_t document = {.set = *contents};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_serialize_set_json(contents, &json, &json_length));
+                         storage_set_document_serialize(&document, &json, &json_length));
     TEST_CHECK(json != NULL);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_atomic_write(path, json, json_length, true));
     cJSON_free(json);
@@ -230,8 +229,7 @@ static void test_corrupt_set_is_discarded(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
 
     char path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_set_file_path(&set.id, path, sizeof(path)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_set_path(&set.id, path, sizeof(path)));
     static const char invalid[] = "{not json";
     write_file(path, invalid, sizeof(invalid) - 1U);
 
@@ -249,8 +247,7 @@ static void test_mismatched_object_id_is_discarded(void) {
     rewrite_set_file(&expected.id, &wrong);
 
     char path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_set_file_path(&expected.id, path, sizeof(path)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_set_path(&expected.id, path, sizeof(path)));
     macro_set_t output;
     memset(&output, 0xa5, sizeof(output));
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_set_read(&expected.id, &output));
@@ -269,13 +266,13 @@ static void test_duplicate_index_is_discarded_and_output_cleared(void) {
         snprintf(index_json, sizeof(index_json), "{\"schema_version\":1,\"ids\":[\"%s\",\"%s\"]}",
                  set.id.value, set.id.value);
     TEST_CHECK(written > 0 && (size_t)written < sizeof(index_json));
-    write_file(STORAGE_SET_INDEX_FILE_PATH, index_json, (size_t)written);
+    write_file(STORAGE_INDEX_FILE_PATH, index_json, (size_t)written);
 
     storage_set_list_t list;
     memset(&list, 0xa5, sizeof(list));
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_set_list(&list));
     TEST_CHECK_EQ_U64(0U, list.count);
-    TEST_CHECK(!path_exists(STORAGE_SET_INDEX_FILE_PATH));
+    TEST_CHECK(!path_exists(STORAGE_INDEX_FILE_PATH));
 }
 
 /* Creation writes the set at its final path and only then adds it to the index,
@@ -318,11 +315,30 @@ static void test_delete_is_permanent_and_leaves_no_trash(void) {
     TEST_CHECK_EQ_U64(0U, list.count);
 }
 
-static void test_missing_initialized_index_is_not_recreated(void) {
+/* SPEC 12.3: firmware MUST NOT reconstruct the index from a directory listing,
+ * because the listing has no set order in it -- rebuilding would silently
+ * replace the user's order with whatever the filesystem returns. A repository
+ * with set files but no index is corrupt and must say so. */
+static void test_index_is_not_rebuilt_from_the_sets_directory(void) {
     reset_store();
-    TEST_CHECK(unlink(STORAGE_SET_INDEX_FILE_PATH) == 0);
+    macro_set_t set = make_set(120U, "Orphaned by index loss");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
+    TEST_CHECK(unlink(STORAGE_INDEX_FILE_PATH) == 0);
+
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_repository_init());
-    TEST_CHECK(!path_exists(STORAGE_SET_INDEX_FILE_PATH));
+    TEST_CHECK(!path_exists(STORAGE_INDEX_FILE_PATH));
+}
+
+/* A genuinely empty device is not corrupt: with no index and no set files, init
+ * writes the initial empty index. */
+static void test_fresh_device_initializes_an_empty_index(void) {
+    reset_store();
+    TEST_CHECK(unlink(STORAGE_INDEX_FILE_PATH) == 0);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_init());
+    TEST_CHECK(path_exists(STORAGE_INDEX_FILE_PATH));
+    storage_set_list_t list = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_list(&list));
+    TEST_CHECK_EQ_U64(0U, list.count);
 }
 
 static void test_repository_deinit_is_a_safe_noop(void) {
@@ -503,7 +519,8 @@ int main(void) {
     test_duplicate_index_is_discarded_and_output_cleared();
     test_create_leaves_no_staging_artifacts();
     test_delete_is_permanent_and_leaves_no_trash();
-    test_missing_initialized_index_is_not_recreated();
+    test_index_is_not_rebuilt_from_the_sets_directory();
+    test_fresh_device_initializes_an_empty_index();
     test_concurrency_same_revision_updates_conflict();
     test_concurrency_create_excludes_delete();
     test_concurrency_lock_failures_are_visible();

@@ -1,132 +1,89 @@
 #include "storage_repository.h"
 
-#include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #include "app_error.h"
 #include "app_uuid.h"
-#include "cJSON.h"
 #include "macro_limits.h"
 #include "macro_model.h"
-#include "storage.h"
 #include "storage_object_json.h"
-#include "storage_repository_internal.h"
+#include "storage_repository_document.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_macros_internal.h"
-#include "storage_repository_order.h"
+
+/*
+ * Every macro operation is: load the set file, mutate its ordered `macros`
+ * array, write the file back (SPEC 12.1). There is no per-macro file and no
+ * order file, so there is no pair of writes that could disagree with each
+ * other, and array position IS the user's order.
+ */
 
 static bool location_valid(const app_uuid_t *set_id) {
     return set_id != NULL && app_uuid_is_valid_string(set_id->value);
 }
 
-static bool macro_matches_location(const macro_t *macro, const app_uuid_t *set_id) {
-    if (macro == NULL || !location_valid(set_id)) {
-        return false;
+/* Deep-copies one stored macro out of a loaded document, so the caller owns a
+ * macro whose lifetime is independent of the document. */
+static app_error_code_t copy_macro_out(const macro_t *source, macro_t *out_macro) {
+    *out_macro = *source;
+    out_macro->source = NULL;
+    out_macro->source_length = 0U;
+    char *copy = malloc(source->source_length + 1U);
+    if (copy == NULL) {
+        memset(out_macro, 0, sizeof(*out_macro));
+        return APP_ERROR_INTERNAL;
     }
-    return app_uuid_equal(&macro->set_id, set_id);
+    memcpy(copy, source->source, source->source_length + 1U);
+    out_macro->source = copy;
+    out_macro->source_length = source->source_length;
+    return APP_ERROR_NONE;
 }
 
-static app_error_code_t macro_order_path(const app_uuid_t *set_id, char *path, size_t path_size) {
-    if (!location_valid(set_id) || path == NULL || path_size == 0U) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    return storage_make_set_macro_order_path(set_id, path, path_size);
+/* Replaces the document's macro at `position` with `replacement`, taking
+ * ownership of the replacement's source. */
+static void assign_macro(storage_set_document_t *document, size_t position,
+                         const macro_t *replacement) {
+    macro_model_free_macro(&document->macros[position]);
+    document->macros[position] = *replacement;
 }
 
-static app_error_code_t macro_file_path(const app_uuid_t *set_id, const app_uuid_t *macro_id,
-                                        char *path, size_t path_size) {
-    if (!location_valid(set_id) || macro_id == NULL || path == NULL || path_size == 0U) {
-        return APP_ERROR_INVALID_ARGUMENT;
+static app_error_code_t document_reserve(storage_set_document_t *document, size_t additional) {
+    const size_t required = document->macro_count + additional;
+    if (required > APP_MACROS_PER_SET_MAX) {
+        return APP_ERROR_MACRO_LIMIT;
     }
-    return storage_make_macro_path(set_id, macro_id, path, path_size);
-}
-
-static app_error_code_t verify_set_location(const app_uuid_t *set_id) {
-    char set_path[APP_PATH_MAX_BYTES];
-    app_error_code_t result = storage_make_set_path(set_id, set_path, sizeof(set_path));
-    if (result != APP_ERROR_NONE) {
-        return result;
+    macro_t *grown = realloc(document->macros, required * sizeof(*grown));
+    if (grown == NULL) {
+        return APP_ERROR_INTERNAL;
     }
-    char metadata_path[APP_PATH_MAX_BYTES];
-    const int written = snprintf(metadata_path, sizeof(metadata_path), "%s/set.json", set_path);
-    if (written < 0 || (size_t)written >= sizeof(metadata_path)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    struct stat metadata;
-    if (stat(metadata_path, &metadata) == 0) {
-        return APP_ERROR_NONE;
-    }
-    return errno == ENOENT ? APP_ERROR_NOT_FOUND : storage_repository_map_file_error();
+    document->macros = grown;
+    memset(&document->macros[document->macro_count], 0, additional * sizeof(*grown));
+    return APP_ERROR_NONE;
 }
 
 app_error_code_t storage_macro_read_locked(const app_uuid_t *set_id, const app_uuid_t *macro_id,
                                            macro_t *out_macro) {
+    if (out_macro != NULL) {
+        memset(out_macro, 0, sizeof(*out_macro));
+    }
     if (!location_valid(set_id) || macro_id == NULL || out_macro == NULL ||
         !app_uuid_is_valid_string(macro_id->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    memset(out_macro, 0, sizeof(*out_macro));
-    char path[APP_PATH_MAX_BYTES];
-    app_error_code_t result = macro_file_path(set_id, macro_id, path, sizeof(path));
+    storage_set_document_t document = {0};
+    app_error_code_t result = storage_repository_load_set_document(set_id, &document);
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    char *data = NULL;
-    size_t length = 0U;
-    result =
-        storage_repository_read_bounded_file(path, STORAGE_MACRO_FILE_MAX_BYTES, &data, &length);
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_parse_macro_json(data, length, out_macro);
-    }
-    free(data);
-    if (result == APP_ERROR_NONE &&
-        (!app_uuid_equal(macro_id, &out_macro->id) || !macro_matches_location(out_macro, set_id))) {
-        macro_model_free_macro(out_macro);
-        memset(out_macro, 0, sizeof(*out_macro));
-        result = APP_ERROR_STORAGE_CORRUPT;
-    }
-    if (result == APP_ERROR_STORAGE_CORRUPT) {
-        const app_error_code_t discard = storage_repository_discard_corrupt_file(path);
-        return discard == APP_ERROR_NONE ? result : discard;
-    }
+    const size_t position = storage_repository_find_macro(&document, macro_id);
+    result = position == SIZE_MAX ? APP_ERROR_NOT_FOUND
+                                  : copy_macro_out(&document.macros[position], out_macro);
+    storage_set_document_free(&document);
     return result;
-}
-
-static app_error_code_t load_macro_order(const app_uuid_t *set_id,
-                                         storage_uuid_order_t *out_order) {
-    char path[APP_PATH_MAX_BYTES];
-    const app_error_code_t result = macro_order_path(set_id, path, sizeof(path));
-    return result == APP_ERROR_NONE
-               ? storage_repository_load_order_locked(path, APP_MACROS_PER_SET_MAX, out_order)
-               : result;
-}
-
-static app_error_code_t write_macro_order(const app_uuid_t *set_id,
-                                          const storage_uuid_order_t *order) {
-    char path[APP_PATH_MAX_BYTES];
-    const app_error_code_t result = macro_order_path(set_id, path, sizeof(path));
-    return result == APP_ERROR_NONE
-               ? storage_repository_write_order_locked(path, APP_MACROS_PER_SET_MAX, order)
-               : result;
-}
-
-static void record_skip(storage_skip_record_t *skips, const app_uuid_t *object_id) {
-    if (skips == NULL) {
-        return;
-    }
-    ++skips->total;
-    if (skips->items != NULL && skips->count < skips->capacity) {
-        skips->items[skips->count].has_id = true;
-        skips->items[skips->count].id = *object_id;
-        ++skips->count;
-    }
 }
 
 app_error_code_t storage_macro_list_detail_locked(const app_uuid_t *set_id,
@@ -136,52 +93,45 @@ app_error_code_t storage_macro_list_detail_locked(const app_uuid_t *set_id,
     if (out_failed != NULL) {
         memset(out_failed, 0, sizeof(*out_failed));
     }
-    if (!location_valid(set_id) || out_list == NULL) {
+    if (out_list == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     memset(out_list, 0, sizeof(*out_list));
-    storage_uuid_order_t order = {0};
-    app_error_code_t result = load_macro_order(set_id, &order);
-    if (result != APP_ERROR_NONE || order.count == 0U) {
-        return result;
+    if (!location_valid(set_id)) {
+        return APP_ERROR_INVALID_ARGUMENT;
     }
-    macro_t *items = calloc(order.count, sizeof(*items));
-    if (items == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
-    size_t loaded = 0U;
-    for (size_t index = 0U; index < order.count; ++index) {
-        result = storage_macro_read_locked(set_id, &order.ids[index], &items[loaded]);
-        if (result == APP_ERROR_NONE) {
-            ++loaded;
-            continue;
-        }
-        if (out_skips != NULL && app_error_is_object_fault(result)) {
-            /* Step over this one object and keep the rest: a single unreadable
-             * macro must not make the whole repository unreadable. */
-            memset(&items[loaded], 0, sizeof(items[loaded]));
-            record_skip(out_skips, &order.ids[index]);
-            result = APP_ERROR_NONE;
-            continue;
-        }
-        /* Captured before unwinding: this is the only point that knows which
-         * macro failed, and the caller needs it to name the object. */
+    /* out_skips exists for the tolerant backup read (SPEC 17). With macros
+     * inline there is no such thing as one individually unreadable macro: the
+     * set file parses as a whole or not at all, so nothing is ever skipped and
+     * a damaged file is reported as the failure it is. */
+    storage_set_document_t document = {0};
+    app_error_code_t result = storage_repository_load_set_document(set_id, &document);
+    if (result != APP_ERROR_NONE) {
         if (out_failed != NULL) {
             out_failed->has_id = true;
-            out_failed->id = order.ids[index];
+            out_failed->id = *set_id;
         }
-        break;
-    }
-    if (result != APP_ERROR_NONE) {
-        for (size_t index = 0U; index < loaded; ++index) {
-            macro_model_free_macro(&items[index]);
-        }
-        free(items);
         return result;
     }
-    out_list->items = items;
-    out_list->count = loaded;
-    return APP_ERROR_NONE;
+    if (document.macro_count != 0U) {
+        out_list->items = calloc(document.macro_count, sizeof(*out_list->items));
+        if (out_list->items == NULL) {
+            storage_set_document_free(&document);
+            return APP_ERROR_INTERNAL;
+        }
+    }
+    for (size_t index = 0U; result == APP_ERROR_NONE && index < document.macro_count; ++index) {
+        result = copy_macro_out(&document.macros[index], &out_list->items[index]);
+        if (result == APP_ERROR_NONE) {
+            out_list->count = index + 1U;
+        }
+    }
+    storage_set_document_free(&document);
+    if (result != APP_ERROR_NONE) {
+        storage_macro_list_free(out_list);
+    }
+    (void)out_skips;
+    return result;
 }
 
 app_error_code_t storage_macro_list_locked(const app_uuid_t *set_id,
@@ -189,88 +139,74 @@ app_error_code_t storage_macro_list_locked(const app_uuid_t *set_id,
     return storage_macro_list_detail_locked(set_id, out_list, NULL, NULL);
 }
 
-static app_error_code_t write_macro_object(const app_uuid_t *set_id, const macro_t *macro) {
-    char *json = NULL;
-    size_t json_length = 0U;
-    app_error_code_t result = storage_repository_serialize_macro_json(macro, &json, &json_length);
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        result = macro_file_path(set_id, &macro->id, path, sizeof(path));
-    }
-    if (result == APP_ERROR_NONE) {
-        result = storage_atomic_write(path, json, json_length, true);
-    }
-    cJSON_free(json);
-    return result;
-}
-
 static app_error_code_t macro_create_locked(const app_uuid_t *set_id, const macro_t *macro) {
-    if (!macro_matches_location(macro, set_id) || macro->revision != 1U) {
+    if (!location_valid(set_id) || macro == NULL || macro->revision != 1U ||
+        !app_uuid_is_valid_string(macro->id.value)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    app_error_code_t result = verify_set_location(set_id);
+    storage_set_document_t document = {0};
+    app_error_code_t result = storage_repository_load_set_document(set_id, &document);
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    storage_uuid_order_t order = {0};
-    result = load_macro_order(set_id, &order);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    if (storage_repository_order_contains(&order, &macro->id, NULL)) {
+    if (storage_repository_find_macro(&document, &macro->id) != SIZE_MAX) {
+        storage_set_document_free(&document);
         return APP_ERROR_CONFLICT;
     }
-    char path[APP_PATH_MAX_BYTES];
-    result = macro_file_path(set_id, &macro->id, path, sizeof(path));
-    if (result != APP_ERROR_NONE) {
-        return result;
+    result = document_reserve(&document, 1U);
+    macro_t stored = {0};
+    if (result == APP_ERROR_NONE) {
+        result = copy_macro_out(macro, &stored);
     }
-    struct stat metadata;
-    if (stat(path, &metadata) == 0) {
-        return APP_ERROR_CONFLICT;
+    if (result == APP_ERROR_NONE) {
+        stored.set_id = *set_id;
+        /* Appended, because a new macro goes at the end of the user's order. */
+        document.macros[document.macro_count] = stored;
+        ++document.macro_count;
+        result = storage_repository_store_set_document(&document);
     }
-    if (errno != ENOENT) {
-        return storage_repository_map_file_error();
-    }
-    result = storage_repository_order_append(&order, APP_MACROS_PER_SET_MAX, &macro->id);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    result = write_macro_object(set_id, macro);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    result = write_macro_order(set_id, &order);
-    if (result != APP_ERROR_NONE && unlink(path) != 0) {
-        return APP_ERROR_IO;
-    }
+    storage_set_document_free(&document);
     return result;
 }
 
 static app_error_code_t macro_update_locked(const app_uuid_t *set_id, const macro_t *replacement,
                                             uint32_t expected_revision, macro_t *out_updated) {
-    if (!macro_matches_location(replacement, set_id) || out_updated == NULL ||
+    if (out_updated != NULL) {
+        memset(out_updated, 0, sizeof(*out_updated));
+    }
+    if (!location_valid(set_id) || replacement == NULL || out_updated == NULL ||
         expected_revision == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    memset(out_updated, 0, sizeof(*out_updated));
-    macro_t current = {0};
-    app_error_code_t result = storage_macro_read_locked(set_id, &replacement->id, &current);
+    storage_set_document_t document = {0};
+    app_error_code_t result = storage_repository_load_set_document(set_id, &document);
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    if (current.revision != expected_revision || replacement->revision != expected_revision ||
-        expected_revision == UINT32_MAX) {
-        macro_model_free_macro(&current);
+    const size_t position = storage_repository_find_macro(&document, &replacement->id);
+    if (position == SIZE_MAX) {
+        storage_set_document_free(&document);
+        return APP_ERROR_NOT_FOUND;
+    }
+    if (document.macros[position].revision != expected_revision ||
+        replacement->revision != expected_revision || expected_revision == UINT32_MAX) {
+        storage_set_document_free(&document);
         return APP_ERROR_CONFLICT;
     }
-    macro_t updated = *replacement;
-    updated.revision = expected_revision + 1U;
-    result = write_macro_object(set_id, &updated);
-    macro_model_free_macro(&current);
+    macro_t updated = {0};
+    result = copy_macro_out(replacement, &updated);
     if (result == APP_ERROR_NONE) {
-        result = storage_macro_read_locked(set_id, &updated.id, out_updated);
+        updated.revision = expected_revision + 1U;
+        updated.set_id = *set_id;
+        /* Updated in place: an edit must not move a macro in the user's
+         * order. */
+        assign_macro(&document, position, &updated);
+        result = storage_repository_store_set_document(&document);
     }
+    if (result == APP_ERROR_NONE) {
+        result = copy_macro_out(&document.macros[position], out_updated);
+    }
+    storage_set_document_free(&document);
     return result;
 }
 
@@ -279,37 +215,27 @@ static app_error_code_t macro_delete_locked(const app_uuid_t *set_id, const app_
     if (!location_valid(set_id) || macro_id == NULL || expected_revision == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    macro_t current = {0};
-    app_error_code_t result = storage_macro_read_locked(set_id, macro_id, &current);
+    storage_set_document_t document = {0};
+    app_error_code_t result = storage_repository_load_set_document(set_id, &document);
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    if (current.revision != expected_revision) {
-        macro_model_free_macro(&current);
+    const size_t position = storage_repository_find_macro(&document, macro_id);
+    if (position == SIZE_MAX) {
+        storage_set_document_free(&document);
+        return APP_ERROR_NOT_FOUND;
+    }
+    if (document.macros[position].revision != expected_revision) {
+        storage_set_document_free(&document);
         return APP_ERROR_CONFLICT;
     }
-    macro_model_free_macro(&current);
-    /* storage_uuid_order_t is ~4 KB; keep it off the task stack. */
-    storage_uuid_order_t *order = calloc(1U, sizeof(*order));
-    if (order == NULL) {
-        return APP_ERROR_INTERNAL;
+    macro_model_free_macro(&document.macros[position]);
+    for (size_t index = position; index + 1U < document.macro_count; ++index) {
+        document.macros[index] = document.macros[index + 1U];
     }
-    result = load_macro_order(set_id, order);
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_order_remove(order, macro_id);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_macro_order(set_id, order);
-    }
-    free(order);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    char path[APP_PATH_MAX_BYTES];
-    result = macro_file_path(set_id, macro_id, path, sizeof(path));
-    if (result == APP_ERROR_NONE && unlink(path) != 0) {
-        result = storage_repository_map_file_error();
-    }
+    --document.macro_count;
+    result = storage_repository_store_set_document(&document);
+    storage_set_document_free(&document);
     return result;
 }
 
@@ -317,40 +243,51 @@ static app_error_code_t macro_duplicate_locked(const app_uuid_t *set_id,
                                                const app_uuid_t *source_id,
                                                const app_uuid_t *duplicate_id,
                                                const char *duplicate_name, macro_t *out_duplicate) {
+    if (out_duplicate != NULL) {
+        memset(out_duplicate, 0, sizeof(*out_duplicate));
+    }
     if (!location_valid(set_id) || source_id == NULL || duplicate_id == NULL ||
         duplicate_name == NULL || out_duplicate == NULL ||
-        !app_uuid_is_valid_string(duplicate_id->value)) {
+        !app_uuid_is_valid_string(duplicate_id->value) || duplicate_name[0] == '\0' ||
+        strlen(duplicate_name) > APP_MACRO_NAME_MAX_BYTES ||
+        app_uuid_equal(source_id, duplicate_id)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    memset(out_duplicate, 0, sizeof(*out_duplicate));
-    macro_t source = {0};
-    app_error_code_t result = storage_macro_read_locked(set_id, source_id, &source);
+    storage_set_document_t document = {0};
+    app_error_code_t result = storage_repository_load_set_document(set_id, &document);
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    const size_t name_length = strlen(duplicate_name);
-    if (name_length == 0U || name_length > APP_MACRO_NAME_MAX_BYTES) {
-        macro_model_free_macro(&source);
-        return APP_ERROR_INVALID_ARGUMENT;
+    const size_t position = storage_repository_find_macro(&document, source_id);
+    if (position == SIZE_MAX) {
+        storage_set_document_free(&document);
+        return APP_ERROR_NOT_FOUND;
     }
-    macro_t duplicate = source;
-    duplicate.id = *duplicate_id;
-    duplicate.revision = 1U;
-    memset(duplicate.name, 0, sizeof(duplicate.name));
-    memcpy(duplicate.name, duplicate_name, name_length + 1U);
-    duplicate.source = malloc(source.source_length + 1U);
-    if (duplicate.source == NULL) {
-        macro_model_free_macro(&source);
-        return APP_ERROR_INTERNAL;
+    if (storage_repository_find_macro(&document, duplicate_id) != SIZE_MAX) {
+        storage_set_document_free(&document);
+        return APP_ERROR_CONFLICT;
     }
-    memcpy(duplicate.source, source.source, source.source_length + 1U);
-    result = macro_create_locked(set_id, &duplicate);
-    macro_model_free_macro(&source);
+    macro_t duplicate = {0};
+    result = copy_macro_out(&document.macros[position], &duplicate);
     if (result == APP_ERROR_NONE) {
-        *out_duplicate = duplicate;
+        duplicate.id = *duplicate_id;
+        duplicate.revision = 1U;
+        duplicate.set_id = *set_id;
+        memset(duplicate.name, 0, sizeof(duplicate.name));
+        memcpy(duplicate.name, duplicate_name, strlen(duplicate_name));
+        result = document_reserve(&document, 1U);
+    }
+    if (result == APP_ERROR_NONE) {
+        document.macros[document.macro_count] = duplicate;
+        ++document.macro_count;
+        result = storage_repository_store_set_document(&document);
     } else {
         macro_model_free_macro(&duplicate);
     }
+    if (result == APP_ERROR_NONE) {
+        result = copy_macro_out(&document.macros[document.macro_count - 1U], out_duplicate);
+    }
+    storage_set_document_free(&document);
     return result;
 }
 
@@ -360,27 +297,41 @@ static app_error_code_t macro_reorder_locked(const app_uuid_t *set_id,
         count > APP_MACROS_PER_SET_MAX) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    storage_uuid_order_t current = {0};
-    app_error_code_t result = load_macro_order(set_id, &current);
+    storage_set_document_t document = {0};
+    app_error_code_t result = storage_repository_load_set_document(set_id, &document);
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    storage_uuid_order_t replacement = {.count = count};
-    if (count > 0U) {
-        memcpy(replacement.ids, ordered_ids, count * sizeof(*ordered_ids));
-    }
-    char *probe = NULL;
-    size_t probe_length = 0U;
-    result = storage_repository_serialize_order_json(&replacement, APP_MACROS_PER_SET_MAX, &probe,
-                                                     &probe_length);
-    cJSON_free(probe);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    if (!storage_repository_order_same_members(&current, &replacement)) {
+    /* A reorder must be a permutation of exactly the macros the set already
+     * has: a request that adds, drops, or repeats one is a conflict, not a
+     * partial reorder to apply as far as it goes. */
+    if (count != document.macro_count) {
+        storage_set_document_free(&document);
         return APP_ERROR_CONFLICT;
     }
-    return write_macro_order(set_id, &replacement);
+    macro_t *reordered = count == 0U ? NULL : calloc(count, sizeof(*reordered));
+    if (count != 0U && reordered == NULL) {
+        storage_set_document_free(&document);
+        return APP_ERROR_INTERNAL;
+    }
+    for (size_t index = 0U; index < count; ++index) {
+        const size_t position = storage_repository_find_macro(&document, &ordered_ids[index]);
+        bool duplicated = false;
+        for (size_t prior = 0U; prior < index; ++prior) {
+            duplicated = duplicated || app_uuid_equal(&ordered_ids[prior], &ordered_ids[index]);
+        }
+        if (position == SIZE_MAX || duplicated) {
+            free(reordered);
+            storage_set_document_free(&document);
+            return APP_ERROR_CONFLICT;
+        }
+        reordered[index] = document.macros[position];
+    }
+    free(document.macros);
+    document.macros = reordered;
+    result = storage_repository_store_set_document(&document);
+    storage_set_document_free(&document);
+    return result;
 }
 
 app_error_code_t storage_macro_list(const app_uuid_t *set_id, storage_macro_list_t *out_list) {

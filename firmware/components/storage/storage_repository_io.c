@@ -11,9 +11,7 @@
 #include <sys/types.h>
 
 #include "app_error.h"
-#include "app_uuid.h"
 #include "macro_limits.h"
-#include "storage.h"
 #include "storage_atomic_internal.h"
 #include "storage_fs_ops.h"
 
@@ -198,18 +196,6 @@ app_error_code_t storage_repository_discard_corrupt_file(const char *path) {
     const int unlink_error = errno;
     return unlink_error == ENOENT ? APP_ERROR_NONE
                                   : storage_repository_map_error_number(unlink_error);
-}
-
-app_error_code_t storage_repository_set_file_path(const app_uuid_t *set_id, char *buffer,
-                                                  size_t buffer_size) {
-    char directory[APP_PATH_MAX_BYTES];
-    const app_error_code_t result = storage_make_set_path(set_id, directory, sizeof(directory));
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    const int written = snprintf(buffer, buffer_size, "%s/set.json", directory);
-    return written >= 0 && (size_t)written < buffer_size ? APP_ERROR_NONE
-                                                         : APP_ERROR_INVALID_ARGUMENT;
 }
 
 app_error_code_t storage_repository_make_directory_with_ops(const char *path,

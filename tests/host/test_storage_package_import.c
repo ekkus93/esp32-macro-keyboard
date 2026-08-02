@@ -58,10 +58,7 @@ static void reset_storage(void) {
     TEST_CHECK_EQ_INT(0, system(command));
     make_directory(STORAGE_DATA_MOUNT);
     static const char *const roots[] = {
-        "transactions",
-        "staging",
         "sets",
-        "trash",
     };
     char path[APP_PATH_MAX_BYTES];
     for (size_t index = 0U; index < sizeof(roots) / sizeof(roots[0]); ++index) {
@@ -105,26 +102,6 @@ static void create_current_set(void) {
                       storage_atomic_write(path, empty_order, strlen(empty_order), true));
     storage_set_index_t index = {.ids = {id}, .count = 1U};
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_write_index(&index));
-}
-
-static bool directory_empty(const char *path) {
-    DIR *directory = opendir(path);
-    TEST_CHECK(directory != NULL);
-    bool empty = true;
-    while (true) {
-        errno = 0;
-        const struct dirent *entry = readdir(directory);
-        if (entry == NULL) {
-            TEST_CHECK_EQ_INT(0, errno);
-            break;
-        }
-        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-            empty = false;
-            break;
-        }
-    }
-    TEST_CHECK_EQ_INT(0, closedir(directory));
-    return empty;
 }
 
 static void assert_index_count(size_t expected) {
@@ -189,9 +166,6 @@ static void test_valid_import_assigns_new_identity_and_resets_revisions(void) {
     TEST_CHECK(app_uuid_equal(&new_id, &macro.set_id));
     macro_model_free_macro(&macro);
 
-    TEST_CHECK(directory_empty(STORAGE_DATA_MOUNT "/transactions"));
-    TEST_CHECK(directory_empty(STORAGE_DATA_MOUNT "/staging"));
-    TEST_CHECK(directory_empty(STORAGE_DATA_MOUNT "/trash"));
     assert_index_count(1U);
 }
 

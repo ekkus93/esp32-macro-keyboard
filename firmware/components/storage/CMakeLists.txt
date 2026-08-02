@@ -15,7 +15,7 @@ idf_component_register(
     "storage_repository_sets.c"
     "storage_repository_set_operations.c"
     "storage_repository_lock.c"
-    "storage_repository_order.c"
+    "storage_repository_document.c"
     "storage_repository_macros.c"
     "storage_package.c"
     "storage_package_export.c"

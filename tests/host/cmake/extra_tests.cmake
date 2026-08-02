@@ -65,6 +65,7 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/macro_model.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_json.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_objects_json.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_json.c"
 )
 target_include_directories(
     storage_object_json_tests
@@ -90,9 +91,9 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_json.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_json.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_objects_json.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_order.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_index.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_sets.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_document.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_macros.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_lock.c"
 )

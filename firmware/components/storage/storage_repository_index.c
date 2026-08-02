@@ -12,47 +12,78 @@
 #include "cJSON.h"
 #include "macro_limits.h"
 #include "storage.h"
+#include "storage_json.h"
+#include "storage_object_json.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 
-app_error_code_t storage_repository_parse_index(const char *data, size_t length,
-                                                storage_set_index_t *out_index) {
-    memset(out_index, 0, sizeof(*out_index));
-    cJSON *root = cJSON_ParseWithLength(data, length);
-    const cJSON *version =
-        root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "schema_version");
-    const cJSON *ids = root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "ids");
-    /* version == NULL is redundant with cJSON_IsNumber but makes the guard
-     * visible to the static analyzer before the ->valueint access. */
-    if (!cJSON_IsObject(root) || !cJSON_IsNumber(version) || version == NULL ||
-        version->valueint != 1 || !cJSON_IsArray(ids)) {
-        cJSON_Delete(root);
+/* SPEC 12.3 defines the index as schema_version, revision, active_set_id, and
+ * set_ids. `active_set_id` is deliberately NOT here yet.
+ *
+ * The active set currently lives in the provisioning NVS blob, baked into its
+ * binary wire format and surfaced through /api/v1/settings. Adding the field
+ * here before that move would give the device two authorities for which set is
+ * active, which is worse than being one field short of the spec for one commit.
+ * Phase 4b moves it: this file gains the field in the same change that removes
+ * the NVS copy. */
+#define INDEX_FIELD_COUNT 3U
+
+static const char *const INDEX_FIELDS[INDEX_FIELD_COUNT] = {
+    "schema_version",
+    "revision",
+    "set_ids",
+};
+
+static app_error_code_t parse_set_ids(const cJSON *root, storage_set_index_t *out_index) {
+    const cJSON *ids = cJSON_GetObjectItemCaseSensitive(root, "set_ids");
+    if (!cJSON_IsArray(ids)) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
     const int count = cJSON_GetArraySize(ids);
-    if (count < 0 || count > (int)APP_MACRO_SETS_MAX) {
-        cJSON_Delete(root);
+    if (count < 0 || (size_t)count > APP_MACRO_SETS_MAX) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
     for (int index = 0; index < count; ++index) {
         const cJSON *item = cJSON_GetArrayItem(ids, index);
         if (!cJSON_IsString(item) || item->valuestring == NULL ||
             app_uuid_parse(item->valuestring, &out_index->ids[(size_t)index]) != APP_ERROR_NONE) {
-            cJSON_Delete(root);
-            memset(out_index, 0, sizeof(*out_index));
             return APP_ERROR_STORAGE_CORRUPT;
         }
         for (int prior = 0; prior < index; ++prior) {
             if (app_uuid_equal(&out_index->ids[(size_t)prior], &out_index->ids[(size_t)index])) {
-                cJSON_Delete(root);
-                memset(out_index, 0, sizeof(*out_index));
                 return APP_ERROR_STORAGE_CORRUPT;
             }
         }
     }
     out_index->count = (size_t)count;
-    cJSON_Delete(root);
     return APP_ERROR_NONE;
+}
+
+app_error_code_t storage_repository_parse_index(const char *data, size_t length,
+                                                storage_set_index_t *out_index) {
+    if (out_index == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    memset(out_index, 0, sizeof(*out_index));
+    cJSON *root = NULL;
+    app_error_code_t result =
+        storage_json_parse_exact_object(data, length, INDEX_FIELDS, INDEX_FIELD_COUNT, &root);
+    uint32_t schema_version = 0U;
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_u32(root, "schema_version", APP_SCHEMA_VERSION,
+                                      APP_SCHEMA_VERSION, &schema_version);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_u32(root, "revision", 1U, UINT32_MAX, &out_index->revision);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = parse_set_ids(root, out_index);
+    }
+    cJSON_Delete(root);
+    if (result != APP_ERROR_NONE) {
+        memset(out_index, 0, sizeof(*out_index));
+    }
+    return result;
 }
 
 app_error_code_t storage_repository_load_index_path(const char *path,
@@ -74,15 +105,22 @@ app_error_code_t storage_repository_load_index_path(const char *path,
 }
 
 app_error_code_t storage_repository_load_index(storage_set_index_t *out_index) {
-    return storage_repository_load_index_path(STORAGE_SET_INDEX_FILE_PATH, out_index);
+    return storage_repository_load_index_path(STORAGE_INDEX_FILE_PATH, out_index);
 }
 
 app_error_code_t storage_repository_write_index(const storage_set_index_t *index) {
+    if (index == NULL || index->count > APP_MACRO_SETS_MAX) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
     cJSON *root = cJSON_CreateObject();
     cJSON *ids = cJSON_CreateArray();
+    /* revision starts at 1 and advances with every write, so a caller that
+     * loaded the index can tell whether it changed underneath. */
+    const uint32_t revision = index->revision == UINT32_MAX ? UINT32_MAX : index->revision + 1U;
     if (root == NULL || ids == NULL ||
-        cJSON_AddNumberToObject(root, "schema_version", 1.0) == NULL ||
-        !cJSON_AddItemToObject(root, "ids", ids)) {
+        cJSON_AddNumberToObject(root, "schema_version", (double)APP_SCHEMA_VERSION) == NULL ||
+        cJSON_AddNumberToObject(root, "revision", (double)revision) == NULL ||
+        !cJSON_AddItemToObject(root, "set_ids", ids)) {
         cJSON_Delete(ids);
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;
@@ -103,88 +141,42 @@ app_error_code_t storage_repository_write_index(const storage_set_index_t *index
     const size_t length = strlen(json);
     const app_error_code_t result =
         length <= STORAGE_INDEX_FILE_MAX_BYTES
-            ? storage_atomic_write(STORAGE_SET_INDEX_FILE_PATH, json, length, true)
+            ? storage_atomic_write(STORAGE_INDEX_FILE_PATH, json, length, true)
             : APP_ERROR_STORAGE_CORRUPT;
     cJSON_free(json);
     return result;
 }
 
 static app_error_code_t initialize_fresh_storage(void) {
-    static const char schema[] = "{\"schema_version\":1}";
-    static const char empty_index[] = "{\"schema_version\":1,\"ids\":[]}";
+    static const char empty_index[] = "{\"schema_version\":1,\"revision\":1,\"set_ids\":[]}";
 
-    struct stat index_metadata;
-    const bool index_exists = stat(STORAGE_SET_INDEX_FILE_PATH, &index_metadata) == 0;
-    if (!index_exists && errno != ENOENT) {
-        return storage_repository_map_file_error();
-    }
     bool sets_have_entries = false;
-    app_error_code_t result =
+    const app_error_code_t result =
         storage_repository_directory_has_entries(STORAGE_DATA_MOUNT "/sets", &sets_have_entries);
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    if (index_exists || sets_have_entries) {
+    /* Set files with no index is a corrupt repository, not an empty one:
+     * rebuilding the index from the directory would invent a set order the user
+     * never chose (SPEC 12.3). */
+    if (sets_have_entries) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
-    result = storage_repository_ensure_initial_file(STORAGE_SCHEMA_FILE_PATH, schema);
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_ensure_initial_file(STORAGE_SET_INDEX_FILE_PATH, empty_index);
-    }
-    return result;
-}
-
-static app_error_code_t verify_existing_storage_layout(void) {
-    struct stat metadata;
-    if (stat(STORAGE_SET_INDEX_FILE_PATH, &metadata) != 0) {
-        return errno == ENOENT ? APP_ERROR_STORAGE_CORRUPT : storage_repository_map_file_error();
-    }
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t validate_schema_marker(void) {
-    char *schema_data = NULL;
-    size_t schema_length = 0U;
-    app_error_code_t result = storage_repository_read_bounded_file(STORAGE_SCHEMA_FILE_PATH, 128U,
-                                                                   &schema_data, &schema_length);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    cJSON *schema_root = cJSON_ParseWithLength(schema_data, schema_length);
-    free(schema_data);
-    const cJSON *schema_version =
-        schema_root == NULL ? NULL
-                            : cJSON_GetObjectItemCaseSensitive(schema_root, "schema_version");
-    /* schema_version != NULL is redundant with cJSON_IsNumber but makes the
-     * guard visible to the static analyzer before the ->valueint access. */
-    const bool schema_valid = cJSON_IsObject(schema_root) && cJSON_IsNumber(schema_version) &&
-                              schema_version != NULL &&
-                              schema_version->valueint == (int)APP_SCHEMA_VERSION;
-    cJSON_Delete(schema_root);
-    if (schema_valid) {
-        return APP_ERROR_NONE;
-    }
-    const app_error_code_t discard =
-        storage_repository_discard_corrupt_file(STORAGE_SCHEMA_FILE_PATH);
-    return discard == APP_ERROR_NONE ? APP_ERROR_STORAGE_CORRUPT : discard;
+    return storage_repository_ensure_initial_file(STORAGE_INDEX_FILE_PATH, empty_index);
 }
 
 static app_error_code_t storage_repository_init_locked(void) {
-    struct stat schema_metadata;
-    const int schema_stat = stat(STORAGE_SCHEMA_FILE_PATH, &schema_metadata);
-    if (schema_stat != 0 && errno != ENOENT) {
+    struct stat metadata;
+    const int index_stat = stat(STORAGE_INDEX_FILE_PATH, &metadata);
+    if (index_stat != 0 && errno != ENOENT) {
         return storage_repository_map_file_error();
     }
-    app_error_code_t result =
-        schema_stat != 0 ? initialize_fresh_storage() : verify_existing_storage_layout();
-    if (result != APP_ERROR_NONE) {
-        return result;
+    if (index_stat != 0) {
+        const app_error_code_t result = initialize_fresh_storage();
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
     }
-    result = validate_schema_marker();
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-
     storage_set_index_t index = {0};
     return storage_repository_load_index(&index);
 }

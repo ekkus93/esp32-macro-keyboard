@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -14,13 +15,14 @@
 #include "macro_limits.h"
 #include "macro_model.h"
 #include "storage.h"
+#include "storage_json.h"
 #include "storage_object_json.h"
+#include "storage_repository_document.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_sets_internal.h"
 
 #define PACKAGE_IMPORT_ARRAY_COUNT 2U
-#define PACKAGE_IMPORT_JSON_SUFFIX ".json"
 
 typedef enum {
     PACKAGE_IMPORT_SETS = 0,
@@ -53,19 +55,6 @@ static app_error_code_t map_error_number(int error_number) {
     return APP_ERROR_IO;
 }
 
-static app_error_code_t join_path(const char *parent, const char *name, char *output,
-                                  size_t output_size) {
-    if (parent == NULL || name == NULL || output == NULL || output_size == 0U) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const int written = snprintf(output, output_size, "%s/%s", parent, name);
-    if (written < 0 || (size_t)written >= output_size) {
-        output[0] = '\0';
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    return APP_ERROR_NONE;
-}
-
 static app_error_code_t node_json(const cJSON *node, char **out_json, size_t *out_length) {
     if (node == NULL || out_json == NULL || out_length == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -81,14 +70,29 @@ static app_error_code_t node_json(const cJSON *node, char **out_json, size_t *ou
     return APP_ERROR_NONE;
 }
 
+/* A package `sets` entry is set metadata only -- the package keeps sets and
+ * macros in sibling arrays, which is a different container from the stored set
+ * file that holds its macros inline (SPEC 12.1, 12.2). */
 static app_error_code_t parse_set_node(const cJSON *node, macro_set_t *out_set) {
-    char *json = NULL;
-    size_t length = 0U;
-    app_error_code_t result = node_json(node, &json, &length);
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_parse_set_json(json, length, out_set);
+    memset(out_set, 0, sizeof(*out_set));
+    if (!cJSON_IsObject(node)) {
+        return APP_ERROR_INVALID_ARGUMENT;
     }
-    cJSON_free(json);
+    static const char *const fields[] = {"schema_version", "id", "revision", "name"};
+    app_error_code_t result = storage_json_check_object_fields(node, fields, 4U, 4U);
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_u32(node, "schema_version", APP_SCHEMA_VERSION,
+                                      APP_SCHEMA_VERSION, &out_set->schema_version);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_uuid(node, "id", &out_set->id);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_u32(node, "revision", 1U, UINT32_MAX, &out_set->revision);
+    }
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_string(node, "name", out_set->name, sizeof(out_set->name), true);
+    }
     return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
 }
 
@@ -143,119 +147,44 @@ static app_error_code_t open_document(const char *data, size_t length,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t write_json_file(const char *path, const char *json, size_t length) {
-    return storage_atomic_write(path, json, length, true);
-}
-
-static app_error_code_t write_import_set(const char *set_root, const macro_set_t *set) {
-    char *json = NULL;
-    size_t length = 0U;
-    app_error_code_t result = storage_repository_serialize_set_json(set, &json, &length);
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        result = join_path(set_root, "set.json", path, sizeof(path));
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_json_file(path, json, length);
-    }
-    cJSON_free(json);
-    return result;
-}
-
-static app_error_code_t write_import_order(const char *set_root, const char *name,
-                                           const storage_uuid_order_t *order, size_t maximum) {
-    char *json = NULL;
-    size_t length = 0U;
-    app_error_code_t result =
-        storage_repository_serialize_order_json(order, maximum, &json, &length);
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        result = join_path(set_root, name, path, sizeof(path));
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_json_file(path, json, length);
-    }
-    cJSON_free(json);
-    return result;
-}
-
-static app_error_code_t write_import_macro_node(const char *directory, const cJSON *node,
-                                                const package_import_rewrite_t *rewrite,
-                                                storage_uuid_order_t *order) {
-    macro_t macro = {0};
-    app_error_code_t result = parse_macro_node(node, &macro);
-    if (result == APP_ERROR_NONE && (!app_uuid_equal(&macro.set_id, rewrite->source_set_id) ||
-                                     order->count >= APP_MACROS_PER_SET_MAX)) {
-        result = APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (result == APP_ERROR_NONE) {
-        macro.set_id = *rewrite->new_set_id;
-        macro.revision = 1U;
-    }
-    char *json = NULL;
-    size_t length = 0U;
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_serialize_macro_json(&macro, &json, &length);
-    }
-    char name[APP_UUID_STRING_LENGTH + sizeof(PACKAGE_IMPORT_JSON_SUFFIX)];
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        const int written = snprintf(name, sizeof(name), "%s.json", macro.id.value);
-        result = written >= 0 && (size_t)written < sizeof(name)
-                     ? join_path(directory, name, path, sizeof(path))
-                     : APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_json_file(path, json, length);
-    }
-    if (result == APP_ERROR_NONE) {
-        order->ids[order->count++] = macro.id;
-    }
-    cJSON_free(json);
-    macro_model_free_macro(&macro);
-    return result;
-}
-
-static app_error_code_t write_import_macros(const char *set_root, const cJSON *array,
-                                            const package_import_rewrite_t *rewrite) {
-    char directory[APP_PATH_MAX_BYTES];
-    app_error_code_t result = join_path(set_root, "macros", directory, sizeof(directory));
-    storage_uuid_order_t order = {0};
-    const int count = cJSON_GetArraySize(array);
-    for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
-        result =
-            write_import_macro_node(directory, cJSON_GetArrayItem(array, index), rewrite, &order);
-    }
-    return result == APP_ERROR_NONE
-               ? write_import_order(set_root, "macro-order.json", &order, APP_MACROS_PER_SET_MAX)
-               : result;
-}
-
-/* The set directory is created at its final path: import-new always writes a
- * brand-new identity that nothing references yet, so there is nothing to stage
- * away from and nothing to swap (SPEC 13.3). */
-static app_error_code_t create_set_directories(const char *set_root) {
-    app_error_code_t result = storage_repository_make_directory(set_root);
-    static const char *const children[] = {"macros"};
-    for (size_t index = 0U;
-         result == APP_ERROR_NONE && index < sizeof(children) / sizeof(children[0]); ++index) {
-        char path[APP_PATH_MAX_BYTES];
-        result = join_path(set_root, children[index], path, sizeof(path));
-        if (result == APP_ERROR_NONE) {
-            result = storage_repository_make_directory(path);
-        }
-    }
-    return result;
-}
-
+/* Assembles the imported set as one document and writes it as one file.
+ * Every macro is stamped with the new set identity and reset to revision 1,
+ * because import-new mints a fresh identity for everything it materializes. */
 static app_error_code_t materialize_set(const package_import_document_t *document,
                                         const macro_set_t *new_set,
-                                        const package_import_rewrite_t *rewrite,
-                                        const char *set_root) {
-    app_error_code_t result = write_import_set(set_root, new_set);
-    if (result == APP_ERROR_NONE) {
-        result = write_import_macros(set_root, document->arrays[PACKAGE_IMPORT_MACROS], rewrite);
+                                        const package_import_rewrite_t *rewrite) {
+    const cJSON *array = document->arrays[PACKAGE_IMPORT_MACROS];
+    const int count = cJSON_GetArraySize(array);
+    if (count < 0 || (size_t)count > APP_MACROS_PER_SET_MAX) {
+        return APP_ERROR_INVALID_ARGUMENT;
     }
+    storage_set_document_t stored = {.set = *new_set};
+    if (count > 0) {
+        stored.macros = calloc((size_t)count, sizeof(*stored.macros));
+        if (stored.macros == NULL) {
+            return APP_ERROR_INTERNAL;
+        }
+    }
+    app_error_code_t result = APP_ERROR_NONE;
+    for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
+        macro_t macro = {0};
+        result = parse_macro_node(cJSON_GetArrayItem(array, index), &macro);
+        if (result == APP_ERROR_NONE && !app_uuid_equal(&macro.set_id, rewrite->source_set_id)) {
+            result = APP_ERROR_INVALID_ARGUMENT;
+        }
+        if (result != APP_ERROR_NONE) {
+            macro_model_free_macro(&macro);
+            break;
+        }
+        macro.set_id = *rewrite->new_set_id;
+        macro.revision = 1U;
+        stored.macros[stored.macro_count] = macro;
+        ++stored.macro_count;
+    }
+    if (result == APP_ERROR_NONE) {
+        result = storage_repository_store_set_document(&stored);
+    }
+    storage_set_document_free(&stored);
     return result;
 }
 
@@ -297,23 +226,18 @@ static app_error_code_t import_locked(const app_uuid_t *new_set_id,
         .source_set_id = &document->source_set.id,
         .new_set_id = new_set_id,
     };
-    char destination[APP_PATH_MAX_BYTES] = {0};
+    bool written = false;
     if (result == APP_ERROR_NONE) {
-        result = storage_make_set_path(&new_set.id, destination, sizeof(destination));
-    }
-    if (result == APP_ERROR_NONE) {
-        result = create_set_directories(destination);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = materialize_set(document, &new_set, &rewrite, destination);
+        result = materialize_set(document, &new_set, &rewrite);
+        written = result == APP_ERROR_NONE;
     }
     if (result == APP_ERROR_NONE) {
         /* Index last: the imported set is unreferenced until this write lands. */
         index.ids[index.count++] = new_set.id;
         result = storage_repository_write_index(&index);
     }
-    if (result != APP_ERROR_NONE && destination[0] != '\0') {
-        const app_error_code_t cleanup = storage_repository_remove_tree(destination);
+    if (result != APP_ERROR_NONE && written) {
+        const app_error_code_t cleanup = storage_repository_remove_set_file(&new_set.id);
         if (cleanup != APP_ERROR_NONE) {
             result = cleanup;
         }

@@ -43,6 +43,38 @@ static bool field_name_allowed(const char *name, const char *const *field_names,
     return false;
 }
 
+/* Enforces the exact field set on an object that is already parsed: every member
+ * must be named in `field_names`, none may repeat, and the first
+ * `required_count` must be present. Split out of
+ * storage_json_parse_object_fields so nested objects -- the macros inside a set
+ * file -- get the identical contract rather than a second implementation of it. */
+app_error_code_t storage_json_check_object_fields(const cJSON *object,
+                                                  const char *const *field_names,
+                                                  size_t field_count, size_t required_count) {
+    if (!cJSON_IsObject(object) || field_names == NULL || field_count == 0U ||
+        field_count > STORAGE_JSON_MAX_FIELDS || required_count > field_count) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    uint64_t seen = UINT64_C(0);
+    for (const cJSON *item = object->child; item != NULL; item = item->next) {
+        size_t index = 0U;
+        if (!field_name_allowed(item->string, field_names, field_count, &index)) {
+            return APP_ERROR_STORAGE_CORRUPT;
+        }
+        const uint64_t bit = UINT64_C(1) << index;
+        if ((seen & bit) != 0U) {
+            return APP_ERROR_STORAGE_CORRUPT;
+        }
+        seen |= bit;
+    }
+    for (size_t index = 0U; index < required_count; ++index) {
+        if ((seen & (UINT64_C(1) << index)) == 0U) {
+            return APP_ERROR_STORAGE_CORRUPT;
+        }
+    }
+    return APP_ERROR_NONE;
+}
+
 app_error_code_t storage_json_parse_object_fields(const char *data, size_t length,
                                                   const char *const *field_names,
                                                   size_t field_count, size_t required_count,
@@ -63,29 +95,8 @@ app_error_code_t storage_json_parse_object_fields(const char *data, size_t lengt
         cJSON_Delete(root);
         return APP_ERROR_STORAGE_CORRUPT;
     }
-    uint64_t seen = UINT64_C(0);
-    app_error_code_t result = APP_ERROR_NONE;
-    for (const cJSON *item = root->child; item != NULL; item = item->next) {
-        size_t index = 0U;
-        if (!field_name_allowed(item->string, field_names, field_count, &index)) {
-            result = APP_ERROR_STORAGE_CORRUPT;
-            break;
-        }
-        const uint64_t bit = UINT64_C(1) << index;
-        if ((seen & bit) != 0U) {
-            result = APP_ERROR_STORAGE_CORRUPT;
-            break;
-        }
-        seen |= bit;
-    }
-    if (result == APP_ERROR_NONE) {
-        for (size_t index = 0U; index < required_count; ++index) {
-            if ((seen & (UINT64_C(1) << index)) == 0U) {
-                result = APP_ERROR_STORAGE_CORRUPT;
-                break;
-            }
-        }
-    }
+    const app_error_code_t result =
+        storage_json_check_object_fields(root, field_names, field_count, required_count);
     if (result != APP_ERROR_NONE) {
         cJSON_Delete(root);
         return result;

@@ -16,6 +16,7 @@
 #include "storage.h"
 #include "storage_fs_ops.h"
 #include "storage_object_json.h"
+#include "storage_repository_document.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 
@@ -65,10 +66,6 @@ static app_error_code_t make_directory(const char *path) {
         result = sync_parent(path);
     }
     return result;
-}
-
-static app_error_code_t write_json_file(const char *path, const char *json, size_t length) {
-    return storage_atomic_write(path, json, length, true);
 }
 
 static app_error_code_t node_json(const cJSON *node, char **out_json, size_t *out_length) {
@@ -136,155 +133,60 @@ static void close_document(package_restore_document_t *document) {
     memset(document, 0, sizeof(*document));
 }
 
-static app_error_code_t write_order_file(const char *directory, const char *name,
-                                         const storage_uuid_order_t *order, size_t maximum) {
-    char *json = NULL;
-    size_t length = 0U;
-    app_error_code_t result =
-        storage_repository_serialize_order_json(order, maximum, &json, &length);
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        result = join_path(directory, name, path, sizeof(path));
+/* Restore writes one file per set (SPEC 13.5): each set from the backup is
+ * assembled into a document and stored atomically. It is deliberately NOT atomic
+ * across sets -- an interruption leaves the sets written so far, and Phase 5
+ * makes the response say which those were. */
+static app_error_code_t materialize_one_set(const package_restore_document_t *document,
+                                            const macro_set_t *set) {
+    const cJSON *array = document->arrays[PACKAGE_RESTORE_MACROS];
+    const int count = cJSON_GetArraySize(array);
+    if (count < 0) {
+        return APP_ERROR_INVALID_ARGUMENT;
     }
-    if (result == APP_ERROR_NONE) {
-        result = write_json_file(path, json, length);
-    }
-    cJSON_free(json);
-    return result;
-}
-
-static app_error_code_t write_set_index(const char *data_root, const storage_set_index_t *index) {
-    cJSON *root = cJSON_CreateObject();
-    cJSON *ids = cJSON_CreateArray();
-    if (root == NULL || ids == NULL ||
-        cJSON_AddNumberToObject(root, "schema_version", 1.0) == NULL ||
-        !cJSON_AddItemToObject(root, "ids", ids)) {
-        cJSON_Delete(ids);
-        cJSON_Delete(root);
-        return APP_ERROR_INTERNAL;
-    }
-    for (size_t item = 0U; item < index->count; ++item) {
-        cJSON *value = cJSON_CreateString(index->ids[item].value);
-        if (value == NULL || !cJSON_AddItemToArray(ids, value)) {
-            cJSON_Delete(value);
-            cJSON_Delete(root);
+    storage_set_document_t stored = {.set = *set};
+    if (count > 0) {
+        stored.macros = calloc((size_t)count, sizeof(*stored.macros));
+        if (stored.macros == NULL) {
             return APP_ERROR_INTERNAL;
         }
     }
-    char *json = cJSON_PrintUnformatted(root);
-    cJSON_Delete(root);
-    if (json == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
-    const size_t length = strlen(json);
-    char path[APP_PATH_MAX_BYTES];
-    app_error_code_t result = length <= STORAGE_INDEX_FILE_MAX_BYTES
-                                  ? join_path(data_root, "set-index.json", path, sizeof(path))
-                                  : APP_ERROR_INVALID_ARGUMENT;
-    if (result == APP_ERROR_NONE) {
-        result = write_json_file(path, json, length);
-    }
-    cJSON_free(json);
-    return result;
-}
-
-static app_error_code_t write_set_metadata(const char *set_root, const macro_set_t *set) {
-    char *json = NULL;
-    size_t length = 0U;
-    app_error_code_t result = storage_repository_serialize_set_json(set, &json, &length);
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        result = join_path(set_root, "set.json", path, sizeof(path));
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_json_file(path, json, length);
-    }
-    cJSON_free(json);
-    return result;
-}
-
-static app_error_code_t write_macro_object(const char *directory, const macro_t *macro) {
-    char *json = NULL;
-    size_t length = 0U;
-    app_error_code_t result = storage_repository_serialize_macro_json(macro, &json, &length);
-    char name[APP_UUID_STRING_LENGTH + sizeof(PACKAGE_JSON_SUFFIX)];
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        const int written = snprintf(name, sizeof(name), "%s.json", macro->id.value);
-        result = written >= 0 && (size_t)written < sizeof(name)
-                     ? join_path(directory, name, path, sizeof(path))
-                     : APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_json_file(path, json, length);
-    }
-    cJSON_free(json);
-    return result;
-}
-
-static app_error_code_t create_set_directories(const char *sets_root, const app_uuid_t *set_id,
-                                               char *out_set_root, size_t set_root_size) {
-    app_error_code_t result = join_path(sets_root, set_id->value, out_set_root, set_root_size);
-    if (result == APP_ERROR_NONE) {
-        result = make_directory(out_set_root);
-    }
-    static const char *const children[] = {"macros"};
-    for (size_t index = 0U;
-         result == APP_ERROR_NONE && index < sizeof(children) / sizeof(children[0]); ++index) {
-        char path[APP_PATH_MAX_BYTES];
-        result = join_path(out_set_root, children[index], path, sizeof(path));
-        if (result == APP_ERROR_NONE) {
-            result = make_directory(path);
-        }
-    }
-    return result;
-}
-
-static app_error_code_t write_set_macros(const package_restore_document_t *document,
-                                         const macro_set_t *set, const char *set_root) {
-    char directory[APP_PATH_MAX_BYTES];
-    app_error_code_t result = join_path(set_root, "macros", directory, sizeof(directory));
-    /* storage_uuid_order_t is ~3.7 KB. With the transaction layer gone this
-     * function inlines into materialize_sets, which put that frame at 5152
-     * bytes against the ratchet's 4096 (scripts/check-stack-usage.sh). */
-    storage_uuid_order_t *order = calloc(1U, sizeof(*order));
-    if (order == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
-    const int count = cJSON_GetArraySize(document->arrays[PACKAGE_RESTORE_MACROS]);
+    app_error_code_t result = APP_ERROR_NONE;
     for (int index = 0; result == APP_ERROR_NONE && index < count; ++index) {
         macro_t macro = {0};
-        result = parse_macro_node(
-            cJSON_GetArrayItem(document->arrays[PACKAGE_RESTORE_MACROS], index), &macro);
-        const bool belongs = result == APP_ERROR_NONE && app_uuid_equal(&macro.set_id, &set->id);
-        if (result == APP_ERROR_NONE && belongs) {
-            if (order->count >= APP_MACROS_PER_SET_MAX) {
-                result = APP_ERROR_INVALID_ARGUMENT;
-            } else {
-                result = write_macro_object(directory, &macro);
-                if (result == APP_ERROR_NONE) {
-                    order->ids[order->count++] = macro.id;
-                }
-            }
+        result = parse_macro_node(cJSON_GetArrayItem(array, index), &macro);
+        if (result != APP_ERROR_NONE) {
+            macro_model_free_macro(&macro);
+            break;
         }
-        macro_model_free_macro(&macro);
+        /* The backup keeps every set's macros in one flat array, so each set
+         * takes only the macros that name it. */
+        if (!app_uuid_equal(&macro.set_id, &set->id)) {
+            macro_model_free_macro(&macro);
+            continue;
+        }
+        if (stored.macro_count >= APP_MACROS_PER_SET_MAX) {
+            macro_model_free_macro(&macro);
+            result = APP_ERROR_INVALID_ARGUMENT;
+            break;
+        }
+        stored.macros[stored.macro_count] = macro;
+        ++stored.macro_count;
     }
     if (result == APP_ERROR_NONE) {
-        result = write_order_file(set_root, "macro-order.json", order, APP_MACROS_PER_SET_MAX);
+        result = storage_repository_store_set_document(&stored);
     }
-    free(order);
+    storage_set_document_free(&stored);
     return result;
 }
 
-static app_error_code_t materialize_sets(const package_restore_document_t *document,
-                                         const char *data_root) {
-    char sets_root[APP_PATH_MAX_BYTES];
-    app_error_code_t result = join_path(data_root, "sets", sets_root, sizeof(sets_root));
+static app_error_code_t materialize_sets(const package_restore_document_t *document) {
     /* storage_set_index_t is several KiB; keep it off the task stack. */
     storage_set_index_t *index = calloc(1U, sizeof(*index));
     if (index == NULL) {
         return APP_ERROR_INTERNAL;
     }
+    app_error_code_t result = APP_ERROR_NONE;
     const int count = cJSON_GetArraySize(document->arrays[PACKAGE_RESTORE_SETS]);
     for (int item = 0; result == APP_ERROR_NONE && item < count; ++item) {
         macro_set_t set = {0};
@@ -293,30 +195,20 @@ static app_error_code_t materialize_sets(const package_restore_document_t *docum
         if (result == APP_ERROR_NONE && index->count >= APP_MACRO_SETS_MAX) {
             result = APP_ERROR_INVALID_ARGUMENT;
         }
-        char set_root[APP_PATH_MAX_BYTES];
         if (result == APP_ERROR_NONE) {
-            result = create_set_directories(sets_root, &set.id, set_root, sizeof(set_root));
-        }
-        if (result == APP_ERROR_NONE) {
-            result = write_set_metadata(set_root, &set);
-        }
-        if (result == APP_ERROR_NONE) {
-            result = write_set_macros(document, &set, set_root);
+            result = materialize_one_set(document, &set);
         }
         if (result == APP_ERROR_NONE) {
             index->ids[index->count++] = set.id;
         }
     }
     if (result == APP_ERROR_NONE) {
-        result = write_set_index(data_root, index);
+        result = storage_repository_write_index(index);
     }
     free(index);
     return result;
 }
 
-/* Clears the existing repository so the backup's sets can be written in its
- * place. Only sets/ and the set index are touched: everything else under /data
- * belongs to other subsystems or does not exist. */
 static app_error_code_t clear_existing_sets(void) {
     char sets_root[APP_PATH_MAX_BYTES];
     app_error_code_t result = join_path(STORAGE_DATA_MOUNT, "sets", sets_root, sizeof(sets_root));
@@ -343,7 +235,7 @@ static app_error_code_t clear_existing_sets(void) {
 static app_error_code_t restore_locked(const package_restore_document_t *document) {
     app_error_code_t result = clear_existing_sets();
     if (result == APP_ERROR_NONE) {
-        result = materialize_sets(document, STORAGE_DATA_MOUNT);
+        result = materialize_sets(document);
     }
     return result;
 }

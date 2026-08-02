@@ -17,6 +17,7 @@
 #include "storage_object_json.h"
 #include "storage_package.h"
 #include "storage_repository.h"
+#include "storage_repository_document.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 #include "test_assert.h"
@@ -56,28 +57,13 @@ static void reset_storage(void) {
     TEST_CHECK((size_t)written < sizeof(command));
     TEST_CHECK_EQ_INT(0, system(command));
     make_directory(STORAGE_DATA_MOUNT);
-    static const char *const roots[] = {
-        "transactions",
-        "staging",
-        "sets",
-        "trash",
-    };
+    static const char *const roots[] = {"sets"};
     char path[APP_PATH_MAX_BYTES];
     for (size_t index = 0U; index < sizeof(roots) / sizeof(roots[0]); ++index) {
         join_path(path, sizeof(path), STORAGE_DATA_MOUNT, roots[index]);
         make_directory(path);
     }
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_lock_init());
-}
-
-static void write_set_file(const char *set_path, const macro_set_t *set) {
-    char *json = NULL;
-    size_t length = 0U;
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_serialize_set_json(set, &json, &length));
-    char path[APP_PATH_MAX_BYTES];
-    join_path(path, sizeof(path), set_path, "set.json");
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_atomic_write(path, json, length, true));
-    cJSON_free(json);
 }
 
 static void create_current_set(void) {
@@ -88,42 +74,11 @@ static void create_current_set(void) {
         .revision = 3U,
     };
     memcpy(set.name, "Current", sizeof("Current"));
-    char set_path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_make_set_path(&id, set_path, sizeof(set_path)));
-    make_directory(set_path);
-    static const char *const children[] = {"macros"};
-    char path[APP_PATH_MAX_BYTES];
-    for (size_t index = 0U; index < sizeof(children) / sizeof(children[0]); ++index) {
-        join_path(path, sizeof(path), set_path, children[index]);
-        make_directory(path);
-    }
-    write_set_file(set_path, &set);
-    static const char empty_order[] = "{\"schema_version\":1,\"ids\":[]}";
-    join_path(path, sizeof(path), set_path, "macro-order.json");
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      storage_atomic_write(path, empty_order, strlen(empty_order), true));
-    storage_set_index_t index = {.ids = {id}, .count = 1U};
+    /* One file, written whole. */
+    const storage_set_document_t document = {.set = set};
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_store_set_document(&document));
+    storage_set_index_t index = {.revision = 1U, .ids = {id}, .count = 1U};
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_write_index(&index));
-}
-
-static bool directory_empty(const char *path) {
-    DIR *directory = opendir(path);
-    TEST_CHECK(directory != NULL);
-    bool empty = true;
-    while (true) {
-        errno = 0;
-        const struct dirent *entry = readdir(directory);
-        if (entry == NULL) {
-            TEST_CHECK_EQ_INT(0, errno);
-            break;
-        }
-        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-            empty = false;
-            break;
-        }
-    }
-    TEST_CHECK_EQ_INT(0, closedir(directory));
-    return empty;
 }
 
 static void prepare_valid_state(void) {
@@ -172,9 +127,6 @@ static void test_valid_replace_commits_complete_tree(void) {
     TEST_CHECK_EQ_U64(4U, macro.revision);
     macro_model_free_macro(&macro);
 
-    TEST_CHECK(directory_empty(STORAGE_DATA_MOUNT "/transactions"));
-    TEST_CHECK(directory_empty(STORAGE_DATA_MOUNT "/staging"));
-    TEST_CHECK(directory_empty(STORAGE_DATA_MOUNT "/trash"));
     storage_set_index_t index = {0};
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_load_index(&index));
     TEST_CHECK_EQ_U64(1U, index.count);

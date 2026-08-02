@@ -78,9 +78,7 @@
 18528 firmware/components/storage/storage_package_replace.c:storage_package_replace_set
 16560 firmware/components/storage/storage_set_tree.c:storage_set_tree_validate
 7712 firmware/components/storage/storage_repository_procedures.c:procedure_reorder_locked
-7456 firmware/components/storage/storage_repository_macros.c:macro_reorder_locked
 5584 firmware/components/storage/storage_transaction.c:storage_transaction_recover_all_with_ops$part$0
 4768 firmware/components/storage/storage_repository_procedures.c:procedure_create_locked
 4736 firmware/components/storage/storage_repository_set_operations.c:storage_set_duplicate_locked
 4416 firmware/components/storage/storage_repository_procedures.c:procedure_delete_locked
-4192 firmware/components/storage/storage_repository_macros.c:macro_delete_locked

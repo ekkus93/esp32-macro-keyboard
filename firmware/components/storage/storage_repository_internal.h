@@ -11,11 +11,16 @@
 #include "storage_fs_ops.h"
 #include "storage_object_json.h"
 
-#define STORAGE_INDEX_FILE_MAX_BYTES 4096U
-#define STORAGE_SCHEMA_FILE_PATH STORAGE_DATA_MOUNT "/schema.json"
-#define STORAGE_SET_INDEX_FILE_PATH STORAGE_DATA_MOUNT "/set-index.json"
+/* SPEC 13.3: /data holds index.json and sets/, and nothing else. The separate
+ * schema.json marker is gone -- the index carries schema_version itself, and a
+ * second file recording the same number is a second thing to keep in step. */
+#define STORAGE_INDEX_FILE_PATH STORAGE_DATA_MOUNT "/index.json"
 
+/* SPEC 12.3, less `active_set_id`, which Phase 4b moves here from the
+ * provisioning NVS blob. `revision` is the index's own revision, not any
+ * set's. */
 typedef struct {
+    uint32_t revision;
     app_uuid_t ids[APP_MACRO_SETS_MAX];
     size_t count;
 } storage_set_index_t;
@@ -34,8 +39,6 @@ app_error_code_t
 storage_repository_ensure_initial_file_with_ops(const char *path, const char *contents,
                                                 const storage_fs_ops_t *operations);
 app_error_code_t storage_repository_ensure_initial_file(const char *path, const char *contents);
-app_error_code_t storage_repository_set_file_path(const app_uuid_t *set_id, char *buffer,
-                                                  size_t buffer_size);
 /* Deletes a file whose contents could not be parsed. Replaces quarantine:
  * damaged data is discarded and the failure is reported, not archived. */
 app_error_code_t storage_repository_discard_corrupt_file(const char *path);

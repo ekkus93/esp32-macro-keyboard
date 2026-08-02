@@ -9,6 +9,9 @@
 #include "app_uuid.h"
 #include "cJSON.h"
 
+app_error_code_t storage_json_check_object_fields(const cJSON *object,
+                                                  const char *const *field_names,
+                                                  size_t field_count, size_t required_count);
 app_error_code_t storage_json_parse_object_fields(const char *data, size_t length,
                                                   const char *const *field_names,
                                                   size_t field_count, size_t required_count,

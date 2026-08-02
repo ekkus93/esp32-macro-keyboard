@@ -206,7 +206,10 @@ static void test_set_local_crud_duplicate_and_order(void) {
     macro_model_free_macro(&second);
 }
 
-static void test_corrupt_macro_is_discarded(void) {
+/* Macros live inline in their set file, so there is no per-macro file to damage:
+ * a corrupt macro is a corrupt set. The file is discarded and the failure
+ * reported (SPEC 13.6) rather than the set being read back missing a macro. */
+static void test_corrupt_set_file_is_discarded(void) {
     reset_store();
     macro_set_t set;
     create_set(&set);
@@ -215,8 +218,7 @@ static void test_corrupt_macro_is_discarded(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(location, &macro));
 
     char path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_make_macro_path(&set.id, &macro.id, path, sizeof(path)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_set_path(&set.id, path, sizeof(path)));
     static const char invalid[] = "{not json";
     write_file(path, invalid, sizeof(invalid) - 1U);
 
@@ -243,14 +245,19 @@ static void test_missing_set_and_revision_overflow(void) {
     macro = make_macro(71U, existing, "Max revision", "TEXT max");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(existing, &macro));
 
+    /* Planted by rewriting the whole set file, because that is the only file a
+     * macro lives in now. */
     macro.revision = UINT32_MAX;
     char *json = NULL;
     size_t length = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_serialize_macro_json(&macro, &json, &length));
+    const storage_set_document_t document = {
+        .set = set,
+        .macros = &macro,
+        .macro_count = 1U,
+    };
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_document_serialize(&document, &json, &length));
     char path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_make_macro_path(&set.id, &macro.id, path, sizeof(path)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_set_path(&set.id, path, sizeof(path)));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_atomic_write(path, json, length, true));
     cJSON_free(json);
 
@@ -265,7 +272,7 @@ int main(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
     test_argument_validation();
     test_set_local_crud_duplicate_and_order();
-    test_corrupt_macro_is_discarded();
+    test_corrupt_set_file_is_discarded();
     test_missing_set_and_revision_overflow();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());

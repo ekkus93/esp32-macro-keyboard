@@ -16,6 +16,7 @@
 #include "macro_model.h"
 #include "storage.h"
 #include "storage_object_json.h"
+#include "storage_repository_document.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_sets_internal.h"
@@ -125,30 +126,18 @@ app_error_code_t storage_set_delete(const app_uuid_t *set_id, uint32_t expected_
 }
 
 app_error_code_t storage_set_read_locked(const app_uuid_t *set_id, macro_set_t *out_set) {
-    if (set_id == NULL || out_set == NULL || !app_uuid_is_valid_string(set_id->value)) {
+    if (out_set != NULL) {
+        memset(out_set, 0, sizeof(*out_set));
+    }
+    if (set_id == NULL || out_set == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    char path[APP_PATH_MAX_BYTES];
-    app_error_code_t result = storage_repository_set_file_path(set_id, path, sizeof(path));
-    if (result != APP_ERROR_NONE) {
-        return result;
+    storage_set_document_t document = {0};
+    const app_error_code_t result = storage_repository_load_set_document(set_id, &document);
+    if (result == APP_ERROR_NONE) {
+        *out_set = document.set;
     }
-    char *data = NULL;
-    size_t length = 0U;
-    result = storage_repository_read_bounded_file(path, STORAGE_SET_FILE_MAX_BYTES, &data, &length);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    result = storage_repository_parse_set_json(data, length, out_set);
-    free(data);
-    if (result == APP_ERROR_NONE && !app_uuid_equal(set_id, &out_set->id)) {
-        memset(out_set, 0, sizeof(*out_set));
-        result = APP_ERROR_STORAGE_CORRUPT;
-    }
-    if (result == APP_ERROR_STORAGE_CORRUPT) {
-        const app_error_code_t discard = storage_repository_discard_corrupt_file(path);
-        return discard == APP_ERROR_NONE ? result : discard;
-    }
+    storage_set_document_free(&document);
     return result;
 }
 
@@ -162,6 +151,8 @@ static app_error_code_t storage_set_list_locked(storage_set_list_t *out_list) {
     if (result != APP_ERROR_NONE) {
         return result;
     }
+    /* The index is the order (SPEC 12.3); the list is built by walking it, never
+     * by listing the directory. */
     for (size_t item = 0U; item < index.count; ++item) {
         result = storage_set_read_locked(&index.ids[item], &out_list->items[item]);
         if (result != APP_ERROR_NONE) {
@@ -173,65 +164,7 @@ static app_error_code_t storage_set_list_locked(storage_set_list_t *out_list) {
     return APP_ERROR_NONE;
 }
 
-/* Written straight to its final location: there is no staging directory to
- * assemble into and rename from (SPEC 13.3). The set is not referenced by the
- * index until every file below is on disk, so an interruption leaves an
- * unreferenced directory rather than a dangling index entry. */
-static app_error_code_t storage_repository_write_set_tree(const macro_set_t *set,
-                                                          const char *destination) {
-    app_error_code_t result = storage_repository_make_directory(destination);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-
-    static const char *const child_names[] = {"macros"};
-    for (size_t child = 0U; child < (sizeof(child_names) / sizeof(child_names[0])); ++child) {
-        char path[APP_PATH_MAX_BYTES];
-        const int written = snprintf(path, sizeof(path), "%s/%s", destination, child_names[child]);
-        if (written < 0 || (size_t)written >= sizeof(path)) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        result = storage_repository_make_directory(path);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-    }
-
-    char *json = NULL;
-    size_t json_length = 0U;
-    result = storage_repository_serialize_set_json(set, &json, &json_length);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    char path[APP_PATH_MAX_BYTES];
-    int written = snprintf(path, sizeof(path), "%s/set.json", destination);
-    if (written < 0 || (size_t)written >= sizeof(path)) {
-        cJSON_free(json);
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    result = storage_atomic_write(path, json, json_length, true);
-    cJSON_free(json);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-
-    static const char empty_order[] = "{\"schema_version\":1,\"ids\":[]}";
-    const char *const order_names[] = {"macro-order.json"};
-    for (size_t order = 0U; order < (sizeof(order_names) / sizeof(order_names[0])); ++order) {
-        written = snprintf(path, sizeof(path), "%s/%s", destination, order_names[order]);
-        if (written < 0 || (size_t)written >= sizeof(path)) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        result = storage_atomic_write(path, empty_order, strlen(empty_order), true);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-    }
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t prepare_set_create(const macro_set_t *set, storage_set_index_t *index,
-                                           char *destination, size_t destination_size) {
+static app_error_code_t prepare_set_create(const macro_set_t *set, storage_set_index_t *index) {
     app_error_code_t result = storage_repository_load_index(index);
     if (result != APP_ERROR_NONE) {
         return result;
@@ -244,18 +177,16 @@ static app_error_code_t prepare_set_create(const macro_set_t *set, storage_set_i
             return APP_ERROR_CONFLICT;
         }
     }
-    result = storage_make_set_path(&set->id, destination, destination_size);
+    char path[APP_PATH_MAX_BYTES];
+    result = storage_make_set_path(&set->id, path, sizeof(path));
     if (result != APP_ERROR_NONE) {
         return result;
     }
     struct stat metadata;
-    if (stat(destination, &metadata) == 0) {
+    if (stat(path, &metadata) == 0) {
         return APP_ERROR_CONFLICT;
     }
-    if (errno != ENOENT) {
-        return storage_repository_map_file_error();
-    }
-    return APP_ERROR_NONE;
+    return errno == ENOENT ? APP_ERROR_NONE : storage_repository_map_file_error();
 }
 
 static app_error_code_t storage_set_create_locked(const macro_set_t *set) {
@@ -263,25 +194,26 @@ static app_error_code_t storage_set_create_locked(const macro_set_t *set) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     storage_set_index_t index = {0};
-    char destination[APP_PATH_MAX_BYTES];
-    app_error_code_t result = prepare_set_create(set, &index, destination, sizeof(destination));
+    app_error_code_t result = prepare_set_create(set, &index);
     if (result != APP_ERROR_NONE) {
         return result;
     }
 
-    result = storage_repository_write_set_tree(set, destination);
+    /* A new set is a file with an empty macros array -- one write, not a
+     * directory tree with an order file to keep in step (SPEC 12.1). */
+    const storage_set_document_t document = {.set = *set};
+    result = storage_repository_store_set_document(&document);
     if (result != APP_ERROR_NONE) {
-        const app_error_code_t cleanup_result = storage_repository_remove_tree(destination);
-        return cleanup_result == APP_ERROR_NONE ? result : cleanup_result;
+        return result;
     }
 
-    /* Index last: until this write lands the new directory is unreferenced, and
-     * an unreferenced directory is invisible rather than corrupt. */
+    /* Index last: until this write lands the new file is unreferenced, and an
+     * unreferenced file is invisible rather than corrupt. */
     index.ids[index.count++] = set->id;
     result = storage_repository_write_index(&index);
     if (result != APP_ERROR_NONE) {
-        const app_error_code_t cleanup_result = storage_repository_remove_tree(destination);
-        return cleanup_result == APP_ERROR_NONE ? result : cleanup_result;
+        const app_error_code_t cleanup = storage_repository_remove_set_file(&set->id);
+        return cleanup == APP_ERROR_NONE ? result : cleanup;
     }
     return APP_ERROR_NONE;
 }
@@ -292,35 +224,33 @@ static app_error_code_t storage_set_update_locked(const macro_set_t *replacement
     if (replacement == NULL || out_updated == NULL || expected_revision == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    macro_set_t current = {0};
-    app_error_code_t result = storage_set_read_locked(&replacement->id, &current);
+    storage_set_document_t document = {0};
+    app_error_code_t result = storage_repository_load_set_document(&replacement->id, &document);
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    if (current.revision != expected_revision || replacement->revision != expected_revision) {
+    if (document.set.revision != expected_revision || replacement->revision != expected_revision) {
+        storage_set_document_free(&document);
         return APP_ERROR_CONFLICT;
     }
-    macro_set_t updated = *replacement;
-    if (updated.revision == UINT32_MAX) {
+    if (document.set.revision == UINT32_MAX) {
+        storage_set_document_free(&document);
         return APP_ERROR_CONFLICT;
     }
-    ++updated.revision;
-
-    char *json = NULL;
-    size_t json_length = 0U;
-    result = storage_repository_serialize_set_json(&updated, &json, &json_length);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    char path[APP_PATH_MAX_BYTES];
-    result = storage_repository_set_file_path(&updated.id, path, sizeof(path));
+    /* Only the set's own fields change; its macros are carried through
+     * untouched, because they live in the same file. */
+    const macro_set_t updated = {
+        .schema_version = replacement->schema_version,
+        .id = replacement->id,
+        .revision = replacement->revision + 1U,
+    };
+    document.set = updated;
+    memcpy(document.set.name, replacement->name, sizeof(document.set.name));
+    result = storage_repository_store_set_document(&document);
     if (result == APP_ERROR_NONE) {
-        result = storage_atomic_write(path, json, json_length, true);
+        *out_updated = document.set;
     }
-    cJSON_free(json);
-    if (result == APP_ERROR_NONE) {
-        *out_updated = updated;
-    }
+    storage_set_document_free(&document);
     return result;
 }
 
@@ -357,22 +287,10 @@ static app_error_code_t storage_set_delete_locked(const app_uuid_t *set_id,
         return APP_ERROR_STORAGE_CORRUPT;
     }
 
-    char source[APP_PATH_MAX_BYTES];
-    result = storage_make_set_path(set_id, source, sizeof(source));
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-
-    /* Deletion is permanent (SPEC 8.6): the set is removed, not renamed into a
-     * trash directory. The typed-name confirmation in the UI is the safeguard,
-     * and a 512 KiB partition cannot afford to keep a copy of everything the
-     * user has discarded.
-     *
-     * The index is written first so the set stops being referenced before its
-     * bytes go. An interruption between the two leaves an unreferenced
-     * directory -- invisible to every reader, since all of them enumerate
-     * through the index -- rather than an index entry pointing at a
-     * half-removed set. */
+    /* Deletion is permanent (SPEC 8.6). The index is written first so the set
+     * stops being referenced before its bytes go: an interruption between the
+     * two leaves an unreferenced file, which every reader ignores because they
+     * all enumerate through the index. */
     for (size_t item = found; item + 1U < index.count; ++item) {
         index.ids[item] = index.ids[item + 1U];
     }
@@ -381,5 +299,5 @@ static app_error_code_t storage_set_delete_locked(const app_uuid_t *set_id,
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    return storage_repository_remove_tree(source);
+    return storage_repository_remove_set_file(set_id);
 }

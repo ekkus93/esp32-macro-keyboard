@@ -382,6 +382,7 @@ add_executable(
     ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/storage/storage_repository_index.c
     ../../firmware/components/storage/storage_repository_sets.c
+    ../../firmware/components/storage/storage_repository_document.c
     ../../firmware/components/storage/storage_repository_lock.c
 )
 target_include_directories(
@@ -491,6 +492,7 @@ add_executable(
     ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/storage/storage_repository_index.c
     ../../firmware/components/storage/storage_repository_sets.c
+    ../../firmware/components/storage/storage_repository_document.c
     ../../firmware/components/storage/storage_repository_lock.c
 )
 target_include_directories(
@@ -519,9 +521,9 @@ set(STORAGE_OBJECT_REPOSITORY_SOURCES
     ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/storage/storage_repository_index.c
     ../../firmware/components/storage/storage_repository_sets.c
+    ../../firmware/components/storage/storage_repository_document.c
     ../../firmware/components/storage/storage_repository_set_operations.c
     ../../firmware/components/storage/storage_repository_lock.c
-    ../../firmware/components/storage/storage_repository_order.c
     ../../firmware/components/storage/storage_repository_macros.c
 )
 

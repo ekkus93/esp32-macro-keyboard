@@ -49,10 +49,10 @@ static bool path_has_suffix(const char *path, const char *suffix) {
 
 app_error_code_t __wrap_storage_atomic_write(const char *path, const void *data, size_t data_length,
                                              bool sync_required) {
-    /* Sets are materialized straight into /data/sets/ now that staging is gone
-     * (SPEC 13.3), so the injection point is the set file itself. */
+    /* A set is one file under /data/sets/ (SPEC 13.3), so the injection point is
+     * that file itself. */
     if (inject_set_write_storage_full && path != NULL && strstr(path, "/sets/") != NULL &&
-        path_has_suffix(path, "/set.json")) {
+        path_has_suffix(path, ".json")) {
         return APP_ERROR_STORAGE_FULL;
     }
     return __real_storage_atomic_write(path, data, data_length, sync_required);
@@ -95,10 +95,8 @@ static void create_repository_layout(void) {
         join_path(path, sizeof(path), STORAGE_DATA_MOUNT, directories[index]);
         make_directory(path);
     }
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "schema.json");
-    write_text(path, "{\"schema_version\":1}");
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "set-index.json");
-    write_text(path, "{\"schema_version\":1,\"ids\":[]}");
+    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "index.json");
+    write_text(path, "{\"schema_version\":1,\"revision\":1,\"set_ids\":[]}");
 }
 
 static void create_empty_repository(void) {
@@ -124,14 +122,10 @@ static char *read_text(const char *path) {
 
 static void assert_repository_remains_empty(void) {
     char path[APP_PATH_MAX_BYTES];
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "set-index.json");
+    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "index.json");
     char *index = read_text(path);
-    TEST_CHECK_EQ_STRING("{\"schema_version\":1,\"ids\":[]}", index);
+    TEST_CHECK(strstr(index, "\"set_ids\":[]") != NULL);
     free(index);
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "schema.json");
-    char *schema = read_text(path);
-    TEST_CHECK_EQ_STRING("{\"schema_version\":1}", schema);
-    free(schema);
 }
 
 /* SPEC 13.5: restore is deliberately not atomic across sets. What it must still
@@ -142,19 +136,15 @@ static void test_complete_backup_restores_every_set(void) {
                                              BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U));
 
     char path[APP_PATH_MAX_BYTES];
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "set-index.json");
+    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "index.json");
     char *index = read_text(path);
     TEST_CHECK(strstr(index, SET_ID) != NULL);
     free(index);
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "sets/" SET_ID "/set.json");
+    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "sets/" SET_ID ".json");
     char *set = read_text(path);
     TEST_CHECK(strstr(set, "\"revision\":7") != NULL);
     TEST_CHECK(strstr(set, "\"name\":\"Restored\"") != NULL);
     free(set);
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "schema.json");
-    char *schema = read_text(path);
-    TEST_CHECK_EQ_STRING("{\"schema_version\":1}", schema);
-    free(schema);
 }
 
 /* Mutual-exclusion prover: models one non-recursive lock. On the armed take it

@@ -17,9 +17,9 @@
 #include "macro_model.h"
 #include "storage.h"
 #include "storage_object_json.h"
+#include "storage_repository_document.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
-#include "storage_repository_macros_internal.h"
 #include "storage_repository_sets_internal.h"
 
 static app_error_code_t copy_text(char *destination, size_t destination_size, const char *source,
@@ -34,135 +34,6 @@ static app_error_code_t copy_text(char *destination, size_t destination_size, co
     memset(destination, 0, destination_size);
     memcpy(destination, source, length + 1U);
     return APP_ERROR_NONE;
-}
-
-static app_error_code_t write_json_file(const char *path, char *json, size_t json_length) {
-    if (path == NULL || json == NULL || json_length == 0U) {
-        cJSON_free(json);
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const app_error_code_t result = storage_atomic_write(path, json, json_length, true);
-    cJSON_free(json);
-    return result;
-}
-
-static app_error_code_t make_child_directory(const char *parent, const char *name) {
-    char path[APP_PATH_MAX_BYTES];
-    const int written = snprintf(path, sizeof(path), "%s/%s", parent, name);
-    if (written < 0 || (size_t)written >= sizeof(path)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    return storage_repository_make_directory(path);
-}
-
-static app_error_code_t write_duplicate_metadata(const char *set_root,
-                                                 const macro_set_t *duplicate) {
-    char *json = NULL;
-    size_t json_length = 0U;
-    app_error_code_t result = storage_repository_serialize_set_json(duplicate, &json, &json_length);
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        const int written = snprintf(path, sizeof(path), "%s/set.json", set_root);
-        if (written < 0 || (size_t)written >= sizeof(path)) {
-            result = APP_ERROR_INVALID_ARGUMENT;
-        }
-    }
-    if (result != APP_ERROR_NONE) {
-        cJSON_free(json);
-        return result;
-    }
-    return write_json_file(path, json, json_length);
-}
-
-static app_error_code_t write_duplicate_macro(const char *set_root, const macro_t *source,
-                                              const app_uuid_t *duplicate_set_id) {
-    macro_t duplicate = *source;
-    duplicate.revision = 1U;
-    duplicate.set_id = *duplicate_set_id;
-    char *json = NULL;
-    size_t json_length = 0U;
-    app_error_code_t result =
-        storage_repository_serialize_macro_json(&duplicate, &json, &json_length);
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        const int written =
-            snprintf(path, sizeof(path), "%s/macros/%s.json", set_root, duplicate.id.value);
-        if (written < 0 || (size_t)written >= sizeof(path)) {
-            result = APP_ERROR_INVALID_ARGUMENT;
-        }
-    }
-    if (result != APP_ERROR_NONE) {
-        cJSON_free(json);
-        return result;
-    }
-    return write_json_file(path, json, json_length);
-}
-
-static app_error_code_t write_duplicate_order(const char *set_root, const char *filename,
-                                              size_t maximum_count, const app_uuid_t *ids,
-                                              size_t count) {
-    /* storage_uuid_order_t is ~3.7 KB. With the procedure half of the duplicate
-     * path gone this function is small enough for the compiler to inline into
-     * storage_set_duplicate_locked, which put that frame at 6448 bytes against
-     * the ratchet's 4736 (see scripts/check-stack-usage.sh). Heap, not stack. */
-    storage_uuid_order_t *order = calloc(1U, sizeof(*order));
-    if (order == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
-    order->count = count;
-    if (count > 0U) {
-        memcpy(order->ids, ids, count * sizeof(*ids));
-    }
-    char *json = NULL;
-    size_t json_length = 0U;
-    app_error_code_t result =
-        storage_repository_serialize_order_json(order, maximum_count, &json, &json_length);
-    free(order);
-    char path[APP_PATH_MAX_BYTES];
-    if (result == APP_ERROR_NONE) {
-        const int written = snprintf(path, sizeof(path), "%s/%s", set_root, filename);
-        if (written < 0 || (size_t)written >= sizeof(path)) {
-            result = APP_ERROR_INVALID_ARGUMENT;
-        }
-    }
-    if (result != APP_ERROR_NONE) {
-        cJSON_free(json);
-        return result;
-    }
-    return write_json_file(path, json, json_length);
-}
-
-/* Written straight to the duplicate's final path: there is no set_root
- * directory (SPEC 13.3). */
-static app_error_code_t write_duplicate_tree(const macro_set_t *duplicate,
-                                             const storage_macro_list_t *macros,
-                                             const char *set_root) {
-    app_error_code_t result = storage_repository_make_directory(set_root);
-    static const char *const child_names[] = {"macros"};
-    for (size_t index = 0U;
-         result == APP_ERROR_NONE && index < sizeof(child_names) / sizeof(child_names[0]);
-         ++index) {
-        result = make_child_directory(set_root, child_names[index]);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_duplicate_metadata(set_root, duplicate);
-    }
-
-    app_uuid_t *ordered_ids =
-        macros->count == 0U ? NULL : calloc(macros->count, sizeof(*ordered_ids));
-    if (macros->count > 0U && ordered_ids == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
-    for (size_t index = 0U; result == APP_ERROR_NONE && index < macros->count; ++index) {
-        ordered_ids[index] = macros->items[index].id;
-        result = write_duplicate_macro(set_root, &macros->items[index], &duplicate->id);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = write_duplicate_order(set_root, "macro-order.json", APP_MACROS_PER_SET_MAX,
-                                       ordered_ids, macros->count);
-    }
-    free(ordered_ids);
-    return result;
 }
 
 static bool index_contains_set(const storage_set_index_t *index, const app_uuid_t *set_id) {
@@ -194,6 +65,25 @@ static app_error_code_t index_accepts_duplicate(const storage_set_index_t *index
         return APP_ERROR_CONFLICT;
     }
     return errno == ENOENT ? APP_ERROR_NONE : storage_repository_map_file_error();
+}
+
+/* Duplicating a set is now a read and a write of one file each: load the source
+ * document, stamp the duplicate's identity onto it, store it. Every macro keeps
+ * its own id and is reset to revision 1, and the order is preserved because the
+ * array order IS the order (SPEC 12.1). */
+static app_error_code_t build_duplicate_document(const app_uuid_t *source_id,
+                                                 const macro_set_t *duplicate,
+                                                 storage_set_document_t *out_document) {
+    app_error_code_t result = storage_repository_load_set_document(source_id, out_document);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    out_document->set = *duplicate;
+    for (size_t index = 0U; index < out_document->macro_count; ++index) {
+        out_document->macros[index].revision = 1U;
+        out_document->macros[index].set_id = duplicate->id;
+    }
+    return APP_ERROR_NONE;
 }
 
 static app_error_code_t storage_set_duplicate_locked(const app_uuid_t *source_id,
@@ -234,31 +124,28 @@ static app_error_code_t storage_set_duplicate_locked(const app_uuid_t *source_id
             copy_text(duplicate.name, sizeof(duplicate.name), duplicate_name, APP_NAME_MAX_BYTES);
     }
 
-    storage_macro_list_t macros = {0};
+    storage_set_document_t document = {0};
+    bool written = false;
     if (result == APP_ERROR_NONE) {
-        result = storage_macro_list_locked(source_id, &macros);
-    }
-    char destination[APP_PATH_MAX_BYTES] = {0};
-    if (result == APP_ERROR_NONE) {
-        result = storage_make_set_path(&duplicate.id, destination, sizeof(destination));
+        result = build_duplicate_document(source_id, &duplicate, &document);
     }
     if (result == APP_ERROR_NONE) {
-        result = write_duplicate_tree(&duplicate, &macros, destination);
+        result = storage_repository_store_set_document(&document);
+        written = result == APP_ERROR_NONE;
     }
+    storage_set_document_free(&document);
     if (result == APP_ERROR_NONE) {
         /* Index last, as in set creation: the duplicate is unreferenced until
          * this write lands. */
         index.ids[index.count++] = duplicate.id;
         result = storage_repository_write_index(&index);
     }
-    if (result != APP_ERROR_NONE && destination[0] != '\0') {
-        const app_error_code_t cleanup = storage_repository_remove_tree(destination);
+    if (result != APP_ERROR_NONE && written) {
+        const app_error_code_t cleanup = storage_repository_remove_set_file(&duplicate.id);
         if (cleanup != APP_ERROR_NONE) {
             result = cleanup;
         }
     }
-
-    storage_macro_list_free(&macros);
     if (result == APP_ERROR_NONE) {
         *out_duplicate = duplicate;
     }
