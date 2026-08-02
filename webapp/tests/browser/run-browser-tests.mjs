@@ -14,7 +14,7 @@ const firstSet = {
   schema_version: 1,
   id: setId,
   revision: 2,
-  name: "Lab Chromebook workflow",
+  name: "Lab bench workflow",
 };
 const secondSet = {
   ...firstSet,
@@ -463,6 +463,110 @@ async function assertTouchTargets(cdp) {
   );
 }
 
+/*
+ * SPEC 24.5 item: responsive mobile layout
+ * SPEC 9: "The application MUST be mobile-first and usable from a desktop
+ * browser", and SPEC 24.5 requires tests to cover responsive mobile layout.
+ *
+ * This cannot be asserted in the vitest suite: jsdom has no box model, applies
+ * no media queries, and reports every element as zero-sized, so the only thing
+ * a unit test could check there is that a class name is present -- the markup,
+ * not the requirement. Real Chrome with device metrics overridden is the first
+ * place the requirement becomes observable.
+ *
+ * The failure being guarded against is the ordinary one: a fixed pixel width, a
+ * long unbroken string, or a table that does not wrap, any of which pushes
+ * content off the side of a 360 CSS-pixel screen. On a phone that means content
+ * the user cannot reach, because the device's whole point is being operated
+ * from one.
+ */
+const MOBILE_VIEWPORT = {
+  width: 360,
+  height: 640,
+  deviceScaleFactor: 2,
+  mobile: true,
+};
+const DESKTOP_VIEWPORT = {
+  width: 1280,
+  height: 800,
+  deviceScaleFactor: 1,
+  mobile: false,
+};
+
+async function overflowingElements(cdp) {
+  return evaluate(
+    cdp,
+    `(() => {
+      const limit = document.documentElement.clientWidth;
+      return Array.from(document.querySelectorAll('body *'))
+        .filter((element) => {
+          const style = window.getComputedStyle(element);
+          if (style.display === 'none' || style.visibility === 'hidden') return false;
+          const rect = element.getBoundingClientRect();
+          if (rect.width === 0 && rect.height === 0) return false;
+          return rect.right > limit + 1;
+        })
+        .slice(0, 5)
+        .map((element) => ({
+          tag: element.tagName,
+          id: element.id,
+          classes: typeof element.className === 'string' ? element.className : '',
+          right: Math.round(element.getBoundingClientRect().right),
+          limit,
+        }));
+    })()`,
+  );
+}
+
+async function contentWidth(cdp) {
+  return evaluate(
+    cdp,
+    "Math.round(document.querySelector('#main-content').getBoundingClientRect().width)",
+  );
+}
+
+async function assertFitsViewport(cdp, label) {
+  const scroll = await evaluate(
+    cdp,
+    "({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth })",
+  );
+  assert(
+    scroll.scrollWidth <= scroll.clientWidth + 1,
+    `${label}: the page scrolls horizontally (${String(scroll.scrollWidth)} > ${String(scroll.clientWidth)}).`,
+  );
+  const overflowing = await overflowingElements(cdp);
+  assert(
+    Array.isArray(overflowing) && overflowing.length === 0,
+    `${label}: elements extend past the right edge: ${JSON.stringify(overflowing)}`,
+  );
+}
+
+async function assertResponsiveLayout(cdp) {
+  await cdp.send("Emulation.setDeviceMetricsOverride", MOBILE_VIEWPORT);
+  await assertFitsViewport(cdp, "Mobile 360x640");
+  /* Touch targets are re-checked here rather than trusted from the default
+     window size: a narrower viewport is where controls get squeezed. */
+  await assertTouchTargets(cdp);
+  const mobileWidth = await contentWidth(cdp);
+  assert(
+    mobileWidth > 0 && mobileWidth <= MOBILE_VIEWPORT.width,
+    `Mobile content width ${String(mobileWidth)} does not fit a ${String(MOBILE_VIEWPORT.width)}px viewport.`,
+  );
+
+  await cdp.send("Emulation.setDeviceMetricsOverride", DESKTOP_VIEWPORT);
+  await assertFitsViewport(cdp, "Desktop 1280x800");
+  const desktopWidth = await contentWidth(cdp);
+  /* "Mobile-first and usable from a desktop browser" is two requirements. A
+     layout locked to the phone width satisfies the first and fails the second,
+     and a horizontal-scroll check alone would never notice. */
+  assert(
+    desktopWidth > mobileWidth,
+    `The layout does not adapt: content is ${String(desktopWidth)}px at 1280px wide and ${String(mobileWidth)}px at 360px.`,
+  );
+
+  await cdp.send("Emulation.clearDeviceMetricsOverride");
+}
+
 async function runBrowserWorkflows(cdp, serverState) {
   await waitFor(
     cdp,
@@ -470,6 +574,7 @@ async function runBrowserWorkflows(cdp, serverState) {
     "Authenticated set selection did not load.",
   );
   await assertTouchTargets(cdp);
+  await assertResponsiveLayout(cdp);
 
   await evaluate(cdp, "document.querySelector('#main-content').focus()");
   await dispatchKey(cdp, "Tab");

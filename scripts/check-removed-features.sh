@@ -52,7 +52,7 @@ SOURCES = [
     # machine -- exactly what SPEC 1.1 rejects.
     "webapp/tests",
 ]
-SUFFIXES = {".c", ".h", ".inc", ".ts", ".tsx"}
+SUFFIXES = {".c", ".h", ".inc", ".ts", ".tsx", ".js", ".mjs"}
 SKIP_DIRS = {"build", "build-coverage", "node_modules", "managed_components"}
 
 # A line that must legitimately name a removed feature is one that proves it is

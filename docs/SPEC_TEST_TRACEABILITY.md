@@ -41,8 +41,8 @@ None of these is a coverage measurement. This is a worklist, not a score.
 | | Statements | Unmapped |
 | --- | --- | --- |
 | MUST NOT | 72 | 12 |
-| MUST | 183 | 17 |
-| **Total** | **255** | **29** |
+| MUST | 183 | 16 |
+| **Total** | **255** | **28** |
 
 ## Prohibitions (`MUST NOT`) — do these first
 
@@ -153,12 +153,12 @@ cheapest place to find real gaps.
 | §8.7 | L398 | keyboard-layout requirements | referenced | storage_package_export → deterministic_export_and_filtering |
 | §8.7 | L399 | integrity metadata | referenced | storage_package_export → deterministic_export_and_filtering |
 | §8.7 | L414 | Import MUST validate the entire package, all limits, references, syntax, schema, | referenced | storage_package_export → deterministic_export_and_filtering |
-| §9 | L427 | The application MUST be mobile-first and usable from a desktop browser. | referenced | spec-screens → (file)<br>spec-screens → SPEC 9 required screens |
-| §9 | L449 | device name | referenced | spec-screens → (file)<br>spec-screens → SPEC 9 required screens |
-| §9 | L450 | active macro set | referenced | spec-screens → (file)<br>spec-screens → SPEC 9 required screens |
-| §9 | L451 | USB state | referenced | spec-screens → (file)<br>spec-screens → SPEC 9 required screens |
-| §9 | L452 | access to set switching | referenced | spec-screens → (file)<br>spec-screens → SPEC 9 required screens |
-| §9 | L453 | access to settings | referenced | spec-screens → (file)<br>spec-screens → SPEC 9 required screens |
+| §9 | L427 | The application MUST be mobile-first and usable from a desktop browser. | referenced | run-browser-tests → (file)<br>spec-screens → (file)<br>spec-screens → SPEC 9 required screens |
+| §9 | L449 | device name | referenced | run-browser-tests → (file)<br>spec-screens → (file)<br>spec-screens → SPEC 9 required screens |
+| §9 | L450 | active macro set | referenced | run-browser-tests → (file)<br>spec-screens → (file)<br>spec-screens → SPEC 9 required screens |
+| §9 | L451 | USB state | referenced | run-browser-tests → (file)<br>spec-screens → (file)<br>spec-screens → SPEC 9 required screens |
+| §9 | L452 | access to set switching | referenced | run-browser-tests → (file)<br>spec-screens → (file)<br>spec-screens → SPEC 9 required screens |
+| §9 | L453 | access to settings | referenced | run-browser-tests → (file)<br>spec-screens → (file)<br>spec-screens → SPEC 9 required screens |
 | §9.2 | L475 | All application assets MUST be bundled into the web-assets filesystem. The | gate-enforced | verify-no-remote-assets.sh (gate script) |
 | §9.3 | L480 | Vite output MUST use content-hashed filenames. JavaScript, CSS, SVG, and other | referenced | web_server_adapter_json_static → json_envelopes |
 | §9.3 | L485 | stream files in bounded chunks | referenced | web_server_adapter_json_static → json_envelopes |
@@ -299,7 +299,7 @@ cheapest place to find real gaps.
 | §24.5 | L1579 | stale-edit conflict UI | referenced | app-sets → selects a set with the settings revision and updates the header |
 | §24.5 | L1580 | storage error UI | referenced | management-screens → shows live redacted storage data |
 | §24.5 | L1581 | keyboard and touch accessibility | referenced | set-management → offers keyboard reorder alternatives and commits exact order |
-| §24.5 | L1582 | responsive mobile layout | **UNMAPPED** | — |
+| §24.5 | L1582 | responsive mobile layout | referenced | run-browser-tests → (file) |
 | §24.6 | L1588 | Linux host | **UNMAPPED** | — |
 | §24.6 | L1589 | ChromeOS host when available | **UNMAPPED** | — |
 | §24.6 | L1590 | Windows host when available | **UNMAPPED** | — |

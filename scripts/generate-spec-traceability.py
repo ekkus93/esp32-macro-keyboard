@@ -144,7 +144,10 @@ def sources():
     host = ROOT / "tests/host"
     webapp = ROOT / "webapp/tests"
     return (sorted(host.glob("test_*.c")) + sorted(host.glob("*.inc")) +
-            sorted(webapp.glob("*.test.ts")) + sorted(webapp.glob("*.test.tsx")))
+            sorted(webapp.glob("*.test.ts")) + sorted(webapp.glob("*.test.tsx")) +
+            # Real-Chrome workflows. Some requirements -- responsive layout above
+            # all -- are only observable in a browser that does layout.
+            sorted((webapp / "browser").glob("*.mjs")))
 
 
 def enforcers():
