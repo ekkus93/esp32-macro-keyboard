@@ -28,7 +28,7 @@ under ~512 bytes for free, so on this device directories are the entire cost.
 
 Target layout:
 
-```
+```text
 /data/sets/<set-id>.json     name + ordered macros, inline
 /data/index.json             set order
 ```
