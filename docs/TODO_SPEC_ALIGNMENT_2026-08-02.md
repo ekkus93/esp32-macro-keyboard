@@ -746,6 +746,25 @@ record), running a production build, station credentials stored and working.
 Bootstrap AP passphrase and setup code are in
 `~/.config/esp32-macro-keyboard/hil/`, mode 600, never in the repository.
 
+- [ ] **5.7 Macro creation accepts a source the device cannot compile.**
+  `POST /api/v1/sets/{id}/macros` returned 201 for `ab{DELAY 3000}cd` -- the
+  parser wants `DELAY:` -- and the macro was only ever rejected later, when
+  something tried to compile it. It sat in the repository until an export tripped
+  over it (5.5), and a user who ran it would have got a failure at send time with
+  no earlier warning.
+
+  SPEC 3.10 requires rejecting malformed state rather than storing it. There is
+  already a `POST /api/v1/sets/{id}/macros/validate` route and the editor calls
+  it, so the parser is reachable from the write path; creation simply does not
+  use it.
+
+  Decide and then make the code and the specification agree:
+  either creation compiles the source and refuses a bad one with 422, or SPEC 12.2
+  states that sources are stored unvalidated and checked at execution, and the
+  editor's validate step becomes the documented way to find out. Today it is
+  neither, and the two halves of the system disagree about what a stored macro
+  means.
+
 ---
 
 ## Acceptance
