@@ -50,6 +50,14 @@ typedef enum {
     APP_V2_SEND_MODE_PREVIEW = 1,
 } app_v2_send_mode_t;
 
+typedef enum {
+    APP_V2_SETTINGS_OK = 0,
+    APP_V2_SETTINGS_INVALID_ARGUMENT,
+    APP_V2_SETTINGS_INVALID_LENGTH,
+    APP_V2_SETTINGS_CORRUPT,
+    APP_V2_SETTINGS_UNSUPPORTED_VERSION,
+} app_v2_settings_result_t;
+
 typedef struct {
     bool provisioned;
     uint16_t credential_version;
@@ -70,6 +78,16 @@ typedef struct {
     char station_ssid[APP_V2_WIFI_SSID_MAX_BYTES + 1U];
     char station_passphrase[APP_V2_WIFI_PASSPHRASE_MAX_BYTES + 1U];
 } app_v2_device_settings_t;
+
+void app_v2_device_settings_init_unprovisioned(app_v2_device_settings_t *settings);
+app_v2_settings_result_t app_v2_device_settings_validate(
+    const app_v2_device_settings_t *settings);
+app_v2_settings_result_t app_v2_device_settings_encode(
+    const app_v2_device_settings_t *settings, uint8_t *record, size_t record_length);
+app_v2_settings_result_t app_v2_device_settings_decode(
+    const uint8_t *record, size_t record_length, app_v2_device_settings_t *settings);
+app_v2_settings_result_t app_v2_device_settings_reset_noncredential(
+    app_v2_device_settings_t *settings);
 
 #ifdef __cplusplus
 }
