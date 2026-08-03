@@ -31,6 +31,7 @@ if [[ ${run_web} == true ]]; then
 		tests/v2-repository-validation.test.ts \
 		tests/v2-api-contracts.test.ts \
 		tests/v2-api-requests.test.ts \
+		tests/v2-setup-route-policy.test.ts \
 		tests/v2-macro-conformance.test.ts \
 		tests/v2-macro-canonical-tokens.test.ts
 fi
