@@ -1,0 +1,74 @@
+{
+  "format": "esp32-macro-keyboard-device-settings",
+  "schemaVersion": 1,
+  "byteOrder": "little-endian",
+  "recordLength": 344,
+  "magic": 843795781,
+  "password": {
+    "algorithm": "PBKDF2-HMAC-SHA-256",
+    "algorithmVersion": 1,
+    "saltBytes": 16,
+    "verifierBytes": 32,
+    "iterationCount": "measured-and-frozen-before-v0.2-acceptance"
+  },
+  "defaults": {
+    "deviceName": "ESP32 Macro Keyboard",
+    "requireSerialConfirmation": false,
+    "sendMode": "quick",
+    "snapshotRetentionTarget": 5,
+    "showMacroSourcePreviews": false,
+    "lastSelectedPackageId": null,
+    "stationConfigured": false,
+    "nextBlobId": null
+  },
+  "limits": {
+    "deviceNameMaxBytes": 32,
+    "ssidMaxBytes": 32,
+    "passphraseMinBytes": 8,
+    "passphraseMaxBytes": 63,
+    "snapshotRetentionTargetMax": 100,
+    "uuidTextBytes": 36
+  },
+  "sendModeValues": {
+    "quick": 0,
+    "preview": 1
+  },
+  "fields": [
+    { "name": "magic", "offset": 0, "length": 4, "encoding": "u32" },
+    { "name": "recordVersion", "offset": 4, "length": 2, "encoding": "u16" },
+    { "name": "recordLength", "offset": 6, "length": 2, "encoding": "u16" },
+    { "name": "credentialVersion", "offset": 8, "length": 2, "encoding": "u16" },
+    { "name": "passwordAlgorithmVersion", "offset": 10, "length": 2, "encoding": "u16" },
+    { "name": "passwordIterations", "offset": 12, "length": 4, "encoding": "u32" },
+    { "name": "passwordSalt", "offset": 16, "length": 16, "encoding": "bytes" },
+    { "name": "passwordVerifier", "offset": 32, "length": 32, "encoding": "bytes" },
+    { "name": "nextBlobId", "offset": 64, "length": 8, "encoding": "u64-zero-means-null" },
+    { "name": "sendMode", "offset": 72, "length": 1, "encoding": "enum" },
+    { "name": "snapshotRetentionTarget", "offset": 73, "length": 1, "encoding": "u8" },
+    { "name": "showMacroSourcePreviews", "offset": 74, "length": 1, "encoding": "boolean-u8" },
+    { "name": "requireSerialConfirmation", "offset": 75, "length": 1, "encoding": "boolean-u8" },
+    { "name": "provisioned", "offset": 76, "length": 1, "encoding": "boolean-u8" },
+    { "name": "stationConfigured", "offset": 77, "length": 1, "encoding": "boolean-u8" },
+    { "name": "reserved", "offset": 78, "length": 2, "encoding": "zero" },
+    { "name": "lastSelectedPackageId", "offset": 80, "length": 37, "encoding": "nul-terminated-uuid-or-empty" },
+    { "name": "deviceName", "offset": 117, "length": 33, "encoding": "nul-terminated-utf8" },
+    { "name": "apSsid", "offset": 150, "length": 33, "encoding": "nul-terminated-utf8" },
+    { "name": "apPassphrase", "offset": 183, "length": 64, "encoding": "nul-terminated-utf8" },
+    { "name": "stationSsid", "offset": 247, "length": 33, "encoding": "nul-terminated-utf8" },
+    { "name": "stationPassphrase", "offset": 280, "length": 64, "encoding": "nul-terminated-utf8" }
+  ],
+  "validation": [
+    "record length, magic, record version, and password algorithm version must match exactly",
+    "all booleans must be encoded as 0 or 1",
+    "reserved bytes must be zero",
+    "send mode must be a defined enum value",
+    "snapshot retention target must be 0 through 100",
+    "last selected package ID must be empty or a canonical lowercase UUID v4",
+    "all text buffers must contain a NUL terminator and valid UTF-8 within their field",
+    "unused bytes after a string terminator must be zero",
+    "station fields must be empty when stationConfigured is false",
+    "a provisioned record must contain valid AP credentials and password verifier metadata",
+    "an unprovisioned record must not contain password verifier metadata or recoverable credentials",
+    "a truncated, oversized, unsupported-version, or partially valid record is rejected without best-effort parsing"
+  ]
+}
