@@ -17,6 +17,7 @@ import type {
   SettingsResponse,
   SettingsUpdatedResponse,
   SetupAccepted,
+  SetupStateResponse,
   StatusResponse,
   SubsystemHealthState,
   UsbState,
@@ -179,6 +180,17 @@ export function isErrorEnvelope(value: unknown): value is ErrorEnvelope {
     coordinateCount === 0 ||
     (coordinateCount === coordinateKeys.length &&
       coordinateKeys.every((key) => isNonNegativeInteger(detail[key])))
+  );
+}
+
+export function isSetupStateResponse(
+  value: unknown,
+): value is SetupStateResponse {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["deviceName", "provisioned"]) &&
+    value.provisioned === false &&
+    isNonEmptyString(value.deviceName)
   );
 }
 
