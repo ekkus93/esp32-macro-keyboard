@@ -1,84 +1,100 @@
 # ESP32 Macro Keyboard — Specification v2
 
-**Document status:** Draft for review. Not yet authoritative.
-**Product version:** 0.2 (rebuild)
+**Document status:** Authoritative implementation specification
+**Product version:** 0.2 rebuild
 **Target hardware:** ESP32-S3R8, native USB wiring, octal PSRAM
 **Firmware framework:** ESP-IDF v5.5.5, exact release tag
-**Created:** 2026-08-03
+**Last updated:** 2026-08-03
 
-## 0. About this document
+## 0. Authority and scope
 
-`docs/SPEC.md` describes a device that owns a data model. This describes one
-that does not. The difference is large enough that amending the old document
-kept producing contradictions, so it is being replaced rather than patched.
+This document is the sole authoritative product and system specification for the
+ESP32 Macro Keyboard rebuild.
 
-**Provenance.** Every requirement here comes from one of three places, and
-anything that comes from nowhere is a defect in this document:
+`docs/SPEC.md` and every earlier specification are retired. They may be read only
+as historical records in git history. They MUST NOT be used to infer product
+requirements, implementation behavior, API contracts, data structures, or test
+expectations.
 
-1. **Decisions Phil made in conversation on 2026-08-02 and 2026-08-03.** These
-   are quoted where the wording matters.
-2. **Measurements taken on the bench device**, cited with their numbers.
-3. **Carried over from `docs/SPEC.md`** where the text is settled and still
-   true — the macro language, the HID safety invariant, the toolchain pins.
-   Carried text is marked **[carried]** the first time it appears in a section.
+The organizing decision for v2 is that the ESP32 does not own the application
+data model. The firmware owns keyboard execution and opaque file persistence.
+The React application owns packages, macros, ordering, selection, validation,
+serialization, compression, import, and export.
 
-Items marked **[unattributed]** were in the old specification with no recorded
-source and no measurement behind them. They are reproduced so nothing is lost
-silently, and each is a candidate for deletion.
-
-**This document is frozen once accepted.** It may not be modified without Phil's
-explicit, per-change permission. That rule exists because an acceptance
-criterion in the previous planning documents turned out to have been invented by
-the assistant and then cited back as a requirement; see
-`docs/SPEC_CHANGE_AUDIT_2026-08-03.md`.
+Future changes to this document require the product owner's explicit permission.
+Implementation work MUST NOT silently amend the specification to match existing
+code.
 
 ---
 
 ## 1. Purpose
 
-The ESP32 Macro Keyboard is a USB keyboard that types what it is told to type.
+The ESP32 Macro Keyboard is a local USB keyboard automation appliance.
 
 It connects to a target computer through the ESP32-S3 native USB peripheral and
-enumerates as a standard HID keyboard. It also runs a Wi-Fi access point and
-serves a web application. The user works in that application, picks a macro, and
-explicitly sends it; the device types it at the target computer.
+enumerates as a standard HID keyboard. It also runs a protected Wi-Fi access
+point and serves a static React application. The user chooses a macro in that
+application and explicitly sends it. The ESP32 compiles the supplied macro source
+and emits the resulting USB keyboard reports.
 
-The product is **generic**. It has no knowledge of what the target computer is,
-what operating system it runs, or what the macros are for.
+The product is generic. It has no knowledge of the target computer, its operating
+system, or the purpose of a macro.
 
-### 1.1 The division of labour
+### 1.1 Primary responsibilities
 
-This is the organising decision of v2. Phil, 2026-08-03:
+The ESP32 has two primary product responsibilities:
 
-> "I think that we're trying to do way too much in the esp32 and that's really
-> unnecessary. Its main job is that it needs to emulate a usb keyboard and send
-> macros as a usb keyboard to the computer. The second job is to save a copy of
-> all of the macro data so it persists after the esp32 is turned off. Everything
-> else will be handled on the client side with React."
+1. Act as a standards-compliant USB HID keyboard and type a macro supplied by the
+   React application.
+2. Persist opaque, compressed repository snapshots so the user's application
+   state survives power loss.
 
-**The device does two things:**
+The ESP32 also provides the supporting services required to perform those jobs:
+Wi-Fi, authentication, provisioning, device settings, static asset serving,
+health reporting, diagnostics, and lifecycle management.
 
-1. Emulates a USB HID keyboard and types macro source it is given.
-2. Stores a blob of user data so it survives power loss, and gives it back.
+### 1.2 Division of labor
 
-**The web application does everything else:** the data model, creating and
-editing packages and macros, ordering, selection, validation feedback, import
-and export to files.
+The firmware owns:
 
-The device does not parse the blob. It has no concept of a package, a macro
-list, an active selection, or an index. Firmware MUST NOT be written to depend
-on the blob's internal structure.
+- USB HID enumeration and reports;
+- the C macro parser and compiler used immediately before execution;
+- one bounded executor and cancellation path;
+- opaque blob storage and retrieval;
+- Wi-Fi access-point and optional station operation;
+- authentication and first-run provisioning;
+- small device configuration in NVS;
+- static web-asset serving;
+- status, limits, and diagnostics.
+
+The React application owns:
+
+- the repository schema;
+- packages and macros;
+- package and macro ordering;
+- active package selection;
+- live macro-language validation;
+- the in-memory working copy;
+- JSON serialization and validation;
+- gzip compression and decompression;
+- repository import and export;
+- snapshot retention decisions;
+- choosing which stored snapshot to load;
+- sending macro source and timing to the ESP32.
+
+Firmware MUST NOT parse, decompress, validate, index, reorder, merge, or otherwise
+interpret repository contents. It MUST NOT contain a package repository, macro
+repository, active-package record, package index, per-package files, per-macro
+files, or package and macro CRUD routes.
 
 ---
 
 ## 2. Normative language
 
-**MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT** and **MAY**
-have their usual requirements meaning.
+**MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, and **MAY** have
+their usual requirements meaning.
 
-Where implementation behaviour conflicts with this document, this document wins
-unless it is deliberately amended in the same change — and amending it requires
-permission (§0).
+Where implemented behavior conflicts with this document, this document wins.
 
 ---
 
@@ -87,66 +103,85 @@ permission (§0).
 The product MUST:
 
 1. Enumerate as a standards-compliant USB HID keyboard on common desktop
-   operating systems without a custom host driver.
-2. Provide a local, mobile-first web application over its own access point.
-3. Persist the user's data across power loss and firmware updates.
+   operating systems without a custom driver.
+2. Provide a local, mobile-first application over its own protected access point.
+3. Persist complete application-state snapshots across power loss and firmware
+   updates.
 4. Require an explicit user action before every macro execution.
-5. Release every key after completion, cancellation, USB loss, timeout, or
+5. Compile the complete macro before emitting its first keyboard report.
+6. Release every key after completion, cancellation, USB loss, timeout, or an
    internal failure.
-6. Operate with no buttons and no hardware added to a stock devkit.
-7. Operate with no internet access.
-8. Treat every first-party compiler, type-checker, formatter or linter warning
-   as a defect.
+7. Operate with no added buttons or hardware beyond a stock supported devkit and
+   USB cable.
+8. Operate without internet access.
+9. Report failures explicitly rather than silently substituting defaults.
+10. Treat every first-party compiler, type-checker, formatter, linter, or static
+    analyzer warning as a defect.
 
 ## 4. Non-goals for v0.2
 
+Version 0.2 does not provide:
+
 - arbitrary Unicode typing;
-- any awareness of the target computer;
-- automatic execution of anything, on boot, on connection, or in sequence;
-- USB host, Bluetooth HID, cloud accounts, internet routing;
-- TLS on the access point;
-- merge or conflict resolution between two edits of the repository;
-- server-side rendering, Node.js, or JavaScript execution on the device;
-- automatic filesystem formatting after a mount or integrity failure.
+- target-computer or operating-system detection;
+- automatic macro execution on boot, USB connection, Wi-Fi connection, or after
+  another macro;
+- procedures, workflow steps, checkpoints, or progress tracking;
+- a global or shared macro library;
+- USB host support;
+- Bluetooth HID;
+- cloud accounts, cloud synchronization, or internet routing;
+- TLS termination on the isolated access point;
+- server-side JavaScript, React Server Components, or Node.js on the device;
+- repository merge or multi-user conflict resolution;
+- automatic filesystem formatting after a mount or integrity failure;
+- firmware-side repository schema validation;
+- firmware-side compression or decompression;
+- firmware-side repository checksums or CRC records.
 
 ---
 
-## 5. Platform
+## 5. Platform and toolchain
 
-### 5.1 Toolchain **[carried]**
+### 5.1 Firmware
 
-- ESP-IDF, exact signed tag **`v5.5.5`**. The build MUST reject any other
-  version.
+- ESP-IDF exact signed tag `v5.5.5`.
 - Target `esp32s3`.
-- Node.js exactly **`v24.18.0`** for the web application.
-- Dependencies MUST be pinned by committed manifest and lock files. No caret or
-  tilde ranges.
+- The build MUST reject an unrecognized ESP-IDF version.
+- Dependencies MUST be pinned by committed manifest and lock files.
 
-### 5.2 Hardware **[carried]**
+### 5.2 Web application
 
-The reference module is the **ESP32-S3R8**: 8 MB embedded **octal** PSRAM. The
-build MUST enable `CONFIG_SPIRAM`, `CONFIG_SPIRAM_MODE_OCT` and
-`CONFIG_SPIRAM_USE_MALLOC`. Octal is not interchangeable with quad — a build
-configured for quad does not boot on this module.
+- Node.js exactly `v24.18.0`.
+- TypeScript, React, Tailwind CSS, Vite, and the browser Fetch API.
+- Package versions MUST be exact and locked in the committed npm lock file.
+- Production assets MUST be static and contain no CDN, remote-font,
+  remote-icon, analytics, or other internet dependency.
 
-FreeRTOS task stacks MUST come from internal SRAM; PSRAM cannot host them.
+### 5.3 Hardware
 
-The hardware MUST expose the native USB D+/D− signals. It MUST NOT require any
-button, jumper or added component beyond a stock devkit.
+The reference module is the ESP32-S3R8 with 8 MB embedded octal PSRAM. The build
+MUST enable `CONFIG_SPIRAM`, `CONFIG_SPIRAM_MODE_OCT`, and
+`CONFIG_SPIRAM_USE_MALLOC`. A quad-PSRAM build is not interchangeable with the
+reference hardware.
 
-### 5.3 The device has no clock
+FreeRTOS task stacks MUST remain in internal SRAM.
 
-There is no RTC synchronisation, no SNTP, and no internet (§4). The device
-cannot know the date or time.
+The board MUST expose the native USB D+/D- signals. No external button, jumper,
+display, or other added component is required.
 
-Firmware MUST NOT record, report, or require a wall-clock timestamp. Anything
-needing a date — "when was this last edited" — is the web application's, from
-the browser's clock.
+### 5.4 No wall clock
 
-*Verified 2026-08-03: no `sntp`, `settimeofday`, `esp_netif_sntp` or
-`time(NULL)` call exists anywhere in the firmware.*
+The device has no trusted wall clock, RTC synchronization, or SNTP service.
+Firmware MUST NOT create, require, or report wall-clock timestamps.
 
-### 5.4 Partitions **[carried]**
+A browser MAY display or export a date obtained from its own clock, but dates are
+not part of the persisted v1 repository schema and MUST NOT be used as device
+ordering or concurrency tokens.
+
+### 5.5 Partitions
+
+The reference partition layout is:
 
 ```text
 nvs        NVS         24 KiB
@@ -155,19 +190,54 @@ otadata    OTA data     8 KiB
 phy_init   PHY          4 KiB
 ota_0      app        2.5 MiB
 ota_1      app        2.5 MiB
-webfs      LittleFS     1 MiB   web application assets
-userdata   LittleFS   512 KiB   the repository blobs
+webfs      LittleFS     1 MiB   static web application assets
+userdata   LittleFS   512 KiB   compressed repository blobs
 coredump   coredump    64 KiB
 ```
 
+Exact sizes are defined by the committed partition table and MUST be validated
+against the selected flash device.
+
 ---
 
-## 6. USB HID keyboard
+## 6. Terminology
 
-### 6.1 Identity **[carried]**
+### 6.1 Repository
 
-The device enumerates with the project's own USB identity. It MUST NOT ship
-Espressif's example vendor and product strings.
+A **repository** is the decompressed JSON application state owned by React. It
+contains ordered packages, ordered macros, and the active package selection.
+
+### 6.2 Repository blob
+
+A **blob** is the gzip-compressed UTF-8 serialization of one complete repository
+snapshot. The ESP32 stores it as opaque bytes.
+
+A blob is not a firmware object model. The device does not know whether its bytes
+contain valid gzip, JSON, packages, or macros.
+
+### 6.3 Package
+
+A **package** is a name and an ordered list of macros. Array order is the user's
+order. There is no intermediate hierarchy and no shared macro library.
+
+### 6.4 Macro
+
+A **macro** is a name, macro source, and execution timing. React stores it inside
+exactly one package. Firmware receives only its source and timing when the user
+sends it.
+
+### 6.5 Send
+
+A **send** is the single current or most recent attempt to compile and emit one
+macro over USB. Only one non-terminal send may exist at a time.
+
+---
+
+## 7. USB HID and macro execution
+
+### 7.1 USB identity
+
+The device enumerates with the project's USB identity:
 
 ```text
 VID:PID       303a:4001
@@ -176,47 +246,56 @@ product       ESP32 Macro Keyboard
 serial        ESP32S3-MACRO-01
 ```
 
-### 6.2 State model
+It MUST NOT ship with Espressif example product strings.
 
-USB state is one of: not connected, connected, ready, suspended, error. The web
-application MUST be able to read it (§10).
+### 7.2 USB state
 
-Execution MUST NOT start unless USB is ready.
+USB state is one of:
 
-### 6.3 Report safety invariant **[carried]**
+```text
+uninitialized
+disconnected
+enumerating
+ready
+suspended
+error
+```
+
+A send MUST NOT start unless USB is `ready`.
+
+### 7.3 Report safety invariant
 
 After every key or chord action, firmware MUST emit a release-all report.
 
-On completion, cancellation, USB disconnect, USB suspend beyond the allowed
-timeout, executor timeout, parser invariant failure, task failure, queue
-failure, or internal error, firmware MUST attempt a release-all report and move
-the execution to a terminal state. The executor MUST clear its internal
-pressed-key state even when the transport cannot deliver the report.
+On completion, cancellation, USB disconnect, prolonged USB suspension, executor
+timeout, parser invariant failure, task failure, queue failure, or internal
+error, firmware MUST attempt a release-all report and move the send to a terminal
+state. The executor MUST clear its internal pressed-key state even when the
+transport cannot deliver the report.
 
-### 6.4 Concurrency
+### 7.4 Concurrency
 
 There is exactly one executor task. HTTP handlers MUST NOT type directly.
 
----
+A second `POST /api/v1/send` while a send is awaiting confirmation or running
+returns `409`. It is not queued.
 
-## 7. Macro language **[carried]**
+Cancellation MUST remain responsive during ordinary typing and during delay
+actions.
 
-This section is unchanged from v1 and is the contract between the device's
-compiler and the web application's validator (§7.8).
+### 7.5 Character support
 
-### 7.1 Character support
+The macro language uses the US English keyboard layout and supports:
 
-US English layout, and:
-
-- printable ASCII `0x20`–`0x7E`;
+- printable ASCII `0x20` through `0x7E`;
 - line feed, mapped to Enter;
 - tab, mapped to Tab;
 - the directives below.
 
-CRLF is normalised to LF. Other Unicode input is rejected with an exact source
+CRLF is normalized to LF. Other Unicode input is rejected with an exact source
 position.
 
-### 7.2 Escaping
+### 7.6 Escaping
 
 ```text
 {{  ->  {
@@ -225,7 +304,7 @@ position.
 
 An unmatched brace is an error.
 
-### 7.3 Key directives
+### 7.7 Key directives
 
 ```text
 {ENTER} {TAB} {ESC} {BACKSPACE} {DELETE}
@@ -235,546 +314,944 @@ An unmatched brace is an error.
 {F1} through {F12}
 ```
 
-### 7.4 Chords
+### 7.8 Chords
 
-Modifiers: `CTRL` `ALT` `SHIFT` `GUI`.
+Modifiers are `CTRL`, `ALT`, `SHIFT`, and `GUI`.
 
 ```text
-{CTRL+L}   {CTRL+SHIFT+T}   {ALT+F4}   {GUI+R}
+{CTRL+L}
+{CTRL+SHIFT+T}
+{ALT+F4}
+{GUI+R}
 ```
 
-One non-modifier key plus one or more unique modifiers. Duplicate modifiers,
-modifier-only chords, multiple ordinary keys and unknown names are errors.
+A chord contains one non-modifier key plus one or more unique modifiers.
+Duplicate modifiers, modifier-only chords, multiple ordinary keys, and unknown
+names are errors.
 
-### 7.5 Delay
+### 7.9 Delay
 
 ```text
 {DELAY:500}
 ```
 
-An integer number of milliseconds, 1 to 10,000 inclusive.
+The value is an integer number of milliseconds from 1 through 10,000 inclusive.
 
-### 7.6 Grammar rules
+### 7.10 Grammar and compilation
 
 - Directive spelling is uppercase and canonical.
 - Whitespace inside a directive is prohibited.
 - Unknown directives are errors.
 - The parser MUST consume the entire source.
-- Parsing and compilation MUST complete before execution begins.
-- Errors MUST include byte offset, line, column, error code and a
-  human-readable message.
-- A partially parsed macro MUST NOT execute.
+- Parsing and compilation MUST complete before execution starts.
+- A partial parse MUST NOT execute.
+- Errors MUST include an error code, byte offset, line, column, and readable
+  message.
 
-### 7.7 Limits
-
-These bound what the device will execute. They are not a data model.
+### 7.11 Execution limits
 
 ```text
-macro source bytes            4096
+macro name UTF-8 bytes          64
+macro source UTF-8 bytes      4096
 compiled actions              4096
 delay per directive        10,000 ms
+key press duration          10,000 ms maximum
+inter-key delay            10,000 ms maximum
 estimated total duration       300 s
 ```
 
-The v1 limits on package counts, macros per package and file sizes are **gone**:
-the device has no packages to count. What replaces them is a single ceiling on
-the uploaded blob (§8.4).
+Defaults are 8 ms key press duration and 15 ms inter-key delay.
 
-### 7.8 Two implementations, one contract
+Limits MUST be centralized, exposed by `GET /api/v1/limits`, and tested at their
+boundaries.
 
-The device compiles macro source in C in order to type it. The web application
-validates macro source in TypeScript in order to give the user errors while
-editing (§1.1). Both answer to this section.
+### 7.12 Two parsers, one language
 
-They can drift, and the failure is bad: the application accepts a macro, the
-device refuses it at execute time, and the user was told it was fine right up
-until it typed nothing.
+React validates the macro language in TypeScript for immediate editing feedback.
+Firmware compiles the source again in C immediately before execution. The C
+compiler remains authoritative for what is emitted over USB.
 
-A **shared conformance corpus** MUST exist: one checked-in set of macro sources
-with their expected compiled output and expected errors, exercised by both the C
-host tests and the web application's tests. Drift MUST fail CI.
+A checked-in conformance corpus MUST contain valid and invalid macro sources,
+expected compiled actions, and expected errors. Both the C and TypeScript test
+suites MUST execute the same corpus. Parser drift MUST fail CI.
 
 ---
 
-## 8. Storage
+## 8. React repository schema
 
-### 8.1 The repository is an opaque blob
+### 8.1 Encoding
 
-Phil, 2026-08-03: *"Just store it in a blob to make things simple. We can save a
-couple of older versions. It should be compressed anyway so it shouldn't take up
-that much space."*
+The repository is strict UTF-8 JSON. Before compression, React serializes it with
+`JSON.stringify` using the exact field names in this section. Whitespace is not
+significant, but newly saved snapshots SHOULD use compact JSON.
 
-The device stores the user's data as a sequence of bytes it does not interpret.
-It has no index, no per-package files and no metadata file. The blob is the only
-user-data state.
+The root `schemaVersion` is the only schema-version field. Packages and macros do
+not repeat it.
 
-### 8.2 Layout
+Version 0.2 reads and writes only schema version `1`. An unsupported version MUST
+produce an explicit error and MUST NOT replace the current in-memory working
+copy.
+
+### 8.2 Root object
+
+```json
+{
+  "format": "esp32-macro-keyboard-repository",
+  "schemaVersion": 1,
+  "activePackageId": "550e8400-e29b-41d4-a716-446655440000",
+  "packages": []
+}
+```
+
+Required root fields:
+
+| Field | Type | Rule |
+| --- | --- | --- |
+| `format` | string | Exactly `esp32-macro-keyboard-repository` |
+| `schemaVersion` | integer | Exactly `1` |
+| `activePackageId` | UUID string or `null` | When non-null, identifies one package in `packages` |
+| `packages` | array | Ordered package list |
+
+No other root fields are permitted in schema version 1.
+
+An empty repository is valid and has `activePackageId: null` and `packages: []`.
+A repository with packages MAY still have `activePackageId: null` while the user
+is at the package selector.
+
+### 8.3 Package object
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Build server login",
+  "macros": []
+}
+```
+
+Required package fields:
+
+| Field | Type | Rule |
+| --- | --- | --- |
+| `id` | UUID string | Canonical lowercase UUID v4 |
+| `name` | string | Non-empty after trimming; at most 64 UTF-8 bytes |
+| `macros` | array | Ordered macro list |
+
+No other package fields are permitted in schema version 1.
+
+Package names need not be unique. Package IDs MUST be unique within the
+repository.
+
+### 8.4 Macro object
+
+```json
+{
+  "id": "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+  "name": "Start the build",
+  "source": "make -j8{ENTER}",
+  "keyPressMs": 8,
+  "interKeyMs": 15
+}
+```
+
+Required macro fields:
+
+| Field | Type | Rule |
+| --- | --- | --- |
+| `id` | UUID string | Canonical lowercase UUID v4 |
+| `name` | string | Non-empty after trimming; at most 64 UTF-8 bytes |
+| `source` | string | At most 4096 UTF-8 bytes and valid under §7 |
+| `keyPressMs` | integer | 0 through 10,000 inclusive |
+| `interKeyMs` | integer | 0 through 10,000 inclusive |
+
+No other macro fields are permitted in schema version 1.
+
+A macro ID MUST be unique across the entire repository, not merely within its
+package. A macro has no package ID because its containing package already defines
+ownership.
+
+Macro names need not be unique.
+
+### 8.5 Repository invariants
+
+Before React accepts a repository as a working copy or uploads it as a snapshot,
+it MUST validate all of the following:
+
+1. The JSON root, package objects, and macro objects contain exactly the fields
+   defined above.
+2. Every type and bound is correct.
+3. Every package ID is a valid, unique canonical UUID v4.
+4. Every macro ID is a valid, globally unique canonical UUID v4.
+5. `activePackageId` is null or identifies an existing package.
+6. Every macro source passes the TypeScript implementation of §7.
+7. Array order is preserved exactly.
+8. No non-finite number, sparse array, prototype-bearing object, or value that
+   cannot round-trip through JSON is admitted.
+
+IDs are generated in the browser with `crypto.randomUUID()`.
+
+Validation failure MUST leave the existing working copy unchanged and identify
+the failing field or macro to the user.
+
+### 8.6 Working copy and saves
+
+After login, React loads one chosen blob, decompresses it, validates it, and
+holds the repository as an in-memory working copy.
+
+Repository data MUST NOT be persisted in `localStorage`, `sessionStorage`,
+IndexedDB, Cache Storage, or a service worker cache. The ESP32 blobs are the
+persistent store. Browser storage MAY hold unrelated presentation preferences,
+but MUST NOT contain package IDs, macro IDs, names, sources, repository JSON, or
+compressed repository bytes.
+
+Editing changes the in-memory working copy. A **Save snapshot** action:
+
+1. validates the complete repository;
+2. serializes it as UTF-8 JSON;
+3. gzip-compresses it in React;
+4. checks the compressed size against device limits;
+5. uploads it with `POST /api/v1/blob`;
+6. treats the save as complete only after the device returns `201`.
+
+A failed save MUST NOT discard or reset the working copy.
+
+### 8.7 Snapshot retention
+
+The device never chooses a snapshot and never deletes one automatically.
+
+React SHOULD retain the five newest successful snapshots by default. Retention
+cleanup occurs only after a new snapshot has been stored successfully. The user
+may keep more or fewer snapshots, subject to available storage.
+
+If storage is insufficient, React MUST show the stored blobs and let the user
+delete one or more deliberately. Firmware MUST NOT silently delete an older blob
+to make space.
+
+### 8.8 Import and export
+
+Repository export writes the same gzip bytes used for device storage. The
+recommended filename suffix is:
+
+```text
+.emk-repository.json.gz
+```
+
+The MIME type is `application/gzip`.
+
+Import:
+
+1. reads the selected file as bytes;
+2. gzip-decompresses it;
+3. decodes UTF-8;
+4. parses JSON;
+5. validates the complete schema and macro language;
+6. shows a summary before replacing the in-memory working copy.
+
+Import does not automatically upload. The user explicitly saves a snapshot after
+reviewing the imported repository.
+
+Exports MUST NOT contain AP credentials, station credentials, administrator
+password material, sessions, setup codes, device keys, or diagnostics.
+
+---
+
+## 9. Compression
+
+React is the only component that compresses or decompresses repository data.
+
+The required format is **gzip**, produced and consumed with the browser-native
+`CompressionStream("gzip")` and `DecompressionStream("gzip")` APIs.
+
+Reasons:
+
+- gzip is a standard portable file format;
+- the required browser APIs are available in current major browsers;
+- no compression library needs to be shipped in the web partition;
+- the result can be downloaded, inspected, and decompressed by ordinary desktop
+  tools;
+- the ESP32 remains unaware of both the compression algorithm and repository
+  schema.
+
+React MUST feature-detect both APIs during startup. An unsupported browser MUST
+receive an explicit compatibility error before repository editing is enabled.
+The application MUST NOT silently store uncompressed JSON as a fallback.
+
+The firmware MUST NOT:
+
+- instantiate a compressor or decompressor;
+- inspect gzip headers;
+- verify gzip's internal checksum;
+- add a repository CRC, hash, or digest;
+- derive metadata from decompressed contents.
+
+A decompression error is handled by React. It reports that the selected blob is
+unreadable and lets the user choose another stored version. The device does not
+automatically delete or replace the unreadable blob.
+
+---
+
+## 10. Blob storage
+
+### 10.1 Layout
 
 ```text
 /data/
 └── repository/
-    ├── 000000007.bin      newest; the current repository
-    ├── 000000006.bin
-    ├── 000000005.bin
-    ├── 000000004.bin
-    └── 000000003.bin      oldest kept
+    ├── 00000000000000000001.gz
+    ├── 00000000000000000002.gz
+    └── 00000000000000000003.gz
 ```
 
-The highest number is current. Firmware MUST keep the newest **five** and unlink
-anything older after a successful write.
+Each final file is one opaque blob. The fixed-width decimal filename is the blob
+ID.
 
-There MUST NOT be an index file, a metadata file, a per-package file, or a
-`staging/`, `trash/`, `transactions/` or `quarantine/` directory.
+There is no repository index file, checksum file, metadata file, package file,
+macro file, backup directory, staging directory, transaction directory, trash
+directory, or quarantine directory.
 
-*Measured 2026-08-03 on the bench device: a repository of 14 packages and 21
-macros is 6,136 bytes of JSON, 1,332 bytes compressed. Five versions at that
-size cost 6,660 bytes — 1.3% of the partition.*
+Firmware MAY keep the next numeric blob ID in NVS as a convenience. At startup it
+MUST also scan existing filenames and ensure the next ID is greater than every
+stored ID, so an erased or stale counter cannot overwrite a blob.
 
-### 8.3 Compression is the client's
+### 10.2 Listing
 
-The web application compresses the repository before uploading and decompresses
-after downloading. The device stores the bytes it is given.
+Listing is generated from the repository directory. For each valid final
+filename, firmware reports:
 
-The device MUST NOT compress, decompress, or otherwise interpret a blob. It
-therefore needs no compressor, and cannot disagree with the application about
-the format.
+- blob ID;
+- stored byte size.
 
-### 8.4 Writing
+The list is sorted by numeric ID, newest first. It contains no date, package
+count, macro count, checksum, title, or active/current flag.
 
-A write is:
+The device has no concept of a current blob. React chooses which one to load.
 
-1. write `<n+1>.bin.tmp`;
-2. `fsync`;
-3. `rename()` over `<n+1>.bin`;
-4. `fsync` the directory;
-5. unlink anything older than the newest five.
+Stray names that do not match the final filename grammar MUST be reported in
+diagnostics and MUST NOT appear as valid blobs.
 
-The rename is the commit point. An interruption at any step leaves the previous
-blob intact and current — **this is the rollback**, and it needs no second copy,
-no marker and no boot repair.
+### 10.3 Adding a blob
 
-Firmware MUST NOT ignore a short write, or an error from `fclose`, `fflush`,
-`fsync`, `rename` or `unlink`.
+Adding a blob is atomic:
 
-Boot MUST remove any stray `.tmp` file.
+1. allocate the next blob ID;
+2. stream the request body to `<id>.gz.tmp` in bounded chunks;
+3. reject a short write or any write, flush, close, or synchronization failure;
+4. synchronize the temporary file;
+5. rename it to `<id>.gz`;
+6. synchronize the directory when supported;
+7. return `201` with the assigned ID and stored size.
 
-Firmware MUST enforce a byte ceiling on an uploaded blob and reject an
-over-budget upload with `507` (§10). The ceiling MUST leave room for five
-versions plus one in-progress `.tmp` within the 512 KiB partition. That ceiling
-is the only property of a blob the device can check.
+The rename is the commit point. An interrupted add leaves existing blobs intact.
+A `.tmp` file is not a blob and is removed during boot recovery.
 
-### 8.5 Integrity
+Firmware checks only byte count and available space. It does not inspect the
+payload.
 
-Firmware MUST record a CRC-32 of each blob's bytes when it is written, and MUST
-verify it on read.
+### 10.4 Loading a blob
 
-On mismatch, firmware MUST report the failure and the version number through the
-API, and MUST NOT serve the blob, substitute an empty repository, or silently
-fall back to an older version.
+Loading streams the selected file's bytes exactly as stored with:
 
-Firmware MUST NOT delete a blob that fails its checksum. A package file was one
-of fifty and its loss was bounded; the blob is everything, and a damaged one may
-still be largely recoverable by the application. The device reports; the user
-decides.
+```text
+Content-Type: application/gzip
+```
 
-*The v1 rule that a corrupt file is deleted does not carry over, and this is the
-reason.*
+Firmware MUST NOT decompress, transform, repair, or substitute another blob.
+A read failure is returned explicitly.
 
-### 8.6 Older versions
+### 10.5 Deleting a blob
 
-Choosing an older version is a **user action**. Firmware MUST NOT select one on
-its own initiative, at boot or at any other time.
+Deletion removes exactly the blob named by the request. It MUST NOT delete any
+other version and MUST NOT select a replacement.
 
-### 8.7 Mount policy **[carried]**
+The last blob may be deleted. A device with no blobs is a valid empty-storage
+state; React may create a new empty repository and save it.
 
-A mount failure MUST NOT format the partition. Automatic formatting MUST be
-disabled at every filesystem registration. A failed mount is a reported,
-visible, degraded state.
+### 10.6 No replace operation
 
-### 8.8 What the device cannot check
+There is no `PUT` and no atomic replace operation.
 
-The device cannot tell whether a blob's contents are meaningful. A blob whose
-checksum is good but whose JSON is malformed is the application's problem to
-detect and report.
+When a user explicitly requests replacement of a particular blob, React performs
+two independent operations:
 
-Product goal "reject malformed state rather than substituting defaults" applies
-to the application for repository content, and to the device for macro source
-(§7) and for everything in NVS (§9).
+1. delete the selected blob;
+2. add the replacement as a new blob with a new ID.
+
+If deletion succeeds and the subsequent add fails, the deleted blob remains
+deleted. The UI MUST make this non-atomic consequence clear before beginning.
+Normal snapshot saving does not replace a blob; it adds a new version.
+
+### 10.7 Capacity and limits
+
+The device exposes:
+
+- total user-data bytes;
+- used bytes;
+- remaining bytes;
+- maximum accepted blob bytes.
+
+The maximum blob size is a centralized firmware constant chosen so the partition
+can hold at least two maximum-sized final blobs plus one maximum-sized temporary
+write, including filesystem overhead.
+
+An upload over the declared body limit returns `413`. An upload within that limit
+but impossible with current free space returns `507`. Either failure leaves all
+final blobs unchanged.
+
+### 10.8 Mount and recovery policy
+
+A mount failure MUST NOT format the partition. It produces a visible degraded or
+failed storage state.
+
+Boot recovery removes only `*.tmp` files created by interrupted blob adds. It
+MUST NOT delete a final `.gz` blob because its contents are unreadable to React.
 
 ---
 
-## 9. Device configuration (NVS)
+## 11. Device configuration
 
 NVS stores small device configuration only:
 
 - device name;
 - access-point SSID and passphrase;
-- station SSID and passphrase, when a network has been joined;
+- at most one station SSID and passphrase;
 - administrator password verifier and salt;
-- execution policy and timing defaults;
 - whether physical confirmation is required;
 - provisioned flag and credential version;
-- a record revision, used for its own concurrency.
+- the optional next-blob-ID counter.
 
-Repository data MUST NOT be stored in NVS.
+Repository JSON and blobs MUST NOT be stored in NVS.
 
-The administrator password MUST NOT be stored in plaintext, nor in any form from
-which it can be recovered. Use a per-password random salt and a documented
-password-based key derivation function available in the ESP-IDF/mbedTLS
-environment. Comparison MUST be constant-time.
+The administrator password MUST NOT be recoverable. Use a per-password random
+salt, an ESP-IDF/mbedTLS-compatible password derivation function, and constant-
+time comparison.
 
-Wi-Fi passphrases are necessarily recoverable, because the radio must be given
-the passphrase itself on every join. They are stored as-is and protected by
-confinement instead: firmware MUST NOT emit either passphrase in a log line, an
-API response, a blob, or a diagnostic report. A caller that needs an SSID MUST
-NOT be handed the whole configuration record to pick it out of.
+Wi-Fi passphrases are necessarily recoverable by firmware but MUST NOT appear in
+logs, API responses, blobs, exports, or diagnostics.
 
-All configuration lives in one fixed-size record with a fixed field layout. A
-stored record whose length does not match the current layout MUST be rejected as
-corrupt rather than parsed on a best-effort basis.
+A stored configuration record with the wrong fixed length or invalid version is
+corrupt and MUST NOT be parsed on a best-effort basis.
 
 ---
 
-## 10. Network and API
+## 12. Network, authentication, and setup
 
-### 10.1 Wi-Fi
+### 12.1 Wi-Fi
 
-The device always runs its own access point, and MAY additionally join one
-existing network as a station. The access point is the guaranteed control path
-and MUST NOT depend on any external network.
+The device always runs its own protected access point and MAY also join one
+explicitly configured station network.
 
-Defaults: WPA2, no open fallback, DHCP server, `192.168.4.1`.
+The access point starts first and unconditionally. A station join failure is
+logged and ignored; it MUST NOT prevent access-point operation, erase stored
+credentials, or cause an unbounded retry loop.
 
-At boot the access point starts **first and unconditionally**; the station join
-is attempted only afterwards. A join that fails, times out, or is refused MUST
-be logged and otherwise ignored — the device continues as access-point only.
-Firmware MUST NOT treat it as a startup failure, MUST NOT retry in a way that
-delays startup, and MUST NOT discard stored credentials because one attempt
-failed.
+At most one station network is remembered. Firmware MUST NOT scan for, rank, or
+join a network the user did not explicitly configure.
 
-At most one network is remembered. Storing one replaces the previous. Firmware
-MUST NOT scan for, rank, or join any network it was not explicitly given.
+### 12.2 Authentication
 
-Station credentials are set from the serial console and persist across a power
-cycle. *Measured 2026-08-03: the bench device rejoins its network unaided about
-12 s after a reboot.*
+Successful login creates a bounded RAM-only session and an `HttpOnly`,
+`SameSite=Strict`, `Path=/` cookie. The cookie is the complete browser
+credential.
 
-### 10.2 Authentication
+Failed authentication is rate-limited. CORS is disabled.
 
-The session cookie is the entire credential. It is issued on successful login
-and MUST be `HttpOnly`, `SameSite=Strict`, `Path=/`.
+There is no separate CSRF token. There is no Host/Origin check in the development
+appliance profile. A product distributed to third parties MUST revisit DNS
+rebinding protection before release.
 
-There is **no CSRF token**: `SameSite=Strict` means a browser will not attach
-the cookie to a cross-site request at all, which is the attack a CSRF token
-exists to stop.
+### 12.3 First-run setup
 
-There is **no `Host`/`Origin` check**. That defended against DNS rebinding, and
-was removed deliberately for a device whose only network is an isolated access
-point on a bench. Authenticated routes remain safe because such a page cannot
-obtain the cookie; unauthenticated routes become reachable that way. **A product
-shipped to third parties should reinstate it.**
+An unprovisioned device exposes only setup state and setup submission, plus the
+static assets required for that UI.
 
-Sessions are RAM-only, bounded in number, and expire. Failed authentication is
-rate-limited. CORS is disabled.
+Setup requires a one-time code shown on the serial console and sets the device
+name, access-point credentials, and administrator password.
 
-### 10.3 First-run setup **[carried]**
+Setup MUST preserve configuration fields it does not modify. It MUST NOT rebuild
+a partial record and silently discard station credentials or unrelated settings.
 
-An unprovisioned device serves only the setup route. Setup requires a one-time
-code shown on the serial console, and sets the device name, access-point
-credentials and administrator password.
+### 12.4 Serial console
 
-Setup MUST NOT discard configuration it does not set. *This is stated because it
-was a real defect: a fresh record was built with a designated initialiser and
-silently dropped the stored station network.*
+The serial console is a trusted development surface. Possession of the board is
+the authorization for `confirm`, `cancel`, and network-configuration commands.
+It MUST NOT disclose credentials or secret material.
 
-### 10.4 Concurrency
+Before distribution to third parties, the interactive development console MUST
+be excluded or redesigned for the shipped product.
 
-**There is none, and none is offered.** No revision numbers, no checksums on the
-wire, no `If-Match`. A client never sends a token.
+---
 
-Phil, 2026-08-03: *"Get rid of revision. I don't think it adds any value."* and
-*"Why does the client need to send a checksum? … That's overkill."*
+## 13. HTTP API
 
-Last write wins. Two browsers open on the same repository, both edited, both
-saved: the second overwrites the first and nothing reports it. Writes remain
-atomic (§8.4), so neither is half-applied; what is given up is *detecting* that
-two clients wrote. This is a deliberate trade for a single-user appliance and
-would not be acceptable on a shared one.
-
-The device MAY report a blob's checksum, and the application MAY use it to
-notice its own copy is stale. Firmware MUST NOT require it to be sent back.
-
-### 10.5 Routes
+### 13.1 General rules
 
 All routes are under `/api/v1`.
 
+Authenticated binary and JSON requests have bounded bodies. JSON routes accept
+only `application/json`; blob uploads accept only `application/gzip`.
+Malformed paths, unsupported methods, wrong content types, oversized bodies, and
+unknown fields receive explicit 4xx responses.
+
+No route accepts a user-controlled filesystem path. Blob IDs are parsed as
+bounded decimal identifiers and converted to fixed internal paths.
+
+There is no optimistic concurrency token, revision field, `If-Match`, or checksum
+round trip. Last successful write wins.
+
+### 13.2 Route table
+
 ```text
-POST   /api/v1/setup
-POST   /api/v1/auth/login
-POST   /api/v1/auth/logout
-GET    /api/v1/auth/session
+POST    /api/v1/setup
 
-GET    /api/v1/status
-GET    /api/v1/limits
+POST    /api/v1/auth/login
+POST    /api/v1/auth/logout
+GET     /api/v1/auth/session
 
-GET    /api/v1/repository
-PUT    /api/v1/repository
-GET    /api/v1/repository/versions
-GET    /api/v1/repository/{version}
+GET     /api/v1/status
+GET     /api/v1/limits
 
-POST   /api/v1/executions
-GET    /api/v1/executions/current
-POST   /api/v1/executions/{execution_id}/confirm
-POST   /api/v1/executions/{execution_id}/cancel
+GET     /api/v1/blob
+POST    /api/v1/blob
+GET     /api/v1/blob/{blob_id}
+DELETE  /api/v1/blob/{blob_id}
 
-GET    /api/v1/settings
-PUT    /api/v1/settings
-POST   /api/v1/settings/change-password
-POST   /api/v1/device/restart
-POST   /api/v1/device/reset-settings
-POST   /api/v1/device/factory-reset
+POST    /api/v1/send
+GET     /api/v1/send
+DELETE  /api/v1/send
 
-GET    /api/v1/diagnostics
+GET     /api/v1/settings
+PUT     /api/v1/settings
+POST    /api/v1/settings/change-password
+
+POST    /api/v1/device/restart
+POST    /api/v1/device/reset-settings
+POST    /api/v1/device/factory-reset
+
+GET     /api/v1/diagnostics
 ```
 
-There are no package routes, no macro routes, no import, export, backup or
-restore routes, and no validate route. The device cannot address anything inside
-the blob, so those routes would have nothing to operate on.
+There are no package routes, macro routes, validation routes, repository restore
+routes, or plural `executions` resource.
 
-### 10.6 Executing a macro
+### 13.3 Blob API
 
-`POST /api/v1/executions` carries the macro **source** and its timing, not an
-identifier. Phil, 2026-08-03: *"React just sends the macro source. It just needs
-to send it what will be sent to the computer as a usb keyboard. The esp32 app
-doesn't need the id."*
+#### List
+
+```http
+GET /api/v1/blob
+```
 
 ```json
-{ "source": "make -j8{ENTER}", "keyPressMs": 8, "interKeyMs": 15 }
+{
+  "blobs": [
+    { "id": "3", "sizeBytes": 1332 },
+    { "id": "2", "sizeBytes": 1298 }
+  ],
+  "usedBytes": 2630,
+  "remainingBytes": 492000
+}
 ```
 
-The device compiles what it is handed and types it. Source it cannot compile is
-rejected with `422` and the parse error's offset (§7.6).
+#### Add
 
-If physical confirmation is enabled — off by default — the request waits for the
-`confirm` console command and expires after a bounded timeout. That wait MUST
-NOT run on the HTTP server task: `esp_http_server` serves every socket from one
-task, so waiting there makes the device unreachable for the duration. At most
-one confirmation-gated request is accepted at a time; a second is refused with
-`409` rather than queued, because one confirmation cannot disambiguate two.
+```http
+POST /api/v1/blob
+Content-Type: application/gzip
+```
 
-Execution starts only if USB is ready and the executor is idle.
+The body is the raw compressed repository bytes.
 
-### 10.7 Request limits
+```json
+{
+  "id": "4",
+  "sizeBytes": 1350
+}
+```
 
-Bounded body size, bounded JSON depth, explicit content-type checks, no
-user-controlled filesystem paths, no path traversal in static file serving.
-Malformed or oversized requests receive explicit 4xx responses.
+#### Load
 
-### 10.8 Status codes
+```http
+GET /api/v1/blob/4
+```
+
+The response body is raw `application/gzip` bytes.
+
+#### Delete
+
+```http
+DELETE /api/v1/blob/4
+```
+
+A successful delete returns `204 No Content`.
+
+### 13.4 Send API
+
+`POST /api/v1/send` is the only operation that starts keyboard output.
+
+Request:
+
+```json
+{
+  "source": "make -j8{ENTER}",
+  "keyPressMs": 8,
+  "interKeyMs": 15
+}
+```
+
+The device validates bounds and compiles the complete source before accepting the
+send. Invalid source returns `422` with the exact parser location. Nothing is
+typed after a compile failure.
+
+On acceptance, the device returns `202`:
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "state": "running",
+  "actionCount": 9,
+  "estimatedDurationMs": 214
+}
+```
+
+If physical confirmation is enabled, the initial state is
+`awaiting_confirmation`. The serial-console `confirm` command starts it. The
+request expires after a bounded timeout. A second POST while one is awaiting
+confirmation or running returns `409`.
+
+`GET /api/v1/send` returns the current or most recent send:
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "state": "completed",
+  "actionIndex": 9,
+  "actionCount": 9,
+  "estimatedDurationMs": 214,
+  "cancellationRequested": false,
+  "error": "",
+  "releaseError": ""
+}
+```
+
+Send states are:
 
 ```text
-200  OK
-201  created
-202  execution accepted
+awaiting_confirmation
+running
+completed
+cancelled
+failed
+timed_out
+```
+
+When no send exists since boot, GET returns `404`.
+
+`DELETE /api/v1/send` requests cancellation of the current non-terminal send. It
+returns `202` when the request was recorded. Cancellation is idempotent while the
+same send remains non-terminal.
+
+### 13.5 React completion callback
+
+A callback URL is not part of the wire protocol. A browser does not expose a
+reliable local HTTP callback listener to the ESP32.
+
+The React API layer SHOULD expose a helper shaped conceptually as:
+
+```text
+sendMacro(request, { onStatus, onComplete })
+```
+
+The helper:
+
+1. calls `POST /api/v1/send`;
+2. polls `GET /api/v1/send` at a bounded interval no slower than once per second;
+3. invokes `onStatus` when the state changes;
+4. invokes `onComplete` exactly once after a terminal state is observed.
+
+If the page closes, the JavaScript callback is not guaranteed. The firmware send
+continues independently, and reopening the application can recover its state
+with `GET /api/v1/send`.
+
+### 13.6 Status codes
+
+```text
+200  successful read or update
+201  blob created
+202  send accepted or cancellation requested
+204  blob deleted
 400  malformed request
-401  login required or invalid
+401  login required or invalid credentials
 403  policy failure
-404  absent
-409  busy, or a second confirmation-gated request
-413  body over limit
+404  resource or send absent
+409  send already active or confirmation slot busy
+413  request body over declared limit
 415  wrong content type
-422  invalid macro source, or invalid field
+422  invalid field or macro source
 429  rate limited
 500  internal error
 503  subsystem unavailable
-507  blob over the storage ceiling
+507  insufficient blob storage
 ```
 
 ---
 
-## 11. Physical controls
+## 14. Web application
 
-The device MUST NOT require any button, and MUST NOT require hardware added to
-the board. A stock devkit and a USB cable are a complete product.
+The React application is served from the `webfs` partition and works without
+internet access.
 
-Required logical controls: a status indicator.
+Required screens:
 
-Confirmation and cancellation are serial-console commands (`confirm`, `cancel`).
-Cancellation MUST remain available during typing and during delays, over both
-the API and the console.
+1. First-run setup
+2. Login
+3. Snapshot chooser
+4. Package chooser
+5. Macro list
+6. Macro editor with live TypeScript validation
+7. Send preview and explicit confirmation
+8. Send progress and cancel
+9. Send result
+10. Package management
+11. Repository import and export
+12. Snapshot management and deletion
+13. Settings
+14. Diagnostics
 
-*v1 specified cancel and confirm buttons and a reset boot gesture. No board this
-project uses breaks out the GPIO they were assigned, the reset gesture was never
-implemented, and gating six routes on a press made the device unusable. They are
-console commands instead.*
+The operational header SHOULD show the device name, active package, USB state,
+and access to snapshot and device settings.
 
-### 11.1 The serial console is a trusted surface
+Hash routing SHOULD be used so static-file serving does not require server-side
+SPA fallback rules.
 
-Console commands require no session and no confirmation: possession of the board
-*is* the authorization. Reaching the UART port means holding hardware that can
-be reflashed outright, so authenticating it would add friction without
-protection.
+### 14.1 Startup
 
-The console MUST NOT expose credentials or secret material, because the failure
-mode there is disclosure rather than control.
+After authentication:
 
-**The console is a development interface.** Before any release to third parties
-it MUST be excluded from the shipped image: a shipped device's physical surface
-belongs to its user, and `wifi-connect` would let anyone with momentary physical
-access redirect it. Until then it is present in every build, and that is a
-documented product limitation rather than a defect.
+- if no blobs exist, React creates an empty in-memory repository;
+- if one blob exists, React may offer to load it directly;
+- if several blobs exist, React shows the newest first and lets the user choose;
+- a decompression or validation failure keeps the chooser available and does not
+  cause automatic fallback or deletion.
 
----
+### 14.2 Editing
 
-## 12. Web application
+Package and macro CRUD, duplication, ordering, and active selection occur only in
+the in-memory repository.
 
-Served from the `webfs` partition. React, TypeScript, built to static assets.
+React MUST NOT call the ESP32 after every edit. Device writes occur only when the
+user saves a complete snapshot.
 
-The application MUST work with no internet access. Every asset MUST be local —
-no remote `//` URLs in the built output.
+### 14.3 Explicit send
 
-It owns the data model (§1.1): packages, macros, ordering, the active selection,
-validation feedback, and import/export to files on the user's computer.
+Every send requires a user action on a preview showing:
 
-It MUST NOT persist repository data in `localStorage`, `sessionStorage`,
-IndexedDB, or a service worker cache. The device is the store; the browser holds
-a working copy for the session.
+- package name;
+- macro name;
+- decoded source or action summary;
+- estimated duration;
+- current USB state.
 
-Required screens: setup, login, repository browsing and editing, macro editing
-with live validation, send-and-confirm, execution progress, settings,
-diagnostics.
+The application sends source and timing, not package ID, macro ID, revision, or
+blob ID.
 
----
+The next macro MUST NOT execute automatically.
 
-## 13. Error handling
+### 14.4 Static assets
 
-### 13.1 No silent failures **[carried]**
-
-Every operation MUST return, log, or expose an explicit success or failure.
-
-No code may swallow an `esp_err_t`, discard an error result, return success
-after partial completion, log an error and continue in an invalid state,
-substitute empty data after a parse failure, retry forever silently, silently
-downgrade authentication, storage or USB behaviour, or use a dangerous fallback
-to keep running.
-
-### 13.2 Logging
-
-Logs MUST NOT contain passwords, passphrases, session tokens, setup codes, key
-material, or macro source. Macro source is user content and may contain
-anything the user types, including credentials.
-
-### 13.3 Diagnostics
-
-The device reports: firmware version and build id, reset reason, uptime, free
-and minimum-free heap, task stack high-water marks, USB state, Wi-Fi state,
-partition usage, the current repository version and its checksum status, and
-per-subsystem health.
+All production assets are local. Vite output uses content-hashed filenames.
+Compressible static assets SHOULD have pre-generated gzip variants. The static
+server sets correct content types, streams in bounded chunks, caches hashed
+assets as immutable, serves `index.html` with revalidation, rejects path
+traversal, and never exposes the userdata mount.
 
 ---
 
-## 14. Quality gates **[carried]**
+## 15. Physical controls
 
-`./scripts/check-all.sh` is the authoritative local gate and CI MUST call the
-same command. It MUST fail on the first failed phase and MUST never mask
-failures.
+No button is required.
 
-- No `|| true`, no redirected errors, no warning suppression, no first-party
-  lint or analyser exclusions.
-- clang-tidy runs with `WarningsAsErrors: '*'`; ESLint and stylelint with
-  `--max-warnings=0`.
-- A defect MUST be fixed at its source, not suppressed. Approved exceptions are
-  registered in a tracked document.
-- The project MUST NOT modify ESP-IDF, managed components, or npm dependencies
-  in place.
+Confirmation and cancellation are available through the serial-console
+`confirm` and `cancel` commands. Network cancellation through
+`DELETE /api/v1/send` remains available during typing and delays.
+
+A logical status indicator MAY be provided by logs or the web UI. No unspecified
+GPIO indicator is an acceptance requirement.
 
 ---
 
-## 15. Testing
+## 16. Error handling, logging, and diagnostics
 
-### 15.1 Host tests
+### 16.1 No silent failures
 
-Native C tests with fakes for every hardware backend: macro parsing and
-compilation, execution state machine, blob storage, authentication, HTTP
-routing and policy, startup sequencing, Wi-Fi and provisioning.
+Every operation returns, logs, or exposes an explicit result.
 
-### 15.2 Web application tests
+Code MUST NOT swallow an `esp_err_t`, discard an error, report success after a
+partial operation, silently substitute empty data, retry forever without status,
+silently weaken authentication, format storage as a fallback, or continue in an
+invalid state merely to remain available.
 
-Unit and component tests, plus a real-browser pass against a fixture device.
+### 16.2 Logging
 
-### 15.3 Conformance corpus
+Logs MUST NOT contain:
 
-§7.8. One corpus, both parsers, drift fails CI.
+- passwords or passphrases;
+- session tokens;
+- setup codes;
+- key material;
+- repository bytes;
+- decompressed repository JSON;
+- macro source.
 
-### 15.4 Hardware-in-the-loop
+Macro source may itself contain credentials and is always treated as sensitive
+user content.
 
-Against an attached device, reading back the kernel's HID reports — the bytes on
-the wire, not text captured from an editor:
+### 16.3 Diagnostics
+
+Diagnostics report:
+
+- firmware version and build ID;
+- reset reason and uptime;
+- free and minimum-free heap;
+- task stack high-water marks;
+- USB state;
+- Wi-Fi state;
+- webfs and userdata capacity;
+- number of stored blobs;
+- current or most recent send state;
+- per-subsystem health;
+- invalid filenames and temporary files found during storage inspection.
+
+Diagnostics do not parse blobs and do not report package or macro information.
+
+---
+
+## 17. Quality gates
+
+`./scripts/check-all.sh` is the authoritative local gate and CI MUST invoke the
+same command.
+
+It MUST fail on the first failed phase and MUST never mask failures.
+
+- No `|| true` failure hiding.
+- No redirected analyzer errors.
+- No warning suppression or first-party lint exclusions without an explicitly
+  tracked exception.
+- clang-tidy runs with warnings as errors.
+- ESLint and stylelint run with zero allowed warnings.
+- Defects are fixed at their source rather than suppressed.
+- ESP-IDF, managed components, and npm dependencies are never modified in place.
+
+Checks MUST prevent reintroduction of firmware package/macro persistence and
+package/macro API routes.
+
+---
+
+## 18. Testing
+
+### 18.1 Native C tests
+
+Host tests with fakes cover:
+
+- macro parsing and compilation;
+- the shared conformance corpus;
+- executor state, cancellation, timeout, and release-all behavior;
+- opaque blob list, add, load, delete, capacity, and boot cleanup;
+- authentication and session policy;
+- HTTP routing, methods, content types, body limits, and path rejection;
+- startup sequencing;
+- Wi-Fi and provisioning.
+
+Tests for the retired package repository, package JSON parser, package imports,
+package exports, package restore, macro CRUD, package ordering, and active-package
+firmware state are removed with those features.
+
+### 18.2 Web tests
+
+Vitest and real-browser tests cover:
+
+- strict repository schema validation;
+- UUID uniqueness and reference invariants;
+- TypeScript macro validation and conformance corpus;
+- gzip round trips through browser Compression Streams;
+- import failure leaving the working copy unchanged;
+- package and macro editing and ordering;
+- snapshot add, load, list, and delete workflows;
+- save failure retaining the working copy;
+- send polling and `onComplete` callback behavior;
+- explicit-send confirmation;
+- offline assets.
+
+### 18.3 Hardware-in-the-loop
+
+Against an attached ESP32-S3 and host HID reports:
 
 - printable text arrives exactly;
-- a chord sets the modifier bit concurrently with the usage code;
-- every run ends with an all-zero report;
-- cancellation over both the API and the console, during typing and during a
-  delay;
-- a repository saved, the device power-cycled, and the repository returned
-  byte-identical;
-- an interrupted save leaves the previous version current;
-- factory reset, credential reset, and re-provisioning.
+- a chord sets modifier and usage concurrently;
+- every send ends with an all-zero report;
+- cancellation works through the API and console during typing and delay;
+- invalid source types nothing;
+- one compressed blob is added, power is removed, and the same bytes load after
+  reboot;
+- multiple blobs list in numeric order;
+- deleting one blob leaves every other blob byte-identical;
+- interrupted add leaves no final partial blob and boot removes the temporary;
+- a full partition returns `507` without altering existing blobs;
+- factory reset, settings reset, and reprovisioning behave as specified.
 
-### 15.5 Host matrix
+### 18.4 Host matrix
 
-Linux, and ChromeOS and Windows when the machines are available.
+Linux is required. ChromeOS and Windows are required when test machines are
+available. Current Chrome, Firefox, Safari, and Chromium-based mobile browsers
+SHOULD be represented in web compatibility testing where practical.
 
 ---
 
-## 16. Acceptance criteria for v0.2
+## 19. Acceptance criteria for v0.2
 
 1. A clean checkout builds with ESP-IDF v5.5.5 for `esp32s3`.
-2. `./scripts/check-all.sh` exits 0 with zero first-party warnings.
-3. The device enumerates as a USB keyboard with the project's own identity.
-4. The device starts a protected access point with no open fallback.
-5. A repository saved from the web application survives a power cycle and comes
-   back byte-identical.
-6. Five versions are retained; the user can load an older one; the device never
-   selects one by itself.
-7. Power loss during a save leaves the previous version current and complete,
-   and boot removes any stray `.tmp`.
-8. A blob that fails its checksum is reported and not served, and not deleted.
-9. An over-budget upload is refused with `507` and does not disturb the stored
-   versions.
-10. The user can execute a macro only through an explicit action, and invalid
-    source is refused with an exact position.
-11. Every terminal execution path releases all keys, verified from HID reports.
-12. Cancellation works during typing and during delays, over the API and the
-    console.
-13. The device requires no button and no added hardware.
-14. A mount failure does not format storage.
-15. The web application works with no internet access and fits its partition.
-16. No credentials or macro source appear in logs or diagnostics.
-17. The conformance corpus passes against both parsers.
-18. The tests in §15 pass.
-19. This document matches implemented behaviour.
+2. `./scripts/check-all.sh` exits zero with no first-party warnings.
+3. The device enumerates with the project USB identity.
+4. The protected access point starts with no open fallback.
+5. React owns the only package and macro data model in production code.
+6. Firmware contains no package repository, macro repository, package index,
+   active package, package/macro CRUD route, repository parser, compressor, or
+   decompressor.
+7. The documented schema round-trips through JSON and gzip without changing
+   order or values.
+8. A saved blob survives power loss and loads byte-identically.
+9. Blob list, add, load, and delete behave exactly as §13.3.
+10. An interrupted add leaves existing blobs intact and exposes no partial final
+    blob.
+11. Firmware stores no explicit checksum, CRC, or digest for repository blobs.
+12. React reports decompression and schema errors and lets the user choose a
+    different blob.
+13. An over-limit or out-of-space add fails without modifying final blobs.
+14. `POST /api/v1/send` accepts source and timing and no package or macro ID.
+15. Invalid source returns an exact parser location and emits no key report.
+16. Every terminal send path releases all keys, verified from HID reports.
+17. `GET /api/v1/send` reports terminal completion and the React helper invokes
+    its completion callback exactly once.
+18. Cancellation works during typing and delay through the API and console.
+19. No button or added hardware is required.
+20. A mount failure does not format storage.
+21. The web application works without internet access and fits its partition.
+22. No credentials, repository data, or macro source appear in logs or
+    diagnostics.
+23. The shared conformance corpus passes in C and TypeScript.
+24. The tests in §18 pass.
+25. This document matches implemented behavior.
 
 ---
 
-## 17. Carried forward without a recorded source
+## 20. Deferred
 
-These were in v1 with no attribution and no measurement. They are reproduced so
-nothing is lost silently. Each is a candidate for deletion — **[unattributed]**:
-
-- **Estimated total duration 300 s** (§7.7). No source for the number.
-- **Compiled actions 4096** (§7.7). Plausibly derived from the source byte
-  limit, but not recorded.
-- **`192.168.4.1`** as the access-point address (§10.1). This is the ESP-IDF
-  default, so it is probably inherited rather than chosen.
-- **Session table bounds and expiry values** (§10.2), which v1 required without
-  giving numbers.
-- **The status indicator** (§11). Required as a "logical control" with no
-  behaviour specified anywhere.
-- **Device name** as a stored setting (§9). Nothing reads it.
-
-## 18. Deferred
-
-Additional keyboard layouts; platform-specific Unicode entry; mDNS; web-based
-OTA; encrypted blobs; signed blobs; merge; execution history; an OLED display;
-Bluetooth HID; multiple users.
+- additional keyboard layouts;
+- platform-specific Unicode entry;
+- mDNS;
+- web-based OTA;
+- encrypted or signed repository blobs;
+- repository merge;
+- multi-user editing;
+- execution history beyond the current or most recent send;
+- Server-Sent Events or WebSocket progress instead of polling;
+- OLED or other display;
+- Bluetooth HID.
