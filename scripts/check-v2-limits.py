@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify that the C and TypeScript v2 limits mirror the shared JSON contract."""
+"""Verify all C and TypeScript v2 limit mirrors against shared JSON."""
 
 from __future__ import annotations
 
@@ -15,6 +15,9 @@ CONTRACT_PATH = REPOSITORY_ROOT / "contracts/v2/limits.json"
 C_HEADER_PATH = (
     REPOSITORY_ROOT
     / "firmware/components/app_contracts_v2/include/app_limits_v2.h"
+)
+LEGACY_C_HEADER_PATH = (
+    REPOSITORY_ROOT / "firmware/components/macro_model/include/macro_limits.h"
 )
 TYPESCRIPT_PATH = REPOSITORY_ROOT / "webapp/src/v2/limits.ts"
 
@@ -38,6 +41,16 @@ EXPECTED_KEYS = (
     "adminPasswordMaxBytes",
     "snapshotRetentionTargetMax",
 )
+
+LEGACY_LIMITS = {
+    "APP_MACRO_NAME_MAX_BYTES": "macroNameMaxBytes",
+    "APP_MACRO_SOURCE_MAX_BYTES": "macroSourceMaxBytes",
+    "APP_COMPILED_ACTION_MAX": "compiledActionsMax",
+    "APP_DELAY_MAX_MS": "delayDirectiveMaxMs",
+    "APP_ESTIMATED_DURATION_MAX_MS": "estimatedDurationMaxMs",
+    "APP_NAME_MAX_BYTES": "packageNameMaxBytes",
+    "APP_SESSION_TABLE_MAX": "activeSessionsMax",
+}
 
 
 def load_contract() -> dict[str, int]:
@@ -119,18 +132,55 @@ def verify(path: Path, expected: str) -> bool:
     return False
 
 
+def parse_legacy_integer(header: str, name: str) -> int:
+    pattern = rf"^#define\s+{re.escape(name)}\s+UINT32_C\((\d+)\)\s*$"
+    match = re.search(pattern, header, flags=re.MULTILINE)
+    if match is None:
+        raise ValueError(f"legacy limit {name} must be a direct UINT32_C value")
+    return int(match.group(1))
+
+
+def verify_legacy_limits(limits: dict[str, int]) -> bool:
+    header = LEGACY_C_HEADER_PATH.read_text(encoding="utf-8")
+    expected_values = {
+        macro: limits[contract_name]
+        for macro, contract_name in LEGACY_LIMITS.items()
+    }
+    expected_values["APP_PHYSICAL_CONFIRM_TIMEOUT_MS"] = (
+        limits["serialConfirmationTimeoutSeconds"] * 1000
+    )
+
+    mismatches: list[str] = []
+    for macro, expected in expected_values.items():
+        actual = parse_legacy_integer(header, macro)
+        if actual != expected:
+            mismatches.append(f"{macro}: expected {expected}, got {actual}")
+
+    if not mismatches:
+        return True
+    relative_path = LEGACY_C_HEADER_PATH.relative_to(REPOSITORY_ROOT)
+    print(
+        f"error: temporary compatibility limits in {relative_path} drifted",
+        file=sys.stderr,
+    )
+    for mismatch in mismatches:
+        print(f"  {mismatch}", file=sys.stderr)
+    return False
+
+
 def main() -> int:
     try:
         limits = load_contract()
         c_ok = verify(C_HEADER_PATH, render_c_header(limits))
+        legacy_ok = verify_legacy_limits(limits)
         typescript_ok = verify(TYPESCRIPT_PATH, render_typescript(limits))
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
 
-    if not c_ok or not typescript_ok:
+    if not c_ok or not legacy_ok or not typescript_ok:
         return 1
-    print("v2 limits contract matches C and TypeScript mirrors")
+    print("v2 limits contract matches C, legacy compatibility, and TypeScript")
     return 0
 
 
