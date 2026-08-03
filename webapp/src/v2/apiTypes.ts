@@ -27,10 +27,10 @@ export type SubsystemHealthState =
 export interface ErrorDetail {
   code: string;
   message: string;
-  field?: string;
-  byteOffset?: number;
-  line?: number;
-  column?: number;
+  field?: string | undefined;
+  byteOffset?: number | undefined;
+  line?: number | undefined;
+  column?: number | undefined;
 }
 
 export interface ErrorEnvelope {
