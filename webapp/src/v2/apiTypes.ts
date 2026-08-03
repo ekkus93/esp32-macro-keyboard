@@ -37,6 +37,11 @@ export interface ErrorEnvelope {
   error: ErrorDetail;
 }
 
+export interface SetupStateResponse {
+  provisioned: false;
+  deviceName: string;
+}
+
 export interface SetupRequest {
   setupCode: string;
   deviceName: string;
