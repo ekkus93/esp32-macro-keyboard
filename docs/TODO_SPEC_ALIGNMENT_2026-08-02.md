@@ -826,6 +826,29 @@ Bootstrap AP passphrase and setup code are in
   and deserves its own decision.
 
 
+- [ ] **5.10 `POST /api/v1/sets/import-new` fails on hardware.** Returns
+  `422 invalid_argument` ("could not import set as new") for a package the
+  device itself just produced, including when the set and macro ids are replaced
+  with fresh ones so nothing can collide. Reproduced against the committed tree
+  at `319cc48`, so it predates the package refactors of 2026-08-02 rather than
+  being caused by them.
+
+  Restore, the other worker-routed apply path, works: the same session
+  round-trips a fourteen-set backup. So this is not the async body plumbing
+  fixed in `280d61a`, and not the package scanner replaced in `20a517f`.
+
+  The host suite passes throughout, for the same reason the restore defect
+  survived to hardware: `test_storage_package_import.c` calls
+  `storage_package_import_set` directly with a body already in hand, so nothing
+  exercises the route, its body shape, or how the new set id is chosen.
+
+  Next: instrument as the restore defect was -- the stage logging in
+  `storage_package.c` is already there and failure-only, so a run should say
+  whether it is the envelope, the object validation, or `import_locked` refusing
+  the id. Do that before touching code; the two wrong guesses on the restore bug
+  both came from reasoning instead of looking.
+
+
 ---
 
 ## Acceptance
