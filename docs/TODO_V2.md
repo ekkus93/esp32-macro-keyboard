@@ -169,6 +169,8 @@ subsystem before modifying production behavior.
 ## V2-011 — API contract models
 
 - [ ] Define shared request/response examples for every `/api/v1` route.
+- [ ] Define the unprovisioned-only `GET /api/v1/setup` response with exactly
+      `provisioned: false` and `deviceName`.
 - [ ] Define the standard JSON error envelope with stable `code`, human-readable
       `message`, and optional `field`.
 - [ ] Define exact setup, session, status, limits, settings, password-change,
@@ -372,13 +374,18 @@ knowledge in firmware.
 
 ## V2-040 — First-run provisioning
 
-- [ ] Expose only setup state, setup submission, and required static assets while
-      unprovisioned.
+- [ ] Expose only `GET /api/v1/setup`, `POST /api/v1/setup`, and required static
+      assets while unprovisioned.
+- [ ] Return exactly `provisioned: false` and the non-secret `deviceName` from
+      `GET /api/v1/setup`.
+- [ ] Return `404` from `GET /api/v1/setup` after provisioning.
+- [ ] Keep every other `/api/v1` route unavailable while unprovisioned.
 - [ ] Require the one-time serial setup code.
 - [ ] Strictly validate device name, AP SSID, AP passphrase, administrator
       password, and physical-confirmation setting.
 - [ ] Preserve unrelated configuration fields during setup updates.
 - [ ] Return a restart/reconnect response without returning secrets.
+- [ ] Return `409` from setup submission after provisioning.
 - [ ] Test wrong, expired, malformed, and reused setup codes.
 
 ## V2-041 — Password verifier and PBKDF2 benchmark
@@ -456,11 +463,13 @@ knowledge in firmware.
 
 ## V2-051 — Setup and authentication routes
 
+- [ ] Implement unprovisioned-only `GET /api/v1/setup`.
 - [ ] Implement `POST /api/v1/setup`.
 - [ ] Implement `POST /api/v1/auth/login`.
 - [ ] Implement `POST /api/v1/auth/logout`.
 - [ ] Implement `GET /api/v1/auth/session`.
 - [ ] Match exact schemas, status codes, cookie behavior, and expiry fields.
+- [ ] Test the complete unprovisioned/provisioned route-access matrix.
 
 ## V2-052 — Status and limits routes
 
@@ -513,6 +522,11 @@ knowledge in firmware.
 - [ ] Test every route with valid, missing, extra, wrong-type, wrong-content-type,
       oversized, unauthorized, expired-session, malformed-path, and method-error
       cases.
+- [ ] Test the unprovisioned route surface contains only setup GET/POST and static
+      setup assets.
+- [ ] Test setup-state GET returns only the approved two fields and returns `404`
+      after provisioning.
+- [ ] Test setup POST returns `409` after provisioning.
 - [ ] Test exact response schemas and status codes.
 - [ ] Test that secret-like sentinel values never appear in responses or logs.
 - [ ] Consume the same checked-in examples from C and TypeScript tests.
@@ -658,6 +672,9 @@ knowledge in firmware.
 
 ## V2-080 — First-run setup screens
 
+- [ ] Load first-run state from unprovisioned-only `GET /api/v1/setup`.
+- [ ] Reject any setup-state response with fields beyond `provisioned` and
+      `deviceName`.
 - [ ] Implement device identification and setup-code entry.
 - [ ] Implement device name, AP credentials, administrator password, and optional
       physical-confirmation fields.
@@ -1111,6 +1128,8 @@ Macros | Packages | Snapshots | Settings
 ## V2-154 — Network and authentication matrix
 
 - [ ] Validate first-run setup.
+- [ ] Validate unauthenticated setup-state GET before provisioning, its minimal
+      response, and its `404` behavior after provisioning.
 - [ ] Validate login, logout, idle expiry, absolute expiry, and lockout.
 - [ ] Validate AP availability after station failure.
 - [ ] Validate bounded reconnect behavior.
