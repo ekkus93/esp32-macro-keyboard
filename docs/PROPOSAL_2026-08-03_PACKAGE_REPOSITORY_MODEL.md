@@ -21,11 +21,11 @@ the assistant proposes, Phil approves, and the approval is dated.
 
 ## The model
 
-> "A package is a set of macros with some meta data. A repository is a set of
+> "A package is a package of macros with some meta data. A repository is a package of
 > packages."
 
-- A **package** is one macro set: its macros in order, plus metadata. This is
-  what §8.7 already called a set export.
+- A **package** is one package: its macros in order, plus metadata. This is
+  what §8.7 already called a package export.
 - A **repository** is a list of packages plus its own metadata:
   `{"packages": [ … ], …}`.
 
@@ -33,8 +33,8 @@ Four operations, symmetric:
 
 | | |
 | --- | --- |
-| download a package | export one set |
-| upload / replace a package | import or replace one set |
+| download a package | export one package |
+| upload / replace a package | import or replace one package |
 | download a repository | back up everything |
 | upload / replace a repository | restore everything |
 
@@ -66,7 +66,7 @@ editing individual macros keeps its own routes and is the normal path.
 One file per package, not one file for the whole repository. Phil's reason:
 otherwise "you would have to update the whole repository file just to update a
 package." §13.3 already required this for a different but compatible reason —
-a write duplicates only the set being edited.
+a write duplicates only the package being edited.
 
 Two repositories on the device:
 
@@ -187,24 +187,52 @@ GET  /api/v1/repository           download the repository
 PUT  /api/v1/repository           upload the repository
 ```
 
+### Vocabulary
+
+Decided 2026-08-03: **"set" stops existing. The noun is "package".** Phil:
+"'set' should stop existing. Use 'package' instead."
+
+A package and a macro set were the same object under two names, which is what
+made `import` and `import-new` look like different operations. One noun means
+the live-editing routes move under `/api/v1/package/{package_id}/macros` as
+well, so this is not only a transfer-format change.
+
+Two consequences worth recording, both found while doing it:
+
+- **`package` is a reserved word in JavaScript strict mode.** A bare binding
+  cannot be called `package`, so the webapp uses `pkg` for local variables. Type
+  names, wire fields, route paths and all user-facing text say "package"; `pkg`
+  appears only where the language forbids the real word.
+- **Historical documents were deliberately left saying "set".** The FIX1
+  documents, the handoffs, the alignment plan and the spec-change audit record
+  what was written at the time. Rewriting them to the new vocabulary would
+  falsify the record.
+
+### The listing
+
+Decided 2026-08-03: **id, name and CRC32.** Phil: "id + name. I don't think that
+we need revision. Date or checksum is probably better than revision."
+
+Not a date, and that is not a preference: the device has no wall clock. There is
+no SNTP call, no RTC synchronisation and no `time(NULL)` anywhere in the
+firmware, and §4 rules out internet access, so any date it stamped would be
+invented. §8.7 now forbids reporting one.
+
+Whether the CRC32 should also replace `expectedRevision` as the concurrency
+token — the ETag pattern — was raised and is **not decided**.
+
 ### Still not decided
 
-- **Is a package the same thing as a set?** `GET /api/v1/sets` already returns
-  the id/name/revision list the new listing route would return. If package and
-  set are one noun, "set" should stop existing and the live-editing routes move
-  to `/api/v1/package/{id}/macros` — consistent, and a large change touching the
-  webapp, §12.1, and every occurrence of "set" in the tree. If a set is the live
-  object and a package is its transfer form, both APIs coexist and the listing
-  route is a deliberate duplicate. **Unanswered.**
-- **What the listing returns** — bare ids, or id/name/revision? Bare ids match
-  what Phil asked for; the selection screen needs names, which is why
-  `GET /api/v1/sets` returns them today. **Unanswered.**
 - **The package-count limit and the maximum package size.** They have to be
   chosen together: at 20% leeway a repository holds 206,438 bytes, so a 4 KiB cap
   allows 50 packages, 8 KiB allows 25, 32 KiB allows 6. Today's §10.7 declares 50
-  sets, 100 macros per set, 4096 bytes per macro and 32 KiB per set file, which
-  contradict each other — 100 macros at 4 KiB is 400 KiB against a 32 KiB file
-  cap. Current bench usage is ~440 bytes per package. **Unanswered.**
+  packages, 100 macros per package, 4096 bytes per macro and 32 KiB per package
+  file, which contradict each other — 100 macros at 4 KiB is 400 KiB against a
+  32 KiB file cap. Current bench usage is ~440 bytes per package.
+- **Whether the CRC32 replaces `expectedRevision`.**
+- **Whether `POST /api/v1/package` survives** now that `PUT` creates, and whether
+  the macros sub-resource survives once a `GET` of a package returns its macros
+  inline. Both are recorded as open in §17.
 
 ## Implementation notes
 
@@ -215,8 +243,8 @@ PUT  /api/v1/repository           upload the repository
   mechanism is deliberately not a resurrection of the 1,600-line transaction
   layer deleted in `8b550c6`, and it should not be named as though it were.
 - The observation that prompted this design: restore currently clears the active
-  set, because it rebuilds the index from scratch. Under this model the
-  repository document carries its own metadata, so the active set is part of what
+  package, because it rebuilds the index from scratch. Under this model the
+  repository document carries its own metadata, so the active package is part of what
   is restored and the defect cannot occur. That bug is still live and unfixed at
   the time of writing.
 - One loose end from the bench measurement: after deleting eight probe packages,
@@ -241,7 +269,7 @@ Adding these amendments took `SPEC_TEST_TRACEABILITY.md` from 259 statements to
 267. **The unmapped count did not move: it stayed at 23.** Every one of the eight
 new requirements — repository upload is atomic, a failed upload is rolled back,
 the marker carries a direction, stale packages are removed, repository metadata
-includes the active set — is reported as `referenced`, mapped to tests such as
+includes the active package — is reported as `referenced`, mapped to tests such as
 `storage_package_export → deterministic_export_and_filtering`.
 
 None of them is implemented. None is tested. They were written twenty minutes

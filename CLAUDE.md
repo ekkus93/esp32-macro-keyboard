@@ -107,7 +107,7 @@ depends on plug order, and the vendor IDs are the reliable identifier.
 | **USB-UART bridge** (a separate CH340/CP210x chip on UART0) | `1a86:55d3` (CH340) or `10c4:ea60` (CP210x) | `/dev/ttyACM1` or `/dev/ttyUSB0` | **The interactive serial console** |
 
 **The interactive console is on the UART bridge, not on native USB.**
-`sdkconfig` sets `CONFIG_ESP_CONSOLE_UART_DEFAULT=y` with
+`sdkconfig` packages `CONFIG_ESP_CONSOLE_UART_DEFAULT=y` with
 `CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y`, so `esp_console` reads stdin
 from **UART0** while USB-Serial-JTAG is the *secondary* console — it mirrors log
 output but **accepts no input**. Typing `wifi-connect`, `confirm`, or `cancel`

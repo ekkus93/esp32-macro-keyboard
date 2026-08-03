@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { errorText } from "./api/errors";
-import { getDeviceStatus, getSettings, listSets } from "./api/routes";
+import { getDeviceStatus, getSettings, listPackages } from "./api/routes";
 import { AppShell } from "./components/AppShell";
 import { ErrorBanner } from "./components/ErrorBanner";
 import { SessionBoundary } from "./features/auth/SessionBoundary";
@@ -9,8 +9,8 @@ import { ExecutionPage } from "./features/execution/ExecutionPage";
 import { ExecutionResultPage } from "./features/execution/ExecutionResultPage";
 import { MacroEditorPage } from "./features/macros/MacroEditorPage";
 import { MacroLibraryPage } from "./features/macros/MacroLibraryPage";
-import { SetManagementPage } from "./features/sets/SetManagementPage";
-import { SetSelectionPage } from "./features/sets/SetSelectionPage";
+import { PackageManagementPage } from "./features/package/PackageManagementPage";
+import { PackageSelectionPage } from "./features/package/PackageSelectionPage";
 import { DiagnosticsPage } from "./features/settings/DiagnosticsPage";
 import { PackageOperationsPage } from "./features/settings/PackageOperationsPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
@@ -26,7 +26,7 @@ import type { Screen } from "./routing";
 import type {
   DeviceStatus,
   ExecutionStatus,
-  MacroSet,
+  MacroPackage,
   Settings,
 } from "./types/models";
 
@@ -45,7 +45,7 @@ function AuthenticatedApp({
     executionConfirmationTargetFromHash(),
   );
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [sets, setSets] = useState<MacroSet[] | null>(null);
+  const [packages, setPackages] = useState<MacroPackage[] | null>(null);
   const [status, setStatus] = useState(initialStatus);
   const [execution, setExecution] = useState<ExecutionStatus | null>(null);
   const [expectedExecutionId, setExpectedExecutionId] = useState<string | null>(
@@ -74,13 +74,13 @@ function AuthenticatedApp({
     const load = async (): Promise<void> => {
       setRuntimeError(null);
       try {
-        const [loadedSettings, loadedSets] = await Promise.all([
+        const [loadedSettings, loadedPackages] = await Promise.all([
           getSettings(),
-          listSets(),
+          listPackages(),
         ]);
         if (active) {
           setSettings(loadedSettings);
-          setSets(loadedSets);
+          setPackages(loadedPackages);
         }
       } catch (loadError: unknown) {
         if (active) {
@@ -117,9 +117,9 @@ function AuthenticatedApp({
     };
   }, []);
 
-  const activeSet = useMemo(
-    () => sets?.find((set) => set.id === settings?.activeSetId) ?? null,
-    [sets, settings],
+  const activePackage = useMemo(
+    () => packages?.find((pkg) => pkg.id === settings?.activePackageId) ?? null,
+    [packages, settings],
   );
 
   const navigateTo = useCallback((target: Screen): void => {
@@ -140,8 +140,8 @@ function AuthenticatedApp({
     setLoadVersion((version) => version + 1);
   }, []);
 
-  const onSetReplaced = useCallback((replacement: MacroSet): void => {
-    setSets((current) =>
+  const onPackageReplaced = useCallback((replacement: MacroPackage): void => {
+    setPackages((current) =>
       current === null
         ? current
         : current.map((item) =>
@@ -150,8 +150,10 @@ function AuthenticatedApp({
     );
   }, []);
 
-  const onSetImported = useCallback((created: MacroSet): void => {
-    setSets((current) => (current === null ? current : [...current, created]));
+  const onPackageImported = useCallback((created: MacroPackage): void => {
+    setPackages((current) =>
+      current === null ? current : [...current, created],
+    );
   }, []);
 
   const signOut = async (): Promise<void> => {
@@ -165,7 +167,7 @@ function AuthenticatedApp({
     }
   };
 
-  if (settings === null || sets === null) {
+  if (settings === null || packages === null) {
     return (
       <main className="standalone" aria-busy="true">
         <ErrorBanner message={runtimeError} />
@@ -182,14 +184,14 @@ function AuthenticatedApp({
 
   const content = (() => {
     switch (route) {
-      case "sets":
+      case "packages":
         return (
-          <SetSelectionPage
+          <PackageSelectionPage
             onManage={() => {
-              navigateTo("manage-sets");
+              navigateTo("manage-packages");
             }}
             onSelected={setSettings}
-            sets={sets}
+            packages={packages}
             settings={settings}
           />
         );
@@ -221,7 +223,7 @@ function AuthenticatedApp({
       case "macros":
         return (
           <MacroLibraryPage
-            activeSet={activeSet}
+            activePackage={activePackage}
             onCreate={() => {
               navigateToMacroEditor(null);
             }}
@@ -236,8 +238,8 @@ function AuthenticatedApp({
       case "macro-editor":
         return (
           <MacroEditorPage
-            activeSet={activeSet}
-            key={`${activeSet?.id ?? "none"}:${routeHash}`}
+            activePackage={activePackage}
+            key={`${activePackage?.id ?? "none"}:${routeHash}`}
             onBack={() => {
               navigateTo("macros");
             }}
@@ -247,8 +249,8 @@ function AuthenticatedApp({
       case "confirm":
         return (
           <ConfirmExecutionPage
-            activeSet={activeSet}
-            key={`${activeSet?.id ?? "none"}:${routeHash}`}
+            activePackage={activePackage}
+            key={`${activePackage?.id ?? "none"}:${routeHash}`}
             onAccepted={(accepted, returnHash) => {
               setExecution(null);
               setExpectedExecutionId(accepted.executionId);
@@ -260,29 +262,29 @@ function AuthenticatedApp({
             target={confirmationTarget}
           />
         );
-      case "manage-sets":
-      case "set-editor":
-      case "delete-set":
+      case "manage-packages":
+      case "package-editor":
+      case "delete-package":
         return (
-          <SetManagementPage
-            onSetsChanged={setSets}
-            sets={sets}
+          <PackageManagementPage
+            onPackagesChanged={setPackages}
+            packages={packages}
             settings={settings}
           />
         );
       case "import":
         return (
           <PackageOperationsPage
-            activeSet={activeSet}
+            activePackage={activePackage}
             initialSection="import"
-            onSetImported={onSetImported}
-            onSetReplaced={onSetReplaced}
+            onPackageImported={onPackageImported}
+            onPackageReplaced={onPackageReplaced}
           />
         );
       case "export":
         return (
           <PackageOperationsPage
-            activeSet={activeSet}
+            activePackage={activePackage}
             initialSection="export"
           />
         );
@@ -293,7 +295,7 @@ function AuthenticatedApp({
 
   return (
     <AppShell
-      activeSet={activeSet?.name ?? "No active macro set"}
+      activePackage={activePackage?.name ?? "No active macro package"}
       logoutDisabled={signingOut}
       navigate={navigateTo}
       onLogout={() => {

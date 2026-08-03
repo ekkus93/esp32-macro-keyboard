@@ -35,7 +35,7 @@ static const char *valid_json(void) {
            "\"apPassphrase\":\"correct-horse-battery\","
            "\"administratorPassword\":\"admin-password-strong\","
            "\"requirePhysicalConfirmation\":true,"
-           "\"alwaysSelectSet\":false"
+           "\"alwaysSelectPackage\":false"
            "}";
 }
 
@@ -98,9 +98,9 @@ static void test_strict_document_and_schema(void) {
     expect_invalid(value);
 
     TEST_CHECK(snprintf(value, sizeof(value), "%s", valid_json()) > 0);
-    char *boolean = strstr(value, "\"alwaysSelectSet\":false");
+    char *boolean = strstr(value, "\"alwaysSelectPackage\":false");
     TEST_CHECK(boolean != NULL);
-    memcpy(boolean, "\"alwaysSelectSet\":\"no\"  ", strlen("\"alwaysSelectSet\":false"));
+    memcpy(boolean, "\"alwaysSelectPackage\":\"no\"  ", strlen("\"alwaysSelectPackage\":false"));
     expect_invalid(value);
 
     TEST_CHECK(snprintf(value, sizeof(value), "%s", valid_json()) > 0);
@@ -122,7 +122,7 @@ static void test_bounds_and_arguments(void) {
                         "\"apPassphrase\":\"correct-horse-battery\","
                         "\"administratorPassword\":\"admin-password-strong\","
                         "\"requirePhysicalConfirmation\":true,"
-                        "\"alwaysSelectSet\":false"
+                        "\"alwaysSelectPackage\":false"
                         "}",
                         long_ssid) > 0);
     expect_invalid(value);

@@ -1,15 +1,15 @@
 import { useMemo, useState } from "react";
 import { errorText } from "../../api/errors";
-import { selectSet } from "../../api/routes";
+import { selectPackage } from "../../api/routes";
 import { ErrorBanner } from "../../components/ErrorBanner";
-import type { MacroSet, Settings } from "../../types/models";
+import type { MacroPackage, Settings } from "../../types/models";
 
-const recentSetsKey = "esp32-macro-keyboard.recent-set-ids";
+const recentPackagesKey = "esp32-macro-keyboard.recent-package-ids";
 const maximumRecents = 5;
 
-function readRecentSetIds(): string[] {
+function readRecentPackageIds(): string[] {
   try {
-    const raw = window.localStorage.getItem(recentSetsKey);
+    const raw = window.localStorage.getItem(recentPackagesKey);
     const value: unknown = raw === null ? [] : JSON.parse(raw);
     return Array.isArray(value) &&
       value.every((item) => typeof item === "string")
@@ -20,46 +20,46 @@ function readRecentSetIds(): string[] {
   }
 }
 
-function recordRecentSet(setId: string): void {
-  const recent = readRecentSetIds().filter((id) => id !== setId);
-  recent.unshift(setId);
+function recordRecentPackage(packageId: string): void {
+  const recent = readRecentPackageIds().filter((id) => id !== packageId);
+  recent.unshift(packageId);
   window.localStorage.setItem(
-    recentSetsKey,
+    recentPackagesKey,
     JSON.stringify(recent.slice(0, maximumRecents)),
   );
 }
 
-function searchableText(set: MacroSet): string {
-  return set.name.toLocaleLowerCase();
+function searchableText(pkg: MacroPackage): string {
+  return pkg.name.toLocaleLowerCase();
 }
 
-interface SetSelectionPageProps {
-  sets: readonly MacroSet[];
+interface PackageSelectionPageProps {
+  packages: readonly MacroPackage[];
   settings: Settings;
   onManage: () => void;
   onSelected: (settings: Settings) => void;
 }
 
-export function SetSelectionPage({
-  sets,
+export function PackageSelectionPage({
+  packages,
   settings,
   onManage,
   onSelected,
-}: SetSelectionPageProps): React.JSX.Element {
+}: PackageSelectionPageProps): React.JSX.Element {
   const [query, setQuery] = useState("");
-  const [recentIds, setRecentIds] = useState(readRecentSetIds);
+  const [recentIds, setRecentIds] = useState(readRecentPackageIds);
   const [selectingId, setSelectingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const visibleSets = useMemo(() => {
+  const visiblePackages = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
     const recentPosition = new Map(
       recentIds.map((id, index) => [id, index] as const),
     );
-    return [...sets]
+    return [...packages]
       .filter(
-        (set) =>
-          normalized.length === 0 || searchableText(set).includes(normalized),
+        (pkg) =>
+          normalized.length === 0 || searchableText(pkg).includes(normalized),
       )
       .sort((left, right) => {
         const leftRecent = recentPosition.get(left.id);
@@ -70,18 +70,18 @@ export function SetSelectionPage({
             (rightRecent ?? Number.MAX_SAFE_INTEGER)
           );
         }
-        /* The device returns sets in index order (SPEC 12.3); preserve it. */
+        /* The device returns packages in index order (SPEC 12.3); preserve it. */
         return 0;
       });
-  }, [query, recentIds, sets]);
+  }, [query, recentIds, packages]);
 
-  const choose = async (set: MacroSet): Promise<void> => {
-    setSelectingId(set.id);
+  const choose = async (pkg: MacroPackage): Promise<void> => {
+    setSelectingId(pkg.id);
     setError(null);
     try {
-      const committed = await selectSet(set.id, settings.revision);
-      recordRecentSet(set.id);
-      setRecentIds(readRecentSetIds());
+      const committed = await selectPackage(pkg.id, settings.revision);
+      recordRecentPackage(pkg.id);
+      setRecentIds(readRecentPackageIds());
       onSelected(committed);
     } catch (selectionError: unknown) {
       setError(errorText(selectionError));
@@ -91,20 +91,20 @@ export function SetSelectionPage({
   };
 
   return (
-    <section aria-labelledby="set-selection-title">
+    <section aria-labelledby="package-selection-title">
       <div className="page-heading">
         <div>
           <p className="eyebrow dark">Persisted device state</p>
-          <h2 id="set-selection-title">Choose a macro set</h2>
+          <h2 id="package-selection-title">Choose a macro package</h2>
         </div>
         <button onClick={onManage} type="button">
-          Manage sets
+          Manage packages
         </button>
       </div>
-      <label className="form-stack" htmlFor="set-search">
-        Search sets
+      <label className="form-stack" htmlFor="package-search">
+        Search packages
         <input
-          id="set-search"
+          id="package-search"
           onChange={(event) => {
             setQuery(event.currentTarget.value);
           }}
@@ -114,41 +114,41 @@ export function SetSelectionPage({
         />
       </label>
       <ErrorBanner message={error} />
-      {visibleSets.length === 0 ? (
-        <p role="status">No macro sets match this search.</p>
+      {visiblePackages.length === 0 ? (
+        <p role="status">No macro packages match this search.</p>
       ) : (
         <div aria-live="polite">
-          {visibleSets.map((set) => {
-            const active = settings.activeSetId === set.id;
+          {visiblePackages.map((pkg) => {
+            const active = settings.activePackageId === pkg.id;
             return (
-              <article className="card" key={set.id}>
+              <article className="card" key={pkg.id}>
                 <div>
                   <div className="management-title-row">
-                    <h3>{set.name}</h3>
+                    <h3>{pkg.name}</h3>
                     {active ? (
                       <span className="status-badge status-good">
-                        Active set
+                        Active package
                       </span>
                     ) : null}
                   </div>
                   <dl className="metadata">
                     <dt>Revision</dt>
-                    <dd>{String(set.revision)}</dd>
+                    <dd>{String(pkg.revision)}</dd>
                   </dl>
                 </div>
                 <button
                   className={active ? "primary" : ""}
                   disabled={selectingId !== null || active}
                   onClick={() => {
-                    void choose(set);
+                    void choose(pkg);
                   }}
                   type="button"
                 >
                   {active
                     ? "Active"
-                    : selectingId === set.id
+                    : selectingId === pkg.id
                       ? "Selecting…"
-                      : "Use this set"}
+                      : "Use this package"}
                 </button>
               </article>
             );

@@ -165,7 +165,7 @@ static app_error_code_t handle_settings(const web_api_call_t *call, web_api_resp
         result = provisioning_settings_update(&replacement, expected_revision, &committed);
     }
     if (result != APP_ERROR_NONE) {
-        return web_api_handler_error(response, result, "could not update settings", NULL);
+        return web_api_handler_error(response, result, "could not update packagetings", NULL);
     }
     server_configuration.require_physical_confirmation = committed.require_physical_confirmation;
     return send_settings(response, &committed);

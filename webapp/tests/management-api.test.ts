@@ -1,16 +1,16 @@
 import { describe, expect, test } from "vitest";
 import {
-  createSet,
-  deleteSet,
-  duplicateSet,
+  createPackage,
+  deletePackage,
+  duplicatePackage,
   factoryResetDevice,
   getStorageHealth,
-  reorderSets,
+  reorderPackages,
   resetSettings,
   restartDevice,
-  updateSet,
+  updatePackage,
 } from "../src/api/routes";
-import { macroSet, setId, settings } from "./appFixtures";
+import { macroPackage, packageId, settings } from "./appFixtures";
 import {
   getFetchCalls,
   jsonResponse,
@@ -18,12 +18,12 @@ import {
   planJsonResponse,
 } from "./fakeFetch";
 
-const secondSetId = "99999999-9999-4999-8999-999999999999";
-const secondSet = {
-  ...macroSet,
-  id: secondSetId,
+const secondPackageId = "99999999-9999-4999-8999-999999999999";
+const secondPackage = {
+  ...macroPackage,
+  id: secondPackageId,
   revision: 1,
-  name: "Second set",
+  name: "Second package",
 };
 
 function success(data: unknown): object {
@@ -40,41 +40,44 @@ function bodyAt(index: number): unknown {
 
 describe("management API contracts", () => {
   test("serializes create, update, duplicate, reorder, and delete exactly", async () => {
-    planJsonResponse(success(macroSet), 201);
-    planJsonResponse(success({ ...macroSet, revision: 3 }));
-    planJsonResponse(success(secondSet), 201);
-    planJsonResponse(success([secondSet, macroSet]));
-    planJsonResponse(success({ deleted: true, id: secondSetId }));
+    planJsonResponse(success(macroPackage), 201);
+    planJsonResponse(success({ ...macroPackage, revision: 3 }));
+    planJsonResponse(success(secondPackage), 201);
+    planJsonResponse(success([secondPackage, macroPackage]));
+    planJsonResponse(success({ deleted: true, id: secondPackageId }));
 
-    await createSet(macroSet);
-    await updateSet({ ...macroSet, name: "Updated" }, macroSet.revision);
-    await duplicateSet(setId, {
-      id: secondSetId,
-      name: "Second set",
-      expectedRevision: macroSet.revision,
+    await createPackage(macroPackage);
+    await updatePackage(
+      { ...macroPackage, name: "Updated" },
+      macroPackage.revision,
+    );
+    await duplicatePackage(packageId, {
+      id: secondPackageId,
+      name: "Second package",
+      expectedRevision: macroPackage.revision,
     });
-    await reorderSets([secondSetId, setId]);
-    await deleteSet(secondSetId, secondSet.revision);
+    await reorderPackages([secondPackageId, packageId]);
+    await deletePackage(secondPackageId, secondPackage.revision);
 
     expect(getFetchCalls().map((call) => [call.method, call.url])).toEqual([
-      ["POST", "/api/v1/sets"],
-      ["PUT", `/api/v1/sets/${setId}`],
-      ["POST", `/api/v1/sets/${setId}/duplicate`],
-      ["PUT", "/api/v1/sets/order"],
-      ["DELETE", `/api/v1/sets/${secondSetId}`],
+      ["POST", "/api/v1/package"],
+      ["PUT", `/api/v1/package/${packageId}`],
+      ["POST", `/api/v1/package/${packageId}/duplicate`],
+      ["PUT", "/api/v1/package/order"],
+      ["DELETE", `/api/v1/package/${secondPackageId}`],
     ]);
-    expect(bodyAt(0)).toEqual(macroSet);
+    expect(bodyAt(0)).toEqual(macroPackage);
     expect(bodyAt(1)).toEqual({
-      expectedRevision: macroSet.revision,
-      resource: { ...macroSet, name: "Updated" },
+      expectedRevision: macroPackage.revision,
+      resource: { ...macroPackage, name: "Updated" },
     });
     expect(bodyAt(2)).toEqual({
-      id: secondSetId,
-      name: "Second set",
-      expectedRevision: macroSet.revision,
+      id: secondPackageId,
+      name: "Second package",
+      expectedRevision: macroPackage.revision,
     });
-    expect(bodyAt(3)).toEqual({ ids: [secondSetId, setId] });
-    expect(bodyAt(4)).toEqual({ expectedRevision: secondSet.revision });
+    expect(bodyAt(3)).toEqual({ ids: [secondPackageId, packageId] });
+    expect(bodyAt(4)).toEqual({ expectedRevision: secondPackage.revision });
   });
 
   test("uses bounded administration requests and strict acknowledgements", async () => {
@@ -106,7 +109,7 @@ describe("management API contracts", () => {
         usedBytes: 20480,
         totalBytes: 491520,
         remainingBytes: 471040,
-        setFileMaxBytes: 32768,
+        packageFileMaxBytes: 32768,
         temporariesRemovedAtBoot: 0,
         discardedObjectCount: 0,
         discardedObjects: [],
@@ -118,7 +121,7 @@ describe("management API contracts", () => {
       usedBytes: 20480,
       totalBytes: 491520,
       remainingBytes: 471040,
-      setFileMaxBytes: 32768,
+      packageFileMaxBytes: 32768,
       temporariesRemovedAtBoot: 0,
       discardedObjectCount: 0,
       discardedObjects: [],

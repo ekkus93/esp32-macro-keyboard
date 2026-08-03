@@ -1,15 +1,15 @@
 export const screens = [
-  "sets",
+  "packages",
   "macros",
   "macro-editor",
   "confirm",
   "execution",
   "result",
-  "manage-sets",
-  "set-editor",
+  "manage-packages",
+  "package-editor",
   "import",
   "export",
-  "delete-set",
+  "delete-package",
   "settings",
   "diagnostics",
 ] as const;
@@ -55,7 +55,7 @@ function validUuidParameter(
   return value !== null && uuidPattern.test(value) ? value : null;
 }
 
-export function routeFromHash(fallback: Screen = "sets"): Screen {
+export function routeFromHash(fallback: Screen = "packages"): Screen {
   const [route] = hashRouteAndQuery();
   return screens.includes(route as Screen) ? (route as Screen) : fallback;
 }

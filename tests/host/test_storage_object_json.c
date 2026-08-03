@@ -119,7 +119,7 @@ static void test_package_document_round_trip(void) {
                          storage_package_document_serialize(&input, &json, &length));
     /* A stored macro carries no set_id: the file it is in identifies the set
      * (SPEC 12.2). */
-    TEST_CHECK(strstr(json, "set_id") == NULL);
+    TEST_CHECK(strstr(json, "package_id") == NULL);
 
     storage_package_document_t output = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_document_parse(json, length, &output));
@@ -161,7 +161,7 @@ static void test_package_document_rejects_stored_macro_with_package_id(void) {
         "{\"schema_version\":1,\"id\":\"00000001-0000-4000-8000-000000000003\","
         "\"revision\":1,\"name\":\"Dup\",\"macros\":["
         "{\"schema_version\":1,\"id\":\"00000001-0000-4000-8000-000000000009\","
-        "\"revision\":1,\"set_id\":\"00000001-0000-4000-8000-000000000003\","
+        "\"revision\":1,\"package_id\":\"00000001-0000-4000-8000-000000000003\","
         "\"name\":\"a\",\"source\":\"a\",\"key_press_ms\":8,\"inter_key_ms\":15}]}";
     storage_package_document_t output = {0};
     TEST_CHECK_APP_ERROR(

@@ -41,7 +41,7 @@ typedef enum {
 
 typedef struct {
     uint32_t schema_version;
-    storage_package_kind_t kind;
+    storage_document_kind_t kind;
     cJSON *root;
     const cJSON *arrays[STORAGE_PACKAGE_ARRAY_COUNT];
 } package_document_t;
@@ -80,7 +80,7 @@ typedef struct {
 typedef app_error_code_t (*package_object_callback_t)(const cJSON *object, void *context);
 
 static const char *const PACKAGE_FIELDS[STORAGE_PACKAGE_FIELD_COUNT] = {
-    "schema_version", "package_type", "sets", "macros", "skipped",
+    "schema_version", "package_type", "packages", "macros", "skipped",
 };
 
 /* The package is parsed once, by cJSON, and validated by walking that tree.
@@ -110,22 +110,22 @@ static app_error_code_t parse_package_document(const char *data, size_t length,
         result = storage_json_get_u32(root, "schema_version", APP_SCHEMA_VERSION,
                                       APP_SCHEMA_VERSION, &out_document->schema_version);
     }
-    char kind[sizeof("backup")] = {0};
+    char kind[sizeof("repository")] = {0};
     if (result == APP_ERROR_NONE) {
         result = storage_json_get_string(root, "package_type", kind, sizeof(kind), true);
     }
     if (result == APP_ERROR_NONE) {
-        if (strcmp(kind, "set") == 0) {
-            out_document->kind = STORAGE_PACKAGE_KIND_SET;
-        } else if (strcmp(kind, "backup") == 0) {
-            out_document->kind = STORAGE_PACKAGE_KIND_BACKUP;
+        if (strcmp(kind, "package") == 0) {
+            out_document->kind = STORAGE_DOCUMENT_KIND_PACKAGE;
+        } else if (strcmp(kind, "repository") == 0) {
+            out_document->kind = STORAGE_DOCUMENT_KIND_REPOSITORY;
         } else {
             result = APP_ERROR_INVALID_ARGUMENT;
         }
     }
     if (result == APP_ERROR_NONE) {
         static const char *const names[STORAGE_PACKAGE_ARRAY_COUNT] = {
-            [PACKAGE_ARRAY_SETS] = "sets",
+            [PACKAGE_ARRAY_SETS] = "packages",
             [PACKAGE_ARRAY_MACROS] = "macros",
         };
         for (size_t index = 0U; index < STORAGE_PACKAGE_ARRAY_COUNT; ++index) {
@@ -369,7 +369,7 @@ static app_error_code_t count_package_arrays(const package_document_t *document,
     }
     /* A set package carries exactly one set; a backup carries the repository.
      * Either way the macros have to fit in the sets that are present. */
-    if ((document->kind == STORAGE_PACKAGE_KIND_SET && out_summary->set_count != 1U) ||
+    if ((document->kind == STORAGE_DOCUMENT_KIND_PACKAGE && out_summary->set_count != 1U) ||
         out_summary->local_macro_count > out_summary->set_count * APP_MACROS_PER_SET_MAX) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -411,14 +411,14 @@ static app_error_code_t validate_package_objects(const package_document_t *docum
 #endif
 
 app_error_code_t storage_package_validate(const char *data, size_t length,
-                                          storage_package_kind_t expected_kind,
+                                          storage_document_kind_t expected_kind,
                                           storage_package_summary_t *out_summary) {
     if (out_summary != NULL) {
         memset(out_summary, 0, sizeof(*out_summary));
     }
     if (data == NULL || length == 0U || out_summary == NULL ||
-        (expected_kind != STORAGE_PACKAGE_KIND_SET &&
-         expected_kind != STORAGE_PACKAGE_KIND_BACKUP)) {
+        (expected_kind != STORAGE_DOCUMENT_KIND_PACKAGE &&
+         expected_kind != STORAGE_DOCUMENT_KIND_REPOSITORY)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     if (length > APP_IMPORT_PACKAGE_MAX_BYTES) {
@@ -442,7 +442,7 @@ app_error_code_t storage_package_validate(const char *data, size_t length,
     if (result == APP_ERROR_NONE) {
         result = count_package_arrays(&document, &summary);
         if (result != APP_ERROR_NONE) {
-            PACKAGE_DIAG("package count failed: result=%d sets=%u macros=%u", (int)result,
+            PACKAGE_DIAG("package count failed: result=%d packages=%u macros=%u", (int)result,
                          (unsigned)summary.set_count, (unsigned)summary.local_macro_count);
         }
     }

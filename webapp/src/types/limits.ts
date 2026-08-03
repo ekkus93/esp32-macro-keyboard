@@ -1,5 +1,5 @@
 export const limits = {
-  setNameBytes: 64,
+  packageNameBytes: 64,
   descriptionBytes: 256,
   manufacturerBytes: 64,
   modelBytes: 64,
@@ -9,8 +9,8 @@ export const limits = {
   compiledActions: 4096,
   delayMs: 10_000,
   durationMs: 300_000,
-  macrosPerSet: 100,
-  macroSets: 50,
+  macrosPerPackage: 100,
+  macroPackages: 50,
   importBytes: 512 * 1024,
 } as const;
 

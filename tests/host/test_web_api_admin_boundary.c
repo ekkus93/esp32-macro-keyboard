@@ -16,7 +16,7 @@
 #include "web_api_response.h"
 
 static const char BACKUP_DOCUMENT[] =
-    "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":[],"
+    "{\"schema_version\":1,\"package_type\":\"repository\",\"packages\":[],"
     "\"macros\":[]}";
 
 static storage_mount_state_t mount_state;
@@ -237,13 +237,13 @@ static void test_storage_snapshot_publishes_remaining_space(void) {
 static void test_storage_snapshot_reports_discarded_objects(void) {
     reset_fixture();
     storage_incidents_reset();
-    storage_incident_record_discard("/data/sets/broken.json", APP_ERROR_STORAGE_CORRUPT);
+    storage_incident_record_discard("/data/package/broken.json", APP_ERROR_STORAGE_CORRUPT);
     const web_api_call_t call =
         call_for(WEB_API_ROUTE_DIAGNOSTICS_STORAGE, WEB_API_METHOD_GET, NULL);
     web_api_response_t response = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
     TEST_CHECK(strstr(response.body, "\"discardedObjectCount\":1") != NULL);
-    TEST_CHECK(strstr(response.body, "/data/sets/broken.json") != NULL);
+    TEST_CHECK(strstr(response.body, "/data/package/broken.json") != NULL);
     TEST_CHECK(strstr(response.body, app_error_code_string(APP_ERROR_STORAGE_CORRUPT)) != NULL);
     web_api_response_free(&response);
     storage_incidents_reset();
@@ -315,10 +315,10 @@ static void test_partial_restore_reports_per_package_outcomes(void) {
      * 500. */
     TEST_CHECK_EQ_U64(507U, response.status);
     TEST_CHECK(strstr(response.body, "\"ok\":false") != NULL);
-    TEST_CHECK(strstr(response.body, "restore did not write every set") != NULL);
+    TEST_CHECK(strstr(response.body, "restore did not write every package") != NULL);
     TEST_CHECK(strstr(response.body, "\"restored\":false") != NULL);
-    TEST_CHECK(strstr(response.body, "\"setsRestored\":1") != NULL);
-    TEST_CHECK(strstr(response.body, "\"setsFailed\":1") != NULL);
+    TEST_CHECK(strstr(response.body, "\"packagesRestored\":1") != NULL);
+    TEST_CHECK(strstr(response.body, "\"packagesFailed\":1") != NULL);
     TEST_CHECK(strstr(response.body, "11111111-1111-4111-8111-111111111111") != NULL);
     TEST_CHECK(strstr(response.body, "22222222-2222-4222-8222-222222222222") != NULL);
     web_api_response_free(&response);
@@ -337,7 +337,7 @@ static void test_complete_restore_enumerates_packages(void) {
     web_api_response_t response = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_admin_boundary_handle(&call, &response));
     TEST_CHECK_EQ_U64(200U, response.status);
-    TEST_CHECK(strstr(response.body, "\"setsFailed\":0") != NULL);
+    TEST_CHECK(strstr(response.body, "\"packagesFailed\":0") != NULL);
     TEST_CHECK(strstr(response.body, "33333333-3333-4333-8333-333333333333") != NULL);
     web_api_response_free(&response);
 }

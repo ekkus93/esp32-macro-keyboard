@@ -36,7 +36,7 @@ import hil_state  # noqa: E402
 import provision_device  # noqa: E402
 from device_client import Device  # noqa: E402
 
-SET_NAME = "Acceptance persistence set"
+SET_NAME = "Acceptance persistence package"
 MACRO_NAME = "Acceptance macro"
 # Deliberately harmless: no Enter, no shell metacharacters. This device is a
 # keyboard, and the host is whatever happens to have focus while it types.
@@ -157,22 +157,22 @@ def wait_for_provisioning(ip: str, provisioned: bool, timeout_s: int = REBOOT_TI
 def create_fixture(device: Device) -> tuple[str, str]:
     # The client chooses the identifiers (SPEC 12: stable IDs are the caller's,
     # so a retry cannot create a second copy of the same object).
-    set_id = str(uuid.uuid4())
+    package_id = str(uuid.uuid4())
     status, payload = device.post(
-        "/api/v1/sets",
-        {"schema_version": 1, "id": set_id, "revision": 1, "name": SET_NAME},
+        "/api/v1/package",
+        {"schema_version": 1, "id": package_id, "revision": 1, "name": SET_NAME},
     )
     if status not in (200, 201):
-        raise SystemExit(f"error: could not create set: {status} {payload}")
+        raise SystemExit(f"error: could not create package: {status} {payload}")
 
     macro_id = str(uuid.uuid4())
     status, payload = device.post(
-        f"/api/v1/sets/{set_id}/macros",
+        f"/api/v1/package/{package_id}/macros",
         {
             "schema_version": 1,
             "id": macro_id,
             "revision": 1,
-            "set_id": set_id,
+            "package_id": package_id,
             "name": MACRO_NAME,
             "source": MACRO_SOURCE,
             "key_press_ms": 8,
@@ -181,7 +181,7 @@ def create_fixture(device: Device) -> tuple[str, str]:
     )
     if status not in (200, 201):
         raise SystemExit(f"error: could not create macro: {status} {payload}")
-    return set_id, macro_id
+    return package_id, macro_id
 
 
 def main() -> int:
@@ -201,11 +201,11 @@ def main() -> int:
     print("\n1. power-cycle persistence")
     device = Device(ip)
     device.login()
-    set_id, macro_id = create_fixture(device)
-    report("created", f"set {set_id} with one macro")
+    package_id, macro_id = create_fixture(device)
+    report("created", f"package {package_id} with one macro")
 
     # These take no body at all. Sending `{}` is a 422: the route policy rejects
-    # a body on a route with no fields, the same way /sets/{id}/select does.
+    # a body on a route with no fields, the same way /packages/{id}/select does.
     post_expecting_reboot(device, "/api/v1/device/restart")
     report("restart issued", "waiting for the device to come back")
     try:
@@ -222,20 +222,20 @@ def main() -> int:
 
     device = Device(ip)
     device.login()
-    status, payload = device.get(f"/api/v1/sets/{set_id}")
+    status, payload = device.get(f"/api/v1/package/{package_id}")
     if status != 200 or payload["data"]["name"] != SET_NAME:
-        raise SystemExit(f"error: the set did not survive the restart: {status} {payload}")
-    status, payload = device.get(f"/api/v1/sets/{set_id}/macros")
+        raise SystemExit(f"error: the package did not survive the restart: {status} {payload}")
+    status, payload = device.get(f"/api/v1/package/{package_id}/macros")
     macros = payload["data"] if status == 200 else []
     if not any(item["id"] == macro_id for item in macros):
-        raise SystemExit(f"error: the macro is not in the set: {status} {payload}")
+        raise SystemExit(f"error: the macro is not in the package: {status} {payload}")
     # The list is summaries; the source only comes back on the macro itself, and
     # the source is the part that has to survive byte for byte -- it is what the
     # device will type.
-    status, payload = device.get(f"/api/v1/sets/{set_id}/macros/{macro_id}")
+    status, payload = device.get(f"/api/v1/package/{package_id}/macros/{macro_id}")
     if status != 200 or payload["data"]["source"] != MACRO_SOURCE:
         raise SystemExit(f"error: the macro source did not survive: {status} {payload}")
-    report("PASS", "set and macro survived, source byte for byte")
+    report("PASS", "package and macro survived, source byte for byte")
 
     print("\n2. factory reset")
     post_expecting_reboot(device, "/api/v1/device/factory-reset")
@@ -283,8 +283,8 @@ def main() -> int:
     # lose first, so "the macros survived" is an assertion rather than a hope.
     device = Device(address)
     device.login()
-    kept_set_id, kept_macro_id = create_fixture(device)
-    report("created", f"set {kept_set_id}, to be preserved across the reset")
+    kept_package_id, kept_macro_id = create_fixture(device)
+    report("created", f"package {kept_package_id}, to be preserved across the reset")
 
     # A mistyped command must not cost anyone their password.
     refusal = console_command("credential-reset")
@@ -314,19 +314,19 @@ def main() -> int:
 
     device = Device(address)
     device.login()
-    status, payload = device.get(f"/api/v1/sets/{kept_set_id}")
+    status, payload = device.get(f"/api/v1/package/{kept_package_id}")
     if status != 200 or payload["data"]["name"] != SET_NAME:
         raise SystemExit(
-            "error: credential reset destroyed the macro sets, which is exactly "
+            "error: credential reset destroyed the macro packages, which is exactly "
             f"what separates it from a factory reset: {status} {payload}"
         )
-    status, payload = device.get(f"/api/v1/sets/{kept_set_id}/macros/{kept_macro_id}")
+    status, payload = device.get(f"/api/v1/package/{kept_package_id}/macros/{kept_macro_id}")
     if status != 200 or payload["data"]["source"] != MACRO_SOURCE:
         raise SystemExit(f"error: the macro did not survive credential reset: {status}")
-    report("PASS", "macro sets survived; only the credentials were cleared")
+    report("PASS", "macro packages survived; only the credentials were cleared")
 
     print("\nAll section 24.6 items in this script passed.")
-    print(json.dumps({"device": address, "setId": set_id, "macroId": macro_id}, indent=2))
+    print(json.dumps({"device": address, "packageId": package_id, "macroId": macro_id}, indent=2))
     return 0
 
 

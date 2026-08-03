@@ -114,7 +114,7 @@ static app_error_code_t validate_resource_fields(const char *body, size_t body_l
  * is no scope discriminator. */
 static app_error_code_t validate_macro_resource_fields(const char *body, size_t body_length) {
     static const char *const fields[] = {
-        "schema_version", "id",     "revision",     "set_id",
+        "schema_version", "id",     "revision",     "package_id",
         "name",           "source", "key_press_ms", "inter_key_ms",
     };
     return validate_resource_fields(body, body_length, fields, sizeof(fields) / sizeof(fields[0]));
@@ -276,9 +276,9 @@ app_error_code_t web_api_json_parse_execution_submit(const char *body, size_t bo
         return APP_ERROR_INVALID_ARGUMENT;
     }
     cJSON *root = parse_exact_document(body, body_length);
-    static const char *const fields[] = {"setId", "macroId", "macroRevision"};
+    static const char *const fields[] = {"packageId", "macroId", "macroRevision"};
     if (root == NULL || !exact_fields(root, fields, 3U) ||
-        !read_uuid(root, "setId", &out_request->set_id) ||
+        !read_uuid(root, "packageId", &out_request->set_id) ||
         !read_uuid(root, "macroId", &out_request->macro_id) ||
         !read_revision(root, "macroRevision", &out_request->macro_revision)) {
         cJSON_Delete(root);
@@ -308,11 +308,11 @@ app_error_code_t web_api_json_parse_settings_update(const char *body, size_t bod
      * two-authority problem in another form. Selection is POST
      * /sets/{setId}/select. */
     static const char *const fields[] = {"expectedRevision", "requirePhysicalConfirmation",
-                                         "alwaysSelectSet"};
+                                         "alwaysSelectPackage"};
     const cJSON *require_confirmation =
         root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "requirePhysicalConfirmation");
     const cJSON *always_select =
-        root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "alwaysSelectSet");
+        root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "alwaysSelectPackage");
     uint32_t expected_revision = 0U;
     if (root == NULL || !exact_fields(root, fields, 3U) ||
         !read_revision(root, "expectedRevision", &expected_revision) ||

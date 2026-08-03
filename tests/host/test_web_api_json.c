@@ -107,7 +107,7 @@ static void test_resource_request_boundary(void) {
     const char valid_macro[] =
         "{\"schema_version\":1,\"id\":\"" MACRO_ID "\",\"revision\":1,\"name\":\"Macro\","
         "\"source\":\"a\",\"key_press_ms\":8,"
-        "\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}";
+        "\"inter_key_ms\":15,\"package_id\":\"" SET_ID "\"}";
     macro_t macro = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_macro_resource(
                                              valid_macro, sizeof(valid_macro) - 1U, &macro));
@@ -197,7 +197,7 @@ static void test_uuid_order_matrix(void) {
 
 static void test_execution_submit_matrix(void) {
     const char base[] =
-        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":7}";
+        "{\"packageId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":7}";
     web_execution_submit_request_t request = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_api_json_parse_execution_submit(base, sizeof(base) - 1U, &request));
@@ -208,7 +208,7 @@ static void test_execution_submit_matrix(void) {
        removed-feature-ok-begin: every mention below is an input asserted to be
        rejected, which is how the removal of procedures is proved. */
     const char contextual[] =
-        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
+        "{\"packageId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"sourceContext\":{\"procedureId\":\"" PROCEDURE_ID
         "\",\"stepId\":\"" STEP_ID "\"}}";
     TEST_CHECK_APP_ERROR(
@@ -217,26 +217,26 @@ static void test_execution_submit_matrix(void) {
 
     static const char *const invalid[] = {
         "{}",
-        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID "\"}",
-        "{\"setId\":\"not-a-uuid\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":7}",
-        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":0}",
-        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
+        "{\"packageId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID "\"}",
+        "{\"packageId\":\"not-a-uuid\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":7}",
+        "{\"packageId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":0}",
+        "{\"packageId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"sourceContext\":null}",
-        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
+        "{\"packageId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"sourceContext\":{\"procedureId\":\"" PROCEDURE_ID "\"}}",
-        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
+        "{\"packageId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"sourceContext\":{\"stepId\":\"" STEP_ID "\"}}",
-        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
+        "{\"packageId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"sourceContext\":{\"procedureId\":\"bad\",\"stepId\":\"" STEP_ID
         "\"}}",
-        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
+        "{\"packageId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"sourceContext\":{\"procedureId\":\"" PROCEDURE_ID
         "\",\"stepId\":\"" STEP_ID "\",\"extra\":true}}",
-        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
+        "{\"packageId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"procedureId\":\"" PROCEDURE_ID "\",\"stepId\":\"" STEP_ID "\"}",
-        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
+        "{\"packageId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID
         "\",\"macroRevision\":7,\"extra\":true}",
-        "{\"setId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":7}x",
+        "{\"packageId\":\"" SET_ID "\",\"macroId\":\"" MACRO_ID "\",\"macroRevision\":7}x",
     };
     for (size_t index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); ++index) {
         memset(&request, 0xa5, sizeof(request));
@@ -251,7 +251,7 @@ static void test_execution_submit_matrix(void) {
 
 static void test_settings_update_matrix(void) {
     const char body[] = "{\"expectedRevision\":4,\"requirePhysicalConfirmation\":true,"
-                        "\"alwaysSelectSet\":false}";
+                        "\"alwaysSelectPackage\":false}";
     provisioning_settings_t settings = {0};
     uint32_t revision = 0U;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_settings_update(body, sizeof(body) - 1U,
@@ -261,7 +261,7 @@ static void test_settings_update_matrix(void) {
     TEST_CHECK(!settings.always_select_package);
 
     const char other[] = "{\"expectedRevision\":5,\"requirePhysicalConfirmation\":false,"
-                         "\"alwaysSelectSet\":true}";
+                         "\"alwaysSelectPackage\":true}";
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_settings_update(
                                              other, sizeof(other) - 1U, &settings, &revision));
     TEST_CHECK_EQ_U64(5U, revision);
@@ -271,18 +271,18 @@ static void test_settings_update_matrix(void) {
     static const char *const invalid[] = {
         "{}",
         "{\"expectedRevision\":4,\"requirePhysicalConfirmation\":1,"
-        "\"alwaysSelectSet\":false}",
+        "\"alwaysSelectPackage\":false}",
         /* activeSetId is repository state now (SPEC 12.3), so a settings PUT
            carrying it is an unknown field and must be rejected rather than
            silently ignored. */
         "{\"expectedRevision\":4,\"requirePhysicalConfirmation\":true,"
-        "\"alwaysSelectSet\":false,\"activeSetId\":\"" SET_ID "\"}",
+        "\"alwaysSelectPackage\":false,\"activePackageId\":\"" SET_ID "\"}",
         "{\"expectedRevision\":4,\"requirePhysicalConfirmation\":true,"
-        "\"alwaysSelectSet\":false,\"activeSetId\":null}",
+        "\"alwaysSelectPackage\":false,\"activePackageId\":null}",
         "{\"expectedRevision\":4,\"requirePhysicalConfirmation\":true,"
-        "\"alwaysSelectSet\":false,\"extra\":true}",
+        "\"alwaysSelectPackage\":false,\"extra\":true}",
         "{\"expectedRevision\":4,\"requirePhysicalConfirmation\":true,"
-        "\"alwaysSelectSet\":false,\"activeSetId\":null}x",
+        "\"alwaysSelectPackage\":false,\"activePackageId\":null}x",
     };
     for (size_t index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); ++index) {
         memset(&settings, 0xa5, sizeof(settings));

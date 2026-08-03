@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { errorText } from "../../api/errors";
-import { listSetMacros } from "../../api/routes";
+import { listPackageMacros } from "../../api/routes";
 import { ErrorBanner } from "../../components/ErrorBanner";
-import type { Macro, MacroSet } from "../../types/models";
+import type { Macro, MacroPackage } from "../../types/models";
 import { utf8ByteLength } from "./macroDraft";
 
 interface MacroLibraryPageProps {
-  activeSet: MacroSet | null;
+  activePackage: MacroPackage | null;
   onCreate: () => void;
   onEdit: (macroId: string) => void;
   onSend: (macroId: string) => void;
 }
 
 export function MacroLibraryPage({
-  activeSet,
+  activePackage,
   onCreate,
   onEdit,
   onSend,
@@ -24,7 +24,7 @@ export function MacroLibraryPage({
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    if (activeSet === null) {
+    if (activePackage === null) {
       setMacros(null);
       setLoadError(null);
       return;
@@ -32,7 +32,7 @@ export function MacroLibraryPage({
     let active = true;
     setMacros(null);
     setLoadError(null);
-    void listSetMacros(activeSet.id)
+    void listPackageMacros(activePackage.id)
       .then((loaded) => {
         if (active) {
           setMacros(loaded);
@@ -46,7 +46,7 @@ export function MacroLibraryPage({
     return () => {
       active = false;
     };
-  }, [activeSet, loadVersion]);
+  }, [activePackage, loadVersion]);
 
   const visibleMacros = useMemo(() => {
     if (macros === null) {
@@ -63,13 +63,13 @@ export function MacroLibraryPage({
     );
   }, [macros, query]);
 
-  if (activeSet === null) {
+  if (activePackage === null) {
     return (
       <section aria-labelledby="macro-library-title">
         <h2 id="macro-library-title">Macros</h2>
         <p>
-          Select an active macro set before loading or creating set-owned
-          macros.
+          Select an active macro package before loading or creating
+          package-owned macros.
         </p>
       </section>
     );
@@ -79,9 +79,9 @@ export function MacroLibraryPage({
     <section aria-labelledby="macro-library-title">
       <div className="page-heading">
         <div>
-          <p className="eyebrow dark">Active set</p>
+          <p className="eyebrow dark">Active package</p>
           <h2 id="macro-library-title">Macros</h2>
-          <p>{activeSet.name}</p>
+          <p>{activePackage.name}</p>
         </div>
         <button className="primary" onClick={onCreate} type="button">
           Create macro
@@ -120,7 +120,7 @@ export function MacroLibraryPage({
       {macros !== null && visibleMacros.length === 0 ? (
         <p role="status">
           {macros.length === 0
-            ? "This set has no macros yet."
+            ? "This package has no macros yet."
             : "No macros match the search."}
         </p>
       ) : null}

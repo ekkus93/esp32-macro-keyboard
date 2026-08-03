@@ -26,12 +26,13 @@
 #define NEW_SET_ID_2 "66666666-6666-4666-8666-666666666666"
 #define LOCAL_MACRO_ID "22222222-2222-4222-8222-222222222222"
 
-static const char PACKAGE[] = "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":["
-                              "{\"schema_version\":1,\"id\":\"" SET_ID
-                              "\",\"revision\":7,\"name\":\"Replacement\"}],\"macros\":["
-                              "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
-                              "\",\"revision\":4,\"name\":\"Local\",\"source\":\"a\","
-                              "\"key_press_ms\":8,\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}]}";
+static const char PACKAGE[] =
+    "{\"schema_version\":1,\"package_type\":\"package\",\"packages\":["
+    "{\"schema_version\":1,\"id\":\"" SET_ID
+    "\",\"revision\":7,\"name\":\"Replacement\"}],\"macros\":["
+    "{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
+    "\",\"revision\":4,\"name\":\"Local\",\"source\":\"a\","
+    "\"key_press_ms\":8,\"inter_key_ms\":15,\"package_id\":\"" SET_ID "\"}]}";
 
 static app_uuid_t parse_id(const char *value) {
     app_uuid_t id = {0};
@@ -58,7 +59,7 @@ static void reset_storage(void) {
     TEST_CHECK_EQ_INT(0, system(command));
     make_directory(STORAGE_DATA_MOUNT);
     static const char *const roots[] = {
-        "sets",
+        "package",
     };
     char path[APP_PATH_MAX_BYTES];
     for (size_t index = 0U; index < sizeof(roots) / sizeof(roots[0]); ++index) {

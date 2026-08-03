@@ -15,19 +15,19 @@ before the device could survive its own first authenticated API call.
 | `provision_device.py` | takes an unprovisioned device through first-run setup |
 | `test_typing.py` | printable text, chords, release-all observation |
 | `test_cancellation.py` | cancellation over the API **and** the console `cancel` command, during a delay and mid-typing |
-| `test_full_set_in_order.py` | every macro in a set, in stored order, against a harmless target |
+| `test_full_package_in_order.py` | every macro in a package, in stored order, against a harmless target |
 | `test_acceptance_reset.py` | power-cycle persistence, factory reset, re-provisioning, credential reset |
-| `test_backup_restore.py` | all three package apply paths: whole-repository restore with per-set outcomes, import as a new set, replace an existing set |
+| `test_backup_restore.py` | all three package apply paths: whole-repository restore with per-package outcomes, import as a new package, replace an existing package |
 
 Run order matters only in that everything needs a provisioned device;
 `test_acceptance_reset.py` provisions one itself if it finds the device
-unprovisioned, and `create_fixture.py` builds the set the typing and
+unprovisioned, and `create_fixture.py` builds the package the typing and
 cancellation scripts expect.
 
 Evidence comes from the kernel's `hidraw` node for this project's USB VID/PID
 (`303a:4001`), decoded as 8-byte boot-protocol reports — the bytes the device
 sent, not text scraped from an editor. That is what makes it possible to assert
-things a screen capture cannot: that a chord set the modifier bit *concurrently*
+things a screen capture cannot: that a chord package the modifier bit *concurrently*
 with the usage code, and that the final report is all-zero (no key left held).
 
 ## Prerequisites
@@ -90,7 +90,7 @@ cd tests/hardware
 #    different network, or after an NVS erase.
 python3 -c 'import hil_state; print(hil_state.connect_wifi())'
 
-# 2. create the macro set and macros (once per device wipe)
+# 2. create the macro package and macros (once per device wipe)
 python3 create_fixture.py
 
 # 3. run the tests

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Back up the whole repository and restore it, on real hardware.
 
-    SPEC 24.2 item: partial restore reporting per-set outcomes
+    SPEC 24.2 item: partial restore reporting per-package outcomes
 
 This is the last open item of the 2026-08-02 alignment plan (5.4) and
 acceptance criterion 4: restore completes on real hardware without a watchdog
-reset and reports per-set outcomes.
+reset and reports per-package outcomes.
 
 It is a hardware test because the thing that can go wrong is not logic. These
 two routes carry the largest stack frames in the firmware -- restore_locked
@@ -65,19 +65,19 @@ def main() -> int:
     try:
         if not alive(device):
             raise SystemExit("error: device is not responding before the test starts")
-        sets_before = device.get("/api/v1/sets")[1]["data"]
-        print(f"baseline: {len(sets_before)} sets")
+        sets_before = device.get("/api/v1/package")[1]["data"]
+        print(f"baseline: {len(sets_before)} packages")
 
-        print("\n--- GET /api/v1/backup ---")
+        print("\n--- GET /api/v1/repository ---")
         start = time.time()
-        status, body = raw_get(ip, "/api/v1/backup", device.cookie)
+        status, body = raw_get(ip, "/api/v1/repository", device.cookie)
         elapsed = time.time() - start
         print(f"    HTTP {status} in {elapsed:.2f}s, {len(body)} bytes")
         if status != 200:
             raise SystemExit(f"error: backup failed: {body[:200]}")
         package = json.loads(body)
         print(f"    package_type={package.get('package_type')} "
-              f"sets={len(package.get('sets', []))} "
+              f"packages={len(package.get('packages', []))} "
               f"macros={len(package.get('macros', []))}")
         if "skipped" in package:
             # SPEC 17: present only when something was actually dropped.
@@ -105,57 +105,57 @@ def main() -> int:
         if status not in (200, 202):
             raise SystemExit(f"error: restore failed: {status} {str(payload)[:300]}")
 
-        # Acceptance criterion 4 and SPEC 13.5: per-set outcomes, not a bare ok.
+        # Acceptance criterion 4 and SPEC 13.5: per-package outcomes, not a bare ok.
         data = payload.get("data", {})
-        outcomes = data.get("sets")
+        outcomes = data.get("packages")
         if not isinstance(outcomes, list) or not outcomes:
-            raise SystemExit(f"error: restore reported no per-set outcomes: {data}")
+            raise SystemExit(f"error: restore reported no per-package outcomes: {data}")
         for entry in outcomes:
             mark = "ok  " if entry.get("restored") else "FAIL"
             suffix = "" if entry.get("restored") else f"  {entry.get('error')}"
-            print(f"    {mark} {entry.get('setId')}{suffix}")
+            print(f"    {mark} {entry.get('packageId')}{suffix}")
         print(f"    restored={data.get('restored')} across {len(outcomes)} set(s)")
 
         survived = alive(device)
         print(f"    device still alive: {survived}")
         results["restore"] = survived and all(e.get("restored") for e in outcomes)
 
-        print("\n--- POST /api/v1/sets/import-new (a set package, as a new set) ---")
+        print("\n--- POST /api/v1/package/import-new (a package package, as a new package) ---")
         # The other worker-routed apply path, and the one nothing exercised: the
         # host suite calls storage_package_import_set directly with a body in
-        # hand, so the route, its body shape, and the new-set id never ran.
-        set_id = sets_before[0]["id"]
-        status, exported = raw_get(ip, f"/api/v1/sets/{set_id}/export", device.cookie)
+        # hand, so the route, its body shape, and the new-package id never ran.
+        package_id = sets_before[0]["id"]
+        status, exported = raw_get(ip, f"/api/v1/package/{package_id}/export", device.cookie)
         if status != 200:
-            raise SystemExit(f"error: set export failed: {status} {exported[:160]}")
-        new_set_id = str(uuid.uuid4())
+            raise SystemExit(f"error: package export failed: {status} {exported[:160]}")
+        new_package_id = str(uuid.uuid4())
         status, payload = device.post(
-            "/api/v1/sets/import-new",
-            {"newSetId": new_set_id, "package": json.loads(exported)},
+            "/api/v1/package/import-new",
+            {"newPackageId": new_package_id, "package": json.loads(exported)},
         )
         if status != 201:
             raise SystemExit(f"error: import-new failed: {status} {str(payload)[:200]}")
         imported = payload["data"]
-        status, payload = device.get(f"/api/v1/sets/{imported['id']}/macros")
+        status, payload = device.get(f"/api/v1/package/{imported['id']}/macros")
         macros = payload["data"] if status == 200 else []
         print(f"    created {imported['id']} with {len(macros)} macro(s)")
-        results["import as new"] = imported["id"] == new_set_id and len(macros) > 0
+        results["import as new"] = imported["id"] == new_package_id and len(macros) > 0
 
-        print("\n--- POST /api/v1/sets/import (replace that set's contents) ---")
+        print("\n--- POST /api/v1/package/import (replace that package's contents) ---")
         # The third apply path. It is exercised here rather than against an
-        # existing set because replace is destructive: the set it lands on is
+        # existing package because replace is destructive: the package it lands on is
         # the one import-new just created, and is deleted immediately after.
         replacement = json.loads(exported)
-        replacement["sets"][0]["id"] = new_set_id
-        replacement["sets"][0]["revision"] = imported["revision"] + 1
+        replacement["packages"][0]["id"] = new_package_id
+        replacement["packages"][0]["revision"] = imported["revision"] + 1
         # Drop the last macro, so a success that changed nothing cannot pass.
         replacement["macros"] = replacement["macros"][:-1]
         for macro in replacement["macros"]:
-            macro["set_id"] = new_set_id
+            macro["package_id"] = new_package_id
         status, payload = device.post(
-            "/api/v1/sets/import",
+            "/api/v1/package/import",
             {
-                "targetSetId": new_set_id,
+                "targetPackageId": new_package_id,
                 "expectedRevision": imported["revision"],
                 "package": replacement,
             },
@@ -163,7 +163,7 @@ def main() -> int:
         if status != 200:
             raise SystemExit(f"error: replace failed: {status} {str(payload)[:200]}")
         replaced = payload["data"]
-        status, payload = device.get(f"/api/v1/sets/{new_set_id}/macros")
+        status, payload = device.get(f"/api/v1/package/{new_package_id}/macros")
         after_macros = payload["data"] if status == 200 else []
         print(f"    revision {imported['revision']} -> {replaced['revision']}, "
               f"{len(macros)} macro(s) -> {len(after_macros)}")
@@ -173,12 +173,12 @@ def main() -> int:
         )
 
         # Leave the repository as it was found.
-        device.delete(f"/api/v1/sets/{new_set_id}",
+        device.delete(f"/api/v1/package/{new_package_id}",
                       {"expectedRevision": replaced["revision"]})
 
         print("\n--- repository intact afterwards ---")
-        sets_after = device.get("/api/v1/sets")[1]["data"]
-        print(f"    sets after: {len(sets_after)} (was {len(sets_before)})")
+        sets_after = device.get("/api/v1/package")[1]["data"]
+        print(f"    packages after: {len(sets_after)} (was {len(sets_before)})")
         before_ids = sorted(item["id"] for item in sets_before)
         after_ids = sorted(item["id"] for item in sets_after)
         results["repository intact"] = before_ids == after_ids

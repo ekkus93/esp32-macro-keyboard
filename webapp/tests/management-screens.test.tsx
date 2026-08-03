@@ -4,7 +4,7 @@ import { ConnectivityBanner } from "../src/components/ConnectivityBanner";
 import { DiagnosticsPage } from "../src/features/settings/DiagnosticsPage";
 import { PackageOperationsPage } from "../src/features/settings/PackageOperationsPage";
 import { SettingsPage } from "../src/features/settings/SettingsPage";
-import { macroSet, settings } from "./appFixtures";
+import { macroPackage, settings } from "./appFixtures";
 import {
   getFetchCalls,
   jsonResponse,
@@ -35,7 +35,7 @@ describe("management screens", () => {
         usedBytes: 20480,
         totalBytes: 491520,
         remainingBytes: 471040,
-        setFileMaxBytes: 32768,
+        packageFileMaxBytes: 32768,
         temporariesRemovedAtBoot: 0,
         discardedObjectCount: 0,
         discardedObjects: [],
@@ -102,7 +102,7 @@ describe("management screens", () => {
         usedBytes: 20480,
         totalBytes: 491520,
         remainingBytes: 471040,
-        setFileMaxBytes: 32768,
+        packageFileMaxBytes: 32768,
         temporariesRemovedAtBoot: 0,
         discardedObjectCount: 0,
         discardedObjects: [],
@@ -151,14 +151,17 @@ describe("management screens", () => {
 
   test("enables transactional replacement and full restore", async () => {
     const view = await render(
-      <PackageOperationsPage activeSet={macroSet} initialSection="import" />,
+      <PackageOperationsPage
+        activePackage={macroPackage}
+        initialSection="import"
+      />,
     );
 
     expect(document.body.textContent).toContain(
       "all-or-nothing restore are available",
     );
-    expect(buttonWithText("Import as new set").disabled).toBe(true);
-    expect(buttonWithText("Replace selected set").disabled).toBe(true);
+    expect(buttonWithText("Import as new package").disabled).toBe(true);
+    expect(buttonWithText("Replace selected package").disabled).toBe(true);
     expect(buttonWithText("Restore full backup").disabled).toBe(true);
     expect(
       requiredElement("#replacement-package", HTMLInputElement).disabled,
@@ -170,16 +173,16 @@ describe("management screens", () => {
     await view.unmount();
   });
 
-  test("validates and confirms a transactional set replacement", async () => {
+  test("validates and confirms a transactional package replacement", async () => {
     const replacement = {
-      ...macroSet,
-      revision: macroSet.revision + 1,
+      ...macroPackage,
+      revision: macroPackage.revision + 1,
       name: "Imported Replacement",
     };
     const packageDocument = {
       schema_version: 1,
-      package_type: "set",
-      sets: [replacement],
+      package_type: "package",
+      packages: [replacement],
       macros: [],
     } as const;
     const packageText = JSON.stringify(packageDocument);
@@ -190,12 +193,12 @@ describe("management screens", () => {
       configurable: true,
       value: () => Promise.resolve(packageText),
     });
-    const onSetReplaced = vi.fn();
+    const onPackageReplaced = vi.fn();
     const view = await render(
       <PackageOperationsPage
-        activeSet={macroSet}
+        activePackage={macroPackage}
         initialSection="import"
-        onSetReplaced={onSetReplaced}
+        onPackageReplaced={onPackageReplaced}
       />,
     );
     const input = requiredElement("#replacement-package", HTMLInputElement);
@@ -208,12 +211,12 @@ describe("management screens", () => {
       await Promise.resolve();
     });
     await flushReact();
-    expect(buttonWithText("Replace selected set").disabled).toBe(false);
+    expect(buttonWithText("Replace selected package").disabled).toBe(false);
 
-    await click(buttonWithText("Replace selected set"));
+    await click(buttonWithText("Replace selected package"));
     await setInputValue(
       requiredElement("#replacement-confirmation", HTMLInputElement),
-      `REPLACE ${macroSet.name}`,
+      `REPLACE ${macroPackage.name}`,
     );
     planJsonResponse(success(replacement));
     await click(buttonWithText("Confirm replacement"));
@@ -221,7 +224,7 @@ describe("management screens", () => {
 
     expect(getFetchCalls()).toHaveLength(1);
     const call = getFetchCalls()[0];
-    expect(call?.url).toBe("/api/v1/sets/import");
+    expect(call?.url).toBe("/api/v1/package/import");
     expect(call?.method).toBe("POST");
     await view.unmount();
   });
@@ -230,7 +233,7 @@ describe("management screens", () => {
     const backupDocument = {
       schema_version: 1,
       package_type: "backup",
-      sets: [macroSet],
+      packages: [macroPackage],
       macros: [],
     } as const;
     const backupText = JSON.stringify(backupDocument);
@@ -244,7 +247,7 @@ describe("management screens", () => {
     const onBackupRestored = vi.fn();
     const view = await render(
       <PackageOperationsPage
-        activeSet={macroSet}
+        activePackage={macroPackage}
         initialSection="import"
         onBackupRestored={onBackupRestored}
       />,
@@ -273,7 +276,7 @@ describe("management screens", () => {
         reloadRequired: true,
         setsRestored: 1,
         setsFailed: 0,
-        sets: [{ setId: macroSet.id, restored: true }],
+        packages: [{ packageId: macroPackage.id, restored: true }],
       }),
     );
     await click(buttonWithText("Confirm full restore"));
@@ -286,36 +289,38 @@ describe("management screens", () => {
     await view.unmount();
   });
 
-  test("downloads a strictly validated raw set package", async () => {
+  test("downloads a strictly validated raw package package", async () => {
     const packageText = JSON.stringify({
       schema_version: 1,
-      package_type: "set",
-      sets: [macroSet],
+      package_type: "package",
+      packages: [macroPackage],
       macros: [],
     });
     planTextResponse(packageText, 200, "application/json");
     const saveFile = vi.fn<(filename: string, text: string) => void>();
     const view = await render(
       <PackageOperationsPage
-        activeSet={macroSet}
+        activePackage={macroPackage}
         initialSection="export"
         saveFile={saveFile}
       />,
     );
 
-    await click(buttonWithText("Export selected set"));
+    await click(buttonWithText("Export selected package"));
     await flushReact();
 
     expect(getFetchCalls()).toHaveLength(1);
-    expect(getFetchCalls()[0]?.url).toBe(`/api/v1/sets/${macroSet.id}/export`);
+    expect(getFetchCalls()[0]?.url).toBe(
+      `/api/v1/package/${macroPackage.id}/export`,
+    );
     expect(getFetchCalls()[0]?.method).toBe("GET");
     expect(getFetchCalls()[0]?.credentials).toBe("same-origin");
     expect(saveFile).toHaveBeenCalledWith(
-      `macro-set-${macroSet.id}.json`,
+      `macro-package-${macroPackage.id}.json`,
       packageText,
     );
     expect(document.body.textContent).toContain(
-      `Exported ${macroSet.name} as ${String(new Blob([packageText]).size)} bytes.`,
+      `Exported ${macroPackage.name} as ${String(new Blob([packageText]).size)} bytes.`,
     );
     await view.unmount();
   });
@@ -324,14 +329,14 @@ describe("management screens", () => {
     const backupText = JSON.stringify({
       schema_version: 1,
       package_type: "backup",
-      sets: [macroSet],
+      packages: [macroPackage],
       macros: [],
     });
     planTextResponse(backupText, 200, "application/json");
     const saveFile = vi.fn<(filename: string, text: string) => void>();
     const view = await render(
       <PackageOperationsPage
-        activeSet={macroSet}
+        activePackage={macroPackage}
         initialSection="export"
         saveFile={saveFile}
       />,

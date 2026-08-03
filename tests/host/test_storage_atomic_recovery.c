@@ -60,7 +60,7 @@ static void read_text(const char *path, char *output, size_t output_size) {
 static void reset_store(void) {
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     make_directory(STORAGE_DATA_MOUNT);
-    make_directory(STORAGE_DATA_MOUNT "/sets");
+    make_directory(STORAGE_DATA_MOUNT "/package");
 }
 
 /* SPEC 24.2 item: boot cleanup of stray `.tmp` files */
@@ -90,61 +90,62 @@ static void test_stray_temporary_is_removed_at_boot(void) {
  * outcome (SPEC 13.4). */
 static void test_temporary_without_destination_is_discarded_not_activated(void) {
     reset_store();
-    write_text(STORAGE_DATA_MOUNT "/sets/orphan.json.tmp", "{\"never\":\"committed\"}");
+    write_text(STORAGE_DATA_MOUNT "/package/orphan.json.tmp", "{\"never\":\"committed\"}");
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_atomic_recover_all());
 
-    TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/sets/orphan.json.tmp"));
-    TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/sets/orphan.json"));
+    TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/package/orphan.json.tmp"));
+    TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/package/orphan.json"));
 }
 
 static void test_nested_package_directories_are_swept(void) {
     reset_store();
-    make_directory(STORAGE_DATA_MOUNT "/sets/aaaaaaaa-0000-4000-8000-000000000001");
-    make_directory(STORAGE_DATA_MOUNT "/sets/aaaaaaaa-0000-4000-8000-000000000001/macros");
-    write_text(STORAGE_DATA_MOUNT "/sets/aaaaaaaa-0000-4000-8000-000000000001/set.json", "{}");
-    write_text(STORAGE_DATA_MOUNT "/sets/aaaaaaaa-0000-4000-8000-000000000001/set.json.tmp", "{");
-    write_text(STORAGE_DATA_MOUNT "/sets/aaaaaaaa-0000-4000-8000-000000000001/macros/m.json.tmp",
+    make_directory(STORAGE_DATA_MOUNT "/package/aaaaaaaa-0000-4000-8000-000000000001");
+    make_directory(STORAGE_DATA_MOUNT "/package/aaaaaaaa-0000-4000-8000-000000000001/macros");
+    write_text(STORAGE_DATA_MOUNT "/package/aaaaaaaa-0000-4000-8000-000000000001/set.json", "{}");
+    write_text(STORAGE_DATA_MOUNT "/package/aaaaaaaa-0000-4000-8000-000000000001/set.json.tmp",
+               "{");
+    write_text(STORAGE_DATA_MOUNT "/package/aaaaaaaa-0000-4000-8000-000000000001/macros/m.json.tmp",
                "{");
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_atomic_recover_all());
 
-    TEST_CHECK(
-        !path_exists(STORAGE_DATA_MOUNT "/sets/aaaaaaaa-0000-4000-8000-000000000001/set.json.tmp"));
     TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT
-                            "/sets/aaaaaaaa-0000-4000-8000-000000000001/macros/m.json.tmp"));
+                            "/package/aaaaaaaa-0000-4000-8000-000000000001/set.json.tmp"));
+    TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT
+                            "/package/aaaaaaaa-0000-4000-8000-000000000001/macros/m.json.tmp"));
     TEST_CHECK(
-        path_exists(STORAGE_DATA_MOUNT "/sets/aaaaaaaa-0000-4000-8000-000000000001/set.json"));
+        path_exists(STORAGE_DATA_MOUNT "/package/aaaaaaaa-0000-4000-8000-000000000001/set.json"));
 }
 
 /* Only the exact `.tmp` suffix is debris. A file that merely contains "tmp", or
  * ends in something tmp-adjacent, is ordinary data and must survive. */
 static void test_only_exact_tmp_suffix_is_removed(void) {
     reset_store();
-    write_text(STORAGE_DATA_MOUNT "/sets/tmp.json", "keep");
-    write_text(STORAGE_DATA_MOUNT "/sets/a.tmp.json", "keep");
-    write_text(STORAGE_DATA_MOUNT "/sets/b.json.tmpx", "keep");
-    write_text(STORAGE_DATA_MOUNT "/sets/c.json.temp", "keep");
-    write_text(STORAGE_DATA_MOUNT "/sets/d.json.tmp", "remove");
+    write_text(STORAGE_DATA_MOUNT "/package/tmp.json", "keep");
+    write_text(STORAGE_DATA_MOUNT "/package/a.tmp.json", "keep");
+    write_text(STORAGE_DATA_MOUNT "/package/b.json.tmpx", "keep");
+    write_text(STORAGE_DATA_MOUNT "/package/c.json.temp", "keep");
+    write_text(STORAGE_DATA_MOUNT "/package/d.json.tmp", "remove");
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_atomic_recover_all());
 
-    TEST_CHECK(path_exists(STORAGE_DATA_MOUNT "/sets/tmp.json"));
-    TEST_CHECK(path_exists(STORAGE_DATA_MOUNT "/sets/a.tmp.json"));
-    TEST_CHECK(path_exists(STORAGE_DATA_MOUNT "/sets/b.json.tmpx"));
-    TEST_CHECK(path_exists(STORAGE_DATA_MOUNT "/sets/c.json.temp"));
-    TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/sets/d.json.tmp"));
+    TEST_CHECK(path_exists(STORAGE_DATA_MOUNT "/package/tmp.json"));
+    TEST_CHECK(path_exists(STORAGE_DATA_MOUNT "/package/a.tmp.json"));
+    TEST_CHECK(path_exists(STORAGE_DATA_MOUNT "/package/b.json.tmpx"));
+    TEST_CHECK(path_exists(STORAGE_DATA_MOUNT "/package/c.json.temp"));
+    TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/package/d.json.tmp"));
 }
 
 /* A bare ".tmp" has no destination it could belong to, so it is not a staged
  * write and must be left alone rather than guessed at. */
 static void test_bare_tmp_name_is_not_treated_as_an_artifact(void) {
     reset_store();
-    write_text(STORAGE_DATA_MOUNT "/sets/.tmp", "keep");
+    write_text(STORAGE_DATA_MOUNT "/package/.tmp", "keep");
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_atomic_recover_all());
 
-    TEST_CHECK(path_exists(STORAGE_DATA_MOUNT "/sets/.tmp"));
+    TEST_CHECK(path_exists(STORAGE_DATA_MOUNT "/package/.tmp"));
 }
 
 static void test_clean_repository_is_a_no_op(void) {

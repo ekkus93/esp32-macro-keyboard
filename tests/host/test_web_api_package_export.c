@@ -60,7 +60,7 @@ static void reset_store(void) {
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     static const char *const paths[] = {
         STORAGE_DATA_MOUNT,
-        STORAGE_DATA_MOUNT "/sets",
+        STORAGE_DATA_MOUNT "/package",
     };
     for (size_t index = 0U; index < sizeof(paths) / sizeof(paths[0]); ++index) {
         make_directory(paths[index]);
@@ -202,7 +202,7 @@ static char *make_replacement_request(uint32_t expected_revision) {
         cJSON_ParseWithLengthOpts(exported.body, exported.body_length, &parse_end, false);
     TEST_CHECK(package != NULL);
     TEST_CHECK(parse_end == exported.body + exported.body_length);
-    cJSON *sets = cJSON_GetObjectItemCaseSensitive(package, "sets");
+    cJSON *sets = cJSON_GetObjectItemCaseSensitive(package, "packages");
     cJSON *set = cJSON_GetArrayItem(sets, 0);
     TEST_CHECK(cJSON_IsObject(set));
     cJSON *revision = cJSON_CreateNumber(2.0);
@@ -214,7 +214,7 @@ static char *make_replacement_request(uint32_t expected_revision) {
 
     cJSON *wrapper = cJSON_CreateObject();
     TEST_CHECK(wrapper != NULL);
-    TEST_CHECK(cJSON_AddStringToObject(wrapper, "targetSetId", SET_ID) != NULL);
+    TEST_CHECK(cJSON_AddStringToObject(wrapper, "targetPackageId", SET_ID) != NULL);
     TEST_CHECK(cJSON_AddNumberToObject(wrapper, "expectedRevision", (double)expected_revision) !=
                NULL);
     TEST_CHECK(cJSON_AddItemToObject(wrapper, "package", package));
@@ -246,11 +246,11 @@ static void test_import_route(void) {
     response = invoke_import(request);
     TEST_CHECK_EQ_U64(409U, response.status);
     TEST_CHECK(strstr(response.body, "\"ok\":false") != NULL);
-    TEST_CHECK(strstr(response.body, "could not replace set") != NULL);
+    TEST_CHECK(strstr(response.body, "could not replace package") != NULL);
     web_api_response_free(&response);
     cJSON_free(request);
 
-    response = invoke_import("{\"targetSetId\":\"" SET_ID
+    response = invoke_import("{\"targetPackageId\":\"" SET_ID
                              "\",\"expectedRevision\":2,\"package\":{},\"extra\":true}");
     TEST_CHECK_EQ_U64(422U, response.status);
     web_api_response_free(&response);
@@ -271,7 +271,7 @@ static void test_export_route(void) {
     storage_package_summary_t summary = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          storage_package_validate(response.body, response.body_length,
-                                                  STORAGE_PACKAGE_KIND_SET, &summary));
+                                                  STORAGE_DOCUMENT_KIND_PACKAGE, &summary));
     TEST_CHECK_EQ_U64(1U, summary.set_count);
     TEST_CHECK_EQ_U64(2U, summary.local_macro_count);
     web_api_response_free(&response);
@@ -281,7 +281,7 @@ static void test_missing_package_error_envelope(void) {
     web_api_response_t response = invoke_export(MISSING_SET_ID);
     TEST_CHECK_EQ_U64(404U, response.status);
     TEST_CHECK(strstr(response.body, "\"ok\":false") != NULL);
-    TEST_CHECK(strstr(response.body, "could not export set") != NULL);
+    TEST_CHECK(strstr(response.body, "could not export package") != NULL);
     web_api_response_free(&response);
 }
 

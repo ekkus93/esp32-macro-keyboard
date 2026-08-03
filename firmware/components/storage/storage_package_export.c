@@ -156,7 +156,7 @@ static app_error_code_t serialize_snapshot(const set_export_snapshot_t *snapshot
                                            size_t *out_length) {
     package_writer_t writer = {0};
     app_error_code_t result = package_writer_append_text(
-        &writer, "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":[");
+        &writer, "{\"schema_version\":1,\"package_type\":\"package\",\"packages\":[");
     if (result == APP_ERROR_NONE) {
         result = package_writer_append_metadata(&writer, &snapshot->set);
     }
@@ -172,7 +172,7 @@ static app_error_code_t serialize_snapshot(const set_export_snapshot_t *snapshot
 
     storage_package_summary_t summary = {0};
     if (result == APP_ERROR_NONE) {
-        result = storage_package_validate(writer.data, writer.length, STORAGE_PACKAGE_KIND_SET,
+        result = storage_package_validate(writer.data, writer.length, STORAGE_DOCUMENT_KIND_PACKAGE,
                                           &summary);
     }
     if (result == APP_ERROR_NONE &&

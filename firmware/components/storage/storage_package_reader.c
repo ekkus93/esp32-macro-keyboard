@@ -49,7 +49,7 @@ app_error_code_t package_tree_open(const char *data, size_t length, package_tree
         cJSON_Delete(root);
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    out_tree->sets = cJSON_GetObjectItemCaseSensitive(root, "sets");
+    out_tree->sets = cJSON_GetObjectItemCaseSensitive(root, "packages");
     out_tree->macros = cJSON_GetObjectItemCaseSensitive(root, "macros");
     if (!cJSON_IsArray(out_tree->sets) || !cJSON_IsArray(out_tree->macros)) {
         cJSON_Delete(root);

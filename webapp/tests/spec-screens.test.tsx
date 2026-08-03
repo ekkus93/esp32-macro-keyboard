@@ -1,14 +1,14 @@
 import { describe, expect, test } from "vitest";
 import App from "../src/App";
-import { SetManagementPage } from "../src/features/sets/SetManagementPage";
+import { PackageManagementPage } from "../src/features/package/PackageManagementPage";
 import {
   executionStatus,
   macro,
   macroId,
-  macroSet,
+  macroPackage,
   planAuthenticatedBootstrap,
   planNormalUnauthenticatedBootstrap,
-  setId,
+  packageId,
   settings,
 } from "./appFixtures";
 import { planJsonResponse } from "./fakeFetch";
@@ -19,7 +19,7 @@ import { buttonWithText, click, flushReact, render } from "./render";
  * SPEC 9 lists fifteen required screens. Individual behaviours of most of them
  * are tested elsewhere; what nothing checked is the list itself -- that every
  * screen the specification requires is reachable and renders. A screen can be
- * deleted, or a route can start falling through to the set selector, without a
+ * deleted, or a route can start falling through to the package selector, without a
  * single behavioural test noticing, because each of those tests reaches its
  * screen directly.
  *
@@ -65,7 +65,7 @@ describe("SPEC 9 required screens", () => {
     readonly heading: string;
     readonly plan?: () => void;
   }[] = [
-    { ordinal: "3", hash: "/sets", heading: "Choose a macro set" },
+    { ordinal: "3", hash: "/packages", heading: "Choose a macro package" },
     {
       ordinal: "4",
       hash: "/macros",
@@ -92,7 +92,11 @@ describe("SPEC 9 required screens", () => {
       },
     },
     { ordinal: "8", hash: "/result", heading: "No execution result" },
-    { ordinal: "9", hash: "/manage-sets", heading: "Manage macro sets" },
+    {
+      ordinal: "9",
+      hash: "/manage-packages",
+      heading: "Manage macro packages",
+    },
     { ordinal: "11", hash: "/import", heading: "Import, export, and recovery" },
     { ordinal: "12", hash: "/export", heading: "Import, export, and recovery" },
     { ordinal: "14", hash: "/settings", heading: "Settings" },
@@ -109,7 +113,7 @@ describe("SPEC 9 required screens", () => {
             usedBytes: 20480,
             totalBytes: 491520,
             remainingBytes: 471040,
-            setFileMaxBytes: 32768,
+            packageFileMaxBytes: 32768,
             temporariesRemovedAtBoot: 0,
             discardedObjectCount: 0,
             discardedObjects: [],
@@ -133,38 +137,40 @@ describe("SPEC 9 required screens", () => {
   }
 
   /*
-   * Screens 10 and 13 are reached from inside "Manage macro sets" rather than
-   * by route. The `set-editor` and `delete-set` hashes exist in the routing
+   * Screens 10 and 13 are reached from inside "Manage macro packages" rather than
+   * by route. The `package-editor` and `delete-package` hashes exist in the routing
    * table but render the parent page without entering either mode, so routing
    * to them proves nothing; the controls are what make the screens reachable.
    */
   // SPEC 24.5 item: every required screen
-  test("10. create and duplicate set are reachable from set management", async () => {
+  test("10. create and duplicate package are reachable from package management", async () => {
     const view = await render(
-      <SetManagementPage
-        onSetsChanged={() => undefined}
-        sets={[macroSet]}
+      <PackageManagementPage
+        onPackagesChanged={() => undefined}
+        packages={[macroPackage]}
         settings={settings}
       />,
     );
     await flushReact();
-    await click(buttonWithText("Create set"));
-    expect(document.body.textContent).toContain("Create macro set");
+    await click(buttonWithText("Create package"));
+    expect(document.body.textContent).toContain("Create macro package");
     await view.unmount();
   });
 
   // SPEC 24.5 item: every required screen
-  test("13. delete set confirmation is reachable from set management", async () => {
+  test("13. delete package confirmation is reachable from package management", async () => {
     const view = await render(
-      <SetManagementPage
-        onSetsChanged={() => undefined}
-        sets={[{ ...macroSet, id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }]}
-        settings={{ ...settings, activeSetId: setId }}
+      <PackageManagementPage
+        onPackagesChanged={() => undefined}
+        packages={[
+          { ...macroPackage, id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" },
+        ]}
+        settings={{ ...settings, activePackageId: packageId }}
       />,
     );
     await flushReact();
     await click(buttonWithText("Delete"));
-    expect(document.body.textContent).toContain("Delete macro set");
+    expect(document.body.textContent).toContain("Delete macro package");
     await view.unmount();
   });
 });

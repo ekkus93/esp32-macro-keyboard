@@ -29,7 +29,7 @@ def raw_request(ip, method, path, headers=None, body=None):
     if data is not None:
         merged["Content-Type"] = "application/json"
     merged.update(headers or {})
-    # a header explicitly set to None means "omit it"
+    # a header explicitly package to None means "omit it"
     merged = {k: v for k, v in merged.items() if v is not None}
     request = urllib.request.Request(
         f"http://{ip}{path}", data=data, headers=merged, method=method
@@ -53,20 +53,20 @@ def main():
 
     # --- unauthenticated access -------------------------------------------
     print("unauthenticated access is refused:")
-    for path in ("/api/v1/sets", "/api/v1/settings", "/api/v1/diagnostics"):
+    for path in ("/api/v1/package", "/api/v1/settings", "/api/v1/diagnostics"):
         status, _ = raw_request(ip, "GET", path)
         results.append(check(f"GET {path}", status in (401, 403), f"HTTP {status}"))
 
     status, _ = raw_request(ip, "POST", "/api/v1/executions",
-                            body={"setId": "x", "macroId": "y", "macroRevision": 1})
+                            body={"packageId": "x", "macroId": "y", "macroRevision": 1})
     results.append(check("POST /api/v1/executions", status in (400, 401, 403), f"HTTP {status}"))
 
     # --- authenticated baseline -------------------------------------------
     print("\nauthenticated session works:")
     device = Device(ip)
     device.login()
-    status, _ = device.get("/api/v1/sets")
-    results.append(check("GET /api/v1/sets with session", status == 200, f"HTTP {status}"))
+    status, _ = device.get("/api/v1/package")
+    results.append(check("GET /api/v1/package with session", status == 200, f"HTTP {status}"))
 
     # --- the cookie is the whole credential (SPEC 16.2) ----------------------
     print("\nmutations need the session cookie and nothing else:")
@@ -80,7 +80,7 @@ def main():
 
     # --- session validity ---------------------------------------------------
     print("\nforged/expired sessions are refused:")
-    status, _ = raw_request(ip, "GET", "/api/v1/sets",
+    status, _ = raw_request(ip, "GET", "/api/v1/package",
                             headers={"Cookie": "session=" + "a" * 64})
     results.append(check("forged session cookie", status in (401, 403), f"HTTP {status}"))
 

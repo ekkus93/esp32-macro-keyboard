@@ -12,12 +12,12 @@ import { navigateHash, setHashSilently } from "./fakeLocation";
 import { flushReact, render } from "./render";
 
 describe("application routing", () => {
-  test("unknown routes use the set selector after authentication", async () => {
+  test("unknown routes use the package selector after authentication", async () => {
     setHashSilently("/unknown");
     planAuthenticatedBootstrap();
     const view = await render(<App />);
     await flushReact();
-    expect(document.body.textContent).toContain("Choose a macro set");
+    expect(document.body.textContent).toContain("Choose a macro package");
     await view.unmount();
   });
 
@@ -31,17 +31,17 @@ describe("application routing", () => {
   });
 
   test.each([
-    ["/sets", "Choose a macro set"],
+    ["/packages", "Choose a macro package"],
     ["/macros", "Macros"],
     ["/macro-editor", "Create macro"],
     ["/confirm", "Confirm send"],
     ["/execution", "Typing macro"],
     ["/result", "No execution result"],
-    ["/manage-sets", "Manage macro sets"],
-    ["/set-editor", "Manage macro sets"],
+    ["/manage-packages", "Manage macro packages"],
+    ["/package-editor", "Manage macro packages"],
     ["/import", "Import, export, and recovery"],
     ["/export", "Import, export, and recovery"],
-    ["/delete-set", "Manage macro sets"],
+    ["/delete-package", "Manage macro packages"],
     ["/settings", "Settings"],
     ["/diagnostics", "Storage diagnostics"],
   ])("renders authenticated route %s", async (hash, expectedText) => {
@@ -69,7 +69,7 @@ describe("application routing", () => {
           usedBytes: 20480,
           totalBytes: 491520,
           remainingBytes: 471040,
-          setFileMaxBytes: 32768,
+          packageFileMaxBytes: 32768,
           temporariesRemovedAtBoot: 0,
           discardedObjectCount: 0,
           discardedObjects: [],
@@ -85,7 +85,7 @@ describe("application routing", () => {
   test("removes the hash listener on unmount", async () => {
     const addListener = vi.spyOn(window, "addEventListener");
     const removeListener = vi.spyOn(window, "removeEventListener");
-    setHashSilently("/sets");
+    setHashSilently("/packages");
     planAuthenticatedBootstrap();
     const view = await render(<App />);
     await flushReact();
@@ -114,12 +114,12 @@ describe("application routing", () => {
     expect(getFetchCalls()).toHaveLength(6);
 
     await act(async () => {
-      navigateHash("/sets");
+      navigateHash("/packages");
       await Promise.resolve();
     });
     await vi.advanceTimersByTimeAsync(1_500);
     expect(getFetchCalls()).toHaveLength(6);
-    expect(document.body.textContent).toContain("Choose a macro set");
+    expect(document.body.textContent).toContain("Choose a macro package");
     await view.unmount();
   });
 });

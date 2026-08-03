@@ -4,30 +4,30 @@ import { errorText } from "../../api/errors";
 import { isRecord } from "../../api/guards";
 import {
   exportBackupPackage,
-  exportSetPackage,
-  importSetAsNewPackage,
+  exportPackage,
+  importPackageAsNewPackage,
   isBackupPackageDocument,
-  isSetPackageDocument,
-  replaceSetPackage,
+  isPackageDocument,
+  replacePackage,
   restoreBackupPackage,
 } from "../../api/packages";
 import type {
   BackupPackageDocument,
-  SetPackageDocument,
+  PackageDocument,
 } from "../../api/packages";
 import { AccessibleDialog } from "../../components/AccessibleDialog";
 import { ErrorBanner } from "../../components/ErrorBanner";
-import type { MacroSet } from "../../types/models";
+import type { MacroPackage } from "../../types/models";
 
 const PACKAGE_MAX_BYTES = 512 * 1024;
 const RESTORE_CONFIRMATION_PHRASE = "RESTORE FULL BACKUP";
 
 interface PackageOperationsPageProps {
-  activeSet: MacroSet | null;
+  activePackage: MacroPackage | null;
   initialSection: "import" | "export";
   saveFile?: (filename: string, text: string) => void;
-  onSetImported?: (created: MacroSet) => void;
-  onSetReplaced?: (replacement: MacroSet) => void;
+  onPackageImported?: (created: MacroPackage) => void;
+  onPackageReplaced?: (replacement: MacroPackage) => void;
   onBackupRestored?: () => void;
 }
 
@@ -47,17 +47,17 @@ function reloadAfterRestore(): void {
   window.location.reload();
 }
 
-function packagedSetId(packageDocument: SetPackageDocument): string | null {
-  const set = packageDocument.sets[0];
-  return isRecord(set) && typeof set.id === "string" ? set.id : null;
+function documentPackageId(packageDocument: PackageDocument): string | null {
+  const pkg = packageDocument.packages[0];
+  return isRecord(pkg) && typeof pkg.id === "string" ? pkg.id : null;
 }
 
 export function PackageOperationsPage({
-  activeSet,
+  activePackage,
   initialSection,
   saveFile = downloadPackage,
-  onSetImported = () => undefined,
-  onSetReplaced = () => undefined,
+  onPackageImported = () => undefined,
+  onPackageReplaced = () => undefined,
   onBackupRestored = reloadAfterRestore,
 }: PackageOperationsPageProps): React.JSX.Element {
   const [exporting, setExporting] = useState(false);
@@ -65,12 +65,12 @@ export function PackageOperationsPage({
   const [importing, setImporting] = useState(false);
   const [replacing, setReplacing] = useState(false);
   const [restoring, setRestoring] = useState(false);
-  const [importPackage, setImportPackage] = useState<SetPackageDocument | null>(
+  const [importPackage, setImportPackage] = useState<PackageDocument | null>(
     null,
   );
   const [importFilename, setImportFilename] = useState<string | null>(null);
   const [replacementPackage, setReplacementPackage] =
-    useState<SetPackageDocument | null>(null);
+    useState<PackageDocument | null>(null);
   const [replacementFilename, setReplacementFilename] = useState<string | null>(
     null,
   );
@@ -85,20 +85,20 @@ export function PackageOperationsPage({
   const [message, setMessage] = useState<string | null>(null);
 
   const confirmationPhrase =
-    activeSet === null ? "REPLACE" : `REPLACE ${activeSet.name}`;
+    activePackage === null ? "REPLACE" : `REPLACE ${activePackage.name}`;
 
   const performExport = async (): Promise<void> => {
-    if (activeSet === null || exporting) {
+    if (activePackage === null || exporting) {
       return;
     }
     setExporting(true);
     setError(null);
     setMessage(null);
     try {
-      const download = await exportSetPackage(activeSet.id);
-      saveFile(`macro-set-${activeSet.id}.json`, download.text);
+      const download = await exportPackage(activePackage.id);
+      saveFile(`macro-package-${activePackage.id}.json`, download.text);
       setMessage(
-        `Exported ${activeSet.name} as ${String(download.byteLength)} bytes.`,
+        `Exported ${activePackage.name} as ${String(download.byteLength)} bytes.`,
       );
     } catch (exportError: unknown) {
       setError(errorText(exportError));
@@ -144,12 +144,12 @@ export function PackageOperationsPage({
     }
     try {
       const parsed: unknown = JSON.parse(await file.text());
-      if (!isSetPackageDocument(parsed)) {
-        throw new Error("The file is not a supported macro-set package.");
+      if (!isPackageDocument(parsed)) {
+        throw new Error("The file is not a supported macro-package package.");
       }
       setImportPackage(parsed);
       setImportFilename(file.name);
-      setMessage(`Validated ${file.name}. Ready to import as a new set.`);
+      setMessage(`Validated ${file.name}. Ready to import as a new pkg.`);
     } catch (selectionError: unknown) {
       setError(errorText(selectionError));
     }
@@ -163,12 +163,17 @@ export function PackageOperationsPage({
     setError(null);
     setMessage(null);
     try {
-      const newSetId = crypto.randomUUID();
-      const created = await importSetAsNewPackage(newSetId, importPackage);
-      onSetImported(created);
+      const newPackageId = crypto.randomUUID();
+      const created = await importPackageAsNewPackage(
+        newPackageId,
+        importPackage,
+      );
+      onPackageImported(created);
       setImportPackage(null);
       setImportFilename(null);
-      setMessage(`Imported "${created.name}" as a new set (ID ${created.id}).`);
+      setMessage(
+        `Imported "${created.name}" as a new package (ID ${created.id}).`,
+      );
     } catch (importError: unknown) {
       setError(errorText(importError));
       setMessage(null);
@@ -188,8 +193,10 @@ export function PackageOperationsPage({
     if (file === undefined) {
       return;
     }
-    if (activeSet === null) {
-      setError("Select an active set before choosing a replacement package.");
+    if (activePackage === null) {
+      setError(
+        "Select an active package before choosing a replacement package.",
+      );
       return;
     }
     if (file.size === 0 || file.size > PACKAGE_MAX_BYTES) {
@@ -198,12 +205,12 @@ export function PackageOperationsPage({
     }
     try {
       const parsed: unknown = JSON.parse(await file.text());
-      if (!isSetPackageDocument(parsed)) {
-        throw new Error("The file is not a supported macro-set package.");
+      if (!isPackageDocument(parsed)) {
+        throw new Error("The file is not a supported macro-package package.");
       }
-      if (packagedSetId(parsed) !== activeSet.id) {
+      if (documentPackageId(parsed) !== activePackage.id) {
         throw new Error(
-          "The package set ID does not match the selected replacement target.",
+          "The package package ID does not match the selected replacement target.",
         );
       }
       setReplacementPackage(parsed);
@@ -248,7 +255,7 @@ export function PackageOperationsPage({
 
   const performReplacement = async (): Promise<void> => {
     if (
-      activeSet === null ||
+      activePackage === null ||
       replacementPackage === null ||
       confirmation !== confirmationPhrase ||
       replacing
@@ -259,18 +266,18 @@ export function PackageOperationsPage({
     setError(null);
     setMessage("Restoring. Do not power off the device.");
     try {
-      const committed = await replaceSetPackage(
-        activeSet.id,
-        activeSet.revision,
+      const committed = await replacePackage(
+        activePackage.id,
+        activePackage.revision,
         replacementPackage,
       );
-      onSetReplaced(committed);
+      onPackageReplaced(committed);
       setConfirmationOpen(false);
       setConfirmation("");
       setReplacementPackage(null);
       setReplacementFilename(null);
       setMessage(
-        `Replaced ${activeSet.name} with revision ${String(committed.revision)}.`,
+        `Replaced ${activePackage.name} with revision ${String(committed.revision)}.`,
       );
     } catch (replacementError: unknown) {
       setError(errorText(replacementError));
@@ -322,8 +329,8 @@ export function PackageOperationsPage({
       </div>
 
       <div className="boundary-message" role="status">
-        Deterministic set export, import as new, transactional replacement, full
-        backup, and all-or-nothing restore are available.
+        Deterministic package export, import as new, transactional replacement,
+        full backup, and all-or-nothing restore are available.
       </div>
 
       <ErrorBanner message={error} />
@@ -353,10 +360,10 @@ export function PackageOperationsPage({
       {initialSection === "import" ? (
         <div className="management-grid">
           <article className="validation-card">
-            <h3>Import as new set</h3>
+            <h3>Import as new package</h3>
             <p>
-              Validate a complete package, assign a new identity, and create it
-              as a new set without changing any existing set.
+              Validate a complete pkg, assign a new identity, and create it as a
+              new package without changing any existing pkg.
             </p>
             <label htmlFor="import-package">Package to import</label>
             <input
@@ -376,7 +383,7 @@ export function PackageOperationsPage({
               }}
               type="button"
             >
-              {importing ? "Importing…" : "Import as new set"}
+              {importing ? "Importing…" : "Import as new package"}
             </button>
             <p className="field-help">
               {importFilename === null
@@ -385,16 +392,16 @@ export function PackageOperationsPage({
             </p>
           </article>
           <article className="validation-card">
-            <h3>Replace selected set</h3>
+            <h3>Replace selected package</h3>
             <p>
-              {activeSet === null
-                ? "Select an active set before choosing a transactional replacement target."
-                : `Stage, validate, and atomically replace ${activeSet.name}, including its macros and their ordering.`}
+              {activePackage === null
+                ? "Select an active package before choosing a transactional replacement target."
+                : `Stage, validate, and atomically replace ${activePackage.name}, including its macros and their ordering.`}
             </p>
             <label htmlFor="replacement-package">Replacement package</label>
             <input
               accept="application/json,.json"
-              disabled={activeSet === null || replacing}
+              disabled={activePackage === null || replacing}
               id="replacement-package"
               onChange={(event) => {
                 void selectReplacement(event);
@@ -404,7 +411,9 @@ export function PackageOperationsPage({
             <button
               className="danger"
               disabled={
-                activeSet === null || replacementPackage === null || replacing
+                activePackage === null ||
+                replacementPackage === null ||
+                replacing
               }
               onClick={() => {
                 setConfirmation("");
@@ -412,7 +421,7 @@ export function PackageOperationsPage({
               }}
               type="button"
             >
-              Replace selected set
+              Replace selected package
             </button>
             <p className="field-help">
               {replacementFilename === null
@@ -423,9 +432,9 @@ export function PackageOperationsPage({
           <article className="validation-card">
             <h3>Restore full backup</h3>
             <p>
-              Replace all sets, set-owned objects, global macros, ordering, and
-              optional progress in one durable transaction. Credentials and
-              provisioning data are never replaced.
+              Replace all packages, package-owned objects, global macros,
+              ordering, and optional progress in one durable transaction.
+              Credentials and provisioning data are never replaced.
             </p>
             <label htmlFor="restore-backup-package">Full backup package</label>
             <input
@@ -458,21 +467,21 @@ export function PackageOperationsPage({
       ) : (
         <div className="management-grid">
           <article className="validation-card">
-            <h3>Export selected set</h3>
+            <h3>Export selected package</h3>
             <p>
-              {activeSet === null
-                ? "Select an active set before exporting a macro-set package."
-                : `Export ${activeSet.name} with its macros and their ordering.`}
+              {activePackage === null
+                ? "Select an active package before exporting a macro-package package."
+                : `Export ${activePackage.name} with its macros and their ordering.`}
             </p>
             <button
               className="primary"
-              disabled={activeSet === null || exporting}
+              disabled={activePackage === null || exporting}
               onClick={() => {
                 void performExport();
               }}
               type="button"
             >
-              {exporting ? "Exporting…" : "Export selected set"}
+              {exporting ? "Exporting…" : "Export selected package"}
             </button>
             <p className="field-help">
               The downloaded JSON is generated from one locked repository
@@ -483,7 +492,7 @@ export function PackageOperationsPage({
           <article className="validation-card">
             <h3>Create full backup</h3>
             <p>
-              Download every set, macro, and ordering record from one locked
+              Download every pkg, macro, and ordering record from one locked
               repository snapshot.
             </p>
             <button
@@ -506,9 +515,9 @@ export function PackageOperationsPage({
 
       <AccessibleDialog
         description={
-          activeSet === null
+          activePackage === null
             ? "No replacement target is selected."
-            : `This replaces ${activeSet.name} and its set-owned data. Interrupted activation is recovered from the durable transaction manifest.`
+            : `This replaces ${activePackage.name} and its package-owned data. Interrupted activation is recovered from the durable transaction manifest.`
         }
         onClose={() => {
           if (!replacing) {

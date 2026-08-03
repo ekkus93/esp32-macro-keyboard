@@ -35,15 +35,15 @@ static void test_content_type_and_request_id(void) {
 
 static void test_route_parsing(void) {
     check_route("/api/v1/auth/session", WEB_API_ROUTE_AUTH_SESSION);
-    check_route("/api/v1/sets", WEB_API_ROUTE_SETS);
-    check_route("/api/v1/sets/order", WEB_API_ROUTE_SETS_ORDER);
-    check_route("/api/v1/sets/import", WEB_API_ROUTE_SET_IMPORT);
-    check_route("/api/v1/sets/import-new", WEB_API_ROUTE_SET_IMPORT_NEW);
-    check_route("/api/v1/sets/" SET_ID, WEB_API_ROUTE_SET);
-    check_route("/api/v1/sets/" SET_ID "/select", WEB_API_ROUTE_SET_SELECT);
-    check_route("/api/v1/sets/" SET_ID "/macros", WEB_API_ROUTE_SET_MACROS);
-    check_route("/api/v1/sets/" SET_ID "/macros/" MACRO_ID, WEB_API_ROUTE_SET_MACRO);
-    check_route("/api/v1/sets/" SET_ID "/macros/" MACRO_ID "/validate",
+    check_route("/api/v1/package", WEB_API_ROUTE_SETS);
+    check_route("/api/v1/package/order", WEB_API_ROUTE_SETS_ORDER);
+    check_route("/api/v1/package/import", WEB_API_ROUTE_SET_IMPORT);
+    check_route("/api/v1/package/import-new", WEB_API_ROUTE_SET_IMPORT_NEW);
+    check_route("/api/v1/package/" SET_ID, WEB_API_ROUTE_SET);
+    check_route("/api/v1/package/" SET_ID "/select", WEB_API_ROUTE_SET_SELECT);
+    check_route("/api/v1/package/" SET_ID "/macros", WEB_API_ROUTE_SET_MACROS);
+    check_route("/api/v1/package/" SET_ID "/macros/" MACRO_ID, WEB_API_ROUTE_SET_MACRO);
+    check_route("/api/v1/package/" SET_ID "/macros/" MACRO_ID "/validate",
                 WEB_API_ROUTE_SET_MACRO_VALIDATE);
     check_route("/api/v1/executions", WEB_API_ROUTE_EXECUTIONS);
     check_route("/api/v1/executions/current", WEB_API_ROUTE_EXECUTION_CURRENT);
@@ -53,19 +53,19 @@ static void test_route_parsing(void) {
     check_route("/api/v1/device/factory-reset", WEB_API_ROUTE_DEVICE_FACTORY_RESET);
     check_route("/api/v1/diagnostics/storage/check", WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK);
     check_route("/api/v1/diagnostics", WEB_API_ROUTE_DIAGNOSTICS_FULL);
-    check_route("/api/v1/backup", WEB_API_ROUTE_BACKUP);
+    check_route("/api/v1/repository", WEB_API_ROUTE_BACKUP);
 
     web_api_path_t path = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
                          web_api_parse_path("/api/v1/executions/" EXECUTION_ID "/confirm", &path));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_parse_path("/api/v1/sets/%2fetc", &path));
+                         web_api_parse_path("/api/v1/package/%2fetc", &path));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_parse_path("/api/v1/sets/../etc", &path));
+                         web_api_parse_path("/api/v1/package/../etc", &path));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_parse_path("/api/v1/sets//macros", &path));
+                         web_api_parse_path("/api/v1/package//macros", &path));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_parse_path("/api/v1/sets/not-a-uuid", &path));
+                         web_api_parse_path("/api/v1/package/not-a-uuid", &path));
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, web_api_parse_path("/api/v1/unknown", &path));
     /* Global macros were removed (SPEC §7.2): every macro is reached through
      * its set, so the old /global tree must not resolve to anything. */
@@ -75,10 +75,10 @@ static void test_route_parsing(void) {
        so the procedures subtree must not resolve.
        removed-feature-ok-begin: the routes named below are asserted absent. */
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
-                         web_api_parse_path("/api/v1/sets/" SET_ID "/procedures", &path));
+                         web_api_parse_path("/api/v1/package/" SET_ID "/procedures", &path));
     TEST_CHECK_APP_ERROR(
         APP_ERROR_NOT_FOUND,
-        web_api_parse_path("/api/v1/sets/" SET_ID "/procedures/" PROCEDURE_ID, &path));
+        web_api_parse_path("/api/v1/package/" SET_ID "/procedures/" PROCEDURE_ID, &path));
     /* removed-feature-ok-end: */
     /* Quarantine was removed (SPEC §13.6); its diagnostics route must not
        resolve either. */

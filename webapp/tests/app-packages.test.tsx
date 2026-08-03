@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 import App from "../src/App";
 import {
-  macroSet,
+  macroPackage,
   planAuthenticatedBootstrap,
-  setId,
+  packageId,
   settings,
 } from "./appFixtures";
 import { getFetchCalls, planJsonResponse } from "./fakeFetch";
@@ -18,18 +18,18 @@ import {
   setInputValue,
 } from "./render";
 
-const secondSet = {
-  ...macroSet,
+const secondPackage = {
+  ...macroPackage,
   id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   name: "Workshop desktop workflow",
 };
 
-describe("server-backed set selection", () => {
+describe("server-backed package selection", () => {
   test("shows live metadata and filters by search", async () => {
-    setHashSilently("/sets");
+    setHashSilently("/packages");
     planAuthenticatedBootstrap({
-      activeSetId: null,
-      sets: [macroSet, secondSet],
+      activePackageId: null,
+      packages: [macroPackage, secondPackage],
     });
     const view = await render(<App />);
     await flushReact();
@@ -38,7 +38,7 @@ describe("server-backed set selection", () => {
     expect(document.body.textContent).toContain("Workshop desktop workflow");
 
     await setInputValue(
-      requiredElement("#set-search", HTMLInputElement),
+      requiredElement("#package-search", HTMLInputElement),
       "Workshop",
     );
     expect(document.body.textContent).not.toContain("Lab bench workflow");
@@ -46,13 +46,13 @@ describe("server-backed set selection", () => {
     await view.unmount();
   });
 
-  // SPEC 24.5 item: set switching
+  // SPEC 24.5 item: package switching
 
-  // SPEC 24.5 item: active-set visibility
+  // SPEC 24.5 item: active-package visibility
 
-  test("selects a set with the settings revision and updates the header", async () => {
-    setHashSilently("/sets");
-    planAuthenticatedBootstrap({ activeSetId: null });
+  test("selects a package with the settings revision and updates the header", async () => {
+    setHashSilently("/packages");
+    planAuthenticatedBootstrap({ activePackageId: null });
     const view = await render(<App />);
     await flushReact();
 
@@ -61,14 +61,14 @@ describe("server-backed set selection", () => {
       data: {
         ...settings,
         revision: settings.revision + 1,
-        activeSetId: setId,
+        activePackageId: packageId,
       },
     });
-    await click(buttonWithText("Use this set"));
+    await click(buttonWithText("Use this package"));
     await flushReact();
 
     const call = getFetchCalls()[5];
-    expect(call?.url).toBe(`/api/v1/sets/${setId}/select`);
+    expect(call?.url).toBe(`/api/v1/package/${packageId}/select`);
     expect(call?.method).toBe("POST");
     expect(call?.body).toBe(
       JSON.stringify({ expectedRevision: settings.revision }),
@@ -77,16 +77,16 @@ describe("server-backed set selection", () => {
       "Lab bench workflow",
     );
     expect(
-      window.localStorage.getItem("esp32-macro-keyboard.recent-set-ids"),
-    ).toContain(setId);
+      window.localStorage.getItem("esp32-macro-keyboard.recent-package-ids"),
+    ).toContain(packageId);
     await view.unmount();
   });
 
   // SPEC 24.5 item: stale-edit conflict UI
 
   test("shows revision conflicts instead of silently accepting selection", async () => {
-    setHashSilently("/sets");
-    planAuthenticatedBootstrap({ activeSetId: null });
+    setHashSilently("/packages");
+    planAuthenticatedBootstrap({ activePackageId: null });
     const view = await render(<App />);
     await flushReact();
 
@@ -100,14 +100,14 @@ describe("server-backed set selection", () => {
       },
       409,
     );
-    await click(buttonWithText("Use this set"));
+    await click(buttonWithText("Use this package"));
     await flushReact();
 
     expect(
       requiredElement("[role='alert']", HTMLElement).textContent,
     ).toContain("conflict: Settings revision is stale.");
     expect(document.querySelector(".app-header")?.textContent).toContain(
-      "No active macro set",
+      "No active macro package",
     );
     await view.unmount();
   });
@@ -128,7 +128,7 @@ describe("server-backed set selection", () => {
       data: {
         ...settings,
         revision: settings.revision + 1,
-        alwaysSelectSet: false,
+        alwaysSelectPackage: false,
       },
     });
     await click(buttonWithText("Save settings"));
@@ -137,13 +137,13 @@ describe("server-backed set selection", () => {
     const call = getFetchCalls()[5];
     expect(call?.url).toBe("/api/v1/settings");
     expect(call?.method).toBe("PUT");
-    /* No activeSetId: the active set is repository state (SPEC 12.3) and moves
+    /* No activePackageId: the active package is repository state (SPEC 12.3) and moves
        only through the select route, so a settings PUT must not carry it. */
     expect(call?.body).toBe(
       JSON.stringify({
         expectedRevision: settings.revision,
         requirePhysicalConfirmation: settings.requirePhysicalConfirmation,
-        alwaysSelectSet: false,
+        alwaysSelectPackage: false,
       }),
     );
     await view.unmount();

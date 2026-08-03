@@ -6,7 +6,7 @@ import type {
   ExecutionStatus,
   LoginResponse,
   Macro,
-  MacroSet,
+  MacroPackage,
   MacroValidation,
   RestartAccepted,
   SessionStatus,
@@ -144,8 +144,8 @@ export function isSettings(value: unknown): value is Settings {
       "schemaVersion",
       "revision",
       "requirePhysicalConfirmation",
-      "alwaysSelectSet",
-      "activeSetId",
+      "alwaysSelectPackage",
+      "activePackageId",
     ])
   ) {
     return false;
@@ -154,12 +154,12 @@ export function isSettings(value: unknown): value is Settings {
     value.schemaVersion === 1 &&
     isPositiveInteger(value.revision) &&
     typeof value.requirePhysicalConfirmation === "boolean" &&
-    typeof value.alwaysSelectSet === "boolean" &&
-    (value.activeSetId === null || isUuid(value.activeSetId))
+    typeof value.alwaysSelectPackage === "boolean" &&
+    (value.activePackageId === null || isUuid(value.activePackageId))
   );
 }
 
-export function isMacroSet(value: unknown): value is MacroSet {
+export function isMacroPackage(value: unknown): value is MacroPackage {
   if (
     !isRecord(value) ||
     !hasExactKeys(value, ["schema_version", "id", "revision", "name"])
@@ -175,8 +175,8 @@ export function isMacroSet(value: unknown): value is MacroSet {
   );
 }
 
-export function isMacroSetList(value: unknown): value is MacroSet[] {
-  return Array.isArray(value) && value.every(isMacroSet);
+export function isMacroPackageList(value: unknown): value is MacroPackage[] {
+  return Array.isArray(value) && value.every(isMacroPackage);
 }
 
 function utf8Length(value: string): number {
@@ -195,7 +195,7 @@ function isBoundedString(
   );
 }
 
-/* Every macro belongs to exactly one set (SPEC 7.2): `set_id` is required and
+/* Every macro belongs to exactly one package (SPEC 7.2): `package_id` is required and
    there is no scope discriminator. */
 export function isMacro(value: unknown): value is Macro {
   if (
@@ -204,7 +204,7 @@ export function isMacro(value: unknown): value is Macro {
       "schema_version",
       "id",
       "revision",
-      "set_id",
+      "package_id",
       "name",
       "source",
       "key_press_ms",
@@ -217,7 +217,7 @@ export function isMacro(value: unknown): value is Macro {
     value.schema_version === 1 &&
     isUuid(value.id) &&
     isPositiveInteger(value.revision) &&
-    isUuid(value.set_id) &&
+    isUuid(value.package_id) &&
     isBoundedString(value.name, limits.macroNameBytes, true) &&
     isBoundedString(value.source, limits.macroSourceBytes, false) &&
     isNonNegativeInteger(value.key_press_ms) &&
@@ -246,7 +246,7 @@ export function isExecutionStatus(value: unknown): value is ExecutionStatus {
     !isRecord(value) ||
     !hasExactKeys(value, [
       "executionId",
-      "setId",
+      "packageId",
       "macroId",
       "macroRevision",
       "state",
@@ -266,7 +266,7 @@ export function isExecutionStatus(value: unknown): value is ExecutionStatus {
   }
   return (
     typeof value.executionId === "string" &&
-    typeof value.setId === "string" &&
+    typeof value.packageId === "string" &&
     typeof value.macroId === "string" &&
     isNonNegativeInteger(value.macroRevision) &&
     isExecutionState(value.state) &&

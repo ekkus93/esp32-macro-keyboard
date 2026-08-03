@@ -40,7 +40,7 @@ nothing about whether the specification is covered, because the tests were
 written **after** the code they test, in the same pass — so they encode what the
 implementation does rather than what the specification requires.
 
-That is not hypothetical. `POST /api/v1/sets/{setId}/select` required an
+That is not hypothetical. `POST /api/v1/package/{packageId}/select` required an
 `expectedRevision` field that the handler parsed and never used. Six tests
 asserted that requirement because the handler had it. Not one asked what §12.3
 actually says, which is nothing about a revision on selection. All six passed

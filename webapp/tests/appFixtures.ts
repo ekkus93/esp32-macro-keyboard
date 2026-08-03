@@ -1,6 +1,6 @@
 import { planJsonResponse } from "./fakeFetch";
 
-export const setId = "11111111-1111-4111-8111-111111111111";
+export const packageId = "11111111-1111-4111-8111-111111111111";
 export const macroId = "22222222-2222-4222-8222-222222222222";
 export const executionId = "33333333-3333-4333-8333-333333333333";
 
@@ -17,13 +17,13 @@ export const settings = {
   schemaVersion: 1,
   revision: 4,
   requirePhysicalConfirmation: true,
-  alwaysSelectSet: true,
-  activeSetId: setId,
+  alwaysSelectPackage: true,
+  activePackageId: packageId,
 } as const;
 
-export const macroSet = {
+export const macroPackage = {
   schema_version: 1,
-  id: setId,
+  id: packageId,
   revision: 2,
   name: "Lab bench workflow",
 } as const;
@@ -32,7 +32,7 @@ export const macro = {
   schema_version: 1,
   id: macroId,
   revision: 7,
-  set_id: setId,
+  package_id: packageId,
   name: "Open terminal",
   source: "{CTRL+ALT+T}",
   key_press_ms: 8,
@@ -52,7 +52,7 @@ export function executionStatus(
 ): object {
   return {
     executionId,
-    setId,
+    packageId,
     macroId,
     macroRevision: 7,
     state,
@@ -95,8 +95,8 @@ export function planNormalUnauthenticatedBootstrap(): void {
 
 export function planAuthenticatedBootstrap(
   overrides: {
-    activeSetId?: string | null;
-    sets?: readonly object[];
+    activePackageId?: string | null;
+    packages?: readonly object[];
     usbState?: string;
   } = {},
 ): void {
@@ -125,15 +125,15 @@ export function planAuthenticatedBootstrap(
     ok: true,
     data: {
       ...settings,
-      activeSetId:
-        overrides.activeSetId === undefined
-          ? settings.activeSetId
-          : overrides.activeSetId,
+      activePackageId:
+        overrides.activePackageId === undefined
+          ? settings.activePackageId
+          : overrides.activePackageId,
     },
   });
   planJsonResponse({
     ok: true,
-    data: overrides.sets ?? [macroSet],
+    data: overrides.packages ?? [macroPackage],
   });
 }
 
@@ -144,5 +144,5 @@ export function planPostLoginBootstrap(): void {
   });
   planJsonResponse({ ok: true, data: deviceStatus });
   planJsonResponse({ ok: true, data: settings });
-  planJsonResponse({ ok: true, data: [macroSet] });
+  planJsonResponse({ ok: true, data: [macroPackage] });
 }

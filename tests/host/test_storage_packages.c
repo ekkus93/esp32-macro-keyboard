@@ -63,10 +63,10 @@ static macro_package_t make_package(uint32_t value, const char *name) {
 
 static void reset_store(void) {
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
-    /* SPEC 13.3: /data holds the set index and sets/, and nothing else. */
+    /* SPEC 13.3: /data holds the package index and package/, and nothing else. */
     static const char *const paths[] = {
         STORAGE_DATA_MOUNT,
-        STORAGE_DATA_MOUNT "/sets",
+        STORAGE_DATA_MOUNT "/package",
     };
     for (size_t index = 0U; index < (sizeof(paths) / sizeof(paths[0])); ++index) {
         make_directory(paths[index]);
@@ -84,7 +84,7 @@ static void assert_package_layout(const macro_package_t *set) {
 
     char directory[APP_PATH_MAX_BYTES];
     const int written =
-        snprintf(directory, sizeof(directory), STORAGE_DATA_MOUNT "/sets/%s", set->id.value);
+        snprintf(directory, sizeof(directory), STORAGE_DATA_MOUNT "/package/%s", set->id.value);
     TEST_CHECK(written > 0 && (size_t)written < sizeof(directory));
     TEST_CHECK(!path_exists(directory));
 }

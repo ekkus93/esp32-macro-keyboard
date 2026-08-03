@@ -1,30 +1,30 @@
 import { useMemo, useState } from "react";
 import { errorText } from "../../api/errors";
 import {
-  createSet,
-  deleteSet,
-  duplicateSet,
-  reorderSets,
-  updateSet,
+  createPackage,
+  deletePackage,
+  duplicatePackage,
+  reorderPackages,
+  updatePackage,
 } from "../../api/routes";
 import { AccessibleDialog } from "../../components/AccessibleDialog";
 import { ErrorBanner } from "../../components/ErrorBanner";
 import { limits } from "../../types/limits";
-import type { MacroSet, Settings } from "../../types/models";
+import type { MacroPackage, Settings } from "../../types/models";
 import { utf8ByteLength } from "../macros/macroDraft";
 
-interface SetManagementPageProps {
-  sets: readonly MacroSet[];
+interface PackageManagementPageProps {
+  packages: readonly MacroPackage[];
   settings: Settings;
-  onSetsChanged: (sets: MacroSet[]) => void;
+  onPackagesChanged: (packages: MacroPackage[]) => void;
 }
 
 type EditorState =
-  | { mode: "create"; set: MacroSet }
-  | { mode: "edit"; set: MacroSet }
+  | { mode: "create"; package: MacroPackage }
+  | { mode: "edit"; package: MacroPackage }
   | null;
 
-interface SetFieldErrors {
+interface PackageFieldErrors {
   board?: string;
   description?: string;
   manufacturer?: string;
@@ -32,13 +32,13 @@ interface SetFieldErrors {
   name?: string;
 }
 
-/* The device returns sets in index order (SPEC 12.3), which is the user's
+/* The device returns packages in index order (SPEC 12.3), which is the user's
    order; the UI must preserve it rather than impose one of its own. */
-function sortedSets(sets: readonly MacroSet[]): MacroSet[] {
-  return [...sets];
+function sortedPackages(packages: readonly MacroPackage[]): MacroPackage[] {
+  return [...packages];
 }
 
-function newSet(): MacroSet {
+function newPackage(): MacroPackage {
   return {
     schema_version: 1,
     id: crypto.randomUUID(),
@@ -47,18 +47,18 @@ function newSet(): MacroSet {
   };
 }
 
-function validateSet(set: MacroSet): SetFieldErrors {
-  const errors: SetFieldErrors = {};
-  const nameBytes = utf8ByteLength(set.name);
+function validatePackage(pkg: MacroPackage): PackageFieldErrors {
+  const errors: PackageFieldErrors = {};
+  const nameBytes = utf8ByteLength(pkg.name);
   if (nameBytes === 0) {
     errors.name = "Name is required.";
-  } else if (nameBytes > limits.setNameBytes) {
-    errors.name = `Name exceeds ${String(limits.setNameBytes)} UTF-8 bytes.`;
+  } else if (nameBytes > limits.packageNameBytes) {
+    errors.name = `Name exceeds ${String(limits.packageNameBytes)} UTF-8 bytes.`;
   }
   return errors;
 }
 
-function noErrors(errors: SetFieldErrors): boolean {
+function noErrors(errors: PackageFieldErrors): boolean {
   return Object.keys(errors).length === 0;
 }
 
@@ -105,22 +105,24 @@ function TextField({
   );
 }
 
-export function SetManagementPage({
-  sets,
+export function PackageManagementPage({
+  packages,
   settings,
-  onSetsChanged,
-}: SetManagementPageProps): React.JSX.Element {
-  const ordered = useMemo(() => sortedSets(sets), [sets]);
+  onPackagesChanged,
+}: PackageManagementPageProps): React.JSX.Element {
+  const ordered = useMemo(() => sortedPackages(packages), [packages]);
   const [editor, setEditor] = useState<EditorState>(null);
-  const [duplicateSource, setDuplicateSource] = useState<MacroSet | null>(null);
+  const [duplicateSource, setDuplicateSource] = useState<MacroPackage | null>(
+    null,
+  );
   const [duplicateName, setDuplicateName] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<MacroSet | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MacroPackage | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const editorErrors = editor === null ? {} : validateSet(editor.set);
+  const editorErrors = editor === null ? {} : validatePackage(editor.package);
 
   const closeDialogs = (): void => {
     if (busy) {
@@ -144,13 +146,13 @@ export function SetManagementPage({
     try {
       const committed =
         editor.mode === "create"
-          ? await createSet(editor.set)
-          : await updateSet(editor.set, editor.set.revision);
+          ? await createPackage(editor.package)
+          : await updatePackage(editor.package, editor.package.revision);
       const replacement =
         editor.mode === "create"
           ? [...ordered, committed]
-          : ordered.map((set) => (set.id === committed.id ? committed : set));
-      onSetsChanged(sortedSets(replacement));
+          : ordered.map((pkg) => (pkg.id === committed.id ? committed : pkg));
+      onPackagesChanged(sortedPackages(replacement));
       setMessage(
         editor.mode === "create"
           ? `Created ${committed.name}.`
@@ -168,7 +170,7 @@ export function SetManagementPage({
     if (
       duplicateSource === null ||
       utf8ByteLength(duplicateName.trim()) === 0 ||
-      utf8ByteLength(duplicateName.trim()) > limits.setNameBytes ||
+      utf8ByteLength(duplicateName.trim()) > limits.packageNameBytes ||
       busy
     ) {
       return;
@@ -177,12 +179,12 @@ export function SetManagementPage({
     setError(null);
     setMessage(null);
     try {
-      const committed = await duplicateSet(duplicateSource.id, {
+      const committed = await duplicatePackage(duplicateSource.id, {
         id: crypto.randomUUID(),
         name: duplicateName.trim(),
         expectedRevision: duplicateSource.revision,
       });
-      onSetsChanged(sortedSets([...ordered, committed]));
+      onPackagesChanged(sortedPackages([...ordered, committed]));
       setMessage(`Duplicated ${duplicateSource.name} as ${committed.name}.`);
       setDuplicateSource(null);
       setDuplicateName("");
@@ -196,7 +198,7 @@ export function SetManagementPage({
   const remove = async (): Promise<void> => {
     if (
       deleteTarget === null ||
-      deleteTarget.id === settings.activeSetId ||
+      deleteTarget.id === settings.activePackageId ||
       deleteConfirmation !== deleteTarget.name ||
       busy
     ) {
@@ -206,11 +208,16 @@ export function SetManagementPage({
     setError(null);
     setMessage(null);
     try {
-      const result = await deleteSet(deleteTarget.id, deleteTarget.revision);
+      const result = await deletePackage(
+        deleteTarget.id,
+        deleteTarget.revision,
+      );
       if (result.id !== deleteTarget.id) {
-        throw new Error("The device confirmed deletion for a different set.");
+        throw new Error(
+          "The device confirmed deletion for a different package.",
+        );
       }
-      onSetsChanged(ordered.filter((set) => set.id !== deleteTarget.id));
+      onPackagesChanged(ordered.filter((pkg) => pkg.id !== deleteTarget.id));
       setMessage(`Deleted ${deleteTarget.name}.`);
       setDeleteTarget(null);
       setDeleteConfirmation("");
@@ -245,8 +252,8 @@ export function SetManagementPage({
     setError(null);
     setMessage(null);
     try {
-      const committed = await reorderSets(replacement.map((set) => set.id));
-      onSetsChanged(sortedSets(committed));
+      const committed = await reorderPackages(replacement.map((pkg) => pkg.id));
+      onPackagesChanged(sortedPackages(committed));
       setMessage(
         `Moved ${moved.name} to position ${String(destinationIndex + 1)}.`,
       );
@@ -257,14 +264,14 @@ export function SetManagementPage({
     }
   };
 
-  const updateEditor = (field: keyof MacroSet, value: string): void => {
+  const updateEditor = (field: keyof MacroPackage, value: string): void => {
     setEditor((current) =>
       current === null
         ? null
         : {
             ...current,
-            set: {
-              ...current.set,
+            package: {
+              ...current.package,
               [field]: value,
             },
           },
@@ -272,33 +279,34 @@ export function SetManagementPage({
   };
 
   return (
-    <section aria-labelledby="manage-sets-title">
+    <section aria-labelledby="manage-packages-title">
       <div className="page-heading">
         <div>
           <p className="eyebrow dark">Persisted resources</p>
-          <h2 id="manage-sets-title">Manage macro sets</h2>
+          <h2 id="manage-packages-title">Manage macro packages</h2>
           <p>
-            Create, revise, duplicate, reorder, or delete complete macro sets.
+            Create, revise, duplicate, reorder, or delete complete macro
+            packages.
           </p>
         </div>
         <button
           className="primary"
-          disabled={busy || ordered.length >= limits.macroSets}
+          disabled={busy || ordered.length >= limits.macroPackages}
           onClick={() => {
             setMessage(null);
             setError(null);
-            setEditor({ mode: "create", set: newSet() });
+            setEditor({ mode: "create", package: newPackage() });
           }}
           type="button"
         >
-          Create set
+          Create package
         </button>
       </div>
 
-      {ordered.length >= limits.macroSets ? (
+      {ordered.length >= limits.macroPackages ? (
         <p className="conflict-message" role="status">
-          The device already contains the maximum of {String(limits.macroSets)}{" "}
-          sets.
+          The device already contains the maximum of{" "}
+          {String(limits.macroPackages)} packages.
         </p>
       ) : null}
       <ErrorBanner message={error} />
@@ -309,19 +317,19 @@ export function SetManagementPage({
       )}
 
       {ordered.length === 0 ? (
-        <p role="status">No macro sets are stored.</p>
+        <p role="status">No macro packages are stored.</p>
       ) : (
-        <ol className="management-list" aria-label="Macro set order">
-          {ordered.map((set, index) => {
-            const active = settings.activeSetId === set.id;
+        <ol className="management-list" aria-label="Macro package order">
+          {ordered.map((pkg, index) => {
+            const active = settings.activePackageId === pkg.id;
             return (
-              <li className="card management-card" key={set.id}>
+              <li className="card management-card" key={pkg.id}>
                 <div>
                   <div className="management-title-row">
-                    <h3>{set.name}</h3>
+                    <h3>{pkg.name}</h3>
                     {active ? (
                       <span className="status-badge status-good">
-                        Active set
+                        Active package
                       </span>
                     ) : null}
                   </div>
@@ -331,17 +339,17 @@ export function SetManagementPage({
                       {String(index + 1)} of {String(ordered.length)}
                     </dd>
                     <dt>Revision</dt>
-                    <dd>{String(set.revision)}</dd>
+                    <dd>{String(pkg.revision)}</dd>
                   </dl>
                 </div>
 
                 <div className="management-actions">
                   <div
                     className="reorder-actions"
-                    aria-label={`Reorder ${set.name}`}
+                    aria-label={`Reorder ${pkg.name}`}
                   >
                     <button
-                      aria-label={`Move ${set.name} first`}
+                      aria-label={`Move ${pkg.name} first`}
                       disabled={busy || index === 0}
                       onClick={() => {
                         void move(index, 0);
@@ -351,7 +359,7 @@ export function SetManagementPage({
                       Move first
                     </button>
                     <button
-                      aria-label={`Move ${set.name} up`}
+                      aria-label={`Move ${pkg.name} up`}
                       disabled={busy || index === 0}
                       onClick={() => {
                         void move(index, index - 1);
@@ -361,7 +369,7 @@ export function SetManagementPage({
                       Move up
                     </button>
                     <button
-                      aria-label={`Move ${set.name} down`}
+                      aria-label={`Move ${pkg.name} down`}
                       disabled={busy || index === ordered.length - 1}
                       onClick={() => {
                         void move(index, index + 1);
@@ -371,7 +379,7 @@ export function SetManagementPage({
                       Move down
                     </button>
                     <button
-                      aria-label={`Move ${set.name} last`}
+                      aria-label={`Move ${pkg.name} last`}
                       disabled={busy || index === ordered.length - 1}
                       onClick={() => {
                         void move(index, ordered.length - 1);
@@ -387,19 +395,19 @@ export function SetManagementPage({
                       onClick={() => {
                         setMessage(null);
                         setError(null);
-                        setEditor({ mode: "edit", set: { ...set } });
+                        setEditor({ mode: "edit", package: { ...pkg } });
                       }}
                       type="button"
                     >
                       Edit
                     </button>
                     <button
-                      disabled={busy || ordered.length >= limits.macroSets}
+                      disabled={busy || ordered.length >= limits.macroPackages}
                       onClick={() => {
                         setMessage(null);
                         setError(null);
-                        setDuplicateSource(set);
-                        setDuplicateName(`${set.name} copy`);
+                        setDuplicateSource(pkg);
+                        setDuplicateName(`${pkg.name} copy`);
                       }}
                       type="button"
                     >
@@ -411,7 +419,7 @@ export function SetManagementPage({
                       onClick={() => {
                         setMessage(null);
                         setError(null);
-                        setDeleteTarget(set);
+                        setDeleteTarget(pkg);
                         setDeleteConfirmation("");
                       }}
                       type="button"
@@ -421,7 +429,8 @@ export function SetManagementPage({
                   </div>
                   {active ? (
                     <p className="field-help">
-                      Select a different active set before deleting this one.
+                      Select a different active package before deleting this
+                      one.
                     </p>
                   ) : null}
                 </div>
@@ -434,13 +443,15 @@ export function SetManagementPage({
       <AccessibleDialog
         description={
           editor?.mode === "create"
-            ? "Create a new persisted macro set."
-            : "Edit the selected set using its current revision."
+            ? "Create a new persisted macro package."
+            : "Edit the selected package using its current revision."
         }
         onClose={closeDialogs}
         open={editor !== null}
         title={
-          editor?.mode === "create" ? "Create macro set" : "Edit macro set"
+          editor?.mode === "create"
+            ? "Create macro package"
+            : "Edit macro package"
         }
       >
         {editor === null ? null : (
@@ -453,13 +464,13 @@ export function SetManagementPage({
           >
             <TextField
               error={editorErrors.name}
-              id="set-name"
+              id="package-name"
               label="Name"
-              maximumBytes={limits.setNameBytes}
+              maximumBytes={limits.packageNameBytes}
               onChange={(value) => {
                 updateEditor("name", value);
               }}
-              value={editor.set.name}
+              value={editor.package.name}
             />
             <ErrorBanner message={error} />
             <div className="form-actions">
@@ -474,8 +485,8 @@ export function SetManagementPage({
                 {busy
                   ? "Saving…"
                   : editor.mode === "create"
-                    ? "Create set"
-                    : "Save set"}
+                    ? "Create package"
+                    : "Save package"}
               </button>
             </div>
           </form>
@@ -486,7 +497,7 @@ export function SetManagementPage({
         description="The duplicate receives a new identity and revision 1."
         onClose={closeDialogs}
         open={duplicateSource !== null}
-        title="Duplicate macro set"
+        title="Duplicate macro package"
       >
         <form
           className="form-stack"
@@ -499,13 +510,13 @@ export function SetManagementPage({
             error={
               utf8ByteLength(duplicateName.trim()) === 0
                 ? "Name is required."
-                : utf8ByteLength(duplicateName.trim()) > limits.setNameBytes
-                  ? `Name exceeds ${String(limits.setNameBytes)} UTF-8 bytes.`
+                : utf8ByteLength(duplicateName.trim()) > limits.packageNameBytes
+                  ? `Name exceeds ${String(limits.packageNameBytes)} UTF-8 bytes.`
                   : undefined
             }
-            id="duplicate-set-name"
+            id="duplicate-package-name"
             label="Duplicate name"
-            maximumBytes={limits.setNameBytes}
+            maximumBytes={limits.packageNameBytes}
             onChange={setDuplicateName}
             value={duplicateName}
           />
@@ -519,21 +530,21 @@ export function SetManagementPage({
               disabled={
                 busy ||
                 utf8ByteLength(duplicateName.trim()) === 0 ||
-                utf8ByteLength(duplicateName.trim()) > limits.setNameBytes
+                utf8ByteLength(duplicateName.trim()) > limits.packageNameBytes
               }
               type="submit"
             >
-              {busy ? "Duplicating…" : "Duplicate set"}
+              {busy ? "Duplicating…" : "Duplicate package"}
             </button>
           </div>
         </form>
       </AccessibleDialog>
 
       <AccessibleDialog
-        description="Deletion removes the set and its set-owned content. This action cannot be undone."
+        description="Deletion removes the package and its package-owned content. This action cannot be undone."
         onClose={closeDialogs}
         open={deleteTarget !== null}
-        title="Delete macro set"
+        title="Delete macro package"
       >
         {deleteTarget === null ? null : (
           <form
@@ -546,11 +557,11 @@ export function SetManagementPage({
             <p>
               Type <strong>{deleteTarget.name}</strong> to confirm deletion.
             </p>
-            <label className="form-stack" htmlFor="delete-set-confirmation">
-              Set name
+            <label className="form-stack" htmlFor="delete-package-confirmation">
+              Package name
               <input
                 autoComplete="off"
-                id="delete-set-confirmation"
+                id="delete-package-confirmation"
                 onChange={(event) => {
                   setDeleteConfirmation(event.currentTarget.value);
                 }}

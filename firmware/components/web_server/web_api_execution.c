@@ -69,7 +69,7 @@ static app_error_code_t execution_status_json(const macro_execution_status_t *st
     }
     const int length = snprintf(
         output, output_size,
-        "{\"executionId\":\"%s\",\"setId\":\"%s\",\"macroId\":\"%s\","
+        "{\"executionId\":\"%s\",\"packageId\":\"%s\",\"macroId\":\"%s\","
         "\"macroRevision\":%lu,\"state\":\"%s\",\"error\":\"%s\","
         "\"releaseError\":\"%s\",\"actionIndex\":%lu,\"actionCount\":%lu,"
         "\"available\":%s,\"cancellationRequested\":%s,\"acceptedMs\":%lu,"

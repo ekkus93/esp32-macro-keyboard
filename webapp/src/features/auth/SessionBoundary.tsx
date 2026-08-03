@@ -118,7 +118,7 @@ export function SessionBoundary({
                 try {
                   const status = await getDeviceStatus();
                   setState({ kind: "authenticated", status });
-                  window.location.hash = "/sets";
+                  window.location.hash = "/packages";
                 } catch (statusError: unknown) {
                   setState({
                     kind: "error",

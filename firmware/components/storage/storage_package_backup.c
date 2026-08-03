@@ -407,7 +407,7 @@ static app_error_code_t append_local_macros(package_writer_t *writer,
 static const char *skipped_kind_text(storage_package_object_kind_t kind) {
     switch (kind) {
     case STORAGE_PACKAGE_OBJECT_SET:
-        return "set";
+        return "package";
     case STORAGE_PACKAGE_OBJECT_MACRO:
         return "macro";
     case STORAGE_PACKAGE_OBJECT_NONE:
@@ -437,10 +437,10 @@ static app_error_code_t append_skipped(package_writer_t *writer,
         char item[BACKUP_SKIPPED_ITEM_BYTES];
         int written = 0;
         if (entry->has_package_id) {
-            written =
-                snprintf(item, sizeof(item), "%s{\"kind\":\"%s\",\"id\":\"%s\",\"set_id\":\"%s\"}",
-                         index == 0U ? "" : ",", skipped_kind_text(entry->kind),
-                         entry->object_id.value, entry->set_id.value);
+            written = snprintf(item, sizeof(item),
+                               "%s{\"kind\":\"%s\",\"id\":\"%s\",\"package_id\":\"%s\"}",
+                               index == 0U ? "" : ",", skipped_kind_text(entry->kind),
+                               entry->object_id.value, entry->set_id.value);
         } else {
             written = snprintf(item, sizeof(item), "%s{\"kind\":\"%s\",\"id\":\"%s\"}",
                                index == 0U ? "" : ",", skipped_kind_text(entry->kind),
@@ -459,7 +459,7 @@ static app_error_code_t serialize_snapshot(const backup_snapshot_t *snapshot, ch
                                            const storage_package_skip_report_t *skipped) {
     package_writer_t writer = {0};
     app_error_code_t result = package_writer_append_text(
-        &writer, "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":");
+        &writer, "{\"schema_version\":1,\"package_type\":\"repository\",\"packages\":");
     if (result == APP_ERROR_NONE) {
         result = append_packages(&writer, snapshot);
     }
@@ -479,8 +479,8 @@ static app_error_code_t serialize_snapshot(const backup_snapshot_t *snapshot, ch
 
     storage_package_summary_t summary = {0};
     if (result == APP_ERROR_NONE) {
-        result = storage_package_validate(writer.data, writer.length, STORAGE_PACKAGE_KIND_BACKUP,
-                                          &summary);
+        result = storage_package_validate(writer.data, writer.length,
+                                          STORAGE_DOCUMENT_KIND_REPOSITORY, &summary);
     }
     if (result == APP_ERROR_NONE &&
         (summary.set_count != snapshot->set_count || summary.local_macro_count != local_count)) {

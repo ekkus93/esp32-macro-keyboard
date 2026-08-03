@@ -1,15 +1,15 @@
 import { apiRawJsonRequest, apiRequest } from "./client";
-import { isMacroSet, isRecord } from "./guards";
-import type { MacroSet } from "../types/models";
+import { isMacroPackage, isRecord } from "./guards";
+import type { MacroPackage } from "../types/models";
 
 interface PackageDocumentBase {
   schema_version: 1;
-  sets: unknown[];
+  packages: unknown[];
   macros: unknown[];
 }
 
-export interface SetPackageDocument extends PackageDocumentBase {
-  package_type: "set";
+export interface PackageDocument extends PackageDocumentBase {
+  package_type: "package";
 }
 
 export interface BackupPackageDocument extends PackageDocumentBase {
@@ -21,11 +21,11 @@ export interface PackageDownload {
   byteLength: number;
 }
 
-/* Restore is not atomic across sets (SPEC 13.5), so a success response still
-   enumerates which sets landed. A run that failed any of them is not a 200 and
-   arrives as an API error instead, with the same per-set detail attached. */
-export interface RestoreSetOutcome {
-  setId: string;
+/* Restore is not atomic across packages (SPEC 13.5), so a success response still
+   enumerates which packages landed. A run that failed any of them is not a 200 and
+   arrives as an API error instead, with the same per-package detail attached. */
+export interface RestorePackageOutcome {
+  packageId: string;
   restored: boolean;
   error?: string;
 }
@@ -35,13 +35,13 @@ export interface RestoreResult {
   reloadRequired: true;
   setsRestored: number;
   setsFailed: number;
-  sets: RestoreSetOutcome[];
+  packages: RestorePackageOutcome[];
 }
 
 const packageKeys = [
   "schema_version",
   "package_type",
-  "sets",
+  "packages",
   "macros",
 ] as const;
 
@@ -56,18 +56,16 @@ function hasExactPackageShape(value: unknown): value is PackageDocumentBase & {
     keys.length === packageKeys.length &&
     packageKeys.every((key) => keys.includes(key)) &&
     value.schema_version === 1 &&
-    Array.isArray(value.sets) &&
+    Array.isArray(value.packages) &&
     Array.isArray(value.macros)
   );
 }
 
-export function isSetPackageDocument(
-  value: unknown,
-): value is SetPackageDocument {
+export function isPackageDocument(value: unknown): value is PackageDocument {
   return (
     hasExactPackageShape(value) &&
-    value.package_type === "set" &&
-    value.sets.length === 1
+    value.package_type === "package" &&
+    value.packages.length === 1
   );
 }
 
@@ -77,8 +75,10 @@ export function isBackupPackageDocument(
   return hasExactPackageShape(value) && value.package_type === "backup";
 }
 
-function isRestoreSetOutcome(value: unknown): value is RestoreSetOutcome {
-  if (!isRecord(value) || typeof value.setId !== "string") {
+function isRestorePackageOutcome(
+  value: unknown,
+): value is RestorePackageOutcome {
+  if (!isRecord(value) || typeof value.packageId !== "string") {
     return false;
   }
   if (typeof value.restored !== "boolean") {
@@ -98,17 +98,17 @@ function isRestoreResult(value: unknown): value is RestoreResult {
     value.reloadRequired === true &&
     typeof value.setsRestored === "number" &&
     value.setsFailed === 0 &&
-    Array.isArray(value.sets) &&
-    value.sets.every(isRestoreSetOutcome)
+    Array.isArray(value.packages) &&
+    value.packages.every(isRestorePackageOutcome)
   );
 }
 
-export async function exportSetPackage(
-  setId: string,
+export async function exportPackage(
+  packageId: string,
 ): Promise<PackageDownload> {
   const response = await apiRawJsonRequest(
-    `/api/v1/sets/${encodeURIComponent(setId)}/export`,
-    isSetPackageDocument,
+    `/api/v1/package/${encodeURIComponent(packageId)}/export`,
+    isPackageDocument,
     { timeoutMs: 30_000 },
   );
   return {
@@ -129,40 +129,40 @@ export async function exportBackupPackage(): Promise<PackageDownload> {
   };
 }
 
-export async function replaceSetPackage(
-  targetSetId: string,
+export async function replacePackage(
+  targetPackageId: string,
   expectedRevision: number,
-  packageDocument: SetPackageDocument,
-): Promise<MacroSet> {
+  packageDocument: PackageDocument,
+): Promise<MacroPackage> {
   return apiRequest(
-    "/api/v1/sets/import",
+    "/api/v1/package/import",
     {
       method: "POST",
       body: JSON.stringify({
-        targetSetId,
+        targetPackageId,
         expectedRevision,
         package: packageDocument,
       }),
     },
-    isMacroSet,
+    isMacroPackage,
     { timeoutMs: 30_000 },
   );
 }
 
-export async function importSetAsNewPackage(
-  newSetId: string,
-  packageDocument: SetPackageDocument,
-): Promise<MacroSet> {
+export async function importPackageAsNewPackage(
+  newPackageId: string,
+  packageDocument: PackageDocument,
+): Promise<MacroPackage> {
   return apiRequest(
-    "/api/v1/sets/import-new",
+    "/api/v1/package/import-new",
     {
       method: "POST",
       body: JSON.stringify({
-        newSetId,
+        newPackageId,
         package: packageDocument,
       }),
     },
-    isMacroSet,
+    isMacroPackage,
     { timeoutMs: 30_000 },
   );
 }

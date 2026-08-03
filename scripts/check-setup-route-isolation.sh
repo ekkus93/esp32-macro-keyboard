@@ -20,7 +20,7 @@ FORBIDDEN_SETUP_PREFIXES = (
     "/api/v1/executions",
     "/api/v1/status",
     "/api/v1/limits",
-    "/api/v1/sets",
+    "/api/v1/package",
     "/api/v1/macros",
     "/api/v1/procedures",
     "/api/v1/settings",

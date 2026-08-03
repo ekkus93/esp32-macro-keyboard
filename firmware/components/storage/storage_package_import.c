@@ -195,7 +195,7 @@ app_error_code_t storage_package_import(const app_uuid_t *new_package_id, const 
     }
     storage_package_summary_t summary = {0};
     app_error_code_t result =
-        storage_package_validate(data, length, STORAGE_PACKAGE_KIND_SET, &summary);
+        storage_package_validate(data, length, STORAGE_DOCUMENT_KIND_PACKAGE, &summary);
     if (result != APP_ERROR_NONE) {
         return result;
     }

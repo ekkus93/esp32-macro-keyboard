@@ -26,11 +26,11 @@ static const char *const INDEX_FIELDS[INDEX_FIELD_COUNT] = {
     "schema_version",
     "revision",
     "active_package_id",
-    "set_ids",
+    "package_ids",
 };
 
 static app_error_code_t parse_package_ids(const cJSON *root, storage_package_index_t *out_index) {
-    const cJSON *ids = cJSON_GetObjectItemCaseSensitive(root, "set_ids");
+    const cJSON *ids = cJSON_GetObjectItemCaseSensitive(root, "package_ids");
     if (!cJSON_IsArray(ids)) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
@@ -144,7 +144,7 @@ app_error_code_t storage_repository_write_index(const storage_package_index_t *i
         (index->has_active_package ? cJSON_AddStringToObject(root, "active_package_id",
                                                              index->active_package_id.value) == NULL
                                    : cJSON_AddNullToObject(root, "active_package_id") == NULL) ||
-        !cJSON_AddItemToObject(root, "set_ids", ids)) {
+        !cJSON_AddItemToObject(root, "package_ids", ids)) {
         cJSON_Delete(ids);
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;
@@ -173,18 +173,18 @@ app_error_code_t storage_repository_write_index(const storage_package_index_t *i
 
 static app_error_code_t initialize_fresh_storage(void) {
     static const char empty_index[] =
-        "{\"schema_version\":1,\"revision\":1,\"active_package_id\":null,\"set_ids\":[]}";
+        "{\"schema_version\":1,\"revision\":1,\"active_package_id\":null,\"package_ids\":[]}";
 
-    bool sets_have_entries = false;
-    const app_error_code_t result =
-        storage_repository_directory_has_entries(STORAGE_DATA_MOUNT "/sets", &sets_have_entries);
+    bool packages_have_entries = false;
+    const app_error_code_t result = storage_repository_directory_has_entries(
+        STORAGE_DATA_MOUNT "/package", &packages_have_entries);
     if (result != APP_ERROR_NONE) {
         return result;
     }
     /* Set files with no index is a corrupt repository, not an empty one:
      * rebuilding the index from the directory would invent a set order the user
      * never chose (SPEC 12.3). */
-    if (sets_have_entries) {
+    if (packages_have_entries) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
     return storage_repository_ensure_initial_file(STORAGE_INDEX_FILE_PATH, empty_index);

@@ -14,7 +14,7 @@ app_error_code_t storage_make_package_path(const app_uuid_t *set_id, char *buffe
         return APP_ERROR_INVALID_ARGUMENT;
     }
     const int written =
-        snprintf(buffer, buffer_size, STORAGE_DATA_MOUNT "/sets/%s.json", set_id->value);
+        snprintf(buffer, buffer_size, STORAGE_DATA_MOUNT "/package/%s.json", set_id->value);
     if (written < 0 || (size_t)written >= buffer_size) {
         buffer[0] = '\0';
         return APP_ERROR_INVALID_ARGUMENT;

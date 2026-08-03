@@ -64,7 +64,7 @@ describe("application authentication", () => {
     await view.unmount();
   });
 
-  test("submits the password, stores CSRF, and loads live sets", async () => {
+  test("submits the password, stores CSRF, and loads live packages", async () => {
     const view = await renderLogin();
     planPostLoginBootstrap();
     await submit(requiredElement("form", HTMLFormElement));
@@ -74,7 +74,7 @@ describe("application authentication", () => {
     expect(loginCall?.url).toBe("/api/v1/auth/login");
     expect(loginCall?.method).toBe("POST");
     expect(loginCall?.body).toBe(JSON.stringify({ password: "correct horse" }));
-    expect(document.body.textContent).toContain("Choose a macro set");
+    expect(document.body.textContent).toContain("Choose a macro package");
     expect(document.body.textContent).toContain("Lab bench workflow");
 
     planJsonResponse({ ok: true, data: {} });
@@ -118,7 +118,7 @@ describe("application authentication", () => {
   });
 
   test("logs out, clears the session boundary, and returns to login", async () => {
-    setHashSilently("/sets");
+    setHashSilently("/packages");
     planAuthenticatedBootstrap();
     const view = await render(<App />);
     await flushReact();
@@ -190,7 +190,7 @@ describe("application authentication", () => {
   });
 
   test("shows device status after authentication", async () => {
-    setHashSilently("/sets");
+    setHashSilently("/packages");
     planAuthenticatedBootstrap({ usbState: deviceStatus.usbState });
     const view = await render(<App />);
     await flushReact();

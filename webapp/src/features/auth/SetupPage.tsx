@@ -16,7 +16,7 @@ export function SetupPage({ initialState }: SetupPageProps): React.JSX.Element {
   const [administratorPassword, setAdministratorPassword] = useState("");
   const [requirePhysicalConfirmation, setRequirePhysicalConfirmation] =
     useState(initialState.physicalConfirmationRequired);
-  const [alwaysSelectSet, setAlwaysSelectSet] = useState(true);
+  const [alwaysSelectPackage, setAlwaysSelectPackage] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [restarting, setRestarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +34,7 @@ export function SetupPage({ initialState }: SetupPageProps): React.JSX.Element {
         apPassphrase,
         administratorPassword,
         requirePhysicalConfirmation,
-        alwaysSelectSet,
+        alwaysSelectPackage,
       });
       setState(committed);
       setSetupCode("");
@@ -157,13 +157,13 @@ export function SetupPage({ initialState }: SetupPageProps): React.JSX.Element {
 
         <label className="checkbox-row">
           <input
-            checked={alwaysSelectSet}
+            checked={alwaysSelectPackage}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-              setAlwaysSelectSet(event.target.checked);
+              setAlwaysSelectPackage(event.target.checked);
             }}
             type="checkbox"
           />
-          Always ask which macro set to use
+          Always ask which macro package to use
         </label>
 
         <ErrorBanner message={error} />

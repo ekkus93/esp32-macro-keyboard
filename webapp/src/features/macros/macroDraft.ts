@@ -32,12 +32,12 @@ export function utf8ByteLength(value: string): number {
   return encoder.encode(value).byteLength;
 }
 
-export function createMacroDraft(setId: string, macroId: string): Macro {
+export function createMacroDraft(packageId: string, macroId: string): Macro {
   return {
     schema_version: 1,
     id: macroId,
     revision: 1,
-    set_id: setId,
+    package_id: packageId,
     name: "",
     source: "",
     key_press_ms: 8,
@@ -48,7 +48,7 @@ export function createMacroDraft(setId: string, macroId: string): Macro {
 export function macroFingerprint(macro: Macro): string {
   return JSON.stringify([
     macro.id,
-    macro.set_id,
+    macro.package_id,
     macro.name,
     macro.source,
     macro.key_press_ms,

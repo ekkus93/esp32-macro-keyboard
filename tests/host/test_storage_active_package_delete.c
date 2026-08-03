@@ -47,7 +47,7 @@ static bool path_exists(const char *path) {
 static void reset_store(void) {
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     make_directory(STORAGE_DATA_MOUNT);
-    make_directory(STORAGE_DATA_MOUNT "/sets");
+    make_directory(STORAGE_DATA_MOUNT "/package");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_init());
 }
 

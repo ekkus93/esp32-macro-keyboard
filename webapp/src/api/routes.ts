@@ -8,8 +8,8 @@ import {
   isLoginResponse,
   isMacro,
   isMacroList,
-  isMacroSet,
-  isMacroSetList,
+  isMacroPackage,
+  isMacroPackageList,
   isMacroValidation,
   isRestartAccepted,
   isSessionStatus,
@@ -19,7 +19,7 @@ import {
 import {
   isFactoryResetAccepted,
   isFullDiagnostics,
-  isSetDeletion,
+  isPackageDeletion,
   isStorageHealth,
 } from "./managementGuards";
 import type {
@@ -32,11 +32,11 @@ import type {
   FullDiagnostics,
   LoginResponse,
   Macro,
-  MacroSet,
+  MacroPackage,
   MacroValidation,
   RestartAccepted,
   SessionStatus,
-  SetDeletion,
+  PackageDeletion,
   Settings,
   SetupState,
   StorageHealth,
@@ -48,18 +48,18 @@ export interface SetupSubmission {
   apPassphrase: string;
   administratorPassword: string;
   requirePhysicalConfirmation: boolean;
-  alwaysSelectSet: boolean;
+  alwaysSelectPackage: boolean;
 }
 
-/* No activeSetId: the active set is repository state (SPEC 12.3) and moves only
-   through selectSet(). The settings response still reports it. */
+/* No activePackageId: the active package is repository state (SPEC 12.3) and moves only
+   through selectPackage(). The settings response still reports it. */
 export interface SettingsUpdate {
   expectedRevision: number;
   requirePhysicalConfirmation: boolean;
-  alwaysSelectSet: boolean;
+  alwaysSelectPackage: boolean;
 }
 
-export interface SetDuplicateRequest {
+export interface PackageDuplicateRequest {
   id: string;
   name: string;
   expectedRevision: number;
@@ -175,88 +175,90 @@ export async function factoryResetDevice(): Promise<FactoryResetAccepted> {
   );
 }
 
-function setPath(setId: string): string {
-  return `/api/v1/sets/${encodeURIComponent(setId)}`;
+function packagePath(packageId: string): string {
+  return `/api/v1/package/${encodeURIComponent(packageId)}`;
 }
 
-export async function listSets(): Promise<MacroSet[]> {
-  return apiRequest("/api/v1/sets", {}, isMacroSetList);
+export async function listPackages(): Promise<MacroPackage[]> {
+  return apiRequest("/api/v1/package", {}, isMacroPackageList);
 }
 
-export async function getSet(setId: string): Promise<MacroSet> {
-  return apiRequest(setPath(setId), {}, isMacroSet);
+export async function getPackage(packageId: string): Promise<MacroPackage> {
+  return apiRequest(packagePath(packageId), {}, isMacroPackage);
 }
 
-export async function createSet(set: MacroSet): Promise<MacroSet> {
+export async function createPackage(pkg: MacroPackage): Promise<MacroPackage> {
   return apiRequest(
-    "/api/v1/sets",
+    "/api/v1/package",
     {
       method: "POST",
-      body: JSON.stringify(set),
+      body: JSON.stringify(pkg),
     },
-    isMacroSet,
+    isMacroPackage,
   );
 }
 
-export async function updateSet(
-  set: MacroSet,
+export async function updatePackage(
+  pkg: MacroPackage,
   expectedRevision: number,
-): Promise<MacroSet> {
+): Promise<MacroPackage> {
   return apiRequest(
-    setPath(set.id),
+    packagePath(pkg.id),
     {
       method: "PUT",
-      body: JSON.stringify({ expectedRevision, resource: set }),
+      body: JSON.stringify({ expectedRevision, resource: pkg }),
     },
-    isMacroSet,
+    isMacroPackage,
   );
 }
 
-export async function deleteSet(
-  setId: string,
+export async function deletePackage(
+  packageId: string,
   expectedRevision: number,
-): Promise<SetDeletion> {
+): Promise<PackageDeletion> {
   return apiRequest(
-    setPath(setId),
+    packagePath(packageId),
     {
       method: "DELETE",
       body: JSON.stringify({ expectedRevision }),
     },
-    isSetDeletion,
+    isPackageDeletion,
   );
 }
 
-export async function duplicateSet(
-  setId: string,
-  request: SetDuplicateRequest,
-): Promise<MacroSet> {
+export async function duplicatePackage(
+  packageId: string,
+  request: PackageDuplicateRequest,
+): Promise<MacroPackage> {
   return apiRequest(
-    `${setPath(setId)}/duplicate`,
+    `${packagePath(packageId)}/duplicate`,
     {
       method: "POST",
       body: JSON.stringify(request),
     },
-    isMacroSet,
+    isMacroPackage,
   );
 }
 
-export async function reorderSets(ids: readonly string[]): Promise<MacroSet[]> {
+export async function reorderPackages(
+  ids: readonly string[],
+): Promise<MacroPackage[]> {
   return apiRequest(
-    "/api/v1/sets/order",
+    "/api/v1/package/order",
     {
       method: "PUT",
       body: JSON.stringify({ ids }),
     },
-    isMacroSetList,
+    isMacroPackageList,
   );
 }
 
-export async function selectSet(
-  setId: string,
+export async function selectPackage(
+  packageId: string,
   expectedRevision: number,
 ): Promise<Settings> {
   return apiRequest(
-    `${setPath(setId)}/select`,
+    `${packagePath(packageId)}/select`,
     {
       method: "POST",
       body: JSON.stringify({ expectedRevision }),
@@ -265,31 +267,31 @@ export async function selectSet(
   );
 }
 
-function setMacrosPath(setId: string): string {
-  return `${setPath(setId)}/macros`;
+function packageMacrosPath(packageId: string): string {
+  return `${packagePath(packageId)}/macros`;
 }
 
-function setMacroPath(setId: string, macroId: string): string {
-  return `${setMacrosPath(setId)}/${encodeURIComponent(macroId)}`;
+function packageMacroPath(packageId: string, macroId: string): string {
+  return `${packageMacrosPath(packageId)}/${encodeURIComponent(macroId)}`;
 }
 
-export async function listSetMacros(setId: string): Promise<Macro[]> {
-  return apiRequest(setMacrosPath(setId), {}, isMacroList);
+export async function listPackageMacros(packageId: string): Promise<Macro[]> {
+  return apiRequest(packageMacrosPath(packageId), {}, isMacroList);
 }
 
-export async function getSetMacro(
-  setId: string,
+export async function getPackageMacro(
+  packageId: string,
   macroId: string,
 ): Promise<Macro> {
-  return apiRequest(setMacroPath(setId, macroId), {}, isMacro);
+  return apiRequest(packageMacroPath(packageId, macroId), {}, isMacro);
 }
 
-export async function createSetMacro(
-  setId: string,
+export async function createPackageMacro(
+  packageId: string,
   macro: Macro,
 ): Promise<Macro> {
   return apiRequest(
-    setMacrosPath(setId),
+    packageMacrosPath(packageId),
     {
       method: "POST",
       body: JSON.stringify(macro),
@@ -298,13 +300,13 @@ export async function createSetMacro(
   );
 }
 
-export async function updateSetMacro(
-  setId: string,
+export async function updatePackageMacro(
+  packageId: string,
   macro: Macro,
   expectedRevision: number,
 ): Promise<Macro> {
   return apiRequest(
-    setMacroPath(setId, macro.id),
+    packageMacroPath(packageId, macro.id),
     {
       method: "PUT",
       body: JSON.stringify({
@@ -316,12 +318,12 @@ export async function updateSetMacro(
   );
 }
 
-export async function validateSetMacro(
-  setId: string,
+export async function validatePackageMacro(
+  packageId: string,
   macro: Macro,
 ): Promise<MacroValidation> {
   return apiRequest(
-    `${setMacroPath(setId, macro.id)}/validate`,
+    `${packageMacroPath(packageId, macro.id)}/validate`,
     {
       method: "POST",
       body: JSON.stringify(macro),

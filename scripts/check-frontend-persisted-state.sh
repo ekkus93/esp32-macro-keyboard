@@ -9,10 +9,10 @@ import sys
 from pathlib import Path
 
 APPROVED_LOCAL_STORAGE_FILES = {
-    Path("features/sets/SetSelectionPage.tsx"),
+    Path("features/package/PackageSelectionPage.tsx"),
 }
 APPROVED_LOCAL_STORAGE_KEYS = {
-    "esp32-macro-keyboard.recent-set-ids",
+    "esp32-macro-keyboard.recent-package-ids",
 }
 # Not used anywhere today (FIX1 18.5): any future use is a deliberate policy
 # decision that must extend this checker, not something that slips in

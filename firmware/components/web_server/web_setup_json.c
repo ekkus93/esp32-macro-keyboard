@@ -16,7 +16,7 @@ static const char *const SETUP_FIELDS[SETUP_FIELD_COUNT] = {
     "apPassphrase",
     "administratorPassword",
     "requirePhysicalConfirmation",
-    "alwaysSelectSet",
+    "alwaysSelectPackage",
 };
 
 static bool operations_valid(const web_setup_json_ops_t *operations) {
@@ -108,7 +108,7 @@ static bool populate_submission(const cJSON *root, web_setup_submission_t *submi
         cJSON_GetObjectItemCaseSensitive(root, "administratorPassword");
     const cJSON *require_confirmation =
         cJSON_GetObjectItemCaseSensitive(root, "requirePhysicalConfirmation");
-    const cJSON *always_select = cJSON_GetObjectItemCaseSensitive(root, "alwaysSelectSet");
+    const cJSON *always_select = cJSON_GetObjectItemCaseSensitive(root, "alwaysSelectPackage");
     if (!copy_json_text(setup_code, submission->setup_code, sizeof(submission->setup_code)) ||
         !copy_json_text(ap_ssid, submission->ap_ssid, sizeof(submission->ap_ssid)) ||
         !copy_json_text(ap_passphrase, submission->ap_passphrase,

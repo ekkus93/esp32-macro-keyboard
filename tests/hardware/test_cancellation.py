@@ -37,13 +37,13 @@ def ensure_rapid_macro(device, fixture):
         "schema_version": 1,
         "id": macro_id,
         "revision": 1,
-        "set_id": fixture["set_id"],
+        "package_id": fixture["package_id"],
         "name": "rapid typing",
         "source": RAPID_TEXT,
         "key_press_ms": 5,
         "inter_key_ms": 5,
     }
-    status, payload = device.post(f"/api/v1/sets/{fixture['set_id']}/macros", body)
+    status, payload = device.post(f"/api/v1/package/{fixture['package_id']}/macros", body)
     if status not in (200, 201):
         raise SystemExit(f"rapid macro create failed: HTTP {status} {str(payload)[:200]}")
     entry = {"id": macro_id, "revision": 1, "source": RAPID_TEXT}
@@ -60,10 +60,10 @@ def ensure_delay_macro(device, fixture):
         return existing
     macro_id = str(uuid.uuid4())
     body = {
-        "schema_version": 1, "id": macro_id, "revision": 1,         "set_id": fixture["set_id"], "name": "delay cancel", "source": DELAY_SOURCE,
+        "schema_version": 1, "id": macro_id, "revision": 1,         "package_id": fixture["package_id"], "name": "delay cancel", "source": DELAY_SOURCE,
         "key_press_ms": 8, "inter_key_ms": 15,
     }
-    status, payload = device.post(f"/api/v1/sets/{fixture['set_id']}/macros", body)
+    status, payload = device.post(f"/api/v1/package/{fixture['package_id']}/macros", body)
     if status not in (200, 201):
         raise SystemExit(f"delay macro create failed: HTTP {status} {str(payload)[:200]}")
     entry = {"id": macro_id, "revision": 1, "source": DELAY_SOURCE}
@@ -100,7 +100,7 @@ def run_cancel_test(device, fixture, macro_key, cancel_after, label, expect_pref
         status, payload = device.post(
             "/api/v1/executions",
             {
-                "setId": fixture["set_id"],
+                "packageId": fixture["package_id"],
                 "macroId": macro["id"],
                 "macroRevision": macro["revision"],
             },

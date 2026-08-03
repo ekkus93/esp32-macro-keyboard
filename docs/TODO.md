@@ -4,7 +4,7 @@
 >
 > It is the execution plan for the product as specified before 2026-08-02:
 > procedures, steps, checkpoints, progress tracking, a global macro library,
-> quarantine, a multi-file transaction layer, and a directory tree per set. None
+> quarantine, a multi-file transaction layer, and a directory tree per package. None
 > of those exist any more, and building from this document would reintroduce
 > them.
 >

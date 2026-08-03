@@ -55,7 +55,7 @@ static void reset_store(void) {
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     static const char *const paths[] = {
         STORAGE_DATA_MOUNT,
-        STORAGE_DATA_MOUNT "/sets",
+        STORAGE_DATA_MOUNT "/package",
     };
     for (size_t index = 0U; index < (sizeof(paths) / sizeof(paths[0])); ++index) {
         make_directory(paths[index]);
@@ -379,7 +379,7 @@ static void test_discarded_object_records_path_and_reason(void) {
 static void test_discard_record_is_bounded_but_counts_everything(void) {
     storage_incidents_reset();
     for (size_t index = 0U; index < STORAGE_INCIDENT_MAX + 3U; ++index) {
-        storage_incident_record_discard("/data/sets/x.json", APP_ERROR_STORAGE_CORRUPT);
+        storage_incident_record_discard("/data/package/x.json", APP_ERROR_STORAGE_CORRUPT);
     }
     storage_incident_report_t report = {0};
     storage_incidents_snapshot(&report);

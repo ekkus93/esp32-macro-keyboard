@@ -2,17 +2,17 @@ import { describe, expect, test } from "vitest";
 import {
   isExecutionStatus,
   isMacro,
-  isMacroSet,
+  isMacroPackage,
   isMacroValidation,
   isSessionStatus,
   isSettings,
 } from "../src/api/guards";
-import { executionStatus, macro, macroSet, settings } from "./appFixtures";
+import { executionStatus, macro, macroPackage, settings } from "./appFixtures";
 
 describe("API response guards", () => {
   test("accepts exact server resource shapes", () => {
     expect(isSessionStatus({ authenticated: true })).toBe(true);
-    expect(isMacroSet(macroSet)).toBe(true);
+    expect(isMacroPackage(macroPackage)).toBe(true);
     expect(isMacro(macro)).toBe(true);
     expect(
       isMacroValidation({
@@ -26,7 +26,7 @@ describe("API response guards", () => {
   });
 
   test("rejects missing, unknown, and mistyped fields", () => {
-    expect(isMacroSet({ ...macroSet, revision: "2" })).toBe(false);
+    expect(isMacroPackage({ ...macroPackage, revision: "2" })).toBe(false);
     expect(isMacro({ ...macro, source: "x".repeat(4097) })).toBe(false);
     expect(isMacro({ ...macro, secret: "must not pass" })).toBe(false);
     expect(

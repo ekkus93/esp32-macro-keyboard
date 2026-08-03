@@ -10,19 +10,19 @@
 #include "macro_model.h"
 
 typedef enum {
-    STORAGE_PACKAGE_KIND_SET = 0,
-    STORAGE_PACKAGE_KIND_BACKUP,
-} storage_package_kind_t;
+    STORAGE_DOCUMENT_KIND_PACKAGE = 0,
+    STORAGE_DOCUMENT_KIND_REPOSITORY,
+} storage_document_kind_t;
 
 typedef struct {
-    storage_package_kind_t kind;
+    storage_document_kind_t kind;
     size_t package_bytes;
     size_t set_count;
     size_t local_macro_count;
 } storage_package_summary_t;
 
 app_error_code_t storage_package_validate(const char *data, size_t length,
-                                          storage_package_kind_t expected_kind,
+                                          storage_document_kind_t expected_kind,
                                           storage_package_summary_t *out_summary);
 app_error_code_t storage_package_export(const app_uuid_t *set_id, char **out_data,
                                         size_t *out_length);

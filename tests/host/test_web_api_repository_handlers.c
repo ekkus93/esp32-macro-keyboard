@@ -66,7 +66,7 @@ static void reset_store(void) {
      * regression that wrote to a forbidden path go unnoticed. */
     static const char *const paths[] = {
         STORAGE_DATA_MOUNT,
-        STORAGE_DATA_MOUNT "/sets",
+        STORAGE_DATA_MOUNT "/package",
     };
     for (size_t index = 0U; index < sizeof(paths) / sizeof(paths[0]); ++index) {
         make_directory(paths[index]);
@@ -205,7 +205,7 @@ static void test_package_routes(void) {
     mutation = mutation_body(1U, json);
     response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET, WEB_API_METHOD_PUT, mutation,
                       SET_ID, NULL);
-    expect_status(&response, 409U, "could not update set");
+    expect_status(&response, 409U, "could not update package");
     cJSON_free(mutation);
     cJSON_free(json);
 
@@ -218,7 +218,7 @@ static void test_package_routes(void) {
          index < sizeof(invalid_package_bodies) / sizeof(invalid_package_bodies[0]); ++index) {
         response = invoke(web_api_handle_packages, WEB_API_ROUTE_SETS, WEB_API_METHOD_POST,
                           invalid_package_bodies[index], NULL, NULL);
-        expect_status(&response, 422U, "could not create set");
+        expect_status(&response, 422U, "could not create package");
     }
 
     /* Selection takes an empty body: it is idempotent and has no revision the
@@ -240,11 +240,11 @@ static void test_package_routes(void) {
 
     response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET_IMPORT, WEB_API_METHOD_POST, "{}",
                       NULL, NULL);
-    expect_status(&response, 422U, "could not replace set");
+    expect_status(&response, 422U, "could not replace package");
 
     response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET_IMPORT_NEW, WEB_API_METHOD_POST,
                       "{}", NULL, NULL);
-    expect_status(&response, 422U, "could not import set as new");
+    expect_status(&response, 422U, "could not import package as new");
 }
 
 static void test_macro_routes(void) {
@@ -329,7 +329,7 @@ static void test_package_delete_and_persistent_readback(void) {
 
     response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE,
                       "{\"expectedRevision\":1}", SET_ID, NULL);
-    expect_status(&response, 409U, "could not delete set");
+    expect_status(&response, 409U, "could not delete package");
     response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE,
                       "{\"expectedRevision\":2}", SET_ID, NULL);
     expect_status(&response, 200U, "\"deleted\":true");

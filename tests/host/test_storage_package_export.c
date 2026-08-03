@@ -163,7 +163,7 @@ static void test_deterministic_export_and_filtering(void) {
     storage_package_summary_t summary = {0};
     TEST_CHECK_APP_ERROR(
         APP_ERROR_NONE,
-        storage_package_validate(first, first_length, STORAGE_PACKAGE_KIND_SET, &summary));
+        storage_package_validate(first, first_length, STORAGE_DOCUMENT_KIND_PACKAGE, &summary));
     TEST_CHECK_EQ_U64(1U, summary.set_count);
     TEST_CHECK_EQ_U64(1U, summary.local_macro_count);
 

@@ -74,7 +74,7 @@ def main():
         print(f"    GET /api/v1/status -> {status} in {elapsed * 1000:.0f} ms")
 
     request = urllib.request.Request(
-        f"http://{ip}/api/v1/backup",
+        f"http://{ip}/api/v1/repository",
         headers={"Host": ip, "Origin": f"http://{ip}", "Cookie": device.cookie},
         method="GET",
     )

@@ -24,12 +24,12 @@
 #define LOCAL_MACRO_ID "22222222-2222-4222-8222-222222222222"
 
 static const char BACKUP_PACKAGE[] =
-    "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":[{"
+    "{\"schema_version\":1,\"package_type\":\"repository\",\"packages\":[{"
     "\"schema_version\":1,\"id\":\"" SET_ID
     "\",\"revision\":7,\"name\":\"Restored\"}],\"macros\":[{"
     "\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID "\",\"revision\":1,\"name\":\"Local\","
     "\"source\":\"a\",\"key_press_ms\":8,"
-    "\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}]}";
+    "\"inter_key_ms\":15,\"package_id\":\"" SET_ID "\"}]}";
 
 static bool inject_package_write_storage_full;
 
@@ -49,9 +49,9 @@ static bool path_has_suffix(const char *path, const char *suffix) {
 
 app_error_code_t __wrap_storage_atomic_write(const char *path, const void *data, size_t data_length,
                                              bool sync_required) {
-    /* A set is one file under /data/sets/ (SPEC 13.3), so the injection point is
+    /* A set is one file under /data/package/ (SPEC 13.3), so the injection point is
      * that file itself. */
-    if (inject_package_write_storage_full && path != NULL && strstr(path, "/sets/") != NULL &&
+    if (inject_package_write_storage_full && path != NULL && strstr(path, "/package/") != NULL &&
         path_has_suffix(path, ".json")) {
         return APP_ERROR_STORAGE_FULL;
     }
@@ -89,14 +89,14 @@ static void create_repository_layout(void) {
     remove_storage();
     make_directory(STORAGE_DATA_MOUNT);
     char path[APP_PATH_MAX_BYTES];
-    /* SPEC 13.3: /data holds the set index and sets/, and nothing else. */
-    static const char *const directories[] = {"sets"};
+    /* SPEC 13.3: /data holds the package index and package/, and nothing else. */
+    static const char *const directories[] = {"package"};
     for (size_t index = 0U; index < sizeof(directories) / sizeof(directories[0]); ++index) {
         join_path(path, sizeof(path), STORAGE_DATA_MOUNT, directories[index]);
         make_directory(path);
     }
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "index.json");
-    write_text(path, "{\"schema_version\":1,\"revision\":1,\"set_ids\":[]}");
+    write_text(path, "{\"schema_version\":1,\"revision\":1,\"package_ids\":[]}");
 }
 
 static void create_empty_repository(void) {
@@ -124,7 +124,7 @@ static void assert_repository_remains_empty(void) {
     char path[APP_PATH_MAX_BYTES];
     join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "index.json");
     char *index = read_text(path);
-    TEST_CHECK(strstr(index, "\"set_ids\":[]") != NULL);
+    TEST_CHECK(strstr(index, "\"package_ids\":[]") != NULL);
     free(index);
 }
 
@@ -140,7 +140,7 @@ static void test_complete_backup_restores_every_package(void) {
     char *index = read_text(path);
     TEST_CHECK(strstr(index, SET_ID) != NULL);
     free(index);
-    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "sets/" SET_ID ".json");
+    join_path(path, sizeof(path), STORAGE_DATA_MOUNT, "package/" SET_ID ".json");
     char *set = read_text(path);
     TEST_CHECK(strstr(set, "\"revision\":7") != NULL);
     TEST_CHECK(strstr(set, "\"name\":\"Restored\"") != NULL);
@@ -235,7 +235,7 @@ static void test_storage_full_during_restore_leaves_no_partial_package(void) {
 static void test_invalid_backup_does_not_mutate_repository(void) {
     create_empty_repository();
     static const char invalid[] =
-        "{\"schema_version\":1,\"package_type\":\"macro-set\",\"sets\":[],"
+        "{\"schema_version\":1,\"package_type\":\"macro-set\",\"packages\":[],"
         "\"macros\":[]}";
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          storage_package_restore_backup(invalid, sizeof(invalid) - 1U, NULL));

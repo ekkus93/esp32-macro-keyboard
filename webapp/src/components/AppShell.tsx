@@ -5,7 +5,7 @@ import { ConnectivityBanner } from "./ConnectivityBanner";
 import { StatusBadge } from "./StatusBadge";
 
 interface AppShellProps {
-  activeSet: string;
+  activePackage: string;
   children: ReactNode;
   route: Screen;
   usbState: UsbState;
@@ -33,8 +33,13 @@ function usbBadgeState(
 }
 
 function navigationActive(route: Screen, target: Screen): boolean {
-  if (target === "sets") {
-    return ["sets", "manage-sets", "set-editor", "delete-set"].includes(route);
+  if (target === "packages") {
+    return [
+      "packages",
+      "manage-packages",
+      "package-editor",
+      "delete-package",
+    ].includes(route);
   }
   if (target === "macros") {
     return [
@@ -52,7 +57,7 @@ function navigationActive(route: Screen, target: Screen): boolean {
 }
 
 export function AppShell({
-  activeSet,
+  activePackage,
   children,
   route,
   usbState,
@@ -61,10 +66,10 @@ export function AppShell({
   onReconnect,
   logoutDisabled,
 }: AppShellProps): React.JSX.Element {
-  /* Order fixed by SPEC 9: Macros | Sets | Settings. */
+  /* Order fixed by SPEC 9: Macros | Packages | Settings. */
   const navigation = [
     ["macros", "Macros"],
-    ["sets", "Sets"],
+    ["packages", "Packages"],
     ["settings", "Settings"],
   ] as const satisfies readonly (readonly [Screen, string])[];
 
@@ -73,7 +78,7 @@ export function AppShell({
       <header className="app-header">
         <div>
           <p className="eyebrow">ESP32 Macro Keyboard</p>
-          <h1>{activeSet}</h1>
+          <h1>{activePackage}</h1>
         </div>
         <div className="header-actions">
           <StatusBadge

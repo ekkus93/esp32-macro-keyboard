@@ -13,7 +13,7 @@ import {
   executionId,
   macro,
   macroId,
-  macroSet,
+  macroPackage,
   settings,
 } from "./appFixtures";
 import {
@@ -71,7 +71,7 @@ async function renderConfirmation(
 ): Promise<Awaited<ReturnType<typeof render>>> {
   const view = await render(
     <ConfirmExecutionPage
-      activeSet={macroSet}
+      activePackage={macroPackage}
       onAccepted={options.onAccepted ?? (() => undefined)}
       settings={options.currentSettings ?? settings}
       status={options.currentStatus ?? deviceStatus}
@@ -145,7 +145,7 @@ describe("execution confirmation", () => {
     expect(getFetchCalls()[submitCallIndex]?.url).toBe("/api/v1/executions");
     expect(getFetchCalls()[submitCallIndex]?.method).toBe("POST");
     expect(requestBody(submitCallIndex)).toEqual({
-      setId: macroSet.id,
+      packageId: macroPackage.id,
       macroId,
       macroRevision: macro.revision,
     });
@@ -205,17 +205,17 @@ describe("execution confirmation", () => {
     await view.unmount();
   });
 
-  test("does not look outside the active set for a missing macro", async () => {
+  test("does not look outside the active package for a missing macro", async () => {
     planJsonResponse(
       {
         ok: false,
-        error: { code: "not_found", message: "set macro not found" },
+        error: { code: "not_found", message: "package macro not found" },
       },
       404,
     );
 
     const view = await renderConfirmation();
-    /* Every macro belongs to exactly one set (SPEC 7.2): a 404 from the set
+    /* Every macro belongs to exactly one package (SPEC 7.2): a 404 from the package
        route is final, and no /api/v1/global/... request may follow it. */
     expect(getFetchCalls().some((call) => call.url.includes("/global/"))).toBe(
       false,

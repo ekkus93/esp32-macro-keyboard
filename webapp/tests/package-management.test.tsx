@@ -1,8 +1,8 @@
 import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
-import { SetManagementPage } from "../src/features/sets/SetManagementPage";
-import type { MacroSet } from "../src/types/models";
-import { macroSet, setId, settings } from "./appFixtures";
+import { PackageManagementPage } from "../src/features/package/PackageManagementPage";
+import type { MacroPackage } from "../src/types/models";
+import { macroPackage, packageId, settings } from "./appFixtures";
 import { getFetchCalls, planJsonResponse } from "./fakeFetch";
 import {
   buttonWithText,
@@ -14,10 +14,10 @@ import {
   submit,
 } from "./render";
 
-const secondSetId = "99999999-9999-4999-8999-999999999999";
-const secondSet: MacroSet = {
-  ...macroSet,
-  id: secondSetId,
+const secondPackageId = "99999999-9999-4999-8999-999999999999";
+const secondPackage: MacroPackage = {
+  ...macroPackage,
+  id: secondPackageId,
   revision: 3,
   name: "Second workflow",
 };
@@ -34,22 +34,22 @@ function jsonBody(index: number): unknown {
   return JSON.parse(body) as unknown;
 }
 
-describe("set management", () => {
+describe("package management", () => {
   // SPEC 24.5 item: including that a reorder round-trips through the API
   test("offers keyboard reorder alternatives and commits exact order", async () => {
-    const onSetsChanged = vi.fn<(sets: MacroSet[]) => void>();
-    planJsonResponse(success([secondSet, macroSet]));
+    const onPackagesChanged = vi.fn<(packages: MacroPackage[]) => void>();
+    planJsonResponse(success([secondPackage, macroPackage]));
     const view = await render(
-      <SetManagementPage
-        onSetsChanged={onSetsChanged}
-        sets={[macroSet, secondSet]}
+      <PackageManagementPage
+        onPackagesChanged={onPackagesChanged}
+        packages={[macroPackage, secondPackage]}
         settings={settings}
       />,
     );
 
     const moveDown = Array.from(document.querySelectorAll("button")).find(
       (button) =>
-        button.getAttribute("aria-label") === `Move ${macroSet.name} down`,
+        button.getAttribute("aria-label") === `Move ${macroPackage.name} down`,
     );
     if (!(moveDown instanceof HTMLButtonElement)) {
       throw new Error("Missing accessible Move down button.");
@@ -57,11 +57,14 @@ describe("set management", () => {
     await click(moveDown);
     await flushReact();
 
-    expect(getFetchCalls()[0]?.url).toBe("/api/v1/sets/order");
-    expect(jsonBody(0)).toEqual({ ids: [secondSetId, setId] });
-    expect(onSetsChanged).toHaveBeenCalledWith([secondSet, macroSet]);
+    expect(getFetchCalls()[0]?.url).toBe("/api/v1/package/order");
+    expect(jsonBody(0)).toEqual({ ids: [secondPackageId, packageId] });
+    expect(onPackagesChanged).toHaveBeenCalledWith([
+      secondPackage,
+      macroPackage,
+    ]);
     expect(document.body.textContent).toContain(
-      `Moved ${macroSet.name} to position 2.`,
+      `Moved ${macroPackage.name} to position 2.`,
     );
     await view.unmount();
   });
@@ -70,13 +73,13 @@ describe("set management", () => {
 
   test("traps modal focus, closes with Escape, and restores focus", async () => {
     const view = await render(
-      <SetManagementPage
-        onSetsChanged={() => undefined}
-        sets={[macroSet, secondSet]}
+      <PackageManagementPage
+        onPackagesChanged={() => undefined}
+        packages={[macroPackage, secondPackage]}
         settings={settings}
       />,
     );
-    const opener = buttonWithText("Create set");
+    const opener = buttonWithText("Create package");
     opener.focus();
     await click(opener);
     await flushReact();
@@ -116,22 +119,22 @@ describe("set management", () => {
 
   // SPEC 24.5 item: live validation
 
-  test("creates a set only after UTF-8 validation succeeds", async () => {
-    const onSetsChanged = vi.fn<(sets: MacroSet[]) => void>();
+  test("creates a package only after UTF-8 validation succeeds", async () => {
+    const onPackagesChanged = vi.fn<(packages: MacroPackage[]) => void>();
     const view = await render(
-      <SetManagementPage
-        onSetsChanged={onSetsChanged}
-        sets={[macroSet]}
+      <PackageManagementPage
+        onPackagesChanged={onPackagesChanged}
+        packages={[macroPackage]}
         settings={settings}
       />,
     );
-    await click(buttonWithText("Create set"));
+    await click(buttonWithText("Create package"));
     await setInputValue(
-      requiredElement("#set-name", HTMLInputElement),
+      requiredElement("#package-name", HTMLInputElement),
       "New bench workflow",
     );
 
-    const created: MacroSet = {
+    const created: MacroPackage = {
       schema_version: 1,
       id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       revision: 1,
@@ -141,25 +144,25 @@ describe("set management", () => {
     await submit(requiredElement('[role="dialog"] form', HTMLFormElement));
     await flushReact();
 
-    expect(getFetchCalls()[0]?.url).toBe("/api/v1/sets");
+    expect(getFetchCalls()[0]?.url).toBe("/api/v1/package");
     expect(getFetchCalls()[0]?.method).toBe("POST");
     expect(jsonBody(0)).toMatchObject({
       revision: 1,
       name: "New bench workflow",
     });
-    expect(onSetsChanged).toHaveBeenCalledWith([macroSet, created]);
+    expect(onPackagesChanged).toHaveBeenCalledWith([macroPackage, created]);
     expect(document.body.textContent).toContain("Created New bench workflow.");
     await view.unmount();
   });
 
   // SPEC 24.5 item: import/export/delete confirmations
 
-  test("prevents active-set deletion and requires exact name for another set", async () => {
-    const onSetsChanged = vi.fn<(sets: MacroSet[]) => void>();
+  test("prevents active-package deletion and requires exact name for another package", async () => {
+    const onPackagesChanged = vi.fn<(packages: MacroPackage[]) => void>();
     const view = await render(
-      <SetManagementPage
-        onSetsChanged={onSetsChanged}
-        sets={[macroSet, secondSet]}
+      <PackageManagementPage
+        onPackagesChanged={onPackagesChanged}
+        packages={[macroPackage, secondPackage]}
         settings={settings}
       />,
     );
@@ -171,22 +174,22 @@ describe("set management", () => {
     expect(deleteButtons[1]?.disabled).toBe(false);
     const deletableButton = deleteButtons[1];
     if (deletableButton === undefined) {
-      throw new Error("Missing deletable set control.");
+      throw new Error("Missing deletable package control.");
     }
     await click(deletableButton);
     expect(buttonWithText("Delete permanently").disabled).toBe(true);
     await setInputValue(
-      requiredElement("#delete-set-confirmation", HTMLInputElement),
-      secondSet.name,
+      requiredElement("#delete-package-confirmation", HTMLInputElement),
+      secondPackage.name,
     );
     expect(buttonWithText("Delete permanently").disabled).toBe(false);
 
-    planJsonResponse(success({ deleted: true, id: secondSetId }));
+    planJsonResponse(success({ deleted: true, id: secondPackageId }));
     await submit(requiredElement('[role="dialog"] form', HTMLFormElement));
     await flushReact();
 
-    expect(jsonBody(0)).toEqual({ expectedRevision: secondSet.revision });
-    expect(onSetsChanged).toHaveBeenCalledWith([macroSet]);
+    expect(jsonBody(0)).toEqual({ expectedRevision: secondPackage.revision });
+    expect(onPackagesChanged).toHaveBeenCalledWith([macroPackage]);
     await view.unmount();
   });
 });

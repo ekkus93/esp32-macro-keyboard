@@ -32,7 +32,7 @@ esp_err_t execution_handler(httpd_req_t *request) {
     char response[LOGOUT_RESPONSE_BYTES];
     const int length = snprintf(
         response, sizeof(response),
-        "{\"ok\":true,\"data\":{\"executionId\":\"%s\",\"setId\":\"%s\","
+        "{\"ok\":true,\"data\":{\"executionId\":\"%s\",\"packageId\":\"%s\","
         "\"macroId\":\"%s\",\"macroRevision\":%lu,\"state\":\"%s\","
         "\"error\":\"%s\",\"releaseError\":\"%s\",\"actionIndex\":%lu,"
         "\"actionCount\":%lu,\"available\":%s,\"cancellationRequested\":%s}}",

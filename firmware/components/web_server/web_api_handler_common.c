@@ -129,7 +129,7 @@ static cJSON *macro_summary(const macro_t *macro) {
         cJSON_Delete(item);
         return NULL;
     }
-    if (!cJSON_AddStringToObject(item, "set_id", macro->set_id.value)) {
+    if (!cJSON_AddStringToObject(item, "package_id", macro->set_id.value)) {
         cJSON_Delete(item);
         return NULL;
     }
@@ -166,7 +166,7 @@ app_error_code_t web_api_handler_settings_json(const provisioning_settings_t *se
         !cJSON_AddNumberToObject(root, "revision", settings->revision) ||
         !cJSON_AddBoolToObject(root, "requirePhysicalConfirmation",
                                settings->require_physical_confirmation) ||
-        !cJSON_AddBoolToObject(root, "alwaysSelectSet", settings->always_select_package)) {
+        !cJSON_AddBoolToObject(root, "alwaysSelectPackage", settings->always_select_package)) {
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;
     }
@@ -182,9 +182,9 @@ app_error_code_t web_api_handler_settings_json(const provisioning_settings_t *se
         cJSON_Delete(root);
         return active;
     }
-    const bool added = has_active_package ? cJSON_AddStringToObject(root, "activeSetId",
+    const bool added = has_active_package ? cJSON_AddStringToObject(root, "activePackageId",
                                                                     active_package_id.value) != NULL
-                                          : cJSON_AddNullToObject(root, "activeSetId") != NULL;
+                                          : cJSON_AddNullToObject(root, "activePackageId") != NULL;
     if (!added) {
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;

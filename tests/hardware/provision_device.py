@@ -3,7 +3,7 @@
 
 Needed on its own, and needed again by the acceptance items that deliberately
 wipe the device: the specification (section 24.6) requires credential reset and factory reset to be
-exercised, and both leave a device that cannot be used until it is set up again.
+exercised, and both leave a device that cannot be used until it is package up again.
 
 An unprovisioned device never starts the USB stack, so it does not enumerate as
 a keyboard at all -- every HID assertion in this directory depends on this
@@ -107,7 +107,7 @@ def main() -> int:
         # every send. The setting itself is exercised by the host suite; leaving
         # it on here would only prove the harness can type `confirm`.
         "requirePhysicalConfirmation": False,
-        "alwaysSelectSet": True,
+        "alwaysSelectPackage": True,
     }
 
     # The credentials must be stored before the request, not after: if setup

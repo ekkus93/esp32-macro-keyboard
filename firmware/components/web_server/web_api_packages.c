@@ -48,7 +48,7 @@ static app_error_code_t handle_package_collection(const web_api_call_t *call,
          * local here overflows it and panics the device on every request. */
         storage_package_list_t *list = calloc(1U, sizeof(*list));
         if (list == NULL) {
-            return respond_result(response, APP_ERROR_INTERNAL, "could not list sets");
+            return respond_result(response, APP_ERROR_INTERNAL, "could not list packages");
         }
         app_error_code_t result = storage_package_list(list);
         char *json = NULL;
@@ -59,7 +59,7 @@ static app_error_code_t handle_package_collection(const web_api_call_t *call,
             result = web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, json);
         } else {
             const app_error_code_t response_result =
-                respond_result(response, result, "could not list sets");
+                respond_result(response, result, "could not list packages");
             if (response_result != APP_ERROR_NONE) {
                 result = response_result;
             } else {
@@ -87,7 +87,7 @@ static app_error_code_t handle_package_collection(const web_api_call_t *call,
             return send_package(response, WEB_HTTP_STATUS_CREATED, &committed);
         }
     }
-    return respond_result(response, result, "could not create set");
+    return respond_result(response, result, "could not create package");
 }
 
 static app_error_code_t handle_package_item(const web_api_call_t *call,
@@ -96,7 +96,7 @@ static app_error_code_t handle_package_item(const web_api_call_t *call,
         macro_package_t set = {0};
         const app_error_code_t result = storage_package_read(&call->path.set_id, &set);
         return result == APP_ERROR_NONE ? send_package(response, WEB_HTTP_STATUS_OK, &set)
-                                        : respond_result(response, result, "set not available");
+                                        : respond_result(response, result, "package not available");
     }
     if (call->method == WEB_API_METHOD_PUT) {
         web_api_resource_mutation_t mutation = {0};
@@ -120,8 +120,9 @@ static app_error_code_t handle_package_item(const web_api_call_t *call,
             result = storage_package_update(&replacement, mutation.expected_revision, &committed);
         }
         web_api_json_free_resource_mutation(&mutation);
-        return result == APP_ERROR_NONE ? send_package(response, WEB_HTTP_STATUS_OK, &committed)
-                                        : respond_result(response, result, "could not update set");
+        return result == APP_ERROR_NONE
+                   ? send_package(response, WEB_HTTP_STATUS_OK, &committed)
+                   : respond_result(response, result, "could not update package");
     }
 
     uint32_t expected_revision = 0U;
@@ -131,7 +132,7 @@ static app_error_code_t handle_package_item(const web_api_call_t *call,
         result = storage_package_delete(&call->path.set_id, expected_revision);
     }
     if (result != APP_ERROR_NONE) {
-        return respond_result(response, result, "could not delete set");
+        return respond_result(response, result, "could not delete package");
     }
     char data[WEB_SET_DELETE_RESPONSE_BYTES];
     const int length =
@@ -164,7 +165,7 @@ static app_error_code_t handle_select(const web_api_call_t *call, web_api_respon
         result = provisioning_settings_read(&committed);
     }
     if (result != APP_ERROR_NONE) {
-        return respond_result(response, result, "could not select set");
+        return respond_result(response, result, "could not select package");
     }
     char *json = NULL;
     result = web_api_handler_settings_json(&committed, &json);
@@ -240,8 +241,9 @@ static app_error_code_t handle_duplicate(const web_api_call_t *call, web_api_res
         result = storage_package_duplicate(&call->path.set_id, expected_revision, &duplicate_id,
                                            duplicate_name, &duplicate);
     }
-    return result == APP_ERROR_NONE ? send_package(response, WEB_HTTP_STATUS_CREATED, &duplicate)
-                                    : respond_result(response, result, "could not duplicate set");
+    return result == APP_ERROR_NONE
+               ? send_package(response, WEB_HTTP_STATUS_CREATED, &duplicate)
+               : respond_result(response, result, "could not duplicate package");
 }
 
 static app_error_code_t handle_package_reorder(const web_api_call_t *call,
@@ -259,7 +261,7 @@ static app_error_code_t handle_package_reorder(const web_api_call_t *call,
     /* Heap-allocated for the same reason as handle_package_collection() above. */
     storage_package_list_t *committed = calloc(1U, sizeof(*committed));
     if (committed == NULL) {
-        return respond_result(response, APP_ERROR_INTERNAL, "could not reorder sets");
+        return respond_result(response, APP_ERROR_INTERNAL, "could not reorder packages");
     }
     char *json = NULL;
     if (result == APP_ERROR_NONE) {
@@ -271,7 +273,8 @@ static app_error_code_t handle_package_reorder(const web_api_call_t *call,
     if (result == APP_ERROR_NONE) {
         result = web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, json);
     } else {
-        const app_error_code_t encoded = respond_result(response, result, "could not reorder sets");
+        const app_error_code_t encoded =
+            respond_result(response, result, "could not reorder packages");
         result = encoded == APP_ERROR_NONE ? APP_ERROR_NONE : encoded;
     }
     web_api_handler_json_free(json);
@@ -303,7 +306,7 @@ typedef struct {
 static app_error_code_t parse_package_import_item(const cJSON *item,
                                                   web_package_import_request_t *out_request,
                                                   set_import_seen_t *seen) {
-    if (item->string != NULL && strcmp(item->string, "targetSetId") == 0 && !seen->target &&
+    if (item->string != NULL && strcmp(item->string, "targetPackageId") == 0 && !seen->target &&
         cJSON_IsString(item) && item->valuestring != NULL &&
         app_uuid_parse(item->valuestring, &out_request->target_package_id) == APP_ERROR_NONE) {
         seen->target = true;
@@ -377,7 +380,7 @@ static app_error_code_t handle_import(const web_api_call_t *call, web_api_respon
     }
     free_package_import_request(&request);
     return result == APP_ERROR_NONE ? send_package(response, WEB_HTTP_STATUS_OK, &committed)
-                                    : respond_result(response, result, "could not replace set");
+                                    : respond_result(response, result, "could not replace package");
 }
 
 typedef struct {
@@ -402,8 +405,8 @@ typedef struct {
 static app_error_code_t parse_package_import_new_item(const cJSON *item,
                                                       web_package_import_new_request_t *out_request,
                                                       set_import_new_seen_t *seen) {
-    if (item->string != NULL && strcmp(item->string, "newSetId") == 0 && !seen->new_package_id &&
-        cJSON_IsString(item) && item->valuestring != NULL &&
+    if (item->string != NULL && strcmp(item->string, "newPackageId") == 0 &&
+        !seen->new_package_id && cJSON_IsString(item) && item->valuestring != NULL &&
         app_uuid_parse(item->valuestring, &out_request->new_package_id) == APP_ERROR_NONE) {
         seen->new_package_id = true;
         return APP_ERROR_NONE;
@@ -467,7 +470,7 @@ static app_error_code_t handle_import_new(const web_api_call_t *call,
     free_package_import_new_request(&request);
     return result == APP_ERROR_NONE
                ? send_package(response, WEB_HTTP_STATUS_CREATED, &committed)
-               : respond_result(response, result, "could not import set as new");
+               : respond_result(response, result, "could not import package as new");
 }
 
 static app_error_code_t handle_export(const web_api_call_t *call, web_api_response_t *response) {
@@ -476,7 +479,7 @@ static app_error_code_t handle_export(const web_api_call_t *call, web_api_respon
     app_error_code_t result =
         storage_package_export(&call->path.set_id, &package_json, &package_length);
     if (result != APP_ERROR_NONE) {
-        return respond_result(response, result, "could not export set");
+        return respond_result(response, result, "could not export package");
     }
     result = web_api_response_take_json(response, WEB_HTTP_STATUS_OK, package_json, package_length);
     if (result != APP_ERROR_NONE) {

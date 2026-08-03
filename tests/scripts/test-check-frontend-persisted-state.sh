@@ -12,17 +12,17 @@ pass_count=0
 
 write_valid_fixture() {
 	rm -rf -- "${temporary_dir}/src"
-	mkdir -p -- "${temporary_dir}/src/features/sets"
-	cat >"${temporary_dir}/src/features/sets/SetSelectionPage.tsx" <<'SOURCE'
-const recentSetsKey = "esp32-macro-keyboard.recent-set-ids";
+	mkdir -p -- "${temporary_dir}/src/features/package"
+	cat >"${temporary_dir}/src/features/package/PackageSelectionPage.tsx" <<'SOURCE'
+const recentPackagesKey = "esp32-macro-keyboard.recent-package-ids";
 
 function readRecentSetIds(): string[] {
-  const raw = window.localStorage.getItem(recentSetsKey);
+  const raw = window.localStorage.getItem(recentPackagesKey);
   return raw === null ? [] : (JSON.parse(raw) as string[]);
 }
 
 function recordRecentSet(setId: string): void {
-  window.localStorage.setItem(recentSetsKey, JSON.stringify([setId]));
+  window.localStorage.setItem(recentPackagesKey, JSON.stringify([setId]));
 }
 SOURCE
 }
@@ -86,14 +86,14 @@ SOURCE
 expect_fail 'service worker use' 'uses a persisted-storage API outside the FIX1 18.5 allowlist'
 
 write_valid_fixture
-sed -i 's/esp32-macro-keyboard.recent-set-ids/some-other-key/' \
-	"${temporary_dir}/src/features/sets/SetSelectionPage.tsx"
+sed -i 's/esp32-macro-keyboard.recent-package-ids/some-other-key/' \
+	"${temporary_dir}/src/features/package/PackageSelectionPage.tsx"
 expect_fail 'unapproved key' 'is not in the FIX1 18.5 approved key list'
 
 write_valid_fixture
 mkdir -p "${temporary_dir}/src/features/other"
 cat >"${temporary_dir}/src/features/other/Elsewhere.ts" <<'SOURCE'
-const key = "esp32-macro-keyboard.recent-set-ids";
+const key = "esp32-macro-keyboard.recent-package-ids";
 export function readElsewhere(): string | null {
   return window.localStorage.getItem(key);
 }

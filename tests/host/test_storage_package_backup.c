@@ -179,7 +179,7 @@ static void test_backup_contains_complete_repository_deterministically(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_export_backup(&first, &first_length));
     TEST_CHECK(first != NULL);
     TEST_CHECK(first_length == strlen(first));
-    TEST_CHECK(strstr(first, "\"package_type\":\"backup\"") != NULL);
+    TEST_CHECK(strstr(first, "\"package_type\":\"repository\"") != NULL);
     TEST_CHECK(strstr(first, SET_A_ID) != NULL);
     TEST_CHECK(strstr(first, SET_B_ID) != NULL);
     TEST_CHECK(strstr(first, SECRET_SENTINEL) == NULL);
@@ -187,7 +187,7 @@ static void test_backup_contains_complete_repository_deterministically(void) {
     storage_package_summary_t summary = {0};
     TEST_CHECK_APP_ERROR(
         APP_ERROR_NONE,
-        storage_package_validate(first, first_length, STORAGE_PACKAGE_KIND_BACKUP, &summary));
+        storage_package_validate(first, first_length, STORAGE_DOCUMENT_KIND_REPOSITORY, &summary));
     TEST_CHECK_EQ_U64(2U, summary.set_count);
     TEST_CHECK_EQ_U64(2U, summary.local_macro_count);
 
@@ -232,7 +232,7 @@ static void test_backup_output_passes_secret_sentinel_scanner(void) {
  * Creation does not compile sources, so the device can hold one; the export
  * validates the package it writes, and that validation does compile every macro.
  * One such macro therefore used to make the whole repository unbackupable --
- * a real device answered 422 macro_syntax to GET /api/v1/backup because a single
+ * a real device answered 422 macro_syntax to GET /api/v1/repository because a single
  * stored macro had `{DELAY 3000}` where the parser wants `DELAY:`. */
 static void test_uncompilable_macro_is_skipped_not_fatal(void) {
     fake_backup_context_t context = valid_context();
@@ -258,13 +258,14 @@ static void test_uncompilable_macro_is_skipped_not_fatal(void) {
     /* The package is still a package: it has to be restorable, which is the
      * whole reason the export validates what it wrote. */
     storage_package_summary_t summary = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_validate(
-                                             data, length, STORAGE_PACKAGE_KIND_BACKUP, &summary));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        storage_package_validate(data, length, STORAGE_DOCUMENT_KIND_REPOSITORY, &summary));
     storage_package_free(data);
     storage_package_reset_backup_ops_for_test();
 }
 
-/* SPEC 17: "`GET /api/v1/backup` MUST NOT let one damaged object make the
+/* SPEC 17: "`GET /api/v1/repository` MUST NOT let one damaged object make the
  * repository unbackupable -- a backup is most needed exactly when storage is
  * damaged." The individually unusable object is omitted rather than failing the
  * export, and the package says so: SPEC 17 also requires a partial backup to be
@@ -306,8 +307,9 @@ static void test_partial_package_still_validates(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          storage_package_export_backup_detail(&data, &length, NULL, NULL));
     storage_package_summary_t summary = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_validate(
-                                             data, length, STORAGE_PACKAGE_KIND_BACKUP, &summary));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        storage_package_validate(data, length, STORAGE_DOCUMENT_KIND_REPOSITORY, &summary));
     storage_package_free(data);
     storage_package_reset_backup_ops_for_test();
 }

@@ -4,7 +4,7 @@ import type {
   DiagnosticsSubsystem,
   FactoryResetAccepted,
   FullDiagnostics,
-  SetDeletion,
+  PackageDeletion,
   DiscardedObject,
   StorageHealth,
   SubsystemHealthState,
@@ -36,7 +36,7 @@ function isBoundedString(
   );
 }
 
-export function isSetDeletion(value: unknown): value is SetDeletion {
+export function isPackageDeletion(value: unknown): value is PackageDeletion {
   return (
     isRecord(value) &&
     hasExactKeys(value, ["deleted", "id"]) &&
@@ -75,7 +75,7 @@ export function isStorageHealth(value: unknown): value is StorageHealth {
       "usedBytes",
       "totalBytes",
       "remainingBytes",
-      "setFileMaxBytes",
+      "packageFileMaxBytes",
       "temporariesRemovedAtBoot",
       "discardedObjectCount",
       "discardedObjects",
@@ -86,7 +86,7 @@ export function isStorageHealth(value: unknown): value is StorageHealth {
     isNonNegativeInteger(value.usedBytes) &&
     isNonNegativeInteger(value.totalBytes) &&
     isNonNegativeInteger(value.remainingBytes) &&
-    isNonNegativeInteger(value.setFileMaxBytes) &&
+    isNonNegativeInteger(value.packageFileMaxBytes) &&
     isNonNegativeInteger(value.temporariesRemovedAtBoot) &&
     isNonNegativeInteger(value.discardedObjectCount) &&
     Array.isArray(value.discardedObjects) &&

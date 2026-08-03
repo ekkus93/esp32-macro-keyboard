@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ApiError } from "../../api/client";
 import { errorText } from "../../api/errors";
 import {
-  createSetMacro,
-  getSetMacro,
-  updateSetMacro,
-  validateSetMacro,
+  createPackageMacro,
+  getPackageMacro,
+  updatePackageMacro,
+  validatePackageMacro,
 } from "../../api/routes";
 import { ErrorBanner } from "../../components/ErrorBanner";
 import type { MacroEditorTarget } from "../../routing";
@@ -14,7 +14,7 @@ import { limits } from "../../types/limits";
 import type {
   Macro,
   MacroParseLocation,
-  MacroSet,
+  MacroPackage,
   MacroValidation,
 } from "../../types/models";
 import {
@@ -28,7 +28,7 @@ import {
 } from "./macroDraft";
 
 interface MacroEditorPageProps {
-  activeSet: MacroSet | null;
+  activePackage: MacroPackage | null;
   target: MacroEditorTarget;
   onBack: () => void;
 }
@@ -53,12 +53,12 @@ function newUuid(): string {
   return crypto.randomUUID();
 }
 
-function macroBelongsToSet(macro: Macro, setId: string): boolean {
-  return macro.set_id === setId;
+function macroBelongsToPackage(macro: Macro, packageId: string): boolean {
+  return macro.package_id === packageId;
 }
 
 export function MacroEditorPage({
-  activeSet,
+  activePackage,
   target,
   onBack,
 }: MacroEditorPageProps): React.JSX.Element {
@@ -79,7 +79,7 @@ export function MacroEditorPage({
   const targetMacroId = target.kind === "edit" ? target.macroId : null;
 
   useEffect(() => {
-    if (activeSet === null || target.kind === "invalid") {
+    if (activePackage === null || target.kind === "invalid") {
       setDraft(null);
       setPersisted(false);
       setLoading(false);
@@ -91,7 +91,7 @@ export function MacroEditorPage({
     setLoadError(null);
 
     if (target.kind === "create") {
-      setDraft(createMacroDraft(activeSet.id, newUuid()));
+      setDraft(createMacroDraft(activePackage.id, newUuid()));
       setPersisted(false);
       setLoading(false);
       return;
@@ -104,11 +104,11 @@ export function MacroEditorPage({
     let active = true;
     setDraft(null);
     setLoading(true);
-    void getSetMacro(activeSet.id, targetMacroId)
+    void getPackageMacro(activePackage.id, targetMacroId)
       .then((loaded) => {
-        if (!macroBelongsToSet(loaded, activeSet.id)) {
+        if (!macroBelongsToPackage(loaded, activePackage.id)) {
           throw new Error(
-            "The device returned a macro outside the active set.",
+            "The device returned a macro outside the active package.",
           );
         }
         if (active) {
@@ -129,7 +129,7 @@ export function MacroEditorPage({
     return () => {
       active = false;
     };
-  }, [activeSet, target.kind, targetMacroId, loadVersion]);
+  }, [activePackage, target.kind, targetMacroId, loadVersion]);
 
   const localValidation = useMemo(
     () => (draft === null ? null : validateMacroLocally(draft)),
@@ -139,7 +139,7 @@ export function MacroEditorPage({
 
   useEffect(() => {
     if (
-      activeSet === null ||
+      activePackage === null ||
       draft === null ||
       localValidation === null ||
       !localValidation.valid ||
@@ -151,7 +151,7 @@ export function MacroEditorPage({
     let active = true;
     setValidation({ kind: "pending", fingerprint });
     const timer = window.setTimeout(() => {
-      void validateSetMacro(activeSet.id, draft)
+      void validatePackageMacro(activePackage.id, draft)
         .then((result) => {
           if (active) {
             setValidation({ kind: "valid", fingerprint, result });
@@ -182,7 +182,7 @@ export function MacroEditorPage({
       active = false;
       window.clearTimeout(timer);
     };
-  }, [activeSet, conflict, draft, fingerprint, localValidation]);
+  }, [activePackage, conflict, draft, fingerprint, localValidation]);
 
   useEffect(() => {
     if (pendingSelection.current === null) {
@@ -239,15 +239,15 @@ export function MacroEditorPage({
 
   const submit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    if (activeSet === null || draft === null || !canSave) {
+    if (activePackage === null || draft === null || !canSave) {
       return;
     }
     setSaving(true);
     setSaveMessage(null);
     try {
       const committed = persisted
-        ? await updateSetMacro(activeSet.id, draft, draft.revision)
-        : await createSetMacro(activeSet.id, draft);
+        ? await updatePackageMacro(activePackage.id, draft, draft.revision)
+        : await createPackageMacro(activePackage.id, draft);
       const created = !persisted;
       setDraft(committed);
       setPersisted(true);
@@ -272,22 +272,24 @@ export function MacroEditorPage({
   };
 
   const resolveConflict = (): void => {
-    if (activeSet === null) {
+    if (activePackage === null) {
       return;
     }
     if (persisted) {
       setLoadVersion((version) => version + 1);
       return;
     }
-    setDraft(createMacroDraft(activeSet.id, newUuid()));
+    setDraft(createMacroDraft(activePackage.id, newUuid()));
     setConflict(false);
   };
 
-  if (activeSet === null) {
+  if (activePackage === null) {
     return (
       <section aria-labelledby="macro-editor-title">
         <h2 id="macro-editor-title">Macro editor</h2>
-        <p>Select an active macro set before creating or editing a macro.</p>
+        <p>
+          Select an active macro package before creating or editing a macro.
+        </p>
         <button onClick={onBack} type="button">
           Back to macros
         </button>
@@ -348,7 +350,7 @@ export function MacroEditorPage({
     <section aria-labelledby="macro-editor-title">
       <div className="page-heading">
         <div>
-          <p className="eyebrow dark">{activeSet.name}</p>
+          <p className="eyebrow dark">{activePackage.name}</p>
           <h2 id="macro-editor-title">
             {persisted ? "Edit macro" : "Create macro"}
           </h2>

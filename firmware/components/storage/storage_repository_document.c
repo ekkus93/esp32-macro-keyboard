@@ -84,7 +84,7 @@ static app_error_code_t measure_entry(measure_request_t request, size_t *out_byt
     }
     char path[APP_PATH_MAX_BYTES];
     const int written =
-        snprintf(path, sizeof(path), STORAGE_DATA_MOUNT "/sets/%s", request.entry_name);
+        snprintf(path, sizeof(path), STORAGE_DATA_MOUNT "/package/%s", request.entry_name);
     if (written < 0 || (size_t)written >= sizeof(path)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -116,7 +116,7 @@ app_error_code_t storage_repository_measure_user_data(const app_uuid_t *exclude_
         }
     }
 
-    DIR *directory = opendir(STORAGE_DATA_MOUNT "/sets");
+    DIR *directory = opendir(STORAGE_DATA_MOUNT "/package");
     if (directory == NULL) {
         /* No sets directory yet is an empty repository, not a failure. */
         return errno == ENOENT ? APP_ERROR_NONE : storage_repository_map_file_error();

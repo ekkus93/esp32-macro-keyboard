@@ -3,10 +3,10 @@ import { ApiError } from "../../api/client";
 import { errorText } from "../../api/errors";
 import {
   getDeviceStatus,
-  getSetMacro,
+  getPackageMacro,
   getSettings,
   submitExecution,
-  validateSetMacro,
+  validatePackageMacro,
 } from "../../api/routes";
 import { ErrorBanner } from "../../components/ErrorBanner";
 import type { ExecutionConfirmationTarget } from "../../routing";
@@ -16,7 +16,7 @@ import type {
   ExecutionAccepted,
   ExecutionSubmitRequest,
   Macro,
-  MacroSet,
+  MacroPackage,
   MacroValidation,
   Settings,
 } from "../../types/models";
@@ -34,51 +34,58 @@ interface LoadedConfirmation {
 }
 
 interface ConfirmExecutionPageProps {
-  activeSet: MacroSet | null;
+  activePackage: MacroPackage | null;
   onAccepted: (accepted: ExecutionAccepted, returnHash: string) => void;
   settings: Settings;
   status: DeviceStatus;
   target: ExecutionConfirmationTarget;
 }
 
-/* Every macro belongs to exactly one set (SPEC 7.2), so there is no
-   second place to look when the set does not have it. */
-function loadPersistedMacro(setId: string, macroId: string): Promise<Macro> {
-  return getSetMacro(setId, macroId);
+/* Every macro belongs to exactly one package (SPEC 7.2), so there is no
+   second place to look when the package does not have it. */
+function loadPersistedMacro(
+  packageId: string,
+  macroId: string,
+): Promise<Macro> {
+  return getPackageMacro(packageId, macroId);
 }
 
 function validatePersistedMacro(
-  activeSetId: string,
+  activePackageId: string,
   macro: Macro,
 ): Promise<MacroValidation> {
-  return validateSetMacro(activeSetId, macro);
+  return validatePackageMacro(activePackageId, macro);
 }
 
 function macroIdentityIssue(
-  activeSetId: string,
+  activePackageId: string,
   requestedMacroId: string,
   macro: Macro,
 ): string | null {
   if (macro.id !== requestedMacroId) {
     return "The device returned a different macro than the requested macro.";
   }
-  if (macro.set_id !== activeSetId) {
-    return "The requested macro does not belong to the active macro set.";
+  if (macro.package_id !== activePackageId) {
+    return "The requested macro does not belong to the active macro package.";
   }
   return null;
 }
 
 async function loadConfirmation(
-  activeSet: MacroSet,
+  activePackage: MacroPackage,
   target: Extract<ExecutionConfirmationTarget, { kind: "valid" }>,
 ): Promise<LoadedConfirmation> {
-  const macro = await loadPersistedMacro(activeSet.id, target.macroId);
-  const identityIssue = macroIdentityIssue(activeSet.id, target.macroId, macro);
+  const macro = await loadPersistedMacro(activePackage.id, target.macroId);
+  const identityIssue = macroIdentityIssue(
+    activePackage.id,
+    target.macroId,
+    macro,
+  );
   if (identityIssue !== null) {
     throw new Error(identityIssue);
   }
 
-  const validation = await validatePersistedMacro(activeSet.id, macro);
+  const validation = await validatePersistedMacro(activePackage.id, macro);
   return { macro, validation };
 }
 
@@ -86,7 +93,7 @@ function sameMacroSnapshot(left: Macro, right: Macro): boolean {
   return (
     left.id === right.id &&
     left.revision === right.revision &&
-    left.set_id === right.set_id &&
+    left.package_id === right.package_id &&
     left.source === right.source &&
     left.key_press_ms === right.key_press_ms &&
     left.inter_key_ms === right.inter_key_ms
@@ -123,7 +130,7 @@ function statusLabel(value: string): string {
 }
 
 export function ConfirmExecutionPage({
-  activeSet,
+  activePackage,
   onAccepted,
   settings,
   status,
@@ -147,7 +154,7 @@ export function ConfirmExecutionPage({
   }, [status]);
 
   useEffect(() => {
-    if (activeSet === null || target.kind !== "valid") {
+    if (activePackage === null || target.kind !== "valid") {
       setLoaded(null);
       setLoadError(null);
       setSubmitError(null);
@@ -162,7 +169,7 @@ export function ConfirmExecutionPage({
     setSubmitError(null);
     setStale(false);
     setStage("idle");
-    void loadConfirmation(activeSet, target)
+    void loadConfirmation(activePackage, target)
       .then((confirmation) => {
         if (active) {
           setLoaded(confirmation);
@@ -176,15 +183,17 @@ export function ConfirmExecutionPage({
     return () => {
       active = false;
     };
-  }, [activeSet, loadVersion, target]);
+  }, [activePackage, loadVersion, target]);
 
   const blockers = useMemo(() => {
     const reasons: string[] = [];
     if (loaded === null) {
       reasons.push("The persisted macro and validation result are not loaded.");
     }
-    if (currentSettings.activeSetId !== activeSet?.id) {
-      reasons.push("The active macro set changed after this preview opened.");
+    if (currentSettings.activePackageId !== activePackage?.id) {
+      reasons.push(
+        "The active macro package changed after this preview opened.",
+      );
     }
     if (stale) {
       reasons.push("The macro changed after this preview loaded.");
@@ -199,8 +208,8 @@ export function ConfirmExecutionPage({
     }
     return reasons;
   }, [
-    activeSet?.id,
-    currentSettings.activeSetId,
+    activePackage?.id,
+    currentSettings.activePackageId,
     currentStatus,
     loaded,
     stale,
@@ -208,7 +217,7 @@ export function ConfirmExecutionPage({
 
   const send = async (): Promise<void> => {
     if (
-      activeSet === null ||
+      activePackage === null ||
       target.kind !== "valid" ||
       loaded === null ||
       blockers.length !== 0 ||
@@ -223,15 +232,15 @@ export function ConfirmExecutionPage({
       const [latestStatus, latestSettings, latest] = await Promise.all([
         getDeviceStatus(),
         getSettings(),
-        loadConfirmation(activeSet, target),
+        loadConfirmation(activePackage, target),
       ]);
       setCurrentStatus(latestStatus);
       setCurrentSettings(latestSettings);
 
-      if (latestSettings.activeSetId !== activeSet.id) {
+      if (latestSettings.activePackageId !== activePackage.id) {
         setStale(true);
         setSubmitError(
-          "The active macro set changed on the device. Sending was not started.",
+          "The active macro package changed on the device. Sending was not started.",
         );
         return;
       }
@@ -268,7 +277,7 @@ export function ConfirmExecutionPage({
           : "submitting",
       );
       const request: ExecutionSubmitRequest = {
-        setId: activeSet.id,
+        packageId: activePackage.id,
         macroId: latest.macro.id,
         macroRevision: latest.macro.revision,
       };
@@ -303,18 +312,18 @@ export function ConfirmExecutionPage({
     );
   }
 
-  if (activeSet === null) {
+  if (activePackage === null) {
     return (
       <section aria-labelledby="confirm-execution-title">
         <h2 id="confirm-execution-title">Confirm send</h2>
-        <p>Select an active macro set before sending a macro.</p>
+        <p>Select an active macro package before sending a macro.</p>
         <button
           onClick={() => {
-            navigate("sets");
+            navigate("packages");
           }}
           type="button"
         >
-          Select a macro set
+          Select a macro package
         </button>
       </section>
     );
@@ -376,7 +385,7 @@ export function ConfirmExecutionPage({
         <div>
           <h3>{loaded.macro.name}</h3>
           <p>Revision {String(loaded.macro.revision)}</p>
-          <p>Active set: {activeSet.name}</p>
+          <p>Active package: {activePackage.name}</p>
         </div>
       </article>
 

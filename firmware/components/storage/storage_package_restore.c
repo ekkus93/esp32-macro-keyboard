@@ -120,12 +120,13 @@ static app_error_code_t materialize_one_package(const package_tree_t *document,
  * else (SPEC 13.3), and the index is rewritten at the end from the sets that
  * actually landed. */
 static app_error_code_t clear_existing_packages(void) {
-    char sets_root[APP_PATH_MAX_BYTES];
-    app_error_code_t result = join_path(STORAGE_DATA_MOUNT, "sets", sets_root, sizeof(sets_root));
+    char packages_root[APP_PATH_MAX_BYTES];
+    app_error_code_t result =
+        join_path(STORAGE_DATA_MOUNT, "package", packages_root, sizeof(packages_root));
     if (result == APP_ERROR_NONE) {
-        result = storage_repository_remove_tree(sets_root);
+        result = storage_repository_remove_tree(packages_root);
     }
-    return result == APP_ERROR_NONE ? make_directory(sets_root) : result;
+    return result == APP_ERROR_NONE ? make_directory(packages_root) : result;
 }
 
 static void record_outcome(storage_restore_report_t *report, const app_uuid_t *set_id,
@@ -213,7 +214,7 @@ app_error_code_t storage_package_restore_backup(const char *data, size_t length,
     }
     storage_package_summary_t summary = {0};
     app_error_code_t result =
-        storage_package_validate(data, length, STORAGE_PACKAGE_KIND_BACKUP, &summary);
+        storage_package_validate(data, length, STORAGE_DOCUMENT_KIND_REPOSITORY, &summary);
     if (result != APP_ERROR_NONE) {
         free(report);
         return result;

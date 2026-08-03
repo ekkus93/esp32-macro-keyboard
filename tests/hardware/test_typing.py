@@ -5,7 +5,7 @@ reports the device emits.
 Evidence comes from the kernel's hidraw node, decoded as 8-byte boot-protocol
 reports -- the bytes that went down the wire, not text scraped from an editor.
 That is what makes it possible to assert things a screen capture cannot: that a
-chord set the modifier bit concurrently with the usage code, and that the final
+chord package the modifier bit concurrently with the usage code, and that the final
 report is all-zero with no key left held.
 """
 
@@ -24,7 +24,7 @@ def submit_and_capture(device, macro, settle=6.0):
         status, payload = device.post(
             "/api/v1/executions",
             {
-                "setId": macro["set_id"],
+                "packageId": macro["package_id"],
                 "macroId": macro["id"],
                 "macroRevision": macro["revision"],
             },
@@ -43,14 +43,14 @@ def submit_and_capture(device, macro, settle=6.0):
 
 def main():
     fixture = hil_state.fixture()
-    set_id = fixture["set_id"]
+    package_id = fixture["package_id"]
     device = Device()
     device.login()
 
     results = {}
 
     # --- 1. printable text -------------------------------------------------
-    macro = dict(fixture["macros"]["text"], set_id=set_id)
+    macro = dict(fixture["macros"]["text"], package_id=package_id)
     capture, state = submit_and_capture(device, macro)
     if capture is None:
         print(f"[FAIL] printable text: {state}")
@@ -69,7 +69,7 @@ def main():
     time.sleep(1)
 
     # --- 2. chord ----------------------------------------------------------
-    macro = dict(fixture["macros"]["chord"], set_id=set_id)
+    macro = dict(fixture["macros"]["chord"], package_id=package_id)
     capture, state = submit_and_capture(device, macro)
     if capture is None:
         print(f"[FAIL] chord: {state}")

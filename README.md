@@ -32,7 +32,7 @@ against an attached ESP32-S3:
   bytes on the wire, not text captured from an editor: printable text arrives
   exactly, a chord sets the modifier bit concurrently with the usage code, and
   every run ends with an all-zero report so no key is left held;
-- **a whole set sent in the order the user arranged it**, arriving in that order;
+- **a whole package sent in the order the user arranged it**, arriving in that order;
 - **cancellation over both paths the specification requires** — the HTTP API and
   the console `cancel` command — during a delay and mid-typing, each reaching
   `cancelled` with the last keystroke 92–127 ms after the request;
@@ -41,7 +41,7 @@ against an attached ESP32-S3:
   credential reset but not a factory reset, and that the device rejoins it
   unaided about 12 s after a reboot;
 - **all three ways a package is applied** — whole-repository restore reporting
-  per-set outcomes, import as a new set, and replacing an existing set's
+  per-package outcomes, import as a new package, and replacing an existing package's
   contents — against a real repository, on the device.
 
 Still not verified on hardware: the on-device Unity test menu, repeated USB and
@@ -170,7 +170,7 @@ lsusb | grep -E '303a|1a86|10c4'
 | Native USB (the ESP32-S3's own peripheral) | `303a:4001` running the app, `303a:1001` otherwise | flashing, `esptool`, HID validation, log output |
 | USB-UART bridge (a separate CH340/CP210x chip) | `1a86:55d3` or `10c4:ea60` | **the interactive serial console** |
 
-The production firmware sets `CONFIG_ESP_CONSOLE_UART_DEFAULT=y`, so the
+The production firmware packages `CONFIG_ESP_CONSOLE_UART_DEFAULT=y`, so the
 interactive console (`wifi-connect`, `wifi-status`, `confirm`, `cancel`) reads
 from UART0 on the bridge. USB-Serial-JTAG is the secondary console: it mirrors
 log output but accepts no input, and commands sent to it are silently discarded.

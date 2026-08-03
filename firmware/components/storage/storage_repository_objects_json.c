@@ -22,7 +22,8 @@
 #define KEY_PRESS_STORAGE_MAX_MS 1000U
 
 static const char *const MACRO_FIELDS[MACRO_FIELD_COUNT] = {
-    "schema_version", "id", "revision", "set_id", "name", "source", "key_press_ms", "inter_key_ms",
+    "schema_version", "id",     "revision",     "package_id",
+    "name",           "source", "key_press_ms", "inter_key_ms",
 };
 
 static bool canonical_buffer(const char *value, size_t capacity, size_t *out_length) {
@@ -82,7 +83,7 @@ app_error_code_t storage_repository_parse_macro_node(const struct cJSON *root, m
         result = storage_json_get_u32(root, "revision", 1U, UINT32_MAX, &out_macro->revision);
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_json_get_uuid(root, "set_id", &out_macro->set_id);
+        result = storage_json_get_uuid(root, "package_id", &out_macro->set_id);
     }
     if (result == APP_ERROR_NONE) {
         result =
@@ -131,7 +132,7 @@ static app_error_code_t add_macro_fields(cJSON *root, const macro_t *macro) {
     if (cJSON_AddNumberToObject(root, "schema_version", (double)macro->schema_version) == NULL ||
         cJSON_AddStringToObject(root, "id", macro->id.value) == NULL ||
         cJSON_AddNumberToObject(root, "revision", (double)macro->revision) == NULL ||
-        cJSON_AddStringToObject(root, "set_id", macro->set_id.value) == NULL) {
+        cJSON_AddStringToObject(root, "package_id", macro->set_id.value) == NULL) {
         return APP_ERROR_INTERNAL;
     }
     return cJSON_AddStringToObject(root, "name", macro->name) != NULL &&

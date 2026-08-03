@@ -22,7 +22,7 @@
  * allocation. */
 #define STORAGE_ORDER_MAX_IDS APP_MACROS_PER_SET_MAX
 _Static_assert(STORAGE_ORDER_MAX_IDS >= APP_MACRO_SETS_MAX,
-               "STORAGE_ORDER_MAX_IDS must fit a macro-set order list");
+               "STORAGE_ORDER_MAX_IDS must fit a macro-package order list");
 
 typedef struct {
     app_uuid_t ids[STORAGE_ORDER_MAX_IDS];

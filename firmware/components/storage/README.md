@@ -10,7 +10,7 @@ This component currently implements:
 - corrupt objects deleted with the failure reported (SPEC 13.6)
 - transactional macro-set create, read, list, update, and delete
 - optimistic revision conflicts
-- host tests for set persistence, interrupted operations, and corruption handling
+- host tests for package persistence, interrupted operations, and corruption handling
 
 Missing metadata on an initialized store is treated as corruption; it is not
 silently replaced with an empty index.

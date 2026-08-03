@@ -42,20 +42,20 @@ export interface Settings {
   schemaVersion: 1;
   revision: number;
   requirePhysicalConfirmation: boolean;
-  alwaysSelectSet: boolean;
-  activeSetId: string | null;
+  alwaysSelectPackage: boolean;
+  activePackageId: string | null;
 }
 
-/* A set is a name and an ordered list of macros (SPEC 12.1). Set order lives
+/* A package is a name and an ordered list of macros (SPEC 12.1). Package order lives
    in the index and is the order the API returns them in. */
-export interface MacroSet {
+export interface MacroPackage {
   schema_version: 1;
   id: string;
   revision: number;
   name: string;
 }
 
-export interface SetDeletion {
+export interface PackageDeletion {
   deleted: true;
   id: string;
 }
@@ -64,8 +64,8 @@ export interface Macro {
   schema_version: 1;
   id: string;
   revision: number;
-  /* Every macro belongs to exactly one set (SPEC 7.2). */
-  set_id: string;
+  /* Every macro belongs to exactly one package (SPEC 7.2). */
+  package_id: string;
   name: string;
   source: string;
   key_press_ms: number;
@@ -85,7 +85,7 @@ export interface MacroParseLocation {
 }
 
 export interface ExecutionSubmitRequest {
-  setId: string;
+  packageId: string;
   macroId: string;
   macroRevision: number;
 }
@@ -98,7 +98,7 @@ export interface ExecutionAccepted {
 
 export interface ExecutionStatus {
   executionId: string;
-  setId: string;
+  packageId: string;
   macroId: string;
   macroRevision: number;
   state: ExecutionState;
@@ -108,7 +108,7 @@ export interface ExecutionStatus {
   actionCount: number;
   available: boolean;
   cancellationRequested: boolean;
-  /** Monotonic device-uptime milliseconds, not wall-clock time; 0 until set. */
+  /** Monotonic device-uptime milliseconds, not wall-clock time; 0 until pkg. */
   acceptedMs: number;
   startedMs: number;
   completedMs: number;
@@ -139,7 +139,7 @@ export interface StorageHealth {
   usedBytes: number;
   totalBytes: number;
   remainingBytes: number;
-  setFileMaxBytes: number;
+  packageFileMaxBytes: number;
   /* SPEC 20.3: what the device cleaned up or threw away, and why. */
   temporariesRemovedAtBoot: number;
   discardedObjectCount: number;

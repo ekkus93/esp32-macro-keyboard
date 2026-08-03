@@ -2,7 +2,7 @@ import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
 import { MacroEditorPage } from "../src/features/macros/MacroEditorPage";
 import { MacroLibraryPage } from "../src/features/macros/MacroLibraryPage";
-import { macro, macroId, macroSet } from "./appFixtures";
+import { macro, macroId, macroPackage } from "./appFixtures";
 import {
   getFetchCalls,
   jsonResponse,
@@ -33,13 +33,13 @@ async function advanceValidation(): Promise<void> {
 }
 
 describe("server-backed macros", () => {
-  test("loads the active-set macro library", async () => {
+  test("loads the active-package macro library", async () => {
     const onEdit = vi.fn();
     const onSend = vi.fn();
     planJsonResponse({ ok: true, data: [macro] });
     const view = await render(
       <MacroLibraryPage
-        activeSet={macroSet}
+        activePackage={macroPackage}
         onCreate={() => undefined}
         onEdit={onEdit}
         onSend={onSend}
@@ -53,7 +53,9 @@ describe("server-backed macros", () => {
     expect(onSend).toHaveBeenCalledWith(macroId);
     await click(buttonWithText("Edit"));
     expect(onEdit).toHaveBeenCalledWith(macroId);
-    expect(getFetchCalls()[0]?.url).toBe(`/api/v1/sets/${macroSet.id}/macros`);
+    expect(getFetchCalls()[0]?.url).toBe(
+      `/api/v1/package/${macroPackage.id}/macros`,
+    );
     await view.unmount();
   });
 
@@ -63,7 +65,7 @@ describe("server-backed macros", () => {
     planJsonResponse({ ok: true, data: validResult });
     const view = await render(
       <MacroEditorPage
-        activeSet={macroSet}
+        activePackage={macroPackage}
         onBack={() => undefined}
         target={{ kind: "edit", macroId }}
       />,
@@ -89,7 +91,9 @@ describe("server-backed macros", () => {
         resource: typeof macro;
       };
       expect(call.method).toBe("PUT");
-      expect(call.url).toBe(`/api/v1/sets/${macroSet.id}/macros/${macroId}`);
+      expect(call.url).toBe(
+        `/api/v1/package/${macroPackage.id}/macros/${macroId}`,
+      );
       expect(body.expectedRevision).toBe(macro.revision);
       expect(body.resource.name).toBe("Open admin terminal");
       return jsonResponse({
@@ -114,7 +118,7 @@ describe("server-backed macros", () => {
     planJsonResponse({ ok: true, data: validResult });
     const view = await render(
       <MacroEditorPage
-        activeSet={macroSet}
+        activePackage={macroPackage}
         onBack={() => undefined}
         target={{ kind: "edit", macroId }}
       />,
@@ -152,7 +156,7 @@ describe("server-backed macros", () => {
     vi.useFakeTimers();
     const view = await render(
       <MacroEditorPage
-        activeSet={macroSet}
+        activePackage={macroPackage}
         onBack={() => undefined}
         target={{ kind: "create" }}
       />,
@@ -178,9 +182,9 @@ describe("server-backed macros", () => {
         typeof call.body === "string" ? call.body : "",
       ) as typeof macro;
       expect(call.method).toBe("POST");
-      expect(call.url).toBe(`/api/v1/sets/${macroSet.id}/macros`);
+      expect(call.url).toBe(`/api/v1/package/${macroPackage.id}/macros`);
       expect(body.revision).toBe(1);
-      expect(body.set_id).toBe(macroSet.id);
+      expect(body.package_id).toBe(macroPackage.id);
       expect(body.source).toBe("{CTRL+L}");
       return jsonResponse({ ok: true, data: body }, 201);
     });
@@ -200,7 +204,7 @@ describe("server-backed macros", () => {
     planJsonResponse({ ok: true, data: validResult });
     const view = await render(
       <MacroEditorPage
-        activeSet={macroSet}
+        activePackage={macroPackage}
         onBack={() => undefined}
         target={{ kind: "edit", macroId }}
       />,

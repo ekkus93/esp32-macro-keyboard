@@ -65,7 +65,8 @@ static app_error_code_t send_storage_snapshot(web_api_response_t *response) {
         cJSON_AddNumberToObject(root, "usedBytes", (double)used_bytes) == NULL ||
         cJSON_AddNumberToObject(root, "totalBytes", (double)APP_USER_DATA_MAX_BYTES) == NULL ||
         cJSON_AddNumberToObject(root, "remainingBytes", (double)remaining) == NULL ||
-        cJSON_AddNumberToObject(root, "setFileMaxBytes", (double)APP_SET_FILE_MAX_BYTES) == NULL ||
+        cJSON_AddNumberToObject(root, "packageFileMaxBytes", (double)APP_SET_FILE_MAX_BYTES) ==
+            NULL ||
         /* SPEC 20.3: stray temporaries removed at boot, and objects discarded as
          * corrupt since boot with their paths and errors. */
         cJSON_AddNumberToObject(root, "temporariesRemovedAtBoot",
@@ -106,7 +107,7 @@ static app_error_code_t send_storage_snapshot(web_api_response_t *response) {
 static const char *backup_object_kind_name(storage_package_object_kind_t kind) {
     switch (kind) {
     case STORAGE_PACKAGE_OBJECT_SET:
-        return "set";
+        return "package";
     case STORAGE_PACKAGE_OBJECT_MACRO:
         return "macro";
     case STORAGE_PACKAGE_OBJECT_NONE:
@@ -125,16 +126,16 @@ static void describe_backup_failure(const storage_package_failure_t *failure, ch
     if (failure->kind == STORAGE_PACKAGE_OBJECT_NONE) {
         written = snprintf(buffer, buffer_size, "backup unavailable");
     } else if (failure->has_object_id && failure->has_package_id) {
-        written =
-            snprintf(buffer, buffer_size, "backup unavailable: %s %s in set %s could not be read",
-                     kind, failure->object_id.value, failure->set_id.value);
+        written = snprintf(buffer, buffer_size,
+                           "backup unavailable: %s %s in package %s could not be read", kind,
+                           failure->object_id.value, failure->set_id.value);
     } else if (failure->has_object_id) {
         written = snprintf(buffer, buffer_size, "backup unavailable: %s %s could not be read", kind,
                            failure->object_id.value);
     } else if (failure->has_package_id) {
-        written =
-            snprintf(buffer, buffer_size, "backup unavailable: a %s in set %s could not be read",
-                     kind, failure->set_id.value);
+        written = snprintf(buffer, buffer_size,
+                           "backup unavailable: a %s in package %s could not be read", kind,
+                           failure->set_id.value);
     } else {
         written = snprintf(buffer, buffer_size, "backup unavailable: a %s could not be read", kind);
     }
@@ -164,12 +165,12 @@ static app_error_code_t send_backup(web_api_response_t *response) {
 }
 
 /* Renders the per-set outcomes of a restore (SPEC 13.5, 17). Included on both
- * success and failure, because "which sets are on the device now" is exactly
+ * success and failure, because "which packages are on the device now" is exactly
  * what the client needs to know either way. */
 static app_error_code_t restore_outcomes_json(const storage_restore_report_t *report,
                                               cJSON *parent) {
     cJSON *sets = cJSON_CreateArray();
-    if (sets == NULL || !cJSON_AddItemToObject(parent, "sets", sets)) {
+    if (sets == NULL || !cJSON_AddItemToObject(parent, "packages", sets)) {
         cJSON_Delete(sets);
         return APP_ERROR_INTERNAL;
     }
@@ -180,7 +181,8 @@ static app_error_code_t restore_outcomes_json(const storage_restore_report_t *re
             return APP_ERROR_INTERNAL;
         }
         const bool restored = report->items[index].result == APP_ERROR_NONE;
-        if (cJSON_AddStringToObject(entry, "setId", report->items[index].set_id.value) == NULL ||
+        if (cJSON_AddStringToObject(entry, "packageId", report->items[index].set_id.value) ==
+                NULL ||
             cJSON_AddBoolToObject(entry, "restored", restored) == NULL) {
             return APP_ERROR_INTERNAL;
         }
@@ -203,8 +205,8 @@ static app_error_code_t restore_response_json(const storage_restore_report_t *re
     app_error_code_t result = APP_ERROR_NONE;
     if (cJSON_AddBoolToObject(root, "restored", complete) == NULL ||
         cJSON_AddBoolToObject(root, "reloadRequired", true) == NULL ||
-        cJSON_AddNumberToObject(root, "setsRestored", (double)report->written) == NULL ||
-        cJSON_AddNumberToObject(root, "setsFailed", (double)report->failed) == NULL) {
+        cJSON_AddNumberToObject(root, "packagesRestored", (double)report->written) == NULL ||
+        cJSON_AddNumberToObject(root, "packagesFailed", (double)report->failed) == NULL) {
         result = APP_ERROR_INTERNAL;
     }
     if (result == APP_ERROR_NONE) {
@@ -241,14 +243,14 @@ static app_error_code_t restore_backup(const web_api_call_t *call, web_api_respo
     } else {
         /* A partial restore MUST NOT be a 200 (SPEC 17), so it goes out through
          * the error envelope -- but the per-set outcomes travel with it as
-         * details, because "which sets are on the device now" is precisely what
+         * details, because "which packages are on the device now" is precisely what
          * the client needs after a failure. The status comes from the first
          * per-set failure, so storage exhaustion still reads as 507 rather than
          * being flattened into a generic 500. */
         const web_api_error_spec_t spec = {
             .status = web_api_http_status_for_error(result),
             .code = result,
-            .message = "restore did not write every set",
+            .message = "restore did not write every package",
             .details_json = json,
         };
         sent = web_api_response_error(response, &spec);

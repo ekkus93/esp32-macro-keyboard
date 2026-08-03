@@ -189,7 +189,7 @@ static app_error_code_t match_simple_routes(const path_segments_t *segments,
         out_path->route = WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK;
     } else if (segments->count == 1U && text_equal(segments->items[0], "diagnostics")) {
         out_path->route = WEB_API_ROUTE_DIAGNOSTICS_FULL;
-    } else if (segments->count == 1U && text_equal(segments->items[0], "backup")) {
+    } else if (segments->count == 1U && text_equal(segments->items[0], "repository")) {
         out_path->route = WEB_API_ROUTE_BACKUP;
     } else if (segments->count == 1U && text_equal(segments->items[0], "restore")) {
         out_path->route = WEB_API_ROUTE_RESTORE;
@@ -252,7 +252,7 @@ app_error_code_t web_api_parse_path(const char *uri, web_api_path_t *out_path) {
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    if (text_equal(segments.items[0], "sets")) {
+    if (text_equal(segments.items[0], "package")) {
         result = match_package_routes(&segments, out_path);
     } else if (text_equal(segments.items[0], "executions")) {
         result = match_execution_routes(&segments, out_path);

@@ -5,20 +5,20 @@ import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
 import process from "node:process";
 
-const setId = "11111111-1111-4111-8111-111111111111";
-const secondSetId = "99999999-9999-4999-8999-999999999999";
+const packageId = "11111111-1111-4111-8111-111111111111";
+const secondPackageId = "99999999-9999-4999-8999-999999999999";
 const macroId = "22222222-2222-4222-8222-222222222222";
 const executionId = "33333333-3333-4333-8333-333333333333";
 
-const firstSet = {
+const firstPackage = {
   schema_version: 1,
-  id: setId,
+  id: packageId,
   revision: 2,
   name: "Lab bench workflow",
 };
-const secondSet = {
-  ...firstSet,
-  id: secondSetId,
+const secondPackage = {
+  ...firstPackage,
+  id: secondPackageId,
   revision: 3,
   name: "Second workflow",
 };
@@ -26,7 +26,7 @@ const macro = {
   schema_version: 1,
   id: macroId,
   revision: 7,
-  set_id: setId,
+  package_id: packageId,
   name: "Open terminal",
   source: "{CTRL+ALT+T}",
   key_press_ms: 8,
@@ -36,8 +36,8 @@ const settings = {
   schemaVersion: 1,
   revision: 4,
   requirePhysicalConfirmation: false,
-  alwaysSelectSet: true,
-  activeSetId: setId,
+  alwaysSelectPackage: true,
+  activePackageId: packageId,
 };
 const idleStatus = {
   version: "0.1.0",
@@ -105,7 +105,7 @@ async function requestBody(request) {
 async function startApplicationServer() {
   const dist = new URL("../../dist/", import.meta.url);
   const state = {
-    sets: [firstSet, secondSet],
+    packages: [firstPackage, secondPackage],
     lastOrder: null,
     settingsReads: 0,
     executionAccepted: false,
@@ -146,47 +146,48 @@ async function startApplicationServer() {
           sendJson(response, 200, { ok: true, data: settings });
           return;
         }
-        if (method === "GET" && url.pathname === "/api/v1/sets") {
-          sendJson(response, 200, { ok: true, data: state.sets });
+        if (method === "GET" && url.pathname === "/api/v1/package") {
+          sendJson(response, 200, { ok: true, data: state.packages });
           return;
         }
-        if (method === "PUT" && url.pathname === "/api/v1/sets/order") {
+        if (method === "PUT" && url.pathname === "/api/v1/package/order") {
           const body = await requestBody(request);
           assert(
             body !== null &&
               Array.isArray(body.ids) &&
-              body.ids.length === state.sets.length,
+              body.ids.length === state.packages.length,
             "Browser reorder request did not contain the complete ID order.",
           );
           state.lastOrder = [...body.ids];
-          state.sets = body.ids.map((id) => {
-            const found = state.sets.find((set) => set.id === id);
+          state.packages = body.ids.map((id) => {
+            const found = state.packages.find((pkg) => pkg.id === id);
             assert(
               found !== undefined,
-              `Unknown reordered set ID: ${String(id)}`,
+              `Unknown reordered package ID: ${String(id)}`,
             );
             return found;
           });
-          sendJson(response, 200, { ok: true, data: state.sets });
+          sendJson(response, 200, { ok: true, data: state.packages });
           return;
         }
         if (
           method === "GET" &&
-          url.pathname === `/api/v1/sets/${setId}/macros`
+          url.pathname === `/api/v1/package/${packageId}/macros`
         ) {
           sendJson(response, 200, { ok: true, data: [macro] });
           return;
         }
         if (
           method === "GET" &&
-          url.pathname === `/api/v1/sets/${setId}/macros/${macroId}`
+          url.pathname === `/api/v1/package/${packageId}/macros/${macroId}`
         ) {
           sendJson(response, 200, { ok: true, data: macro });
           return;
         }
         if (
           method === "POST" &&
-          url.pathname === `/api/v1/sets/${setId}/macros/${macroId}/validate`
+          url.pathname ===
+            `/api/v1/package/${packageId}/macros/${macroId}/validate`
         ) {
           sendJson(response, 200, {
             ok: true,
@@ -197,7 +198,7 @@ async function startApplicationServer() {
         if (method === "POST" && url.pathname === "/api/v1/executions") {
           const body = await requestBody(request);
           assert(
-            body?.setId === setId &&
+            body?.packageId === packageId &&
               body?.macroId === macroId &&
               body?.macroRevision === macro.revision &&
               body?.sourceContext === undefined,
@@ -218,7 +219,7 @@ async function startApplicationServer() {
             ok: true,
             data: {
               executionId,
-              setId,
+              packageId,
               macroId,
               macroRevision: macro.revision,
               state: completed ? "completed" : "running",
@@ -570,8 +571,8 @@ async function assertResponsiveLayout(cdp) {
 async function runBrowserWorkflows(cdp, serverState) {
   await waitFor(
     cdp,
-    "document.body?.innerText.includes('Choose a macro set') ?? false",
-    "Authenticated set selection did not load.",
+    "document.body?.innerText.includes('Choose a macro package') ?? false",
+    "Authenticated package selection did not load.",
   );
   await assertTouchTargets(cdp);
   await assertResponsiveLayout(cdp);
@@ -583,14 +584,14 @@ async function runBrowserWorkflows(cdp, serverState) {
     "document.activeElement.textContent.trim()",
   );
   assert(
-    keyboardFocus === "Manage sets",
-    `Keyboard navigation did not reach Manage sets: ${String(keyboardFocus)}`,
+    keyboardFocus === "Manage packages",
+    `Keyboard navigation did not reach Manage packages: ${String(keyboardFocus)}`,
   );
   await dispatchKey(cdp, "Enter");
   await waitFor(
     cdp,
-    "document.body.innerText.includes('Manage macro sets')",
-    "Set management did not load.",
+    "document.body.innerText.includes('Manage macro packages')",
+    "Package management did not load.",
   );
 
   const colorOnlyStatuses = await evaluate(
@@ -602,18 +603,18 @@ async function runBrowserWorkflows(cdp, serverState) {
     "A status badge relied on color without visible text.",
   );
 
-  await clickButton(cdp, "Create set", true);
+  await clickButton(cdp, "Create package", true);
   await waitFor(
     cdp,
     "document.querySelector('[role=dialog]') !== null",
-    "Create-set dialog did not open.",
+    "Create-package dialog did not open.",
   );
   const initialFocus = await evaluate(
     cdp,
     "document.activeElement.getAttribute('aria-label') || document.activeElement.textContent.trim()",
   );
   assert(
-    initialFocus === "Close Create macro set",
+    initialFocus === "Close Create macro package",
     `Unexpected initial dialog focus: ${String(initialFocus)}`,
   );
   await dispatchKey(cdp, "Tab", 8);
@@ -636,27 +637,27 @@ async function runBrowserWorkflows(cdp, serverState) {
     "document.activeElement.textContent.trim()",
   );
   assert(
-    restoredFocus === "Create set",
+    restoredFocus === "Create package",
     "Dialog focus was not restored to its opener.",
   );
 
   const reordered = await evaluate(
     cdp,
     `(() => { const button = document.querySelector(${JSON.stringify(
-      `[aria-label="Move ${firstSet.name} down"]`,
+      `[aria-label="Move ${firstPackage.name} down"]`,
     )}); if (!button) return false; button.click(); return true; })()`,
   );
   assert(reordered, "Accessible Move down control was missing.");
   await waitFor(
     cdp,
     `document.body.innerText.includes(${JSON.stringify(
-      `Moved ${firstSet.name} to position 2.`,
+      `Moved ${firstPackage.name} to position 2.`,
     )})`,
-    "Set reorder did not complete.",
+    "Package reorder did not complete.",
   );
   assert(
     JSON.stringify(serverState.lastOrder) ===
-      JSON.stringify([secondSetId, setId]),
+      JSON.stringify([secondPackageId, packageId]),
     `Unexpected reordered IDs: ${JSON.stringify(serverState.lastOrder)}`,
   );
 
@@ -755,7 +756,7 @@ async function main() {
   let cdp;
   try {
     const debuggerUrl = await devToolsUrl(chromeProcess);
-    cdp = await connectPage(debuggerUrl, `${application.baseUrl}/#/sets`);
+    cdp = await connectPage(debuggerUrl, `${application.baseUrl}/#/packages`);
     await runBrowserWorkflows(cdp, application.state);
     console.log("Real Chrome Phase 17.10 workflows passed.");
   } finally {

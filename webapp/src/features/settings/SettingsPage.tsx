@@ -37,7 +37,7 @@ function actionDescription(action: DeviceAction): string {
     case "restart":
       return "Schedule a controlled restart after physical confirmation on the device.";
     case "reset-settings":
-      return "Restore secure application defaults and clear the active-set selection.";
+      return "Restore secure application defaults and clear the active-package selection.";
     case "factory-reset":
       return "Erase provisioning and user data, then restart into first-run setup.";
     case null:
@@ -52,8 +52,8 @@ export function SettingsPage({
 }: SettingsPageProps): React.JSX.Element {
   const [requirePhysicalConfirmation, setRequirePhysicalConfirmation] =
     useState(settings.requirePhysicalConfirmation);
-  const [alwaysSelectSet, setAlwaysSelectSet] = useState(
-    settings.alwaysSelectSet,
+  const [alwaysSelectPackage, setAlwaysSelectPackage] = useState(
+    settings.alwaysSelectPackage,
   );
   const [saving, setSaving] = useState(false);
   const [action, setAction] = useState<DeviceAction>(null);
@@ -64,12 +64,12 @@ export function SettingsPage({
 
   useEffect(() => {
     setRequirePhysicalConfirmation(settings.requirePhysicalConfirmation);
-    setAlwaysSelectSet(settings.alwaysSelectSet);
+    setAlwaysSelectPackage(settings.alwaysSelectPackage);
   }, [settings]);
 
   const dirty =
     requirePhysicalConfirmation !== settings.requirePhysicalConfirmation ||
-    alwaysSelectSet !== settings.alwaysSelectSet;
+    alwaysSelectPackage !== settings.alwaysSelectPackage;
 
   const save = async (): Promise<void> => {
     setSaving(true);
@@ -79,7 +79,7 @@ export function SettingsPage({
       const committed = await updateSettings({
         expectedRevision: settings.revision,
         requirePhysicalConfirmation,
-        alwaysSelectSet,
+        alwaysSelectPackage,
       });
       onUpdated(committed);
       setMessage(`Saved settings revision ${String(committed.revision)}.`);
@@ -176,13 +176,13 @@ export function SettingsPage({
         <h3>Execution policy</h3>
         <label className="checkbox-row">
           <input
-            checked={alwaysSelectSet}
+            checked={alwaysSelectPackage}
             onChange={(event) => {
-              setAlwaysSelectSet(event.currentTarget.checked);
+              setAlwaysSelectPackage(event.currentTarget.checked);
             }}
             type="checkbox"
           />
-          Always ask which macro set to use
+          Always ask which macro package to use
         </label>
         <label className="checkbox-row">
           <input
@@ -201,15 +201,17 @@ export function SettingsPage({
 
       <div className="management-grid">
         <article className="validation-card">
-          <h3>Macro sets</h3>
-          <p>Create, edit, duplicate, reorder, and delete persisted sets.</p>
+          <h3>Macro packages</h3>
+          <p>
+            Create, edit, duplicate, reorder, and delete persisted packages.
+          </p>
           <button
             onClick={() => {
-              navigate("manage-sets");
+              navigate("manage-packages");
             }}
             type="button"
           >
-            Manage sets
+            Manage packages
           </button>
         </article>
         <article className="validation-card">

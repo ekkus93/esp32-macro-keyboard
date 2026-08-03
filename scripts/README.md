@@ -15,6 +15,6 @@ These first-party scripts are the authoritative local entry points:
 - `run-tests.sh` configures, builds, and runs the host CTest suite.
 - `check-all.sh` runs the complete authoritative quality gate.
 
-Scripts use `set -euo pipefail`, preserve diagnostics, and propagate failing exit
+Scripts use `package -euo pipefail`, preserve diagnostics, and propagate failing exit
 codes. Do not add `|| true`, output redirection that hides failures, warning
 suppression, or exclusions for first-party files.

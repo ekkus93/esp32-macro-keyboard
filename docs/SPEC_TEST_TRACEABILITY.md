@@ -10,7 +10,7 @@ nothing about whether the specification is covered, because the tests were
 written **after** the code they test, in the same pass — so they encode what the
 implementation does rather than what the specification requires.
 
-That is not hypothetical. `POST /api/v1/sets/{setId}/select` required an
+That is not hypothetical. `POST /api/v1/package/{packageId}/select` required an
 `expectedRevision` field that the handler parsed and never used. Six tests
 asserted that requirement because the handler had it. Not one asked what §12.3
 actually says, which is nothing about a revision on selection. All six passed
@@ -41,8 +41,8 @@ None of these is a coverage measurement. This is a worklist, not a score.
 | | Statements | Unmapped |
 | --- | --- | --- |
 | MUST NOT | 76 | 12 |
-| MUST | 192 | 15 |
-| **Total** | **268** | **27** |
+| MUST | 192 | 13 |
+| **Total** | **268** | **25** |
 
 ## Prohibitions (`MUST NOT`) — do these first
 
@@ -76,8 +76,8 @@ cheapest place to find real gaps.
 | §5.2 | L154 | The hardware MUST NOT require any button, jumper, or other component to be added | referenced | device_controls → runtime_failures |
 | §5.3 | L176 | file, and test it. It MUST NOT silently fall back to another filesystem or USB | **UNMAPPED** | — |
 | §6 | L239 | and Vite output are generated or third-party content and MUST NOT be linted as | **UNMAPPED** | — |
-| §7.1 | L261 | through. Firmware MUST preserve it exactly and MUST NOT reorder, sort, or | referenced | full_set_in_order → (file)<br>storage_packages → measured_user_data_tracks_package_files<br>web_api_core → route_parsing<br>web_api_repository_handlers → package_delete_and_persistent_readback |
-| §7.1 | L264 | The user MUST explicitly select the active package. Firmware MUST NOT infer or | referenced | full_set_in_order → (file)<br>storage_packages → measured_user_data_tracks_package_files<br>web_api_core → route_parsing<br>web_api_repository_handlers → package_delete_and_persistent_readback |
+| §7.1 | L261 | through. Firmware MUST preserve it exactly and MUST NOT reorder, sort, or | referenced | full_package_in_order → (file)<br>storage_packages → measured_user_data_tracks_package_files<br>web_api_core → route_parsing<br>web_api_repository_handlers → package_delete_and_persistent_readback |
+| §7.1 | L264 | The user MUST explicitly select the active package. Firmware MUST NOT infer or | referenced | full_package_in_order → (file)<br>storage_packages → measured_user_data_tracks_package_files<br>web_api_core → route_parsing<br>web_api_repository_handlers → package_delete_and_persistent_readback |
 | §8.1 | L295 | The device MUST NOT fall back to an open AP. | referenced | wifi_ap → minimum_credentials_and_existing_event_loop<br>wifi_ap → operation_validation |
 | §8.4 | L341 | rather than demanding confirmation unconditionally. That wait MUST NOT | referenced | executor_terminal_tests → terminal_publish_failure_leaves_executor_unavailable |
 | §8.4 | L352 | The next macro in the list MUST NOT execute automatically. Advancing is a | referenced | executor_terminal_tests → terminal_publish_failure_leaves_executor_unavailable |
@@ -193,7 +193,7 @@ cheapest place to find real gaps.
 | §12 | L727 | creation timestamp or monotonic metadata where available | referenced | acceptance_reset → (file)<br>storage_object_json → macro_rejects_noncanonical_json |
 | §12 | L728 | update timestamp or monotonic metadata where available | referenced | acceptance_reset → (file)<br>storage_object_json → macro_rejects_noncanonical_json |
 | §12.2 | L783 | A macro's `source` MUST compile before it is stored. Creation and update | referenced | storage_object_json → package_document_rejects_duplicate_macro_ids<br>storage_object_json → package_document_round_trip |
-| §12.3 | L804 | the index, is a corruption of the index and is handled under §13.6. Firmware MUST | referenced | app-sets → persists real settings updates<br>provisioning_settings → (file)<br>storage_active_package_delete → (file)<br>storage_packages → delete_is_permanent_and_leaves_no_trash<br>web_api_json → settings_update_matrix<br>web_api_repository_handlers → package_routes |
+| §12.3 | L804 | the index, is a corruption of the index and is handled under §13.6. Firmware MUST | referenced | app-packages → persists real settings updates<br>provisioning_settings → (file)<br>storage_active_package_delete → (file)<br>storage_packages → delete_is_permanent_and_leaves_no_trash<br>web_api_json → settings_update_matrix<br>web_api_repository_handlers → package_routes |
 | §13.1 | L828 | Exact sizes are defined in `firmware/partitions.csv` and MUST be validated | gate-enforced | check-partitions.sh (gate script) |
 | §13.3 | L851 | The `userdata` partition is **512 KiB**. The layout MUST be flat: one index file | referenced | storage_mount → unmount_continues_after_one_failure<br>storage_package_restore → (file)<br>storage_packages → (file)<br>storage_packages → duplicate_index_is_discarded_and_output_cleared<br>web_api_repository_handlers → (file) |
 | §13.4 | L896 | Every update MUST: | referenced | storage_atomic → create_enforces_operation_sequence<br>storage_atomic_recovery → (file)<br>storage_atomic_recovery → stray_temporary_is_removed_at_boot<br>storage_parent_sync → (file)<br>storage_parent_sync → rename_failure_on_create_leaves_nothing |
@@ -274,7 +274,7 @@ cheapest place to find real gaps.
 | §24.2 | L1688 | macro order preserved exactly across write, reboot, export, and restore | referenced | storage_packages → measured_user_data_tracks_package_files |
 | §24.2 | L1689 | import as new | referenced | storage_package_import → invalid_arguments_and_collision_do_not_mutate |
 | §24.2 | L1690 | replace import | referenced | storage_package_replace → invalid_and_conflict_inputs_do_not_mutate |
-| §24.2 | L1691 | partial restore reporting per-package outcomes | **UNMAPPED** | — |
+| §24.2 | L1691 | partial restore reporting per-package outcomes | referenced | backup_restore → (file) |
 | §24.2 | L1692 | no-format mount failure | referenced | storage_mount → web_mount_failure |
 | §24.3 | L1698 | descriptor enumeration | **UNMAPPED** | — |
 | §24.3 | L1699 | ASCII-to-HID mapping | referenced | macro_parser → fuzz_corpus |
@@ -299,19 +299,19 @@ cheapest place to find real gaps.
 | §24.4 | L1723 | redaction | referenced | app_core → residual_ownership_queries_trigger_cleanup |
 | §24.4 | L1724 | import validation | referenced | storage_package_import → (file) |
 | §24.4 | L1725 | explicit status codes | referenced | web_request_policy → get_does_not_require_csrf |
-| §24.5 | L1731 | every required screen | referenced | spec-screens → ${screen.ordinal}. ${screen.heading} renders at #${screen.hash}<br>spec-screens → 1. first-run setup is shown for an unprovisioned device<br>spec-screens → 10. create and duplicate set are reachable from set management<br>spec-screens → 2. login is shown for a provisioned device with no session<br>spec-screens → SPEC 9 required screens |
-| §24.5 | L1732 | active-package visibility | **UNMAPPED** | — |
-| §24.5 | L1733 | package switching | **UNMAPPED** | — |
-| §24.5 | L1734 | package and macro ordering, including that a reorder round-trips through the API | referenced | set-management → set management |
-| §24.5 | L1735 | live validation | referenced | set-management → traps modal focus, closes with Escape, and restores focus |
+| §24.5 | L1731 | every required screen | referenced | spec-screens → ${screen.ordinal}. ${screen.heading} renders at #${screen.hash}<br>spec-screens → 1. first-run setup is shown for an unprovisioned device<br>spec-screens → 10. create and duplicate package are reachable from package management<br>spec-screens → 2. login is shown for a provisioned device with no session<br>spec-screens → SPEC 9 required screens |
+| §24.5 | L1732 | active-package visibility | referenced | app-packages → shows live metadata and filters by search |
+| §24.5 | L1733 | package switching | referenced | app-packages → shows live metadata and filters by search |
+| §24.5 | L1734 | package and macro ordering, including that a reorder round-trips through the API | referenced | package-management → package management |
+| §24.5 | L1735 | live validation | referenced | package-management → traps modal focus, closes with Escape, and restores focus |
 | §24.5 | L1736 | send preview | referenced | execution-confirmation → disables Send with a visible USB explanation |
 | §24.5 | L1737 | disabled Send when USB is unavailable | referenced | execution-confirmation → loads a persisted macro without executing |
 | §24.5 | L1738 | progress polling | referenced | app-execution → execution workflow |
 | §24.5 | L1739 | cancellation | referenced | app-execution → stops polling after unmount |
-| §24.5 | L1740 | import/export/delete confirmations | referenced | set-management → creates a set only after UTF-8 validation succeeds |
-| §24.5 | L1741 | stale-edit conflict UI | referenced | app-sets → selects a set with the settings revision and updates the header |
+| §24.5 | L1740 | import/export/delete confirmations | referenced | package-management → creates a package only after UTF-8 validation succeeds |
+| §24.5 | L1741 | stale-edit conflict UI | referenced | app-packages → selects a package with the settings revision and updates the header |
 | §24.5 | L1742 | storage error UI | referenced | management-screens → shows live redacted storage data |
-| §24.5 | L1743 | keyboard and touch accessibility | referenced | set-management → offers keyboard reorder alternatives and commits exact order |
+| §24.5 | L1743 | keyboard and touch accessibility | referenced | package-management → offers keyboard reorder alternatives and commits exact order |
 | §24.5 | L1744 | responsive mobile layout | referenced | run-browser-tests → (file) |
 | §24.6 | L1750 | Linux host | **UNMAPPED** | — |
 | §24.6 | L1751 | ChromeOS host when available | **UNMAPPED** | — |
@@ -319,7 +319,7 @@ cheapest place to find real gaps.
 | §24.6 | L1753 | power-cycle persistence | referenced | acceptance_reset → (file) |
 | §24.6 | L1754 | repeated USB reconnects | **UNMAPPED** | — |
 | §24.6 | L1755 | repeated AP reconnects | **UNMAPPED** | — |
-| §24.6 | L1756 | a full set of macros sent in order against a harmless text target | referenced | full_set_in_order → (file) |
+| §24.6 | L1756 | a full set of macros sent in order against a harmless text target | **UNMAPPED** | — |
 | §24.6 | L1757 | cancellation over both the API and the `cancel` console command | referenced | cancellation → (file) |
 | §24.6 | L1758 | credential reset | referenced | acceptance_reset → (file) |
 | §24.6 | L1759 | factory reset | referenced | acceptance_reset → (file) |

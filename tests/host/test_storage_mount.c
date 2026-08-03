@@ -143,9 +143,9 @@ static void test_unmount_continues_after_one_failure(void) {
 
 /* ---- storage_prepare_directories: topology validation (real filesystem) ---- */
 
-/* SPEC 13.3: /data holds the set index and sets/, and nothing else. */
+/* SPEC 13.3: /data holds the package index and package/, and nothing else. */
 static const char *const required_dirs[] = {
-    STORAGE_DATA_MOUNT "/sets",
+    STORAGE_DATA_MOUNT "/package",
 };
 
 static bool is_directory(const char *path) {
@@ -189,7 +189,7 @@ static void test_symlink_where_directory_required_is_rejected(void) {
     /* A symlink is not a directory. ensure_directory() resolves it with stat(),
      * so a link to a non-directory is rejected as a corrupt topology (LittleFS has
      * no symlinks, so this can only arise on the host filesystem). */
-    TEST_CHECK(symlink(STORAGE_DATA_MOUNT "/decoy", STORAGE_DATA_MOUNT "/sets") == 0);
+    TEST_CHECK(symlink(STORAGE_DATA_MOUNT "/decoy", STORAGE_DATA_MOUNT "/package") == 0);
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_prepare_directories());
 }
 
