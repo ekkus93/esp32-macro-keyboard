@@ -15,7 +15,6 @@
 #include "storage_json.h"
 #include "storage_object_json.h"
 
-#define STORAGE_PACKAGE_MAX_JSON_DEPTH 64U
 #define STORAGE_PACKAGE_FIELD_NAME_BYTES 32U
 #define STORAGE_PACKAGE_FIELD_COUNT 5U
 /* "skipped" is the only optional member. A complete backup omits it entirely,
@@ -25,20 +24,6 @@
 #define STORAGE_PACKAGE_ARRAY_COUNT 2U
 #define STORAGE_PACKAGE_LOCAL_MACROS_MAX                                                           \
     ((size_t)APP_MACRO_SETS_MAX * (size_t)APP_MACROS_PER_SET_MAX)
-#define STORAGE_PACKAGE_JSON_FRAME_COUNT (STORAGE_PACKAGE_MAX_JSON_DEPTH + 1U)
-#define JSON_UNICODE_ESCAPE_DIGITS 4U
-#define JSON_DECIMAL_RADIX 10U
-
-typedef struct {
-    const char *data;
-    size_t length;
-} json_span_t;
-
-typedef struct {
-    const char *data;
-    size_t length;
-    size_t offset;
-} json_cursor_t;
 
 typedef enum {
     PACKAGE_FIELD_SCHEMA_VERSION = 0,
@@ -57,7 +42,8 @@ typedef enum {
 typedef struct {
     uint32_t schema_version;
     storage_package_kind_t kind;
-    json_span_t arrays[STORAGE_PACKAGE_ARRAY_COUNT];
+    cJSON *root;
+    const cJSON *arrays[STORAGE_PACKAGE_ARRAY_COUNT];
 } package_document_t;
 
 typedef struct {
@@ -91,655 +77,82 @@ typedef struct {
     size_t macro_count;
 } package_validation_state_t;
 
-typedef app_error_code_t (*package_object_callback_t)(const json_span_t *object, void *context);
+typedef app_error_code_t (*package_object_callback_t)(const cJSON *object, void *context);
 
 static const char *const PACKAGE_FIELDS[STORAGE_PACKAGE_FIELD_COUNT] = {
     "schema_version", "package_type", "sets", "macros", "skipped",
 };
 
-static void skip_whitespace(json_cursor_t *cursor) {
-    while (cursor->offset < cursor->length) {
-        const char value = cursor->data[cursor->offset];
-        if (value != ' ' && value != '\t' && value != '\n' && value != '\r') {
-            break;
-        }
-        ++cursor->offset;
-    }
-}
-
-static bool is_hex_digit(char value) {
-    return (value >= '0' && value <= '9') || (value >= 'a' && value <= 'f') ||
-           (value >= 'A' && value <= 'F');
-}
-
-static bool is_decimal_digit(char value) {
-    return value >= '0' && value <= '9';
-}
-
-static app_error_code_t scan_json_unicode_escape(json_cursor_t *cursor) {
-    if (cursor->length - cursor->offset < JSON_UNICODE_ESCAPE_DIGITS) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    bool all_zero = true;
-    for (size_t index = 0U; index < JSON_UNICODE_ESCAPE_DIGITS; ++index) {
-        const char digit = cursor->data[cursor->offset + index];
-        if (!is_hex_digit(digit)) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        all_zero = all_zero && digit == '0';
-    }
-    if (all_zero) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    cursor->offset += JSON_UNICODE_ESCAPE_DIGITS;
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t scan_json_escape(json_cursor_t *cursor) {
-    if (cursor->offset >= cursor->length) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const char escape = cursor->data[cursor->offset++];
-    switch (escape) {
-    case '"':
-    case '\\':
-    case '/':
-    case 'b':
-    case 'f':
-    case 'n':
-    case 'r':
-    case 't':
-        return APP_ERROR_NONE;
-    case 'u':
-        return scan_json_unicode_escape(cursor);
-    default:
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-}
-
-static app_error_code_t scan_json_string(json_cursor_t *cursor) {
-    if (cursor->offset >= cursor->length || cursor->data[cursor->offset] != '"') {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    ++cursor->offset;
-    while (cursor->offset < cursor->length) {
-        const unsigned char value = (unsigned char)cursor->data[cursor->offset++];
-        if (value == (unsigned char)'"') {
-            return APP_ERROR_NONE;
-        }
-        if (value < 0x20U) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        if (value == (unsigned char)'\\') {
-            const app_error_code_t result = scan_json_escape(cursor);
-            if (result != APP_ERROR_NONE) {
-                return result;
-            }
-        }
-    }
-    return APP_ERROR_INVALID_ARGUMENT;
-}
-
-static app_error_code_t scan_json_digits(json_cursor_t *cursor) {
-    const size_t start = cursor->offset;
-    while (cursor->offset < cursor->length && is_decimal_digit(cursor->data[cursor->offset])) {
-        ++cursor->offset;
-    }
-    return cursor->offset > start ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
-}
-
-static app_error_code_t scan_json_integer_part(json_cursor_t *cursor) {
-    if (cursor->offset >= cursor->length) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (cursor->data[cursor->offset] == '0') {
-        ++cursor->offset;
-        return cursor->offset < cursor->length && is_decimal_digit(cursor->data[cursor->offset])
-                   ? APP_ERROR_INVALID_ARGUMENT
-                   : APP_ERROR_NONE;
-    }
-    if (cursor->data[cursor->offset] < '1' || cursor->data[cursor->offset] > '9') {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    return scan_json_digits(cursor);
-}
-
-static app_error_code_t scan_json_fraction(json_cursor_t *cursor) {
-    if (cursor->offset >= cursor->length || cursor->data[cursor->offset] != '.') {
-        return APP_ERROR_NONE;
-    }
-    ++cursor->offset;
-    return scan_json_digits(cursor);
-}
-
-static app_error_code_t scan_json_exponent(json_cursor_t *cursor) {
-    if (cursor->offset >= cursor->length ||
-        (cursor->data[cursor->offset] != 'e' && cursor->data[cursor->offset] != 'E')) {
-        return APP_ERROR_NONE;
-    }
-    ++cursor->offset;
-    if (cursor->offset < cursor->length &&
-        (cursor->data[cursor->offset] == '+' || cursor->data[cursor->offset] == '-')) {
-        ++cursor->offset;
-    }
-    return scan_json_digits(cursor);
-}
-
-static app_error_code_t scan_json_number(json_cursor_t *cursor) {
-    if (cursor->offset < cursor->length && cursor->data[cursor->offset] == '-') {
-        ++cursor->offset;
-    }
-    app_error_code_t result = scan_json_integer_part(cursor);
-    if (result == APP_ERROR_NONE) {
-        result = scan_json_fraction(cursor);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = scan_json_exponent(cursor);
-    }
-    return result;
-}
-
-static bool consume_literal(json_cursor_t *cursor, const char *literal) {
-    const size_t length = strlen(literal);
-    if (cursor->length - cursor->offset < length ||
-        memcmp(cursor->data + cursor->offset, literal, length) != 0) {
-        return false;
-    }
-    cursor->offset += length;
-    return true;
-}
-
-typedef enum {
-    JSON_FRAME_ARRAY_VALUE_OR_END = 0,
-    JSON_FRAME_ARRAY_VALUE_REQUIRED,
-    JSON_FRAME_ARRAY_SEPARATOR_OR_END,
-    JSON_FRAME_OBJECT_KEY_OR_END,
-    JSON_FRAME_OBJECT_KEY_REQUIRED,
-    JSON_FRAME_OBJECT_COLON,
-    JSON_FRAME_OBJECT_VALUE_REQUIRED,
-    JSON_FRAME_OBJECT_SEPARATOR_OR_END,
-} json_frame_state_t;
-
-typedef struct {
-    json_frame_state_t state;
-} json_frame_t;
-
-static app_error_code_t complete_json_value(json_frame_t *frames, size_t depth,
-                                            bool *out_complete) {
-    if (depth == 0U) {
-        *out_complete = true;
-        return APP_ERROR_NONE;
-    }
-    json_frame_state_t *state = &frames[depth - 1U].state;
-    switch (*state) {
-    case JSON_FRAME_ARRAY_VALUE_OR_END:
-    case JSON_FRAME_ARRAY_VALUE_REQUIRED:
-        *state = JSON_FRAME_ARRAY_SEPARATOR_OR_END;
-        return APP_ERROR_NONE;
-    case JSON_FRAME_OBJECT_VALUE_REQUIRED:
-        *state = JSON_FRAME_OBJECT_SEPARATOR_OR_END;
-        return APP_ERROR_NONE;
-    default:
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-}
-
-static app_error_code_t scan_json_scalar(json_cursor_t *cursor) {
-    switch (cursor->data[cursor->offset]) {
-    case '"':
-        return scan_json_string(cursor);
-    case 't':
-        return consume_literal(cursor, "true") ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
-    case 'f':
-        return consume_literal(cursor, "false") ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
-    case 'n':
-        return consume_literal(cursor, "null") ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
-    default:
-        return scan_json_number(cursor);
-    }
-}
-
-static app_error_code_t begin_json_value(json_cursor_t *cursor, json_frame_t *frames,
-                                         size_t *in_out_depth, bool *out_complete) {
-    skip_whitespace(cursor);
-    if (cursor->offset >= cursor->length) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const char token = cursor->data[cursor->offset];
-    if (token == '[' || token == '{') {
-        if (*in_out_depth >= STORAGE_PACKAGE_JSON_FRAME_COUNT) {
-            return APP_ERROR_MACRO_LIMIT;
-        }
-        ++cursor->offset;
-        frames[*in_out_depth].state =
-            token == '[' ? JSON_FRAME_ARRAY_VALUE_OR_END : JSON_FRAME_OBJECT_KEY_OR_END;
-        ++*in_out_depth;
-        return APP_ERROR_NONE;
-    }
-    const app_error_code_t result = scan_json_scalar(cursor);
-    return result == APP_ERROR_NONE ? complete_json_value(frames, *in_out_depth, out_complete)
-                                    : result;
-}
-
-static app_error_code_t close_json_container(json_cursor_t *cursor, json_frame_t *frames,
-                                             size_t *in_out_depth, bool *out_complete) {
-    ++cursor->offset;
-    --*in_out_depth;
-    return complete_json_value(frames, *in_out_depth, out_complete);
-}
-
-static app_error_code_t process_array_value(json_cursor_t *cursor, json_frame_t *frames,
-                                            size_t *in_out_depth, bool allow_empty,
-                                            bool *out_complete) {
-    skip_whitespace(cursor);
-    if (allow_empty && cursor->offset < cursor->length && cursor->data[cursor->offset] == ']') {
-        return close_json_container(cursor, frames, in_out_depth, out_complete);
-    }
-    return begin_json_value(cursor, frames, in_out_depth, out_complete);
-}
-
-static app_error_code_t process_array_separator(json_cursor_t *cursor, json_frame_t *frames,
-                                                size_t *in_out_depth, bool *out_complete) {
-    skip_whitespace(cursor);
-    if (cursor->offset >= cursor->length) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const char separator = cursor->data[cursor->offset];
-    if (separator == ']') {
-        return close_json_container(cursor, frames, in_out_depth, out_complete);
-    }
-    if (separator != ',') {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    ++cursor->offset;
-    frames[*in_out_depth - 1U].state = JSON_FRAME_ARRAY_VALUE_REQUIRED;
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t process_object_key(json_cursor_t *cursor, json_frame_t *frames,
-                                           size_t *in_out_depth, bool allow_empty,
-                                           bool *out_complete) {
-    skip_whitespace(cursor);
-    if (allow_empty && cursor->offset < cursor->length && cursor->data[cursor->offset] == '}') {
-        return close_json_container(cursor, frames, in_out_depth, out_complete);
-    }
-    const app_error_code_t result = scan_json_string(cursor);
-    if (result == APP_ERROR_NONE) {
-        frames[*in_out_depth - 1U].state = JSON_FRAME_OBJECT_COLON;
-    }
-    return result;
-}
-
-static app_error_code_t process_object_colon(json_cursor_t *cursor, json_frame_t *frames,
-                                             size_t depth) {
-    skip_whitespace(cursor);
-    if (cursor->offset >= cursor->length || cursor->data[cursor->offset] != ':') {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    ++cursor->offset;
-    frames[depth - 1U].state = JSON_FRAME_OBJECT_VALUE_REQUIRED;
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t process_object_separator(json_cursor_t *cursor, json_frame_t *frames,
-                                                 size_t *in_out_depth, bool *out_complete) {
-    skip_whitespace(cursor);
-    if (cursor->offset >= cursor->length) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const char separator = cursor->data[cursor->offset];
-    if (separator == '}') {
-        return close_json_container(cursor, frames, in_out_depth, out_complete);
-    }
-    if (separator != ',') {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    ++cursor->offset;
-    frames[*in_out_depth - 1U].state = JSON_FRAME_OBJECT_KEY_REQUIRED;
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t process_json_frame(json_cursor_t *cursor, json_frame_t *frames,
-                                           size_t *in_out_depth, bool *out_complete) {
-    switch (frames[*in_out_depth - 1U].state) {
-    case JSON_FRAME_ARRAY_VALUE_OR_END:
-        return process_array_value(cursor, frames, in_out_depth, true, out_complete);
-    case JSON_FRAME_ARRAY_VALUE_REQUIRED:
-        return process_array_value(cursor, frames, in_out_depth, false, out_complete);
-    case JSON_FRAME_ARRAY_SEPARATOR_OR_END:
-        return process_array_separator(cursor, frames, in_out_depth, out_complete);
-    case JSON_FRAME_OBJECT_KEY_OR_END:
-        return process_object_key(cursor, frames, in_out_depth, true, out_complete);
-    case JSON_FRAME_OBJECT_KEY_REQUIRED:
-        return process_object_key(cursor, frames, in_out_depth, false, out_complete);
-    case JSON_FRAME_OBJECT_COLON:
-        return process_object_colon(cursor, frames, *in_out_depth);
-    case JSON_FRAME_OBJECT_VALUE_REQUIRED:
-        return begin_json_value(cursor, frames, in_out_depth, out_complete);
-    case JSON_FRAME_OBJECT_SEPARATOR_OR_END:
-        return process_object_separator(cursor, frames, in_out_depth, out_complete);
-    default:
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-}
-
-static app_error_code_t scan_json_value(json_cursor_t *cursor, size_t depth) {
-    if (depth != 0U) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    json_frame_t frames[STORAGE_PACKAGE_JSON_FRAME_COUNT] = {0};
-    size_t frame_depth = 0U;
-    bool complete = false;
-    app_error_code_t result = begin_json_value(cursor, frames, &frame_depth, &complete);
-    while (result == APP_ERROR_NONE && !complete) {
-        result = process_json_frame(cursor, frames, &frame_depth, &complete);
-    }
-    return result;
-}
-
-static app_error_code_t capture_json_value(json_cursor_t *cursor, json_span_t *out_span) {
-    skip_whitespace(cursor);
-    const size_t start = cursor->offset;
-    const app_error_code_t result = scan_json_value(cursor, 0U);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    out_span->data = cursor->data + start;
-    out_span->length = cursor->offset - start;
-    return APP_ERROR_NONE;
-}
-
-/* Leading whitespace is skipped here, as every other token consumer in this
- * scanner already does. Without it a package could only be parsed if it carried
- * no space after a colon -- which the device's own writer happens to satisfy and
- * a pretty-printer does not, so an exported backup opened in an editor and saved
- * came back as 422 invalid_argument with nothing to explain it. */
-static app_error_code_t read_plain_string(json_cursor_t *cursor, char *output, size_t output_size) {
-    skip_whitespace(cursor);
-    if (output == NULL || output_size == 0U || cursor->offset >= cursor->length ||
-        cursor->data[cursor->offset] != '"') {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    ++cursor->offset;
-    const size_t start = cursor->offset;
-    while (cursor->offset < cursor->length && cursor->data[cursor->offset] != '"') {
-        const unsigned char value = (unsigned char)cursor->data[cursor->offset];
-        if (value < 0x20U || value == (unsigned char)'\\') {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        ++cursor->offset;
-    }
-    if (cursor->offset >= cursor->length) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const size_t length = cursor->offset - start;
-    if (length == 0U || length >= output_size) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    memcpy(output, cursor->data + start, length);
-    output[length] = '\0';
-    ++cursor->offset;
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t read_u32(json_cursor_t *cursor, uint32_t *out_value) {
-    skip_whitespace(cursor);
-    if (out_value == NULL || cursor->offset >= cursor->length ||
-        !is_decimal_digit(cursor->data[cursor->offset])) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    uint32_t value = 0U;
-    const size_t start = cursor->offset;
-    while (cursor->offset < cursor->length && is_decimal_digit(cursor->data[cursor->offset])) {
-        const uint32_t digit = (uint32_t)(cursor->data[cursor->offset] - '0');
-        if (value > (UINT32_MAX - digit) / JSON_DECIMAL_RADIX) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        value = value * JSON_DECIMAL_RADIX + digit;
-        ++cursor->offset;
-    }
-    if (cursor->offset - start > 1U && cursor->data[start] == '0') {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    *out_value = value;
-    return APP_ERROR_NONE;
-}
-
-static size_t package_field_index(const char *name) {
-    for (size_t index = 0U; index < STORAGE_PACKAGE_FIELD_COUNT; ++index) {
-        if (strcmp(name, PACKAGE_FIELDS[index]) == 0) {
-            return index;
-        }
-    }
-    return SIZE_MAX;
-}
-
-static app_error_code_t read_package_kind(json_cursor_t *cursor, storage_package_kind_t *out_kind) {
-    char value[sizeof("backup")];
-    app_error_code_t result = read_plain_string(cursor, value, sizeof(value));
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    if (strcmp(value, "set") == 0) {
-        *out_kind = STORAGE_PACKAGE_KIND_SET;
-        return APP_ERROR_NONE;
-    }
-    if (strcmp(value, "backup") == 0) {
-        *out_kind = STORAGE_PACKAGE_KIND_BACKUP;
-        return APP_ERROR_NONE;
-    }
-    return APP_ERROR_INVALID_ARGUMENT;
-}
-
-static package_array_t package_array_for_field(size_t field_index) {
-    switch ((package_field_t)field_index) {
-    case PACKAGE_FIELD_SETS:
-        return PACKAGE_ARRAY_SETS;
-    case PACKAGE_FIELD_MACROS:
-        return PACKAGE_ARRAY_MACROS;
-    case PACKAGE_FIELD_SCHEMA_VERSION:
-    case PACKAGE_FIELD_TYPE:
-    default:
-        return PACKAGE_ARRAY_COUNT;
-    }
-}
-
-static app_error_code_t parse_package_field(json_cursor_t *cursor, size_t field_index,
-                                            package_document_t *out_document) {
-    if (field_index == PACKAGE_FIELD_SCHEMA_VERSION) {
-        return read_u32(cursor, &out_document->schema_version);
-    }
-    if (field_index == PACKAGE_FIELD_TYPE) {
-        return read_package_kind(cursor, &out_document->kind);
-    }
-    if (field_index == PACKAGE_FIELD_SKIPPED) {
-        /* A record of what a partial backup dropped. It is descriptive only:
-         * restore never reads objects from it, so it is checked for shape and
-         * otherwise ignored. */
-        json_span_t skipped = {0};
-        const app_error_code_t captured = capture_json_value(cursor, &skipped);
-        if (captured != APP_ERROR_NONE) {
-            return captured;
-        }
-        return skipped.length != 0U && skipped.data[0] == '{' ? APP_ERROR_NONE
-                                                              : APP_ERROR_INVALID_ARGUMENT;
-    }
-    const package_array_t array_index = package_array_for_field(field_index);
-    if ((size_t)array_index >= STORAGE_PACKAGE_ARRAY_COUNT) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    app_error_code_t result = capture_json_value(cursor, &out_document->arrays[array_index]);
-    if (result == APP_ERROR_NONE && (out_document->arrays[array_index].length == 0U ||
-                                     out_document->arrays[array_index].data[0] != '[')) {
-        result = APP_ERROR_INVALID_ARGUMENT;
-    }
-    return result;
-}
-
-static app_error_code_t parse_package_member(json_cursor_t *cursor,
-                                             package_document_t *out_document,
-                                             uint32_t *in_out_seen) {
-    char name[STORAGE_PACKAGE_FIELD_NAME_BYTES];
-    app_error_code_t result = read_plain_string(cursor, name, sizeof(name));
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    const size_t field_index = package_field_index(name);
-    if (field_index == SIZE_MAX || (*in_out_seen & (UINT32_C(1) << field_index)) != 0U) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    skip_whitespace(cursor);
-    if (cursor->offset >= cursor->length || cursor->data[cursor->offset] != ':') {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    ++cursor->offset;
-    result = parse_package_field(cursor, field_index, out_document);
-    if (result == APP_ERROR_NONE) {
-        *in_out_seen |= UINT32_C(1) << field_index;
-    }
-    return result;
-}
-
-static app_error_code_t
-parse_package_members(json_cursor_t *cursor, package_document_t *out_document, uint32_t *out_seen) {
-    *out_seen = 0U;
-    skip_whitespace(cursor);
-    if (cursor->offset < cursor->length && cursor->data[cursor->offset] == '}') {
-        ++cursor->offset;
-        return APP_ERROR_NONE;
-    }
-    for (;;) {
-        app_error_code_t result = parse_package_member(cursor, out_document, out_seen);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        skip_whitespace(cursor);
-        if (cursor->offset >= cursor->length) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        const char separator = cursor->data[cursor->offset++];
-        if (separator == '}') {
-            return APP_ERROR_NONE;
-        }
-        if (separator != ',') {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        skip_whitespace(cursor);
-        if (cursor->offset >= cursor->length || cursor->data[cursor->offset] == '}') {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-    }
-}
-
-static app_error_code_t finish_package_document(json_cursor_t *cursor, uint32_t seen,
-                                                const package_document_t *document) {
-    skip_whitespace(cursor);
-    const uint32_t required = ((UINT32_C(1) << STORAGE_PACKAGE_FIELD_COUNT) - UINT32_C(1)) &
-                              ~STORAGE_PACKAGE_OPTIONAL_FIELDS;
-    return cursor->offset == cursor->length && (seen & required) == required &&
-                   document->schema_version == APP_SCHEMA_VERSION
-               ? APP_ERROR_NONE
-               : APP_ERROR_INVALID_ARGUMENT;
-}
-
+/* The package is parsed once, by cJSON, and validated by walking that tree.
+ *
+ * This replaced a hand-rolled streaming scanner of about 545 lines whose only
+ * product was per-object text slices -- which were then handed to cJSON one at
+ * a time, so cJSON parsed every object anyway and the scanner was a second parse
+ * of the envelope around them. Restore made that explicit: it validated with the
+ * scanner and then parsed the identical bytes with cJSON in the same request.
+ *
+ * The usual reason to hand-roll one is bounded memory, and that argument does
+ * not hold here: packages cap at APP_IMPORT_PACKAGE_MAX_BYTES (512 KiB) against
+ * 8 MB of PSRAM, and the restore path already built the full tree. */
 static app_error_code_t parse_package_document(const char *data, size_t length,
                                                package_document_t *out_document) {
     memset(out_document, 0, sizeof(*out_document));
-    json_cursor_t cursor = {
-        .data = data,
-        .length = length,
-        .offset = 0U,
-    };
-    skip_whitespace(&cursor);
-    if (cursor.offset >= cursor.length || cursor.data[cursor.offset] != '{') {
+    const char *parse_end = NULL;
+    cJSON *root = cJSON_ParseWithLengthOpts(data, length, &parse_end, false);
+    if (root == NULL || parse_end != data + length || !cJSON_IsObject(root)) {
+        cJSON_Delete(root);
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    ++cursor.offset;
-    uint32_t seen = 0U;
-    const app_error_code_t result = parse_package_members(&cursor, out_document, &seen);
-    return result == APP_ERROR_NONE ? finish_package_document(&cursor, seen, out_document) : result;
-}
-
-static app_error_code_t finish_object_array(json_cursor_t *cursor) {
-    skip_whitespace(cursor);
-    return cursor->offset == cursor->length ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
-}
-
-static app_error_code_t visit_object_array_item(json_cursor_t *cursor, size_t maximum_count,
-                                                package_object_callback_t callback, void *context,
-                                                size_t *in_out_count) {
-    json_span_t object = {0};
-    app_error_code_t result = capture_json_value(cursor, &object);
+    /* `skipped` is optional (SPEC 17): a complete package omits it entirely. */
+    app_error_code_t result = storage_json_check_object_fields(
+        root, PACKAGE_FIELDS, STORAGE_PACKAGE_FIELD_COUNT, STORAGE_PACKAGE_FIELD_COUNT - 1U);
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_u32(root, "schema_version", APP_SCHEMA_VERSION,
+                                      APP_SCHEMA_VERSION, &out_document->schema_version);
+    }
+    char kind[sizeof("backup")] = {0};
+    if (result == APP_ERROR_NONE) {
+        result = storage_json_get_string(root, "package_type", kind, sizeof(kind), true);
+    }
+    if (result == APP_ERROR_NONE) {
+        if (strcmp(kind, "set") == 0) {
+            out_document->kind = STORAGE_PACKAGE_KIND_SET;
+        } else if (strcmp(kind, "backup") == 0) {
+            out_document->kind = STORAGE_PACKAGE_KIND_BACKUP;
+        } else {
+            result = APP_ERROR_INVALID_ARGUMENT;
+        }
+    }
+    if (result == APP_ERROR_NONE) {
+        static const char *const names[STORAGE_PACKAGE_ARRAY_COUNT] = {
+            [PACKAGE_ARRAY_SETS] = "sets",
+            [PACKAGE_ARRAY_MACROS] = "macros",
+        };
+        for (size_t index = 0U; index < STORAGE_PACKAGE_ARRAY_COUNT; ++index) {
+            const cJSON *array = cJSON_GetObjectItemCaseSensitive(root, names[index]);
+            if (!cJSON_IsArray(array)) {
+                result = APP_ERROR_INVALID_ARGUMENT;
+                break;
+            }
+            out_document->arrays[index] = array;
+        }
+    }
     if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    if (object.length == 0U || object.data[0] != '{') {
+        cJSON_Delete(root);
+        memset(out_document, 0, sizeof(*out_document));
+        /* A malformed envelope is a bad argument from the caller, not a corrupt
+         * stored object: the package came in over the API. The field helpers
+         * report APP_ERROR_STORAGE_CORRUPT because they are shared with the
+         * repository, where the bytes did come off the filesystem. */
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    if (*in_out_count >= maximum_count) {
-        return APP_ERROR_MACRO_LIMIT;
-    }
-    if (callback != NULL) {
-        result = callback(&object, context);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-    }
-    ++*in_out_count;
+    out_document->root = root;
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t consume_object_array_separator(json_cursor_t *cursor, bool *out_done) {
-    skip_whitespace(cursor);
-    if (cursor->offset >= cursor->length) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const char separator = cursor->data[cursor->offset++];
-    if (separator == ']') {
-        *out_done = true;
-        return APP_ERROR_NONE;
-    }
-    if (separator != ',') {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    skip_whitespace(cursor);
-    if (cursor->offset >= cursor->length || cursor->data[cursor->offset] == ']') {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    *out_done = false;
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t visit_object_array(const json_span_t *array, size_t maximum_count,
-                                           package_object_callback_t callback, void *context,
-                                           size_t *out_count) {
-    if (array == NULL || out_count == NULL || array->length < 2U || array->data[0] != '[') {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    *out_count = 0U;
-    json_cursor_t cursor = {
-        .data = array->data,
-        .length = array->length,
-        .offset = 1U,
-    };
-    skip_whitespace(&cursor);
-    if (cursor.offset < cursor.length && cursor.data[cursor.offset] == ']') {
-        ++cursor.offset;
-        return finish_object_array(&cursor);
-    }
-    bool done = false;
-    while (!done) {
-        app_error_code_t result =
-            visit_object_array_item(&cursor, maximum_count, callback, context, out_count);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-        result = consume_object_array_separator(&cursor, &done);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-    }
-    return finish_object_array(&cursor);
+static void close_package_document(package_document_t *document) {
+    cJSON_Delete(document->root);
+    memset(document, 0, sizeof(*document));
 }
 
 static bool add_allocation_budget(const allocation_shape_t *shape, size_t *in_out_total) {
@@ -846,32 +259,16 @@ static app_error_code_t external_object_result(app_error_code_t result) {
     return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
 }
 
-static app_error_code_t parse_exact_set(const json_span_t *object, macro_set_t *out_set) {
-    static const char *const fields[] = {
-        "schema_version",
-        "id",
-        "revision",
-        "name",
-    };
-    cJSON *root = NULL;
-    app_error_code_t result = storage_json_parse_exact_object(
-        object->data, object->length, fields, sizeof(fields) / sizeof(fields[0]), &root);
-    cJSON_Delete(root);
-    if (result == APP_ERROR_NONE) {
-        result = storage_repository_parse_set_json(object->data, object->length, out_set);
-    }
-    return external_object_result(result);
-}
-
-static app_error_code_t validate_set_object(const json_span_t *object, void *context) {
+static app_error_code_t validate_set_object(const cJSON *object, void *context) {
     package_validation_state_t *state = context;
     if (state == NULL || state->set_count >= state->set_capacity) {
         return APP_ERROR_INTERNAL;
     }
     macro_set_t set = {0};
-    app_error_code_t result = parse_exact_set(object, &set);
-    if (result != APP_ERROR_NONE) {
-        return result;
+    const app_error_code_t parsed =
+        external_object_result(storage_repository_parse_set_node(object, &set));
+    if (parsed != APP_ERROR_NONE) {
+        return parsed;
     }
     if (find_set_index(state, &set.id) != SIZE_MAX) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -894,14 +291,14 @@ static app_error_code_t compile_package_macro(const macro_t *macro) {
     return result;
 }
 
-static app_error_code_t validate_macro_object(const json_span_t *object, void *context) {
+static app_error_code_t validate_macro_object(const cJSON *object, void *context) {
     package_validation_state_t *state = context;
     if (state == NULL || state->macro_count >= state->macro_capacity) {
         return APP_ERROR_INTERNAL;
     }
     macro_t macro = {0};
-    app_error_code_t result = external_object_result(
-        storage_repository_parse_macro_json(object->data, object->length, &macro));
+    app_error_code_t result =
+        external_object_result(storage_repository_parse_macro_node(object, &macro));
     if (result == APP_ERROR_NONE && find_macro_index(state, &macro.id) != SIZE_MAX) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
@@ -928,19 +325,49 @@ static app_error_code_t validate_macro_object(const json_span_t *object, void *c
     return result;
 }
 
+/* cJSON has already parsed the arrays, so counting is reading their length --
+ * where the scanner had to walk every element a second time to do it. */
+static app_error_code_t visit_object_array(const cJSON *array, size_t maximum_count,
+                                           package_object_callback_t callback, void *context,
+                                           size_t *out_count) {
+    const int size = cJSON_GetArraySize(array);
+    if (size < 0 || (size_t)size > maximum_count) {
+        return APP_ERROR_MACRO_LIMIT;
+    }
+    if (out_count != NULL) {
+        *out_count = (size_t)size;
+    }
+    if (callback == NULL) {
+        return APP_ERROR_NONE;
+    }
+    const cJSON *element = NULL;
+    cJSON_ArrayForEach(element, array) {
+        if (!cJSON_IsObject(element)) {
+            return APP_ERROR_INVALID_ARGUMENT;
+        }
+        const app_error_code_t result = callback(element, context);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+    }
+    return APP_ERROR_NONE;
+}
+
 static app_error_code_t count_package_arrays(const package_document_t *document,
                                              storage_package_summary_t *out_summary) {
     app_error_code_t result =
-        visit_object_array(&document->arrays[PACKAGE_ARRAY_SETS], APP_MACRO_SETS_MAX, NULL, NULL,
+        visit_object_array(document->arrays[PACKAGE_ARRAY_SETS], APP_MACRO_SETS_MAX, NULL, NULL,
                            &out_summary->set_count);
     if (result == APP_ERROR_NONE) {
-        result = visit_object_array(&document->arrays[PACKAGE_ARRAY_MACROS],
+        result = visit_object_array(document->arrays[PACKAGE_ARRAY_MACROS],
                                     STORAGE_PACKAGE_LOCAL_MACROS_MAX, NULL, NULL,
                                     &out_summary->local_macro_count);
     }
     if (result != APP_ERROR_NONE) {
         return result;
     }
+    /* A set package carries exactly one set; a backup carries the repository.
+     * Either way the macros have to fit in the sets that are present. */
     if ((document->kind == STORAGE_PACKAGE_KIND_SET && out_summary->set_count != 1U) ||
         out_summary->local_macro_count > out_summary->set_count * APP_MACROS_PER_SET_MAX) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -954,12 +381,12 @@ static app_error_code_t validate_package_objects(const package_document_t *docum
     app_error_code_t result = allocate_validation_state(summary, &state);
     size_t visited = 0U;
     if (result == APP_ERROR_NONE) {
-        result = visit_object_array(&document->arrays[PACKAGE_ARRAY_SETS], state.set_capacity,
+        result = visit_object_array(document->arrays[PACKAGE_ARRAY_SETS], state.set_capacity,
                                     validate_set_object, &state, &visited);
     }
     if (result == APP_ERROR_NONE) {
         result =
-            visit_object_array(&document->arrays[PACKAGE_ARRAY_MACROS], summary->local_macro_count,
+            visit_object_array(document->arrays[PACKAGE_ARRAY_MACROS], summary->local_macro_count,
                                validate_macro_object, &state, &visited);
     }
     if (result == APP_ERROR_NONE && (state.set_count != summary->set_count ||
@@ -1000,10 +427,9 @@ app_error_code_t storage_package_validate(const char *data, size_t length,
     package_document_t document = {0};
     app_error_code_t result = parse_package_document(data, length, &document);
     if (result != APP_ERROR_NONE) {
-        /* The scanner rejects whitespace between tokens, so a pretty-printed
-         * package fails here with nothing else to go on. Say so. */
-        PACKAGE_DIAG("package parse failed: len=%u result=%d kind=%d expected=%d", (unsigned)length,
-                     (int)result, (int)document.kind, (int)expected_kind);
+        PACKAGE_DIAG("package parse failed: len=%u result=%d expected kind=%d", (unsigned)length,
+                     (int)result, (int)expected_kind);
+        return result;
     }
     if (result == APP_ERROR_NONE && document.kind != expected_kind) {
         result = APP_ERROR_INVALID_ARGUMENT;
@@ -1028,5 +454,6 @@ app_error_code_t storage_package_validate(const char *data, size_t length,
     if (result == APP_ERROR_NONE) {
         *out_summary = summary;
     }
+    close_package_document(&document);
     return result;
 }

@@ -777,6 +777,33 @@ Bootstrap AP passphrase and setup code are in
   when storage is damaged (SPEC 17). The write path stops new ones; the read
   path survives the old ones.
 
+- [x] **5.8 The hand-rolled JSON scanner is gone. DONE 2026-08-02.**
+  `storage_package.c` carried a streaming scanner -- cursor, frame stack,
+  `scan_json_*`, `process_object_*` -- whose only product was per-object text
+  slices, which were then handed to cJSON one at a time. cJSON therefore parsed
+  every object in a package already, and the scanner was a second parse of the
+  envelope around them. Restore made it explicit: it validated with the scanner
+  and parsed the identical bytes with cJSON in the same request.
+
+  The usual justification is bounded memory, and it did not hold: packages cap
+  at 512 KiB against 8 MB of PSRAM, and the restore path built the full tree
+  anyway.
+
+  The package is now parsed once by cJSON and validated by walking that tree.
+  `storage_package.c` went from 1,032 lines to 459; the component from 7,133 to
+  6,633. The object validators kept their logic -- duplicate ids, the set a
+  macro belongs to, the per-set macro cap, compiling each source -- and gained
+  node-based entry points (`storage_repository_parse_{set,macro}_node`).
+
+  Two rules were dropped in the first pass and restored once the tests caught
+  them: a set package holds exactly one set, and the macro count must fit the
+  sets present. That is what those tests are for.
+
+  Verified on hardware after flashing: backup and restore round-trip 14 sets,
+  a pretty-printed package restores (whitespace is now cJSON's problem, not
+  ours), and `{}` and a kind mismatch are still refused with 422.
+
+
 ---
 
 ## Acceptance
