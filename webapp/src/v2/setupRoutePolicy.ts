@@ -30,13 +30,15 @@ export interface SetupRoutePolicy {
   };
 }
 
+function all(checks: readonly boolean[]): boolean {
+  return checks.every(Boolean);
+}
+
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.getPrototypeOf(value) === Object.prototype
-  );
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  return Object.getPrototypeOf(value) === Object.prototype;
 }
 
 function hasExactKeys(
@@ -45,15 +47,17 @@ function hasExactKeys(
 ): boolean {
   const actualKeys = Object.keys(value).sort();
   const sortedExpected = [...expectedKeys].sort();
-  return (
-    actualKeys.length === sortedExpected.length &&
-    actualKeys.every((key, index) => key === sortedExpected[index])
-  );
+  return all([
+    actualKeys.length === sortedExpected.length,
+    actualKeys.every((key, index) => key === sortedExpected[index]),
+  ]);
 }
 
 function isSetupGetRoutePolicy(value: unknown): value is SetupGetRoutePolicy {
-  return (
-    isPlainRecord(value) &&
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+  return all([
     hasExactKeys(value, [
       "authentication",
       "method",
@@ -61,19 +65,21 @@ function isSetupGetRoutePolicy(value: unknown): value is SetupGetRoutePolicy {
       "requestBody",
       "responseContentType",
       "successStatus",
-    ]) &&
-    value.method === "GET" &&
-    value.path === "/api/v1/setup" &&
-    value.authentication === "none" &&
-    value.requestBody === "none" &&
-    value.successStatus === 200 &&
-    value.responseContentType === "application/json"
-  );
+    ]),
+    value.method === "GET",
+    value.path === "/api/v1/setup",
+    value.authentication === "none",
+    value.requestBody === "none",
+    value.successStatus === 200,
+    value.responseContentType === "application/json",
+  ]);
 }
 
 function isSetupPostRoutePolicy(value: unknown): value is SetupPostRoutePolicy {
-  return (
-    isPlainRecord(value) &&
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+  return all([
     hasExactKeys(value, [
       "authentication",
       "method",
@@ -82,47 +88,67 @@ function isSetupPostRoutePolicy(value: unknown): value is SetupPostRoutePolicy {
       "requestContentType",
       "responseContentType",
       "successStatus",
-    ]) &&
-    value.method === "POST" &&
-    value.path === "/api/v1/setup" &&
-    value.authentication === "none" &&
-    value.requestContentType === "application/json" &&
-    value.requestBodyLimit === "jsonBodyMaxBytes" &&
-    value.successStatus === 202 &&
-    value.responseContentType === "application/json"
-  );
+    ]),
+    value.method === "POST",
+    value.path === "/api/v1/setup",
+    value.authentication === "none",
+    value.requestContentType === "application/json",
+    value.requestBodyLimit === "jsonBodyMaxBytes",
+    value.successStatus === 202,
+    value.responseContentType === "application/json",
+  ]);
+}
+
+function hasPolicyIdentity(value: Record<string, unknown>): boolean {
+  return all([
+    hasExactKeys(value, ["format", "provisioned", "unprovisioned", "version"]),
+    value.format === "esp32-macro-keyboard-setup-route-policy",
+    value.version === 1,
+  ]);
+}
+
+function isRouteTuple(value: unknown): boolean {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+  return all([
+    value.length === 2,
+    Object.hasOwn(value, 0),
+    Object.hasOwn(value, 1),
+    isSetupGetRoutePolicy(value[0]),
+    isSetupPostRoutePolicy(value[1]),
+  ]);
+}
+
+function isUnprovisionedPolicy(value: unknown): boolean {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+  return all([
+    hasExactKeys(value, ["apiRoutes", "otherApiRoutes"]),
+    isRouteTuple(value.apiRoutes),
+    value.otherApiRoutes === "unavailable",
+  ]);
+}
+
+function isProvisionedPolicy(value: unknown): boolean {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+  return all([
+    hasExactKeys(value, ["getSetupStatus", "postSetupStatus"]),
+    value.getSetupStatus === 404,
+    value.postSetupStatus === 409,
+  ]);
 }
 
 export function isSetupRoutePolicy(value: unknown): value is SetupRoutePolicy {
-  if (
-    !isPlainRecord(value) ||
-    !hasExactKeys(value, ["format", "provisioned", "unprovisioned", "version"]) ||
-    value.format !== "esp32-macro-keyboard-setup-route-policy" ||
-    value.version !== 1
-  ) {
+  if (!isPlainRecord(value)) {
     return false;
   }
-
-  const unprovisioned = value.unprovisioned;
-  const provisioned = value.provisioned;
-  if (
-    !isPlainRecord(unprovisioned) ||
-    !hasExactKeys(unprovisioned, ["apiRoutes", "otherApiRoutes"]) ||
-    !Array.isArray(unprovisioned.apiRoutes) ||
-    unprovisioned.apiRoutes.length !== 2 ||
-    !Object.hasOwn(unprovisioned.apiRoutes, 0) ||
-    !Object.hasOwn(unprovisioned.apiRoutes, 1) ||
-    !isSetupGetRoutePolicy(unprovisioned.apiRoutes[0]) ||
-    !isSetupPostRoutePolicy(unprovisioned.apiRoutes[1]) ||
-    unprovisioned.otherApiRoutes !== "unavailable"
-  ) {
-    return false;
-  }
-
-  return (
-    isPlainRecord(provisioned) &&
-    hasExactKeys(provisioned, ["getSetupStatus", "postSetupStatus"]) &&
-    provisioned.getSetupStatus === 404 &&
-    provisioned.postSetupStatus === 409
-  );
+  return all([
+    hasPolicyIdentity(value),
+    isUnprovisionedPolicy(value.unprovisioned),
+    isProvisionedPolicy(value.provisioned),
+  ]);
 }
