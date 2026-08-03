@@ -23,17 +23,27 @@ static void build_table(void) {
     crc32_table_ready = true;
 }
 
-uint32_t app_crc32(const void *data, size_t length) {
+uint32_t app_crc32_update(uint32_t crc, const void *data, size_t length) {
     if (data == NULL) {
-        return 0U;
+        return crc;
     }
     if (!crc32_table_ready) {
         build_table();
     }
     const uint8_t *bytes = (const uint8_t *)data;
-    uint32_t crc = UINT32_MAX;
     for (size_t index = 0U; index < length; ++index) {
         crc = crc32_table[(crc ^ bytes[index]) & CRC32_BYTE_MASK] ^ (crc >> CRC32_BITS_PER_BYTE);
     }
+    return crc;
+}
+
+uint32_t app_crc32_finish(uint32_t crc) {
     return crc ^ UINT32_MAX;
+}
+
+uint32_t app_crc32(const void *data, size_t length) {
+    if (data == NULL) {
+        return 0U;
+    }
+    return app_crc32_finish(app_crc32_update(APP_CRC32_INITIAL, data, length));
 }

@@ -18,4 +18,18 @@
  * digest would protect nothing that is not already open. */
 uint32_t app_crc32(const void *data, size_t length);
 
+/* Incremental form, for a checksum assembled from fields that are not
+ * contiguous in memory -- the repository's, which covers a schema version, an
+ * identifier and one four-byte checksum per package (SPEC 13.7). Feeding those
+ * in turn avoids building the record in a buffer first, which at the fifty
+ * package limit would be 240 bytes of stack in a component whose frames are
+ * already ratcheted.
+ *
+ * Start from APP_CRC32_INITIAL, call this for each field in order, and finish
+ * with app_crc32_finish. app_crc32() is exactly that sequence over one buffer. */
+#define APP_CRC32_INITIAL UINT32_MAX
+
+uint32_t app_crc32_update(uint32_t crc, const void *data, size_t length);
+uint32_t app_crc32_finish(uint32_t crc);
+
 #endif

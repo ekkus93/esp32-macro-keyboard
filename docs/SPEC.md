@@ -448,8 +448,8 @@ and, by §4, no internet — so any date it produced would be invented.
 Uploading a package is a replacement addressed by package id. If the id does not
 exist the package is created; if it exists it is replaced. This replaces the
 earlier choice between "import as a new independent set" and "replace an existing
-set", which were two operations for one job. `expectedRevision` (§13.7) remains
-the concurrency control and is independent of which of the two occurred.
+set", which were two operations for one job. There is no concurrency control on
+this route (§13.7): the upload is applied as given.
 
 Uploading a repository replaces the whole repository. Packages already on the
 device that are absent from the uploaded repository MUST be removed, or they
@@ -793,11 +793,14 @@ The index is the order of the packages themselves, plus which package is active:
 ```json
 {
   "schema_version": 1,
-  "revision": 1,
   "active_package_id": "uuid",
   "package_ids": ["uuid", "uuid"]
 }
 ```
+
+The index carries no revision (§13.7). The repository's CRC32 is derived from
+this record and its packages' checksums, so there is nothing here to keep in
+step with it.
 
 A package ID in the index with no corresponding package file, or a package file not named in
 the index, is a corruption of the index and is handled under §13.6. Firmware MUST
@@ -989,38 +992,39 @@ Deleting a corrupt file MUST NOT be reported as successful recovery.
 `GET /api/v1/backup` (§17) is the mechanism for preserving data ahead of a
 problem, and it is required to work even when individual objects are damaged.
 
-### 13.7 Optimistic concurrency
+### 13.7 Concurrency
 
-**Amended 2026-08-03**, in conversation with the product owner, who asked for
-revision numbers to be removed: "Get rid of revision. I don't think it adds any
-value." This section previously required that "mutable API resources use a
-revision number".
+**Amended 2026-08-03**, in conversation with the product owner. This section
+previously required optimistic concurrency: "mutable API resources use a
+revision number", with update and delete carrying the expected revision and a
+stale one returning `409`. Revision numbers were removed first — "Get rid of
+revision. I don't think it adds any value." — and the checksum that briefly
+replaced them was removed from the wire as well: "Why does the client need to
+send a checksum? … That's overkill."
 
-A package is guarded by its **CRC32** (§8.7), not by a counter. Update and
-delete requests carry the checksum the client last saw; if it no longer matches
-the stored package the request returns `409 Conflict` with the current package
-metadata. The server MUST NOT silently overwrite a newer edit.
+**There is no client-visible concurrency control.** A client never sends a
+token of any kind. Packages, macros and repositories carry no revision number,
+and the API has no `expectedRevision`, no `If-Match` and no equivalent.
 
-The checksum falls out of the content, so unlike a counter it cannot disagree
-with what is stored — there is nothing to bump, and no second place for the
-version to be wrong.
+The device MAY report a package's checksum — the listing does (§8.7) — and a
+client MAY use it locally to notice its own copy has gone stale and offer to
+reload. That is a client-side courtesy with no protocol behind it. Firmware MUST
+NOT require a checksum to be returned, and MUST NOT refuse a write for want of
+one.
 
-**Macros do not carry a token of their own.** A macro is not a file: it lives
-inside its package (§13.3), so editing one is a write of that package. A macro
-request therefore carries the *package's* checksum. One token per file, and the
-file is the unit of atomicity (§13.4).
+Last write wins. Two browser tabs open on the same package, both edited, both
+saved: the second overwrites the first and nothing reports it. This is a
+deliberate trade for a single-user appliance on its own isolated access point,
+and it would not be an acceptable one on a shared device.
 
-Two consequences, recorded so they are not discovered later:
+Writes remain atomic per file (§13.4) — a concurrent write cannot produce a
+half-written package. What is given up is *detecting* that two clients wrote,
+not the integrity of either write.
 
-- A 32-bit checksum can collide. Two different packages share a CRC32 roughly
-  once in four billion, and a collision admits a lost update silently. This was
-  accepted deliberately for a single-user device on an isolated access point.
-- A checksum says *different*, not *newer*. Nothing in version 0.1 needs to
-  order two versions, but a merge feature would, and would need more than this.
-
-The index and the provisioning record keep their own revisions. They are not
-packages, are not addressed by the API this way, and are out of scope for this
-amendment.
+Checksums still exist and are still required (§8.7). Their purpose is internal:
+the device compares the current repository against its backup at boot to decide
+whether an interrupted write needs repairing (§13.5). That job never involved
+the client.
 
 ## 14. NVS configuration
 
@@ -1372,7 +1376,7 @@ Important status codes:
 401 Unauthorized          login required or invalid
 403 Forbidden             policy failure
 404 Not Found             resource absent
-409 Conflict              busy, stale checksum, or duplicate conflict
+409 Conflict              busy, or duplicate conflict
 413 Content Too Large     body or package over limit
 415 Unsupported Media     wrong content type
 422 Unprocessable Content valid JSON but invalid resource
@@ -1635,16 +1639,21 @@ returning nonzero; it MUST never mask failures.
 9. No unbounded request, JSON, object, queue, or session allocation.
 10. No partially validated import activation.
 11. No execution of a partially parsed macro.
-12. No stale-checksum overwrite.
-13. No retained modifier key after any terminal path.
-14. No automatic formatting after mount failure.
-15. No silent recovery that destroys user data. Deleting an unreadable object is
+12. No retained modifier key after any terminal path.
+13. No automatic formatting after mount failure.
+14. No silent recovery that destroys user data. Deleting an unreadable object is
     permitted and required (§13.6), but only when the object, its path, and its
     error are reported to the caller and exposed in diagnostics. Discarding data
     without saying so is a defect.
-16. No second on-device copy of user data. There is no trash, no quarantine, and
-    no backup file; the only transient duplicate is the `.tmp` file of a write in
-    progress (§13.4).
+15. No unbounded duplication of user data. **Amended 2026-08-03.** This
+    invariant previously read "No second on-device copy of user data. There is
+    no trash, no quarantine, and no backup file", which the backup repository
+    (§13.3, §13.5) contradicts. What it was defending against was open-ended
+    accumulation — a quarantine directory and a trash directory that grow with
+    every damaged or deleted object until a 512 KiB partition is full of things
+    the user cannot reach. Exactly **one** backup repository is permitted,
+    holding exactly the last committed state, plus the `.tmp` file of a write in
+    progress (§13.4). There is still no trash, no quarantine, and no third copy.
 
 ## 23. Build and packaging pipeline
 
@@ -1702,7 +1711,6 @@ Tests MUST cover:
 Tests MUST cover:
 
 - create/read/update/delete;
-- stale checksums;
 - short writes;
 - full filesystem, and rejection of an over-budget write with `507`;
 - interruption between writing `.tmp` and `rename()`, in both orders;
@@ -1743,7 +1751,6 @@ Tests MUST cover:
 - body and upload limits;
 - invalid content type;
 - path traversal;
-- stale checksums;
 - busy execution;
 - redaction;
 - import validation;

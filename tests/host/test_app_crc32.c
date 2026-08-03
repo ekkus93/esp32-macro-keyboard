@@ -30,8 +30,29 @@ static void test_null_is_not_a_crash(void) {
     TEST_CHECK_EQ_U64(0U, app_crc32(NULL, 16U));
 }
 
+/* The incremental form exists so a checksum spanning several fields needs no
+ * buffer. It has to produce exactly what one call over the joined bytes would,
+ * or the device and anything that recomputes it would disagree. */
+static void test_incremental_matches_one_shot(void) {
+    const char whole[] = "123456789";
+    uint32_t crc = APP_CRC32_INITIAL;
+    crc = app_crc32_update(crc, "1234", 4U);
+    crc = app_crc32_update(crc, "5678", 4U);
+    crc = app_crc32_update(crc, "9", 1U);
+    TEST_CHECK_EQ_U64(app_crc32(whole, sizeof(whole) - 1U), app_crc32_finish(crc));
+
+    /* A zero-length field, and a NULL one, must not disturb the running value. */
+    uint32_t stepped = APP_CRC32_INITIAL;
+    stepped = app_crc32_update(stepped, "12345", 5U);
+    stepped = app_crc32_update(stepped, "", 0U);
+    stepped = app_crc32_update(stepped, NULL, 8U);
+    stepped = app_crc32_update(stepped, "6789", 4U);
+    TEST_CHECK_EQ_U64(app_crc32(whole, sizeof(whole) - 1U), app_crc32_finish(stepped));
+}
+
 int main(void) {
     test_known_answers();
+    test_incremental_matches_one_shot();
     test_single_bit_change_is_detected();
     test_null_is_not_a_crash();
     puts("app_crc32 tests passed");
