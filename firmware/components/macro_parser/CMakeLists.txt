@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
     "macro_parser.c"
     "macro_parser_v2.c"
+    "macro_plan_v2.c"
     "macro_keymap_us.c"
     INCLUDE_DIRS
     "include"
