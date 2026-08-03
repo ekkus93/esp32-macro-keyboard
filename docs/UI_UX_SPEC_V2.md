@@ -9,11 +9,11 @@
 This document defines the v2 React user interface, screen behavior, navigation,
 startup decisions, and user workflows.
 
-`docs/SPEC_V2.md` remains authoritative for product architecture, firmware
-behavior, repository schema, storage, HTTP APIs, security, limits, and quality
-gates. This document is authoritative for UI/UX details. Where the high-level
-web-application workflow text in `docs/SPEC_V2.md` differs from this document,
-this document controls until the parent specification is synchronized.
+`docs/SPEC_V2.md` is authoritative for product architecture, firmware behavior,
+repository schema, storage, HTTP APIs, security, limits, and quality gates. This
+document is authoritative for UI/UX details. The two synchronized documents form
+one v2 specification set and MUST be implemented together. Neither document may
+be interpreted to contradict the other.
 
 No v1 specification, retired TODO, or current v1 React behavior may be used to
 infer v2 UI requirements.
