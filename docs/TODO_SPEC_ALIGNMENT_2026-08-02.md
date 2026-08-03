@@ -803,6 +803,28 @@ Bootstrap AP passphrase and setup code are in
   a pretty-printed package restores (whitespace is now cJSON's problem, not
   ours), and `{}` and a kind mismatch are still refused with 422.
 
+- [x] **5.9 The two export paths share one package writer. DONE 2026-08-02.**
+  `storage_package_export.c` and `storage_package_backup.c` each carried their
+  own copy of the growing buffer a package is built in: identical structs
+  (`char *data; size_t length; size_t capacity;`) and six functions --
+  `writer_reserve`, `append_bytes`, `append_text`, `append_serialized`,
+  `append_set`, `append_macro` -- differing only in local variable names.
+
+  Extracted to `storage_package_writer.{c,h}`. Export went 301 -> 213 lines,
+  backup 619 -> 532; the component 6,633 -> 6,545 after the new file's own 120.
+
+  Verified on hardware: a set export returns 565 bytes with one set and two
+  macros, a backup returns 6,136 with fourteen and twenty-one, and the
+  backup/restore round trip still passes.
+
+  This is the honest limit of consolidation-by-extraction. The remaining
+  duplication between import, replace, and restore is not copied code but three
+  similar *shapes* -- validate, lock, apply, report -- over different units
+  (one set, one set with a known id, the whole repository) with different
+  atomicity. Merging them means designing one apply-a-package operation and
+  deriving the three from it, which is a redesign rather than a deduplication
+  and deserves its own decision.
+
 
 ---
 

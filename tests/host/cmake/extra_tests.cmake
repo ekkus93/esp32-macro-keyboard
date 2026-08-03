@@ -159,6 +159,7 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_objects_json.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_export.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_writer.c"
 )
 target_include_directories(
     storage_package_export_tests
@@ -177,6 +178,7 @@ target_sources(
     web_api_repository_handlers_tests
     PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package.c"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_export.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_writer.c"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_replace.c"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_import.c"
         )
@@ -189,6 +191,7 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/macro_keymap_us.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_export.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_writer.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_replace.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_import.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_core.c"

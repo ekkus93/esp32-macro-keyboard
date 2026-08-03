@@ -13,8 +13,8 @@
 #include "macro_limits.h"
 #include "macro_model.h"
 #include "macro_parser.h"
-#include "storage_object_json.h"
 #include "storage_package_internal.h"
+#include "storage_package_writer.h"
 #include "storage_repository.h"
 
 #ifdef ESP_PLATFORM
@@ -23,12 +23,6 @@
 #include "storage_repository_macros_internal.h"
 #include "storage_repository_sets_internal.h"
 #endif
-
-typedef struct {
-    char *data;
-    size_t length;
-    size_t capacity;
-} backup_writer_t;
 
 typedef struct {
     macro_set_t set;
@@ -126,82 +120,6 @@ static bool backup_operations_valid(void) {
     return backup_operations.lock_take != NULL && backup_operations.lock_give != NULL &&
            backup_operations.set_list != NULL && backup_operations.macro_list != NULL &&
            backup_operations.macro_list_free != NULL;
-}
-
-static app_error_code_t writer_reserve(backup_writer_t *writer, size_t additional) {
-    if (writer == NULL || additional > APP_IMPORT_PACKAGE_MAX_BYTES - writer->length) {
-        return APP_ERROR_MACRO_LIMIT;
-    }
-    const size_t required = writer->length + additional + 1U;
-    if (required <= writer->capacity) {
-        return APP_ERROR_NONE;
-    }
-    const size_t maximum = APP_IMPORT_PACKAGE_MAX_BYTES + 1U;
-    size_t capacity = writer->capacity == 0U ? 1024U : writer->capacity;
-    while (capacity < required) {
-        if (capacity > maximum / 2U) {
-            capacity = maximum;
-            break;
-        }
-        capacity *= 2U;
-    }
-    if (capacity < required || capacity > maximum) {
-        return APP_ERROR_MACRO_LIMIT;
-    }
-    char *replacement = realloc(writer->data, capacity);
-    if (replacement == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
-    writer->data = replacement;
-    writer->capacity = capacity;
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t writer_append_bytes(backup_writer_t *writer, const char *data,
-                                            size_t length) {
-    if (writer == NULL || (data == NULL && length != 0U)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    app_error_code_t result = writer_reserve(writer, length);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    if (length != 0U) {
-        memcpy(writer->data + writer->length, data, length);
-        writer->length += length;
-    }
-    writer->data[writer->length] = '\0';
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t writer_append_text(backup_writer_t *writer, const char *text) {
-    return text == NULL ? APP_ERROR_INVALID_ARGUMENT
-                        : writer_append_bytes(writer, text, strlen(text));
-}
-
-static app_error_code_t writer_append_serialized(backup_writer_t *writer,
-                                                 app_error_code_t serialization_result, char *json,
-                                                 size_t length) {
-    app_error_code_t result = serialization_result;
-    if (result == APP_ERROR_NONE) {
-        result = writer_append_bytes(writer, json, length);
-    }
-    cJSON_free(json);
-    return result;
-}
-
-static app_error_code_t writer_append_set(backup_writer_t *writer, const macro_set_t *set) {
-    char *json = NULL;
-    size_t length = 0U;
-    const app_error_code_t result = storage_repository_serialize_set_json(set, &json, &length);
-    return writer_append_serialized(writer, result, json, length);
-}
-
-static app_error_code_t writer_append_macro(backup_writer_t *writer, const macro_t *macro) {
-    char *json = NULL;
-    size_t length = 0U;
-    const app_error_code_t result = storage_repository_serialize_macro_json(macro, &json, &length);
-    return writer_append_serialized(writer, result, json, length);
 }
 
 static void set_snapshot_free(backup_set_snapshot_t *snapshot) {
@@ -439,46 +357,46 @@ static app_error_code_t validate_snapshot(const backup_snapshot_t *snapshot,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t append_separator(backup_writer_t *writer, bool *in_out_first) {
+static app_error_code_t append_separator(package_writer_t *writer, bool *in_out_first) {
     if (*in_out_first) {
         *in_out_first = false;
         return APP_ERROR_NONE;
     }
-    return writer_append_text(writer, ",");
+    return package_writer_append_text(writer, ",");
 }
 
-static app_error_code_t append_sets(backup_writer_t *writer, const backup_snapshot_t *snapshot) {
-    app_error_code_t result = writer_append_text(writer, "[");
+static app_error_code_t append_sets(package_writer_t *writer, const backup_snapshot_t *snapshot) {
+    app_error_code_t result = package_writer_append_text(writer, "[");
     for (size_t index = 0U; result == APP_ERROR_NONE && index < snapshot->set_count; ++index) {
         if (index != 0U) {
-            result = writer_append_text(writer, ",");
+            result = package_writer_append_text(writer, ",");
         }
         if (result == APP_ERROR_NONE) {
-            result = writer_append_set(writer, &snapshot->sets[index].set);
+            result = package_writer_append_set(writer, &snapshot->sets[index].set);
         }
     }
-    return result == APP_ERROR_NONE ? writer_append_text(writer, "]") : result;
+    return result == APP_ERROR_NONE ? package_writer_append_text(writer, "]") : result;
 }
 
-static app_error_code_t append_local_macros(backup_writer_t *writer,
+static app_error_code_t append_local_macros(package_writer_t *writer,
                                             const backup_snapshot_t *snapshot, size_t *out_count) {
     *out_count = 0U;
     bool first = true;
-    app_error_code_t result = writer_append_text(writer, "[");
+    app_error_code_t result = package_writer_append_text(writer, "[");
     for (size_t set_index = 0U; result == APP_ERROR_NONE && set_index < snapshot->set_count;
          ++set_index) {
         const storage_macro_list_t *list = &snapshot->sets[set_index].local_macros;
         for (size_t index = 0U; result == APP_ERROR_NONE && index < list->count; ++index) {
             result = append_separator(writer, &first);
             if (result == APP_ERROR_NONE) {
-                result = writer_append_macro(writer, &list->items[index]);
+                result = package_writer_append_macro(writer, &list->items[index]);
             }
             if (result == APP_ERROR_NONE) {
                 ++*out_count;
             }
         }
     }
-    return result == APP_ERROR_NONE ? writer_append_text(writer, "]") : result;
+    return result == APP_ERROR_NONE ? package_writer_append_text(writer, "]") : result;
 }
 
 /* Two UUIDs, two keys, and the JSON punctuation around them. */
@@ -501,7 +419,7 @@ static const char *skipped_kind_text(storage_package_object_kind_t kind) {
  * byte-identical to one produced before partial backups existed. A partial
  * backup must never be mistaken for a complete one, so the record travels
  * inside the package rather than alongside it. */
-static app_error_code_t append_skipped(backup_writer_t *writer,
+static app_error_code_t append_skipped(package_writer_t *writer,
                                        const storage_package_skip_report_t *skipped) {
     if (skipped == NULL || skipped->total == 0U) {
         return APP_ERROR_NONE;
@@ -512,7 +430,7 @@ static app_error_code_t append_skipped(backup_writer_t *writer,
     if (head_written < 0 || (size_t)head_written >= sizeof(head)) {
         return APP_ERROR_INTERNAL;
     }
-    app_error_code_t result = writer_append_text(writer, head);
+    app_error_code_t result = package_writer_append_text(writer, head);
     for (size_t index = 0U; result == APP_ERROR_NONE && index < skipped->count; ++index) {
         const storage_package_skipped_object_t *entry = &skipped->items[index];
         char item[BACKUP_SKIPPED_ITEM_BYTES];
@@ -530,23 +448,23 @@ static app_error_code_t append_skipped(backup_writer_t *writer,
         if (written < 0 || (size_t)written >= sizeof(item)) {
             return APP_ERROR_INTERNAL;
         }
-        result = writer_append_text(writer, item);
+        result = package_writer_append_text(writer, item);
     }
-    return result == APP_ERROR_NONE ? writer_append_text(writer, "]}") : result;
+    return result == APP_ERROR_NONE ? package_writer_append_text(writer, "]}") : result;
 }
 
 static app_error_code_t serialize_snapshot(const backup_snapshot_t *snapshot, char **out_data,
                                            size_t *out_length,
                                            const storage_package_skip_report_t *skipped) {
-    backup_writer_t writer = {0};
-    app_error_code_t result =
-        writer_append_text(&writer, "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":");
+    package_writer_t writer = {0};
+    app_error_code_t result = package_writer_append_text(
+        &writer, "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":");
     if (result == APP_ERROR_NONE) {
         result = append_sets(&writer, snapshot);
     }
     size_t local_count = 0U;
     if (result == APP_ERROR_NONE) {
-        result = writer_append_text(&writer, ",\"macros\":");
+        result = package_writer_append_text(&writer, ",\"macros\":");
     }
     if (result == APP_ERROR_NONE) {
         result = append_local_macros(&writer, snapshot, &local_count);
@@ -555,7 +473,7 @@ static app_error_code_t serialize_snapshot(const backup_snapshot_t *snapshot, ch
         result = append_skipped(&writer, skipped);
     }
     if (result == APP_ERROR_NONE) {
-        result = writer_append_text(&writer, "}");
+        result = package_writer_append_text(&writer, "}");
     }
 
     storage_package_summary_t summary = {0};
