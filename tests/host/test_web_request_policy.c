@@ -258,7 +258,7 @@ static void test_success_and_generated_request_id(void) {
  * SameSite=Strict, so a cross-site page cannot cause it to be sent -- which is
  * what the second token used to defend against. A request carrying a valid
  * cookie and nothing else is authenticated. */
-/* SPEC 24.4 item: CSRF */
+/* SPEC 24.4 item: session cookie required on every route */
 static void test_get_does_not_require_csrf(void) {
     fixture_t fixture = {
         .validation_result = APP_ERROR_NONE,

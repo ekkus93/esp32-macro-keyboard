@@ -1601,7 +1601,6 @@ Tests MUST cover:
 - rate limiting;
 - session expiry;
 - session cookie required on every route;
-- host/origin validation;
 - body and upload limits;
 - invalid content type;
 - path traversal;

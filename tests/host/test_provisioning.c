@@ -12,6 +12,10 @@
 #define RECORD_FLAGS_OFFSET 16U
 #define RECORD_SSID_OFFSET 20U
 
+/* Invented. Real bench credentials never appear in this repository. */
+#define STATION_SSID "example-network"
+#define STATION_PASSWORD "not-a-real-passphrase"
+
 typedef struct {
     uint8_t durable[PROVISIONING_RECORD_BYTES];
     size_t durable_size;
@@ -379,20 +383,44 @@ static void test_corrupt_persisted_records(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, provisioning_core_load(&reader, &loaded));
 }
 
+/* SPEC 16.6: credential reset clears the administrator password verifier and
+ * its salt and the AP credentials, marks the device unprovisioned so setup runs
+ * again, and preserves everything the user did not lose -- the settings and the
+ * stored station network. What it keeps is the whole reason it exists next to
+ * factory reset, and is the half a writer that rebuilds the record from scratch
+ * would silently drop, exactly as first-run setup did. */
 static void test_clear_credentials(void) {
     fake_provisioning_t fake;
     fake_init(&fake);
     provisioning_core_t core;
     provisioning_config_t committed;
     commit_valid(&core, &fake, &committed);
+
+    /* Give it something to preserve. */
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         provisioning_core_set_station(&core, STATION_SSID, STATION_PASSWORD));
+
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_clear_credentials(&core));
     provisioning_config_t loaded;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_load(&core, &loaded));
     TEST_CHECK(!loaded.provisioned);
-    TEST_CHECK_EQ_U64(2U, loaded.revision);
+    TEST_CHECK_EQ_U64(3U, loaded.revision);
     TEST_CHECK_EQ_U64(2U, loaded.credential_version);
     TEST_CHECK_EQ_STRING("", loaded.ap_ssid);
     TEST_CHECK_EQ_STRING("", loaded.ap_passphrase);
+    /* The password verifier and its salt go too, or the old password would
+     * still open a device the user just reset. */
+    static const uint8_t zero_record[sizeof(loaded.password_record)] = {0};
+    TEST_CHECK_EQ_BUFFER(zero_record, &loaded.password_record, sizeof(loaded.password_record));
+
+    /* Preserved: the network and the settings. Losing these would make this
+     * operation a factory reset with extra steps. */
+    TEST_CHECK(loaded.has_station);
+    TEST_CHECK_EQ_STRING(STATION_SSID, loaded.station_ssid);
+    TEST_CHECK_EQ_STRING(STATION_PASSWORD, loaded.station_password);
+    TEST_CHECK_EQ_INT(committed.require_physical_confirmation ? 1 : 0,
+                      loaded.require_physical_confirmation ? 1 : 0);
+    TEST_CHECK_EQ_INT(committed.always_select_set ? 1 : 0, loaded.always_select_set ? 1 : 0);
 
     set_u32(fake.durable, RECORD_CREDENTIAL_VERSION_OFFSET, UINT32_MAX);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_load(&core, &loaded));
@@ -473,9 +501,6 @@ static void test_load_error_and_uninitialized_calls(void) {
  * The SSIDs and passphrases below are invented. Real bench credentials never
  * appear in this repository.
  */
-
-#define STATION_SSID "example-network"
-#define STATION_PASSWORD "not-a-real-passphrase"
 
 typedef struct {
     char ssid[WIFI_AP_SSID_MAX_BYTES + 1U];

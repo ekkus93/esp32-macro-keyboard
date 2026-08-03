@@ -23,13 +23,26 @@ events. Compiled assets and test logs are uploaded only for tagged commits.
 Per-capability validation state — host-tested, sanitizer-tested, coverage-gated,
 frontend-tested, device-build-tested, device-executed, and HIL-verified — is tracked
 in [`docs/UNIT_TESTS1_PROGRESS.md`](docs/UNIT_TESTS1_PROGRESS.md) and
-[`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md). Exactly one
-capability has been device-executed so far (production firmware's heap and
-task-stack high-water marks, read from a real ESP32-S3's serial console); no
-capability is currently claimed HIL-verified, and the on-device Unity test
-menu itself has not yet been run on hardware — see
-[`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) for exactly
-what that one device-executed result covers.
+[`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md).
+
+**Verified on real hardware (2026-08-02),** by the scripts in `tests/hardware/`
+against an attached ESP32-S3:
+
+- **typing**, read back from the kernel's `hidraw` node as USB HID reports — the
+  bytes on the wire, not text captured from an editor: printable text arrives
+  exactly, a chord sets the modifier bit concurrently with the usage code, and
+  every run ends with an all-zero report so no key is left held;
+- **a whole set sent in the order the user arranged it**, arriving in that order;
+- **cancellation over both paths the specification requires** — the HTTP API and
+  the console `cancel` command — during a delay and mid-typing, each reaching
+  `cancelled` with the last keystroke 92–127 ms after the request;
+- **power-cycle persistence, factory reset, credential reset, and
+  re-provisioning**, including that a saved Wi-Fi network survives setup and a
+  credential reset but not a factory reset.
+
+Still not verified on hardware: the on-device Unity test menu, backup/restore,
+repeated USB and access-point reconnects, a firmware slot switch, and any host
+other than Linux. Those are the open items in `docs/SPEC.md` §24.6.
 
 ## Known product limitation: unauthenticated serial console
 

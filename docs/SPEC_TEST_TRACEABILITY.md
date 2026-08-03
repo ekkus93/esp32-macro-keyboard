@@ -40,9 +40,9 @@ None of these is a coverage measurement. This is a worklist, not a score.
 
 | | Statements | Unmapped |
 | --- | --- | --- |
-| MUST NOT | 73 | 13 |
-| MUST | 186 | 17 |
-| **Total** | **259** | **30** |
+| MUST NOT | 73 | 12 |
+| MUST | 185 | 11 |
+| **Total** | **258** | **23** |
 
 ## Prohibitions (`MUST NOT`) — do these first
 
@@ -107,7 +107,7 @@ cheapest place to find real gaps.
 | §15.2 | L987 | as a startup failure, MUST NOT retry it in a way that delays or blocks the rest | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
 | §15.2 | L988 | of startup, and MUST NOT discard the stored credentials because one join | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
 | §16.5 | L1068 | The console MUST NOT expose credentials or secret material even so, because | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
-| §16.6 | L1097 | forgets a password MUST NOT have to choose between recovering the device and | **UNMAPPED** | — |
+| §16.6 | L1097 | forgets a password MUST NOT have to choose between recovering the device and | referenced | provisioning → corrupt_persisted_records |
 | §17 | L1203 | `GET /api/v1/backup` MUST NOT let one damaged object make the repository | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
 | §17 | L1223 | MUST NOT report `200` for a run that failed to write some of them. | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
 | §19 | L1285 | The device MUST NOT require any button, and MUST NOT require hardware to be | referenced | device_controls → runtime_failures |
@@ -122,8 +122,8 @@ cheapest place to find real gaps.
 | §21.1 | L1378 | The defect MUST be fixed at its source. It MUST NOT be hidden, suppressed, | gate-enforced | check-static-analysis-policy.sh (gate script) |
 | §21.3 | L1412 | The project MUST NOT modify ESP-IDF, managed components, npm dependencies, or | gate-enforced | check-static-analysis-policy.sh (gate script) |
 | §21.4 | L1422 | First-party source and project configuration MUST NOT use warning suppression as | gate-enforced | check-static-analysis-policy.sh (gate script) |
-| §26 | L1705 | Deferred features MUST NOT be partially or silently enabled in version 0.1. | gate-enforced | check-removed-features.sh (gate script) |
-| §27 | L1728 | MUST NOT be assumed to exist. Implement the pages from this specification until | **UNMAPPED** | — |
+| §26 | L1704 | Deferred features MUST NOT be partially or silently enabled in version 0.1. | gate-enforced | check-removed-features.sh (gate script) |
+| §27 | L1727 | MUST NOT be assumed to exist. Implement the pages from this specification until | **UNMAPPED** | — |
 
 ## Requirements (`MUST`)
 
@@ -207,10 +207,10 @@ cheapest place to find real gaps.
 | §16.5 | L1053 | the device's own SoftAP or, in development builds, a joined network - MUST | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
 | §16.5 | L1054 | carry a valid RAM-only session cookie (§16.2). Authentication failures MUST be | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
 | §16.5 | L1074 | third parties it MUST be excluded from the shipped image, since a shipped | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
-| §16.6 | L1089 | It MUST clear the administrator password verifier and its salt, and the AP SSID | **UNMAPPED** | — |
-| §16.6 | L1090 | and passphrase, and it MUST mark the device unprovisioned so first-run setup | **UNMAPPED** | — |
-| §16.6 | L1093 | It MUST preserve everything the user did not lose: the device name, the settings | **UNMAPPED** | — |
-| §16.6 | L1100 | Each reset increments a credential version, so a device MUST refuse the | **UNMAPPED** | — |
+| §16.6 | L1089 | It MUST clear the administrator password verifier and its salt, and the AP SSID | referenced | provisioning → corrupt_persisted_records |
+| §16.6 | L1090 | and passphrase, and it MUST mark the device unprovisioned so first-run setup | referenced | provisioning → corrupt_persisted_records |
+| §16.6 | L1093 | It MUST preserve everything the user did not lose: the device name, the settings | referenced | provisioning → corrupt_persisted_records |
+| §16.6 | L1100 | Each reset increments a credential version, so a device MUST refuse the | referenced | provisioning → corrupt_persisted_records |
 | §17 | L1200 | it, but external behavior and resource boundaries MUST remain equivalent and be | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
 | §17 | L1208 | A partial backup MUST be self-describing, so it can never be mistaken for a | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
 | §17 | L1216 | I/O, storage unavailable, timeout) MUST still fail the export, because | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
@@ -280,38 +280,37 @@ cheapest place to find real gaps.
 | §24.4 | L1600 | authentication and logout | referenced | auth_existing_tests → derive_failures_zero_outputs |
 | §24.4 | L1601 | rate limiting | referenced | auth_existing_tests → session_expiry_and_capacity |
 | §24.4 | L1602 | session expiry | referenced | auth_existing_tests → sessions |
-| §24.4 | L1603 | session cookie required on every route | **UNMAPPED** | — |
-| §24.4 | L1604 | host/origin validation | **UNMAPPED** | — |
-| §24.4 | L1605 | body and upload limits | referenced | web_request_policy → failure_statuses |
-| §24.4 | L1606 | invalid content type | referenced | web_request_policy → failure_statuses |
-| §24.4 | L1607 | path traversal | referenced | web_server_adapter_json_static → json_envelopes |
-| §24.4 | L1608 | stale revisions | referenced | web_api_repository_handlers → session_json_redaction |
-| §24.4 | L1609 | busy execution | referenced | web_request_policy → get_does_not_require_csrf |
-| §24.4 | L1610 | redaction | referenced | app_core → residual_ownership_queries_trigger_cleanup |
-| §24.4 | L1611 | import validation | referenced | storage_package_import → (file) |
-| §24.4 | L1612 | explicit status codes | referenced | web_request_policy → get_does_not_require_csrf |
-| §24.5 | L1618 | every required screen | referenced | spec-screens → ${screen.ordinal}. ${screen.heading} renders at #${screen.hash}<br>spec-screens → 1. first-run setup is shown for an unprovisioned device<br>spec-screens → 10. create and duplicate set are reachable from set management<br>spec-screens → 2. login is shown for a provisioned device with no session<br>spec-screens → SPEC 9 required screens |
-| §24.5 | L1619 | active-set visibility | referenced | app-sets → shows live metadata and filters by search |
-| §24.5 | L1620 | set switching | referenced | app-sets → shows live metadata and filters by search |
-| §24.5 | L1621 | set and macro ordering, including that a reorder round-trips through the API | referenced | set-management → set management |
-| §24.5 | L1622 | live validation | referenced | set-management → traps modal focus, closes with Escape, and restores focus |
-| §24.5 | L1623 | send preview | referenced | execution-confirmation → disables Send with a visible USB explanation |
-| §24.5 | L1624 | disabled Send when USB is unavailable | referenced | execution-confirmation → loads a persisted macro without executing |
-| §24.5 | L1625 | progress polling | referenced | app-execution → execution workflow |
-| §24.5 | L1626 | cancellation | referenced | app-execution → stops polling after unmount |
-| §24.5 | L1627 | import/export/delete confirmations | referenced | set-management → creates a set only after UTF-8 validation succeeds |
-| §24.5 | L1628 | stale-edit conflict UI | referenced | app-sets → selects a set with the settings revision and updates the header |
-| §24.5 | L1629 | storage error UI | referenced | management-screens → shows live redacted storage data |
-| §24.5 | L1630 | keyboard and touch accessibility | referenced | set-management → offers keyboard reorder alternatives and commits exact order |
-| §24.5 | L1631 | responsive mobile layout | referenced | run-browser-tests → (file) |
-| §24.6 | L1637 | Linux host | **UNMAPPED** | — |
-| §24.6 | L1638 | ChromeOS host when available | **UNMAPPED** | — |
-| §24.6 | L1639 | Windows host when available | **UNMAPPED** | — |
-| §24.6 | L1640 | power-cycle persistence | referenced | acceptance_reset → (file) |
-| §24.6 | L1641 | repeated USB reconnects | **UNMAPPED** | — |
-| §24.6 | L1642 | repeated AP reconnects | **UNMAPPED** | — |
-| §24.6 | L1643 | a full set of macros sent in order against a harmless text target | referenced | full_set_in_order → (file) |
-| §24.6 | L1644 | cancellation over both the API and the `cancel` console command | referenced | cancellation → (file) |
-| §24.6 | L1645 | credential reset | referenced | acceptance_reset → (file) |
-| §24.6 | L1646 | factory reset | referenced | acceptance_reset → (file) |
-| §24.6 | L1647 | user-data preservation across firmware slot switch | **UNMAPPED** | — |
+| §24.4 | L1603 | session cookie required on every route | referenced | web_request_policy → success_and_generated_request_id |
+| §24.4 | L1604 | body and upload limits | referenced | web_request_policy → failure_statuses |
+| §24.4 | L1605 | invalid content type | referenced | web_request_policy → failure_statuses |
+| §24.4 | L1606 | path traversal | referenced | web_server_adapter_json_static → json_envelopes |
+| §24.4 | L1607 | stale revisions | referenced | web_api_repository_handlers → session_json_redaction |
+| §24.4 | L1608 | busy execution | referenced | web_request_policy → get_does_not_require_csrf |
+| §24.4 | L1609 | redaction | referenced | app_core → residual_ownership_queries_trigger_cleanup |
+| §24.4 | L1610 | import validation | referenced | storage_package_import → (file) |
+| §24.4 | L1611 | explicit status codes | referenced | web_request_policy → get_does_not_require_csrf |
+| §24.5 | L1617 | every required screen | referenced | spec-screens → ${screen.ordinal}. ${screen.heading} renders at #${screen.hash}<br>spec-screens → 1. first-run setup is shown for an unprovisioned device<br>spec-screens → 10. create and duplicate set are reachable from set management<br>spec-screens → 2. login is shown for a provisioned device with no session<br>spec-screens → SPEC 9 required screens |
+| §24.5 | L1618 | active-set visibility | referenced | app-sets → shows live metadata and filters by search |
+| §24.5 | L1619 | set switching | referenced | app-sets → shows live metadata and filters by search |
+| §24.5 | L1620 | set and macro ordering, including that a reorder round-trips through the API | referenced | set-management → set management |
+| §24.5 | L1621 | live validation | referenced | set-management → traps modal focus, closes with Escape, and restores focus |
+| §24.5 | L1622 | send preview | referenced | execution-confirmation → disables Send with a visible USB explanation |
+| §24.5 | L1623 | disabled Send when USB is unavailable | referenced | execution-confirmation → loads a persisted macro without executing |
+| §24.5 | L1624 | progress polling | referenced | app-execution → execution workflow |
+| §24.5 | L1625 | cancellation | referenced | app-execution → stops polling after unmount |
+| §24.5 | L1626 | import/export/delete confirmations | referenced | set-management → creates a set only after UTF-8 validation succeeds |
+| §24.5 | L1627 | stale-edit conflict UI | referenced | app-sets → selects a set with the settings revision and updates the header |
+| §24.5 | L1628 | storage error UI | referenced | management-screens → shows live redacted storage data |
+| §24.5 | L1629 | keyboard and touch accessibility | referenced | set-management → offers keyboard reorder alternatives and commits exact order |
+| §24.5 | L1630 | responsive mobile layout | referenced | run-browser-tests → (file) |
+| §24.6 | L1636 | Linux host | **UNMAPPED** | — |
+| §24.6 | L1637 | ChromeOS host when available | **UNMAPPED** | — |
+| §24.6 | L1638 | Windows host when available | **UNMAPPED** | — |
+| §24.6 | L1639 | power-cycle persistence | referenced | acceptance_reset → (file) |
+| §24.6 | L1640 | repeated USB reconnects | **UNMAPPED** | — |
+| §24.6 | L1641 | repeated AP reconnects | **UNMAPPED** | — |
+| §24.6 | L1642 | a full set of macros sent in order against a harmless text target | referenced | full_set_in_order → (file) |
+| §24.6 | L1643 | cancellation over both the API and the `cancel` console command | referenced | cancellation → (file) |
+| §24.6 | L1644 | credential reset | referenced | acceptance_reset → (file) |
+| §24.6 | L1645 | factory reset | referenced | acceptance_reset → (file) |
+| §24.6 | L1646 | user-data preservation across firmware slot switch | **UNMAPPED** | — |

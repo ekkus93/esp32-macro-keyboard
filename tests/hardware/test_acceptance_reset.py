@@ -11,6 +11,9 @@ in a state the next one has to undo.
     SPEC 24.6 item: factory reset
     SPEC 24.6 item: credential reset
 
+Step 4 is also the only thing that exercises section 16.6 end to end: what
+the operation clears, what it preserves, and that a bare command is refused.
+
 What this deliberately does NOT claim: a true power cycle. This restarts the
 device over its own API, which re-runs the whole boot path including the NVS and
 LittleFS mounts, but the rails never drop. Pulling the cable is a separate,
