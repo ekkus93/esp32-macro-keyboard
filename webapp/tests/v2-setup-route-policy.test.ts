@@ -12,13 +12,16 @@ describe("v2 setup route policy", () => {
     reversed.unprovisioned.apiRoutes.reverse();
     expect(isSetupRoutePolicy(reversed)).toBe(false);
 
-    const additionalRoute = structuredClone(policy) as {
-      unprovisioned: { apiRoutes: unknown[] };
+    const additionalRoute = {
+      ...policy,
+      unprovisioned: {
+        ...policy.unprovisioned,
+        apiRoutes: [
+          ...policy.unprovisioned.apiRoutes,
+          { method: "GET", path: "/api/v1/status" },
+        ],
+      },
     };
-    additionalRoute.unprovisioned.apiRoutes.push({
-      method: "GET",
-      path: "/api/v1/status",
-    });
     expect(isSetupRoutePolicy(additionalRoute)).toBe(false);
   });
 
@@ -69,10 +72,15 @@ describe("v2 setup route policy", () => {
   test("rejects unknown fields and sparse route arrays", () => {
     expect(isSetupRoutePolicy({ ...policy, unexpected: true })).toBe(false);
 
-    const sparse = structuredClone(policy) as {
-      unprovisioned: { apiRoutes: unknown[] };
+    const sparseRoutes: unknown[] = new Array<unknown>(2);
+    sparseRoutes[1] = policy.unprovisioned.apiRoutes[1];
+    const sparse = {
+      ...policy,
+      unprovisioned: {
+        ...policy.unprovisioned,
+        apiRoutes: sparseRoutes,
+      },
     };
-    delete sparse.unprovisioned.apiRoutes[0];
     expect(isSetupRoutePolicy(sparse)).toBe(false);
   });
 });
