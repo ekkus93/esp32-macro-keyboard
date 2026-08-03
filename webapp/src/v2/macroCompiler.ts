@@ -21,6 +21,8 @@ export type MacroCompileResult =
     }
   | { ok: false; error: MacroCompileError };
 
+type MacroCompileFailure = Extract<MacroCompileResult, { ok: false }>;
+
 export interface MacroCompileOptions {
   keyPressMs: number;
   interKeyMs: number;
@@ -131,7 +133,7 @@ function errorAt(
   position: Position,
   code: MacroCompileError["code"],
   message: string,
-): MacroCompileResult {
+): MacroCompileFailure {
   return {
     ok: false,
     error: {
@@ -202,7 +204,7 @@ function nextLine(position: Position, consumedLength: number): Position {
 function parseDirective(
   directive: string,
   start: Position,
-): MacroAction | MacroCompileResult {
+): MacroAction | MacroCompileFailure {
   if (directive.startsWith("DELAY:")) {
     const rawValue = directive.slice("DELAY:".length);
     if (!/^[0-9]+$/.test(rawValue)) {
@@ -265,9 +267,9 @@ function parseDirective(
 }
 
 function isCompileFailure(
-  value: MacroAction | MacroCompileResult,
-): value is Extract<MacroCompileResult, { ok: false }> {
-  return "ok" in value && !value.ok;
+  value: MacroAction | MacroCompileFailure,
+): value is MacroCompileFailure {
+  return "ok" in value;
 }
 
 export function compileMacro(
@@ -289,7 +291,7 @@ export function compileMacro(
   const append = (
     action: MacroAction,
     actionPosition: Position,
-  ): MacroCompileResult | null => {
+  ): MacroCompileFailure | null => {
     if (actions.length >= v2Limits.compiledActionsMax) {
       return errorAt(actionPosition, "macro_limit", "action limit exceeded");
     }
