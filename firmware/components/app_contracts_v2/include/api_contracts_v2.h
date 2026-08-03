@@ -58,6 +58,11 @@ typedef struct {
 } app_v2_error_detail_t;
 
 typedef struct {
+    bool provisioned;
+    app_v2_string_view_t device_name;
+} app_v2_setup_state_response_t;
+
+typedef struct {
     app_v2_string_view_t setup_code;
     app_v2_string_view_t device_name;
     app_v2_string_view_t ap_ssid;
