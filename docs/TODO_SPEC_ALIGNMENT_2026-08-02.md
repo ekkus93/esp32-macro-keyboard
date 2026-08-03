@@ -5,6 +5,15 @@
 **Supersedes for this work:** `docs/TODO.md`, which plans the pre-2026-08-02 product
 **Created:** 2026-08-02
 
+## Status
+
+**Complete.** Phases 0-8 are done and every item, including 5.4 through 5.10, was
+closed with a commit hash and, where it was a hardware claim, a transcript.
+
+What remains for the product is in
+[`TODO_OUTSTANDING_2026-08-02.md`](TODO_OUTSTANDING_2026-08-02.md). This file
+stays as the record of the sequence and its evidence.
+
 ## What this is
 
 `docs/SPEC.md` was amended on 2026-08-02 to describe the product that was
