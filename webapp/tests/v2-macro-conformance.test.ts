@@ -11,7 +11,7 @@ interface CorpusValid {
   actions: MacroAction[];
 }
 
-interface CorpusInvalid extends MacroCompileError {}
+type CorpusInvalid = MacroCompileError;
 
 interface CorpusCase {
   name: string;
