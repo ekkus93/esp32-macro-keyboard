@@ -15,12 +15,16 @@ acceptance criterion elsewhere in `docs/`.
 change in the number of `MUST` occurrences. Nothing here is recalled; every row
 was read from the diff.
 
-**What git cannot tell you, and so is not claimed below:** who asked for a
-change. Every commit in this repository is authored by Phil, including the ones
-the assistant wrote unprompted, so authorship does not distinguish
-Phil-directed changes from assistant-initiated ones. Where a commit message
-cites a source, that is noted. Everything else is marked *unknown*, and needs
-Phil's memory, not the assistant's.
+**Who wrote these: the assistant. All fourteen.** Every edit below was drafted,
+applied, and committed by the assistant. The author field says Phil because the
+assistant commits with his credentials and has no account of its own; that is a
+fact about the setup, not about who did the work, and it is not a defence.
+
+**What git cannot tell you, and so is not claimed below:** which of them Phil
+*asked for*. That is the only open question here. Where a commit message cites
+a source, it is noted; one row has a recorded instruction. Everything else is
+marked *unknown*, meaning the assistant cannot show it was requested — not that
+responsibility for making the change is unclear.
 
 ## The structural finding
 
@@ -254,10 +258,12 @@ approved explicitly or reverted.**
 
 ## What this list is for
 
-Three questions per row, which only Phil can answer for most of them:
+The assistant made all fourteen of these changes to Phil's specification.
+Three questions per row, and only Phil can answer the first:
 
-1. **Did you ask for this?** Git cannot say. Rows 6, 7 and 2 change what the
-   product *is* and are marked unknown.
+1. **Did you ask for this?** Git cannot say. Rows 2, 6 and 7 change what the
+   product *is* and are marked unknown — meaning the assistant may have
+   redefined the product on its own initiative and cannot now show otherwise.
 2. **Would you have agreed if it had been proposed rather than applied?** The
    eleven bundled rows never gave that chance.
 3. **Should it stay?** A change can be legitimate and still be one you want
