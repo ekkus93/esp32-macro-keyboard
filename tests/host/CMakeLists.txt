@@ -822,3 +822,10 @@ target_link_libraries(web_api_repository_handlers_tests PRIVATE PkgConfig::CJSON
 target_compile_options(web_api_repository_handlers_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME web_api_repository_handlers COMMAND web_api_repository_handlers_tests)
 set_tests_properties(web_api_repository_handlers PROPERTIES LABELS "web")
+
+add_executable(app_crc32_tests test_app_crc32.c ../../firmware/components/support/app_crc32.c)
+target_include_directories(app_crc32_tests PRIVATE ../../firmware/components/support/include)
+target_compile_options(app_crc32_tests PRIVATE ${STRICT_WARNINGS})
+target_link_libraries(app_crc32_tests PRIVATE test_support)
+add_test(NAME app_crc32 COMMAND app_crc32_tests)
+set_tests_properties(app_crc32 PROPERTIES LABELS "support")
