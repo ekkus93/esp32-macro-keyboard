@@ -15,8 +15,8 @@ set(V2_CONTRACT_INCLUDE_DIR
 add_executable(
     v2_macro_conformance_tests
     test_macro_conformance.c
-    ../../firmware/components/macro_parser/macro_parser.c
     ../../firmware/components/macro_parser/macro_parser_v2.c
+    ../../firmware/components/macro_parser/macro_plan_v2.c
     ../../firmware/components/macro_parser/macro_keymap_us.c
 )
 
@@ -26,6 +26,13 @@ target_include_directories(
         ${V2_CONTRACT_INCLUDE_DIR}
         ../../firmware/components/macro_parser/include
         ../../firmware/components/macro_model/include
+)
+
+target_compile_definitions(
+    v2_macro_conformance_tests
+    PRIVATE
+        macro_compile=macro_compile_v2
+        macro_plan_free=macro_plan_v2_free
 )
 
 target_link_libraries(v2_macro_conformance_tests PRIVATE PkgConfig::CJSON)
