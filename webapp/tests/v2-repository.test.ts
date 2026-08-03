@@ -28,6 +28,12 @@ interface MutableRepository {
   activePackageId?: string;
 }
 
+class PrototypeBearingRepository {
+  readonly format = "esp32-macro-keyboard-repository";
+  readonly schemaVersion = 1;
+  readonly packages: MutablePackage[] = [];
+}
+
 function mutableCanonical(): MutableRepository {
   return structuredClone(canonicalRepository) as MutableRepository;
 }
@@ -133,17 +139,14 @@ describe("v2 repository contract", () => {
 
   test("rejects sparse arrays, custom prototypes, and non-finite numbers", () => {
     const sparse = mutableCanonical();
-    sparse.packages = new Array<MutablePackage>(1);
+    const packages: MutablePackage[] = [];
+    packages.length = 1;
+    sparse.packages = packages;
     expect(validateRepositoryV1(sparse, acceptSource).ok).toBe(false);
 
-    const prototypeBearing = Object.create({ inherited: true }) as Record<
-      string,
-      unknown
-    >;
-    prototypeBearing.format = "esp32-macro-keyboard-repository";
-    prototypeBearing.schemaVersion = 1;
-    prototypeBearing.packages = [];
-    expect(validateRepositoryV1(prototypeBearing, acceptSource).ok).toBe(false);
+    expect(
+      validateRepositoryV1(new PrototypeBearingRepository(), acceptSource).ok,
+    ).toBe(false);
 
     const nonFinite = mutableCanonical();
     nonFinite.packages[0]!.macros[0]!.keyPressMs = Number.POSITIVE_INFINITY;
