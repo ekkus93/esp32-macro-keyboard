@@ -1,0 +1,231 @@
+{
+  "error": {
+    "error": {
+      "code": "invalid_field",
+      "message": "Device name exceeds 32 UTF-8 bytes.",
+      "field": "deviceName"
+    }
+  },
+  "parserError": {
+    "error": {
+      "code": "macro_parse_error",
+      "message": "Unknown directive.",
+      "field": "source",
+      "byteOffset": 12,
+      "line": 1,
+      "column": 13
+    }
+  },
+  "setupRequest": {
+    "setupCode": "12345678",
+    "deviceName": "Desk Macro Keyboard",
+    "apSsid": "MacroKeyboard",
+    "apPassphrase": "example-passphrase",
+    "adminPassword": "example-admin-password",
+    "requireSerialConfirmation": false
+  },
+  "setupAccepted": {
+    "accepted": true,
+    "restartRequired": true,
+    "connectionWillClose": true,
+    "reprovisioningRequired": false
+  },
+  "loginRequest": {
+    "adminPassword": "example-admin-password"
+  },
+  "session": {
+    "authenticated": true,
+    "idleExpiresInSeconds": 86400,
+    "absoluteExpiresInSeconds": 604800
+  },
+  "status": {
+    "provisioned": true,
+    "deviceName": "Desk Macro Keyboard",
+    "firmwareVersion": "0.2.0",
+    "buildId": "git-abcdef0",
+    "uptimeMs": 123456,
+    "usb": {
+      "state": "ready"
+    },
+    "accessPoint": {
+      "state": "running",
+      "ssid": "MacroKeyboard",
+      "clientCount": 1
+    },
+    "station": {
+      "configured": false,
+      "state": "disabled",
+      "ssid": null,
+      "ipv4": null
+    },
+    "storage": {
+      "state": "ready",
+      "totalBytes": 524288,
+      "usedBytes": 4096,
+      "remainingBytes": 520192,
+      "blobCount": 3
+    },
+    "send": {
+      "present": false,
+      "state": null
+    }
+  },
+  "limits": {
+    "packageNameMaxBytes": 64,
+    "macroNameMaxBytes": 64,
+    "macroSourceMaxBytes": 4096,
+    "compiledActionsMax": 4096,
+    "delayDirectiveMaxMs": 10000,
+    "keyPressMaxMs": 10000,
+    "interKeyMaxMs": 10000,
+    "estimatedDurationMaxMs": 300000,
+    "executorAbsoluteDeadlineMs": 310000,
+    "jsonBodyMaxBytes": 8192,
+    "blobMaxBytes": 131072,
+    "adminPasswordMinBytes": 12,
+    "adminPasswordMaxBytes": 128,
+    "snapshotRetentionTargetMax": 100
+  },
+  "blobList": {
+    "blobs": [
+      {
+        "id": "3",
+        "sizeBytes": 1332
+      },
+      {
+        "id": "2",
+        "sizeBytes": 1298
+      }
+    ],
+    "usedBytes": 2630,
+    "remainingBytes": 492000
+  },
+  "blobCreated": {
+    "id": "4",
+    "sizeBytes": 1350
+  },
+  "settings": {
+    "deviceName": "Desk Macro Keyboard",
+    "requireSerialConfirmation": false,
+    "sendMode": "quick",
+    "snapshotRetentionTarget": 5,
+    "showMacroSourcePreviews": false,
+    "lastSelectedPackageId": null,
+    "apSsid": "MacroKeyboard",
+    "stationConfigured": false,
+    "stationSsid": null
+  },
+  "settingsUpdate": {
+    "deviceName": "Desk Macro Keyboard",
+    "requireSerialConfirmation": false,
+    "sendMode": "quick",
+    "snapshotRetentionTarget": 5,
+    "showMacroSourcePreviews": false,
+    "lastSelectedPackageId": null,
+    "accessPoint": {
+      "ssid": "MacroKeyboard",
+      "passphrase": "new-example-passphrase"
+    },
+    "station": {
+      "ssid": "OfficeWiFi",
+      "passphrase": "station-example-passphrase"
+    }
+  },
+  "settingsUpdated": {
+    "settings": {
+      "deviceName": "Desk Macro Keyboard",
+      "requireSerialConfirmation": false,
+      "sendMode": "quick",
+      "snapshotRetentionTarget": 5,
+      "showMacroSourcePreviews": false,
+      "lastSelectedPackageId": null,
+      "apSsid": "MacroKeyboard",
+      "stationConfigured": true,
+      "stationSsid": "OfficeWiFi"
+    },
+    "restartRequired": false,
+    "reconnectRequired": false
+  },
+  "passwordChangeRequest": {
+    "currentPassword": "old-example-password",
+    "newPassword": "new-example-password"
+  },
+  "sendRequest": {
+    "source": "make -j8{ENTER}",
+    "keyPressMs": 8,
+    "interKeyMs": 15
+  },
+  "sendAccepted": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "state": "running",
+    "actionCount": 9,
+    "estimatedDurationMs": 214
+  },
+  "sendStatus": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "state": "completed",
+    "actionIndex": 9,
+    "actionCount": 9,
+    "estimatedDurationMs": 214,
+    "cancellationRequested": false,
+    "error": "",
+    "releaseError": ""
+  },
+  "restartAccepted": {
+    "accepted": true,
+    "connectionWillClose": true,
+    "reprovisioningRequired": false
+  },
+  "resetSettingsRequest": {
+    "confirmation": "RESET SETTINGS"
+  },
+  "resetSettingsAccepted": {
+    "accepted": true,
+    "connectionWillClose": true,
+    "reprovisioningRequired": false,
+    "repositoryBlobsPreserved": true
+  },
+  "factoryResetRequest": {
+    "adminPassword": "example-admin-password",
+    "confirmation": "FACTORY RESET"
+  },
+  "factoryResetAccepted": {
+    "accepted": true,
+    "connectionWillClose": true,
+    "reprovisioningRequired": true,
+    "repositoryBlobsPreserved": false
+  },
+  "diagnostics": {
+    "firmwareVersion": "0.2.0",
+    "buildId": "git-abcdef0",
+    "resetReason": "power_on",
+    "uptimeMs": 123456,
+    "memory": {
+      "freeHeapBytes": 200000,
+      "minimumFreeHeapBytes": 180000,
+      "largestFreeBlockBytes": 120000
+    },
+    "usb": {
+      "state": "ready"
+    },
+    "wifi": {
+      "accessPointState": "running",
+      "stationState": "disabled"
+    },
+    "storage": {
+      "state": "ready",
+      "webfsTotalBytes": 1048576,
+      "webfsUsedBytes": 500000,
+      "userdataTotalBytes": 524288,
+      "userdataUsedBytes": 4096,
+      "blobCount": 3,
+      "invalidNames": [],
+      "temporaryFiles": []
+    },
+    "send": {
+      "present": false,
+      "state": null
+    },
+    "subsystems": []
+  }
+}
