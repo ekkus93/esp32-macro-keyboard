@@ -36,9 +36,7 @@ export function validateRepositoryForUse(
     });
   });
 
-  return issues.length === 0
-    ? structural
-    : { ok: false, issues };
+  return issues.length === 0 ? structural : { ok: false, issues };
 }
 
 export function createEmptyRepository(): RepositoryV1 {

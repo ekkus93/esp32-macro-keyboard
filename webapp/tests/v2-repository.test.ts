@@ -38,10 +38,7 @@ function mutableCanonical(): MutableRepository {
   return structuredClone(canonicalRepository);
 }
 
-function packageAt(
-  repository: MutableRepository,
-  index = 0,
-): MutablePackage {
+function packageAt(repository: MutableRepository, index = 0): MutablePackage {
   const pkg = repository.packages[index];
   if (pkg === undefined) {
     throw new Error(`missing package ${String(index)}`);

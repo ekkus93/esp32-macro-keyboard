@@ -5,13 +5,7 @@ const canonicalUuidV4Pattern =
 
 const repositoryKeys = ["format", "packages", "schemaVersion"] as const;
 const packageKeys = ["id", "macros", "name"] as const;
-const macroKeys = [
-  "id",
-  "interKeyMs",
-  "keyPressMs",
-  "name",
-  "source",
-] as const;
+const macroKeys = ["id", "interKeyMs", "keyPressMs", "name", "source"] as const;
 
 const nameMaximumBytes = 64;
 const sourceMaximumBytes = 4096;
@@ -200,12 +194,7 @@ function validateMacro(
     } else {
       const sourceError = validateSource(value.source);
       if (sourceError !== null) {
-        addIssue(
-          issues,
-          `${path}.source`,
-          "invalid_macro_source",
-          sourceError,
-        );
+        addIssue(issues, `${path}.source`, "invalid_macro_source", sourceError);
         valid = false;
       }
     }

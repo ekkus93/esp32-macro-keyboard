@@ -31,9 +31,9 @@ describe("v2 API request contracts", () => {
   test("rejects unknown fields on every JSON request", () => {
     expect(isSetupRequest(withUnknownField(examples.setupRequest))).toBe(false);
     expect(isLoginRequest(withUnknownField(examples.loginRequest))).toBe(false);
-    expect(isSettingsUpdateRequest(withUnknownField(examples.settingsUpdate))).toBe(
-      false,
-    );
+    expect(
+      isSettingsUpdateRequest(withUnknownField(examples.settingsUpdate)),
+    ).toBe(false);
     expect(
       isPasswordChangeRequest(withUnknownField(examples.passwordChangeRequest)),
     ).toBe(false);
@@ -89,9 +89,9 @@ describe("v2 API request contracts", () => {
         station: { ssid: "Office", passphrase: "" },
       }),
     ).toBe(false);
-    expect(
-      isSettingsUpdateRequest({ snapshotRetentionTarget: 101 }),
-    ).toBe(false);
+    expect(isSettingsUpdateRequest({ snapshotRetentionTarget: 101 })).toBe(
+      false,
+    );
     expect(
       isSettingsUpdateRequest({
         lastSelectedPackageId: "550E8400-E29B-41D4-A716-446655440000",

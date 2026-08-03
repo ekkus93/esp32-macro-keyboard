@@ -95,11 +95,7 @@ function isNonNegativeInteger(value: unknown): value is number {
   if (typeof value !== "number") {
     return false;
   }
-  return all([
-    Number.isSafeInteger(value),
-    Number.isFinite(value),
-    value >= 0,
-  ]);
+  return all([Number.isSafeInteger(value), Number.isFinite(value), value >= 0]);
 }
 
 function isString(value: unknown): value is string {
@@ -222,8 +218,7 @@ export function isSessionStatus(value: unknown): value is SessionStatus {
     ]),
     value.authenticated === true,
     value.idleExpiresInSeconds === v2Limits.sessionIdleLifetimeSeconds,
-    value.absoluteExpiresInSeconds ===
-      v2Limits.sessionAbsoluteLifetimeSeconds,
+    value.absoluteExpiresInSeconds === v2Limits.sessionAbsoluteLifetimeSeconds,
   ]);
 }
 
@@ -279,24 +274,20 @@ function isResetAcceptedShape(value: unknown): value is ResetAccepted {
   ]);
 }
 
-export function isResetSettingsAccepted(value: unknown): value is ResetAccepted {
+export function isResetSettingsAccepted(
+  value: unknown,
+): value is ResetAccepted {
   if (!isResetAcceptedShape(value)) {
     return false;
   }
-  return all([
-    !value.reprovisioningRequired,
-    value.repositoryBlobsPreserved,
-  ]);
+  return all([!value.reprovisioningRequired, value.repositoryBlobsPreserved]);
 }
 
 export function isFactoryResetAccepted(value: unknown): value is ResetAccepted {
   if (!isResetAcceptedShape(value)) {
     return false;
   }
-  return all([
-    value.reprovisioningRequired,
-    !value.repositoryBlobsPreserved,
-  ]);
+  return all([value.reprovisioningRequired, !value.repositoryBlobsPreserved]);
 }
 
 export function isResetSettingsRequest(
@@ -441,14 +432,12 @@ export function isLimitsResponse(value: unknown): value is LimitsResponse {
     value.keyPressMaxMs === v2Limits.keyPressMaxMs,
     value.interKeyMaxMs === v2Limits.interKeyMaxMs,
     value.estimatedDurationMaxMs === v2Limits.estimatedDurationMaxMs,
-    value.executorAbsoluteDeadlineMs ===
-      v2Limits.executorAbsoluteDeadlineMs,
+    value.executorAbsoluteDeadlineMs === v2Limits.executorAbsoluteDeadlineMs,
     value.jsonBodyMaxBytes === v2Limits.jsonBodyMaxBytes,
     value.blobMaxBytes === v2Limits.blobMaxBytes,
     value.adminPasswordMinBytes === v2Limits.adminPasswordMinBytes,
     value.adminPasswordMaxBytes === v2Limits.adminPasswordMaxBytes,
-    value.snapshotRetentionTargetMax ===
-      v2Limits.snapshotRetentionTargetMax,
+    value.snapshotRetentionTargetMax === v2Limits.snapshotRetentionTargetMax,
   ]);
 }
 
@@ -562,11 +551,7 @@ export function isSettingsUpdatedResponse(
     return false;
   }
   return all([
-    hasExactKeys(value, [
-      "reconnectRequired",
-      "restartRequired",
-      "settings",
-    ]),
+    hasExactKeys(value, ["reconnectRequired", "restartRequired", "settings"]),
     isSettingsResponse(value.settings),
     typeof value.restartRequired === "boolean",
     typeof value.reconnectRequired === "boolean",
@@ -598,12 +583,7 @@ export function isSendAcceptedResponse(
     return false;
   }
   return all([
-    hasExactKeys(value, [
-      "actionCount",
-      "estimatedDurationMs",
-      "id",
-      "state",
-    ]),
+    hasExactKeys(value, ["actionCount", "estimatedDurationMs", "id", "state"]),
     isSendIdentity(value),
     isSendBounds(value),
   ]);

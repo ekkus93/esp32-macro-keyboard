@@ -106,7 +106,8 @@ function isNetworkCredentials(
 function isSetupIdentity(value: Record<string, unknown>): boolean {
   return all([
     typeof value.setupCode === "string",
-    typeof value.setupCode === "string" && setupCodePattern.test(value.setupCode),
+    typeof value.setupCode === "string" &&
+      setupCodePattern.test(value.setupCode),
     isStringWithinBytes(value.deviceName, 1, 32),
   ]);
 }

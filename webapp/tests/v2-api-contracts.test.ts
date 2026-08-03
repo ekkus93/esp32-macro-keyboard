@@ -52,7 +52,9 @@ describe("v2 API response contracts", () => {
     expect(isSetupStateResponse(withUnknownField(examples.setupState))).toBe(
       false,
     );
-    expect(isSetupAccepted(withUnknownField(examples.setupAccepted))).toBe(false);
+    expect(isSetupAccepted(withUnknownField(examples.setupAccepted))).toBe(
+      false,
+    );
     expect(isSessionStatus(withUnknownField(examples.session))).toBe(false);
     expect(isStatusResponse(withUnknownField(examples.status))).toBe(false);
     expect(isLimitsResponse(withUnknownField(examples.limits))).toBe(false);
@@ -64,9 +66,9 @@ describe("v2 API response contracts", () => {
     expect(
       isSettingsUpdatedResponse(withUnknownField(examples.settingsUpdated)),
     ).toBe(false);
-    expect(isSendAcceptedResponse(withUnknownField(examples.sendAccepted))).toBe(
-      false,
-    );
+    expect(
+      isSendAcceptedResponse(withUnknownField(examples.sendAccepted)),
+    ).toBe(false);
     expect(isSendStatusResponse(withUnknownField(examples.sendStatus))).toBe(
       false,
     );

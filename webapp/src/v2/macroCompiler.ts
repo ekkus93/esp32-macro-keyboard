@@ -290,7 +290,11 @@ function isCompileFailure(
 }
 
 function validDirectiveText(directive: string): boolean {
-  if (directive.length === 0 || directive.includes("{") || /\s/.test(directive)) {
+  if (
+    directive.length === 0 ||
+    directive.includes("{") ||
+    /\s/.test(directive)
+  ) {
     return false;
   }
   for (let index = 0; index < directive.length; index += 1) {
