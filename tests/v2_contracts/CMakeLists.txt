@@ -8,6 +8,10 @@ set(CMAKE_C_EXTENSIONS OFF)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
 
+set(V2_CONTRACT_INCLUDE_DIR
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../firmware/components/app_contracts_v2/include
+)
+
 add_executable(
     v2_macro_conformance_tests
     test_macro_conformance.c
@@ -18,26 +22,36 @@ add_executable(
 target_include_directories(
     v2_macro_conformance_tests
     PRIVATE
-        ../../firmware/components/app_contracts_v2/include
+        ${V2_CONTRACT_INCLUDE_DIR}
         ../../firmware/components/macro_parser/include
         ../../firmware/components/macro_model/include
 )
 
 target_link_libraries(v2_macro_conformance_tests PRIVATE PkgConfig::CJSON)
 
-target_compile_options(
-    v2_macro_conformance_tests
-    PRIVATE
-        -Wall
-        -Wextra
-        -Werror
-        -Wshadow
-        -Wconversion
-        -Wsign-conversion
-        -Wformat=2
-        -Wdouble-promotion
-        -Wstrict-prototypes
+add_executable(
+    v2_device_settings_tests
+    test_device_settings.c
+    ../../firmware/components/app_contracts_v2/device_settings_v2.c
 )
+
+target_include_directories(v2_device_settings_tests PRIVATE ${V2_CONTRACT_INCLUDE_DIR})
+
+foreach(target v2_macro_conformance_tests v2_device_settings_tests)
+    target_compile_options(
+        ${target}
+        PRIVATE
+            -Wall
+            -Wextra
+            -Werror
+            -Wshadow
+            -Wconversion
+            -Wsign-conversion
+            -Wformat=2
+            -Wdouble-promotion
+            -Wstrict-prototypes
+    )
+endforeach()
 
 enable_testing()
 add_test(
@@ -46,3 +60,4 @@ add_test(
         v2_macro_conformance_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/../../contracts/v2/macro-conformance.json
 )
+add_test(NAME v2_device_settings COMMAND v2_device_settings_tests)
