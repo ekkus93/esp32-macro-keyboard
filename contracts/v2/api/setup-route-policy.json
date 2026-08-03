@@ -1,0 +1,30 @@
+{
+  "format": "esp32-macro-keyboard-setup-route-policy",
+  "version": 1,
+  "unprovisioned": {
+    "apiRoutes": [
+      {
+        "method": "GET",
+        "path": "/api/v1/setup",
+        "authentication": "none",
+        "requestBody": "none",
+        "successStatus": 200,
+        "responseContentType": "application/json"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/setup",
+        "authentication": "none",
+        "requestContentType": "application/json",
+        "requestBodyLimit": "jsonBodyMaxBytes",
+        "successStatus": 202,
+        "responseContentType": "application/json"
+      }
+    ],
+    "otherApiRoutes": "unavailable"
+  },
+  "provisioned": {
+    "getSetupStatus": 404,
+    "postSetupStatus": 409
+  }
+}
