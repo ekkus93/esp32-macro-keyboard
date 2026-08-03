@@ -39,6 +39,15 @@ typedef struct {
 app_error_code_t macro_compile(const char *source, size_t source_length,
                                const macro_compile_options_t *options, macro_plan_t *out_plan,
                                macro_parse_error_t *out_error);
+
+/* v2 contract compiler. Unlike the retained v1 entry point, both timing values
+ * accept the complete specified range 0 through 10,000 ms. This entry point is
+ * exercised by the shared C/TypeScript conformance corpus before it replaces
+ * macro_compile during the Phase 6 executor migration. */
+app_error_code_t macro_compile_v2(const char *source, size_t source_length,
+                                  const macro_compile_options_t *options,
+                                  macro_plan_t *out_plan, macro_parse_error_t *out_error);
+
 void macro_plan_free(macro_plan_t *plan);
 
 #endif
