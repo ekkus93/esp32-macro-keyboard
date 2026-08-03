@@ -16,6 +16,7 @@ add_executable(
     v2_macro_conformance_tests
     test_macro_conformance.c
     ../../firmware/components/macro_parser/macro_parser.c
+    ../../firmware/components/macro_parser/macro_parser_v2.c
     ../../firmware/components/macro_parser/macro_keymap_us.c
 )
 
