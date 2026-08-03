@@ -13,7 +13,8 @@ from typing import Any
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 CONTRACT_PATH = REPOSITORY_ROOT / "contracts/v2/limits.json"
 C_HEADER_PATH = (
-    REPOSITORY_ROOT / "firmware/components/support/include/app_limits_v2.h"
+    REPOSITORY_ROOT
+    / "firmware/components/app_contracts_v2/include/app_limits_v2.h"
 )
 TYPESCRIPT_PATH = REPOSITORY_ROOT / "webapp/src/v2/limits.ts"
 
@@ -101,7 +102,12 @@ def verify(path: Path, expected: str) -> bool:
     actual = path.read_text(encoding="utf-8")
     if actual == expected:
         return True
-    print(f"error: {path.relative_to(REPOSITORY_ROOT)} is not generated from {CONTRACT_PATH.relative_to(REPOSITORY_ROOT)}", file=sys.stderr)
+    relative_path = path.relative_to(REPOSITORY_ROOT)
+    contract_path = CONTRACT_PATH.relative_to(REPOSITORY_ROOT)
+    print(
+        f"error: {relative_path} is not generated from {contract_path}",
+        file=sys.stderr,
+    )
     for line in difflib.unified_diff(
         actual.splitlines(),
         expected.splitlines(),
