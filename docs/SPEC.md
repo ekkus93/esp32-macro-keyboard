@@ -13,8 +13,8 @@ The ESP32 Macro Keyboard is a self-contained USB keyboard automation appliance.
 The device connects to a target computer through the ESP32-S3 native USB
 peripheral and enumerates as a standard USB HID keyboard. At the same time, the
 device creates a password-protected Wi-Fi access point and serves a local web
-application. An authenticated user selects a macro set, picks a macro from that
-set's ordered list, and explicitly sends it as keyboard input to the target
+application. An authenticated user selects a package, picks a macro from that
+package's ordered list, and explicitly sends it as keyboard input to the target
 computer.
 
 The product is **generic**. It types text and key combinations at a computer on
@@ -24,7 +24,7 @@ runs, or what the macros are for.
 Converting Chromebooks from ChromeOS to Debian is one thing a user might keep
 macros for. It is an example, not a requirement, and no part of the firmware or
 the web application may be built around it. Earlier revisions of this document
-named it as the product's purpose and grew per-set `manufacturer`, `model`, and
+named it as the product's purpose and grew per-package `manufacturer`, `model`, and
 `board` fields, "guided conversion procedures", and a shared macro library out of
 that mistake. All of it is removed.
 
@@ -40,7 +40,7 @@ product** and MUST NOT be reintroduced without a deliberate amendment:
 
 - procedures, instruction steps, and checkpoint steps;
 - per-procedure progress tracking;
-- global or shared macros; a macro belongs to exactly one set;
+- global or shared macros; a macro belongs to exactly one package;
 - any field, screen, or code path specific to Chromebooks, ChromeOS, Debian, or
   any other particular target machine;
 - buttons of any kind, and any hardware added to the board;
@@ -73,13 +73,13 @@ The product MUST:
    operating systems without a custom host driver.
 2. Provide a local, mobile-first web application over an ESP32-S3 SoftAP.
 3. Let the user create, edit, duplicate, reorder, delete, import, and export
-   macro sets.
-4. Let each macro set hold an ordered list of macros, and let the user reorder
+   packages.
+4. Let each package hold an ordered list of macros, and let the user reorder
    that list.
 5. Operate with no buttons and no hardware added to the board: a bare devkit and
    a USB cable are a complete product.
 6. Require an explicit user action before every macro execution.
-7. Show the active macro set, USB state, execution state, and errors clearly.
+7. Show the active package, USB state, execution state, and errors clearly.
 8. Stop safely and release every key after completion, cancellation, USB loss,
    timeout, or internal failure.
 9. Preserve user data across resets and firmware updates.
@@ -95,7 +95,7 @@ Version 0.1 MUST NOT attempt to provide:
 - arbitrary Unicode typing;
 - any awareness of what the target computer is: no host operating-system
   detection, no hardware detection, and no behavior conditional on either;
-- automatic execution of the next macro in a set;
+- automatic execution of the next macro in a package;
 - guided procedures, instruction steps, checkpoint steps, or progress tracking
   (see §1.1);
 - global or shared macros (see §1.1);
@@ -115,7 +115,7 @@ Version 0.1 MUST NOT attempt to provide:
   are preserved in §15.2 instead: the access point starts first and
   unconditionally, a join failure is non-fatal, and at most one network is ever
   remembered;
-- macro-set merge conflict resolution;
+- package merge conflict resolution;
 - server-side JavaScript, React Server Components, or Node.js on the device;
 - TLS termination on the isolated SoftAP;
 - automatic filesystem formatting after a mount or integrity failure.
@@ -241,12 +241,12 @@ first-party source.
 
 ## 7. Core terminology and hierarchy
 
-### 7.1 Macro set
+### 7.1 Package
 
-A **macro set** is a name and an ordered list of macros. That is the entire
-structure; there is no level between a set and a macro.
+A **package** is a name and an ordered list of macros. That is the entire
+structure; there is no level between a package and a macro.
 
-A set is the active workspace for whatever the user groups together. The device
+A package is the active workspace for whatever the user groups together. The device
 attaches no meaning to that grouping:
 
 ```text
@@ -257,20 +257,20 @@ Build server login
 └── Start the build
 ```
 
-Set order is user-controlled and meaningful: it is the order the user works
+Package order is user-controlled and meaningful: it is the order the user works
 through. Firmware MUST preserve it exactly and MUST NOT reorder, sort, or
 renumber on its own.
 
-The user MUST explicitly select the active set. Firmware MUST NOT infer or
-automatically switch the active set.
+The user MUST explicitly select the active package. Firmware MUST NOT infer or
+automatically switch the active package.
 
 ### 7.2 Macro
 
 A **macro** is source text compiled into a bounded sequence of keyboard actions.
 
-Every macro belongs to exactly one set. There is no shared or global macro
+Every macro belongs to exactly one package. There is no shared or global macro
 library, and a macro carries no `scope` field. If the user wants the same macro
-in two sets, they duplicate the set or copy the text; on this device a duplicated
+in two packages, they duplicate the package or copy the text; on this device a duplicated
 macro costs a few hundred bytes, while a second macro library cost 16 KiB of
 empty directory metadata to save perhaps 3 KiB of duplication.
 
@@ -313,25 +313,25 @@ Kconfig option that is disabled in release builds.
 6. Every subsequent request carries that cookie, which is the whole credential
    (§16.2).
 
-### 8.3 Select macro set
+### 8.3 Select package
 
-The default startup behavior is **always ask which macro set to use**.
+The default startup behavior is **always ask which package to use**.
 
-1. The set selector lists recent and all sets.
-2. Each card shows the set name, its macro count, and its last-used time.
-3. The user explicitly selects a set.
-4. The active set is visible in the application header on every operational
+1. The package selector lists recent and all packages.
+2. Each card shows the package name, its macro count, and its last-used time.
+3. The user explicitly selects a package.
+4. The active package is visible in the application header on every operational
    page.
-5. Switching sets cancels any pending, not-yet-started confirmation request.
+5. Switching packages cancels any pending, not-yet-started confirmation request.
 6. Switching is prohibited while a macro is actively typing.
 
-A setting MAY change startup behavior to open the last selected set.
+A setting MAY change startup behavior to open the last selected package.
 
 ### 8.4 Send a macro
 
-1. The application shows the active set's macros in their stored order.
+1. The application shows the active package's macros in their stored order.
 2. The user selects **Send** on a macro.
-3. The application displays a decoded preview, duration estimate, active set,
+3. The application displays a decoded preview, duration estimate, active package,
    macro name, and current USB state.
 4. The user focuses the target computer and explicitly selects **Send Now**.
 5. If physical confirmation mode is enabled - it is off by default - the
@@ -356,33 +356,33 @@ The user may resend any macro at any time. The device stores no notion of a
 macro being "done": there is no completion state, no skip state, and no progress
 record. Which macros the user has already run is the user's business.
 
-### 8.5 Manage sets
+### 8.5 Manage packages
 
 The user may:
 
-- create an empty set;
-- duplicate an existing set;
-- rename a set;
-- reorder sets;
-- reorder the macros within a set;
-- export one set;
-- import a set as new or replace an existing set;
-- delete a set;
+- create an empty package;
+- duplicate an existing package;
+- rename a package;
+- reorder packages;
+- reorder the macros within a package;
+- export one package;
+- upload a package, creating or replacing it;
+- delete a package;
 - export all application data;
 - restore a complete backup.
 
 Merge import is not supported in version 0.1.
 
-### 8.6 Delete set
+### 8.6 Delete package
 
 Deletion MUST:
 
-1. be rejected while the set has an active execution;
+1. be rejected while the package has an active execution;
 2. show exactly what will be removed;
-3. require a deliberate confirmation, including typed set name for destructive
+3. require a deliberate confirmation, including typed package name for destructive
    deletion;
-4. remove the set file and update the set index;
-5. return the UI to set selection when the active set is deleted.
+4. remove the package file and update the package index;
+5. return the UI to package selection when the active package is deleted.
 
 Deletion is permanent. There is no trash directory and no undelete: the device
 does not have the storage to keep a copy of everything the user has thrown away
@@ -390,16 +390,16 @@ does not have the storage to keep a copy of everything the user has thrown away
 
 ### 8.7 Import and export
 
-A set export MUST be a single versioned JSON package containing:
+A package export MUST be a single versioned JSON package containing:
 
 - package format identifier and version;
-- the set name and identity;
-- the set's macros, in order;
+- the package name and identity;
+- the package's macros, in order;
 - keyboard-layout requirements;
 - integrity metadata.
 
-A set package is self-contained by construction: every macro it needs is inside
-it, because a macro cannot live anywhere but in a set. Import therefore has no
+A package is self-contained by construction: every macro it needs is inside
+it, because a macro cannot live anywhere but in a package. Import therefore has no
 external dependency to verify.
 
 It MUST NOT contain:
@@ -418,20 +418,34 @@ and available space before modifying active data.
 `docs/PROPOSAL_2026-08-03_PACKAGE_REPOSITORY_MODEL.md`). Two nouns, and four
 operations over them:
 
-- a **package** is one macro set — its macros in order, plus metadata. It is what
-  the rest of this section calls a set export.
+- a **package** is one package — its macros in order, plus metadata. It is what
+  the rest of this section calls a package export.
 - a **repository** is a list of packages plus its own metadata:
-  `{"packages": [ … ], … }`. The repository metadata MUST include the active set
-  and the set order, so that restoring a repository restores them too.
+  `{"packages": [ … ], … }`. The repository metadata MUST include the active
+  package and the package order, so that restoring a repository restores them
+  too, and a **CRC32 for every package**.
+
+The CRC32 lives in the repository metadata rather than inside each package file,
+so that comparing two repositories is one read of each metadata block and a
+series of integer comparisons, with no package opened. Verifying a package on
+disk means recomputing its CRC32 and comparing it against that entry. CRC32
+rather than a cryptographic digest because the risk is flash corruption, not
+tampering: anyone holding a session may rewrite a package legitimately, so a
+digest would defend nothing that is not already open. This is the "integrity
+metadata" this section has required since the first revision.
+
+Listing the packages returns each package's id, name and CRC32. It MUST NOT
+report a modification date: the device has no wall clock — no RTC synchronization
+and, by §4, no internet — so any date it produced would be invented.
 
 | operation | meaning |
 | --- | --- |
-| download a package | export one set |
-| upload a package | create or replace one set |
+| download a package | export one package |
+| upload a package | create or replace one package |
 | download a repository | back up everything |
 | upload a repository | restore everything |
 
-Uploading a package is a replacement addressed by set id. If the id does not
+Uploading a package is a replacement addressed by package id. If the id does not
 exist the package is created; if it exists it is replaced. This replaces the
 earlier choice between "import as a new independent set" and "replace an existing
 set", which were two operations for one job. `expectedRevision` (§13.7) remains
@@ -455,32 +469,32 @@ Required screens:
 
 1. First-run setup
 2. Login
-3. Choose macro set
-4. Macro list for the active set, in order, with reordering
+3. Choose package
+4. Macro list for the active package, in order, with reordering
 5. Macro editor
 6. Send confirmation
 7. Execution progress and cancel
 8. Completion, cancellation, and failure results
-9. Manage macro sets
-10. Create or duplicate macro set
-11. Import macro set
-12. Export macro set
-13. Delete macro set confirmation
+9. Manage packages
+10. Create or duplicate package
+11. Import package
+12. Export package
+13. Delete package confirmation
 14. Settings
 15. Storage diagnostics
 
 The persistent operational header MUST show:
 
 - device name;
-- active macro set;
+- active package;
 - USB state;
-- access to set switching;
+- access to package switching;
 - access to settings.
 
-The primary bottom navigation after set selection SHOULD be:
+The primary bottom navigation after package selection SHOULD be:
 
 ```text
-Macros | Sets | Settings
+Macros | Packages | Settings
 ```
 
 ### 9.1 Routing
@@ -488,7 +502,7 @@ Macros | Sets | Settings
 The application SHOULD use hash routing:
 
 ```text
-/#/sets
+/#/package
 /#/macros
 /#/settings
 ```
@@ -603,9 +617,9 @@ macro source bytes            4096
 compiled actions              4096
 delay per directive        10,000 ms
 estimated total duration        300 s
-macros per set                  100
-macro sets                       50
-set file bytes               32 KiB
+macros per package              100
+packages                       50
+package file bytes               32 KiB
 total user data bytes       480 KiB
 import package bytes        512 KiB
 ```
@@ -613,8 +627,8 @@ import package bytes        512 KiB
 Limits MUST be centralized, visible through the API, and tested at boundaries.
 They MUST NOT be duplicated as inconsistent magic numbers.
 
-The nominal per-set and total limits are far below the arithmetic product of the
-per-object limits, and that is deliberate: 50 sets of 100 macros of 4096 bytes is
+The nominal per-package and total limits are far below the arithmetic product of the
+per-object limits, and that is deliberate: 50 packages of 100 macros of 4096 bytes is
 20 MB against a 512 KiB partition. Firmware MUST enforce the storage limits by
 measuring actual serialized size before committing a write, not by trusting the
 count limits, and MUST reject an over-budget write with `507` (§17) rather than
@@ -690,7 +704,7 @@ There is one macro-executor task. HTTP handlers MUST NOT type directly.
 A send request:
 
 1. authenticates and validates authorization;
-2. verifies the revision and active set;
+2. verifies the revision and active package;
 3. loads and validates the macro;
 4. compiles it into an immutable in-memory execution plan;
 5. verifies USB readiness and executor idleness;
@@ -722,9 +736,9 @@ number generator.
 Objects carry no field that the product does not use. A field that exists only
 because it might be useful later is a defect on this device, not future-proofing.
 
-### 12.1 Macro set
+### 12.1 Package
 
-A set is a name and an ordered list of macros. Required fields:
+A package is a name and an ordered list of macros. Required fields:
 
 ```json
 {
@@ -740,10 +754,10 @@ A set is a name and an ordered list of macros. Required fields:
 order; there is no separate order file and no `sort_order` field on a macro.
 
 Earlier revisions specified `description`, `manufacturer`, `model`, `board`, and
-`keyboard_layout` on a set. They are removed. `manufacturer`, `model`, and
+`keyboard_layout` on a package. They are removed. `manufacturer`, `model`, and
 `board` existed only because the specification mistook one user's Chromebook
 workflow for the product (§1); `description` duplicates the name; and the layout
-is a device-wide property in version 0.1 (§10.1), not a per-set one.
+is a device-wide property in version 0.1 (§10.1), not a per-package one.
 
 ### 12.2 Macro
 
@@ -761,9 +775,9 @@ Required fields:
 }
 ```
 
-A macro is stored inline in its set's `macros` array. It carries no `scope` and
-no `set_id`: there is exactly one place a macro can be, and the file it is in
-identifies the set. API responses and export packages MAY carry the owning set ID
+A macro is stored inline in its package's `macros` array. It carries no `scope` and
+no `package_id`: there is exactly one place a macro can be, and the file it is in
+identifies the package. API responses and export packages MAY carry the owning package ID
 as an envelope field, but it is not part of the object.
 
 A macro's `source` MUST compile before it is stored. Creation and update
@@ -773,23 +787,23 @@ runs the macro, and to every later operation that has to read the repository as
 a whole: a backup validates the package it writes, so one unusable macro used to
 make the whole repository unexportable (§17).
 
-### 12.3 Set index
+### 12.3 Package index
 
-The index is the order of the sets themselves, plus which set is active:
+The index is the order of the packages themselves, plus which package is active:
 
 ```json
 {
   "schema_version": 1,
   "revision": 1,
-  "active_set_id": "uuid",
-  "set_ids": ["uuid", "uuid"]
+  "active_package_id": "uuid",
+  "package_ids": ["uuid", "uuid"]
 }
 ```
 
-A set ID in the index with no corresponding set file, or a set file not named in
+A package ID in the index with no corresponding package file, or a package file not named in
 the index, is a corruption of the index and is handled under §13.6. Firmware MUST
 NOT silently reconstruct the index from a directory listing, because doing so
-discards the user's set order — the one thing the index exists to hold.
+discards the user's package order — the one thing the index exists to hold.
 
 ### 12.4 Objects that do not exist
 
@@ -835,13 +849,13 @@ The web-assets filesystem and user-data filesystem are separate mounts.
 ### 13.3 Logical user-data layout
 
 The `userdata` partition is **512 KiB**. The layout MUST be flat: one index file
-and one file per set.
+and one file per package.
 
 ```text
 /data/
-├── index.json              schema version, active set, set order
-├── sets/
-│   └── <set-id>.json       set name and its ordered macros
+├── index.json              schema version, active package, package order
+├── package/
+│   └── <package-id>.json   package name and its ordered macros
 ├── backup/
 │   └── …                   the backup repository, same shape
 └── state                   recovery marker (§13.5), absent when clean
@@ -857,9 +871,9 @@ Measured on the bench device 2026-08-03: eight empty package files cost 8,192
 bytes in total, about a kilobyte each, because LittleFS inlines a small file into
 its parent's metadata. Two repositories of fifty packages would be roughly 102
 KiB of the 512 KiB partition. The second copy is affordable; a second *directory*
-tree per set would not have been, which is why the shape below stays flat.
+tree per package would not have been, which is why the shape below stays flat.
 
-This is the whole tree. There MUST NOT be a per-set directory, a per-object file,
+This is the whole tree. There MUST NOT be a per-package directory, a per-object file,
 a separate order file, a global or shared macro store, a `staging/` directory, a
 `trash/` directory, a `transactions/` directory, or a `quarantine/` directory.
 The recovery marker is one file and is not a reinstatement of any of them.
@@ -870,11 +884,11 @@ costs 8 KiB** whether or not it holds anything, while a file under roughly 512
 bytes is inlined into its parent's metadata for free. A device observed on
 2026-08-01 reported 98,304 bytes used — 24 blocks, all of it directory metadata
 for 12 directories — while holding 1,370 bytes of actual user data. A layout with
-a directory per set spends the partition on empty structure before the user has
+a directory per package spends the partition on empty structure before the user has
 stored anything.
 
-One file per set rather than one file for everything: a write duplicates only the
-set being edited instead of the whole repository, which is what makes roughly
+One file per package rather than one file for everything: a write duplicates only the
+package being edited instead of the whole repository, which is what makes roughly
 480 KiB usable rather than roughly 252 KiB.
 
 ### 13.4 Atomic file update
@@ -990,13 +1004,13 @@ NVS stores only small device configuration, including:
 - AP SSID and credential material;
 - station SSID and passphrase, when a network has been joined (§15.2);
 - password verifier and salts;
-- startup-set behavior;
+- startup-package behavior;
 - execution policy;
 - bounded timing defaults;
 - credential-reset state;
 - schema version.
 
-Macro sets, macros, imports, and web assets do not belong in NVS.
+Packages, macros, imports, and web assets do not belong in NVS.
 
 The administrator password MUST NOT be stored in plaintext, nor in any form from
 which the password can be recovered. Use a per-password random salt and a
@@ -1175,8 +1189,8 @@ and passphrase, and it MUST mark the device unprovisioned so first-run setup
 (§8.1) runs again.
 
 It MUST preserve everything the user did not lose: the device name, the settings
-(startup-set behavior, execution policy, timing defaults), the stored station
-network (§15.2), and every macro set and macro. This is what distinguishes it
+(startup-package behavior, execution policy, timing defaults), the stored station
+network (§15.2), and every package and macro. This is what distinguishes it
 from factory reset, which erases the whole provisioning record. A user who
 forgets a password MUST NOT have to choose between recovering the device and
 keeping their macros.
@@ -1240,23 +1254,21 @@ GET    /api/v1/auth/session
 GET    /api/v1/status
 GET    /api/v1/limits
 
-GET    /api/v1/sets
-POST   /api/v1/sets
-GET    /api/v1/sets/{set_id}
-PUT    /api/v1/sets/{set_id}
-DELETE /api/v1/sets/{set_id}
-POST   /api/v1/sets/{set_id}/duplicate
-POST   /api/v1/sets/{set_id}/select
-GET    /api/v1/sets/{set_id}/export
-POST   /api/v1/sets/import
+GET    /api/v1/package
+POST   /api/v1/package
+GET    /api/v1/package/{package_id}
+PUT    /api/v1/package/{package_id}
+DELETE /api/v1/package/{package_id}
+POST   /api/v1/package/{package_id}/duplicate
+POST   /api/v1/package/{package_id}/select
 
-GET    /api/v1/sets/{set_id}/macros
-POST   /api/v1/sets/{set_id}/macros
-GET    /api/v1/sets/{set_id}/macros/{macro_id}
-PUT    /api/v1/sets/{set_id}/macros/{macro_id}
-DELETE /api/v1/sets/{set_id}/macros/{macro_id}
-POST   /api/v1/sets/{set_id}/macros/{macro_id}/validate
-POST   /api/v1/sets/{set_id}/macros/reorder
+GET    /api/v1/package/{package_id}/macros
+POST   /api/v1/package/{package_id}/macros
+GET    /api/v1/package/{package_id}/macros/{macro_id}
+PUT    /api/v1/package/{package_id}/macros/{macro_id}
+DELETE /api/v1/package/{package_id}/macros/{macro_id}
+POST   /api/v1/package/{package_id}/macros/{macro_id}/validate
+POST   /api/v1/package/{package_id}/macros/reorder
 
 POST   /api/v1/executions
 GET    /api/v1/executions/current
@@ -1272,22 +1284,31 @@ POST   /api/v1/device/factory-reset
 
 GET    /api/v1/diagnostics/storage
 POST   /api/v1/diagnostics/storage/check
-GET    /api/v1/backup
-POST   /api/v1/restore
+
+GET    /api/v1/repository
+PUT    /api/v1/repository
 ```
 
 There are no procedure routes, no progress routes, and no `/api/v1/global/macros`
 routes. `GET /api/v1/diagnostics/quarantine` existed in an earlier revision and
-is removed (§13.6). Every macro is reached through its set.
+is removed (§13.6). Every macro is reached through its package.
 
-**Amended 2026-08-03, 01:40 PDT**, in conversation with the product owner: the package and
-repository routes are being reduced to the four operations §8.7 defines —
-download a package, upload a package, download a repository, upload a
-repository. `POST /api/v1/sets/import-new` and `POST /api/v1/sets/import` are two
-routes for one operation and collapse into one; the concrete paths and methods
-are **not yet decided** and this list is not yet updated for them. (The list above
-also predates `import-new`, which the implementation has and this section never
-gained.)
+**Amended 2026-08-03**, in conversation with the product owner. Two changes.
+
+*Vocabulary:* "set" no longer exists. A macro set is a **package**, and the
+routes are singular — `/api/v1/package/{package_id}` — matching §7.1 and §12.1.
+
+*Transfer routes:* `GET /api/v1/package/{package_id}/export`,
+`POST /api/v1/package/{package_id}/import`, `.../import-new`,
+`GET /api/v1/backup` and `POST /api/v1/restore` are replaced by the five above.
+Downloading a package is `GET /api/v1/package/{package_id}`; uploading one is a
+`PUT` to the same path, which creates it when the id is absent. The repository
+is `GET`/`PUT /api/v1/repository`.
+
+Two redundancies this creates are **not yet resolved**: whether
+`POST /api/v1/package` is still needed to create an empty package now that `PUT`
+creates, and whether `GET /api/v1/package/{package_id}/macros` remains once a
+`GET` of the package returns its macros inline.
 
 The API implementation MAY consolidate routes where memory constraints justify
 it, but external behavior and resource boundaries MUST remain equivalent and be
@@ -1311,8 +1332,8 @@ continuing past it would silently drop objects that are perfectly good and
 present a truncated backup as a whole one. A failed export names the object it
 stopped on.
 
-`POST /api/v1/restore` reports per-set outcomes (§13.5). A response reporting
-partial success MUST enumerate which sets were restored and which were not; it
+`POST /api/v1/restore` reports per-package outcomes (§13.5). A response reporting
+partial success MUST enumerate which packages were restored and which were not; it
 MUST NOT report `200` for a run that failed to write some of them.
 
 Important status codes:
@@ -1358,7 +1379,7 @@ Terminal states are immutable.
 Each execution record contains:
 
 - execution ID;
-- set ID;
+- package ID;
 - macro ID;
 - macro revision;
 - start policy;
@@ -1663,11 +1684,11 @@ Tests MUST cover:
 - boot cleanup of stray `.tmp` files;
 - corrupt JSON, including that the corrupt file is deleted and the failure
   reported;
-- an index naming a set file that is absent, and a set file the index omits;
+- an index naming a package file that is absent, and a package file the index omits;
 - macro order preserved exactly across write, reboot, export, and restore;
 - import as new;
 - replace import;
-- partial restore reporting per-set outcomes;
+- partial restore reporting per-package outcomes;
 - no-format mount failure.
 
 ### 24.3 USB and executor
@@ -1708,9 +1729,9 @@ Tests MUST cover:
 Tests MUST cover:
 
 - every required screen;
-- active-set visibility;
-- set switching;
-- set and macro ordering, including that a reorder round-trips through the API;
+- active-package visibility;
+- package switching;
+- package and macro ordering, including that a reorder round-trips through the API;
 - live validation;
 - send preview;
 - disabled Send when USB is unavailable;
@@ -1748,9 +1769,9 @@ Version 0.1 is complete only when:
 3. The device enumerates as a USB keyboard.
 4. The device starts a protected SoftAP without an open fallback.
 5. An authenticated user can create, select, rename, duplicate, export, import,
-   replace, and delete macro sets.
-6. The user can reorder sets and can reorder the macros within a set, and that
-   order survives reboot, export, and restore.
+   replace, and delete packages.
+6. The user can reorder packages and can reorder the macros within a package, and
+   that order survives reboot, export, and restore.
 7. The user can create and edit valid macros and receives exact errors for
    invalid source.
 8. The user can execute a macro only through explicit confirmation.
@@ -1789,7 +1810,7 @@ Potential later work includes:
 - OLED display;
 - Bluetooth HID;
 - execution history;
-- signed macro-set packages;
+- signed package packages;
 - role-based users;
 - USB composite CDC plus HID;
 - automated host-side HID conformance testing.
