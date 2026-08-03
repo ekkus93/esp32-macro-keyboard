@@ -1,22 +1,16 @@
-# ESP32 Macro Keyboard — Implementation TODO (RETIRED)
+# ESP32 Macro Keyboard — Implementation Plan Status
 
-> **This document is retired. Do not implement from it.**
->
-> It is the execution plan for the product as specified before 2026-08-02:
-> procedures, steps, checkpoints, progress tracking, a global macro library,
-> quarantine, a multi-file transaction layer, and a directory tree per package. None
-> of those exist any more, and building from this document would reintroduce
-> them.
->
-> **The plan is now:**
->
-> - `docs/SPEC.md` — the normative specification.
-> - `docs/TODO_SPEC_ALIGNMENT_2026-08-02.md` — the execution plan that brought
->   the code to that specification, and the record of what each phase did.
->
-> It is kept only so the commits that reference it remain readable. Leaving two
-> contradictory plans in `docs/` is how this project accumulated the subsystems
-> the 2026-08-02 revision had to remove, so this file is a pointer and nothing
-> else.
->
-> The original 1,481-line text is in git history: `git show <rev>:docs/TODO.md`.
+**Document status:** No authoritative v2 implementation plan exists yet.
+
+The product specification is [`docs/SPEC_V2.md`](SPEC_V2.md).
+
+Do not implement from the former v1 TODO, the specification-alignment plans, the
+FIX documents, or the outstanding-work list. Those documents describe the
+retired firmware-owned package and macro architecture.
+
+Before rebuild implementation begins, create a new v2 TODO derived only from
+`docs/SPEC_V2.md`, with an explicit deletion/reuse map for the existing code and
+reproducible acceptance evidence for every phase.
+
+The former TODO remains available in git history for historical investigation
+only.
