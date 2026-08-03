@@ -59,6 +59,14 @@ app_error_code_t storage_set_document_serialize(const storage_set_document_t *do
  * (SPEC 12.2). A package is a different container, so its macro entries carry
  * the owning set ID as the envelope field SPEC 12.2 explicitly permits, and
  * these two functions are where that envelope is written and read. */
+/* Parse an object that is already a node of a larger document, so the package
+ * validator can walk one cJSON tree rather than re-parsing every element from
+ * its own text. Forward-declared rather than including cJSON.h, so consumers
+ * that only handle whole documents keep their include set. */
+struct cJSON;
+app_error_code_t storage_repository_parse_macro_node(const struct cJSON *root, macro_t *out_macro);
+app_error_code_t storage_repository_parse_set_node(const struct cJSON *root, macro_set_t *out_set);
+
 app_error_code_t storage_repository_parse_macro_json(const char *data, size_t length,
                                                      macro_t *out_macro);
 app_error_code_t storage_repository_serialize_macro_json(const macro_t *macro, char **out_json,

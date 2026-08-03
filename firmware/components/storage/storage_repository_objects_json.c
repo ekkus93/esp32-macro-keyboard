@@ -59,17 +59,18 @@ static bool macro_shape_valid(const macro_t *macro) {
     return app_uuid_is_valid_string(macro->set_id.value);
 }
 
-app_error_code_t storage_repository_parse_macro_json(const char *data, size_t length,
-                                                     macro_t *out_macro) {
+/* Parse an object that is already a node of a larger document. The package
+ * validator walks one cJSON tree instead of re-parsing every element from its
+ * own text, which is all the hand-rolled scanner it replaced ever did. */
+app_error_code_t storage_repository_parse_macro_node(const struct cJSON *root, macro_t *out_macro) {
     if (out_macro != NULL) {
         memset(out_macro, 0, sizeof(*out_macro));
     }
-    if (data == NULL || out_macro == NULL) {
+    if (root == NULL || out_macro == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    cJSON *root = NULL;
-    app_error_code_t result = storage_json_parse_object_fields(
-        data, length, MACRO_FIELDS, MACRO_FIELD_COUNT, MACRO_REQUIRED_FIELD_COUNT, &root);
+    app_error_code_t result = storage_json_check_object_fields(
+        root, MACRO_FIELDS, MACRO_FIELD_COUNT, MACRO_REQUIRED_FIELD_COUNT);
     if (result == APP_ERROR_NONE) {
         result = storage_json_get_u32(root, "schema_version", APP_SCHEMA_VERSION,
                                       APP_SCHEMA_VERSION, &out_macro->schema_version);
@@ -100,13 +101,30 @@ app_error_code_t storage_repository_parse_macro_json(const char *data, size_t le
         result = storage_json_get_u32(root, "inter_key_ms", 0U, APP_DELAY_MAX_MS,
                                       &out_macro->inter_key_ms);
     }
-    cJSON_Delete(root);
     if (result != APP_ERROR_NONE || !macro_shape_valid(out_macro)) {
         macro_model_free_macro(out_macro);
         memset(out_macro, 0, sizeof(*out_macro));
         return result == APP_ERROR_NONE ? APP_ERROR_STORAGE_CORRUPT : result;
     }
     return APP_ERROR_NONE;
+}
+
+app_error_code_t storage_repository_parse_macro_json(const char *data, size_t length,
+                                                     macro_t *out_macro) {
+    if (out_macro != NULL) {
+        memset(out_macro, 0, sizeof(*out_macro));
+    }
+    if (data == NULL || out_macro == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    cJSON *root = NULL;
+    app_error_code_t result = storage_json_parse_object_fields(
+        data, length, MACRO_FIELDS, MACRO_FIELD_COUNT, MACRO_REQUIRED_FIELD_COUNT, &root);
+    if (result == APP_ERROR_NONE) {
+        result = storage_repository_parse_macro_node(root, out_macro);
+    }
+    cJSON_Delete(root);
+    return result;
 }
 
 static app_error_code_t add_macro_fields(cJSON *root, const macro_t *macro) {
@@ -179,17 +197,15 @@ static const char *const SET_ENVELOPE_FIELDS[SET_ENVELOPE_FIELD_COUNT] = {
     "name",
 };
 
-app_error_code_t storage_repository_parse_set_json(const char *data, size_t length,
-                                                   macro_set_t *out_set) {
+app_error_code_t storage_repository_parse_set_node(const struct cJSON *root, macro_set_t *out_set) {
     if (out_set != NULL) {
         memset(out_set, 0, sizeof(*out_set));
     }
-    if (data == NULL || out_set == NULL) {
+    if (root == NULL || out_set == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    cJSON *root = NULL;
-    app_error_code_t result = storage_json_parse_exact_object(data, length, SET_ENVELOPE_FIELDS,
-                                                              SET_ENVELOPE_FIELD_COUNT, &root);
+    app_error_code_t result = storage_json_check_object_fields(
+        root, SET_ENVELOPE_FIELDS, SET_ENVELOPE_FIELD_COUNT, SET_ENVELOPE_FIELD_COUNT);
     if (result == APP_ERROR_NONE) {
         result = storage_json_get_u32(root, "schema_version", APP_SCHEMA_VERSION,
                                       APP_SCHEMA_VERSION, &out_set->schema_version);
@@ -203,10 +219,27 @@ app_error_code_t storage_repository_parse_set_json(const char *data, size_t leng
     if (result == APP_ERROR_NONE) {
         result = storage_json_get_string(root, "name", out_set->name, sizeof(out_set->name), true);
     }
-    cJSON_Delete(root);
     if (result != APP_ERROR_NONE) {
         memset(out_set, 0, sizeof(*out_set));
     }
+    return result;
+}
+
+app_error_code_t storage_repository_parse_set_json(const char *data, size_t length,
+                                                   macro_set_t *out_set) {
+    if (out_set != NULL) {
+        memset(out_set, 0, sizeof(*out_set));
+    }
+    if (data == NULL || out_set == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    cJSON *root = NULL;
+    app_error_code_t result = storage_json_parse_exact_object(data, length, SET_ENVELOPE_FIELDS,
+                                                              SET_ENVELOPE_FIELD_COUNT, &root);
+    if (result == APP_ERROR_NONE) {
+        result = storage_repository_parse_set_node(root, out_set);
+    }
+    cJSON_Delete(root);
     return result;
 }
 
