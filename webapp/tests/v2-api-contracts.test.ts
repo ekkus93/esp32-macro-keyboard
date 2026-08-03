@@ -6,8 +6,9 @@ import {
   isBlobListResponse,
   isDiagnosticsResponse,
   isErrorEnvelope,
+  isFactoryResetAccepted,
   isLimitsResponse,
-  isResetAccepted,
+  isResetSettingsAccepted,
   isSendAcceptedResponse,
   isSendStatusResponse,
   isSessionStatus,
@@ -39,8 +40,8 @@ describe("v2 API response contracts", () => {
     expect(isSendAcceptedResponse(examples.sendAccepted)).toBe(true);
     expect(isSendStatusResponse(examples.sendStatus)).toBe(true);
     expect(isActionAccepted(examples.restartAccepted)).toBe(true);
-    expect(isResetAccepted(examples.resetSettingsAccepted)).toBe(true);
-    expect(isResetAccepted(examples.factoryResetAccepted)).toBe(true);
+    expect(isResetSettingsAccepted(examples.resetSettingsAccepted)).toBe(true);
+    expect(isFactoryResetAccepted(examples.factoryResetAccepted)).toBe(true);
     expect(isDiagnosticsResponse(examples.diagnostics)).toBe(true);
   });
 
@@ -67,9 +68,12 @@ describe("v2 API response contracts", () => {
     expect(isActionAccepted(withUnknownField(examples.restartAccepted))).toBe(
       false,
     );
-    expect(isResetAccepted(withUnknownField(examples.resetSettingsAccepted))).toBe(
-      false,
-    );
+    expect(
+      isResetSettingsAccepted(withUnknownField(examples.resetSettingsAccepted)),
+    ).toBe(false);
+    expect(
+      isFactoryResetAccepted(withUnknownField(examples.factoryResetAccepted)),
+    ).toBe(false);
     expect(isDiagnosticsResponse(withUnknownField(examples.diagnostics))).toBe(
       false,
     );
@@ -96,7 +100,7 @@ describe("v2 API response contracts", () => {
     ).toBe(false);
   });
 
-  test("rejects invalid blob IDs and oversized blobs", () => {
+  test("rejects invalid blob IDs, order, and size", () => {
     expect(
       isBlobCreatedResponse({
         id: "0004",
@@ -107,6 +111,12 @@ describe("v2 API response contracts", () => {
       isBlobCreatedResponse({
         id: "4",
         sizeBytes: 131_073,
+      }),
+    ).toBe(false);
+    expect(
+      isBlobListResponse({
+        ...examples.blobList,
+        blobs: [...examples.blobList.blobs].reverse(),
       }),
     ).toBe(false);
   });
@@ -148,12 +158,27 @@ describe("v2 API response contracts", () => {
     ).toBe(false);
   });
 
+  test("distinguishes reset-settings and factory-reset responses", () => {
+    expect(isFactoryResetAccepted(examples.resetSettingsAccepted)).toBe(false);
+    expect(isResetSettingsAccepted(examples.factoryResetAccepted)).toBe(false);
+    expect(
+      isResetSettingsAccepted({
+        ...examples.resetSettingsAccepted,
+        repositoryBlobsPreserved: false,
+      }),
+    ).toBe(false);
+  });
+
   test("rejects inconsistent absent-send summaries", () => {
-    const status = structuredClone(examples.status);
+    const status = structuredClone(examples.status) as {
+      send: { present: boolean; state: string | null };
+    };
     status.send.state = "running";
     expect(isStatusResponse(status)).toBe(false);
 
-    const diagnostics = structuredClone(examples.diagnostics);
+    const diagnostics = structuredClone(examples.diagnostics) as {
+      send: { present: boolean; state: string | null };
+    };
     diagnostics.send.state = "running";
     expect(isDiagnosticsResponse(diagnostics)).toBe(false);
   });
