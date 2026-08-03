@@ -293,10 +293,13 @@ function validDirectiveText(directive: string): boolean {
   if (directive.length === 0 || directive.includes("{") || /\s/.test(directive)) {
     return false;
   }
-  return [...directive].every((item) => {
-    const code = item.codePointAt(0);
-    return code !== undefined && code >= 0x21 && code <= 0x7e;
-  });
+  for (let index = 0; index < directive.length; index += 1) {
+    const code = directive.charCodeAt(index);
+    if (code < 0x21 || code > 0x7e) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function parseCarriageReturn(
