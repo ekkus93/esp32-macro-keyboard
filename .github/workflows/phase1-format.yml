@@ -1,0 +1,45 @@
+name: Phase 1 Format Repair
+
+on:
+  push:
+    branches:
+      - phase1-contract-validation
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out validation branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: phase1-contract-validation
+          show-progress: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm --prefix webapp ci --ignore-scripts --no-audit --no-fund
+
+      - name: Apply pinned Prettier output
+        run: npm --prefix webapp run format:write
+
+      - name: Commit formatting repair
+        run: |
+          if git diff --quiet; then
+            echo "No formatting changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add webapp
+          git commit -m "Apply pinned Phase 1 formatting"
+          git push origin HEAD:phase1-contract-validation
