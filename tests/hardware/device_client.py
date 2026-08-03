@@ -22,7 +22,11 @@ class Device:
         headers = {}
         data = None
         if body is not None:
-            data = json.dumps(body).encode()
+            # Compact, no spaces between tokens. The device's package parser is a
+            # hand-rolled scanner that rejects whitespace there, and json.dumps
+            # inserts ", " and ": " by default -- which turned a working restore
+            # into a 422 and cost an afternoon chasing the firmware.
+            data = json.dumps(body, separators=(",", ":")).encode()
             headers["Content-Type"] = "application/json"
         if self.cookie:
             headers["Cookie"] = self.cookie

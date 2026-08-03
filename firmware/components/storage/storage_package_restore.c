@@ -103,6 +103,18 @@ static app_error_code_t parse_macro_node(const cJSON *node, macro_t *out_macro) 
     return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
 }
 
+/* Temporary diagnostic (2026-08-02). Restore and import both answer 422 with no
+ * per-set outcomes on hardware while the same document validates on the host,
+ * so the stage that rejects it has to be observed on the target rather than
+ * reasoned about. Guarded so the host build is unchanged. Logs codes and counts
+ * only -- never document content, which would carry macro text (SPEC 20.2). */
+#if defined(ESP_PLATFORM)
+#include "esp_log.h"
+#define PACKAGE_DIAG(...) ESP_LOGE("package_diag", __VA_ARGS__)
+#else
+#define PACKAGE_DIAG(...) ((void)0)
+#endif
+
 static app_error_code_t open_document(const char *data, size_t length,
                                       package_restore_document_t *out_document) {
     memset(out_document, 0, sizeof(*out_document));
@@ -286,6 +298,10 @@ app_error_code_t storage_package_restore_backup(const char *data, size_t length,
     }
     package_restore_document_t document = {0};
     result = open_document(data, length, &document);
+    if (result != APP_ERROR_NONE) {
+        PACKAGE_DIAG("restore could not open the package: len=%u result=%d", (unsigned)length,
+                     (int)result);
+    }
     if (result == APP_ERROR_NONE) {
         result = storage_repository_lock_take();
     }

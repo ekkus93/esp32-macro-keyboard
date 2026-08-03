@@ -963,6 +963,18 @@ static app_error_code_t validate_package_objects(const package_document_t *docum
     return result;
 }
 
+/* Temporary diagnostic (2026-08-02). Restore and import both answer 422 with no
+ * per-set outcomes on hardware while the same document validates on the host,
+ * so the stage that rejects it has to be observed on the target rather than
+ * reasoned about. Guarded so the host build is unchanged. Logs codes and counts
+ * only -- never document content, which would carry macro text (SPEC 20.2). */
+#if defined(ESP_PLATFORM)
+#include "esp_log.h"
+#define PACKAGE_DIAG(...) ESP_LOGE("package_diag", __VA_ARGS__)
+#else
+#define PACKAGE_DIAG(...) ((void)0)
+#endif
+
 app_error_code_t storage_package_validate(const char *data, size_t length,
                                           storage_package_kind_t expected_kind,
                                           storage_package_summary_t *out_summary) {
@@ -980,6 +992,12 @@ app_error_code_t storage_package_validate(const char *data, size_t length,
 
     package_document_t document = {0};
     app_error_code_t result = parse_package_document(data, length, &document);
+    if (result != APP_ERROR_NONE) {
+        /* The scanner rejects whitespace between tokens, so a pretty-printed
+         * package fails here with nothing else to go on. Say so. */
+        PACKAGE_DIAG("package parse failed: len=%u result=%d kind=%d expected=%d", (unsigned)length,
+                     (int)result, (int)document.kind, (int)expected_kind);
+    }
     if (result == APP_ERROR_NONE && document.kind != expected_kind) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
@@ -989,9 +1007,16 @@ app_error_code_t storage_package_validate(const char *data, size_t length,
     };
     if (result == APP_ERROR_NONE) {
         result = count_package_arrays(&document, &summary);
+        if (result != APP_ERROR_NONE) {
+            PACKAGE_DIAG("package count failed: result=%d sets=%u macros=%u", (int)result,
+                         (unsigned)summary.set_count, (unsigned)summary.local_macro_count);
+        }
     }
     if (result == APP_ERROR_NONE) {
         result = validate_package_objects(&document, &summary);
+        if (result != APP_ERROR_NONE) {
+            PACKAGE_DIAG("package object validation failed: result=%d", (int)result);
+        }
     }
     if (result == APP_ERROR_NONE) {
         *out_summary = summary;

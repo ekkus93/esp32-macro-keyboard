@@ -553,67 +553,43 @@ tens of KiB rather than 98,304, and `check-all.sh` exits 0.
   **not** a 200 and goes out through the error envelope with the same per-set
   detail attached. The status comes from the *first* per-set failure, so storage
   exhaustion still reads as 507 instead of being flattened to 500.
-- [ ] **5.4 Prove it on hardware.** **BLOCKED by a defect found while trying.**
-  `tests/hardware/test_backup_restore.py` was rewritten and run against the
-  attached device on 2026-08-02. Backup works. Restore does not.
+- [x] **5.4 Prove it on hardware. DONE 2026-08-02.** `GET /api/v1/backup` then
+  `POST /api/v1/restore` of that same package, against the attached ESP32-S3:
+  `HTTP 200 in 2.65 s`, `restored=true`, 14 of 14 sets restored, 0 failed, per-set
+  outcomes reported, device alive afterwards, repository byte-identical. That is
+  acceptance criterion 4.
 
-  **`GET /api/v1/backup` returns a package that `POST /api/v1/restore` refuses.**
-  Reproducible, and not a scale problem: 200 with a well-formed 6,136-byte
-  document (14 sets, 21 macros), then `422 invalid_argument` on posting that
-  exact document back. Bisected down to a single set with two macros -- still
-  422. Revisions were already 1, so it is not the create-time revision rule.
-  The device logs nothing, so it is rejected inside `storage_package_validate`
-  for `STORAGE_PACKAGE_KIND_BACKUP` before anything reports.
+  It took two detours worth recording, because both were mine.
 
-  The emitted document matches `docs/schemas/all-data-backup.schema.json`:
-  top level `schema_version, package_type, sets, macros`; sets carry
-  `schema_version, id, revision, name`; macros carry those plus `set_id`,
-  `source`, `key_press_ms`, `inter_key_ms`.
+  **A real firmware defect, found and fixed on the way (`280d61a`).**
+  `web_server_async_dispatch` handed requests to the worker without reading the
+  body first, and esp_http_server gives an async handler the request but not its
+  unread payload. Both worker-routed body-carrying routes -- restore and the set
+  imports -- reached their handlers with `body_length` 0. Fixed by reading on the
+  httpd task and carrying the buffer across, with the limit decision split from
+  the read so the policy ordering `test_body_limit_precedes_headers` pins is
+  unchanged.
 
-  **A cause found and fixed, but not the whole cause.** Restore is
-  worker-routed (`web_api_request_requires_worker`), and
-  `web_server_async_dispatch` calls `httpd_req_async_handler_begin()` *without
-  reading the body first*. The worker then runs `web_api_handle_call` on the
-  async request copy, whose body can no longer be received -- ESP-IDF hands the
-  async handler the request, not its unread payload. So `call->body_length` is
-  0, `storage_package_restore_backup(data, 0)` returns `APP_ERROR_INVALID_ARGUMENT`
-  at its first guard, and the route answers 422 in 40 ms having attempted no
-  sets. Every observed symptom follows: instant, size-independent, zero per-set
-  outcomes, and nothing logged.
+  **The blocker itself was the harness, not the firmware.** `device_client.post`
+  serialised with `json.dumps(body)`, whose defaults insert `", "` and `": "`.
+  The device's package scanner rejects whitespace between tokens, so every
+  restore attempt through the harness was 422 while the same document validated
+  on the host -- where I had, without noticing, pasted the device's *compact*
+  output into the probe. Posting the device's raw backup bytes unmodified
+  succeeds; re-serialising the identical object with spaces fails. The frontend
+  was never affected: `JSON.stringify` emits compact JSON.
 
-  Ruled out by direct experiment rather than reasoning: the document itself is
-  fine. Compiling `storage_package_validate` on the host against the exact bytes
-  the device emitted returns `APP_ERROR_NONE` with `sets=1 macros=1`.
+  Two things follow. The harness now serialises compactly. And the parser's
+  whitespace intolerance is recorded as 5.6 below, because a user who opens an
+  exported backup in an editor and saves it gets a 422 with nothing to go on.
 
-  This affects every worker-routed request that carries a body. `POST
-  /api/v1/sets/{id}/import` is the other one.
-
-  **Fixed.** The body is now read on the httpd task before
-  `httpd_req_async_handler_begin` and carried to the worker on the queue, with
-  the route limit decided separately from the read so the policy ordering that
-  `test_body_limit_precedes_headers` pins is unchanged.
-
-  **It did not fix restore.** With the body arriving -- the request now takes
-  0.56 s rather than 40 ms for a 6 KB package, which is the read -- restore
-  still answers 422 `invalid_argument` with zero per-set outcomes, at every size
-  from one set upward. `POST /api/v1/sets/import-new` fails the same way. So
-  there is a second cause, shared by both worker-routed body-carrying routes,
-  and my earlier claim to have found *the* root cause was wrong: the missing
-  body was real and worth fixing on its own, but it was not the whole story.
-
-  What is now ruled out, each by experiment rather than reading: the emitted
-  document (host `storage_package_validate` accepts the exact device bytes,
-  `sets=1 macros=1`), package size (one set fails identically to fourteen), and
-  the missing body (fixed, behaviour changed, failure did not).
-
-  Next: instrument the device. Both routes fail before any set is attempted, so
-  the answer is inside `storage_package_validate` or `open_document` on the
-  target, and the difference from the host must come from something the host
-  build does not reproduce.
-
-  Why it survived: every restore and import test is host-side and calls the
-  storage entry points with a body already in hand. Nothing exercises the
-  httpd -> async-worker handoff, which is the only place this breaks.
+- [ ] **5.6 The package parser rejects whitespace between tokens.** Any
+  pretty-printed package is refused with `422 invalid_argument` and no
+  indication why. `docs/SPEC.md` does not require packages to be compact, and
+  `GET /api/v1/backup` is a file a user can reasonably open, inspect, and save.
+  Either the scanner should skip inter-token whitespace, or the constraint
+  should be stated in SPEC 17 and surfaced in the error. Failing that, the
+  device now at least logs which stage rejected a package.
 
 - [ ] **5.5 Backup is not tolerant of a damaged object, contrary to SPEC 17.**
   Found on the same run. One macro the device itself accepted at creation

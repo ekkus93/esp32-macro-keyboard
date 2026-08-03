@@ -112,7 +112,7 @@ def main() -> int:
         for entry in outcomes:
             mark = "ok  " if entry.get("restored") else "FAIL"
             suffix = "" if entry.get("restored") else f"  {entry.get('error')}"
-            print(f"    {mark} {entry.get('id')}{suffix}")
+            print(f"    {mark} {entry.get('setId')}{suffix}")
         print(f"    restored={data.get('restored')} across {len(outcomes)} set(s)")
 
         survived = alive(device)
