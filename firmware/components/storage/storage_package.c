@@ -449,7 +449,13 @@ static app_error_code_t capture_json_value(json_cursor_t *cursor, json_span_t *o
     return APP_ERROR_NONE;
 }
 
+/* Leading whitespace is skipped here, as every other token consumer in this
+ * scanner already does. Without it a package could only be parsed if it carried
+ * no space after a colon -- which the device's own writer happens to satisfy and
+ * a pretty-printer does not, so an exported backup opened in an editor and saved
+ * came back as 422 invalid_argument with nothing to explain it. */
 static app_error_code_t read_plain_string(json_cursor_t *cursor, char *output, size_t output_size) {
+    skip_whitespace(cursor);
     if (output == NULL || output_size == 0U || cursor->offset >= cursor->length ||
         cursor->data[cursor->offset] != '"') {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -477,6 +483,7 @@ static app_error_code_t read_plain_string(json_cursor_t *cursor, char *output, s
 }
 
 static app_error_code_t read_u32(json_cursor_t *cursor, uint32_t *out_value) {
+    skip_whitespace(cursor);
     if (out_value == NULL || cursor->offset >= cursor->length ||
         !is_decimal_digit(cursor->data[cursor->offset])) {
         return APP_ERROR_INVALID_ARGUMENT;

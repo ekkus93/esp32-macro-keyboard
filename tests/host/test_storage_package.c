@@ -49,6 +49,37 @@ static void test_valid_set_and_backup_packages(void) {
     TEST_CHECK_EQ_U64(1U, summary.set_count);
 }
 
+/* SPEC 17: a package is a JSON document, and JSON permits whitespace between
+ * tokens. The scanner used to require every value to begin immediately after
+ * its colon, which the device's own writer happens to satisfy and every
+ * pretty-printer does not. `GET /api/v1/backup` produces a file a user can open
+ * in an editor; saving it made the file unrestorable, with a 422 and nothing to
+ * explain it. Found on hardware, where the harness re-serialised with spaces. */
+static void test_whitespace_between_tokens_is_accepted(void) {
+    static const char SPACED_BACKUP[] =
+        "{\"schema_version\": 1, \"package_type\": \"backup\", \"sets\": [ { "
+        "\"schema_version\": 1, \"id\": \"" SET_ID "\", \"revision\": 1, "
+        "\"name\": \"Spaced\" } ], \"macros\": [] }";
+    storage_package_summary_t summary = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_package_validate(SPACED_BACKUP, sizeof(SPACED_BACKUP) - 1U,
+                                                  STORAGE_PACKAGE_KIND_BACKUP, &summary));
+    TEST_CHECK_EQ_U64(STORAGE_PACKAGE_KIND_BACKUP, summary.kind);
+    TEST_CHECK_EQ_U64(1U, summary.set_count);
+
+    /* Newlines and tabs too: an editor writes those, not just spaces. */
+    static const char PRETTY_BACKUP[] =
+        "{\n\t\"schema_version\" : 1,\n\t\"package_type\" : \"backup\",\n"
+        "\t\"sets\" : [\n\t\t{\n\t\t\t\"schema_version\" : 1,\n"
+        "\t\t\t\"id\" : \"" SET_ID "\",\n\t\t\t\"revision\" : 1,\n"
+        "\t\t\t\"name\" : \"Pretty\"\n\t\t}\n\t],\n\t\"macros\" : []\n}";
+    memset(&summary, 0, sizeof(summary));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_package_validate(PRETTY_BACKUP, sizeof(PRETTY_BACKUP) - 1U,
+                                                  STORAGE_PACKAGE_KIND_BACKUP, &summary));
+    TEST_CHECK_EQ_U64(1U, summary.set_count);
+}
+
 static void test_top_level_contract(void) {
     static const char *const invalid[] = {
         "{}",
@@ -143,6 +174,7 @@ static void test_size_and_argument_bounds(void) {
 
 int main(void) {
     test_valid_set_and_backup_packages();
+    test_whitespace_between_tokens_is_accepted();
     test_top_level_contract();
     test_object_and_reference_validation();
     test_size_and_argument_bounds();

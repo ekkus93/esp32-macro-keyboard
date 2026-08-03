@@ -12,6 +12,7 @@
 #include "cJSON.h"
 #include "macro_limits.h"
 #include "macro_model.h"
+#include "macro_parser.h"
 #include "storage_object_json.h"
 #include "storage_package_internal.h"
 #include "storage_repository.h"
@@ -265,6 +266,55 @@ static void record_failure(storage_package_failure_t *out_failure,
     }
 }
 
+/* SPEC 17: an object that is individually unusable is omitted from the package
+ * and recorded, rather than failing the export -- "a backup is most needed
+ * exactly when storage is damaged".
+ *
+ * A macro whose source will not compile is exactly that. It can be stored, since
+ * creation does not compile, and the package this function feeds is validated
+ * before it is returned -- and that validation does compile every macro. So one
+ * unusable macro used to make the entire repository unbackupable: a real device
+ * answered 422 macro_syntax to GET /api/v1/backup because a single stored macro
+ * had `{DELAY 3000}` where the parser wants `DELAY:`.
+ *
+ * Dropping it here keeps the emitted package restorable, which is the point of
+ * having one at all. */
+static void drop_uncompilable_macros(storage_macro_list_t *list, const app_uuid_t *set_id,
+                                     storage_package_skip_report_t *out_skipped) {
+    size_t kept = 0U;
+    for (size_t index = 0U; index < list->count; ++index) {
+        const macro_t *macro = &list->items[index];
+        const macro_compile_options_t options = {
+            .key_press_ms = macro->key_press_ms,
+            .inter_key_ms = macro->inter_key_ms,
+        };
+        macro_plan_t plan = {0};
+        macro_parse_error_t error = {0};
+        const app_error_code_t compiled =
+            macro_compile(macro->source, macro->source_length, &options, &plan, &error);
+        macro_plan_free(&plan);
+        if (compiled == APP_ERROR_NONE) {
+            if (kept != index) {
+                list->items[kept] = list->items[index];
+            }
+            ++kept;
+            continue;
+        }
+        if (out_skipped != NULL) {
+            const storage_object_ref_t reference = {.has_id = true, .id = macro->id};
+            const storage_skip_record_t one = {
+                .items = (storage_object_ref_t *)&reference,
+                .capacity = 1U,
+                .count = 1U,
+                .total = 1U,
+            };
+            fold_skips(out_skipped, STORAGE_PACKAGE_OBJECT_MACRO, set_id, &one);
+        }
+        macro_model_free_macro(&list->items[index]);
+    }
+    list->count = kept;
+}
+
 static app_error_code_t load_set_snapshot(const macro_set_t *set,
                                           backup_set_snapshot_t *out_snapshot,
                                           storage_package_failure_t *out_failure,
@@ -284,6 +334,7 @@ static app_error_code_t load_set_snapshot(const macro_set_t *set,
         record_failure(out_failure, STORAGE_PACKAGE_OBJECT_MACRO, &set->id, &failed);
         return result;
     }
+    drop_uncompilable_macros(&out_snapshot->local_macros, &set->id, out_skipped);
     fold_skips(out_skipped, STORAGE_PACKAGE_OBJECT_MACRO, &set->id, &skips);
     return result;
 }

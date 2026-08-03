@@ -583,15 +583,30 @@ tens of KiB rather than 98,304, and `check-all.sh` exits 0.
   whitespace intolerance is recorded as 5.6 below, because a user who opens an
   exported backup in an editor and saves it gets a 422 with nothing to go on.
 
-- [ ] **5.6 The package parser rejects whitespace between tokens.** Any
+  **Fixed and proved on hardware 2026-08-02.** A macro with `ab{DELAY 3000}cd`
+  was planted through the API (accepted, 201, because creation does not compile)
+  and `GET /api/v1/backup` returned 200 with `skipped: {total: 1, items:
+  [{kind: macro, id: ..., set_id: ...}]}` instead of the 422 it used to answer.
+  The uncompilable macro is dropped at snapshot time and recorded, so the
+  emitted package still validates -- which matters, because the export validates
+  what it wrote and that validation compiles every macro.
+
+  The underlying asymmetry stands and is worth its own item: creation accepts a
+  source the device cannot compile. Backup now tolerates it; SPEC 3.10 would
+  rather it were never stored.
+
+- [x] **5.6 The package parser accepts whitespace between tokens. DONE.** Any
   pretty-printed package is refused with `422 invalid_argument` and no
   indication why. `docs/SPEC.md` does not require packages to be compact, and
   `GET /api/v1/backup` is a file a user can reasonably open, inspect, and save.
-  Either the scanner should skip inter-token whitespace, or the constraint
-  should be stated in SPEC 17 and surfaced in the error. Failing that, the
-  device now at least logs which stage rejected a package.
+  **Fixed.** `read_plain_string` and `read_u32` were the only token consumers in
+  the scanner that did not skip leading whitespace, so a value had to begin
+  immediately after its colon -- which the device's own writer satisfies and no
+  pretty-printer does. Both now skip, and a host test covers spaces, newlines
+  and tabs. Proved on hardware: a backup re-serialised with `indent=2` restores
+  with 200, `restored: true`, 14 of 14 sets.
 
-- [ ] **5.5 Backup is not tolerant of a damaged object, contrary to SPEC 17.**
+- [x] **5.5 Backup is now tolerant of a damaged object (SPEC 17). DONE.**
   Found on the same run. One macro the device itself accepted at creation
   (`ab{DELAY 3000}cd` -- the parser wants `DELAY:`) made the whole repository
   unbackupable: `422 macro_syntax`, because `storage_package_validate` compiles

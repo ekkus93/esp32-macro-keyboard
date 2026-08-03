@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "app_error.h"
@@ -227,6 +228,42 @@ static void test_backup_output_passes_secret_sentinel_scanner(void) {
     storage_package_reset_backup_ops_for_test();
 }
 
+/* SPEC 17, the case hardware found: a macro that is stored but will not compile.
+ * Creation does not compile sources, so the device can hold one; the export
+ * validates the package it writes, and that validation does compile every macro.
+ * One such macro therefore used to make the whole repository unbackupable --
+ * a real device answered 422 macro_syntax to GET /api/v1/backup because a single
+ * stored macro had `{DELAY 3000}` where the parser wants `DELAY:`. */
+static void test_uncompilable_macro_is_skipped_not_fatal(void) {
+    fake_backup_context_t context = valid_context();
+    /* Same syntax the device actually had. */
+    /* Heap-allocated, because the export frees a macro it drops -- production
+       macros come from storage_macro_list_detail_locked, which copies them. */
+    static const char broken[] = "ab{DELAY 3000}cd";
+    char *source = malloc(sizeof(broken));
+    TEST_CHECK(source != NULL);
+    memcpy(source, broken, sizeof(broken));
+    context.local[0].items[0].source = source;
+    context.local[0].items[0].source_length = sizeof(broken) - 1U;
+    const storage_package_backup_ops_t operations = fake_operations(&context);
+    storage_package_set_backup_ops_for_test(&operations);
+
+    char *data = NULL;
+    size_t length = 0U;
+    storage_package_skip_report_t skipped = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_package_export_backup_detail(&data, &length, NULL, &skipped));
+    TEST_CHECK(data != NULL);
+    TEST_CHECK(skipped.total >= 1U);
+    /* The package is still a package: it has to be restorable, which is the
+     * whole reason the export validates what it wrote. */
+    storage_package_summary_t summary = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_validate(
+                                             data, length, STORAGE_PACKAGE_KIND_BACKUP, &summary));
+    storage_package_free(data);
+    storage_package_reset_backup_ops_for_test();
+}
+
 /* SPEC 17: "`GET /api/v1/backup` MUST NOT let one damaged object make the
  * repository unbackupable -- a backup is most needed exactly when storage is
  * damaged." The individually unusable object is omitted rather than failing the
@@ -374,6 +411,7 @@ static void test_success_reports_no_failure(void) {
 int main(void) {
     test_backup_contains_complete_repository_deterministically();
     test_backup_output_passes_secret_sentinel_scanner();
+    test_uncompilable_macro_is_skipped_not_fatal();
     test_unreadable_macro_is_skipped_and_recorded();
     test_partial_package_still_validates();
     test_device_fault_still_fails_the_export();
