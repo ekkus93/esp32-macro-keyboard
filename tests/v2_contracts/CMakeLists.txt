@@ -11,20 +11,30 @@ pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
 set(V2_CONTRACT_INCLUDE_DIR
     ${CMAKE_CURRENT_SOURCE_DIR}/../../firmware/components/app_contracts_v2/include
 )
+set(V2_PARSER_SOURCE_DIR
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../firmware/components/macro_parser
+)
 
 add_executable(
     v2_macro_conformance_tests
     test_macro_conformance.c
-    ../../firmware/components/macro_parser/macro_parser_v2.c
-    ../../firmware/components/macro_parser/macro_plan_v2.c
-    ../../firmware/components/macro_parser/macro_keymap_us.c
+    ${V2_PARSER_SOURCE_DIR}/macro_parser_v2.c
+    ${V2_PARSER_SOURCE_DIR}/macro_plan_v2.c
+    ${V2_PARSER_SOURCE_DIR}/macro_keymap_us.c
+    ${V2_PARSER_SOURCE_DIR}/macro_keymap_us_v2.c
+)
+
+set_source_files_properties(
+    ${V2_PARSER_SOURCE_DIR}/macro_parser_v2.c
+    PROPERTIES COMPILE_DEFINITIONS
+               "macro_keymap_us_named=macro_keymap_us_named_v2_canonical"
 )
 
 target_include_directories(
     v2_macro_conformance_tests
     PRIVATE
         ${V2_CONTRACT_INCLUDE_DIR}
-        ../../firmware/components/macro_parser/include
+        ${V2_PARSER_SOURCE_DIR}/include
         ../../firmware/components/macro_model/include
 )
 
