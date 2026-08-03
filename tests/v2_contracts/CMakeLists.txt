@@ -18,6 +18,7 @@ add_executable(
 target_include_directories(
     v2_macro_conformance_tests
     PRIVATE
+        ../../firmware/components/app_contracts_v2/include
         ../../firmware/components/macro_parser/include
         ../../firmware/components/macro_model/include
 )
