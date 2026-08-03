@@ -181,6 +181,7 @@ target_sources(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_writer.c"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_replace.c"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_import.c"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_reader.c"
         )
 
 add_executable(
@@ -194,6 +195,7 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_writer.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_replace.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_import.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_package_reader.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_core.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_response.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_json.c"

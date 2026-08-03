@@ -140,9 +140,41 @@ def main() -> int:
         macros = payload["data"] if status == 200 else []
         print(f"    created {imported['id']} with {len(macros)} macro(s)")
         results["import as new"] = imported["id"] == new_set_id and len(macros) > 0
+
+        print("\n--- POST /api/v1/sets/import (replace that set's contents) ---")
+        # The third apply path. It is exercised here rather than against an
+        # existing set because replace is destructive: the set it lands on is
+        # the one import-new just created, and is deleted immediately after.
+        replacement = json.loads(exported)
+        replacement["sets"][0]["id"] = new_set_id
+        replacement["sets"][0]["revision"] = imported["revision"] + 1
+        # Drop the last macro, so a success that changed nothing cannot pass.
+        replacement["macros"] = replacement["macros"][:-1]
+        for macro in replacement["macros"]:
+            macro["set_id"] = new_set_id
+        status, payload = device.post(
+            "/api/v1/sets/import",
+            {
+                "targetSetId": new_set_id,
+                "expectedRevision": imported["revision"],
+                "package": replacement,
+            },
+        )
+        if status != 200:
+            raise SystemExit(f"error: replace failed: {status} {str(payload)[:200]}")
+        replaced = payload["data"]
+        status, payload = device.get(f"/api/v1/sets/{new_set_id}/macros")
+        after_macros = payload["data"] if status == 200 else []
+        print(f"    revision {imported['revision']} -> {replaced['revision']}, "
+              f"{len(macros)} macro(s) -> {len(after_macros)}")
+        results["replace"] = (
+            replaced["revision"] == imported["revision"] + 1
+            and len(after_macros) == len(macros) - 1
+        )
+
         # Leave the repository as it was found.
-        device.delete(f"/api/v1/sets/{imported['id']}",
-                      {"expectedRevision": imported["revision"]})
+        device.delete(f"/api/v1/sets/{new_set_id}",
+                      {"expectedRevision": replaced["revision"]})
 
         print("\n--- repository intact afterwards ---")
         sets_after = device.get("/api/v1/sets")[1]["data"]

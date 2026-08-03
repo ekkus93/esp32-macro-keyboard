@@ -17,6 +17,7 @@ before the device could survive its own first authenticated API call.
 | `test_cancellation.py` | cancellation over the API **and** the console `cancel` command, during a delay and mid-typing |
 | `test_full_set_in_order.py` | every macro in a set, in stored order, against a harmless target |
 | `test_acceptance_reset.py` | power-cycle persistence, factory reset, re-provisioning, credential reset |
+| `test_backup_restore.py` | all three package apply paths: whole-repository restore with per-set outcomes, import as a new set, replace an existing set |
 
 Run order matters only in that everything needs a provisioned device;
 `test_acceptance_reset.py` provisions one itself if it finds the device
@@ -84,8 +85,9 @@ outside the tree.
 ```bash
 cd tests/hardware
 
-# 1. join the device to Wi-Fi (station mode is not persisted, so repeat
-#    after every reboot or reflash)
+# 1. join the device to Wi-Fi. Credentials are persisted, so a device that
+#    has joined once comes back on its own after a reboot; run this to join a
+#    different network, or after an NVS erase.
 python3 -c 'import hil_state; print(hil_state.connect_wifi())'
 
 # 2. create the macro set and macros (once per device wipe)

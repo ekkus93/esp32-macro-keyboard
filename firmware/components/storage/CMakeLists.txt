@@ -20,6 +20,7 @@ idf_component_register(
     "storage_repository_macros.c"
     "storage_package.c"
     "storage_package_writer.c"
+    "storage_package_reader.c"
     "storage_package_export.c"
     "storage_package_backup.c"
     "storage_package_restore.c"

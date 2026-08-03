@@ -541,6 +541,7 @@ add_executable(
     ../../firmware/components/macro_parser/macro_keymap_us.c
     ../../firmware/components/storage/storage_package.c
     ../../firmware/components/storage/storage_package_replace.c
+    ../../firmware/components/storage/storage_package_reader.c
 )
 target_include_directories(
     storage_package_replace_tests
@@ -564,6 +565,7 @@ add_executable(
     ../../firmware/components/macro_parser/macro_keymap_us.c
     ../../firmware/components/storage/storage_package.c
     ../../firmware/components/storage/storage_package_import.c
+    ../../firmware/components/storage/storage_package_reader.c
 )
 target_include_directories(
     storage_package_import_tests

@@ -38,11 +38,15 @@ against an attached ESP32-S3:
   `cancelled` with the last keystroke 92–127 ms after the request;
 - **power-cycle persistence, factory reset, credential reset, and
   re-provisioning**, including that a saved Wi-Fi network survives setup and a
-  credential reset but not a factory reset.
+  credential reset but not a factory reset, and that the device rejoins it
+  unaided about 12 s after a reboot;
+- **all three ways a package is applied** — whole-repository restore reporting
+  per-set outcomes, import as a new set, and replacing an existing set's
+  contents — against a real repository, on the device.
 
-Still not verified on hardware: the on-device Unity test menu, backup/restore,
-repeated USB and access-point reconnects, a firmware slot switch, and any host
-other than Linux. Those are the open items in `docs/SPEC.md` §24.6.
+Still not verified on hardware: the on-device Unity test menu, repeated USB and
+access-point reconnects, a firmware slot switch, and any host other than Linux.
+Those are the open items in `docs/SPEC.md` §24.6.
 
 ## Known product limitation: unauthenticated serial console
 
