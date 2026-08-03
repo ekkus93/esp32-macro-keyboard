@@ -22,9 +22,12 @@ typedef struct {
     const struct cJSON *macros;
 } package_tree_t;
 
-/* Parses a package into a tree, requiring the two sibling arrays SPEC 12.3
- * defines. Callers run storage_package_validate first; this is the second pass
- * that keeps the tree instead of discarding it. */
+/* Parses a package into a tree, requiring the `sets` and `macros` arrays.
+ * SPEC 8.7 requires a package to carry the set and its macros in order and says
+ * nothing about how; two sibling arrays is this implementation's choice, and
+ * storage_package.c is where it is validated. Callers run
+ * storage_package_validate first; this is the second pass that keeps the tree
+ * instead of discarding it. */
 app_error_code_t package_tree_open(const char *data, size_t length, package_tree_t *out_tree);
 void package_tree_close(package_tree_t *tree);
 

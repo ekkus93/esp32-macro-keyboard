@@ -20,9 +20,10 @@
 #include "storage_repository_sets_internal.h"
 
 /* The package's own tree, plus the single set it replaces the target with.
- * `sets[0]` is that set: SPEC 12.3 requires a set package to carry exactly one,
- * and storage_package_validate has already enforced it by the time this is
- * built. */
+ * `sets[0]` is that set: a set package carries exactly one, which
+ * storage_package_validate has already enforced by the time this is built.
+ * SPEC 8.7 describes a set export in the singular; the count is checked in
+ * storage_package.c, not stated as a rule anywhere in the specification. */
 typedef struct {
     package_tree_t tree;
     macro_set_t replacement;

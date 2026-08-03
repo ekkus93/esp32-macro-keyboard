@@ -97,33 +97,33 @@ cheapest place to find real gaps.
 | §13.5 | L870 | Restore MUST NOT perform the whole rewrite synchronously on the HTTP server task. | referenced | backup_restore → (file)<br>storage_package_restore → (file)<br>web_api_admin_boundary → restore_failure_is_visible |
 | §13.6 | L897 | Deleting a corrupt file MUST NOT be reported as successful recovery. | referenced | management-screens → shows live redacted storage data<br>storage_macros → oversized_set_file_is_refused<br>storage_macros → set_local_crud_duplicate_and_order<br>web_api_admin_boundary → storage_snapshot_publishes_remaining_space<br>web_api_core → route_parsing |
 | §13.7 | L906 | resource metadata. The server MUST NOT silently overwrite a newer edit. | referenced | web_api_repository_handlers → session_json_redaction |
-| §14 | L924 | The administrator password MUST NOT be stored in plaintext, nor in any form from | referenced | provisioning → corrupt_persisted_records<br>provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → oversized_credentials_are_refused_without_side_effects<br>provisioning → station_credentials_survive_a_power_cycle<br>provisioning → storing_a_network_replaces_the_previous_one |
-| §14 | L932 | them is confinement rather than hashing: firmware MUST NOT emit either | referenced | provisioning → corrupt_persisted_records<br>provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → oversized_credentials_are_refused_without_side_effects<br>provisioning → station_credentials_survive_a_power_cycle<br>provisioning → storing_a_network_replaces_the_previous_one |
-| §14 | L934 | report. A caller that needs an SSID MUST NOT be handed a copy of the whole | referenced | provisioning → corrupt_persisted_records<br>provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → oversized_credentials_are_refused_without_side_effects<br>provisioning → station_credentials_survive_a_power_cycle<br>provisioning → storing_a_network_replaces_the_previous_one |
-| §15.1 | L964 | AP startup failure is a visible fatal network state. The firmware MUST NOT | referenced | app_core → normal_failure_matrix<br>wifi_ap → events_and_client_saturation |
-| §15.2 | L976 | firmware MUST NOT keep a list, and MUST NOT scan for, rank, or join any network | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
-| §15.2 | L988 | availability a fatal-if-absent property, so it MUST NOT be made to wait on, or | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
-| §15.2 | L993 | ignored: the device continues as access-point only. Firmware MUST NOT treat it | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
-| §15.2 | L994 | as a startup failure, MUST NOT retry it in a way that delays or blocks the rest | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
-| §15.2 | L995 | of startup, and MUST NOT discard the stored credentials because one join | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
-| §16.5 | L1075 | The console MUST NOT expose credentials or secret material even so, because | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
-| §16.6 | L1104 | forgets a password MUST NOT have to choose between recovering the device and | referenced | provisioning → corrupt_persisted_records |
-| §17 | L1210 | `GET /api/v1/backup` MUST NOT let one damaged object make the repository | referenced | backup_restore → (file)<br>storage_package → valid_set_and_backup_packages<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner<br>storage_package_backup → uncompilable_macro_is_skipped_not_fatal |
-| §17 | L1230 | MUST NOT report `200` for a run that failed to write some of them. | referenced | backup_restore → (file)<br>storage_package → valid_set_and_backup_packages<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner<br>storage_package_backup → uncompilable_macro_is_skipped_not_fatal |
-| §19 | L1292 | The device MUST NOT require any button, and MUST NOT require hardware to be | referenced | device_controls → runtime_failures |
-| §20.1 | L1336 | swallow an `esp_err_t` | **UNMAPPED** | — |
-| §20.1 | L1337 | cast away or discard an error result | **UNMAPPED** | — |
-| §20.1 | L1338 | return success after partial completion | **UNMAPPED** | — |
-| §20.1 | L1339 | log an error and then continue in an invalid state | **UNMAPPED** | — |
-| §20.1 | L1340 | substitute empty data after parse failure | **UNMAPPED** | — |
-| §20.1 | L1341 | silently retry forever | **UNMAPPED** | — |
-| §20.1 | L1342 | silently downgrade authentication, storage, USB, or validation behavior | **UNMAPPED** | — |
-| §20.1 | L1343 | use a dangerous fallback merely to keep the application running | **UNMAPPED** | — |
-| §21.1 | L1385 | The defect MUST be fixed at its source. It MUST NOT be hidden, suppressed, | gate-enforced | check-static-analysis-policy.sh (gate script) |
-| §21.3 | L1419 | The project MUST NOT modify ESP-IDF, managed components, npm dependencies, or | gate-enforced | check-static-analysis-policy.sh (gate script) |
-| §21.4 | L1429 | First-party source and project configuration MUST NOT use warning suppression as | gate-enforced | check-static-analysis-policy.sh (gate script) |
-| §26 | L1711 | Deferred features MUST NOT be partially or silently enabled in version 0.1. | gate-enforced | check-removed-features.sh (gate script) |
-| §27 | L1734 | MUST NOT be assumed to exist. Implement the pages from this specification until | **UNMAPPED** | — |
+| §14 | L947 | The administrator password MUST NOT be stored in plaintext, nor in any form from | referenced | provisioning → corrupt_persisted_records<br>provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → oversized_credentials_are_refused_without_side_effects<br>provisioning → station_credentials_survive_a_power_cycle<br>provisioning → storing_a_network_replaces_the_previous_one |
+| §14 | L955 | them is confinement rather than hashing: firmware MUST NOT emit either | referenced | provisioning → corrupt_persisted_records<br>provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → oversized_credentials_are_refused_without_side_effects<br>provisioning → station_credentials_survive_a_power_cycle<br>provisioning → storing_a_network_replaces_the_previous_one |
+| §14 | L957 | report. A caller that needs an SSID MUST NOT be handed a copy of the whole | referenced | provisioning → corrupt_persisted_records<br>provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → oversized_credentials_are_refused_without_side_effects<br>provisioning → station_credentials_survive_a_power_cycle<br>provisioning → storing_a_network_replaces_the_previous_one |
+| §15.1 | L987 | AP startup failure is a visible fatal network state. The firmware MUST NOT | referenced | app_core → normal_failure_matrix<br>wifi_ap → events_and_client_saturation |
+| §15.2 | L999 | firmware MUST NOT keep a list, and MUST NOT scan for, rank, or join any network | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
+| §15.2 | L1011 | availability a fatal-if-absent property, so it MUST NOT be made to wait on, or | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
+| §15.2 | L1016 | ignored: the device continues as access-point only. Firmware MUST NOT treat it | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
+| §15.2 | L1017 | as a startup failure, MUST NOT retry it in a way that delays or blocks the rest | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
+| §15.2 | L1018 | of startup, and MUST NOT discard the stored credentials because one join | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
+| §16.5 | L1098 | The console MUST NOT expose credentials or secret material even so, because | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
+| §16.6 | L1127 | forgets a password MUST NOT have to choose between recovering the device and | referenced | provisioning → corrupt_persisted_records |
+| §17 | L1233 | `GET /api/v1/backup` MUST NOT let one damaged object make the repository | referenced | backup_restore → (file)<br>storage_package → valid_set_and_backup_packages<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner<br>storage_package_backup → uncompilable_macro_is_skipped_not_fatal |
+| §17 | L1253 | MUST NOT report `200` for a run that failed to write some of them. | referenced | backup_restore → (file)<br>storage_package → valid_set_and_backup_packages<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner<br>storage_package_backup → uncompilable_macro_is_skipped_not_fatal |
+| §19 | L1315 | The device MUST NOT require any button, and MUST NOT require hardware to be | referenced | device_controls → runtime_failures |
+| §20.1 | L1359 | swallow an `esp_err_t` | **UNMAPPED** | — |
+| §20.1 | L1360 | cast away or discard an error result | **UNMAPPED** | — |
+| §20.1 | L1361 | return success after partial completion | **UNMAPPED** | — |
+| §20.1 | L1362 | log an error and then continue in an invalid state | **UNMAPPED** | — |
+| §20.1 | L1363 | substitute empty data after parse failure | **UNMAPPED** | — |
+| §20.1 | L1364 | silently retry forever | **UNMAPPED** | — |
+| §20.1 | L1365 | silently downgrade authentication, storage, USB, or validation behavior | **UNMAPPED** | — |
+| §20.1 | L1366 | use a dangerous fallback merely to keep the application running | **UNMAPPED** | — |
+| §21.1 | L1408 | The defect MUST be fixed at its source. It MUST NOT be hidden, suppressed, | gate-enforced | check-static-analysis-policy.sh (gate script) |
+| §21.3 | L1442 | The project MUST NOT modify ESP-IDF, managed components, npm dependencies, or | gate-enforced | check-static-analysis-policy.sh (gate script) |
+| §21.4 | L1452 | First-party source and project configuration MUST NOT use warning suppression as | gate-enforced | check-static-analysis-policy.sh (gate script) |
+| §26 | L1734 | Deferred features MUST NOT be partially or silently enabled in version 0.1. | gate-enforced | check-removed-features.sh (gate script) |
+| §27 | L1757 | MUST NOT be assumed to exist. Implement the pages from this specification until | **UNMAPPED** | — |
 
 ## Requirements (`MUST`)
 
@@ -193,125 +193,125 @@ cheapest place to find real gaps.
 | §13.3 | L812 | The `userdata` partition is **512 KiB**. The layout MUST be flat: one index file | referenced | storage_mount → unmount_continues_after_one_failure<br>storage_package_restore → (file)<br>storage_sets → (file)<br>storage_sets → duplicate_index_is_discarded_and_output_cleared<br>web_api_repository_handlers → (file) |
 | §13.4 | L842 | Every update MUST: | referenced | storage_atomic → create_enforces_operation_sequence<br>storage_atomic_recovery → (file)<br>storage_atomic_recovery → stray_temporary_is_removed_at_boot<br>storage_parent_sync → (file)<br>storage_parent_sync → rename_failure_on_create_leaves_nothing |
 | §13.6 | L896 | The error MUST name the object and MUST be surfaced through the API and the UI. | referenced | management-screens → shows live redacted storage data<br>storage_macros → oversized_set_file_is_refused<br>storage_macros → set_local_crud_duplicate_and_order<br>web_api_admin_boundary → storage_snapshot_publishes_remaining_space<br>web_api_core → route_parsing |
-| §14 | L939 | A stored record whose length does not match the current layout MUST be rejected | referenced | provisioning → corrupt_persisted_records<br>provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → oversized_credentials_are_refused_without_side_effects<br>provisioning → station_credentials_survive_a_power_cycle<br>provisioning → storing_a_network_replaces_the_previous_one |
-| §15.2 | L992 | A station join that fails, times out, or is refused MUST be logged and otherwise | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
-| §16.2 | L1013 | issued on successful login, and it MUST be `HttpOnly` and `SameSite=Strict`. | referenced | network_security → (file)<br>web_request_policy → success_and_generated_request_id |
-| §16.3 | L1037 | policy. The implementation MUST avoid unbounded per-IP state. | referenced | auth_additional_rate_tests → (file) |
-| §16.4 | L1043 | route-specific body limits | referenced | web_request_policy → failure_statuses |
-| §16.4 | L1044 | header count and size limits where configurable | referenced | web_request_policy → failure_statuses |
-| §16.4 | L1045 | JSON nesting and collection limits | referenced | web_request_policy → failure_statuses |
-| §16.4 | L1046 | bounded parsing memory | referenced | web_request_policy → failure_statuses |
-| §16.4 | L1047 | request timeout | referenced | web_request_policy → failure_statuses |
-| §16.4 | L1048 | upload size limit | referenced | web_request_policy → failure_statuses |
-| §16.4 | L1049 | filename and ID validation | referenced | web_request_policy → failure_statuses |
-| §16.4 | L1050 | correct content type | referenced | web_request_policy → failure_statuses |
-| §16.5 | L1060 | the device's own SoftAP or, in development builds, a joined network - MUST | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
-| §16.5 | L1061 | carry a valid RAM-only session cookie (§16.2). Authentication failures MUST be | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
-| §16.5 | L1081 | third parties it MUST be excluded from the shipped image, since a shipped | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
-| §16.6 | L1096 | It MUST clear the administrator password verifier and its salt, and the AP SSID | referenced | provisioning → corrupt_persisted_records |
-| §16.6 | L1097 | and passphrase, and it MUST mark the device unprovisioned so first-run setup | referenced | provisioning → corrupt_persisted_records |
-| §16.6 | L1100 | It MUST preserve everything the user did not lose: the device name, the settings | referenced | provisioning → corrupt_persisted_records |
-| §16.6 | L1107 | Each reset increments a credential version, so a device MUST refuse the | referenced | provisioning → corrupt_persisted_records |
-| §17 | L1207 | it, but external behavior and resource boundaries MUST remain equivalent and be | referenced | backup_restore → (file)<br>storage_package → valid_set_and_backup_packages<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner<br>storage_package_backup → uncompilable_macro_is_skipped_not_fatal |
-| §17 | L1215 | A partial backup MUST be self-describing, so it can never be mistaken for a | referenced | backup_restore → (file)<br>storage_package → valid_set_and_backup_packages<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner<br>storage_package_backup → uncompilable_macro_is_skipped_not_fatal |
-| §17 | L1223 | I/O, storage unavailable, timeout) MUST still fail the export, because | referenced | backup_restore → (file)<br>storage_package → valid_set_and_backup_packages<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner<br>storage_package_backup → uncompilable_macro_is_skipped_not_fatal |
-| §17 | L1229 | partial success MUST enumerate which sets were restored and which were not; it | referenced | backup_restore → (file)<br>storage_package → valid_set_and_backup_packages<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner<br>storage_package_backup → uncompilable_macro_is_skipped_not_fatal |
-| §19 | L1294 | product. GPIO assignment for the one remaining output MUST be configurable | referenced | device_controls → runtime_failures |
-| §19 | L1310 | Cancellation MUST remain available during execution and delay actions, over | referenced | device_controls → runtime_failures |
-| §19 | L1323 | Indicator semantics MUST be documented and testable. Failure LEDs do not replace | referenced | device_controls → runtime_failures |
-| §20.1 | L1330 | Every operation MUST return, log, or expose an explicit success or failure. | **UNMAPPED** | — |
-| §20.2 | L1349 | use component tags | referenced | app_core → residual_ownership_queries_trigger_cleanup |
-| §20.2 | L1350 | identify state transitions | referenced | app_core → residual_ownership_queries_trigger_cleanup |
-| §20.2 | L1351 | include object or execution IDs where safe | referenced | app_core → residual_ownership_queries_trigger_cleanup |
-| §20.2 | L1352 | avoid passwords, tokens, raw cookie values, setup codes, and macro text that may contain secrets | referenced | app_core → residual_ownership_queries_trigger_cleanup |
-| §20.2 | L1354 | use bounded formatting | referenced | app_core → residual_ownership_queries_trigger_cleanup |
-| §20.2 | L1355 | distinguish user error, recoverable system error, and fatal invariant failure | referenced | app_core → residual_ownership_queries_trigger_cleanup |
-| §20.3 | L1375 | A downloadable diagnostic report MUST redact secrets and macro source by | referenced | storage_atomic_recovery → stray_temporary_is_removed_at_boot<br>web_api_admin_boundary → storage_snapshot_publishes_remaining_space |
-| §21.3 | L1405 | The quality gate MUST exclude: | gate-enforced | check-static-analysis-policy.sh (gate script) |
-| §21.3 | L1422 | If a diagnostic originates exclusively in a third-party header, the tool MUST be | gate-enforced | check-static-analysis-policy.sh (gate script) |
-| §21.5 | L1485 | MUST run the authoritative local quality gate. CI MUST call the same command. | gate-enforced | check-all.sh (gate script) |
-| §21.5 | L1486 | The script MUST fail on the first failed phase or aggregate failures while still | gate-enforced | check-all.sh (gate script) |
-| §21.5 | L1487 | returning nonzero; it MUST never mask failures. | gate-enforced | check-all.sh (gate script) |
-| §23 | L1533 | The firmware build MUST fail when the expected web assets are absent, stale | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
-| §23 | L1538 | Git commit | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
-| §23 | L1539 | dirty/clean state | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
-| §23 | L1540 | ESP-IDF version | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
-| §23 | L1541 | managed-component lock hash | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
-| §23 | L1542 | frontend lockfile hash | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
-| §23 | L1543 | build type | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
-| §23 | L1544 | build timestamp where reproducibility policy permits | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
-| §23 | L1546 | Release builds MUST be reproducible from committed sources and lockfiles. | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
-| §24.1 | L1554 | every supported ASCII character | referenced | macro_parser → fuzz_corpus |
-| §24.1 | L1555 | shifted punctuation | referenced | macro_parser → fuzz_corpus |
-| §24.1 | L1556 | every named key | referenced | macro_parser → printable_ascii |
-| §24.1 | L1557 | every allowed modifier combination | referenced | macro_parser → delay_boundaries |
-| §24.1 | L1558 | brace escaping | referenced | macro_parser → error_locations_and_directive_boundaries |
-| §24.1 | L1559 | newline and tab normalization | referenced | macro_parser → named_keys_and_modifiers |
-| §24.1 | L1560 | unknown directives | referenced | macro_parser → case_whitespace_and_line_endings |
-| §24.1 | L1561 | malformed chords | referenced | macro_parser → delay_boundaries |
-| §24.1 | L1562 | delay boundaries | referenced | macro_parser → timing_boundaries |
-| §24.1 | L1563 | source and action limits | referenced | macro_parser → null_empty_and_output_arguments |
-| §24.1 | L1564 | exact error offsets | referenced | macro_parser → case_whitespace_and_line_endings |
-| §24.1 | L1565 | property/fuzz inputs | referenced | macro_parser → output_plan_reuse_contract |
-| §24.1 | L1566 | cancellation-safe compiled plans | referenced | macro_parser → braces_and_character_policy |
-| §24.2 | L1572 | create/read/update/delete | referenced | storage_sets → argument_validation |
-| §24.2 | L1573 | stale revisions | referenced | storage_sets → repository_deinit_is_a_safe_noop |
-| §24.2 | L1574 | short writes | referenced | storage_atomic → create_and_replace |
-| §24.2 | L1575 | full filesystem, and rejection of an over-budget write with `507` | referenced | storage_macros → missing_set_and_revision_overflow |
-| §24.2 | L1576 | interruption between writing `.tmp` and `rename()`, in both orders | referenced | storage_atomic → short_io_is_completed |
-| §24.2 | L1577 | boot cleanup of stray `.tmp` files | referenced | storage_atomic_recovery → (file) |
-| §24.2 | L1578 | corrupt JSON, including that the corrupt file is deleted and the failure reported | referenced | storage_sets → set_limit_and_stable_order |
-| §24.2 | L1580 | an index naming a set file that is absent, and a set file the index omits | referenced | storage_sets → delete_is_permanent_and_leaves_no_trash |
-| §24.2 | L1581 | macro order preserved exactly across write, reboot, export, and restore | referenced | storage_sets → measured_user_data_tracks_set_files |
-| §24.2 | L1582 | import as new | referenced | storage_package_import → invalid_arguments_and_collision_do_not_mutate |
-| §24.2 | L1583 | replace import | referenced | storage_package_replace → invalid_and_conflict_inputs_do_not_mutate |
-| §24.2 | L1584 | partial restore reporting per-set outcomes | referenced | backup_restore → (file)<br>storage_package_restore → concurrency_restore_excludes_mutation |
-| §24.2 | L1585 | no-format mount failure | referenced | storage_mount → web_mount_failure |
-| §24.3 | L1591 | descriptor enumeration | **UNMAPPED** | — |
-| §24.3 | L1592 | ASCII-to-HID mapping | referenced | macro_parser → fuzz_corpus |
-| §24.3 | L1593 | press and release sequence | referenced | executor_execution_tests → (file) |
-| §24.3 | L1594 | chords | referenced | executor_execution_tests → (file) |
-| §24.3 | L1595 | delays | referenced | executor_execution_tests → (file) |
-| §24.3 | L1596 | busy rejection | referenced | executor_validation_tests → engine_and_request_validation |
-| §24.3 | L1597 | cancel during text | referenced | executor_execution_tests → action_order_delay_and_status_progress |
-| §24.3 | L1598 | cancel during delay | referenced | executor_execution_tests → action_order_delay_and_status_progress |
-| §24.3 | L1599 | disconnect and suspend | referenced | usb_keyboard → press_reports_and_waits |
-| §24.3 | L1600 | timeout | referenced | executor_execution_tests → timestamps_and_current_action_track_execution |
-| §24.3 | L1601 | final release-all on every terminal path | referenced | executor_terminal_tests → (file) |
-| §24.4 | L1607 | authentication and logout | referenced | auth_existing_tests → derive_failures_zero_outputs |
-| §24.4 | L1608 | rate limiting | referenced | auth_existing_tests → session_expiry_and_capacity |
-| §24.4 | L1609 | session expiry | referenced | auth_existing_tests → sessions |
-| §24.4 | L1610 | session cookie required on every route | referenced | web_request_policy → success_and_generated_request_id |
-| §24.4 | L1611 | body and upload limits | referenced | web_request_policy → failure_statuses |
-| §24.4 | L1612 | invalid content type | referenced | web_request_policy → failure_statuses |
-| §24.4 | L1613 | path traversal | referenced | web_server_adapter_json_static → json_envelopes |
-| §24.4 | L1614 | stale revisions | referenced | web_api_repository_handlers → session_json_redaction |
-| §24.4 | L1615 | busy execution | referenced | web_request_policy → get_does_not_require_csrf |
-| §24.4 | L1616 | redaction | referenced | app_core → residual_ownership_queries_trigger_cleanup |
-| §24.4 | L1617 | import validation | referenced | storage_package_import → (file) |
-| §24.4 | L1618 | explicit status codes | referenced | web_request_policy → get_does_not_require_csrf |
-| §24.5 | L1624 | every required screen | referenced | spec-screens → ${screen.ordinal}. ${screen.heading} renders at #${screen.hash}<br>spec-screens → 1. first-run setup is shown for an unprovisioned device<br>spec-screens → 10. create and duplicate set are reachable from set management<br>spec-screens → 2. login is shown for a provisioned device with no session<br>spec-screens → SPEC 9 required screens |
-| §24.5 | L1625 | active-set visibility | referenced | app-sets → shows live metadata and filters by search |
-| §24.5 | L1626 | set switching | referenced | app-sets → shows live metadata and filters by search |
-| §24.5 | L1627 | set and macro ordering, including that a reorder round-trips through the API | referenced | set-management → set management |
-| §24.5 | L1628 | live validation | referenced | set-management → traps modal focus, closes with Escape, and restores focus |
-| §24.5 | L1629 | send preview | referenced | execution-confirmation → disables Send with a visible USB explanation |
-| §24.5 | L1630 | disabled Send when USB is unavailable | referenced | execution-confirmation → loads a persisted macro without executing |
-| §24.5 | L1631 | progress polling | referenced | app-execution → execution workflow |
-| §24.5 | L1632 | cancellation | referenced | app-execution → stops polling after unmount |
-| §24.5 | L1633 | import/export/delete confirmations | referenced | set-management → creates a set only after UTF-8 validation succeeds |
-| §24.5 | L1634 | stale-edit conflict UI | referenced | app-sets → selects a set with the settings revision and updates the header |
-| §24.5 | L1635 | storage error UI | referenced | management-screens → shows live redacted storage data |
-| §24.5 | L1636 | keyboard and touch accessibility | referenced | set-management → offers keyboard reorder alternatives and commits exact order |
-| §24.5 | L1637 | responsive mobile layout | referenced | run-browser-tests → (file) |
-| §24.6 | L1643 | Linux host | **UNMAPPED** | — |
-| §24.6 | L1644 | ChromeOS host when available | **UNMAPPED** | — |
-| §24.6 | L1645 | Windows host when available | **UNMAPPED** | — |
-| §24.6 | L1646 | power-cycle persistence | referenced | acceptance_reset → (file) |
-| §24.6 | L1647 | repeated USB reconnects | **UNMAPPED** | — |
-| §24.6 | L1648 | repeated AP reconnects | **UNMAPPED** | — |
-| §24.6 | L1649 | a full set of macros sent in order against a harmless text target | referenced | full_set_in_order → (file) |
-| §24.6 | L1650 | cancellation over both the API and the `cancel` console command | referenced | cancellation → (file) |
-| §24.6 | L1651 | credential reset | referenced | acceptance_reset → (file) |
-| §24.6 | L1652 | factory reset | referenced | acceptance_reset → (file) |
-| §24.6 | L1653 | user-data preservation across firmware slot switch | **UNMAPPED** | — |
+| §14 | L962 | A stored record whose length does not match the current layout MUST be rejected | referenced | provisioning → corrupt_persisted_records<br>provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → oversized_credentials_are_refused_without_side_effects<br>provisioning → station_credentials_survive_a_power_cycle<br>provisioning → storing_a_network_replaces_the_previous_one |
+| §15.2 | L1015 | A station join that fails, times out, or is refused MUST be logged and otherwise | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
+| §16.2 | L1036 | issued on successful login, and it MUST be `HttpOnly` and `SameSite=Strict`. | referenced | network_security → (file)<br>web_request_policy → success_and_generated_request_id |
+| §16.3 | L1060 | policy. The implementation MUST avoid unbounded per-IP state. | referenced | auth_additional_rate_tests → (file) |
+| §16.4 | L1066 | route-specific body limits | referenced | web_request_policy → failure_statuses |
+| §16.4 | L1067 | header count and size limits where configurable | referenced | web_request_policy → failure_statuses |
+| §16.4 | L1068 | JSON nesting and collection limits | referenced | web_request_policy → failure_statuses |
+| §16.4 | L1069 | bounded parsing memory | referenced | web_request_policy → failure_statuses |
+| §16.4 | L1070 | request timeout | referenced | web_request_policy → failure_statuses |
+| §16.4 | L1071 | upload size limit | referenced | web_request_policy → failure_statuses |
+| §16.4 | L1072 | filename and ID validation | referenced | web_request_policy → failure_statuses |
+| §16.4 | L1073 | correct content type | referenced | web_request_policy → failure_statuses |
+| §16.5 | L1083 | the device's own SoftAP or, in development builds, a joined network - MUST | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
+| §16.5 | L1084 | carry a valid RAM-only session cookie (§16.2). Authentication failures MUST be | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
+| §16.5 | L1104 | third parties it MUST be excluded from the shipped image, since a shipped | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
+| §16.6 | L1119 | It MUST clear the administrator password verifier and its salt, and the AP SSID | referenced | provisioning → corrupt_persisted_records |
+| §16.6 | L1120 | and passphrase, and it MUST mark the device unprovisioned so first-run setup | referenced | provisioning → corrupt_persisted_records |
+| §16.6 | L1123 | It MUST preserve everything the user did not lose: the device name, the settings | referenced | provisioning → corrupt_persisted_records |
+| §16.6 | L1130 | Each reset increments a credential version, so a device MUST refuse the | referenced | provisioning → corrupt_persisted_records |
+| §17 | L1230 | it, but external behavior and resource boundaries MUST remain equivalent and be | referenced | backup_restore → (file)<br>storage_package → valid_set_and_backup_packages<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner<br>storage_package_backup → uncompilable_macro_is_skipped_not_fatal |
+| §17 | L1238 | A partial backup MUST be self-describing, so it can never be mistaken for a | referenced | backup_restore → (file)<br>storage_package → valid_set_and_backup_packages<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner<br>storage_package_backup → uncompilable_macro_is_skipped_not_fatal |
+| §17 | L1246 | I/O, storage unavailable, timeout) MUST still fail the export, because | referenced | backup_restore → (file)<br>storage_package → valid_set_and_backup_packages<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner<br>storage_package_backup → uncompilable_macro_is_skipped_not_fatal |
+| §17 | L1252 | partial success MUST enumerate which sets were restored and which were not; it | referenced | backup_restore → (file)<br>storage_package → valid_set_and_backup_packages<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner<br>storage_package_backup → uncompilable_macro_is_skipped_not_fatal |
+| §19 | L1317 | product. GPIO assignment for the one remaining output MUST be configurable | referenced | device_controls → runtime_failures |
+| §19 | L1333 | Cancellation MUST remain available during execution and delay actions, over | referenced | device_controls → runtime_failures |
+| §19 | L1346 | Indicator semantics MUST be documented and testable. Failure LEDs do not replace | referenced | device_controls → runtime_failures |
+| §20.1 | L1353 | Every operation MUST return, log, or expose an explicit success or failure. | **UNMAPPED** | — |
+| §20.2 | L1372 | use component tags | referenced | app_core → residual_ownership_queries_trigger_cleanup |
+| §20.2 | L1373 | identify state transitions | referenced | app_core → residual_ownership_queries_trigger_cleanup |
+| §20.2 | L1374 | include object or execution IDs where safe | referenced | app_core → residual_ownership_queries_trigger_cleanup |
+| §20.2 | L1375 | avoid passwords, tokens, raw cookie values, setup codes, and macro text that may contain secrets | referenced | app_core → residual_ownership_queries_trigger_cleanup |
+| §20.2 | L1377 | use bounded formatting | referenced | app_core → residual_ownership_queries_trigger_cleanup |
+| §20.2 | L1378 | distinguish user error, recoverable system error, and fatal invariant failure | referenced | app_core → residual_ownership_queries_trigger_cleanup |
+| §20.3 | L1398 | A downloadable diagnostic report MUST redact secrets and macro source by | referenced | storage_atomic_recovery → stray_temporary_is_removed_at_boot<br>web_api_admin_boundary → storage_snapshot_publishes_remaining_space |
+| §21.3 | L1428 | The quality gate MUST exclude: | gate-enforced | check-static-analysis-policy.sh (gate script) |
+| §21.3 | L1445 | If a diagnostic originates exclusively in a third-party header, the tool MUST be | gate-enforced | check-static-analysis-policy.sh (gate script) |
+| §21.5 | L1508 | MUST run the authoritative local quality gate. CI MUST call the same command. | gate-enforced | check-all.sh (gate script) |
+| §21.5 | L1509 | The script MUST fail on the first failed phase or aggregate failures while still | gate-enforced | check-all.sh (gate script) |
+| §21.5 | L1510 | returning nonzero; it MUST never mask failures. | gate-enforced | check-all.sh (gate script) |
+| §23 | L1556 | The firmware build MUST fail when the expected web assets are absent, stale | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
+| §23 | L1561 | Git commit | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
+| §23 | L1562 | dirty/clean state | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
+| §23 | L1563 | ESP-IDF version | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
+| §23 | L1564 | managed-component lock hash | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
+| §23 | L1565 | frontend lockfile hash | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
+| §23 | L1566 | build type | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
+| §23 | L1567 | build timestamp where reproducibility policy permits | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
+| §23 | L1569 | Release builds MUST be reproducible from committed sources and lockfiles. | gate-enforced | build-webfs-image.sh (gate script)<br>check-release-budgets.sh (gate script)<br>check-scripts.sh (gate script)<br>generate-flash-manifest.sh (gate script) |
+| §24.1 | L1577 | every supported ASCII character | referenced | macro_parser → fuzz_corpus |
+| §24.1 | L1578 | shifted punctuation | referenced | macro_parser → fuzz_corpus |
+| §24.1 | L1579 | every named key | referenced | macro_parser → printable_ascii |
+| §24.1 | L1580 | every allowed modifier combination | referenced | macro_parser → delay_boundaries |
+| §24.1 | L1581 | brace escaping | referenced | macro_parser → error_locations_and_directive_boundaries |
+| §24.1 | L1582 | newline and tab normalization | referenced | macro_parser → named_keys_and_modifiers |
+| §24.1 | L1583 | unknown directives | referenced | macro_parser → case_whitespace_and_line_endings |
+| §24.1 | L1584 | malformed chords | referenced | macro_parser → delay_boundaries |
+| §24.1 | L1585 | delay boundaries | referenced | macro_parser → timing_boundaries |
+| §24.1 | L1586 | source and action limits | referenced | macro_parser → null_empty_and_output_arguments |
+| §24.1 | L1587 | exact error offsets | referenced | macro_parser → case_whitespace_and_line_endings |
+| §24.1 | L1588 | property/fuzz inputs | referenced | macro_parser → output_plan_reuse_contract |
+| §24.1 | L1589 | cancellation-safe compiled plans | referenced | macro_parser → braces_and_character_policy |
+| §24.2 | L1595 | create/read/update/delete | referenced | storage_sets → argument_validation |
+| §24.2 | L1596 | stale revisions | referenced | storage_sets → repository_deinit_is_a_safe_noop |
+| §24.2 | L1597 | short writes | referenced | storage_atomic → create_and_replace |
+| §24.2 | L1598 | full filesystem, and rejection of an over-budget write with `507` | referenced | storage_macros → missing_set_and_revision_overflow |
+| §24.2 | L1599 | interruption between writing `.tmp` and `rename()`, in both orders | referenced | storage_atomic → short_io_is_completed |
+| §24.2 | L1600 | boot cleanup of stray `.tmp` files | referenced | storage_atomic_recovery → (file) |
+| §24.2 | L1601 | corrupt JSON, including that the corrupt file is deleted and the failure reported | referenced | storage_sets → set_limit_and_stable_order |
+| §24.2 | L1603 | an index naming a set file that is absent, and a set file the index omits | referenced | storage_sets → delete_is_permanent_and_leaves_no_trash |
+| §24.2 | L1604 | macro order preserved exactly across write, reboot, export, and restore | referenced | storage_sets → measured_user_data_tracks_set_files |
+| §24.2 | L1605 | import as new | referenced | storage_package_import → invalid_arguments_and_collision_do_not_mutate |
+| §24.2 | L1606 | replace import | referenced | storage_package_replace → invalid_and_conflict_inputs_do_not_mutate |
+| §24.2 | L1607 | partial restore reporting per-set outcomes | referenced | backup_restore → (file)<br>storage_package_restore → concurrency_restore_excludes_mutation |
+| §24.2 | L1608 | no-format mount failure | referenced | storage_mount → web_mount_failure |
+| §24.3 | L1614 | descriptor enumeration | **UNMAPPED** | — |
+| §24.3 | L1615 | ASCII-to-HID mapping | referenced | macro_parser → fuzz_corpus |
+| §24.3 | L1616 | press and release sequence | referenced | executor_execution_tests → (file) |
+| §24.3 | L1617 | chords | referenced | executor_execution_tests → (file) |
+| §24.3 | L1618 | delays | referenced | executor_execution_tests → (file) |
+| §24.3 | L1619 | busy rejection | referenced | executor_validation_tests → engine_and_request_validation |
+| §24.3 | L1620 | cancel during text | referenced | executor_execution_tests → action_order_delay_and_status_progress |
+| §24.3 | L1621 | cancel during delay | referenced | executor_execution_tests → action_order_delay_and_status_progress |
+| §24.3 | L1622 | disconnect and suspend | referenced | usb_keyboard → press_reports_and_waits |
+| §24.3 | L1623 | timeout | referenced | executor_execution_tests → timestamps_and_current_action_track_execution |
+| §24.3 | L1624 | final release-all on every terminal path | referenced | executor_terminal_tests → (file) |
+| §24.4 | L1630 | authentication and logout | referenced | auth_existing_tests → derive_failures_zero_outputs |
+| §24.4 | L1631 | rate limiting | referenced | auth_existing_tests → session_expiry_and_capacity |
+| §24.4 | L1632 | session expiry | referenced | auth_existing_tests → sessions |
+| §24.4 | L1633 | session cookie required on every route | referenced | web_request_policy → success_and_generated_request_id |
+| §24.4 | L1634 | body and upload limits | referenced | web_request_policy → failure_statuses |
+| §24.4 | L1635 | invalid content type | referenced | web_request_policy → failure_statuses |
+| §24.4 | L1636 | path traversal | referenced | web_server_adapter_json_static → json_envelopes |
+| §24.4 | L1637 | stale revisions | referenced | web_api_repository_handlers → session_json_redaction |
+| §24.4 | L1638 | busy execution | referenced | web_request_policy → get_does_not_require_csrf |
+| §24.4 | L1639 | redaction | referenced | app_core → residual_ownership_queries_trigger_cleanup |
+| §24.4 | L1640 | import validation | referenced | storage_package_import → (file) |
+| §24.4 | L1641 | explicit status codes | referenced | web_request_policy → get_does_not_require_csrf |
+| §24.5 | L1647 | every required screen | referenced | spec-screens → ${screen.ordinal}. ${screen.heading} renders at #${screen.hash}<br>spec-screens → 1. first-run setup is shown for an unprovisioned device<br>spec-screens → 10. create and duplicate set are reachable from set management<br>spec-screens → 2. login is shown for a provisioned device with no session<br>spec-screens → SPEC 9 required screens |
+| §24.5 | L1648 | active-set visibility | referenced | app-sets → shows live metadata and filters by search |
+| §24.5 | L1649 | set switching | referenced | app-sets → shows live metadata and filters by search |
+| §24.5 | L1650 | set and macro ordering, including that a reorder round-trips through the API | referenced | set-management → set management |
+| §24.5 | L1651 | live validation | referenced | set-management → traps modal focus, closes with Escape, and restores focus |
+| §24.5 | L1652 | send preview | referenced | execution-confirmation → disables Send with a visible USB explanation |
+| §24.5 | L1653 | disabled Send when USB is unavailable | referenced | execution-confirmation → loads a persisted macro without executing |
+| §24.5 | L1654 | progress polling | referenced | app-execution → execution workflow |
+| §24.5 | L1655 | cancellation | referenced | app-execution → stops polling after unmount |
+| §24.5 | L1656 | import/export/delete confirmations | referenced | set-management → creates a set only after UTF-8 validation succeeds |
+| §24.5 | L1657 | stale-edit conflict UI | referenced | app-sets → selects a set with the settings revision and updates the header |
+| §24.5 | L1658 | storage error UI | referenced | management-screens → shows live redacted storage data |
+| §24.5 | L1659 | keyboard and touch accessibility | referenced | set-management → offers keyboard reorder alternatives and commits exact order |
+| §24.5 | L1660 | responsive mobile layout | referenced | run-browser-tests → (file) |
+| §24.6 | L1666 | Linux host | **UNMAPPED** | — |
+| §24.6 | L1667 | ChromeOS host when available | **UNMAPPED** | — |
+| §24.6 | L1668 | Windows host when available | **UNMAPPED** | — |
+| §24.6 | L1669 | power-cycle persistence | referenced | acceptance_reset → (file) |
+| §24.6 | L1670 | repeated USB reconnects | **UNMAPPED** | — |
+| §24.6 | L1671 | repeated AP reconnects | **UNMAPPED** | — |
+| §24.6 | L1672 | a full set of macros sent in order against a harmless text target | referenced | full_set_in_order → (file) |
+| §24.6 | L1673 | cancellation over both the API and the `cancel` console command | referenced | cancellation → (file) |
+| §24.6 | L1674 | credential reset | referenced | acceptance_reset → (file) |
+| §24.6 | L1675 | factory reset | referenced | acceptance_reset → (file) |
+| §24.6 | L1676 | user-data preservation across firmware slot switch | **UNMAPPED** | — |

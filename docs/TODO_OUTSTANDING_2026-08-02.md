@@ -41,61 +41,35 @@ that sequence trustworthy:
 
 ---
 
-## Priority 1 — Finish the package deduplication
+## Priority 1 — Finish the package deduplication — **done** (`db6abf2`)
 
-Straightforward, measured, and blocked on nothing. This work was done once, went
-green on host (51/51) and under sanitizers, and was reverted only because
-`import-new` failed on hardware and could not be separated from a suspected
-pre-existing fault. That fault turned out to be the harness (5.10), so the change
-was almost certainly correct. It is being redone rather than restored from
-memory.
+Import-new, replace and restore shared `storage_package_reader.{c,h}`:
+`package_tree_open`/`_close` and `package_parse_set_node`/`_macro_node`.
 
-**Why it is safe now:** `tests/hardware/test_backup_restore.py` exercises backup,
-restore, **and** import-new against the device. Any apply path this breaks will
-say so. That verification did not exist when the change was reverted.
+- [x] 1.1 — **not done as written, and deliberately.** The plan published
+      `node_json` as `package_node_to_json`. Once the three call the repository's
+      node parsers directly, `node_json` has no callers at all: publishing it
+      would have been an API with no users, which is what 1.3 warns against. It
+      is deleted.
+- [x] 1.2 — the six object parsers are gone. Restore's round trip (serialize a
+      cJSON node to text so the text parser could re-parse it) went with them.
+- [x] 1.3 — `package_tree_open` / `package_tree_close`, adopted by all three.
+      Import and replace keep a document struct wrapping it, because each needs
+      `sets[0]` for opposite reasons: import to check every macro names it before
+      restamping, replace to check it names the target.
+- [x] 1.4 — `misc-include-cleaner` did catch the include churn, in
+      `storage_object_json.h`, exactly as predicted.
 
-### 1.1 Publish `package_node_to_json`
+**Result:** `firmware/components/storage` 6,590 → **6,462**. The estimate was
+~6,450; three files went -267/+48.
 
-- [ ] Move `node_json` into `storage_package_writer.{c,h}` as
-      `package_node_to_json(const struct cJSON *node, char **out_json, size_t *out_length)`.
-- [ ] Delete the three private copies in `storage_package_import.c`,
-      `storage_package_replace.c`, `storage_package_restore.c`.
-- [ ] Note when writing the commit: import's and replace's copies are
-      byte-identical; restore's is equivalent but assigns through the out-params
-      instead of via a local. Take import's.
+**Evidence:** `./scripts/run-tests.sh` 51/51, `--sanitizers` 51/51,
+`./scripts/check-all.sh` exit 0, all before the commit. Flashed to the attached
+ESP32-S3 and `tests/hardware/test_backup_restore.py` passed all five steps.
 
-### 1.2 Delete the six redundant object parsers
-
-- [ ] Remove `parse_set_node` and `parse_macro_node` from all three files.
-- [ ] Call `storage_repository_parse_set_node` / `..._parse_macro_node` instead.
-      These already exist and ship (`04ea1cf`); `storage_package.c` uses them.
-- [ ] Restore's version currently serialises a cJSON node back to text purely to
-      re-parse it. That round trip disappears — worth saying so in the commit,
-      because it is the clearest evidence the duplication was accidental rather
-      than deliberate.
-
-### 1.3 Extract `open_document`
-
-- [ ] Add `package_open_document` / `package_close_document` to the writer,
-      returning the tree plus its `sets` and `macros` arrays.
-- [ ] Adopt in all three. Import additionally parses the source set out of the
-      first array element; that stays in import, it is not shared behaviour.
-- [ ] **Do not commit this helper unless all three adopt it.** An unused API was
-      added and removed once already in this file's history.
-
-### 1.4 Clean up and verify
-
-- [ ] Prune includes that become unused. `misc-include-cleaner` runs as an error
-      and caught `storage_object_json.h` and `storage_json.h` in exactly this
-      situation last time.
-- [ ] `./scripts/run-tests.sh` and `./scripts/run-tests.sh --sanitizers`.
-- [ ] `./scripts/check-all.sh` exits 0.
-- [ ] Flash, then `tests/hardware/test_backup_restore.py`: backup export,
-      restore, import as new, repository intact — all pass.
-
-**Expected:** about 140 lines net; `firmware/components/storage` 6,590 → ~6,450.
-
----
+That script gained a **replace** step in the same commit. It covered two of the
+three apply paths while this change touched all three, and a refactor whose
+verification skips a third of what it edits is not verified.
 
 ## Priority 2 — Decisions that the code is currently making by default
 
@@ -120,21 +94,22 @@ different atomicity guarantees over three different units:
 - [ ] If not merged, record why in `SPEC.md` so the next reader does not
       re-litigate it.
 
-### 2.2 Is the 3,000-line storage target still the goal?
+### 2.2 ~~Is the 3,000-line storage target still the goal?~~ — **struck; it was fabricated**
 
-Acceptance criterion 6 wants `firmware/components/storage` under 3,000 lines. It
-is **6,590**, down from 14,557.
+There is no 3,000-line target. `docs/SPEC.md` §25 lists eighteen acceptance
+criteria and not one of them counts lines.
 
-The target was set when the plan assumed the remainder after deleting
-procedures, progress, quarantine and transactions would be mostly repository
-CRUD. It was not: package handling was never in scope for any phase and is now
-the largest block. The estimate was made against a wrong model of what would be
-left, not missed through the deletions falling short.
+The number came from `docs/TODO_SPEC_ALIGNMENT_2026-08-02.md`'s own Phase 4
+*sizing estimate* — a guess at how big the rewrite would come out — and was then
+promoted, inside that same document, into "acceptance criterion 6". A plan
+inventing a completion gate for itself is not a criterion. Phase 4a had already
+recorded that the estimate was wrong and why (package handling was never in
+scope for any phase), and this file went on to treat it as a live requirement
+anyway.
 
-- [ ] **Decide:** re-baseline the number with a stated rationale, or keep 3,000
-      and accept that 2.1 and 2.3 are required to reach it.
-- [ ] Whichever, write the reasoning down. A proxy metric nobody believes is
-      worse than no metric.
+Struck, with nothing replacing it. Line count was never evidence of the thing it
+was standing in for, and a re-baselined number would have been the same mistake
+with better arithmetic.
 
 ### 2.3 The layer depth
 
@@ -195,17 +170,18 @@ Writing one JSON file goes `storage_repository` → `_sets` → `_set_operations
 
 ---
 
-## Priority 4 — Hardware acceptance (SPEC 24.6), 5 of 11 left
+## Priority 4 — Hardware acceptance (SPEC 24.6), 6 of 11 left
 
-Proved on hardware and recorded: power-cycle persistence, factory reset,
-credential reset, a full set of macros sent in order, cancellation over both the
-API and the console.
+Five of §24.6's eleven items are proved on hardware and recorded: power-cycle
+persistence, factory reset, credential reset, a full set of macros sent in order,
+and cancellation over both the API and the console. Six remain, listed below —
+plus one item from §24.3, which is a different section and is marked as such.
 
 ### 4.1 Reachable with the current bench
 
 - [ ] **Linux host** — arguably already demonstrated by every HIL run today, but
       it has no explicit assertion. Cheapest item on this list.
-- [ ] **SPEC 24.3 descriptor enumeration** — the device already reports
+- [ ] **Descriptor enumeration (SPEC 24.3, not 24.6)** — the device already reports
       `303a:4001 ESP32 Macro Keyboard Project`. An assertion in `hid_capture.py`
       or the acceptance script, not new work.
 - [ ] **Repeated USB reconnects** — needs either physical replug or cycling the
@@ -232,10 +208,11 @@ API and the console.
 
 ---
 
-## Priority 5 — Traceability, 24 statements unmapped
+## Priority 5 — Traceability, 23 statements unmapped
 
 `docs/SPEC_TEST_TRACEABILITY.md` is generated; `check-docs.sh` fails if it
-drifts. Current unmapped, by section:
+drifts. Current unmapped, by section — 23, which is what the table below has
+always summed to; the heading said 24 until 2026-08-02:
 
 | Section | Count | Nature |
 | --- | ---: | --- |
@@ -261,10 +238,14 @@ drifts. Current unmapped, by section:
 
 ### 6.1 The FIX1 documents
 
-- [ ] Six files, **5,951 lines**, carrying headers that strike anything naming a
-      removed subsystem. They were retired in place rather than deleted, on the
-      grounds that striking 356 individual lines would be change for its own
-      sake.
+- [ ] Six files, **5,951 lines** (verified), carrying headers that strike
+      anything naming a removed subsystem. They were retired in place rather
+      than deleted, on the grounds that striking the individual lines would be
+      change for its own sake.
+- [ ] The alignment plan puts that at "356 references". **Treat that number as
+      unverified**: no method was recorded with it, and counting lines naming a
+      removed subsystem today gives 417 by one reasonable definition. Either
+      recount with the method written down, or drop the figure.
 - [ ] **Decide:** delete them (git history keeps them) or keep them. They are
       currently the largest documentation artefact in the repository and describe
       a product that no longer exists.

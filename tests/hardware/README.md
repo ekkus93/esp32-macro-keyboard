@@ -106,9 +106,8 @@ python3 test_cancellation.py
 
 Both scripts exit non-zero on failure and print the decoded keystrokes beside
 what was expected. For cancellation they also report how long after the cancel
-request the last keystroke appeared, which is the cancellation latency §20.5
-asks about — though note that measures an **HTTP-initiated** cancel, not the
-physical cancel button.
+request the last keystroke appeared. Both cancel paths SPEC §19 requires are
+covered: the API route and the console `cancel` command.
 
 ## What these do NOT cover
 
@@ -116,5 +115,8 @@ physical cancel button.
   has been exercised, which is why those checkboxes remain open.
 - **disconnect/reconnect, suspend/resume, disconnect-during-execution.** These
   need physical cable and host manipulation that cannot be automated from here.
-- **§20.5 physical controls.** Cancellation here is HTTP-initiated; the button
-  path is untested.
+- **Nothing.** There is no physical cancel button to test. SPEC §19 removed the
+  cancel and confirm buttons deliberately — no board this project uses breaks
+  out the GPIO they were assigned — and made them console commands, which
+  `test_cancellation.py` covers. An earlier version of this list cited a
+  "§20.5 physical controls" gap; SPEC has no §20.5, and the gap does not exist.

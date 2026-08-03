@@ -442,7 +442,8 @@ The change the whole sequence exists for.
 **Depends on:** Phases 2 and 3.
 **Estimated size:** a rewrite of the repository layer; expect
 `firmware/components/storage` to end well under 3,000 lines against today's
-14,557.
+14,557. *(Wrong — see 4a. This estimate is also the sole origin of the struck
+"acceptance criterion 6"; it was never anything but a guess.)*
 
 Target layout (SPEC §13.3):
 
@@ -872,8 +873,11 @@ The sequence is complete when all of SPEC §25 holds, and specifically:
 4. `POST /api/v1/restore` completes on real hardware without a watchdog reset,
    and reports per-set outcomes.
 5. No struct, route, screen, or schema field exists that SPEC §1.1 rejects.
-6. `firmware/components/storage` is under 3,000 lines.
-
-Item 6 is a proxy, not a goal — but a storage component still over 10,000 lines
-after this sequence means something was preserved that should have been deleted,
-and is worth stopping to explain.
+6. ~~`firmware/components/storage` is under 3,000 lines.~~ **Struck 2026-08-02:
+   this criterion was fabricated.** The number is this document's own Phase 4
+   sizing estimate — a guess at how big the rewrite would come out — promoted,
+   here, into a completion gate. `docs/SPEC.md` §25 lists eighteen acceptance
+   criteria and none of them counts lines. Phase 4a had already recorded that
+   the estimate was wrong and why. A plan that invents a completion gate for
+   itself has not set a criterion, and nothing replaces this one: line count was
+   never evidence of what it stood in for.

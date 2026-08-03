@@ -23,10 +23,12 @@
 #include "storage_repository_sets_internal.h"
 
 /* The package's own tree, plus the set identity it was exported under.
- * `sets[0]` is that set: SPEC 12.3 requires a set package to carry exactly one,
- * and storage_package_validate has already enforced it by the time this is
- * built. Import needs it separately from the tree because every macro must name
- * it, and every macro is then restamped with the new identity. */
+ * `sets[0]` is that set: a set package carries exactly one, which
+ * storage_package_validate has already enforced by the time this is built.
+ * SPEC 8.7 describes a set export in the singular; the count is checked in
+ * storage_package.c, not stated as a rule anywhere in the specification. Import needs it separately
+ * from the tree because every macro must name it, and every macro is then restamped with the new
+ * identity. */
 typedef struct {
     package_tree_t tree;
     macro_set_t source_set;

@@ -905,6 +905,29 @@ Mutable API resources use a revision number. Update and delete requests include
 the expected revision. A stale revision returns `409 Conflict` with the current
 resource metadata. The server MUST NOT silently overwrite a newer edit.
 
+### 13.8 Why applying a package is three operations, not one
+
+Three routes take a package and write it: import as a new set, replace an
+existing set, and restore the whole repository. They read the same document
+format and share the code that parses it (`storage_package_reader.c`). They are
+deliberately **not** one parameterised operation, and this section records that
+so it is not re-litigated.
+
+What differs between them is not incidental:
+
+| Operation | Unit | On conflict | Rollback scope |
+| --- | --- | --- | --- |
+| import as new | one set, caller-supplied new id | the id is taken → refuse | the one file, plus the index entry |
+| replace | one set, known id and expected revision | the revision moved → refuse | the one file; the old set stays whole |
+| restore | every set in the backup | none; the repository is cleared first | none across sets, by §13.5 |
+
+Every column is a different answer, and they are the answers, not the plumbing.
+A single `apply_package` taking a unit, a conflict policy and a rollback scope
+would carry all three behaviours behind three flags, which is the same
+complexity with one entry point instead of three — while making it possible to
+call for a combination none of the routes wants. The duplication worth removing
+was the parsing, and it has been removed.
+
 ## 14. NVS configuration
 
 NVS stores only small device configuration, including:
