@@ -704,7 +704,7 @@ There is one macro-executor task. HTTP handlers MUST NOT type directly.
 A send request:
 
 1. authenticates and validates authorization;
-2. verifies the revision and active package;
+2. verifies the package checksum and the active package;
 3. loads and validates the macro;
 4. compiles it into an immutable in-memory execution plan;
 5. verifies USB readiness and executor idleness;
@@ -722,13 +722,14 @@ bounded mechanism and MUST remain responsive during delay actions.
 All persistent objects MUST contain:
 
 - `schema_version`;
-- stable ID;
-- revision number;
-- creation timestamp or monotonic metadata where available;
-- update timestamp or monotonic metadata where available.
+- stable ID.
 
-Wall-clock timestamps are advisory because the device may not have a trusted
-real-time clock. Revisions and IDs are authoritative.
+**Amended 2026-08-03.** Revision numbers were removed (§13.7); a package is
+identified by its ID and versioned by its CRC32, which is computed from the
+content rather than stored beside it. Timestamps were listed here as optional
+and were never implemented: this device has no wall clock at all — no RTC
+synchronization and, by §4, no internet — so a date it produced would be
+invented rather than merely advisory. IDs are authoritative.
 
 IDs SHOULD be random UUID version 4 strings created from the hardware random
 number generator.
@@ -744,7 +745,6 @@ A package is a name and an ordered list of macros. Required fields:
 {
   "schema_version": 1,
   "id": "uuid",
-  "revision": 1,
   "name": "Build server login",
   "macros": []
 }
@@ -767,7 +767,6 @@ Required fields:
 {
   "schema_version": 1,
   "id": "uuid",
-  "revision": 1,
   "name": "Start the build",
   "source": "make -j8{ENTER}",
   "key_press_ms": 8,
@@ -992,9 +991,36 @@ problem, and it is required to work even when individual objects are damaged.
 
 ### 13.7 Optimistic concurrency
 
-Mutable API resources use a revision number. Update and delete requests include
-the expected revision. A stale revision returns `409 Conflict` with the current
-resource metadata. The server MUST NOT silently overwrite a newer edit.
+**Amended 2026-08-03**, in conversation with the product owner, who asked for
+revision numbers to be removed: "Get rid of revision. I don't think it adds any
+value." This section previously required that "mutable API resources use a
+revision number".
+
+A package is guarded by its **CRC32** (§8.7), not by a counter. Update and
+delete requests carry the checksum the client last saw; if it no longer matches
+the stored package the request returns `409 Conflict` with the current package
+metadata. The server MUST NOT silently overwrite a newer edit.
+
+The checksum falls out of the content, so unlike a counter it cannot disagree
+with what is stored — there is nothing to bump, and no second place for the
+version to be wrong.
+
+**Macros do not carry a token of their own.** A macro is not a file: it lives
+inside its package (§13.3), so editing one is a write of that package. A macro
+request therefore carries the *package's* checksum. One token per file, and the
+file is the unit of atomicity (§13.4).
+
+Two consequences, recorded so they are not discovered later:
+
+- A 32-bit checksum can collide. Two different packages share a CRC32 roughly
+  once in four billion, and a collision admits a lost update silently. This was
+  accepted deliberately for a single-user device on an isolated access point.
+- A checksum says *different*, not *newer*. Nothing in version 0.1 needs to
+  order two versions, but a merge feature would, and would need more than this.
+
+The index and the provisioning record keep their own revisions. They are not
+packages, are not addressed by the API this way, and are out of scope for this
+amendment.
 
 ## 14. NVS configuration
 
@@ -1346,7 +1372,7 @@ Important status codes:
 401 Unauthorized          login required or invalid
 403 Forbidden             policy failure
 404 Not Found             resource absent
-409 Conflict              busy, stale revision, or duplicate conflict
+409 Conflict              busy, stale checksum, or duplicate conflict
 413 Content Too Large     body or package over limit
 415 Unsupported Media     wrong content type
 422 Unprocessable Content valid JSON but invalid resource
@@ -1381,7 +1407,6 @@ Each execution record contains:
 - execution ID;
 - package ID;
 - macro ID;
-- macro revision;
 - start policy;
 - state;
 - action index and total;
@@ -1610,7 +1635,7 @@ returning nonzero; it MUST never mask failures.
 9. No unbounded request, JSON, object, queue, or session allocation.
 10. No partially validated import activation.
 11. No execution of a partially parsed macro.
-12. No stale-revision overwrite.
+12. No stale-checksum overwrite.
 13. No retained modifier key after any terminal path.
 14. No automatic formatting after mount failure.
 15. No silent recovery that destroys user data. Deleting an unreadable object is
@@ -1677,7 +1702,7 @@ Tests MUST cover:
 Tests MUST cover:
 
 - create/read/update/delete;
-- stale revisions;
+- stale checksums;
 - short writes;
 - full filesystem, and rejection of an over-budget write with `507`;
 - interruption between writing `.tmp` and `rename()`, in both orders;
@@ -1718,7 +1743,7 @@ Tests MUST cover:
 - body and upload limits;
 - invalid content type;
 - path traversal;
-- stale revisions;
+- stale checksums;
 - busy execution;
 - redaction;
 - import validation;
