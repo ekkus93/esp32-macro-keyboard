@@ -14,10 +14,7 @@ set(V2_CONTRACT_INCLUDE_DIR
 set(V2_PARSER_SOURCE_DIR
     ${CMAKE_CURRENT_SOURCE_DIR}/../../firmware/components/macro_parser
 )
-
-add_executable(
-    v2_macro_conformance_tests
-    test_macro_conformance.c
+set(V2_PARSER_SOURCES
     ${V2_PARSER_SOURCE_DIR}/macro_parser_v2.c
     ${V2_PARSER_SOURCE_DIR}/macro_plan_v2.c
     ${V2_PARSER_SOURCE_DIR}/macro_keymap_us.c
@@ -28,6 +25,12 @@ set_source_files_properties(
     ${V2_PARSER_SOURCE_DIR}/macro_parser_v2.c
     PROPERTIES COMPILE_DEFINITIONS
                "macro_keymap_us_named=macro_keymap_us_named_v2_canonical"
+)
+
+add_executable(
+    v2_macro_conformance_tests
+    test_macro_conformance.c
+    ${V2_PARSER_SOURCES}
 )
 
 target_include_directories(
@@ -48,6 +51,20 @@ target_compile_definitions(
 target_link_libraries(v2_macro_conformance_tests PRIVATE PkgConfig::CJSON)
 
 add_executable(
+    v2_macro_canonical_tokens_tests
+    test_macro_canonical_tokens.c
+    ${V2_PARSER_SOURCES}
+)
+
+target_include_directories(
+    v2_macro_canonical_tokens_tests
+    PRIVATE
+        ${V2_CONTRACT_INCLUDE_DIR}
+        ${V2_PARSER_SOURCE_DIR}/include
+        ../../firmware/components/macro_model/include
+)
+
+add_executable(
     v2_device_settings_tests
     test_device_settings.c
     ../../firmware/components/app_contracts_v2/device_settings_v2.c
@@ -55,7 +72,12 @@ add_executable(
 
 target_include_directories(v2_device_settings_tests PRIVATE ${V2_CONTRACT_INCLUDE_DIR})
 
-foreach(target v2_macro_conformance_tests v2_device_settings_tests)
+foreach(
+    target
+    v2_macro_conformance_tests
+    v2_macro_canonical_tokens_tests
+    v2_device_settings_tests
+)
     target_compile_options(
         ${target}
         PRIVATE
@@ -78,4 +100,5 @@ add_test(
         v2_macro_conformance_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/../../contracts/v2/macro-conformance.json
 )
+add_test(NAME v2_macro_canonical_tokens COMMAND v2_macro_canonical_tokens_tests)
 add_test(NAME v2_device_settings COMMAND v2_device_settings_tests)
