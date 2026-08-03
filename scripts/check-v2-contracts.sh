@@ -18,6 +18,7 @@ cd "${repository_root}"
 
 python3 scripts/check-v2-limits.py
 python3 scripts/check-v2-settings-schema.py
+python3 scripts/check-v2-setup-route-policy.py
 
 rm -rf "${build_dir}"
 cmake -S tests/v2_contracts -B "${build_dir}" -DCMAKE_BUILD_TYPE=Debug
