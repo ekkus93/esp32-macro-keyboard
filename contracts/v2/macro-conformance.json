@@ -1,0 +1,251 @@
+{
+  "format": "esp32-macro-keyboard-macro-conformance",
+  "version": 1,
+  "cases": [
+    {
+      "name": "empty source",
+      "source": "",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "valid": {
+        "estimatedDurationMs": 0,
+        "actions": []
+      }
+    },
+    {
+      "name": "lowercase text",
+      "source": "ab",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "valid": {
+        "estimatedDurationMs": 46,
+        "actions": [
+          { "kind": "key", "usage": 4, "modifiers": 0 },
+          { "kind": "key", "usage": 5, "modifiers": 0 }
+        ]
+      }
+    },
+    {
+      "name": "uppercase and shifted punctuation",
+      "source": "A!",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "valid": {
+        "estimatedDurationMs": 46,
+        "actions": [
+          { "kind": "key", "usage": 4, "modifiers": 2 },
+          { "kind": "key", "usage": 30, "modifiers": 2 }
+        ]
+      }
+    },
+    {
+      "name": "line ending and tab normalization",
+      "source": "A\r\n\tB",
+      "keyPressMs": 1,
+      "interKeyMs": 2,
+      "valid": {
+        "estimatedDurationMs": 12,
+        "actions": [
+          { "kind": "key", "usage": 4, "modifiers": 2 },
+          { "kind": "key", "usage": 40, "modifiers": 0 },
+          { "kind": "key", "usage": 43, "modifiers": 0 },
+          { "kind": "key", "usage": 5, "modifiers": 2 }
+        ]
+      }
+    },
+    {
+      "name": "escaped braces",
+      "source": "{{}}",
+      "keyPressMs": 0,
+      "interKeyMs": 0,
+      "valid": {
+        "estimatedDurationMs": 0,
+        "actions": [
+          { "kind": "key", "usage": 47, "modifiers": 2 },
+          { "kind": "key", "usage": 48, "modifiers": 2 }
+        ]
+      }
+    },
+    {
+      "name": "named key",
+      "source": "{ENTER}",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "valid": {
+        "estimatedDurationMs": 23,
+        "actions": [
+          { "kind": "key", "usage": 40, "modifiers": 0 }
+        ]
+      }
+    },
+    {
+      "name": "modifier chord",
+      "source": "{CTRL+SHIFT+T}",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "valid": {
+        "estimatedDurationMs": 23,
+        "actions": [
+          { "kind": "chord", "usage": 23, "modifiers": 3 }
+        ]
+      }
+    },
+    {
+      "name": "delay action",
+      "source": "x{DELAY:500}y",
+      "keyPressMs": 3,
+      "interKeyMs": 4,
+      "valid": {
+        "estimatedDurationMs": 514,
+        "actions": [
+          { "kind": "key", "usage": 27, "modifiers": 0 },
+          { "kind": "delay", "durationMs": 500 },
+          { "kind": "key", "usage": 28, "modifiers": 0 }
+        ]
+      }
+    },
+    {
+      "name": "unknown directive",
+      "source": "{BAD}",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 0,
+        "line": 1,
+        "column": 1,
+        "message": "unknown key directive"
+      }
+    },
+    {
+      "name": "multiline error location",
+      "source": "A\n{BAD}",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 2,
+        "line": 2,
+        "column": 1,
+        "message": "unknown key directive"
+      }
+    },
+    {
+      "name": "lowercase directive",
+      "source": "{enter}",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 0,
+        "line": 1,
+        "column": 1,
+        "message": "unknown key directive"
+      }
+    },
+    {
+      "name": "duplicate chord modifier",
+      "source": "{CTRL+CTRL+A}",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 0,
+        "line": 1,
+        "column": 1,
+        "message": "invalid chord"
+      }
+    },
+    {
+      "name": "modifier-only chord",
+      "source": "{CTRL+SHIFT}",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 0,
+        "line": 1,
+        "column": 1,
+        "message": "invalid chord"
+      }
+    },
+    {
+      "name": "zero delay",
+      "source": "{DELAY:0}",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_limit",
+        "byteOffset": 0,
+        "line": 1,
+        "column": 1,
+        "message": "delay is outside the allowed range"
+      }
+    },
+    {
+      "name": "excessive delay",
+      "source": "{DELAY:10001}",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_limit",
+        "byteOffset": 0,
+        "line": 1,
+        "column": 1,
+        "message": "delay is outside the allowed range"
+      }
+    },
+    {
+      "name": "lone carriage return",
+      "source": "A\rB",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 1,
+        "line": 1,
+        "column": 2,
+        "message": "carriage return must be followed by line feed"
+      }
+    },
+    {
+      "name": "unmatched opening brace",
+      "source": "{",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 0,
+        "line": 1,
+        "column": 1,
+        "message": "unmatched opening brace"
+      }
+    },
+    {
+      "name": "unmatched closing brace",
+      "source": "}",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 0,
+        "line": 1,
+        "column": 1,
+        "message": "unmatched closing brace"
+      }
+    },
+    {
+      "name": "non-ASCII source",
+      "source": "é",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 0,
+        "line": 1,
+        "column": 1,
+        "message": "source contains unsupported character"
+      }
+    }
+  ]
+}
