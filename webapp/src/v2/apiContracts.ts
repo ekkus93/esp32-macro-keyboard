@@ -15,6 +15,7 @@ export {
   isSettingsResponse,
   isSettingsUpdatedResponse,
   isSetupAccepted,
+  isSetupStateResponse,
   isStatusResponse,
 } from "./apiGuards";
 
@@ -52,6 +53,7 @@ export type {
   SettingsUpdateRequest,
   SetupAccepted,
   SetupRequest,
+  SetupStateResponse,
   StatusResponse,
   SubsystemHealthState,
   UsbState,
