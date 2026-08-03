@@ -57,12 +57,10 @@ function all(checks: readonly boolean[]): boolean {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return all([
-    typeof value === "object",
-    value !== null,
-    !Array.isArray(value),
-    value !== null && Object.getPrototypeOf(value) === Object.prototype,
-  ]);
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  return Object.getPrototypeOf(value) === Object.prototype;
 }
 
 function hasExactKeys(
@@ -94,11 +92,13 @@ function isDenseArray(value: unknown[]): boolean {
 }
 
 function isNonNegativeInteger(value: unknown): value is number {
+  if (typeof value !== "number") {
+    return false;
+  }
   return all([
-    typeof value === "number",
-    typeof value === "number" && Number.isSafeInteger(value),
-    typeof value === "number" && Number.isFinite(value),
-    typeof value === "number" && value >= 0,
+    Number.isSafeInteger(value),
+    Number.isFinite(value),
+    value >= 0,
   ]);
 }
 
@@ -284,8 +284,8 @@ export function isResetSettingsAccepted(value: unknown): value is ResetAccepted 
     return false;
   }
   return all([
-    value.reprovisioningRequired === false,
-    value.repositoryBlobsPreserved === true,
+    !value.reprovisioningRequired,
+    value.repositoryBlobsPreserved,
   ]);
 }
 
@@ -294,8 +294,8 @@ export function isFactoryResetAccepted(value: unknown): value is ResetAccepted {
     return false;
   }
   return all([
-    value.reprovisioningRequired === true,
-    value.repositoryBlobsPreserved === false,
+    value.reprovisioningRequired,
+    !value.repositoryBlobsPreserved,
   ]);
 }
 
@@ -467,8 +467,11 @@ function isBlobSummary(value: unknown): value is BlobSummary {
 
 function isStrictlyDescendingBlobIds(blobs: BlobSummary[]): boolean {
   return blobs.slice(1).every((blob, index) => {
-    const previous = BigInt(blobs[index]!.id);
-    return previous > BigInt(blob.id);
+    const previous = blobs[index];
+    if (previous === undefined) {
+      return false;
+    }
+    return BigInt(previous.id) > BigInt(blob.id);
   });
 }
 
@@ -477,11 +480,12 @@ export function isBlobListResponse(value: unknown): value is BlobListResponse {
     return false;
   }
   const blobs = value.blobs;
+  const summariesAreValid = blobs.every(isBlobSummary);
   return all([
     hasExactKeys(value, ["blobs", "remainingBytes", "usedBytes"]),
     isDenseArray(blobs),
-    blobs.every(isBlobSummary),
-    blobs.every(isBlobSummary) && isStrictlyDescendingBlobIds(blobs),
+    summariesAreValid,
+    summariesAreValid && isStrictlyDescendingBlobIds(blobs),
     isNonNegativeInteger(value.usedBytes),
     isNonNegativeInteger(value.remainingBytes),
   ]);
