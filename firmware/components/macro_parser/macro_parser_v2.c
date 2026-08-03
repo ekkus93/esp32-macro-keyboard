@@ -8,6 +8,7 @@
 
 #include "app_limits_v2.h"
 #include "macro_keymap_us.h"
+#include "macro_keymap_us_v2.h"
 
 #define V2_ASCII_SPACE UINT8_C(0x20)
 #define V2_ASCII_TILDE UINT8_C(0x7e)
@@ -83,7 +84,8 @@ static app_error_code_t v2_append_action(macro_plan_t *plan, macro_action_t acti
         action_duration = action.delay_ms;
     } else if (!v2_safe_add_u32(options->key_press_ms, options->inter_key_ms,
                                 &action_duration)) {
-        return v2_fail(source, offset, "action duration overflow", APP_ERROR_MACRO_LIMIT, error);
+        return v2_fail(source, offset, "action duration overflow", APP_ERROR_MACRO_LIMIT,
+                       error);
     }
 
     uint32_t total_duration = 0U;
@@ -165,7 +167,7 @@ static app_error_code_t v2_parse_chord(char *directive, macro_action_t *out_acti
             }
             modifiers = (uint8_t)(modifiers | modifier);
         } else {
-            if (have_key || !macro_keymap_us_named(cursor, &key)) {
+            if (have_key || !macro_keymap_us_v2_chord_key(cursor, &key)) {
                 return APP_ERROR_MACRO_SYNTAX;
             }
             have_key = true;
@@ -221,7 +223,7 @@ static app_error_code_t v2_parse_directive(const char *source, size_t offset,
     }
 
     macro_hid_key_t key = {0U, 0U};
-    if (!macro_keymap_us_named(buffer, &key)) {
+    if (!macro_keymap_us_v2_named_directive(buffer, &key)) {
         return v2_fail(source, offset, "unknown key directive", APP_ERROR_MACRO_SYNTAX, error);
     }
     *out_action = (macro_action_t){
@@ -373,8 +375,8 @@ app_error_code_t macro_compile_v2(const char *source, size_t source_length,
                        out_error);
     }
     if (source_length > (size_t)APP_V2_MACRO_SOURCE_MAX_BYTES) {
-        return v2_fail(source, 0U, "macro source exceeds the byte limit", APP_ERROR_MACRO_LIMIT,
-                       out_error);
+        return v2_fail(source, 0U, "macro source exceeds the byte limit",
+                       APP_ERROR_MACRO_LIMIT, out_error);
     }
     if (source_length == 0U) {
         return APP_ERROR_NONE;
