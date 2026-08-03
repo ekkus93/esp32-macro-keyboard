@@ -105,6 +105,45 @@
       }
     },
     {
+      "name": "maximum duration",
+      "source": "abcdefghijklmno",
+      "keyPressMs": 10000,
+      "interKeyMs": 10000,
+      "valid": {
+        "estimatedDurationMs": 300000,
+        "actions": [
+          { "kind": "key", "usage": 4, "modifiers": 0 },
+          { "kind": "key", "usage": 5, "modifiers": 0 },
+          { "kind": "key", "usage": 6, "modifiers": 0 },
+          { "kind": "key", "usage": 7, "modifiers": 0 },
+          { "kind": "key", "usage": 8, "modifiers": 0 },
+          { "kind": "key", "usage": 9, "modifiers": 0 },
+          { "kind": "key", "usage": 10, "modifiers": 0 },
+          { "kind": "key", "usage": 11, "modifiers": 0 },
+          { "kind": "key", "usage": 12, "modifiers": 0 },
+          { "kind": "key", "usage": 13, "modifiers": 0 },
+          { "kind": "key", "usage": 14, "modifiers": 0 },
+          { "kind": "key", "usage": 15, "modifiers": 0 },
+          { "kind": "key", "usage": 16, "modifiers": 0 },
+          { "kind": "key", "usage": 17, "modifiers": 0 },
+          { "kind": "key", "usage": 18, "modifiers": 0 }
+        ]
+      }
+    },
+    {
+      "name": "duration exceeded",
+      "source": "abcdefghijklmnop",
+      "keyPressMs": 10000,
+      "interKeyMs": 10000,
+      "invalid": {
+        "code": "macro_limit",
+        "byteOffset": 15,
+        "line": 1,
+        "column": 16,
+        "messageClass": "duration_limit"
+      }
+    },
+    {
       "name": "unknown directive",
       "source": "{BAD}",
       "keyPressMs": 8,
@@ -114,7 +153,7 @@
         "byteOffset": 0,
         "line": 1,
         "column": 1,
-        "message": "unknown key directive"
+        "messageClass": "unknown_key"
       }
     },
     {
@@ -127,7 +166,7 @@
         "byteOffset": 2,
         "line": 2,
         "column": 1,
-        "message": "unknown key directive"
+        "messageClass": "unknown_key"
       }
     },
     {
@@ -140,7 +179,7 @@
         "byteOffset": 0,
         "line": 1,
         "column": 1,
-        "message": "unknown key directive"
+        "messageClass": "unknown_key"
       }
     },
     {
@@ -153,7 +192,7 @@
         "byteOffset": 0,
         "line": 1,
         "column": 1,
-        "message": "invalid chord"
+        "messageClass": "invalid_chord"
       }
     },
     {
@@ -166,7 +205,7 @@
         "byteOffset": 0,
         "line": 1,
         "column": 1,
-        "message": "invalid chord"
+        "messageClass": "invalid_chord"
       }
     },
     {
@@ -179,7 +218,7 @@
         "byteOffset": 0,
         "line": 1,
         "column": 1,
-        "message": "delay is outside the allowed range"
+        "messageClass": "invalid_delay"
       }
     },
     {
@@ -192,7 +231,7 @@
         "byteOffset": 0,
         "line": 1,
         "column": 1,
-        "message": "delay is outside the allowed range"
+        "messageClass": "invalid_delay"
       }
     },
     {
@@ -205,7 +244,7 @@
         "byteOffset": 1,
         "line": 1,
         "column": 2,
-        "message": "carriage return must be followed by line feed"
+        "messageClass": "lone_carriage_return"
       }
     },
     {
@@ -218,7 +257,7 @@
         "byteOffset": 0,
         "line": 1,
         "column": 1,
-        "message": "unmatched opening brace"
+        "messageClass": "unmatched_opening_brace"
       }
     },
     {
@@ -231,7 +270,7 @@
         "byteOffset": 0,
         "line": 1,
         "column": 1,
-        "message": "unmatched closing brace"
+        "messageClass": "unmatched_closing_brace"
       }
     },
     {
@@ -244,7 +283,7 @@
         "byteOffset": 0,
         "line": 1,
         "column": 1,
-        "message": "source contains unsupported character"
+        "messageClass": "unsupported_character"
       }
     }
   ]
