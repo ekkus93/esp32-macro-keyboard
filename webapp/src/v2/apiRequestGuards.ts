@@ -24,13 +24,15 @@ const settingsUpdateKeys = [
   "station",
 ] as const;
 
+function all(checks: readonly boolean[]): boolean {
+  return checks.every(Boolean);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.getPrototypeOf(value) === Object.prototype
-  );
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  return Object.getPrototypeOf(value) === Object.prototype;
 }
 
 function hasExactKeys(
@@ -39,10 +41,10 @@ function hasExactKeys(
 ): boolean {
   const actual = Object.keys(value).sort();
   const expected = [...keys].sort();
-  return (
-    actual.length === expected.length &&
-    actual.every((key, index) => key === expected[index])
-  );
+  return all([
+    actual.length === expected.length,
+    actual.every((key, index) => key === expected[index]),
+  ]);
 }
 
 function hasOnlyAllowedKeys(
@@ -61,11 +63,11 @@ function isStringWithinBytes(
   minimum: number,
   maximum: number,
 ): value is string {
-  return (
-    typeof value === "string" &&
-    byteLength(value) >= minimum &&
-    byteLength(value) <= maximum
-  );
+  if (typeof value !== "string") {
+    return false;
+  }
+  const length = byteLength(value);
+  return all([length >= minimum, length <= maximum]);
 }
 
 function isCanonicalUuidV4(value: unknown): value is string {
@@ -77,29 +79,55 @@ function isBoundedInteger(
   minimum: number,
   maximum: number,
 ): value is number {
-  return (
-    typeof value === "number" &&
-    Number.isSafeInteger(value) &&
-    Number.isFinite(value) &&
-    value >= minimum &&
-    value <= maximum
-  );
+  if (typeof value !== "number") {
+    return false;
+  }
+  return all([
+    Number.isSafeInteger(value),
+    Number.isFinite(value),
+    value >= minimum,
+    value <= maximum,
+  ]);
 }
 
 function isNetworkCredentials(
   value: unknown,
 ): value is NetworkCredentialsRequest {
-  return (
-    isRecord(value) &&
-    hasExactKeys(value, ["passphrase", "ssid"]) &&
-    isStringWithinBytes(value.ssid, 1, 32) &&
-    isStringWithinBytes(value.passphrase, 8, 63)
-  );
+  if (!isRecord(value)) {
+    return false;
+  }
+  return all([
+    hasExactKeys(value, ["passphrase", "ssid"]),
+    isStringWithinBytes(value.ssid, 1, 32),
+    isStringWithinBytes(value.passphrase, 8, 63),
+  ]);
+}
+
+function isSetupIdentity(value: Record<string, unknown>): boolean {
+  return all([
+    typeof value.setupCode === "string",
+    typeof value.setupCode === "string" && setupCodePattern.test(value.setupCode),
+    isStringWithinBytes(value.deviceName, 1, 32),
+  ]);
+}
+
+function isSetupCredentials(value: Record<string, unknown>): boolean {
+  return all([
+    isStringWithinBytes(value.apSsid, 1, 32),
+    isStringWithinBytes(value.apPassphrase, 8, 63),
+    isStringWithinBytes(
+      value.adminPassword,
+      v2Limits.adminPasswordMinBytes,
+      v2Limits.adminPasswordMaxBytes,
+    ),
+  ]);
 }
 
 export function isSetupRequest(value: unknown): value is SetupRequest {
-  return (
-    isRecord(value) &&
+  if (!isRecord(value)) {
+    return false;
+  }
+  return all([
     hasExactKeys(value, [
       "adminPassword",
       "apPassphrase",
@@ -107,97 +135,133 @@ export function isSetupRequest(value: unknown): value is SetupRequest {
       "deviceName",
       "requireSerialConfirmation",
       "setupCode",
-    ]) &&
-    typeof value.setupCode === "string" &&
-    setupCodePattern.test(value.setupCode) &&
-    isStringWithinBytes(value.deviceName, 1, 32) &&
-    isStringWithinBytes(value.apSsid, 1, 32) &&
-    isStringWithinBytes(value.apPassphrase, 8, 63) &&
-    isStringWithinBytes(
-      value.adminPassword,
-      v2Limits.adminPasswordMinBytes,
-      v2Limits.adminPasswordMaxBytes,
-    ) &&
-    typeof value.requireSerialConfirmation === "boolean"
-  );
+    ]),
+    isSetupIdentity(value),
+    isSetupCredentials(value),
+    typeof value.requireSerialConfirmation === "boolean",
+  ]);
 }
 
 export function isLoginRequest(value: unknown): value is LoginRequest {
-  return (
-    isRecord(value) &&
-    hasExactKeys(value, ["adminPassword"]) &&
+  if (!isRecord(value)) {
+    return false;
+  }
+  return all([
+    hasExactKeys(value, ["adminPassword"]),
     isStringWithinBytes(
       value.adminPassword,
       v2Limits.adminPasswordMinBytes,
       v2Limits.adminPasswordMaxBytes,
-    )
-  );
+    ),
+  ]);
+}
+
+function optionalField(
+  value: Record<string, unknown>,
+  key: string,
+  validator: (candidate: unknown) => boolean,
+): boolean {
+  if (!Object.hasOwn(value, key)) {
+    return true;
+  }
+  return validator(value[key]);
+}
+
+function isOptionalDeviceSettings(value: Record<string, unknown>): boolean {
+  return all([
+    optionalField(value, "deviceName", (candidate) =>
+      isStringWithinBytes(candidate, 1, 32),
+    ),
+    optionalField(
+      value,
+      "requireSerialConfirmation",
+      (candidate) => typeof candidate === "boolean",
+    ),
+    optionalField(
+      value,
+      "sendMode",
+      (candidate) => candidate === "quick" || candidate === "preview",
+    ),
+    optionalField(value, "snapshotRetentionTarget", (candidate) =>
+      isBoundedInteger(candidate, 0, v2Limits.snapshotRetentionTargetMax),
+    ),
+  ]);
+}
+
+function isOptionalPresentationSettings(
+  value: Record<string, unknown>,
+): boolean {
+  return all([
+    optionalField(
+      value,
+      "showMacroSourcePreviews",
+      (candidate) => typeof candidate === "boolean",
+    ),
+    optionalField(
+      value,
+      "lastSelectedPackageId",
+      (candidate) => candidate === null || isCanonicalUuidV4(candidate),
+    ),
+  ]);
+}
+
+function isOptionalNetworkSettings(value: Record<string, unknown>): boolean {
+  return all([
+    optionalField(value, "accessPoint", isNetworkCredentials),
+    optionalField(
+      value,
+      "station",
+      (candidate) => candidate === null || isNetworkCredentials(candidate),
+    ),
+  ]);
 }
 
 export function isSettingsUpdateRequest(
   value: unknown,
 ): value is SettingsUpdateRequest {
-  if (
-    !isRecord(value) ||
-    Object.keys(value).length === 0 ||
-    !hasOnlyAllowedKeys(value, settingsUpdateKeys)
-  ) {
+  if (!isRecord(value)) {
     return false;
   }
-
-  return (
-    (!Object.hasOwn(value, "deviceName") ||
-      isStringWithinBytes(value.deviceName, 1, 32)) &&
-    (!Object.hasOwn(value, "requireSerialConfirmation") ||
-      typeof value.requireSerialConfirmation === "boolean") &&
-    (!Object.hasOwn(value, "sendMode") ||
-      value.sendMode === "quick" ||
-      value.sendMode === "preview") &&
-    (!Object.hasOwn(value, "snapshotRetentionTarget") ||
-      isBoundedInteger(
-        value.snapshotRetentionTarget,
-        0,
-        v2Limits.snapshotRetentionTargetMax,
-      )) &&
-    (!Object.hasOwn(value, "showMacroSourcePreviews") ||
-      typeof value.showMacroSourcePreviews === "boolean") &&
-    (!Object.hasOwn(value, "lastSelectedPackageId") ||
-      value.lastSelectedPackageId === null ||
-      isCanonicalUuidV4(value.lastSelectedPackageId)) &&
-    (!Object.hasOwn(value, "accessPoint") ||
-      isNetworkCredentials(value.accessPoint)) &&
-    (!Object.hasOwn(value, "station") ||
-      value.station === null ||
-      isNetworkCredentials(value.station))
-  );
+  return all([
+    Object.keys(value).length > 0,
+    hasOnlyAllowedKeys(value, settingsUpdateKeys),
+    isOptionalDeviceSettings(value),
+    isOptionalPresentationSettings(value),
+    isOptionalNetworkSettings(value),
+  ]);
 }
 
 export function isPasswordChangeRequest(
   value: unknown,
 ): value is PasswordChangeRequest {
-  return (
-    isRecord(value) &&
-    hasExactKeys(value, ["currentPassword", "newPassword"]) &&
+  if (!isRecord(value)) {
+    return false;
+  }
+  return all([
+    hasExactKeys(value, ["currentPassword", "newPassword"]),
     isStringWithinBytes(
       value.currentPassword,
       v2Limits.adminPasswordMinBytes,
       v2Limits.adminPasswordMaxBytes,
-    ) &&
+    ),
     isStringWithinBytes(
       value.newPassword,
       v2Limits.adminPasswordMinBytes,
       v2Limits.adminPasswordMaxBytes,
-    )
-  );
+    ),
+  ]);
 }
 
 export function isSendRequest(value: unknown): value is SendRequest {
-  return (
-    isRecord(value) &&
-    hasExactKeys(value, ["interKeyMs", "keyPressMs", "source"]) &&
+  if (!isRecord(value)) {
+    return false;
+  }
+  return all([
+    hasExactKeys(value, ["interKeyMs", "keyPressMs", "source"]),
+    typeof value.source === "string",
     typeof value.source === "string" &&
-    byteLength(value.source) <= v2Limits.macroSourceMaxBytes &&
-    isBoundedInteger(value.keyPressMs, 0, v2Limits.keyPressMaxMs) &&
-    isBoundedInteger(value.interKeyMs, 0, v2Limits.interKeyMaxMs)
-  );
+      byteLength(value.source) <= v2Limits.macroSourceMaxBytes,
+    isBoundedInteger(value.keyPressMs, 0, v2Limits.keyPressMaxMs),
+    isBoundedInteger(value.interKeyMs, 0, v2Limits.interKeyMaxMs),
+  ]);
 }
