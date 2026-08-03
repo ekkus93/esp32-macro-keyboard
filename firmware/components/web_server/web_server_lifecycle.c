@@ -12,7 +12,7 @@
 
 /* httpd task stack. 8192 (the ESP-IDF-ish default this used to carry) overflows
  * on real hardware for any request reaching a storage write path: those nest
- * several multi-kilobyte frames (storage_set_index_t ~2 KB, storage_uuid_order_t
+ * several multi-kilobyte frames (storage_package_index_t ~2 KB, storage_uuid_order_t
  * ~8 KB, transaction manifests, APP_PATH_MAX_BYTES buffers, cJSON scratch).
  * scripts/check-stack-usage.sh enforces per-frame limits; this is the budget
  * those frames are measured against. */

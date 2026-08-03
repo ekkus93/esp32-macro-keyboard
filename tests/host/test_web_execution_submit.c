@@ -23,7 +23,7 @@ typedef struct {
     app_error_code_t uuid_result;
     app_error_code_t submit_result;
     uint32_t revision;
-    bool macro_set_matches;
+    bool macro_package_matches;
     size_t read_calls;
     size_t compile_calls;
     size_t uuid_calls;
@@ -41,7 +41,7 @@ static app_uuid_t uuid(const char *text) {
 static fixture_t fixture_defaults(void) {
     return (fixture_t){
         .revision = 7U,
-        .macro_set_matches = true,
+        .macro_package_matches = true,
     };
 }
 
@@ -58,7 +58,7 @@ static app_error_code_t read_macro(void *context, const app_uuid_t *set_id,
         .schema_version = 1U,
         .id = uuid(MACRO_ID),
         .revision = fixture->revision,
-        .set_id = uuid(fixture->macro_set_matches ? SET_ID : OTHER_SET_ID),
+        .set_id = uuid(fixture->macro_package_matches ? SET_ID : OTHER_SET_ID),
         .source_length = 1U,
         .key_press_ms = 8U,
         .inter_key_ms = 15U,
@@ -190,7 +190,7 @@ static void test_pre_compile_failures(void) {
     TEST_CHECK_EQ_U64(0U, fixture.compile_calls);
 
     fixture = fixture_defaults();
-    fixture.macro_set_matches = false;
+    fixture.macro_package_matches = false;
     TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
                          submit_fixture(&fixture, &submission, &accepted, &parse_error));
     TEST_CHECK_EQ_U64(0U, fixture.compile_calls);

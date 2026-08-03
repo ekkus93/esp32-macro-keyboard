@@ -1,8 +1,7 @@
 /* SPEC 24.3 item: press and release sequence
  * SPEC 24.3 item: chords
  * SPEC 24.3 item: delays */
-static void test_action_order_delay_and_status_progress(void)
-{
+static void test_action_order_delay_and_status_progress(void) {
     executor_fake_t fake;
     executor_fake_reset(&fake);
     macro_executor_engine_t engine;
@@ -53,29 +52,23 @@ static void test_action_order_delay_and_status_progress(void)
 
 /* SPEC 24.3 item: cancel during text
  * SPEC 24.3 item: cancel during delay */
-static void test_cancel_before_and_during_actions(void)
-{
+static void test_cancel_before_and_during_actions(void) {
     executor_fake_t fake;
     executor_fake_reset(&fake);
     macro_executor_engine_t engine;
     executor_init_engine(&engine, &fake);
     executor_submit_single_key(&engine, &fake, 4U);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_cancel(&engine));
-    TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTION_CANCELLED,
-                         executor_execute_queued(&engine, &fake));
+    TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTION_CANCELLED, executor_execute_queued(&engine, &fake));
     TEST_CHECK_EQ_U64(0U, fake.wait_count);
     TEST_CHECK_EQ_U64(1U, fake.release_index);
-    executor_assert_terminal(&engine,
-                             EXECUTION_CANCELLED,
-                             APP_ERROR_EXECUTION_CANCELLED,
-                             false);
+    executor_assert_terminal(&engine, EXECUTION_CANCELLED, APP_ERROR_EXECUTION_CANCELLED, false);
 
     executor_fake_reset(&fake);
     executor_init_engine(&engine, &fake);
     executor_submit_single_key(&engine, &fake, 4U);
     fake.cancel_on_wait = 1U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTION_CANCELLED,
-                         executor_execute_queued(&engine, &fake));
+    TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTION_CANCELLED, executor_execute_queued(&engine, &fake));
     TEST_CHECK_EQ_U64(1U, fake.wait_count);
     TEST_CHECK_EQ_U64(2U, fake.release_index);
 
@@ -86,8 +79,7 @@ static void test_cancel_before_and_during_actions(void)
     request.plan.estimated_duration_ms = 100U;
     fake.cancel_on_wait = 2U;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
-    TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTION_CANCELLED,
-                         executor_execute_queued(&engine, &fake));
+    TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTION_CANCELLED, executor_execute_queued(&engine, &fake));
     TEST_CHECK_EQ_U64(2U, fake.wait_count);
     TEST_CHECK_EQ_U64(1U, fake.release_index);
 }
@@ -95,8 +87,7 @@ static void test_cancel_before_and_during_actions(void)
 /* FIX1 §12.4: accepted/started/completed timestamps and the redacted
  * current_action summary track the request from submission through each
  * action to completion. */
-static void test_timestamps_and_current_action_track_execution(void)
-{
+static void test_timestamps_and_current_action_track_execution(void) {
     executor_fake_t fake;
     executor_fake_reset(&fake);
     fake.now_ms = 1000U;
@@ -145,8 +136,7 @@ static void test_timestamps_and_current_action_track_execution(void)
 }
 
 /* SPEC 24.3 item: timeout */
-static void test_watchdog_and_wait_failures(void)
-{
+static void test_watchdog_and_wait_failures(void) {
     executor_fake_t fake;
     executor_fake_reset(&fake);
     macro_executor_engine_t engine;
@@ -172,8 +162,7 @@ static void test_watchdog_and_wait_failures(void)
     executor_assert_terminal(&engine, EXECUTION_FAILED, APP_ERROR_IO, false);
 }
 
-void executor_run_execution_tests(void)
-{
+void executor_run_execution_tests(void) {
     test_action_order_delay_and_status_progress();
     test_cancel_before_and_during_actions();
     test_timestamps_and_current_action_track_execution();

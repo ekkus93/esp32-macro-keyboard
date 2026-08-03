@@ -7,7 +7,7 @@
 #include "web_api_core.h"
 #include "web_api_response.h"
 
-static bool is_set_route(web_api_route_t route) {
+static bool is_package_route(web_api_route_t route) {
     switch (route) {
     case WEB_API_ROUTE_SETS:
     case WEB_API_ROUTE_SETS_ORDER:
@@ -51,8 +51,8 @@ app_error_code_t web_api_dispatch(const web_api_call_t *call, web_api_response_t
     if (call == NULL || response == NULL || call->path.route == WEB_API_ROUTE_UNKNOWN) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    if (is_set_route(call->path.route)) {
-        return web_api_handle_sets(call, response);
+    if (is_package_route(call->path.route)) {
+        return web_api_handle_packages(call, response);
     }
     if (is_macro_route(call->path.route)) {
         return web_api_handle_macros(call, response);

@@ -17,15 +17,15 @@
 #define STORAGE_INDEX_FILE_PATH STORAGE_DATA_MOUNT "/index.json"
 
 /* SPEC 12.3. `revision` is the index's own revision, not any set's.
- * `has_active_set` is false until the user selects one -- SPEC 10.1 forbids
+ * `has_active_package` is false until the user selects one -- SPEC 10.1 forbids
  * inferring or automatically switching the active set. */
 typedef struct {
     uint32_t revision;
-    bool has_active_set;
-    app_uuid_t active_set_id;
+    bool has_active_package;
+    app_uuid_t active_package_id;
     app_uuid_t ids[APP_MACRO_SETS_MAX];
     size_t count;
-} storage_set_index_t;
+} storage_package_index_t;
 
 app_error_code_t storage_repository_map_file_error(void);
 app_error_code_t storage_repository_map_error_number(int error_number);
@@ -53,12 +53,12 @@ app_error_code_t storage_repository_remove_tree_with_ops(const char *path,
                                                          const storage_fs_ops_t *operations);
 app_error_code_t storage_repository_remove_tree(const char *path);
 app_error_code_t storage_repository_parse_index(const char *data, size_t length,
-                                                storage_set_index_t *out_index);
-app_error_code_t storage_repository_load_index(storage_set_index_t *out_index);
+                                                storage_package_index_t *out_index);
+app_error_code_t storage_repository_load_index(storage_package_index_t *out_index);
 app_error_code_t storage_repository_load_index_path(const char *path,
-                                                    storage_set_index_t *out_index);
-app_error_code_t storage_repository_write_index(const storage_set_index_t *index);
-app_error_code_t storage_repository_set_index_presence(const app_uuid_t *set_id,
-                                                       bool should_be_present);
+                                                    storage_package_index_t *out_index);
+app_error_code_t storage_repository_write_index(const storage_package_index_t *index);
+app_error_code_t storage_repository_package_index_presence(const app_uuid_t *set_id,
+                                                           bool should_be_present);
 
 #endif

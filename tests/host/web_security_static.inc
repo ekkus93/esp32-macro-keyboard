@@ -1,5 +1,4 @@
-static void expect_path_failure(const char *uri)
-{
+static void expect_path_failure(const char *uri) {
     char output[64U];
     memset(output, 'x', sizeof(output));
     output[sizeof(output) - 1U] = '\0';
@@ -7,8 +6,7 @@ static void expect_path_failure(const char *uri)
     TEST_CHECK_EQ_STRING("", output);
 }
 
-static void test_static_path_boundaries(void)
-{
+static void test_static_path_boundaries(void) {
     char output[64U];
     TEST_CHECK(web_static_uri_normalize("/", output, sizeof(output)));
     TEST_CHECK_EQ_STRING("/", output);

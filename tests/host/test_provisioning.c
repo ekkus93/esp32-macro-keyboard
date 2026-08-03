@@ -137,7 +137,7 @@ static provisioning_config_t valid_configuration(uint32_t revision) {
         .credential_version = PROVISIONING_CREDENTIAL_VERSION_INITIAL,
         .provisioned = true,
         .require_physical_confirmation = true,
-        .always_select_set = false,
+        .always_select_package = false,
     };
     TEST_CHECK_EQ_INT(
         14, snprintf(configuration.ap_ssid, sizeof(configuration.ap_ssid), "%s", "Macro Keyboard"));
@@ -221,7 +221,7 @@ static void test_init_and_default_load(void) {
     TEST_CHECK(!loaded.provisioned);
     /* Off by default: the device must be usable with no button on it. */
     TEST_CHECK(!loaded.require_physical_confirmation);
-    TEST_CHECK(loaded.always_select_set);
+    TEST_CHECK(loaded.always_select_package);
     TEST_CHECK(fake.secure_zero_calls > 0U);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_deinit(&core));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_deinit(&core));
@@ -263,7 +263,7 @@ static void test_configuration_validation(void) {
     provisioning_config_t unprovisioned = {
         .schema_version = APP_SCHEMA_VERSION,
         .require_physical_confirmation = true,
-        .always_select_set = true,
+        .always_select_package = true,
     };
     TEST_CHECK(provisioning_config_is_valid(&unprovisioned));
     unprovisioned.ap_ssid[0] = 'x';
@@ -420,7 +420,8 @@ static void test_clear_credentials(void) {
     TEST_CHECK_EQ_STRING(STATION_PASSWORD, loaded.station_password);
     TEST_CHECK_EQ_INT(committed.require_physical_confirmation ? 1 : 0,
                       loaded.require_physical_confirmation ? 1 : 0);
-    TEST_CHECK_EQ_INT(committed.always_select_set ? 1 : 0, loaded.always_select_set ? 1 : 0);
+    TEST_CHECK_EQ_INT(committed.always_select_package ? 1 : 0,
+                      loaded.always_select_package ? 1 : 0);
 
     set_u32(fake.durable, RECORD_CREDENTIAL_VERSION_OFFSET, UINT32_MAX);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_load(&core, &loaded));
@@ -496,7 +497,7 @@ static void test_load_error_and_uninitialized_calls(void) {
  * feature shipped with none of this pinned, and the class of defect it invites
  * -- a writer that rebuilds the record from scratch and silently drops fields
  * it does not know about -- has already bitten this codebase once, in
- * storage_set_reorder.
+ * storage_package_reorder.
  *
  * The SSIDs and passphrases below are invented. Real bench credentials never
  * appear in this repository.
@@ -595,7 +596,7 @@ static void test_storing_a_network_disturbs_nothing_else(void) {
     TEST_CHECK(after.provisioned);
     TEST_CHECK_EQ_INT(before.require_physical_confirmation ? 1 : 0,
                       after.require_physical_confirmation ? 1 : 0);
-    TEST_CHECK_EQ_INT(before.always_select_set ? 1 : 0, after.always_select_set ? 1 : 0);
+    TEST_CHECK_EQ_INT(before.always_select_package ? 1 : 0, after.always_select_package ? 1 : 0);
     /* One durable change means exactly one revision. */
     TEST_CHECK_EQ_U64(before.revision + 1U, after.revision);
     TEST_CHECK(after.has_station);

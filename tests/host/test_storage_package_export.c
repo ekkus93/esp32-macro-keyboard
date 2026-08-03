@@ -22,7 +22,7 @@
 #define SECRET_SENTINEL "phase18_5_admin_secret_N7vY5jR3xQ9mK2pL"
 
 typedef struct {
-    macro_set_t set;
+    macro_package_t set;
     macro_t *local_macros;
     size_t local_macro_count;
     /* Macros of a different set: present in the repository, outside this
@@ -55,13 +55,13 @@ static app_error_code_t fake_lock_give(void *context) {
     return fake->unlock_result;
 }
 
-static app_error_code_t fake_set_read(void *context, const app_uuid_t *set_id,
-                                      macro_set_t *out_set) {
+static app_error_code_t fake_package_read(void *context, const app_uuid_t *set_id,
+                                          macro_package_t *out_package) {
     fake_export_context_t *fake = context;
     if (!app_uuid_equal(set_id, &fake->set.id)) {
         return APP_ERROR_NOT_FOUND;
     }
-    *out_set = fake->set;
+    *out_package = fake->set;
     return APP_ERROR_NONE;
 }
 
@@ -96,7 +96,7 @@ static storage_package_export_ops_t fake_operations(fake_export_context_t *conte
         .context = context,
         .lock_take = fake_lock_take,
         .lock_give = fake_lock_give,
-        .set_read = fake_set_read,
+        .set_read = fake_package_read,
         .macro_list = fake_macro_list,
         .macro_list_free = fake_macro_list_free,
     };
@@ -126,17 +126,17 @@ static fake_export_context_t valid_context(void) {
     static macro_t local_macros[1];
     static macro_t other_macros[1];
     fake_export_context_t context = {0};
-    context.set = (macro_set_t){
+    context.set = (macro_package_t){
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid(SET_ID),
         .revision = 1U,
     };
     snprintf(context.set.name, sizeof(context.set.name), "Set");
 
-    const app_uuid_t other_set_id = uuid(OTHER_SET_ID);
+    const app_uuid_t other_package_id = uuid(OTHER_SET_ID);
     local_macros[0] = make_macro(LOCAL_ID, &context.set.id, "Local", local_source);
     other_macros[0] =
-        make_macro(OTHER_SET_MACRO_ID, &other_set_id, "Unreferenced secret", unused_source);
+        make_macro(OTHER_SET_MACRO_ID, &other_package_id, "Unreferenced secret", unused_source);
     context.local_macros = local_macros;
     context.local_macro_count = 1U;
     context.other_macros = other_macros;
@@ -153,7 +153,7 @@ static void test_deterministic_export_and_filtering(void) {
     char *first = NULL;
     size_t first_length = 0U;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_package_export_set(&context.set.id, &first, &first_length));
+                         storage_package_export(&context.set.id, &first, &first_length));
     TEST_CHECK(first != NULL);
     TEST_CHECK(first_length == strlen(first));
     TEST_CHECK(strstr(first, OTHER_SET_MACRO_ID) == NULL);
@@ -170,7 +170,7 @@ static void test_deterministic_export_and_filtering(void) {
     char *second = NULL;
     size_t second_length = 0U;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_package_export_set(&context.set.id, &second, &second_length));
+                         storage_package_export(&context.set.id, &second, &second_length));
     TEST_CHECK_EQ_U64(first_length, second_length);
     TEST_CHECK(memcmp(first, second, first_length) == 0);
     TEST_CHECK_EQ_U64(2U, context.lock_take_count);
@@ -204,7 +204,7 @@ static void test_export_output_passes_secret_sentinel_scanner(void) {
     char *output = NULL;
     size_t output_length = 0U;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_package_export_set(&context.set.id, &output, &output_length));
+                         storage_package_export(&context.set.id, &output, &output_length));
 
     const char *outputs[] = {output};
     test_assert_no_secret_sentinel(SECRET_SENTINEL, outputs, 1U);
@@ -222,7 +222,7 @@ static void test_failure_cleanup_and_primary_error_preservation(void) {
 
     char *data = (char *)1;
     size_t length = 99U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_IO, storage_package_export_set(&context.set.id, &data, &length));
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, storage_package_export(&context.set.id, &data, &length));
     TEST_CHECK(data == NULL);
     TEST_CHECK_EQ_U64(0U, length);
     TEST_CHECK_EQ_U64(1U, context.lock_take_count);
@@ -258,7 +258,7 @@ static void test_output_limit_is_enforced(void) {
     char *data = NULL;
     size_t length = 0U;
     TEST_CHECK_APP_ERROR(APP_ERROR_MACRO_LIMIT,
-                         storage_package_export_set(&context.set.id, &data, &length));
+                         storage_package_export(&context.set.id, &data, &length));
     TEST_CHECK(data == NULL);
 
     storage_package_reset_export_ops_for_test();
@@ -272,13 +272,11 @@ static void test_argument_and_operations_validation(void) {
     char *data = NULL;
     size_t length = 0U;
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_package_export_set(&set_id, &data, &length));
+                         storage_package_export(&set_id, &data, &length));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_package_export(NULL, &data, &length));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_package_export_set(NULL, &data, &length));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_package_export_set(&set_id, NULL, &length));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_package_export_set(&set_id, &data, NULL));
+                         storage_package_export(&set_id, NULL, &length));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_package_export(&set_id, &data, NULL));
 }
 
 int main(void) {

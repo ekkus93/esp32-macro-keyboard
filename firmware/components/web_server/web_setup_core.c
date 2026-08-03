@@ -165,7 +165,7 @@ replacement_configuration(const provisioning_config_t *current,
     replacement.provisioned = true;
     replacement.password_record = *password_record;
     replacement.require_physical_confirmation = submission->require_physical_confirmation;
-    replacement.always_select_set = submission->always_select_set;
+    replacement.always_select_package = submission->always_select_package;
     memcpy(replacement.ap_ssid, submission->ap_ssid, sizeof(replacement.ap_ssid));
     memcpy(replacement.ap_passphrase, submission->ap_passphrase, sizeof(replacement.ap_passphrase));
     return replacement;

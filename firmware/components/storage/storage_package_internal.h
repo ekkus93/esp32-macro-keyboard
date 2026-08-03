@@ -8,7 +8,8 @@ typedef struct {
     void *context;
     app_error_code_t (*lock_take)(void *context);
     app_error_code_t (*lock_give)(void *context);
-    app_error_code_t (*set_read)(void *context, const app_uuid_t *set_id, macro_set_t *out_set);
+    app_error_code_t (*set_read)(void *context, const app_uuid_t *set_id,
+                                 macro_package_t *out_package);
     app_error_code_t (*macro_list)(void *context, const app_uuid_t *set_id,
                                    storage_macro_list_t *out_list);
     void (*macro_list_free)(void *context, storage_macro_list_t *list);
@@ -22,7 +23,7 @@ typedef struct {
      * can name it instead of failing anonymously. out_skips, when non-NULL,
      * makes the read tolerant: individually unusable objects are omitted and
      * recorded rather than failing the read. Either may be NULL. */
-    app_error_code_t (*set_list)(void *context, storage_set_list_t *out_list,
+    app_error_code_t (*set_list)(void *context, storage_package_list_t *out_list,
                                  storage_object_ref_t *out_failed,
                                  storage_skip_record_t *out_skips);
     app_error_code_t (*macro_list)(void *context, const app_uuid_t *set_id,

@@ -79,9 +79,9 @@ app_error_code_t storage_package_restore_backup(const char *data, size_t length,
 
 /* The admin boundary reads measured storage use for the diagnostics snapshot
    (SPEC 10.7); this stands in for the repository. */
-app_error_code_t storage_repository_measure_user_data(const app_uuid_t *exclude_set_id,
+app_error_code_t storage_repository_measure_user_data(const app_uuid_t *exclude_package_id,
                                                       size_t *out_bytes) {
-    (void)exclude_set_id;
+    (void)exclude_package_id;
     if (out_bytes == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -188,7 +188,7 @@ static void test_backup_failure_names_the_offending_macro(void) {
     backup_failure.has_object_id = true;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_parse("71cc0195-1111-4111-8111-111111111111",
                                                         &backup_failure.object_id));
-    backup_failure.has_set_id = true;
+    backup_failure.has_package_id = true;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_parse("15c7daee-2222-4222-8222-222222222222",
                                                         &backup_failure.set_id));
     const web_api_call_t call = call_for(WEB_API_ROUTE_BACKUP, WEB_API_METHOD_GET, NULL);
@@ -292,7 +292,7 @@ static void test_restore_failure_is_visible(void) {
 
 /* SPEC 13.5, 17: a partial restore enumerates which sets landed and which did
  * not, and MUST NOT be reported as 200. */
-static void test_partial_restore_reports_per_set_outcomes(void) {
+static void test_partial_restore_reports_per_package_outcomes(void) {
     reset_fixture();
     restore_report.count = 2U;
     restore_report.written = 1U;
@@ -326,7 +326,7 @@ static void test_partial_restore_reports_per_set_outcomes(void) {
 
 /* A complete restore still enumerates the sets, so a client never has to guess
  * whether an empty list means "none" or "not reported". */
-static void test_complete_restore_enumerates_sets(void) {
+static void test_complete_restore_enumerates_packages(void) {
     reset_fixture();
     restore_report.count = 1U;
     restore_report.written = 1U;
@@ -382,8 +382,8 @@ int main(void) {
     test_storage_snapshot_reports_discarded_objects();
     test_restore_delegates_complete_package();
     test_restore_failure_is_visible();
-    test_partial_restore_reports_per_set_outcomes();
-    test_complete_restore_enumerates_sets();
+    test_partial_restore_reports_per_package_outcomes();
+    test_complete_restore_enumerates_packages();
     test_remaining_package_boundaries_are_explicit();
     test_invalid_boundary_inputs();
     return 0;

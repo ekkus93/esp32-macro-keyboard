@@ -7,8 +7,7 @@ typedef struct {
     size_t call_order_length;
 } authorization_fake_t;
 
-static void append_call(authorization_fake_t *fake, const char *name)
-{
+static void append_call(authorization_fake_t *fake, const char *name) {
     if (fake->call_order_length > 0U) {
         fake->call_order[fake->call_order_length++] = ',';
     }
@@ -18,11 +17,8 @@ static void append_call(authorization_fake_t *fake, const char *name)
     fake->call_order_length += length;
 }
 
-static app_error_code_t get_authorization_header(void *context,
-                                                  const char *name,
-                                                  char *output,
-                                                  size_t output_size)
-{
+static app_error_code_t get_authorization_header(void *context, const char *name, char *output,
+                                                 size_t output_size) {
     authorization_fake_t *fake = context;
     TEST_CHECK(fake != NULL);
     append_call(fake, name);
@@ -47,8 +43,7 @@ static app_error_code_t get_authorization_header(void *context,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t validate_authorization(void *context, const char *session_token)
-{
+static app_error_code_t validate_authorization(void *context, const char *session_token) {
     authorization_fake_t *fake = context;
     TEST_CHECK(fake != NULL);
     TEST_CHECK_EQ_STRING(TOKEN, session_token);
@@ -56,16 +51,12 @@ static app_error_code_t validate_authorization(void *context, const char *sessio
     return fake->validation_result;
 }
 
-static void test_mutation_authorization(void)
-{
+static void test_mutation_authorization(void) {
     char session_token[AUTH_TOKEN_HEX_BYTES];
     authorization_fake_t fake = {.validation_result = APP_ERROR_NONE};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_adapter_authorize_mutation(get_authorization_header,
-                                                        validate_authorization,
-                                                        &fake,
-                                                        session_token,
-                                                        sizeof(session_token)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_adapter_authorize_mutation(
+                                             get_authorization_header, validate_authorization,
+                                             &fake, session_token, sizeof(session_token)));
     TEST_CHECK_EQ_STRING(TOKEN, session_token);
     TEST_CHECK_EQ_STRING("Cookie", fake.call_order);
     TEST_CHECK_EQ_U64(1U, fake.validation_calls);
@@ -73,18 +64,14 @@ static void test_mutation_authorization(void)
     fake = (authorization_fake_t){.missing_header = "Cookie"};
     TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
                          web_adapter_authorize_mutation(get_authorization_header,
-                                                        validate_authorization,
-                                                        &fake,
-                                                        session_token,
-                                                        sizeof(session_token)));
+                                                        validate_authorization, &fake,
+                                                        session_token, sizeof(session_token)));
     TEST_CHECK_EQ_U64(0U, fake.validation_calls);
 
     fake = (authorization_fake_t){.validation_result = APP_ERROR_AUTH_FAILED};
     TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_FAILED,
                          web_adapter_authorize_mutation(get_authorization_header,
-                                                        validate_authorization,
-                                                        &fake,
-                                                        session_token,
-                                                        sizeof(session_token)));
+                                                        validate_authorization, &fake,
+                                                        session_token, sizeof(session_token)));
     TEST_CHECK_EQ_STRING("", session_token);
 }

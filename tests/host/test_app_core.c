@@ -146,7 +146,7 @@ static void configure_normal_provisioning(provisioning_config_t *configuration) 
         .credential_version = 2U,
         .provisioned = true,
         .require_physical_confirmation = true,
-        .always_select_set = true,
+        .always_select_package = true,
     };
     TEST_CHECK_EQ_INT(14, snprintf(configuration->ap_ssid, sizeof(configuration->ap_ssid), "%s",
                                    "Macro Keyboard"));
@@ -171,7 +171,7 @@ static void reset_fixture(app_core_fixture_t *fixture) {
         .credential_version = 0U,
         .provisioned = false,
         .require_physical_confirmation = true,
-        .always_select_set = true,
+        .always_select_package = true,
     };
     initialize_bootstrap(&fixture->bootstrap);
 }

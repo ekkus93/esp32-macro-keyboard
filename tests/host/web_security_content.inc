@@ -1,5 +1,4 @@
-static void test_content_boundaries(void)
-{
+static void test_content_boundaries(void) {
     TEST_CHECK(web_accept_encoding_gzip("gzip"));
     TEST_CHECK(web_accept_encoding_gzip("GZIP"));
     TEST_CHECK(web_accept_encoding_gzip("br, gzip"));

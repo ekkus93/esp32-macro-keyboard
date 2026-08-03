@@ -39,19 +39,19 @@ typedef struct {
  * Array order IS the user's order (SPEC 12.1). There is no order file and no
  * `sort_order` field to keep in step with it. */
 typedef struct {
-    macro_set_t set;
+    macro_package_t set;
     macro_t *macros;
     size_t macro_count;
-} storage_set_document_t;
+} storage_package_document_t;
 
-void storage_set_document_free(storage_set_document_t *document);
+void storage_package_document_free(storage_package_document_t *document);
 
 /* Parse a complete set file. On success the caller owns `out_document` and must
- * release it with storage_set_document_free. */
-app_error_code_t storage_set_document_parse(const char *data, size_t length,
-                                            storage_set_document_t *out_document);
-app_error_code_t storage_set_document_serialize(const storage_set_document_t *document,
-                                                char **out_json, size_t *out_length);
+ * release it with storage_package_document_free. */
+app_error_code_t storage_package_document_parse(const char *data, size_t length,
+                                                storage_package_document_t *out_document);
+app_error_code_t storage_package_document_serialize(const storage_package_document_t *document,
+                                                    char **out_json, size_t *out_length);
 
 /* Standalone macro JSON, used only by the package layer.
  *
@@ -65,7 +65,8 @@ app_error_code_t storage_set_document_serialize(const storage_set_document_t *do
  * that only handle whole documents keep their include set. */
 struct cJSON;
 app_error_code_t storage_repository_parse_macro_node(const struct cJSON *root, macro_t *out_macro);
-app_error_code_t storage_repository_parse_set_node(const struct cJSON *root, macro_set_t *out_set);
+app_error_code_t storage_repository_parse_package_node(const struct cJSON *root,
+                                                       macro_package_t *out_package);
 
 app_error_code_t storage_repository_parse_macro_json(const char *data, size_t length,
                                                      macro_t *out_macro);
@@ -74,9 +75,9 @@ app_error_code_t storage_repository_serialize_macro_json(const macro_t *macro, c
 
 /* The envelope form of a set: metadata only, no `macros` array. Used by package
  * `sets` entries and by API responses that list sets without their contents. */
-app_error_code_t storage_repository_parse_set_json(const char *data, size_t length,
-                                                   macro_set_t *out_set);
-app_error_code_t storage_repository_serialize_set_json(const macro_set_t *set, char **out_json,
-                                                       size_t *out_length);
+app_error_code_t storage_repository_parse_package_json(const char *data, size_t length,
+                                                       macro_package_t *out_package);
+app_error_code_t storage_repository_serialize_package_json(const macro_package_t *set,
+                                                           char **out_json, size_t *out_length);
 
 #endif

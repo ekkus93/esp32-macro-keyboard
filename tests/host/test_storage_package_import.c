@@ -68,26 +68,27 @@ static void reset_storage(void) {
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_lock_init());
 }
 
-static void write_set_file(const char *set_path, const macro_set_t *set) {
+static void write_package_file(const char *set_path, const macro_package_t *set) {
     char *json = NULL;
     size_t length = 0U;
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_serialize_set_json(set, &json, &length));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
+                      storage_repository_serialize_package_json(set, &json, &length));
     char path[APP_PATH_MAX_BYTES];
     join_path(path, sizeof(path), set_path, "set.json");
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_atomic_write(path, json, length, true));
     cJSON_free(json);
 }
 
-static void create_current_set(void) {
+static void create_current_package(void) {
     const app_uuid_t id = parse_id(SET_ID);
-    macro_set_t set = {
+    macro_package_t set = {
         .schema_version = APP_SCHEMA_VERSION,
         .id = id,
         .revision = 3U,
     };
     memcpy(set.name, "Current", sizeof("Current"));
     char set_path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_make_set_path(&id, set_path, sizeof(set_path)));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_make_package_path(&id, set_path, sizeof(set_path)));
     make_directory(set_path);
     static const char *const children[] = {"macros"};
     char path[APP_PATH_MAX_BYTES];
@@ -95,54 +96,53 @@ static void create_current_set(void) {
         join_path(path, sizeof(path), set_path, children[index]);
         make_directory(path);
     }
-    write_set_file(set_path, &set);
+    write_package_file(set_path, &set);
     static const char empty_order[] = "{\"schema_version\":1,\"ids\":[]}";
     join_path(path, sizeof(path), set_path, "macro-order.json");
     TEST_CHECK_EQ_INT(APP_ERROR_NONE,
                       storage_atomic_write(path, empty_order, strlen(empty_order), true));
-    storage_set_index_t index = {.ids = {id}, .count = 1U};
+    storage_package_index_t index = {.ids = {id}, .count = 1U};
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_write_index(&index));
 }
 
 static void assert_index_count(size_t expected) {
-    storage_set_index_t index = {0};
+    storage_package_index_t index = {0};
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_load_index(&index));
     TEST_CHECK_EQ_U64(expected, index.count);
 }
 
 static void assert_not_created(const char *id_string) {
     const app_uuid_t id = parse_id(id_string);
-    macro_set_t set = {0};
-    TEST_CHECK_EQ_INT(APP_ERROR_NOT_FOUND, storage_set_read(&id, &set));
+    macro_package_t set = {0};
+    TEST_CHECK_EQ_INT(APP_ERROR_NOT_FOUND, storage_package_read(&id, &set));
 }
 
-/* reset_storage() only creates the directory topology; unlike create_current_set(),
+/* reset_storage() only creates the directory topology; unlike create_current_package(),
  * an empty repository has no set-index.json yet until something writes one (normally
  * storage_repository_init() at boot). Import must be exercisable against a truly
- * empty repository, so tests that don't call create_current_set() need this instead. */
+ * empty repository, so tests that don't call create_current_package() need this instead. */
 static void write_empty_index(void) {
-    storage_set_index_t index = {0};
+    storage_package_index_t index = {0};
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_write_index(&index));
 }
 
 /* SPEC 24.4 item: import validation */
 static void test_invalid_arguments_and_collision_do_not_mutate(void) {
     reset_storage();
-    create_current_set();
-    macro_set_t committed = {0};
+    create_current_package();
+    macro_package_t committed = {0};
     const app_uuid_t new_id = parse_id(NEW_SET_ID_1);
     const app_uuid_t existing_id = parse_id(SET_ID);
     TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      storage_package_import_set(NULL, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
+                      storage_package_import(NULL, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
     TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      storage_package_import_set(&new_id, NULL, sizeof(PACKAGE) - 1U, &committed));
+                      storage_package_import(&new_id, NULL, sizeof(PACKAGE) - 1U, &committed));
     TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      storage_package_import_set(&new_id, PACKAGE, 0U, &committed));
+                      storage_package_import(&new_id, PACKAGE, 0U, &committed));
     TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      storage_package_import_set(&new_id, "{}", 2U, &committed));
-    TEST_CHECK_EQ_INT(
-        APP_ERROR_CONFLICT,
-        storage_package_import_set(&existing_id, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
+                      storage_package_import(&new_id, "{}", 2U, &committed));
+    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT, storage_package_import(&existing_id, PACKAGE,
+                                                                 sizeof(PACKAGE) - 1U, &committed));
     assert_index_count(1U);
 }
 
@@ -150,10 +150,10 @@ static void test_invalid_arguments_and_collision_do_not_mutate(void) {
 static void test_valid_import_assigns_new_identity_and_resets_revisions(void) {
     reset_storage();
     write_empty_index();
-    macro_set_t committed = {0};
+    macro_package_t committed = {0};
     const app_uuid_t new_id = parse_id(NEW_SET_ID_1);
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_package_import_set(&new_id, PACKAGE,
-                                                                 sizeof(PACKAGE) - 1U, &committed));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
+                      storage_package_import(&new_id, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
     TEST_CHECK(app_uuid_equal(&new_id, &committed.id));
     TEST_CHECK_EQ_U64(1U, committed.revision);
     TEST_CHECK_EQ_STRING("Replacement", committed.name);
@@ -174,7 +174,7 @@ static void test_valid_import_assigns_new_identity_and_resets_revisions(void) {
 /* Mutual-exclusion prover: models one non-recursive lock. On the armed take it
  * fires a one-shot interloper -- a concurrent locking operation -- while the lock
  * is held; the interloper's own take is rejected, proving it would block behind
- * the operation under test. Mirrors test_storage_sets.c's mx_lock_state_t. */
+ * the operation under test. Mirrors test_storage_packages.c's mx_lock_state_t. */
 typedef struct {
     bool held;
     app_error_code_t (*interloper)(void);
@@ -218,9 +218,9 @@ static const storage_repository_lock_ops_t mx_ops = {
     .deinit = mx_noop,
 };
 
-static app_error_code_t interloper_delete_unrelated_set(void) {
+static app_error_code_t interloper_delete_unrelated_package(void) {
     const app_uuid_t unrelated_id = parse_id(NEW_SET_ID_2);
-    return storage_set_delete(&unrelated_id, 1U);
+    return storage_package_delete(&unrelated_id, 1U);
 }
 
 /* Import holds the repository lock for its whole prepare/commit pass (FIX1
@@ -231,12 +231,12 @@ static void test_concurrency_import_excludes_mutation(void) {
     write_empty_index();
     const app_uuid_t new_id = parse_id(NEW_SET_ID_1);
 
-    g_mx =
-        (mx_lock_state_t){.interloper = interloper_delete_unrelated_set, .interloper_armed = true};
+    g_mx = (mx_lock_state_t){.interloper = interloper_delete_unrelated_package,
+                             .interloper_armed = true};
     storage_repository_lock_set_ops(&mx_ops);
-    macro_set_t committed = {0};
+    macro_package_t committed = {0};
     const app_error_code_t result =
-        storage_package_import_set(&new_id, PACKAGE, sizeof(PACKAGE) - 1U, &committed);
+        storage_package_import(&new_id, PACKAGE, sizeof(PACKAGE) - 1U, &committed);
     storage_repository_lock_set_ops(NULL);
 
     TEST_CHECK(g_mx.interloper_ran);
@@ -245,31 +245,31 @@ static void test_concurrency_import_excludes_mutation(void) {
     TEST_CHECK(!g_mx.held);
 }
 
-static void test_repeated_import_produces_distinct_sets(void) {
+static void test_repeated_import_produces_distinct_packages(void) {
     reset_storage();
     write_empty_index();
-    macro_set_t first = {0};
-    macro_set_t second = {0};
+    macro_package_t first = {0};
+    macro_package_t second = {0};
     const app_uuid_t first_id = parse_id(NEW_SET_ID_1);
     const app_uuid_t second_id = parse_id(NEW_SET_ID_2);
     TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      storage_package_import_set(&first_id, PACKAGE, sizeof(PACKAGE) - 1U, &first));
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_package_import_set(&second_id, PACKAGE,
-                                                                 sizeof(PACKAGE) - 1U, &second));
+                      storage_package_import(&first_id, PACKAGE, sizeof(PACKAGE) - 1U, &first));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
+                      storage_package_import(&second_id, PACKAGE, sizeof(PACKAGE) - 1U, &second));
     TEST_CHECK_EQ_U64(1U, first.revision);
     TEST_CHECK_EQ_U64(1U, second.revision);
     TEST_CHECK(!app_uuid_equal(&first.id, &second.id));
 
-    macro_set_t readback = {0};
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_set_read(&first_id, &readback));
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_set_read(&second_id, &readback));
+    macro_package_t readback = {0};
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_package_read(&first_id, &readback));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_package_read(&second_id, &readback));
     assert_index_count(2U);
 }
 
 int main(void) {
     test_invalid_arguments_and_collision_do_not_mutate();
     test_valid_import_assigns_new_identity_and_resets_revisions();
-    test_repeated_import_produces_distinct_sets();
+    test_repeated_import_produces_distinct_packages();
     test_concurrency_import_excludes_mutation();
     reset_storage();
     storage_repository_lock_deinit();

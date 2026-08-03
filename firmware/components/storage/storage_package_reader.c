@@ -15,8 +15,9 @@ static app_error_code_t as_bad_request(app_error_code_t result) {
     return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
 }
 
-app_error_code_t package_parse_set_node(const struct cJSON *node, macro_set_t *out_set) {
-    return as_bad_request(storage_repository_parse_set_node(node, out_set));
+app_error_code_t package_parse_metadata_node(const struct cJSON *node,
+                                             macro_package_t *out_package) {
+    return as_bad_request(storage_repository_parse_package_node(node, out_package));
 }
 
 app_error_code_t package_parse_macro_node(const struct cJSON *node, macro_t *out_macro) {

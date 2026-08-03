@@ -9,8 +9,7 @@
  * recorded separately in release_error so it cannot be mistaken for the
  * primary cause of the run failing. */
 /* SPEC 24.3 item: final release-all on every terminal path */
-static void test_press_release_and_final_release_errors(void)
-{
+static void test_press_release_and_final_release_errors(void) {
     executor_fake_t fake;
     executor_fake_reset(&fake);
     macro_executor_engine_t engine;
@@ -26,13 +25,9 @@ static void test_press_release_and_final_release_errors(void)
     executor_submit_single_key(&engine, &fake, 4U);
     fake.release_results[0] = APP_ERROR_USB_NOT_READY;
     fake.release_result_count = 1U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY,
-                         executor_execute_queued(&engine, &fake));
+    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, executor_execute_queued(&engine, &fake));
     TEST_CHECK_EQ_U64(2U, fake.release_index);
-    executor_assert_terminal(&engine,
-                             EXECUTION_FAILED,
-                             APP_ERROR_USB_NOT_READY,
-                             false);
+    executor_assert_terminal(&engine, EXECUTION_FAILED, APP_ERROR_USB_NOT_READY, false);
 
     executor_fake_reset(&fake);
     executor_init_engine(&engine, &fake);
@@ -46,8 +41,7 @@ static void test_press_release_and_final_release_errors(void)
     TEST_CHECK_EQ_U64(2U, fake.release_index);
 }
 
-static void test_recovery_after_each_terminal_outcome(void)
-{
+static void test_recovery_after_each_terminal_outcome(void) {
     static const app_error_code_t primary_results[] = {
         APP_ERROR_NONE,
         APP_ERROR_EXECUTION_CANCELLED,
@@ -55,8 +49,7 @@ static void test_recovery_after_each_terminal_outcome(void)
         APP_ERROR_TIMEOUT,
     };
     for (size_t case_index = 0U;
-         case_index < (sizeof(primary_results) / sizeof(primary_results[0]));
-         ++case_index) {
+         case_index < (sizeof(primary_results) / sizeof(primary_results[0])); ++case_index) {
         executor_fake_t fake;
         executor_fake_reset(&fake);
         macro_executor_engine_t engine;
@@ -70,8 +63,7 @@ static void test_recovery_after_each_terminal_outcome(void)
             fake.wait_failure_on = 1U;
             fake.wait_failure_result = APP_ERROR_TIMEOUT;
         }
-        TEST_CHECK_APP_ERROR(primary_results[case_index],
-                             executor_execute_queued(&engine, &fake));
+        TEST_CHECK_APP_ERROR(primary_results[case_index], executor_execute_queued(&engine, &fake));
         TEST_CHECK(!engine.busy);
         TEST_CHECK(!engine.cancellation_requested);
         TEST_CHECK_EQ_U64(1U, fake.free_count);
@@ -90,8 +82,7 @@ static void test_recovery_after_each_terminal_outcome(void)
     }
 }
 
-static void test_cancel_and_status_lock_failures(void)
-{
+static void test_cancel_and_status_lock_failures(void) {
     executor_fake_t fake;
     executor_fake_reset(&fake);
     macro_executor_engine_t engine;
@@ -118,8 +109,7 @@ static void test_cancel_and_status_lock_failures(void)
 
 /* FIX1 §12.4: a key release that fails only after an otherwise successful run is
  * surfaced through release_error while the run still completes. */
-static void test_key_release_failure_after_success(void)
-{
+static void test_key_release_failure_after_success(void) {
     executor_fake_t fake;
     executor_fake_reset(&fake);
     macro_executor_engine_t engine;
@@ -138,8 +128,7 @@ static void test_key_release_failure_after_success(void)
 
 /* FIX1 §12.3: when the terminal state cannot be published, the engine latches
  * unavailable and rejects new submissions rather than appearing falsely idle. */
-static void test_terminal_publish_failure_leaves_executor_unavailable(void)
-{
+static void test_terminal_publish_failure_leaves_executor_unavailable(void) {
     executor_fake_t fake;
     executor_fake_reset(&fake);
     macro_executor_engine_t engine;
@@ -175,8 +164,7 @@ static void test_terminal_publish_failure_leaves_executor_unavailable(void)
  * that no caller submitted. Every terminal outcome is checked, not just
  * success: a cancelled or failed run is exactly where a "move on to the next
  * one" convenience would be tempting. */
-static void test_no_terminal_outcome_advances_to_another_macro(void)
-{
+static void test_no_terminal_outcome_advances_to_another_macro(void) {
     static const execution_state_t outcomes[] = {EXECUTION_COMPLETED, EXECUTION_CANCELLED,
                                                  EXECUTION_FAILED};
     for (size_t index = 0U; index < sizeof(outcomes) / sizeof(outcomes[0]); ++index) {
@@ -218,8 +206,7 @@ static void test_no_terminal_outcome_advances_to_another_macro(void)
     }
 }
 
-void executor_run_terminal_tests(void)
-{
+void executor_run_terminal_tests(void) {
     test_no_terminal_outcome_advances_to_another_macro();
     test_press_release_and_final_release_errors();
     test_recovery_after_each_terminal_outcome();

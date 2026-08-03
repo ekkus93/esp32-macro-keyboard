@@ -30,7 +30,7 @@
 static const char VALID_SET_PACKAGE[] = PACKAGE_PREFIX("set") SET_OBJECT PACKAGE_SUFFIX;
 static const char VALID_BACKUP_PACKAGE[] = PACKAGE_PREFIX("backup") SET_OBJECT PACKAGE_SUFFIX;
 
-static void test_valid_set_and_backup_packages(void) {
+static void test_valid_package_and_backup_documents(void) {
     storage_package_summary_t summary = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          storage_package_validate(VALID_SET_PACKAGE, sizeof(VALID_SET_PACKAGE) - 1U,
@@ -111,11 +111,13 @@ static void test_top_level_contract(void) {
 }
 
 static void test_object_and_reference_validation(void) {
-    const char unknown_set_field[] = PACKAGE_PREFIX("set") "{\"schema_version\":1,\"id\":\"" SET_ID
-                                                           "\",\"revision\":1,\"name\":\"Set\",,"
-                                                           "\"future\":true}" PACKAGE_SUFFIX;
-    const char duplicate_set[] = PACKAGE_PREFIX("backup") SET_OBJECT "," SET_OBJECT PACKAGE_SUFFIX;
-    const char wrong_set_count[] =
+    const char unknown_package_field[] =
+        PACKAGE_PREFIX("set") "{\"schema_version\":1,\"id\":\"" SET_ID
+                              "\",\"revision\":1,\"name\":\"Set\",,"
+                              "\"future\":true}" PACKAGE_SUFFIX;
+    const char duplicate_package[] =
+        PACKAGE_PREFIX("backup") SET_OBJECT "," SET_OBJECT PACKAGE_SUFFIX;
+    const char wrong_package_count[] =
         PACKAGE_PREFIX("set") SET_OBJECT "," OTHER_SET_OBJECT PACKAGE_SUFFIX;
     const char bad_macro_syntax[] = PACKAGE_PREFIX("set") SET_OBJECT
         "],\"macros\":[{\"schema_version\":1,\"id\":\"" LOCAL_MACRO_ID
@@ -131,11 +133,11 @@ static void test_object_and_reference_validation(void) {
         app_error_code_t expected;
         storage_package_kind_t kind;
     } cases[] = {
-        {unknown_set_field, sizeof(unknown_set_field) - 1U, APP_ERROR_INVALID_ARGUMENT,
+        {unknown_package_field, sizeof(unknown_package_field) - 1U, APP_ERROR_INVALID_ARGUMENT,
          STORAGE_PACKAGE_KIND_SET},
-        {duplicate_set, sizeof(duplicate_set) - 1U, APP_ERROR_INVALID_ARGUMENT,
+        {duplicate_package, sizeof(duplicate_package) - 1U, APP_ERROR_INVALID_ARGUMENT,
          STORAGE_PACKAGE_KIND_BACKUP},
-        {wrong_set_count, sizeof(wrong_set_count) - 1U, APP_ERROR_INVALID_ARGUMENT,
+        {wrong_package_count, sizeof(wrong_package_count) - 1U, APP_ERROR_INVALID_ARGUMENT,
          STORAGE_PACKAGE_KIND_SET},
         {bad_macro_syntax, sizeof(bad_macro_syntax) - 1U, APP_ERROR_MACRO_SYNTAX,
          STORAGE_PACKAGE_KIND_SET},
@@ -173,7 +175,7 @@ static void test_size_and_argument_bounds(void) {
 }
 
 int main(void) {
-    test_valid_set_and_backup_packages();
+    test_valid_package_and_backup_documents();
     test_whitespace_between_tokens_is_accepted();
     test_top_level_contract();
     test_object_and_reference_validation();

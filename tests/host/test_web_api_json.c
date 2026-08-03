@@ -97,11 +97,11 @@ static void test_resource_mutation_matrix(void) {
 }
 
 static void test_resource_request_boundary(void) {
-    const char valid_set[] =
+    const char valid_package[] =
         "{\"schema_version\":1,\"id\":\"" SET_ID "\",\"revision\":1,\"name\":\"Set\"}";
-    macro_set_t set = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_api_json_parse_set_resource(valid_set, sizeof(valid_set) - 1U, &set));
+    macro_package_t set = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_package_resource(
+                                             valid_package, sizeof(valid_package) - 1U, &set));
     TEST_CHECK_EQ_STRING("Set", set.name);
 
     const char valid_macro[] =
@@ -114,7 +114,7 @@ static void test_resource_request_boundary(void) {
     TEST_CHECK_EQ_STRING("a", macro.source);
     macro_model_free_macro(&macro);
 
-    static const char *const invalid_sets[] = {
+    static const char *const invalid_packages[] = {
         "{}",
         "{\"schema_version\":1,\"id\":\"" SET_ID
         "\",\"revision\":1,\"name\":\"Set\",,\"extra\":true}",
@@ -123,19 +123,21 @@ static void test_resource_request_boundary(void) {
         "{\"schema_version\":1}x",
         "{",
     };
-    for (size_t index = 0U; index < sizeof(invalid_sets) / sizeof(invalid_sets[0]); ++index) {
+    for (size_t index = 0U; index < sizeof(invalid_packages) / sizeof(invalid_packages[0]);
+         ++index) {
         memset(&set, 0xa5, sizeof(set));
         TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                             web_api_json_parse_set_resource(invalid_sets[index],
-                                                             strlen(invalid_sets[index]), &set));
+                             web_api_json_parse_package_resource(
+                                 invalid_packages[index], strlen(invalid_packages[index]), &set));
         TEST_CHECK_EQ_U64(0U, set.revision);
     }
 
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_api_json_parse_macro_resource("{}", 2U, &macro));
     TEST_CHECK(macro.source == NULL);
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_json_parse_set_resource(valid_set, sizeof(valid_set) - 1U, NULL));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        web_api_json_parse_package_resource(valid_package, sizeof(valid_package) - 1U, NULL));
 }
 
 static void test_uuid_order_matrix(void) {
@@ -256,7 +258,7 @@ static void test_settings_update_matrix(void) {
                                                                             &settings, &revision));
     TEST_CHECK_EQ_U64(4U, revision);
     TEST_CHECK(settings.require_physical_confirmation);
-    TEST_CHECK(!settings.always_select_set);
+    TEST_CHECK(!settings.always_select_package);
 
     const char other[] = "{\"expectedRevision\":5,\"requirePhysicalConfirmation\":false,"
                          "\"alwaysSelectSet\":true}";
@@ -264,7 +266,7 @@ static void test_settings_update_matrix(void) {
                                              other, sizeof(other) - 1U, &settings, &revision));
     TEST_CHECK_EQ_U64(5U, revision);
     TEST_CHECK(!settings.require_physical_confirmation);
-    TEST_CHECK(settings.always_select_set);
+    TEST_CHECK(settings.always_select_package);
 
     static const char *const invalid[] = {
         "{}",

@@ -16,7 +16,7 @@ typedef struct {
     /* A set is a name and an ordered list of macros (SPEC 12.1). Set order
      * lives in index.json's ordered set_ids and nowhere else. */
     char name[APP_NAME_MAX_BYTES + 1U];
-} macro_set_t;
+} macro_package_t;
 
 typedef struct {
     uint32_t schema_version;

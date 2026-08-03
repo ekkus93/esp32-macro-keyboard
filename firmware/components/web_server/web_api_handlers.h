@@ -16,7 +16,7 @@ typedef struct {
     char session_token[AUTH_TOKEN_HEX_BYTES];
 } web_api_call_t;
 
-app_error_code_t web_api_handle_sets(const web_api_call_t *call, web_api_response_t *response);
+app_error_code_t web_api_handle_packages(const web_api_call_t *call, web_api_response_t *response);
 app_error_code_t web_api_handle_macros(const web_api_call_t *call, web_api_response_t *response);
 app_error_code_t web_api_handle_execution(const web_api_call_t *call, web_api_response_t *response);
 app_error_code_t web_api_handle_administration(const web_api_call_t *call,

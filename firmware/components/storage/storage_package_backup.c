@@ -21,16 +21,16 @@
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_macros_internal.h"
-#include "storage_repository_sets_internal.h"
+#include "storage_repository_packages_internal.h"
 #endif
 
 typedef struct {
-    macro_set_t set;
+    macro_package_t set;
     storage_macro_list_t local_macros;
-} backup_set_snapshot_t;
+} backup_package_snapshot_t;
 
 typedef struct {
-    backup_set_snapshot_t *sets;
+    backup_package_snapshot_t *sets;
     size_t set_count;
 } backup_snapshot_t;
 
@@ -58,18 +58,18 @@ static app_error_code_t production_lock_give(void *context) {
     return storage_repository_lock_give();
 }
 
-static app_error_code_t production_set_list(void *context, storage_set_list_t *out_list,
-                                            storage_object_ref_t *out_failed,
-                                            storage_skip_record_t *out_skips) {
+static app_error_code_t production_package_list(void *context, storage_package_list_t *out_list,
+                                                storage_object_ref_t *out_failed,
+                                                storage_skip_record_t *out_skips) {
     (void)context;
     if (out_failed != NULL) {
         memset(out_failed, 0, sizeof(*out_failed));
     }
-    storage_set_index_t index = {0};
+    storage_package_index_t index = {0};
     app_error_code_t result = storage_repository_load_index(&index);
     memset(out_list, 0, sizeof(*out_list));
     for (size_t item = 0U; result == APP_ERROR_NONE && item < index.count; ++item) {
-        result = storage_set_read_locked(&index.ids[item], &out_list->items[out_list->count]);
+        result = storage_package_read_locked(&index.ids[item], &out_list->items[out_list->count]);
         if (result == APP_ERROR_NONE) {
             ++out_list->count;
             continue;
@@ -110,7 +110,7 @@ static storage_package_backup_ops_t backup_operations = {
     .context = NULL,
     .lock_take = production_lock_take,
     .lock_give = production_lock_give,
-    .set_list = production_set_list,
+    .set_list = production_package_list,
     .macro_list = production_macro_list,
     .macro_list_free = production_macro_list_free,
 };
@@ -122,7 +122,7 @@ static bool backup_operations_valid(void) {
            backup_operations.macro_list_free != NULL;
 }
 
-static void set_snapshot_free(backup_set_snapshot_t *snapshot) {
+static void set_snapshot_free(backup_package_snapshot_t *snapshot) {
     if (snapshot == NULL) {
         return;
     }
@@ -159,7 +159,7 @@ static void fold_skips(storage_package_skip_report_t *report, storage_package_ob
         memset(entry, 0, sizeof(*entry));
         entry->kind = kind;
         if (set_id != NULL) {
-            entry->has_set_id = true;
+            entry->has_package_id = true;
             entry->set_id = *set_id;
         }
         entry->object_id = skips->items[index].id;
@@ -175,7 +175,7 @@ static void record_failure(storage_package_failure_t *out_failure,
     }
     out_failure->kind = kind;
     if (set_id != NULL) {
-        out_failure->has_set_id = true;
+        out_failure->has_package_id = true;
         out_failure->set_id = *set_id;
     }
     if (object != NULL && object->has_id) {
@@ -233,10 +233,10 @@ static void drop_uncompilable_macros(storage_macro_list_t *list, const app_uuid_
     list->count = kept;
 }
 
-static app_error_code_t load_set_snapshot(const macro_set_t *set,
-                                          backup_set_snapshot_t *out_snapshot,
-                                          storage_package_failure_t *out_failure,
-                                          storage_package_skip_report_t *out_skipped) {
+static app_error_code_t load_package_snapshot(const macro_package_t *set,
+                                              backup_package_snapshot_t *out_snapshot,
+                                              storage_package_failure_t *out_failure,
+                                              storage_package_skip_report_t *out_skipped) {
     out_snapshot->set = *set;
     storage_object_ref_t failed = {0};
     storage_object_ref_t scratch[BACKUP_SKIP_SCRATCH];
@@ -260,11 +260,11 @@ static app_error_code_t load_set_snapshot(const macro_set_t *set,
 static app_error_code_t snapshot_load_locked(backup_snapshot_t *out_snapshot,
                                              storage_package_failure_t *out_failure,
                                              storage_package_skip_report_t *out_skipped) {
-    /* storage_set_list_t inlines macro_set_t[APP_MACRO_SETS_MAX] and so is
+    /* storage_package_list_t inlines macro_package_t[APP_MACRO_SETS_MAX] and so is
      * ~29 KB. As a stack local it put this frame at ~42 KB, far past the httpd
      * task stack that serves GET /api/v1/backup, panicking the device. One
      * allocation, one free, single exit. */
-    storage_set_list_t *set_list = calloc(1U, sizeof(*set_list));
+    storage_package_list_t *set_list = calloc(1U, sizeof(*set_list));
     if (set_list == NULL) {
         return APP_ERROR_INTERNAL;
     }
@@ -294,8 +294,8 @@ static app_error_code_t snapshot_load_locked(backup_snapshot_t *out_snapshot,
         }
     }
     for (size_t index = 0U; result == APP_ERROR_NONE && index < set_list->count; ++index) {
-        result = load_set_snapshot(&set_list->items[index], &out_snapshot->sets[index], out_failure,
-                                   out_skipped);
+        result = load_package_snapshot(&set_list->items[index], &out_snapshot->sets[index],
+                                       out_failure, out_skipped);
     }
     free(set_list);
     return result;
@@ -328,7 +328,7 @@ static bool set_ids_unique(const backup_snapshot_t *snapshot) {
     return true;
 }
 
-static app_error_code_t validate_set_snapshot(const backup_set_snapshot_t *snapshot) {
+static app_error_code_t validate_package_snapshot(const backup_package_snapshot_t *snapshot) {
     if (snapshot->local_macros.count > APP_MACROS_PER_SET_MAX) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
@@ -347,7 +347,7 @@ static app_error_code_t validate_snapshot(const backup_snapshot_t *snapshot,
         return APP_ERROR_STORAGE_CORRUPT;
     }
     for (size_t index = 0U; index < snapshot->set_count; ++index) {
-        const app_error_code_t result = validate_set_snapshot(&snapshot->sets[index]);
+        const app_error_code_t result = validate_package_snapshot(&snapshot->sets[index]);
         if (result != APP_ERROR_NONE) {
             record_failure(out_failure, STORAGE_PACKAGE_OBJECT_SET, &snapshot->sets[index].set.id,
                            NULL);
@@ -365,14 +365,15 @@ static app_error_code_t append_separator(package_writer_t *writer, bool *in_out_
     return package_writer_append_text(writer, ",");
 }
 
-static app_error_code_t append_sets(package_writer_t *writer, const backup_snapshot_t *snapshot) {
+static app_error_code_t append_packages(package_writer_t *writer,
+                                        const backup_snapshot_t *snapshot) {
     app_error_code_t result = package_writer_append_text(writer, "[");
     for (size_t index = 0U; result == APP_ERROR_NONE && index < snapshot->set_count; ++index) {
         if (index != 0U) {
             result = package_writer_append_text(writer, ",");
         }
         if (result == APP_ERROR_NONE) {
-            result = package_writer_append_set(writer, &snapshot->sets[index].set);
+            result = package_writer_append_metadata(writer, &snapshot->sets[index].set);
         }
     }
     return result == APP_ERROR_NONE ? package_writer_append_text(writer, "]") : result;
@@ -435,7 +436,7 @@ static app_error_code_t append_skipped(package_writer_t *writer,
         const storage_package_skipped_object_t *entry = &skipped->items[index];
         char item[BACKUP_SKIPPED_ITEM_BYTES];
         int written = 0;
-        if (entry->has_set_id) {
+        if (entry->has_package_id) {
             written =
                 snprintf(item, sizeof(item), "%s{\"kind\":\"%s\",\"id\":\"%s\",\"set_id\":\"%s\"}",
                          index == 0U ? "" : ",", skipped_kind_text(entry->kind),
@@ -460,7 +461,7 @@ static app_error_code_t serialize_snapshot(const backup_snapshot_t *snapshot, ch
     app_error_code_t result = package_writer_append_text(
         &writer, "{\"schema_version\":1,\"package_type\":\"backup\",\"sets\":");
     if (result == APP_ERROR_NONE) {
-        result = append_sets(&writer, snapshot);
+        result = append_packages(&writer, snapshot);
     }
     size_t local_count = 0U;
     if (result == APP_ERROR_NONE) {

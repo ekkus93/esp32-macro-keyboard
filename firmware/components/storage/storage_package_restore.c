@@ -72,14 +72,14 @@ static app_error_code_t make_directory(const char *path) {
  * assembled into a document and stored atomically. It is deliberately NOT atomic
  * across sets -- an interruption leaves the sets written so far, and Phase 5
  * makes the response say which those were. */
-static app_error_code_t materialize_one_set(const package_tree_t *document,
-                                            const macro_set_t *set) {
+static app_error_code_t materialize_one_package(const package_tree_t *document,
+                                                const macro_package_t *set) {
     const cJSON *array = document->macros;
     const int count = cJSON_GetArraySize(array);
     if (count < 0) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    storage_set_document_t stored = {.set = *set};
+    storage_package_document_t stored = {.set = *set};
     if (count > 0) {
         stored.macros = calloc((size_t)count, sizeof(*stored.macros));
         if (stored.macros == NULL) {
@@ -109,9 +109,9 @@ static app_error_code_t materialize_one_set(const package_tree_t *document,
         ++stored.macro_count;
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_repository_store_set_document(&stored);
+        result = storage_repository_store_package_document(&stored);
     }
-    storage_set_document_free(&stored);
+    storage_package_document_free(&stored);
     return result;
 }
 
@@ -119,7 +119,7 @@ static app_error_code_t materialize_one_set(const package_tree_t *document,
  * place. Only sets/ is touched: /data holds the index and sets/ and nothing
  * else (SPEC 13.3), and the index is rewritten at the end from the sets that
  * actually landed. */
-static app_error_code_t clear_existing_sets(void) {
+static app_error_code_t clear_existing_packages(void) {
     char sets_root[APP_PATH_MAX_BYTES];
     app_error_code_t result = join_path(STORAGE_DATA_MOUNT, "sets", sets_root, sizeof(sets_root));
     if (result == APP_ERROR_NONE) {
@@ -151,21 +151,21 @@ static void record_outcome(storage_restore_report_t *report, const app_uuid_t *s
  * when each set file is independently atomic. Every set is attempted, each
  * outcome is recorded, and only the sets that were actually written go into the
  * index, so the index never names a set whose file is missing. */
-static app_error_code_t materialize_sets(const package_tree_t *document,
-                                         storage_restore_report_t *report) {
-    /* storage_set_index_t is several KiB; keep it off the task stack. */
-    storage_set_index_t *index = calloc(1U, sizeof(*index));
+static app_error_code_t materialize_packages(const package_tree_t *document,
+                                             storage_restore_report_t *report) {
+    /* storage_package_index_t is several KiB; keep it off the task stack. */
+    storage_package_index_t *index = calloc(1U, sizeof(*index));
     if (index == NULL) {
         return APP_ERROR_INTERNAL;
     }
     app_error_code_t fatal = APP_ERROR_NONE;
     const int count = cJSON_GetArraySize(document->sets);
     for (int item = 0; fatal == APP_ERROR_NONE && item < count; ++item) {
-        macro_set_t set = {0};
+        macro_package_t set = {0};
         /* A set node that will not parse is a malformed package, not a
          * per-set failure: the package was validated before any of this ran, so
          * this can only mean the document changed underneath us. */
-        fatal = package_parse_set_node(cJSON_GetArrayItem(document->sets, item), &set);
+        fatal = package_parse_metadata_node(cJSON_GetArrayItem(document->sets, item), &set);
         if (fatal != APP_ERROR_NONE) {
             break;
         }
@@ -173,7 +173,7 @@ static app_error_code_t materialize_sets(const package_tree_t *document,
             fatal = APP_ERROR_INVALID_ARGUMENT;
             break;
         }
-        const app_error_code_t written = materialize_one_set(document, &set);
+        const app_error_code_t written = materialize_one_package(document, &set);
         record_outcome(report, &set.id, written);
         if (written == APP_ERROR_NONE) {
             index->ids[index->count++] = set.id;
@@ -190,9 +190,9 @@ static app_error_code_t materialize_sets(const package_tree_t *document,
 
 static app_error_code_t restore_locked(const package_tree_t *document,
                                        storage_restore_report_t *report) {
-    app_error_code_t result = clear_existing_sets();
+    app_error_code_t result = clear_existing_packages();
     if (result == APP_ERROR_NONE) {
-        result = materialize_sets(document, report);
+        result = materialize_packages(document, report);
     }
     return result;
 }

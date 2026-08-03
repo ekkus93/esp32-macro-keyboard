@@ -187,7 +187,7 @@ app_error_code_t storage_repository_serialize_macro_json(const macro_t *macro, c
  * array. A package keeps sets and macros in sibling arrays, and a set list
  * response carries no macros at all, so neither wants the stored set-file shape
  * that holds macros inline (SPEC 12.1). Reading and writing a set file goes
- * through storage_set_document_parse / _serialize instead. */
+ * through storage_package_document_parse / _serialize instead. */
 #define SET_ENVELOPE_FIELD_COUNT 4U
 
 static const char *const SET_ENVELOPE_FIELDS[SET_ENVELOPE_FIELD_COUNT] = {
@@ -197,54 +197,56 @@ static const char *const SET_ENVELOPE_FIELDS[SET_ENVELOPE_FIELD_COUNT] = {
     "name",
 };
 
-app_error_code_t storage_repository_parse_set_node(const struct cJSON *root, macro_set_t *out_set) {
-    if (out_set != NULL) {
-        memset(out_set, 0, sizeof(*out_set));
+app_error_code_t storage_repository_parse_package_node(const struct cJSON *root,
+                                                       macro_package_t *out_package) {
+    if (out_package != NULL) {
+        memset(out_package, 0, sizeof(*out_package));
     }
-    if (root == NULL || out_set == NULL) {
+    if (root == NULL || out_package == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     app_error_code_t result = storage_json_check_object_fields(
         root, SET_ENVELOPE_FIELDS, SET_ENVELOPE_FIELD_COUNT, SET_ENVELOPE_FIELD_COUNT);
     if (result == APP_ERROR_NONE) {
         result = storage_json_get_u32(root, "schema_version", APP_SCHEMA_VERSION,
-                                      APP_SCHEMA_VERSION, &out_set->schema_version);
+                                      APP_SCHEMA_VERSION, &out_package->schema_version);
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_json_get_uuid(root, "id", &out_set->id);
+        result = storage_json_get_uuid(root, "id", &out_package->id);
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_json_get_u32(root, "revision", 1U, UINT32_MAX, &out_set->revision);
+        result = storage_json_get_u32(root, "revision", 1U, UINT32_MAX, &out_package->revision);
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_json_get_string(root, "name", out_set->name, sizeof(out_set->name), true);
+        result = storage_json_get_string(root, "name", out_package->name, sizeof(out_package->name),
+                                         true);
     }
     if (result != APP_ERROR_NONE) {
-        memset(out_set, 0, sizeof(*out_set));
+        memset(out_package, 0, sizeof(*out_package));
     }
     return result;
 }
 
-app_error_code_t storage_repository_parse_set_json(const char *data, size_t length,
-                                                   macro_set_t *out_set) {
-    if (out_set != NULL) {
-        memset(out_set, 0, sizeof(*out_set));
+app_error_code_t storage_repository_parse_package_json(const char *data, size_t length,
+                                                       macro_package_t *out_package) {
+    if (out_package != NULL) {
+        memset(out_package, 0, sizeof(*out_package));
     }
-    if (data == NULL || out_set == NULL) {
+    if (data == NULL || out_package == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     cJSON *root = NULL;
     app_error_code_t result = storage_json_parse_exact_object(data, length, SET_ENVELOPE_FIELDS,
                                                               SET_ENVELOPE_FIELD_COUNT, &root);
     if (result == APP_ERROR_NONE) {
-        result = storage_repository_parse_set_node(root, out_set);
+        result = storage_repository_parse_package_node(root, out_package);
     }
     cJSON_Delete(root);
     return result;
 }
 
-app_error_code_t storage_repository_serialize_set_json(const macro_set_t *set, char **out_json,
-                                                       size_t *out_length) {
+app_error_code_t storage_repository_serialize_package_json(const macro_package_t *set,
+                                                           char **out_json, size_t *out_length) {
     if (out_json != NULL) {
         *out_json = NULL;
     }

@@ -64,8 +64,8 @@ static app_error_code_t split_path(const char *uri, char *buffer, size_t buffer_
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t match_set_macro_routes(const path_segments_t *segments,
-                                               web_api_path_t *out_path) {
+static app_error_code_t match_package_macro_routes(const path_segments_t *segments,
+                                                   web_api_path_t *out_path) {
     if (segments->count == 4U && text_equal(segments->items[3], "reorder")) {
         out_path->route = WEB_API_ROUTE_SET_MACROS_REORDER;
         return APP_ERROR_NONE;
@@ -88,8 +88,8 @@ static app_error_code_t match_set_macro_routes(const path_segments_t *segments,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t match_set_routes(const path_segments_t *segments,
-                                         web_api_path_t *out_path) {
+static app_error_code_t match_package_routes(const path_segments_t *segments,
+                                             web_api_path_t *out_path) {
     if (segments->count == 1U) {
         out_path->route = WEB_API_ROUTE_SETS;
         return APP_ERROR_NONE;
@@ -109,7 +109,7 @@ static app_error_code_t match_set_routes(const path_segments_t *segments,
     if (!parse_uuid_segment(segments->items[1], &out_path->set_id)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    out_path->has_set_id = true;
+    out_path->has_package_id = true;
     if (segments->count == 2U) {
         out_path->route = WEB_API_ROUTE_SET;
         return APP_ERROR_NONE;
@@ -129,7 +129,7 @@ static app_error_code_t match_set_routes(const path_segments_t *segments,
         return APP_ERROR_NONE;
     }
     if (text_equal(segments->items[2], "macros")) {
-        return match_set_macro_routes(segments, out_path);
+        return match_package_macro_routes(segments, out_path);
     }
     return APP_ERROR_NOT_FOUND;
 }
@@ -253,7 +253,7 @@ app_error_code_t web_api_parse_path(const char *uri, web_api_path_t *out_path) {
         return result;
     }
     if (text_equal(segments.items[0], "sets")) {
-        result = match_set_routes(&segments, out_path);
+        result = match_package_routes(&segments, out_path);
     } else if (text_equal(segments.items[0], "executions")) {
         result = match_execution_routes(&segments, out_path);
     } else {

@@ -29,10 +29,10 @@ static app_error_code_t respond_result(web_api_response_t *response, app_error_c
     return web_api_handler_error(response, result, message, NULL);
 }
 
-static app_error_code_t send_set(web_api_response_t *response, unsigned int status,
-                                 const macro_set_t *set) {
+static app_error_code_t send_package(web_api_response_t *response, unsigned int status,
+                                     const macro_package_t *set) {
     char *json = NULL;
-    app_error_code_t result = web_api_handler_set_json(set, &json);
+    app_error_code_t result = web_api_handler_package_json(set, &json);
     if (result == APP_ERROR_NONE) {
         result = web_api_handler_success_json(response, status, json);
     }
@@ -40,20 +40,20 @@ static app_error_code_t send_set(web_api_response_t *response, unsigned int stat
     return result;
 }
 
-static app_error_code_t handle_set_collection(const web_api_call_t *call,
-                                              web_api_response_t *response) {
+static app_error_code_t handle_package_collection(const web_api_call_t *call,
+                                                  web_api_response_t *response) {
     if (call->method == WEB_API_METHOD_GET) {
-        /* Heap-allocated, not a stack local: storage_set_list_t is far larger
+        /* Heap-allocated, not a stack local: storage_package_list_t is far larger
          * than the httpd task stack (see web_server_lifecycle.c), so a stack
          * local here overflows it and panics the device on every request. */
-        storage_set_list_t *list = calloc(1U, sizeof(*list));
+        storage_package_list_t *list = calloc(1U, sizeof(*list));
         if (list == NULL) {
             return respond_result(response, APP_ERROR_INTERNAL, "could not list sets");
         }
-        app_error_code_t result = storage_set_list(list);
+        app_error_code_t result = storage_package_list(list);
         char *json = NULL;
         if (result == APP_ERROR_NONE) {
-            result = web_api_handler_set_list_json(list, &json);
+            result = web_api_handler_package_list_json(list, &json);
         }
         if (result == APP_ERROR_NONE) {
             result = web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, json);
@@ -71,29 +71,31 @@ static app_error_code_t handle_set_collection(const web_api_call_t *call,
         return result;
     }
 
-    macro_set_t set = {0};
-    app_error_code_t result = web_api_json_parse_set_resource(call->body, call->body_length, &set);
+    macro_package_t set = {0};
+    app_error_code_t result =
+        web_api_json_parse_package_resource(call->body, call->body_length, &set);
     if (result == APP_ERROR_NONE && set.revision != 1U) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_set_create(&set);
+        result = storage_package_create(&set);
     }
     if (result == APP_ERROR_NONE) {
-        macro_set_t committed = {0};
-        result = storage_set_read(&set.id, &committed);
+        macro_package_t committed = {0};
+        result = storage_package_read(&set.id, &committed);
         if (result == APP_ERROR_NONE) {
-            return send_set(response, WEB_HTTP_STATUS_CREATED, &committed);
+            return send_package(response, WEB_HTTP_STATUS_CREATED, &committed);
         }
     }
     return respond_result(response, result, "could not create set");
 }
 
-static app_error_code_t handle_set_item(const web_api_call_t *call, web_api_response_t *response) {
+static app_error_code_t handle_package_item(const web_api_call_t *call,
+                                            web_api_response_t *response) {
     if (call->method == WEB_API_METHOD_GET) {
-        macro_set_t set = {0};
-        const app_error_code_t result = storage_set_read(&call->path.set_id, &set);
-        return result == APP_ERROR_NONE ? send_set(response, WEB_HTTP_STATUS_OK, &set)
+        macro_package_t set = {0};
+        const app_error_code_t result = storage_package_read(&call->path.set_id, &set);
+        return result == APP_ERROR_NONE ? send_package(response, WEB_HTTP_STATUS_OK, &set)
                                         : respond_result(response, result, "set not available");
     }
     if (call->method == WEB_API_METHOD_PUT) {
@@ -105,20 +107,20 @@ static app_error_code_t handle_set_item(const web_api_call_t *call, web_api_resp
                 .maximum_resource_length = STORAGE_SET_FILE_MAX_BYTES,
             },
             &mutation);
-        macro_set_t replacement = {0};
+        macro_package_t replacement = {0};
         if (result == APP_ERROR_NONE) {
-            result = web_api_json_parse_set_resource(mutation.resource_json,
-                                                     mutation.resource_length, &replacement);
+            result = web_api_json_parse_package_resource(mutation.resource_json,
+                                                         mutation.resource_length, &replacement);
         }
         if (result == APP_ERROR_NONE && !app_uuid_equal(&replacement.id, &call->path.set_id)) {
             result = APP_ERROR_INVALID_ARGUMENT;
         }
-        macro_set_t committed = {0};
+        macro_package_t committed = {0};
         if (result == APP_ERROR_NONE) {
-            result = storage_set_update(&replacement, mutation.expected_revision, &committed);
+            result = storage_package_update(&replacement, mutation.expected_revision, &committed);
         }
         web_api_json_free_resource_mutation(&mutation);
-        return result == APP_ERROR_NONE ? send_set(response, WEB_HTTP_STATUS_OK, &committed)
+        return result == APP_ERROR_NONE ? send_package(response, WEB_HTTP_STATUS_OK, &committed)
                                         : respond_result(response, result, "could not update set");
     }
 
@@ -126,7 +128,7 @@ static app_error_code_t handle_set_item(const web_api_call_t *call, web_api_resp
     app_error_code_t result =
         web_api_json_parse_expected_revision(call->body, call->body_length, &expected_revision);
     if (result == APP_ERROR_NONE) {
-        result = storage_set_delete(&call->path.set_id, expected_revision);
+        result = storage_package_delete(&call->path.set_id, expected_revision);
     }
     if (result != APP_ERROR_NONE) {
         return respond_result(response, result, "could not delete set");
@@ -152,10 +154,10 @@ static app_error_code_t handle_set_item(const web_api_call_t *call, web_api_resp
  * idempotent and has no revision the client holds, so the body is now empty.
  * Found by the hardware harness, which sent `{}` and got 422. */
 static app_error_code_t handle_select(const web_api_call_t *call, web_api_response_t *response) {
-    macro_set_t set = {0};
-    app_error_code_t result = storage_set_read(&call->path.set_id, &set);
+    macro_package_t set = {0};
+    app_error_code_t result = storage_package_read(&call->path.set_id, &set);
     if (result == APP_ERROR_NONE) {
-        result = storage_set_select(&call->path.set_id);
+        result = storage_package_select(&call->path.set_id);
     }
     provisioning_settings_t committed = {0};
     if (result == APP_ERROR_NONE) {
@@ -173,10 +175,10 @@ static app_error_code_t handle_select(const web_api_call_t *call, web_api_respon
     return result;
 }
 
-static app_error_code_t parse_set_duplicate(const web_api_call_t *call,
-                                            app_uuid_t *out_duplicate_id,
-                                            uint32_t *out_expected_revision, char *out_name,
-                                            size_t out_name_size) {
+static app_error_code_t parse_package_duplicate(const web_api_call_t *call,
+                                                app_uuid_t *out_duplicate_id,
+                                                uint32_t *out_expected_revision, char *out_name,
+                                                size_t out_name_size) {
     if (call == NULL || out_duplicate_id == NULL || out_expected_revision == NULL ||
         out_name == NULL || out_name_size == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -231,19 +233,19 @@ static app_error_code_t handle_duplicate(const web_api_call_t *call, web_api_res
     app_uuid_t duplicate_id = {0};
     uint32_t expected_revision = 0U;
     char duplicate_name[WEB_SET_DUPLICATE_NAME_BYTES] = {0};
-    app_error_code_t result = parse_set_duplicate(call, &duplicate_id, &expected_revision,
-                                                  duplicate_name, sizeof(duplicate_name));
-    macro_set_t duplicate = {0};
+    app_error_code_t result = parse_package_duplicate(call, &duplicate_id, &expected_revision,
+                                                      duplicate_name, sizeof(duplicate_name));
+    macro_package_t duplicate = {0};
     if (result == APP_ERROR_NONE) {
-        result = storage_set_duplicate(&call->path.set_id, expected_revision, &duplicate_id,
-                                       duplicate_name, &duplicate);
+        result = storage_package_duplicate(&call->path.set_id, expected_revision, &duplicate_id,
+                                           duplicate_name, &duplicate);
     }
-    return result == APP_ERROR_NONE ? send_set(response, WEB_HTTP_STATUS_CREATED, &duplicate)
+    return result == APP_ERROR_NONE ? send_package(response, WEB_HTTP_STATUS_CREATED, &duplicate)
                                     : respond_result(response, result, "could not duplicate set");
 }
 
-static app_error_code_t handle_set_reorder(const web_api_call_t *call,
-                                           web_api_response_t *response) {
+static app_error_code_t handle_package_reorder(const web_api_call_t *call,
+                                               web_api_response_t *response) {
     storage_uuid_order_t order = {0};
     app_error_code_t result = web_api_json_parse_uuid_order(call->body,
                                                             &(web_api_order_parse_limits_t){
@@ -252,19 +254,19 @@ static app_error_code_t handle_set_reorder(const web_api_call_t *call,
                                                             },
                                                             &order);
     if (result == APP_ERROR_NONE) {
-        result = storage_set_reorder(order.ids, order.count);
+        result = storage_package_reorder(order.ids, order.count);
     }
-    /* Heap-allocated for the same reason as handle_set_collection() above. */
-    storage_set_list_t *committed = calloc(1U, sizeof(*committed));
+    /* Heap-allocated for the same reason as handle_package_collection() above. */
+    storage_package_list_t *committed = calloc(1U, sizeof(*committed));
     if (committed == NULL) {
         return respond_result(response, APP_ERROR_INTERNAL, "could not reorder sets");
     }
     char *json = NULL;
     if (result == APP_ERROR_NONE) {
-        result = storage_set_list(committed);
+        result = storage_package_list(committed);
     }
     if (result == APP_ERROR_NONE) {
-        result = web_api_handler_set_list_json(committed, &json);
+        result = web_api_handler_package_list_json(committed, &json);
     }
     if (result == APP_ERROR_NONE) {
         result = web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, json);
@@ -278,13 +280,13 @@ static app_error_code_t handle_set_reorder(const web_api_call_t *call,
 }
 
 typedef struct {
-    app_uuid_t target_set_id;
+    app_uuid_t target_package_id;
     uint32_t expected_revision;
     char *package_json;
     size_t package_length;
-} web_set_import_request_t;
+} web_package_import_request_t;
 
-static void free_set_import_request(web_set_import_request_t *request) {
+static void free_package_import_request(web_package_import_request_t *request) {
     if (request == NULL) {
         return;
     }
@@ -298,12 +300,12 @@ typedef struct {
     bool package;
 } set_import_seen_t;
 
-static app_error_code_t parse_set_import_item(const cJSON *item,
-                                              web_set_import_request_t *out_request,
-                                              set_import_seen_t *seen) {
+static app_error_code_t parse_package_import_item(const cJSON *item,
+                                                  web_package_import_request_t *out_request,
+                                                  set_import_seen_t *seen) {
     if (item->string != NULL && strcmp(item->string, "targetSetId") == 0 && !seen->target &&
         cJSON_IsString(item) && item->valuestring != NULL &&
-        app_uuid_parse(item->valuestring, &out_request->target_set_id) == APP_ERROR_NONE) {
+        app_uuid_parse(item->valuestring, &out_request->target_package_id) == APP_ERROR_NONE) {
         seen->target = true;
         return APP_ERROR_NONE;
     }
@@ -335,8 +337,8 @@ static app_error_code_t parse_set_import_item(const cJSON *item,
     return APP_ERROR_INVALID_ARGUMENT;
 }
 
-static app_error_code_t parse_set_import(const web_api_call_t *call,
-                                         web_set_import_request_t *out_request) {
+static app_error_code_t parse_package_import(const web_api_call_t *call,
+                                             web_package_import_request_t *out_request) {
     if (call == NULL || out_request == NULL || call->body == NULL || call->body_length == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -350,7 +352,7 @@ static app_error_code_t parse_set_import(const web_api_call_t *call,
             : APP_ERROR_INVALID_ARGUMENT;
     for (const cJSON *item = result == APP_ERROR_NONE ? root->child : NULL; item != NULL;
          item = item->next) {
-        result = parse_set_import_item(item, out_request, &seen);
+        result = parse_package_import_item(item, out_request, &seen);
         if (result != APP_ERROR_NONE) {
             break;
         }
@@ -360,32 +362,31 @@ static app_error_code_t parse_set_import(const web_api_call_t *call,
         result = APP_ERROR_INVALID_ARGUMENT;
     }
     if (result != APP_ERROR_NONE) {
-        free_set_import_request(out_request);
+        free_package_import_request(out_request);
     }
     return result;
 }
 
 static app_error_code_t handle_import(const web_api_call_t *call, web_api_response_t *response) {
-    web_set_import_request_t request = {0};
-    app_error_code_t result = parse_set_import(call, &request);
-    macro_set_t committed = {0};
+    web_package_import_request_t request = {0};
+    app_error_code_t result = parse_package_import(call, &request);
+    macro_package_t committed = {0};
     if (result == APP_ERROR_NONE) {
-        result =
-            storage_package_replace_set(&request.target_set_id, request.expected_revision,
-                                        request.package_json, request.package_length, &committed);
+        result = storage_package_replace(&request.target_package_id, request.expected_revision,
+                                         request.package_json, request.package_length, &committed);
     }
-    free_set_import_request(&request);
-    return result == APP_ERROR_NONE ? send_set(response, WEB_HTTP_STATUS_OK, &committed)
+    free_package_import_request(&request);
+    return result == APP_ERROR_NONE ? send_package(response, WEB_HTTP_STATUS_OK, &committed)
                                     : respond_result(response, result, "could not replace set");
 }
 
 typedef struct {
-    app_uuid_t new_set_id;
+    app_uuid_t new_package_id;
     char *package_json;
     size_t package_length;
-} web_set_import_new_request_t;
+} web_package_import_new_request_t;
 
-static void free_set_import_new_request(web_set_import_new_request_t *request) {
+static void free_package_import_new_request(web_package_import_new_request_t *request) {
     if (request == NULL) {
         return;
     }
@@ -394,17 +395,17 @@ static void free_set_import_new_request(web_set_import_new_request_t *request) {
 }
 
 typedef struct {
-    bool new_set_id;
+    bool new_package_id;
     bool package;
 } set_import_new_seen_t;
 
-static app_error_code_t parse_set_import_new_item(const cJSON *item,
-                                                  web_set_import_new_request_t *out_request,
-                                                  set_import_new_seen_t *seen) {
-    if (item->string != NULL && strcmp(item->string, "newSetId") == 0 && !seen->new_set_id &&
+static app_error_code_t parse_package_import_new_item(const cJSON *item,
+                                                      web_package_import_new_request_t *out_request,
+                                                      set_import_new_seen_t *seen) {
+    if (item->string != NULL && strcmp(item->string, "newSetId") == 0 && !seen->new_package_id &&
         cJSON_IsString(item) && item->valuestring != NULL &&
-        app_uuid_parse(item->valuestring, &out_request->new_set_id) == APP_ERROR_NONE) {
-        seen->new_set_id = true;
+        app_uuid_parse(item->valuestring, &out_request->new_package_id) == APP_ERROR_NONE) {
+        seen->new_package_id = true;
         return APP_ERROR_NONE;
     }
     if (item->string != NULL && strcmp(item->string, "package") == 0 && !seen->package &&
@@ -424,8 +425,8 @@ static app_error_code_t parse_set_import_new_item(const cJSON *item,
     return APP_ERROR_INVALID_ARGUMENT;
 }
 
-static app_error_code_t parse_set_import_new(const web_api_call_t *call,
-                                             web_set_import_new_request_t *out_request) {
+static app_error_code_t parse_package_import_new(const web_api_call_t *call,
+                                                 web_package_import_new_request_t *out_request) {
     if (call == NULL || out_request == NULL || call->body == NULL || call->body_length == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -439,33 +440,33 @@ static app_error_code_t parse_set_import_new(const web_api_call_t *call,
             : APP_ERROR_INVALID_ARGUMENT;
     for (const cJSON *item = result == APP_ERROR_NONE ? root->child : NULL; item != NULL;
          item = item->next) {
-        result = parse_set_import_new_item(item, out_request, &seen);
+        result = parse_package_import_new_item(item, out_request, &seen);
         if (result != APP_ERROR_NONE) {
             break;
         }
     }
     cJSON_Delete(root);
-    if (result == APP_ERROR_NONE && (!seen.new_set_id || !seen.package)) {
+    if (result == APP_ERROR_NONE && (!seen.new_package_id || !seen.package)) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
     if (result != APP_ERROR_NONE) {
-        free_set_import_new_request(out_request);
+        free_package_import_new_request(out_request);
     }
     return result;
 }
 
 static app_error_code_t handle_import_new(const web_api_call_t *call,
                                           web_api_response_t *response) {
-    web_set_import_new_request_t request = {0};
-    app_error_code_t result = parse_set_import_new(call, &request);
-    macro_set_t committed = {0};
+    web_package_import_new_request_t request = {0};
+    app_error_code_t result = parse_package_import_new(call, &request);
+    macro_package_t committed = {0};
     if (result == APP_ERROR_NONE) {
-        result = storage_package_import_set(&request.new_set_id, request.package_json,
-                                            request.package_length, &committed);
+        result = storage_package_import(&request.new_package_id, request.package_json,
+                                        request.package_length, &committed);
     }
-    free_set_import_new_request(&request);
+    free_package_import_new_request(&request);
     return result == APP_ERROR_NONE
-               ? send_set(response, WEB_HTTP_STATUS_CREATED, &committed)
+               ? send_package(response, WEB_HTTP_STATUS_CREATED, &committed)
                : respond_result(response, result, "could not import set as new");
 }
 
@@ -473,7 +474,7 @@ static app_error_code_t handle_export(const web_api_call_t *call, web_api_respon
     char *package_json = NULL;
     size_t package_length = 0U;
     app_error_code_t result =
-        storage_package_export_set(&call->path.set_id, &package_json, &package_length);
+        storage_package_export(&call->path.set_id, &package_json, &package_length);
     if (result != APP_ERROR_NONE) {
         return respond_result(response, result, "could not export set");
     }
@@ -484,17 +485,17 @@ static app_error_code_t handle_export(const web_api_call_t *call, web_api_respon
     return result;
 }
 
-app_error_code_t web_api_handle_sets(const web_api_call_t *call, web_api_response_t *response) {
+app_error_code_t web_api_handle_packages(const web_api_call_t *call, web_api_response_t *response) {
     if (call == NULL || response == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     switch (call->path.route) {
     case WEB_API_ROUTE_SETS:
-        return handle_set_collection(call, response);
+        return handle_package_collection(call, response);
     case WEB_API_ROUTE_SETS_ORDER:
-        return handle_set_reorder(call, response);
+        return handle_package_reorder(call, response);
     case WEB_API_ROUTE_SET:
-        return handle_set_item(call, response);
+        return handle_package_item(call, response);
     case WEB_API_ROUTE_SET_SELECT:
         return handle_select(call, response);
     case WEB_API_ROUTE_SET_DUPLICATE:

@@ -136,7 +136,7 @@ static provisioning_config_t default_configuration(void) {
          * to it but a USB cable. Enabling it requires a confirm button on GPIO0
          * or the `confirm` serial-console command. */
         .require_physical_confirmation = false,
-        .always_select_set = true,
+        .always_select_package = true,
     };
 }
 
@@ -152,7 +152,7 @@ static app_error_code_t encode_configuration(const provisioning_config_t *config
     put_u32(output, WIRE_CREDENTIAL_VERSION_OFFSET, configuration->credential_version);
     output[WIRE_FLAGS_OFFSET] = configuration->provisioned ? 1U : 0U;
     output[WIRE_FLAGS_OFFSET + 1U] = configuration->require_physical_confirmation ? 1U : 0U;
-    output[WIRE_FLAGS_OFFSET + 2U] = configuration->always_select_set ? 1U : 0U;
+    output[WIRE_FLAGS_OFFSET + 2U] = configuration->always_select_package ? 1U : 0U;
     output[WIRE_FLAGS_OFFSET + 3U] = configuration->has_station ? 1U : 0U;
 
     size_t length = 0U;
@@ -193,7 +193,7 @@ static app_error_code_t decode_configuration(provisioning_core_t *core,
     configuration.credential_version = get_u32(input, WIRE_CREDENTIAL_VERSION_OFFSET);
     configuration.provisioned = input[WIRE_FLAGS_OFFSET] != 0U;
     configuration.require_physical_confirmation = input[WIRE_FLAGS_OFFSET + 1U] != 0U;
-    configuration.always_select_set = input[WIRE_FLAGS_OFFSET + 2U] != 0U;
+    configuration.always_select_package = input[WIRE_FLAGS_OFFSET + 2U] != 0U;
     configuration.has_station = input[WIRE_FLAGS_OFFSET + 3U] != 0U;
     memcpy(configuration.station_ssid, input + WIRE_STATION_SSID_OFFSET,
            sizeof(configuration.station_ssid));
@@ -370,7 +370,7 @@ settings_from_configuration(const provisioning_config_t *configuration) {
         .schema_version = APP_SCHEMA_VERSION,
         .revision = configuration->revision,
         .require_physical_confirmation = configuration->require_physical_confirmation,
-        .always_select_set = configuration->always_select_set,
+        .always_select_package = configuration->always_select_package,
     };
 }
 
@@ -408,7 +408,7 @@ app_error_code_t provisioning_core_settings_update(provisioning_core_t *core,
 
     provisioning_config_t candidate = core->current;
     candidate.require_physical_confirmation = replacement->require_physical_confirmation;
-    candidate.always_select_set = replacement->always_select_set;
+    candidate.always_select_package = replacement->always_select_package;
     provisioning_config_t committed = {0};
     const app_error_code_t result =
         provisioning_core_commit(core, &candidate, expected_revision, &committed);

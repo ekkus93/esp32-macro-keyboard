@@ -76,7 +76,7 @@ static void reset_store(void) {
         .schema_version = APP_SCHEMA_VERSION,
         .revision = 1U,
         .require_physical_confirmation = true,
-        .always_select_set = true,
+        .always_select_package = true,
     };
 }
 
@@ -86,8 +86,8 @@ static app_uuid_t uuid(const char *text) {
     return value;
 }
 
-static macro_set_t make_set(void) {
-    macro_set_t set = {
+static macro_package_t make_package(void) {
+    macro_package_t set = {
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid(SET_ID),
         .revision = 1U,
@@ -114,11 +114,11 @@ static macro_t make_macro(const char *macro_id) {
     return macro;
 }
 
-static char *serialize_set(const macro_set_t *set) {
+static char *serialize_package(const macro_package_t *set) {
     char *json = NULL;
     size_t length = 0U;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_repository_serialize_set_json(set, &json, &length));
+                         storage_repository_serialize_package_json(set, &json, &length));
     TEST_CHECK(json != NULL);
     TEST_CHECK(length == strlen(json));
     return json;
@@ -157,7 +157,7 @@ static web_api_response_t invoke(handler_fn_t handler, web_api_route_t route,
         .body_length = body == NULL ? 0U : strlen(body),
     };
     if (set_id != NULL) {
-        call.path.has_set_id = true;
+        call.path.has_package_id = true;
         call.path.set_id = uuid(set_id);
     }
     if (macro_id != NULL) {
@@ -177,72 +177,73 @@ static void expect_status(web_api_response_t *response, unsigned int status, con
     web_api_response_free(response);
 }
 
-static void test_set_routes(void) {
-    macro_set_t set = make_set();
-    char *json = serialize_set(&set);
+static void test_package_routes(void) {
+    macro_package_t set = make_package();
+    char *json = serialize_package(&set);
     web_api_response_t response =
-        invoke(web_api_handle_sets, WEB_API_ROUTE_SETS, WEB_API_METHOD_POST, json, NULL, NULL);
+        invoke(web_api_handle_packages, WEB_API_ROUTE_SETS, WEB_API_METHOD_POST, json, NULL, NULL);
     expect_status(&response, 201U, "Handler Set");
     cJSON_free(json);
 
     response =
-        invoke(web_api_handle_sets, WEB_API_ROUTE_SETS, WEB_API_METHOD_GET, NULL, NULL, NULL);
+        invoke(web_api_handle_packages, WEB_API_ROUTE_SETS, WEB_API_METHOD_GET, NULL, NULL, NULL);
     expect_status(&response, 200U, SET_ID);
     response =
-        invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_GET, NULL, SET_ID, NULL);
+        invoke(web_api_handle_packages, WEB_API_ROUTE_SET, WEB_API_METHOD_GET, NULL, SET_ID, NULL);
     expect_status(&response, 200U, "Handler Set");
 
     TEST_CHECK(snprintf(set.name, sizeof(set.name), "Updated Handler Set") > 0);
-    json = serialize_set(&set);
+    json = serialize_package(&set);
     char *mutation = mutation_body(1U, json);
-    response =
-        invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_PUT, mutation, SET_ID, NULL);
+    response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET, WEB_API_METHOD_PUT, mutation,
+                      SET_ID, NULL);
     expect_status(&response, 200U, "Updated Handler Set");
     cJSON_free(mutation);
     cJSON_free(json);
 
-    json = serialize_set(&set);
+    json = serialize_package(&set);
     mutation = mutation_body(1U, json);
-    response =
-        invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_PUT, mutation, SET_ID, NULL);
+    response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET, WEB_API_METHOD_PUT, mutation,
+                      SET_ID, NULL);
     expect_status(&response, 409U, "could not update set");
     cJSON_free(mutation);
     cJSON_free(json);
 
-    static const char *const invalid_set_bodies[] = {
+    static const char *const invalid_package_bodies[] = {
         "{\"unknown\":true}",
         "{\"schema_version\":1}x",
         "{",
     };
-    for (size_t index = 0U; index < sizeof(invalid_set_bodies) / sizeof(invalid_set_bodies[0]);
-         ++index) {
-        response = invoke(web_api_handle_sets, WEB_API_ROUTE_SETS, WEB_API_METHOD_POST,
-                          invalid_set_bodies[index], NULL, NULL);
+    for (size_t index = 0U;
+         index < sizeof(invalid_package_bodies) / sizeof(invalid_package_bodies[0]); ++index) {
+        response = invoke(web_api_handle_packages, WEB_API_ROUTE_SETS, WEB_API_METHOD_POST,
+                          invalid_package_bodies[index], NULL, NULL);
         expect_status(&response, 422U, "could not create set");
     }
 
     /* Selection takes an empty body: it is idempotent and has no revision the
      * client holds (SPEC 12.3). It used to require the settings revision, which
      * became meaningless when the active set left settings. */
-    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_SELECT, WEB_API_METHOD_POST, "{}",
+    response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET_SELECT, WEB_API_METHOD_POST, "{}",
                       SET_ID, NULL);
     expect_status(&response, 200U, SET_ID);
     /* Selection is a repository write now (SPEC 12.3), so it is observed in the
      * index rather than in the settings store -- and it must NOT burn a settings
      * revision, because settings did not change. */
-    bool has_active_set = false;
-    app_uuid_t active_set_id = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_active_set_read(&has_active_set, &active_set_id));
-    TEST_CHECK(has_active_set);
-    TEST_CHECK_EQ_STRING(SET_ID, active_set_id.value);
+    bool has_active_package = false;
+    app_uuid_t active_package_id = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_active_package_read(&has_active_package, &active_package_id));
+    TEST_CHECK(has_active_package);
+    TEST_CHECK_EQ_STRING(SET_ID, active_package_id.value);
     TEST_CHECK_EQ_U64(1U, settings_store.revision);
 
-    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_IMPORT, WEB_API_METHOD_POST, "{}",
+    response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET_IMPORT, WEB_API_METHOD_POST, "{}",
                       NULL, NULL);
     expect_status(&response, 422U, "could not replace set");
 
-    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_IMPORT_NEW, WEB_API_METHOD_POST, "{}",
-                      NULL, NULL);
+    response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET_IMPORT_NEW, WEB_API_METHOD_POST,
+                      "{}", NULL, NULL);
     expect_status(&response, 422U, "could not import set as new");
 }
 
@@ -296,10 +297,10 @@ static void test_macro_routes(void) {
     macro_model_free_macro(&macro);
 }
 
-static void test_set_delete_and_persistent_readback(void) {
-    macro_set_t current = {0};
+static void test_package_delete_and_persistent_readback(void) {
+    macro_package_t current = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_set_read(&(app_uuid_t){.value = SET_ID}, &current));
+                         storage_package_read(&(app_uuid_t){.value = SET_ID}, &current));
     TEST_CHECK_EQ_U64(2U, current.revision);
     TEST_CHECK_EQ_STRING("Updated Handler Set", current.name);
 
@@ -311,12 +312,13 @@ static void test_set_delete_and_persistent_readback(void) {
                                           "\"expectedRevision\":2}",
                                           SET_DUPLICATE_ID);
     TEST_CHECK(duplicate_length > 0 && (size_t)duplicate_length < sizeof(duplicate_body));
-    web_api_response_t response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET_DUPLICATE,
+    web_api_response_t response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET_DUPLICATE,
                                          WEB_API_METHOD_POST, duplicate_body, SET_ID, NULL);
     expect_status(&response, 201U, "Duplicated Handler Set");
-    macro_set_t duplicate_readback = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_read(&(app_uuid_t){.value = SET_DUPLICATE_ID},
-                                                          &duplicate_readback));
+    macro_package_t duplicate_readback = {0};
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        storage_package_read(&(app_uuid_t){.value = SET_DUPLICATE_ID}, &duplicate_readback));
     TEST_CHECK_EQ_U64(1U, duplicate_readback.revision);
     storage_macro_list_t duplicate_macros = {0};
     TEST_CHECK_APP_ERROR(
@@ -325,15 +327,15 @@ static void test_set_delete_and_persistent_readback(void) {
     TEST_CHECK_EQ_U64(2U, duplicate_macros.count);
     storage_macro_list_free(&duplicate_macros);
 
-    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE,
+    response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE,
                       "{\"expectedRevision\":1}", SET_ID, NULL);
     expect_status(&response, 409U, "could not delete set");
-    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE,
+    response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE,
                       "{\"expectedRevision\":2}", SET_ID, NULL);
     expect_status(&response, 200U, "\"deleted\":true");
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
-                         storage_set_read(&(app_uuid_t){.value = SET_ID}, &current));
-    response = invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE,
+                         storage_package_read(&(app_uuid_t){.value = SET_ID}, &current));
+    response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE,
                       "{\"expectedRevision\":1}", SET_DUPLICATE_ID, NULL);
     expect_status(&response, 200U, "\"deleted\":true");
 }
@@ -359,29 +361,29 @@ static void test_session_json_redaction(void) {
 /* SPEC 24.4 item: stale revisions */
 static void test_stale_revision_does_not_overwrite_a_newer_edit(void) {
     reset_store();
-    macro_set_t set = make_set();
-    char *json = serialize_set(&set);
+    macro_package_t set = make_package();
+    char *json = serialize_package(&set);
     web_api_response_t response =
-        invoke(web_api_handle_sets, WEB_API_ROUTE_SETS, WEB_API_METHOD_POST, json, NULL, NULL);
+        invoke(web_api_handle_packages, WEB_API_ROUTE_SETS, WEB_API_METHOD_POST, json, NULL, NULL);
     expect_status(&response, 201U, "Handler Set");
     cJSON_free(json);
 
     /* One writer edits successfully, carrying the set past revision 1. */
     TEST_CHECK(snprintf(set.name, sizeof(set.name), "Winning Edit") > 0);
-    json = serialize_set(&set);
+    json = serialize_package(&set);
     char *mutation = mutation_body(1U, json);
-    response =
-        invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_PUT, mutation, SET_ID, NULL);
+    response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET, WEB_API_METHOD_PUT, mutation,
+                      SET_ID, NULL);
     expect_status(&response, 200U, "Winning Edit");
     cJSON_free(mutation);
     cJSON_free(json);
 
     /* A second writer, still holding revision 1, tries to land a different name. */
     TEST_CHECK(snprintf(set.name, sizeof(set.name), "Clobbering Edit") > 0);
-    json = serialize_set(&set);
+    json = serialize_package(&set);
     mutation = mutation_body(1U, json);
-    response =
-        invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_PUT, mutation, SET_ID, NULL);
+    response = invoke(web_api_handle_packages, WEB_API_ROUTE_SET, WEB_API_METHOD_PUT, mutation,
+                      SET_ID, NULL);
     TEST_CHECK_EQ_U64(409U, response.status);
     web_api_response_free(&response);
     cJSON_free(mutation);
@@ -390,7 +392,7 @@ static void test_stale_revision_does_not_overwrite_a_newer_edit(void) {
     /* The requirement itself: read the resource back and confirm the newer edit
      * is intact and the stale one never landed. */
     response =
-        invoke(web_api_handle_sets, WEB_API_ROUTE_SET, WEB_API_METHOD_GET, NULL, SET_ID, NULL);
+        invoke(web_api_handle_packages, WEB_API_ROUTE_SET, WEB_API_METHOD_GET, NULL, SET_ID, NULL);
     TEST_CHECK_EQ_U64(200U, response.status);
     TEST_CHECK(strstr(response.body, "Winning Edit") != NULL);
     TEST_CHECK(strstr(response.body, "Clobbering Edit") == NULL);
@@ -401,9 +403,9 @@ int main(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
     reset_store();
     test_session_json_redaction();
-    test_set_routes();
+    test_package_routes();
     test_macro_routes();
-    test_set_delete_and_persistent_readback();
+    test_package_delete_and_persistent_readback();
     test_stale_revision_does_not_overwrite_a_newer_edit();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());

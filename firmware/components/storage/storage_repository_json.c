@@ -26,7 +26,7 @@ static const char *const STORED_MACRO_FIELDS[STORED_MACRO_FIELD_COUNT] = {
     "schema_version", "id", "revision", "name", "source", "key_press_ms", "inter_key_ms",
 };
 
-void storage_set_document_free(storage_set_document_t *document) {
+void storage_package_document_free(storage_package_document_t *document) {
     if (document == NULL) {
         return;
     }
@@ -37,7 +37,7 @@ void storage_set_document_free(storage_set_document_t *document) {
     memset(document, 0, sizeof(*document));
 }
 
-static app_error_code_t parse_stored_macro(const cJSON *node, const app_uuid_t *owning_set_id,
+static app_error_code_t parse_stored_macro(const cJSON *node, const app_uuid_t *owning_package_id,
                                            macro_t *out_macro) {
     memset(out_macro, 0, sizeof(*out_macro));
     if (!cJSON_IsObject(node)) {
@@ -81,11 +81,12 @@ static app_error_code_t parse_stored_macro(const cJSON *node, const app_uuid_t *
     }
     /* The set the macro belongs to is the file it was read from, so it is
      * stamped here rather than trusted from the object (SPEC 12.2). */
-    out_macro->set_id = *owning_set_id;
+    out_macro->set_id = *owning_package_id;
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t parse_macro_array(const cJSON *root, storage_set_document_t *out_document) {
+static app_error_code_t parse_macro_array(const cJSON *root,
+                                          storage_package_document_t *out_document) {
     const cJSON *macros = cJSON_GetObjectItemCaseSensitive(root, "macros");
     if (!cJSON_IsArray(macros)) {
         return APP_ERROR_STORAGE_CORRUPT;
@@ -119,8 +120,8 @@ static app_error_code_t parse_macro_array(const cJSON *root, storage_set_documen
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_set_document_parse(const char *data, size_t length,
-                                            storage_set_document_t *out_document) {
+app_error_code_t storage_package_document_parse(const char *data, size_t length,
+                                                storage_package_document_t *out_document) {
     if (out_document != NULL) {
         memset(out_document, 0, sizeof(*out_document));
     }
@@ -150,7 +151,7 @@ app_error_code_t storage_set_document_parse(const char *data, size_t length,
     }
     cJSON_Delete(root);
     if (result != APP_ERROR_NONE) {
-        storage_set_document_free(out_document);
+        storage_package_document_free(out_document);
     }
     return result;
 }
@@ -174,7 +175,7 @@ static app_error_code_t add_stored_macro(cJSON *array, const macro_t *macro) {
                : APP_ERROR_INTERNAL;
 }
 
-static bool document_shape_valid(const storage_set_document_t *document) {
+static bool document_shape_valid(const storage_package_document_t *document) {
     if (document == NULL || document->set.schema_version != APP_SCHEMA_VERSION ||
         document->set.revision == 0U || !app_uuid_is_valid_string(document->set.id.value) ||
         document->set.name[0] == '\0' || document->macro_count > APP_MACROS_PER_SET_MAX ||
@@ -199,8 +200,8 @@ static bool document_shape_valid(const storage_set_document_t *document) {
     return true;
 }
 
-app_error_code_t storage_set_document_serialize(const storage_set_document_t *document,
-                                                char **out_json, size_t *out_length) {
+app_error_code_t storage_package_document_serialize(const storage_package_document_t *document,
+                                                    char **out_json, size_t *out_length) {
     if (out_json != NULL) {
         *out_json = NULL;
     }

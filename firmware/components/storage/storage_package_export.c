@@ -18,11 +18,11 @@
 #ifdef ESP_PLATFORM
 #include "storage_repository_lock.h"
 #include "storage_repository_macros_internal.h"
-#include "storage_repository_sets_internal.h"
+#include "storage_repository_packages_internal.h"
 #endif
 
 typedef struct {
-    macro_set_t set;
+    macro_package_t set;
     storage_macro_list_t local_macros;
 } set_export_snapshot_t;
 
@@ -50,10 +50,10 @@ static app_error_code_t production_lock_give(void *context) {
     return storage_repository_lock_give();
 }
 
-static app_error_code_t production_set_read(void *context, const app_uuid_t *set_id,
-                                            macro_set_t *out_set) {
+static app_error_code_t production_package_read(void *context, const app_uuid_t *set_id,
+                                                macro_package_t *out_package) {
     (void)context;
-    return storage_set_read_locked(set_id, out_set);
+    return storage_package_read_locked(set_id, out_package);
 }
 
 static app_error_code_t production_macro_list(void *context, const app_uuid_t *set_id,
@@ -71,7 +71,7 @@ static storage_package_export_ops_t export_operations = {
     .context = NULL,
     .lock_take = production_lock_take,
     .lock_give = production_lock_give,
-    .set_read = production_set_read,
+    .set_read = production_package_read,
     .macro_list = production_macro_list,
     .macro_list_free = production_macro_list_free,
 };
@@ -158,7 +158,7 @@ static app_error_code_t serialize_snapshot(const set_export_snapshot_t *snapshot
     app_error_code_t result = package_writer_append_text(
         &writer, "{\"schema_version\":1,\"package_type\":\"set\",\"sets\":[");
     if (result == APP_ERROR_NONE) {
-        result = package_writer_append_set(&writer, &snapshot->set);
+        result = package_writer_append_metadata(&writer, &snapshot->set);
     }
     if (result == APP_ERROR_NONE) {
         result = package_writer_append_text(&writer, "],\"macros\":");
@@ -188,8 +188,8 @@ static app_error_code_t serialize_snapshot(const set_export_snapshot_t *snapshot
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_package_export_set(const app_uuid_t *set_id, char **out_data,
-                                            size_t *out_length) {
+app_error_code_t storage_package_export(const app_uuid_t *set_id, char **out_data,
+                                        size_t *out_length) {
     if (out_data != NULL) {
         *out_data = NULL;
     }

@@ -119,7 +119,7 @@ static bool populate_submission(const cJSON *root, web_setup_submission_t *submi
         return false;
     }
     submission->require_physical_confirmation = cJSON_IsTrue(require_confirmation);
-    submission->always_select_set = cJSON_IsTrue(always_select);
+    submission->always_select_package = cJSON_IsTrue(always_select);
     return true;
 }
 

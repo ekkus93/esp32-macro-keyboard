@@ -94,7 +94,7 @@ static provisioning_core_t initialized_core(settings_store_t *store) {
 
 /* The active set is no longer part of settings -- it lives in the set index
  * (SPEC 12.3), and its clear-on-delete behaviour is covered by
- * test_storage_active_set_delete.c. What remains here is the settings round trip
+ * test_storage_active_package_delete.c. What remains here is the settings round trip
  * and its revision handling. */
 static void test_redacted_settings_round_trip(void) {
     settings_store_t store = {0};
@@ -103,16 +103,16 @@ static void test_redacted_settings_round_trip(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, provisioning_core_settings_read(&core, &settings));
     TEST_CHECK_EQ_U64(APP_SCHEMA_VERSION, settings.schema_version);
     TEST_CHECK_EQ_U64(0U, settings.revision);
-    TEST_CHECK(settings.always_select_set);
+    TEST_CHECK(settings.always_select_package);
     /* Off by default: the device must be usable with no button on it. */
     TEST_CHECK(!settings.require_physical_confirmation);
 
-    settings.always_select_set = false;
+    settings.always_select_package = false;
     provisioning_settings_t committed = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          provisioning_core_settings_update(&core, &settings, 0U, &committed));
     TEST_CHECK_EQ_U64(1U, committed.revision);
-    TEST_CHECK(!committed.always_select_set);
+    TEST_CHECK(!committed.always_select_package);
     TEST_CHECK_EQ_U64(1U, store.commit_count);
 
     TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
@@ -127,7 +127,7 @@ static void test_settings_validation(void) {
         .schema_version = APP_SCHEMA_VERSION,
         .revision = 0U,
         .require_physical_confirmation = true,
-        .always_select_set = true,
+        .always_select_package = true,
     };
     provisioning_settings_t output = {0};
     settings.schema_version = 99U;

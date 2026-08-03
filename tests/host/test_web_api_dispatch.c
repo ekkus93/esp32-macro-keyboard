@@ -32,7 +32,7 @@ static app_error_code_t record_handler(handler_group_t group, const web_api_call
     return web_api_response_success(response, 200U, "{\"dispatched\":true}");
 }
 
-app_error_code_t web_api_handle_sets(const web_api_call_t *call, web_api_response_t *response) {
+app_error_code_t web_api_handle_packages(const web_api_call_t *call, web_api_response_t *response) {
     return record_handler(HANDLER_SETS, call, response);
 }
 

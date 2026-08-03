@@ -1,5 +1,4 @@
-int main(void)
-{
+int main(void) {
     test_bounded_body_reads();
     test_body_timeout_and_io_failures();
     test_mutation_authorization();

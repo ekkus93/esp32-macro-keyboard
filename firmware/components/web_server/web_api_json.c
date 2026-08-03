@@ -120,12 +120,12 @@ static app_error_code_t validate_macro_resource_fields(const char *body, size_t 
     return validate_resource_fields(body, body_length, fields, sizeof(fields) / sizeof(fields[0]));
 }
 
-app_error_code_t web_api_json_parse_set_resource(const char *body, size_t body_length,
-                                                 macro_set_t *out_set) {
-    if (out_set != NULL) {
-        memset(out_set, 0, sizeof(*out_set));
+app_error_code_t web_api_json_parse_package_resource(const char *body, size_t body_length,
+                                                     macro_package_t *out_package) {
+    if (out_package != NULL) {
+        memset(out_package, 0, sizeof(*out_package));
     }
-    if (out_set == NULL) {
+    if (out_package == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     static const char *const fields[] = {
@@ -137,8 +137,8 @@ app_error_code_t web_api_json_parse_set_resource(const char *body, size_t body_l
     app_error_code_t result =
         validate_resource_fields(body, body_length, fields, sizeof(fields) / sizeof(fields[0]));
     if (result == APP_ERROR_NONE) {
-        result =
-            request_resource_result(storage_repository_parse_set_json(body, body_length, out_set));
+        result = request_resource_result(
+            storage_repository_parse_package_json(body, body_length, out_package));
     }
     return result;
 }
@@ -324,7 +324,7 @@ app_error_code_t web_api_json_parse_settings_update(const char *body, size_t bod
         .schema_version = APP_SCHEMA_VERSION,
         .revision = expected_revision,
         .require_physical_confirmation = cJSON_IsTrue(require_confirmation),
-        .always_select_set = cJSON_IsTrue(always_select),
+        .always_select_package = cJSON_IsTrue(always_select),
     };
     cJSON_Delete(root);
     *out_settings = settings;

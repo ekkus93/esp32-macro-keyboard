@@ -66,58 +66,57 @@ static void reset_storage(void) {
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_lock_init());
 }
 
-static void create_current_set(void) {
+static void create_current_package(void) {
     const app_uuid_t id = parse_id(SET_ID);
-    macro_set_t set = {
+    macro_package_t set = {
         .schema_version = APP_SCHEMA_VERSION,
         .id = id,
         .revision = 3U,
     };
     memcpy(set.name, "Current", sizeof("Current"));
     /* One file, written whole. */
-    const storage_set_document_t document = {.set = set};
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_store_set_document(&document));
-    storage_set_index_t index = {.revision = 1U, .ids = {id}, .count = 1U};
+    const storage_package_document_t document = {.set = set};
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_store_package_document(&document));
+    storage_package_index_t index = {.revision = 1U, .ids = {id}, .count = 1U};
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_write_index(&index));
 }
 
 static void prepare_valid_state(void) {
     reset_storage();
-    create_current_set();
+    create_current_package();
 }
 
 static void assert_current_revision(uint32_t revision) {
-    macro_set_t set = {0};
+    macro_package_t set = {0};
     const app_uuid_t id = parse_id(SET_ID);
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_set_read(&id, &set));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_package_read(&id, &set));
     TEST_CHECK_EQ_U64(revision, set.revision);
 }
 
 static void test_invalid_and_conflict_inputs_do_not_mutate(void) {
     prepare_valid_state();
-    macro_set_t committed = {0};
+    macro_package_t committed = {0};
     const app_uuid_t id = parse_id(SET_ID);
     const app_uuid_t other = parse_id(OTHER_SET_ID);
-    TEST_CHECK_EQ_INT(
-        APP_ERROR_INVALID_ARGUMENT,
-        storage_package_replace_set(NULL, 3U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
-    TEST_CHECK_EQ_INT(
-        APP_ERROR_INVALID_ARGUMENT,
-        storage_package_replace_set(&other, 3U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
     TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      storage_package_replace_set(&id, 3U, "{}", 2U, &committed));
-    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT, storage_package_replace_set(
-                                              &id, 2U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
+                      storage_package_replace(NULL, 3U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
+    TEST_CHECK_EQ_INT(
+        APP_ERROR_INVALID_ARGUMENT,
+        storage_package_replace(&other, 3U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
+    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
+                      storage_package_replace(&id, 3U, "{}", 2U, &committed));
+    TEST_CHECK_EQ_INT(APP_ERROR_CONFLICT,
+                      storage_package_replace(&id, 2U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
     assert_current_revision(3U);
 }
 
 /* SPEC 24.2 item: replace import */
 static void test_valid_replace_commits_complete_tree(void) {
     prepare_valid_state();
-    macro_set_t committed = {0};
+    macro_package_t committed = {0};
     const app_uuid_t id = parse_id(SET_ID);
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_package_replace_set(
-                                          &id, 3U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
+                      storage_package_replace(&id, 3U, PACKAGE, sizeof(PACKAGE) - 1U, &committed));
     TEST_CHECK_EQ_U64(7U, committed.revision);
     TEST_CHECK_EQ_STRING("Replacement", committed.name);
     assert_current_revision(7U);
@@ -128,7 +127,7 @@ static void test_valid_replace_commits_complete_tree(void) {
     TEST_CHECK_EQ_U64(4U, macro.revision);
     macro_model_free_macro(&macro);
 
-    storage_set_index_t index = {0};
+    storage_package_index_t index = {0};
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, storage_repository_load_index(&index));
     TEST_CHECK_EQ_U64(1U, index.count);
     TEST_CHECK(app_uuid_equal(&index.ids[0], &id));

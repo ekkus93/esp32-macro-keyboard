@@ -1,5 +1,4 @@
-int main(void)
-{
+int main(void) {
     test_cookie_boundaries();
     test_static_path_boundaries();
     test_content_boundaries();

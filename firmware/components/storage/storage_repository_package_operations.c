@@ -20,7 +20,7 @@
 #include "storage_repository_document.h"
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
-#include "storage_repository_sets_internal.h"
+#include "storage_repository_packages_internal.h"
 
 static app_error_code_t copy_text(char *destination, size_t destination_size, const char *source,
                                   size_t maximum_length) {
@@ -36,7 +36,7 @@ static app_error_code_t copy_text(char *destination, size_t destination_size, co
     return APP_ERROR_NONE;
 }
 
-static bool index_contains_set(const storage_set_index_t *index, const app_uuid_t *set_id) {
+static bool index_contains_package(const storage_package_index_t *index, const app_uuid_t *set_id) {
     for (size_t position = 0U; position < index->count; ++position) {
         if (app_uuid_equal(&index->ids[position], set_id)) {
             return true;
@@ -45,7 +45,7 @@ static bool index_contains_set(const storage_set_index_t *index, const app_uuid_
     return false;
 }
 
-static app_error_code_t index_accepts_duplicate(const storage_set_index_t *index,
+static app_error_code_t index_accepts_duplicate(const storage_package_index_t *index,
                                                 const app_uuid_t *duplicate_id) {
     if (index->count >= APP_MACRO_SETS_MAX) {
         return APP_ERROR_STORAGE_FULL;
@@ -56,7 +56,8 @@ static app_error_code_t index_accepts_duplicate(const storage_set_index_t *index
         }
     }
     char destination[APP_PATH_MAX_BYTES];
-    app_error_code_t result = storage_make_set_path(duplicate_id, destination, sizeof(destination));
+    app_error_code_t result =
+        storage_make_package_path(duplicate_id, destination, sizeof(destination));
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -72,9 +73,9 @@ static app_error_code_t index_accepts_duplicate(const storage_set_index_t *index
  * its own id and is reset to revision 1, and the order is preserved because the
  * array order IS the order (SPEC 12.1). */
 static app_error_code_t build_duplicate_document(const app_uuid_t *source_id,
-                                                 const macro_set_t *duplicate,
-                                                 storage_set_document_t *out_document) {
-    app_error_code_t result = storage_repository_load_set_document(source_id, out_document);
+                                                 const macro_package_t *duplicate,
+                                                 storage_package_document_t *out_document) {
+    app_error_code_t result = storage_repository_load_package_document(source_id, out_document);
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -86,11 +87,11 @@ static app_error_code_t build_duplicate_document(const app_uuid_t *source_id,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t storage_set_duplicate_locked(const app_uuid_t *source_id,
-                                                     uint32_t expected_revision,
-                                                     const app_uuid_t *duplicate_id,
-                                                     const char *duplicate_name,
-                                                     macro_set_t *out_duplicate) {
+static app_error_code_t storage_package_duplicate_locked(const app_uuid_t *source_id,
+                                                         uint32_t expected_revision,
+                                                         const app_uuid_t *duplicate_id,
+                                                         const char *duplicate_name,
+                                                         macro_package_t *out_duplicate) {
     if (out_duplicate != NULL) {
         memset(out_duplicate, 0, sizeof(*out_duplicate));
     }
@@ -101,22 +102,22 @@ static app_error_code_t storage_set_duplicate_locked(const app_uuid_t *source_id
         return APP_ERROR_INVALID_ARGUMENT;
     }
 
-    storage_set_index_t index = {0};
+    storage_package_index_t index = {0};
     app_error_code_t result = storage_repository_load_index(&index);
-    if (result == APP_ERROR_NONE && !index_contains_set(&index, source_id)) {
+    if (result == APP_ERROR_NONE && !index_contains_package(&index, source_id)) {
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     if (result == APP_ERROR_NONE) {
         result = index_accepts_duplicate(&index, duplicate_id);
     }
-    macro_set_t source = {0};
+    macro_package_t source = {0};
     if (result == APP_ERROR_NONE) {
-        result = storage_set_read_locked(source_id, &source);
+        result = storage_package_read_locked(source_id, &source);
     }
     if (result == APP_ERROR_NONE && source.revision != expected_revision) {
         result = APP_ERROR_CONFLICT;
     }
-    macro_set_t duplicate = source;
+    macro_package_t duplicate = source;
     if (result == APP_ERROR_NONE) {
         duplicate.id = *duplicate_id;
         duplicate.revision = 1U;
@@ -124,16 +125,16 @@ static app_error_code_t storage_set_duplicate_locked(const app_uuid_t *source_id
             copy_text(duplicate.name, sizeof(duplicate.name), duplicate_name, APP_NAME_MAX_BYTES);
     }
 
-    storage_set_document_t document = {0};
+    storage_package_document_t document = {0};
     bool written = false;
     if (result == APP_ERROR_NONE) {
         result = build_duplicate_document(source_id, &duplicate, &document);
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_repository_store_set_document(&document);
+        result = storage_repository_store_package_document(&document);
         written = result == APP_ERROR_NONE;
     }
-    storage_set_document_free(&document);
+    storage_package_document_free(&document);
     if (result == APP_ERROR_NONE) {
         /* Index last, as in set creation: the duplicate is unreferenced until
          * this write lands. */
@@ -141,7 +142,7 @@ static app_error_code_t storage_set_duplicate_locked(const app_uuid_t *source_id
         result = storage_repository_write_index(&index);
     }
     if (result != APP_ERROR_NONE && written) {
-        const app_error_code_t cleanup = storage_repository_remove_set_file(&duplicate.id);
+        const app_error_code_t cleanup = storage_repository_remove_package_file(&duplicate.id);
         if (cleanup != APP_ERROR_NONE) {
             result = cleanup;
         }
@@ -151,20 +152,21 @@ static app_error_code_t storage_set_duplicate_locked(const app_uuid_t *source_id
     }
     return result;
 }
-app_error_code_t storage_set_duplicate(const app_uuid_t *source_id, uint32_t expected_revision,
-                                       const app_uuid_t *duplicate_id, const char *duplicate_name,
-                                       macro_set_t *out_duplicate) {
+app_error_code_t storage_package_duplicate(const app_uuid_t *source_id, uint32_t expected_revision,
+                                           const app_uuid_t *duplicate_id,
+                                           const char *duplicate_name,
+                                           macro_package_t *out_duplicate) {
     const app_error_code_t lock = storage_repository_lock_take();
     if (lock != APP_ERROR_NONE) {
         return lock;
     }
-    const app_error_code_t result = storage_set_duplicate_locked(
+    const app_error_code_t result = storage_package_duplicate_locked(
         source_id, expected_revision, duplicate_id, duplicate_name, out_duplicate);
     const app_error_code_t unlock = storage_repository_lock_give();
     return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }
 
-static bool order_has_exact_members(const storage_set_index_t *current,
+static bool order_has_exact_members(const storage_package_index_t *current,
                                     const app_uuid_t *ordered_ids, size_t count) {
     if (current->count != count) {
         return false;
@@ -192,11 +194,12 @@ static bool order_has_exact_members(const storage_set_index_t *current,
     return true;
 }
 
-static app_error_code_t storage_set_reorder_locked(const app_uuid_t *ordered_ids, size_t count) {
+static app_error_code_t storage_package_reorder_locked(const app_uuid_t *ordered_ids,
+                                                       size_t count) {
     if ((ordered_ids == NULL && count != 0U) || count > APP_MACRO_SETS_MAX) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    storage_set_index_t current = {0};
+    storage_package_index_t current = {0};
     app_error_code_t result = storage_repository_load_index(&current);
     if (result != APP_ERROR_NONE) {
         return result;
@@ -208,7 +211,7 @@ static app_error_code_t storage_set_reorder_locked(const app_uuid_t *ordered_ids
      * active set and the index revision, and reordering must not disturb
      * either. Building a fresh struct here silently cleared the selection
      * (SPEC 10.1 -- firmware MUST NOT switch the active set on its own). */
-    storage_set_index_t replacement = current;
+    storage_package_index_t replacement = current;
     replacement.count = count;
     memset(replacement.ids, 0, sizeof(replacement.ids));
     if (count > 0U) {
@@ -217,12 +220,12 @@ static app_error_code_t storage_set_reorder_locked(const app_uuid_t *ordered_ids
     return storage_repository_write_index(&replacement);
 }
 
-app_error_code_t storage_set_reorder(const app_uuid_t *ordered_ids, size_t count) {
+app_error_code_t storage_package_reorder(const app_uuid_t *ordered_ids, size_t count) {
     const app_error_code_t lock = storage_repository_lock_take();
     if (lock != APP_ERROR_NONE) {
         return lock;
     }
-    const app_error_code_t result = storage_set_reorder_locked(ordered_ids, count);
+    const app_error_code_t result = storage_package_reorder_locked(ordered_ids, count);
     const app_error_code_t unlock = storage_repository_lock_give();
     return unlock == APP_ERROR_NONE ? result : APP_ERROR_INTERNAL;
 }

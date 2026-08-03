@@ -27,7 +27,7 @@ typedef struct {
     char ap_passphrase[WIFI_AP_PASSPHRASE_MAX_BYTES + 1U];
     char administrator_password[AUTH_PASSWORD_MAX_BYTES + 1U];
     bool require_physical_confirmation;
-    bool always_select_set;
+    bool always_select_package;
 } web_setup_submission_t;
 
 typedef struct {

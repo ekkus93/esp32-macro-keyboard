@@ -20,8 +20,7 @@ typedef struct {
     size_t call_count;
 } receive_fake_t;
 
-static int receive_body(void *context, char *output, size_t capacity)
-{
+static int receive_body(void *context, char *output, size_t capacity) {
     receive_fake_t *fake = context;
     TEST_CHECK(fake != NULL);
     TEST_CHECK(output != NULL);
@@ -50,59 +49,36 @@ static int receive_body(void *context, char *output, size_t capacity)
     return (int)count;
 }
 
-static void test_bounded_body_reads(void)
-{
+static void test_bounded_body_reads(void) {
     char output[16U];
     receive_fake_t fake = {.body = "abcdef", .chunk_size = 2U};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_adapter_read_bounded_body(6U,
-                                                       output,
-                                                       sizeof(output),
-                                                       6U,
-                                                       receive_body,
-                                                       &fake));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_adapter_read_bounded_body(6U, output, sizeof(output),
+                                                                       6U, receive_body, &fake));
     TEST_CHECK_EQ_STRING("abcdef", output);
     TEST_CHECK_EQ_U64(3U, fake.call_count);
 
     fake = (receive_fake_t){.body = ""};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_adapter_read_bounded_body(0U,
-                                                       output,
-                                                       sizeof(output),
-                                                       0U,
-                                                       receive_body,
-                                                       &fake));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_adapter_read_bounded_body(0U, output, sizeof(output),
+                                                                       0U, receive_body, &fake));
     TEST_CHECK_EQ_STRING("", output);
     TEST_CHECK_EQ_U64(0U, fake.call_count);
 
     memcpy(output, "dirty", sizeof("dirty"));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_adapter_read_bounded_body(sizeof(output),
-                                                       output,
-                                                       sizeof(output),
-                                                       sizeof(output),
-                                                       receive_body,
-                                                       &fake));
+                         web_adapter_read_bounded_body(sizeof(output), output, sizeof(output),
+                                                       sizeof(output), receive_body, &fake));
     TEST_CHECK_EQ_STRING("", output);
 }
 
-static void test_body_timeout_and_io_failures(void)
-{
+static void test_body_timeout_and_io_failures(void) {
     char output[8U];
     receive_fake_t fake = {
         .body = "ab",
-        .planned_results = {WEB_ADAPTER_RECEIVE_TIMEOUT,
-                            WEB_ADAPTER_RECEIVE_TIMEOUT,
-                            0},
+        .planned_results = {WEB_ADAPTER_RECEIVE_TIMEOUT, WEB_ADAPTER_RECEIVE_TIMEOUT, 0},
         .planned_count = 3U,
     };
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_adapter_read_bounded_body(2U,
-                                                       output,
-                                                       sizeof(output),
-                                                       2U,
-                                                       receive_body,
-                                                       &fake));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_adapter_read_bounded_body(2U, output, sizeof(output),
+                                                                       2U, receive_body, &fake));
     TEST_CHECK_EQ_STRING("ab", output);
 
     fake = (receive_fake_t){
@@ -110,30 +86,19 @@ static void test_body_timeout_and_io_failures(void)
         .planned_results = {-1},
         .planned_count = 1U,
     };
-    TEST_CHECK_APP_ERROR(APP_ERROR_IO,
-                         web_adapter_read_bounded_body(2U,
-                                                       output,
-                                                       sizeof(output),
-                                                       2U,
-                                                       receive_body,
-                                                       &fake));
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, web_adapter_read_bounded_body(2U, output, sizeof(output), 2U,
+                                                                     receive_body, &fake));
     TEST_CHECK_EQ_STRING("", output);
 
     fake = (receive_fake_t){
         .body = "ab",
-        .planned_results = {WEB_ADAPTER_RECEIVE_TIMEOUT,
-                            WEB_ADAPTER_RECEIVE_TIMEOUT,
-                            WEB_ADAPTER_RECEIVE_TIMEOUT,
-                            WEB_ADAPTER_RECEIVE_TIMEOUT,
+        .planned_results = {WEB_ADAPTER_RECEIVE_TIMEOUT, WEB_ADAPTER_RECEIVE_TIMEOUT,
+                            WEB_ADAPTER_RECEIVE_TIMEOUT, WEB_ADAPTER_RECEIVE_TIMEOUT,
                             WEB_ADAPTER_RECEIVE_TIMEOUT},
         .planned_count = 5U,
     };
-    TEST_CHECK_APP_ERROR(APP_ERROR_TIMEOUT,
-                         web_adapter_read_bounded_body(2U,
-                                                       output,
-                                                       sizeof(output),
-                                                       2U,
-                                                       receive_body,
-                                                       &fake));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_TIMEOUT,
+        web_adapter_read_bounded_body(2U, output, sizeof(output), 2U, receive_body, &fake));
     TEST_CHECK_EQ_STRING("", output);
 }

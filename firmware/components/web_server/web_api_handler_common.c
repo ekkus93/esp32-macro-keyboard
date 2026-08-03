@@ -69,13 +69,13 @@ app_error_code_t web_api_handler_session_json(char **out_json) {
     return finish_json(root, out_json);
 }
 
-app_error_code_t web_api_handler_set_json(const macro_set_t *set, char **out_json) {
+app_error_code_t web_api_handler_package_json(const macro_package_t *set, char **out_json) {
     size_t length = 0U;
     return set == NULL ? APP_ERROR_INVALID_ARGUMENT
-                       : storage_repository_serialize_set_json(set, out_json, &length);
+                       : storage_repository_serialize_package_json(set, out_json, &length);
 }
 
-static cJSON *set_summary(const macro_set_t *set) {
+static cJSON *set_summary(const macro_package_t *set) {
     cJSON *item = cJSON_CreateObject();
     if (item == NULL || !cJSON_AddNumberToObject(item, "schema_version", set->schema_version) ||
         !cJSON_AddStringToObject(item, "id", set->id.value) ||
@@ -87,7 +87,8 @@ static cJSON *set_summary(const macro_set_t *set) {
     return item;
 }
 
-app_error_code_t web_api_handler_set_list_json(const storage_set_list_t *list, char **out_json) {
+app_error_code_t web_api_handler_package_list_json(const storage_package_list_t *list,
+                                                   char **out_json) {
     if (list == NULL || out_json == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -165,7 +166,7 @@ app_error_code_t web_api_handler_settings_json(const provisioning_settings_t *se
         !cJSON_AddNumberToObject(root, "revision", settings->revision) ||
         !cJSON_AddBoolToObject(root, "requirePhysicalConfirmation",
                                settings->require_physical_confirmation) ||
-        !cJSON_AddBoolToObject(root, "alwaysSelectSet", settings->always_select_set)) {
+        !cJSON_AddBoolToObject(root, "alwaysSelectSet", settings->always_select_package)) {
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;
     }
@@ -173,16 +174,17 @@ app_error_code_t web_api_handler_settings_json(const provisioning_settings_t *se
      * is repository state (SPEC 12.3), and NVS no longer holds a copy of it. It
      * stays in this response because clients need it in one round trip, but it
      * is read-only here -- selection goes through POST /sets/{setId}/select. */
-    bool has_active_set = false;
-    app_uuid_t active_set_id = {0};
-    const app_error_code_t active = storage_active_set_read(&has_active_set, &active_set_id);
+    bool has_active_package = false;
+    app_uuid_t active_package_id = {0};
+    const app_error_code_t active =
+        storage_active_package_read(&has_active_package, &active_package_id);
     if (active != APP_ERROR_NONE) {
         cJSON_Delete(root);
         return active;
     }
-    const bool added =
-        has_active_set ? cJSON_AddStringToObject(root, "activeSetId", active_set_id.value) != NULL
-                       : cJSON_AddNullToObject(root, "activeSetId") != NULL;
+    const bool added = has_active_package ? cJSON_AddStringToObject(root, "activeSetId",
+                                                                    active_package_id.value) != NULL
+                                          : cJSON_AddNullToObject(root, "activeSetId") != NULL;
     if (!added) {
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;

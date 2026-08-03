@@ -12,13 +12,11 @@
 #define TOKEN "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 #define TOKEN_UPPER "0123456789ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef"
 
-static void expect_cookie_result(const char *cookie, app_error_code_t expected)
-{
+static void expect_cookie_result(const char *cookie, app_error_code_t expected) {
     char output[AUTH_TOKEN_HEX_BYTES];
     memset(output, 'x', sizeof(output));
     output[sizeof(output) - 1U] = '\0';
-    TEST_CHECK_EQ_INT(expected,
-                      web_cookie_extract_session(cookie, output, sizeof(output)));
+    TEST_CHECK_EQ_INT(expected, web_cookie_extract_session(cookie, output, sizeof(output)));
     if (expected == APP_ERROR_NONE) {
         TEST_CHECK_EQ_STRING(TOKEN, output);
     } else {
@@ -26,8 +24,7 @@ static void expect_cookie_result(const char *cookie, app_error_code_t expected)
     }
 }
 
-static void test_cookie_boundaries(void)
-{
+static void test_cookie_boundaries(void) {
     expect_cookie_result("MKSESSION=" TOKEN "; a=1", APP_ERROR_NONE);
     expect_cookie_result("a=1; MKSESSION=" TOKEN "; b=2", APP_ERROR_NONE);
     expect_cookie_result("a=1;\tMKSESSION=" TOKEN, APP_ERROR_NONE);
@@ -38,10 +35,10 @@ static void test_cookie_boundaries(void)
     expect_cookie_result("MKSESSION=abc", APP_ERROR_AUTH_REQUIRED);
     expect_cookie_result("MKSESSION=" TOKEN "0", APP_ERROR_AUTH_REQUIRED);
     expect_cookie_result("MKSESSION=" TOKEN_UPPER, APP_ERROR_AUTH_REQUIRED);
-    expect_cookie_result("MKSESSION=g123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde",
-                         APP_ERROR_AUTH_REQUIRED);
-    expect_cookie_result("MKSESSION=" TOKEN "; MKSESSION=" TOKEN,
-                         APP_ERROR_AUTH_REQUIRED);
+    expect_cookie_result(
+        "MKSESSION=g123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde",
+        APP_ERROR_AUTH_REQUIRED);
+    expect_cookie_result("MKSESSION=" TOKEN "; MKSESSION=" TOKEN, APP_ERROR_AUTH_REQUIRED);
     expect_cookie_result("MKSESSION=bad; MKSESSION=" TOKEN, APP_ERROR_AUTH_REQUIRED);
     expect_cookie_result("a=1; b=2", APP_ERROR_AUTH_REQUIRED);
     expect_cookie_result(NULL, APP_ERROR_INVALID_ARGUMENT);
@@ -52,9 +49,8 @@ static void test_cookie_boundaries(void)
                       web_cookie_extract_session("MKSESSION=" TOKEN, NULL, sizeof(output)));
     TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
                       web_cookie_extract_session("MKSESSION=" TOKEN, output, 0U));
-    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
-                      web_cookie_extract_session("MKSESSION=" TOKEN,
-                                                 output,
-                                                 AUTH_TOKEN_HEX_BYTES - 1U));
+    TEST_CHECK_EQ_INT(
+        APP_ERROR_INVALID_ARGUMENT,
+        web_cookie_extract_session("MKSESSION=" TOKEN, output, AUTH_TOKEN_HEX_BYTES - 1U));
     TEST_CHECK_EQ_STRING("", output);
 }

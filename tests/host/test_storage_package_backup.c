@@ -22,7 +22,7 @@
 #define SECRET_SENTINEL "phase18_5_admin_secret_N7vY5jR3xQ9mK2pL"
 
 typedef struct {
-    storage_set_list_t sets;
+    storage_package_list_t sets;
     storage_macro_list_t local[2];
     app_error_code_t local_result[2];
     /* Which macro the fake reports as the one it stopped on. */
@@ -61,9 +61,9 @@ static app_error_code_t fake_lock_give(void *context) {
     return fake->unlock_result;
 }
 
-static app_error_code_t fake_set_list(void *context, storage_set_list_t *out_list,
-                                      storage_object_ref_t *out_failed,
-                                      storage_skip_record_t *out_skips) {
+static app_error_code_t fake_package_list(void *context, storage_package_list_t *out_list,
+                                          storage_object_ref_t *out_failed,
+                                          storage_skip_record_t *out_skips) {
     const fake_backup_context_t *fake = context;
     (void)out_failed;
     (void)out_skips;
@@ -116,7 +116,7 @@ static storage_package_backup_ops_t fake_operations(fake_backup_context_t *conte
         .context = context,
         .lock_take = fake_lock_take,
         .lock_give = fake_lock_give,
-        .set_list = fake_set_list,
+        .set_list = fake_package_list,
         .macro_list = fake_macro_list,
         .macro_list_free = fake_macro_list_free,
     };
@@ -148,12 +148,12 @@ static fake_backup_context_t valid_context(void) {
 
     fake_backup_context_t context = {0};
     context.sets.count = 2U;
-    context.sets.items[0] = (macro_set_t){
+    context.sets.items[0] = (macro_package_t){
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid(SET_A_ID),
         .revision = 1U,
     };
-    context.sets.items[1] = (macro_set_t){
+    context.sets.items[1] = (macro_package_t){
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid(SET_B_ID),
         .revision = 2U,
@@ -365,14 +365,14 @@ static void test_failure_names_the_offending_macro(void) {
     TEST_CHECK(failure.kind == STORAGE_PACKAGE_OBJECT_MACRO);
     TEST_CHECK(failure.has_object_id);
     TEST_CHECK(app_uuid_equal(&failure.object_id, &offender));
-    TEST_CHECK(failure.has_set_id);
+    TEST_CHECK(failure.has_package_id);
     TEST_CHECK(app_uuid_equal(&failure.set_id, &context.sets.items[1].id));
     storage_package_reset_backup_ops_for_test();
 }
 
 /* When the reader cannot say which object failed, the set is still reported;
  * the caller must never be handed a half-populated identity it might print. */
-static void test_failure_without_object_id_still_names_the_set(void) {
+static void test_failure_without_object_id_still_names_the_package(void) {
     fake_backup_context_t context = valid_context();
     context.local_result[1] = APP_ERROR_IO;
     context.local_failed_known[1] = false;
@@ -385,7 +385,7 @@ static void test_failure_without_object_id_still_names_the_set(void) {
                          storage_package_export_backup_detail(&data, &length, &failure, NULL));
     TEST_CHECK(failure.kind == STORAGE_PACKAGE_OBJECT_MACRO);
     TEST_CHECK(!failure.has_object_id);
-    TEST_CHECK(failure.has_set_id);
+    TEST_CHECK(failure.has_package_id);
     TEST_CHECK(app_uuid_equal(&failure.set_id, &context.sets.items[1].id));
     storage_package_reset_backup_ops_for_test();
 }
@@ -403,7 +403,7 @@ static void test_success_reports_no_failure(void) {
                          storage_package_export_backup_detail(&data, &length, &failure, NULL));
     TEST_CHECK(failure.kind == STORAGE_PACKAGE_OBJECT_NONE);
     TEST_CHECK(!failure.has_object_id);
-    TEST_CHECK(!failure.has_set_id);
+    TEST_CHECK(!failure.has_package_id);
     storage_package_free(data);
     storage_package_reset_backup_ops_for_test();
 }
@@ -417,7 +417,7 @@ int main(void) {
     test_device_fault_still_fails_the_export();
     test_failure_preserves_primary_error_and_cleans_partial_snapshot();
     test_failure_names_the_offending_macro();
-    test_failure_without_object_id_still_names_the_set();
+    test_failure_without_object_id_still_names_the_package();
     test_success_reports_no_failure();
     puts("storage package backup tests passed");
     return 0;

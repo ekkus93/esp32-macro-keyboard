@@ -48,7 +48,7 @@ typedef struct {
 
 typedef struct {
     app_uuid_t id;
-} package_set_metadata_t;
+} package_metadata_t;
 
 typedef struct {
     app_uuid_t id;
@@ -68,7 +68,7 @@ typedef enum {
 } validation_allocation_t;
 
 typedef struct {
-    package_set_metadata_t *sets;
+    package_metadata_t *sets;
     package_macro_metadata_t *macros;
     size_t *set_macro_counts;
     size_t set_capacity;
@@ -236,7 +236,8 @@ static app_error_code_t allocate_validation_state(const storage_package_summary_
     return result;
 }
 
-static size_t find_set_index(const package_validation_state_t *state, const app_uuid_t *set_id) {
+static size_t find_package_index(const package_validation_state_t *state,
+                                 const app_uuid_t *set_id) {
     for (size_t index = 0U; index < state->set_count; ++index) {
         if (app_uuid_equal(&state->sets[index].id, set_id)) {
             return index;
@@ -259,18 +260,18 @@ static app_error_code_t external_object_result(app_error_code_t result) {
     return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
 }
 
-static app_error_code_t validate_set_object(const cJSON *object, void *context) {
+static app_error_code_t validate_package_object(const cJSON *object, void *context) {
     package_validation_state_t *state = context;
     if (state == NULL || state->set_count >= state->set_capacity) {
         return APP_ERROR_INTERNAL;
     }
-    macro_set_t set = {0};
+    macro_package_t set = {0};
     const app_error_code_t parsed =
-        external_object_result(storage_repository_parse_set_node(object, &set));
+        external_object_result(storage_repository_parse_package_node(object, &set));
     if (parsed != APP_ERROR_NONE) {
         return parsed;
     }
-    if (find_set_index(state, &set.id) != SIZE_MAX) {
+    if (find_package_index(state, &set.id) != SIZE_MAX) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     state->sets[state->set_count].id = set.id;
@@ -304,7 +305,7 @@ static app_error_code_t validate_macro_object(const cJSON *object, void *context
     }
     size_t set_index = SIZE_MAX;
     if (result == APP_ERROR_NONE) {
-        set_index = find_set_index(state, &macro.set_id);
+        set_index = find_package_index(state, &macro.set_id);
         if (set_index == SIZE_MAX || state->set_macro_counts[set_index] >= APP_MACROS_PER_SET_MAX) {
             result = APP_ERROR_INVALID_ARGUMENT;
         }
@@ -382,7 +383,7 @@ static app_error_code_t validate_package_objects(const package_document_t *docum
     size_t visited = 0U;
     if (result == APP_ERROR_NONE) {
         result = visit_object_array(document->arrays[PACKAGE_ARRAY_SETS], state.set_capacity,
-                                    validate_set_object, &state, &visited);
+                                    validate_package_object, &state, &visited);
     }
     if (result == APP_ERROR_NONE) {
         result =

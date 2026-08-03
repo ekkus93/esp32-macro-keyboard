@@ -27,7 +27,8 @@ app_error_code_t package_writer_append_text(package_writer_t *writer, const char
 app_error_code_t package_writer_append_serialized(package_writer_t *writer,
                                                   app_error_code_t serialization_result, char *json,
                                                   size_t length);
-app_error_code_t package_writer_append_set(package_writer_t *writer, const macro_set_t *set);
+app_error_code_t package_writer_append_metadata(package_writer_t *writer,
+                                                const macro_package_t *set);
 app_error_code_t package_writer_append_macro(package_writer_t *writer, const macro_t *macro);
 
 #endif

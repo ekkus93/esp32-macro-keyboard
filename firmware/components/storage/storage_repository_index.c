@@ -17,7 +17,7 @@
 #include "storage_repository_internal.h"
 #include "storage_repository_lock.h"
 
-/* SPEC 12.3: schema_version, revision, active_set_id, set_ids. `active_set_id`
+/* SPEC 12.3: schema_version, revision, active_package_id, set_ids. `active_package_id`
  * is nullable -- a device has no active set until the user selects one, and
  * SPEC 10.1 forbids inferring one. */
 #define INDEX_FIELD_COUNT 4U
@@ -25,11 +25,11 @@
 static const char *const INDEX_FIELDS[INDEX_FIELD_COUNT] = {
     "schema_version",
     "revision",
-    "active_set_id",
+    "active_package_id",
     "set_ids",
 };
 
-static app_error_code_t parse_set_ids(const cJSON *root, storage_set_index_t *out_index) {
+static app_error_code_t parse_package_ids(const cJSON *root, storage_package_index_t *out_index) {
     const cJSON *ids = cJSON_GetObjectItemCaseSensitive(root, "set_ids");
     if (!cJSON_IsArray(ids)) {
         return APP_ERROR_STORAGE_CORRUPT;
@@ -57,18 +57,19 @@ static app_error_code_t parse_set_ids(const cJSON *root, storage_set_index_t *ou
 /* An active set that is not in `set_ids` is a corrupt index, not a stale hint to
  * drop quietly: something wrote one of the two fields without the other, and
  * silently clearing it would hide that from the user (SPEC 12.3, 13.6). */
-static app_error_code_t parse_active_set(const cJSON *root, storage_set_index_t *out_index) {
-    const cJSON *active = cJSON_GetObjectItemCaseSensitive(root, "active_set_id");
+static app_error_code_t parse_active_package(const cJSON *root,
+                                             storage_package_index_t *out_index) {
+    const cJSON *active = cJSON_GetObjectItemCaseSensitive(root, "active_package_id");
     if (cJSON_IsNull(active)) {
         return APP_ERROR_NONE;
     }
     if (!cJSON_IsString(active) || active->valuestring == NULL ||
-        app_uuid_parse(active->valuestring, &out_index->active_set_id) != APP_ERROR_NONE) {
+        app_uuid_parse(active->valuestring, &out_index->active_package_id) != APP_ERROR_NONE) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
     for (size_t item = 0U; item < out_index->count; ++item) {
-        if (app_uuid_equal(&out_index->ids[item], &out_index->active_set_id)) {
-            out_index->has_active_set = true;
+        if (app_uuid_equal(&out_index->ids[item], &out_index->active_package_id)) {
+            out_index->has_active_package = true;
             return APP_ERROR_NONE;
         }
     }
@@ -76,7 +77,7 @@ static app_error_code_t parse_active_set(const cJSON *root, storage_set_index_t 
 }
 
 app_error_code_t storage_repository_parse_index(const char *data, size_t length,
-                                                storage_set_index_t *out_index) {
+                                                storage_package_index_t *out_index) {
     if (out_index == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -93,10 +94,10 @@ app_error_code_t storage_repository_parse_index(const char *data, size_t length,
         result = storage_json_get_u32(root, "revision", 1U, UINT32_MAX, &out_index->revision);
     }
     if (result == APP_ERROR_NONE) {
-        result = parse_set_ids(root, out_index);
+        result = parse_package_ids(root, out_index);
     }
     if (result == APP_ERROR_NONE) {
-        result = parse_active_set(root, out_index);
+        result = parse_active_package(root, out_index);
     }
     cJSON_Delete(root);
     if (result != APP_ERROR_NONE) {
@@ -106,7 +107,7 @@ app_error_code_t storage_repository_parse_index(const char *data, size_t length,
 }
 
 app_error_code_t storage_repository_load_index_path(const char *path,
-                                                    storage_set_index_t *out_index) {
+                                                    storage_package_index_t *out_index) {
     char *data = NULL;
     size_t length = 0U;
     const app_error_code_t read_result =
@@ -124,11 +125,11 @@ app_error_code_t storage_repository_load_index_path(const char *path,
     return parse_result;
 }
 
-app_error_code_t storage_repository_load_index(storage_set_index_t *out_index) {
+app_error_code_t storage_repository_load_index(storage_package_index_t *out_index) {
     return storage_repository_load_index_path(STORAGE_INDEX_FILE_PATH, out_index);
 }
 
-app_error_code_t storage_repository_write_index(const storage_set_index_t *index) {
+app_error_code_t storage_repository_write_index(const storage_package_index_t *index) {
     if (index == NULL || index->count > APP_MACRO_SETS_MAX) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -140,9 +141,9 @@ app_error_code_t storage_repository_write_index(const storage_set_index_t *index
     if (root == NULL || ids == NULL ||
         cJSON_AddNumberToObject(root, "schema_version", (double)APP_SCHEMA_VERSION) == NULL ||
         cJSON_AddNumberToObject(root, "revision", (double)revision) == NULL ||
-        (index->has_active_set
-             ? cJSON_AddStringToObject(root, "active_set_id", index->active_set_id.value) == NULL
-             : cJSON_AddNullToObject(root, "active_set_id") == NULL) ||
+        (index->has_active_package ? cJSON_AddStringToObject(root, "active_package_id",
+                                                             index->active_package_id.value) == NULL
+                                   : cJSON_AddNullToObject(root, "active_package_id") == NULL) ||
         !cJSON_AddItemToObject(root, "set_ids", ids)) {
         cJSON_Delete(ids);
         cJSON_Delete(root);
@@ -172,7 +173,7 @@ app_error_code_t storage_repository_write_index(const storage_set_index_t *index
 
 static app_error_code_t initialize_fresh_storage(void) {
     static const char empty_index[] =
-        "{\"schema_version\":1,\"revision\":1,\"active_set_id\":null,\"set_ids\":[]}";
+        "{\"schema_version\":1,\"revision\":1,\"active_package_id\":null,\"set_ids\":[]}";
 
     bool sets_have_entries = false;
     const app_error_code_t result =
@@ -201,7 +202,7 @@ static app_error_code_t storage_repository_init_locked(void) {
             return result;
         }
     }
-    storage_set_index_t index = {0};
+    storage_package_index_t index = {0};
     return storage_repository_load_index(&index);
 }
 
@@ -224,12 +225,12 @@ app_error_code_t storage_repository_deinit(void) {
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_repository_set_index_presence(const app_uuid_t *set_id,
-                                                       bool should_be_present) {
+app_error_code_t storage_repository_package_index_presence(const app_uuid_t *set_id,
+                                                           bool should_be_present) {
     if (set_id == NULL || !app_uuid_is_valid_string(set_id->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    storage_set_index_t index = {0};
+    storage_package_index_t index = {0};
     app_error_code_t result = storage_repository_load_index(&index);
     if (result != APP_ERROR_NONE) {
         return result;

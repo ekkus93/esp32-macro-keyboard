@@ -51,7 +51,7 @@ typedef enum {
 
 typedef struct {
     web_api_route_t route;
-    bool has_set_id;
+    bool has_package_id;
     app_uuid_t set_id;
     bool has_macro_id;
     app_uuid_t macro_id;

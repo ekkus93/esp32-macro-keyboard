@@ -24,8 +24,8 @@ typedef struct {
 app_error_code_t storage_package_validate(const char *data, size_t length,
                                           storage_package_kind_t expected_kind,
                                           storage_package_summary_t *out_summary);
-app_error_code_t storage_package_export_set(const app_uuid_t *set_id, char **out_data,
-                                            size_t *out_length);
+app_error_code_t storage_package_export(const app_uuid_t *set_id, char **out_data,
+                                        size_t *out_length);
 /* Which object a failed export stopped on. A backup aborts on the first
  * unreadable object; without this the caller can only report that the backup
  * failed, leaving the user no way to find or repair the offending object. */
@@ -37,7 +37,7 @@ typedef enum {
 
 typedef struct {
     storage_package_object_kind_t kind;
-    bool has_set_id;
+    bool has_package_id;
     app_uuid_t set_id;
     /* The object itself, when the failing read could identify it. */
     bool has_object_id;
@@ -51,7 +51,7 @@ typedef struct {
 
 typedef struct {
     storage_package_object_kind_t kind;
-    bool has_set_id;
+    bool has_package_id;
     app_uuid_t set_id;
     app_uuid_t object_id;
 } storage_package_skipped_object_t;
@@ -83,10 +83,10 @@ typedef struct {
     app_uuid_t set_id;
     /* APP_ERROR_NONE when this set's file was written in full. */
     app_error_code_t result;
-} storage_restore_set_outcome_t;
+} storage_restore_package_outcome_t;
 
 typedef struct {
-    storage_restore_set_outcome_t items[APP_MACRO_SETS_MAX];
+    storage_restore_package_outcome_t items[APP_MACRO_SETS_MAX];
     size_t count;
     size_t written;
     size_t failed;
@@ -100,11 +100,11 @@ typedef struct {
  * package was written. */
 app_error_code_t storage_package_restore_backup(const char *data, size_t length,
                                                 storage_restore_report_t *out_report);
-app_error_code_t storage_package_replace_set(const app_uuid_t *target_set_id,
-                                             uint32_t expected_revision, const char *data,
-                                             size_t length, macro_set_t *out_set);
-app_error_code_t storage_package_import_set(const app_uuid_t *new_set_id, const char *data,
-                                            size_t length, macro_set_t *out_set);
+app_error_code_t storage_package_replace(const app_uuid_t *target_package_id,
+                                         uint32_t expected_revision, const char *data,
+                                         size_t length, macro_package_t *out_package);
+app_error_code_t storage_package_import(const app_uuid_t *new_package_id, const char *data,
+                                        size_t length, macro_package_t *out_package);
 void storage_package_free(char *data);
 
 #endif

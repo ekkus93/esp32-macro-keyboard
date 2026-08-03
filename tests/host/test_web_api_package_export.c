@@ -17,7 +17,7 @@
 #include "storage_repository.h"
 #include "storage_repository_lock.h"
 #include "storage_repository_macros_internal.h"
-#include "storage_repository_sets_internal.h"
+#include "storage_repository_packages_internal.h"
 #include "test_assert.h"
 #include "test_temp_dir.h"
 #include "web_api_handlers.h"
@@ -68,8 +68,8 @@ static void reset_store(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_init());
 }
 
-static macro_set_t make_set(void) {
-    macro_set_t set = {
+static macro_package_t make_package(void) {
+    macro_package_t set = {
         .schema_version = APP_SCHEMA_VERSION,
         .id = uuid(SET_ID),
         .revision = 1U,
@@ -108,10 +108,10 @@ static app_error_code_t export_lock_give(void *context) {
     return storage_repository_lock_give();
 }
 
-static app_error_code_t export_set_read(void *context, const app_uuid_t *set_id,
-                                        macro_set_t *out_set) {
+static app_error_code_t export_package_read(void *context, const app_uuid_t *set_id,
+                                            macro_package_t *out_package) {
     (void)context;
-    return storage_set_read_locked(set_id, out_set);
+    return storage_package_read_locked(set_id, out_package);
 }
 
 static app_error_code_t export_macro_list(void *context, const app_uuid_t *set_id,
@@ -130,7 +130,7 @@ static void install_export_operations(void) {
         .context = NULL,
         .lock_take = export_lock_take,
         .lock_give = export_lock_give,
-        .set_read = export_set_read,
+        .set_read = export_package_read,
         .macro_list = export_macro_list,
         .macro_list_free = export_macro_list_free,
     };
@@ -138,8 +138,8 @@ static void install_export_operations(void) {
 }
 
 static void populate_store(void) {
-    macro_set_t set = make_set();
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
+    macro_package_t set = make_package();
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_create(&set));
 
     macro_t local = make_macro(LOCAL_MACRO_ID, &set.id, "Local Macro", "a");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&set.id, &local));
@@ -151,13 +151,13 @@ static void populate_store(void) {
 
     /* A macro of a different set: present in the repository, and so outside
      * this export's scope. */
-    macro_set_t other_set = make_set();
-    other_set.id = uuid(OTHER_SET_ID);
-    TEST_CHECK(snprintf(other_set.name, sizeof(other_set.name), "Other Set") > 0);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&other_set));
-    macro_t unused = make_macro(OTHER_SET_MACRO_ID, &other_set.id, UNUSED_SENTINEL,
+    macro_package_t other_package = make_package();
+    other_package.id = uuid(OTHER_SET_ID);
+    TEST_CHECK(snprintf(other_package.name, sizeof(other_package.name), "Other Set") > 0);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_create(&other_package));
+    macro_t unused = make_macro(OTHER_SET_MACRO_ID, &other_package.id, UNUSED_SENTINEL,
                                 "unreferenced-secret-source");
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&other_set.id, &unused));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&other_package.id, &unused));
     macro_model_free_macro(&unused);
 }
 
@@ -167,7 +167,7 @@ static web_api_response_t invoke_export(const char *set_id) {
         .path =
             {
                 .route = WEB_API_ROUTE_SET_EXPORT,
-                .has_set_id = true,
+                .has_package_id = true,
                 .set_id = {.value = ""},
             },
         .body = "",
@@ -176,7 +176,7 @@ static web_api_response_t invoke_export(const char *set_id) {
     web_api_call_t mutable_call = call;
     mutable_call.path.set_id = uuid(set_id);
     web_api_response_t response = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_handle_sets(&mutable_call, &response));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_handle_packages(&mutable_call, &response));
     TEST_CHECK(response.body != NULL);
     return response;
 }
@@ -189,7 +189,7 @@ static web_api_response_t invoke_import(const char *body) {
         .body_length = strlen(body),
     };
     web_api_response_t response = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_handle_sets(&call, &response));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_handle_packages(&call, &response));
     TEST_CHECK(response.body != NULL);
     return response;
 }
@@ -234,9 +234,9 @@ static void test_import_route(void) {
     TEST_CHECK(strstr(response.body, "\"ok\":true") != NULL);
     TEST_CHECK(strstr(response.body, "Imported Replacement") != NULL);
     TEST_CHECK(strstr(response.body, "\"revision\":2") != NULL);
-    macro_set_t committed = {0};
+    macro_package_t committed = {0};
     const app_uuid_t set_id = uuid(SET_ID);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_read(&set_id, &committed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_read(&set_id, &committed));
     TEST_CHECK_EQ_U64(2U, committed.revision);
     TEST_CHECK_EQ_STRING("Imported Replacement", committed.name);
     web_api_response_free(&response);
@@ -277,7 +277,7 @@ static void test_export_route(void) {
     web_api_response_free(&response);
 }
 
-static void test_missing_set_error_envelope(void) {
+static void test_missing_package_error_envelope(void) {
     web_api_response_t response = invoke_export(MISSING_SET_ID);
     TEST_CHECK_EQ_U64(404U, response.status);
     TEST_CHECK(strstr(response.body, "\"ok\":false") != NULL);
@@ -292,7 +292,7 @@ int main(void) {
     install_export_operations();
     test_export_route();
     test_import_route();
-    test_missing_set_error_envelope();
+    test_missing_package_error_envelope();
     storage_package_reset_export_ops_for_test();
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_deinit());
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);

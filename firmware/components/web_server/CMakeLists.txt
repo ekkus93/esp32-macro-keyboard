@@ -20,7 +20,7 @@ idf_component_register(
     "web_api_response.c"
     "web_api_json.c"
     "web_api_handler_common.c"
-    "web_api_sets.c"
+    "web_api_packages.c"
     "web_api_macros.c"
     "web_api_execution.c"
     "web_api_administration.c"

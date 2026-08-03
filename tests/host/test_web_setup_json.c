@@ -62,7 +62,7 @@ static void test_valid_document(void) {
     TEST_CHECK_EQ_STRING("correct-horse-battery", submission.ap_passphrase);
     TEST_CHECK_EQ_STRING("admin-password-strong", submission.administrator_password);
     TEST_CHECK(submission.require_physical_confirmation);
-    TEST_CHECK(!submission.always_select_set);
+    TEST_CHECK(!submission.always_select_package);
     TEST_CHECK_EQ_U64(VALID_DOCUMENT_ZERO_CALLS, fixture.calls);
     TEST_CHECK(fixture.bytes > sizeof(body));
 }

@@ -23,8 +23,9 @@
  * two functions are the whole of that, and the set and macro repositories are
  * both written on top of them rather than each reimplementing it. */
 
-app_error_code_t storage_repository_load_set_document(const app_uuid_t *set_id,
-                                                      storage_set_document_t *out_document) {
+app_error_code_t
+storage_repository_load_package_document(const app_uuid_t *set_id,
+                                         storage_package_document_t *out_document) {
     if (out_document != NULL) {
         memset(out_document, 0, sizeof(*out_document));
     }
@@ -32,7 +33,7 @@ app_error_code_t storage_repository_load_set_document(const app_uuid_t *set_id,
         return APP_ERROR_INVALID_ARGUMENT;
     }
     char path[APP_PATH_MAX_BYTES];
-    app_error_code_t result = storage_make_set_path(set_id, path, sizeof(path));
+    app_error_code_t result = storage_make_package_path(set_id, path, sizeof(path));
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -42,12 +43,12 @@ app_error_code_t storage_repository_load_set_document(const app_uuid_t *set_id,
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    result = storage_set_document_parse(data, length, out_document);
+    result = storage_package_document_parse(data, length, out_document);
     free(data);
     if (result == APP_ERROR_NONE && !app_uuid_equal(&out_document->set.id, set_id)) {
         /* A set file whose own id does not match its name is corrupt, not a set
          * that has moved. */
-        storage_set_document_free(out_document);
+        storage_package_document_free(out_document);
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     if (result == APP_ERROR_STORAGE_CORRUPT) {
@@ -100,16 +101,16 @@ static app_error_code_t measure_entry(measure_request_t request, size_t *out_byt
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_repository_measure_user_data(const app_uuid_t *exclude_set_id,
+app_error_code_t storage_repository_measure_user_data(const app_uuid_t *exclude_package_id,
                                                       size_t *out_bytes) {
     if (out_bytes == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     *out_bytes = 0U;
     char excluded[APP_PATH_MAX_BYTES] = {0};
-    if (exclude_set_id != NULL) {
+    if (exclude_package_id != NULL) {
         const app_error_code_t path_result =
-            storage_make_set_path(exclude_set_id, excluded, sizeof(excluded));
+            storage_make_package_path(exclude_package_id, excluded, sizeof(excluded));
         if (path_result != APP_ERROR_NONE) {
             return path_result;
         }
@@ -146,18 +147,19 @@ app_error_code_t storage_repository_measure_user_data(const app_uuid_t *exclude_
     return result;
 }
 
-app_error_code_t storage_repository_store_set_document(const storage_set_document_t *document) {
+app_error_code_t
+storage_repository_store_package_document(const storage_package_document_t *document) {
     if (document == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     char path[APP_PATH_MAX_BYTES];
-    app_error_code_t result = storage_make_set_path(&document->set.id, path, sizeof(path));
+    app_error_code_t result = storage_make_package_path(&document->set.id, path, sizeof(path));
     if (result != APP_ERROR_NONE) {
         return result;
     }
     char *json = NULL;
     size_t length = 0U;
-    result = storage_set_document_serialize(document, &json, &length);
+    result = storage_package_document_serialize(document, &json, &length);
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -177,9 +179,9 @@ app_error_code_t storage_repository_store_set_document(const storage_set_documen
     return result;
 }
 
-app_error_code_t storage_repository_remove_set_file(const app_uuid_t *set_id) {
+app_error_code_t storage_repository_remove_package_file(const app_uuid_t *set_id) {
     char path[APP_PATH_MAX_BYTES];
-    const app_error_code_t result = storage_make_set_path(set_id, path, sizeof(path));
+    const app_error_code_t result = storage_make_package_path(set_id, path, sizeof(path));
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -189,7 +191,7 @@ app_error_code_t storage_repository_remove_set_file(const app_uuid_t *set_id) {
     return errno == ENOENT ? APP_ERROR_NONE : storage_repository_map_file_error();
 }
 
-size_t storage_repository_find_macro(const storage_set_document_t *document,
+size_t storage_repository_find_macro(const storage_package_document_t *document,
                                      const app_uuid_t *macro_id) {
     for (size_t index = 0U; index < document->macro_count; ++index) {
         if (app_uuid_equal(&document->macros[index].id, macro_id)) {

@@ -31,7 +31,7 @@ static const char BACKUP_PACKAGE[] =
     "\"source\":\"a\",\"key_press_ms\":8,"
     "\"inter_key_ms\":15,\"set_id\":\"" SET_ID "\"}]}";
 
-static bool inject_set_write_storage_full;
+static bool inject_package_write_storage_full;
 
 app_error_code_t __real_storage_atomic_write(const char *path, const void *data, size_t data_length,
                                              bool sync_required);
@@ -51,7 +51,7 @@ app_error_code_t __wrap_storage_atomic_write(const char *path, const void *data,
                                              bool sync_required) {
     /* A set is one file under /data/sets/ (SPEC 13.3), so the injection point is
      * that file itself. */
-    if (inject_set_write_storage_full && path != NULL && strstr(path, "/sets/") != NULL &&
+    if (inject_package_write_storage_full && path != NULL && strstr(path, "/sets/") != NULL &&
         path_has_suffix(path, ".json")) {
         return APP_ERROR_STORAGE_FULL;
     }
@@ -85,7 +85,7 @@ static void remove_storage(void) {
 }
 
 static void create_repository_layout(void) {
-    inject_set_write_storage_full = false;
+    inject_package_write_storage_full = false;
     remove_storage();
     make_directory(STORAGE_DATA_MOUNT);
     char path[APP_PATH_MAX_BYTES];
@@ -130,7 +130,7 @@ static void assert_repository_remains_empty(void) {
 
 /* SPEC 13.5: restore is deliberately not atomic across sets. What it must still
  * guarantee is that each set it does write lands complete. */
-static void test_complete_backup_restores_every_set(void) {
+static void test_complete_backup_restores_every_package(void) {
     create_empty_repository();
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_restore_backup(
                                              BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U, NULL));
@@ -150,7 +150,7 @@ static void test_complete_backup_restores_every_set(void) {
 /* Mutual-exclusion prover: models one non-recursive lock. On the armed take it
  * fires a one-shot interloper -- a concurrent locking operation -- while the lock
  * is held; the interloper's own take is rejected, proving it would block behind
- * the operation under test. Mirrors test_storage_sets.c's mx_lock_state_t. */
+ * the operation under test. Mirrors test_storage_packages.c's mx_lock_state_t. */
 typedef struct {
     bool held;
     app_error_code_t (*interloper)(void);
@@ -194,10 +194,10 @@ static const storage_repository_lock_ops_t mx_ops = {
     .deinit = mx_noop,
 };
 
-static app_error_code_t interloper_delete_restored_set(void) {
+static app_error_code_t interloper_delete_restored_package(void) {
     app_uuid_t id = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_parse(SET_ID, &id));
-    return storage_set_delete(&id, 1U);
+    return storage_package_delete(&id, 1U);
 }
 
 /* Restore holds the repository lock for its whole stage/commit pass (FIX1
@@ -206,8 +206,8 @@ static app_error_code_t interloper_delete_restored_set(void) {
 static void test_concurrency_restore_excludes_mutation(void) {
     create_empty_repository();
 
-    g_mx =
-        (mx_lock_state_t){.interloper = interloper_delete_restored_set, .interloper_armed = true};
+    g_mx = (mx_lock_state_t){.interloper = interloper_delete_restored_package,
+                             .interloper_armed = true};
     storage_repository_lock_set_ops(&mx_ops);
     const app_error_code_t result =
         storage_package_restore_backup(BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U, NULL);
@@ -222,12 +222,12 @@ static void test_concurrency_restore_excludes_mutation(void) {
 /* A storage-full failure part-way through must not leave a half-written set
  * behind pretending to be real data. */
 /* SPEC 24.2 item: partial restore reporting per-set outcomes */
-static void test_storage_full_during_restore_leaves_no_partial_set(void) {
+static void test_storage_full_during_restore_leaves_no_partial_package(void) {
     create_empty_repository();
-    inject_set_write_storage_full = true;
+    inject_package_write_storage_full = true;
     const app_error_code_t result =
         storage_package_restore_backup(BACKUP_PACKAGE, sizeof(BACKUP_PACKAGE) - 1U, NULL);
-    inject_set_write_storage_full = false;
+    inject_package_write_storage_full = false;
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL, result);
     assert_repository_remains_empty();
 }
@@ -252,9 +252,9 @@ static void test_restore_requires_initialized_repository_lock(void) {
 }
 
 int main(void) {
-    test_complete_backup_restores_every_set();
+    test_complete_backup_restores_every_package();
     test_concurrency_restore_excludes_mutation();
-    test_storage_full_during_restore_leaves_no_partial_set();
+    test_storage_full_during_restore_leaves_no_partial_package();
     test_invalid_backup_does_not_mutate_repository();
     test_restore_requires_initialized_repository_lock();
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());

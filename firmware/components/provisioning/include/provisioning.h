@@ -20,7 +20,7 @@ typedef struct {
     char ap_passphrase[WIFI_AP_PASSPHRASE_MAX_BYTES + 1U];
     auth_password_record_t password_record;
     bool require_physical_confirmation;
-    bool always_select_set;
+    bool always_select_package;
     /* Station-mode credentials for an existing Wi-Fi network, persisted in the
      * same NVS record as everything else the device remembers. When present the
      * device joins this network at boot and falls back to AP-only if it cannot
@@ -34,7 +34,7 @@ typedef struct {
     uint32_t schema_version;
     uint32_t revision;
     bool require_physical_confirmation;
-    bool always_select_set;
+    bool always_select_package;
 } provisioning_settings_t;
 
 app_error_code_t provisioning_init(void);

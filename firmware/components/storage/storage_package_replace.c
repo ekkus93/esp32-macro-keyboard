@@ -17,7 +17,7 @@
 #include "storage_package_reader.h"
 #include "storage_repository_document.h"
 #include "storage_repository_lock.h"
-#include "storage_repository_sets_internal.h"
+#include "storage_repository_packages_internal.h"
 
 /* The package's own tree, plus the single set it replaces the target with.
  * `sets[0]` is that set: a set package carries exactly one, which
@@ -26,7 +26,7 @@
  * storage_package.c, not stated as a rule anywhere in the specification. */
 typedef struct {
     package_tree_t tree;
-    macro_set_t replacement;
+    macro_package_t replacement;
 } package_replace_document_t;
 
 static void close_document(package_replace_document_t *document) {
@@ -42,8 +42,8 @@ static app_error_code_t open_document(const char *data, size_t length,
     memset(out_document, 0, sizeof(*out_document));
     app_error_code_t result = package_tree_open(data, length, &out_document->tree);
     if (result == APP_ERROR_NONE) {
-        result = package_parse_set_node(cJSON_GetArrayItem(out_document->tree.sets, 0),
-                                        &out_document->replacement);
+        result = package_parse_metadata_node(cJSON_GetArrayItem(out_document->tree.sets, 0),
+                                             &out_document->replacement);
     }
     if (result != APP_ERROR_NONE) {
         close_document(out_document);
@@ -54,8 +54,8 @@ static app_error_code_t open_document(const char *data, size_t length,
 /* Assembles the replacement set as one document. Macro identities and revisions
  * come from the package unchanged: replacement substitutes the set's contents,
  * it does not mint new identities the way import-new does. */
-static app_error_code_t materialize_set(const package_replace_document_t *document,
-                                        storage_set_document_t *out_stored) {
+static app_error_code_t materialize_package(const package_replace_document_t *document,
+                                            storage_package_document_t *out_stored) {
     const cJSON *array = document->tree.macros;
     const int count = cJSON_GetArraySize(array);
     if (count < 0 || (size_t)count > APP_MACROS_PER_SET_MAX) {
@@ -84,7 +84,7 @@ static app_error_code_t materialize_set(const package_replace_document_t *docume
         ++out_stored->macro_count;
     }
     if (result != APP_ERROR_NONE) {
-        storage_set_document_free(out_stored);
+        storage_package_document_free(out_stored);
     }
     return result;
 }
@@ -100,39 +100,41 @@ static app_error_code_t materialize_set(const package_replace_document_t *docume
  * Phase 3 had to remove the old tree and rebuild it in place, which was not
  * atomic and said so at this call site. That window is closed.
  */
-static app_error_code_t replace_locked(const app_uuid_t *target_set_id, uint32_t expected_revision,
-                                       package_replace_document_t *document, macro_set_t *out_set) {
-    macro_set_t current = {0};
-    app_error_code_t result = storage_set_read_locked(target_set_id, &current);
+static app_error_code_t replace_locked(const app_uuid_t *target_package_id,
+                                       uint32_t expected_revision,
+                                       package_replace_document_t *document,
+                                       macro_package_t *out_package) {
+    macro_package_t current = {0};
+    app_error_code_t result = storage_package_read_locked(target_package_id, &current);
     if (result == APP_ERROR_NONE && current.revision != expected_revision) {
         result = APP_ERROR_CONFLICT;
     }
-    storage_set_document_t stored = {0};
+    storage_package_document_t stored = {0};
     if (result == APP_ERROR_NONE) {
-        result = materialize_set(document, &stored);
+        result = materialize_package(document, &stored);
     }
     if (result == APP_ERROR_NONE) {
-        result = storage_repository_store_set_document(&stored);
+        result = storage_repository_store_package_document(&stored);
     }
-    storage_set_document_free(&stored);
+    storage_package_document_free(&stored);
     if (result == APP_ERROR_NONE) {
-        result = storage_set_read_locked(target_set_id, out_set);
+        result = storage_package_read_locked(target_package_id, out_package);
     }
-    if (result == APP_ERROR_NONE && out_set->revision != document->replacement.revision) {
-        memset(out_set, 0, sizeof(*out_set));
+    if (result == APP_ERROR_NONE && out_package->revision != document->replacement.revision) {
+        memset(out_package, 0, sizeof(*out_package));
         result = APP_ERROR_STORAGE_CORRUPT;
     }
     return result;
 }
 
-app_error_code_t storage_package_replace_set(const app_uuid_t *target_set_id,
-                                             uint32_t expected_revision, const char *data,
-                                             size_t length, macro_set_t *out_set) {
-    if (out_set != NULL) {
-        memset(out_set, 0, sizeof(*out_set));
+app_error_code_t storage_package_replace(const app_uuid_t *target_package_id,
+                                         uint32_t expected_revision, const char *data,
+                                         size_t length, macro_package_t *out_package) {
+    if (out_package != NULL) {
+        memset(out_package, 0, sizeof(*out_package));
     }
-    if (target_set_id == NULL || expected_revision == 0U || data == NULL || length == 0U ||
-        out_set == NULL || !app_uuid_is_valid_string(target_set_id->value)) {
+    if (target_package_id == NULL || expected_revision == 0U || data == NULL || length == 0U ||
+        out_package == NULL || !app_uuid_is_valid_string(target_package_id->value)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     storage_package_summary_t summary = {0};
@@ -143,17 +145,17 @@ app_error_code_t storage_package_replace_set(const app_uuid_t *target_set_id,
     }
     package_replace_document_t document = {0};
     result = open_document(data, length, &document);
-    if (result == APP_ERROR_NONE && !app_uuid_equal(target_set_id, &document.replacement.id)) {
+    if (result == APP_ERROR_NONE && !app_uuid_equal(target_package_id, &document.replacement.id)) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
     if (result == APP_ERROR_NONE) {
         result = storage_repository_lock_take();
     }
     if (result == APP_ERROR_NONE) {
-        result = replace_locked(target_set_id, expected_revision, &document, out_set);
+        result = replace_locked(target_package_id, expected_revision, &document, out_package);
         const app_error_code_t unlock = storage_repository_lock_give();
         if (unlock != APP_ERROR_NONE) {
-            memset(out_set, 0, sizeof(*out_set));
+            memset(out_package, 0, sizeof(*out_package));
             result = APP_ERROR_INTERNAL;
         }
     }

@@ -115,7 +115,7 @@ static web_setup_configuration_t configuration(void) {
 static web_setup_submission_t submission(void) {
     web_setup_submission_t value = {
         .require_physical_confirmation = true,
-        .always_select_set = true,
+        .always_select_package = true,
     };
     TEST_CHECK_EQ_INT(
         24, snprintf(value.setup_code, sizeof(value.setup_code), "%s", "45175C9BB39D8BE5FC7EF773"));
@@ -133,7 +133,7 @@ static void initialize(web_setup_core_t *core, fake_setup_t *fake) {
         .schema_version = APP_SCHEMA_VERSION,
         .revision = 0U,
         .require_physical_confirmation = true,
-        .always_select_set = true,
+        .always_select_package = true,
     };
     const web_setup_ops_t ops = operations(fake);
     const web_setup_configuration_t config = configuration();
@@ -207,7 +207,7 @@ static void test_success_requires_code_and_confirmation(void) {
  *
  * This is the third time the same defect has appeared: a writer that rebuilds a
  * shared record with a designated initialiser, so every field it does not name
- * is silently zeroed. storage_set_reorder dropped the active set the same way.
+ * is silently zeroed. storage_package_reorder dropped the active set the same way.
  * Found on hardware -- the device came back from setup on its access point
  * alone, having forgotten the network it had been joining since boot. */
 static void test_setup_preserves_a_stored_station_network(void) {

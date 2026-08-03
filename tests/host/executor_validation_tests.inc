@@ -1,5 +1,4 @@
-static void test_engine_and_request_validation(void)
-{
+static void test_engine_and_request_validation(void) {
     executor_fake_t fake;
     executor_fake_reset(&fake);
     macro_executor_engine_t engine;
@@ -15,49 +14,60 @@ static void test_engine_and_request_validation(void)
     macro_execution_request_t request = executor_make_request(1U);
     free(request.plan.actions);
     request.plan.actions = NULL;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         macro_executor_engine_submit(&engine, &request));
 
     request = executor_make_request(0U);
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         macro_executor_engine_submit(&engine, &request));
     executor_free_unowned_request(&request);
 
     request = executor_make_request(1U);
     request.plan.action_count = APP_COMPILED_ACTION_MAX + 1U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         macro_executor_engine_submit(&engine, &request));
     executor_free_unowned_request(&request);
 
     request = executor_make_request(1U);
     request.plan.estimated_duration_ms = APP_ESTIMATED_DURATION_MAX_MS + 1U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         macro_executor_engine_submit(&engine, &request));
     executor_free_unowned_request(&request);
 
     request = executor_make_request(1U);
     request.key_press_ms = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         macro_executor_engine_submit(&engine, &request));
     request.key_press_ms = APP_DELAY_MAX_MS + 1U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         macro_executor_engine_submit(&engine, &request));
     executor_free_unowned_request(&request);
 
     request = executor_make_request(1U);
     request.inter_key_ms = APP_DELAY_MAX_MS + 1U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         macro_executor_engine_submit(&engine, &request));
     executor_free_unowned_request(&request);
 
     request = executor_make_request(1U);
     request.execution_id.value[0] = 'x';
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         macro_executor_engine_submit(&engine, &request));
     executor_free_unowned_request(&request);
     request = executor_make_request(1U);
     request.set_id.value[0] = 'x';
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         macro_executor_engine_submit(&engine, &request));
     executor_free_unowned_request(&request);
     request = executor_make_request(1U);
     request.macro_id.value[0] = 'x';
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         macro_executor_engine_submit(&engine, &request));
     executor_free_unowned_request(&request);
     request = executor_make_request(1U);
     request.macro_revision = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         macro_executor_engine_submit(&engine, &request));
     executor_free_unowned_request(&request);
 
     request = executor_make_request(1U);
@@ -68,8 +78,7 @@ static void test_engine_and_request_validation(void)
 }
 
 /* SPEC 24.3 item: busy rejection */
-static void test_submission_ownership_and_recovery(void)
-{
+static void test_submission_ownership_and_recovery(void) {
     executor_fake_t fake;
     executor_fake_reset(&fake);
     macro_executor_engine_t engine;
@@ -102,8 +111,7 @@ static void test_submission_ownership_and_recovery(void)
     macro_execution_request_t second = executor_make_request(1U);
     second.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 5U};
     macro_action_t *const second_actions = second.plan.actions;
-    TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTOR_BUSY,
-                         macro_executor_engine_submit(&engine, &second));
+    TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTOR_BUSY, macro_executor_engine_submit(&engine, &second));
     TEST_CHECK(second.plan.actions == second_actions);
     executor_free_unowned_request(&second);
 
@@ -116,8 +124,7 @@ static void test_submission_ownership_and_recovery(void)
     TEST_CHECK_EQ_U64(2U, fake.free_count);
 }
 
-static void test_strict_get_status_sequence(void)
-{
+static void test_strict_get_status_sequence(void) {
     executor_fake_t fake;
     executor_fake_reset(&fake);
     macro_executor_engine_t engine;
@@ -139,8 +146,7 @@ static void test_strict_get_status_sequence(void)
     TEST_CHECK(status.state == EXECUTION_IDLE);
 }
 
-void executor_run_validation_tests(void)
-{
+void executor_run_validation_tests(void) {
     test_engine_and_request_validation();
     test_submission_ownership_and_recovery();
     test_strict_get_status_sequence();

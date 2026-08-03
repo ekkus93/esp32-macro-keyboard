@@ -235,7 +235,7 @@ static app_error_code_t handle_reset_settings(const web_api_call_t *call,
         /* Reset restores the default, which is off - see
          * provisioning_core.c default_configuration(). */
         .require_physical_confirmation = false,
-        .always_select_set = true,
+        .always_select_package = true,
     };
     provisioning_settings_t committed = {0};
     if (result == APP_ERROR_NONE) {

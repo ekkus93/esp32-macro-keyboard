@@ -74,10 +74,11 @@ app_error_code_t package_writer_append_serialized(package_writer_t *writer,
     return result;
 }
 
-app_error_code_t package_writer_append_set(package_writer_t *writer, const macro_set_t *set) {
+app_error_code_t package_writer_append_metadata(package_writer_t *writer,
+                                                const macro_package_t *set) {
     char *json = NULL;
     size_t length = 0U;
-    const app_error_code_t result = storage_repository_serialize_set_json(set, &json, &length);
+    const app_error_code_t result = storage_repository_serialize_package_json(set, &json, &length);
     return package_writer_append_serialized(writer, result, json, length);
 }
 

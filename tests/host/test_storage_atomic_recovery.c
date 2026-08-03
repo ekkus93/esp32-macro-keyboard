@@ -98,7 +98,7 @@ static void test_temporary_without_destination_is_discarded_not_activated(void) 
     TEST_CHECK(!path_exists(STORAGE_DATA_MOUNT "/sets/orphan.json"));
 }
 
-static void test_nested_set_directories_are_swept(void) {
+static void test_nested_package_directories_are_swept(void) {
     reset_store();
     make_directory(STORAGE_DATA_MOUNT "/sets/aaaaaaaa-0000-4000-8000-000000000001");
     make_directory(STORAGE_DATA_MOUNT "/sets/aaaaaaaa-0000-4000-8000-000000000001/macros");
@@ -170,7 +170,7 @@ static void test_invalid_operations_are_rejected(void) {
 int main(void) {
     test_stray_temporary_is_removed_at_boot();
     test_temporary_without_destination_is_discarded_not_activated();
-    test_nested_set_directories_are_swept();
+    test_nested_package_directories_are_swept();
     test_only_exact_tmp_suffix_is_removed();
     test_bare_tmp_name_is_not_treated_as_an_artifact();
     test_clean_repository_is_a_no_op();

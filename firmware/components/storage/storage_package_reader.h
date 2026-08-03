@@ -34,7 +34,8 @@ void package_tree_close(package_tree_t *tree);
 /* The repository's node parsers with the one difference a package needs: a
  * package is caller-supplied input, so a node that does not fit the schema is a
  * bad request (SPEC 17), not a corrupt store. */
-app_error_code_t package_parse_set_node(const struct cJSON *node, macro_set_t *out_set);
+app_error_code_t package_parse_metadata_node(const struct cJSON *node,
+                                             macro_package_t *out_package);
 app_error_code_t package_parse_macro_node(const struct cJSON *node, macro_t *out_macro);
 
 #endif

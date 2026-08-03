@@ -63,8 +63,8 @@ static void reset_store(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_init());
 }
 
-static macro_set_t make_set(uint32_t value) {
-    macro_set_t set = {
+static macro_package_t make_package(uint32_t value) {
+    macro_package_t set = {
         .schema_version = APP_SCHEMA_VERSION,
         .id = make_uuid(value),
         .revision = 1U,
@@ -91,9 +91,9 @@ static macro_t make_macro(uint32_t value, const app_uuid_t *set_id, const char *
     return macro;
 }
 
-static void create_set(macro_set_t *out_set) {
-    *out_set = make_set(100U);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(out_set));
+static void create_package(macro_package_t *out_package) {
+    *out_package = make_package(100U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_create(out_package));
 }
 
 static void assert_macro_equal(const macro_t *expected, const macro_t *actual) {
@@ -109,8 +109,8 @@ static void assert_macro_equal(const macro_t *expected, const macro_t *actual) {
 
 static void test_argument_validation(void) {
     reset_store();
-    macro_set_t set;
-    create_set(&set);
+    macro_package_t set;
+    create_package(&set);
     const app_uuid_t *location = &set.id;
     macro_t macro = make_macro(1U, location, "Arguments", "TEXT hello");
     macro_t output = {0};
@@ -133,10 +133,10 @@ static void test_argument_validation(void) {
     macro_model_free_macro(&macro);
 }
 
-static void test_set_local_crud_duplicate_and_order(void) {
+static void test_package_local_crud_duplicate_and_order(void) {
     reset_store();
-    macro_set_t set;
-    create_set(&set);
+    macro_package_t set;
+    create_package(&set);
     const app_uuid_t *location = &set.id;
     macro_t first = make_macro(10U, location, "First", "TEXT first");
     macro_t second = make_macro(20U, location, "Second", "TEXT second");
@@ -214,8 +214,8 @@ static void test_set_local_crud_duplicate_and_order(void) {
  * whole repository. The write path is where a malformed macro should be stopped. */
 static void test_uncompilable_source_is_refused_on_write(void) {
     reset_store();
-    macro_set_t set = {0};
-    create_set(&set);
+    macro_package_t set = {0};
+    create_package(&set);
 
     /* The exact syntax a device accepted and could never run: the parser wants
      * DELAY:, not a space. */
@@ -239,16 +239,16 @@ static void test_uncompilable_source_is_refused_on_write(void) {
     storage_macro_list_free(&list);
 }
 
-static void test_corrupt_set_file_is_discarded(void) {
+static void test_corrupt_package_file_is_discarded(void) {
     reset_store();
-    macro_set_t set;
-    create_set(&set);
+    macro_package_t set;
+    create_package(&set);
     const app_uuid_t *location = &set.id;
     macro_t macro = make_macro(60U, location, "Corrupt", "TEXT corrupt");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(location, &macro));
 
     char path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_set_path(&set.id, path, sizeof(path)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_package_path(&set.id, path, sizeof(path)));
     static const char invalid[] = "{not json";
     write_file(path, invalid, sizeof(invalid) - 1U);
 
@@ -262,15 +262,15 @@ static void test_corrupt_set_file_is_discarded(void) {
     macro_model_free_macro(&macro);
 }
 
-static void test_missing_set_and_revision_overflow(void) {
+static void test_missing_package_and_revision_overflow(void) {
     reset_store();
-    const macro_set_t absent = make_set(999U);
+    const macro_package_t absent = make_package(999U);
     macro_t macro = make_macro(70U, &absent.id, "Absent set", "TEXT absent");
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, storage_macro_create(&absent.id, &macro));
     macro_model_free_macro(&macro);
 
-    macro_set_t set;
-    create_set(&set);
+    macro_package_t set;
+    create_package(&set);
     const app_uuid_t *existing = &set.id;
     macro = make_macro(71U, existing, "Max revision", "TEXT max");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(existing, &macro));
@@ -280,14 +280,15 @@ static void test_missing_set_and_revision_overflow(void) {
     macro.revision = UINT32_MAX;
     char *json = NULL;
     size_t length = 0U;
-    const storage_set_document_t document = {
+    const storage_package_document_t document = {
         .set = set,
         .macros = &macro,
         .macro_count = 1U,
     };
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_document_serialize(&document, &json, &length));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_package_document_serialize(&document, &json, &length));
     char path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_set_path(&set.id, path, sizeof(path)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_package_path(&set.id, path, sizeof(path)));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_atomic_write(path, json, length, true));
     cJSON_free(json);
 
@@ -302,10 +303,10 @@ static void test_missing_set_and_revision_overflow(void) {
  * per-object limits, and an over-budget write is refused as a storage-capacity
  * failure rather than being allowed to fill the partition. */
 /* SPEC 24.2 item: rejection of an over-budget write with `507` */
-static void test_oversized_set_file_is_refused(void) {
+static void test_oversized_package_file_is_refused(void) {
     reset_store();
-    macro_set_t set = make_set(200U);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
+    macro_package_t set = make_package(200U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_create(&set));
 
     /* One macro whose source alone exceeds the 32 KiB set-file budget is
        impossible (sources are capped at 4096 bytes), so fill the set until the
@@ -351,19 +352,19 @@ static void test_oversized_set_file_is_refused(void) {
 static void test_discarded_object_records_path_and_reason(void) {
     reset_store();
     storage_incidents_reset();
-    macro_set_t set;
-    create_set(&set);
+    macro_package_t set;
+    create_package(&set);
     macro_t macro = make_macro(70U, &set.id, "Doomed", "TEXT doomed");
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&set.id, &macro));
     macro_model_free_macro(&macro);
 
     char path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_set_path(&set.id, path, sizeof(path)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_package_path(&set.id, path, sizeof(path)));
     static const char invalid[] = "{not json";
     write_file(path, invalid, sizeof(invalid) - 1U);
 
-    macro_set_t output = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_set_read(&set.id, &output));
+    macro_package_t output = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT, storage_package_read(&set.id, &output));
 
     storage_incident_report_t report = {0};
     storage_incidents_snapshot(&report);
@@ -392,11 +393,11 @@ int main(void) {
     test_argument_validation();
     test_discarded_object_records_path_and_reason();
     test_discard_record_is_bounded_but_counts_everything();
-    test_oversized_set_file_is_refused();
-    test_set_local_crud_duplicate_and_order();
+    test_oversized_package_file_is_refused();
+    test_package_local_crud_duplicate_and_order();
     test_uncompilable_source_is_refused_on_write();
-    test_corrupt_set_file_is_discarded();
-    test_missing_set_and_revision_overflow();
+    test_corrupt_package_file_is_discarded();
+    test_missing_package_and_revision_overflow();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());
     puts("storage macro repository tests passed");

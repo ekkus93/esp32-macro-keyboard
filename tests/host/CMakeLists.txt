@@ -379,7 +379,7 @@ add_executable(
     ../../firmware/components/storage/storage_json.c
     ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/storage/storage_repository_index.c
-    ../../firmware/components/storage/storage_repository_sets.c
+    ../../firmware/components/storage/storage_repository_packages.c
     ../../firmware/components/storage/storage_repository_document.c
     ../../firmware/components/storage/storage_repository_lock.c
 )
@@ -491,8 +491,8 @@ add_executable(
     ../../firmware/components/storage/storage_json.c
     ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/storage/storage_repository_index.c
-    ../../firmware/components/storage/storage_repository_sets.c
-    ../../firmware/components/storage/storage_repository_set_operations.c
+    ../../firmware/components/storage/storage_repository_packages.c
+    ../../firmware/components/storage/storage_repository_package_operations.c
     ../../firmware/components/storage/storage_repository_document.c
     ../../firmware/components/storage/storage_repository_lock.c
 )
@@ -526,9 +526,9 @@ set(STORAGE_OBJECT_REPOSITORY_SOURCES
     ../../firmware/components/storage/storage_json.c
     ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/storage/storage_repository_index.c
-    ../../firmware/components/storage/storage_repository_sets.c
+    ../../firmware/components/storage/storage_repository_packages.c
     ../../firmware/components/storage/storage_repository_document.c
-    ../../firmware/components/storage/storage_repository_set_operations.c
+    ../../firmware/components/storage/storage_repository_package_operations.c
     ../../firmware/components/storage/storage_repository_lock.c
     ../../firmware/components/storage/storage_repository_macros.c
 )
@@ -600,7 +600,7 @@ function(add_storage_object_repository_test target source mount_name)
 endfunction()
 
 add_storage_object_repository_test(
-    storage_active_set_delete_tests test_storage_active_set_delete.c p15a
+    storage_active_set_delete_tests test_storage_active_package_delete.c p15a
 )
 
 add_executable(
@@ -798,7 +798,7 @@ add_executable(
     ../../firmware/components/web_server/web_api_response.c
     ../../firmware/components/web_server/web_api_json.c
     ../../firmware/components/web_server/web_api_handler_common.c
-    ../../firmware/components/web_server/web_api_sets.c
+    ../../firmware/components/web_server/web_api_packages.c
     ../../firmware/components/web_server/web_api_macros.c
 )
 target_include_directories(

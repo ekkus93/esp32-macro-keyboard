@@ -34,7 +34,8 @@ app_error_code_t storage_mount_all(void);
 app_error_code_t storage_unmount_all(void);
 storage_mount_state_t storage_mount_state(void);
 app_error_code_t storage_prepare_directories(void);
-app_error_code_t storage_make_set_path(const app_uuid_t *set_id, char *buffer, size_t buffer_size);
+app_error_code_t storage_make_package_path(const app_uuid_t *set_id, char *buffer,
+                                           size_t buffer_size);
 app_error_code_t storage_atomic_write(const char *path, const void *data, size_t data_length,
                                       bool sync_required);
 app_error_code_t storage_atomic_recover_all(void);

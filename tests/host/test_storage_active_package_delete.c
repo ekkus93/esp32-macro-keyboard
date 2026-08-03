@@ -51,8 +51,8 @@ static void reset_store(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_init());
 }
 
-static macro_set_t make_set(uint32_t value) {
-    macro_set_t set = {
+static macro_package_t make_package(uint32_t value) {
+    macro_package_t set = {
         .schema_version = APP_SCHEMA_VERSION,
         .id = make_uuid(value),
         .revision = 1U,
@@ -61,10 +61,10 @@ static macro_set_t make_set(uint32_t value) {
     return set;
 }
 
-static void assert_active_set(bool expected_present, const app_uuid_t *expected_id) {
+static void assert_active_package(bool expected_present, const app_uuid_t *expected_id) {
     bool present = true;
     app_uuid_t active = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_active_set_read(&present, &active));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_active_package_read(&present, &active));
     TEST_CHECK_EQ_INT((int)expected_present, (int)present);
     if (expected_present) {
         TEST_CHECK_EQ_UUID(expected_id, &active);
@@ -72,98 +72,98 @@ static void assert_active_set(bool expected_present, const app_uuid_t *expected_
 }
 
 /* SPEC 10.1: nothing infers an active set. A fresh repository has none. */
-static void test_fresh_repository_has_no_active_set(void) {
+static void test_fresh_repository_has_no_active_package(void) {
     reset_store();
-    assert_active_set(false, NULL);
+    assert_active_package(false, NULL);
 }
 
-static void test_select_requires_an_existing_set(void) {
+static void test_select_requires_an_existing_package(void) {
     reset_store();
     const app_uuid_t absent = make_uuid(99U);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, storage_set_select(&absent));
-    assert_active_set(false, NULL);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, storage_package_select(&absent));
+    assert_active_package(false, NULL);
 }
 
-static void test_select_records_the_active_set(void) {
+static void test_select_records_the_active_package(void) {
     reset_store();
-    macro_set_t set = make_set(10U);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
+    macro_package_t set = make_package(10U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_create(&set));
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_select(&set.id));
-    assert_active_set(true, &set.id);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_select(&set.id));
+    assert_active_package(true, &set.id);
 }
 
 /* Deleting the active set clears it in the same write that removes it from the
  * order: the two cannot disagree, because they are one file. */
-static void test_deleting_the_active_set_clears_it(void) {
+static void test_deleting_the_active_package_clears_it(void) {
     reset_store();
-    macro_set_t set = make_set(20U);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_select(&set.id));
+    macro_package_t set = make_package(20U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_create(&set));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_select(&set.id));
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_delete(&set.id, 1U));
-    assert_active_set(false, NULL);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_delete(&set.id, 1U));
+    assert_active_package(false, NULL);
     char path[APP_PATH_MAX_BYTES];
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_set_path(&set.id, path, sizeof(path)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_make_package_path(&set.id, path, sizeof(path)));
     TEST_CHECK(!path_exists(path));
 }
 
-static void test_deleting_another_set_preserves_the_active_set(void) {
+static void test_deleting_another_package_preserves_the_active_package(void) {
     reset_store();
-    macro_set_t deleted = make_set(30U);
-    macro_set_t active = make_set(31U);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&deleted));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&active));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_select(&active.id));
+    macro_package_t deleted = make_package(30U);
+    macro_package_t active = make_package(31U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_create(&deleted));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_create(&active));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_select(&active.id));
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_delete(&deleted.id, 1U));
-    assert_active_set(true, &active.id);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_delete(&deleted.id, 1U));
+    assert_active_package(true, &active.id);
 }
 
 /* A failed delete must leave both halves untouched -- the set still readable and
  * still active -- rather than clearing the selection for a set that is still
  * there. A stale expected revision is the reachable way to fail one. */
-static void test_failed_delete_preserves_the_active_set(void) {
+static void test_failed_delete_preserves_the_active_package(void) {
     reset_store();
-    macro_set_t set = make_set(40U);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_select(&set.id));
+    macro_package_t set = make_package(40U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_create(&set));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_select(&set.id));
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_set_delete(&set.id, 99U));
-    assert_active_set(true, &set.id);
-    macro_set_t readback = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_read(&set.id, &readback));
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_package_delete(&set.id, 99U));
+    assert_active_package(true, &set.id);
+    macro_package_t readback = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_read(&set.id, &readback));
 }
 
 /* Re-selecting the set that is already active is a no-op that must not burn an
  * index revision. */
-static void test_reselecting_the_active_set_is_idempotent(void) {
+static void test_reselecting_the_active_package_is_idempotent(void) {
     reset_store();
-    macro_set_t set = make_set(50U);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_create(&set));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_select(&set.id));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_set_select(&set.id));
-    assert_active_set(true, &set.id);
+    macro_package_t set = make_package(50U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_create(&set));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_select(&set.id));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_package_select(&set.id));
+    assert_active_package(true, &set.id);
 }
 
 static void test_invalid_arguments_are_rejected(void) {
     reset_store();
     bool present = false;
     app_uuid_t active = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_set_select(NULL));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_active_set_read(NULL, &active));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_active_set_read(&present, NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_package_select(NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_active_package_read(NULL, &active));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_active_package_read(&present, NULL));
 }
 
 int main(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_init());
-    test_fresh_repository_has_no_active_set();
-    test_select_requires_an_existing_set();
-    test_select_records_the_active_set();
-    test_deleting_the_active_set_clears_it();
-    test_deleting_another_set_preserves_the_active_set();
-    test_failed_delete_preserves_the_active_set();
-    test_reselecting_the_active_set_is_idempotent();
+    test_fresh_repository_has_no_active_package();
+    test_select_requires_an_existing_package();
+    test_select_records_the_active_package();
+    test_deleting_the_active_package_clears_it();
+    test_deleting_another_package_preserves_the_active_package();
+    test_failed_delete_preserves_the_active_package();
+    test_reselecting_the_active_package_is_idempotent();
     test_invalid_arguments_are_rejected();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_repository_lock_deinit());

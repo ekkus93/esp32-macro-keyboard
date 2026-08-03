@@ -44,7 +44,7 @@
 # listed (storage_transaction_recover_all_with_ops, ~5.6 KB) fits 8 KiB but
 # without much margin. The dominant cause throughout is the same: fixed-size
 # arrays as locals (procedure_progress_t's two app_uuid_t[200] arrays,
-# storage_uuid_order_t, storage_set_index_t). The fix is always to heap-allocate
+# storage_uuid_order_t, storage_package_index_t). The fix is always to heap-allocate
 # with a single free on a single exit path.
 #
 # CURRENT STATUS (updated after the 2026-08-01 reduction pass)
@@ -75,10 +75,10 @@
 # Baseline measured 2026-08-01 during first hardware bring-up.
 #
 18720 firmware/components/storage/storage_package_import.c:import_locked
-18528 firmware/components/storage/storage_package_replace.c:storage_package_replace_set
+18528 firmware/components/storage/storage_package_replace.c:storage_package_replace
 16560 firmware/components/storage/storage_set_tree.c:storage_set_tree_validate
 7712 firmware/components/storage/storage_repository_procedures.c:procedure_reorder_locked
 5584 firmware/components/storage/storage_transaction.c:storage_transaction_recover_all_with_ops$part$0
 4768 firmware/components/storage/storage_repository_procedures.c:procedure_create_locked
-4736 firmware/components/storage/storage_repository_set_operations.c:storage_set_duplicate_locked
+4736 firmware/components/storage/storage_repository_package_operations.c:storage_package_duplicate_locked
 4416 firmware/components/storage/storage_repository_procedures.c:procedure_delete_locked

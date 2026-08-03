@@ -97,7 +97,7 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_json.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_objects_json.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_index.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_sets.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_packages.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_document.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_macros.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_lock.c"
@@ -186,7 +186,7 @@ target_sources(
 
 add_executable(
     web_api_set_export_tests
-    "${CMAKE_SOURCE_DIR}/test_web_api_set_export.c"
+    "${CMAKE_SOURCE_DIR}/test_web_api_package_export.c"
     ${STORAGE_OBJECT_REPOSITORY_SOURCES}
     "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/macro_parser.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/macro_keymap_us.c"
@@ -200,7 +200,7 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_response.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_json.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_handler_common.c"
-    "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_sets.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_api_packages.c"
 )
 target_include_directories(
     web_api_set_export_tests

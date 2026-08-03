@@ -124,14 +124,14 @@ static void describe_backup_failure(const storage_package_failure_t *failure, ch
     int written = 0;
     if (failure->kind == STORAGE_PACKAGE_OBJECT_NONE) {
         written = snprintf(buffer, buffer_size, "backup unavailable");
-    } else if (failure->has_object_id && failure->has_set_id) {
+    } else if (failure->has_object_id && failure->has_package_id) {
         written =
             snprintf(buffer, buffer_size, "backup unavailable: %s %s in set %s could not be read",
                      kind, failure->object_id.value, failure->set_id.value);
     } else if (failure->has_object_id) {
         written = snprintf(buffer, buffer_size, "backup unavailable: %s %s could not be read", kind,
                            failure->object_id.value);
-    } else if (failure->has_set_id) {
+    } else if (failure->has_package_id) {
         written =
             snprintf(buffer, buffer_size, "backup unavailable: a %s in set %s could not be read",
                      kind, failure->set_id.value);
