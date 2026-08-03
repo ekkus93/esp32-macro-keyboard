@@ -570,12 +570,35 @@ tens of KiB rather than 98,304, and `check-all.sh` exits 0.
   `schema_version, id, revision, name`; macros carry those plus `set_id`,
   `source`, `key_press_ms`, `inter_key_ms`.
 
-  A backup that cannot be restored is not a backup, so this is worth more than
-  the acceptance checkbox it blocks. Next step is to read the BACKUP-kind branch
-  of `storage_package_validate` against a real emitted document, or add a host
-  test that feeds `storage_package_export_backup_detail`'s own output straight
-  into `storage_package_validate` -- which nothing currently does, and which is
-  why this survived to hardware.
+  **Root cause found: the request body never reaches the handler.** Restore is
+  worker-routed (`web_api_request_requires_worker`), and
+  `web_server_async_dispatch` calls `httpd_req_async_handler_begin()` *without
+  reading the body first*. The worker then runs `web_api_handle_call` on the
+  async request copy, whose body can no longer be received -- ESP-IDF hands the
+  async handler the request, not its unread payload. So `call->body_length` is
+  0, `storage_package_restore_backup(data, 0)` returns `APP_ERROR_INVALID_ARGUMENT`
+  at its first guard, and the route answers 422 in 40 ms having attempted no
+  sets. Every observed symptom follows: instant, size-independent, zero per-set
+  outcomes, and nothing logged.
+
+  Ruled out by direct experiment rather than reasoning: the document itself is
+  fine. Compiling `storage_package_validate` on the host against the exact bytes
+  the device emitted returns `APP_ERROR_NONE` with `sets=1 macros=1`.
+
+  This affects every worker-routed request that carries a body. `POST
+  /api/v1/sets/{id}/import` is the other one.
+
+  **Fix shape.** Read the body on the httpd task, before
+  `httpd_req_async_handler_begin`, and hand it to the worker alongside the
+  request. That is not a one-liner: the body limit is route-specific and is
+  currently applied inside `authorize_and_read_api_call`, after policy
+  evaluation, and `test_body_limit_precedes_headers` pins that ordering
+  deliberately. Doing it properly means splitting "decide the limit" from "read
+  the body", not moving the whole read earlier.
+
+  Why it survived: every restore and import test is host-side and calls the
+  storage entry points with a body already in hand. Nothing exercises the
+  httpd -> async-worker handoff, which is the only place this breaks.
 
 - [ ] **5.5 Backup is not tolerant of a damaged object, contrary to SPEC 17.**
   Found on the same run. One macro the device itself accepted at creation
