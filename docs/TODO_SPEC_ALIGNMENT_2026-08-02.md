@@ -825,7 +825,6 @@ Bootstrap AP passphrase and setup code are in
   deriving the three from it, which is a redesign rather than a deduplication
   and deserves its own decision.
 
-
 - [ ] **5.10 `POST /api/v1/sets/import-new` fails on hardware.** Returns
   `422 invalid_argument` ("could not import set as new") for a package the
   device itself just produced, including when the set and macro ids are replaced
@@ -847,7 +846,6 @@ Bootstrap AP passphrase and setup code are in
   whether it is the envelope, the object validation, or `import_locked` refusing
   the id. Do that before touching code; the two wrong guesses on the restore bug
   both came from reasoning instead of looking.
-
 
 ---
 
