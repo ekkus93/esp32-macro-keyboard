@@ -16,6 +16,10 @@
       "column": 13
     }
   },
+  "setupState": {
+    "provisioned": false,
+    "deviceName": "ESP32 Macro Keyboard"
+  },
   "setupRequest": {
     "setupCode": "12345678",
     "deviceName": "Desk Macro Keyboard",
