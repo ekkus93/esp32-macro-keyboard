@@ -20,6 +20,7 @@ bash -n "${shell_files[@]}"
 # firmware/web mirrors.
 python3 scripts/check-v2-limits.py
 python3 scripts/check-v2-settings-schema.py
+python3 scripts/check-v2-setup-route-policy.py
 python3 tests/scripts/test-generate-v2-macro-corpus.py
 
 # Regression tests for the fail-closed clang-tidy gate (FIX1 Phase 2.2), the
