@@ -80,6 +80,15 @@ includes (auth, executor, web security, web-server adapter), so grepping only
 
 See `docs/CLAUDE_CODE_HANDOFF_2026-07-31.md` for full context. Currently in force:
 
+- **`docs/SPEC.md` is frozen. Never modify it — not a section, not a sentence, not a
+  typo — without explicit per-change permission.** Propose; do not apply. Set
+  2026-08-02, after an acceptance criterion turned out to have been invented by the
+  assistant and then cited back as a requirement. The rule is about normative
+  content, not one filename: putting requirements into this file, into a new `docs/`
+  file that later gets cited as spec, or writing "SPEC requires X" in a code comment
+  when it says no such thing, is the same violation. On a genuine spec/code
+  conflict, fix the code and report what the spec asked for that could not be
+  satisfied. The same freeze applies to any replacement spec once it exists.
 - Work directly on `master`; don't create a branch or PR unless explicitly requested.
 - Never force-push, reset `master`, or rewrite history — use normal forward commits.
 - Don't mark a TODO checkbox complete without exact implementation and reproducible evidence (commit, commands, results).
