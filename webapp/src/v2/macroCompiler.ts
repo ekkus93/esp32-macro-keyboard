@@ -40,8 +40,25 @@ interface Position {
   column: number;
 }
 
+interface ParsedToken {
+  action: MacroAction;
+  next: Position;
+}
+
+interface CompileState {
+  actions: MacroAction[];
+  estimatedDurationMs: number;
+  position: Position;
+}
+
 const encoder = new TextEncoder();
 const shift = 0x02;
+const startPosition: Position = {
+  index: 0,
+  byteOffset: 0,
+  line: 1,
+  column: 1,
+};
 
 const namedKeys: Readonly<Record<string, number>> = {
   ENTER: 0x28,
@@ -267,182 +284,215 @@ function parseDirective(
 }
 
 function isCompileFailure(
-  value: MacroAction | MacroCompileFailure,
+  value: MacroAction | MacroCompileFailure | ParsedToken,
 ): value is MacroCompileFailure {
   return "ok" in value;
+}
+
+function validDirectiveText(directive: string): boolean {
+  if (directive.length === 0 || directive.includes("{") || /\s/.test(directive)) {
+    return false;
+  }
+  return [...directive].every((item) => {
+    const code = item.codePointAt(0);
+    return code !== undefined && code >= 0x21 && code <= 0x7e;
+  });
+}
+
+function parseCarriageReturn(
+  source: string,
+  position: Position,
+): ParsedToken | MacroCompileFailure {
+  if (source[position.index + 1] !== "\n") {
+    return errorAt(
+      position,
+      "macro_syntax",
+      "carriage return must be followed by line feed",
+    );
+  }
+  return {
+    action: { kind: "key", usage: 0x28, modifiers: 0 },
+    next: nextLine(position, 2),
+  };
+}
+
+function parseOpenBrace(
+  source: string,
+  position: Position,
+): ParsedToken | MacroCompileFailure {
+  if (source[position.index + 1] === "{") {
+    return {
+      action: { kind: "key", usage: 0x2f, modifiers: shift },
+      next: nextAscii(position, "{{"),
+    };
+  }
+
+  const closing = source.indexOf("}", position.index + 1);
+  if (closing < 0) {
+    return errorAt(position, "macro_syntax", "unmatched opening brace");
+  }
+  const directive = source.slice(position.index + 1, closing);
+  if (!validDirectiveText(directive)) {
+    return errorAt(position, "macro_syntax", "invalid directive");
+  }
+
+  const action = parseDirective(directive, position);
+  if (isCompileFailure(action)) {
+    return action;
+  }
+  return {
+    action,
+    next: nextAscii(position, source.slice(position.index, closing + 1)),
+  };
+}
+
+function parseCloseBrace(
+  source: string,
+  position: Position,
+): ParsedToken | MacroCompileFailure {
+  if (source[position.index + 1] !== "}") {
+    return errorAt(position, "macro_syntax", "unmatched closing brace");
+  }
+  return {
+    action: { kind: "key", usage: 0x30, modifiers: shift },
+    next: nextAscii(position, "}}"),
+  };
+}
+
+function parsePrintable(
+  character: string,
+  position: Position,
+): ParsedToken | MacroCompileFailure {
+  const codePoint = character.codePointAt(0);
+  const key = printableKey(character);
+  if (
+    codePoint === undefined ||
+    codePoint < 0x20 ||
+    codePoint > 0x7e ||
+    key === null
+  ) {
+    return errorAt(
+      position,
+      "macro_syntax",
+      "source contains unsupported character",
+    );
+  }
+  return {
+    action: { kind: "key", ...key },
+    next: nextAscii(position, character),
+  };
+}
+
+function parseNextToken(
+  source: string,
+  position: Position,
+): ParsedToken | MacroCompileFailure {
+  const character = source[position.index];
+  if (character === undefined) {
+    return errorAt(position, "macro_syntax", "invalid source position");
+  }
+
+  switch (character) {
+    case "\r":
+      return parseCarriageReturn(source, position);
+    case "\n":
+      return {
+        action: { kind: "key", usage: 0x28, modifiers: 0 },
+        next: nextLine(position, 1),
+      };
+    case "\t":
+      return {
+        action: { kind: "key", usage: 0x2b, modifiers: 0 },
+        next: nextAscii(position, character),
+      };
+    case "{":
+      return parseOpenBrace(source, position);
+    case "}":
+      return parseCloseBrace(source, position);
+    default:
+      return parsePrintable(character, position);
+  }
+}
+
+function appendAction(
+  state: CompileState,
+  action: MacroAction,
+  actionPosition: Position,
+  options: MacroCompileOptions,
+): MacroCompileFailure | null {
+  if (state.actions.length >= v2Limits.compiledActionsMax) {
+    return errorAt(actionPosition, "macro_limit", "action limit exceeded");
+  }
+  const addedDuration =
+    action.kind === "delay"
+      ? action.durationMs
+      : options.keyPressMs + options.interKeyMs;
+  if (
+    state.estimatedDurationMs + addedDuration >
+    v2Limits.estimatedDurationMaxMs
+  ) {
+    return errorAt(
+      actionPosition,
+      "macro_limit",
+      "estimated duration limit exceeded",
+    );
+  }
+  state.actions.push(action);
+  state.estimatedDurationMs += addedDuration;
+  return null;
+}
+
+function validateCompileInput(
+  source: string,
+  options: MacroCompileOptions,
+): MacroCompileFailure | null {
+  if (!validTiming(options.keyPressMs) || !validTiming(options.interKeyMs)) {
+    return errorAt(startPosition, "invalid_argument", "invalid macro timing");
+  }
+  if (byteLength(source) > v2Limits.macroSourceMaxBytes) {
+    return errorAt(
+      startPosition,
+      "macro_limit",
+      "macro source exceeds the byte limit",
+    );
+  }
+  return null;
 }
 
 export function compileMacro(
   source: string,
   options: MacroCompileOptions,
 ): MacroCompileResult {
-  const start: Position = { index: 0, byteOffset: 0, line: 1, column: 1 };
-  if (!validTiming(options.keyPressMs) || !validTiming(options.interKeyMs)) {
-    return errorAt(start, "invalid_argument", "invalid macro timing");
-  }
-  if (byteLength(source) > v2Limits.macroSourceMaxBytes) {
-    return errorAt(start, "macro_limit", "macro source exceeds the byte limit");
+  const inputFailure = validateCompileInput(source, options);
+  if (inputFailure !== null) {
+    return inputFailure;
   }
 
-  const actions: MacroAction[] = [];
-  let estimatedDurationMs = 0;
-  let position = start;
-
-  const append = (
-    action: MacroAction,
-    actionPosition: Position,
-  ): MacroCompileFailure | null => {
-    if (actions.length >= v2Limits.compiledActionsMax) {
-      return errorAt(actionPosition, "macro_limit", "action limit exceeded");
-    }
-    const addedDuration =
-      action.kind === "delay"
-        ? action.durationMs
-        : options.keyPressMs + options.interKeyMs;
-    if (
-      estimatedDurationMs + addedDuration >
-      v2Limits.estimatedDurationMaxMs
-    ) {
-      return errorAt(
-        actionPosition,
-        "macro_limit",
-        "estimated duration limit exceeded",
-      );
-    }
-    actions.push(action);
-    estimatedDurationMs += addedDuration;
-    return null;
+  const state: CompileState = {
+    actions: [],
+    estimatedDurationMs: 0,
+    position: startPosition,
   };
-
-  while (position.index < source.length) {
-    const character = source[position.index];
-    if (character === undefined) {
-      return errorAt(position, "macro_syntax", "invalid source position");
+  while (state.position.index < source.length) {
+    const parsed = parseNextToken(source, state.position);
+    if (isCompileFailure(parsed)) {
+      return parsed;
     }
-
-    if (character === "\r") {
-      if (source[position.index + 1] !== "\n") {
-        return errorAt(
-          position,
-          "macro_syntax",
-          "carriage return must be followed by line feed",
-        );
-      }
-      const failure = append(
-        { kind: "key", usage: 0x28, modifiers: 0 },
-        position,
-      );
-      if (failure !== null) {
-        return failure;
-      }
-      position = nextLine(position, 2);
-      continue;
+    const appendFailure = appendAction(
+      state,
+      parsed.action,
+      state.position,
+      options,
+    );
+    if (appendFailure !== null) {
+      return appendFailure;
     }
-
-    if (character === "\n") {
-      const failure = append(
-        { kind: "key", usage: 0x28, modifiers: 0 },
-        position,
-      );
-      if (failure !== null) {
-        return failure;
-      }
-      position = nextLine(position, 1);
-      continue;
-    }
-
-    if (character === "\t") {
-      const failure = append(
-        { kind: "key", usage: 0x2b, modifiers: 0 },
-        position,
-      );
-      if (failure !== null) {
-        return failure;
-      }
-      position = nextAscii(position, character);
-      continue;
-    }
-
-    if (character === "{") {
-      if (source[position.index + 1] === "{") {
-        const failure = append(
-          { kind: "key", usage: 0x2f, modifiers: shift },
-          position,
-        );
-        if (failure !== null) {
-          return failure;
-        }
-        position = nextAscii(position, "{{");
-        continue;
-      }
-
-      const closing = source.indexOf("}", position.index + 1);
-      if (closing < 0) {
-        return errorAt(position, "macro_syntax", "unmatched opening brace");
-      }
-      const directive = source.slice(position.index + 1, closing);
-      if (
-        directive.length === 0 ||
-        directive.includes("{") ||
-        /\s/.test(directive) ||
-        [...directive].some((item) => {
-          const code = item.codePointAt(0);
-          return code === undefined || code < 0x21 || code > 0x7e;
-        })
-      ) {
-        return errorAt(position, "macro_syntax", "invalid directive");
-      }
-
-      const parsed = parseDirective(directive, position);
-      if (isCompileFailure(parsed)) {
-        return parsed;
-      }
-      const failure = append(parsed, position);
-      if (failure !== null) {
-        return failure;
-      }
-      const consumed = source.slice(position.index, closing + 1);
-      position = nextAscii(position, consumed);
-      continue;
-    }
-
-    if (character === "}") {
-      if (source[position.index + 1] === "}") {
-        const failure = append(
-          { kind: "key", usage: 0x30, modifiers: shift },
-          position,
-        );
-        if (failure !== null) {
-          return failure;
-        }
-        position = nextAscii(position, "}}");
-        continue;
-      }
-      return errorAt(position, "macro_syntax", "unmatched closing brace");
-    }
-
-    const codePoint = character.codePointAt(0);
-    if (codePoint === undefined || codePoint < 0x20 || codePoint > 0x7e) {
-      return errorAt(
-        position,
-        "macro_syntax",
-        "source contains unsupported character",
-      );
-    }
-    const key = printableKey(character);
-    if (key === null) {
-      return errorAt(
-        position,
-        "macro_syntax",
-        "source contains unsupported character",
-      );
-    }
-    const failure = append({ kind: "key", ...key }, position);
-    if (failure !== null) {
-      return failure;
-    }
-    position = nextAscii(position, character);
+    state.position = parsed.next;
   }
 
-  return { ok: true, actions, estimatedDurationMs };
+  return {
+    ok: true,
+    actions: state.actions,
+    estimatedDurationMs: state.estimatedDurationMs,
+  };
 }
