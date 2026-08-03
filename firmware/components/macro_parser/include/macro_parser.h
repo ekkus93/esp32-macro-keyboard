@@ -49,5 +49,6 @@ app_error_code_t macro_compile_v2(const char *source, size_t source_length,
                                   macro_plan_t *out_plan, macro_parse_error_t *out_error);
 
 void macro_plan_free(macro_plan_t *plan);
+void macro_plan_v2_free(macro_plan_t *plan);
 
 #endif
