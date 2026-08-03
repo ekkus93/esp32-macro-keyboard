@@ -18,6 +18,14 @@ export {
   isStatusResponse,
 } from "./apiGuards";
 
+export {
+  isLoginRequest,
+  isPasswordChangeRequest,
+  isSendRequest,
+  isSettingsUpdateRequest,
+  isSetupRequest,
+} from "./apiRequestGuards";
+
 export type {
   ActionAccepted,
   BlobCreatedResponse,
