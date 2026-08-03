@@ -147,22 +147,64 @@ Because the marker names the direction, the sync does not need to be atomic. It
 only needs to be **repeatable**: crash halfway, boot runs it again. That is what
 lets the backup stay one-file-per-package and keeps the diff copy Phil wanted.
 
-### Not decided
+### Integrity
 
-- **A generation counter** in the repository metadata (two integers compared at
-  boot) was *proposed by the assistant* as a cross-check for the case where the
-  marker itself is lost. Phil has not ruled on it. It is not load-bearing — the
-  marker carries the decision — and if adopted it should disagree loudly rather
-  than silently repair.
-- **Per-package checksums** were raised by Phil and then set aside as "a little
-  extra overhead." Not needed for any case above. They would only detect silent
-  flash corruption, where generations agree but content differs — and §13.6
-  already says a corrupt file is reported, not silently repaired.
-- **The package-count limit.** §10.7 says 50 macro sets. Phil said he does not
-  plan on having 100 packages but named no number. 50 is from the founding spec
-  and was not invented for this design. Unchanged until he sets one.
-- **Concrete route paths.** The four operations are agreed; the URLs are not.
-  §17 records the operations and marks the paths open.
+Decided 2026-08-03: **a CRC32 per package, stored in the repository metadata.**
+Phil's words: "Checksums live in the repository metadata. CRC32."
+
+Metadata rather than inside each package file is what makes the boot comparison
+cheap — one read of each repository's metadata, then N integer comparisons, with
+no need to open a single package. Verifying that a package on disk is intact
+means recomputing its CRC32 and comparing it against the metadata entry.
+
+CRC32 rather than a cryptographic digest because the threat is flash corruption,
+not tampering: anyone holding a session can rewrite a package legitimately, so a
+digest would defend nothing that is not already open. The ESP32-S3 computes
+CRC32 in hardware, and it costs 4 bytes per package instead of 32.
+
+§8.7 has always required "integrity metadata" in a package and it has never been
+implemented. This is that requirement, finally given a definition.
+
+**A generation counter is not wanted.** The assistant proposed one as a
+cross-check; Phil ruled it out — "I don't think that we need a generation
+counter." The marker carries the repair direction and the checksums catch
+divergence, so a third mechanism earns nothing.
+
+### Routes
+
+Decided 2026-08-03: **five**, not four. The four operations plus a listing,
+because without it a client has no way to learn a valid package id and the
+package API cannot be used on its own.
+
+Singular nouns throughout, matching the vocabulary this proposal establishes —
+Phil: "It should be 'package' though, not 'packages'."
+
+```text
+GET  /api/v1/package              list the package ids
+GET  /api/v1/package/{id}         download a package
+PUT  /api/v1/package/{id}         upload a package  (creates if absent)
+GET  /api/v1/repository           download the repository
+PUT  /api/v1/repository           upload the repository
+```
+
+### Still not decided
+
+- **Is a package the same thing as a set?** `GET /api/v1/sets` already returns
+  the id/name/revision list the new listing route would return. If package and
+  set are one noun, "set" should stop existing and the live-editing routes move
+  to `/api/v1/package/{id}/macros` — consistent, and a large change touching the
+  webapp, §12.1, and every occurrence of "set" in the tree. If a set is the live
+  object and a package is its transfer form, both APIs coexist and the listing
+  route is a deliberate duplicate. **Unanswered.**
+- **What the listing returns** — bare ids, or id/name/revision? Bare ids match
+  what Phil asked for; the selection screen needs names, which is why
+  `GET /api/v1/sets` returns them today. **Unanswered.**
+- **The package-count limit and the maximum package size.** They have to be
+  chosen together: at 20% leeway a repository holds 206,438 bytes, so a 4 KiB cap
+  allows 50 packages, 8 KiB allows 25, 32 KiB allows 6. Today's §10.7 declares 50
+  sets, 100 macros per set, 4096 bytes per macro and 32 KiB per set file, which
+  contradict each other — 100 macros at 4 KiB is 400 KiB against a 32 KiB file
+  cap. Current bench usage is ~440 bytes per package. **Unanswered.**
 
 ## Implementation notes
 
