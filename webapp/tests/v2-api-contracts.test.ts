@@ -15,6 +15,7 @@ import {
   isSettingsResponse,
   isSettingsUpdatedResponse,
   isSetupAccepted,
+  isSetupStateResponse,
   isStatusResponse,
 } from "../src/v2/apiContracts";
 
@@ -29,6 +30,7 @@ describe("v2 API response contracts", () => {
   test("accepts every canonical checked-in response example", () => {
     expect(isErrorEnvelope(examples.error)).toBe(true);
     expect(isErrorEnvelope(examples.parserError)).toBe(true);
+    expect(isSetupStateResponse(examples.setupState)).toBe(true);
     expect(isSetupAccepted(examples.setupAccepted)).toBe(true);
     expect(isSessionStatus(examples.session)).toBe(true);
     expect(isStatusResponse(examples.status)).toBe(true);
@@ -47,6 +49,9 @@ describe("v2 API response contracts", () => {
 
   test("rejects unknown fields on every top-level response", () => {
     expect(isErrorEnvelope(withUnknownField(examples.error))).toBe(false);
+    expect(isSetupStateResponse(withUnknownField(examples.setupState))).toBe(
+      false,
+    );
     expect(isSetupAccepted(withUnknownField(examples.setupAccepted))).toBe(false);
     expect(isSessionStatus(withUnknownField(examples.session))).toBe(false);
     expect(isStatusResponse(withUnknownField(examples.status))).toBe(false);
@@ -77,6 +82,37 @@ describe("v2 API response contracts", () => {
     expect(isDiagnosticsResponse(withUnknownField(examples.diagnostics))).toBe(
       false,
     );
+  });
+
+  test("enforces the minimal unprovisioned setup-state surface", () => {
+    expect(
+      isSetupStateResponse({
+        ...examples.setupState,
+        provisioned: true,
+      }),
+    ).toBe(false);
+    expect(
+      isSetupStateResponse({
+        ...examples.setupState,
+        deviceName: "",
+      }),
+    ).toBe(false);
+
+    for (const sensitiveField of [
+      "setupCode",
+      "apSsid",
+      "stationConfigured",
+      "firmwareVersion",
+      "diagnostics",
+      "repository",
+    ]) {
+      expect(
+        isSetupStateResponse({
+          ...examples.setupState,
+          [sensitiveField]: "must-not-appear",
+        }),
+      ).toBe(false);
+    }
   });
 
   test("requires all parser coordinates together", () => {
