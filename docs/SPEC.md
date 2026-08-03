@@ -412,15 +412,40 @@ It MUST NOT contain:
 - other device secrets.
 
 Import MUST validate the entire package, all limits, references, syntax, schema,
-and available space before modifying active data. The supported conflict choices
-are:
+and available space before modifying active data.
 
-- import as a new independent set;
-- replace an existing set;
-- cancel.
+**Amended 2026-08-03, 01:40 PDT**, in conversation with the product owner (see
+`docs/PROPOSAL_2026-08-03_PACKAGE_REPOSITORY_MODEL.md`). Two nouns, and four
+operations over them:
 
-Because a set is a single file, replacement is a single atomic `rename()` (§13.4)
-and needs no staging area or transaction manifest.
+- a **package** is one macro set — its macros in order, plus metadata. It is what
+  the rest of this section calls a set export.
+- a **repository** is a list of packages plus its own metadata:
+  `{"packages": [ … ], … }`. The repository metadata MUST include the active set
+  and the set order, so that restoring a repository restores them too.
+
+| operation | meaning |
+| --- | --- |
+| download a package | export one set |
+| upload a package | create or replace one set |
+| download a repository | back up everything |
+| upload a repository | restore everything |
+
+Uploading a package is a replacement addressed by set id. If the id does not
+exist the package is created; if it exists it is replaced. This replaces the
+earlier choice between "import as a new independent set" and "replace an existing
+set", which were two operations for one job. `expectedRevision` (§13.7) remains
+the concurrency control and is independent of which of the two occurred.
+
+Uploading a repository replaces the whole repository. Packages already on the
+device that are absent from the uploaded repository MUST be removed, or they
+survive as stale content the user did not ask to keep. Repository upload and
+download are the backup and restore path; creating and editing individual macros
+uses the per-object routes and is the normal path.
+
+Because a package is a single file, uploading one is a single atomic `rename()`
+(§13.4) and needs no staging area or transaction manifest. Uploading a repository
+writes many files and is covered by §13.5.
 
 ## 9. Web application information architecture
 
@@ -815,14 +840,29 @@ and one file per set.
 ```text
 /data/
 ├── index.json              schema version, active set, set order
-└── sets/
-    └── <set-id>.json       set name and its ordered macros
+├── sets/
+│   └── <set-id>.json       set name and its ordered macros
+├── backup/
+│   └── …                   the backup repository, same shape
+└── state                   recovery marker (§13.5), absent when clean
 ```
 
-This is the whole tree: two paths and one object type. There MUST NOT be a
-per-set directory, a per-object file, a separate order file, a global or shared
-macro store, a `staging/` directory, a `trash/` directory, a `transactions/`
-directory, or a `quarantine/` directory.
+**Amended 2026-08-03, 01:40 PDT**, in conversation with the product owner: `backup/` and `state`
+are added. The device holds exactly **two** repositories — the current one and a
+backup — and the backup is an automatic snapshot, invisible to the user, that
+exists only so a failed repository upload can be rolled back (§13.5). There is no
+third copy and no user-visible backup slot.
+
+Measured on the bench device 2026-08-03: eight empty package files cost 8,192
+bytes in total, about a kilobyte each, because LittleFS inlines a small file into
+its parent's metadata. Two repositories of fifty packages would be roughly 102
+KiB of the 512 KiB partition. The second copy is affordable; a second *directory*
+tree per set would not have been, which is why the shape below stays flat.
+
+This is the whole tree. There MUST NOT be a per-set directory, a per-object file,
+a separate order file, a global or shared macro store, a `staging/` directory, a
+`trash/` directory, a `transactions/` directory, or a `quarantine/` directory.
+The recovery marker is one file and is not a reinstatement of any of them.
 
 The reason is measured, not stylistic. LittleFS on this device uses 4096-byte
 blocks and represents each directory as a metadata pair, so **every directory
@@ -861,11 +901,48 @@ the correct outcome.
 
 ### 13.5 Multi-file operations
 
-Restore is the only operation that writes more than one file. It is therefore
-**not atomic across sets**, and MUST NOT pretend to be: each set file is written
-atomically by §13.4 and the response reports per-set success or failure. A
-partial restore leaves each individual set either fully old or fully new, and
-tells the client exactly which are which.
+**Amended 2026-08-03, 01:40 PDT**, in conversation with the product owner (see
+`docs/PROPOSAL_2026-08-03_PACKAGE_REPOSITORY_MODEL.md`). This section previously
+required the opposite: that restore is "not atomic across sets, and MUST NOT
+pretend to be". That was written alongside the removal of a 1,600-line
+transaction layer, on a storage-cost argument — three directories at 8 KiB each —
+that applied to *that implementation* and not to the guarantee it provided. The
+guarantee is now required, and costs one file.
+
+Uploading a repository is the only operation that writes more than one file, and
+it MUST be atomic: it either replaces the repository completely or leaves the
+previous one in place. A failed or interrupted upload MUST be rolled back. It
+MUST NOT leave a mixture of old and new packages, and MUST NOT leave the device
+holding nothing.
+
+Uploading a single package is not covered here: a package is one file, so §13.4
+already makes it atomic.
+
+The mechanism is a second repository and a marker, not a transaction log:
+
+- The **backup repository** (§13.3) holds the last committed state. It is
+  synchronized **after** a commit, not before, so the user never waits for a copy
+  and only the changed packages are copied. The invariant is that when an upload
+  begins, the backup already holds that upload's pre-state.
+- The **marker** records which operation is in flight. Boot reads it and repairs
+  in the direction it names:
+
+| marker | meaning | recovery |
+| --- | --- | --- |
+| absent | clean | none |
+| `applying` | the current repository is half-written | rebuild it from the backup — roll back |
+| `backing-up` | the current repository is committed; the backup is stale | resync the backup from the current repository |
+
+The marker MUST carry which operation was in flight, not merely that one was.
+Both failure windows leave two repositories that disagree, and the files alone
+cannot say which is authoritative; repairing in the wrong direction in the
+`backing-up` case would discard a successfully committed repository — the user's
+real data — in favour of an older copy. Firmware MUST NOT decide the direction by
+comparing the two repositories alone.
+
+Because the marker names the direction, the backup synchronization does not need
+to be atomic. It MUST be repeatable, so that an interrupted synchronization is
+simply run again at boot.
 
 Restore MUST NOT perform the whole rewrite synchronously on the HTTP server task.
 `esp_http_server` serves every socket from one task, so a multi-second write loop
@@ -1202,6 +1279,15 @@ POST   /api/v1/restore
 There are no procedure routes, no progress routes, and no `/api/v1/global/macros`
 routes. `GET /api/v1/diagnostics/quarantine` existed in an earlier revision and
 is removed (§13.6). Every macro is reached through its set.
+
+**Amended 2026-08-03, 01:40 PDT**, in conversation with the product owner: the package and
+repository routes are being reduced to the four operations §8.7 defines —
+download a package, upload a package, download a repository, upload a
+repository. `POST /api/v1/sets/import-new` and `POST /api/v1/sets/import` are two
+routes for one operation and collapse into one; the concrete paths and methods
+are **not yet decided** and this list is not yet updated for them. (The list above
+also predates `import-new`, which the implementation has and this section never
+gained.)
 
 The API implementation MAY consolidate routes where memory constraints justify
 it, but external behavior and resource boundaries MUST remain equivalent and be
