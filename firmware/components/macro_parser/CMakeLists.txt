@@ -12,12 +12,6 @@ idf_component_register(
     macro_model
 )
 
-set_source_files_properties(
-    "macro_parser_v2.c"
-    PROPERTIES COMPILE_DEFINITIONS
-               "macro_keymap_us_named=macro_keymap_us_named_v2_canonical"
-)
-
 target_include_directories(
     ${COMPONENT_LIB} SYSTEM PRIVATE "$ENV{IDF_PATH}/components/newlib/platform_include"
 )
