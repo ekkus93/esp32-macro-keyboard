@@ -26,7 +26,19 @@ interface MutableRepository {
 }
 
 function mutableCanonical(): MutableRepository {
-  return structuredClone(canonicalRepository) as MutableRepository;
+  return structuredClone(canonicalRepository);
+}
+
+function firstMacro(repository: MutableRepository): MutableMacro {
+  const pkg = repository.packages[0];
+  if (pkg === undefined) {
+    throw new Error("canonical fixture has no package");
+  }
+  const macro = pkg.macros[0];
+  if (macro === undefined) {
+    throw new Error("canonical fixture has no macro");
+  }
+  return macro;
 }
 
 describe("v2 repository compiled validation", () => {
@@ -44,7 +56,7 @@ describe("v2 repository compiled validation", () => {
 
   test("rejects invalid macro grammar at the exact macro path", () => {
     const invalid = mutableCanonical();
-    invalid.packages[0]!.macros[0]!.source = "{BAD}";
+    firstMacro(invalid).source = "{BAD}";
     const result = validateRepositoryForUse(invalid);
     expect(result).toEqual({
       ok: false,
@@ -60,9 +72,10 @@ describe("v2 repository compiled validation", () => {
 
   test("rejects a valid source whose configured timing exceeds 300 seconds", () => {
     const invalid = mutableCanonical();
-    invalid.packages[0]!.macros[0]!.source = "abcdefghijklmnop";
-    invalid.packages[0]!.macros[0]!.keyPressMs = 10_000;
-    invalid.packages[0]!.macros[0]!.interKeyMs = 10_000;
+    const macro = firstMacro(invalid);
+    macro.source = "abcdefghijklmnop";
+    macro.keyPressMs = 10_000;
+    macro.interKeyMs = 10_000;
     const result = validateRepositoryForUse(invalid);
     expect(result).toEqual({
       ok: false,
