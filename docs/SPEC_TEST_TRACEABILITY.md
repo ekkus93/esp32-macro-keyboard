@@ -93,8 +93,8 @@ cheapest place to find real gaps.
 | §13.2 | L798 | Firmware MUST NOT automatically format either filesystem. | referenced | web_server_adapter_json_static → static_file_selection<br>check-layer-boundaries.sh (gate script)<br>check-mount-policy.sh (gate script) |
 | §13.2 | L801 | Web-assets failure MUST NOT expose an unauthenticated fallback UI. | referenced | web_server_adapter_json_static → static_file_selection<br>check-layer-boundaries.sh (gate script)<br>check-mount-policy.sh (gate script) |
 | §13.3 | L815 | This is the whole tree: two paths and one object type. There MUST NOT be a | referenced | storage_mount → unmount_continues_after_one_failure<br>storage_package_restore → (file)<br>storage_sets → (file)<br>storage_sets → duplicate_index_is_discarded_and_output_cleared<br>web_api_repository_handlers → (file) |
-| §13.5 | L858 | not atomic across sets**, and MUST NOT pretend to be: each set file is written | referenced | storage_package_restore → (file)<br>web_api_admin_boundary → restore_failure_is_visible |
-| §13.5 | L863 | Restore MUST NOT perform the whole rewrite synchronously on the HTTP server task. | referenced | storage_package_restore → (file)<br>web_api_admin_boundary → restore_failure_is_visible |
+| §13.5 | L858 | not atomic across sets**, and MUST NOT pretend to be: each set file is written | referenced | backup_restore → (file)<br>storage_package_restore → (file)<br>web_api_admin_boundary → restore_failure_is_visible |
+| §13.5 | L863 | Restore MUST NOT perform the whole rewrite synchronously on the HTTP server task. | referenced | backup_restore → (file)<br>storage_package_restore → (file)<br>web_api_admin_boundary → restore_failure_is_visible |
 | §13.6 | L890 | Deleting a corrupt file MUST NOT be reported as successful recovery. | referenced | management-screens → shows live redacted storage data<br>storage_macros → oversized_set_file_is_refused<br>storage_macros → set_local_crud_duplicate_and_order<br>web_api_admin_boundary → storage_snapshot_publishes_remaining_space<br>web_api_core → route_parsing |
 | §13.7 | L899 | resource metadata. The server MUST NOT silently overwrite a newer edit. | referenced | web_api_repository_handlers → session_json_redaction |
 | §14 | L917 | The administrator password MUST NOT be stored in plaintext, nor in any form from | referenced | provisioning → corrupt_persisted_records<br>provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → oversized_credentials_are_refused_without_side_effects<br>provisioning → station_credentials_survive_a_power_cycle<br>provisioning → storing_a_network_replaces_the_previous_one |
@@ -108,8 +108,8 @@ cheapest place to find real gaps.
 | §15.2 | L988 | of startup, and MUST NOT discard the stored credentials because one join | referenced | provisioning → load_error_and_uninitialized_calls<br>provisioning → no_stored_network_is_the_initial_state<br>provisioning → storing_a_network_disturbs_nothing_else<br>provisioning → storing_a_network_replaces_the_previous_one<br>web_setup → success_requires_code_and_confirmation |
 | §16.5 | L1068 | The console MUST NOT expose credentials or secret material even so, because | referenced | cancellation → (file)<br>check-credential-logging.sh (gate script) |
 | §16.6 | L1097 | forgets a password MUST NOT have to choose between recovering the device and | referenced | provisioning → corrupt_persisted_records |
-| §17 | L1203 | `GET /api/v1/backup` MUST NOT let one damaged object make the repository | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
-| §17 | L1223 | MUST NOT report `200` for a run that failed to write some of them. | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
+| §17 | L1203 | `GET /api/v1/backup` MUST NOT let one damaged object make the repository | referenced | backup_restore → (file)<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner |
+| §17 | L1223 | MUST NOT report `200` for a run that failed to write some of them. | referenced | backup_restore → (file)<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner |
 | §19 | L1285 | The device MUST NOT require any button, and MUST NOT require hardware to be | referenced | device_controls → runtime_failures |
 | §20.1 | L1329 | swallow an `esp_err_t` | **UNMAPPED** | — |
 | §20.1 | L1330 | cast away or discard an error result | **UNMAPPED** | — |
@@ -211,10 +211,10 @@ cheapest place to find real gaps.
 | §16.6 | L1090 | and passphrase, and it MUST mark the device unprovisioned so first-run setup | referenced | provisioning → corrupt_persisted_records |
 | §16.6 | L1093 | It MUST preserve everything the user did not lose: the device name, the settings | referenced | provisioning → corrupt_persisted_records |
 | §16.6 | L1100 | Each reset increments a credential version, so a device MUST refuse the | referenced | provisioning → corrupt_persisted_records |
-| §17 | L1200 | it, but external behavior and resource boundaries MUST remain equivalent and be | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
-| §17 | L1208 | A partial backup MUST be self-describing, so it can never be mistaken for a | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
-| §17 | L1216 | I/O, storage unavailable, timeout) MUST still fail the export, because | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
-| §17 | L1222 | partial success MUST enumerate which sets were restored and which were not; it | referenced | storage_package_backup → backup_output_passes_secret_sentinel_scanner |
+| §17 | L1200 | it, but external behavior and resource boundaries MUST remain equivalent and be | referenced | backup_restore → (file)<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner |
+| §17 | L1208 | A partial backup MUST be self-describing, so it can never be mistaken for a | referenced | backup_restore → (file)<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner |
+| §17 | L1216 | I/O, storage unavailable, timeout) MUST still fail the export, because | referenced | backup_restore → (file)<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner |
+| §17 | L1222 | partial success MUST enumerate which sets were restored and which were not; it | referenced | backup_restore → (file)<br>storage_package_backup → backup_output_passes_secret_sentinel_scanner |
 | §19 | L1287 | product. GPIO assignment for the one remaining output MUST be configurable | referenced | device_controls → runtime_failures |
 | §19 | L1303 | Cancellation MUST remain available during execution and delay actions, over | referenced | device_controls → runtime_failures |
 | §19 | L1316 | Indicator semantics MUST be documented and testable. Failure LEDs do not replace | referenced | device_controls → runtime_failures |
@@ -264,7 +264,7 @@ cheapest place to find real gaps.
 | §24.2 | L1574 | macro order preserved exactly across write, reboot, export, and restore | referenced | storage_sets → measured_user_data_tracks_set_files |
 | §24.2 | L1575 | import as new | referenced | storage_package_import → invalid_arguments_and_collision_do_not_mutate |
 | §24.2 | L1576 | replace import | referenced | storage_package_replace → invalid_and_conflict_inputs_do_not_mutate |
-| §24.2 | L1577 | partial restore reporting per-set outcomes | referenced | storage_package_restore → concurrency_restore_excludes_mutation |
+| §24.2 | L1577 | partial restore reporting per-set outcomes | referenced | backup_restore → (file)<br>storage_package_restore → concurrency_restore_excludes_mutation |
 | §24.2 | L1578 | no-format mount failure | referenced | storage_mount → web_mount_failure |
 | §24.3 | L1584 | descriptor enumeration | **UNMAPPED** | — |
 | §24.3 | L1585 | ASCII-to-HID mapping | referenced | macro_parser → fuzz_corpus |

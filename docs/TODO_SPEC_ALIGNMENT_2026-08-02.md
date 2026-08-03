@@ -553,10 +553,50 @@ tens of KiB rather than 98,304, and `check-all.sh` exits 0.
   **not** a 200 and goes out through the error envelope with the same per-set
   detail attached. The status comes from the *first* per-set failure, so storage
   exhaustion still reads as 507 instead of being flattened to 500.
-- [ ] **5.4 Prove it on hardware.** **NOT DONE and not claimed.** Needs
-  `tests/hardware/test_backup_restore.py` against a real device with the
-  transcript recorded. Host tests and CI builds do not count. This is the only
-  open item in the entire plan.
+- [ ] **5.4 Prove it on hardware.** **BLOCKED by a defect found while trying.**
+  `tests/hardware/test_backup_restore.py` was rewritten and run against the
+  attached device on 2026-08-02. Backup works. Restore does not.
+
+  **`GET /api/v1/backup` returns a package that `POST /api/v1/restore` refuses.**
+  Reproducible, and not a scale problem: 200 with a well-formed 6,136-byte
+  document (14 sets, 21 macros), then `422 invalid_argument` on posting that
+  exact document back. Bisected down to a single set with two macros -- still
+  422. Revisions were already 1, so it is not the create-time revision rule.
+  The device logs nothing, so it is rejected inside `storage_package_validate`
+  for `STORAGE_PACKAGE_KIND_BACKUP` before anything reports.
+
+  The emitted document matches `docs/schemas/all-data-backup.schema.json`:
+  top level `schema_version, package_type, sets, macros`; sets carry
+  `schema_version, id, revision, name`; macros carry those plus `set_id`,
+  `source`, `key_press_ms`, `inter_key_ms`.
+
+  A backup that cannot be restored is not a backup, so this is worth more than
+  the acceptance checkbox it blocks. Next step is to read the BACKUP-kind branch
+  of `storage_package_validate` against a real emitted document, or add a host
+  test that feeds `storage_package_export_backup_detail`'s own output straight
+  into `storage_package_validate` -- which nothing currently does, and which is
+  why this survived to hardware.
+
+- [ ] **5.5 Backup is not tolerant of a damaged object, contrary to SPEC 17.**
+  Found on the same run. One macro the device itself accepted at creation
+  (`ab{DELAY 3000}cd` -- the parser wants `DELAY:`) made the whole repository
+  unbackupable: `422 macro_syntax`, because `storage_package_validate` compiles
+  every macro in the assembled package. SPEC 17 is explicit that an individually
+  unusable object is omitted and recorded in `skipped` rather than failing the
+  export, "because a backup is most needed exactly when storage is damaged".
+
+  The host test that covers this (`test_unreadable_macro_is_skipped_and_recorded`)
+  passes because its fake `macro_list` skips the fault internally. The real
+  `storage_macro_list_detail_locked` deliberately does not -- its comment says a
+  set file "parses as a whole or not at all" -- and the package-level compile
+  check downstream fails the export outright. The fake models tolerance the
+  implementation does not have.
+
+  There is a second defect underneath it: **macro creation accepts a source the
+  device can never compile.** Creation returned 201 for `{DELAY 3000}`, and it
+  is only rejected later, on export. SPEC 3.10 requires rejecting malformed
+  state rather than storing it. Either creation validates, or backup tolerates;
+  at present neither does.
 
 ---
 
