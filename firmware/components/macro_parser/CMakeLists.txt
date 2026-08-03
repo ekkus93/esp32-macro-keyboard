@@ -4,11 +4,18 @@ idf_component_register(
     "macro_parser_v2.c"
     "macro_plan_v2.c"
     "macro_keymap_us.c"
+    "macro_keymap_us_v2.c"
     INCLUDE_DIRS
     "include"
     REQUIRES
     app_contracts_v2
     macro_model
+)
+
+set_source_files_properties(
+    "macro_parser_v2.c"
+    PROPERTIES COMPILE_DEFINITIONS
+               "macro_keymap_us_named=macro_keymap_us_named_v2_canonical"
 )
 
 target_include_directories(
