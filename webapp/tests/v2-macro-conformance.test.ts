@@ -5,13 +5,23 @@ import {
   type MacroAction,
   type MacroCompileError,
 } from "../src/v2/macroCompiler";
+import {
+  macroErrorMessageClass,
+  type MacroErrorMessageClass,
+} from "../src/v2/macroErrorClass";
 
 interface CorpusValid {
   estimatedDurationMs: number;
   actions: MacroAction[];
 }
 
-type CorpusInvalid = MacroCompileError;
+interface CorpusInvalid {
+  code: MacroCompileError["code"];
+  byteOffset: number;
+  line: number;
+  column: number;
+  messageClass: MacroErrorMessageClass;
+}
 
 interface CorpusCase {
   name: string;
@@ -46,10 +56,20 @@ describe("v2 shared macro conformance corpus", () => {
       if (corpusCase.valid !== undefined) {
         expect(corpusCase.invalid).toBeUndefined();
         expect(result).toEqual({ ok: true, ...corpusCase.valid });
-      } else {
-        expect(corpusCase.invalid).toBeDefined();
-        expect(result).toEqual({ ok: false, error: corpusCase.invalid });
+        return;
       }
+
+      expect(corpusCase.invalid).toBeDefined();
+      if (result.ok || corpusCase.invalid === undefined) {
+        throw new Error(`Expected ${corpusCase.name} to fail`);
+      }
+      expect({
+        code: result.error.code,
+        byteOffset: result.error.byteOffset,
+        line: result.error.line,
+        column: result.error.column,
+        messageClass: macroErrorMessageClass(result.error),
+      }).toEqual(corpusCase.invalid);
     });
   }
 });
