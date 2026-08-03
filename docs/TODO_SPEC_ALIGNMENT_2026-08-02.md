@@ -746,7 +746,7 @@ record), running a production build, station credentials stored and working.
 Bootstrap AP passphrase and setup code are in
 `~/.config/esp32-macro-keyboard/hil/`, mode 600, never in the repository.
 
-- [ ] **5.7 Macro creation accepts a source the device cannot compile.**
+- [x] **5.7 Macro creation now validates the source. DONE 2026-08-02.**
   `POST /api/v1/sets/{id}/macros` returned 201 for `ab{DELAY 3000}cd` -- the
   parser wants `DELAY:` -- and the macro was only ever rejected later, when
   something tried to compile it. It sat in the repository until an export tripped
@@ -758,12 +758,24 @@ Bootstrap AP passphrase and setup code are in
   it, so the parser is reachable from the write path; creation simply does not
   use it.
 
-  Decide and then make the code and the specification agree:
-  either creation compiles the source and refuses a bad one with 422, or SPEC 12.2
-  states that sources are stored unvalidated and checked at execution, and the
-  editor's validate step becomes the documented way to find out. Today it is
-  neither, and the two halves of the system disagree about what a stored macro
-  means.
+  **Fixed by making the write path validate.** `macro_create_locked` and
+  `macro_update_locked` compile the source before touching the document and
+  return `APP_ERROR_MACRO_SYNTAX`, which the API already maps to 422. The parser
+  is the authority on what a macro means, so it is the authority on whether one
+  can be stored; the same check already backed the editor's validate route, and
+  the write path simply did not use it.
+
+  SPEC 12.2 now states the rule, so the code and the document agree.
+
+  On hardware: `POST /api/v1/sets/{id}/macros` with `ab{DELAY 3000}cd` returns
+  `422 macro_syntax`, where it previously returned 201; the corrected
+  `ab{DELAY:3000}cd` returns 201.
+
+  Note the ordering this creates with 5.5. Backup still tolerates an
+  uncompilable macro and records it in `skipped`, which is right: a repository
+  written before this change can still contain one, and a backup is most needed
+  when storage is damaged (SPEC 17). The write path stops new ones; the read
+  path survives the old ones.
 
 ---
 

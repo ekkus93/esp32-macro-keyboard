@@ -741,6 +741,13 @@ no `set_id`: there is exactly one place a macro can be, and the file it is in
 identifies the set. API responses and export packages MAY carry the owning set ID
 as an envelope field, but it is not part of the object.
 
+A macro's `source` MUST compile before it is stored. Creation and update
+compile it and refuse a source the parser rejects, with `422` and the parse
+error's offset. Storing one that cannot compile defers the failure to whoever
+runs the macro, and to every later operation that has to read the repository as
+a whole: a backup validates the package it writes, so one unusable macro used to
+make the whole repository unexportable (§17).
+
 ### 12.3 Set index
 
 The index is the order of the sets themselves, plus which set is active:

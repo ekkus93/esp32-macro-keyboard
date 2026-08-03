@@ -17,6 +17,7 @@ target_include_directories(
     storage_package_backup_tests
     PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage"
 )

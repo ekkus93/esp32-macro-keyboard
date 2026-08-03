@@ -207,6 +207,38 @@ static void test_set_local_crud_duplicate_and_order(void) {
 /* Macros live inline in their set file, so there is no per-macro file to damage:
  * a corrupt macro is a corrupt set. The file is discarded and the failure
  * reported (SPEC 13.6) rather than the set being read back missing a macro. */
+/* SPEC 3.10: "Reject malformed or unsafe state rather than silently substituting
+ * defaults." Creation used to return success for a source the parser cannot
+ * compile, so the failure surfaced only when something tried to use the macro --
+ * on a real device, when an export tripped over it and refused to back up the
+ * whole repository. The write path is where a malformed macro should be stopped. */
+static void test_uncompilable_source_is_refused_on_write(void) {
+    reset_store();
+    macro_set_t set = {0};
+    create_set(&set);
+
+    /* The exact syntax a device accepted and could never run: the parser wants
+     * DELAY:, not a space. */
+    macro_t bad = make_macro(201U, &set.id, "bad delay", "ab{DELAY 3000}cd");
+    TEST_CHECK_APP_ERROR(APP_ERROR_MACRO_SYNTAX, storage_macro_create(&set.id, &bad));
+    free(bad.source);
+
+    /* Refused means not stored, not stored-and-reported. */
+    storage_macro_list_t list = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_list(&set.id, &list));
+    TEST_CHECK_EQ_U64(0U, list.count);
+    storage_macro_list_free(&list);
+
+    /* A good source still writes, so the check rejects the malformed rather
+     * than everything. */
+    macro_t good = make_macro(202U, &set.id, "good delay", "ab{DELAY:3000}cd");
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_create(&set.id, &good));
+    free(good.source);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_macro_list(&set.id, &list));
+    TEST_CHECK_EQ_U64(1U, list.count);
+    storage_macro_list_free(&list);
+}
+
 static void test_corrupt_set_file_is_discarded(void) {
     reset_store();
     macro_set_t set;
@@ -362,6 +394,7 @@ int main(void) {
     test_discard_record_is_bounded_but_counts_everything();
     test_oversized_set_file_is_refused();
     test_set_local_crud_duplicate_and_order();
+    test_uncompilable_source_is_refused_on_write();
     test_corrupt_set_file_is_discarded();
     test_missing_set_and_revision_overflow();
     test_temp_dir_remove_path(STORAGE_DATA_MOUNT);

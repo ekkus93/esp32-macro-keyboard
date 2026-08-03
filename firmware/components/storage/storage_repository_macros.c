@@ -10,6 +10,7 @@
 #include "app_uuid.h"
 #include "macro_limits.h"
 #include "macro_model.h"
+#include "macro_parser.h"
 #include "storage_object_json.h"
 #include "storage_repository_document.h"
 #include "storage_repository_lock.h"
@@ -139,10 +140,37 @@ app_error_code_t storage_macro_list_locked(const app_uuid_t *set_id,
     return storage_macro_list_detail_locked(set_id, out_list, NULL, NULL);
 }
 
+/* SPEC 3.10: "Reject malformed or unsafe state rather than silently substituting
+ * defaults." A macro whose source will not compile is malformed, and storing one
+ * defers the failure to whoever runs it -- or, as happened on a real device, to
+ * whoever next tries to back the repository up, since the export validates the
+ * package it writes and that validation compiles every macro.
+ *
+ * The parser is the authority on what a macro means, so it is the authority on
+ * whether one can be stored. The same check already backs
+ * POST /api/v1/sets/{id}/macros/validate; creation and update simply did not
+ * use it, and returned 201 for sources the device could never execute. */
+static app_error_code_t macro_source_is_storable(const macro_t *macro) {
+    const macro_compile_options_t options = {
+        .key_press_ms = macro->key_press_ms,
+        .inter_key_ms = macro->inter_key_ms,
+    };
+    macro_plan_t plan = {0};
+    macro_parse_error_t error = {0};
+    const app_error_code_t result =
+        macro_compile(macro->source, macro->source_length, &options, &plan, &error);
+    macro_plan_free(&plan);
+    return result;
+}
+
 static app_error_code_t macro_create_locked(const app_uuid_t *set_id, const macro_t *macro) {
     if (!location_valid(set_id) || macro == NULL || macro->revision != 1U ||
         !app_uuid_is_valid_string(macro->id.value)) {
         return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const app_error_code_t storable = macro_source_is_storable(macro);
+    if (storable != APP_ERROR_NONE) {
+        return storable;
     }
     storage_set_document_t document = {0};
     app_error_code_t result = storage_repository_load_set_document(set_id, &document);
@@ -177,6 +205,10 @@ static app_error_code_t macro_update_locked(const app_uuid_t *set_id, const macr
     if (!location_valid(set_id) || replacement == NULL || out_updated == NULL ||
         expected_revision == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const app_error_code_t storable = macro_source_is_storable(replacement);
+    if (storable != APP_ERROR_NONE) {
+        return storable;
     }
     storage_set_document_t document = {0};
     app_error_code_t result = storage_repository_load_set_document(set_id, &document);

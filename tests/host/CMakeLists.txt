@@ -510,6 +510,10 @@ add_test(NAME storage_repository COMMAND storage_repository_tests)
 set_tests_properties(storage_repository PROPERTIES LABELS "storage")
 
 set(STORAGE_OBJECT_REPOSITORY_SOURCES
+    # storage_repository_macros.c compiles a macro before storing it (SPEC 3.10),
+    # so every target that links the repository needs the parser.
+    ../../firmware/components/macro_parser/macro_parser.c
+    ../../firmware/components/macro_parser/macro_keymap_us.c
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/macro_model/app_uuid.c
     ../../firmware/components/macro_model/macro_model.c
@@ -581,6 +585,7 @@ function(add_storage_object_repository_test target source mount_name)
     target_include_directories(
         ${target}
         PRIVATE ../../firmware/components/macro_model/include
+                ../../firmware/components/macro_parser/include
                 ../../firmware/components/storage/include ../../firmware/components/storage
     )
     target_compile_definitions(

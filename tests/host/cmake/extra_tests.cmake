@@ -11,6 +11,7 @@ add_executable(
 target_include_directories(
     provisioning_bootstrap_tests
     PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/wifi_ap/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/provisioning/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/provisioning"
@@ -28,6 +29,7 @@ add_executable(
 target_include_directories(
     web_setup_tests
     PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/auth/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/wifi_ap/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/provisioning/include"
@@ -47,6 +49,7 @@ add_executable(
 target_include_directories(
     web_setup_json_tests
     PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/auth/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/wifi_ap/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/provisioning/include"
@@ -70,6 +73,7 @@ add_executable(
 target_include_directories(
     storage_object_json_tests
     PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage"
 )
@@ -97,10 +101,13 @@ add_executable(
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_document.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_macros.c"
     "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_repository_lock.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/macro_parser.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/macro_keymap_us.c"
 )
 target_include_directories(
     storage_macro_repository_tests
     PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage"
 )
@@ -130,6 +137,7 @@ target_include_directories(
     storage_package_tests
     PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage"
 )
@@ -155,6 +163,7 @@ add_executable(
 target_include_directories(
     storage_package_export_tests
     PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/storage"
@@ -191,6 +200,7 @@ add_executable(
 target_include_directories(
     web_api_set_export_tests
     PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_parser/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_executor/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/auth/include"
