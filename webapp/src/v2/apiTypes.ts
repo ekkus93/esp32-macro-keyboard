@@ -224,5 +224,5 @@ export interface DiagnosticsResponse {
     temporaryFiles: string[];
   };
   send: { present: boolean; state: SendState | null };
-  subsystems: Array<{ name: string; state: SubsystemHealthState }>;
+  subsystems: { name: string; state: SubsystemHealthState }[];
 }
