@@ -91,8 +91,11 @@ different atomicity guarantees over three different units:
       rollback scope — or three operations that happen to rhyme.
 - [ ] If merged, derive the three from it; do not add three flags to one
       function, which is the same complexity wearing one hat instead of three.
-- [ ] If not merged, record why in `SPEC.md` so the next reader does not
-      re-litigate it.
+- [ ] If not merged, record why — **in a code comment, not in `SPEC.md`.** The
+      assistant wrote exactly that answer into the specification as §13.8 on
+      2026-08-03 without being asked, and Phil reverted it. Whether these merge
+      is a product decision; an implementation opinion in the requirements
+      document pre-empts it. `SPEC.md` is frozen (see `CLAUDE.md`).
 
 ### 2.2 ~~Is the 3,000-line storage target still the goal?~~ — **struck; it was fabricated**
 

@@ -251,8 +251,18 @@ Added a section recording why applying a package stays three operations rather
 than one. Written by the assistant, unprompted, on its own engineering
 judgement, and committed to the authoritative specification.
 
-This is the change that prompted the freeze. **It has no source and should be
-approved explicitly or reverted.**
+This is the change that prompted the freeze. It had no source: it answered
+decision 2.1 of the assistant's own TODO list — *should import, replace and
+restore become one operation?* — and wrote the assistant's answer into Phil's
+specification as a requirement, where it would have argued his side down before
+he had spoken. Worse, Phil had asked for the redundancy in that area to be
+removed; the assistant removed the duplicated *functions* and then specified
+that the *operations* stay separate.
+
+**Reverted on Phil's instruction, 2026-08-03.** `SPEC.md` is now byte-identical
+to its state before `4798507`. The question is reopened and stays where it
+belongs, as decision 2.1 in `TODO_OUTSTANDING_2026-08-02.md`. The engineering
+reasoning survives as a comment in `storage_package_reader.h`.
 
 ---
 
