@@ -909,8 +909,14 @@ MUST revisit DNS-rebinding protection before release.
 
 ### 12.3 First-run setup
 
-An unprovisioned device exposes only setup state and setup submission, plus the
-static assets required for that UI.
+An unprovisioned device exposes only `GET /api/v1/setup`,
+`POST /api/v1/setup`, and the static assets required for the setup UI. Every
+other `/api/v1` route is unavailable while the device is unprovisioned.
+
+`GET /api/v1/setup` is unauthenticated and available only while unprovisioned. It
+returns the minimal setup state defined in §13.4. It MUST NOT return the setup
+code, credentials, credential-presence hints, firmware diagnostics, network
+status, or any repository information. After provisioning it returns `404`.
 
 Setup requires an eight-digit decimal one-time code shown on the serial console.
 The code is regenerated on every unprovisioned boot, is valid until successful
@@ -993,6 +999,7 @@ Parser errors additionally include:
 ### 13.3 Route table
 
 ```text
+GET     /api/v1/setup
 POST    /api/v1/setup
 
 POST    /api/v1/auth/login
@@ -1026,6 +1033,26 @@ There are no package routes, macro routes, validation routes, repository restore
 routes, or plural `executions` resource.
 
 ### 13.4 Setup API
+
+#### Setup state
+
+While the device is unprovisioned, unauthenticated `GET /api/v1/setup` returns
+`200` and exactly:
+
+```json
+{
+  "provisioned": false,
+  "deviceName": "ESP32 Macro Keyboard"
+}
+```
+
+`deviceName` is the current non-secret device-name value from the settings
+record. The response has no optional fields. It MUST NOT return the setup code,
+access-point or station credentials, administrator-password information, session
+information, firmware/build details, diagnostics, or repository information.
+After successful provisioning, `GET /api/v1/setup` returns `404`.
+
+#### Setup submission
 
 Request:
 
@@ -1701,6 +1728,8 @@ Host tests with fakes cover:
 - authentication, session expiry, LRU eviction, and rate limiting;
 - exact HTTP routes, methods, request and response contracts, content types, body
   limits, and error envelopes;
+- unprovisioned-only setup-state access, setup submission, post-provisioning
+  setup-route behavior, and absence of all other API routes before provisioning;
 - startup sequencing;
 - Wi-Fi and provisioning.
 
@@ -1729,6 +1758,7 @@ Vitest and real-browser tests cover:
 - optional preview mode;
 - send polling, cancellation, and exactly-once completion callbacks;
 - source-preview privacy defaults;
+- first-run setup-state loading through `GET /api/v1/setup`;
 - reauthentication without discarding a live working copy;
 - portrait-phone blocking with active-send cancellation available;
 - tablet and desktop landscape behavior;
@@ -1827,8 +1857,12 @@ SHOULD be represented in web compatibility testing where practical.
 34. A mount failure does not format storage.
 35. The web application works without internet access and fits its partition.
 36. The shared conformance corpus passes in C and TypeScript.
-37. The tests in §18 pass.
-38. This document and `docs/UI_UX_SPEC_V2.md` match implemented behavior.
+37. While unprovisioned, `GET /api/v1/setup` returns only the approved minimal
+    setup state, `POST /api/v1/setup` is the only setup mutation, and all other
+    API routes are unavailable; after provisioning GET returns `404` and POST
+    returns `409`.
+38. The tests in §18 pass.
+39. This document and `docs/UI_UX_SPEC_V2.md` match implemented behavior.
 
 ---
 
