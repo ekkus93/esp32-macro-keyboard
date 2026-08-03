@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 #include "app_error.h"
 #include "esp_http_server.h"
@@ -11,6 +12,7 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "macro_limits.h"
+#include "web_api_core.h"
 #include "web_http_status.h"
 
 /* Physical confirmation blocks the request handler for up to
@@ -23,6 +25,16 @@
  *
  * Confirmation-gated requests are therefore moved onto this worker via
  * httpd_req_async_handler_begin(), which releases the httpd task immediately. */
+
+/* The request and the body that arrived with it. esp_http_server gives an async
+ * handler the request but not its unread payload, so the body has to be read on
+ * the httpd task and carried across. Without this, restore and import reached
+ * their handlers with body_length 0 and answered 422 having done nothing. */
+typedef struct {
+    httpd_req_t *request;
+    char *body;
+    size_t body_length;
+} async_item_t;
 
 #define WEB_ASYNC_QUEUE_DEPTH 1U
 #define WEB_ASYNC_TASK_PRIORITY 5
@@ -66,17 +78,21 @@ static void release_in_flight(void) {
 static void async_worker(void *context) {
     (void)context;
     while (true) {
-        httpd_req_t *request = NULL;
-        if (xQueueReceive(async_queue, (void *)&request, portMAX_DELAY) != pdTRUE) {
+        async_item_t *item = NULL;
+        if (xQueueReceive(async_queue, (void *)&item, portMAX_DELAY) != pdTRUE) {
             continue;
         }
-        if (request == NULL) {
+        if (item == NULL) {
             break; /* stop sentinel */
         }
+        httpd_req_t *request = item->request;
 
         bool should_restart = false;
-        const esp_err_t send_result = web_api_handle_call(request, &should_restart);
+        /* Ownership of item->body passes to the call, which frees it. */
+        const esp_err_t send_result =
+            web_api_handle_call_with_body(request, item->body, item->body_length, &should_restart);
         (void)send_result;
+        free(item);
 
         /* Always complete, on every path. An async request left incomplete
          * never releases its socket, and once those run out the server stops
@@ -96,7 +112,7 @@ app_error_code_t web_server_async_start(void) {
     if (async_task_handle != NULL || async_queue != NULL || async_stopped != NULL) {
         return APP_ERROR_CONFLICT;
     }
-    async_queue = xQueueCreate(WEB_ASYNC_QUEUE_DEPTH, sizeof(httpd_req_t *));
+    async_queue = xQueueCreate(WEB_ASYNC_QUEUE_DEPTH, sizeof(async_item_t *));
     if (async_queue == NULL) {
         return APP_ERROR_INTERNAL;
     }
@@ -123,7 +139,7 @@ app_error_code_t web_server_async_stop(void) {
     if (async_task_handle == NULL || async_queue == NULL || async_stopped == NULL) {
         return APP_ERROR_NONE;
     }
-    httpd_req_t *sentinel = NULL;
+    async_item_t *sentinel = NULL;
     /* Blocks until the queue drains, so a request already waiting for the
      * button is finished and completed rather than abandoned. */
     if (xQueueSend(async_queue, (const void *)&sentinel,
@@ -161,19 +177,46 @@ esp_err_t web_server_async_dispatch(httpd_req_t *request) {
         return web_api_send_status_error(request, WEB_HTTP_STATUS_CONFLICT, APP_ERROR_CONFLICT,
                                          "another request is already awaiting confirmation");
     }
-    httpd_req_t *async_request = NULL;
-    if (httpd_req_async_handler_begin(request, &async_request) != ESP_OK || async_request == NULL) {
+    /* Read the body here, on the httpd task, while the payload is still
+     * readable. After httpd_req_async_handler_begin() it is gone: the async
+     * handler receives the request, not its unread content. */
+    char *body = NULL;
+    size_t body_length = 0U;
+    const app_error_code_t body_result = web_api_read_route_body(request, &body, &body_length);
+    if (body_result != APP_ERROR_NONE && body_result != APP_ERROR_NOT_FOUND) {
+        release_in_flight();
+        return web_api_send_status_error(request, web_api_http_status_for_error(body_result),
+                                         body_result, "could not read request body");
+    }
+
+    async_item_t *item = calloc(1U, sizeof(*item));
+    if (item == NULL) {
+        free(body);
         release_in_flight();
         return web_api_send_status_error(request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
                                          APP_ERROR_INTERNAL, "could not start confirmation");
     }
-    if (xQueueSend(async_queue, (const void *)&async_request, 0) != pdTRUE) {
+    item->body = body;
+    item->body_length = body_length;
+
+    httpd_req_t *async_request = NULL;
+    if (httpd_req_async_handler_begin(request, &async_request) != ESP_OK || async_request == NULL) {
+        free(item->body);
+        free(item);
+        release_in_flight();
+        return web_api_send_status_error(request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
+                                         APP_ERROR_INTERNAL, "could not start confirmation");
+    }
+    item->request = async_request;
+    if (xQueueSend(async_queue, (const void *)&item, 0) != pdTRUE) {
         /* Unreachable while in_flight gates entry, but the request must still
          * be answered and completed or its socket leaks permanently. */
         const esp_err_t result =
             web_api_send_status_error(async_request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
                                       APP_ERROR_INTERNAL, "could not queue confirmation");
         (void)httpd_req_async_handler_complete(async_request);
+        free(item->body);
+        free(item);
         release_in_flight();
         return result;
     }

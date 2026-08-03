@@ -284,11 +284,14 @@ static app_error_code_t prepare_api_call(httpd_req_t *request, web_api_call_t *c
     return result;
 }
 
-static app_error_code_t authorize_and_read_api_call(httpd_req_t *request, web_api_call_t *call,
-                                                    size_t body_limit,
-                                                    web_request_policy_result_t *policy,
-                                                    web_api_response_t *response, char **out_body,
-                                                    bool *out_response_ready) {
+/* out_body is in/out: a non-NULL value on entry is a body already read on the
+ * httpd task, and is used as-is. The policy still runs first either way, so the
+ * route body limit is still enforced before anything else looks at the request
+ * (test_body_limit_precedes_headers pins that ordering). */
+static app_error_code_t
+authorize_and_read_api_call(httpd_req_t *request, web_api_call_t *call, size_t body_limit,
+                            web_request_policy_result_t *policy, web_api_response_t *response,
+                            char **out_body, size_t preread_length, bool *out_response_ready) {
     web_request_policy_failure_t failure = WEB_REQUEST_POLICY_FAILURE_NONE;
     app_error_code_t result = apply_request_policy(request, call, body_limit, policy, &failure);
     if (result != APP_ERROR_NONE) {
@@ -298,7 +301,11 @@ static app_error_code_t authorize_and_read_api_call(httpd_req_t *request, web_ap
         return result;
     }
     memcpy(call->session_token, policy->session_token, sizeof(call->session_token));
-    result = read_call_body(request, body_limit, out_body, &call->body_length);
+    if (*out_body != NULL) {
+        call->body_length = preread_length;
+    } else {
+        result = read_call_body(request, body_limit, out_body, &call->body_length);
+    }
     call->body = *out_body == NULL ? "" : *out_body;
     if (result != APP_ERROR_NONE) {
         result = set_error_response(response, web_api_http_status_for_error(result), result,
@@ -345,11 +352,12 @@ bool web_api_request_requires_worker(httpd_req_t *request) {
                path.route, server_configuration.require_physical_confirmation);
 }
 
-esp_err_t web_api_handle_call(httpd_req_t *request, bool *out_should_restart) {
+esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body,
+                                        size_t preread_length, bool *out_should_restart) {
     web_api_response_t response = {0};
     web_request_policy_result_t policy = {0};
     web_api_call_t call = {0};
-    char *body = NULL;
+    char *body = preread_body;
     size_t body_limit = WEB_API_SMALL_BODY_MAX_BYTES;
     bool response_ready = false;
 
@@ -359,7 +367,7 @@ esp_err_t web_api_handle_call(httpd_req_t *request, bool *out_should_restart) {
         prepare_api_call(request, &call, &response, &body_limit, &response_ready);
     if (!response_ready && result == APP_ERROR_NONE) {
         result = authorize_and_read_api_call(request, &call, body_limit, &policy, &response, &body,
-                                             &response_ready);
+                                             preread_length, &response_ready);
     }
     if (!response_ready && result == APP_ERROR_NONE) {
         response_ready = dispatch_api_call(&call, &response);
@@ -376,6 +384,21 @@ esp_err_t web_api_handle_call(httpd_req_t *request, bool *out_should_restart) {
     web_api_response_free(&response);
     *out_should_restart = send_result == ESP_OK && should_restart;
     return send_result;
+}
+
+esp_err_t web_api_handle_call(httpd_req_t *request, bool *out_should_restart) {
+    return web_api_handle_call_with_body(request, NULL, 0U, out_should_restart);
+}
+
+app_error_code_t web_api_read_route_body(httpd_req_t *request, char **out_body,
+                                         size_t *out_length) {
+    *out_body = NULL;
+    *out_length = 0U;
+    web_api_path_t path = {0};
+    if (request == NULL || web_api_parse_path(request->uri, &path) != APP_ERROR_NONE) {
+        return APP_ERROR_NOT_FOUND;
+    }
+    return read_call_body(request, route_body_limit(path.route), out_body, out_length);
 }
 
 esp_err_t api_handler(httpd_req_t *request) {

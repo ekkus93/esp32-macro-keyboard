@@ -570,7 +570,7 @@ tens of KiB rather than 98,304, and `check-all.sh` exits 0.
   `schema_version, id, revision, name`; macros carry those plus `set_id`,
   `source`, `key_press_ms`, `inter_key_ms`.
 
-  **Root cause found: the request body never reaches the handler.** Restore is
+  **A cause found and fixed, but not the whole cause.** Restore is
   worker-routed (`web_api_request_requires_worker`), and
   `web_server_async_dispatch` calls `httpd_req_async_handler_begin()` *without
   reading the body first*. The worker then runs `web_api_handle_call` on the
@@ -588,13 +588,28 @@ tens of KiB rather than 98,304, and `check-all.sh` exits 0.
   This affects every worker-routed request that carries a body. `POST
   /api/v1/sets/{id}/import` is the other one.
 
-  **Fix shape.** Read the body on the httpd task, before
-  `httpd_req_async_handler_begin`, and hand it to the worker alongside the
-  request. That is not a one-liner: the body limit is route-specific and is
-  currently applied inside `authorize_and_read_api_call`, after policy
-  evaluation, and `test_body_limit_precedes_headers` pins that ordering
-  deliberately. Doing it properly means splitting "decide the limit" from "read
-  the body", not moving the whole read earlier.
+  **Fixed.** The body is now read on the httpd task before
+  `httpd_req_async_handler_begin` and carried to the worker on the queue, with
+  the route limit decided separately from the read so the policy ordering that
+  `test_body_limit_precedes_headers` pins is unchanged.
+
+  **It did not fix restore.** With the body arriving -- the request now takes
+  0.56 s rather than 40 ms for a 6 KB package, which is the read -- restore
+  still answers 422 `invalid_argument` with zero per-set outcomes, at every size
+  from one set upward. `POST /api/v1/sets/import-new` fails the same way. So
+  there is a second cause, shared by both worker-routed body-carrying routes,
+  and my earlier claim to have found *the* root cause was wrong: the missing
+  body was real and worth fixing on its own, but it was not the whole story.
+
+  What is now ruled out, each by experiment rather than reading: the emitted
+  document (host `storage_package_validate` accepts the exact device bytes,
+  `sets=1 macros=1`), package size (one set fails identically to fourteen), and
+  the missing body (fixed, behaviour changed, failure did not).
+
+  Next: instrument the device. Both routes fail before any set is attempted, so
+  the answer is inside `storage_package_validate` or `open_document` on the
+  target, and the difference from the host must come from something the host
+  build does not reproduce.
 
   Why it survived: every restore and import test is host-side and calls the
   storage entry points with a body already in hand. Nothing exercises the

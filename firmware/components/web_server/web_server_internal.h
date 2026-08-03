@@ -54,6 +54,21 @@ esp_err_t api_handler(httpd_req_t *request);
  * marked complete). */
 esp_err_t web_api_handle_call(httpd_req_t *request, bool *out_should_restart);
 
+/* Handle a call whose body was already read, taking ownership of it.
+ *
+ * The async worker needs this. esp_http_server hands an async handler the
+ * request but not its unread payload, so a body not read before
+ * httpd_req_async_handler_begin() cannot be recovered afterwards -- restore and
+ * import both reached their handlers with body_length 0 and answered 422.
+ * Passing NULL reads the body here, which is what the ordinary path does. */
+esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body,
+                                        size_t preread_length, bool *out_should_restart);
+
+/* Read a request body on the httpd task, bounded by the route's own limit.
+ * Returns APP_ERROR_NOT_FOUND when the route does not parse, so the caller can
+ * fall through to the normal path and let it produce the proper error. */
+app_error_code_t web_api_read_route_body(httpd_req_t *request, char **out_body, size_t *out_length);
+
 /* Sends a bare JSON error envelope. Used by the async layer, which has to
  * answer before a call is ever parsed. */
 esp_err_t web_api_send_status_error(httpd_req_t *request, unsigned int status,
