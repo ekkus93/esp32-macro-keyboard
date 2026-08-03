@@ -1,0 +1,1172 @@
+# ESP32 Macro Keyboard — v2 Implementation TODO
+
+**Document status:** Authoritative implementation sequence  
+**Product version:** 0.2 rebuild  
+**Created:** 2026-08-03
+
+## 0. Authority and use
+
+This TODO is derived only from:
+
+- [`docs/SPEC_V2.md`](SPEC_V2.md)
+- [`docs/UI_UX_SPEC_V2.md`](UI_UX_SPEC_V2.md)
+
+Those two synchronized specifications remain the source of product requirements.
+This file defines the implementation order, evidence requirements, and completion
+gates.
+
+The retired v1 specification, retired TODOs, prior implementation reports,
+current v1 behavior, screenshots, mockups, and historical code are not sources of
+v2 requirements. Existing code may be reused only when it independently satisfies
+the v2 specifications and the tests required here.
+
+No task may silently change either authoritative specification. A genuine
+specification conflict must be reported to the product owner before implementation
+continues.
+
+## 0.1 Completion rules
+
+- [ ] Work through phases in order unless a task explicitly names a safe
+      dependency exception.
+- [ ] Do not mark a task complete without implementation and reproducible
+      evidence.
+- [ ] Compilation alone is not evidence for runtime behavior.
+- [ ] Host fakes are not hardware evidence.
+- [ ] A firmware build is not USB HID, Wi-Fi, persistence, or power-loss evidence.
+- [ ] Hardware-dependent tasks remain open until executed on the reference
+      ESP32-S3R8 and recorded in committed evidence.
+- [ ] Do not use `|| true`, ignored exit codes, warning suppression, analyzer
+      exclusions, or redirected diagnostics to make a gate pass.
+- [ ] Do not add compatibility shims for the retired firmware-owned package and
+      macro architecture.
+- [ ] Do not preserve obsolete routes, schema fields, storage files, or UI flows
+      merely to keep old tests passing.
+- [ ] Add or update tests in the same change as each behavior.
+- [ ] Keep the repository buildable and testable at every phase boundary.
+
+## 0.2 Evidence format
+
+Every completed phase must add or update a committed implementation report under
+`docs/implementation-v2/`. Each report must include:
+
+- phase and task IDs;
+- exact commit SHA;
+- files and subsystems changed;
+- commands executed;
+- complete pass/fail summary;
+- relevant test names and counts;
+- hardware model, ports, firmware build ID, and host OS when hardware was used;
+- observed values for timing, storage, memory, and reconnect tests;
+- unresolved limitations or deferred evidence;
+- an explicit statement that no unchecked task is being claimed complete.
+
+Use logs or machine-readable artifacts where useful, but do not commit passwords,
+passphrases, setup codes, session tokens, repository contents, macro source, or
+other sensitive data.
+
+## 0.3 Ralph-loop phase discipline
+
+For each phase:
+
+1. inspect the current implementation and identify the smallest coherent gap;
+2. write or update the failing test or acceptance harness;
+3. implement the narrow change;
+4. run the narrow test loop;
+5. run the phase gate;
+6. inspect the diff for obsolete behavior, silent fallbacks, and untested paths;
+7. record exact evidence;
+8. repeat until the phase exit gate is satisfied.
+
+---
+
+# Phase 0 — Baseline, inventory, and migration map
+
+**Goal:** Establish a trustworthy starting point and classify every existing v1
+subsystem before modifying production behavior.
+
+## V2-000 — Record the starting state
+
+- [ ] Record the starting `master` commit SHA.
+- [ ] Record toolchain versions and confirm ESP-IDF `v5.5.5`, target `esp32s3`,
+      and Node.js `v24.18.0`.
+- [ ] Run the current authoritative local gate:
+
+```bash
+./scripts/check-all.sh
+```
+
+- [ ] Record every current failure without weakening a gate.
+- [ ] Record current frontend test count, host test count, firmware build status,
+      webfs size, app image size, and userdata partition size.
+- [ ] Confirm no uncommitted user work is mixed into the rebuild baseline.
+
+## V2-001 — Build a complete code inventory
+
+- [ ] Inventory production firmware components under `firmware/`.
+- [ ] Inventory React routes, feature modules, API clients, models, validators,
+      and persistent-browser-storage use under `webapp/`.
+- [ ] Inventory native host tests under `tests/host/`.
+- [ ] Inventory browser and Vitest coverage under `webapp/tests/`.
+- [ ] Inventory on-device Unity coverage under `firmware/test_app/`.
+- [ ] Inventory hardware scripts under `tests/hardware/`.
+- [ ] Inventory schemas, generated files, static assets, scripts, CI workflows,
+      and documentation references.
+
+## V2-002 — Create the explicit migration map
+
+- [ ] Create `docs/implementation-v2/V2_MIGRATION_MAP.md`.
+- [ ] Classify every production subsystem as **retain**, **adapt**, **rewrite**, or
+      **delete**.
+- [ ] Classify every test suite and fixture the same way.
+- [ ] Identify all firmware-owned package and macro state.
+- [ ] Identify all package/macro CRUD routes and validation routes.
+- [ ] Identify all revision, ETag, optimistic-concurrency, restore, import,
+      replace, and repository-index behavior from v1.
+- [ ] Identify all frontend localStorage, sessionStorage, IndexedDB, Cache
+      Storage, and service-worker repository persistence.
+- [ ] Identify all standalone send-confirmation, send-progress, and result routes
+      that conflict with the v2 primary workflow.
+- [ ] Identify all documentation and scripts that still point to v1 authority.
+- [ ] For every retained subsystem, name the v2 requirement and tests proving it
+      remains valid.
+
+## Phase 0 exit gate
+
+- [ ] Baseline evidence is committed.
+- [ ] Migration map covers production code, tests, scripts, schemas, and docs.
+- [ ] Every known v1 feature has an explicit delete/adapt decision.
+- [ ] No production behavior has changed in this phase.
+
+---
+
+# Phase 1 — Shared contracts, constants, and test fixtures
+
+**Depends on:** Phase 0.
+
+**Goal:** Define exact v2 contracts before firmware and UI implementation diverge.
+
+## V2-010 — Repository model and schema contracts
+
+- [ ] Define the strict TypeScript repository types:
+
+```json
+{
+  "format": "esp32-macro-keyboard-repository",
+  "schemaVersion": 1,
+  "packages": []
+}
+```
+
+- [ ] Ensure the root has exactly `format`, `schemaVersion`, and `packages`.
+- [ ] Prohibit `activePackageId` and all unknown fields.
+- [ ] Define package and macro types exactly as specified.
+- [ ] Enforce canonical lowercase UUID v4 identifiers.
+- [ ] Enforce repository-wide package-ID and macro-ID uniqueness.
+- [ ] Add valid, boundary, malformed, duplicate-ID, prototype-bearing, sparse
+      array, non-finite-number, and unknown-field fixtures.
+- [ ] Add a checked-in canonical example repository and canonical compact JSON.
+
+## V2-011 — API contract models
+
+- [ ] Define shared request/response examples for every `/api/v1` route.
+- [ ] Define the standard JSON error envelope with stable `code`, human-readable
+      `message`, and optional `field`.
+- [ ] Define exact setup, session, status, limits, settings, password-change,
+      restart, reset-settings, factory-reset, diagnostics, blob, and send objects.
+- [ ] Define strict unknown-field rejection for JSON requests.
+- [ ] Define content types, maximum body sizes, success status codes, and error
+      status codes per route.
+- [ ] Add TypeScript types and C-side parsing/serialization contracts that match
+      the same checked-in examples.
+
+## V2-012 — Centralized limits
+
+- [ ] Create one authoritative firmware limits module.
+- [ ] Mirror client-relevant limits in generated or verified TypeScript types.
+- [ ] Include at least:
+  - [ ] package name: 64 UTF-8 bytes;
+  - [ ] macro name: 64 UTF-8 bytes;
+  - [ ] macro source: 4096 UTF-8 bytes;
+  - [ ] compiled actions: 4096;
+  - [ ] key press: 0–10,000 ms;
+  - [ ] inter-key delay: 0–10,000 ms;
+  - [ ] directive delay: 1–10,000 ms;
+  - [ ] estimated macro duration: 300,000 ms;
+  - [ ] absolute executor deadline: 310,000 ms;
+  - [ ] JSON request body: 8192 bytes;
+  - [ ] candidate repository blob maximum: 131,072 bytes;
+  - [ ] active sessions: 8;
+  - [ ] session idle lifetime: 86,400 seconds;
+  - [ ] session absolute lifetime: 604,800 seconds;
+  - [ ] serial-confirmation timeout: 60 seconds;
+  - [ ] administrator password: 12–128 UTF-8 bytes.
+- [ ] Make `GET /api/v1/limits` derive from the same constants.
+- [ ] Add boundary tests for every numeric and byte-count limit.
+
+## V2-013 — Shared macro-language conformance corpus
+
+- [ ] Retain or replace the current corpus with one format consumed by C and
+      TypeScript tests.
+- [ ] Cover printable ASCII, line endings, tabs, directives, chords, escaping,
+      delays, malformed braces, Unicode rejection, duplicate modifiers, unknown
+      names, source positions, action limits, and duration limits.
+- [ ] Define expected compiled actions for valid cases.
+- [ ] Define expected code, byte offset, line, column, and message class for
+      invalid cases.
+- [ ] Make parser drift fail both local gates and CI.
+
+## V2-014 — Device settings schema
+
+- [ ] Define a versioned NVS settings record.
+- [ ] Include device name, AP settings, optional station settings, password
+      verifier metadata, physical-confirmation policy, provisioning state,
+      credential version, optional next-blob counter, and UI preferences.
+- [ ] Include:
+  - [ ] `sendMode`, default `quick`;
+  - [ ] `snapshotRetentionTarget`, default `5`, advisory only;
+  - [ ] `showMacroSourcePreviews`, default `false`;
+  - [ ] `lastSelectedPackageId`, default `null`.
+- [ ] Validate `lastSelectedPackageId` only as an opaque canonical UUID or null.
+- [ ] Specify reset-settings and factory-reset defaults exactly.
+- [ ] Add wrong-version, wrong-length, truncated-record, invalid-enum, and invalid
+      UUID tests.
+
+## Phase 1 exit gate
+
+- [ ] Contract fixtures are checked in and consumed by tests.
+- [ ] C and TypeScript agree on every shared boundary and enum.
+- [ ] No production route or repository serializer still depends on a v1 shape.
+- [ ] Narrow contract test suites pass with zero warnings.
+
+---
+
+# Phase 2 — Remove the retired firmware-owned repository architecture
+
+**Depends on:** Phase 1.
+
+**Goal:** Delete v1 ownership before adding the v2 persistence path.
+
+## V2-020 — Delete firmware package and macro repositories
+
+- [ ] Remove production package repository state.
+- [ ] Remove production macro repository state.
+- [ ] Remove firmware active-package state.
+- [ ] Remove package indexes, per-package files, per-macro files, repository JSON,
+      revision stores, backup stores, restore stores, and related caches.
+- [ ] Remove firmware package/macro import, export, merge, replace, and restore
+      logic.
+- [ ] Remove firmware repository schema parsing and serialization.
+- [ ] Remove associated startup sequencing and recovery behavior.
+
+## V2-021 — Delete obsolete HTTP resources
+
+- [ ] Remove package CRUD routes.
+- [ ] Remove macro CRUD routes.
+- [ ] Remove firmware validation routes.
+- [ ] Remove repository restore/import/export/replace routes.
+- [ ] Remove plural execution resources and revision parameters.
+- [ ] Reject old paths explicitly rather than silently translating them.
+
+## V2-022 — Remove obsolete tests and replace coverage
+
+- [ ] Delete tests whose only purpose is retired behavior.
+- [ ] Preserve useful parser, executor, USB, authentication, Wi-Fi, and static
+      server tests by adapting them to v2 contracts.
+- [ ] Add negative tests proving old routes are absent.
+- [ ] Add source scans or architectural tests preventing reintroduction of:
+  - [ ] firmware package repositories;
+  - [ ] firmware macro repositories;
+  - [ ] repository `activePackageId`;
+  - [ ] package/macro CRUD routes;
+  - [ ] firmware gzip or JSON repository parsing.
+
+## Phase 2 exit gate
+
+- [ ] Firmware builds without retired repository modules.
+- [ ] Old routes are absent and tested absent.
+- [ ] No compatibility adapter remains.
+- [ ] Relevant host tests and static analysis pass.
+
+---
+
+# Phase 3 — Opaque blob storage
+
+**Depends on:** Phase 2.
+
+**Goal:** Implement the complete byte-oriented snapshot store without repository
+knowledge in firmware.
+
+## V2-030 — Storage layout and scanning
+
+- [ ] Mount the userdata LittleFS partition without format-on-failure.
+- [ ] Use `/data/repository/` and fixed-width decimal `<id>.gz` filenames.
+- [ ] Scan final filenames at startup.
+- [ ] Ignore invalid names as blobs and report them in diagnostics.
+- [ ] Sort valid IDs numerically, newest first.
+- [ ] Derive the next ID from both NVS and the maximum existing ID.
+- [ ] Prevent overwrite after stale or erased counters.
+
+## V2-031 — Atomic blob add
+
+- [ ] Implement bounded `application/gzip` streaming upload.
+- [ ] Write to `<id>.gz.tmp` in bounded chunks.
+- [ ] Treat short write, write error, flush error, close error, sync error, and
+      rename error as failures.
+- [ ] Synchronize the temporary file before rename.
+- [ ] Use rename as the commit point.
+- [ ] Synchronize the directory when supported.
+- [ ] Return `201` only after the final file is committed.
+- [ ] Leave existing final blobs unchanged on every failure path.
+
+## V2-032 — List, load, and delete
+
+- [ ] Implement newest-first listing with ID and stored byte size only.
+- [ ] Implement byte-identical streaming download as `application/gzip`.
+- [ ] Implement explicit deletion of exactly one selected blob.
+- [ ] Permit deletion of the final blob.
+- [ ] Never select or load a replacement automatically.
+- [ ] Never inspect gzip headers, decompress, parse JSON, compute metadata, or add
+      a checksum, hash, digest, or CRC.
+
+## V2-033 — Boot cleanup and degraded states
+
+- [ ] Remove only interrupted `.tmp` files during boot recovery.
+- [ ] Never remove a final `.gz` because React cannot decode it.
+- [ ] Expose mount failure as an explicit degraded or failed storage state.
+- [ ] Ensure mount failure never triggers formatting.
+- [ ] Report temporary and invalid files in diagnostics.
+
+## V2-034 — Capacity and candidate blob limit
+
+- [ ] Report total, used, remaining, and maximum accepted bytes.
+- [ ] Enforce `413` for request bodies above the configured maximum.
+- [ ] Enforce `507` when a within-limit upload cannot fit.
+- [ ] Build a LittleFS image test containing two maximum-size final blobs and one
+      maximum-size temporary upload, including filesystem overhead.
+- [ ] Validate the candidate 128 KiB maximum.
+- [ ] Reduce the constant if real filesystem evidence cannot support it.
+- [ ] Record the final accepted value in the implementation report and limits
+      endpoint without changing the specification silently.
+
+## V2-035 — Storage hardware evidence
+
+- [ ] Add a blob, power-cycle the board, and load byte-identical data.
+- [ ] Add multiple blobs and verify numeric ordering.
+- [ ] Delete one blob and verify every other blob is byte-identical.
+- [ ] Interrupt an upload and verify no partial final file appears.
+- [ ] Reboot and verify temporary cleanup.
+- [ ] Fill storage and verify `507` leaves all final blobs unchanged.
+- [ ] Simulate or induce mount failure and verify no formatting occurs.
+
+## Phase 3 exit gate
+
+- [ ] Host storage tests, image tests, and static analysis pass.
+- [ ] Required hardware evidence is committed.
+- [ ] Firmware remains completely unaware of repository contents.
+
+---
+
+# Phase 4 — Authentication, provisioning, and device settings
+
+**Depends on:** Phases 1 and 3.
+
+## V2-040 — First-run provisioning
+
+- [ ] Expose only setup state, setup submission, and required static assets while
+      unprovisioned.
+- [ ] Require the one-time serial setup code.
+- [ ] Strictly validate device name, AP SSID, AP passphrase, administrator
+      password, and physical-confirmation setting.
+- [ ] Preserve unrelated configuration fields during setup updates.
+- [ ] Return a restart/reconnect response without returning secrets.
+- [ ] Test wrong, expired, malformed, and reused setup codes.
+
+## V2-041 — Password verifier and PBKDF2 benchmark
+
+- [ ] Use PBKDF2-HMAC-SHA-256 with a random per-password salt.
+- [ ] Store verifier version, salt, and iteration count.
+- [ ] Use constant-time verifier comparison.
+- [ ] Benchmark candidate iteration counts on the reference ESP32-S3R8.
+- [ ] Record median, percentile, and worst observed time under representative
+      memory and Wi-Fi load.
+- [ ] Select one exact iteration count yielding approximately 250–500 ms.
+- [ ] Freeze the selected constant in code and tests.
+- [ ] Confirm the derivation does not trip watchdogs or starve critical tasks.
+- [ ] Ensure passwords and derived material never appear in logs or diagnostics.
+
+## V2-042 — Sessions and rate limiting
+
+- [ ] Generate session tokens with 32 random bytes of entropy.
+- [ ] Store at most eight sessions in bounded RAM.
+- [ ] Set `HttpOnly`, `SameSite=Strict`, and `Path=/` on the cookie.
+- [ ] Enforce 24-hour idle and seven-day absolute expiry.
+- [ ] Define deterministic behavior when the ninth session is created.
+- [ ] Enforce five failed logins within 60 seconds followed by a five-minute
+      lockout.
+- [ ] Ensure rate-limit state is bounded and does not become a denial-of-service
+      memory leak.
+- [ ] Test login, logout, expiry, lockout, session replacement, reboot, and cookie
+      attributes.
+
+## V2-043 — Device UI preferences
+
+- [ ] Implement NVS-backed Quick Send/Always Preview mode.
+- [ ] Default to Quick Send.
+- [ ] Implement advisory snapshot retention target, default five.
+- [ ] Implement source-preview setting, default hidden.
+- [ ] Implement opaque `lastSelectedPackageId`.
+- [ ] Suppress duplicate NVS writes when a value has not changed.
+- [ ] Ensure changing UI preferences never creates or changes a repository blob.
+
+## V2-044 — Wi-Fi and reset semantics
+
+- [ ] Start the protected AP first and unconditionally.
+- [ ] Support at most one explicitly configured station network.
+- [ ] Ensure station failure cannot prevent AP operation.
+- [ ] Bound retries and expose status.
+- [ ] Define and test restart, reset-settings, credential reset where applicable,
+      and factory-reset preservation/deletion behavior.
+- [ ] Ensure factory reset erases repository blobs only when the specification
+      requires it and reports the connection loss clearly.
+
+## Phase 4 exit gate
+
+- [ ] Provisioning, authentication, session, NVS, and Wi-Fi host tests pass.
+- [ ] PBKDF2 hardware benchmark and selected iteration count are committed.
+- [ ] No secret appears in logs, APIs, diagnostics, or test artifacts.
+
+---
+
+# Phase 5 — Exact v2 HTTP API
+
+**Depends on:** Phases 1, 3, and 4.
+
+## V2-050 — Common HTTP policy
+
+- [ ] Register only documented `/api/v1` routes.
+- [ ] Enforce authentication per route.
+- [ ] Enforce exact methods and content types.
+- [ ] Enforce bounded request bodies before allocation or parsing.
+- [ ] Reject unknown JSON fields.
+- [ ] Reject malformed, duplicate, overflowing, and trailing JSON content.
+- [ ] Prevent user-controlled filesystem paths.
+- [ ] Return the standard error envelope on JSON errors.
+- [ ] Disable CORS.
+- [ ] Test malformed paths and unsupported methods.
+
+## V2-051 — Setup and authentication routes
+
+- [ ] Implement `POST /api/v1/setup`.
+- [ ] Implement `POST /api/v1/auth/login`.
+- [ ] Implement `POST /api/v1/auth/logout`.
+- [ ] Implement `GET /api/v1/auth/session`.
+- [ ] Match exact schemas, status codes, cookie behavior, and expiry fields.
+
+## V2-052 — Status and limits routes
+
+- [ ] Implement `GET /api/v1/status` with stable fields for provisioning, device,
+      firmware, uptime, USB, AP, station, storage, and send state.
+- [ ] Implement `GET /api/v1/limits` from centralized constants.
+- [ ] Exclude secrets, repository content, package names, macro names, and macro
+      source.
+
+## V2-053 — Blob routes
+
+- [ ] Implement `GET /api/v1/blob`.
+- [ ] Implement `POST /api/v1/blob`.
+- [ ] Implement `GET /api/v1/blob/{blob_id}`.
+- [ ] Implement `DELETE /api/v1/blob/{blob_id}`.
+- [ ] Verify exact binary behavior and status codes.
+
+## V2-054 — Send routes
+
+- [ ] Implement `POST /api/v1/send` with source and timing only.
+- [ ] Reject package ID, macro ID, blob ID, revision, or extra fields.
+- [ ] Compile the full source before returning acceptance.
+- [ ] Return exact parser locations on `422` and type nothing.
+- [ ] Return `409` when a send is already active.
+- [ ] Implement `GET /api/v1/send` for current or most recent state.
+- [ ] Implement idempotent `DELETE /api/v1/send` cancellation.
+- [ ] Return `404` when no send has existed since boot.
+
+## V2-055 — Settings and device-action routes
+
+- [ ] Implement `GET /api/v1/settings` without returning passphrases.
+- [ ] Implement `PUT /api/v1/settings` with unambiguous preserve/remove semantics.
+- [ ] Reject empty strings where they would ambiguously mean preserve or delete.
+- [ ] Implement `POST /api/v1/settings/change-password`.
+- [ ] Implement `POST /api/v1/device/restart`.
+- [ ] Implement `POST /api/v1/device/reset-settings`.
+- [ ] Implement `POST /api/v1/device/factory-reset`.
+- [ ] Return exact accepted/reconnect/reprovision/preservation fields.
+
+## V2-056 — Diagnostics route
+
+- [ ] Implement `GET /api/v1/diagnostics` using a fixed schema.
+- [ ] Include required subsystem health, memory, stack, storage, USB, Wi-Fi, send,
+      invalid filename, and temporary-file data.
+- [ ] Exclude credentials, sessions, repository bytes, repository JSON, package
+      information, macro information, and macro source.
+
+## V2-057 — Contract and security tests
+
+- [ ] Test every route with valid, missing, extra, wrong-type, wrong-content-type,
+      oversized, unauthorized, expired-session, malformed-path, and method-error
+      cases.
+- [ ] Test exact response schemas and status codes.
+- [ ] Test that secret-like sentinel values never appear in responses or logs.
+- [ ] Consume the same checked-in examples from C and TypeScript tests.
+
+## Phase 5 exit gate
+
+- [ ] Route table exactly matches the v2 specification.
+- [ ] Old routes are absent.
+- [ ] Contract and security tests pass.
+- [ ] API documentation examples match observed responses.
+
+---
+
+# Phase 6 — Macro compiler, executor, USB HID, and send lifecycle
+
+**Depends on:** Phases 1 and 5.
+
+## V2-060 — Compiler compliance
+
+- [ ] Adapt or replace the C parser to satisfy the shared corpus.
+- [ ] Compile the complete source before execution begins.
+- [ ] Reject partial parses and all invalid Unicode.
+- [ ] Produce exact byte offset, line, and column.
+- [ ] Enforce action-count and duration limits before acceptance.
+- [ ] Ensure compile failure emits no HID report.
+
+## V2-061 — Single executor and state machine
+
+- [ ] Use exactly one executor task.
+- [ ] Prevent HTTP handlers from typing directly.
+- [ ] Support `awaiting_confirmation`, `running`, `completed`, `cancelled`,
+      `failed`, and `timed_out`.
+- [ ] Do not queue a second send.
+- [ ] Enforce the 60-second confirmation timeout.
+- [ ] Enforce the 310-second absolute deadline.
+- [ ] Preserve the current or most recent send for status recovery.
+
+## V2-062 — Release-all invariant
+
+- [ ] Emit release-all after every key or chord action.
+- [ ] Attempt release-all on completion, cancellation, disconnect, suspension,
+      timeout, parser invariant failure, task failure, queue failure, and internal
+      error.
+- [ ] Clear internal pressed-key state even when transport delivery fails.
+- [ ] Report release failures separately from primary execution failures.
+
+## V2-063 — Cancellation responsiveness
+
+- [ ] Make cancellation responsive during ordinary typing.
+- [ ] Make cancellation responsive during delay directives.
+- [ ] Make network and serial cancellation converge on the same state machine.
+- [ ] Add deterministic host tests for cancellation races.
+- [ ] Measure real-device last-keystroke latency after cancellation.
+
+## V2-064 — USB identity and HIL evidence
+
+- [ ] Verify `303a:4001` and required manufacturer, product, and serial strings.
+- [ ] Capture host HID reports rather than relying on text-editor output.
+- [ ] Verify printable text exactly.
+- [ ] Verify a chord sets modifier and usage concurrently.
+- [ ] Verify every terminal path ends with an all-zero report.
+- [ ] Verify invalid source types nothing.
+- [ ] Verify cancellation during typing and delay.
+- [ ] Verify disconnect and reconnect behavior.
+
+## Phase 6 exit gate
+
+- [ ] C and TypeScript conformance suites pass the same corpus.
+- [ ] Executor host tests pass under sanitizers.
+- [ ] Required HID and cancellation hardware evidence is committed.
+
+---
+
+# Phase 7 — React repository core and persistence client
+
+**Depends on:** Phases 1 and 5.
+
+## V2-070 — Strict repository validation
+
+- [ ] Implement exact root, package, and macro validation.
+- [ ] Reject `activePackageId` and all unknown fields.
+- [ ] Enforce UUID, uniqueness, byte, integer, and macro-language invariants.
+- [ ] Leave the existing working copy unchanged after any validation failure.
+- [ ] Identify the exact failing field, package, or macro.
+
+## V2-071 — In-memory working copy and dirty state
+
+- [ ] Store repository data only in live React memory.
+- [ ] Track the loaded/last-saved baseline and current working copy.
+- [ ] Mark dirty after package or macro content/order changes and imports.
+- [ ] Do not mark dirty after package selection, sends, cancellation, snapshot
+      deletion, or UI preference changes.
+- [ ] Clear dirty only after successful snapshot save or deliberate replacement.
+- [ ] Preserve a live dirty working copy across in-tab reauthentication.
+
+## V2-072 — Browser-storage prohibition
+
+- [ ] Remove repository JSON, IDs, names, source, and compressed bytes from
+      localStorage, sessionStorage, IndexedDB, Cache Storage, and service workers.
+- [ ] Add automated tests and build scans for prohibited persistence.
+- [ ] Allow only unrelated presentation data when explicitly documented.
+
+## V2-073 — Gzip and snapshot client
+
+- [ ] Feature-detect `CompressionStream("gzip")` and
+      `DecompressionStream("gzip")`.
+- [ ] Show an explicit compatibility error when unsupported.
+- [ ] Never fall back to uncompressed repository storage.
+- [ ] Implement list, add, load, download, and delete client calls.
+- [ ] Validate before replacing the working copy.
+- [ ] Keep dirty work after failed save.
+- [ ] Implement `.emk-repository.json.gz` export.
+
+## V2-074 — Package selection preference
+
+- [ ] Load `lastSelectedPackageId` from settings.
+- [ ] Open it only when it identifies a package in the loaded repository.
+- [ ] Auto-select the sole package and persist that selection.
+- [ ] Show the Package Chooser when selection cannot be resolved.
+- [ ] Update NVS only when the selected ID changes.
+- [ ] Never serialize selection into repository JSON.
+
+## V2-075 — React send helper
+
+- [ ] Implement `sendMacro(request, { onStatus, onComplete })`.
+- [ ] Poll no slower than once per second while non-terminal.
+- [ ] Invoke status callbacks only for meaningful state/progress changes.
+- [ ] Invoke completion exactly once per send.
+- [ ] Recover state after reload using `GET /api/v1/send`.
+- [ ] Avoid duplicate POSTs and callbacks across orientation changes and rerenders.
+
+## Phase 7 exit gate
+
+- [ ] Repository, gzip, dirty-state, storage-prohibition, settings, and send-helper
+      tests pass.
+- [ ] Production frontend contains no firmware package/macro CRUD client.
+
+---
+
+# Phase 8 — Startup, provisioning, and authentication UI
+
+**Depends on:** Phases 4, 5, and 7.
+
+## V2-080 — First-run setup screens
+
+- [ ] Implement device identification and setup-code entry.
+- [ ] Implement device name, AP credentials, administrator password, and optional
+      physical-confirmation fields.
+- [ ] Implement review without displaying secret values.
+- [ ] Implement apply, restart, reconnect guidance, and Sign In transition.
+- [ ] Keep repository creation outside provisioning.
+
+## V2-081 — Sign In
+
+- [ ] Show Sign In only for a configured device without a valid session.
+- [ ] Display rate-limit and lockout errors without leaking account state.
+- [ ] Redirect successful authentication into repository startup.
+- [ ] Do not add per-phone onboarding.
+
+## V2-082 — Authenticated startup state machine
+
+- [ ] Show a brief repository-loading state when no live working copy exists.
+- [ ] Load settings and the newest blob by numeric ID.
+- [ ] Never show the chooser merely because several blobs exist.
+- [ ] Never silently fall back after newest-blob failure.
+- [ ] Route valid repositories through package-selection resolution.
+- [ ] Recover active or recent send status.
+- [ ] Restore the exact current route and draft when the tab still has a live
+      working copy.
+
+## V2-083 — First repository and first package
+
+- [ ] Show Create Your First Repository when no blobs exist.
+- [ ] Create an empty valid repository in memory.
+- [ ] Ask for the first package name.
+- [ ] Set `lastSelectedPackageId` to the new package.
+- [ ] Open the empty Macros page.
+- [ ] State clearly that data exists only in this tab until Save snapshot succeeds.
+- [ ] Keep Unsaved changes visible.
+
+## V2-084 — Startup failure surfaces
+
+- [ ] Handle device unreachable.
+- [ ] Handle unsupported Compression Streams.
+- [ ] Handle invalid settings response.
+- [ ] Handle unreadable or invalid newest snapshot.
+- [ ] Handle missing or invalid selected package.
+- [ ] Preserve recoverable working state and provide precise next actions.
+
+## Phase 8 exit gate
+
+- [ ] Startup decision-table tests cover every provisioning/session/blob/package
+      combination.
+- [ ] Real-browser tests cover first phone, refresh, expired session, no blobs,
+      invalid newest blob, and send recovery.
+
+---
+
+# Phase 9 — Macros page and Quick Send operating console
+
+**Depends on:** Phases 7 and 8.
+
+## V2-090 — Application shell
+
+- [ ] Show device name, selected package, USB state, and repository state.
+- [ ] Show Save snapshot whenever dirty.
+- [ ] Implement bottom navigation:
+
+```text
+Macros | Packages | Snapshots | Settings
+```
+
+- [ ] Preserve accessibility and safe-area behavior.
+
+## V2-091 — Macro list
+
+- [ ] Show ordered macros for the selected package.
+- [ ] Show Add macro, Edit, Send, and overflow controls.
+- [ ] Support accessible reordering.
+- [ ] Disable Send unless USB is `ready` and no other send is active.
+- [ ] Keep the user on the Macros page for ordinary sends.
+
+## V2-092 — Macro-source privacy
+
+- [ ] Hide source previews by default.
+- [ ] Show a non-revealing placeholder.
+- [ ] Support temporary per-row reveal.
+- [ ] Honor the device-wide source-preview preference.
+- [ ] Prevent hidden source from entering acknowledgements, accessible names,
+      live regions, logs, diagnostics, notifications, or telemetry.
+
+## V2-093 — Quick Send
+
+- [ ] Make the primary Send control issue one explicit `POST /api/v1/send`.
+- [ ] Show selected-row and page-level progress inline.
+- [ ] Disable other Send controls while active.
+- [ ] Show serial-confirmation waiting state inline.
+- [ ] Keep Cancel and release all keys accessible.
+- [ ] Show completion acknowledgement for approximately three to five seconds.
+- [ ] Persist cancellation, failure, timeout, and release-error messages until the
+      user can understand or dismiss them.
+- [ ] Never include source in the acknowledgement.
+
+## V2-094 — Optional Preview and Send
+
+- [ ] Make preview available from overflow actions.
+- [ ] Honor Always Preview when configured.
+- [ ] Show package, macro, source/action summary, timing, action count, duration,
+      and USB state.
+- [ ] Provide explicit Send now and Cancel.
+- [ ] Return to the Macros page for progress.
+
+## V2-095 — Reload and race handling
+
+- [ ] Recover inline send state after reload.
+- [ ] Prevent double-send on rapid taps.
+- [ ] Prevent duplicate completion callbacks.
+- [ ] Handle `409` by showing the actual current send.
+- [ ] Handle session expiry without discarding the working copy.
+
+## Phase 9 exit gate
+
+- [ ] Macros page browser tests cover idle, USB unavailable, quick send,
+      confirmation, progress, cancel, complete, failure, timeout, release error,
+      reload, and rapid repeated input.
+- [ ] Ordinary Quick Send never navigates to a standalone progress/result route.
+
+---
+
+# Phase 10 — Macro editing and package management
+
+**Depends on:** Phases 7 and 9.
+
+## V2-100 — Macro editor
+
+- [ ] Implement name, source, key-press duration, and inter-key delay fields.
+- [ ] Show UTF-8 byte counts.
+- [ ] Implement directive insertion controls.
+- [ ] Run live TypeScript validation against the shared corpus implementation.
+- [ ] Show exact error location and Go to error.
+- [ ] Show action count and estimated duration when valid.
+- [ ] Save only to the in-memory working copy.
+- [ ] Cancel without changing the working copy.
+
+## V2-101 — Macro CRUD and ordering
+
+- [ ] Create, edit, duplicate, move, reorder, and delete macros locally.
+- [ ] Generate IDs with `crypto.randomUUID()`.
+- [ ] Preserve global macro-ID uniqueness.
+- [ ] Mark repository dirty after every actual content/order change.
+- [ ] Avoid dirty transitions after no-op edits.
+
+## V2-102 — Package management
+
+- [ ] Create, rename, duplicate, reorder, and delete packages locally.
+- [ ] Generate canonical UUID v4 package IDs.
+- [ ] Mark repository dirty after actual changes.
+- [ ] Identify destructive targets by name.
+- [ ] Resolve and persist package selection after selected-package deletion.
+- [ ] Do not make ordinary package switching dirty.
+
+## V2-103 — Unsaved-change protection
+
+- [ ] Keep Unsaved changes and Save snapshot visible on all operational screens.
+- [ ] Register `beforeunload` while dirty where supported.
+- [ ] Warn before Sign Out, snapshot load, import replacement, reset settings,
+      and factory reset.
+- [ ] Offer context-appropriate Cancel, Export working copy, Save snapshot, and
+      Discard options.
+- [ ] Never claim closed unsaved work can be recovered.
+
+## Phase 10 exit gate
+
+- [ ] Editing and package-management unit and browser tests pass.
+- [ ] No edit calls a firmware package or macro route.
+- [ ] Dirty-state transition matrix is fully tested.
+
+---
+
+# Phase 11 — Snapshots, import, and export UI
+
+**Depends on:** Phases 7 and 10.
+
+## V2-110 — Manual Save snapshot
+
+- [ ] Validate the entire repository.
+- [ ] Serialize compact UTF-8 JSON.
+- [ ] Gzip in React.
+- [ ] Enforce device limits before upload.
+- [ ] Upload only after an explicit user action.
+- [ ] Mark saved only after `201 Created`.
+- [ ] Preserve dirty work after every failure.
+- [ ] Never autosave after edits, sends, package selection, timers, or navigation.
+
+## V2-111 — Snapshot management
+
+- [ ] Show blob ID, stored size, loaded indicator, storage usage, and configured
+      advisory target.
+- [ ] Provide Load, Download, Delete, and Save current snapshot.
+- [ ] Avoid device-generated dates.
+- [ ] Permit manual loading at any time.
+- [ ] Confirm deletion by exact blob ID and consequence.
+- [ ] Never automatically delete a snapshot.
+
+## V2-112 — Advisory retention target
+
+- [ ] Default target to five.
+- [ ] Show a non-blocking cleanup indicator when count exceeds target.
+- [ ] Let the user choose which snapshots to delete.
+- [ ] Permit a sixth or later snapshot when storage permits.
+- [ ] Test that no save path triggers deletion.
+
+## V2-113 — Dirty-work protection during load
+
+- [ ] Warn when loading another snapshot while dirty.
+- [ ] Offer Cancel, Export working copy, Save snapshot, and Discard changes and
+      load.
+- [ ] Validate the selected snapshot before replacing memory.
+- [ ] Leave stored snapshots untouched.
+- [ ] Resolve selected package after load.
+
+## V2-114 — Unreadable snapshot recovery
+
+- [ ] Show the failing blob and exact decompression/schema error.
+- [ ] Keep it stored.
+- [ ] Allow download, delete, or deliberate selection of another blob.
+- [ ] Never silently fall back.
+
+## V2-115 — Import and export
+
+- [ ] Export the current working copy as `.emk-repository.json.gz`.
+- [ ] Import bytes, decompress, decode, parse, and fully validate before
+      replacement.
+- [ ] Show package and macro counts before confirmation.
+- [ ] Mark imported data dirty.
+- [ ] Do not upload automatically.
+- [ ] Exclude every device credential, session, key, and diagnostic field.
+
+## V2-116 — Advanced non-atomic replace
+
+- [ ] Keep normal saves additive.
+- [ ] Implement replacement only as an explicitly advanced delete-then-add flow.
+- [ ] Warn that a failed add does not restore the deleted blob.
+- [ ] Test delete-success/add-failure behavior.
+
+## Phase 11 exit gate
+
+- [ ] Snapshot and import/export browser tests pass.
+- [ ] No automatic snapshot creation or deletion exists.
+- [ ] Dirty work survives all recoverable failure paths.
+
+---
+
+# Phase 12 — Settings, diagnostics, and destructive operations UI
+
+**Depends on:** Phases 5 and 11.
+
+## V2-120 — Settings UI
+
+- [ ] Implement device name.
+- [ ] Implement serial-confirmation policy.
+- [ ] Implement AP and optional station configuration.
+- [ ] Implement administrator password change.
+- [ ] Implement Quick Send/Always Preview.
+- [ ] Implement advisory retention target.
+- [ ] Implement source-preview preference.
+- [ ] Keep `lastSelectedPackageId` hidden from ordinary text editing.
+- [ ] Ensure preference changes do not dirty the repository.
+
+## V2-121 — Restart and reset flows
+
+- [ ] Implement restart confirmation and reconnect guidance.
+- [ ] Implement reset-settings confirmation with exact preservation behavior.
+- [ ] Implement factory-reset confirmation with exact erase and reprovision
+      behavior.
+- [ ] Protect dirty work before every disruptive action.
+- [ ] Handle connection loss and recovery explicitly.
+
+## V2-122 — Diagnostics UI
+
+- [ ] Render the fixed diagnostics schema.
+- [ ] Show firmware/build, uptime, reset reason, memory, stack, USB, Wi-Fi,
+      storage, blob count, send state, health, and invalid/temp filenames.
+- [ ] Do not display package or macro data.
+- [ ] Provide copy/download only after filtering sensitive content.
+
+## Phase 12 exit gate
+
+- [ ] Settings and diagnostics contract/browser tests pass.
+- [ ] Destructive flows preserve or explicitly discard dirty work.
+- [ ] Secret-leak tests pass.
+
+---
+
+# Phase 13 — Portrait phones, responsive layout, and accessibility
+
+**Depends on:** Phases 8–12.
+
+## V2-130 — Responsive layout
+
+- [ ] Support a minimum 320 CSS-pixel viewport.
+- [ ] Use single-column phone layouts.
+- [ ] Support wider tablet and desktop layouts without changing workflow.
+- [ ] Keep touch targets at least 44 by 44 CSS pixels.
+- [ ] Respect display cutouts and gesture-navigation safe areas.
+- [ ] Ensure bottom navigation does not cover final actions.
+
+## V2-131 — Portrait-required phone surface
+
+- [ ] Apply phone-landscape blocking using tested coarse-pointer, orientation, and
+      short-viewport criteria, initially equivalent to:
+
+```css
+@media (orientation: landscape) and (pointer: coarse) and (max-height: 600px)
+```
+
+- [ ] Show Rotate your phone instead of ordinary operational content.
+- [ ] Restore the exact route, draft, working copy, and dirty state on portrait.
+- [ ] Do not reload, clear memory, restart a send, or duplicate callbacks.
+- [ ] Add `orientation: "portrait-primary"` to the manifest as progressive
+      enhancement only.
+
+## V2-132 — Landscape active-send safety
+
+- [ ] Show macro name and current send state/progress on the orientation surface.
+- [ ] Keep Cancel and release all keys accessible.
+- [ ] Test cancellation while landscape.
+- [ ] Ensure tablets, foldables classified as tablets, laptops, and desktops are
+      not incorrectly blocked.
+
+## V2-133 — Accessibility
+
+- [ ] Make all controls keyboard accessible.
+- [ ] Preserve logical focus order.
+- [ ] Trap and restore focus in dialogs.
+- [ ] Use live regions without announcing every poll tick.
+- [ ] Never use color as the only state indicator.
+- [ ] Expose source-editor labels and exact validation locations.
+- [ ] Provide Move first/up/down/last alternatives to drag and drop.
+- [ ] Honor reduced motion.
+- [ ] Prevent hidden source from leaking through accessible names.
+
+## Phase 13 exit gate
+
+- [ ] Automated accessibility checks pass.
+- [ ] Manual keyboard and screen-reader checks are recorded.
+- [ ] Real Android phone portrait/landscape tests pass.
+- [ ] Tablet and desktop landscape tests pass.
+- [ ] Active-send cancellation remains available in landscape.
+
+---
+
+# Phase 14 — Migration cleanup, static assets, scripts, and documentation
+
+**Depends on:** Phases 2–13.
+
+## V2-140 — Delete dead v1 code
+
+- [ ] Remove obsolete firmware files and build registrations.
+- [ ] Remove obsolete React routes, screens, API clients, guards, models, and
+      fixtures.
+- [ ] Remove obsolete schemas and generated artifacts.
+- [ ] Remove compatibility types and migrations that have no released v2 input.
+- [ ] Remove dead tests rather than skipping them.
+- [ ] Verify no user-visible v1 wording remains.
+
+## V2-141 — Static application production behavior
+
+- [ ] Keep all production assets local.
+- [ ] Use content-hashed Vite filenames.
+- [ ] Generate gzip variants where specified.
+- [ ] Serve correct content types.
+- [ ] Cache hashed assets immutably and revalidate `index.html`.
+- [ ] Reject path traversal.
+- [ ] Never expose the userdata mount.
+- [ ] Verify the built webfs fits the 1 MiB partition with recorded margin.
+
+## V2-142 — Build, lint, and architectural guards
+
+- [ ] Update scripts for the new source and test layout.
+- [ ] Keep `./scripts/check-all.sh` authoritative.
+- [ ] Add guards against old routes, firmware repositories, `activePackageId`,
+      automatic snapshot deletion, mandatory send navigation, remote assets, and
+      browser repository persistence.
+- [ ] Keep all first-party warnings fatal.
+
+## V2-143 — Documentation synchronization
+
+- [ ] Update `README.md` to point to both v2 specifications and this TODO.
+- [ ] Update `CLAUDE.md` to remove v1 authority and stale implementation guidance.
+- [ ] Update `docs/TODO.md` to point exclusively to this file.
+- [ ] Update development, API, test, hardware, and recovery documentation.
+- [ ] Add approved mockup references under `docs/mockups/v2/` only when the image
+      files are available and licensed for repository use.
+- [ ] Clearly label current implementation status versus specification intent.
+
+## Phase 14 exit gate
+
+- [ ] Repository-wide searches find no authoritative v1 references.
+- [ ] No dead v1 production code or skipped v1 test remains.
+- [ ] Static assets fit and pass local-only checks.
+- [ ] Documentation accurately describes the implemented v2 system.
+
+---
+
+# Phase 15 — Full validation and release evidence
+
+**Depends on:** All prior phases.
+
+## V2-150 — Native and frontend quality gates
+
+- [ ] Run native host tests.
+- [ ] Run ASan and UBSan.
+- [ ] Run native coverage and meet committed policy thresholds.
+- [ ] Run C formatting and clang-tidy with warnings as errors.
+- [ ] Run TypeScript type checking.
+- [ ] Run formatting checks.
+- [ ] Run ESLint and stylelint with zero warnings.
+- [ ] Run Vitest.
+- [ ] Run real-browser tests.
+- [ ] Build production web assets and webfs image.
+- [ ] Run the firmware build for `esp32s3`.
+- [ ] Run:
+
+```bash
+./scripts/check-all.sh
+```
+
+- [ ] Record exact commands, versions, counts, sizes, and results.
+
+## V2-151 — On-device Unity validation
+
+- [ ] Build and flash the on-device test application.
+- [ ] Run the complete Unity menu on the reference board.
+- [ ] Record every test name and result.
+- [ ] Do not substitute a device-test build for execution.
+
+## V2-152 — USB HID hardware matrix
+
+- [ ] Validate Linux.
+- [ ] Validate ChromeOS when a test machine is available.
+- [ ] Validate Windows when a test machine is available.
+- [ ] Record unavailable optional hosts without claiming completion.
+- [ ] Verify identity, text, chords, release-all, cancellation, timeout, and
+      reconnect from captured HID reports.
+
+## V2-153 — Storage and power-failure matrix
+
+- [ ] Validate add/list/load/delete on hardware.
+- [ ] Validate power-cycle byte identity.
+- [ ] Validate interrupted upload recovery.
+- [ ] Validate full-partition behavior.
+- [ ] Validate mount failure without formatting.
+- [ ] Validate factory reset and reprovisioning.
+
+## V2-154 — Network and authentication matrix
+
+- [ ] Validate first-run setup.
+- [ ] Validate login, logout, idle expiry, absolute expiry, and lockout.
+- [ ] Validate AP availability after station failure.
+- [ ] Validate bounded reconnect behavior.
+- [ ] Validate password change and PBKDF2 timing.
+- [ ] Validate no secret appears in serial, HTTP, logs, diagnostics, or exports.
+
+## V2-155 — Android UI workflow matrix
+
+- [ ] Validate first-ever launch and setup.
+- [ ] Validate configured-device Sign In.
+- [ ] Validate first sign-in from a new Android phone.
+- [ ] Validate already-authenticated refresh.
+- [ ] Validate automatic newest-snapshot loading.
+- [ ] Validate manual loading of an older snapshot.
+- [ ] Validate Quick Send while remaining on the Macros page.
+- [ ] Validate inline acknowledgement and cancellation.
+- [ ] Validate hidden macro source.
+- [ ] Validate dirty-state warnings and manual Save snapshot.
+- [ ] Validate manual snapshot deletion and advisory retention.
+- [ ] Validate portrait enforcement and landscape cancellation.
+
+## V2-156 — Final acceptance audit
+
+- [ ] Walk every acceptance criterion in both authoritative specifications.
+- [ ] Link each criterion to code, tests, and evidence.
+- [ ] Confirm firmware contains no repository parser, compressor, decompressor,
+      package repository, macro repository, or package/macro CRUD route.
+- [ ] Confirm repository schema has no `activePackageId`.
+- [ ] Confirm package selection is device UI state and switching is not dirty.
+- [ ] Confirm snapshots are never created or deleted automatically.
+- [ ] Confirm ordinary sends require no standalone confirmation navigation.
+- [ ] Confirm every terminal send path releases all keys.
+- [ ] Confirm no credentials, repository data, or macro source leak.
+- [ ] Confirm all partitions and images fit with recorded margins.
+- [ ] Confirm this TODO and both specifications match implemented behavior.
+
+## Phase 15 exit gate
+
+- [ ] Full local gate passes from a clean checkout.
+- [ ] Required hardware evidence is committed and reproducible.
+- [ ] Every specification acceptance criterion has evidence.
+- [ ] No unchecked hardware-dependent task is described as complete.
+- [ ] Product owner performs the final v0.2 acceptance review.
+
+---
+
+# Final sign-off checklist
+
+- [ ] `docs/SPEC_V2.md` matches production behavior.
+- [ ] `docs/UI_UX_SPEC_V2.md` matches production behavior.
+- [ ] `docs/TODO_V2.md` contains no falsely completed task.
+- [ ] `docs/TODO.md`, `README.md`, and `CLAUDE.md` point to the v2 authority set.
+- [ ] `./scripts/check-all.sh` passes from a clean checkout.
+- [ ] Required ESP32-S3R8, USB HID, storage, Wi-Fi, authentication, and Android
+      evidence is committed.
+- [ ] No v1 compatibility architecture remains in production code.
+- [ ] No known silent failure, dangerous fallback, secret leak, automatic
+      snapshot deletion, or inaccessible cancellation path remains.
+- [ ] Final implementation report records the accepted release commit SHA.
