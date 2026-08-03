@@ -6,6 +6,7 @@ idf_component_register(
     INCLUDE_DIRS
     "include"
     REQUIRES
+    app_contracts_v2
     esp_hw_support
 )
 
