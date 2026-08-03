@@ -1,42 +1,29 @@
-# Phase 1 Blocker — First-Run Setup-State Read Route
+# Phase 1 Decision — First-Run Setup-State Read Route
 
-**Status:** Specification clarification required before route policy is frozen  
-**Detected:** 2026-08-03
+**Status:** Resolved by product-owner approval  
+**Detected:** 2026-08-03  
+**Approved:** 2026-08-03
 
-## Conflict
+## Original conflict
 
-`docs/SPEC_V2.md` §12.3 says:
+The earlier `docs/SPEC_V2.md` wording said that an unprovisioned device exposed
+setup state and setup submission, but the route table defined only
+`POST /api/v1/setup`. It did not identify the setup-state read route or authorize
+unauthenticated access to the full status endpoint.
 
-> An unprovisioned device exposes only setup state and setup submission, plus the
-> static assets required for that UI.
+Because this choice changes the unauthenticated HTTP attack surface, the
+implementation correctly stopped rather than inventing a route policy.
 
-The §13.3 route table defines `POST /api/v1/setup` but does not define a read
-operation for setup state. It also does not state that `GET /api/v1/status` is
-available without authentication while the device is unprovisioned.
+## Approved resolution
 
-Therefore the implementation cannot determine from the authoritative
-specification whether first-run React should use:
+The product owner approved an explicit, minimal setup-state route:
 
-1. `GET /api/v1/setup` plus `POST /api/v1/setup`;
-2. unauthenticated `GET /api/v1/status` only while unprovisioned;
-3. a different explicit setup-state route.
+```http
+GET /api/v1/setup
+```
 
-This choice affects the unauthenticated HTTP attack surface and must not be
-invented inside a handler or route table.
-
-## Work deliberately not completed
-
-- No machine-readable route-access policy is being treated as authoritative.
-- No new unauthenticated GET route has been implemented.
-- No current v1 route has been adopted as a v2 requirement.
-- Phase 1 route-contract completion remains open.
-
-A prematurely created `contracts/v2/api/routes.json` was removed in the next
-forward commit after the ambiguity was found.
-
-## Recommended resolution
-
-Use `GET /api/v1/setup` while unprovisioned. Return only:
+It is available without authentication only while the device is unprovisioned
+and returns `200` with exactly:
 
 ```json
 {
@@ -45,10 +32,48 @@ Use `GET /api/v1/setup` while unprovisioned. Return only:
 }
 ```
 
-After provisioning, both `GET` and `POST /api/v1/setup` should return `404` or
-`409` according to the final contract, and normal session/status routes should
-apply. This keeps the public pre-authentication surface minimal and avoids
-exposing the full status object before login.
+The response must not contain the setup code, credentials, credential-presence
+hints, sessions, firmware/build details, diagnostics, network status, or
+repository information.
 
-The recommendation is not yet a requirement and is not implemented until the
-product owner approves it or the authoritative specification is amended.
+While unprovisioned, the only API routes available are:
+
+```text
+GET   /api/v1/setup
+POST  /api/v1/setup
+```
+
+The static assets required for the setup UI also remain available. Every other
+`/api/v1` route is unavailable.
+
+After provisioning:
+
+- `GET /api/v1/setup` returns `404`;
+- `POST /api/v1/setup` returns `409`;
+- normal authentication and authenticated route policy applies.
+
+## Authoritative updates
+
+The approved decision is now recorded in:
+
+- `docs/SPEC_V2.md` §§12.3, 13.3, 13.4, 18, and 19;
+- `docs/TODO_V2.md` tasks V2-011, V2-040, V2-051, V2-057, V2-080,
+  V2-154, and the associated exit gates.
+
+The earlier draft `contracts/v2/api/routes.json` remains deleted. A new
+machine-readable route-access policy may be introduced only when it exactly
+matches the approved specification and is consumed by tests.
+
+## Remaining Phase 1 work
+
+This decision removes the specification blocker. Phase 1 still requires:
+
+- the setup-state response to be added to the shared API examples and TypeScript
+  and C contract models;
+- strict response-guard tests;
+- a route-policy fixture or equivalent contract test for unprovisioned and
+  provisioned access;
+- successful execution of the focused v2 contract gate and the authoritative
+  clean-checkout gate.
+
+No Phase 1 exit claim is made by this decision record alone.
