@@ -26,6 +26,7 @@ Usage:
 
 import json
 import sys
+import uuid
 import time
 import urllib.error
 import urllib.request
@@ -118,6 +119,30 @@ def main() -> int:
         survived = alive(device)
         print(f"    device still alive: {survived}")
         results["restore"] = survived and all(e.get("restored") for e in outcomes)
+
+        print("\n--- POST /api/v1/sets/import-new (a set package, as a new set) ---")
+        # The other worker-routed apply path, and the one nothing exercised: the
+        # host suite calls storage_package_import_set directly with a body in
+        # hand, so the route, its body shape, and the new-set id never ran.
+        set_id = sets_before[0]["id"]
+        status, exported = raw_get(ip, f"/api/v1/sets/{set_id}/export", device.cookie)
+        if status != 200:
+            raise SystemExit(f"error: set export failed: {status} {exported[:160]}")
+        new_set_id = str(uuid.uuid4())
+        status, payload = device.post(
+            "/api/v1/sets/import-new",
+            {"newSetId": new_set_id, "package": json.loads(exported)},
+        )
+        if status != 201:
+            raise SystemExit(f"error: import-new failed: {status} {str(payload)[:200]}")
+        imported = payload["data"]
+        status, payload = device.get(f"/api/v1/sets/{imported['id']}/macros")
+        macros = payload["data"] if status == 200 else []
+        print(f"    created {imported['id']} with {len(macros)} macro(s)")
+        results["import as new"] = imported["id"] == new_set_id and len(macros) > 0
+        # Leave the repository as it was found.
+        device.delete(f"/api/v1/sets/{imported['id']}",
+                      {"expectedRevision": imported["revision"]})
 
         print("\n--- repository intact afterwards ---")
         sets_after = device.get("/api/v1/sets")[1]["data"]

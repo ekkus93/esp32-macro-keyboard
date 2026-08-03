@@ -825,27 +825,30 @@ Bootstrap AP passphrase and setup code are in
   deriving the three from it, which is a redesign rather than a deduplication
   and deserves its own decision.
 
-- [ ] **5.10 `POST /api/v1/sets/import-new` fails on hardware.** Returns
-  `422 invalid_argument` ("could not import set as new") for a package the
-  device itself just produced, including when the set and macro ids are replaced
-  with fresh ones so nothing can collide. Reproduced against the committed tree
-  at `319cc48`, so it predates the package refactors of 2026-08-02 rather than
-  being caused by them.
+- [x] **5.10 `import-new` was never broken. My harness sent the wrong body.**
+  The route takes `{"newSetId": "<uuid>", "package": {...}}`. I was posting the
+  bare package, so every top-level key was unknown and the request parser
+  refused it with `APP_ERROR_INVALID_ARGUMENT` -- a correct 422 for a malformed
+  request. With the documented shape it returns 201, creates the set under the
+  id supplied, and carries both macros across.
 
-  Restore, the other worker-routed apply path, works: the same session
-  round-trips a fourteen-set backup. So this is not the async body plumbing
-  fixed in `280d61a`, and not the package scanner replaced in `20a517f`.
+  Found by reading `parse_set_import_new` in `web_api_sets.c`, which took two
+  minutes and no instrumentation. I had recorded this as a firmware defect on
+  the strength of a 422 and a reflash-to-baseline comparison, without ever
+  checking what the route asked for.
 
-  The host suite passes throughout, for the same reason the restore defect
-  survived to hardware: `test_storage_package_import.c` calls
-  `storage_package_import_set` directly with a body already in hand, so nothing
-  exercises the route, its body shape, or how the new set id is chosen.
+  **This is the third time the harness was the fault, not the device**: the
+  restore "failure" was `json.dumps` inserting whitespace, the earlier restore
+  investigation was a body the async worker never received (that one was real),
+  and this was a wrong body shape. The pattern is that a 4xx from a device that
+  passes its own host tests is evidence about the request first.
 
-  Next: instrument as the restore defect was -- the stage logging in
-  `storage_package.c` is already there and failure-only, so a run should say
-  whether it is the envelope, the object validation, or `import_locked` refusing
-  the id. Do that before touching code; the two wrong guesses on the restore bug
-  both came from reasoning instead of looking.
+  The genuine gap it exposed is coverage, and that is now closed:
+  `test_backup_restore.py` exercises `import-new` end to end -- export a set,
+  import it under a fresh id, confirm the macros came with it, and delete it
+  again so the repository is left as found. The host suite could not have caught
+  this, because it calls `storage_package_import_set` directly with a body
+  already in hand; the route, its body shape, and the new-set id never ran.
 
 ---
 
