@@ -35,7 +35,26 @@ class PrototypeBearingRepository {
 }
 
 function mutableCanonical(): MutableRepository {
-  return structuredClone(canonicalRepository) as MutableRepository;
+  return structuredClone(canonicalRepository);
+}
+
+function packageAt(
+  repository: MutableRepository,
+  index = 0,
+): MutablePackage {
+  const pkg = repository.packages[index];
+  if (pkg === undefined) {
+    throw new Error(`missing package ${String(index)}`);
+  }
+  return pkg;
+}
+
+function macroAt(pkg: MutablePackage, index = 0): MutableMacro {
+  const macro = pkg.macros[index];
+  if (macro === undefined) {
+    throw new Error(`missing macro ${String(index)}`);
+  }
+  return macro;
 }
 
 describe("v2 repository contract", () => {
@@ -86,11 +105,12 @@ describe("v2 repository contract", () => {
 
   test("rejects noncanonical and duplicate package IDs", () => {
     const uppercase = mutableCanonical();
-    uppercase.packages[0]!.id = uppercase.packages[0]!.id.toUpperCase();
+    const uppercasePackage = packageAt(uppercase);
+    uppercasePackage.id = uppercasePackage.id.toUpperCase();
     expect(validateRepositoryV1(uppercase, acceptSource).ok).toBe(false);
 
     const duplicate = mutableCanonical();
-    duplicate.packages.push(structuredClone(duplicate.packages[0]!));
+    duplicate.packages.push(structuredClone(packageAt(duplicate)));
     const result = validateRepositoryV1(duplicate, acceptSource);
     expect(result.ok).toBe(false);
     if (result.ok) {
@@ -103,10 +123,11 @@ describe("v2 repository contract", () => {
 
   test("rejects duplicate macro IDs across different packages", () => {
     const invalid = mutableCanonical();
+    const firstMacro = macroAt(packageAt(invalid));
     invalid.packages.push({
       id: "123e4567-e89b-42d3-a456-426614174000",
       name: "Second package",
-      macros: [structuredClone(invalid.packages[0]!.macros[0]!)],
+      macros: [structuredClone(firstMacro)],
     });
     const result = validateRepositoryV1(invalid, acceptSource);
     expect(result.ok).toBe(false);
@@ -122,18 +143,22 @@ describe("v2 repository contract", () => {
 
   test("enforces UTF-8 byte and timing boundaries", () => {
     const valid = mutableCanonical();
-    valid.packages[0]!.name = "n".repeat(64);
-    valid.packages[0]!.macros[0]!.name = "m".repeat(64);
-    valid.packages[0]!.macros[0]!.source = "s".repeat(4096);
-    valid.packages[0]!.macros[0]!.keyPressMs = 0;
-    valid.packages[0]!.macros[0]!.interKeyMs = 10_000;
+    const validPackage = packageAt(valid);
+    const validMacro = macroAt(validPackage);
+    validPackage.name = "n".repeat(64);
+    validMacro.name = "m".repeat(64);
+    validMacro.source = "s".repeat(4096);
+    validMacro.keyPressMs = 0;
+    validMacro.interKeyMs = 10_000;
     expect(validateRepositoryV1(valid, acceptSource).ok).toBe(true);
 
     const invalid = mutableCanonical();
-    invalid.packages[0]!.name = "é".repeat(33);
-    invalid.packages[0]!.macros[0]!.source = "é".repeat(2049);
-    invalid.packages[0]!.macros[0]!.keyPressMs = -1;
-    invalid.packages[0]!.macros[0]!.interKeyMs = 10_001;
+    const invalidPackage = packageAt(invalid);
+    const invalidMacro = macroAt(invalidPackage);
+    invalidPackage.name = "é".repeat(33);
+    invalidMacro.source = "é".repeat(2049);
+    invalidMacro.keyPressMs = -1;
+    invalidMacro.interKeyMs = 10_001;
     expect(validateRepositoryV1(invalid, acceptSource).ok).toBe(false);
   });
 
@@ -149,7 +174,7 @@ describe("v2 repository contract", () => {
     ).toBe(false);
 
     const nonFinite = mutableCanonical();
-    nonFinite.packages[0]!.macros[0]!.keyPressMs = Number.POSITIVE_INFINITY;
+    macroAt(packageAt(nonFinite)).keyPressMs = Number.POSITIVE_INFINITY;
     expect(validateRepositoryV1(nonFinite, acceptSource).ok).toBe(false);
   });
 
