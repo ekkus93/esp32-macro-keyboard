@@ -1,10 +1,8 @@
 import { v2Limits } from "./limits";
 import type {
-  FactoryResetRequest,
   LoginRequest,
   NetworkCredentialsRequest,
   PasswordChangeRequest,
-  ResetSettingsRequest,
   SendRequest,
   SettingsUpdateRequest,
   SetupRequest,
@@ -201,30 +199,5 @@ export function isSendRequest(value: unknown): value is SendRequest {
     byteLength(value.source) <= v2Limits.macroSourceMaxBytes &&
     isBoundedInteger(value.keyPressMs, 0, v2Limits.keyPressMaxMs) &&
     isBoundedInteger(value.interKeyMs, 0, v2Limits.interKeyMaxMs)
-  );
-}
-
-export function isResetSettingsRequest(
-  value: unknown,
-): value is ResetSettingsRequest {
-  return (
-    isRecord(value) &&
-    hasExactKeys(value, ["confirmation"]) &&
-    value.confirmation === "RESET SETTINGS"
-  );
-}
-
-export function isFactoryResetRequest(
-  value: unknown,
-): value is FactoryResetRequest {
-  return (
-    isRecord(value) &&
-    hasExactKeys(value, ["adminPassword", "confirmation"]) &&
-    isStringWithinBytes(
-      value.adminPassword,
-      v2Limits.adminPasswordMinBytes,
-      v2Limits.adminPasswordMaxBytes,
-    ) &&
-    value.confirmation === "FACTORY RESET"
   );
 }
