@@ -109,9 +109,27 @@ No index file. No metadata file. The blob is the only state.
    execute request rather than an id. Recommendation: **send the source**. The
    device compiles exactly what it was handed, which is also what it already
    does after the lookup.
-4. **Does the `validate` endpoint stay?** §25 criterion 7 requires exact errors
-   for invalid macro source. Recommendation: **keep it**, so there is one parser
-   rather than a second in TypeScript that drifts from it.
+4. ~~Does the `validate` endpoint stay?~~ **Decided: no.** Phil, 2026-08-03:
+   "For validation feedback, the validation is moved to React." The endpoint
+   goes and §25 criterion 7 is met by the client.
+
+   **This leaves two implementations of the macro language**, and that is
+   unavoidable rather than an oversight: the device must still compile source
+   into keystrokes to type it, so the C parser stays whatever the client does.
+   The risk is drift — the client accepts a macro, the device refuses it at
+   execute time, and the user is told their macro is fine right up until it does
+   nothing.
+
+   The mitigation is not a third endpoint but a **shared conformance corpus**:
+   one checked-in file of macro sources with their expected compiled output and
+   expected errors, exercised by both the C host tests and the vitest suite.
+   Drift then fails CI instead of surfacing on someone's keyboard. §10 is the
+   contract both implementations answer to; the corpus is how that is enforced
+   rather than assumed.
+
+   A disagreement also stays visible at runtime: the device returns the parse
+   error and its offset when a compile fails at execute time, so the failure
+   reports itself rather than typing nothing.
 
 ## What this costs, stated plainly
 
