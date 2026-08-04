@@ -1,3 +1,5 @@
+import rawManifest from "../../../contracts/v2/api/routes.json";
+
 export type ApiMethod = "GET" | "POST" | "PUT" | "DELETE";
 export type ApiAuthentication =
   | "none-unprovisioned-only"
@@ -43,31 +45,30 @@ export interface ApiRouteManifest {
   routes: ApiRouteContract[];
 }
 
-const expectedRoutes = [
-  ["setupGet", "GET", "/api/v1/setup", "none-unprovisioned-only", "none", null, null, "application/json", 200, "404"],
-  ["setupPost", "POST", "/api/v1/setup", "none-unprovisioned-only", "setupRequest", "application/json", "jsonBodyMaxBytes", "application/json", 202, "400,409,413,415,422,500"],
-  ["login", "POST", "/api/v1/auth/login", "none-provisioned-only", "loginRequest", "application/json", "jsonBodyMaxBytes", "application/json", 200, "400,403,413,415,422,429,500"],
-  ["logout", "POST", "/api/v1/auth/logout", "session", "none", null, null, null, 204, "401,500"],
-  ["session", "GET", "/api/v1/auth/session", "session", "none", null, null, "application/json", 200, "401,500"],
-  ["status", "GET", "/api/v1/status", "session", "none", null, null, "application/json", 200, "401,500,503"],
-  ["limits", "GET", "/api/v1/limits", "session", "none", null, null, "application/json", 200, "401,500"],
-  ["blobList", "GET", "/api/v1/blob", "session", "none", null, null, "application/json", 200, "401,500,503"],
-  ["blobCreate", "POST", "/api/v1/blob", "session", "binaryBlob", "application/gzip", "blobMaxBytes", "application/json", 201, "400,401,413,415,500,503,507"],
-  ["blobLoad", "GET", "/api/v1/blob/{blob_id}", "session", "none", null, null, "application/gzip", 200, "400,401,404,500,503"],
-  ["blobDelete", "DELETE", "/api/v1/blob/{blob_id}", "session", "none", null, null, null, 204, "400,401,404,500,503"],
-  ["sendCreate", "POST", "/api/v1/send", "session", "sendRequest", "application/json", "jsonBodyMaxBytes", "application/json", 202, "400,401,409,413,415,422,500,503"],
-  ["sendGet", "GET", "/api/v1/send", "session", "none", null, null, "application/json", 200, "401,404,500,503"],
-  ["sendCancel", "DELETE", "/api/v1/send", "session", "none", null, null, "application/json", 202, "401,404,500,503"],
-  ["settingsGet", "GET", "/api/v1/settings", "session", "none", null, null, "application/json", 200, "401,500,503"],
-  ["settingsPut", "PUT", "/api/v1/settings", "session", "settingsUpdateRequest", "application/json", "jsonBodyMaxBytes", "application/json", 200, "400,401,413,415,422,500,503"],
-  ["passwordChange", "POST", "/api/v1/settings/change-password", "session", "passwordChangeRequest", "application/json", "jsonBodyMaxBytes", null, 204, "400,401,403,413,415,422,500,503"],
-  ["restart", "POST", "/api/v1/device/restart", "session", "none", null, null, "application/json", 202, "401,500,503"],
-  ["resetSettings", "POST", "/api/v1/device/reset-settings", "session", "resetSettingsRequest", "application/json", "jsonBodyMaxBytes", "application/json", 202, "400,401,413,415,422,500,503"],
-  ["factoryReset", "POST", "/api/v1/device/factory-reset", "session", "factoryResetRequest", "application/json", "jsonBodyMaxBytes", "application/json", 202, "400,401,403,413,415,422,500,503"],
-  ["diagnostics", "GET", "/api/v1/diagnostics", "session", "none", null, null, "application/json", 200, "401,500,503"],
-] as const;
+interface ExpectedRoute {
+  id: string;
+  method: string;
+  path: string;
+  authentication: string;
+  request: {
+    body: string;
+    contentType: string | null;
+    maximumBytes: string | null;
+  };
+  response: {
+    contentType: string | null;
+    successStatus: number;
+  };
+  errorStatuses: number[];
+}
 
-const methods: ReadonlySet<string> = new Set(["GET", "POST", "PUT", "DELETE"]);
+const expectedRoutes: readonly ExpectedRoute[] = rawManifest.routes;
+const methods: ReadonlySet<string> = new Set([
+  "GET",
+  "POST",
+  "PUT",
+  "DELETE",
+]);
 const authenticationValues: ReadonlySet<string> = new Set([
   "none-unprovisioned-only",
   "none-provisioned-only",
@@ -201,9 +202,19 @@ function isErrorStatuses(value: unknown, successStatus: number): value is number
   return true;
 }
 
+function hasExpectedErrorStatuses(
+  actual: number[],
+  expected: readonly number[],
+): boolean {
+  return (
+    actual.length === expected.length &&
+    actual.every((status, index) => status === expected[index])
+  );
+}
+
 function isRoute(
   value: unknown,
-  expected: (typeof expectedRoutes)[number],
+  expected: ExpectedRoute,
 ): value is ApiRouteContract {
   if (
     !isPlainRecord(value) ||
@@ -228,16 +239,16 @@ function isRoute(
   }
 
   return (
-    value.id === expected[0] &&
-    value.method === expected[1] &&
-    value.path === expected[2] &&
-    value.authentication === expected[3] &&
-    value.request.body === expected[4] &&
-    value.request.contentType === expected[5] &&
-    value.request.maximumBytes === expected[6] &&
-    value.response.contentType === expected[7] &&
-    value.response.successStatus === expected[8] &&
-    value.errorStatuses.join(",") === expected[9]
+    value.id === expected.id &&
+    value.method === expected.method &&
+    value.path === expected.path &&
+    value.authentication === expected.authentication &&
+    value.request.body === expected.request.body &&
+    value.request.contentType === expected.request.contentType &&
+    value.request.maximumBytes === expected.request.maximumBytes &&
+    value.response.contentType === expected.response.contentType &&
+    value.response.successStatus === expected.response.successStatus &&
+    hasExpectedErrorStatuses(value.errorStatuses, expected.errorStatuses)
   );
 }
 
