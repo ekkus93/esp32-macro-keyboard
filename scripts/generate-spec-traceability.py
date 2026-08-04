@@ -43,8 +43,11 @@ def git_blob_sha(path: Path) -> str:
     return hashlib.sha1(header + content).hexdigest()
 
 
-def normative_line_count(path: Path) -> int:
-    return sum(1 for line in path.read_text(encoding="utf-8").splitlines() if NORMATIVE.search(line))
+def has_normative_requirements(path: Path) -> bool:
+    return any(
+        NORMATIVE.search(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+    )
 
 
 def citation_sources() -> list[Path]:
@@ -60,7 +63,16 @@ def citation_sources() -> list[Path]:
         for path in source_root.rglob("*"):
             if not path.is_file() or path == Path(__file__).resolve():
                 continue
-            if path.suffix not in {".c", ".h", ".inc", ".ts", ".tsx", ".mjs", ".py", ".sh"}:
+            if path.suffix not in {
+                ".c",
+                ".h",
+                ".inc",
+                ".ts",
+                ".tsx",
+                ".mjs",
+                ".py",
+                ".sh",
+            }:
                 continue
             paths.add(path)
     return sorted(paths)
@@ -76,16 +88,20 @@ def explicit_citations(prefix: str) -> list[str]:
             continue
         for match in pattern.finditer(text):
             references.add(f"§{match.group(1)}")
-    return sorted(references, key=lambda value: [int(part) for part in value[1:].split(".")])
+    return sorted(
+        references,
+        key=lambda value: [int(part) for part in value[1:].split(".")],
+    )
 
 
 def render() -> str:
     rows: list[str] = []
     mapped_sources = 0
     for source in SOURCES:
-        count = normative_line_count(source.path)
-        if count == 0:
-            raise ValueError(f"{source.path.relative_to(ROOT)} has no normative requirements")
+        if not has_normative_requirements(source.path):
+            raise ValueError(
+                f"{source.path.relative_to(ROOT)} has no normative requirements"
+            )
         citations = explicit_citations(source.citation_prefix)
         if citations:
             mapped_sources += 1
@@ -97,7 +113,7 @@ def render() -> str:
         rows.append(
             "| "
             + str(source.path.relative_to(ROOT))
-            + f" | `{git_blob_sha(source.path)}` | {count} | {status} | {reference_text} |"
+            + f" | `{git_blob_sha(source.path)}` | present | {status} | {reference_text} |"
         )
 
     source_count = len(SOURCES)
@@ -133,8 +149,8 @@ def render() -> str:
         "",
         "## Source-level mapping",
         "",
-        "| Source | Git blob SHA | Normative lines | Status | Explicit section citations |",
-        "| --- | --- | ---: | --- | --- |",
+        "| Source | Git blob SHA | Normative requirements | Status | Explicit section citations |",
+        "| --- | --- | --- | --- | --- |",
         *rows,
         "",
         "## Next refinement",
