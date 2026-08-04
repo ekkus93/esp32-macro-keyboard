@@ -80,14 +80,13 @@ typedef struct {
 } app_v2_device_settings_t;
 
 void app_v2_device_settings_init_unprovisioned(app_v2_device_settings_t *settings);
-app_v2_settings_result_t app_v2_device_settings_validate(
-    const app_v2_device_settings_t *settings);
-app_v2_settings_result_t app_v2_device_settings_encode(
-    const app_v2_device_settings_t *settings, uint8_t *record, size_t record_length);
-app_v2_settings_result_t app_v2_device_settings_decode(
-    const uint8_t *record, size_t record_length, app_v2_device_settings_t *settings);
-app_v2_settings_result_t app_v2_device_settings_reset_noncredential(
-    app_v2_device_settings_t *settings);
+app_v2_settings_result_t app_v2_device_settings_validate(const app_v2_device_settings_t *settings);
+app_v2_settings_result_t app_v2_device_settings_encode(const app_v2_device_settings_t *settings,
+                                                       uint8_t *record, size_t record_length);
+app_v2_settings_result_t app_v2_device_settings_decode(const uint8_t *record, size_t record_length,
+                                                       app_v2_device_settings_t *settings);
+app_v2_settings_result_t
+app_v2_device_settings_reset_noncredential(app_v2_device_settings_t *settings);
 
 #ifdef __cplusplus
 }

@@ -7,12 +7,12 @@
 
 static int failures = 0;
 
-#define CHECK(condition)                                                                    \
-    do {                                                                                    \
-        if (!(condition)) {                                                                 \
-            (void)fprintf(stderr, "[FAIL] %s:%d: %s\n", __FILE__, __LINE__, #condition); \
-            ++failures;                                                                     \
-        }                                                                                   \
+#define CHECK(condition)                                                                           \
+    do {                                                                                           \
+        if (!(condition)) {                                                                        \
+            (void)fprintf(stderr, "[FAIL] %s:%d: %s\n", __FILE__, __LINE__, #condition);           \
+            ++failures;                                                                            \
+        }                                                                                          \
     } while (0)
 
 static void copy_text(char *destination, size_t capacity, const char *source) {
@@ -37,13 +37,11 @@ static void make_provisioned(app_v2_device_settings_t *settings) {
     settings->show_macro_source_previews = true;
     settings->require_serial_confirmation = true;
     settings->station_configured = true;
-    copy_text(settings->last_selected_package_id,
-              sizeof(settings->last_selected_package_id),
+    copy_text(settings->last_selected_package_id, sizeof(settings->last_selected_package_id),
               "550e8400-e29b-41d4-a716-446655440000");
     copy_text(settings->device_name, sizeof(settings->device_name), "Desk Macro Keyboard");
     copy_text(settings->ap_ssid, sizeof(settings->ap_ssid), "MacroKeyboard");
-    copy_text(settings->ap_passphrase, sizeof(settings->ap_passphrase),
-              "example-passphrase");
+    copy_text(settings->ap_passphrase, sizeof(settings->ap_passphrase), "example-passphrase");
     copy_text(settings->station_ssid, sizeof(settings->station_ssid), "OfficeWiFi");
     copy_text(settings->station_passphrase, sizeof(settings->station_passphrase),
               "station-example-passphrase");
@@ -55,8 +53,7 @@ static bool settings_equal(const app_v2_device_settings_t *left,
            left->credential_version == right->credential_version &&
            left->password_algorithm_version == right->password_algorithm_version &&
            left->password_iterations == right->password_iterations &&
-           memcmp(left->password_salt, right->password_salt,
-                  sizeof(left->password_salt)) == 0 &&
+           memcmp(left->password_salt, right->password_salt, sizeof(left->password_salt)) == 0 &&
            memcmp(left->password_verifier, right->password_verifier,
                   sizeof(left->password_verifier)) == 0 &&
            left->next_blob_id == right->next_blob_id && left->send_mode == right->send_mode &&
@@ -78,12 +75,10 @@ static void test_unprovisioned_round_trip(void) {
     CHECK(app_v2_device_settings_validate(&settings) == APP_V2_SETTINGS_OK);
 
     uint8_t record[APP_V2_SETTINGS_RECORD_BYTES];
-    CHECK(app_v2_device_settings_encode(&settings, record, sizeof(record)) ==
-          APP_V2_SETTINGS_OK);
+    CHECK(app_v2_device_settings_encode(&settings, record, sizeof(record)) == APP_V2_SETTINGS_OK);
     app_v2_device_settings_t decoded;
     memset(&decoded, 0xa5, sizeof(decoded));
-    CHECK(app_v2_device_settings_decode(record, sizeof(record), &decoded) ==
-          APP_V2_SETTINGS_OK);
+    CHECK(app_v2_device_settings_decode(record, sizeof(record), &decoded) == APP_V2_SETTINGS_OK);
     CHECK(settings_equal(&settings, &decoded));
 }
 
@@ -93,12 +88,10 @@ static void test_provisioned_round_trip(void) {
     CHECK(app_v2_device_settings_validate(&settings) == APP_V2_SETTINGS_OK);
 
     uint8_t record[APP_V2_SETTINGS_RECORD_BYTES];
-    CHECK(app_v2_device_settings_encode(&settings, record, sizeof(record)) ==
-          APP_V2_SETTINGS_OK);
+    CHECK(app_v2_device_settings_encode(&settings, record, sizeof(record)) == APP_V2_SETTINGS_OK);
     app_v2_device_settings_t decoded;
     memset(&decoded, 0, sizeof(decoded));
-    CHECK(app_v2_device_settings_decode(record, sizeof(record), &decoded) ==
-          APP_V2_SETTINGS_OK);
+    CHECK(app_v2_device_settings_decode(record, sizeof(record), &decoded) == APP_V2_SETTINGS_OK);
     CHECK(settings_equal(&settings, &decoded));
 }
 
@@ -106,8 +99,7 @@ static void test_length_version_and_header_rejection(void) {
     app_v2_device_settings_t settings;
     make_provisioned(&settings);
     uint8_t record[APP_V2_SETTINGS_RECORD_BYTES];
-    CHECK(app_v2_device_settings_encode(&settings, record, sizeof(record)) ==
-          APP_V2_SETTINGS_OK);
+    CHECK(app_v2_device_settings_encode(&settings, record, sizeof(record)) == APP_V2_SETTINGS_OK);
 
     app_v2_device_settings_t decoded;
     CHECK(app_v2_device_settings_decode(record, sizeof(record) - 1U, &decoded) ==
@@ -136,8 +128,7 @@ static void test_enum_boolean_reserved_and_string_rejection(void) {
     app_v2_device_settings_t settings;
     make_provisioned(&settings);
     uint8_t record[APP_V2_SETTINGS_RECORD_BYTES];
-    CHECK(app_v2_device_settings_encode(&settings, record, sizeof(record)) ==
-          APP_V2_SETTINGS_OK);
+    CHECK(app_v2_device_settings_encode(&settings, record, sizeof(record)) == APP_V2_SETTINGS_OK);
     app_v2_device_settings_t decoded;
     uint8_t modified[APP_V2_SETTINGS_RECORD_BYTES];
 
@@ -168,8 +159,7 @@ static void test_enum_boolean_reserved_and_string_rejection(void) {
           APP_V2_SETTINGS_CORRUPT);
 
     memcpy(modified, record, sizeof(modified));
-    modified[APP_V2_SETTINGS_OFFSET_DEVICE_NAME + strlen("Desk Macro Keyboard") + 1U] =
-        UINT8_C(1);
+    modified[APP_V2_SETTINGS_OFFSET_DEVICE_NAME + strlen("Desk Macro Keyboard") + 1U] = UINT8_C(1);
     CHECK(app_v2_device_settings_decode(modified, sizeof(modified), &decoded) ==
           APP_V2_SETTINGS_CORRUPT);
 }

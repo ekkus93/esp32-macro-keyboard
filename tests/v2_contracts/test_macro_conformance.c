@@ -39,8 +39,7 @@ static const char *message_class(const char *message) {
     if (strcmp(message, "unknown key directive") == 0) {
         return "unknown_key";
     }
-    if (strcmp(message, "invalid chord directive") == 0 ||
-        strcmp(message, "invalid chord") == 0) {
+    if (strcmp(message, "invalid chord directive") == 0 || strcmp(message, "invalid chord") == 0) {
         return "invalid_chord";
     }
     if (strcmp(message, "invalid delay directive") == 0 ||
@@ -100,8 +99,7 @@ static void verify_invalid_case(const v2_macro_case_t *test_case, app_error_code
                                 const macro_parse_error_t *error) {
     if (result != test_case->expected_error_code || error->code != result ||
         error->byte_offset != test_case->expected_byte_offset ||
-        error->line != test_case->expected_line ||
-        error->column != test_case->expected_column ||
+        error->line != test_case->expected_line || error->column != test_case->expected_column ||
         strcmp(message_class(error->message), test_case->expected_message_class) != 0) {
         report_failure(test_case->name, "error code, location, or message class differs");
     }

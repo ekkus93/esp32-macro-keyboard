@@ -24,10 +24,8 @@ int main(void) {
     expect_string("GET method", APP_V2_SETUP_STATE_METHOD, "GET");
     expect_string("POST method", APP_V2_SETUP_SUBMIT_METHOD, "POST");
     expect_string("authentication", APP_V2_SETUP_AUTHENTICATION, "none");
-    expect_string("JSON content type", APP_V2_SETUP_JSON_CONTENT_TYPE,
-                  "application/json");
-    expect_string("POST body limit", APP_V2_SETUP_POST_BODY_LIMIT_NAME,
-                  "jsonBodyMaxBytes");
+    expect_string("JSON content type", APP_V2_SETUP_JSON_CONTENT_TYPE, "application/json");
+    expect_string("POST body limit", APP_V2_SETUP_POST_BODY_LIMIT_NAME, "jsonBodyMaxBytes");
 
     if (APP_V2_SETUP_UNPROVISIONED_ROUTE_COUNT != UINT8_C(2) ||
         APP_V2_SETUP_OTHER_API_ROUTES_UNAVAILABLE != UINT8_C(1)) {
@@ -35,14 +33,10 @@ int main(void) {
         ++failures;
     }
 
-    expect_u16("unprovisioned GET status", APP_V2_SETUP_GET_UNPROVISIONED_STATUS,
-               UINT16_C(200));
-    expect_u16("unprovisioned POST status", APP_V2_SETUP_POST_UNPROVISIONED_STATUS,
-               UINT16_C(202));
-    expect_u16("provisioned GET status", APP_V2_SETUP_GET_PROVISIONED_STATUS,
-               UINT16_C(404));
-    expect_u16("provisioned POST status", APP_V2_SETUP_POST_PROVISIONED_STATUS,
-               UINT16_C(409));
+    expect_u16("unprovisioned GET status", APP_V2_SETUP_GET_UNPROVISIONED_STATUS, UINT16_C(200));
+    expect_u16("unprovisioned POST status", APP_V2_SETUP_POST_UNPROVISIONED_STATUS, UINT16_C(202));
+    expect_u16("provisioned GET status", APP_V2_SETUP_GET_PROVISIONED_STATUS, UINT16_C(404));
+    expect_u16("provisioned POST status", APP_V2_SETUP_POST_PROVISIONED_STATUS, UINT16_C(409));
 
     if (failures != 0) {
         (void)fprintf(stderr, "%d setup route policy test(s) failed\n", failures);

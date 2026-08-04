@@ -9,8 +9,7 @@
 #define APP_V2_SETTINGS_SSID_FIELD_BYTES 33U
 #define APP_V2_SETTINGS_PASSPHRASE_FIELD_BYTES 64U
 
-_Static_assert(APP_V2_SETTINGS_OFFSET_STATION_PASSPHRASE +
-                       APP_V2_SETTINGS_PASSPHRASE_FIELD_BYTES ==
+_Static_assert(APP_V2_SETTINGS_OFFSET_STATION_PASSPHRASE + APP_V2_SETTINGS_PASSPHRASE_FIELD_BYTES ==
                    APP_V2_SETTINGS_RECORD_BYTES,
                "v2 settings layout must end at the declared record length");
 
@@ -204,8 +203,7 @@ void app_v2_device_settings_init_unprovisioned(app_v2_device_settings_t *setting
     (void)memcpy(settings->device_name, "ESP32 Macro Keyboard", sizeof("ESP32 Macro Keyboard"));
 }
 
-app_v2_settings_result_t app_v2_device_settings_validate(
-    const app_v2_device_settings_t *settings) {
+app_v2_settings_result_t app_v2_device_settings_validate(const app_v2_device_settings_t *settings) {
     if (settings == NULL) {
         return APP_V2_SETTINGS_INVALID_ARGUMENT;
     }
@@ -233,11 +231,9 @@ app_v2_settings_result_t app_v2_device_settings_validate(
     }
 
     if (!credential_bytes_present(settings) ||
-        !valid_text(settings->ap_ssid, sizeof(settings->ap_ssid), 1U,
-                    APP_V2_WIFI_SSID_MAX_BYTES) ||
+        !valid_text(settings->ap_ssid, sizeof(settings->ap_ssid), 1U, APP_V2_WIFI_SSID_MAX_BYTES) ||
         !valid_text(settings->ap_passphrase, sizeof(settings->ap_passphrase),
-                    APP_V2_WIFI_PASSPHRASE_MIN_BYTES,
-                    APP_V2_WIFI_PASSPHRASE_MAX_BYTES)) {
+                    APP_V2_WIFI_PASSPHRASE_MIN_BYTES, APP_V2_WIFI_PASSPHRASE_MAX_BYTES)) {
         return APP_V2_SETTINGS_CORRUPT;
     }
 
@@ -245,20 +241,19 @@ app_v2_settings_result_t app_v2_device_settings_validate(
         if (!valid_text(settings->station_ssid, sizeof(settings->station_ssid), 1U,
                         APP_V2_WIFI_SSID_MAX_BYTES) ||
             !valid_text(settings->station_passphrase, sizeof(settings->station_passphrase),
-                        APP_V2_WIFI_PASSPHRASE_MIN_BYTES,
-                        APP_V2_WIFI_PASSPHRASE_MAX_BYTES)) {
+                        APP_V2_WIFI_PASSPHRASE_MIN_BYTES, APP_V2_WIFI_PASSPHRASE_MAX_BYTES)) {
             return APP_V2_SETTINGS_CORRUPT;
         }
     } else if (!valid_text(settings->station_ssid, sizeof(settings->station_ssid), 0U, 0U) ||
-               !valid_text(settings->station_passphrase, sizeof(settings->station_passphrase),
-                           0U, 0U)) {
+               !valid_text(settings->station_passphrase, sizeof(settings->station_passphrase), 0U,
+                           0U)) {
         return APP_V2_SETTINGS_CORRUPT;
     }
     return APP_V2_SETTINGS_OK;
 }
 
-app_v2_settings_result_t app_v2_device_settings_encode(
-    const app_v2_device_settings_t *settings, uint8_t *record, size_t record_length) {
+app_v2_settings_result_t app_v2_device_settings_encode(const app_v2_device_settings_t *settings,
+                                                       uint8_t *record, size_t record_length) {
     if (settings == NULL || record == NULL) {
         return APP_V2_SETTINGS_INVALID_ARGUMENT;
     }
@@ -272,11 +267,9 @@ app_v2_settings_result_t app_v2_device_settings_encode(
 
     memset(record, 0, record_length);
     write_u32_le(record + APP_V2_SETTINGS_OFFSET_MAGIC, APP_V2_SETTINGS_MAGIC);
-    write_u16_le(record + APP_V2_SETTINGS_OFFSET_RECORD_VERSION,
-                 APP_V2_SETTINGS_RECORD_VERSION);
+    write_u16_le(record + APP_V2_SETTINGS_OFFSET_RECORD_VERSION, APP_V2_SETTINGS_RECORD_VERSION);
     write_u16_le(record + APP_V2_SETTINGS_OFFSET_RECORD_LENGTH, APP_V2_SETTINGS_RECORD_BYTES);
-    write_u16_le(record + APP_V2_SETTINGS_OFFSET_CREDENTIAL_VERSION,
-                 settings->credential_version);
+    write_u16_le(record + APP_V2_SETTINGS_OFFSET_CREDENTIAL_VERSION, settings->credential_version);
     write_u16_le(record + APP_V2_SETTINGS_OFFSET_PASSWORD_ALGORITHM,
                  settings->password_algorithm_version);
     write_u32_le(record + APP_V2_SETTINGS_OFFSET_PASSWORD_ITERATIONS,
@@ -294,8 +287,7 @@ app_v2_settings_result_t app_v2_device_settings_encode(
     record[APP_V2_SETTINGS_OFFSET_PROVISIONED] = settings->provisioned ? 1U : 0U;
     record[APP_V2_SETTINGS_OFFSET_STATION_CONFIGURED] = settings->station_configured ? 1U : 0U;
     write_record_text(record + APP_V2_SETTINGS_OFFSET_LAST_SELECTED_PACKAGE,
-                      APP_V2_SETTINGS_LAST_PACKAGE_FIELD_BYTES,
-                      settings->last_selected_package_id);
+                      APP_V2_SETTINGS_LAST_PACKAGE_FIELD_BYTES, settings->last_selected_package_id);
     write_record_text(record + APP_V2_SETTINGS_OFFSET_DEVICE_NAME,
                       APP_V2_SETTINGS_DEVICE_NAME_FIELD_BYTES, settings->device_name);
     write_record_text(record + APP_V2_SETTINGS_OFFSET_AP_SSID, APP_V2_SETTINGS_SSID_FIELD_BYTES,
@@ -309,8 +301,8 @@ app_v2_settings_result_t app_v2_device_settings_encode(
     return APP_V2_SETTINGS_OK;
 }
 
-app_v2_settings_result_t app_v2_device_settings_decode(
-    const uint8_t *record, size_t record_length, app_v2_device_settings_t *settings) {
+app_v2_settings_result_t app_v2_device_settings_decode(const uint8_t *record, size_t record_length,
+                                                       app_v2_device_settings_t *settings) {
     if (record == NULL || settings == NULL) {
         return APP_V2_SETTINGS_INVALID_ARGUMENT;
     }
@@ -336,8 +328,7 @@ app_v2_settings_result_t app_v2_device_settings_decode(
     }
     if (!bytes_are_zero(record + APP_V2_SETTINGS_OFFSET_RESERVED, 2U) ||
         record[APP_V2_SETTINGS_OFFSET_SEND_MODE] > (uint8_t)APP_V2_SEND_MODE_PREVIEW ||
-        record[APP_V2_SETTINGS_OFFSET_RETENTION_TARGET] >
-            APP_V2_SNAPSHOT_RETENTION_TARGET_MAX ||
+        record[APP_V2_SETTINGS_OFFSET_RETENTION_TARGET] > APP_V2_SNAPSHOT_RETENTION_TARGET_MAX ||
         record[APP_V2_SETTINGS_OFFSET_SHOW_SOURCE] > 1U ||
         record[APP_V2_SETTINGS_OFFSET_REQUIRE_CONFIRMATION] > 1U ||
         record[APP_V2_SETTINGS_OFFSET_PROVISIONED] > 1U ||
@@ -349,8 +340,7 @@ app_v2_settings_result_t app_v2_device_settings_decode(
     memset(&decoded, 0, sizeof(decoded));
     decoded.credential_version = APP_V2_CREDENTIAL_VERSION;
     decoded.password_algorithm_version = APP_V2_PASSWORD_ALGORITHM_VERSION;
-    decoded.password_iterations =
-        read_u32_le(record + APP_V2_SETTINGS_OFFSET_PASSWORD_ITERATIONS);
+    decoded.password_iterations = read_u32_le(record + APP_V2_SETTINGS_OFFSET_PASSWORD_ITERATIONS);
     memcpy(decoded.password_salt, record + APP_V2_SETTINGS_OFFSET_PASSWORD_SALT,
            APP_V2_PASSWORD_SALT_BYTES);
     memcpy(decoded.password_verifier, record + APP_V2_SETTINGS_OFFSET_PASSWORD_VERIFIER,
@@ -359,11 +349,9 @@ app_v2_settings_result_t app_v2_device_settings_decode(
     decoded.send_mode = (app_v2_send_mode_t)record[APP_V2_SETTINGS_OFFSET_SEND_MODE];
     decoded.snapshot_retention_target = record[APP_V2_SETTINGS_OFFSET_RETENTION_TARGET];
     decoded.show_macro_source_previews = record[APP_V2_SETTINGS_OFFSET_SHOW_SOURCE] != 0U;
-    decoded.require_serial_confirmation =
-        record[APP_V2_SETTINGS_OFFSET_REQUIRE_CONFIRMATION] != 0U;
+    decoded.require_serial_confirmation = record[APP_V2_SETTINGS_OFFSET_REQUIRE_CONFIRMATION] != 0U;
     decoded.provisioned = record[APP_V2_SETTINGS_OFFSET_PROVISIONED] != 0U;
-    decoded.station_configured =
-        record[APP_V2_SETTINGS_OFFSET_STATION_CONFIGURED] != 0U;
+    decoded.station_configured = record[APP_V2_SETTINGS_OFFSET_STATION_CONFIGURED] != 0U;
 
     if (!copy_record_text(record + APP_V2_SETTINGS_OFFSET_LAST_SELECTED_PACKAGE,
                           APP_V2_SETTINGS_LAST_PACKAGE_FIELD_BYTES,
@@ -372,9 +360,8 @@ app_v2_settings_result_t app_v2_device_settings_decode(
         !copy_record_text(record + APP_V2_SETTINGS_OFFSET_DEVICE_NAME,
                           APP_V2_SETTINGS_DEVICE_NAME_FIELD_BYTES, decoded.device_name,
                           sizeof(decoded.device_name)) ||
-        !copy_record_text(record + APP_V2_SETTINGS_OFFSET_AP_SSID,
-                          APP_V2_SETTINGS_SSID_FIELD_BYTES, decoded.ap_ssid,
-                          sizeof(decoded.ap_ssid)) ||
+        !copy_record_text(record + APP_V2_SETTINGS_OFFSET_AP_SSID, APP_V2_SETTINGS_SSID_FIELD_BYTES,
+                          decoded.ap_ssid, sizeof(decoded.ap_ssid)) ||
         !copy_record_text(record + APP_V2_SETTINGS_OFFSET_AP_PASSPHRASE,
                           APP_V2_SETTINGS_PASSPHRASE_FIELD_BYTES, decoded.ap_passphrase,
                           sizeof(decoded.ap_passphrase)) ||
@@ -395,8 +382,8 @@ app_v2_settings_result_t app_v2_device_settings_decode(
     return APP_V2_SETTINGS_OK;
 }
 
-app_v2_settings_result_t app_v2_device_settings_reset_noncredential(
-    app_v2_device_settings_t *settings) {
+app_v2_settings_result_t
+app_v2_device_settings_reset_noncredential(app_v2_device_settings_t *settings) {
     const app_v2_settings_result_t validation = app_v2_device_settings_validate(settings);
     if (validation != APP_V2_SETTINGS_OK || settings == NULL || !settings->provisioned) {
         return validation == APP_V2_SETTINGS_OK ? APP_V2_SETTINGS_INVALID_ARGUMENT : validation;

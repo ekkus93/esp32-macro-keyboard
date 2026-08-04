@@ -72,9 +72,8 @@ static bool v2_safe_add_u32(uint32_t left, uint32_t right, uint32_t *out_value) 
 }
 
 static app_error_code_t v2_append_action(macro_plan_t *plan, macro_action_t action,
-                                         const macro_compile_options_t *options,
-                                         const char *source, size_t offset,
-                                         macro_parse_error_t *error) {
+                                         const macro_compile_options_t *options, const char *source,
+                                         size_t offset, macro_parse_error_t *error) {
     if (plan->action_count >= (size_t)APP_V2_COMPILED_ACTIONS_MAX) {
         return v2_fail(source, offset, "action limit exceeded", APP_ERROR_MACRO_LIMIT, error);
     }
@@ -82,17 +81,15 @@ static app_error_code_t v2_append_action(macro_plan_t *plan, macro_action_t acti
     uint32_t action_duration = 0U;
     if (action.type == MACRO_ACTION_DELAY) {
         action_duration = action.delay_ms;
-    } else if (!v2_safe_add_u32(options->key_press_ms, options->inter_key_ms,
-                                &action_duration)) {
-        return v2_fail(source, offset, "action duration overflow", APP_ERROR_MACRO_LIMIT,
-                       error);
+    } else if (!v2_safe_add_u32(options->key_press_ms, options->inter_key_ms, &action_duration)) {
+        return v2_fail(source, offset, "action duration overflow", APP_ERROR_MACRO_LIMIT, error);
     }
 
     uint32_t total_duration = 0U;
     if (!v2_safe_add_u32(plan->estimated_duration_ms, action_duration, &total_duration) ||
         total_duration > APP_V2_ESTIMATED_DURATION_MAX_MS) {
-        return v2_fail(source, offset, "estimated duration limit exceeded",
-                       APP_ERROR_MACRO_LIMIT, error);
+        return v2_fail(source, offset, "estimated duration limit exceeded", APP_ERROR_MACRO_LIMIT,
+                       error);
     }
 
     plan->actions[plan->action_count] = action;
@@ -191,9 +188,8 @@ static app_error_code_t v2_parse_chord(char *directive, macro_action_t *out_acti
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t v2_parse_directive(const char *source, size_t offset,
-                                           const char *directive, size_t length,
-                                           macro_action_t *out_action,
+static app_error_code_t v2_parse_directive(const char *source, size_t offset, const char *directive,
+                                           size_t length, macro_action_t *out_action,
                                            macro_parse_error_t *error) {
     if (length == 0U || length >= V2_DIRECTIVE_BUFFER_BYTES ||
         v2_directive_has_invalid_character(directive, length)) {
@@ -244,9 +240,8 @@ static macro_action_t v2_key_action(uint8_t modifiers, uint8_t usage) {
     };
 }
 
-static app_error_code_t v2_parse_open_brace(const char *source, size_t source_length,
-                                            size_t offset, macro_action_t *out_action,
-                                            size_t *out_consumed,
+static app_error_code_t v2_parse_open_brace(const char *source, size_t source_length, size_t offset,
+                                            macro_action_t *out_action, size_t *out_consumed,
                                             macro_parse_error_t *out_error) {
     if (offset + 1U < source_length && source[offset + 1U] == '{') {
         macro_hid_key_t key = {0U, 0U};
@@ -265,17 +260,15 @@ static app_error_code_t v2_parse_open_brace(const char *source, size_t source_le
                        out_error);
     }
     const size_t closing_offset = (size_t)(closing - source);
-    const app_error_code_t result =
-        v2_parse_directive(source, offset, source + offset + 1U,
-                           closing_offset - offset - 1U, out_action, out_error);
+    const app_error_code_t result = v2_parse_directive(
+        source, offset, source + offset + 1U, closing_offset - offset - 1U, out_action, out_error);
     *out_consumed = closing_offset + 1U - offset;
     return result;
 }
 
 static app_error_code_t v2_parse_close_brace(const char *source, size_t source_length,
                                              size_t offset, macro_action_t *out_action,
-                                             size_t *out_consumed,
-                                             macro_parse_error_t *out_error) {
+                                             size_t *out_consumed, macro_parse_error_t *out_error) {
     if (offset + 1U < source_length && source[offset + 1U] == '}') {
         macro_hid_key_t key = {0U, 0U};
         if (!macro_keymap_us_printable('}', &key)) {
@@ -286,13 +279,11 @@ static app_error_code_t v2_parse_close_brace(const char *source, size_t source_l
         *out_consumed = 2U;
         return APP_ERROR_NONE;
     }
-    return v2_fail(source, offset, "unmatched closing brace", APP_ERROR_MACRO_SYNTAX,
-                   out_error);
+    return v2_fail(source, offset, "unmatched closing brace", APP_ERROR_MACRO_SYNTAX, out_error);
 }
 
 static app_error_code_t v2_parse_printable(const char *source, size_t offset,
-                                           macro_action_t *out_action,
-                                           size_t *out_consumed,
+                                           macro_action_t *out_action, size_t *out_consumed,
                                            macro_parse_error_t *out_error) {
     macro_hid_key_t key = {0U, 0U};
     if (!macro_keymap_us_printable(source[offset], &key)) {
@@ -304,9 +295,8 @@ static app_error_code_t v2_parse_printable(const char *source, size_t offset,
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t v2_parse_next_token(const char *source, size_t source_length,
-                                            size_t offset, macro_action_t *out_action,
-                                            size_t *out_consumed,
+static app_error_code_t v2_parse_next_token(const char *source, size_t source_length, size_t offset,
+                                            macro_action_t *out_action, size_t *out_consumed,
                                             macro_parse_error_t *out_error) {
     const uint8_t byte = (uint8_t)source[offset];
     if (byte >= UINT8_C(0x80) || byte == 0U) {
@@ -350,8 +340,8 @@ static app_error_code_t v2_parse_next_token(const char *source, size_t source_le
 }
 
 app_error_code_t macro_compile_v2(const char *source, size_t source_length,
-                                  const macro_compile_options_t *options,
-                                  macro_plan_t *out_plan, macro_parse_error_t *out_error) {
+                                  const macro_compile_options_t *options, macro_plan_t *out_plan,
+                                  macro_parse_error_t *out_error) {
     const macro_compile_options_t defaults = {
         .key_press_ms = 8U,
         .inter_key_ms = 15U,
@@ -371,19 +361,17 @@ app_error_code_t macro_compile_v2(const char *source, size_t source_length,
 
     if (effective->key_press_ms > APP_V2_KEY_PRESS_MAX_MS ||
         effective->inter_key_ms > APP_V2_INTER_KEY_MAX_MS) {
-        return v2_fail(source, 0U, "invalid macro timing", APP_ERROR_INVALID_ARGUMENT,
-                       out_error);
+        return v2_fail(source, 0U, "invalid macro timing", APP_ERROR_INVALID_ARGUMENT, out_error);
     }
     if (source_length > (size_t)APP_V2_MACRO_SOURCE_MAX_BYTES) {
-        return v2_fail(source, 0U, "macro source exceeds the byte limit",
-                       APP_ERROR_MACRO_LIMIT, out_error);
+        return v2_fail(source, 0U, "macro source exceeds the byte limit", APP_ERROR_MACRO_LIMIT,
+                       out_error);
     }
     if (source_length == 0U) {
         return APP_ERROR_NONE;
     }
 
-    macro_action_t *actions =
-        calloc((size_t)APP_V2_COMPILED_ACTIONS_MAX, sizeof(*actions));
+    macro_action_t *actions = calloc((size_t)APP_V2_COMPILED_ACTIONS_MAX, sizeof(*actions));
     if (actions == NULL) {
         return APP_ERROR_INTERNAL;
     }
