@@ -1,0 +1,65 @@
+name: Phase 1 Lockfile Repair
+
+on:
+  push:
+    branches:
+      - phase1-ci-repair
+
+permissions:
+  contents: write
+
+jobs:
+  update-lockfile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: phase1-ci-repair
+          show-progress: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Regenerate only the PostCSS lock entry
+        working-directory: webapp
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm update postcss --package-lock-only --ignore-scripts --no-audit --no-fund
+          node - <<'NODE'
+          const lock = require('./package-lock.json')
+          const version = lock.packages?.['node_modules/postcss']?.version
+          if (version !== '8.5.23') {
+            throw new Error(`Expected postcss 8.5.23, found ${version ?? 'missing'}`)
+          }
+          NODE
+
+      - name: Verify bounded lockfile change
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed_files < <(git diff --name-only)
+          if [[ ${#changed_files[@]} -ne 1 || "${changed_files[0]}" != "webapp/package-lock.json" ]]; then
+            printf 'Unexpected changed files:\n'
+            printf '  %s\n' "${changed_files[@]}"
+            exit 1
+          fi
+          npm --prefix webapp ci --ignore-scripts --no-audit --no-fund
+          npm --prefix webapp run audit:ci
+
+      - name: Commit regenerated lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add webapp/package-lock.json
+          git commit -m "Update PostCSS lock entry"
+          git push origin HEAD:phase1-ci-repair
