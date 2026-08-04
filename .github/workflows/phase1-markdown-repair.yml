@@ -7,7 +7,7 @@ on:
       - master
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   repair:
@@ -18,7 +18,6 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: phase1-ci-repair
-          persist-credentials: false
           show-progress: false
 
       - name: Apply bounded Markdown repair
@@ -52,6 +51,22 @@ jobs:
           set -euo pipefail
           npm install --global markdownlint-cli2@0.23.2
           markdownlint-cli2 docs/SPEC_V2.md docs/TODO_V2.md
+
+      - name: Commit verified Markdown
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only)"
+          expected=$'docs/SPEC_V2.md\ndocs/TODO_V2.md'
+          if [ "${changed}" != "${expected}" ]; then
+            printf 'unexpected changed files:\n%s\n' "${changed}" >&2
+            exit 1
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/SPEC_V2.md docs/TODO_V2.md
+          git commit -m "docs: repair v2 Markdown structure"
+          git push origin HEAD:phase1-ci-repair
 
       - name: Upload repaired Markdown
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
