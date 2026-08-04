@@ -84,7 +84,9 @@ app_error_code_t web_adapter_build_limits_json(char *output, size_t output_size)
         "\"delayDirectiveMaxMs\":%lu,\"keyPressMaxMs\":%lu,"
         "\"interKeyMaxMs\":%lu,\"estimatedDurationMaxMs\":%lu,"
         "\"executorAbsoluteDeadlineMs\":%lu,\"jsonBodyMaxBytes\":%lu,"
-        "\"blobMaxBytes\":%lu,\"adminPasswordMinBytes\":%lu,"
+        "\"blobMaxBytes\":%lu,\"activeSessionsMax\":%lu,"
+        "\"sessionIdleLifetimeSeconds\":%lu,\"sessionAbsoluteLifetimeSeconds\":%lu,"
+        "\"serialConfirmationTimeoutSeconds\":%lu,\"adminPasswordMinBytes\":%lu,"
         "\"adminPasswordMaxBytes\":%lu,\"snapshotRetentionTargetMax\":%lu}",
         (unsigned long)APP_V2_PACKAGE_NAME_MAX_BYTES, (unsigned long)APP_V2_MACRO_NAME_MAX_BYTES,
         (unsigned long)APP_V2_MACRO_SOURCE_MAX_BYTES, (unsigned long)APP_V2_COMPILED_ACTIONS_MAX,
@@ -92,6 +94,10 @@ app_error_code_t web_adapter_build_limits_json(char *output, size_t output_size)
         (unsigned long)APP_V2_INTER_KEY_MAX_MS, (unsigned long)APP_V2_ESTIMATED_DURATION_MAX_MS,
         (unsigned long)APP_V2_EXECUTOR_ABSOLUTE_DEADLINE_MS,
         (unsigned long)APP_V2_JSON_BODY_MAX_BYTES, (unsigned long)APP_V2_BLOB_MAX_BYTES,
+        (unsigned long)APP_V2_ACTIVE_SESSIONS_MAX,
+        (unsigned long)APP_V2_SESSION_IDLE_LIFETIME_SECONDS,
+        (unsigned long)APP_V2_SESSION_ABSOLUTE_LIFETIME_SECONDS,
+        (unsigned long)APP_V2_SERIAL_CONFIRMATION_TIMEOUT_SECONDS,
         (unsigned long)APP_V2_ADMIN_PASSWORD_MIN_BYTES,
         (unsigned long)APP_V2_ADMIN_PASSWORD_MAX_BYTES,
         (unsigned long)APP_V2_SNAPSHOT_RETENTION_TARGET_MAX);
