@@ -28,25 +28,43 @@ jobs:
           cache: npm
           cache-dependency-path: webapp/package-lock.json
 
-      - name: Regenerate only the PostCSS lock entry
+      - name: Regenerate patched lock entries
         working-directory: webapp
         shell: bash
         run: |
           set -euo pipefail
-          npm update postcss --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm update postcss fast-uri --package-lock-only --ignore-scripts --no-audit --no-fund
           node - <<'NODE'
           const lock = require('./package-lock.json')
-          const version = lock.packages?.['node_modules/postcss']?.version
-          const parts = version?.split('.').map(Number)
-          const isPatched =
-            parts?.length === 3 &&
-            parts.every(Number.isInteger) &&
-            parts[0] === 8 &&
-            (parts[1] > 5 || (parts[1] === 5 && parts[2] >= 23))
-          if (!isPatched) {
-            throw new Error(`Expected patched postcss 8.x >= 8.5.23, found ${version ?? 'missing'}`)
+
+          function parse(version) {
+            const parts = version?.split('.').map(Number)
+            if (parts?.length !== 3 || !parts.every(Number.isInteger)) return null
+            return parts
           }
-          console.log(`Resolved patched postcss ${version}`)
+
+          function atLeast(actual, minimum) {
+            for (let index = 0; index < actual.length; index += 1) {
+              if (actual[index] > minimum[index]) return true
+              if (actual[index] < minimum[index]) return false
+            }
+            return true
+          }
+
+          const postcssVersion = lock.packages?.['node_modules/postcss']?.version
+          const postcss = parse(postcssVersion)
+          if (!postcss || postcss[0] !== 8 || !atLeast(postcss, [8, 5, 23])) {
+            throw new Error(`Expected patched postcss 8.x >= 8.5.23, found ${postcssVersion ?? 'missing'}`)
+          }
+
+          const fastUriVersion = lock.packages?.['node_modules/fast-uri']?.version
+          const fastUri = parse(fastUriVersion)
+          if (!fastUri || fastUri[0] !== 3 || !atLeast(fastUri, [3, 1, 5])) {
+            throw new Error(`Expected patched fast-uri 3.x >= 3.1.5, found ${fastUriVersion ?? 'missing'}`)
+          }
+
+          console.log(`Resolved patched postcss ${postcssVersion}`)
+          console.log(`Resolved patched fast-uri ${fastUriVersion}`)
           NODE
 
       - name: Verify bounded lockfile change
@@ -60,15 +78,6 @@ jobs:
             exit 1
           fi
           npm --prefix webapp ci --ignore-scripts --no-audit --no-fund
-          (
-            cd webapp
-            npm audit --json > "${RUNNER_TEMP}/npm-audit.json" || true
-          )
-          node - <<'NODE'
-          const report = require(`${process.env.RUNNER_TEMP}/npm-audit.json`)
-          console.log('Current fast-uri audit finding:')
-          console.log(JSON.stringify(report.vulnerabilities?.['fast-uri'] ?? null, null, 2))
-          NODE
           npm --prefix webapp run audit:ci
 
       - name: Commit regenerated lockfile
@@ -78,5 +87,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add webapp/package-lock.json
-          git commit -m "Update PostCSS lock entry"
+          git commit -m "Update vulnerable transitive dependencies"
           git push origin HEAD:phase1-ci-repair
