@@ -83,10 +83,14 @@ static bool exact_fields(const cJSON *root, const char *const *fields, size_t fi
 static bool read_revision(const cJSON *root, const char *field, uint32_t *out_revision) {
     const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, field);
     if (!cJSON_IsNumber(item) || item->valuedouble < 1.0 ||
-        item->valuedouble > (double)UINT32_MAX || item->valuedouble != (double)item->valueint) {
+        item->valuedouble > (double)UINT32_MAX) {
         return false;
     }
-    *out_revision = (uint32_t)item->valuedouble;
+    const uint32_t revision = (uint32_t)item->valuedouble;
+    if (item->valuedouble != (double)revision) {
+        return false;
+    }
+    *out_revision = revision;
     return true;
 }
 
