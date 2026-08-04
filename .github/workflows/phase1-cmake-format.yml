@@ -1,5 +1,4 @@
-# One-shot CMake formatting application; remove before merging.
-# This second commit intentionally triggers the branch-local workflow.
+# One-shot CMake diagnostic; remove before merging.
 name: Phase 1 CMake Format
 
 on:
@@ -8,11 +7,10 @@ on:
       - master
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   format:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -20,46 +18,36 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: phase1-ci-repair
+          persist-credentials: false
           show-progress: false
 
-      - name: Install pinned CMake formatter
+      - name: Install pinned CMake tools
         shell: bash
         run: |
           set -euo pipefail
           python3 -m pip install --user cmakelang==0.6.13
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Format failing CMake files
+      - name: Diagnose CMake checks
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           files=(
             firmware/components/app_contracts_v2/CMakeLists.txt
             tests/v2_contracts/CMakeLists.txt
           )
-          "$HOME/.local/bin/cmake-format" -i "${files[@]}"
-          "$HOME/.local/bin/cmake-format" --check "${files[@]}"
-          mapfile -t changed_files < <(git diff --name-only)
-          if [[ ${#changed_files[@]} -ne ${#files[@]} ]]; then
-            printf 'Expected %d formatted files, found %d:\n' "${#files[@]}" "${#changed_files[@]}"
-            printf '  %s\n' "${changed_files[@]}"
-            exit 1
-          fi
           for file in "${files[@]}"; do
-            if ! printf '%s\n' "${changed_files[@]}" | grep -Fxq "$file"; then
-              printf 'Missing expected formatted file: %s\n' "$file"
-              exit 1
-            fi
-          done
+            echo "=== ${file}: cmake-format --check ==="
+            "$HOME/.local/bin/cmake-format" --check "$file"
+            echo "cmake-format status: $?"
 
-      - name: Commit authoritative CMake formatting
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            firmware/components/app_contracts_v2/CMakeLists.txt \
-            tests/v2_contracts/CMakeLists.txt
-          git commit -m "Format Phase 1 CMake files"
-          git push origin HEAD:phase1-ci-repair
+            echo "=== ${file}: rendered diff ==="
+            "$HOME/.local/bin/cmake-format" "$file" > "${RUNNER_TEMP}/formatted.cmake"
+            diff -u "$file" "${RUNNER_TEMP}/formatted.cmake"
+            echo "rendered diff status: $?"
+
+            echo "=== ${file}: cmake-lint ==="
+            "$HOME/.local/bin/cmake-lint" "$file"
+            echo "cmake-lint status: $?"
+          done
+          exit 1
