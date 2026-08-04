@@ -3,6 +3,8 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "macro_keymap_us.h"
+
 static bool is_uppercase_decimal_token(const char *name, size_t length) {
     if (name == NULL || length == 0U) {
         return false;
