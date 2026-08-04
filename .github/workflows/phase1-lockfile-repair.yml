@@ -37,9 +37,16 @@ jobs:
           node - <<'NODE'
           const lock = require('./package-lock.json')
           const version = lock.packages?.['node_modules/postcss']?.version
-          if (version !== '8.5.23') {
-            throw new Error(`Expected postcss 8.5.23, found ${version ?? 'missing'}`)
+          const parts = version?.split('.').map(Number)
+          const isPatched =
+            parts?.length === 3 &&
+            parts.every(Number.isInteger) &&
+            parts[0] === 8 &&
+            (parts[1] > 5 || (parts[1] === 5 && parts[2] >= 23))
+          if (!isPatched) {
+            throw new Error(`Expected patched postcss 8.x >= 8.5.23, found ${version ?? 'missing'}`)
           }
+          console.log(`Resolved patched postcss ${version}`)
           NODE
 
       - name: Verify bounded lockfile change
