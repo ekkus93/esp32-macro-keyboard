@@ -240,7 +240,9 @@ describe("v2 API response contracts", () => {
 
     for (const key of limitKeys) {
       const missing = Object.fromEntries(
-        Object.entries(examples.limits).filter(([candidate]) => candidate !== key),
+        Object.entries(examples.limits).filter(
+          ([candidate]) => candidate !== key,
+        ),
       );
       expect(isLimitsResponse(missing)).toBe(false);
 
