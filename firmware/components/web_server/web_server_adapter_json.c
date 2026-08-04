@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 #include "app_error.h"
-#include "macro_limits.h"
+#include "app_limits_v2.h"
 #include "subsystem_health.h"
 #include "web_diagnostics.h"
 
@@ -79,13 +79,25 @@ app_error_code_t web_adapter_build_limits_json(char *output, size_t output_size)
     }
     const int length = snprintf(
         output, output_size,
-        "{\"ok\":true,\"data\":{\"macroNameBytes\":%lu,\"macroSourceBytes\":%lu,"
-        "\"compiledActions\":%lu,\"delayMs\":%lu,\"durationMs\":%lu,"
-        "\"macrosPerPackage\":%lu,\"packages\":%lu,\"importBytes\":%lu}}",
-        (unsigned long)APP_MACRO_NAME_MAX_BYTES, (unsigned long)APP_MACRO_SOURCE_MAX_BYTES,
-        (unsigned long)APP_COMPILED_ACTION_MAX, (unsigned long)APP_DELAY_MAX_MS,
-        (unsigned long)APP_ESTIMATED_DURATION_MAX_MS, (unsigned long)APP_MACROS_PER_SET_MAX,
-        (unsigned long)APP_MACRO_SETS_MAX, (unsigned long)APP_IMPORT_PACKAGE_MAX_BYTES);
+        "{\"packageNameMaxBytes\":%lu,\"macroNameMaxBytes\":%lu,"
+        "\"macroSourceMaxBytes\":%lu,\"compiledActionsMax\":%lu,"
+        "\"delayDirectiveMaxMs\":%lu,\"keyPressMaxMs\":%lu,"
+        "\"interKeyMaxMs\":%lu,\"estimatedDurationMaxMs\":%lu,"
+        "\"executorAbsoluteDeadlineMs\":%lu,\"jsonBodyMaxBytes\":%lu,"
+        "\"blobMaxBytes\":%lu,\"adminPasswordMinBytes\":%lu,"
+        "\"adminPasswordMaxBytes\":%lu,\"snapshotRetentionTargetMax\":%lu}",
+        (unsigned long)APP_V2_PACKAGE_NAME_MAX_BYTES,
+        (unsigned long)APP_V2_MACRO_NAME_MAX_BYTES,
+        (unsigned long)APP_V2_MACRO_SOURCE_MAX_BYTES,
+        (unsigned long)APP_V2_COMPILED_ACTIONS_MAX,
+        (unsigned long)APP_V2_DELAY_DIRECTIVE_MAX_MS,
+        (unsigned long)APP_V2_KEY_PRESS_MAX_MS, (unsigned long)APP_V2_INTER_KEY_MAX_MS,
+        (unsigned long)APP_V2_ESTIMATED_DURATION_MAX_MS,
+        (unsigned long)APP_V2_EXECUTOR_ABSOLUTE_DEADLINE_MS,
+        (unsigned long)APP_V2_JSON_BODY_MAX_BYTES, (unsigned long)APP_V2_BLOB_MAX_BYTES,
+        (unsigned long)APP_V2_ADMIN_PASSWORD_MIN_BYTES,
+        (unsigned long)APP_V2_ADMIN_PASSWORD_MAX_BYTES,
+        (unsigned long)APP_V2_SNAPSHOT_RETENTION_TARGET_MAX);
     if (length < 0 || (size_t)length >= output_size) {
         output[0] = '\0';
         return APP_ERROR_INTERNAL;
