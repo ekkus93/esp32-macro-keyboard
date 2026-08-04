@@ -122,6 +122,16 @@ static void test_length_version_and_header_rejection(void) {
     modified[APP_V2_SETTINGS_OFFSET_RECORD_LENGTH] = UINT8_C(0x00);
     CHECK(app_v2_device_settings_decode(modified, sizeof(modified), &decoded) ==
           APP_V2_SETTINGS_CORRUPT);
+
+    memcpy(modified, record, sizeof(modified));
+    modified[APP_V2_SETTINGS_OFFSET_CREDENTIAL_VERSION] = UINT8_C(0x02);
+    CHECK(app_v2_device_settings_decode(modified, sizeof(modified), &decoded) ==
+          APP_V2_SETTINGS_UNSUPPORTED_VERSION);
+
+    memcpy(modified, record, sizeof(modified));
+    modified[APP_V2_SETTINGS_OFFSET_PASSWORD_ALGORITHM] = UINT8_C(0x02);
+    CHECK(app_v2_device_settings_decode(modified, sizeof(modified), &decoded) ==
+          APP_V2_SETTINGS_UNSUPPORTED_VERSION);
 }
 
 static void test_enum_boolean_reserved_and_string_rejection(void) {
@@ -138,9 +148,22 @@ static void test_enum_boolean_reserved_and_string_rejection(void) {
           APP_V2_SETTINGS_CORRUPT);
 
     memcpy(modified, record, sizeof(modified));
-    modified[APP_V2_SETTINGS_OFFSET_PROVISIONED] = UINT8_C(2);
+    modified[APP_V2_SETTINGS_OFFSET_RETENTION_TARGET] = UINT8_C(101);
     CHECK(app_v2_device_settings_decode(modified, sizeof(modified), &decoded) ==
           APP_V2_SETTINGS_CORRUPT);
+
+    static const size_t boolean_offsets[] = {
+        APP_V2_SETTINGS_OFFSET_SHOW_SOURCE,
+        APP_V2_SETTINGS_OFFSET_REQUIRE_CONFIRMATION,
+        APP_V2_SETTINGS_OFFSET_PROVISIONED,
+        APP_V2_SETTINGS_OFFSET_STATION_CONFIGURED,
+    };
+    for (size_t index = 0U; index < sizeof(boolean_offsets) / sizeof(boolean_offsets[0]); ++index) {
+        memcpy(modified, record, sizeof(modified));
+        modified[boolean_offsets[index]] = UINT8_C(2);
+        CHECK(app_v2_device_settings_decode(modified, sizeof(modified), &decoded) ==
+              APP_V2_SETTINGS_CORRUPT);
+    }
 
     memcpy(modified, record, sizeof(modified));
     modified[APP_V2_SETTINGS_OFFSET_RESERVED] = UINT8_C(1);
@@ -175,6 +198,11 @@ static void test_provisioning_and_station_invariants(void) {
     CHECK(app_v2_device_settings_validate(&settings) == APP_V2_SETTINGS_CORRUPT);
 
     make_provisioned(&settings);
+    settings.password_salt[0] = 0U;
+    memset(settings.password_salt, 0, sizeof(settings.password_salt));
+    CHECK(app_v2_device_settings_validate(&settings) == APP_V2_SETTINGS_CORRUPT);
+
+    make_provisioned(&settings);
     settings.station_configured = false;
     CHECK(app_v2_device_settings_validate(&settings) == APP_V2_SETTINGS_CORRUPT);
 
@@ -188,6 +216,8 @@ static void test_provisioning_and_station_invariants(void) {
 static void test_reset_settings_preserves_credentials_and_counter(void) {
     app_v2_device_settings_t settings;
     make_provisioned(&settings);
+    const uint16_t credential_version = settings.credential_version;
+    const uint16_t password_algorithm_version = settings.password_algorithm_version;
     const uint32_t iterations = settings.password_iterations;
     uint8_t salt[APP_V2_PASSWORD_SALT_BYTES];
     uint8_t verifier[APP_V2_PASSWORD_VERIFIER_BYTES];
@@ -201,6 +231,8 @@ static void test_reset_settings_preserves_credentials_and_counter(void) {
 
     CHECK(app_v2_device_settings_reset_noncredential(&settings) == APP_V2_SETTINGS_OK);
     CHECK(settings.provisioned);
+    CHECK(settings.credential_version == credential_version);
+    CHECK(settings.password_algorithm_version == password_algorithm_version);
     CHECK(settings.password_iterations == iterations);
     CHECK(memcmp(settings.password_salt, salt, sizeof(salt)) == 0);
     CHECK(memcmp(settings.password_verifier, verifier, sizeof(verifier)) == 0);
