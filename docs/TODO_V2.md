@@ -79,7 +79,7 @@ For each phase:
 
 ---
 
-# Phase 0 — Baseline, inventory, and migration map
+## Phase 0 — Baseline, inventory, and migration map
 
 **Goal:** Establish a trustworthy starting point and classify every existing v1
 subsystem before modifying production behavior.
@@ -139,7 +139,7 @@ subsystem before modifying production behavior.
 
 ---
 
-# Phase 1 — Shared contracts, constants, and test fixtures
+## Phase 1 — Shared contracts, constants, and test fixtures
 
 **Depends on:** Phase 0.
 
@@ -242,7 +242,7 @@ subsystem before modifying production behavior.
 
 ---
 
-# Phase 2 — Remove the retired firmware-owned repository architecture
+## Phase 2 — Remove the retired firmware-owned repository architecture
 
 **Depends on:** Phase 1.
 
@@ -291,7 +291,7 @@ subsystem before modifying production behavior.
 
 ---
 
-# Phase 3 — Opaque blob storage
+## Phase 3 — Opaque blob storage
 
 **Depends on:** Phase 2.
 
@@ -368,7 +368,7 @@ knowledge in firmware.
 
 ---
 
-# Phase 4 — Authentication, provisioning, and device settings
+## Phase 4 — Authentication, provisioning, and device settings
 
 **Depends on:** Phases 1 and 3.
 
@@ -444,7 +444,7 @@ knowledge in firmware.
 
 ---
 
-# Phase 5 — Exact v2 HTTP API
+## Phase 5 — Exact v2 HTTP API
 
 **Depends on:** Phases 1, 3, and 4.
 
@@ -540,7 +540,7 @@ knowledge in firmware.
 
 ---
 
-# Phase 6 — Macro compiler, executor, USB HID, and send lifecycle
+## Phase 6 — Macro compiler, executor, USB HID, and send lifecycle
 
 **Depends on:** Phases 1 and 5.
 
@@ -600,7 +600,7 @@ knowledge in firmware.
 
 ---
 
-# Phase 7 — React repository core and persistence client
+## Phase 7 — React repository core and persistence client
 
 **Depends on:** Phases 1 and 5.
 
@@ -666,7 +666,7 @@ knowledge in firmware.
 
 ---
 
-# Phase 8 — Startup, provisioning, and authentication UI
+## Phase 8 — Startup, provisioning, and authentication UI
 
 **Depends on:** Phases 4, 5, and 7.
 
@@ -728,7 +728,7 @@ knowledge in firmware.
 
 ---
 
-# Phase 9 — Macros page and Quick Send operating console
+## Phase 9 — Macros page and Quick Send operating console
 
 **Depends on:** Phases 7 and 8.
 
@@ -799,7 +799,7 @@ Macros | Packages | Snapshots | Settings
 
 ---
 
-# Phase 10 — Macro editing and package management
+## Phase 10 — Macro editing and package management
 
 **Depends on:** Phases 7 and 9.
 
@@ -849,7 +849,7 @@ Macros | Packages | Snapshots | Settings
 
 ---
 
-# Phase 11 — Snapshots, import, and export UI
+## Phase 11 — Snapshots, import, and export UI
 
 **Depends on:** Phases 7 and 10.
 
@@ -923,7 +923,7 @@ Macros | Packages | Snapshots | Settings
 
 ---
 
-# Phase 12 — Settings, diagnostics, and destructive operations UI
+## Phase 12 — Settings, diagnostics, and destructive operations UI
 
 **Depends on:** Phases 5 and 11.
 
@@ -964,7 +964,7 @@ Macros | Packages | Snapshots | Settings
 
 ---
 
-# Phase 13 — Portrait phones, responsive layout, and accessibility
+## Phase 13 — Portrait phones, responsive layout, and accessibility
 
 **Depends on:** Phases 8–12.
 
@@ -1022,7 +1022,7 @@ Macros | Packages | Snapshots | Settings
 
 ---
 
-# Phase 14 — Migration cleanup, static assets, scripts, and documentation
+## Phase 14 — Migration cleanup, static assets, scripts, and documentation
 
 **Depends on:** Phases 2–13.
 
@@ -1075,7 +1075,7 @@ Macros | Packages | Snapshots | Settings
 
 ---
 
-# Phase 15 — Full validation and release evidence
+## Phase 15 — Full validation and release evidence
 
 **Depends on:** All prior phases.
 
@@ -1176,7 +1176,7 @@ Macros | Packages | Snapshots | Settings
 
 ---
 
-# Final sign-off checklist
+## Final sign-off checklist
 
 - [ ] `docs/SPEC_V2.md` matches production behavior.
 - [ ] `docs/UI_UX_SPEC_V2.md` matches production behavior.
