@@ -26,6 +26,12 @@ function withUnknownField(value: unknown): Record<string, unknown> {
   return { ...value, unexpected: true };
 }
 
+function sparseArray<T>(length: number): T[] {
+  const value: T[] = [];
+  value.length = length;
+  return value;
+}
+
 describe("v2 API response contracts", () => {
   test("accepts every canonical checked-in response example", () => {
     expect(isErrorEnvelope(examples.error)).toBe(true);
@@ -84,6 +90,75 @@ describe("v2 API response contracts", () => {
     expect(isDiagnosticsResponse(withUnknownField(examples.diagnostics))).toBe(
       false,
     );
+  });
+
+  test("rejects unknown fields in nested response objects", () => {
+    expect(
+      isErrorEnvelope({
+        error: { ...examples.error.error, unexpected: true },
+      }),
+    ).toBe(false);
+
+    for (const field of ["usb", "accessPoint", "station", "storage", "send"] as const) {
+      const status = structuredClone(examples.status) as Record<string, unknown>;
+      status[field] = withUnknownField(status[field]);
+      expect(isStatusResponse(status)).toBe(false);
+    }
+
+    expect(
+      isBlobListResponse({
+        ...examples.blobList,
+        blobs: [withUnknownField(examples.blobList.blobs[0])],
+      }),
+    ).toBe(false);
+
+    expect(
+      isSettingsUpdatedResponse({
+        ...examples.settingsUpdated,
+        settings: withUnknownField(examples.settingsUpdated.settings),
+      }),
+    ).toBe(false);
+
+    for (const field of ["memory", "usb", "wifi", "storage", "send"] as const) {
+      const diagnostics = structuredClone(examples.diagnostics) as Record<
+        string,
+        unknown
+      >;
+      diagnostics[field] = withUnknownField(diagnostics[field]);
+      expect(isDiagnosticsResponse(diagnostics)).toBe(false);
+    }
+
+    expect(
+      isDiagnosticsResponse({
+        ...examples.diagnostics,
+        subsystems: [
+          { name: "storage", state: "healthy", unexpected: true },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  test("rejects sparse arrays in every API array field", () => {
+    expect(
+      isBlobListResponse({
+        ...examples.blobList,
+        blobs: sparseArray<(typeof examples.blobList.blobs)[number]>(1),
+      }),
+    ).toBe(false);
+
+    const invalidNames = structuredClone(examples.diagnostics);
+    invalidNames.storage.invalidNames = sparseArray<string>(1);
+    expect(isDiagnosticsResponse(invalidNames)).toBe(false);
+
+    const temporaryFiles = structuredClone(examples.diagnostics);
+    temporaryFiles.storage.temporaryFiles = sparseArray<string>(1);
+    expect(isDiagnosticsResponse(temporaryFiles)).toBe(false);
+
+    const subsystems = structuredClone(examples.diagnostics);
+    subsystems.subsystems = sparseArray<
+      (typeof examples.diagnostics.subsystems)[number]
+    >(1);
+    expect(isDiagnosticsResponse(subsystems)).toBe(false);
   });
 
   test("enforces the minimal unprovisioned setup-state surface", () => {
