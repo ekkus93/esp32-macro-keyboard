@@ -14,8 +14,18 @@ static void test_json_envelopes(void) {
     TEST_CHECK(strstr(output, "\"executionState\":\"running\"") != NULL);
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_adapter_build_limits_json(output, sizeof(output)));
-    TEST_CHECK(strstr(output, "\"compiledActions\":4096") != NULL);
-    TEST_CHECK(strstr(output, "\"durationMs\":300000") != NULL);
+    TEST_CHECK_EQ_STRING(
+        "{\"packageNameMaxBytes\":64,\"macroNameMaxBytes\":64,"
+        "\"macroSourceMaxBytes\":4096,\"compiledActionsMax\":4096,"
+        "\"delayDirectiveMaxMs\":10000,\"keyPressMaxMs\":10000,"
+        "\"interKeyMaxMs\":10000,\"estimatedDurationMaxMs\":300000,"
+        "\"executorAbsoluteDeadlineMs\":310000,\"jsonBodyMaxBytes\":8192,"
+        "\"blobMaxBytes\":131072,\"adminPasswordMinBytes\":12,"
+        "\"adminPasswordMaxBytes\":128,\"snapshotRetentionTargetMax\":100}",
+        output);
+    TEST_CHECK(strstr(output, "\"ok\"") == NULL);
+    TEST_CHECK(strstr(output, "macrosPerPackage") == NULL);
+    TEST_CHECK(strstr(output, "importBytes") == NULL);
 
     char small[8U];
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, web_adapter_build_error_json(APP_ERROR_IO, "too long",
