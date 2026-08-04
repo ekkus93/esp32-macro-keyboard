@@ -86,6 +86,10 @@
     "executorAbsoluteDeadlineMs": 310000,
     "jsonBodyMaxBytes": 8192,
     "blobMaxBytes": 131072,
+    "activeSessionsMax": 8,
+    "sessionIdleLifetimeSeconds": 86400,
+    "sessionAbsoluteLifetimeSeconds": 604800,
+    "serialConfirmationTimeoutSeconds": 60,
     "adminPasswordMinBytes": 12,
     "adminPasswordMaxBytes": 128,
     "snapshotRetentionTargetMax": 100
