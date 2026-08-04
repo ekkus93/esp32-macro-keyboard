@@ -88,7 +88,12 @@ function hasAllowedKeys(
 }
 
 function isDenseArray(value: unknown[]): boolean {
-  return value.every((_, index) => Object.hasOwn(value, index));
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.hasOwn(value, index)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function isNonNegativeInteger(value: unknown): value is number {
