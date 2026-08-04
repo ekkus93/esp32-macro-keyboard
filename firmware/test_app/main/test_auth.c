@@ -99,7 +99,7 @@ TEST_CASE("PBKDF2 candidate timings are reported", "[device][auth][benchmark]") 
 
         sort_timings(timings, PBKDF2_BENCHMARK_SAMPLE_COUNT);
         const size_t median_index = PBKDF2_BENCHMARK_SAMPLE_COUNT / 2U;
-        const size_t p90_index = (PBKDF2_BENCHMARK_SAMPLE_COUNT * 9U) / 10U - 1U;
+        const size_t p90_index = ((PBKDF2_BENCHMARK_SAMPLE_COUNT * 9U) / 10U) - 1U;
         const size_t worst_index = PBKDF2_BENCHMARK_SAMPLE_COUNT - 1U;
         (void)printf("PBKDF2_BENCH iterations=%" PRIu32 " samples=%u median_us=%" PRId64
                      " p90_us=%" PRId64 " worst_us=%" PRId64 "\n",
