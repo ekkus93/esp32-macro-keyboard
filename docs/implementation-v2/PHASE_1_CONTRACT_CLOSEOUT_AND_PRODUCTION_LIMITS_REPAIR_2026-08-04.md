@@ -1,9 +1,10 @@
 # ESP32 Macro Keyboard v2 — Phase 1 Contract Closeout and Production Limits Repair
 
-**Status:** In progress; hardware completion not claimed  
+**Status:** Software repair validated; hardware completion not claimed  
 **Date:** 2026-08-04  
 **Target branch:** `master` only  
 **Starting SHA:** `cbfa0c0ca3b07ac7592c1463a9b326dd6e2bf074`  
+**Validated software SHA:** `195806e1fca76777fe86a7d6b9873dc3ddb32efd`  
 **Specification:**
 [`docs/PHASE_1_CONTRACT_CLOSEOUT_AND_PRODUCTION_LIMITS_REPAIR_SPEC_2026-08-04.md`](../PHASE_1_CONTRACT_CLOSEOUT_AND_PRODUCTION_LIMITS_REPAIR_SPEC_2026-08-04.md)  
 **Checklist:**
@@ -101,6 +102,10 @@ frozen value.
 | `c3ca5de31562cbe9440a1a3c7f30762d16271c2b` | Test every required limits field and value. |
 | `a29f646fd93fb6d10f70c5f70d4a68d84614d594` | Gate the canonical API limits example. |
 | `f41daaa2a5e11a8f33067a8c26253f58e83e895b` | Document physical PBKDF2 benchmark execution. |
+| `dad05e65a00f4061e3361cdba502edc07eea6512` | Replace the lint-invalid dynamic deletion test. |
+| `44207461ae202f7c53531cbd59e9c576882f0c06` | Normalize the omission-test layout. |
+| `74bcb6b72f1d5aebe6ee8b4283cbbfe0c96d8bae` | Simplify missing-field construction. |
+| `195806e1fca76777fe86a7d6b9873dc3ddb32efd` | Apply the formatter-required limits-guard layout. |
 
 ## 5. Files changed
 
@@ -141,27 +146,48 @@ commit SHA. The selection rule remains: choose the highest measured candidate
 whose p90 is at or below 500 ms and whose median is at or above 250 ms. Do not
 freeze an unmeasured interpolated value without explicit product-owner approval.
 
-## 7. Validation state
+## 7. Validated software evidence
 
-Permanent `master` workflows were triggered by every commit. At the time this
-report was written, the latest exact-SHA Quality workflow had not yet reached the
-authoritative checks. Passing validation is not claimed here until the permanent
-workflow results are observed.
+The complete software repair was validated on exact SHA
+`195806e1fca76777fe86a7d6b9873dc3ddb32efd`. All four permanent `master`
+workflows completed successfully on that same SHA:
 
-The following focused behavior is covered by committed gates:
+| Workflow | Run | Job or jobs | Conclusion |
+| --- | --- | --- | --- |
+| Quality | `30955100062` | `92146219009` | success |
+| Host Tests | `30955100784` | `92146169171`, `92146169229`, `92146169249`, `92146169288`, `92146169337` | success |
+| Browser Tests | `30955100871` | `92146169221` | success |
+| Device Test Build | `30955099974` | `92146201274` | success |
 
-- central limits C and TypeScript mirror checking;
-- canonical API limits-example checking;
-- full production serializer host assertions;
-- exact TypeScript response-guard assertions;
-- full focused v2 contract gate registration;
-- device-test firmware build through the permanent workflow.
+The Quality job's `Run authoritative checks` step completed successfully. That
+step executes `./scripts/check-all.sh`, which fail-closed invokes
+`./scripts/check-v2-contracts.sh --native-only`. The focused native contract gate
+therefore ran and passed:
+
+- `python3 scripts/check-v2-limits.py`;
+- `python3 scripts/check-v2-settings-schema.py`;
+- `python3 scripts/check-v2-setup-route-policy.py`;
+- `python3 scripts/check-v2-api-routes.py`;
+- native v2 CMake build and CTest;
+- the remaining authoritative firmware, frontend, script, documentation, and
+  test gates in `check-all.sh`.
+
+Host Tests independently passed frontend type-checking, TypeScript lint,
+stylelint, Prettier formatting, frontend tests, frontend coverage, host native
+tests, ASan/UBSan, and native coverage. Browser Tests passed the real Chrome
+workflow. Device Test Build passed device-source lint and ESP32-S3 firmware
+compilation.
+
+This is exact-SHA evidence for the completed software repair. It is not the final
+Phase 1 closure SHA because the required physical benchmark will necessarily add
+measured contract, firmware, test, and documentation changes.
 
 ## 8. Current conclusion
 
-The production limits contract defect is repaired in source and regression
-coverage. Phase 1 closeout is **not complete** because the mandatory ESP32-S3R8
-PBKDF2 measurement and frozen v2 iteration value remain open. Production v1
+The production limits contract defect is repaired, regression-covered, and green
+across all four permanent workflows on the same validated software SHA. Phase 1
+closeout is **not complete** because the mandatory ESP32-S3R8 PBKDF2 measurement,
+frozen v2 iteration value, and dependent tests remain open. Production v1
 architecture deletion has not begun and is not claimed.
 
-No unchecked hardware or final-validation task is claimed complete.
+No unchecked hardware task or final Phase 1 closure is claimed complete.
