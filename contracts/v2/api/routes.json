@@ -1,0 +1,195 @@
+{
+  "format": "esp32-macro-keyboard-api-routes",
+  "version": 1,
+  "routes": [
+    {
+      "id": "setupGet",
+      "method": "GET",
+      "path": "/api/v1/setup",
+      "authentication": "none-unprovisioned-only",
+      "request": { "body": "none", "contentType": null, "maximumBytes": null },
+      "response": { "contentType": "application/json", "successStatus": 200 },
+      "errorStatuses": [404]
+    },
+    {
+      "id": "setupPost",
+      "method": "POST",
+      "path": "/api/v1/setup",
+      "authentication": "none-unprovisioned-only",
+      "request": { "body": "setupRequest", "contentType": "application/json", "maximumBytes": "jsonBodyMaxBytes" },
+      "response": { "contentType": "application/json", "successStatus": 202 },
+      "errorStatuses": [400, 409, 413, 415, 422, 500]
+    },
+    {
+      "id": "login",
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "authentication": "none-provisioned-only",
+      "request": { "body": "loginRequest", "contentType": "application/json", "maximumBytes": "jsonBodyMaxBytes" },
+      "response": { "contentType": "application/json", "successStatus": 200 },
+      "errorStatuses": [400, 403, 413, 415, 422, 429, 500]
+    },
+    {
+      "id": "logout",
+      "method": "POST",
+      "path": "/api/v1/auth/logout",
+      "authentication": "session",
+      "request": { "body": "none", "contentType": null, "maximumBytes": null },
+      "response": { "contentType": null, "successStatus": 204 },
+      "errorStatuses": [401, 500]
+    },
+    {
+      "id": "session",
+      "method": "GET",
+      "path": "/api/v1/auth/session",
+      "authentication": "session",
+      "request": { "body": "none", "contentType": null, "maximumBytes": null },
+      "response": { "contentType": "application/json", "successStatus": 200 },
+      "errorStatuses": [401, 500]
+    },
+    {
+      "id": "status",
+      "method": "GET",
+      "path": "/api/v1/status",
+      "authentication": "session",
+      "request": { "body": "none", "contentType": null, "maximumBytes": null },
+      "response": { "contentType": "application/json", "successStatus": 200 },
+      "errorStatuses": [401, 500, 503]
+    },
+    {
+      "id": "limits",
+      "method": "GET",
+      "path": "/api/v1/limits",
+      "authentication": "session",
+      "request": { "body": "none", "contentType": null, "maximumBytes": null },
+      "response": { "contentType": "application/json", "successStatus": 200 },
+      "errorStatuses": [401, 500]
+    },
+    {
+      "id": "blobList",
+      "method": "GET",
+      "path": "/api/v1/blob",
+      "authentication": "session",
+      "request": { "body": "none", "contentType": null, "maximumBytes": null },
+      "response": { "contentType": "application/json", "successStatus": 200 },
+      "errorStatuses": [401, 500, 503]
+    },
+    {
+      "id": "blobCreate",
+      "method": "POST",
+      "path": "/api/v1/blob",
+      "authentication": "session",
+      "request": { "body": "binaryBlob", "contentType": "application/gzip", "maximumBytes": "blobMaxBytes" },
+      "response": { "contentType": "application/json", "successStatus": 201 },
+      "errorStatuses": [400, 401, 413, 415, 500, 503, 507]
+    },
+    {
+      "id": "blobLoad",
+      "method": "GET",
+      "path": "/api/v1/blob/{blob_id}",
+      "authentication": "session",
+      "request": { "body": "none", "contentType": null, "maximumBytes": null },
+      "response": { "contentType": "application/gzip", "successStatus": 200 },
+      "errorStatuses": [400, 401, 404, 500, 503]
+    },
+    {
+      "id": "blobDelete",
+      "method": "DELETE",
+      "path": "/api/v1/blob/{blob_id}",
+      "authentication": "session",
+      "request": { "body": "none", "contentType": null, "maximumBytes": null },
+      "response": { "contentType": null, "successStatus": 204 },
+      "errorStatuses": [400, 401, 404, 500, 503]
+    },
+    {
+      "id": "sendCreate",
+      "method": "POST",
+      "path": "/api/v1/send",
+      "authentication": "session",
+      "request": { "body": "sendRequest", "contentType": "application/json", "maximumBytes": "jsonBodyMaxBytes" },
+      "response": { "contentType": "application/json", "successStatus": 202 },
+      "errorStatuses": [400, 401, 409, 413, 415, 422, 500, 503]
+    },
+    {
+      "id": "sendGet",
+      "method": "GET",
+      "path": "/api/v1/send",
+      "authentication": "session",
+      "request": { "body": "none", "contentType": null, "maximumBytes": null },
+      "response": { "contentType": "application/json", "successStatus": 200 },
+      "errorStatuses": [401, 404, 500, 503]
+    },
+    {
+      "id": "sendCancel",
+      "method": "DELETE",
+      "path": "/api/v1/send",
+      "authentication": "session",
+      "request": { "body": "none", "contentType": null, "maximumBytes": null },
+      "response": { "contentType": "application/json", "successStatus": 202 },
+      "errorStatuses": [401, 404, 500, 503]
+    },
+    {
+      "id": "settingsGet",
+      "method": "GET",
+      "path": "/api/v1/settings",
+      "authentication": "session",
+      "request": { "body": "none", "contentType": null, "maximumBytes": null },
+      "response": { "contentType": "application/json", "successStatus": 200 },
+      "errorStatuses": [401, 500, 503]
+    },
+    {
+      "id": "settingsPut",
+      "method": "PUT",
+      "path": "/api/v1/settings",
+      "authentication": "session",
+      "request": { "body": "settingsUpdateRequest", "contentType": "application/json", "maximumBytes": "jsonBodyMaxBytes" },
+      "response": { "contentType": "application/json", "successStatus": 200 },
+      "errorStatuses": [400, 401, 413, 415, 422, 500, 503]
+    },
+    {
+      "id": "passwordChange",
+      "method": "POST",
+      "path": "/api/v1/settings/change-password",
+      "authentication": "session",
+      "request": { "body": "passwordChangeRequest", "contentType": "application/json", "maximumBytes": "jsonBodyMaxBytes" },
+      "response": { "contentType": null, "successStatus": 204 },
+      "errorStatuses": [400, 401, 403, 413, 415, 422, 500, 503]
+    },
+    {
+      "id": "restart",
+      "method": "POST",
+      "path": "/api/v1/device/restart",
+      "authentication": "session",
+      "request": { "body": "none", "contentType": null, "maximumBytes": null },
+      "response": { "contentType": "application/json", "successStatus": 202 },
+      "errorStatuses": [401, 500, 503]
+    },
+    {
+      "id": "resetSettings",
+      "method": "POST",
+      "path": "/api/v1/device/reset-settings",
+      "authentication": "session",
+      "request": { "body": "resetSettingsRequest", "contentType": "application/json", "maximumBytes": "jsonBodyMaxBytes" },
+      "response": { "contentType": "application/json", "successStatus": 202 },
+      "errorStatuses": [400, 401, 413, 415, 422, 500, 503]
+    },
+    {
+      "id": "factoryReset",
+      "method": "POST",
+      "path": "/api/v1/device/factory-reset",
+      "authentication": "session",
+      "request": { "body": "factoryResetRequest", "contentType": "application/json", "maximumBytes": "jsonBodyMaxBytes" },
+      "response": { "contentType": "application/json", "successStatus": 202 },
+      "errorStatuses": [400, 401, 403, 413, 415, 422, 500, 503]
+    },
+    {
+      "id": "diagnostics",
+      "method": "GET",
+      "path": "/api/v1/diagnostics",
+      "authentication": "session",
+      "request": { "body": "none", "contentType": null, "maximumBytes": null },
+      "response": { "contentType": "application/json", "successStatus": 200 },
+      "errorStatuses": [401, 500, 503]
+    }
+  ]
+}
