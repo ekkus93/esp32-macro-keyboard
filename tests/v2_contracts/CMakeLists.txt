@@ -63,8 +63,11 @@ target_include_directories(v2_device_settings_tests PRIVATE ${V2_CONTRACT_INCLUD
 add_executable(v2_setup_route_policy_tests test_setup_route_policy.c)
 target_include_directories(v2_setup_route_policy_tests PRIVATE ${V2_CONTRACT_INCLUDE_DIR})
 
+add_executable(v2_api_route_tests test_api_routes.c)
+target_include_directories(v2_api_route_tests PRIVATE ${V2_CONTRACT_INCLUDE_DIR})
+
 foreach(target v2_macro_conformance_tests v2_macro_canonical_tokens_tests v2_device_settings_tests
-               v2_setup_route_policy_tests
+               v2_setup_route_policy_tests v2_api_route_tests
 )
     target_compile_options(
         ${target}
@@ -85,3 +88,4 @@ add_test(NAME v2_macro_conformance COMMAND v2_macro_conformance_tests)
 add_test(NAME v2_macro_canonical_tokens COMMAND v2_macro_canonical_tokens_tests)
 add_test(NAME v2_device_settings COMMAND v2_device_settings_tests)
 add_test(NAME v2_setup_route_policy COMMAND v2_setup_route_policy_tests)
+add_test(NAME v2_api_routes COMMAND v2_api_route_tests)
