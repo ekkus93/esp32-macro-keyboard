@@ -2,9 +2,9 @@
 name: Phase 1 Lockfile Repair
 
 on:
-  push:
+  pull_request:
     branches:
-      - phase1-ci-repair
+      - master
 
 permissions:
   contents: write
