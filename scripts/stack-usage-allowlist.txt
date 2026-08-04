@@ -15,25 +15,12 @@
 #
 # Host tests run on x86, where a thread stack is megabytes, so a multi-kilobyte
 # local is legal and neither AddressSanitizer nor Valgrind has anything to
-# report. On the ESP32-S3 the same function runs on a FreeRTOS task stack of a
-# few KiB (main_task 8 KiB, httpd 24 KiB). Before this gate existed the only way
-# to find these was to crash real hardware, one endpoint at a time.
+# report. On the ESP32-S3 the same function runs on a bounded FreeRTOS task
+# stack. This gate catches oversized first-party frames before device testing.
 #
 # CURRENT STATUS
 #
-# Three first-party frames remain over the 4096-byte threshold. Every one fits
-# the 24 KiB httpd task stack; the largest is import_locked at about 18.7 KiB.
-# They remain ratcheted because their fixed-size repository structures still
-# leave less stack margin than ordinary request handlers.
-#
-# The stale storage_set_tree.c, storage_repository_procedures.c, and
-# storage_transaction.c entries were removed after the Phase 1 simplification
-# deleted or refactored those frames. The gate deliberately rejects such dead
-# entries so this file cannot become an archive of code that no longer exists.
-#
-# Baseline measured during the 2026-08-01 hardware bring-up and updated by the
-# Phase 1 contract/CI repair pass.
-#
-18720 firmware/components/storage/storage_package_import.c:import_locked
-18528 firmware/components/storage/storage_package_replace.c:storage_package_replace
-4736 firmware/components/storage/storage_repository_package_operations.c:storage_package_duplicate_locked
+# Phase 2 deleted the three repository/package functions that previously needed
+# exceptions. No first-party frame is currently allowlisted. Any future frame
+# over the gate threshold must fail first and receive an explicit measured
+# entry; deleted entries must never remain as historical exemptions.
