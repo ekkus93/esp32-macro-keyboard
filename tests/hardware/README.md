@@ -25,6 +25,17 @@ This verifies authenticated settings access, refusal of missing or forged
 sessions, login throttling, and HTTP 404 responses for the removed package,
 execution, repository, and restore routes.
 
+### HTTP confirmation concurrency
+
+```bash
+python3 tests/hardware/test_httpd_concurrency.py
+```
+
+This enables physical confirmation, holds a device-restart request until it
+times out, verifies unrelated status requests remain responsive, confirms a
+second waiter is refused, and checks that the server releases the request
+socket. The script restores the prior setting afterward.
+
 ### Restart and reset acceptance
 
 ```bash

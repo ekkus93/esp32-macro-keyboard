@@ -1,24 +1,12 @@
 #!/usr/bin/env python3
-"""The web server must stay responsive during a physical-confirmation wait.
+"""Verify HTTP responsiveness during a physical-confirmation wait.
 
-esp_http_server is a single task running select() over every socket - there is
-no worker pool - and physical confirmation blocks for up to
-APP_PHYSICAL_CONFIRM_TIMEOUT_MS (20 s) waiting for the button. Performing that
-wait on the httpd task froze every other client for the whole window: measured
-on hardware, an unrelated GET /api/v1/status took 18.0 s against a 25-43 ms idle
-baseline. From a browser that is indistinguishable from a hang, and it applies
-to seven routes including POST /api/v1/executions whenever
-requirePhysicalConfirmation is enabled - the ordinary "run a macro" path.
+The ESP-IDF HTTP server uses a single request task. Confirmation-gated routes
+must therefore move their wait to the asynchronous worker; otherwise an
+unconfirmed operation blocks every client for the entire confirmation timeout.
 
-web_server_async.c moves those requests onto a worker task via
-httpd_req_async_handler_begin(). These tests assert the properties that fix
-depends on:
-
-  1. unrelated requests stay fast while a confirmation is pending;
-  2. a second confirmation is refused (409) rather than queued, because one
-     button press cannot disambiguate two pending confirmations;
-  3. sockets are not leaked - an async request left incomplete never releases
-     its socket, and the server eventually stops accepting connections.
+Phase 2 uses the retained device-restart route as the blocking operation. No
+repository, package, restore, or stored-macro API is involved.
 """
 
 import json
@@ -31,14 +19,18 @@ import urllib.request
 import hil_state
 from device_client import Device
 
-# A request served while the worker waits should be in the tens of
-# milliseconds; anything near the 20 s window means it queued behind the wait.
 RESPONSIVE_MS = 2000
 
 
 def check(label, condition, detail=""):
     print(f"  [{'PASS' if condition else 'FAIL'}] {label}{'  ' + detail if detail else ''}")
     return condition
+
+
+def response_data(payload):
+    if not isinstance(payload, dict):
+        raise SystemExit(f"error: expected JSON object, got {payload!r}")
+    return payload.get("data", payload)
 
 
 def main():
@@ -48,11 +40,10 @@ def main():
     results = []
 
     def raw(method, path, body=None, timeout=60):
-        data = json.dumps(body).encode() if body is not None else None
-        headers = {"Host": ip, "Origin": f"http://{ip}", "Cookie": device.cookie}
+        data = json.dumps(body, separators=(",", ":")).encode() if body is not None else None
+        headers = {"Cookie": device.cookie}
         if data is not None:
             headers["Content-Type"] = "application/json"
-            headers["X-CSRF-Token"] = device.csrf
         request = urllib.request.Request(
             f"http://{ip}{path}", data=data, headers=headers, method=method
         )
@@ -64,65 +55,112 @@ def main():
         except urllib.error.HTTPError as error:
             error.read()
             return error.code, time.time() - start
-        except Exception as error:  # noqa: BLE001 - reported, not handled
+        except Exception as error:  # noqa: BLE001 - the result is reported
             return type(error).__name__, time.time() - start
 
-    print(f"device {ip}\n")
-    print("baseline (server idle):")
-    for _ in range(3):
-        status, elapsed = raw("GET", "/api/v1/status")
-        print(f"    GET /api/v1/status -> {status} in {elapsed * 1000:.0f} ms")
-
-    request = urllib.request.Request(
-        f"http://{ip}/api/v1/repository",
-        headers={"Host": ip, "Origin": f"http://{ip}", "Cookie": device.cookie},
-        method="GET",
+    status, payload = device.get("/api/v1/settings")
+    if status != 200:
+        raise SystemExit(f"error: could not read settings: HTTP {status} {payload}")
+    original = response_data(payload)
+    status, payload = device.put(
+        "/api/v1/settings",
+        {
+            "expectedRevision": original["revision"],
+            "requirePhysicalConfirmation": True,
+            "alwaysSelectPackage": original["alwaysSelectPackage"],
+        },
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        backup = json.loads(response.read().decode())
+    if status != 200:
+        raise SystemExit(
+            f"error: could not enable physical confirmation: HTTP {status} {payload}"
+        )
+    configured = response_data(payload)
 
-    # --- 1. responsiveness while a confirmation is pending ------------------
-    print("\nserver stays responsive during the confirmation wait:")
-    pending = {}
+    try:
+        print(f"device {ip}\n")
+        print("baseline (server idle):")
+        for _ in range(3):
+            baseline_status, elapsed = raw("GET", "/api/v1/status")
+            print(
+                "    GET /api/v1/status -> "
+                f"{baseline_status} in {elapsed * 1000:.0f} ms"
+            )
 
-    def hold_confirmation():
-        pending["restore"] = raw("POST", "/api/v1/restore", backup, timeout=60)
+        print("\nserver stays responsive during the confirmation wait:")
+        pending = {}
 
-    worker = threading.Thread(target=hold_confirmation, daemon=True)
-    worker.start()
-    time.sleep(2.0)  # let the restore reach the confirmation wait
+        def hold_confirmation():
+            pending["restart"] = raw("POST", "/api/v1/device/restart", timeout=60)
 
-    latencies = []
-    for index in range(4):
-        status, elapsed = raw("GET", "/api/v1/status", timeout=60)
-        latencies.append(elapsed * 1000)
-        print(f"    GET /api/v1/status -> {status} in {elapsed * 1000:7.0f} ms")
-        if index < 3:
-            time.sleep(1.0)
-    worst = max(latencies)
-    results.append(check("unrelated requests stay fast", worst < RESPONSIVE_MS,
-                         f"worst {worst:.0f} ms (limit {RESPONSIVE_MS} ms)"))
+        worker = threading.Thread(target=hold_confirmation, daemon=True)
+        worker.start()
+        time.sleep(2.0)
 
-    # --- 2. a second confirmation is refused, not queued --------------------
-    status, elapsed = raw("POST", "/api/v1/restore", backup, timeout=60)
-    results.append(check("second confirmation refused with 409", status == 409,
-                         f"HTTP {status} in {elapsed * 1000:.0f} ms"))
+        latencies = []
+        for index in range(4):
+            request_status, elapsed = raw("GET", "/api/v1/status", timeout=60)
+            latencies.append(elapsed * 1000)
+            print(
+                "    GET /api/v1/status -> "
+                f"{request_status} in {elapsed * 1000:7.0f} ms"
+            )
+            if index < 3:
+                time.sleep(1.0)
+        worst = max(latencies)
+        results.append(
+            check(
+                "unrelated requests stay fast",
+                worst < RESPONSIVE_MS,
+                f"worst {worst:.0f} ms (limit {RESPONSIVE_MS} ms)",
+            )
+        )
 
-    worker.join(timeout=60)
-    print(f"    held request returned: {pending.get('restore')}")
+        request_status, elapsed = raw("POST", "/api/v1/device/restart", timeout=10)
+        results.append(
+            check(
+                "second confirmation refused with 409",
+                request_status == 409,
+                f"HTTP {request_status} in {elapsed * 1000:.0f} ms",
+            )
+        )
 
-    # --- 3. sockets are released ------------------------------------------
-    print("\nsockets are released across repeated confirmation cycles:")
-    for cycle in range(2):
-        status, elapsed = raw("POST", "/api/v1/restore", backup, timeout=60)
-        print(f"    cycle {cycle + 1}: restore -> {status} in {elapsed:.1f}s")
-    status, elapsed = raw("GET", "/api/v1/status")
-    results.append(check("server still accepting connections", status == 200,
-                         f"HTTP {status} in {elapsed * 1000:.0f} ms"))
+        worker.join(timeout=60)
+        results.append(
+            check(
+                "held request completed after timeout",
+                not worker.is_alive(),
+                f"result {pending.get('restart')}",
+            )
+        )
+
+        print("\nsockets are released after the timed-out confirmation:")
+        request_status, elapsed = raw("GET", "/api/v1/status")
+        results.append(
+            check(
+                "server still accepting connections",
+                request_status == 200,
+                f"HTTP {request_status} in {elapsed * 1000:.0f} ms",
+            )
+        )
+    finally:
+        status, payload = device.put(
+            "/api/v1/settings",
+            {
+                "expectedRevision": configured["revision"],
+                "requirePhysicalConfirmation": original["requirePhysicalConfirmation"],
+                "alwaysSelectPackage": original["alwaysSelectPackage"],
+            },
+        )
+        if status != 200:
+            print(
+                "warning: could not restore physical-confirmation setting: "
+                f"HTTP {status} {payload}",
+                file=sys.stderr,
+            )
+        device.logout()
 
     print("\n" + "=" * 58)
-    print(f"  {sum(1 for r in results if r)}/{len(results)} checks passed")
-    device.logout()
+    print(f"  {sum(1 for result in results if result)}/{len(results)} checks passed")
     return 0 if all(results) else 1
 
 
