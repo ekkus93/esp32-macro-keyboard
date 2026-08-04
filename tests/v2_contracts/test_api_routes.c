@@ -6,32 +6,8 @@
 #include "api_routes_v2.h"
 #include "app_limits_v2.h"
 
-typedef struct {
-    const char *id;
-    const char *method;
-    const char *path;
-    const char *authentication;
-    const char *request_body;
-    const char *request_content_type;
-    const char *request_maximum_bytes;
-    const char *response_content_type;
-    uint16_t success_status;
-    const char *error_statuses;
-} api_route_contract_t;
-
-#define API_ROUTE_ROW(id_, method_, path_, authentication_, request_body_, request_content_type_,  \
-                      request_maximum_bytes_, response_content_type_, success_status_,              \
-                      error_statuses_)                                                              \
-    {                                                                                               \
-        id_, method_, path_, authentication_, request_body_, request_content_type_,                  \
-            request_maximum_bytes_, response_content_type_, success_status_, error_statuses_         \
-    },
-
-static const api_route_contract_t routes[] = {APP_V2_API_ROUTE_ROWS(API_ROUTE_ROW)};
-
-#undef API_ROUTE_ROW
-
-_Static_assert(sizeof(routes) / sizeof(routes[0]) == APP_V2_API_ROUTE_COUNT,
+_Static_assert(sizeof(app_v2_api_routes) / sizeof(app_v2_api_routes[0]) ==
+                   APP_V2_API_ROUTE_COUNT,
                "v2 API route count differs");
 
 static int failures = 0;
@@ -44,19 +20,23 @@ static int failures = 0;
         }                                                                                          \
     } while (0)
 
-static const api_route_contract_t *find_route(const char *id) {
-    for (size_t index = 0U; index < sizeof(routes) / sizeof(routes[0]); ++index) {
-        if (strcmp(routes[index].id, id) == 0) {
-            return &routes[index];
+static size_t route_count(void) {
+    return sizeof(app_v2_api_routes) / sizeof(app_v2_api_routes[0]);
+}
+
+static const app_v2_api_route_contract_t *find_route(const char *id) {
+    for (size_t index = 0U; index < route_count(); ++index) {
+        if (strcmp(app_v2_api_routes[index].id, id) == 0) {
+            return &app_v2_api_routes[index];
         }
     }
     return NULL;
 }
 
 static void test_route_surface(void) {
-    CHECK(sizeof(routes) / sizeof(routes[0]) == (size_t)APP_V2_API_ROUTE_COUNT);
-    for (size_t index = 0U; index < sizeof(routes) / sizeof(routes[0]); ++index) {
-        const api_route_contract_t *route = &routes[index];
+    CHECK(route_count() == (size_t)APP_V2_API_ROUTE_COUNT);
+    for (size_t index = 0U; index < route_count(); ++index) {
+        const app_v2_api_route_contract_t *route = &app_v2_api_routes[index];
         CHECK(route->id[0] != '\0');
         CHECK(route->method[0] != '\0');
         CHECK(strncmp(route->path, "/api/v1/", sizeof("/api/v1/") - 1U) == 0);
@@ -71,9 +51,9 @@ static void test_route_surface(void) {
 }
 
 static void test_setup_and_login_boundaries(void) {
-    const api_route_contract_t *setup_get = find_route("setupGet");
-    const api_route_contract_t *setup_post = find_route("setupPost");
-    const api_route_contract_t *login = find_route("login");
+    const app_v2_api_route_contract_t *setup_get = find_route("setupGet");
+    const app_v2_api_route_contract_t *setup_post = find_route("setupPost");
+    const app_v2_api_route_contract_t *login = find_route("login");
     CHECK(setup_get != NULL);
     CHECK(setup_post != NULL);
     CHECK(login != NULL);
@@ -100,10 +80,10 @@ static void test_setup_and_login_boundaries(void) {
 }
 
 static void test_binary_and_no_content_contracts(void) {
-    const api_route_contract_t *blob_create = find_route("blobCreate");
-    const api_route_contract_t *blob_load = find_route("blobLoad");
-    const api_route_contract_t *blob_delete = find_route("blobDelete");
-    const api_route_contract_t *password_change = find_route("passwordChange");
+    const app_v2_api_route_contract_t *blob_create = find_route("blobCreate");
+    const app_v2_api_route_contract_t *blob_load = find_route("blobLoad");
+    const app_v2_api_route_contract_t *blob_delete = find_route("blobDelete");
+    const app_v2_api_route_contract_t *password_change = find_route("passwordChange");
     CHECK(blob_create != NULL);
     CHECK(blob_load != NULL);
     CHECK(blob_delete != NULL);
@@ -147,6 +127,7 @@ int main(void) {
         (void)fprintf(stderr, "%d v2 API route assertion(s) failed\n", failures);
         return 1;
     }
-    (void)printf("all %u v2 API route contracts passed\n", (unsigned int)APP_V2_API_ROUTE_COUNT);
+    (void)printf("all %u v2 API route contracts passed\n",
+                 (unsigned int)APP_V2_API_ROUTE_COUNT);
     return 0;
 }
