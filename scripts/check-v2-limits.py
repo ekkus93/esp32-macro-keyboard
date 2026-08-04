@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify all C and TypeScript v2 limit mirrors against shared JSON."""
+"""Verify all C, TypeScript, and API-example v2 limit mirrors."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from typing import Any
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 CONTRACT_PATH = REPOSITORY_ROOT / "contracts/v2/limits.json"
+API_EXAMPLES_PATH = REPOSITORY_ROOT / "contracts/v2/api/examples.json"
 C_HEADER_PATH = (
     REPOSITORY_ROOT
     / "firmware/components/app_contracts_v2/include/app_limits_v2.h"
@@ -168,19 +169,44 @@ def verify_legacy_limits(limits: dict[str, int]) -> bool:
     return False
 
 
+def verify_api_example(limits: dict[str, int]) -> bool:
+    document: Any = json.loads(API_EXAMPLES_PATH.read_text(encoding="utf-8"))
+    if not isinstance(document, dict):
+        raise ValueError("v2 API examples must be a JSON object")
+    example = document.get("limits")
+    if not isinstance(example, dict):
+        raise ValueError("v2 API examples are missing the limits object")
+    if tuple(example) != EXPECTED_KEYS:
+        print(
+            "error: canonical API limits example keys or order differ from the contract",
+            file=sys.stderr,
+        )
+        return False
+    if example != limits:
+        print(
+            "error: canonical API limits example values differ from the contract",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
 def main() -> int:
     try:
         limits = load_contract()
         c_ok = verify(C_HEADER_PATH, render_c_header(limits))
         legacy_ok = verify_legacy_limits(limits)
         typescript_ok = verify(TYPESCRIPT_PATH, render_typescript(limits))
+        api_example_ok = verify_api_example(limits)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
 
-    if not c_ok or not legacy_ok or not typescript_ok:
+    if not c_ok or not legacy_ok or not typescript_ok or not api_example_ok:
         return 1
-    print("v2 limits contract matches C, legacy compatibility, and TypeScript")
+    print(
+        "v2 limits contract matches C, legacy compatibility, TypeScript, and API examples"
+    )
     return 0
 
 
