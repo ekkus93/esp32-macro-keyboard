@@ -63,12 +63,7 @@ interface ExpectedRoute {
 }
 
 const expectedRoutes: readonly ExpectedRoute[] = rawManifest.routes;
-const methods: ReadonlySet<string> = new Set([
-  "GET",
-  "POST",
-  "PUT",
-  "DELETE",
-]);
+const methods: ReadonlySet<string> = new Set(["GET", "POST", "PUT", "DELETE"]);
 const authenticationValues: ReadonlySet<string> = new Set([
   "none-unprovisioned-only",
   "none-provisioned-only",
@@ -155,7 +150,9 @@ function isRequest(value: unknown): value is ApiRequestContract {
     return contentType === null && maximumBytes === null;
   }
   if (value.body === "binaryBlob") {
-    return contentType === "application/gzip" && maximumBytes === "blobMaxBytes";
+    return (
+      contentType === "application/gzip" && maximumBytes === "blobMaxBytes"
+    );
   }
   return (
     contentType === "application/json" && maximumBytes === "jsonBodyMaxBytes"
@@ -182,7 +179,10 @@ function isResponse(value: unknown): value is ApiResponseContract {
   );
 }
 
-function isErrorStatuses(value: unknown, successStatus: number): value is number[] {
+function isErrorStatuses(
+  value: unknown,
+  successStatus: number,
+): value is number[] {
   if (!Array.isArray(value) || !isDenseArray(value) || value.length === 0) {
     return false;
   }
