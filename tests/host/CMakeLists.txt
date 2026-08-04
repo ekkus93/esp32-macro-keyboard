@@ -20,6 +20,9 @@ set(STRICT_WARNINGS
     -Wstrict-prototypes
 )
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
+
 add_library(
     test_support STATIC
     support/test_assert.c
@@ -44,37 +47,39 @@ target_compile_definitions(
 )
 target_compile_options(test_support PRIVATE ${STRICT_WARNINGS})
 
+function(register_host_test target test_name labels)
+    target_link_libraries(${target} PRIVATE test_support)
+    target_compile_options(${target} PRIVATE ${STRICT_WARNINGS})
+    add_test(NAME ${test_name} COMMAND ${target})
+    set_tests_properties(${test_name} PROPERTIES LABELS "${labels}")
+endfunction()
+
 add_executable(test_support_tests test_support.c)
-target_link_libraries(test_support_tests PRIVATE test_support)
-target_compile_options(test_support_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME test_support COMMAND test_support_tests)
-set_tests_properties(test_support PROPERTIES LABELS "support")
+register_host_test(test_support_tests test_support support)
 
 add_executable(
-    app_operation_result_tests test_app_operation_result.c
-                               ../../firmware/components/support/app_operation_result.c
+    app_operation_result_tests
+    test_app_operation_result.c
+    ../../firmware/components/support/app_operation_result.c
 )
 target_include_directories(
-    app_operation_result_tests PRIVATE ../../firmware/components/support/include
-                                       ../../firmware/components/macro_model/include
+    app_operation_result_tests
+    PRIVATE ../../firmware/components/support/include
+            ../../firmware/components/macro_model/include
 )
-target_link_libraries(app_operation_result_tests PRIVATE test_support)
-target_compile_options(app_operation_result_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME app_operation_result COMMAND app_operation_result_tests)
-set_tests_properties(app_operation_result PROPERTIES LABELS "support")
+register_host_test(app_operation_result_tests app_operation_result support)
 
 add_executable(
-    subsystem_health_tests test_subsystem_health.c
-                           ../../firmware/components/support/subsystem_health.c
+    subsystem_health_tests
+    test_subsystem_health.c
+    ../../firmware/components/support/subsystem_health.c
 )
 target_include_directories(
-    subsystem_health_tests PRIVATE ../../firmware/components/support/include
-                                   ../../firmware/components/macro_model/include
+    subsystem_health_tests
+    PRIVATE ../../firmware/components/support/include
+            ../../firmware/components/macro_model/include
 )
-target_link_libraries(subsystem_health_tests PRIVATE test_support)
-target_compile_options(subsystem_health_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME subsystem_health COMMAND subsystem_health_tests)
-set_tests_properties(subsystem_health PROPERTIES LABELS "support")
+register_host_test(subsystem_health_tests subsystem_health support)
 
 add_executable(
     macro_parser_tests
@@ -86,26 +91,24 @@ add_executable(
     ../../firmware/components/macro_parser/macro_keymap_us.c
 )
 target_include_directories(
-    macro_parser_tests PRIVATE ../../firmware/components/macro_model/include
-                               ../../firmware/components/macro_parser/include
+    macro_parser_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
 )
-target_link_libraries(macro_parser_tests PRIVATE test_support)
-target_compile_options(macro_parser_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME macro_parser COMMAND macro_parser_tests)
-set_tests_properties(macro_parser PROPERTIES LABELS "parser")
+register_host_test(macro_parser_tests macro_parser parser)
 
 add_executable(
-    macro_model_tests test_macro_model.c ../../firmware/components/macro_model/macro_model.c
+    macro_model_tests
+    test_macro_model.c
+    ../../firmware/components/macro_model/macro_model.c
 )
 target_include_directories(macro_model_tests PRIVATE ../../firmware/components/macro_model/include)
-target_link_libraries(macro_model_tests PRIVATE test_support)
-target_compile_options(macro_model_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME macro_model COMMAND macro_model_tests)
-set_tests_properties(macro_model PROPERTIES LABELS "model")
+register_host_test(macro_model_tests macro_model model)
 
 add_executable(
-    macro_executor_tests test_macro_executor.c
-                         ../../firmware/components/macro_executor/macro_executor_engine.c
+    macro_executor_tests
+    test_macro_executor.c
+    ../../firmware/components/macro_executor/macro_executor_engine.c
 )
 target_include_directories(
     macro_executor_tests
@@ -114,10 +117,7 @@ target_include_directories(
             ../../firmware/components/macro_executor/include
             ../../firmware/components/macro_executor
 )
-target_link_libraries(macro_executor_tests PRIVATE test_support)
-target_compile_options(macro_executor_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME macro_executor COMMAND macro_executor_tests)
-set_tests_properties(macro_executor PROPERTIES LABELS "executor")
+register_host_test(macro_executor_tests macro_executor executor)
 
 add_executable(
     auth_tests
@@ -128,29 +128,28 @@ add_executable(
     ../../firmware/components/auth/auth_core_rate_limit.c
 )
 target_include_directories(
-    auth_tests PRIVATE ../../firmware/components/macro_model/include
-                       ../../firmware/components/auth/include ../../firmware/components/auth
+    auth_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/auth
 )
-target_link_libraries(auth_tests PRIVATE test_support)
-target_compile_options(auth_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME auth COMMAND auth_tests)
-set_tests_properties(auth PROPERTIES LABELS "auth")
+register_host_test(auth_tests auth auth)
 
 add_executable(
     web_security_tests
-    test_web_security.c ../../firmware/components/web_server/web_cookie.c
+    test_web_security.c
+    ../../firmware/components/web_server/web_cookie.c
     ../../firmware/components/web_server/web_static_path.c
     ../../firmware/components/web_server/web_content.c
 )
 target_include_directories(
     web_security_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/auth/include
-            ../../firmware/components/storage/include ../../firmware/components/web_server
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/storage/include
+            ../../firmware/components/web_server
 )
-target_link_libraries(web_security_tests PRIVATE test_support)
-target_compile_options(web_security_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME web_security COMMAND web_security_tests)
-set_tests_properties(web_security PROPERTIES LABELS "web")
+register_host_test(web_security_tests web_security web)
 
 add_executable(
     web_server_adapter_tests
@@ -168,18 +167,19 @@ add_executable(
 )
 target_include_directories(
     web_server_adapter_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/auth/include
-            ../../firmware/components/web_server ../../firmware/components/web_server/include
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/web_server
+            ../../firmware/components/web_server/include
             ../../firmware/components/support/include
 )
-target_link_libraries(web_server_adapter_tests PRIVATE test_support)
-target_compile_options(web_server_adapter_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME web_server_adapter COMMAND web_server_adapter_tests)
-set_tests_properties(web_server_adapter PROPERTIES LABELS "web")
+register_host_test(web_server_adapter_tests web_server_adapter web)
 
 add_executable(
-    app_core_tests test_app_core.c ../../firmware/components/app_core/app_core_sequence.c
-                   ../../firmware/components/support/app_operation_result.c
+    app_core_tests
+    test_app_core.c
+    ../../firmware/components/app_core/app_core_sequence.c
+    ../../firmware/components/support/app_operation_result.c
 )
 target_include_directories(
     app_core_tests
@@ -190,145 +190,123 @@ target_include_directories(
             ../../firmware/components/app_core
             ../../firmware/components/support/include
 )
-target_link_libraries(app_core_tests PRIVATE test_support)
-target_compile_options(app_core_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME app_core COMMAND app_core_tests)
-set_tests_properties(app_core PROPERTIES LABELS "startup")
+register_host_test(app_core_tests app_core startup)
 
 add_executable(
-    app_lifecycle_health_tests test_app_lifecycle_health.c
-                               ../../firmware/components/support/app_lifecycle_health.c
+    app_lifecycle_health_tests
+    test_app_lifecycle_health.c
+    ../../firmware/components/support/app_lifecycle_health.c
 )
 target_include_directories(
-    app_lifecycle_health_tests PRIVATE ../../firmware/components/support/include
-                                       ../../firmware/components/macro_model/include
+    app_lifecycle_health_tests
+    PRIVATE ../../firmware/components/support/include
+            ../../firmware/components/macro_model/include
 )
-target_link_libraries(app_lifecycle_health_tests PRIVATE test_support)
-target_compile_options(app_lifecycle_health_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME app_lifecycle_health COMMAND app_lifecycle_health_tests)
-set_tests_properties(app_lifecycle_health PROPERTIES LABELS "startup")
+register_host_test(app_lifecycle_health_tests app_lifecycle_health startup)
 
 add_executable(
-    storage_health_tests test_storage_health.c ../../firmware/components/storage/storage_health.c
+    storage_health_tests
+    test_storage_health.c
+    ../../firmware/components/storage/storage_health.c
 )
 target_include_directories(
     storage_health_tests
-    PRIVATE ../../firmware/components/storage/include ../../firmware/components/support/include
+    PRIVATE ../../firmware/components/storage/include
+            ../../firmware/components/support/include
             ../../firmware/components/macro_model/include
 )
-target_link_libraries(storage_health_tests PRIVATE test_support)
-target_compile_options(storage_health_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME storage_health COMMAND storage_health_tests)
-set_tests_properties(storage_health PROPERTIES LABELS "storage")
-
-add_executable(
-    repository_health_tests test_repository_health.c
-                            ../../firmware/components/storage/repository_health.c
-)
-target_include_directories(
-    repository_health_tests
-    PRIVATE ../../firmware/components/storage/include ../../firmware/components/support/include
-            ../../firmware/components/macro_model/include
-)
-target_link_libraries(repository_health_tests PRIVATE test_support)
-target_compile_options(repository_health_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME repository_health COMMAND repository_health_tests)
-set_tests_properties(repository_health PROPERTIES LABELS "storage")
+register_host_test(storage_health_tests storage_health storage)
 
 add_executable(auth_health_tests test_auth_health.c ../../firmware/components/auth/auth_health.c)
 target_include_directories(
     auth_health_tests
-    PRIVATE ../../firmware/components/auth/include ../../firmware/components/support/include
+    PRIVATE ../../firmware/components/auth/include
+            ../../firmware/components/support/include
             ../../firmware/components/macro_model/include
 )
-target_link_libraries(auth_health_tests PRIVATE test_support)
-target_compile_options(auth_health_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME auth_health COMMAND auth_health_tests)
-set_tests_properties(auth_health PROPERTIES LABELS "auth")
+register_host_test(auth_health_tests auth_health auth)
 
 add_executable(
-    usb_health_tests test_usb_health.c ../../firmware/components/usb_keyboard/usb_health.c
+    usb_health_tests
+    test_usb_health.c
+    ../../firmware/components/usb_keyboard/usb_health.c
 )
 target_include_directories(
     usb_health_tests
     PRIVATE ../../firmware/components/usb_keyboard/include
-            ../../firmware/components/support/include ../../firmware/components/macro_model/include
+            ../../firmware/components/support/include
+            ../../firmware/components/macro_model/include
 )
-target_link_libraries(usb_health_tests PRIVATE test_support)
-target_compile_options(usb_health_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME usb_health COMMAND usb_health_tests)
-set_tests_properties(usb_health PROPERTIES LABELS "usb")
+register_host_test(usb_health_tests usb_health usb)
 
 add_executable(
-    executor_health_tests test_executor_health.c
-                          ../../firmware/components/macro_executor/executor_health.c
+    executor_health_tests
+    test_executor_health.c
+    ../../firmware/components/macro_executor/executor_health.c
 )
 target_include_directories(
     executor_health_tests
     PRIVATE ../../firmware/components/macro_executor/include
-            ../../firmware/components/support/include ../../firmware/components/macro_model/include
+            ../../firmware/components/support/include
+            ../../firmware/components/macro_model/include
 )
-target_link_libraries(executor_health_tests PRIVATE test_support)
-target_compile_options(executor_health_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME executor_health COMMAND executor_health_tests)
-set_tests_properties(executor_health PROPERTIES LABELS "executor")
+register_host_test(executor_health_tests executor_health executor)
 
 add_executable(
-    http_health_tests test_http_health.c ../../firmware/components/web_server/http_health.c
+    http_health_tests
+    test_http_health.c
+    ../../firmware/components/web_server/http_health.c
 )
 target_include_directories(
     http_health_tests
-    PRIVATE ../../firmware/components/web_server/include ../../firmware/components/support/include
+    PRIVATE ../../firmware/components/web_server/include
+            ../../firmware/components/support/include
             ../../firmware/components/macro_model/include
 )
-target_link_libraries(http_health_tests PRIVATE test_support)
-target_compile_options(http_health_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME http_health COMMAND http_health_tests)
-set_tests_properties(http_health PROPERTIES LABELS "web")
+register_host_test(http_health_tests http_health web)
 
 add_executable(
-    usb_keyboard_tests test_usb_keyboard.c
-                       ../../firmware/components/usb_keyboard/usb_keyboard_state.c
+    usb_keyboard_tests
+    test_usb_keyboard.c
+    ../../firmware/components/usb_keyboard/usb_keyboard_state.c
 )
 target_include_directories(
     usb_keyboard_tests
     PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/usb_keyboard/include ../../firmware/components/usb_keyboard
+            ../../firmware/components/usb_keyboard/include
+            ../../firmware/components/usb_keyboard
 )
-target_link_libraries(usb_keyboard_tests PRIVATE test_support)
-target_compile_options(usb_keyboard_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME usb_keyboard COMMAND usb_keyboard_tests)
-set_tests_properties(usb_keyboard PROPERTIES LABELS "usb")
+register_host_test(usb_keyboard_tests usb_keyboard usb)
 
 add_executable(
-    device_controls_tests test_device_controls.c
-                          ../../firmware/components/device_controls/device_controls_logic.c
+    device_controls_tests
+    test_device_controls.c
+    ../../firmware/components/device_controls/device_controls_logic.c
 )
 target_include_directories(
     device_controls_tests
     PRIVATE ../../firmware/components/macro_model/include
             ../../firmware/components/device_controls/include
-            ../../firmware/components/device_controls ../../firmware/components/support/include
+            ../../firmware/components/device_controls
+            ../../firmware/components/support/include
 )
-target_link_libraries(device_controls_tests PRIVATE test_support)
-target_compile_options(device_controls_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME device_controls COMMAND device_controls_tests)
-set_tests_properties(device_controls PROPERTIES LABELS "controls")
+register_host_test(device_controls_tests device_controls controls)
 
 add_executable(wifi_ap_tests test_wifi_ap.c ../../firmware/components/wifi_ap/wifi_ap_state.c)
 target_include_directories(
     wifi_ap_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/wifi_ap/include
-            ../../firmware/components/wifi_ap ../../firmware/components/support/include
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/wifi_ap
+            ../../firmware/components/support/include
 )
-target_link_libraries(wifi_ap_tests PRIVATE test_support)
-target_compile_options(wifi_ap_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME wifi_ap COMMAND wifi_ap_tests)
-set_tests_properties(wifi_ap PROPERTIES LABELS "wifi")
+register_host_test(wifi_ap_tests wifi_ap wifi)
 
 add_executable(
-    provisioning_tests test_provisioning.c ../../firmware/components/macro_model/app_uuid.c
-                       ../../firmware/components/provisioning/provisioning_core.c
+    provisioning_tests
+    test_provisioning.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/provisioning/provisioning_core.c
 )
 target_include_directories(
     provisioning_tests
@@ -339,63 +317,22 @@ target_include_directories(
             ../../firmware/components/provisioning
             ../../firmware/components/support/include
 )
-target_link_libraries(provisioning_tests PRIVATE test_support)
-target_compile_options(provisioning_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME provisioning COMMAND provisioning_tests)
-set_tests_properties(provisioning PROPERTIES LABELS "storage")
+register_host_test(provisioning_tests provisioning storage)
 
 add_executable(
     storage_mount_tests
-    test_storage_mount.c ../../firmware/components/macro_model/app_error.c
+    test_storage_mount.c
+    ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/storage/storage_mount_core.c
     ../../firmware/components/storage/storage_mount_topology.c
 )
 target_include_directories(
     storage_mount_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/storage/include
             ../../firmware/components/storage
 )
-target_compile_definitions(
-    storage_mount_tests PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-mount-data"
-)
-target_link_libraries(storage_mount_tests PRIVATE test_support)
-target_compile_options(storage_mount_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME storage_mount COMMAND storage_mount_tests)
-set_tests_properties(storage_mount PROPERTIES LABELS "storage")
-
-add_executable(
-    storage_atomic_recovery_tests
-    test_storage_atomic_recovery.c
-    ../../firmware/components/macro_model/app_error.c
-    ../../firmware/components/macro_model/app_uuid.c
-    ../../firmware/components/macro_model/macro_model.c
-    ../../firmware/components/storage/storage_atomic.c
-    ../../firmware/components/storage/storage_atomic_recovery.c
-    ../../firmware/components/storage/storage_fs_ops.c
-    ../../firmware/components/storage/storage_paths.c
-    ../../firmware/components/storage/storage_repository_io.c
-    ../../firmware/components/storage/storage_incidents.c
-    ../../firmware/components/storage/storage_repository_json.c
-    ../../firmware/components/storage/storage_json.c
-    ../../firmware/components/storage/storage_repository_objects_json.c
-    ../../firmware/components/storage/storage_repository_index.c
-    ../../firmware/components/storage/storage_repository_packages.c
-    ../../firmware/components/storage/storage_repository_document.c
-    ../../firmware/components/storage/storage_repository_lock.c
-)
-target_include_directories(
-    storage_atomic_recovery_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
-            ../../firmware/components/storage
-)
-target_compile_definitions(
-    storage_atomic_recovery_tests
-    PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-recovery-data"
-)
-target_link_libraries(storage_atomic_recovery_tests PRIVATE PkgConfig::CJSON test_support)
-target_compile_options(storage_atomic_recovery_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME storage_atomic_recovery COMMAND storage_atomic_recovery_tests)
-set_tests_properties(storage_atomic_recovery PROPERTIES LABELS "storage")
+register_host_test(storage_mount_tests storage_mount storage)
 
 add_executable(
     storage_atomic_tests
@@ -407,28 +344,11 @@ add_executable(
 )
 target_include_directories(
     storage_atomic_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/storage/include
             ../../firmware/components/storage
 )
-target_link_libraries(storage_atomic_tests PRIVATE test_support)
-target_compile_options(storage_atomic_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME storage_atomic COMMAND storage_atomic_tests)
-set_tests_properties(storage_atomic PROPERTIES LABELS "storage")
-
-add_executable(
-    storage_repository_lock_tests
-    test_storage_repository_lock.c ../../firmware/components/macro_model/app_error.c
-    ../../firmware/components/storage/storage_repository_lock.c
-)
-target_include_directories(
-    storage_repository_lock_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
-            ../../firmware/components/storage
-)
-target_link_libraries(storage_repository_lock_tests PRIVATE test_support)
-target_compile_options(storage_repository_lock_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME storage_repository_lock COMMAND storage_repository_lock_tests)
-set_tests_properties(storage_repository_lock PROPERTIES LABELS "storage")
+register_host_test(storage_atomic_tests storage_atomic storage)
 
 add_executable(
     storage_parent_sync_tests
@@ -440,172 +360,16 @@ add_executable(
 )
 target_include_directories(
     storage_parent_sync_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
-            ../../firmware/components/storage
-)
-target_link_libraries(storage_parent_sync_tests PRIVATE test_support)
-target_compile_options(storage_parent_sync_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME storage_parent_sync COMMAND storage_parent_sync_tests)
-set_tests_properties(storage_parent_sync PROPERTIES LABELS "storage")
-
-add_executable(
-    storage_repository_io_tests
-    test_storage_repository_io.c
-    ../../firmware/components/macro_model/app_error.c
-    ../../firmware/components/macro_model/app_uuid.c
-    ../../firmware/components/storage/storage_fs_ops.c
-    ../../firmware/components/storage/storage_atomic.c
-    ../../firmware/components/storage/storage_paths.c
-    ../../firmware/components/storage/storage_repository_io.c
-    ../../firmware/components/storage/storage_incidents.c
-)
-target_include_directories(
-    storage_repository_io_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
-            ../../firmware/components/storage
-)
-target_compile_definitions(
-    storage_repository_io_tests
-    PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-io-data"
-)
-target_link_libraries(storage_repository_io_tests PRIVATE test_support)
-target_compile_options(storage_repository_io_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME storage_repository_io COMMAND storage_repository_io_tests)
-set_tests_properties(storage_repository_io PROPERTIES LABELS "storage")
-
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
-
-add_executable(
-    storage_repository_tests
-    test_storage_repository.c
-    ../../firmware/components/macro_model/app_error.c
-    ../../firmware/components/macro_model/app_uuid.c
-    ../../firmware/components/macro_model/macro_model.c
-    ../../firmware/components/storage/storage_atomic.c
-    ../../firmware/components/storage/storage_fs_ops.c
-    ../../firmware/components/storage/storage_paths.c
-    ../../firmware/components/storage/storage_repository_io.c
-    ../../firmware/components/storage/storage_incidents.c
-    ../../firmware/components/storage/storage_repository_json.c
-    ../../firmware/components/storage/storage_json.c
-    ../../firmware/components/storage/storage_repository_objects_json.c
-    ../../firmware/components/storage/storage_repository_index.c
-    ../../firmware/components/storage/storage_repository_packages.c
-    ../../firmware/components/storage/storage_repository_package_operations.c
-    ../../firmware/components/storage/storage_repository_document.c
-    ../../firmware/components/storage/storage_repository_lock.c
-)
-target_include_directories(
-    storage_repository_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
-            ../../firmware/components/storage
-)
-target_compile_definitions(
-    storage_repository_tests PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/storage-data"
-)
-target_compile_options(storage_repository_tests PRIVATE ${STRICT_WARNINGS})
-target_link_libraries(storage_repository_tests PRIVATE PkgConfig::CJSON test_support)
-add_test(NAME storage_repository COMMAND storage_repository_tests)
-set_tests_properties(storage_repository PROPERTIES LABELS "storage")
-
-set(STORAGE_OBJECT_REPOSITORY_SOURCES
-    # storage_repository_macros.c compiles a macro before storing it (SPEC 3.10),
-    # so every target that links the repository needs the parser.
-    ../../firmware/components/macro_parser/macro_parser.c
-    ../../firmware/components/macro_parser/macro_keymap_us.c
-    ../../firmware/components/macro_model/app_error.c
-    ../../firmware/components/macro_model/app_uuid.c
-    ../../firmware/components/macro_model/macro_model.c
-    ../../firmware/components/storage/storage_atomic.c
-    ../../firmware/components/storage/storage_fs_ops.c
-    ../../firmware/components/storage/storage_paths.c
-    ../../firmware/components/storage/storage_repository_io.c
-    ../../firmware/components/storage/storage_incidents.c
-    ../../firmware/components/storage/storage_repository_json.c
-    ../../firmware/components/storage/storage_json.c
-    ../../firmware/components/storage/storage_repository_objects_json.c
-    ../../firmware/components/storage/storage_repository_index.c
-    ../../firmware/components/storage/storage_repository_packages.c
-    ../../firmware/components/storage/storage_repository_document.c
-    ../../firmware/components/storage/storage_repository_package_operations.c
-    ../../firmware/components/storage/storage_repository_lock.c
-    ../../firmware/components/storage/storage_repository_macros.c
-)
-
-add_executable(
-    storage_package_replace_tests
-    test_storage_package_replace.c
-    ${STORAGE_OBJECT_REPOSITORY_SOURCES}
-    ../../firmware/components/macro_parser/macro_parser.c
-    ../../firmware/components/macro_parser/macro_keymap_us.c
-    ../../firmware/components/storage/storage_package.c
-    ../../firmware/components/storage/storage_package_replace.c
-    ../../firmware/components/storage/storage_package_reader.c
-)
-target_include_directories(
-    storage_package_replace_tests
     PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/macro_parser/include
-            ../../firmware/components/storage/include ../../firmware/components/storage
+            ../../firmware/components/storage/include
+            ../../firmware/components/storage
 )
-target_compile_definitions(
-    storage_package_replace_tests PRIVATE STORAGE_DATA_MOUNT="/tmp/esp32-macro-keyboard-p18r"
-)
-target_compile_options(storage_package_replace_tests PRIVATE ${STRICT_WARNINGS})
-target_link_libraries(storage_package_replace_tests PRIVATE PkgConfig::CJSON test_support)
-add_test(NAME storage_package_replace COMMAND storage_package_replace_tests)
-set_tests_properties(storage_package_replace PROPERTIES LABELS "storage")
-
-add_executable(
-    storage_package_import_tests
-    test_storage_package_import.c
-    ${STORAGE_OBJECT_REPOSITORY_SOURCES}
-    ../../firmware/components/macro_parser/macro_parser.c
-    ../../firmware/components/macro_parser/macro_keymap_us.c
-    ../../firmware/components/storage/storage_package.c
-    ../../firmware/components/storage/storage_package_import.c
-    ../../firmware/components/storage/storage_package_reader.c
-)
-target_include_directories(
-    storage_package_import_tests
-    PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/macro_parser/include
-            ../../firmware/components/storage/include ../../firmware/components/storage
-)
-target_compile_definitions(
-    storage_package_import_tests PRIVATE STORAGE_DATA_MOUNT="/tmp/esp32-macro-keyboard-p18i"
-)
-target_compile_options(storage_package_import_tests PRIVATE ${STRICT_WARNINGS})
-target_link_libraries(storage_package_import_tests PRIVATE PkgConfig::CJSON test_support)
-add_test(NAME storage_package_import COMMAND storage_package_import_tests)
-set_tests_properties(storage_package_import PROPERTIES LABELS "storage")
-
-# Register one isolated storage-object repository host test.
-function(add_storage_object_repository_test target source mount_name)
-    add_executable(${target} ${source} ${STORAGE_OBJECT_REPOSITORY_SOURCES})
-    target_include_directories(
-        ${target}
-        PRIVATE ../../firmware/components/macro_model/include
-                ../../firmware/components/macro_parser/include
-                ../../firmware/components/storage/include ../../firmware/components/storage
-    )
-    target_compile_definitions(
-        ${target} PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/${mount_name}"
-    )
-    target_compile_options(${target} PRIVATE ${STRICT_WARNINGS})
-    target_link_libraries(${target} PRIVATE PkgConfig::CJSON test_support)
-    add_test(NAME ${target} COMMAND ${target})
-    set_tests_properties(${target} PROPERTIES LABELS "storage")
-endfunction()
-
-add_storage_object_repository_test(
-    storage_active_set_delete_tests test_storage_active_package_delete.c p15a
-)
+register_host_test(storage_parent_sync_tests storage_parent_sync storage)
 
 add_executable(
     provisioning_settings_tests
-    test_provisioning_settings.c ../../firmware/components/macro_model/app_uuid.c
+    test_provisioning_settings.c
+    ../../firmware/components/macro_model/app_uuid.c
     ../../firmware/components/provisioning/provisioning_core.c
 )
 target_include_directories(
@@ -617,28 +381,20 @@ target_include_directories(
             ../../firmware/components/provisioning
             ../../firmware/components/support/include
 )
-target_link_libraries(provisioning_settings_tests PRIVATE test_support)
-target_compile_options(provisioning_settings_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME provisioning_settings COMMAND provisioning_settings_tests)
-set_tests_properties(provisioning_settings PROPERTIES LABELS "storage")
+register_host_test(provisioning_settings_tests provisioning_settings storage)
 
-# Phase 16 HTTP API foundation tests.
 add_executable(
     web_api_core_tests
-    test_web_api_core.c ../../firmware/components/macro_model/app_error.c
-    ../../firmware/components/macro_model/app_uuid.c
+    test_web_api_core.c
+    ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/web_server/web_api_core.c
 )
 target_include_directories(
     web_api_core_tests
     PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/macro_parser/include
-            ../../firmware/components/macro_executor/include ../../firmware/components/web_server
+            ../../firmware/components/web_server
 )
-target_link_libraries(web_api_core_tests PRIVATE test_support)
-target_compile_options(web_api_core_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME web_api_core COMMAND web_api_core_tests)
-set_tests_properties(web_api_core PROPERTIES LABELS "web")
+register_host_test(web_api_core_tests web_api_core web)
 
 add_executable(
     web_request_policy_tests
@@ -652,180 +408,60 @@ add_executable(
 target_include_directories(
     web_request_policy_tests
     PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/macro_parser/include
-            ../../firmware/components/macro_executor/include
             ../../firmware/components/auth/include
             ../../firmware/components/web_server
             ../../firmware/components/web_server/include
             ../../firmware/components/support/include
 )
-target_link_libraries(web_request_policy_tests PRIVATE test_support)
-target_compile_options(web_request_policy_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME web_request_policy COMMAND web_request_policy_tests)
-set_tests_properties(web_request_policy PROPERTIES LABELS "web")
+register_host_test(web_request_policy_tests web_request_policy web)
 
-add_executable(
-    web_execution_submit_tests
-    test_web_execution_submit.c
-    ../../firmware/components/macro_model/app_error.c
-    ../../firmware/components/macro_model/app_uuid.c
-    ../../firmware/components/macro_model/macro_model.c
-    ../../firmware/components/web_server/web_execution_submit.c
-)
-target_include_directories(
-    web_execution_submit_tests
-    PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/macro_parser/include
-            ../../firmware/components/macro_executor/include
-            ../../firmware/components/storage/include
-            ../../firmware/components/web_server
-)
-target_link_libraries(web_execution_submit_tests PRIVATE test_support)
-target_compile_options(web_execution_submit_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME web_execution_submit COMMAND web_execution_submit_tests)
-set_tests_properties(web_execution_submit PROPERTIES LABELS "web")
-
-add_executable(
-    web_execution_route_policy_tests
-    test_web_execution_route_policy.c ../../firmware/components/macro_model/app_error.c
-    ../../firmware/components/macro_model/app_uuid.c
-    ../../firmware/components/web_server/web_execution_route_policy.c
-)
-target_include_directories(
-    web_execution_route_policy_tests
-    PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/macro_parser/include
-            ../../firmware/components/macro_executor/include ../../firmware/components/web_server
-)
-target_link_libraries(web_execution_route_policy_tests PRIVATE test_support)
-target_compile_options(web_execution_route_policy_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME web_execution_route_policy COMMAND web_execution_route_policy_tests)
-set_tests_properties(web_execution_route_policy PROPERTIES LABELS "web")
-
-# Phase 16 strict JSON and response envelope tests.
 add_executable(
     web_api_json_tests
     test_web_api_json.c
     ../../firmware/components/macro_model/app_error.c
-    ../../firmware/components/macro_model/app_uuid.c
-    ../../firmware/components/macro_model/macro_model.c
-    ../../firmware/components/storage/storage_json.c
-    ../../firmware/components/storage/storage_repository_json.c
-    ../../firmware/components/storage/storage_repository_objects_json.c
     ../../firmware/components/web_server/web_api_json.c
 )
 target_include_directories(
     web_api_json_tests
     PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/macro_parser/include
-            ../../firmware/components/macro_executor/include
             ../../firmware/components/auth/include
             ../../firmware/components/wifi_ap/include
             ../../firmware/components/provisioning/include
-            ../../firmware/components/storage/include
-            ../../firmware/components/storage
             ../../firmware/components/web_server
-            ../../firmware/components/support/include
 )
-target_link_libraries(web_api_json_tests PRIVATE PkgConfig::CJSON test_support)
-target_compile_options(web_api_json_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME web_api_json COMMAND web_api_json_tests)
-set_tests_properties(web_api_json PROPERTIES LABELS "web")
+target_link_libraries(web_api_json_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_api_json_tests web_api_json web)
 
 add_executable(
     web_api_response_tests
-    test_web_api_response.c ../../firmware/components/macro_model/app_error.c
+    test_web_api_response.c
+    ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/web_server/web_api_response.c
 )
 target_include_directories(
-    web_api_response_tests PRIVATE ../../firmware/components/macro_model/include
-                                   ../../firmware/components/web_server
+    web_api_response_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/web_server
 )
-target_link_libraries(web_api_response_tests PRIVATE PkgConfig::CJSON test_support)
-target_compile_options(web_api_response_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME web_api_response COMMAND web_api_response_tests)
-set_tests_properties(web_api_response PROPERTIES LABELS "web")
+target_link_libraries(web_api_response_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_api_response_tests web_api_response web)
 
 add_executable(
     web_api_dispatch_tests
-    test_web_api_dispatch.c ../../firmware/components/macro_model/app_error.c
+    test_web_api_dispatch.c
+    ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/web_server/web_api_response.c
     ../../firmware/components/web_server/web_api_dispatch.c
 )
 target_include_directories(
     web_api_dispatch_tests
     PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/macro_parser/include
-            ../../firmware/components/macro_executor/include
             ../../firmware/components/auth/include
             ../../firmware/components/web_server
 )
-target_link_libraries(web_api_dispatch_tests PRIVATE PkgConfig::CJSON test_support)
-target_compile_options(web_api_dispatch_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME web_api_dispatch COMMAND web_api_dispatch_tests)
-set_tests_properties(web_api_dispatch PROPERTIES LABELS "web")
-
-add_executable(
-    web_api_admin_boundary_tests
-    test_web_api_admin_boundary.c
-    ../../firmware/components/storage/storage_incidents.c
-    ../../firmware/components/macro_model/app_error.c
-    ../../firmware/components/macro_model/app_uuid.c
-    ../../firmware/components/web_server/web_api_core.c
-    ../../firmware/components/web_server/web_api_response.c
-    ../../firmware/components/web_server/web_api_admin_boundary.c
-)
-target_include_directories(
-    web_api_admin_boundary_tests
-    PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/macro_parser/include
-            ../../firmware/components/macro_executor/include
-            ../../firmware/components/storage/include
-            ../../firmware/components/web_server
-)
-target_link_libraries(web_api_admin_boundary_tests PRIVATE PkgConfig::CJSON test_support)
-target_compile_options(web_api_admin_boundary_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME web_api_admin_boundary COMMAND web_api_admin_boundary_tests)
-set_tests_properties(web_api_admin_boundary PROPERTIES LABELS "web")
-
-add_executable(
-    web_api_repository_handlers_tests
-    test_web_api_repository_handlers.c
-    ${STORAGE_OBJECT_REPOSITORY_SOURCES}
-    ../../firmware/components/macro_parser/macro_parser.c
-    ../../firmware/components/macro_parser/macro_keymap_us.c
-    ../../firmware/components/web_server/web_api_core.c
-    ../../firmware/components/web_server/web_api_response.c
-    ../../firmware/components/web_server/web_api_json.c
-    ../../firmware/components/web_server/web_api_handler_common.c
-    ../../firmware/components/web_server/web_api_packages.c
-    ../../firmware/components/web_server/web_api_macros.c
-)
-target_include_directories(
-    web_api_repository_handlers_tests
-    PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/macro_parser/include
-            ../../firmware/components/macro_executor/include
-            ../../firmware/components/auth/include
-            ../../firmware/components/wifi_ap/include
-            ../../firmware/components/provisioning/include
-            ../../firmware/components/storage/include
-            ../../firmware/components/storage
-            ../../firmware/components/web_server
-            ../../firmware/components/support/include
-)
-target_compile_definitions(
-    web_api_repository_handlers_tests
-    PRIVATE STORAGE_DATA_MOUNT="${CMAKE_CURRENT_BINARY_DIR}/web-api-repository-data"
-)
-target_link_libraries(web_api_repository_handlers_tests PRIVATE PkgConfig::CJSON test_support)
-target_compile_options(web_api_repository_handlers_tests PRIVATE ${STRICT_WARNINGS})
-add_test(NAME web_api_repository_handlers COMMAND web_api_repository_handlers_tests)
-set_tests_properties(web_api_repository_handlers PROPERTIES LABELS "web")
+target_link_libraries(web_api_dispatch_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_api_dispatch_tests web_api_dispatch web)
 
 add_executable(app_crc32_tests test_app_crc32.c ../../firmware/components/support/app_crc32.c)
 target_include_directories(app_crc32_tests PRIVATE ../../firmware/components/support/include)
-target_compile_options(app_crc32_tests PRIVATE ${STRICT_WARNINGS})
-target_link_libraries(app_crc32_tests PRIVATE test_support)
-add_test(NAME app_crc32 COMMAND app_crc32_tests)
-set_tests_properties(app_crc32 PROPERTIES LABELS "support")
+register_host_test(app_crc32_tests app_crc32 support)

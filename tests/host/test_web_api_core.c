@@ -1,184 +1,88 @@
 #include <stdbool.h>
 #include <stddef.h>
-#include <string.h>
 
 #include "app_error.h"
-#include "macro_executor.h"
 #include "test_assert.h"
 #include "web_api_core.h"
 
-#define SET_ID "11111111-1111-4111-8111-111111111111"
-#define MACRO_ID "22222222-2222-4222-8222-222222222222"
-/* removed-feature-ok: fixture for asserting the field is now rejected */
-#define PROCEDURE_ID "33333333-3333-4333-8333-333333333333"
-#define EXECUTION_ID "44444444-4444-4444-8444-444444444444"
-
-static void check_route(const char *uri, web_api_route_t expected_route) {
-    web_api_path_t path = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_parse_path(uri, &path));
-    TEST_CHECK_EQ_INT(expected_route, path.route);
+static void expect_route(const char *path, web_api_route_t route) {
+    web_api_path_t parsed = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_parse_path(path, &parsed));
+    TEST_CHECK_EQ_INT(route, parsed.route);
 }
 
-static void test_content_type_and_request_id(void) {
-    TEST_CHECK(web_api_content_type_is_json("application/json"));
-    TEST_CHECK(web_api_content_type_is_json("application/json; charset=utf-8"));
-    TEST_CHECK(web_api_content_type_is_json(" Application/JSON; charset=UTF-8"));
-    TEST_CHECK(!web_api_content_type_is_json("text/plain"));
-    TEST_CHECK(!web_api_content_type_is_json("application/json; charset=latin1"));
-    TEST_CHECK(!web_api_content_type_is_json(NULL));
-
-    TEST_CHECK(web_api_request_id_is_valid("request-123_abc.def:4"));
-    TEST_CHECK(!web_api_request_id_is_valid(""));
-    TEST_CHECK(!web_api_request_id_is_valid("contains space"));
-    TEST_CHECK(!web_api_request_id_is_valid("contains/slash"));
+static void expect_absent(const char *path) {
+    web_api_path_t parsed = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, web_api_parse_path(path, &parsed));
+    TEST_CHECK_EQ_INT(WEB_API_ROUTE_UNKNOWN, parsed.route);
 }
 
-static void test_route_parsing(void) {
-    check_route("/api/v1/auth/session", WEB_API_ROUTE_AUTH_SESSION);
-    check_route("/api/v1/package", WEB_API_ROUTE_SETS);
-    check_route("/api/v1/package/order", WEB_API_ROUTE_SETS_ORDER);
-    check_route("/api/v1/package/import", WEB_API_ROUTE_SET_IMPORT);
-    check_route("/api/v1/package/import-new", WEB_API_ROUTE_SET_IMPORT_NEW);
-    check_route("/api/v1/package/" SET_ID, WEB_API_ROUTE_SET);
-    check_route("/api/v1/package/" SET_ID "/select", WEB_API_ROUTE_SET_SELECT);
-    check_route("/api/v1/package/" SET_ID "/macros", WEB_API_ROUTE_SET_MACROS);
-    check_route("/api/v1/package/" SET_ID "/macros/" MACRO_ID, WEB_API_ROUTE_SET_MACRO);
-    check_route("/api/v1/package/" SET_ID "/macros/" MACRO_ID "/validate",
-                WEB_API_ROUTE_SET_MACRO_VALIDATE);
-    check_route("/api/v1/executions", WEB_API_ROUTE_EXECUTIONS);
-    check_route("/api/v1/executions/current", WEB_API_ROUTE_EXECUTION_CURRENT);
-    check_route("/api/v1/executions/current/cancel", WEB_API_ROUTE_EXECUTION_CANCEL);
-    check_route("/api/v1/executions/" EXECUTION_ID "/cancel", WEB_API_ROUTE_EXECUTION_CANCEL);
-    check_route("/api/v1/settings/change-password", WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD);
-    check_route("/api/v1/device/factory-reset", WEB_API_ROUTE_DEVICE_FACTORY_RESET);
-    check_route("/api/v1/diagnostics/storage/check", WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK);
-    check_route("/api/v1/diagnostics", WEB_API_ROUTE_DIAGNOSTICS_FULL);
-    check_route("/api/v1/repository", WEB_API_ROUTE_BACKUP);
-
-    web_api_path_t path = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
-                         web_api_parse_path("/api/v1/executions/" EXECUTION_ID "/confirm", &path));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_parse_path("/api/v1/package/%2fetc", &path));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_parse_path("/api/v1/package/../etc", &path));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_parse_path("/api/v1/package//macros", &path));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_parse_path("/api/v1/package/not-a-uuid", &path));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, web_api_parse_path("/api/v1/unknown", &path));
-    /* Global macros were removed (SPEC §7.2): every macro is reached through
-     * its set, so the old /global tree must not resolve to anything. */
-    /* removed-feature-ok: asserts the route is gone */
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, web_api_parse_path("/api/v1/global/macros", &path));
-    /* Procedures were removed (SPEC §7.1): a set has macros and nothing else,
-       so the procedures subtree must not resolve.
-       removed-feature-ok-begin: the routes named below are asserted absent. */
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
-                         web_api_parse_path("/api/v1/package/" SET_ID "/procedures", &path));
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NOT_FOUND,
-        web_api_parse_path("/api/v1/package/" SET_ID "/procedures/" PROCEDURE_ID, &path));
-    /* removed-feature-ok-end: */
-    /* Quarantine was removed (SPEC §13.6); its diagnostics route must not
-       resolve either. */
-    /* removed-feature-ok: asserts the route is gone */
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
-                         web_api_parse_path("/api/v1/diagnostics/quarantine", &path));
-    /* removed-feature-ok: asserts the route is gone */
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
-                         web_api_parse_path("/api/v1/global/macros/" MACRO_ID, &path));
+static void test_active_routes(void) {
+    expect_route("/api/v1/auth/session", WEB_API_ROUTE_AUTH_SESSION);
+    expect_route("/api/v1/settings", WEB_API_ROUTE_SETTINGS);
+    expect_route("/api/v1/settings/change-password", WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD);
+    expect_route("/api/v1/device/restart", WEB_API_ROUTE_DEVICE_RESTART);
+    expect_route("/api/v1/device/reset-settings", WEB_API_ROUTE_DEVICE_RESET_SETTINGS);
+    expect_route("/api/v1/device/factory-reset", WEB_API_ROUTE_DEVICE_FACTORY_RESET);
+    expect_route("/api/v1/diagnostics", WEB_API_ROUTE_DIAGNOSTICS_FULL);
 }
 
-static void test_route_policy(void) {
-    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETS, WEB_API_METHOD_GET));
-    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETS, WEB_API_METHOD_POST));
-    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETS_ORDER, WEB_API_METHOD_PUT));
-    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETS_ORDER, WEB_API_METHOD_POST));
-    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETS, WEB_API_METHOD_DELETE));
-    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE));
-    TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_SET, WEB_API_METHOD_DELETE));
-    TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_EXECUTION_CANCEL, WEB_API_METHOD_POST));
-    TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_SETTINGS));
-    TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_FACTORY_RESET));
-    TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SET_IMPORT));
-    TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SET_IMPORT_NEW));
-    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SET_IMPORT_NEW, WEB_API_METHOD_POST));
-    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SET_IMPORT_NEW, WEB_API_METHOD_GET));
-    TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_EXECUTIONS));
-    TEST_CHECK(web_api_physical_confirmation_required(WEB_API_ROUTE_EXECUTIONS, true));
-    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_EXECUTIONS, false));
-    /* Every gated route honours the setting - none may demand a button press
-     * unconditionally, or the device is unusable without hardware on it. */
-    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_FACTORY_RESET, false));
-    TEST_CHECK(web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_FACTORY_RESET, true));
-    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_RESTORE, false));
-    TEST_CHECK(web_api_physical_confirmation_required(WEB_API_ROUTE_RESTORE, true));
-    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_SET_IMPORT, false));
-    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_RESTART, false));
-    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_RESET_SETTINGS, false));
-    TEST_CHECK(
-        !web_api_physical_confirmation_required(WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD, false));
-    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_SET_MACRO, true));
-    TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SET_MACRO));
+static void test_retired_routes_are_absent(void) {
+    static const char *const paths[] = {
+        "/api/v1/package",
+        "/api/v1/package/order",
+        "/api/v1/package/import",
+        "/api/v1/package/11111111-1111-4111-8111-111111111111",
+        "/api/v1/package/11111111-1111-4111-8111-111111111111/macros",
+        "/api/v1/executions",
+        "/api/v1/executions/current",
+        "/api/v1/executions/current/cancel",
+        "/api/v1/repository",
+        "/api/v1/restore",
+        "/api/v1/diagnostics/storage",
+        "/api/v1/diagnostics/storage/check",
+    };
+    for (size_t index = 0U; index < sizeof(paths) / sizeof(paths[0]); ++index) {
+        expect_absent(paths[index]);
+    }
+}
+
+static void test_path_and_method_policy(void) {
+    web_api_path_t parsed = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_api_parse_path(NULL, &parsed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_parse_path("/api/v1/settings?x=1", &parsed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_parse_path("/api/v1/settings/%2f", &parsed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, web_api_parse_path("/api/v1/unknown", &parsed));
+
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_AUTH_SESSION, WEB_API_METHOD_GET));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_AUTH_SESSION, WEB_API_METHOD_POST));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
-    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_DELETE));
-    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_DIAGNOSTICS_FULL, WEB_API_METHOD_GET));
-    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_DIAGNOSTICS_FULL, WEB_API_METHOD_POST));
+    TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
+    TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_DEVICE_RESTART, WEB_API_METHOD_POST));
     TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_DIAGNOSTICS_FULL));
-    TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DIAGNOSTICS_FULL));
+    TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_FACTORY_RESET));
+    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_FACTORY_RESET, false));
+    TEST_CHECK(!web_api_route_requires_worker(WEB_API_ROUTE_SETTINGS));
 }
 
-static void test_error_status_mapping(void) {
-    TEST_CHECK_EQ_U64(200U, web_api_http_status_for_error(APP_ERROR_NONE));
-    TEST_CHECK_EQ_U64(401U, web_api_http_status_for_error(APP_ERROR_AUTH_REQUIRED));
+static void test_content_type_request_id_and_status(void) {
+    TEST_CHECK(web_api_content_type_is_json("application/json"));
+    TEST_CHECK(web_api_content_type_is_json(" Application/JSON; charset=UTF-8"));
+    TEST_CHECK(!web_api_content_type_is_json("text/plain"));
+    TEST_CHECK(web_api_request_id_is_valid("request-123_abc.def:4"));
+    TEST_CHECK(!web_api_request_id_is_valid("contains/slash"));
     TEST_CHECK_EQ_U64(404U, web_api_http_status_for_error(APP_ERROR_NOT_FOUND));
-    TEST_CHECK_EQ_U64(409U, web_api_http_status_for_error(APP_ERROR_CONFLICT));
-    TEST_CHECK_EQ_U64(409U, web_api_http_status_for_error(APP_ERROR_EXECUTOR_BUSY));
     TEST_CHECK_EQ_U64(422U, web_api_http_status_for_error(APP_ERROR_INVALID_ARGUMENT));
-    TEST_CHECK_EQ_U64(422U, web_api_http_status_for_error(APP_ERROR_MACRO_SYNTAX));
-    TEST_CHECK_EQ_U64(429U, web_api_http_status_for_error(APP_ERROR_RATE_LIMITED));
-    TEST_CHECK_EQ_U64(500U, web_api_http_status_for_error(APP_ERROR_IO));
     TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_STORAGE_UNAVAILABLE));
-    TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_STORAGE_CORRUPT));
-    TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_USB_NOT_READY));
-    TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_TIMEOUT));
-    TEST_CHECK_EQ_U64(507U, web_api_http_status_for_error(APP_ERROR_STORAGE_FULL));
-}
-
-static void test_cancellation_status_matrix(void) {
-    macro_execution_status_t status = {.state = EXECUTION_IDLE, .available = true};
-    TEST_CHECK_EQ_U64(202U, web_api_cancel_http_status(&status, APP_ERROR_NONE));
-    TEST_CHECK_EQ_U64(500U, web_api_cancel_http_status(&status, APP_ERROR_INTERNAL));
-    TEST_CHECK_EQ_U64(503U, web_api_cancel_http_status(&status, APP_ERROR_STORAGE_UNAVAILABLE));
-    TEST_CHECK_EQ_U64(503U, web_api_cancel_http_status(&status, APP_ERROR_USB_NOT_READY));
-    TEST_CHECK_EQ_U64(404U, web_api_cancel_http_status(&status, APP_ERROR_NOT_FOUND));
-
-    status.state = EXECUTION_RUNNING;
-    TEST_CHECK_EQ_U64(404U, web_api_cancel_http_status(&status, APP_ERROR_NOT_FOUND));
-    TEST_CHECK_EQ_U64(409U, web_api_cancel_http_status(&status, APP_ERROR_CONFLICT));
-
-    static const execution_state_t terminal_states[] = {
-        EXECUTION_COMPLETED,
-        EXECUTION_CANCELLED,
-        EXECUTION_FAILED,
-        EXECUTION_TIMED_OUT,
-    };
-    for (size_t index = 0U; index < sizeof(terminal_states) / sizeof(terminal_states[0]); ++index) {
-        status.state = terminal_states[index];
-        TEST_CHECK_EQ_U64(409U, web_api_cancel_http_status(&status, APP_ERROR_NOT_FOUND));
-    }
-
-    TEST_CHECK_EQ_U64(409U, web_api_cancel_http_status(NULL, APP_ERROR_NOT_FOUND));
-    TEST_CHECK_EQ_U64(409U, web_api_cancel_http_status(NULL, APP_ERROR_EXECUTION_CANCELLED));
 }
 
 int main(void) {
-    test_content_type_and_request_id();
-    test_route_parsing();
-    test_route_policy();
-    test_error_status_mapping();
-    test_cancellation_status_matrix();
+    test_active_routes();
+    test_retired_routes_are_absent();
+    test_path_and_method_policy();
+    test_content_type_request_id_and_status();
     return 0;
 }

@@ -1,7 +1,5 @@
 #include "macro_model.h"
 
-#include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "app_error.h"
@@ -18,13 +16,4 @@ app_error_code_t macro_model_validate_text(const char *text, size_t length, size
         return APP_ERROR_INVALID_ARGUMENT;
     }
     return APP_ERROR_NONE;
-}
-
-void macro_model_free_macro(macro_t *macro) {
-    if (macro == NULL) {
-        return;
-    }
-    free(macro->source);
-    macro->source = NULL;
-    macro->source_length = 0U;
 }
