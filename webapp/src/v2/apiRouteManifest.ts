@@ -44,36 +44,36 @@ export interface ApiRouteManifest {
 }
 
 const expectedRoutes = [
-  ["setupGet", "GET", "/api/v1/setup"],
-  ["setupPost", "POST", "/api/v1/setup"],
-  ["login", "POST", "/api/v1/auth/login"],
-  ["logout", "POST", "/api/v1/auth/logout"],
-  ["session", "GET", "/api/v1/auth/session"],
-  ["status", "GET", "/api/v1/status"],
-  ["limits", "GET", "/api/v1/limits"],
-  ["blobList", "GET", "/api/v1/blob"],
-  ["blobCreate", "POST", "/api/v1/blob"],
-  ["blobLoad", "GET", "/api/v1/blob/{blob_id}"],
-  ["blobDelete", "DELETE", "/api/v1/blob/{blob_id}"],
-  ["sendCreate", "POST", "/api/v1/send"],
-  ["sendGet", "GET", "/api/v1/send"],
-  ["sendCancel", "DELETE", "/api/v1/send"],
-  ["settingsGet", "GET", "/api/v1/settings"],
-  ["settingsPut", "PUT", "/api/v1/settings"],
-  ["passwordChange", "POST", "/api/v1/settings/change-password"],
-  ["restart", "POST", "/api/v1/device/restart"],
-  ["resetSettings", "POST", "/api/v1/device/reset-settings"],
-  ["factoryReset", "POST", "/api/v1/device/factory-reset"],
-  ["diagnostics", "GET", "/api/v1/diagnostics"],
+  ["setupGet", "GET", "/api/v1/setup", "none-unprovisioned-only", "none", null, null, "application/json", 200, "404"],
+  ["setupPost", "POST", "/api/v1/setup", "none-unprovisioned-only", "setupRequest", "application/json", "jsonBodyMaxBytes", "application/json", 202, "400,409,413,415,422,500"],
+  ["login", "POST", "/api/v1/auth/login", "none-provisioned-only", "loginRequest", "application/json", "jsonBodyMaxBytes", "application/json", 200, "400,403,413,415,422,429,500"],
+  ["logout", "POST", "/api/v1/auth/logout", "session", "none", null, null, null, 204, "401,500"],
+  ["session", "GET", "/api/v1/auth/session", "session", "none", null, null, "application/json", 200, "401,500"],
+  ["status", "GET", "/api/v1/status", "session", "none", null, null, "application/json", 200, "401,500,503"],
+  ["limits", "GET", "/api/v1/limits", "session", "none", null, null, "application/json", 200, "401,500"],
+  ["blobList", "GET", "/api/v1/blob", "session", "none", null, null, "application/json", 200, "401,500,503"],
+  ["blobCreate", "POST", "/api/v1/blob", "session", "binaryBlob", "application/gzip", "blobMaxBytes", "application/json", 201, "400,401,413,415,500,503,507"],
+  ["blobLoad", "GET", "/api/v1/blob/{blob_id}", "session", "none", null, null, "application/gzip", 200, "400,401,404,500,503"],
+  ["blobDelete", "DELETE", "/api/v1/blob/{blob_id}", "session", "none", null, null, null, 204, "400,401,404,500,503"],
+  ["sendCreate", "POST", "/api/v1/send", "session", "sendRequest", "application/json", "jsonBodyMaxBytes", "application/json", 202, "400,401,409,413,415,422,500,503"],
+  ["sendGet", "GET", "/api/v1/send", "session", "none", null, null, "application/json", 200, "401,404,500,503"],
+  ["sendCancel", "DELETE", "/api/v1/send", "session", "none", null, null, "application/json", 202, "401,404,500,503"],
+  ["settingsGet", "GET", "/api/v1/settings", "session", "none", null, null, "application/json", 200, "401,500,503"],
+  ["settingsPut", "PUT", "/api/v1/settings", "session", "settingsUpdateRequest", "application/json", "jsonBodyMaxBytes", "application/json", 200, "400,401,413,415,422,500,503"],
+  ["passwordChange", "POST", "/api/v1/settings/change-password", "session", "passwordChangeRequest", "application/json", "jsonBodyMaxBytes", null, 204, "400,401,403,413,415,422,500,503"],
+  ["restart", "POST", "/api/v1/device/restart", "session", "none", null, null, "application/json", 202, "401,500,503"],
+  ["resetSettings", "POST", "/api/v1/device/reset-settings", "session", "resetSettingsRequest", "application/json", "jsonBodyMaxBytes", "application/json", 202, "400,401,413,415,422,500,503"],
+  ["factoryReset", "POST", "/api/v1/device/factory-reset", "session", "factoryResetRequest", "application/json", "jsonBodyMaxBytes", "application/json", 202, "400,401,403,413,415,422,500,503"],
+  ["diagnostics", "GET", "/api/v1/diagnostics", "session", "none", null, null, "application/json", 200, "401,500,503"],
 ] as const;
 
-const methods = new Set<ApiMethod>(["GET", "POST", "PUT", "DELETE"]);
-const authenticationValues = new Set<ApiAuthentication>([
+const methods: ReadonlySet<string> = new Set(["GET", "POST", "PUT", "DELETE"]);
+const authenticationValues: ReadonlySet<string> = new Set([
   "none-unprovisioned-only",
   "none-provisioned-only",
   "session",
 ]);
-const bodyValues = new Set<ApiBody>([
+const bodyValues: ReadonlySet<string> = new Set([
   "none",
   "setupRequest",
   "loginRequest",
@@ -84,11 +84,11 @@ const bodyValues = new Set<ApiBody>([
   "resetSettingsRequest",
   "factoryResetRequest",
 ]);
-const contentTypes = new Set<ApiContentType>([
+const contentTypes: ReadonlySet<string> = new Set([
   "application/json",
   "application/gzip",
 ]);
-const maximumValues = new Set<ApiMaximumBytes>([
+const maximumValues: ReadonlySet<string> = new Set([
   "jsonBodyMaxBytes",
   "blobMaxBytes",
 ]);
@@ -132,7 +132,7 @@ function isRequest(value: unknown): value is ApiRequestContract {
     !isPlainRecord(value) ||
     !hasExactKeys(value, ["body", "contentType", "maximumBytes"]) ||
     typeof value.body !== "string" ||
-    !bodyValues.has(value.body as ApiBody)
+    !bodyValues.has(value.body)
   ) {
     return false;
   }
@@ -140,15 +140,13 @@ function isRequest(value: unknown): value is ApiRequestContract {
   const maximumBytes = value.maximumBytes;
   if (
     contentType !== null &&
-    (typeof contentType !== "string" ||
-      !contentTypes.has(contentType as ApiContentType))
+    (typeof contentType !== "string" || !contentTypes.has(contentType))
   ) {
     return false;
   }
   if (
     maximumBytes !== null &&
-    (typeof maximumBytes !== "string" ||
-      !maximumValues.has(maximumBytes as ApiMaximumBytes))
+    (typeof maximumBytes !== "string" || !maximumValues.has(maximumBytes))
   ) {
     return false;
   }
@@ -178,7 +176,7 @@ function isResponse(value: unknown): value is ApiResponseContract {
   }
   return (
     typeof value.contentType === "string" &&
-    contentTypes.has(value.contentType as ApiContentType) &&
+    contentTypes.has(value.contentType) &&
     value.successStatus !== 204
   );
 }
@@ -218,30 +216,29 @@ function isRoute(
       "request",
       "response",
     ]) ||
-    value.id !== expected[0] ||
-    value.method !== expected[1] ||
-    value.path !== expected[2] ||
     typeof value.method !== "string" ||
-    !methods.has(value.method as ApiMethod) ||
+    !methods.has(value.method) ||
     typeof value.authentication !== "string" ||
-    !authenticationValues.has(value.authentication as ApiAuthentication)
+    !authenticationValues.has(value.authentication) ||
+    !isRequest(value.request) ||
+    !isResponse(value.response) ||
+    !isErrorStatuses(value.errorStatuses, value.response.successStatus)
   ) {
     return false;
   }
-  if (!isRequest(value.request) || !isResponse(value.response)) {
-    return false;
-  }
-  if (!isErrorStatuses(value.errorStatuses, value.response.successStatus)) {
-    return false;
-  }
 
-  if (value.id === "setupGet" || value.id === "setupPost") {
-    return value.authentication === "none-unprovisioned-only";
-  }
-  if (value.id === "login") {
-    return value.authentication === "none-provisioned-only";
-  }
-  return value.authentication === "session";
+  return (
+    value.id === expected[0] &&
+    value.method === expected[1] &&
+    value.path === expected[2] &&
+    value.authentication === expected[3] &&
+    value.request.body === expected[4] &&
+    value.request.contentType === expected[5] &&
+    value.request.maximumBytes === expected[6] &&
+    value.response.contentType === expected[7] &&
+    value.response.successStatus === expected[8] &&
+    value.errorStatuses.join(",") === expected[9]
+  );
 }
 
 export function isApiRouteManifest(value: unknown): value is ApiRouteManifest {
