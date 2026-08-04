@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "../app_contracts_v2/include/app_limits_v2.h"
 #include "app_error.h"
-#include "app_limits_v2.h"
 #include "subsystem_health.h"
 #include "web_diagnostics.h"
 
