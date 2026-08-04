@@ -1,8 +1,9 @@
 import { describe, expect, test } from "vitest";
 import canonicalRepository from "../../contracts/v2/repository/canonical.json";
+import rawFixtures from "../../contracts/v2/repository/fixtures.json";
 import {
-  serializeRepositoryV1,
-  validateRepositoryV1,
+  serializeRepository,
+  validateRepository,
 } from "../src/v2/repository";
 
 const acceptSource = (): null => null;
@@ -26,6 +27,27 @@ interface MutableRepository {
   schemaVersion: number;
   packages: MutablePackage[];
   activePackageId?: string;
+  unexpected?: boolean;
+}
+
+interface FixtureExpectation {
+  ok: boolean;
+  code?: string;
+  path?: string;
+}
+
+interface FixtureCase {
+  name: string;
+  kind: string;
+  count?: number;
+  value?: number;
+  expected: FixtureExpectation;
+}
+
+interface FixtureCorpus {
+  format: string;
+  version: number;
+  cases: FixtureCase[];
 }
 
 class PrototypeBearingRepository {
@@ -33,6 +55,8 @@ class PrototypeBearingRepository {
   readonly schemaVersion = 1;
   readonly packages: MutablePackage[] = [];
 }
+
+const fixtures = rawFixtures as FixtureCorpus;
 
 function mutableCanonical(): MutableRepository {
   return structuredClone(canonicalRepository);
@@ -54,129 +78,148 @@ function macroAt(pkg: MutablePackage, index = 0): MutableMacro {
   return macro;
 }
 
-describe("v2 repository contract", () => {
+function requiredCount(fixture: FixtureCase): number {
+  if (fixture.count === undefined) {
+    throw new Error(`${fixture.name} is missing count`);
+  }
+  return fixture.count;
+}
+
+function requiredValue(fixture: FixtureCase): number {
+  if (fixture.value === undefined) {
+    throw new Error(`${fixture.name} is missing value`);
+  }
+  return fixture.value;
+}
+
+function buildFixture(fixture: FixtureCase): unknown {
+  if (fixture.kind === "canonical") {
+    return mutableCanonical();
+  }
+  if (fixture.kind === "empty") {
+    return {
+      format: "esp32-macro-keyboard-repository",
+      schemaVersion: 1,
+      packages: [],
+    };
+  }
+  if (fixture.kind === "malformedRoot") {
+    return "not-an-object";
+  }
+  if (fixture.kind === "prototypeRoot") {
+    return new PrototypeBearingRepository();
+  }
+
+  const repository = mutableCanonical();
+  const pkg = packageAt(repository);
+  const macro = macroAt(pkg);
+
+  switch (fixture.kind) {
+    case "packageName":
+      pkg.name = "n".repeat(requiredCount(fixture));
+      break;
+    case "macroName":
+      macro.name = "m".repeat(requiredCount(fixture));
+      break;
+    case "macroSource":
+      macro.source = "s".repeat(requiredCount(fixture));
+      break;
+    case "keyPressMs":
+      macro.keyPressMs = requiredValue(fixture);
+      break;
+    case "interKeyMs":
+      macro.interKeyMs = requiredValue(fixture);
+      break;
+    case "malformedPackage":
+      repository.packages = [null as unknown as MutablePackage];
+      break;
+    case "malformedMacro":
+      pkg.macros = [null as unknown as MutableMacro];
+      break;
+    case "duplicatePackage":
+      repository.packages.push(structuredClone(pkg));
+      break;
+    case "duplicateMacro":
+      repository.packages.push({
+        id: "123e4567-e89b-42d3-a456-426614174000",
+        name: "Second package",
+        macros: [structuredClone(macro)],
+      });
+      break;
+    case "activePackageId":
+      repository.activePackageId = pkg.id;
+      break;
+    case "unknownRoot":
+      repository.unexpected = true;
+      break;
+    case "unknownPackage":
+      (pkg as unknown as Record<string, unknown>).unexpected = true;
+      break;
+    case "unknownMacro":
+      (macro as unknown as Record<string, unknown>).unexpected = true;
+      break;
+    case "nonFinite":
+      macro.keyPressMs = Number.POSITIVE_INFINITY;
+      break;
+    case "sparsePackages": {
+      const sparse: MutablePackage[] = [];
+      sparse.length = 1;
+      repository.packages = sparse;
+      break;
+    }
+    case "sparseMacros": {
+      const sparse: MutableMacro[] = [];
+      sparse.length = 1;
+      pkg.macros = sparse;
+      break;
+    }
+    default:
+      throw new Error(`unknown repository fixture kind: ${fixture.kind}`);
+  }
+  return repository;
+}
+
+describe("v2 repository fixture corpus", () => {
+  test("has the reviewed identity and nonempty case list", () => {
+    expect(fixtures.format).toBe("esp32-macro-keyboard-repository-fixtures");
+    expect(fixtures.version).toBe(1);
+    expect(fixtures.cases.length).toBeGreaterThan(0);
+  });
+
+  for (const fixture of fixtures.cases) {
+    test(fixture.name, () => {
+      const result = validateRepository(buildFixture(fixture), acceptSource);
+      expect(result.ok).toBe(fixture.expected.ok);
+      if (fixture.expected.ok) {
+        return;
+      }
+      if (result.ok) {
+        throw new Error(`${fixture.name} unexpectedly passed`);
+      }
+      expect(result.issues).toContainEqual(
+        expect.objectContaining({
+          code: fixture.expected.code,
+          path: fixture.expected.path,
+        }),
+      );
+    });
+  }
+});
+
+describe("v2 repository canonical serialization", () => {
   test("accepts and canonically serializes the checked-in repository", () => {
-    const result = validateRepositoryV1(canonicalRepository, acceptSource);
+    const result = validateRepository(canonicalRepository, acceptSource);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       throw new Error("canonical repository was rejected");
     }
-    expect(serializeRepositoryV1(result.value)).toBe(
+    expect(serializeRepository(result.value)).toBe(
       JSON.stringify(canonicalRepository),
     );
   });
 
-  test("accepts an exact empty repository", () => {
-    const result = validateRepositoryV1(
-      {
-        format: "esp32-macro-keyboard-repository",
-        schemaVersion: 1,
-        packages: [],
-      },
-      acceptSource,
-    );
-    expect(result).toEqual({
-      ok: true,
-      value: {
-        format: "esp32-macro-keyboard-repository",
-        schemaVersion: 1,
-        packages: [],
-      },
-    });
-  });
-
-  test("rejects activePackageId and every unknown root field", () => {
-    const invalid = mutableCanonical();
-    invalid.activePackageId = "550e8400-e29b-41d4-a716-446655440000";
-    const result = validateRepositoryV1(invalid, acceptSource);
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("repository with activePackageId was accepted");
-    }
-    expect(result.issues).toContainEqual({
-      path: "$",
-      code: "invalid_fields",
-      message: "Repository contains missing or unknown fields.",
-    });
-  });
-
-  test("rejects noncanonical and duplicate package IDs", () => {
-    const uppercase = mutableCanonical();
-    const uppercasePackage = packageAt(uppercase);
-    uppercasePackage.id = uppercasePackage.id.toUpperCase();
-    expect(validateRepositoryV1(uppercase, acceptSource).ok).toBe(false);
-
-    const duplicate = mutableCanonical();
-    duplicate.packages.push(structuredClone(packageAt(duplicate)));
-    const result = validateRepositoryV1(duplicate, acceptSource);
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("duplicate package ID was accepted");
-    }
-    expect(result.issues.some((issue) => issue.code === "duplicate_id")).toBe(
-      true,
-    );
-  });
-
-  test("rejects duplicate macro IDs across different packages", () => {
-    const invalid = mutableCanonical();
-    const firstMacro = macroAt(packageAt(invalid));
-    invalid.packages.push({
-      id: "123e4567-e89b-42d3-a456-426614174000",
-      name: "Second package",
-      macros: [structuredClone(firstMacro)],
-    });
-    const result = validateRepositoryV1(invalid, acceptSource);
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      throw new Error("globally duplicate macro ID was accepted");
-    }
-    expect(result.issues).toContainEqual({
-      path: "$.packages[1].macros[0].id",
-      code: "duplicate_id",
-      message: "Macro ID must be unique across the repository.",
-    });
-  });
-
-  test("enforces UTF-8 byte and timing boundaries", () => {
-    const valid = mutableCanonical();
-    const validPackage = packageAt(valid);
-    const validMacro = macroAt(validPackage);
-    validPackage.name = "n".repeat(64);
-    validMacro.name = "m".repeat(64);
-    validMacro.source = "s".repeat(4096);
-    validMacro.keyPressMs = 0;
-    validMacro.interKeyMs = 10_000;
-    expect(validateRepositoryV1(valid, acceptSource).ok).toBe(true);
-
-    const invalid = mutableCanonical();
-    const invalidPackage = packageAt(invalid);
-    const invalidMacro = macroAt(invalidPackage);
-    invalidPackage.name = "é".repeat(33);
-    invalidMacro.source = "é".repeat(2049);
-    invalidMacro.keyPressMs = -1;
-    invalidMacro.interKeyMs = 10_001;
-    expect(validateRepositoryV1(invalid, acceptSource).ok).toBe(false);
-  });
-
-  test("rejects sparse arrays, custom prototypes, and non-finite numbers", () => {
-    const sparse = mutableCanonical();
-    const packages: MutablePackage[] = [];
-    packages.length = 1;
-    sparse.packages = packages;
-    expect(validateRepositoryV1(sparse, acceptSource).ok).toBe(false);
-
-    expect(
-      validateRepositoryV1(new PrototypeBearingRepository(), acceptSource).ok,
-    ).toBe(false);
-
-    const nonFinite = mutableCanonical();
-    macroAt(packageAt(nonFinite)).keyPressMs = Number.POSITIVE_INFINITY;
-    expect(validateRepositoryV1(nonFinite, acceptSource).ok).toBe(false);
-  });
-
   test("requires macro-language validation from the caller", () => {
-    const result = validateRepositoryV1(
+    const result = validateRepository(
       canonicalRepository,
       () => "Unknown directive at byte 0.",
     );
