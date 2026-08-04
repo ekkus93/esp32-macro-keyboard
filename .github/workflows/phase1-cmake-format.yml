@@ -1,4 +1,4 @@
-# One-shot CMake environment diagnostic; remove before merging.
+# One-shot exact CMake check diagnostic; remove before merging.
 name: Phase 1 CMake Format
 
 on:
@@ -25,63 +25,51 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes clang-format jq shellcheck
           python3 -m pip install --user cmakelang==0.6.13
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           ./scripts/install-esp-idf.sh
 
-      - name: Capture CMake environment diagnostics
+      - name: Reproduce exact CMake check
         shell: bash
         run: |
           set -uo pipefail
-          report="${RUNNER_TEMP}/cmake-environment.txt"
-          files=(
-            firmware/components/app_contracts_v2/CMakeLists.txt
-            tests/v2_contracts/CMakeLists.txt
-          )
-
-          capture() {
-            local label="$1"
-            {
-              echo "=== ${label} ==="
-              printf 'PATH=%s\n' "$PATH"
-              printf 'python3=%s\n' "$(command -v python3 || true)"
-              printf 'cmake-format=%s\n' "$(command -v cmake-format || true)"
-              printf 'cmake-lint=%s\n' "$(command -v cmake-lint || true)"
-              cmake-format --version 2>&1 || true
-              cmake-format --check "${files[@]}" >/tmp/cmake-format.out 2>&1
-              printf 'format_status=%s\n' "$?"
-              cat /tmp/cmake-format.out
-              cmake-lint "${files[@]}" >/tmp/cmake-lint.out 2>&1
-              printf 'lint_status=%s\n' "$?"
-              cat /tmp/cmake-lint.out
-            } >> "$report"
-          }
-
-          capture before_activation
+          report="${RUNNER_TEMP}/cmake-exact-check.txt"
           . "$HOME/esp/esp-idf-v5.5.5/export.sh" >/tmp/idf-export.out 2>&1
-          {
-            echo '=== idf_export ==='
-            cat /tmp/idf-export.out
-          } >> "$report"
-          capture after_activation
+
+          mapfile -t cmake_files < <(find firmware tests \
+            -type d \( -name managed_components -o -name 'build*' \) -prune -o \
+            -type f -name 'CMakeLists.txt' -print | sort)
 
           {
-            echo '=== explicit_user_bin_after_activation ==='
-            "$HOME/.local/bin/cmake-format" --version 2>&1 || true
-            "$HOME/.local/bin/cmake-format" --check "${files[@]}" >/tmp/explicit-format.out 2>&1
-            printf 'explicit_format_status=%s\n' "$?"
-            cat /tmp/explicit-format.out
-            "$HOME/.local/bin/cmake-lint" "${files[@]}" >/tmp/explicit-lint.out 2>&1
-            printf 'explicit_lint_status=%s\n' "$?"
-            cat /tmp/explicit-lint.out
-          } >> "$report"
+            printf 'cmake_format=%s\n' "$(command -v cmake-format || true)"
+            cmake-format --version 2>&1 || true
+            printf 'file_count=%d\n' "${#cmake_files[@]}"
+            printf 'file=%s\n' "${cmake_files[@]}"
 
+            cmake-format --check "${cmake_files[@]}" >/tmp/all-format.out 2>&1
+            printf 'all_format_status=%s\n' "$?"
+            cat /tmp/all-format.out
+
+            cmake-lint "${cmake_files[@]}" >/tmp/all-lint.out 2>&1
+            printf 'all_lint_status=%s\n' "$?"
+            cat /tmp/all-lint.out
+
+            target_files=(
+              firmware/components/app_contracts_v2/CMakeLists.txt
+              tests/v2_contracts/CMakeLists.txt
+            )
+            cmake-format --check "${target_files[@]}" >/tmp/target-format.out 2>&1
+            printf 'target_format_status=%s\n' "$?"
+            cat /tmp/target-format.out
+          } > "$report"
           cat "$report"
 
       - name: Upload compact diagnostics
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: phase1-cmake-environment-${{ github.run_id }}
-          path: ${{ runner.temp }}/cmake-environment.txt
+          name: phase1-cmake-exact-${{ github.run_id }}
+          path: ${{ runner.temp }}/cmake-exact-check.txt
           if-no-files-found: error
           retention-days: 1
