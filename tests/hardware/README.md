@@ -1,122 +1,55 @@
-# Hardware-in-the-loop tests
+# Hardware-in-the-loop checks
 
-These tests drive a **real, attached, provisioned ESP32-S3** and verify the
-keystrokes it actually puts on the USB wire. They are deliberately **not** part
-of `scripts/check-all.sh` and cannot run in CI: they need physical hardware.
+These scripts exercise the retained Phase 2 firmware on a real ESP32-S3. They
+are not part of ordinary CI because they require a board, its UART console, a
+Wi-Fi network, and in some cases a USB host capture setup.
 
-They exist because the host suites cannot see this layer. Host tests run on x86
-against fakes for every hardware backend; they proved the executor's logic long
-before the device could survive its own first authenticated API call.
+## Current Phase 2 checks
 
-## What they verify
-
-| Script | What it proves |
-| --- | --- |
-| `provision_device.py` | takes an unprovisioned device through first-run setup |
-| `test_typing.py` | printable text, chords, release-all observation |
-| `test_cancellation.py` | cancellation over the API **and** the console `cancel` command, during a delay and mid-typing |
-| `test_full_package_in_order.py` | every macro in a package, in stored order, against a harmless target |
-| `test_acceptance_reset.py` | power-cycle persistence, factory reset, re-provisioning, credential reset |
-| `test_backup_restore.py` | all three package apply paths: whole-repository restore with per-package outcomes, import as a new package, replace an existing package |
-
-Run order matters only in that everything needs a provisioned device;
-`test_acceptance_reset.py` provisions one itself if it finds the device
-unprovisioned, and `create_fixture.py` builds the package the typing and
-cancellation scripts expect.
-
-Evidence comes from the kernel's `hidraw` node for this project's USB VID/PID
-(`303a:4001`), decoded as 8-byte boot-protocol reports — the bytes the device
-sent, not text scraped from an editor. That is what makes it possible to assert
-things a screen capture cannot: that a chord package the modifier bit *concurrently*
-with the usage code, and that the final report is all-zero (no key left held).
-
-## Prerequisites
-
-1. **A provisioned device.** An unprovisioned device never starts the USB stack,
-   so it will not enumerate as a keyboard at all.
-
-2. **The native USB port connected.** On the ESP32-S3 the USB-Serial-JTAG
-   peripheral and USB-OTG share one PHY: the port is *either* a debug serial
-   port *or* the HID keyboard. Confirm with:
-
-   ```bash
-   lsusb | grep 303a:4001
-   ```
-
-3. **The UART port connected** (the devkit's other USB connector, via its
-   CP210x/CH340 bridge). This carries the serial console used to join Wi-Fi,
-   and it works while the native port is busy being a keyboard.
-
-4. **Read access to the HID nodes**, which the kernel restricts to root because
-   anything that can read a keyboard device can log every keystroke on the
-   system:
-
-   ```bash
-   sudo bash scripts/install-hid-udev-rule.sh     # scoped to 303a:4001 only
-   sudo bash scripts/uninstall-hid-udev-rule.sh   # to revert
-   ```
-
-5. **`pyserial`** for the Wi-Fi console command.
-
-## Bench-specific state (never committed)
-
-Credentials and per-device state live **outside the repository**, in
-`~/.config/esp32-macro-keyboard/hil/` by default, or wherever `HIL_STATE_DIR`
-points:
-
-| File | Contents |
-| --- | --- |
-| `wifi.json` | `{"ssid": "...", "password": "..."}` |
-| `admin_password.txt` | the device's administrator password |
-| `device_ip.txt` | written by `hil_state.connect_wifi()` |
-| `fixture.json` | written by `create_fixture.py` |
-
-Nothing here reads or writes inside the repository, so no `git` operation can
-capture a credential.
-
-This used to default to `tests/hardware/.local/` — inside the checkout, relying
-on `.gitignore`. That was wrong for a public repository: `.gitignore` stops
-`git add`, but not `git add -f`, not an archive of the working tree, not a
-backup tool, and not an editor that indexes the checkout. The default is now
-outside the tree.
-
-## Running
+### Provision a device
 
 ```bash
-cd tests/hardware
-
-# 1. join the device to Wi-Fi. Credentials are persisted, so a device that
-#    has joined once comes back on its own after a reboot; run this to join a
-#    different network, or after an NVS erase.
-python3 -c 'import hil_state; print(hil_state.connect_wifi())'
-
-# 2. create the macro package and macros (once per device wipe)
-python3 create_fixture.py
-
-# 3. run the tests
-python3 test_typing.py
-python3 test_cancellation.py
+python3 tests/hardware/provision_device.py
 ```
 
-> **These type into whatever window has focus.** The device is a real keyboard.
-> The fixtures are deliberately harmless — lowercase text and `{CTRL+A}`, no
-> Enter and no shell metacharacters — but focus something disposable anyway.
+The helper performs first-run setup, stores disposable bench credentials outside
+the repository, and waits for the normal authenticated service to return.
 
-## Interpreting results
+### Network authentication and retired-route boundary
 
-Both scripts exit non-zero on failure and print the decoded keystrokes beside
-what was expected. For cancellation they also report how long after the cancel
-request the last keystroke appeared. Both cancel paths SPEC §19 requires are
-covered: the API route and the console `cancel` command.
+```bash
+python3 tests/hardware/test_network_security.py
+```
 
-## What these do NOT cover
+This verifies authenticated settings access, refusal of missing or forged
+sessions, login throttling, and HTTP 404 responses for the removed package,
+execution, repository, and restore routes.
 
-- **ChromeOS.** Every §20.2 item requires both Linux and ChromeOS; only Linux
-  has been exercised, which is why those checkboxes remain open.
-- **disconnect/reconnect, suspend/resume, disconnect-during-execution.** These
-  need physical cable and host manipulation that cannot be automated from here.
-- **Nothing.** There is no physical cancel button to test. SPEC §19 removed the
-  cancel and confirm buttons deliberately — no board this project uses breaks
-  out the GPIO they were assigned — and made them console commands, which
-  `test_cancellation.py` covers. An earlier version of this list cited a
-  "§20.5 physical controls" gap; SPEC has no §20.5, and the gap does not exist.
+### Restart and reset acceptance
+
+```bash
+python3 tests/hardware/test_acceptance_reset.py
+```
+
+This verifies retained settings across a software restart, factory-reset record
+erasure, re-provisioning, saved station-network behavior, confirmation-gated
+credential reset, and provisioning revision continuity. The script does not
+claim a true power-removal cycle; unplug/replug testing remains manual.
+
+## Deferred device checks
+
+Direct macro text submission, HID typing capture, and in-flight cancellation
+return with the V2 `/api/v1/send` endpoint in a later phase. Package CRUD,
+package ordering, package backup/restore, and stored-macro execution tests were
+deleted in Phase 2 because those firmware-owned resources no longer exist.
+
+## Bench state and dependencies
+
+`hil_state.py` stores generated secrets and the last known device address in a
+state directory outside the repository. Install `pyserial` for UART operations.
+The exact UART and native USB connectors are board-specific; the ESP32-S3 native
+USB port must remain dedicated to TinyUSB HID while the separate UART bridge
+provides the console.
+
+No hardware result should be recorded from these scripts without the board
+model, firmware SHA, host OS, ports used, and captured command output.

@@ -1,1 +1,0 @@
-Run the clean Phase 18.3 gate with tolerant generated-fixture normalization.

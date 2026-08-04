@@ -1,1 +1,0 @@
-Run Phase 18.3 validation with corrected fixture and stage tracing.

@@ -1,32 +1,21 @@
 #!/usr/bin/env python3
-"""Hardware acceptance: power-cycle persistence, factory reset, re-provisioning.
+"""Hardware acceptance for restart, factory reset, and credential reset.
 
-Four of the eleven hardware-acceptance items required, run end to end against the real
-device. They are one script because they are one story: data has to survive an
-ordinary restart, factory reset has to actually destroy it, and the device has
-to be usable again afterwards. Testing any one of them alone leaves the device
-in a state the next one has to undo.
+This test deliberately uses only retained Phase 2 state. It mutates the device
+settings record, restarts the firmware, verifies persistence, then distinguishes
+factory reset from credential reset by the provisioning revision history:
 
-    SPEC 24.6 item: power-cycle persistence
-    SPEC 24.6 item: factory reset
-    SPEC 24.6 item: credential reset
+* factory reset erases the record, so setup creates revision 1;
+* credential reset preserves the record, so clearing credentials and completing
+  setup advance the prior revision by two.
 
-Step 4 is also the only thing that exercises section 16.6 end to end: what
-the operation clears, what it preserves, and that a bare command is refused.
-
-What this deliberately does NOT claim: a true power cycle. This restarts the
-device over its own API, which re-runs the whole boot path including the NVS and
-LittleFS mounts, but the rails never drop. Pulling the cable is a separate,
-manual check.
-
-Usage:
-    python3 tests/hardware/test_acceptance_reset.py
+The test uses a software restart rather than removing power. A true cable-pull
+power-cycle remains a separate manual hardware check.
 """
 
 import json
 import sys
 import time
-import uuid
 import urllib.error
 from pathlib import Path
 
@@ -36,32 +25,60 @@ import hil_state  # noqa: E402
 import provision_device  # noqa: E402
 from device_client import Device  # noqa: E402
 
-SET_NAME = "Acceptance persistence package"
-MACRO_NAME = "Acceptance macro"
-# Deliberately harmless: no Enter, no shell metacharacters. This device is a
-# keyboard, and the host is whatever happens to have focus while it types.
-MACRO_SOURCE = "acceptance persistence check"
 REBOOT_TIMEOUT_S = 90
 
 
-def post_expecting_reboot(device: Device, path: str) -> None:
-    """POST a route that reboots the device.
+def report(step: str, detail: str = "") -> None:
+    print(f"  {step}" + (f": {detail}" if detail else ""), flush=True)
 
-    The device restarts as it acknowledges, so the response often never
-    arrives. A timeout here is the expected outcome, not a failure -- the
-    verification is that the device comes back in the right state, which the
-    caller waits for.
-    """
+
+def response_data(payload):
+    if not isinstance(payload, dict):
+        raise SystemExit(f"error: expected JSON object, got {payload!r}")
+    return payload.get("data", payload)
+
+
+def read_settings(device: Device) -> dict:
+    status, payload = device.get("/api/v1/settings")
+    if status != 200:
+        raise SystemExit(f"error: could not read settings: HTTP {status} {payload}")
+    settings = response_data(payload)
+    required = {
+        "schemaVersion",
+        "revision",
+        "requirePhysicalConfirmation",
+        "alwaysSelectPackage",
+    }
+    if not required.issubset(settings):
+        raise SystemExit(f"error: incomplete settings response: {payload}")
+    return settings
+
+
+def write_settings(device: Device, current: dict, *, always_select: bool) -> dict:
+    status, payload = device.put(
+        "/api/v1/settings",
+        {
+            "expectedRevision": current["revision"],
+            "requirePhysicalConfirmation": current["requirePhysicalConfirmation"],
+            "alwaysSelectPackage": always_select,
+        },
+    )
+    if status != 200:
+        raise SystemExit(f"error: could not update settings: HTTP {status} {payload}")
+    return response_data(payload)
+
+
+def post_expecting_reboot(device: Device, path: str) -> None:
+    """POST a route whose response may be cut off by the requested restart."""
     try:
         status, payload = device.post(path)
     except (urllib.error.URLError, TimeoutError, OSError):
         return
     if status not in (200, 202):
-        raise SystemExit(f"error: {path} was refused: {status} {payload}")
+        raise SystemExit(f"error: {path} was refused: HTTP {status} {payload}")
 
 
 def console_command(command: str, seconds: int = 6) -> str:
-    """Send one console command and return what the device printed back."""
     import serial  # noqa: PLC0415
 
     port = serial.Serial(hil_state.DEFAULT_CONSOLE, 115200, timeout=1)
@@ -71,7 +88,8 @@ def console_command(command: str, seconds: int = 6) -> str:
             port.read(port.in_waiting)
         port.write((command + "\n").encode())
         port.flush()
-        deadline, data = time.time() + seconds, b""
+        deadline = time.time() + seconds
+        data = b""
         while time.time() < deadline:
             chunk = port.read(4096)
             if chunk:
@@ -82,7 +100,6 @@ def console_command(command: str, seconds: int = 6) -> str:
 
 
 def capture_boot_log(seconds: int = 20) -> str:
-    """Reset the device over the console and return what it prints while booting."""
     import serial  # noqa: PLC0415
 
     port = serial.Serial(hil_state.DEFAULT_CONSOLE, 115200, timeout=1)
@@ -91,7 +108,8 @@ def capture_boot_log(seconds: int = 20) -> str:
         port.setRTS(True)
         time.sleep(0.2)
         port.setRTS(False)
-        deadline, data = time.time() + seconds, b""
+        deadline = time.time() + seconds
+        data = b""
         while time.time() < deadline:
             chunk = port.read(4096)
             if chunk:
@@ -102,14 +120,6 @@ def capture_boot_log(seconds: int = 20) -> str:
 
 
 def rejoin_wifi(attempts: int = 4) -> str:
-    """Rejoin the bench network over the console, retrying a transient refusal.
-
-    The firmware attempts a stored network once and does not retry (section
-    15.2), and an association can fail for reasons that have nothing to do with
-    this test -- a busy channel, the device's own access point renegotiating
-    after a reset. Failing an acceptance run on the first refusal would be
-    reporting the radio, not the firmware.
-    """
     last = None
     for attempt in range(1, attempts + 1):
         try:
@@ -121,19 +131,9 @@ def rejoin_wifi(attempts: int = 4) -> str:
     raise SystemExit(f"error: could not rejoin Wi-Fi after {attempts} attempts: {last}")
 
 
-def report(step: str, detail: str = "") -> None:
-    print(f"  {step}" + (f": {detail}" if detail else ""), flush=True)
-
-
-def wait_for_provisioning(ip: str, provisioned: bool, timeout_s: int = REBOOT_TIMEOUT_S) -> None:
-    """Wait until the device is up and in the expected provisioning state.
-
-    The two states are told apart by which routes exist rather than by a field:
-    a provisioned device removes the setup routes entirely, so /setup-state
-    answers 404, while an unprovisioned one serves it and reports
-    completed=false. Waiting on a field would have meant waiting forever on a
-    device that had finished setup.
-    """
+def wait_for_provisioning(
+    ip: str, provisioned: bool, timeout_s: int = REBOOT_TIMEOUT_S
+) -> None:
     deadline = time.time() + timeout_s
     last = None
     while time.time() < deadline:
@@ -145,148 +145,111 @@ def wait_for_provisioning(ip: str, provisioned: bool, timeout_s: int = REBOOT_TI
         last = (status, payload)
         if provisioned and status == 404:
             return
-        if (not provisioned and status == 200 and isinstance(payload, dict)
-                and payload.get("ok") and not payload["data"]["completed"]):
+        if (
+            not provisioned
+            and status == 200
+            and isinstance(payload, dict)
+            and payload.get("ok")
+            and not payload["data"]["completed"]
+        ):
             return
     raise SystemExit(
-        f"error: device did not reach provisioned={provisioned} within {timeout_s}s "
-        f"(last seen: {last})"
+        f"error: device did not reach provisioned={provisioned} within "
+        f"{timeout_s}s (last seen: {last})"
     )
 
 
-def create_fixture(device: Device) -> tuple[str, str]:
-    # The client chooses the identifiers (SPEC 12: stable IDs are the caller's,
-    # so a retry cannot create a second copy of the same object).
-    package_id = str(uuid.uuid4())
-    status, payload = device.post(
-        "/api/v1/package",
-        {"schema_version": 1, "id": package_id, "revision": 1, "name": SET_NAME},
-    )
-    if status not in (200, 201):
-        raise SystemExit(f"error: could not create package: {status} {payload}")
+def ensure_provisioned(ip: str) -> None:
+    status, _ = Device(ip).get("/api/v1/setup-state")
+    if status == 404:
+        return
+    report("device is unprovisioned", "running setup first")
+    if provision_device.main() != 0:
+        raise SystemExit("error: could not provision the device")
+    wait_for_provisioning(ip, provisioned=True)
 
-    macro_id = str(uuid.uuid4())
-    status, payload = device.post(
-        f"/api/v1/package/{package_id}/macros",
-        {
-            "schema_version": 1,
-            "id": macro_id,
-            "revision": 1,
-            "package_id": package_id,
-            "name": MACRO_NAME,
-            "source": MACRO_SOURCE,
-            "key_press_ms": 8,
-            "inter_key_ms": 15,
-        },
-    )
-    if status not in (200, 201):
-        raise SystemExit(f"error: could not create macro: {status} {payload}")
-    return package_id, macro_id
+
+def reconnect_after_restart(ip: str, *, provisioned: bool) -> str:
+    try:
+        wait_for_provisioning(ip, provisioned=provisioned, timeout_s=60)
+        return ip
+    except SystemExit:
+        report("device did not rejoin unaided", "rejoining over the console")
+        address = rejoin_wifi()
+        wait_for_provisioning(address, provisioned=provisioned, timeout_s=60)
+        return address
 
 
 def main() -> int:
-    ip = hil_state.device_ip()
-    print(f"hardware acceptance against {ip}")
+    address = hil_state.device_ip()
+    print(f"hardware reset acceptance against {address}")
+    ensure_provisioned(address)
 
-    # Runs that stop midway leave the device unprovisioned, and an unprovisioned
-    # device has no login route at all -- the failure is a 405, which reads like
-    # a harness bug rather than a starting state. Start from a known one.
-    status, _ = Device(ip).get("/api/v1/setup-state")
-    if status != 404:
-        print("\n0. device is unprovisioned; running setup first")
-        if provision_device.main() != 0:
-            raise SystemExit("error: could not provision the device to start from")
-        wait_for_provisioning(ip, provisioned=True)
-
-    print("\n1. power-cycle persistence")
-    device = Device(ip)
+    print("\n1. restart persistence")
+    device = Device(address)
     device.login()
-    package_id, macro_id = create_fixture(device)
-    report("created", f"package {package_id} with one macro")
-
-    # These take no body at all. Sending `{}` is a 422: the route policy rejects
-    # a body on a route with no fields, the same way /packages/{id}/select does.
+    original = read_settings(device)
+    marker = write_settings(
+        device, original, always_select=not original["alwaysSelectPackage"]
+    )
+    report(
+        "settings marker committed",
+        f"revision {marker['revision']}, alwaysSelectPackage="
+        f"{marker['alwaysSelectPackage']}",
+    )
     post_expecting_reboot(device, "/api/v1/device/restart")
-    report("restart issued", "waiting for the device to come back")
-    try:
-        wait_for_provisioning(ip, provisioned=True, timeout_s=60)
-        report("device answered again", f"at {ip}, having rejoined Wi-Fi unaided")
-    except SystemExit:
-        # section 15.2 makes a failed join non-fatal and does not retry it, so a
-        # single transient failure leaves the device on its access point until
-        # something intervenes. That is the specified behaviour; recover over
-        # the console rather than failing a persistence test for a radio.
-        report("no answer", "rejoining over the console (firmware does not retry a failed join)")
-        rejoin_wifi()
-        wait_for_provisioning(ip, provisioned=True, timeout_s=60)
+    address = reconnect_after_restart(address, provisioned=True)
 
-    device = Device(ip)
+    device = Device(address)
     device.login()
-    status, payload = device.get(f"/api/v1/package/{package_id}")
-    if status != 200 or payload["data"]["name"] != SET_NAME:
-        raise SystemExit(f"error: the package did not survive the restart: {status} {payload}")
-    status, payload = device.get(f"/api/v1/package/{package_id}/macros")
-    macros = payload["data"] if status == 200 else []
-    if not any(item["id"] == macro_id for item in macros):
-        raise SystemExit(f"error: the macro is not in the package: {status} {payload}")
-    # The list is summaries; the source only comes back on the macro itself, and
-    # the source is the part that has to survive byte for byte -- it is what the
-    # device will type.
-    status, payload = device.get(f"/api/v1/package/{package_id}/macros/{macro_id}")
-    if status != 200 or payload["data"]["source"] != MACRO_SOURCE:
-        raise SystemExit(f"error: the macro source did not survive: {status} {payload}")
-    report("PASS", "package and macro survived, source byte for byte")
+    persisted = read_settings(device)
+    if persisted != marker:
+        raise SystemExit(
+            f"error: settings changed across restart: before={marker}, after={persisted}"
+        )
+    report("PASS", "settings revision and values survived the restart")
 
     print("\n2. factory reset")
     post_expecting_reboot(device, "/api/v1/device/factory-reset")
-    report("issued", "waiting for the device to come back unprovisioned")
-
-    # It comes back on its access point only: factory reset clears the whole
-    # provisioning record, station credentials included, which is the one time
-    # section 15.2 permits them to be discarded without an explicit empty SSID.
-    print("   the device is now AP-only; rejoining Wi-Fi over the console")
     time.sleep(12)
     address = rejoin_wifi()
-    report("rejoined", address)
     wait_for_provisioning(address, provisioned=False, timeout_s=45)
-    report("PASS", "device is unprovisioned and its data is gone")
+    report("device is unprovisioned", "the provisioning record was erased")
 
-    print("\n3. re-provisioning, and the station network surviving setup")
     if provision_device.main() != 0:
-        raise SystemExit("error: re-provisioning failed")
+        raise SystemExit("error: re-provisioning after factory reset failed")
+    wait_for_provisioning(address, provisioned=True)
+    device = Device(address)
+    device.login()
+    after_factory = read_settings(device)
+    if after_factory["revision"] != 1:
+        raise SystemExit(
+            "error: factory reset did not restart provisioning revision history: "
+            f"{after_factory}"
+        )
+    report("PASS", "setup recreated a fresh revision-1 provisioning record")
 
-    # The regression this guards: setup used to rebuild the provisioning record
-    # from scratch and drop the station credentials, so the device came back
-    # from setup on its access point alone.
-    #
-    # Reachability is the wrong evidence for it. section 15.2 attempts the join
-    # once and does not retry, so a device that kept its credentials can still
-    # fail to associate, and rejoining over the console to check would rewrite
-    # the very record under test. The boot log distinguishes the two: a device
-    # that kept its credentials enters station mode and names the network,
-    # whether or not the association succeeds. One that lost them never leaves
-    # access-point mode.
+    print("\n3. saved station network survives setup")
     log = capture_boot_log()
     entered_station_mode = "mode : sta" in log
     joined = "joined saved Wi-Fi network" in log
     if not entered_station_mode:
         raise SystemExit(
-            "error: the device never attempted a station join after setup, so "
-            "the stored network did not survive:\n" + log[-600:]
+            "error: the device did not attempt its saved station network after setup:\n"
+            + log[-600:]
         )
-    report("PASS", "credentials survived setup; the device attempted the stored network"
-                   + (" and joined it" if joined else " (association failed this boot)"))
+    report(
+        "PASS",
+        "the device attempted the saved network"
+        + (" and joined it" if joined else " (association failed this boot)"),
+    )
+    address = reconnect_after_restart(address, provisioned=True)
 
     print("\n4. credential reset")
-    # section 16.6: this is the forgotten-password path, and what makes it worth
-    # having separately from factory reset is what it keeps. Create something to
-    # lose first, so "the macros survived" is an assertion rather than a hope.
     device = Device(address)
     device.login()
-    kept_package_id, kept_macro_id = create_fixture(device)
-    report("created", f"package {kept_package_id}, to be preserved across the reset")
+    before_credentials = read_settings(device)
 
-    # A mistyped command must not cost anyone their password.
     refusal = console_command("credential-reset")
     if "usage:" not in refusal:
         raise SystemExit(f"error: bare credential-reset was not refused:\n{refusal}")
@@ -295,38 +258,39 @@ def main() -> int:
     output = console_command("credential-reset confirm", seconds=8)
     if "credentials cleared" not in output:
         raise SystemExit(f"error: credential reset did not report success:\n{output}")
-    report("issued", "waiting for the device to come back unprovisioned")
-
-    # The stored network is one of the things it must preserve, so the device
-    # should return on its own -- unlike after a factory reset, which clears it.
-    try:
-        wait_for_provisioning(address, provisioned=False, timeout_s=90)
-        report("rejoined unaided", "the saved network survived the reset")
-    except SystemExit:
-        report("no answer", "rejoining over the console")
-        rejoin_wifi()
-        wait_for_provisioning(address, provisioned=False, timeout_s=60)
-    report("PASS", "device is unprovisioned")
+    address = reconnect_after_restart(address, provisioned=False)
+    report("device is unprovisioned", "saved network remained available")
 
     if provision_device.main() != 0:
         raise SystemExit("error: re-provisioning after credential reset failed")
     wait_for_provisioning(address, provisioned=True)
-
     device = Device(address)
     device.login()
-    status, payload = device.get(f"/api/v1/package/{kept_package_id}")
-    if status != 200 or payload["data"]["name"] != SET_NAME:
+    after_credentials = read_settings(device)
+    expected_revision = before_credentials["revision"] + 2
+    if after_credentials["revision"] != expected_revision:
         raise SystemExit(
-            "error: credential reset destroyed the macro packages, which is exactly "
-            f"what separates it from a factory reset: {status} {payload}"
+            "error: credential reset did not preserve provisioning revision history: "
+            f"before={before_credentials['revision']}, after="
+            f"{after_credentials['revision']}, expected={expected_revision}"
         )
-    status, payload = device.get(f"/api/v1/package/{kept_package_id}/macros/{kept_macro_id}")
-    if status != 200 or payload["data"]["source"] != MACRO_SOURCE:
-        raise SystemExit(f"error: the macro did not survive credential reset: {status}")
-    report("PASS", "macro packages survived; only the credentials were cleared")
+    report(
+        "PASS",
+        "credential clear and setup advanced the retained record by two revisions",
+    )
 
-    print("\nAll section 24.6 items in this script passed.")
-    print(json.dumps({"device": address, "packageId": package_id, "macroId": macro_id}, indent=2))
+    print("\nAll retained reset acceptance checks passed.")
+    print(
+        json.dumps(
+            {
+                "device": address,
+                "restartRevision": marker["revision"],
+                "factoryResetRevision": after_factory["revision"],
+                "credentialResetRevision": after_credentials["revision"],
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

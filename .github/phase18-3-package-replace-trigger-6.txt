@@ -1,1 +1,0 @@
-Run Phase 18.3 validation and capture the generated fixture if runtime validation fails.

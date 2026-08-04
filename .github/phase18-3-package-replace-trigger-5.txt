@@ -1,1 +1,0 @@
-Run Phase 18.3 validation with the package model type exposed by the public header.
