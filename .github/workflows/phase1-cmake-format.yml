@@ -1,0 +1,64 @@
+# One-shot CMake formatting application; remove before merging.
+name: Phase 1 CMake Format
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: phase1-ci-repair
+          show-progress: false
+
+      - name: Install pinned CMake formatter
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user cmakelang==0.6.13
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Format failing CMake files
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            firmware/components/app_contracts_v2/CMakeLists.txt
+            tests/v2_contracts/CMakeLists.txt
+          )
+          "$HOME/.local/bin/cmake-format" -i "${files[@]}"
+          "$HOME/.local/bin/cmake-format" --check "${files[@]}"
+          mapfile -t changed_files < <(git diff --name-only)
+          if [[ ${#changed_files[@]} -ne ${#files[@]} ]]; then
+            printf 'Expected %d formatted files, found %d:\n' "${#files[@]}" "${#changed_files[@]}"
+            printf '  %s\n' "${changed_files[@]}"
+            exit 1
+          fi
+          for file in "${files[@]}"; do
+            if ! printf '%s\n' "${changed_files[@]}" | grep -Fxq "$file"; then
+              printf 'Missing expected formatted file: %s\n' "$file"
+              exit 1
+            fi
+          done
+
+      - name: Commit authoritative CMake formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            firmware/components/app_contracts_v2/CMakeLists.txt \
+            tests/v2_contracts/CMakeLists.txt
+          git commit -m "Format Phase 1 CMake files"
+          git push origin HEAD:phase1-ci-repair
