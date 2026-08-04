@@ -445,8 +445,7 @@ export function isLimitsResponse(value: unknown): value is LimitsResponse {
     value.jsonBodyMaxBytes === v2Limits.jsonBodyMaxBytes,
     value.blobMaxBytes === v2Limits.blobMaxBytes,
     value.activeSessionsMax === v2Limits.activeSessionsMax,
-    value.sessionIdleLifetimeSeconds ===
-      v2Limits.sessionIdleLifetimeSeconds,
+    value.sessionIdleLifetimeSeconds === v2Limits.sessionIdleLifetimeSeconds,
     value.sessionAbsoluteLifetimeSeconds ===
       v2Limits.sessionAbsoluteLifetimeSeconds,
     value.serialConfirmationTimeoutSeconds ===
