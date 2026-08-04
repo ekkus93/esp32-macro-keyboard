@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "app_error.h"
 #include "app_limits_v2.h"
 #include "macro_keymap_us.h"
 #include "macro_keymap_us_v2.h"
