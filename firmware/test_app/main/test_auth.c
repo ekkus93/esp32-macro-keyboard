@@ -80,7 +80,8 @@ TEST_CASE("PBKDF2 candidate timings are reported", "[device][auth][benchmark]") 
     static const uint32_t candidates[] = {60000U, 90000U, 120000U, 150000U};
 
     for (size_t candidate_index = 0U;
-         candidate_index < sizeof(candidates) / sizeof(candidates[0]); ++candidate_index) {
+         candidate_index < sizeof(candidates) / sizeof(candidates[0]);
+         ++candidate_index) {
         auth_password_record_t record = {.iterations = candidates[candidate_index]};
         for (size_t index = 0U; index < sizeof(record.salt); ++index) {
             record.salt[index] = (uint8_t)index;
