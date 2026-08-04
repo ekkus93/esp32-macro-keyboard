@@ -414,6 +414,7 @@ export function isLimitsResponse(value: unknown): value is LimitsResponse {
   }
   return all([
     hasExactKeys(value, [
+      "activeSessionsMax",
       "adminPasswordMaxBytes",
       "adminPasswordMinBytes",
       "blobMaxBytes",
@@ -427,6 +428,9 @@ export function isLimitsResponse(value: unknown): value is LimitsResponse {
       "macroNameMaxBytes",
       "macroSourceMaxBytes",
       "packageNameMaxBytes",
+      "serialConfirmationTimeoutSeconds",
+      "sessionAbsoluteLifetimeSeconds",
+      "sessionIdleLifetimeSeconds",
       "snapshotRetentionTargetMax",
     ]),
     value.packageNameMaxBytes === v2Limits.packageNameMaxBytes,
@@ -440,6 +444,13 @@ export function isLimitsResponse(value: unknown): value is LimitsResponse {
     value.executorAbsoluteDeadlineMs === v2Limits.executorAbsoluteDeadlineMs,
     value.jsonBodyMaxBytes === v2Limits.jsonBodyMaxBytes,
     value.blobMaxBytes === v2Limits.blobMaxBytes,
+    value.activeSessionsMax === v2Limits.activeSessionsMax,
+    value.sessionIdleLifetimeSeconds ===
+      v2Limits.sessionIdleLifetimeSeconds,
+    value.sessionAbsoluteLifetimeSeconds ===
+      v2Limits.sessionAbsoluteLifetimeSeconds,
+    value.serialConfirmationTimeoutSeconds ===
+      v2Limits.serialConfirmationTimeoutSeconds,
     value.adminPasswordMinBytes === v2Limits.adminPasswordMinBytes,
     value.adminPasswordMaxBytes === v2Limits.adminPasswordMaxBytes,
     value.snapshotRetentionTargetMax === v2Limits.snapshotRetentionTargetMax,
