@@ -1,5 +1,6 @@
 #include "device_settings_v2.h"
 
+#include <stdint.h>
 #include <string.h>
 
 #include "app_limits_v2.h"
@@ -8,6 +9,14 @@
 #define APP_V2_SETTINGS_DEVICE_NAME_FIELD_BYTES 33U
 #define APP_V2_SETTINGS_SSID_FIELD_BYTES 33U
 #define APP_V2_SETTINGS_PASSPHRASE_FIELD_BYTES 64U
+#define APP_V2_SETTINGS_DEFAULT_SNAPSHOT_RETENTION_TARGET 5U
+#define APP_V2_SETTINGS_UTF8_CONTINUATION_SHIFT 6U
+#define APP_V2_SETTINGS_UUID_HYPHEN_1_INDEX 8U
+#define APP_V2_SETTINGS_UUID_HYPHEN_2_INDEX 13U
+#define APP_V2_SETTINGS_UUID_HYPHEN_3_INDEX 18U
+#define APP_V2_SETTINGS_UUID_HYPHEN_4_INDEX 23U
+#define APP_V2_SETTINGS_UUID_VERSION_INDEX 14U
+#define APP_V2_SETTINGS_UUID_VARIANT_INDEX 19U
 
 _Static_assert(APP_V2_SETTINGS_OFFSET_STATION_PASSPHRASE + APP_V2_SETTINGS_PASSPHRASE_FIELD_BYTES ==
                    APP_V2_SETTINGS_RECORD_BYTES,
@@ -108,7 +117,8 @@ static bool valid_utf8(const uint8_t *text, size_t length) {
             if ((continuation & UINT8_C(0xc0)) != UINT8_C(0x80)) {
                 return false;
             }
-            code_point = (code_point << 6U) | (uint32_t)(continuation & UINT8_C(0x3f));
+            code_point = (code_point << APP_V2_SETTINGS_UTF8_CONTINUATION_SHIFT) |
+                         (uint32_t)(continuation & UINT8_C(0x3f));
         }
         if (code_point < minimum || code_point > UINT32_C(0x10ffff) ||
             (code_point >= UINT32_C(0xd800) && code_point <= UINT32_C(0xdfff))) {
@@ -138,7 +148,10 @@ static bool valid_uuid_or_empty(const char *uuid) {
     }
     for (size_t index = 0U; index < APP_V2_UUID_TEXT_BYTES; ++index) {
         const char value = uuid[index];
-        if (index == 8U || index == 13U || index == 18U || index == 23U) {
+        if (index == APP_V2_SETTINGS_UUID_HYPHEN_1_INDEX ||
+            index == APP_V2_SETTINGS_UUID_HYPHEN_2_INDEX ||
+            index == APP_V2_SETTINGS_UUID_HYPHEN_3_INDEX ||
+            index == APP_V2_SETTINGS_UUID_HYPHEN_4_INDEX) {
             if (value != '-') {
                 return false;
             }
@@ -150,8 +163,11 @@ static bool valid_uuid_or_empty(const char *uuid) {
             return false;
         }
     }
-    return uuid[14] == '4' &&
-           (uuid[19] == '8' || uuid[19] == '9' || uuid[19] == 'a' || uuid[19] == 'b');
+    return uuid[APP_V2_SETTINGS_UUID_VERSION_INDEX] == '4' &&
+           (uuid[APP_V2_SETTINGS_UUID_VARIANT_INDEX] == '8' ||
+            uuid[APP_V2_SETTINGS_UUID_VARIANT_INDEX] == '9' ||
+            uuid[APP_V2_SETTINGS_UUID_VARIANT_INDEX] == 'a' ||
+            uuid[APP_V2_SETTINGS_UUID_VARIANT_INDEX] == 'b');
 }
 
 static bool credential_bytes_present(const app_v2_device_settings_t *settings) {
@@ -199,7 +215,7 @@ void app_v2_device_settings_init_unprovisioned(app_v2_device_settings_t *setting
     settings->credential_version = APP_V2_CREDENTIAL_VERSION;
     settings->password_algorithm_version = APP_V2_PASSWORD_ALGORITHM_VERSION;
     settings->send_mode = APP_V2_SEND_MODE_QUICK;
-    settings->snapshot_retention_target = 5U;
+    settings->snapshot_retention_target = APP_V2_SETTINGS_DEFAULT_SNAPSHOT_RETENTION_TARGET;
     (void)memcpy(settings->device_name, "ESP32 Macro Keyboard", sizeof("ESP32 Macro Keyboard"));
 }
 
@@ -393,7 +409,7 @@ app_v2_device_settings_reset_noncredential(app_v2_device_settings_t *settings) {
     (void)memcpy(settings->device_name, "ESP32 Macro Keyboard", sizeof("ESP32 Macro Keyboard"));
     settings->require_serial_confirmation = false;
     settings->send_mode = APP_V2_SEND_MODE_QUICK;
-    settings->snapshot_retention_target = 5U;
+    settings->snapshot_retention_target = APP_V2_SETTINGS_DEFAULT_SNAPSHOT_RETENTION_TARGET;
     settings->show_macro_source_previews = false;
     memset(settings->last_selected_package_id, 0, sizeof(settings->last_selected_package_id));
     settings->station_configured = false;
