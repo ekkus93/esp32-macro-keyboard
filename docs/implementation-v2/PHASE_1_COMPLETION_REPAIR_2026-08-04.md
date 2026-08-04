@@ -1,180 +1,139 @@
 # ESP32 Macro Keyboard v2 — Phase 1 Completion Repair
 
-**Status:** In progress; completion not claimed  
+**Status:** In progress; hardware completion not claimed  
 **Date:** 2026-08-04  
 **Target branch:** `master` only  
 **Starting master SHA:** `de99e4a4b287f0553fdf7d931e4a067d7c63ac23`  
 **Repair specification:**
 [`docs/PHASE_1_COMPLETION_REPAIR_SPEC_2026-08-04.md`](../PHASE_1_COMPLETION_REPAIR_SPEC_2026-08-04.md)  
 **Repair checklist:**
-[`docs/PHASE_1_COMPLETION_REPAIR_TODO_2026-08-04.md`](../PHASE_1_COMPLETION_REPAIR_TODO_2026-08-04.md)
+[`docs/PHASE_1_COMPLETION_REPAIR_TODO_2026-08-04.md`](../PHASE_1_COMPLETION_REPAIR_TODO_2026-08-04.md)  
+**Closeout addendum:**
+[`docs/implementation-v2/PHASE_1_CONTRACT_CLOSEOUT_AND_PRODUCTION_LIMITS_REPAIR_2026-08-04.md`](PHASE_1_CONTRACT_CLOSEOUT_AND_PRODUCTION_LIMITS_REPAIR_2026-08-04.md)
 
 ## 1. Scope and phase boundary
 
-This repair closes defects in the Phase 1 v2 contract layer. It does not delete
-production v1 package repositories, macro repositories, CRUD routes, revision
-behavior, serializers, or plural execution resources. Those deletions remain
-Phase 2 work.
+This repair addresses the Phase 1 v2 contract layer. It does not delete the
+production v1 package/macro repositories, CRUD routes, revision behavior,
+production parser entry points, legacy production NVS structures, or legacy React
+setup paths. Those remain Phase 2 or later work.
 
-For this report, `Phase 1 complete` can mean only that the Phase 1 contract
-infrastructure is complete, synchronized, tested, and truthfully documented. It
-does not mean the production v1 architecture has been removed.
+`Phase 1 complete` means only that the shared v2 contract infrastructure is
+synchronized, tested, documented, and supported by required hardware evidence. It
+does not mean production v1 architecture has been removed.
 
-Phase 2 implementation has not begun during this repair.
+All work was committed directly to `master`. No feature branch, pull request, or
+temporary workflow was created, and no gate was weakened.
 
-## 2. Workflow constraints observed
+## 2. Implemented task evidence
 
-- All changes were committed directly to `master`.
-- No feature branch was created.
-- No pull request was opened.
-- No temporary workflow file was added.
-- Existing gates were not weakened or bypassed.
-- Failures were repaired at their root cause and rerun through permanent CI.
+The following task groups are implemented and were validated on exact SHA
+`077ea244a99e44f62da87222597dc7cb91bdeebb`:
 
-## 3. Starting evidence
+- P1R-020: v2-neutral repository symbols;
+- P1R-021/P1R-022: checked-in repository fixture corpus and fixture-driven tests;
+- P1R-030: explicit dense-array validation and sparse-array regressions;
+- P1R-031/P1R-032: reviewed 21-route v2 manifest, TypeScript validator, C mirror,
+  Python drift checker, native tests, and focused-gate registration;
+- P1R-033/P1R-034: warning-as-error native API contract evidence and strict
+  unknown-field coverage;
+- P1R-040: centralized limits mirrors and drift checking;
+- P1R-050/P1R-051: truthful action/source limit tests and cross-language macro
+  conformance, including standalone `{A}` and `{1}` rejection;
+- P1R-060/P1R-061: settings schema drift checks and strengthened binary-record
+  rejection/reset-preservation tests;
+- P1R-070: setup-route policy synchronization and drift tests;
+- P1R-080/P1R-081: v2 traceability generation and freshness gating.
 
-The repair began after the two control documents were committed to `master` at
-`de99e4a4b287f0553fdf7d931e4a067d7c63ac23`. The previously reviewed contract
-baseline was `26920fe1917895f0ebd0ab4287285a09dcedde3e`.
+The permanent workflows on SHA `077ea244a99e44f62da87222597dc7cb91bdeebb`
+completed successfully:
 
-At the start of the repair:
+| Workflow | Run ID | Job evidence | Conclusion |
+| --- | ---: | --- | --- |
+| Quality | `30950331418` | `92130511005` | success |
+| Device Test Build | `30950331409` | `92130510699` | success |
+| Host Tests | `30950331206` | all five jobs | success |
+| Browser Tests | `30950331210` | Real Chrome Workflows | success |
 
-- no open Phase 1 repair pull request existed;
-- the permanent CI status bridge used issues 19 through 22 for `master` push
-  workflows;
-- the prior Phase 1 checkpoint explicitly did not claim Phase 1 completion;
-- production v1 package, macro, setup, parser, settings, and execution paths still
-  existed and remained outside this contract-repair scope.
+The former `final CI pending` wording is therefore retired for the task groups
+listed above.
 
-## 4. Task evidence
+## 3. Production limits closeout repair
 
-| Task group | Status | Implementation and evidence |
-| --- | --- | --- |
-| P1R-020 repository symbol cleanup | Implemented; final CI pending | Removed `RepositoryV1`, `RepositoryPackageV1`, `RepositoryMacroV1`, `validateRepositoryV1`, and `serializeRepositoryV1`; updated consumers and tests. |
-| P1R-021/P1R-022 repository fixture corpus | Implemented; final CI pending | Added a checked-in corpus covering valid, boundary, malformed, duplicate-ID, unknown-field, active-package, source-size, timing, sparse-array, non-finite, and prototype cases. |
-| P1R-030 sparse API arrays | Implemented; final CI pending | Replaced `Array.prototype.every()` density detection with explicit own-index checks; added sparse blob and diagnostics array regressions. |
-| P1R-031/P1R-032 route manifest | Implemented; final CI pending | Added `contracts/v2/api/routes.json`, exact TypeScript validation, C mirror, Python drift checker, native C tests, and focused-gate registration. The manifest contains 21 v2 routes and no package, macro, validation, or plural execution path. |
-| P1R-033/P1R-034 API contract evidence | Implemented in Phase 1 scope; final CI pending | Added warning-as-error C route/limit contract tests and nested unknown-field tests. C parser/serializer parity for all API examples is not claimed where no C parser or serializer exists. |
-| P1R-041 production limits response | Implemented; host evidence observed | `web_adapter_build_limits_json()` now emits the exact v2 limits object without `ok/data` wrapping or v1 package/import fields. The host test asserts the full serialized response. |
-| P1R-050 macro test truthfulness | Implemented; final CI pending | Split source-byte and compiled-action claims. The tests now state that schema-v1 source size bounds action count before a 4097th one-byte action can be compiled. |
-| P1R-051 canonical directives | Implemented; final CI pending | Both C and TypeScript now explicitly reject standalone `{A}` and `{1}` while preserving valid chord behavior. |
-| P1R-061 device settings | Implemented; final CI pending | Added unsupported credential/password-algorithm version rejection and stronger reset preservation assertions, including credential version. |
-| P1R-080/P1R-081 traceability | Implemented; final CI pending | Replaced the retired `docs/SPEC.md` generator with a fail-closed v2 source-fingerprint report covering `SPEC_V2.md` and `UI_UX_SPEC_V2.md`. The report is nonzero and explicitly leaves both sources unmapped until deliberate v2 citations are added. |
-| P1R-062 PBKDF2 measurement | Open | No reference ESP32-S3R8 timing run has been performed in this connector-only session. No iteration count is frozen or claimed. |
-| P1R-010/P1R-011 phase-boundary docs | In progress | This report states the boundary. `docs/TODO_V2.md` and the prior checkpoint still require final synchronized wording. |
-| P1R-090 through P1R-093 final validation | In progress | Permanent `master` CI is being used. Final exact-SHA results are not yet recorded. |
+A later source review found that `contracts/v2/limits.json` contained 18 values
+while the production serializer, canonical API example, TypeScript response type,
+and runtime guard exposed only 14. The omitted values were:
 
-## 5. Failure-driven repair record
+- `activeSessionsMax`;
+- `sessionIdleLifetimeSeconds`;
+- `sessionAbsoluteLifetimeSeconds`;
+- `serialConfirmationTimeoutSeconds`.
 
-### 5.1 Quality formatting failure
+The closeout repair now:
 
-Quality run `30940176253` on `993a5ba03f7d694405f4d3704fc3bc757babb13b`
-failed the authoritative formatting gate for the first C route mirror, its native
-test, and the limits serializer.
+- emits all 18 fields from `web_adapter_build_limits_json()`;
+- preserves a top-level object without `ok` or `data` wrapping;
+- rejects truncation and clears the output buffer;
+- excludes retired v1 package/import fields;
+- expands the canonical API example and `LimitsResponse` type;
+- requires all 18 fields and exact values in `isLimitsResponse()`;
+- tests removal and mutation of every individual limits field;
+- makes `scripts/check-v2-limits.py` compare the API example with the central
+  limits contract.
 
-The repair replaced the fragile X-macro mirror with a typed static C contract
-array, updated the native consumer and drift checker, and normalized the limits
-serializer argument layout. No formatter or warning gate was weakened.
+Detailed commits, files, and current validation state are recorded in the
+closeout addendum linked above.
 
-### 5.2 Host include integration failure
+## 4. Production integration boundaries
 
-Host run `30942096626` on
-`911b70660d2cf35bff22206887bc59233f646b08` failed because the host build of
-`web_server_adapter_json.c` could not resolve `app_limits_v2.h`.
+The following are explicitly not claimed complete:
 
-The source now uses a location-stable sibling-component include, so the same
-production file builds under ESP-IDF, ordinary host tests, native coverage, and
-sanitizers without broad target-specific include leakage.
+- active production package/macro route-table migration;
+- deletion of firmware-owned package/macro repositories;
+- production execution migration from legacy parser entry points to
+  `macro_compile_v2`;
+- production provisioning/NVS migration to the v2 binary settings record;
+- production React setup migration to the exact v2 setup route contract.
 
-On run `30942349476` for
-`7befd65ce8daa95e091803c4f95d7424166608c3`:
+The v2 route manifest describes and protects the target surface. It does not
+prove the active production route table has already been migrated.
 
-- Host Tests passed;
-- Host ASan and UBSan passed;
-- native coverage was no longer reported as a failing completed job at the last
-  observed status update.
+## 5. Traceability status
 
-### 5.3 Frontend fixture type and lint failures
+`docs/SPEC_V2_TEST_TRACEABILITY.md` fingerprints both authoritative v2 source
+documents. Both remain visibly unmapped because the current tests do not yet use
+explicit `SPEC_V2 §...` or `UI_UX_SPEC_V2 §...` references. This is an honest
+worklist, not a coverage claim.
 
-The frontend initially inferred checked-in empty diagnostics arrays as `never[]`,
-which made sparse `string[]` fixtures fail type checking. The fixtures now use
-explicit mutable test-only types.
+## 6. PBKDF2 hardware blocker
 
-A subsequent strict ESLint run found one unnecessary assertion in the route
-manifest test. It was removed rather than suppressed.
+P1R-062 remains open.
 
-### 5.4 Exact route metadata validation failure
+The device-test harness exists and uses the same production mbedTLS
+PBKDF2-HMAC-SHA-256 derivation path. It measures 60,000, 90,000, 120,000, and
+150,000 iterations with ten samples and prints median, p90, and worst-case timing.
+The execution procedure is documented in `firmware/test_app/README.md`.
 
-Frontend coverage exposed that the first TypeScript route validator rejected
-changed identities but accepted otherwise valid changed success status and
-response content type values.
+No reference ESP32-S3R8 timing run has been performed through this connector
+session. No board model, serial port, host OS, raw timing distribution, or selected
+iteration count has been recorded. The v2 settings contract therefore retains its
+measurement placeholder, and no measured-and-frozen iteration value is claimed.
 
-The validator now compares every reviewed route field:
+The existing legacy auth constant of 120,000 iterations is not accepted as v2
+hardware evidence merely because it is already present in source.
 
-- ID;
-- method;
-- path;
-- authentication policy;
-- request body contract;
-- request content type;
-- request maximum;
-- response content type;
-- success status;
-- exact ordered error-status set.
+## 7. Remaining work before Phase 1 closeout
 
-The failing mutations are therefore repaired in implementation, not hidden by
-changing their expected test result.
+1. Run the `[benchmark]` Unity test on the reference ESP32-S3R8.
+2. Record the board, port, host OS, exact SHA, commands, and every
+   `PBKDF2_BENCH` line.
+3. Select a measured value meeting the 250–500 ms rule.
+4. Freeze that value in the v2 settings/auth contract and add drift and binary
+   record tests.
+5. Synchronize `docs/TODO_V2.md`, the original Phase 1 repair checklist, and the
+   closeout checklist after the hardware result exists.
+6. Run all four permanent workflows on one final exact `master` SHA and record
+   their run/job IDs.
 
-## 6. Production integration boundaries
-
-The following boundaries remain true and must not be described as completed
-Phase 1 production migration:
-
-- production still contains firmware-owned package and macro repositories;
-- production still contains package/macro CRUD and related v1 routes;
-- production execution/validation still contains legacy parser entry paths;
-- production provisioning/NVS still contains legacy settings structures;
-- production React setup paths remain legacy until their later integration phase;
-- deleting those paths is Phase 2 or later work under `docs/TODO_V2.md`.
-
-The repaired v2 route manifest defines the intended target surface and prevents
-contract drift. It does not claim the active production route table has already
-been migrated.
-
-## 7. Traceability status
-
-`docs/SPEC_V2_TEST_TRACEABILITY.md` now fingerprints both authoritative v2 source
-documents and reports a nonzero source count. The conservative initial report
-marks both source documents unmapped because existing tests predominantly cite
-retired `SPEC` section labels rather than explicit `SPEC_V2` or
-`UI_UX_SPEC_V2` labels.
-
-This is intentional. The report is a visible worklist, not a coverage score, and
-it does not infer coverage from legacy citations.
-
-## 8. Hardware evidence
-
-No hardware command was run during this repair session. In particular:
-
-- no ESP32-S3R8 PBKDF2 benchmark was run;
-- no board model, serial port, build ID, timing distribution, or selected
-  iteration count is available;
-- P1R-062 remains open;
-- Phase 1 repair completion is not claimed while that mandatory item remains open,
-  unless the product owner explicitly accepts a documented deferral.
-
-## 9. Validation still required
-
-Before this report may claim completion:
-
-1. all focused v2 checkers and CTest/Vitest suites must pass;
-2. `./scripts/check-all.sh` must pass through the permanent Quality workflow;
-3. Browser Tests, Host Tests, Device Test Build, and Quality must pass on one exact
-   final `master` SHA;
-4. `docs/TODO_V2.md`, the prior Phase 1 checkpoint, this report, and the repair
-   TODO must agree on the phase boundary;
-5. all completed repair-TODO items must be checked with evidence;
-6. P1R-062 must either have real ESP32-S3R8 evidence or remain explicitly open
-   under a product-owner-approved deferral.
-
-No unchecked task is claimed complete in this report.
+Phase 1 completion and Phase 2 entry are not claimed while those items remain
+open. No unchecked task is claimed complete.
