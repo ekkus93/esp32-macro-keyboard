@@ -60,6 +60,15 @@ jobs:
             exit 1
           fi
           npm --prefix webapp ci --ignore-scripts --no-audit --no-fund
+          (
+            cd webapp
+            npm audit --json > "${RUNNER_TEMP}/npm-audit.json" || true
+          )
+          node - <<'NODE'
+          const report = require(`${process.env.RUNNER_TEMP}/npm-audit.json`)
+          console.log('Current fast-uri audit finding:')
+          console.log(JSON.stringify(report.vulnerabilities?.['fast-uri'] ?? null, null, 2))
+          NODE
           npm --prefix webapp run audit:ci
 
       - name: Commit regenerated lockfile
