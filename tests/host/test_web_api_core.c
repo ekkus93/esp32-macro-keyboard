@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stddef.h>
+#include <string.h>
 
 #include "app_error.h"
 #include "test_assert.h"
@@ -47,42 +48,132 @@ static void test_retired_routes_are_absent(void) {
     }
 }
 
-static void test_path_and_method_policy(void) {
-    web_api_path_t parsed = {0};
+static void test_invalid_paths(void) {
+    web_api_path_t parsed = {.route = WEB_API_ROUTE_SETTINGS};
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_api_parse_path(NULL, &parsed));
+    TEST_CHECK_EQ_INT(WEB_API_ROUTE_UNKNOWN, parsed.route);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_api_parse_path("/api/v1/settings", NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_api_parse_path("api/v1/settings", &parsed));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_api_parse_path("/api/v1/settings?x=1", &parsed));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_parse_path("/api/v1/settings#fragment", &parsed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_api_parse_path("/api/v1/settings/%2f", &parsed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_parse_path("/api//v1/settings", &parsed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_parse_path("/api/v1/../settings", &parsed));
     TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, web_api_parse_path("/api/v1/unknown", &parsed));
-
-    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_AUTH_SESSION, WEB_API_METHOD_GET));
-    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_AUTH_SESSION, WEB_API_METHOD_POST));
-    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
-    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
-    TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
-    TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_DEVICE_RESTART, WEB_API_METHOD_POST));
-    TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_DIAGNOSTICS_FULL));
-    TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_FACTORY_RESET));
-    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_FACTORY_RESET, false));
-    TEST_CHECK(!web_api_route_requires_worker(WEB_API_ROUTE_SETTINGS));
 }
 
-static void test_content_type_request_id_and_status(void) {
+static void test_method_and_body_policy(void) {
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_AUTH_SESSION, WEB_API_METHOD_GET));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_AUTH_SESSION, WEB_API_METHOD_POST));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_DIAGNOSTICS_FULL, WEB_API_METHOD_GET));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_DIAGNOSTICS_FULL, WEB_API_METHOD_DELETE));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_POST));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD,
+                                           WEB_API_METHOD_POST));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD,
+                                            WEB_API_METHOD_GET));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_DEVICE_RESTART, WEB_API_METHOD_POST));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_DEVICE_RESET_SETTINGS,
+                                           WEB_API_METHOD_POST));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_DEVICE_FACTORY_RESET,
+                                           WEB_API_METHOD_POST));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_UNKNOWN, WEB_API_METHOD_GET));
+
+    TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
+    TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
+    TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD,
+                                           WEB_API_METHOD_POST));
+    TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_DEVICE_RESTART, WEB_API_METHOD_POST));
+    TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_DEVICE_RESET_SETTINGS,
+                                           WEB_API_METHOD_POST));
+    TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_DEVICE_FACTORY_RESET,
+                                           WEB_API_METHOD_POST));
+    TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_UNKNOWN, WEB_API_METHOD_POST));
+}
+
+static void test_session_confirmation_and_worker_policy(void) {
+    TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_DIAGNOSTICS_FULL));
+    TEST_CHECK(!web_api_route_requires_session(WEB_API_ROUTE_UNKNOWN));
+
+    TEST_CHECK(web_api_route_requires_physical_confirmation(
+        WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD));
+    TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_RESTART));
+    TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_RESET_SETTINGS));
+    TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_FACTORY_RESET));
+    TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SETTINGS));
+    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_FACTORY_RESET, false));
+    TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_SETTINGS, true));
+    TEST_CHECK(!web_api_route_requires_worker(WEB_API_ROUTE_SETTINGS));
+    TEST_CHECK(!web_api_route_requires_worker(WEB_API_ROUTE_UNKNOWN));
+}
+
+static void test_content_type_policy(void) {
+    TEST_CHECK(!web_api_content_type_is_json(NULL));
     TEST_CHECK(web_api_content_type_is_json("application/json"));
-    TEST_CHECK(web_api_content_type_is_json(" Application/JSON; charset=UTF-8"));
+    TEST_CHECK(web_api_content_type_is_json("  application/json  "));
+    TEST_CHECK(web_api_content_type_is_json(" Application/JSON ;  charset=UTF-8"));
+    TEST_CHECK(!web_api_content_type_is_json(""));
     TEST_CHECK(!web_api_content_type_is_json("text/plain"));
+    TEST_CHECK(!web_api_content_type_is_json("application/json;"));
+    TEST_CHECK(!web_api_content_type_is_json("application/json; charset=ascii"));
+    TEST_CHECK(!web_api_content_type_is_json("application/json; charset=utf-8; version=1"));
+    TEST_CHECK(!web_api_content_type_is_json("application/jsonx"));
+}
+
+static void test_request_id_policy(void) {
+    TEST_CHECK(!web_api_request_id_is_valid(NULL));
+    TEST_CHECK(!web_api_request_id_is_valid(""));
     TEST_CHECK(web_api_request_id_is_valid("request-123_abc.def:4"));
     TEST_CHECK(!web_api_request_id_is_valid("contains/slash"));
-    TEST_CHECK_EQ_U64(404U, web_api_http_status_for_error(APP_ERROR_NOT_FOUND));
+    TEST_CHECK(!web_api_request_id_is_valid("contains space"));
+
+    char maximum[WEB_API_REQUEST_ID_MAX_BYTES + 1U];
+    memset(maximum, 'a', sizeof(maximum));
+    maximum[WEB_API_REQUEST_ID_MAX_BYTES] = '\0';
+    TEST_CHECK(web_api_request_id_is_valid(maximum));
+
+    char too_long[WEB_API_REQUEST_ID_MAX_BYTES + 2U];
+    memset(too_long, 'b', sizeof(too_long));
+    too_long[WEB_API_REQUEST_ID_MAX_BYTES + 1U] = '\0';
+    TEST_CHECK(!web_api_request_id_is_valid(too_long));
+}
+
+static void test_error_status_mapping(void) {
+    TEST_CHECK_EQ_U64(200U, web_api_http_status_for_error(APP_ERROR_NONE));
     TEST_CHECK_EQ_U64(422U, web_api_http_status_for_error(APP_ERROR_INVALID_ARGUMENT));
+    TEST_CHECK_EQ_U64(422U, web_api_http_status_for_error(APP_ERROR_MACRO_SYNTAX));
+    TEST_CHECK_EQ_U64(422U, web_api_http_status_for_error(APP_ERROR_MACRO_LIMIT));
+    TEST_CHECK_EQ_U64(404U, web_api_http_status_for_error(APP_ERROR_NOT_FOUND));
+    TEST_CHECK_EQ_U64(409U, web_api_http_status_for_error(APP_ERROR_CONFLICT));
+    TEST_CHECK_EQ_U64(409U, web_api_http_status_for_error(APP_ERROR_EXECUTOR_BUSY));
+    TEST_CHECK_EQ_U64(409U, web_api_http_status_for_error(APP_ERROR_EXECUTION_CANCELLED));
+    TEST_CHECK_EQ_U64(507U, web_api_http_status_for_error(APP_ERROR_STORAGE_FULL));
     TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_STORAGE_UNAVAILABLE));
+    TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_STORAGE_CORRUPT));
+    TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_USB_NOT_READY));
+    TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_TIMEOUT));
+    TEST_CHECK_EQ_U64(401U, web_api_http_status_for_error(APP_ERROR_AUTH_REQUIRED));
+    TEST_CHECK_EQ_U64(401U, web_api_http_status_for_error(APP_ERROR_AUTH_FAILED));
+    TEST_CHECK_EQ_U64(429U, web_api_http_status_for_error(APP_ERROR_RATE_LIMITED));
+    TEST_CHECK_EQ_U64(500U, web_api_http_status_for_error(APP_ERROR_IO));
+    TEST_CHECK_EQ_U64(500U, web_api_http_status_for_error(APP_ERROR_INTERNAL));
 }
 
 int main(void) {
     test_active_routes();
     test_retired_routes_are_absent();
-    test_path_and_method_policy();
-    test_content_type_request_id_and_status();
+    test_invalid_paths();
+    test_method_and_body_policy();
+    test_session_confirmation_and_worker_policy();
+    test_content_type_policy();
+    test_request_id_policy();
+    test_error_status_mapping();
     return 0;
 }

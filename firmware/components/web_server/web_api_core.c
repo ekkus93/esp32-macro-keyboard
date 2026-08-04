@@ -52,7 +52,7 @@ bool web_api_request_id_is_valid(const char *request_id) {
         return false;
     }
     const size_t length = strlen(request_id);
-    if (length == 0U || length > 128U) {
+    if (length == 0U || length > WEB_API_REQUEST_ID_MAX_BYTES) {
         return false;
     }
     for (size_t index = 0U; index < length; ++index) {
