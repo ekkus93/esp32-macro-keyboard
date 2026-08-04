@@ -9,6 +9,7 @@ import {
   macroErrorMessageClass,
   type MacroErrorMessageClass,
 } from "../src/v2/macroErrorClass";
+import { v2Limits } from "../src/v2/limits";
 
 interface CorpusValid {
   estimatedDurationMs: number;
@@ -90,16 +91,12 @@ describe("v2 macro compiler boundaries", () => {
     expect(result.estimatedDurationMs).toBe(0);
   });
 
-  test("accepts exactly 4096 compiled actions and rejects the next", () => {
+  test("accepts 4096 source bytes and rejects 4097 source bytes", () => {
     const maximum = compileMacro("a".repeat(4096), {
       keyPressMs: 0,
       interKeyMs: 0,
     });
     expect(maximum.ok).toBe(true);
-    if (!maximum.ok) {
-      throw new Error(maximum.error.message);
-    }
-    expect(maximum.actions).toHaveLength(4096);
 
     const excessive = compileMacro("a".repeat(4097), {
       keyPressMs: 0,
@@ -115,6 +112,27 @@ describe("v2 macro compiler boundaries", () => {
         message: "macro source exceeds the byte limit",
       },
     });
+  });
+
+  test("documents that source bytes bound the maximum reachable action count", () => {
+    expect(v2Limits.compiledActionsMax).toBe(v2Limits.macroSourceMaxBytes);
+
+    const maximum = compileMacro("a".repeat(v2Limits.macroSourceMaxBytes), {
+      keyPressMs: 0,
+      interKeyMs: 0,
+    });
+    expect(maximum.ok).toBe(true);
+    if (!maximum.ok) {
+      throw new Error(maximum.error.message);
+    }
+    expect(maximum.actions).toHaveLength(v2Limits.compiledActionsMax);
+
+    // Every valid token consumes at least one source byte and produces at most
+    // one action. Therefore schema v1 cannot reach action 4097 without first
+    // exceeding the 4096-byte source limit.
+    expect(maximum.actions.length).toBeLessThanOrEqual(
+      v2Limits.macroSourceMaxBytes,
+    );
   });
 
   test("accepts exactly 300 seconds and rejects a longer estimate", () => {
