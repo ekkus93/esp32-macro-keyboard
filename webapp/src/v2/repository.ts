@@ -11,7 +11,7 @@ const nameMaximumBytes = 64;
 const sourceMaximumBytes = 4096;
 const timingMaximumMs = 10_000;
 
-export interface RepositoryMacroV1 {
+export interface RepositoryMacro {
   id: string;
   name: string;
   source: string;
@@ -19,16 +19,16 @@ export interface RepositoryMacroV1 {
   interKeyMs: number;
 }
 
-export interface RepositoryPackageV1 {
+export interface RepositoryPackage {
   id: string;
   name: string;
-  macros: RepositoryMacroV1[];
+  macros: RepositoryMacro[];
 }
 
-export interface RepositoryV1 {
+export interface Repository {
   format: "esp32-macro-keyboard-repository";
   schemaVersion: 1;
-  packages: RepositoryPackageV1[];
+  packages: RepositoryPackage[];
 }
 
 export interface RepositoryValidationIssue {
@@ -40,7 +40,7 @@ export interface RepositoryValidationIssue {
 export type MacroSourceValidator = (source: string) => string | null;
 
 export type RepositoryValidationResult =
-  | { ok: true; value: RepositoryV1 }
+  | { ok: true; value: Repository }
   | { ok: false; issues: RepositoryValidationIssue[] };
 
 function utf8ByteLength(value: string): number {
@@ -133,7 +133,7 @@ function validateMacro(
   validateSource: MacroSourceValidator,
   macroIds: Set<string>,
   issues: RepositoryValidationIssue[],
-): RepositoryMacroV1 | null {
+): RepositoryMacro | null {
   if (!isPlainRecord(value)) {
     addIssue(issues, path, "invalid_object", "Macro must be a plain object.");
     return null;
@@ -246,7 +246,7 @@ function validatePackage(
   packageIds: Set<string>,
   macroIds: Set<string>,
   issues: RepositoryValidationIssue[],
-): RepositoryPackageV1 | null {
+): RepositoryPackage | null {
   const path = `$.packages[${String(index)}]`;
   if (!isPlainRecord(value)) {
     addIssue(issues, path, "invalid_object", "Package must be a plain object.");
@@ -287,7 +287,7 @@ function validatePackage(
     valid = false;
   }
 
-  const macros: RepositoryMacroV1[] = [];
+  const macros: RepositoryMacro[] = [];
   if (!Array.isArray(value.macros) || !isDenseArray(value.macros)) {
     addIssue(
       issues,
@@ -324,7 +324,7 @@ function validatePackage(
   return { id: value.id, name: value.name, macros };
 }
 
-export function validateRepositoryV1(
+export function validateRepository(
   value: unknown,
   validateSource: MacroSourceValidator,
 ): RepositoryValidationResult {
@@ -364,7 +364,7 @@ export function validateRepositoryV1(
     );
   }
 
-  const packages: RepositoryPackageV1[] = [];
+  const packages: RepositoryPackage[] = [];
   if (!Array.isArray(value.packages) || !isDenseArray(value.packages)) {
     addIssue(
       issues,
@@ -408,7 +408,7 @@ export function validateRepositoryV1(
   };
 }
 
-export function serializeRepositoryV1(repository: RepositoryV1): string {
+export function serializeRepository(repository: Repository): string {
   return JSON.stringify({
     format: repository.format,
     schemaVersion: repository.schemaVersion,
