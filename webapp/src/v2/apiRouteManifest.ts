@@ -224,11 +224,14 @@ function isRoute(
     typeof value.method !== "string" ||
     !methods.has(value.method as ApiMethod) ||
     typeof value.authentication !== "string" ||
-    !authenticationValues.has(value.authentication as ApiAuthentication) ||
-    !isRequest(value.request) ||
-    !isResponse(value.response) ||
-    !isErrorStatuses(value.errorStatuses, value.response.successStatus)
+    !authenticationValues.has(value.authentication as ApiAuthentication)
   ) {
+    return false;
+  }
+  if (!isRequest(value.request) || !isResponse(value.response)) {
+    return false;
+  }
+  if (!isErrorStatuses(value.errorStatuses, value.response.successStatus)) {
     return false;
   }
 
@@ -261,10 +264,5 @@ export function isApiRouteManifest(value: unknown): value is ApiRouteManifest {
     }
   }
 
-  return value.routes.every(
-    (route) =>
-      !route.path.includes("/package") &&
-      !route.path.includes("/macro") &&
-      !route.path.includes("/executions"),
-  );
+  return true;
 }
