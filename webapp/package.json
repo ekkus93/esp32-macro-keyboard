@@ -12,7 +12,7 @@
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint . --max-warnings=0",
     "stylelint": "stylelint 'src/**/*.css' --max-warnings=0",
-    "format:check": "prettier --check .",
+    "format:check": "prettier --check . || (printf '\n--- apiRouteManifest.ts ---\n' && prettier src/v2/apiRouteManifest.ts && printf '\n--- v2-api-contracts.test.ts ---\n' && prettier tests/v2-api-contracts.test.ts && exit 1)",
     "format:write": "prettier --write .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
