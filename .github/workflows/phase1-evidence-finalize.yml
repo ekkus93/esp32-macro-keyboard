@@ -1,4 +1,5 @@
 # One-shot Phase 1 evidence finalizer; remove after it commits the checkpoint.
+# Second master commit triggers evaluation after the workflow exists.
 name: Phase 1 Evidence Finalize
 
 on:
