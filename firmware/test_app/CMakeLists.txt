@@ -5,6 +5,7 @@ set(IDF_TARGET
     CACHE STRING "ESP-IDF target"
 )
 set(EXTRA_COMPONENT_DIRS
+    "${CMAKE_CURRENT_LIST_DIR}/../components/app_contracts_v2"
     "${CMAKE_CURRENT_LIST_DIR}/../components/macro_model"
     "${CMAKE_CURRENT_LIST_DIR}/../components/macro_parser"
     "${CMAKE_CURRENT_LIST_DIR}/../components/usb_keyboard"
