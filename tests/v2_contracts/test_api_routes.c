@@ -6,8 +6,7 @@
 #include "api_routes_v2.h"
 #include "app_limits_v2.h"
 
-_Static_assert(sizeof(app_v2_api_routes) / sizeof(app_v2_api_routes[0]) ==
-                   APP_V2_API_ROUTE_COUNT,
+_Static_assert(sizeof(app_v2_api_routes) / sizeof(app_v2_api_routes[0]) == APP_V2_API_ROUTE_COUNT,
                "v2 API route count differs");
 
 static int failures = 0;
@@ -127,7 +126,6 @@ int main(void) {
         (void)fprintf(stderr, "%d v2 API route assertion(s) failed\n", failures);
         return 1;
     }
-    (void)printf("all %u v2 API route contracts passed\n",
-                 (unsigned int)APP_V2_API_ROUTE_COUNT);
+    (void)printf("all %u v2 API route contracts passed\n", (unsigned int)APP_V2_API_ROUTE_COUNT);
     return 0;
 }
