@@ -20,12 +20,22 @@ static void test_json_envelopes(void) {
         "\"delayDirectiveMaxMs\":10000,\"keyPressMaxMs\":10000,"
         "\"interKeyMaxMs\":10000,\"estimatedDurationMaxMs\":300000,"
         "\"executorAbsoluteDeadlineMs\":310000,\"jsonBodyMaxBytes\":8192,"
-        "\"blobMaxBytes\":131072,\"adminPasswordMinBytes\":12,"
+        "\"blobMaxBytes\":131072,\"activeSessionsMax\":8,"
+        "\"sessionIdleLifetimeSeconds\":86400,"
+        "\"sessionAbsoluteLifetimeSeconds\":604800,"
+        "\"serialConfirmationTimeoutSeconds\":60,\"adminPasswordMinBytes\":12,"
         "\"adminPasswordMaxBytes\":128,\"snapshotRetentionTargetMax\":100}",
         output);
     TEST_CHECK(strstr(output, "\"ok\"") == NULL);
+    TEST_CHECK(strstr(output, "\"data\"") == NULL);
     TEST_CHECK(strstr(output, "macrosPerPackage") == NULL);
+    TEST_CHECK(strstr(output, "\"packages\"") == NULL);
     TEST_CHECK(strstr(output, "importBytes") == NULL);
+
+    char limits_small[64U];
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL,
+                         web_adapter_build_limits_json(limits_small, sizeof(limits_small)));
+    TEST_CHECK_EQ_STRING("", limits_small);
 
     char small[8U];
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, web_adapter_build_error_json(APP_ERROR_IO, "too long",
