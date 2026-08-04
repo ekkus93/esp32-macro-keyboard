@@ -23,4 +23,14 @@ describe("v2 canonical chord tokens", () => {
       expect(punctuation.error.message).toBe("invalid chord");
     }
   });
+
+  test("rejects standalone letter and digit directives", () => {
+    for (const source of ["{A}", "{1}"]) {
+      const result = compileMacro(source, timing);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.message).toBe("unknown key directive");
+      }
+    }
+  });
 });
