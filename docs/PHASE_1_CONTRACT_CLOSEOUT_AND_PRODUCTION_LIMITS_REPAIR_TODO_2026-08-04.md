@@ -4,6 +4,7 @@
 **Date:** 2026-08-04  
 **Target branch:** `master` only  
 **Baseline SHA at review:** `077ea244a99e44f62da87222597dc7cb91bdeebb`  
+**Validated software SHA:** `195806e1fca76777fe86a7d6b9873dc3ddb32efd`  
 **Software-repair evidence:**
 `docs/implementation-v2/PHASE_1_CONTRACT_CLOSEOUT_AND_PRODUCTION_LIMITS_REPAIR_2026-08-04.md`  
 **Companion spec:**
@@ -111,14 +112,15 @@ Implementation commits:
       accepted.
 - [x] Add or update TypeScript tests proving any omitted field is rejected.
 - [x] Add or update TypeScript tests proving changed values are rejected.
-- [ ] Run the focused limits checker:
+- [x] Run the focused limits checker:
 
 ```bash
 python3 scripts/check-v2-limits.py
 ```
 
-The committed permanent Quality workflow is the authoritative execution path for
-this command. Final exact-SHA evidence remains open below.
+Evidence: Quality run `30955100062`, job `92146219009`, executed the
+fail-closed authoritative gate on SHA
+`195806e1fca76777fe86a7d6b9873dc3ddb32efd` and completed successfully.
 
 ## P1C-020 — Confirm PBKDF2 benchmark harness
 
@@ -131,12 +133,13 @@ this command. Final exact-SHA evidence remains open below.
       median, p90, and worst-case timing.
 - [ ] Confirm the benchmark covers enough candidates to select a 250-500 ms
       derivation target on ESP32-S3R8.
-- [ ] Confirm the device-test firmware still builds after the documentation and
-      closeout changes on the final exact SHA.
+- [x] Confirm the device-test firmware still builds after the documentation and
+      closeout changes on the validated software SHA.
 
 The harness measures 60,000, 90,000, 120,000, and 150,000 iterations with ten
 samples. Candidate sufficiency cannot be established until the physical timings
-are observed.
+are observed. Device Test Build run `30955099974`, job `92146201274`, passed
+source lint and ESP32-S3 firmware compilation on the validated software SHA.
 
 ## P1C-021 — Run PBKDF2 benchmark on ESP32-S3R8
 
@@ -191,12 +194,13 @@ The existing legacy value of 120,000 is not treated as a measured v2 value.
 - [x] Preserve tests proving unprovisioned records contain no verifier metadata.
 - [ ] Add or update tests proving reset-settings preserves the frozen iteration
       count.
-- [ ] Run the focused settings schema checker:
+- [x] Run the focused settings schema checker:
 
 ```bash
 python3 scripts/check-v2-settings-schema.py
 ```
 
+The current schema checker passed through Quality on the validated software SHA.
 Frozen-value assertions cannot be written truthfully until P1C-021 selects a
 measured value.
 
@@ -206,10 +210,13 @@ measured value.
       `docs/implementation-v2/PHASE_1_COMPLETION_REPAIR_2026-08-04.md`.
 - [x] Replace stale `final CI pending` language for tasks with recorded passing
       CI evidence.
-- [ ] Record the exact final SHA for the closeout repair.
+- [x] Record the exact validated software SHA for this repair.
+- [ ] Record the exact final Phase 1 closure SHA after hardware-derived changes.
 - [x] Record every changed file.
-- [ ] Record final focused commands and pass/fail results.
-- [ ] Record final permanent CI workflow names, run IDs, job IDs, and conclusions.
+- [x] Record focused commands and pass/fail results for the validated software
+      SHA.
+- [x] Record permanent CI workflow names, run IDs, job IDs, and conclusions for
+      the validated software SHA.
 - [ ] Record PBKDF2 benchmark hardware evidence.
 - [ ] If PBKDF2 hardware is explicitly deferred by the product owner, record the
       deferral and keep the task visibly open.
@@ -217,9 +224,10 @@ measured value.
 - [x] State that production v1 architecture deletion remains Phase 2.
 - [x] State that no unchecked task is being claimed complete.
 
-The prior exact-SHA CI evidence for
-`077ea244a99e44f62da87222597dc7cb91bdeebb` is recorded. The current software
-repair still requires final-workflow evidence.
+Validated software SHA:
+`195806e1fca76777fe86a7d6b9873dc3ddb32efd`. Final Phase 1 closure remains open
+because the hardware result will require additional contract, firmware, test,
+and documentation commits.
 
 ## P1C-031 — Synchronize Phase 1 TODOs and boundaries
 
@@ -239,64 +247,83 @@ repair still requires final-workflow evidence.
 - [x] Confirm docs do not claim production setup v2 integration unless active
       production routes and React clients use the exact v2 setup contract.
 
-Final synchronization remains open until the hardware-selected iteration value
-can be represented consistently in every controlling document.
+Final closeout synchronization remains open until the hardware-selected iteration
+value and final Phase 1 SHA can be represented consistently in every controlling
+document.
 
 ## P1C-040 — Run focused contract validation
 
-- [ ] Run the limits drift checker:
+- [x] Run the limits drift checker:
 
 ```bash
 python3 scripts/check-v2-limits.py
 ```
 
-- [ ] Run the device-settings schema checker:
+- [x] Run the device-settings schema checker:
 
 ```bash
 python3 scripts/check-v2-settings-schema.py
 ```
 
-- [ ] Run the setup-route policy checker:
+- [x] Run the setup-route policy checker:
 
 ```bash
 python3 scripts/check-v2-setup-route-policy.py
 ```
 
-- [ ] Run the API route drift checker:
+- [x] Run the API route drift checker:
 
 ```bash
 python3 scripts/check-v2-api-routes.py
 ```
 
-- [ ] Run the full focused v2 contract gate:
+- [ ] Run the full focused v2 contract gate with web suites in the same command:
 
 ```bash
 ./scripts/check-v2-contracts.sh
 ```
 
-- [ ] If local web dependency installation is unavailable, run the native-only
-      contract gate and record that this is not a substitute for CI:
+- [x] Run the native-only contract gate through the authoritative Quality path
+      and record that it is not a substitute for the full web-enabled command:
 
 ```bash
 ./scripts/check-v2-contracts.sh --native-only
 ```
 
-- [ ] Run or obtain final-SHA CI evidence for the host limits serializer test.
-- [ ] Run or obtain final-SHA CI evidence for focused v2 Vitest suites.
-- [ ] Run or obtain final-SHA CI evidence for native v2 CTest.
+- [x] Run or obtain validated-SHA CI evidence for the host limits serializer
+      test.
+- [x] Run or obtain validated-SHA CI evidence for focused v2 Vitest suites.
+- [x] Run or obtain validated-SHA CI evidence for native v2 CTest.
+
+Evidence: Quality run `30955100062` passed the four Python drift checkers and
+native v2 CTest through `check-all.sh`. Host Tests run `30955100784` passed the
+frontend suites, host serializer tests, native tests, sanitizers, and coverage.
 
 ## P1C-041 — Run full validation gates
 
-- [ ] Run or obtain CI evidence for `./scripts/check-all.sh` through the Quality
-      workflow.
-- [ ] Run or obtain CI evidence for Host Tests.
-- [ ] Run or obtain CI evidence for Browser Tests.
-- [ ] Run or obtain CI evidence for Device Test Build.
-- [ ] Confirm all four permanent `master` workflows pass on the same exact final
-      SHA.
+- [x] Obtain CI evidence for `./scripts/check-all.sh` through the Quality
+      workflow on the validated software SHA.
+- [x] Obtain CI evidence for Host Tests on the validated software SHA.
+- [x] Obtain CI evidence for Browser Tests on the validated software SHA.
+- [x] Obtain CI evidence for Device Test Build on the validated software SHA.
+- [x] Confirm all four permanent `master` workflows pass on the same exact
+      validated software SHA.
+- [ ] Confirm all four permanent workflows pass on the final Phase 1 closure SHA
+      after hardware-derived changes.
 - [ ] Confirm no failed, cancelled, skipped-required, pending, or running job is
-      hidden behind an older status issue.
-- [ ] Record workflow run IDs and job IDs in the implementation report.
+      hidden behind an older status issue for the final Phase 1 closure SHA.
+- [x] Record validated software workflow run IDs and job IDs in the implementation
+      report.
+
+Validated software evidence:
+
+- Quality run `30955100062`, job `92146219009`: success.
+- Host Tests run `30955100784`, jobs `92146169171`, `92146169229`,
+  `92146169249`, `92146169288`, and `92146169337`: success.
+- Browser Tests run `30955100871`, job `92146169221`: success.
+- Device Test Build run `30955099974`, job `92146201274`: success.
+
+All runs used exact SHA `195806e1fca76777fe86a7d6b9873dc3ddb32efd`.
 
 ## P1C-050 — Final source review before closeout
 
@@ -310,8 +337,8 @@ python3 scripts/check-v2-api-routes.py
 - [x] Confirm every checked task has evidence.
 - [x] Confirm every unchecked task is called out as open or explicitly deferred.
 
-The compare from the reviewed baseline to the software-repair SHA contains only
-the intended contract, test, documentation, and evidence changes; no Phase 2
+The compare from the reviewed baseline to the validated software SHA contains
+only the intended contract, test, documentation, and evidence changes; no Phase 2
 production deletion appears.
 
 ## Exit gate
@@ -328,15 +355,17 @@ This repair is complete only when all of the following are true:
 - [ ] Native tests prove provisioned settings encode, decode, validate, and reset
       while preserving the frozen iteration count.
 - [x] Phase 1 evidence docs no longer contain stale pending-CI language for the
-      previously validated baseline.
+      validated software repair.
 - [ ] Phase 1 and Phase 2 boundaries are synchronized across all controlling
       docs.
-- [ ] Focused v2 contract gates pass on the final exact SHA.
+- [ ] Full focused v2 contract gates pass on the final exact SHA.
 - [ ] Quality, Host Tests, Browser Tests, and Device Test Build pass on one exact
-      final `master` SHA.
+      final Phase 1 closure SHA.
 - [x] No report claims production v2 migration or Phase 2 deletion that has not
       been implemented.
 
-**Current result:** software limits repair implemented; Phase 1 closeout remains
-open for physical PBKDF2 evidence, frozen-value implementation/tests, final
-cross-document synchronization, and exact-SHA validation.
+**Current result:** software limits repair implemented and validated green on
+exact SHA `195806e1fca76777fe86a7d6b9873dc3ddb32efd`; Phase 1 closeout remains open
+for physical PBKDF2 evidence, frozen-value implementation/tests, final
+cross-document synchronization, full focused validation, and final closure-SHA
+CI evidence.
