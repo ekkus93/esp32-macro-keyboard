@@ -30,7 +30,7 @@ interface MutableManifest {
 }
 
 function manifest(): MutableManifest {
-  return structuredClone(rawManifest) as MutableManifest;
+  return structuredClone(rawManifest);
 }
 
 function routeAt(value: MutableManifest, index: number): MutableRoute {
