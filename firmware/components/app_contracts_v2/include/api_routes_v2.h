@@ -8,56 +8,273 @@ extern "C" {
 
 #define APP_V2_API_ROUTE_COUNT UINT32_C(21)
 
-#define APP_V2_API_ROUTE_ROWS(X)                                                               \
-    X("setupGet", "GET", "/api/v1/setup", "none-unprovisioned-only", "none", "", "",       \
-      "application/json", UINT16_C(200), "404")                                                \
-    X("setupPost", "POST", "/api/v1/setup", "none-unprovisioned-only", "setupRequest",      \
-      "application/json", "jsonBodyMaxBytes", "application/json", UINT16_C(202),             \
-      "400,409,413,415,422,500")                                                               \
-    X("login", "POST", "/api/v1/auth/login", "none-provisioned-only", "loginRequest",       \
-      "application/json", "jsonBodyMaxBytes", "application/json", UINT16_C(200),             \
-      "400,403,413,415,422,429,500")                                                           \
-    X("logout", "POST", "/api/v1/auth/logout", "session", "none", "", "", "",            \
-      UINT16_C(204), "401,500")                                                                \
-    X("session", "GET", "/api/v1/auth/session", "session", "none", "", "",               \
-      "application/json", UINT16_C(200), "401,500")                                          \
-    X("status", "GET", "/api/v1/status", "session", "none", "", "", "application/json", \
-      UINT16_C(200), "401,500,503")                                                            \
-    X("limits", "GET", "/api/v1/limits", "session", "none", "", "", "application/json", \
-      UINT16_C(200), "401,500")                                                                \
-    X("blobList", "GET", "/api/v1/blob", "session", "none", "", "",                    \
-      "application/json", UINT16_C(200), "401,500,503")                                      \
-    X("blobCreate", "POST", "/api/v1/blob", "session", "binaryBlob", "application/gzip", \
-      "blobMaxBytes", "application/json", UINT16_C(201), "400,401,413,415,500,503,507")     \
-    X("blobLoad", "GET", "/api/v1/blob/{blob_id}", "session", "none", "", "",           \
-      "application/gzip", UINT16_C(200), "400,401,404,500,503")                              \
-    X("blobDelete", "DELETE", "/api/v1/blob/{blob_id}", "session", "none", "", "",      \
-      "", UINT16_C(204), "400,401,404,500,503")                                              \
-    X("sendCreate", "POST", "/api/v1/send", "session", "sendRequest",                    \
-      "application/json", "jsonBodyMaxBytes", "application/json", UINT16_C(202),             \
-      "400,401,409,413,415,422,500,503")                                                      \
-    X("sendGet", "GET", "/api/v1/send", "session", "none", "", "",                    \
-      "application/json", UINT16_C(200), "401,404,500,503")                                  \
-    X("sendCancel", "DELETE", "/api/v1/send", "session", "none", "", "",               \
-      "application/json", UINT16_C(202), "401,404,500,503")                                  \
-    X("settingsGet", "GET", "/api/v1/settings", "session", "none", "", "",             \
-      "application/json", UINT16_C(200), "401,500,503")                                      \
-    X("settingsPut", "PUT", "/api/v1/settings", "session", "settingsUpdateRequest",       \
-      "application/json", "jsonBodyMaxBytes", "application/json", UINT16_C(200),             \
-      "400,401,413,415,422,500,503")                                                          \
-    X("passwordChange", "POST", "/api/v1/settings/change-password", "session",             \
-      "passwordChangeRequest", "application/json", "jsonBodyMaxBytes", "", UINT16_C(204),   \
-      "400,401,403,413,415,422,500,503")                                                      \
-    X("restart", "POST", "/api/v1/device/restart", "session", "none", "", "",           \
-      "application/json", UINT16_C(202), "401,500,503")                                      \
-    X("resetSettings", "POST", "/api/v1/device/reset-settings", "session",                 \
-      "resetSettingsRequest", "application/json", "jsonBodyMaxBytes", "application/json",  \
-      UINT16_C(202), "400,401,413,415,422,500,503")                                           \
-    X("factoryReset", "POST", "/api/v1/device/factory-reset", "session",                   \
-      "factoryResetRequest", "application/json", "jsonBodyMaxBytes", "application/json",   \
-      UINT16_C(202), "400,401,403,413,415,422,500,503")                                       \
-    X("diagnostics", "GET", "/api/v1/diagnostics", "session", "none", "", "",           \
-      "application/json", UINT16_C(200), "401,500,503")
+typedef struct {
+    const char *id;
+    const char *method;
+    const char *path;
+    const char *authentication;
+    const char *request_body;
+    const char *request_content_type;
+    const char *request_maximum_bytes;
+    const char *response_content_type;
+    uint16_t success_status;
+    const char *error_statuses;
+} app_v2_api_route_contract_t;
+
+static const app_v2_api_route_contract_t app_v2_api_routes[APP_V2_API_ROUTE_COUNT] = {
+    {
+        .id = "setupGet",
+        .method = "GET",
+        .path = "/api/v1/setup",
+        .authentication = "none-unprovisioned-only",
+        .request_body = "none",
+        .request_content_type = "",
+        .request_maximum_bytes = "",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(200),
+        .error_statuses = "404",
+    },
+    {
+        .id = "setupPost",
+        .method = "POST",
+        .path = "/api/v1/setup",
+        .authentication = "none-unprovisioned-only",
+        .request_body = "setupRequest",
+        .request_content_type = "application/json",
+        .request_maximum_bytes = "jsonBodyMaxBytes",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(202),
+        .error_statuses = "400,409,413,415,422,500",
+    },
+    {
+        .id = "login",
+        .method = "POST",
+        .path = "/api/v1/auth/login",
+        .authentication = "none-provisioned-only",
+        .request_body = "loginRequest",
+        .request_content_type = "application/json",
+        .request_maximum_bytes = "jsonBodyMaxBytes",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(200),
+        .error_statuses = "400,403,413,415,422,429,500",
+    },
+    {
+        .id = "logout",
+        .method = "POST",
+        .path = "/api/v1/auth/logout",
+        .authentication = "session",
+        .request_body = "none",
+        .request_content_type = "",
+        .request_maximum_bytes = "",
+        .response_content_type = "",
+        .success_status = UINT16_C(204),
+        .error_statuses = "401,500",
+    },
+    {
+        .id = "session",
+        .method = "GET",
+        .path = "/api/v1/auth/session",
+        .authentication = "session",
+        .request_body = "none",
+        .request_content_type = "",
+        .request_maximum_bytes = "",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(200),
+        .error_statuses = "401,500",
+    },
+    {
+        .id = "status",
+        .method = "GET",
+        .path = "/api/v1/status",
+        .authentication = "session",
+        .request_body = "none",
+        .request_content_type = "",
+        .request_maximum_bytes = "",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(200),
+        .error_statuses = "401,500,503",
+    },
+    {
+        .id = "limits",
+        .method = "GET",
+        .path = "/api/v1/limits",
+        .authentication = "session",
+        .request_body = "none",
+        .request_content_type = "",
+        .request_maximum_bytes = "",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(200),
+        .error_statuses = "401,500",
+    },
+    {
+        .id = "blobList",
+        .method = "GET",
+        .path = "/api/v1/blob",
+        .authentication = "session",
+        .request_body = "none",
+        .request_content_type = "",
+        .request_maximum_bytes = "",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(200),
+        .error_statuses = "401,500,503",
+    },
+    {
+        .id = "blobCreate",
+        .method = "POST",
+        .path = "/api/v1/blob",
+        .authentication = "session",
+        .request_body = "binaryBlob",
+        .request_content_type = "application/gzip",
+        .request_maximum_bytes = "blobMaxBytes",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(201),
+        .error_statuses = "400,401,413,415,500,503,507",
+    },
+    {
+        .id = "blobLoad",
+        .method = "GET",
+        .path = "/api/v1/blob/{blob_id}",
+        .authentication = "session",
+        .request_body = "none",
+        .request_content_type = "",
+        .request_maximum_bytes = "",
+        .response_content_type = "application/gzip",
+        .success_status = UINT16_C(200),
+        .error_statuses = "400,401,404,500,503",
+    },
+    {
+        .id = "blobDelete",
+        .method = "DELETE",
+        .path = "/api/v1/blob/{blob_id}",
+        .authentication = "session",
+        .request_body = "none",
+        .request_content_type = "",
+        .request_maximum_bytes = "",
+        .response_content_type = "",
+        .success_status = UINT16_C(204),
+        .error_statuses = "400,401,404,500,503",
+    },
+    {
+        .id = "sendCreate",
+        .method = "POST",
+        .path = "/api/v1/send",
+        .authentication = "session",
+        .request_body = "sendRequest",
+        .request_content_type = "application/json",
+        .request_maximum_bytes = "jsonBodyMaxBytes",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(202),
+        .error_statuses = "400,401,409,413,415,422,500,503",
+    },
+    {
+        .id = "sendGet",
+        .method = "GET",
+        .path = "/api/v1/send",
+        .authentication = "session",
+        .request_body = "none",
+        .request_content_type = "",
+        .request_maximum_bytes = "",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(200),
+        .error_statuses = "401,404,500,503",
+    },
+    {
+        .id = "sendCancel",
+        .method = "DELETE",
+        .path = "/api/v1/send",
+        .authentication = "session",
+        .request_body = "none",
+        .request_content_type = "",
+        .request_maximum_bytes = "",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(202),
+        .error_statuses = "401,404,500,503",
+    },
+    {
+        .id = "settingsGet",
+        .method = "GET",
+        .path = "/api/v1/settings",
+        .authentication = "session",
+        .request_body = "none",
+        .request_content_type = "",
+        .request_maximum_bytes = "",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(200),
+        .error_statuses = "401,500,503",
+    },
+    {
+        .id = "settingsPut",
+        .method = "PUT",
+        .path = "/api/v1/settings",
+        .authentication = "session",
+        .request_body = "settingsUpdateRequest",
+        .request_content_type = "application/json",
+        .request_maximum_bytes = "jsonBodyMaxBytes",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(200),
+        .error_statuses = "400,401,413,415,422,500,503",
+    },
+    {
+        .id = "passwordChange",
+        .method = "POST",
+        .path = "/api/v1/settings/change-password",
+        .authentication = "session",
+        .request_body = "passwordChangeRequest",
+        .request_content_type = "application/json",
+        .request_maximum_bytes = "jsonBodyMaxBytes",
+        .response_content_type = "",
+        .success_status = UINT16_C(204),
+        .error_statuses = "400,401,403,413,415,422,500,503",
+    },
+    {
+        .id = "restart",
+        .method = "POST",
+        .path = "/api/v1/device/restart",
+        .authentication = "session",
+        .request_body = "none",
+        .request_content_type = "",
+        .request_maximum_bytes = "",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(202),
+        .error_statuses = "401,500,503",
+    },
+    {
+        .id = "resetSettings",
+        .method = "POST",
+        .path = "/api/v1/device/reset-settings",
+        .authentication = "session",
+        .request_body = "resetSettingsRequest",
+        .request_content_type = "application/json",
+        .request_maximum_bytes = "jsonBodyMaxBytes",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(202),
+        .error_statuses = "400,401,413,415,422,500,503",
+    },
+    {
+        .id = "factoryReset",
+        .method = "POST",
+        .path = "/api/v1/device/factory-reset",
+        .authentication = "session",
+        .request_body = "factoryResetRequest",
+        .request_content_type = "application/json",
+        .request_maximum_bytes = "jsonBodyMaxBytes",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(202),
+        .error_statuses = "400,401,403,413,415,422,500,503",
+    },
+    {
+        .id = "diagnostics",
+        .method = "GET",
+        .path = "/api/v1/diagnostics",
+        .authentication = "session",
+        .request_body = "none",
+        .request_content_type = "",
+        .request_maximum_bytes = "",
+        .response_content_type = "application/json",
+        .success_status = UINT16_C(200),
+        .error_statuses = "401,500,503",
+    },
+};
 
 #ifdef __cplusplus
 }
