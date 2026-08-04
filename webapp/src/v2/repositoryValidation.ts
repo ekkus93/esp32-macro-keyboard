@@ -1,7 +1,7 @@
 import { compileMacro } from "./macroCompiler";
 import {
-  validateRepositoryV1,
-  type RepositoryV1,
+  validateRepository,
+  type Repository,
   type RepositoryValidationIssue,
   type RepositoryValidationResult,
 } from "./repository";
@@ -14,7 +14,7 @@ function grammarError(source: string): string | null {
 export function validateRepositoryForUse(
   value: unknown,
 ): RepositoryValidationResult {
-  const structural = validateRepositoryV1(value, grammarError);
+  const structural = validateRepository(value, grammarError);
   if (!structural.ok) {
     return structural;
   }
@@ -39,7 +39,7 @@ export function validateRepositoryForUse(
   return issues.length === 0 ? structural : { ok: false, issues };
 }
 
-export function createEmptyRepository(): RepositoryV1 {
+export function createEmptyRepository(): Repository {
   return {
     format: "esp32-macro-keyboard-repository",
     schemaVersion: 1,
