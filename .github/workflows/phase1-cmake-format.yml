@@ -1,4 +1,5 @@
 # One-shot CMake formatting application; remove before merging.
+# This second commit intentionally triggers the branch-local workflow.
 name: Phase 1 CMake Format
 
 on:
