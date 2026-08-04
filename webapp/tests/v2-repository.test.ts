@@ -1,10 +1,7 @@
 import { describe, expect, test } from "vitest";
 import canonicalRepository from "../../contracts/v2/repository/canonical.json";
 import rawFixtures from "../../contracts/v2/repository/fixtures.json";
-import {
-  serializeRepository,
-  validateRepository,
-} from "../src/v2/repository";
+import { serializeRepository, validateRepository } from "../src/v2/repository";
 
 const acceptSource = (): null => null;
 
