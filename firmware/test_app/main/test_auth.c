@@ -78,10 +78,9 @@ TEST_CASE("PBKDF2 candidate timings are reported", "[device][auth][benchmark]") 
 
     static const char benchmark_password[] = "phase1-benchmark-password";
     static const uint32_t candidates[] = {60000U, 90000U, 120000U, 150000U};
+    const size_t candidate_count = sizeof(candidates) / sizeof(candidates[0]);
 
-    for (size_t candidate_index = 0U;
-         candidate_index < sizeof(candidates) / sizeof(candidates[0]);
-         ++candidate_index) {
+    for (size_t candidate_index = 0U; candidate_index < candidate_count; ++candidate_index) {
         auth_password_record_t record = {.iterations = candidates[candidate_index]};
         for (size_t index = 0U; index < sizeof(record.salt); ++index) {
             record.salt[index] = (uint8_t)index;
@@ -91,10 +90,9 @@ TEST_CASE("PBKDF2 candidate timings are reported", "[device][auth][benchmark]") 
         for (size_t sample = 0U; sample < PBKDF2_BENCHMARK_SAMPLE_COUNT; ++sample) {
             bool matches = true;
             const int64_t started_us = esp_timer_get_time();
-            TEST_ASSERT_EQUAL(APP_ERROR_NONE,
-                              auth_password_verify(benchmark_password,
-                                                   sizeof(benchmark_password) - 1U, &record,
-                                                   &matches));
+            const app_error_code_t verify_result = auth_password_verify(
+                benchmark_password, sizeof(benchmark_password) - 1U, &record, &matches);
+            TEST_ASSERT_EQUAL(APP_ERROR_NONE, verify_result);
             timings[sample] = esp_timer_get_time() - started_us;
             TEST_ASSERT_FALSE(matches);
         }
