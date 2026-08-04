@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "app_error.h"
+#include "macro_limits.h"
 
 #ifndef STORAGE_WEB_MOUNT
 #define STORAGE_WEB_MOUNT "/web"

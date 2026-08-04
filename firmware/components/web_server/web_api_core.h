@@ -5,6 +5,8 @@
 
 #include "app_error.h"
 
+#define WEB_API_REQUEST_ID_MAX_BYTES 64U
+
 typedef enum {
     WEB_API_METHOD_GET = 0,
     WEB_API_METHOD_POST,

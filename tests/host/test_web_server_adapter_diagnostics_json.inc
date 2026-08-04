@@ -16,7 +16,6 @@ static web_diagnostics_snapshot_t default_diagnostics_snapshot(void) {
             {
                 {.name = "app_core", .state = SUBSYSTEM_HEALTH_HEALTHY},
                 {.name = "storage", .state = SUBSYSTEM_HEALTH_HEALTHY},
-                {.name = "repository", .state = SUBSYSTEM_HEALTH_HEALTHY},
                 {.name = "auth", .state = SUBSYSTEM_HEALTH_HEALTHY},
                 {.name = "usb", .state = SUBSYSTEM_HEALTH_HEALTHY},
                 {.name = "executor", .state = SUBSYSTEM_HEALTH_HEALTHY},
@@ -55,17 +54,15 @@ static void test_diagnostics_exact_allowed_fields(void) {
         TEST_CHECK(strstr(output, expected_keys[index]) != NULL);
     }
 
-    /* Exactly the 9 subsystems from FIX1 TODO §19.1, no more, no fewer. */
-    TEST_CHECK_EQ_U64(9U, count_occurrences(output, "\"name\":"));
+    /* Phase 2 removes the repository subsystem together with its ownership layer. */
+    TEST_CHECK_EQ_U64(8U, count_occurrences(output, "\"name\":"));
     TEST_CHECK(strstr(output, "\"name\":\"app_core\"") != NULL);
+    TEST_CHECK(strstr(output, "\"name\":\"repository\"") == NULL);
     TEST_CHECK(strstr(output, "\"name\":\"http\"") != NULL);
 }
 
 static void test_diagnostics_secret_sentinels_absent(void) {
     web_diagnostics_snapshot_t snapshot = default_diagnostics_snapshot();
-    /* A build id/version deliberately shaped like it could carry something
-     * secret must still never introduce forbidden substrings - the struct's
-     * fields are the only redaction boundary, not the JSON encoder. */
     (void)snprintf(snapshot.build_id, sizeof(snapshot.build_id), "%s", "deadbeefcafef00d");
     char output[2048U];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
@@ -81,14 +78,6 @@ static void test_diagnostics_secret_sentinels_absent(void) {
 }
 
 static void test_diagnostics_output_passes_secret_sentinel_scanner(void) {
-    /* FIX1 18.5: production-path proof, not a reimplemented substring check.
-     * web_diagnostics_snapshot_t has no field capable of holding a secret, so
-     * unlike set export/backup there is no fixture location to embed the
-     * sentinel in; this proves the invariant against a real secret that
-     * exists elsewhere in the same process (e.g. a real auth session token
-     * held by a concurrent request), using the real
-     * scripts/check-secret-sentinel.py (all 7 encodings it checks) against
-     * the real web_adapter_build_diagnostics_json output. */
     static const char secret_sentinel[] = "phase18_5_diagnostics_secret_Q4tR8wZ1nH6vX3sB";
     const web_diagnostics_snapshot_t snapshot = default_diagnostics_snapshot();
     char output[2048U];
@@ -137,7 +126,6 @@ static void test_diagnostics_failed_query_never_fabricates_data(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
     TEST_CHECK(strstr(output, "\"webfs\":{\"ok\":false,\"totalBytes\":0,\"usedBytes\":0}") != NULL);
-    /* userdata was left healthy, so its data must still come through untouched. */
     TEST_CHECK(
         strstr(output, "\"userdata\":{\"ok\":true,\"totalBytes\":2000000,\"usedBytes\":900000}") !=
         NULL);
@@ -145,11 +133,9 @@ static void test_diagnostics_failed_query_never_fabricates_data(void) {
 
 static void test_diagnostics_no_false_healthy_state(void) {
     web_diagnostics_snapshot_t snapshot = default_diagnostics_snapshot();
-    /* The defect this exists to prevent: a subsystem reporting FAILED must
-     * never read back as healthy once JSON-encoded. */
-    snapshot.subsystems[6] =
+    snapshot.subsystems[5] =
         (web_diagnostics_subsystem_t){.name = "controls", .state = SUBSYSTEM_HEALTH_FAILED};
-    snapshot.subsystems[7] =
+    snapshot.subsystems[6] =
         (web_diagnostics_subsystem_t){.name = "wifi", .state = SUBSYSTEM_HEALTH_DEGRADED};
 
     char output[2048U];
