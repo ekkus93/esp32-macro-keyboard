@@ -69,10 +69,17 @@ ALLOWED_STATUSES = {
     503,
     507,
 }
-ROW_PATTERN = re.compile(
-    r'X\("([^"]+)",\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)",\s*'
-    r'"([^"]+)",\s*"([^"]*)",\s*"([^"]*)",\s*"([^"]*)",\s*'
-    r'UINT16_C\((\d+)\),\s*"([^"]*)"\)'
+C_FIELDS = (
+    "id",
+    "method",
+    "path",
+    "authentication",
+    "request_body",
+    "request_content_type",
+    "request_maximum_bytes",
+    "response_content_type",
+    "success_status",
+    "error_statuses",
 )
 
 
@@ -116,7 +123,11 @@ def validate_response(value: Any, context: str) -> tuple[str, int]:
     require_exact_keys(response, ("contentType", "successStatus"), context)
     content_type = response["contentType"]
     status = response["successStatus"]
-    if not isinstance(status, int) or isinstance(status, bool) or status not in ALLOWED_STATUSES:
+    if (
+        not isinstance(status, int)
+        or isinstance(status, bool)
+        or status not in ALLOWED_STATUSES
+    ):
         raise ValueError(f"{context}: invalid success status")
     if status == 204:
         if content_type is not None:
@@ -126,7 +137,9 @@ def validate_response(value: Any, context: str) -> tuple[str, int]:
     return content_type or "", status
 
 
-def validate_errors(value: Any, success_status: int, context: str) -> tuple[int, ...]:
+def validate_errors(
+    value: Any, success_status: int, context: str
+) -> tuple[int, ...]:
     if not isinstance(value, list) or not value:
         raise ValueError(f"{context} must be a nonempty array")
     if any(not isinstance(item, int) or isinstance(item, bool) for item in value):
@@ -134,23 +147,30 @@ def validate_errors(value: Any, success_status: int, context: str) -> tuple[int,
     statuses = tuple(value)
     if statuses != tuple(sorted(set(statuses))):
         raise ValueError(f"{context} must be strictly increasing and unique")
-    if success_status in statuses or any(item not in ALLOWED_STATUSES for item in statuses):
+    if success_status in statuses or any(
+        item not in ALLOWED_STATUSES for item in statuses
+    ):
         raise ValueError(f"{context} contains an invalid status")
     return statuses
 
 
-def load_expected_rows() -> list[tuple[str, ... | int]]:
+def load_expected_rows() -> list[tuple[str | int, ...]]:
     document: Any = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
     root = require_record(document, "root")
     require_exact_keys(root, ("format", "version", "routes"), "root")
-    if root["format"] != "esp32-macro-keyboard-api-routes" or root["version"] != 1:
+    if (
+        root["format"] != "esp32-macro-keyboard-api-routes"
+        or root["version"] != 1
+    ):
         raise ValueError("unsupported route manifest identity")
     routes = root["routes"]
     if not isinstance(routes, list) or len(routes) != len(EXPECTED_IDENTITIES):
         raise ValueError("route count differs from reviewed manifest")
 
-    rows: list[tuple[str, ... | int]] = []
-    for index, (raw_route, identity) in enumerate(zip(routes, EXPECTED_IDENTITIES, strict=True)):
+    rows: list[tuple[str | int, ...]] = []
+    for index, (raw_route, identity) in enumerate(
+        zip(routes, EXPECTED_IDENTITIES, strict=True)
+    ):
         context = f"routes[{index}]"
         route = require_record(raw_route, context)
         require_exact_keys(
@@ -168,7 +188,10 @@ def load_expected_rows() -> list[tuple[str, ... | int]]:
         )
         if (route["id"], route["method"], route["path"]) != identity:
             raise ValueError(f"{context}: identity or order differs")
-        if route["method"] not in METHODS or route["authentication"] not in AUTHENTICATION:
+        if (
+            route["method"] not in METHODS
+            or route["authentication"] not in AUTHENTICATION
+        ):
             raise ValueError(f"{context}: method or authentication differs")
         if index < 2 and route["authentication"] != "none-unprovisioned-only":
             raise ValueError(f"{context}: setup authentication differs")
@@ -176,10 +199,14 @@ def load_expected_rows() -> list[tuple[str, ... | int]]:
             raise ValueError(f"{context}: login authentication differs")
         if index > 2 and route["authentication"] != "session":
             raise ValueError(f"{context}: authenticated route differs")
-        if any(token in route["path"] for token in ("/package", "/macro", "/executions")):
+        if any(
+            token in route["path"] for token in ("/package", "/macro", "/executions")
+        ):
             raise ValueError(f"{context}: prohibited v1 route appears")
 
-        body, request_type, maximum = validate_request(route["request"], f"{context}.request")
+        body, request_type, maximum = validate_request(
+            route["request"], f"{context}.request"
+        )
         response_type, success_status = validate_response(
             route["response"], f"{context}.response"
         )
@@ -203,7 +230,27 @@ def load_expected_rows() -> list[tuple[str, ... | int]]:
     return rows
 
 
-def load_header_rows() -> list[tuple[str, ... | int]]:
+def parse_c_route_block(block: str) -> tuple[str | int, ...]:
+    parsed: dict[str, str | int] = {}
+    for field in C_FIELDS:
+        if field == "success_status":
+            pattern = rf"\.{field}\s*=\s*UINT16_C\((\d+)\),"
+            match = re.search(pattern, block)
+            if match is not None:
+                parsed[field] = int(match.group(1))
+        else:
+            pattern = rf'\.{field}\s*=\s*"([^"]*)",'
+            match = re.search(pattern, block)
+            if match is not None:
+                parsed[field] = match.group(1)
+    if tuple(parsed) != C_FIELDS:
+        raise ValueError(
+            f"C route fields differ: expected {C_FIELDS}, got {tuple(parsed)}"
+        )
+    return tuple(parsed[field] for field in C_FIELDS)
+
+
+def load_header_rows() -> list[tuple[str | int, ...]]:
     header = HEADER_PATH.read_text(encoding="utf-8")
     count_match = re.search(
         r"^#define\s+APP_V2_API_ROUTE_COUNT\s+UINT32_C\((\d+)\)\s*$",
@@ -213,10 +260,18 @@ def load_header_rows() -> list[tuple[str, ... | int]]:
     if count_match is None:
         raise ValueError("C mirror is missing APP_V2_API_ROUTE_COUNT")
     declared_count = int(count_match.group(1))
-    flattened = header.replace("\\\n", " ")
-    rows: list[tuple[str, ... | int]] = []
-    for match in ROW_PATTERN.finditer(flattened):
-        rows.append((*match.groups()[:8], int(match.group(9)), match.group(10)))
+
+    array_match = re.search(
+        r"app_v2_api_routes\[APP_V2_API_ROUTE_COUNT\]\s*=\s*\{(.*?)\n\};",
+        header,
+        flags=re.DOTALL,
+    )
+    if array_match is None:
+        raise ValueError("C mirror route array is missing")
+    rows = [
+        parse_c_route_block(block)
+        for block in re.findall(r"\{\s*(.*?)\s*\},", array_match.group(1), re.DOTALL)
+    ]
     if declared_count != len(rows):
         raise ValueError(
             f"C mirror declared {declared_count} routes but contains {len(rows)} rows"
