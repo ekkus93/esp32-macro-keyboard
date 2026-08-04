@@ -2,6 +2,7 @@
 #define APP_CORE_OPS_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "app_error.h"
@@ -19,21 +20,11 @@ typedef enum {
 
 typedef enum {
     APP_CORE_LOG_STAGE = 0,
-    APP_CORE_LOG_STORAGE_DEGRADED,
     APP_CORE_LOG_MANUFACTURING_CREDENTIALS,
     APP_CORE_LOG_PROVISIONING_REQUIRED,
     APP_CORE_LOG_CLEANUP_FAILED
 } app_core_log_type_t;
 
-/* Structured startup log event. The error fields mirror app_operation_result_t
- * causality (see the support component): the primary error is never overwritten
- * by a later cleanup error, the first cleanup error is preserved separately, and
- * cleanup_incomplete records whether teardown ran to completion. Per FIX1 SPEC
- * §3.2 the event also carries the affected subsystem (stage) and a stable
- * operation identifier when one exists (0 when none, as during startup). These
- * structured fields must never carry credentials, tokens, cookies, or macro
- * source; ssid/ap_passphrase/setup_code are populated only for the explicitly
- * gated manufacturing-credentials event. */
 typedef struct {
     app_core_log_type_t type;
     const char *stage;
@@ -53,8 +44,6 @@ typedef struct {
     app_error_code_t (*provisioning_load)(void *context, provisioning_config_t *out_configuration);
     app_error_code_t (*bootstrap_derive)(void *context, provisioning_bootstrap_t *out_bootstrap);
     app_error_code_t (*storage_mount)(void *context);
-    app_error_code_t (*storage_recover)(void *context);
-    app_error_code_t (*repository_init)(void *context);
     app_error_code_t (*auth_init)(void *context);
     app_error_code_t (*usb_init)(void *context);
     app_error_code_t (*executor_init)(void *context);
@@ -64,7 +53,6 @@ typedef struct {
     app_error_code_t (*http_stop)(void *context);
     app_error_code_t (*wifi_stop)(void *context);
     app_error_code_t (*storage_unmount)(void *context);
-    app_error_code_t (*repository_deinit)(void *context);
     app_error_code_t (*auth_deinit)(void *context);
     app_error_code_t (*usb_deinit)(void *context);
     app_error_code_t (*executor_deinit)(void *context);

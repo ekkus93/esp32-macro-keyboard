@@ -19,10 +19,8 @@
 #include "nvs_flash.h"
 #include "provisioning.h"
 #include "provisioning_bootstrap.h"
-#include "repository_health.h"
 #include "storage.h"
 #include "storage_health.h"
-#include "storage_repository.h"
 #include "usb_health.h"
 #include "usb_keyboard.h"
 #include "web_server.h"
@@ -64,33 +62,8 @@ static app_error_code_t adapter_bootstrap_derive(void *context,
 
 static app_error_code_t adapter_storage_mount(void *context) {
     (void)context;
-    /* Mount both web assets and user data so the first-run web application is
-     * available in setup mode. The repository mutation lock is created here and
-     * remains unused until normal-operation recovery/repository initialization. */
-    const app_error_code_t mount = storage_mount_all();
-    if (mount != APP_ERROR_NONE) {
-        storage_health_record_primary(mount);
-        return mount;
-    }
-    const app_error_code_t lock = storage_repository_lock_init();
-    storage_health_record_primary(lock);
-    return lock;
-}
-
-/* Boot recovery is now one step (SPEC 13.4): unlink every stray *.tmp. The two
- * transaction-recovery passes that used to follow it are gone with the
- * transaction layer itself. */
-static app_error_code_t adapter_storage_recover(void *context) {
-    (void)context;
-    const app_error_code_t atomic = storage_atomic_recover_all();
-    storage_health_record_primary(atomic);
-    return atomic;
-}
-
-static app_error_code_t adapter_repository_init(void *context) {
-    (void)context;
-    const app_error_code_t result = storage_repository_init();
-    repository_health_record_primary(result);
+    const app_error_code_t result = storage_mount_all();
+    storage_health_record_primary(result);
     return result;
 }
 
@@ -120,11 +93,6 @@ static app_error_code_t adapter_controls_init(void *context) {
     return device_controls_init();
 }
 
-/* SPEC 15.1: start the SoftAP, then -- if station credentials were saved -- try
- * to join that network as well. The AP always comes up first and always stays
- * up: a failed join must never cost the user the only interface they can reach
- * the device on, so a join failure is logged and otherwise ignored rather than
- * failing the startup stage. */
 #define WIFI_STATION_BOOT_TIMEOUT_MS 15000U
 
 static app_error_code_t adapter_wifi_start(void *context, const char *ssid,
@@ -135,9 +103,6 @@ static app_error_code_t adapter_wifi_start(void *context, const char *ssid,
         return started;
     }
 
-    /* Only the two fields this needs. Loading the whole provisioning record here
-     * would put the admin password verifier, its salt, and the AP passphrase on
-     * this task's stack to read an SSID. Both buffers are wiped before return. */
     char station_ssid[WIFI_AP_SSID_MAX_BYTES + 1U] = {0};
     char station_password[WIFI_AP_PASSPHRASE_MAX_BYTES + 1U] = {0};
     if (provisioning_get_station(station_ssid, sizeof(station_ssid), station_password,
@@ -181,17 +146,8 @@ static app_error_code_t adapter_wifi_stop(void *context) {
 
 static app_error_code_t adapter_storage_unmount(void *context) {
     (void)context;
-    const app_error_code_t lock = storage_repository_lock_deinit();
-    const app_error_code_t unmount = storage_unmount_all();
-    const app_error_code_t result = unmount != APP_ERROR_NONE ? unmount : lock;
+    const app_error_code_t result = storage_unmount_all();
     storage_health_record_cleanup(result, result != APP_ERROR_NONE);
-    return result;
-}
-
-static app_error_code_t adapter_repository_deinit(void *context) {
-    (void)context;
-    const app_error_code_t result = storage_repository_deinit();
-    repository_health_record_cleanup(result, result != APP_ERROR_NONE);
     return result;
 }
 
@@ -283,10 +239,6 @@ static void adapter_log_event(void *context, const app_core_log_event_t *event) 
             app_lifecycle_health_record_stage_failure(event->primary_error);
         }
         break;
-    case APP_CORE_LOG_STORAGE_DEGRADED:
-        ESP_LOGW(TAG, "storage recovery requires operator review; evidence was preserved");
-        app_lifecycle_health_record_degraded();
-        break;
     case APP_CORE_LOG_MANUFACTURING_CREDENTIALS:
 #if CONFIG_APP_MANUFACTURING_PROVISIONING_LOG
         ESP_LOGE(TAG, "MANUFACTURING MODE ENABLED: plaintext one-time credentials follow; "
@@ -318,7 +270,6 @@ static void adapter_log_event(void *context, const app_core_log_event_t *event) 
 app_error_code_t app_core_start(void) {
     app_lifecycle_health_reset();
     storage_health_reset();
-    repository_health_reset();
     auth_health_reset();
     usb_health_reset();
     executor_health_reset();
@@ -330,8 +281,6 @@ app_error_code_t app_core_start(void) {
         .provisioning_load = adapter_provisioning_load,
         .bootstrap_derive = adapter_bootstrap_derive,
         .storage_mount = adapter_storage_mount,
-        .storage_recover = adapter_storage_recover,
-        .repository_init = adapter_repository_init,
         .auth_init = adapter_auth_init,
         .usb_init = adapter_usb_init,
         .executor_init = adapter_executor_init,
@@ -341,7 +290,6 @@ app_error_code_t app_core_start(void) {
         .http_stop = adapter_http_stop,
         .wifi_stop = adapter_wifi_stop,
         .storage_unmount = adapter_storage_unmount,
-        .repository_deinit = adapter_repository_deinit,
         .auth_deinit = adapter_auth_deinit,
         .usb_deinit = adapter_usb_deinit,
         .executor_deinit = adapter_executor_deinit,

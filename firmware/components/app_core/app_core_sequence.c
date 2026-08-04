@@ -16,17 +16,15 @@ static bool operations_valid(const app_core_ops_t *operations) {
     return operations != NULL && operations->nvs_init != NULL &&
            operations->provisioning_init != NULL && operations->provisioning_load != NULL &&
            operations->bootstrap_derive != NULL && operations->storage_mount != NULL &&
-           operations->storage_recover != NULL && operations->repository_init != NULL &&
            operations->auth_init != NULL && operations->usb_init != NULL &&
            operations->executor_init != NULL && operations->controls_init != NULL &&
            operations->wifi_start != NULL && operations->http_start != NULL &&
            operations->http_stop != NULL && operations->wifi_stop != NULL &&
-           operations->storage_unmount != NULL && operations->repository_deinit != NULL &&
-           operations->auth_deinit != NULL && operations->usb_deinit != NULL &&
-           operations->executor_deinit != NULL && operations->controls_deinit != NULL &&
-           operations->provisioning_deinit != NULL && operations->nvs_deinit != NULL &&
-           operations->http_owns_resources != NULL && operations->wifi_owns_resources != NULL &&
-           operations->storage_owns_mount != NULL &&
+           operations->storage_unmount != NULL && operations->auth_deinit != NULL &&
+           operations->usb_deinit != NULL && operations->executor_deinit != NULL &&
+           operations->controls_deinit != NULL && operations->provisioning_deinit != NULL &&
+           operations->nvs_deinit != NULL && operations->http_owns_resources != NULL &&
+           operations->wifi_owns_resources != NULL && operations->storage_owns_mount != NULL &&
            operations->provisioning_owns_resources != NULL && operations->set_indicator != NULL &&
            operations->secure_zero != NULL && operations->log_event != NULL;
 }
@@ -97,7 +95,6 @@ typedef struct {
     bool nvs_initialized;
     bool provisioning_initialized;
     bool storage_mounted;
-    bool repository_initialized;
     bool auth_initialized;
     bool usb_initialized;
     bool executor_initialized;
@@ -151,8 +148,6 @@ static app_operation_result_t cleanup_after_failure(const app_core_ops_t *operat
                    operations->usb_deinit);
     teardown_stage(operations, &result, owned->auth_initialized, &owned->auth_initialized,
                    operations->auth_deinit);
-    teardown_stage(operations, &result, owned->repository_initialized,
-                   &owned->repository_initialized, operations->repository_deinit);
     teardown_stage(operations, &result,
                    owned->storage_mounted || operations->storage_owns_mount(operations->context),
                    &owned->storage_mounted, operations->storage_unmount);
@@ -235,28 +230,8 @@ static app_error_code_t start_network(const app_core_ops_t *operations, app_core
 }
 
 static app_error_code_t start_normal_mode(const app_core_ops_t *operations, app_core_owned_t *owned,
-                                          app_core_startup_secrets_t *secrets,
-                                          bool *out_storage_degraded) {
-    app_error_code_t result = operations->storage_recover(operations->context);
-    if (result == APP_ERROR_STORAGE_CORRUPT) {
-        *out_storage_degraded = true;
-        log_simple(operations, APP_CORE_LOG_STORAGE_DEGRADED, APP_ERROR_STORAGE_CORRUPT,
-                   APP_ERROR_NONE, false);
-    } else {
-        log_stage(operations, "storage_recovery", result);
-        if (result != APP_ERROR_NONE) {
-            return result;
-        }
-    }
-
-    result = operations->repository_init(operations->context);
-    log_stage(operations, "storage_repository", result);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    owned->repository_initialized = true;
-
-    result = operations->auth_init(operations->context);
+                                          app_core_startup_secrets_t *secrets) {
+    app_error_code_t result = operations->auth_init(operations->context);
     log_stage(operations, "authentication", result);
     if (result != APP_ERROR_NONE) {
         return result;
@@ -339,7 +314,6 @@ app_error_code_t app_core_sequence_start(const app_core_ops_t *operations,
 
     app_core_owned_t owned = {0};
     app_core_startup_secrets_t secrets = {0};
-    bool storage_degraded = false;
 
     app_error_code_t result =
         operations->set_indicator(operations->context, DEVICE_INDICATOR_BOOTING);
@@ -374,18 +348,15 @@ app_error_code_t app_core_sequence_start(const app_core_ops_t *operations,
     }
     owned.storage_mounted = true;
 
-    if (secrets.provisioning.provisioned) {
-        result = start_normal_mode(operations, &owned, &secrets, &storage_degraded);
-    } else {
-        result = start_setup_mode(operations, policy, &owned, &secrets);
-    }
+    result = secrets.provisioning.provisioned
+                 ? start_normal_mode(operations, &owned, &secrets)
+                 : start_setup_mode(operations, policy, &owned, &secrets);
     if (result != APP_ERROR_NONE) {
         return fail_with_secrets(operations, &owned, &secrets, result);
     }
 
     clear_startup_secrets(operations, &secrets);
-    result = operations->set_indicator(
-        operations->context, storage_degraded ? DEVICE_INDICATOR_DEGRADED : DEVICE_INDICATOR_READY);
+    result = operations->set_indicator(operations->context, DEVICE_INDICATOR_READY);
     if (result != APP_ERROR_NONE) {
         return finish_failure(operations, &owned, result);
     }

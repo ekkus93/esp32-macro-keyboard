@@ -3,41 +3,17 @@ idf_component_register(
     "storage_mount.c"
     "storage_mount_core.c"
     "storage_mount_topology.c"
-    "storage_atomic_recovery.c"
-    "storage_paths.c"
     "storage_fs_ops.c"
     "storage_atomic.c"
-    "storage_repository_io.c"
-    "storage_repository_json.c"
-    "storage_json.c"
-    "storage_repository_objects_json.c"
-    "storage_repository_index.c"
-    "storage_repository_packages.c"
-    "storage_repository_package_operations.c"
-    "storage_repository_lock.c"
-    "storage_repository_document.c"
-    "storage_incidents.c"
-    "storage_repository_macros.c"
-    "storage_package.c"
-    "storage_package_writer.c"
-    "storage_package_reader.c"
-    "storage_package_export.c"
-    "storage_package_backup.c"
-    "storage_package_restore.c"
-    "storage_package_replace.c"
-    "storage_package_import.c"
     "storage_health.c"
-    "repository_health.c"
     INCLUDE_DIRS
     "include"
+    PRIV_INCLUDE_DIRS
+    "."
     REQUIRES
     macro_model
-    macro_parser
-    provisioning
     support
     littlefs
-    json
-    freertos
 )
 
 target_compile_options(
