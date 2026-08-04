@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "app_error.h"
+#include "app_limits_v2.h"
 #include "cJSON.h"
 #include "macro_limits.h"
 #include "provisioning.h"
@@ -27,7 +28,8 @@ static bool contains_embedded_nul_escape(const char *body, size_t length) {
 }
 
 static cJSON *parse_exact_document(const char *body, size_t body_length) {
-    if (body == NULL || body_length == 0U || body_length > APP_JSON_BODY_MAX_BYTES ||
+    if (body == NULL || body_length == 0U ||
+        body_length > (size_t)APP_V2_JSON_BODY_MAX_BYTES ||
         contains_embedded_nul_escape(body, body_length)) {
         return NULL;
     }

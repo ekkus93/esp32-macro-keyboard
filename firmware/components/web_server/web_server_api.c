@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "app_error.h"
+#include "app_limits_v2.h"
 #include "app_uuid.h"
 #include "auth.h"
 #include "device_controls.h"
@@ -93,7 +94,7 @@ static app_error_code_t method_from_request(const httpd_req_t *request,
 
 static size_t route_body_limit(web_api_route_t route) {
     (void)route;
-    return APP_JSON_BODY_MAX_BYTES;
+    return (size_t)APP_V2_JSON_BODY_MAX_BYTES;
 }
 
 static const char *status_text(unsigned int status) {
@@ -333,7 +334,7 @@ esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body
     web_request_policy_result_t policy = {0};
     web_api_call_t call = {0};
     char *body = preread_body;
-    size_t body_limit = APP_JSON_BODY_MAX_BYTES;
+    size_t body_limit = (size_t)APP_V2_JSON_BODY_MAX_BYTES;
     bool response_ready = false;
 
     *out_should_restart = false;
