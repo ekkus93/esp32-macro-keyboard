@@ -1,0 +1,106 @@
+# One-shot source repair helper; remove before final validation.
+name: Phase 1 Device Settings Repair
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: phase1-ci-repair
+          persist-credentials: false
+          show-progress: false
+
+      - name: Install formatter
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes clang-format
+
+      - name: Apply bounded device-settings repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("firmware/components/app_contracts_v2/device_settings_v2.c")
+          text = path.read_text()
+
+          replacements = [
+              (
+                  '#include <string.h>\n',
+                  '#include <stdint.h>\n#include <string.h>\n',
+              ),
+              (
+                  '#define APP_V2_SETTINGS_PASSPHRASE_FIELD_BYTES 64U\n',
+                  '#define APP_V2_SETTINGS_PASSPHRASE_FIELD_BYTES 64U\n'
+                  '#define APP_V2_SETTINGS_DEFAULT_SNAPSHOT_RETENTION_TARGET 5U\n'
+                  '#define APP_V2_SETTINGS_UTF8_CONTINUATION_SHIFT 6U\n'
+                  '#define APP_V2_SETTINGS_UUID_HYPHEN_1_INDEX 8U\n'
+                  '#define APP_V2_SETTINGS_UUID_HYPHEN_2_INDEX 13U\n'
+                  '#define APP_V2_SETTINGS_UUID_HYPHEN_3_INDEX 18U\n'
+                  '#define APP_V2_SETTINGS_UUID_HYPHEN_4_INDEX 23U\n'
+                  '#define APP_V2_SETTINGS_UUID_VERSION_INDEX 14U\n'
+                  '#define APP_V2_SETTINGS_UUID_VARIANT_INDEX 19U\n',
+              ),
+              (
+                  'code_point = (code_point << 6U) | (uint32_t)(continuation & UINT8_C(0x3f));',
+                  'code_point = (code_point << APP_V2_SETTINGS_UTF8_CONTINUATION_SHIFT) |\n'
+                  '                         (uint32_t)(continuation & UINT8_C(0x3f));',
+              ),
+              (
+                  'if (index == 8U || index == 13U || index == 18U || index == 23U) {',
+                  'if (index == APP_V2_SETTINGS_UUID_HYPHEN_1_INDEX ||\n'
+                  '            index == APP_V2_SETTINGS_UUID_HYPHEN_2_INDEX ||\n'
+                  '            index == APP_V2_SETTINGS_UUID_HYPHEN_3_INDEX ||\n'
+                  '            index == APP_V2_SETTINGS_UUID_HYPHEN_4_INDEX) {',
+              ),
+              (
+                  "return uuid[14] == '4' &&\n           (uuid[19] == '8' || uuid[19] == '9' || uuid[19] == 'a' || uuid[19] == 'b');",
+                  "return uuid[APP_V2_SETTINGS_UUID_VERSION_INDEX] == '4' &&\n"
+                  "           (uuid[APP_V2_SETTINGS_UUID_VARIANT_INDEX] == '8' ||\n"
+                  "            uuid[APP_V2_SETTINGS_UUID_VARIANT_INDEX] == '9' ||\n"
+                  "            uuid[APP_V2_SETTINGS_UUID_VARIANT_INDEX] == 'a' ||\n"
+                  "            uuid[APP_V2_SETTINGS_UUID_VARIANT_INDEX] == 'b');",
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"expected one occurrence, found {count}: {old!r}")
+              text = text.replace(old, new)
+
+          retention_old = 'settings->snapshot_retention_target = 5U;'
+          if text.count(retention_old) != 2:
+              raise SystemExit('expected exactly two snapshot retention defaults')
+          text = text.replace(
+              retention_old,
+              'settings->snapshot_retention_target = '
+              'APP_V2_SETTINGS_DEFAULT_SNAPSHOT_RETENTION_TARGET;',
+          )
+
+          path.write_text(text)
+          PY
+          clang-format -i firmware/components/app_contracts_v2/device_settings_v2.c
+          clang-format --dry-run --Werror firmware/components/app_contracts_v2/device_settings_v2.c
+
+      - name: Upload repaired source
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: phase1-repaired-device-settings-${{ github.run_id }}
+          path: firmware/components/app_contracts_v2/device_settings_v2.c
+          if-no-files-found: error
+          retention-days: 1
