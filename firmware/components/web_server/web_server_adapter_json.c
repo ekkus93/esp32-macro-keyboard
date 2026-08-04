@@ -77,17 +77,15 @@ app_error_code_t web_adapter_build_limits_json(char *output, size_t output_size)
     if (output == NULL || output_size == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    const int length =
-        snprintf(output, output_size,
-                 "{\"ok\":true,\"data\":{\"macroNameBytes\":%lu,\"macroSourceBytes\":%lu,"
-                 "\"compiledActions\":%lu,\"delayMs\":%lu,\"durationMs\":%lu,"
-                 "\"macrosPerPackage\":%lu,\"packages\":%lu,\"importBytes\":%lu}}",
-                 (unsigned long)APP_MACRO_NAME_MAX_BYTES,
-                 (unsigned long)APP_MACRO_SOURCE_MAX_BYTES,
-                 (unsigned long)APP_COMPILED_ACTION_MAX, (unsigned long)APP_DELAY_MAX_MS,
-                 (unsigned long)APP_ESTIMATED_DURATION_MAX_MS,
-                 (unsigned long)APP_MACROS_PER_SET_MAX, (unsigned long)APP_MACRO_SETS_MAX,
-                 (unsigned long)APP_IMPORT_PACKAGE_MAX_BYTES);
+    const int length = snprintf(
+        output, output_size,
+        "{\"ok\":true,\"data\":{\"macroNameBytes\":%lu,\"macroSourceBytes\":%lu,"
+        "\"compiledActions\":%lu,\"delayMs\":%lu,\"durationMs\":%lu,"
+        "\"macrosPerPackage\":%lu,\"packages\":%lu,\"importBytes\":%lu}}",
+        (unsigned long)APP_MACRO_NAME_MAX_BYTES, (unsigned long)APP_MACRO_SOURCE_MAX_BYTES,
+        (unsigned long)APP_COMPILED_ACTION_MAX, (unsigned long)APP_DELAY_MAX_MS,
+        (unsigned long)APP_ESTIMATED_DURATION_MAX_MS, (unsigned long)APP_MACROS_PER_SET_MAX,
+        (unsigned long)APP_MACRO_SETS_MAX, (unsigned long)APP_IMPORT_PACKAGE_MAX_BYTES);
     if (length < 0 || (size_t)length >= output_size) {
         output[0] = '\0';
         return APP_ERROR_INTERNAL;
