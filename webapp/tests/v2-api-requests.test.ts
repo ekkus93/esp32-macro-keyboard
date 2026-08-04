@@ -46,6 +46,21 @@ describe("v2 API request contracts", () => {
     ).toBe(false);
   });
 
+  test("rejects unknown fields in nested settings credentials", () => {
+    expect(
+      isSettingsUpdateRequest({
+        ...examples.settingsUpdate,
+        accessPoint: withUnknownField(examples.settingsUpdate.accessPoint),
+      }),
+    ).toBe(false);
+    expect(
+      isSettingsUpdateRequest({
+        ...examples.settingsUpdate,
+        station: withUnknownField(examples.settingsUpdate.station),
+      }),
+    ).toBe(false);
+  });
+
   test("enforces setup code, UTF-8, Wi-Fi, and password boundaries", () => {
     expect(
       isSetupRequest({
