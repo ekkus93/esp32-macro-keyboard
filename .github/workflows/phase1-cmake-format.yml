@@ -1,4 +1,4 @@
-# One-shot CMake diagnostic; remove before merging.
+# One-shot CMake environment diagnostic; remove before merging.
 name: Phase 1 CMake Format
 
 on:
@@ -12,7 +12,7 @@ permissions:
 jobs:
   format:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Check out repair branch
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -21,14 +21,15 @@ jobs:
           persist-credentials: false
           show-progress: false
 
-      - name: Install pinned CMake tools
+      - name: Install Quality toolchain
         shell: bash
         run: |
           set -euo pipefail
           python3 -m pip install --user cmakelang==0.6.13
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          ./scripts/install-esp-idf.sh
 
-      - name: Diagnose CMake checks
+      - name: Compare CMake tools before and after ESP-IDF activation
         shell: bash
         run: |
           set -uo pipefail
@@ -36,18 +37,33 @@ jobs:
             firmware/components/app_contracts_v2/CMakeLists.txt
             tests/v2_contracts/CMakeLists.txt
           )
-          for file in "${files[@]}"; do
-            echo "=== ${file}: cmake-format --check ==="
-            "$HOME/.local/bin/cmake-format" --check "$file"
-            echo "cmake-format status: $?"
 
-            echo "=== ${file}: rendered diff ==="
-            "$HOME/.local/bin/cmake-format" "$file" > "${RUNNER_TEMP}/formatted.cmake"
-            diff -u "$file" "${RUNNER_TEMP}/formatted.cmake"
-            echo "rendered diff status: $?"
+          echo '=== Before ESP-IDF activation ==='
+          printf 'PATH=%s\n' "$PATH"
+          command -v cmake-format || true
+          command -v cmake-lint || true
+          cmake-format --version || true
+          cmake-format --check "${files[@]}"
+          echo "pre-activation format status: $?"
+          cmake-lint "${files[@]}"
+          echo "pre-activation lint status: $?"
 
-            echo "=== ${file}: cmake-lint ==="
-            "$HOME/.local/bin/cmake-lint" "$file"
-            echo "cmake-lint status: $?"
-          done
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+
+          echo '=== After ESP-IDF activation ==='
+          printf 'PATH=%s\n' "$PATH"
+          command -v cmake-format || true
+          command -v cmake-lint || true
+          cmake-format --version || true
+          cmake-format --check "${files[@]}"
+          echo "post-activation format status: $?"
+          cmake-lint "${files[@]}"
+          echo "post-activation lint status: $?"
+
+          echo '=== Explicit pinned executables after activation ==='
+          "$HOME/.local/bin/cmake-format" --version || true
+          "$HOME/.local/bin/cmake-format" --check "${files[@]}"
+          echo "explicit format status: $?"
+          "$HOME/.local/bin/cmake-lint" "${files[@]}"
+          echo "explicit lint status: $?"
           exit 1
