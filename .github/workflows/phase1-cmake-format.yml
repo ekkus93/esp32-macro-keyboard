@@ -29,41 +29,59 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           ./scripts/install-esp-idf.sh
 
-      - name: Compare CMake tools before and after ESP-IDF activation
+      - name: Capture CMake environment diagnostics
         shell: bash
         run: |
           set -uo pipefail
+          report="${RUNNER_TEMP}/cmake-environment.txt"
           files=(
             firmware/components/app_contracts_v2/CMakeLists.txt
             tests/v2_contracts/CMakeLists.txt
           )
 
-          echo '=== Before ESP-IDF activation ==='
-          printf 'PATH=%s\n' "$PATH"
-          command -v cmake-format || true
-          command -v cmake-lint || true
-          cmake-format --version || true
-          cmake-format --check "${files[@]}"
-          echo "pre-activation format status: $?"
-          cmake-lint "${files[@]}"
-          echo "pre-activation lint status: $?"
+          capture() {
+            local label="$1"
+            {
+              echo "=== ${label} ==="
+              printf 'PATH=%s\n' "$PATH"
+              printf 'python3=%s\n' "$(command -v python3 || true)"
+              printf 'cmake-format=%s\n' "$(command -v cmake-format || true)"
+              printf 'cmake-lint=%s\n' "$(command -v cmake-lint || true)"
+              cmake-format --version 2>&1 || true
+              cmake-format --check "${files[@]}" >/tmp/cmake-format.out 2>&1
+              printf 'format_status=%s\n' "$?"
+              cat /tmp/cmake-format.out
+              cmake-lint "${files[@]}" >/tmp/cmake-lint.out 2>&1
+              printf 'lint_status=%s\n' "$?"
+              cat /tmp/cmake-lint.out
+            } >> "$report"
+          }
 
-          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          capture before_activation
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh" >/tmp/idf-export.out 2>&1
+          {
+            echo '=== idf_export ==='
+            cat /tmp/idf-export.out
+          } >> "$report"
+          capture after_activation
 
-          echo '=== After ESP-IDF activation ==='
-          printf 'PATH=%s\n' "$PATH"
-          command -v cmake-format || true
-          command -v cmake-lint || true
-          cmake-format --version || true
-          cmake-format --check "${files[@]}"
-          echo "post-activation format status: $?"
-          cmake-lint "${files[@]}"
-          echo "post-activation lint status: $?"
+          {
+            echo '=== explicit_user_bin_after_activation ==='
+            "$HOME/.local/bin/cmake-format" --version 2>&1 || true
+            "$HOME/.local/bin/cmake-format" --check "${files[@]}" >/tmp/explicit-format.out 2>&1
+            printf 'explicit_format_status=%s\n' "$?"
+            cat /tmp/explicit-format.out
+            "$HOME/.local/bin/cmake-lint" "${files[@]}" >/tmp/explicit-lint.out 2>&1
+            printf 'explicit_lint_status=%s\n' "$?"
+            cat /tmp/explicit-lint.out
+          } >> "$report"
 
-          echo '=== Explicit pinned executables after activation ==='
-          "$HOME/.local/bin/cmake-format" --version || true
-          "$HOME/.local/bin/cmake-format" --check "${files[@]}"
-          echo "explicit format status: $?"
-          "$HOME/.local/bin/cmake-lint" "${files[@]}"
-          echo "explicit lint status: $?"
-          exit 1
+          cat "$report"
+
+      - name: Upload compact diagnostics
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: phase1-cmake-environment-${{ github.run_id }}
+          path: ${{ runner.temp }}/cmake-environment.txt
+          if-no-files-found: error
+          retention-days: 1
