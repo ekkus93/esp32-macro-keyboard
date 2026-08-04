@@ -1,10 +1,12 @@
 # ESP32 Macro Keyboard v2 — Phase 1 Contract Checkpoint
 
 **Phase:** 1 — Shared contracts, limits, and schema foundations  
-**Status:** In progress; exit gate not claimed  
-**Date:** 2026-08-03  
+**Status:** Contract implementation and CI repair verified; Phase 1 completion not claimed  
+**Date:** 2026-08-04  
 **Contract implementation head before this report:**
-`ed19a6b68a426d9ece53e3c1a2947e0c6ab7eed4`
+`ed19a6b68a426d9ece53e3c1a2947e0c6ab7eed4`  
+**Verified repair head:**
+`4760d9f00351decb7813fc8eb77bbf3e6eb61cad`
 
 ## 1. Scope
 
@@ -15,8 +17,11 @@ constants are safely aliased into existing macro limits.
 
 The product-owner decision for the first-run setup-state route has now been
 resolved and incorporated into both authoritative documents and the shared
-contracts. Phase 1 remains open because the checked-in clean-checkout gates have
-not yet been executed successfully in an environment with the pinned toolchain.
+contracts. The checked-in implementation and CI repairs were validated on the
+clean pull-request head recorded above. This checkpoint records that evidence
+without claiming Phase 1 complete because production v1 routes and serializers
+remain scheduled for Phase 2 deletion, and PBKDF2 hardware measurement remains
+intentionally deferred.
 
 ## 2. Implemented contract artifacts
 
@@ -341,6 +346,38 @@ The local container does not provide the repository-pinned Node.js 24.18.0,
 ESP-IDF 5.5.5, clang-format, cmake-format, cmake-lint, shfmt, shellcheck, or the
 installed npm dependency tree required by the authoritative gates.
 
+### 3.4 Authoritative GitHub Actions validation
+
+The permanent repair head `4760d9f00351decb7813fc8eb77bbf3e6eb61cad`
+was validated in pull request #26 after all temporary repair workflows had been
+removed. The following required workflows all completed successfully on that
+exact SHA:
+
+- Browser Tests — run `30894944349`;
+- Host Tests — run `30894944491`;
+- Device Test Build — run `30894946915`;
+- Quality — run `30894944360`.
+
+The Host Tests workflow passed ordinary host tests, frontend tests, frontend and
+native coverage, and the AddressSanitizer/UndefinedBehaviorSanitizer job. The
+Device Test Build workflow passed device-source lint and built the ESP32-S3 test
+firmware with ESP-IDF `v5.5.5`. The Quality workflow passed the reviewed npm
+audit policy and the complete authoritative `check-all.sh` sequence; its failure
+artifact step was skipped because the gate succeeded.
+
+The final repair sequence also verified that:
+
+- the isolated device-test app discovers `app_contracts_v2`;
+- the npm lock resolves the reviewed transitive security fixes without expanding
+  the audit exception policy;
+- C, CMake, TypeScript, Python, shell, JSON, and Markdown formatting/lint gates
+  accept the checked-in files;
+- clang-tidy include ownership, format-string typing, and magic-number checks
+  pass;
+- the stack-usage allowlist contains no stale entries;
+- `docs/SPEC_TEST_TRACEABILITY.md` is deterministic and matches the repository
+  generator.
+
 ## 4. Resolved specification decision
 
 The setup-state route ambiguity is resolved. The approved route and response are
@@ -350,22 +387,18 @@ No other route authentication or access policy was inferred as part of this
 decision. The setup policy fixture deliberately covers only the approved
 pre-provisioning surface and post-provisioning setup statuses.
 
-## 5. Phase 1 exit items still open
+## 5. Remaining phase-boundary items
 
-- Clean-checkout execution of `bash scripts/check-v2-contracts.sh`.
-- Pinned Node.js `24.18.0` typecheck, lint, format, and Vitest evidence.
-- Checked-in native CMake/CTest execution.
-- ESP-IDF `v5.5.5` firmware build and clang-tidy evidence.
-- Full `./scripts/check-all.sh` result.
-- Confirmation that the exact checked-in CMake and formatting configuration
-  accepts every new C, CMake, TypeScript, Python, shell, JSON, and Markdown file.
-- PBKDF2 iteration-count hardware measurement remains intentionally deferred to
-  Phase 4 and final hardware acceptance.
+The clean-checkout and pinned-toolchain items previously listed here are closed
+by the authoritative evidence in §3.4.
 
-Production v1 routes and repository serializers still exist and are scheduled
-for Phase 2 deletion. Therefore the Phase 1 exit item stating that no production
-route or serializer depends on a v1 shape cannot yet be claimed from the current
-production build.
+The following boundaries remain intentionally open:
 
-Phase 1 is not marked complete, and Phase 2 production deletion work has not
-begun.
+- PBKDF2 iteration-count hardware measurement remains deferred to Phase 4 and
+  final hardware acceptance.
+- Production v1 routes and repository serializers still exist and are scheduled
+  for Phase 2 deletion. Therefore the stronger production-shape exit claim is
+  not made in this checkpoint.
+
+Phase 1 completion is not claimed here, and Phase 2 production deletion work has
+not begun.
