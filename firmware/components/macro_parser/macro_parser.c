@@ -8,7 +8,6 @@
 
 #include "app_error.h"
 #include "macro_keymap_us.h"
-#include "macro_limits.h"
 
 #define ASCII_SPACE 0x20U     /* first printable character */
 #define ASCII_TILDE 0x7eU     /* last printable character */
