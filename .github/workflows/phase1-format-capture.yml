@@ -1,5 +1,4 @@
-# One-shot formatting capture; remove before merging.
-# This second commit intentionally triggers the branch-local workflow.
+# One-shot formatting application; remove before merging.
 name: Phase 1 Format Capture
 
 on:
@@ -8,10 +7,11 @@ on:
       - master
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   format:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -19,7 +19,6 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: phase1-ci-repair
-          persist-credentials: false
           show-progress: false
 
       - name: Install pinned formatter
@@ -34,35 +33,43 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          clang-format -i \
-            firmware/components/app_contracts_v2/device_settings_v2.c \
-            firmware/components/app_contracts_v2/include/device_settings_v2.h \
-            firmware/components/macro_parser/include/macro_parser.h \
-            firmware/components/macro_parser/macro_parser_v2.c \
-            tests/v2_contracts/test_device_settings.c \
-            tests/v2_contracts/test_macro_conformance.c \
+          files=(
+            firmware/components/app_contracts_v2/device_settings_v2.c
+            firmware/components/app_contracts_v2/include/device_settings_v2.h
+            firmware/components/macro_parser/include/macro_parser.h
+            firmware/components/macro_parser/macro_parser_v2.c
+            tests/v2_contracts/test_device_settings.c
+            tests/v2_contracts/test_macro_conformance.c
             tests/v2_contracts/test_setup_route_policy.c
-          clang-format --dry-run --Werror \
-            firmware/components/app_contracts_v2/device_settings_v2.c \
-            firmware/components/app_contracts_v2/include/device_settings_v2.h \
-            firmware/components/macro_parser/include/macro_parser.h \
-            firmware/components/macro_parser/macro_parser_v2.c \
-            tests/v2_contracts/test_device_settings.c \
-            tests/v2_contracts/test_macro_conformance.c \
-            tests/v2_contracts/test_setup_route_policy.c
-          tar -czf "${RUNNER_TEMP}/phase1-formatted.tar.gz" \
-            firmware/components/app_contracts_v2/device_settings_v2.c \
-            firmware/components/app_contracts_v2/include/device_settings_v2.h \
-            firmware/components/macro_parser/include/macro_parser.h \
-            firmware/components/macro_parser/macro_parser_v2.c \
-            tests/v2_contracts/test_device_settings.c \
-            tests/v2_contracts/test_macro_conformance.c \
-            tests/v2_contracts/test_setup_route_policy.c
+          )
+          clang-format -i "${files[@]}"
+          clang-format --dry-run --Werror "${files[@]}"
+          mapfile -t changed_files < <(git diff --name-only)
+          if [[ ${#changed_files[@]} -ne ${#files[@]} ]]; then
+            printf 'Expected %d formatted files, found %d:\n' "${#files[@]}" "${#changed_files[@]}"
+            printf '  %s\n' "${changed_files[@]}"
+            exit 1
+          fi
+          for file in "${files[@]}"; do
+            if ! printf '%s\n' "${changed_files[@]}" | grep -Fxq "$file"; then
+              printf 'Missing expected formatted file: %s\n' "$file"
+              exit 1
+            fi
+          done
 
-      - name: Upload formatted files
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: phase1-formatted-${{ github.run_id }}
-          path: ${{ runner.temp }}/phase1-formatted.tar.gz
-          if-no-files-found: error
-          retention-days: 1
+      - name: Commit authoritative formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            firmware/components/app_contracts_v2/device_settings_v2.c \
+            firmware/components/app_contracts_v2/include/device_settings_v2.h \
+            firmware/components/macro_parser/include/macro_parser.h \
+            firmware/components/macro_parser/macro_parser_v2.c \
+            tests/v2_contracts/test_device_settings.c \
+            tests/v2_contracts/test_macro_conformance.c \
+            tests/v2_contracts/test_setup_route_policy.c
+          git commit -m "Format Phase 1 contract sources"
+          git push origin HEAD:phase1-ci-repair
