@@ -106,7 +106,10 @@ describe("v2 API response contracts", () => {
       "storage",
       "send",
     ] as const) {
-      const status = structuredClone(examples.status) as Record<string, unknown>;
+      const status = structuredClone(examples.status) as Record<
+        string,
+        unknown
+      >;
       status[field] = withUnknownField(status[field]);
       expect(isStatusResponse(status)).toBe(false);
     }
@@ -125,13 +128,7 @@ describe("v2 API response contracts", () => {
       }),
     ).toBe(false);
 
-    for (const field of [
-      "memory",
-      "usb",
-      "wifi",
-      "storage",
-      "send",
-    ] as const) {
+    for (const field of ["memory", "usb", "wifi", "storage", "send"] as const) {
       const diagnostics = structuredClone(examples.diagnostics) as Record<
         string,
         unknown
@@ -143,9 +140,7 @@ describe("v2 API response contracts", () => {
     expect(
       isDiagnosticsResponse({
         ...examples.diagnostics,
-        subsystems: [
-          { name: "storage", state: "healthy", unexpected: true },
-        ],
+        subsystems: [{ name: "storage", state: "healthy", unexpected: true }],
       }),
     ).toBe(false);
   });
