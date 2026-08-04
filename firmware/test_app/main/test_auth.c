@@ -1,13 +1,29 @@
-#include <string.h>
-
+#include <inttypes.h>
+#include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "app_error.h"
 #include "auth.h"
+#include "esp_timer.h"
 #include "unity.h"
 
 /* PBKDF2 iteration count baked into the fixed known-answer vector below. */
 #define TEST_VECTOR_ITERATIONS 120000U
+#define PBKDF2_BENCHMARK_SAMPLE_COUNT 10U
+
+static void sort_timings(int64_t *timings, size_t count) {
+    for (size_t index = 1U; index < count; ++index) {
+        const int64_t value = timings[index];
+        size_t insertion = index;
+        while (insertion > 0U && timings[insertion - 1U] > value) {
+            timings[insertion] = timings[insertion - 1U];
+            --insertion;
+        }
+        timings[insertion] = value;
+    }
+}
 
 TEST_CASE("authentication adapters create and validate secrets", "[device][auth]") {
     const app_error_code_t init_result = auth_init();
@@ -54,4 +70,43 @@ TEST_CASE("authentication adapters create and validate secrets", "[device][auth]
     memset(&record, 0, sizeof(record));
     memset(&vector, 0, sizeof(vector));
     memset(&session, 0, sizeof(session));
+}
+
+TEST_CASE("PBKDF2 candidate timings are reported", "[device][auth][benchmark]") {
+    const app_error_code_t init_result = auth_init();
+    TEST_ASSERT_TRUE(init_result == APP_ERROR_NONE || init_result == APP_ERROR_CONFLICT);
+
+    static const char benchmark_password[] = "phase1-benchmark-password";
+    static const uint32_t candidates[] = {60000U, 90000U, 120000U, 150000U};
+
+    for (size_t candidate_index = 0U;
+         candidate_index < sizeof(candidates) / sizeof(candidates[0]); ++candidate_index) {
+        auth_password_record_t record = {.iterations = candidates[candidate_index]};
+        for (size_t index = 0U; index < sizeof(record.salt); ++index) {
+            record.salt[index] = (uint8_t)index;
+        }
+
+        int64_t timings[PBKDF2_BENCHMARK_SAMPLE_COUNT] = {0};
+        for (size_t sample = 0U; sample < PBKDF2_BENCHMARK_SAMPLE_COUNT; ++sample) {
+            bool matches = true;
+            const int64_t started_us = esp_timer_get_time();
+            TEST_ASSERT_EQUAL(
+                APP_ERROR_NONE,
+                auth_password_verify(benchmark_password, sizeof(benchmark_password) - 1U,
+                                     &record, &matches));
+            timings[sample] = esp_timer_get_time() - started_us;
+            TEST_ASSERT_FALSE(matches);
+        }
+
+        sort_timings(timings, PBKDF2_BENCHMARK_SAMPLE_COUNT);
+        const size_t median_index = PBKDF2_BENCHMARK_SAMPLE_COUNT / 2U;
+        const size_t p90_index = (PBKDF2_BENCHMARK_SAMPLE_COUNT * 9U) / 10U - 1U;
+        const size_t worst_index = PBKDF2_BENCHMARK_SAMPLE_COUNT - 1U;
+        (void)printf("PBKDF2_BENCH iterations=%" PRIu32 " samples=%u median_us=%" PRId64
+                     " p90_us=%" PRId64 " worst_us=%" PRId64 "\n",
+                     record.iterations, (unsigned int)PBKDF2_BENCHMARK_SAMPLE_COUNT,
+                     timings[median_index], timings[p90_index], timings[worst_index]);
+        memset(&record, 0, sizeof(record));
+        memset(timings, 0, sizeof(timings));
+    }
 }
