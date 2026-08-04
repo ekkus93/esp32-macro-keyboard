@@ -146,18 +146,22 @@ describe("v2 API response contracts", () => {
       }),
     ).toBe(false);
 
-    const invalidNames = structuredClone(examples.diagnostics);
+    const invalidNames = structuredClone(examples.diagnostics) as unknown as {
+      storage: { invalidNames: string[] };
+    };
     invalidNames.storage.invalidNames = sparseArray<string>(1);
     expect(isDiagnosticsResponse(invalidNames)).toBe(false);
 
-    const temporaryFiles = structuredClone(examples.diagnostics);
+    const temporaryFiles = structuredClone(examples.diagnostics) as unknown as {
+      storage: { temporaryFiles: string[] };
+    };
     temporaryFiles.storage.temporaryFiles = sparseArray<string>(1);
     expect(isDiagnosticsResponse(temporaryFiles)).toBe(false);
 
-    const subsystems = structuredClone(examples.diagnostics);
-    subsystems.subsystems = sparseArray<
-      (typeof examples.diagnostics.subsystems)[number]
-    >(1);
+    const subsystems = structuredClone(examples.diagnostics) as unknown as {
+      subsystems: unknown[];
+    };
+    subsystems.subsystems = sparseArray<unknown>(1);
     expect(isDiagnosticsResponse(subsystems)).toBe(false);
   });
 
