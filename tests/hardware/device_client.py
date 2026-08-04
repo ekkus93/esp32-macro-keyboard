@@ -1,8 +1,7 @@
-"""Minimal HTTP client for the ESP32 macro keyboard's API.
+"""Minimal HTTP client for the ESP32 macro keyboard API.
 
-The session cookie is the whole credential (SPEC 16.2). The CSRF token and the
-Host/Origin pair this client used to send were removed with the checks that
-required them.
+The session cookie is the whole credential. The CSRF token and Host/Origin pair
+this client previously sent were removed with the checks that required them.
 """
 
 import json
@@ -22,10 +21,6 @@ class Device:
         headers = {}
         data = None
         if body is not None:
-            # Compact, no spaces between tokens. The device's package parser is a
-            # hand-rolled scanner that rejects whitespace there, and json.dumps
-            # inserts ", " and ": " by default -- which turned a working restore
-            # into a 422 and cost an afternoon chasing the firmware.
             data = json.dumps(body, separators=(",", ":")).encode()
             headers["Content-Type"] = "application/json"
         if self.cookie:
@@ -69,13 +64,7 @@ class Device:
         return self._request("DELETE", path, body, **kw)
 
     def logout(self):
-        """Release the session.
-
-        Sessions are RAM-only and the table is bounded (APP_SESSION_TABLE_MAX),
-        so a harness that logs in on every run without logging out will exhaust
-        it and every later login fails 503. The firmware is right to refuse;
-        the caller has to clean up after itself.
-        """
+        """Release the bounded, RAM-only session."""
         if self.cookie is None:
             return
         try:
