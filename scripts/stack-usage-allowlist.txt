@@ -21,64 +21,19 @@
 #
 # CURRENT STATUS
 #
-# Every remaining frame fits the 24 KiB httpd task stack (largest is
-# restore_locked at ~20 KB), so no HTTP endpoint is a guaranteed crash any more.
-# The previously known-broken frames are fixed:
+# Three first-party frames remain over the 4096-byte threshold. Every one fits
+# the 24 KiB httpd task stack; the largest is import_locked at about 18.7 KiB.
+# They remain ratcheted because their fixed-size repository structures still
+# leave less stack margin than ordinary request handlers.
 #
-#   storage_repository_tree_validate  388288 -> ~1.6 KB   (exceeded total heap)
-#   handle_progress_action             45424 ->    688
-#   snapshot_load_locked               42336 ->      0    (inlined)
-#   handle_progress_resource           29984 ->      0    (inlined)
-#   validate_progress                  15056 ->    128    (boot path)
-#   validate_index                      7456 ->     48    (boot path)
+# The stale storage_set_tree.c, storage_repository_procedures.c, and
+# storage_transaction.c entries were removed after the Phase 1 simplification
+# deleted or refactored those frames. The gate deliberately rejects such dead
+# entries so this file cannot become an archive of code that no longer exists.
 #
-# The two validators mattered disproportionately: they run from
-# storage_atomic_recover_all() during startup, on main_task's 8 KiB stack, so an
-# interrupted progress or index write would have left the device unbootable.
-#
-# REMAINING RISK
-#
-# The entries below fit the httpd stack but several exceed main_task's 8 KiB.
-# That is only a problem for functions reachable from startup recovery; the
-# known boot-path entry points are all small now, and the one that remains
-# listed (storage_transaction_recover_all_with_ops, ~5.6 KB) fits 8 KiB but
-# without much margin. The dominant cause throughout is the same: fixed-size
-# arrays as locals (procedure_progress_t's two app_uuid_t[200] arrays,
-# storage_uuid_order_t, storage_package_index_t). The fix is always to heap-allocate
-# with a single free on a single exit path.
-#
-# CURRENT STATUS (updated after the 2026-08-01 reduction pass)
-#
-# 13 frames remain over the threshold, down from 31. Every one fits the 24 KiB
-# httpd task stack; the largest is restore_locked at ~20 KB.
-#
-# Two changes did most of the work:
-#
-#   * STORAGE_ORDER_MAX_IDS was APP_STEPS_PER_PROCEDURE_MAX (200) although an
-#     order list only ever holds macro, procedure, or set identifiers - at most
-#     APP_MACROS_PER_SET_MAX (100). Right-sizing it halved storage_uuid_order_t
-#     from ~8 KB to ~4 KB and removed nine frames outright.
-#   * The three storage_repository_progress.c functions now keep their ~16 KB
-#     procedure_progress_t buffers on the heap.
-#
-# What is left is dominated by procedure_progress_t (~16 KB: two
-# app_uuid_t[APP_STEPS_PER_PROCEDURE_MAX] arrays, which is a genuine bound, not
-# over-provisioning) appearing inside the package import/export/replace/restore
-# paths. Those need the same treatment: one allocation, one free, one exit.
-#
-# A caution for whoever does that, learned the hard way here: callers are
-# allowed to alias a progress buffer into the output snapshot
-# (test_storage_progress.c passes &snapshot.progress alongside &snapshot), so a
-# copy taken before the output is cleared is load-bearing. Removing one looks
-# safe and is not.
-#
-# Baseline measured 2026-08-01 during first hardware bring-up.
+# Baseline measured during the 2026-08-01 hardware bring-up and updated by the
+# Phase 1 contract/CI repair pass.
 #
 18720 firmware/components/storage/storage_package_import.c:import_locked
 18528 firmware/components/storage/storage_package_replace.c:storage_package_replace
-16560 firmware/components/storage/storage_set_tree.c:storage_set_tree_validate
-7712 firmware/components/storage/storage_repository_procedures.c:procedure_reorder_locked
-5584 firmware/components/storage/storage_transaction.c:storage_transaction_recover_all_with_ops$part$0
-4768 firmware/components/storage/storage_repository_procedures.c:procedure_create_locked
 4736 firmware/components/storage/storage_repository_package_operations.c:storage_package_duplicate_locked
-4416 firmware/components/storage/storage_repository_procedures.c:procedure_delete_locked
