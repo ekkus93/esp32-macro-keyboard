@@ -14,6 +14,7 @@ for schema in docs/schemas/*.json; do
 	jq empty "${schema}"
 done
 
-# The traceability matrix is generated. If it can drift from SPEC.md silently,
-# it stops being a worklist and becomes a stale reassurance.
+# The v2 traceability worklist fingerprints both authoritative specifications.
+# Any spec change must regenerate the checked-in report rather than leaving a
+# stale or zero-row reassurance behind.
 python3 scripts/generate-spec-traceability.py --check
