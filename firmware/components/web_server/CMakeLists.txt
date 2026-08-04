@@ -1,37 +1,31 @@
 idf_component_register(
     SRCS
-    "web_server_common.c"
-    "web_server_status_limits.c"
-    "web_server_login.c"
-    "web_server_logout_execution.c"
-    "web_server_cancel.c"
-    "web_server_static.c"
-    "web_server_setup.c"
-    "web_server_lifecycle.c"
-    "web_server_async.c"
-    "web_server_diagnostics.c"
-    "web_server_api.c"
+    "web_server.c"
     "web_server_adapter_common.c"
     "web_server_adapter_body_auth.c"
     "web_server_adapter_json.c"
     "web_server_adapter_static_stream.c"
     "web_server_adapter_lifecycle.c"
+    "web_server_common.c"
+    "web_server_lifecycle.c"
+    "web_server_status.c"
+    "web_server_login.c"
+    "web_server_logout.c"
+    "web_server_static.c"
+    "web_server_setup.c"
+    "web_server_api.c"
+    "web_server_async.c"
+    "web_server_diagnostics.c"
+    "web_cookie.c"
+    "web_content.c"
+    "web_static_path.c"
     "web_api_core.c"
     "web_api_response.c"
     "web_api_json.c"
     "web_api_handler_common.c"
-    "web_api_packages.c"
-    "web_api_macros.c"
-    "web_api_execution.c"
-    "web_api_administration.c"
-    "web_api_admin_boundary.c"
     "web_api_dispatch.c"
+    "web_api_administration.c"
     "web_request_policy.c"
-    "web_execution_submit.c"
-    "web_execution_route_policy.c"
-    "web_cookie.c"
-    "web_static_path.c"
-    "web_content.c"
     "web_setup_core.c"
     "web_setup_json.c"
     "http_health.c"
@@ -41,20 +35,19 @@ idf_component_register(
     "."
     REQUIRES
     macro_model
-    support
     macro_executor
-    macro_parser
+    auth
     usb_keyboard
     wifi_ap
-    auth
+    storage
     provisioning
     device_controls
-    storage
-    esp_app_format
+    support
+    app_contracts_v2
+    json
     esp_http_server
     esp_timer
-    esp_system
-    json
+    app_update
 )
 
 target_compile_options(

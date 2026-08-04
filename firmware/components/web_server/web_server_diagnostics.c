@@ -3,7 +3,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "app_error.h"
 #include "app_lifecycle_health.h"
@@ -16,7 +15,6 @@
 #include "http_health.h"
 #include "macro_executor.h"
 #include "macro_limits.h"
-#include "repository_health.h"
 #include "storage.h"
 #include "storage_health.h"
 #include "usb_health.h"
@@ -86,8 +84,6 @@ static void fill_subsystems(web_diagnostics_subsystem_t *out_subsystems) {
         .name = "app_core", .state = app_lifecycle_health_snapshot().state};
     out_subsystems[index++] =
         (web_diagnostics_subsystem_t){.name = "storage", .state = storage_health_snapshot().state};
-    out_subsystems[index++] = (web_diagnostics_subsystem_t){
-        .name = "repository", .state = repository_health_snapshot().state};
     out_subsystems[index++] =
         (web_diagnostics_subsystem_t){.name = "auth", .state = auth_health_snapshot().state};
     out_subsystems[index++] =

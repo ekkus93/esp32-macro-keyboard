@@ -3,19 +3,14 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "app_error.h"
-#include "app_uuid.h"
 #include "cJSON.h"
 #include "macro_limits.h"
-#include "macro_model.h"
 #include "provisioning.h"
-#include "storage_object_json.h"
-#include "web_execution_submit.h"
 
-#define WEB_API_JSON_MAX_FIELDS 16U
+#define WEB_API_JSON_MAX_FIELDS 4U
 
 static bool contains_embedded_nul_escape(const char *body, size_t length) {
     static const char escape[] = "\\u0000";
@@ -32,7 +27,8 @@ static bool contains_embedded_nul_escape(const char *body, size_t length) {
 }
 
 static cJSON *parse_exact_document(const char *body, size_t body_length) {
-    if (body == NULL || body_length == 0U || contains_embedded_nul_escape(body, body_length)) {
+    if (body == NULL || body_length == 0U || body_length > APP_JSON_BODY_MAX_BYTES ||
+        contains_embedded_nul_escape(body, body_length)) {
         return NULL;
     }
     const char *parse_end = NULL;
@@ -92,73 +88,6 @@ static bool read_revision(const cJSON *root, const char *field, uint32_t *out_re
     return true;
 }
 
-static bool read_uuid(const cJSON *root, const char *field, app_uuid_t *out_uuid) {
-    const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, field);
-    return cJSON_IsString(item) && item->valuestring != NULL &&
-           app_uuid_parse(item->valuestring, out_uuid) == APP_ERROR_NONE;
-}
-
-static app_error_code_t request_resource_result(app_error_code_t result) {
-    return result == APP_ERROR_STORAGE_CORRUPT ? APP_ERROR_INVALID_ARGUMENT : result;
-}
-
-static app_error_code_t validate_resource_fields(const char *body, size_t body_length,
-                                                 const char *const *fields, size_t field_count) {
-    cJSON *root = parse_exact_document(body, body_length);
-    const bool valid = root != NULL && exact_fields(root, fields, field_count);
-    cJSON_Delete(root);
-    return valid ? APP_ERROR_NONE : APP_ERROR_INVALID_ARGUMENT;
-}
-
-/* Every macro belongs to a set (SPEC §7.2), so `set_id` is required and there
- * is no scope discriminator. */
-static app_error_code_t validate_macro_resource_fields(const char *body, size_t body_length) {
-    static const char *const fields[] = {
-        "schema_version", "id",     "revision",     "package_id",
-        "name",           "source", "key_press_ms", "inter_key_ms",
-    };
-    return validate_resource_fields(body, body_length, fields, sizeof(fields) / sizeof(fields[0]));
-}
-
-app_error_code_t web_api_json_parse_package_resource(const char *body, size_t body_length,
-                                                     macro_package_t *out_package) {
-    if (out_package != NULL) {
-        memset(out_package, 0, sizeof(*out_package));
-    }
-    if (out_package == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    static const char *const fields[] = {
-        "schema_version",
-        "id",
-        "revision",
-        "name",
-    };
-    app_error_code_t result =
-        validate_resource_fields(body, body_length, fields, sizeof(fields) / sizeof(fields[0]));
-    if (result == APP_ERROR_NONE) {
-        result = request_resource_result(
-            storage_repository_parse_package_json(body, body_length, out_package));
-    }
-    return result;
-}
-
-app_error_code_t web_api_json_parse_macro_resource(const char *body, size_t body_length,
-                                                   macro_t *out_macro) {
-    if (out_macro != NULL) {
-        memset(out_macro, 0, sizeof(*out_macro));
-    }
-    if (out_macro == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    app_error_code_t result = validate_macro_resource_fields(body, body_length);
-    if (result == APP_ERROR_NONE) {
-        result = request_resource_result(
-            storage_repository_parse_macro_json(body, body_length, out_macro));
-    }
-    return result;
-}
-
 app_error_code_t web_api_json_parse_expected_revision(const char *body, size_t body_length,
                                                       uint32_t *out_expected_revision) {
     if (out_expected_revision != NULL) {
@@ -179,116 +108,6 @@ app_error_code_t web_api_json_parse_expected_revision(const char *body, size_t b
     return APP_ERROR_NONE;
 }
 
-app_error_code_t web_api_json_parse_resource_mutation(const char *body,
-                                                      const web_api_resource_parse_limits_t *limits,
-                                                      web_api_resource_mutation_t *out_mutation) {
-    if (out_mutation != NULL) {
-        memset(out_mutation, 0, sizeof(*out_mutation));
-    }
-    if (out_mutation == NULL || limits == NULL || limits->body_length == 0U ||
-        limits->maximum_resource_length == 0U) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    cJSON *root = parse_exact_document(body, limits->body_length);
-    static const char *const fields[] = {"expectedRevision", "resource"};
-    if (root == NULL || !exact_fields(root, fields, 2U) ||
-        !read_revision(root, "expectedRevision", &out_mutation->expected_revision)) {
-        cJSON_Delete(root);
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const cJSON *resource = cJSON_GetObjectItemCaseSensitive(root, "resource");
-    if (!cJSON_IsObject(resource)) {
-        cJSON_Delete(root);
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    char *serialized = cJSON_PrintUnformatted(resource);
-    cJSON_Delete(root);
-    if (serialized == NULL) {
-        return APP_ERROR_INTERNAL;
-    }
-    const size_t length = strlen(serialized);
-    if (length == 0U || length > limits->maximum_resource_length) {
-        cJSON_free(serialized);
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    out_mutation->resource_json = serialized;
-    out_mutation->resource_length = length;
-    return APP_ERROR_NONE;
-}
-
-void web_api_json_free_resource_mutation(web_api_resource_mutation_t *mutation) {
-    if (mutation == NULL) {
-        return;
-    }
-    cJSON_free(mutation->resource_json);
-    memset(mutation, 0, sizeof(*mutation));
-}
-
-app_error_code_t web_api_json_parse_uuid_order(const char *body,
-                                               const web_api_order_parse_limits_t *limits,
-                                               storage_uuid_order_t *out_order) {
-    if (out_order != NULL) {
-        memset(out_order, 0, sizeof(*out_order));
-    }
-    if (out_order == NULL || limits == NULL || limits->body_length == 0U ||
-        limits->maximum_count == 0U || limits->maximum_count > STORAGE_ORDER_MAX_IDS) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    cJSON *root = parse_exact_document(body, limits->body_length);
-    static const char *const fields[] = {"ids"};
-    const cJSON *ids = root == NULL ? NULL : cJSON_GetObjectItemCaseSensitive(root, "ids");
-    if (root == NULL || !exact_fields(root, fields, 1U) || !cJSON_IsArray(ids)) {
-        cJSON_Delete(root);
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const int count = cJSON_GetArraySize(ids);
-    if (count < 0 || (size_t)count > limits->maximum_count) {
-        cJSON_Delete(root);
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    for (int index = 0; index < count; ++index) {
-        const cJSON *item = cJSON_GetArrayItem(ids, index);
-        if (!cJSON_IsString(item) || item->valuestring == NULL ||
-            app_uuid_parse(item->valuestring, &out_order->ids[(size_t)index]) != APP_ERROR_NONE) {
-            memset(out_order, 0, sizeof(*out_order));
-            cJSON_Delete(root);
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        for (int prior = 0; prior < index; ++prior) {
-            if (app_uuid_equal(&out_order->ids[(size_t)prior], &out_order->ids[(size_t)index])) {
-                memset(out_order, 0, sizeof(*out_order));
-                cJSON_Delete(root);
-                return APP_ERROR_INVALID_ARGUMENT;
-            }
-        }
-    }
-    out_order->count = (size_t)count;
-    cJSON_Delete(root);
-    return APP_ERROR_NONE;
-}
-
-app_error_code_t web_api_json_parse_execution_submit(const char *body, size_t body_length,
-                                                     web_execution_submit_request_t *out_request) {
-    if (out_request != NULL) {
-        memset(out_request, 0, sizeof(*out_request));
-    }
-    if (out_request == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    cJSON *root = parse_exact_document(body, body_length);
-    static const char *const fields[] = {"packageId", "macroId", "macroRevision"};
-    if (root == NULL || !exact_fields(root, fields, 3U) ||
-        !read_uuid(root, "packageId", &out_request->set_id) ||
-        !read_uuid(root, "macroId", &out_request->macro_id) ||
-        !read_revision(root, "macroRevision", &out_request->macro_revision)) {
-        cJSON_Delete(root);
-        memset(out_request, 0, sizeof(*out_request));
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    cJSON_Delete(root);
-    return APP_ERROR_NONE;
-}
-
 app_error_code_t web_api_json_parse_settings_update(const char *body, size_t body_length,
                                                     provisioning_settings_t *out_settings,
                                                     uint32_t *out_expected_revision) {
@@ -302,11 +121,6 @@ app_error_code_t web_api_json_parse_settings_update(const char *body, size_t bod
         return APP_ERROR_INVALID_ARGUMENT;
     }
     cJSON *root = parse_exact_document(body, body_length);
-    /* activeSetId is deliberately NOT accepted here. The active set is
-     * repository state (SPEC 12.3); letting a settings PUT move it would mean
-     * gating a storage change on the settings revision, which is the
-     * two-authority problem in another form. Selection is POST
-     * /sets/{setId}/select. */
     static const char *const fields[] = {"expectedRevision", "requirePhysicalConfirmation",
                                          "alwaysSelectPackage"};
     const cJSON *require_confirmation =
@@ -320,14 +134,13 @@ app_error_code_t web_api_json_parse_settings_update(const char *body, size_t bod
         cJSON_Delete(root);
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    provisioning_settings_t settings = {
+    *out_settings = (provisioning_settings_t){
         .schema_version = APP_SCHEMA_VERSION,
         .revision = expected_revision,
         .require_physical_confirmation = cJSON_IsTrue(require_confirmation),
         .always_select_package = cJSON_IsTrue(always_select),
     };
-    cJSON_Delete(root);
-    *out_settings = settings;
     *out_expected_revision = expected_revision;
+    cJSON_Delete(root);
     return APP_ERROR_NONE;
 }

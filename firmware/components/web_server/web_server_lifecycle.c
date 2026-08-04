@@ -9,13 +9,6 @@
 #include "web_server_adapter.h"
 
 #define WEB_MAX_URI_HANDLERS 28U
-
-/* httpd task stack. 8192 (the ESP-IDF-ish default this used to carry) overflows
- * on real hardware for any request reaching a storage write path: those nest
- * several multi-kilobyte frames (storage_package_index_t ~2 KB, storage_uuid_order_t
- * ~8 KB, transaction manifests, APP_PATH_MAX_BYTES buffers, cJSON scratch).
- * scripts/check-stack-usage.sh enforces per-frame limits; this is the budget
- * those frames are measured against. */
 #define WEB_HTTPD_TASK_STACK_BYTES 24576U
 
 static const httpd_uri_t normal_routes[] = {
@@ -72,8 +65,6 @@ static int start_server_adapter(void *context, void **out_handle) {
     if (httpd_start(&handle, &configuration) != ESP_OK) {
         return -1;
     }
-    /* Started after httpd so the worker only ever exists while there is a
-     * server whose requests it can own. */
     if (web_server_async_start() != APP_ERROR_NONE) {
         (void)httpd_stop(handle);
         return -1;
@@ -95,8 +86,6 @@ static int register_route_adapter(void *context, void *handle, size_t route_inde
 
 static int stop_server_adapter(void *context, void *handle) {
     (void)context;
-    /* Stopped before httpd, because the worker may still own an async request
-     * that has to be completed while the server is alive. */
     if (web_server_async_stop() != APP_ERROR_NONE) {
         return -1;
     }

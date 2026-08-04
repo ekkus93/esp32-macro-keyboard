@@ -14,19 +14,15 @@
 #include "esp_http_server.h"
 #include "esp_system.h"
 #include "macro_limits.h"
-#include "storage_object_json.h"
 #include "web_api_core.h"
 #include "web_api_handlers.h"
 #include "web_api_response.h"
 #include "web_http_status.h"
-
-_Static_assert(WEB_API_RESPONSE_MAX_BYTES <= INT_MAX,
-               "API response length must fit httpd_resp_send");
 #include "web_request_policy.h"
 #include "web_server.h"
 
-#define WEB_API_SMALL_BODY_MAX_BYTES 4096U
-#define WEB_API_WRAPPER_OVERHEAD_BYTES 256U
+_Static_assert(WEB_API_RESPONSE_MAX_BYTES <= INT_MAX,
+               "API response length must fit httpd_resp_send");
 
 typedef struct {
     httpd_req_t *request;
@@ -96,21 +92,8 @@ static app_error_code_t method_from_request(const httpd_req_t *request,
 }
 
 static size_t route_body_limit(web_api_route_t route) {
-    switch (route) {
-    case WEB_API_ROUTE_SET:
-    case WEB_API_ROUTE_SETS:
-        return STORAGE_SET_FILE_MAX_BYTES + WEB_API_WRAPPER_OVERHEAD_BYTES;
-    case WEB_API_ROUTE_SET_MACRO:
-    case WEB_API_ROUTE_SET_MACRO_VALIDATE:
-        return STORAGE_MACRO_FILE_MAX_BYTES + WEB_API_WRAPPER_OVERHEAD_BYTES;
-    case WEB_API_ROUTE_SET_IMPORT:
-    case WEB_API_ROUTE_SET_IMPORT_NEW:
-        return APP_IMPORT_PACKAGE_MAX_BYTES + WEB_API_WRAPPER_OVERHEAD_BYTES;
-    case WEB_API_ROUTE_RESTORE:
-        return APP_IMPORT_PACKAGE_MAX_BYTES;
-    default:
-        return WEB_API_SMALL_BODY_MAX_BYTES;
-    }
+    (void)route;
+    return APP_JSON_BODY_MAX_BYTES;
 }
 
 static const char *status_text(unsigned int status) {
@@ -284,14 +267,10 @@ static app_error_code_t prepare_api_call(httpd_req_t *request, web_api_call_t *c
     return result;
 }
 
-/* out_body is in/out: a non-NULL value on entry is a body already read on the
- * httpd task, and is used as-is. The policy still runs first either way, so the
- * route body limit is still enforced before anything else looks at the request
- * (test_body_limit_precedes_headers pins that ordering). */
-static app_error_code_t
-authorize_and_read_api_call(httpd_req_t *request, web_api_call_t *call, size_t body_limit,
-                            web_request_policy_result_t *policy, web_api_response_t *response,
-                            char **out_body, size_t preread_length, bool *out_response_ready) {
+static app_error_code_t authorize_and_read_api_call(
+    httpd_req_t *request, web_api_call_t *call, size_t body_limit,
+    web_request_policy_result_t *policy, web_api_response_t *response, char **out_body,
+    size_t preread_length, bool *out_response_ready) {
     web_request_policy_failure_t failure = WEB_REQUEST_POLICY_FAILURE_NONE;
     app_error_code_t result = apply_request_policy(request, call, body_limit, policy, &failure);
     if (result != APP_ERROR_NONE) {
@@ -341,12 +320,8 @@ bool web_api_request_requires_worker(httpd_req_t *request) {
     if (request == NULL || method_from_request(request, &method) != APP_ERROR_NONE ||
         web_api_parse_path(request->uri, &path) != APP_ERROR_NONE ||
         !web_api_route_allows_method(path.route, method)) {
-        /* Malformed or misrouted requests never reach the confirmation wait;
-         * let the normal path produce the proper error response. */
         return false;
     }
-    /* Either reason is enough to leave the httpd task: a confirmation wait, or a
-     * write loop long enough to trip the watchdog on its own. */
     return web_api_route_requires_worker(path.route) ||
            web_api_physical_confirmation_required(
                path.route, server_configuration.require_physical_confirmation);
@@ -358,7 +333,7 @@ esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body
     web_request_policy_result_t policy = {0};
     web_api_call_t call = {0};
     char *body = preread_body;
-    size_t body_limit = WEB_API_SMALL_BODY_MAX_BYTES;
+    size_t body_limit = APP_JSON_BODY_MAX_BYTES;
     bool response_ready = false;
 
     *out_should_restart = false;
@@ -402,10 +377,6 @@ app_error_code_t web_api_read_route_body(httpd_req_t *request, char **out_body,
 }
 
 esp_err_t api_handler(httpd_req_t *request) {
-    /* Confirmation-gated routes block for up to APP_PHYSICAL_CONFIRM_TIMEOUT_MS
-     * waiting for the button. esp_http_server serves every socket from a single
-     * task, so running that wait here would freeze all other clients for the
-     * whole window; hand those requests to the async worker instead. */
     if (web_api_request_requires_worker(request)) {
         return web_server_async_dispatch(request);
     }

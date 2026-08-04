@@ -4,7 +4,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "app_error.h"
@@ -12,7 +11,6 @@
 #include "cJSON.h"
 #include "macro_limits.h"
 #include "provisioning.h"
-#include "web_api_admin_boundary.h"
 #include "web_api_core.h"
 #include "web_api_handler_common.h"
 #include "web_api_json.h"
@@ -123,8 +121,6 @@ static app_error_code_t parse_password_change(const web_api_call_t *call,
 }
 
 static app_error_code_t handle_session(const web_api_call_t *call, web_api_response_t *response) {
-    /* Reaching this handler at all means the session cookie validated, which is
-     * now the entire answer: there is no second token to hand back (SPEC 16.2). */
     (void)call;
     char *json = NULL;
     app_error_code_t result = web_api_handler_session_json(&json);
@@ -165,7 +161,7 @@ static app_error_code_t handle_settings(const web_api_call_t *call, web_api_resp
         result = provisioning_settings_update(&replacement, expected_revision, &committed);
     }
     if (result != APP_ERROR_NONE) {
-        return web_api_handler_error(response, result, "could not update packagetings", NULL);
+        return web_api_handler_error(response, result, "could not update settings", NULL);
     }
     server_configuration.require_physical_confirmation = committed.require_physical_confirmation;
     return send_settings(response, &committed);
@@ -232,8 +228,6 @@ static app_error_code_t handle_reset_settings(const web_api_call_t *call,
     const provisioning_settings_t replacement = {
         .schema_version = APP_SCHEMA_VERSION,
         .revision = expected_revision,
-        /* Reset restores the default, which is off - see
-         * provisioning_core.c default_configuration(). */
         .require_physical_confirmation = false,
         .always_select_package = true,
     };
@@ -273,15 +267,9 @@ app_error_code_t web_api_handle_administration(const web_api_call_t *call,
                                                   "\"restartScheduled\":true}")
                    : web_api_handler_error(response, result, "factory reset failed", NULL);
     }
-    case WEB_API_ROUTE_DIAGNOSTICS_STORAGE:
-    case WEB_API_ROUTE_DIAGNOSTICS_STORAGE_CHECK:
-    case WEB_API_ROUTE_SET_EXPORT:
-    case WEB_API_ROUTE_SET_IMPORT:
-    case WEB_API_ROUTE_BACKUP:
-    case WEB_API_ROUTE_RESTORE:
-        return web_api_admin_boundary_handle(call, response);
     case WEB_API_ROUTE_DIAGNOSTICS_FULL:
         return web_diagnostics_handle(response);
+    case WEB_API_ROUTE_UNKNOWN:
     default:
         return APP_ERROR_NOT_FOUND;
     }
