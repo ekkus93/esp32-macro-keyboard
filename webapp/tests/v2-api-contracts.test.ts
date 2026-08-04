@@ -239,8 +239,9 @@ describe("v2 API response contracts", () => {
     ).toBe(false);
 
     for (const key of limitKeys) {
-      const missing = { ...examples.limits } as Record<string, unknown>;
-      delete missing[key];
+      const missing = Object.fromEntries(
+        Object.entries(examples.limits).filter(([candidate]) => candidate !== key),
+      );
       expect(isLimitsResponse(missing)).toBe(false);
 
       expect(
