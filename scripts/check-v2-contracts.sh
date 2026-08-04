@@ -19,6 +19,7 @@ cd "${repository_root}"
 python3 scripts/check-v2-limits.py
 python3 scripts/check-v2-settings-schema.py
 python3 scripts/check-v2-setup-route-policy.py
+python3 scripts/check-v2-api-routes.py
 
 rm -rf "${build_dir}"
 cmake -S tests/v2_contracts -B "${build_dir}" -DCMAKE_BUILD_TYPE=Debug
@@ -32,6 +33,7 @@ if [[ ${run_web} == true ]]; then
 		tests/v2-repository-validation.test.ts \
 		tests/v2-api-contracts.test.ts \
 		tests/v2-api-requests.test.ts \
+		tests/v2-api-routes.test.ts \
 		tests/v2-setup-route-policy.test.ts \
 		tests/v2-macro-conformance.test.ts \
 		tests/v2-macro-canonical-tokens.test.ts
