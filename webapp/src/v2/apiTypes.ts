@@ -111,6 +111,10 @@ export interface LimitsResponse {
   executorAbsoluteDeadlineMs: number;
   jsonBodyMaxBytes: number;
   blobMaxBytes: number;
+  activeSessionsMax: number;
+  sessionIdleLifetimeSeconds: number;
+  sessionAbsoluteLifetimeSeconds: number;
+  serialConfirmationTimeoutSeconds: number;
   adminPasswordMinBytes: number;
   adminPasswordMaxBytes: number;
   snapshotRetentionTargetMax: number;
