@@ -56,14 +56,22 @@ jobs:
 
       - name: Enforce reviewed npm audit policy
         working-directory: webapp
-        run: npm run audit:ci
+        shell: bash
+        env:
+          QUALITY_LOG_PATH: ${{ runner.temp }}/quality-checks.log
+        run: |
+          set -euo pipefail
+          : > "${QUALITY_LOG_PATH}"
+          npm run audit:ci 2>&1 | tee -a "${QUALITY_LOG_PATH}"
 
       - name: Run authoritative checks
         shell: bash
+        env:
+          QUALITY_LOG_PATH: ${{ runner.temp }}/quality-checks.log
         run: |
           set -euo pipefail
           . "$HOME/esp/esp-idf-v5.5.5/export.sh"
-          ./scripts/check-all.sh 2>&1 | tee "${RUNNER_TEMP}/quality-checks.log"
+          ./scripts/check-all.sh 2>&1 | tee -a "${QUALITY_LOG_PATH}"
 
       - name: Upload failed quality log
         if: failure()
