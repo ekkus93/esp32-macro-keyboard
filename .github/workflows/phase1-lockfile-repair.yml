@@ -1,3 +1,4 @@
+# One-shot workflow; remove before merging.
 name: Phase 1 Lockfile Repair
 
 on:
