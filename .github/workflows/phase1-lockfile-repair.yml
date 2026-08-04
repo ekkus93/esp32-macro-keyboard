@@ -33,7 +33,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm update postcss fast-uri --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm update postcss fast-uri brace-expansion --package-lock-only --ignore-scripts --no-audit --no-fund
           node - <<'NODE'
           const lock = require('./package-lock.json')
 
@@ -78,6 +78,18 @@ jobs:
             exit 1
           fi
           npm --prefix webapp ci --ignore-scripts --no-audit --no-fund
+          (
+            cd webapp
+            npm audit --json > "${RUNNER_TEMP}/npm-audit.json" || true
+          )
+          node - <<'NODE'
+          const report = require(`${process.env.RUNNER_TEMP}/npm-audit.json`)
+          const finding = report.vulnerabilities?.['brace-expansion']
+          if (finding) {
+            console.log('Remaining brace-expansion audit finding:')
+            console.log(JSON.stringify(finding, null, 2))
+          }
+          NODE
           npm --prefix webapp run audit:ci
 
       - name: Commit regenerated lockfile
