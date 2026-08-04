@@ -32,6 +32,27 @@ function sparseArray<T>(length: number): T[] {
   return value;
 }
 
+const limitKeys = [
+  "packageNameMaxBytes",
+  "macroNameMaxBytes",
+  "macroSourceMaxBytes",
+  "compiledActionsMax",
+  "delayDirectiveMaxMs",
+  "keyPressMaxMs",
+  "interKeyMaxMs",
+  "estimatedDurationMaxMs",
+  "executorAbsoluteDeadlineMs",
+  "jsonBodyMaxBytes",
+  "blobMaxBytes",
+  "activeSessionsMax",
+  "sessionIdleLifetimeSeconds",
+  "sessionAbsoluteLifetimeSeconds",
+  "serialConfirmationTimeoutSeconds",
+  "adminPasswordMinBytes",
+  "adminPasswordMaxBytes",
+  "snapshotRetentionTargetMax",
+] as const;
+
 describe("v2 API response contracts", () => {
   test("accepts every canonical checked-in response example", () => {
     expect(isErrorEnvelope(examples.error)).toBe(true);
@@ -209,19 +230,26 @@ describe("v2 API response contracts", () => {
     expect(isErrorEnvelope(invalid)).toBe(false);
   });
 
-  test("requires exact session lifetimes and limit values", () => {
+  test("requires exact session lifetimes and every limits field", () => {
     expect(
       isSessionStatus({
         ...examples.session,
         idleExpiresInSeconds: 60,
       }),
     ).toBe(false);
-    expect(
-      isLimitsResponse({
-        ...examples.limits,
-        blobMaxBytes: examples.limits.blobMaxBytes + 1,
-      }),
-    ).toBe(false);
+
+    for (const key of limitKeys) {
+      const missing = { ...examples.limits } as Record<string, unknown>;
+      delete missing[key];
+      expect(isLimitsResponse(missing)).toBe(false);
+
+      expect(
+        isLimitsResponse({
+          ...examples.limits,
+          [key]: examples.limits[key] + 1,
+        }),
+      ).toBe(false);
+    }
   });
 
   test("rejects invalid blob IDs, order, and size", () => {
