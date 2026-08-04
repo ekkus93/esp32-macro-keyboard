@@ -20,6 +20,12 @@ FORBIDDEN_PATHS = [
     "firmware/components/web_server/web_api_execution.c",
     "firmware/components/web_server/web_api_admin_boundary.c",
     "firmware/components/web_server/web_execution_submit.c",
+    "tests/hardware/create_fixture.py",
+    "tests/hardware/test_backup_restore.py",
+    "tests/hardware/test_full_package_in_order.py",
+    "tests/hardware/test_cancellation.py",
+    "tests/hardware/test_typing.py",
+    "tests/scripts/test-storage-package.sh",
 ]
 
 FORBIDDEN_SOURCE = re.compile(
@@ -30,8 +36,11 @@ FORBIDDEN_SOURCE = re.compile(
 
 findings: list[str] = []
 for relative in FORBIDDEN_PATHS:
-    if (ROOT.joinpath(relative).exists():
+    if ROOT.joinpath(relative).exists():
         findings.append(f"retired path exists: {relative}")
+
+for trigger in sorted(ROOT.joinpath(".github").glob("phase18-*trigger*.txt")):
+    findings.append(f"obsolete CI trigger exists: {trigger.relative_to(ROOT)}")
 
 for base in (ROOT / "firmware/components", ROOT / "firmware/main"):
     if not base.is_dir():
