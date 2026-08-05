@@ -53,7 +53,8 @@ static void test_invalid_paths(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_api_parse_path(NULL, &parsed));
     TEST_CHECK_EQ_INT(WEB_API_ROUTE_UNKNOWN, parsed.route);
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_api_parse_path("/api/v1/settings", NULL));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_api_parse_path("api/v1/settings", &parsed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_parse_path("api/v1/settings", &parsed));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_api_parse_path("/api/v1/settings?x=1", &parsed));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
@@ -75,26 +76,26 @@ static void test_method_and_body_policy(void) {
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
     TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_POST));
-    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD,
-                                           WEB_API_METHOD_POST));
-    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD,
-                                            WEB_API_METHOD_GET));
+    TEST_CHECK(
+        web_api_route_allows_method(WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD, WEB_API_METHOD_POST));
+    TEST_CHECK(
+        !web_api_route_allows_method(WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_DEVICE_RESTART, WEB_API_METHOD_POST));
-    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_DEVICE_RESET_SETTINGS,
-                                           WEB_API_METHOD_POST));
-    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_DEVICE_FACTORY_RESET,
-                                           WEB_API_METHOD_POST));
+    TEST_CHECK(
+        web_api_route_allows_method(WEB_API_ROUTE_DEVICE_RESET_SETTINGS, WEB_API_METHOD_POST));
+    TEST_CHECK(
+        web_api_route_allows_method(WEB_API_ROUTE_DEVICE_FACTORY_RESET, WEB_API_METHOD_POST));
     TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_UNKNOWN, WEB_API_METHOD_GET));
 
     TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
-    TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD,
-                                           WEB_API_METHOD_POST));
+    TEST_CHECK(
+        web_api_route_requires_body(WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD, WEB_API_METHOD_POST));
     TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_DEVICE_RESTART, WEB_API_METHOD_POST));
-    TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_DEVICE_RESET_SETTINGS,
-                                           WEB_API_METHOD_POST));
-    TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_DEVICE_FACTORY_RESET,
-                                           WEB_API_METHOD_POST));
+    TEST_CHECK(
+        web_api_route_requires_body(WEB_API_ROUTE_DEVICE_RESET_SETTINGS, WEB_API_METHOD_POST));
+    TEST_CHECK(
+        web_api_route_requires_body(WEB_API_ROUTE_DEVICE_FACTORY_RESET, WEB_API_METHOD_POST));
     TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_UNKNOWN, WEB_API_METHOD_POST));
 }
 
@@ -102,8 +103,8 @@ static void test_session_confirmation_and_worker_policy(void) {
     TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_DIAGNOSTICS_FULL));
     TEST_CHECK(!web_api_route_requires_session(WEB_API_ROUTE_UNKNOWN));
 
-    TEST_CHECK(web_api_route_requires_physical_confirmation(
-        WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD));
+    TEST_CHECK(
+        web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD));
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_RESTART));
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_RESET_SETTINGS));
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_FACTORY_RESET));
