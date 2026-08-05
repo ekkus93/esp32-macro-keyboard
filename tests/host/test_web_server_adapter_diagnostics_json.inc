@@ -11,6 +11,23 @@ static web_diagnostics_snapshot_t default_diagnostics_snapshot(void) {
         .executor_stack_high_water_mark = 1024U,
         .webfs = {.ok = true, .total_bytes = 1000000U, .used_bytes = 400000U},
         .userdata = {.ok = true, .total_bytes = 2000000U, .used_bytes = 900000U},
+        .blob_scan =
+            {
+                .summary =
+                    {
+                        .valid_count = 3U,
+                        .invalid_name_count = 2U,
+                        .has_max_id = true,
+                        .max_id = 3U,
+                        .next_id = 4U,
+                    },
+                .reported_invalid_name_count = 2U,
+                .invalid_names =
+                    {
+                        "notes.txt",
+                        "00000000000000000004.gz.tmp",
+                    },
+            },
         .execution_state = "idle",
         .subsystems =
             {
@@ -38,7 +55,7 @@ static size_t count_occurrences(const char *haystack, const char *needle) {
 
 static void test_diagnostics_exact_allowed_fields(void) {
     const web_diagnostics_snapshot_t snapshot = default_diagnostics_snapshot();
-    char output[2048U];
+    char output[4096U];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
 
@@ -47,12 +64,17 @@ static void test_diagnostics_exact_allowed_fields(void) {
         "\"resetReason\":",      "\"uptimeMs\":",        "\"freeHeapBytes\":",
         "\"minFreeHeapBytes\":", "\"stack\":",           "\"controlsWords\":",
         "\"executorWords\":",    "\"webfs\":",           "\"userdata\":",
-        "\"executionState\":",   "\"subsystems\":",      "\"totalBytes\":",
-        "\"usedBytes\":",
+        "\"blobScan\":",         "\"blobCount\":",       "\"invalidNameCount\":",
+        "\"invalidNames\":",     "\"executionState\":",  "\"subsystems\":",
+        "\"totalBytes\":",       "\"usedBytes\":",
     };
     for (size_t index = 0U; index < sizeof(expected_keys) / sizeof(expected_keys[0]); ++index) {
         TEST_CHECK(strstr(output, expected_keys[index]) != NULL);
     }
+
+    TEST_CHECK(strstr(output, "\"blobScan\":{\"blobCount\":3,\"invalidNameCount\":2") != NULL);
+    TEST_CHECK(strstr(output, "\"invalidNames\":[\"notes.txt\","
+                              "\"00000000000000000004.gz.tmp\"]") != NULL);
 
     /* Phase 2 removes the repository subsystem together with its ownership layer. */
     TEST_CHECK_EQ_U64(8U, count_occurrences(output, "\"name\":"));
@@ -64,7 +86,7 @@ static void test_diagnostics_exact_allowed_fields(void) {
 static void test_diagnostics_secret_sentinels_absent(void) {
     web_diagnostics_snapshot_t snapshot = default_diagnostics_snapshot();
     (void)snprintf(snapshot.build_id, sizeof(snapshot.build_id), "%s", "deadbeefcafef00d");
-    char output[2048U];
+    char output[4096U];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
 
@@ -80,7 +102,7 @@ static void test_diagnostics_secret_sentinels_absent(void) {
 static void test_diagnostics_output_passes_secret_sentinel_scanner(void) {
     static const char secret_sentinel[] = "phase18_5_diagnostics_secret_Q4tR8wZ1nH6vX3sB";
     const web_diagnostics_snapshot_t snapshot = default_diagnostics_snapshot();
-    char output[2048U];
+    char output[4096U];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
 
@@ -104,7 +126,7 @@ static void test_diagnostics_bounded_output(void) {
     snapshot.userdata.total_bytes = SIZE_MAX;
     snapshot.userdata.used_bytes = SIZE_MAX;
 
-    char output[2048U];
+    char output[4096U];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
     TEST_CHECK(strlen(output) < sizeof(output) - 1U);
@@ -118,11 +140,27 @@ static void test_diagnostics_bounded_output(void) {
                          web_adapter_build_diagnostics_json(NULL, output, sizeof(output)));
 }
 
+static void test_diagnostics_rejects_partial_invalid_name_reporting(void) {
+    web_diagnostics_snapshot_t snapshot = default_diagnostics_snapshot();
+    char output[4096U];
+
+    snapshot.blob_scan.invalid_names_truncated = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
+                         web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
+    TEST_CHECK_EQ_STRING("", output);
+
+    snapshot = default_diagnostics_snapshot();
+    snapshot.blob_scan.reported_invalid_name_count = 1U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
+                         web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
+    TEST_CHECK_EQ_STRING("", output);
+}
+
 static void test_diagnostics_failed_query_never_fabricates_data(void) {
     web_diagnostics_snapshot_t snapshot = default_diagnostics_snapshot();
     snapshot.webfs = (web_diagnostics_capacity_t){.ok = false, .total_bytes = 0U, .used_bytes = 0U};
 
-    char output[2048U];
+    char output[4096U];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
     TEST_CHECK(strstr(output, "\"webfs\":{\"ok\":false,\"totalBytes\":0,\"usedBytes\":0}") != NULL);
@@ -138,7 +176,7 @@ static void test_diagnostics_no_false_healthy_state(void) {
     snapshot.subsystems[6] =
         (web_diagnostics_subsystem_t){.name = "wifi", .state = SUBSYSTEM_HEALTH_DEGRADED};
 
-    char output[2048U];
+    char output[4096U];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
     TEST_CHECK(strstr(output, "\"name\":\"controls\",\"state\":\"failed\"") != NULL);
