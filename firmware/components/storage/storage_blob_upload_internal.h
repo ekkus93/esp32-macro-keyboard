@@ -22,9 +22,10 @@ typedef struct {
     app_error_code_t (*persist_next_id)(void *context, uint64_t next_id);
 } storage_blob_upload_ops_t;
 
-app_error_code_t storage_blob_upload_begin_with_ops(
-    const char *directory_path, uint64_t blob_id, size_t expected_bytes, size_t maximum_bytes,
-    const storage_blob_upload_ops_t *operations, storage_blob_upload_t *out_upload);
+app_error_code_t storage_blob_upload_begin_with_ops(const char *directory_path, uint64_t blob_id,
+                                                    size_t expected_bytes, size_t maximum_bytes,
+                                                    const storage_blob_upload_ops_t *operations,
+                                                    storage_blob_upload_t *out_upload);
 app_error_code_t storage_blob_upload_write_with_ops(storage_blob_upload_t *upload, const void *data,
                                                     size_t data_length);
 app_error_code_t storage_blob_upload_commit_with_ops(storage_blob_upload_t *upload,

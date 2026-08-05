@@ -31,8 +31,8 @@ static app_error_code_t build_upload_paths(const char *directory_path, uint64_t 
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    int written = snprintf(upload->final_path, sizeof(upload->final_path), "%s/%s", directory_path,
-                           filename);
+    int written =
+        snprintf(upload->final_path, sizeof(upload->final_path), "%s/%s", directory_path, filename);
     if (written < 0 || (size_t)written >= sizeof(upload->final_path)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -69,9 +69,10 @@ static app_error_code_t cleanup_failure(const storage_blob_upload_ops_t *operati
     return cleanup_error == APP_ERROR_NONE ? primary_error : cleanup_error;
 }
 
-app_error_code_t storage_blob_upload_begin_with_ops(
-    const char *directory_path, uint64_t blob_id, size_t expected_bytes, size_t maximum_bytes,
-    const storage_blob_upload_ops_t *operations, storage_blob_upload_t *out_upload) {
+app_error_code_t storage_blob_upload_begin_with_ops(const char *directory_path, uint64_t blob_id,
+                                                    size_t expected_bytes, size_t maximum_bytes,
+                                                    const storage_blob_upload_ops_t *operations,
+                                                    storage_blob_upload_t *out_upload) {
     if (out_upload != NULL) {
         *out_upload = (storage_blob_upload_t){0};
     }
@@ -181,8 +182,8 @@ app_error_code_t storage_blob_upload_commit_with_ops(storage_blob_upload_t *uplo
     if (result != APP_ERROR_NONE) {
         return cleanup_failure(operations, upload->temporary_path, result);
     }
-    if (operations->rename_path(operations->context, upload->temporary_path,
-                                upload->final_path) != 0) {
+    if (operations->rename_path(operations->context, upload->temporary_path, upload->final_path) !=
+        0) {
         const app_error_code_t rename_result = map_io_error(errno);
         return cleanup_failure(operations, upload->temporary_path, rename_result);
     }

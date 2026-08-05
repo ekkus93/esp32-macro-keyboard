@@ -1,8 +1,8 @@
 #include "storage_blob.h"
 
 #include <errno.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -105,11 +105,12 @@ static const storage_blob_upload_ops_t *upload_operations(void) {
     return &operations;
 }
 
-app_error_code_t storage_blob_upload_begin(size_t expected_bytes, storage_blob_upload_t *out_upload) {
+app_error_code_t storage_blob_upload_begin(size_t expected_bytes,
+                                           storage_blob_upload_t *out_upload) {
     const storage_blob_scan_summary_t state = storage_blob_scan_state();
-    return storage_blob_upload_begin_with_ops(
-        STORAGE_BLOB_DIRECTORY, state.next_id, expected_bytes, (size_t)APP_V2_BLOB_MAX_BYTES,
-        upload_operations(), out_upload);
+    return storage_blob_upload_begin_with_ops(STORAGE_BLOB_DIRECTORY, state.next_id, expected_bytes,
+                                              (size_t)APP_V2_BLOB_MAX_BYTES, upload_operations(),
+                                              out_upload);
 }
 
 app_error_code_t storage_blob_upload_write(storage_blob_upload_t *upload, const void *data,

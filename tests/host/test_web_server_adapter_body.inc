@@ -135,10 +135,9 @@ static void test_streamed_body_is_bounded(void) {
     char chunk[4U];
     receive_fake_t receive = {.body = "abcdefghij", .chunk_size = 3U};
     consume_fake_t consume = {0};
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        web_adapter_stream_bounded_body(10U, 10U, chunk, sizeof(chunk), receive_body, &receive,
-                                        consume_body, &consume));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_adapter_stream_bounded_body(
+                                             10U, 10U, chunk, sizeof(chunk), receive_body, &receive,
+                                             consume_body, &consume));
     TEST_CHECK_EQ_STRING("abcdefghij", consume.body);
     TEST_CHECK_EQ_U64(10U, consume.length);
     TEST_CHECK(consume.largest_chunk <= sizeof(chunk));
@@ -150,10 +149,9 @@ static void test_streamed_body_is_bounded(void) {
         .planned_count = 2U,
     };
     consume = (consume_fake_t){0};
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        web_adapter_stream_bounded_body(4U, 4U, chunk, sizeof(chunk), receive_body, &receive,
-                                        consume_body, &consume));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_adapter_stream_bounded_body(4U, 4U, chunk, sizeof(chunk), receive_body,
+                                                         &receive, consume_body, &consume));
     TEST_CHECK_EQ_STRING("abcd", consume.body);
 }
 
@@ -161,44 +159,39 @@ static void test_streamed_body_failures(void) {
     char chunk[4U];
     receive_fake_t receive = {.body = "abcd"};
     consume_fake_t consume = {0};
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        web_adapter_stream_bounded_body(0U, 4U, chunk, sizeof(chunk), receive_body, &receive,
-                                        consume_body, &consume));
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        web_adapter_stream_bounded_body(5U, 4U, chunk, sizeof(chunk), receive_body, &receive,
-                                        consume_body, &consume));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_adapter_stream_bounded_body(0U, 4U, chunk, sizeof(chunk), receive_body,
+                                                         &receive, consume_body, &consume));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_adapter_stream_bounded_body(5U, 4U, chunk, sizeof(chunk), receive_body,
+                                                         &receive, consume_body, &consume));
 
     receive = (receive_fake_t){
         .body = "abcd",
         .planned_results = {-1},
         .planned_count = 1U,
     };
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_IO,
-        web_adapter_stream_bounded_body(4U, 4U, chunk, sizeof(chunk), receive_body, &receive,
-                                        consume_body, &consume));
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO,
+                         web_adapter_stream_bounded_body(4U, 4U, chunk, sizeof(chunk), receive_body,
+                                                         &receive, consume_body, &consume));
 
     receive = (receive_fake_t){
         .body = "abcd",
         .planned_results = {5},
         .planned_count = 1U,
     };
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_IO,
-        web_adapter_stream_bounded_body(4U, 4U, chunk, sizeof(chunk), receive_body, &receive,
-                                        consume_body, &consume));
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO,
+                         web_adapter_stream_bounded_body(4U, 4U, chunk, sizeof(chunk), receive_body,
+                                                         &receive, consume_body, &consume));
 
     receive = (receive_fake_t){.body = "abcd", .chunk_size = 2U};
     consume = (consume_fake_t){
         .fail_on_call = 2U,
         .failure = APP_ERROR_STORAGE_FULL,
     };
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_STORAGE_FULL,
-        web_adapter_stream_bounded_body(4U, 4U, chunk, sizeof(chunk), receive_body, &receive,
-                                        consume_body, &consume));
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL,
+                         web_adapter_stream_bounded_body(4U, 4U, chunk, sizeof(chunk), receive_body,
+                                                         &receive, consume_body, &consume));
 
     receive = (receive_fake_t){
         .body = "abcd",
@@ -208,8 +201,7 @@ static void test_streamed_body_failures(void) {
         .planned_count = 5U,
     };
     consume = (consume_fake_t){0};
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_TIMEOUT,
-        web_adapter_stream_bounded_body(4U, 4U, chunk, sizeof(chunk), receive_body, &receive,
-                                        consume_body, &consume));
+    TEST_CHECK_APP_ERROR(APP_ERROR_TIMEOUT,
+                         web_adapter_stream_bounded_body(4U, 4U, chunk, sizeof(chunk), receive_body,
+                                                         &receive, consume_body, &consume));
 }

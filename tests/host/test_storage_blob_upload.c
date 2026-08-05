@@ -224,8 +224,8 @@ static storage_blob_upload_ops_t make_operations(upload_fake_t *fake) {
     };
 }
 
-static void expect_call_sequence(const upload_fake_t *fake,
-                                 const upload_operation_t *expected, size_t expected_count) {
+static void expect_call_sequence(const upload_fake_t *fake, const upload_operation_t *expected,
+                                 size_t expected_count) {
     TEST_CHECK_EQ_U64(expected_count, fake->call_count);
     for (size_t index = 0U; index < expected_count; ++index) {
         TEST_CHECK_EQ_INT(expected[index], fake->calls[index]);
@@ -237,7 +237,7 @@ static storage_blob_upload_t begin_upload(upload_fake_t *fake,
     storage_blob_upload_t upload = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          storage_blob_upload_begin_with_ops("/repository", UINT64_C(7), 6U, 8U,
-                                                           operations, &upload));
+                                                            operations, &upload));
     TEST_CHECK(upload.active);
     TEST_CHECK(!upload.committed);
     TEST_CHECK(fake->temporary_exists);
@@ -252,13 +252,10 @@ static void test_successful_upload_sequence(void) {
     const storage_blob_upload_ops_t operations = make_operations(&fake);
     storage_blob_upload_t upload = begin_upload(&fake, &operations);
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_upload_write_with_ops(&upload, "ab", 2U));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_upload_write_with_ops(&upload, "cdef", 4U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_write_with_ops(&upload, "ab", 2U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_write_with_ops(&upload, "cdef", 4U));
     storage_blob_entry_t entry = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_upload_commit_with_ops(&upload, &entry));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_commit_with_ops(&upload, &entry));
 
     TEST_CHECK(upload.committed);
     TEST_CHECK(!upload.active);
@@ -273,9 +270,9 @@ static void test_successful_upload_sequence(void) {
     TEST_CHECK_EQ_STRING(upload.final_path, fake.renamed_destination);
 
     static const upload_operation_t expected[] = {
-        UPLOAD_OPERATION_STAT,   UPLOAD_OPERATION_STAT,    UPLOAD_OPERATION_OPEN,
-        UPLOAD_OPERATION_WRITE,  UPLOAD_OPERATION_WRITE,   UPLOAD_OPERATION_FLUSH,
-        UPLOAD_OPERATION_SYNC,   UPLOAD_OPERATION_CLOSE,   UPLOAD_OPERATION_STAT,
+        UPLOAD_OPERATION_STAT,    UPLOAD_OPERATION_STAT,   UPLOAD_OPERATION_OPEN,
+        UPLOAD_OPERATION_WRITE,   UPLOAD_OPERATION_WRITE,  UPLOAD_OPERATION_FLUSH,
+        UPLOAD_OPERATION_SYNC,    UPLOAD_OPERATION_CLOSE,  UPLOAD_OPERATION_STAT,
         UPLOAD_OPERATION_PERSIST, UPLOAD_OPERATION_RENAME, UPLOAD_OPERATION_SYNC_PARENT,
     };
     expect_call_sequence(&fake, expected, sizeof(expected) / sizeof(expected[0]));
@@ -287,26 +284,25 @@ static void test_argument_and_size_validation(void) {
     storage_blob_upload_ops_t operations = make_operations(&fake);
     storage_blob_upload_t upload = {0};
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_blob_upload_begin_with_ops(NULL, 1U, 1U, 1U, &operations,
-                                                           &upload));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_blob_upload_begin_with_ops("/repository", 0U, 1U, 1U,
-                                                           &operations, &upload));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_blob_upload_begin_with_ops("/repository", 1U, 0U, 1U,
-                                                           &operations, &upload));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_blob_upload_begin_with_ops("/repository", 1U, 2U, 1U,
-                                                           &operations, &upload));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_blob_upload_begin_with_ops(
+                                                         NULL, 1U, 1U, 1U, &operations, &upload));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        storage_blob_upload_begin_with_ops("/repository", 0U, 1U, 1U, &operations, &upload));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        storage_blob_upload_begin_with_ops("/repository", 1U, 0U, 1U, &operations, &upload));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        storage_blob_upload_begin_with_ops("/repository", 1U, 2U, 1U, &operations, &upload));
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL,
                          storage_blob_upload_begin_with_ops("/repository", UINT64_MAX, 1U, 1U,
-                                                           &operations, &upload));
+                                                            &operations, &upload));
 
     operations.write_stream = NULL;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_blob_upload_begin_with_ops("/repository", 1U, 1U, 1U,
-                                                           &operations, &upload));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        storage_blob_upload_begin_with_ops("/repository", 1U, 1U, 1U, &operations, &upload));
 
     fake_reset(&fake);
     operations = make_operations(&fake);
@@ -327,18 +323,16 @@ static void test_existing_paths_are_not_replaced(void) {
     fake.final_exists = true;
     storage_blob_upload_ops_t operations = make_operations(&fake);
     storage_blob_upload_t upload = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
-                         storage_blob_upload_begin_with_ops("/repository", 7U, 1U, 8U,
-                                                           &operations, &upload));
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_blob_upload_begin_with_ops(
+                                                 "/repository", 7U, 1U, 8U, &operations, &upload));
     TEST_CHECK(fake.final_exists);
     TEST_CHECK_EQ_U64(0U, fake.operation_counts[UPLOAD_OPERATION_OPEN]);
 
     fake_reset(&fake);
     fake.temporary_exists = true;
     operations = make_operations(&fake);
-    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT,
-                         storage_blob_upload_begin_with_ops("/repository", 7U, 1U, 8U,
-                                                           &operations, &upload));
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, storage_blob_upload_begin_with_ops(
+                                                 "/repository", 7U, 1U, 8U, &operations, &upload));
     TEST_CHECK(fake.temporary_exists);
     TEST_CHECK(!fake.final_exists);
     TEST_CHECK_EQ_U64(0U, fake.operation_counts[UPLOAD_OPERATION_OPEN]);
@@ -351,8 +345,7 @@ static void test_write_failures_abort_cleanly(void) {
     fake.fail_errno = EIO;
     const storage_blob_upload_ops_t operations = make_operations(&fake);
     storage_blob_upload_t upload = begin_upload(&fake, &operations);
-    TEST_CHECK_APP_ERROR(APP_ERROR_IO,
-                         storage_blob_upload_write_with_ops(&upload, "abcdef", 6U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, storage_blob_upload_write_with_ops(&upload, "abcdef", 6U));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_abort_with_ops(&upload));
     TEST_CHECK(!fake.final_exists);
     TEST_CHECK(!fake.temporary_exists);
@@ -370,9 +363,8 @@ static void test_write_failures_abort_cleanly(void) {
     TEST_CHECK(!fake.temporary_exists);
 }
 
-static void run_precommit_failure(upload_operation_t operation, size_t occurrence,
-                                  int error_number, app_error_code_t persist_error,
-                                  app_error_code_t expected_error) {
+static void run_precommit_failure(upload_operation_t operation, size_t occurrence, int error_number,
+                                  app_error_code_t persist_error, app_error_code_t expected_error) {
     upload_fake_t fake;
     fake_reset(&fake);
     fake.fail_operation = operation;
@@ -381,11 +373,9 @@ static void run_precommit_failure(upload_operation_t operation, size_t occurrenc
     fake.persist_error = persist_error;
     const storage_blob_upload_ops_t operations = make_operations(&fake);
     storage_blob_upload_t upload = begin_upload(&fake, &operations);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_upload_write_with_ops(&upload, "abcdef", 6U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_write_with_ops(&upload, "abcdef", 6U));
     storage_blob_entry_t entry = {.id = 99U, .stored_bytes = 99U};
-    TEST_CHECK_APP_ERROR(expected_error,
-                         storage_blob_upload_commit_with_ops(&upload, &entry));
+    TEST_CHECK_APP_ERROR(expected_error, storage_blob_upload_commit_with_ops(&upload, &entry));
     TEST_CHECK_EQ_U64(0U, entry.id);
     TEST_CHECK(!upload.committed);
     TEST_CHECK(!fake.final_exists);
@@ -397,8 +387,8 @@ static void test_precommit_failures_leave_final_absent(void) {
     run_precommit_failure(UPLOAD_OPERATION_SYNC, 1U, EIO, APP_ERROR_NONE, APP_ERROR_IO);
     run_precommit_failure(UPLOAD_OPERATION_CLOSE, 1U, EIO, APP_ERROR_NONE, APP_ERROR_IO);
     run_precommit_failure(UPLOAD_OPERATION_STAT, 3U, EIO, APP_ERROR_NONE, APP_ERROR_IO);
-    run_precommit_failure(UPLOAD_OPERATION_COUNT, 0U, 0,
-                          APP_ERROR_STORAGE_UNAVAILABLE, APP_ERROR_STORAGE_UNAVAILABLE);
+    run_precommit_failure(UPLOAD_OPERATION_COUNT, 0U, 0, APP_ERROR_STORAGE_UNAVAILABLE,
+                          APP_ERROR_STORAGE_UNAVAILABLE);
     run_precommit_failure(UPLOAD_OPERATION_RENAME, 1U, EIO, APP_ERROR_NONE, APP_ERROR_IO);
 }
 
@@ -410,11 +400,9 @@ static void test_directory_sync_failure_is_post_commit(void) {
     fake.fail_errno = EIO;
     const storage_blob_upload_ops_t operations = make_operations(&fake);
     storage_blob_upload_t upload = begin_upload(&fake, &operations);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_upload_write_with_ops(&upload, "abcdef", 6U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_write_with_ops(&upload, "abcdef", 6U));
     storage_blob_entry_t entry = {.id = 99U, .stored_bytes = 99U};
-    TEST_CHECK_APP_ERROR(APP_ERROR_IO,
-                         storage_blob_upload_commit_with_ops(&upload, &entry));
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, storage_blob_upload_commit_with_ops(&upload, &entry));
     TEST_CHECK(upload.committed);
     TEST_CHECK(fake.final_exists);
     TEST_CHECK(!fake.temporary_exists);
@@ -433,8 +421,7 @@ static void test_cleanup_failure_is_reported(void) {
     fake.persist_error = APP_ERROR_STORAGE_UNAVAILABLE;
     const storage_blob_upload_ops_t operations = make_operations(&fake);
     storage_blob_upload_t upload = begin_upload(&fake, &operations);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_upload_write_with_ops(&upload, "abcdef", 6U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_write_with_ops(&upload, "abcdef", 6U));
     storage_blob_entry_t entry = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL,
                          storage_blob_upload_commit_with_ops(&upload, &entry));

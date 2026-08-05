@@ -94,7 +94,7 @@ static app_error_code_t method_from_request(const httpd_req_t *request,
 
 static size_t route_body_limit(web_api_route_t route) {
     return route == WEB_API_ROUTE_BLOB_COLLECTION ? (size_t)APP_V2_BLOB_MAX_BYTES
-                                                   : (size_t)APP_V2_JSON_BODY_MAX_BYTES;
+                                                  : (size_t)APP_V2_JSON_BODY_MAX_BYTES;
 }
 
 static const char *status_text(unsigned int status) {

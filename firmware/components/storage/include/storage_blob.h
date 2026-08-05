@@ -71,7 +71,8 @@ app_error_code_t storage_blob_scan(uint64_t persisted_next_id,
                                    storage_blob_scan_summary_t *out_summary);
 app_error_code_t storage_blob_collect_diagnostics(storage_blob_diagnostics_t *out_diagnostics);
 storage_blob_scan_summary_t storage_blob_scan_state(void);
-app_error_code_t storage_blob_upload_begin(size_t expected_bytes, storage_blob_upload_t *out_upload);
+app_error_code_t storage_blob_upload_begin(size_t expected_bytes,
+                                           storage_blob_upload_t *out_upload);
 app_error_code_t storage_blob_upload_write(storage_blob_upload_t *upload, const void *data,
                                            size_t data_length);
 app_error_code_t storage_blob_upload_commit(storage_blob_upload_t *upload,

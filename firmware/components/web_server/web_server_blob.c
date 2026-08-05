@@ -51,8 +51,8 @@ static app_error_code_t establish_request_id(httpd_req_t *request, char *out_req
         return APP_ERROR_INVALID_ARGUMENT;
     }
     if (supplied_length > 0U) {
-        if (httpd_req_get_hdr_value_str(request, "X-Request-ID", out_request_id,
-                                        request_id_size) != ESP_OK ||
+        if (httpd_req_get_hdr_value_str(request, "X-Request-ID", out_request_id, request_id_size) !=
+                ESP_OK ||
             !web_api_request_id_is_valid(out_request_id)) {
             out_request_id[0] = '\0';
             return APP_ERROR_INVALID_ARGUMENT;
@@ -78,9 +78,8 @@ static unsigned int blob_error_status(app_error_code_t error) {
                                        : web_api_http_status_for_error(error);
 }
 
-static esp_err_t send_blob_error(httpd_req_t *request, const char *request_id,
-                                 unsigned int status, app_error_code_t error,
-                                 const char *message) {
+static esp_err_t send_blob_error(httpd_req_t *request, const char *request_id, unsigned int status,
+                                 app_error_code_t error, const char *message) {
     if (request_id != NULL && request_id[0] != '\0' &&
         httpd_resp_set_hdr(request, "X-Request-ID", request_id) != ESP_OK) {
         return ESP_FAIL;
@@ -91,9 +90,9 @@ static esp_err_t send_blob_error(httpd_req_t *request, const char *request_id,
 static esp_err_t send_blob_created(httpd_req_t *request, const char *request_id,
                                    const storage_blob_entry_t *entry) {
     char data_json[BLOB_CREATED_JSON_MAX_BYTES];
-    const int written = snprintf(data_json, sizeof(data_json),
-                                 "{\"id\":\"%" PRIu64 "\",\"sizeBytes\":%zu}", entry->id,
-                                 entry->stored_bytes);
+    const int written =
+        snprintf(data_json, sizeof(data_json), "{\"id\":\"%" PRIu64 "\",\"sizeBytes\":%zu}",
+                 entry->id, entry->stored_bytes);
     if (written < 0 || (size_t)written >= sizeof(data_json)) {
         return send_blob_error(request, request_id, WEB_HTTP_STATUS_INTERNAL_SERVER_ERROR,
                                APP_ERROR_INTERNAL, "blob response encoding failed");
@@ -130,8 +129,7 @@ esp_err_t blob_create_handler(httpd_req_t *request) {
     }
 
     char request_id[WEB_API_REQUEST_ID_MAX_BYTES + 1U] = {0};
-    app_error_code_t result =
-        establish_request_id(request, request_id, sizeof(request_id));
+    app_error_code_t result = establish_request_id(request, request_id, sizeof(request_id));
     if (result != APP_ERROR_NONE) {
         return web_api_send_status_error(request, WEB_HTTP_STATUS_BAD_REQUEST, result,
                                          "invalid request ID");
@@ -173,9 +171,9 @@ esp_err_t blob_create_handler(httpd_req_t *request) {
 
     char chunk[STORAGE_BLOB_UPLOAD_CHUNK_BYTES];
     blob_stream_context_t stream_context = {.upload = &upload};
-    result = web_adapter_stream_bounded_body(
-        content_length, (size_t)APP_V2_BLOB_MAX_BYTES, chunk, sizeof(chunk), receive_blob_body,
-        request, consume_blob_chunk, &stream_context);
+    result = web_adapter_stream_bounded_body(content_length, (size_t)APP_V2_BLOB_MAX_BYTES, chunk,
+                                             sizeof(chunk), receive_blob_body, request,
+                                             consume_blob_chunk, &stream_context);
     if (result != APP_ERROR_NONE) {
         const app_error_code_t final_error = abort_uncommitted_upload(&upload, result);
         return send_blob_error(request, request_id, blob_error_status(final_error), final_error,

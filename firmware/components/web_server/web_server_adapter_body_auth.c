@@ -39,10 +39,12 @@ app_error_code_t web_adapter_read_bounded_body(size_t content_length, char *buff
     return APP_ERROR_NONE;
 }
 
-app_error_code_t web_adapter_stream_bounded_body(
-    size_t content_length, size_t maximum_length, char *buffer, size_t buffer_size,
-    web_adapter_receive_fn receive, void *receive_context, web_adapter_consume_fn consume,
-    void *consume_context) {
+app_error_code_t web_adapter_stream_bounded_body(size_t content_length, size_t maximum_length,
+                                                 char *buffer, size_t buffer_size,
+                                                 web_adapter_receive_fn receive,
+                                                 void *receive_context,
+                                                 web_adapter_consume_fn consume,
+                                                 void *consume_context) {
     if (content_length == 0U || content_length > maximum_length || maximum_length == 0U ||
         buffer == NULL || buffer_size == 0U || receive == NULL || consume == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -67,8 +69,7 @@ app_error_code_t web_adapter_stream_bounded_body(
         if (count <= 0 || (size_t)count > capacity) {
             return APP_ERROR_IO;
         }
-        const app_error_code_t consume_result =
-            consume(consume_context, buffer, (size_t)count);
+        const app_error_code_t consume_result = consume(consume_context, buffer, (size_t)count);
         if (consume_result != APP_ERROR_NONE) {
             return consume_result;
         }
