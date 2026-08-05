@@ -147,9 +147,7 @@ describe("management screens", () => {
     expect(document.body.textContent).toContain("abcdef0123456789");
     expect(document.body.textContent).toContain("3 stored blobs");
     expect(document.body.textContent).toContain("notes.txt");
-    expect(document.body.textContent).toContain(
-      "00000000000000000004.gz.tmp",
-    );
+    expect(document.body.textContent).toContain("00000000000000000004.gz.tmp");
     expect(document.body.textContent).toContain("controls: degraded");
     expect(document.body.textContent).not.toContain("repository: healthy");
     expect(getFetchCalls().map((call) => call.url)).toEqual([
