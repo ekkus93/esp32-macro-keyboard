@@ -175,6 +175,12 @@ export interface DiagnosticsStack {
   executorWords: number;
 }
 
+export interface DiagnosticsBlobScan {
+  blobCount: number;
+  invalidNameCount: number;
+  invalidNames: string[];
+}
+
 export interface FullDiagnostics {
   buildId: string;
   firmwareVersion: string;
@@ -186,6 +192,7 @@ export interface FullDiagnostics {
   stack: DiagnosticsStack;
   webfs: DiagnosticsCapacity;
   userdata: DiagnosticsCapacity;
+  blobScan: DiagnosticsBlobScan;
   executionState: string;
   subsystems: DiagnosticsSubsystem[];
 }
