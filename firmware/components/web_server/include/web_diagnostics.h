@@ -5,12 +5,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "storage_blob.h"
 #include "subsystem_health.h"
 
 #define WEB_DIAGNOSTICS_BUILD_ID_MAX_BYTES 40U
 #define WEB_DIAGNOSTICS_VERSION_MAX_BYTES 32U
 #define WEB_DIAGNOSTICS_SUBSYSTEM_COUNT 8U
+#define WEB_DIAGNOSTICS_INVALID_NAME_MAX 8U
+#define WEB_DIAGNOSTICS_INVALID_NAME_CAPACITY 256U
 
 typedef struct {
     const char *name;
@@ -24,6 +25,15 @@ typedef struct {
 } web_diagnostics_capacity_t;
 
 typedef struct {
+    size_t blob_count;
+    size_t invalid_name_count;
+    size_t reported_invalid_name_count;
+    bool invalid_names_truncated;
+    char invalid_names[WEB_DIAGNOSTICS_INVALID_NAME_MAX]
+                      [WEB_DIAGNOSTICS_INVALID_NAME_CAPACITY];
+} web_diagnostics_blob_scan_t;
+
+typedef struct {
     char build_id[WEB_DIAGNOSTICS_BUILD_ID_MAX_BYTES];
     char firmware_version[WEB_DIAGNOSTICS_VERSION_MAX_BYTES];
     uint32_t schema_version;
@@ -35,7 +45,7 @@ typedef struct {
     size_t executor_stack_high_water_mark;
     web_diagnostics_capacity_t webfs;
     web_diagnostics_capacity_t userdata;
-    storage_blob_diagnostics_t blob_scan;
+    web_diagnostics_blob_scan_t blob_scan;
     const char *execution_state;
     web_diagnostics_subsystem_t subsystems[WEB_DIAGNOSTICS_SUBSYSTEM_COUNT];
 } web_diagnostics_snapshot_t;
