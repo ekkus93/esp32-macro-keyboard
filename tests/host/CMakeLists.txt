@@ -47,6 +47,8 @@ target_compile_definitions(
 )
 target_compile_options(test_support PRIVATE ${STRICT_WARNINGS})
 
+# Link a host test executable against test_support, register it with CTest, and tag it with its
+# labels.
 function(register_host_test target test_name labels)
     target_link_libraries(${target} PRIVATE test_support)
     target_compile_options(${target} PRIVATE ${STRICT_WARNINGS})

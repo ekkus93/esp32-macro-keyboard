@@ -1,5 +1,6 @@
 #include "macro_model.h"
 
+#include <stdint.h>
 #include <string.h>
 
 #include "app_error.h"

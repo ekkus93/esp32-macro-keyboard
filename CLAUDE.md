@@ -10,7 +10,7 @@ Monorepo, no root build file. Work happens in these areas:
 - `webapp/` — React 19 / TypeScript / Vite / Tailwind frontend, served locally by the device
 - `tests/host/` — native C host tests (CMake/CTest) with fakes for every hardware backend
 - `scripts/` — authoritative bash entry points for build/test/lint/coverage — prefer these over ad-hoc commands
-- `docs/` — `SPEC.md`, `TODO.md` (mandatory implementation sequence), `DEVELOPMENT.md`, JSON schemas
+- `docs/` — `SPEC_V2.md` (authoritative spec; `SPEC.md` is a retired v1 stub), `TODO_V2.md` (implementation sequence; `TODO.md` is a retired v1 stub), `DEVELOPMENT.md`, JSON schemas
 
 ## Toolchain (exact versions — enforced)
 
@@ -49,8 +49,8 @@ The two suites are in different places and neither sits beside the code it tests
 
 | Suite | Location | Run just this |
 | --- | --- | --- |
-| Host C (52 `test_*.c` + 20 `.inc` fragments) | `tests/host/` | `./scripts/run-tests.sh [label]` |
-| Frontend vitest (17 files) | `webapp/tests/` — **not** under `webapp/src/` | `npm --prefix webapp run test` |
+| Host C (33 `test_*.c` + 19 `.inc` fragments) | `tests/host/` | `./scripts/run-tests.sh [label]` |
+| Frontend vitest (26 files) | `webapp/tests/` — **not** under `webapp/src/` | `npm --prefix webapp run test` |
 | Browser (Playwright) | `webapp/tests/browser/` | `npm --prefix webapp run test:browser` |
 | On-device Unity | `firmware/test_app/` | flash it; see the port table above |
 | Hardware-in-the-loop (Python) | `tests/hardware/` | needs the board attached |
@@ -71,15 +71,24 @@ includes (auth, executor, web security, web-server adapter), so grepping only
 
 ## Code style (differs from defaults)
 
-- C: `.clang-format` (LLVM base, IndentWidth 4, ColumnLimit 100, no short funcs/ifs on one line, right pointer alignment). Host tests compile with `-Werror -Wshadow -Wconversion -Wsign-conversion -Wformat=2`.
+- C: `.clang-format` (LLVM base, IndentWidth 4, ColumnLimit 100, no short funcs/ifs on one line, right pointer alignment). Host tests compile with `-Wall -Wextra -Werror -Wshadow -Wconversion -Wsign-conversion -Wformat=2 -Wundef -Wdouble-promotion -Wmissing-declarations -Wstrict-prototypes`.
 - Host tests use a **custom assert harness** (`tests/host/support/test_assert.*`), not Unity. Unity is only for the on-device `firmware/test_app/`.
 - Frontend ESLint is `strictTypeChecked` + `stylisticTypeChecked`, with `no-floating-promises` and `consistent-type-imports` as errors.
 - Shell: `shfmt` + `shellcheck` (bash). CMake: `cmake-format`/`cmake-lint`.
 
 ## Active development constraints
 
-See `docs/CLAUDE_CODE_HANDOFF_2026-07-31.md` for full context. Currently in force:
+See `docs/implementation-v2/V2_MIGRATION_MAP.md` and the phase docs in
+`docs/implementation-v2/` for current v2-rebuild context
+(`docs/CLAUDE_CODE_HANDOFF_2026-07-31.md` predates the v1→v2 retirement).
+Currently in force:
 
+- The project is mid a v1→v2 rebuild (package/repository data-model rewrite,
+  started 2026-08-03). `docs/SPEC.md` and `docs/TODO.md` are retired v1 stubs.
+  `docs/TODO_V2.md` self-declares authoritative but this conflicts with
+  `docs/TODO.md`'s "no v2 plan exists yet" — flag this to Phil rather than
+  assuming either is correct. Phase-by-phase status lives in
+  `docs/implementation-v2/` (start at `V2_MIGRATION_MAP.md`).
 - **`docs/SPEC.md` is frozen. Never modify it — not a section, not a sentence, not a
   typo — without explicit per-change permission.** Propose; do not apply. Set
   2026-08-02, after an acceptance criterion turned out to have been invented by the
@@ -89,6 +98,9 @@ See `docs/CLAUDE_CODE_HANDOFF_2026-07-31.md` for full context. Currently in forc
   when it says no such thing, is the same violation. On a genuine spec/code
   conflict, fix the code and report what the spec asked for that could not be
   satisfied. The same freeze applies to any replacement spec once it exists.
+  The current replacement is `docs/SPEC_V2.md`, with `docs/UI_UX_SPEC_V2.md` as
+  its synchronized companion per `docs/TODO_V2.md` §0 — the freeze applies to
+  both.
 - Work directly on `master`; don't create a branch or PR unless explicitly requested.
 - Never force-push, reset `master`, or rewrite history — use normal forward commits.
 - Don't mark a TODO checkbox complete without exact implementation and reproducible evidence (commit, commands, results).

@@ -30,7 +30,7 @@ FORBIDDEN_PATHS = [
 
 FORBIDDEN_SOURCE = re.compile(
     r"storage_repository|storage_package|macro_package_t|activePackageId|"
-    r"WEB_API_ROUTE_(SETS?|SET_|EXECUTIONS?|BACKUP|RESTORE)|"
+    r"WEB_API_ROUTE_(SET(?!TING)S?|SET_|EXECUTIONS?|BACKUP|RESTORE)|"
     r'\"/api/v1/(?:package|executions|repository|restore)(?:/|\")'
 )
 

@@ -18,6 +18,7 @@ firmware/clang-tidy-report.txt
 tests/host/build/
 tests/host/build-sanitizers/
 tests/host/build-coverage/
+build-v2-contracts/
 
 # Frontend generated and third-party output
 webapp/node_modules/

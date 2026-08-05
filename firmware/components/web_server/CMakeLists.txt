@@ -1,6 +1,5 @@
 idf_component_register(
     SRCS
-    "web_server.c"
     "web_server_adapter_common.c"
     "web_server_adapter_body_auth.c"
     "web_server_adapter_json.c"
@@ -8,7 +7,7 @@ idf_component_register(
     "web_server_adapter_lifecycle.c"
     "web_server_common.c"
     "web_server_lifecycle.c"
-    "web_server_status.c"
+    "web_server_status_limits.c"
     "web_server_login.c"
     "web_server_logout.c"
     "web_server_static.c"
