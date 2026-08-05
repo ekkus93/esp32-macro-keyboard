@@ -62,6 +62,13 @@ static app_error_code_t unlink_temporary(const storage_blob_upload_ops_t *operat
     return unlink_error == ENOENT ? APP_ERROR_NONE : map_io_error(unlink_error);
 }
 
+static app_error_code_t cleanup_failure(const storage_blob_upload_ops_t *operations,
+                                        const char *temporary_path,
+                                        app_error_code_t primary_error) {
+    const app_error_code_t cleanup_error = unlink_temporary(operations, temporary_path);
+    return cleanup_error == APP_ERROR_NONE ? primary_error : cleanup_error;
+}
+
 app_error_code_t storage_blob_upload_begin_with_ops(
     const char *directory_path, uint64_t blob_id, size_t expected_bytes, size_t maximum_bytes,
     const storage_blob_upload_ops_t *operations, storage_blob_upload_t *out_upload) {
@@ -72,6 +79,9 @@ app_error_code_t storage_blob_upload_begin_with_ops(
         expected_bytes == 0U || expected_bytes > maximum_bytes || maximum_bytes == 0U ||
         !upload_ops_valid(operations) || out_upload == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (blob_id == UINT64_MAX) {
+        return APP_ERROR_STORAGE_FULL;
     }
 
     out_upload->operations = operations;
@@ -108,6 +118,7 @@ app_error_code_t storage_blob_upload_write_with_ops(storage_blob_upload_t *uploa
                                                     size_t data_length) {
     if (upload == NULL || data == NULL || data_length == 0U || !upload->active ||
         upload->committed || upload->operations == NULL || upload->stream == NULL ||
+        upload->stored_bytes > upload->expected_bytes ||
         data_length > upload->expected_bytes - upload->stored_bytes) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
@@ -149,35 +160,36 @@ app_error_code_t storage_blob_upload_commit_with_ops(storage_blob_upload_t *uplo
     }
     if (upload == NULL || out_entry == NULL || !upload->active || upload->committed ||
         upload->operations == NULL || upload->stream == NULL ||
-        upload->stored_bytes != upload->expected_bytes || upload->id == UINT64_MAX) {
+        upload->stored_bytes != upload->expected_bytes) {
         return APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (upload->id == UINT64_MAX) {
+        return APP_ERROR_STORAGE_FULL;
     }
 
     const storage_blob_upload_ops_t *operations = upload->operations;
     app_error_code_t result = close_staged_stream(upload);
     if (result != APP_ERROR_NONE) {
-        const app_error_code_t cleanup = unlink_temporary(operations, upload->temporary_path);
-        return cleanup == APP_ERROR_NONE ? result : cleanup;
+        return cleanup_failure(operations, upload->temporary_path, result);
     }
     result = require_path_absent(operations, upload->final_path);
     if (result != APP_ERROR_NONE) {
-        const app_error_code_t cleanup = unlink_temporary(operations, upload->temporary_path);
-        return cleanup == APP_ERROR_NONE ? result : cleanup;
+        return cleanup_failure(operations, upload->temporary_path, result);
+    }
+
+    result = operations->persist_next_id(operations->context, upload->id + UINT64_C(1));
+    if (result != APP_ERROR_NONE) {
+        return cleanup_failure(operations, upload->temporary_path, result);
     }
     if (operations->rename_path(operations->context, upload->temporary_path,
                                 upload->final_path) != 0) {
         const app_error_code_t rename_result = map_io_error(errno);
-        const app_error_code_t cleanup = unlink_temporary(operations, upload->temporary_path);
-        return cleanup == APP_ERROR_NONE ? rename_result : cleanup;
+        return cleanup_failure(operations, upload->temporary_path, rename_result);
     }
 
     upload->committed = true;
     if (operations->sync_parent(operations->context, upload->final_path) != 0) {
         return map_io_error(errno);
-    }
-    result = operations->persist_next_id(operations->context, upload->id + UINT64_C(1));
-    if (result != APP_ERROR_NONE) {
-        return result;
     }
     *out_entry = (storage_blob_entry_t){
         .id = upload->id,
