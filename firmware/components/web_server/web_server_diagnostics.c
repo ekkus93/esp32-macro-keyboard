@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "app_error.h"
 #include "app_lifecycle_health.h"
@@ -16,6 +17,7 @@
 #include "macro_executor.h"
 #include "macro_limits.h"
 #include "storage.h"
+#include "storage_blob.h"
 #include "storage_health.h"
 #include "usb_health.h"
 #include "web_api_handler_common.h"
@@ -25,7 +27,7 @@
 #include "web_server_adapter.h"
 #include "wifi_ap.h"
 
-#define WEB_DIAGNOSTICS_RESPONSE_MAX_BYTES 1536U
+#define WEB_DIAGNOSTICS_RESPONSE_MAX_BYTES 16384U
 #define MICROSECONDS_PER_MILLISECOND 1000U
 
 static const char *reset_reason_string(esp_reset_reason_t reason) {
@@ -99,33 +101,57 @@ static void fill_subsystems(web_diagnostics_subsystem_t *out_subsystems) {
         (web_diagnostics_subsystem_t){.name = "http", .state = http_health_snapshot().state};
 }
 
-static web_diagnostics_snapshot_t collect_diagnostics(void) {
-    web_diagnostics_snapshot_t snapshot = {0};
-    (void)esp_app_get_elf_sha256(snapshot.build_id, sizeof(snapshot.build_id));
+static app_error_code_t collect_diagnostics(web_diagnostics_snapshot_t *out_snapshot) {
+    if (out_snapshot == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    *out_snapshot = (web_diagnostics_snapshot_t){0};
+    (void)esp_app_get_elf_sha256(out_snapshot->build_id, sizeof(out_snapshot->build_id));
     const esp_app_desc_t *description = esp_app_get_description();
-    (void)snprintf(snapshot.firmware_version, sizeof(snapshot.firmware_version), "%s",
+    (void)snprintf(out_snapshot->firmware_version, sizeof(out_snapshot->firmware_version), "%s",
                    description->version);
-    snapshot.schema_version = APP_SCHEMA_VERSION;
-    snapshot.reset_reason = reset_reason_string(esp_reset_reason());
-    snapshot.uptime_ms = (uint64_t)(esp_timer_get_time() / MICROSECONDS_PER_MILLISECOND);
-    snapshot.free_heap_bytes = esp_get_free_heap_size();
-    snapshot.min_free_heap_bytes = esp_get_minimum_free_heap_size();
-    snapshot.controls_stack_high_water_mark = device_controls_stack_high_water_mark();
-    snapshot.executor_stack_high_water_mark = macro_executor_stack_high_water_mark();
-    fill_capacity(STORAGE_WEB_PARTITION, &snapshot.webfs);
-    fill_capacity(STORAGE_DATA_PARTITION, &snapshot.userdata);
-    snapshot.execution_state = execution_state_string(macro_executor_get_status().state);
-    fill_subsystems(snapshot.subsystems);
-    return snapshot;
+    out_snapshot->schema_version = APP_SCHEMA_VERSION;
+    out_snapshot->reset_reason = reset_reason_string(esp_reset_reason());
+    out_snapshot->uptime_ms =
+        (uint64_t)(esp_timer_get_time() / MICROSECONDS_PER_MILLISECOND);
+    out_snapshot->free_heap_bytes = esp_get_free_heap_size();
+    out_snapshot->min_free_heap_bytes = esp_get_minimum_free_heap_size();
+    out_snapshot->controls_stack_high_water_mark = device_controls_stack_high_water_mark();
+    out_snapshot->executor_stack_high_water_mark = macro_executor_stack_high_water_mark();
+    fill_capacity(STORAGE_WEB_PARTITION, &out_snapshot->webfs);
+    fill_capacity(STORAGE_DATA_PARTITION, &out_snapshot->userdata);
+    const app_error_code_t blob_result =
+        storage_blob_collect_diagnostics(&out_snapshot->blob_scan);
+    if (blob_result != APP_ERROR_NONE) {
+        return blob_result;
+    }
+    if (out_snapshot->blob_scan.invalid_names_truncated) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    out_snapshot->execution_state = execution_state_string(macro_executor_get_status().state);
+    fill_subsystems(out_snapshot->subsystems);
+    return APP_ERROR_NONE;
 }
 
 app_error_code_t web_diagnostics_handle(web_api_response_t *response) {
-    const web_diagnostics_snapshot_t snapshot = collect_diagnostics();
-    char body[WEB_DIAGNOSTICS_RESPONSE_MAX_BYTES];
-    const app_error_code_t result =
-        web_adapter_build_diagnostics_json(&snapshot, body, sizeof(body));
-    if (result != APP_ERROR_NONE) {
-        return web_api_handler_error(response, result, "diagnostics unavailable", NULL);
+    web_diagnostics_snapshot_t snapshot;
+    const app_error_code_t collect_result = collect_diagnostics(&snapshot);
+    if (collect_result != APP_ERROR_NONE) {
+        return web_api_handler_error(response, collect_result, "diagnostics unavailable", NULL);
     }
-    return web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, body);
+
+    char *body = malloc(WEB_DIAGNOSTICS_RESPONSE_MAX_BYTES);
+    if (body == NULL) {
+        return web_api_handler_error(response, APP_ERROR_INTERNAL, "diagnostics unavailable", NULL);
+    }
+    const app_error_code_t build_result =
+        web_adapter_build_diagnostics_json(&snapshot, body, WEB_DIAGNOSTICS_RESPONSE_MAX_BYTES);
+    if (build_result != APP_ERROR_NONE) {
+        free(body);
+        return web_api_handler_error(response, build_result, "diagnostics unavailable", NULL);
+    }
+    const app_error_code_t response_result =
+        web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, body);
+    free(body);
+    return response_result;
 }
