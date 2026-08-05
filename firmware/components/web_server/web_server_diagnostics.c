@@ -81,36 +81,47 @@ static void fill_capacity(const char *partition_label, web_diagnostics_capacity_
     };
 }
 
+static app_error_code_t copy_blob_scan(
+    web_diagnostics_blob_scan_t *out_blob_scan,
+    const storage_blob_diagnostics_t *storage_diagnostics) {
+    if (storage_diagnostics->invalid_names_truncated ||
+        storage_diagnostics->reported_invalid_name_count !=
+            storage_diagnostics->summary.invalid_name_count ||
+        storage_diagnostics->reported_invalid_name_count > WEB_DIAGNOSTICS_INVALID_NAME_MAX) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+
+    out_blob_scan->blob_count = storage_diagnostics->summary.valid_count;
+    out_blob_scan->invalid_name_count = storage_diagnostics->summary.invalid_name_count;
+    out_blob_scan->reported_invalid_name_count =
+        storage_diagnostics->reported_invalid_name_count;
+    for (size_t index = 0U; index < storage_diagnostics->reported_invalid_name_count; ++index) {
+        const size_t length = strlen(storage_diagnostics->invalid_names[index]);
+        if (length >= WEB_DIAGNOSTICS_INVALID_NAME_CAPACITY) {
+            return APP_ERROR_STORAGE_CORRUPT;
+        }
+        memcpy(out_blob_scan->invalid_names[index], storage_diagnostics->invalid_names[index],
+               length + 1U);
+    }
+    return APP_ERROR_NONE;
+}
+
 static app_error_code_t fill_blob_scan(web_diagnostics_blob_scan_t *out_blob_scan) {
     if (out_blob_scan == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     *out_blob_scan = (web_diagnostics_blob_scan_t){0};
 
-    storage_blob_diagnostics_t storage_diagnostics;
-    const app_error_code_t result = storage_blob_collect_diagnostics(&storage_diagnostics);
-    if (result != APP_ERROR_NONE) {
-        return result;
+    storage_blob_diagnostics_t *storage_diagnostics = malloc(sizeof(*storage_diagnostics));
+    if (storage_diagnostics == NULL) {
+        return APP_ERROR_INTERNAL;
     }
-    if (storage_diagnostics.invalid_names_truncated ||
-        storage_diagnostics.reported_invalid_name_count !=
-            storage_diagnostics.summary.invalid_name_count ||
-        storage_diagnostics.reported_invalid_name_count > WEB_DIAGNOSTICS_INVALID_NAME_MAX) {
-        return APP_ERROR_STORAGE_CORRUPT;
+    app_error_code_t result = storage_blob_collect_diagnostics(storage_diagnostics);
+    if (result == APP_ERROR_NONE) {
+        result = copy_blob_scan(out_blob_scan, storage_diagnostics);
     }
-
-    out_blob_scan->blob_count = storage_diagnostics.summary.valid_count;
-    out_blob_scan->invalid_name_count = storage_diagnostics.summary.invalid_name_count;
-    out_blob_scan->reported_invalid_name_count = storage_diagnostics.reported_invalid_name_count;
-    for (size_t index = 0U; index < storage_diagnostics.reported_invalid_name_count; ++index) {
-        const size_t length = strlen(storage_diagnostics.invalid_names[index]);
-        if (length >= WEB_DIAGNOSTICS_INVALID_NAME_CAPACITY) {
-            return APP_ERROR_STORAGE_CORRUPT;
-        }
-        memcpy(out_blob_scan->invalid_names[index], storage_diagnostics.invalid_names[index],
-               length + 1U);
-    }
-    return APP_ERROR_NONE;
+    free(storage_diagnostics);
+    return result;
 }
 
 static void fill_subsystems(web_diagnostics_subsystem_t *out_subsystems) {
@@ -162,18 +173,24 @@ static app_error_code_t collect_diagnostics(web_diagnostics_snapshot_t *out_snap
 }
 
 app_error_code_t web_diagnostics_handle(web_api_response_t *response) {
-    web_diagnostics_snapshot_t snapshot;
-    const app_error_code_t collect_result = collect_diagnostics(&snapshot);
+    web_diagnostics_snapshot_t *snapshot = malloc(sizeof(*snapshot));
+    if (snapshot == NULL) {
+        return web_api_handler_error(response, APP_ERROR_INTERNAL, "diagnostics unavailable", NULL);
+    }
+    const app_error_code_t collect_result = collect_diagnostics(snapshot);
     if (collect_result != APP_ERROR_NONE) {
+        free(snapshot);
         return web_api_handler_error(response, collect_result, "diagnostics unavailable", NULL);
     }
 
     char *body = malloc(WEB_DIAGNOSTICS_RESPONSE_MAX_BYTES);
     if (body == NULL) {
+        free(snapshot);
         return web_api_handler_error(response, APP_ERROR_INTERNAL, "diagnostics unavailable", NULL);
     }
     const app_error_code_t build_result =
-        web_adapter_build_diagnostics_json(&snapshot, body, WEB_DIAGNOSTICS_RESPONSE_MAX_BYTES);
+        web_adapter_build_diagnostics_json(snapshot, body, WEB_DIAGNOSTICS_RESPONSE_MAX_BYTES);
+    free(snapshot);
     if (build_result != APP_ERROR_NONE) {
         free(body);
         return web_api_handler_error(response, build_result, "diagnostics unavailable", NULL);
