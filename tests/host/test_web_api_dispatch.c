@@ -26,7 +26,10 @@ static void test_all_routes_delegate_to_administration(void) {
         WEB_API_ROUTE_DIAGNOSTICS_FULL,
     };
     for (size_t index = 0U; index < sizeof(routes) / sizeof(routes[0]); ++index) {
-        const web_api_call_t call = {.method = WEB_API_METHOD_GET, .path = {.route = routes[index]}};
+        const web_api_call_t call = {
+            .method = WEB_API_METHOD_GET,
+            .path = {.route = routes[index]},
+        };
         web_api_response_t response = {0};
         const size_t before = administration_calls;
         TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_dispatch(&call, &response));
