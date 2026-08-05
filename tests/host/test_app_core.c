@@ -165,8 +165,7 @@ static app_error_code_t fake_wifi_start(void *context, const char *ssid, const c
     return stage_result(fixture, FAIL_WIFI_START);
 }
 
-static app_error_code_t fake_http_start(void *context,
-                                        const web_server_config_t *configuration) {
+static app_error_code_t fake_http_start(void *context, const web_server_config_t *configuration) {
     fixture_t *fixture = context;
     record(fixture, "http_start");
     fixture->observed_web = *configuration;
