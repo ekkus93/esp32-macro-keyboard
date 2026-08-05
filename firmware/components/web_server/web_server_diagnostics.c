@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "app_error.h"
 #include "app_lifecycle_health.h"
@@ -80,6 +81,39 @@ static void fill_capacity(const char *partition_label, web_diagnostics_capacity_
     };
 }
 
+static app_error_code_t fill_blob_scan(web_diagnostics_blob_scan_t *out_blob_scan) {
+    if (out_blob_scan == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    *out_blob_scan = (web_diagnostics_blob_scan_t){0};
+
+    storage_blob_diagnostics_t storage_diagnostics;
+    const app_error_code_t result = storage_blob_collect_diagnostics(&storage_diagnostics);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    if (storage_diagnostics.invalid_names_truncated ||
+        storage_diagnostics.reported_invalid_name_count !=
+            storage_diagnostics.summary.invalid_name_count ||
+        storage_diagnostics.reported_invalid_name_count > WEB_DIAGNOSTICS_INVALID_NAME_MAX) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+
+    out_blob_scan->blob_count = storage_diagnostics.summary.valid_count;
+    out_blob_scan->invalid_name_count = storage_diagnostics.summary.invalid_name_count;
+    out_blob_scan->reported_invalid_name_count =
+        storage_diagnostics.reported_invalid_name_count;
+    for (size_t index = 0U; index < storage_diagnostics.reported_invalid_name_count; ++index) {
+        const size_t length = strlen(storage_diagnostics.invalid_names[index]);
+        if (length >= WEB_DIAGNOSTICS_INVALID_NAME_CAPACITY) {
+            return APP_ERROR_STORAGE_CORRUPT;
+        }
+        memcpy(out_blob_scan->invalid_names[index], storage_diagnostics.invalid_names[index],
+               length + 1U);
+    }
+    return APP_ERROR_NONE;
+}
+
 static void fill_subsystems(web_diagnostics_subsystem_t *out_subsystems) {
     size_t index = 0U;
     out_subsystems[index++] = (web_diagnostics_subsystem_t){
@@ -120,13 +154,9 @@ static app_error_code_t collect_diagnostics(web_diagnostics_snapshot_t *out_snap
     out_snapshot->executor_stack_high_water_mark = macro_executor_stack_high_water_mark();
     fill_capacity(STORAGE_WEB_PARTITION, &out_snapshot->webfs);
     fill_capacity(STORAGE_DATA_PARTITION, &out_snapshot->userdata);
-    const app_error_code_t blob_result =
-        storage_blob_collect_diagnostics(&out_snapshot->blob_scan);
+    const app_error_code_t blob_result = fill_blob_scan(&out_snapshot->blob_scan);
     if (blob_result != APP_ERROR_NONE) {
         return blob_result;
-    }
-    if (out_snapshot->blob_scan.invalid_names_truncated) {
-        return APP_ERROR_STORAGE_CORRUPT;
     }
     out_snapshot->execution_state = execution_state_string(macro_executor_get_status().state);
     fill_subsystems(out_snapshot->subsystems);
