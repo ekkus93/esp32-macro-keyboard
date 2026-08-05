@@ -10,6 +10,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+
+#include "app_error.h"
+#include "storage_blob.h"
+#include "storage_fs_ops.h"
 
 static bool is_dot_entry(const char *name) {
     return strcmp(name, ".") == 0 || strcmp(name, "..") == 0;
@@ -43,11 +48,11 @@ bool storage_blob_parse_filename(const char *name, uint64_t *out_id) {
     return true;
 }
 
-app_error_code_t storage_blob_format_filename(uint64_t id, char *out_name, size_t name_size) {
-    if (id == 0U || out_name == NULL || name_size < STORAGE_BLOB_FILENAME_CAPACITY) {
+app_error_code_t storage_blob_format_filename(uint64_t blob_id, char *out_name, size_t name_size) {
+    if (blob_id == 0U || out_name == NULL || name_size < STORAGE_BLOB_FILENAME_CAPACITY) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    const int written = snprintf(out_name, name_size, "%020" PRIu64 ".gz", id);
+    const int written = snprintf(out_name, name_size, "%020" PRIu64 ".gz", blob_id);
     if (written != (int)STORAGE_BLOB_FILENAME_LENGTH) {
         out_name[0] = '\0';
         return APP_ERROR_INTERNAL;
@@ -201,8 +206,8 @@ app_error_code_t storage_blob_scan_with_ops(const storage_fs_ops_t *operations,
             continue;
         }
 
-        uint64_t id = 0U;
-        if (!storage_blob_parse_filename(name, &id)) {
+        uint64_t blob_id = 0U;
+        if (!storage_blob_parse_filename(name, &blob_id)) {
             ++out_summary->invalid_name_count;
             result = notify_invalid_name(observer, name);
             continue;
@@ -226,16 +231,16 @@ app_error_code_t storage_blob_scan_with_ops(const storage_fs_ops_t *operations,
         }
 
         const storage_blob_entry_t entry = {
-            .id = id,
+            .id = blob_id,
             .stored_bytes = (size_t)metadata.st_size,
         };
         result = append_entry(&entries, &entry_count, &entry_capacity, &entry);
         if (result != APP_ERROR_NONE) {
             break;
         }
-        if (!out_summary->has_max_id || id > out_summary->max_id) {
+        if (!out_summary->has_max_id || blob_id > out_summary->max_id) {
             out_summary->has_max_id = true;
-            out_summary->max_id = id;
+            out_summary->max_id = blob_id;
         }
     }
 
