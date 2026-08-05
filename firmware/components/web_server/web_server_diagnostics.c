@@ -101,8 +101,7 @@ static app_error_code_t fill_blob_scan(web_diagnostics_blob_scan_t *out_blob_sca
 
     out_blob_scan->blob_count = storage_diagnostics.summary.valid_count;
     out_blob_scan->invalid_name_count = storage_diagnostics.summary.invalid_name_count;
-    out_blob_scan->reported_invalid_name_count =
-        storage_diagnostics.reported_invalid_name_count;
+    out_blob_scan->reported_invalid_name_count = storage_diagnostics.reported_invalid_name_count;
     for (size_t index = 0U; index < storage_diagnostics.reported_invalid_name_count; ++index) {
         const size_t length = strlen(storage_diagnostics.invalid_names[index]);
         if (length >= WEB_DIAGNOSTICS_INVALID_NAME_CAPACITY) {
@@ -146,8 +145,7 @@ static app_error_code_t collect_diagnostics(web_diagnostics_snapshot_t *out_snap
                    description->version);
     out_snapshot->schema_version = APP_SCHEMA_VERSION;
     out_snapshot->reset_reason = reset_reason_string(esp_reset_reason());
-    out_snapshot->uptime_ms =
-        (uint64_t)(esp_timer_get_time() / MICROSECONDS_PER_MILLISECOND);
+    out_snapshot->uptime_ms = (uint64_t)(esp_timer_get_time() / MICROSECONDS_PER_MILLISECOND);
     out_snapshot->free_heap_bytes = esp_get_free_heap_size();
     out_snapshot->min_free_heap_bytes = esp_get_minimum_free_heap_size();
     out_snapshot->controls_stack_high_water_mark = device_controls_stack_high_water_mark();
