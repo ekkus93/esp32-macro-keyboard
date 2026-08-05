@@ -250,44 +250,44 @@ subsystem before modifying production behavior.
 
 ## V2-020 — Delete firmware package and macro repositories
 
-- [ ] Remove production package repository state.
-- [ ] Remove production macro repository state.
-- [ ] Remove firmware active-package state.
-- [ ] Remove package indexes, per-package files, per-macro files, repository JSON,
+- [x] Remove production package repository state.
+- [x] Remove production macro repository state.
+- [x] Remove firmware active-package state.
+- [x] Remove package indexes, per-package files, per-macro files, repository JSON,
       revision stores, backup stores, restore stores, and related caches.
-- [ ] Remove firmware package/macro import, export, merge, replace, and restore
+- [x] Remove firmware package/macro import, export, merge, replace, and restore
       logic.
-- [ ] Remove firmware repository schema parsing and serialization.
-- [ ] Remove associated startup sequencing and recovery behavior.
+- [x] Remove firmware repository schema parsing and serialization.
+- [x] Remove associated startup sequencing and recovery behavior.
 
 ## V2-021 — Delete obsolete HTTP resources
 
-- [ ] Remove package CRUD routes.
-- [ ] Remove macro CRUD routes.
-- [ ] Remove firmware validation routes.
-- [ ] Remove repository restore/import/export/replace routes.
-- [ ] Remove plural execution resources and revision parameters.
-- [ ] Reject old paths explicitly rather than silently translating them.
+- [x] Remove package CRUD routes.
+- [x] Remove macro CRUD routes.
+- [x] Remove firmware validation routes.
+- [x] Remove repository restore/import/export/replace routes.
+- [x] Remove plural execution resources and revision parameters.
+- [x] Reject old paths explicitly rather than silently translating them.
 
 ## V2-022 — Remove obsolete tests and replace coverage
 
-- [ ] Delete tests whose only purpose is retired behavior.
-- [ ] Preserve useful parser, executor, USB, authentication, Wi-Fi, and static
+- [x] Delete tests whose only purpose is retired behavior.
+- [x] Preserve useful parser, executor, USB, authentication, Wi-Fi, and static
       server tests by adapting them to v2 contracts.
-- [ ] Add negative tests proving old routes are absent.
-- [ ] Add source scans or architectural tests preventing reintroduction of:
-  - [ ] firmware package repositories;
-  - [ ] firmware macro repositories;
-  - [ ] repository `activePackageId`;
-  - [ ] package/macro CRUD routes;
-  - [ ] firmware gzip or JSON repository parsing.
+- [x] Add negative tests proving old routes are absent.
+- [x] Add source scans or architectural tests preventing reintroduction of:
+  - [x] firmware package repositories;
+  - [x] firmware macro repositories;
+  - [x] repository `activePackageId`;
+  - [x] package/macro CRUD routes;
+  - [x] firmware gzip or JSON repository parsing.
 
 ## Phase 2 exit gate
 
-- [ ] Firmware builds without retired repository modules.
-- [ ] Old routes are absent and tested absent.
-- [ ] No compatibility adapter remains.
-- [ ] Relevant host tests and static analysis pass.
+- [x] Firmware builds without retired repository modules.
+- [x] Old routes are absent and tested absent.
+- [x] No compatibility adapter remains.
+- [x] Relevant host tests and static analysis pass.
 
 ---
 
