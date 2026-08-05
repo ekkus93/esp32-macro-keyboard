@@ -320,6 +320,7 @@ add_executable(
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/storage/storage_blob_core.c
     ../../firmware/components/storage/storage_blob_upload_core.c
+    ../../firmware/components/storage/storage_fs_ops.c
 )
 target_include_directories(
     storage_blob_upload_tests
