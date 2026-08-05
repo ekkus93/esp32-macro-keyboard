@@ -6,6 +6,7 @@
 
 #include "../app_contracts_v2/include/app_limits_v2.h"
 #include "app_error.h"
+#include "storage_blob.h"
 #include "subsystem_health.h"
 #include "web_diagnostics.h"
 
@@ -131,6 +132,24 @@ static void append_capacity(json_writer_t *writer, const char *key,
     writer_append_text(writer, "}");
 }
 
+static void append_blob_scan(json_writer_t *writer,
+                             const storage_blob_diagnostics_t *diagnostics) {
+    writer_append_text(writer, "\"blobScan\":{\"blobCount\":");
+    append_uint64(writer, (uint64_t)diagnostics->summary.valid_count);
+    writer_append_text(writer, ",\"invalidNameCount\":");
+    append_uint64(writer, (uint64_t)diagnostics->summary.invalid_name_count);
+    writer_append_text(writer, ",\"invalidNames\":[");
+    for (size_t index = 0U; index < diagnostics->reported_invalid_name_count; ++index) {
+        if (index > 0U) {
+            writer_append_text(writer, ",");
+        }
+        writer_append_text(writer, "\"");
+        writer_append_escaped(writer, diagnostics->invalid_names[index]);
+        writer_append_text(writer, "\"");
+    }
+    writer_append_text(writer, "]}");
+}
+
 app_error_code_t web_adapter_build_diagnostics_json(const web_diagnostics_snapshot_t *snapshot,
                                                     char *output, size_t output_size) {
     if (output != NULL && output_size > 0U) {
@@ -138,6 +157,11 @@ app_error_code_t web_adapter_build_diagnostics_json(const web_diagnostics_snapsh
     }
     if (snapshot == NULL || output == NULL || output_size == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (snapshot->blob_scan.invalid_names_truncated ||
+        snapshot->blob_scan.reported_invalid_name_count !=
+            snapshot->blob_scan.summary.invalid_name_count) {
+        return APP_ERROR_STORAGE_CORRUPT;
     }
     json_writer_t writer = {.buffer = output, .capacity = output_size};
     writer_append_text(&writer, "{\"buildId\":\"");
@@ -162,6 +186,8 @@ app_error_code_t web_adapter_build_diagnostics_json(const web_diagnostics_snapsh
     append_capacity(&writer, "webfs", &snapshot->webfs);
     writer_append_text(&writer, ",");
     append_capacity(&writer, "userdata", &snapshot->userdata);
+    writer_append_text(&writer, ",");
+    append_blob_scan(&writer, &snapshot->blob_scan);
     writer_append_text(&writer, ",\"executionState\":\"");
     writer_append_escaped(&writer, snapshot->execution_state);
     writer_append_text(&writer, "\",\"subsystems\":[");
