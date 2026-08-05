@@ -81,9 +81,8 @@ static void fill_capacity(const char *partition_label, web_diagnostics_capacity_
     };
 }
 
-static app_error_code_t copy_blob_scan(
-    web_diagnostics_blob_scan_t *out_blob_scan,
-    const storage_blob_diagnostics_t *storage_diagnostics) {
+static app_error_code_t copy_blob_scan(web_diagnostics_blob_scan_t *out_blob_scan,
+                                       const storage_blob_diagnostics_t *storage_diagnostics) {
     if (storage_diagnostics->invalid_names_truncated ||
         storage_diagnostics->reported_invalid_name_count !=
             storage_diagnostics->summary.invalid_name_count ||
@@ -93,8 +92,7 @@ static app_error_code_t copy_blob_scan(
 
     out_blob_scan->blob_count = storage_diagnostics->summary.valid_count;
     out_blob_scan->invalid_name_count = storage_diagnostics->summary.invalid_name_count;
-    out_blob_scan->reported_invalid_name_count =
-        storage_diagnostics->reported_invalid_name_count;
+    out_blob_scan->reported_invalid_name_count = storage_diagnostics->reported_invalid_name_count;
     for (size_t index = 0U; index < storage_diagnostics->reported_invalid_name_count; ++index) {
         const size_t length = strlen(storage_diagnostics->invalid_names[index]);
         if (length >= WEB_DIAGNOSTICS_INVALID_NAME_CAPACITY) {
