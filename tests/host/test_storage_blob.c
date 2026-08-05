@@ -135,10 +135,10 @@ static void test_directory_prepare_and_scan(void) {
                          storage_blob_prepare_directory_with_ops(operations, repository));
 
     char path[TEST_TEMP_DIR_PATH_MAX];
-    path_join(path, sizeof(path), repository, "00000000000000000003.gz");
-    create_file_with_size(path, 3U);
     path_join(path, sizeof(path), repository, "00000000000000000001.gz");
     create_file_with_size(path, 1U);
+    path_join(path, sizeof(path), repository, "00000000000000000003.gz");
+    create_file_with_size(path, 3U);
     path_join(path, sizeof(path), repository, "00000000000000000002.gz");
     TEST_CHECK(mkdir(path, (mode_t)0700) == 0);
     path_join(path, sizeof(path), repository, "00000000000000000004.gz.tmp");
@@ -163,7 +163,6 @@ static void test_directory_prepare_and_scan(void) {
     TEST_CHECK_EQ_U64(2U, capture.entry_count);
     TEST_CHECK_EQ_U64(3U, capture.invalid_count);
 
-    storage_blob_sort_newest_first(capture.entries, capture.entry_count);
     TEST_CHECK_EQ_U64(3U, capture.entries[0].id);
     TEST_CHECK_EQ_U64(3U, capture.entries[0].stored_bytes);
     TEST_CHECK_EQ_U64(1U, capture.entries[1].id);

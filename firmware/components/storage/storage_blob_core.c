@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -138,6 +139,34 @@ static app_error_code_t join_path(const char *directory_path, const char *name, 
     return APP_ERROR_NONE;
 }
 
+static app_error_code_t append_entry(storage_blob_entry_t **entries, size_t *entry_count,
+                                     size_t *entry_capacity, const storage_blob_entry_t *entry) {
+    if (entries == NULL || entry_count == NULL || entry_capacity == NULL || entry == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (*entry_count == *entry_capacity) {
+        size_t new_capacity = 8U;
+        if (*entry_capacity != 0U) {
+            if (*entry_capacity > SIZE_MAX / 2U) {
+                return APP_ERROR_INTERNAL;
+            }
+            new_capacity = *entry_capacity * 2U;
+        }
+        if (new_capacity > SIZE_MAX / sizeof(**entries)) {
+            return APP_ERROR_INTERNAL;
+        }
+        storage_blob_entry_t *resized = realloc(*entries, new_capacity * sizeof(**entries));
+        if (resized == NULL) {
+            return APP_ERROR_INTERNAL;
+        }
+        *entries = resized;
+        *entry_capacity = new_capacity;
+    }
+    (*entries)[*entry_count] = *entry;
+    ++(*entry_count);
+    return APP_ERROR_NONE;
+}
+
 app_error_code_t storage_blob_scan_with_ops(const storage_fs_ops_t *operations,
                                             const char *directory_path, uint64_t persisted_next_id,
                                             const storage_blob_scan_observer_t *observer,
@@ -153,6 +182,9 @@ app_error_code_t storage_blob_scan_with_ops(const storage_fs_ops_t *operations,
         return APP_ERROR_IO;
     }
 
+    storage_blob_entry_t *entries = NULL;
+    size_t entry_count = 0U;
+    size_t entry_capacity = 0U;
     app_error_code_t result = APP_ERROR_NONE;
     while (result == APP_ERROR_NONE) {
         char name[STORAGE_FS_ENTRY_NAME_MAX] = {0};
@@ -197,11 +229,10 @@ app_error_code_t storage_blob_scan_with_ops(const storage_fs_ops_t *operations,
             .id = id,
             .stored_bytes = (size_t)metadata.st_size,
         };
-        result = notify_entry(observer, &entry);
+        result = append_entry(&entries, &entry_count, &entry_capacity, &entry);
         if (result != APP_ERROR_NONE) {
             break;
         }
-        ++out_summary->valid_count;
         if (!out_summary->has_max_id || id > out_summary->max_id) {
             out_summary->has_max_id = true;
             out_summary->max_id = id;
@@ -212,9 +243,22 @@ app_error_code_t storage_blob_scan_with_ops(const storage_fs_ops_t *operations,
         result == APP_ERROR_NONE) {
         result = APP_ERROR_IO;
     }
-    if (result != APP_ERROR_NONE) {
-        return result;
+
+    out_summary->valid_count = entry_count;
+    if (result == APP_ERROR_NONE) {
+        result = storage_blob_derive_next_id(persisted_next_id, out_summary->has_max_id,
+                                             out_summary->max_id, &out_summary->next_id);
     }
-    return storage_blob_derive_next_id(persisted_next_id, out_summary->has_max_id,
-                                       out_summary->max_id, &out_summary->next_id);
+    if (result == APP_ERROR_NONE) {
+        storage_blob_sort_newest_first(entries, entry_count);
+        for (size_t index = 0U; index < entry_count; ++index) {
+            result = notify_entry(observer, &entries[index]);
+            if (result != APP_ERROR_NONE) {
+                break;
+            }
+        }
+    }
+
+    free(entries);
+    return result;
 }

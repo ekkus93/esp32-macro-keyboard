@@ -13,7 +13,11 @@ The component does not own packages, macros, repository JSON, revisions, indexes
 backups, restores, imports, exports, or active-package state. Those retired v1
 responsibilities must not return.
 
-Phase 3 will build the opaque byte-oriented snapshot store on top of these generic
-primitives. Until that work is implemented and tested, do not describe blob
-listing, upload, download, deletion, startup scanning, temporary-file cleanup, or
-power-loss recovery as complete.
+V2-030 now provides the opaque snapshot-store foundation: `/data/repository/`,
+fixed-width numeric `.gz` names, startup scanning, invalid-name accounting,
+newest-first numeric ordering, and next-ID reconciliation against the optional NVS
+counter and existing final files.
+
+Later Phase 3 tasks still own atomic upload, list/download/delete APIs, temporary-file
+cleanup, capacity proof, and physical power-loss validation. Do not describe those
+behaviors as complete until their individual TODO items and evidence are closed.
