@@ -60,6 +60,14 @@ static app_error_code_t establish_request_id(const web_request_policy_ops_t *ope
     return APP_ERROR_NONE;
 }
 
+static bool content_type_valid_for_route(const web_request_policy_input_t *input,
+                                         const char *content_type) {
+    if (input->route == WEB_API_ROUTE_BLOB_COLLECTION && input->method == WEB_API_METHOD_POST) {
+        return web_api_content_type_is_gzip(content_type);
+    }
+    return web_api_content_type_is_json(content_type);
+}
+
 static app_error_code_t enforce_body_content_type(const web_request_policy_input_t *input,
                                                   const web_request_policy_ops_t *operations,
                                                   web_request_policy_result_t *out_result,
@@ -72,7 +80,7 @@ static app_error_code_t enforce_body_content_type(const web_request_policy_input
         char content_type[WEB_POLICY_HEADER_BYTES] = {0};
         if (operations->get_header(operations->context, "Content-Type", content_type,
                                    sizeof(content_type)) != APP_ERROR_NONE ||
-            !web_api_content_type_is_json(content_type)) {
+            !content_type_valid_for_route(input, content_type)) {
             return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_CONTENT_TYPE,
                         APP_ERROR_INVALID_ARGUMENT);
         }
@@ -139,9 +147,6 @@ app_error_code_t web_request_policy_evaluate(const web_request_policy_input_t *i
     }
 
     app_error_code_t result = enforce_body_content_type(input, operations, out_result, out_failure);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
     if (result != APP_ERROR_NONE) {
         return result;
     }
