@@ -16,6 +16,7 @@ idf_component_register(
     macro_model
     support
     littlefs
+    nvs_flash
 )
 
 target_compile_options(
