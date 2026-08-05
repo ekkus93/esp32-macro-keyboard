@@ -28,8 +28,7 @@ typedef struct {
 
 typedef app_error_code_t (*storage_blob_entry_visitor_t)(void *context,
                                                          const storage_blob_entry_t *entry);
-typedef app_error_code_t (*storage_blob_invalid_name_visitor_t)(void *context,
-                                                                const char *name);
+typedef app_error_code_t (*storage_blob_invalid_name_visitor_t)(void *context, const char *name);
 
 typedef struct {
     void *context;

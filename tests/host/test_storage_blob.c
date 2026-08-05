@@ -84,27 +84,21 @@ static void test_filename_contract(void) {
     TEST_CHECK_EQ_STRING("18446744073709551615.gz", name);
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          storage_blob_format_filename(0U, name, sizeof(name)));
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        storage_blob_format_filename(1U, name, STORAGE_BLOB_FILENAME_LENGTH));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         storage_blob_format_filename(1U, name, STORAGE_BLOB_FILENAME_LENGTH));
 }
 
 static void test_next_id_derivation(void) {
     uint64_t next_id = 0U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_derive_next_id(0U, false, 0U, &next_id));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_derive_next_id(0U, false, 0U, &next_id));
     TEST_CHECK_EQ_U64(1U, next_id);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_derive_next_id(17U, false, 0U, &next_id));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_derive_next_id(17U, false, 0U, &next_id));
     TEST_CHECK_EQ_U64(17U, next_id);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_derive_next_id(3U, true, 9U, &next_id));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_derive_next_id(3U, true, 9U, &next_id));
     TEST_CHECK_EQ_U64(10U, next_id);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_derive_next_id(20U, true, 9U, &next_id));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_derive_next_id(20U, true, 9U, &next_id));
     TEST_CHECK_EQ_U64(20U, next_id);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_derive_next_id(0U, true, 42U, &next_id));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_derive_next_id(0U, true, 42U, &next_id));
     TEST_CHECK_EQ_U64(43U, next_id);
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL,
                          storage_blob_derive_next_id(0U, true, UINT64_MAX, &next_id));
@@ -159,9 +153,8 @@ static void test_directory_prepare_and_scan(void) {
         .visit_invalid_name = capture_invalid_name,
     };
     storage_blob_scan_summary_t summary;
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        storage_blob_scan_with_ops(operations, repository, 2U, &observer, &summary));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_scan_with_ops(operations, repository, 2U,
+                                                                    &observer, &summary));
     TEST_CHECK_EQ_U64(2U, summary.valid_count);
     TEST_CHECK_EQ_U64(3U, summary.invalid_name_count);
     TEST_CHECK(summary.has_max_id);
@@ -176,9 +169,8 @@ static void test_directory_prepare_and_scan(void) {
     TEST_CHECK_EQ_U64(1U, capture.entries[1].id);
     TEST_CHECK_EQ_U64(1U, capture.entries[1].stored_bytes);
 
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        storage_blob_scan_with_ops(operations, repository, 50U, NULL, &summary));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_blob_scan_with_ops(operations, repository, 50U, NULL, &summary));
     TEST_CHECK_EQ_U64(50U, summary.next_id);
     test_temp_dir_remove(&directory);
 }
@@ -189,9 +181,8 @@ static void test_prepare_rejects_non_directory(void) {
     char path[TEST_TEMP_DIR_PATH_MAX];
     path_join(path, sizeof(path), directory.path, "repository");
     create_file_with_size(path, 1U);
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_STORAGE_CORRUPT,
-        storage_blob_prepare_directory_with_ops(storage_fs_ops_posix(), path));
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
+                         storage_blob_prepare_directory_with_ops(storage_fs_ops_posix(), path));
     test_temp_dir_remove(&directory);
 }
 

@@ -139,8 +139,7 @@ static app_error_code_t join_path(const char *directory_path, const char *name, 
 }
 
 app_error_code_t storage_blob_scan_with_ops(const storage_fs_ops_t *operations,
-                                            const char *directory_path,
-                                            uint64_t persisted_next_id,
+                                            const char *directory_path, uint64_t persisted_next_id,
                                             const storage_blob_scan_observer_t *observer,
                                             storage_blob_scan_summary_t *out_summary) {
     if (!storage_fs_ops_has_directory(operations) || directory_path == NULL ||
