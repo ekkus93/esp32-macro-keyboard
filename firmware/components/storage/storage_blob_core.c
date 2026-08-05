@@ -16,6 +16,8 @@
 #include "storage_blob.h"
 #include "storage_fs_ops.h"
 
+#define STORAGE_BLOB_DIRECTORY_MODE ((mode_t)(S_IRWXU | S_IRGRP | S_IXGRP))
+
 static bool is_dot_entry(const char *name) {
     return strcmp(name, ".") == 0 || strcmp(name, "..") == 0;
 }
@@ -109,7 +111,8 @@ app_error_code_t storage_blob_prepare_directory_with_ops(const storage_fs_ops_t 
     if (errno != ENOENT) {
         return APP_ERROR_IO;
     }
-    if (operations->make_directory(operations->context, directory_path, (mode_t)0750) == 0) {
+    if (operations->make_directory(operations->context, directory_path,
+                                   STORAGE_BLOB_DIRECTORY_MODE) == 0) {
         return APP_ERROR_NONE;
     }
     if (errno != EEXIST ||
@@ -172,6 +175,87 @@ static app_error_code_t append_entry(storage_blob_entry_t **entries, size_t *ent
     return APP_ERROR_NONE;
 }
 
+static app_error_code_t process_directory_entry(
+    const storage_fs_ops_t *operations, const char *directory_path, const char *name,
+    const storage_blob_scan_observer_t *observer, storage_blob_entry_t **entries,
+    size_t *entry_count, size_t *entry_capacity, storage_blob_scan_summary_t *summary) {
+    uint64_t blob_id = 0U;
+    if (!storage_blob_parse_filename(name, &blob_id)) {
+        ++summary->invalid_name_count;
+        return notify_invalid_name(observer, name);
+    }
+
+    char path[STORAGE_FS_ENTRY_NAME_MAX * 2U] = {0};
+    app_error_code_t result = join_path(directory_path, name, path, sizeof(path));
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+
+    struct stat metadata;
+    if (operations->stat_path(operations->context, path, &metadata) != 0) {
+        return APP_ERROR_IO;
+    }
+    if (!S_ISREG(metadata.st_mode) || metadata.st_size < 0 ||
+        (uintmax_t)metadata.st_size > (uintmax_t)SIZE_MAX) {
+        ++summary->invalid_name_count;
+        return notify_invalid_name(observer, name);
+    }
+
+    const storage_blob_entry_t entry = {
+        .id = blob_id,
+        .stored_bytes = (size_t)metadata.st_size,
+    };
+    result = append_entry(entries, entry_count, entry_capacity, &entry);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    if (!summary->has_max_id || blob_id > summary->max_id) {
+        summary->has_max_id = true;
+        summary->max_id = blob_id;
+    }
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t scan_directory_entries(
+    const storage_fs_ops_t *operations, void *directory, const char *directory_path,
+    const storage_blob_scan_observer_t *observer, storage_blob_entry_t **entries,
+    size_t *entry_count, size_t *entry_capacity, storage_blob_scan_summary_t *summary) {
+    while (true) {
+        char name[STORAGE_FS_ENTRY_NAME_MAX] = {0};
+        bool end = false;
+        if (operations->read_directory(operations->context, directory, name, sizeof(name), &end) !=
+            0) {
+            return APP_ERROR_IO;
+        }
+        if (end) {
+            return APP_ERROR_NONE;
+        }
+        if (is_dot_entry(name)) {
+            continue;
+        }
+
+        const app_error_code_t result =
+            process_directory_entry(operations, directory_path, name, observer, entries,
+                                    entry_count, entry_capacity, summary);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+    }
+}
+
+static app_error_code_t notify_entries_newest_first(
+    storage_blob_entry_t *entries, size_t entry_count,
+    const storage_blob_scan_observer_t *observer) {
+    storage_blob_sort_newest_first(entries, entry_count);
+    for (size_t index = 0U; index < entry_count; ++index) {
+        const app_error_code_t result = notify_entry(observer, &entries[index]);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+    }
+    return APP_ERROR_NONE;
+}
+
 app_error_code_t storage_blob_scan_with_ops(const storage_fs_ops_t *operations,
                                             const char *directory_path, uint64_t persisted_next_id,
                                             const storage_blob_scan_observer_t *observer,
@@ -190,59 +274,9 @@ app_error_code_t storage_blob_scan_with_ops(const storage_fs_ops_t *operations,
     storage_blob_entry_t *entries = NULL;
     size_t entry_count = 0U;
     size_t entry_capacity = 0U;
-    app_error_code_t result = APP_ERROR_NONE;
-    while (result == APP_ERROR_NONE) {
-        char name[STORAGE_FS_ENTRY_NAME_MAX] = {0};
-        bool end = false;
-        if (operations->read_directory(operations->context, directory, name, sizeof(name), &end) !=
-            0) {
-            result = APP_ERROR_IO;
-            break;
-        }
-        if (end) {
-            break;
-        }
-        if (is_dot_entry(name)) {
-            continue;
-        }
-
-        uint64_t blob_id = 0U;
-        if (!storage_blob_parse_filename(name, &blob_id)) {
-            ++out_summary->invalid_name_count;
-            result = notify_invalid_name(observer, name);
-            continue;
-        }
-
-        char path[STORAGE_FS_ENTRY_NAME_MAX * 2U] = {0};
-        result = join_path(directory_path, name, path, sizeof(path));
-        if (result != APP_ERROR_NONE) {
-            break;
-        }
-        struct stat metadata;
-        if (operations->stat_path(operations->context, path, &metadata) != 0) {
-            result = APP_ERROR_IO;
-            break;
-        }
-        if (!S_ISREG(metadata.st_mode) || metadata.st_size < 0 ||
-            (uintmax_t)metadata.st_size > (uintmax_t)SIZE_MAX) {
-            ++out_summary->invalid_name_count;
-            result = notify_invalid_name(observer, name);
-            continue;
-        }
-
-        const storage_blob_entry_t entry = {
-            .id = blob_id,
-            .stored_bytes = (size_t)metadata.st_size,
-        };
-        result = append_entry(&entries, &entry_count, &entry_capacity, &entry);
-        if (result != APP_ERROR_NONE) {
-            break;
-        }
-        if (!out_summary->has_max_id || blob_id > out_summary->max_id) {
-            out_summary->has_max_id = true;
-            out_summary->max_id = blob_id;
-        }
-    }
+    app_error_code_t result =
+        scan_directory_entries(operations, directory, directory_path, observer, &entries,
+                               &entry_count, &entry_capacity, out_summary);
 
     if (operations->close_directory(operations->context, directory) != 0 &&
         result == APP_ERROR_NONE) {
@@ -255,13 +289,7 @@ app_error_code_t storage_blob_scan_with_ops(const storage_fs_ops_t *operations,
                                              out_summary->max_id, &out_summary->next_id);
     }
     if (result == APP_ERROR_NONE) {
-        storage_blob_sort_newest_first(entries, entry_count);
-        for (size_t index = 0U; index < entry_count; ++index) {
-            result = notify_entry(observer, &entries[index]);
-            if (result != APP_ERROR_NONE) {
-                break;
-            }
-        }
+        result = notify_entries_newest_first(entries, entry_count, observer);
     }
 
     free(entries);
