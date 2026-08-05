@@ -10,6 +10,7 @@ idf_component_register(
     "web_server_status_limits.c"
     "web_server_login.c"
     "web_server_logout.c"
+    "web_server_blob.c"
     "web_server_static.c"
     "web_server_setup.c"
     "web_server_api.c"
