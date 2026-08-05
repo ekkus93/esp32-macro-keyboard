@@ -1,0 +1,99 @@
+name: V2-031 Integration Closeup
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.event.head_commit.message == 'Add one-shot V2-031 integration closeup'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact source commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+
+      - name: Wire host test and route bounds
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          cmake = Path("tests/host/CMakeLists.txt")
+          text = cmake.read_text(encoding="utf-8")
+          old = """register_host_test(storage_blob_tests storage_blob storage)
+
+add_executable(
+    storage_atomic_tests
+"""
+          new = """register_host_test(storage_blob_tests storage_blob storage)
+
+add_executable(
+    storage_blob_upload_tests
+    test_storage_blob_upload.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/storage/storage_blob_core.c
+    ../../firmware/components/storage/storage_blob_upload_core.c
+)
+target_include_directories(
+    storage_blob_upload_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
+            ../../firmware/components/storage
+)
+register_host_test(storage_blob_upload_tests storage_blob_upload storage)
+
+add_executable(
+    storage_atomic_tests
+"""
+          if text.count(old) != 1:
+              raise SystemExit("storage host target insertion point did not match exactly once")
+          cmake.write_text(text.replace(old, new), encoding="utf-8")
+
+          api = Path("firmware/components/web_server/web_server_api.c")
+          text = api.read_text(encoding="utf-8")
+          old = """static size_t route_body_limit(web_api_route_t route) {
+    (void)route;
+    return (size_t)APP_V2_JSON_BODY_MAX_BYTES;
+}
+"""
+          new = """static size_t route_body_limit(web_api_route_t route) {
+    return route == WEB_API_ROUTE_BLOB_COLLECTION ? (size_t)APP_V2_BLOB_MAX_BYTES
+                                                   : (size_t)APP_V2_JSON_BODY_MAX_BYTES;
+}
+"""
+          if text.count(old) != 1:
+              raise SystemExit("route body limit block did not match exactly once")
+          text = text.replace(old, new)
+          old = """    case WEB_REQUEST_POLICY_FAILURE_CONTENT_TYPE:
+        return \"application/json content type required\";
+"""
+          new = """    case WEB_REQUEST_POLICY_FAILURE_CONTENT_TYPE:
+        return \"request content type is invalid\";
+"""
+          if text.count(old) != 1:
+              raise SystemExit("content-type failure message did not match exactly once")
+          api.write_text(text.replace(old, new), encoding="utf-8")
+
+          test_file = Path("tests/host/test_storage_blob_upload.c")
+          text = test_file.read_text(encoding="utf-8")
+          old = "    metadata->st_mode = S_IFREG;\n"
+          if text.count(old) != 1:
+              raise SystemExit("S_IFREG portability line did not match exactly once")
+          test_file.write_text(text.replace(old, ""), encoding="utf-8")
+          PY
+          rm .github/workflows/v2-031-integration-closeup.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/host/CMakeLists.txt tests/host/test_storage_blob_upload.c \
+              firmware/components/web_server/web_server_api.c \
+              .github/workflows/v2-031-integration-closeup.yml
+          git diff --cached --check
+          git commit -m "Wire V2-031 host and route validation"
+          git push origin HEAD:master
