@@ -13,14 +13,8 @@ static web_diagnostics_snapshot_t default_diagnostics_snapshot(void) {
         .userdata = {.ok = true, .total_bytes = 2000000U, .used_bytes = 900000U},
         .blob_scan =
             {
-                .summary =
-                    {
-                        .valid_count = 3U,
-                        .invalid_name_count = 2U,
-                        .has_max_id = true,
-                        .max_id = 3U,
-                        .next_id = 4U,
-                    },
+                .blob_count = 3U,
+                .invalid_name_count = 2U,
                 .reported_invalid_name_count = 2U,
                 .invalid_names =
                     {
