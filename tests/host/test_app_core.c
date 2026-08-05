@@ -77,8 +77,8 @@ static void reset_fixture(fixture_t *fixture, bool provisioned) {
         .require_physical_confirmation = true,
         .always_select_package = true,
     };
-    TEST_CHECK(snprintf(fixture->provisioning.ap_ssid,
-                        sizeof(fixture->provisioning.ap_ssid), "%s", "Macro Keyboard") >= 0);
+    TEST_CHECK(snprintf(fixture->provisioning.ap_ssid, sizeof(fixture->provisioning.ap_ssid),
+                        "%s", "Macro Keyboard") >= 0);
     TEST_CHECK(snprintf(fixture->provisioning.ap_passphrase,
                         sizeof(fixture->provisioning.ap_passphrase), "%s",
                         "correct-horse-battery") >= 0);
@@ -225,9 +225,13 @@ static bool storage_owner(void *context) {
 
 static app_error_code_t fake_indicator(void *context, device_indicator_state_t state) {
     fixture_t *fixture = context;
-    record(fixture, state == DEVICE_INDICATOR_BOOTING
-                        ? "indicator_booting"
-                        : state == DEVICE_INDICATOR_READY ? "indicator_ready" : "indicator_fatal");
+    const char *name = "indicator_fatal";
+    if (state == DEVICE_INDICATOR_BOOTING) {
+        name = "indicator_booting";
+    } else if (state == DEVICE_INDICATOR_READY) {
+        name = "indicator_ready";
+    }
+    record(fixture, name);
     if (state == DEVICE_INDICATOR_BOOTING) {
         return stage_result(fixture, FAIL_BOOT_INDICATOR);
     }
@@ -292,9 +296,18 @@ static void test_normal_start_has_no_repository_stage(void) {
     const app_core_policy_t policy = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_core_sequence_start(&ops, &policy));
     static const char *const expected[] = {
-        "indicator_booting", "nvs",          "provisioning_init", "provisioning_load",
-        "storage_mount",     "auth_init",    "usb_init",          "executor_init",
-        "controls_init",     "wifi_start",  "http_start",        "secure_zero",
+        "indicator_booting",
+        "nvs",
+        "provisioning_init",
+        "provisioning_load",
+        "storage_mount",
+        "auth_init",
+        "usb_init",
+        "executor_init",
+        "controls_init",
+        "wifi_start",
+        "http_start",
+        "secure_zero",
         "indicator_ready",
     };
     expect_calls(&fixture, expected, sizeof(expected) / sizeof(expected[0]));
