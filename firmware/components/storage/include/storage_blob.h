@@ -37,7 +37,7 @@ typedef struct {
 } storage_blob_scan_observer_t;
 
 bool storage_blob_parse_filename(const char *name, uint64_t *out_id);
-app_error_code_t storage_blob_format_filename(uint64_t id, char *out_name, size_t name_size);
+app_error_code_t storage_blob_format_filename(uint64_t blob_id, char *out_name, size_t name_size);
 app_error_code_t storage_blob_derive_next_id(uint64_t persisted_next_id, bool has_max_id,
                                              uint64_t max_id, uint64_t *out_next_id);
 void storage_blob_sort_newest_first(storage_blob_entry_t *entries, size_t entry_count);
