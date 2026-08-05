@@ -6,6 +6,8 @@ idf_component_register(
     "storage_fs_ops.c"
     "storage_blob_core.c"
     "storage_blob.c"
+    "storage_blob_upload_core.c"
+    "storage_blob_upload.c"
     "storage_atomic.c"
     "storage_health.c"
     INCLUDE_DIRS
@@ -17,6 +19,7 @@ idf_component_register(
     support
     littlefs
     nvs_flash
+    app_contracts_v2
 )
 
 target_compile_options(
