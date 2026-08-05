@@ -1,21 +1,19 @@
 # Storage Component
 
-This component currently implements:
+This component currently provides generic storage infrastructure retained for the
+v2 rebuild:
 
-- separate non-formatting LittleFS mounts for web assets and user data
-- typed and bounded path construction
-- unique temporary files and verified atomic replacement
-- durable transaction manifests with conservative recovery behavior
-- a trash directory
-- corrupt objects deleted with the failure reported (SPEC 13.6)
-- transactional macro-set create, read, list, update, and delete
-- optimistic revision conflicts
-- host tests for package persistence, interrupted operations, and corruption handling
+- separate LittleFS mounts for web assets and user data;
+- fail-visible mounting without format-on-failure;
+- bounded filesystem wrappers;
+- generic atomic file replacement primitives;
+- storage mount state, health, and partition-capacity reporting.
 
-Missing metadata on an initialized store is treated as corruption; it is not
-silently replaced with an empty index.
+The component does not own packages, macros, repository JSON, revisions, indexes,
+backups, restores, imports, exports, or active-package state. Those retired v1
+responsibilities must not return.
 
-Macro repositories, procedures, progress, full import/export,
-transactional replacement, backup, restore, and operation-complete power-loss
-recovery are still open work. Do not describe those paths as implemented until
-their code and tests are committed.
+Phase 3 will build the opaque byte-oriented snapshot store on top of these generic
+primitives. Until that work is implemented and tested, do not describe blob
+listing, upload, download, deletion, startup scanning, temporary-file cleanup, or
+power-loss recovery as complete.

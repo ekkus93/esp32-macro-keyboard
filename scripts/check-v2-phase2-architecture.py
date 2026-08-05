@@ -11,6 +11,7 @@ FORBIDDEN_PATHS = [
     "firmware/components/storage/include/storage_repository.h",
     "firmware/components/storage/include/storage_package.h",
     "firmware/components/storage/include/storage_object_json.h",
+    "firmware/components/storage/storage_json.h",
     "firmware/components/storage/storage_repository_json.c",
     "firmware/components/storage/storage_repository_packages.c",
     "firmware/components/storage/storage_repository_macros.c",
