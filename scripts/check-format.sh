@@ -18,15 +18,7 @@ mapfile -t cmake_files < <(find firmware tests \
 	-type d \( -name managed_components -o -name 'build*' \) -prune -o \
 	-type f -name 'CMakeLists.txt' -print | sort)
 if ((${#cmake_files[@]} > 0)); then
-	if ! cmake-format --check "${cmake_files[@]}"; then
-		for cmake_file in "${cmake_files[@]}"; do
-			formatted_file="$(mktemp)"
-			cmake-format "${cmake_file}" >"${formatted_file}"
-			diff -u "${cmake_file}" "${formatted_file}" || true
-			rm -f "${formatted_file}"
-		done
-		exit 1
-	fi
+	cmake-format --check "${cmake_files[@]}"
 	cmake-lint "${cmake_files[@]}"
 fi
 
