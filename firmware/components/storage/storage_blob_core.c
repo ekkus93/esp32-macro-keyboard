@@ -194,8 +194,7 @@ static app_error_code_t process_directory_entry(storage_blob_scan_context_t *con
     }
 
     char path[STORAGE_FS_ENTRY_NAME_MAX * 2U] = {0};
-    app_error_code_t result =
-        join_path(context->directory_path, name, path, sizeof(path));
+    app_error_code_t result = join_path(context->directory_path, name, path, sizeof(path));
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -214,8 +213,8 @@ static app_error_code_t process_directory_entry(storage_blob_scan_context_t *con
         .id = blob_id,
         .stored_bytes = (size_t)metadata.st_size,
     };
-    result = append_entry(&context->entries, &context->entry_count, &context->entry_capacity,
-                          &entry);
+    result = append_entry(&context->entries, &context->entry_count,
+                          &context->entry_capacity, &entry);
     if (result != APP_ERROR_NONE) {
         return result;
     }
