@@ -1,7 +1,9 @@
 #include "storage_blob.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
+#include "app_error.h"
 #include "storage_blob_internal.h"
 #include "storage_fs_ops.h"
 
