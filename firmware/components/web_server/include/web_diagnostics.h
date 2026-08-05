@@ -29,8 +29,7 @@ typedef struct {
     size_t invalid_name_count;
     size_t reported_invalid_name_count;
     bool invalid_names_truncated;
-    char invalid_names[WEB_DIAGNOSTICS_INVALID_NAME_MAX]
-                      [WEB_DIAGNOSTICS_INVALID_NAME_CAPACITY];
+    char invalid_names[WEB_DIAGNOSTICS_INVALID_NAME_MAX][WEB_DIAGNOSTICS_INVALID_NAME_CAPACITY];
 } web_diagnostics_blob_scan_t;
 
 typedef struct {
