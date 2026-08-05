@@ -12,6 +12,8 @@
 #define STORAGE_BLOB_ID_DIGITS 20U
 #define STORAGE_BLOB_FILENAME_LENGTH (STORAGE_BLOB_ID_DIGITS + 3U)
 #define STORAGE_BLOB_FILENAME_CAPACITY (STORAGE_BLOB_FILENAME_LENGTH + 1U)
+#define STORAGE_BLOB_UPLOAD_PATH_CAPACITY 64U
+#define STORAGE_BLOB_UPLOAD_CHUNK_BYTES 1024U
 #define STORAGE_BLOB_DIAGNOSTIC_INVALID_NAME_MAX 8U
 #define STORAGE_BLOB_DIAGNOSTIC_NAME_CAPACITY 256U
 
@@ -36,6 +38,18 @@ typedef struct {
                       [STORAGE_BLOB_DIAGNOSTIC_NAME_CAPACITY];
 } storage_blob_diagnostics_t;
 
+typedef struct {
+    void *stream;
+    const void *operations;
+    uint64_t id;
+    size_t expected_bytes;
+    size_t stored_bytes;
+    bool active;
+    bool committed;
+    char temporary_path[STORAGE_BLOB_UPLOAD_PATH_CAPACITY];
+    char final_path[STORAGE_BLOB_UPLOAD_PATH_CAPACITY];
+} storage_blob_upload_t;
+
 typedef app_error_code_t (*storage_blob_entry_visitor_t)(void *context,
                                                          const storage_blob_entry_t *entry);
 typedef app_error_code_t (*storage_blob_invalid_name_visitor_t)(void *context, const char *name);
@@ -57,5 +71,11 @@ app_error_code_t storage_blob_scan(uint64_t persisted_next_id,
                                    storage_blob_scan_summary_t *out_summary);
 app_error_code_t storage_blob_collect_diagnostics(storage_blob_diagnostics_t *out_diagnostics);
 storage_blob_scan_summary_t storage_blob_scan_state(void);
+app_error_code_t storage_blob_upload_begin(size_t expected_bytes, storage_blob_upload_t *out_upload);
+app_error_code_t storage_blob_upload_write(storage_blob_upload_t *upload, const void *data,
+                                           size_t data_length);
+app_error_code_t storage_blob_upload_commit(storage_blob_upload_t *upload,
+                                            storage_blob_entry_t *out_entry);
+app_error_code_t storage_blob_upload_abort(storage_blob_upload_t *upload);
 
 #endif
