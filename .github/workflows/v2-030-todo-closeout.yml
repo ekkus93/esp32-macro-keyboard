@@ -1,0 +1,52 @@
+name: V2-030 TODO Closeout
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  closeout:
+    if: github.event.head_commit.message == 'Add one-shot V2-030 TODO closeout'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact source commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+
+      - name: Mark only V2-030 complete and remove this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("docs/TODO_V2.md")
+          text = path.read_text(encoding="utf-8")
+          old = """## V2-030 — Storage layout and scanning
+
+          - [ ] Mount the userdata LittleFS partition without format-on-failure.
+          - [ ] Use `/data/repository/` and fixed-width decimal `<id>.gz` filenames.
+          - [ ] Scan final filenames at startup.
+          - [ ] Ignore invalid names as blobs and report them in diagnostics.
+          - [ ] Sort valid IDs numerically, newest first.
+          - [ ] Derive the next ID from both NVS and the maximum existing ID.
+          - [ ] Prevent overwrite after stale or erased counters.
+          """
+          new = old.replace("- [ ]", "- [x]")
+          if text.count(old) != 1:
+              raise SystemExit("V2-030 TODO block did not match exactly once")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+          rm .github/workflows/v2-030-todo-closeout.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/TODO_V2.md .github/workflows/v2-030-todo-closeout.yml
+          git diff --cached --check
+          git commit -m "Mark V2-030 storage scanning complete"
+          git push origin HEAD:master
