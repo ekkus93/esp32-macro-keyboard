@@ -300,13 +300,13 @@ knowledge in firmware.
 
 ## V2-030 — Storage layout and scanning
 
-- [ ] Mount the userdata LittleFS partition without format-on-failure.
-- [ ] Use `/data/repository/` and fixed-width decimal `<id>.gz` filenames.
-- [ ] Scan final filenames at startup.
-- [ ] Ignore invalid names as blobs and report them in diagnostics.
-- [ ] Sort valid IDs numerically, newest first.
-- [ ] Derive the next ID from both NVS and the maximum existing ID.
-- [ ] Prevent overwrite after stale or erased counters.
+- [x] Mount the userdata LittleFS partition without format-on-failure.
+- [x] Use `/data/repository/` and fixed-width decimal `<id>.gz` filenames.
+- [x] Scan final filenames at startup.
+- [x] Ignore invalid names as blobs and report them in diagnostics.
+- [x] Sort valid IDs numerically, newest first.
+- [x] Derive the next ID from both NVS and the maximum existing ID.
+- [x] Prevent overwrite after stale or erased counters.
 
 ## V2-031 — Atomic blob add
 
