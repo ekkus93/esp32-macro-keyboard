@@ -284,7 +284,8 @@ register_host_test(provisioning_tests provisioning storage)
 
 add_executable(
     storage_mount_tests
-    test_storage_mount.c ../../firmware/components/macro_model/app_error.c
+    test_storage_mount.c
+    ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/storage/storage_mount_core.c
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_blob_core.c
