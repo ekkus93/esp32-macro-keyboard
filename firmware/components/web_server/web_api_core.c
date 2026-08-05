@@ -27,11 +27,10 @@ bool web_api_content_type_is_json(const char *content_type) {
         ++content_type;
     }
     const char *separator = strchr(content_type, ';');
-    const size_t media_length = separator == NULL ? strlen(content_type)
-                                                   : (size_t)(separator - content_type);
+    const size_t media_length =
+        separator == NULL ? strlen(content_type) : (size_t)(separator - content_type);
     size_t trimmed_length = media_length;
-    while (trimmed_length > 0U &&
-           isspace((unsigned char)content_type[trimmed_length - 1U]) != 0) {
+    while (trimmed_length > 0U && isspace((unsigned char)content_type[trimmed_length - 1U]) != 0) {
         --trimmed_length;
     }
     if (!token_equals_ci(content_type, trimmed_length, "application/json")) {
@@ -132,8 +131,7 @@ bool web_api_physical_confirmation_required(web_api_route_t route, bool confirma
         return false;
     }
     return route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD ||
-           route == WEB_API_ROUTE_DEVICE_RESTART ||
-           route == WEB_API_ROUTE_DEVICE_RESET_SETTINGS ||
+           route == WEB_API_ROUTE_DEVICE_RESTART || route == WEB_API_ROUTE_DEVICE_RESET_SETTINGS ||
            route == WEB_API_ROUTE_DEVICE_FACTORY_RESET;
 }
 
