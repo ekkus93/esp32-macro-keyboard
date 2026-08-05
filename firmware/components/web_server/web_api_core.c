@@ -46,6 +46,23 @@ bool web_api_content_type_is_json(const char *content_type) {
     return token_equals_ci(separator, strlen(separator), "charset=utf-8");
 }
 
+bool web_api_content_type_is_gzip(const char *content_type) {
+    if (content_type == NULL) {
+        return false;
+    }
+    while (isspace((unsigned char)*content_type) != 0) {
+        ++content_type;
+    }
+    if (strchr(content_type, ';') != NULL) {
+        return false;
+    }
+    size_t length = strlen(content_type);
+    while (length > 0U && isspace((unsigned char)content_type[length - 1U]) != 0) {
+        --length;
+    }
+    return token_equals_ci(content_type, length, "application/gzip");
+}
+
 bool web_api_request_id_is_valid(const char *request_id) {
     if (request_id == NULL) {
         return false;
@@ -79,6 +96,7 @@ app_error_code_t web_api_parse_path(const char *uri, web_api_path_t *out_path) {
     }
     static const route_entry_t routes[] = {
         {"/api/v1/auth/session", WEB_API_ROUTE_AUTH_SESSION},
+        {"/api/v1/blob", WEB_API_ROUTE_BLOB_COLLECTION},
         {"/api/v1/settings", WEB_API_ROUTE_SETTINGS},
         {"/api/v1/settings/change-password", WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD},
         {"/api/v1/device/restart", WEB_API_ROUTE_DEVICE_RESTART},
@@ -100,6 +118,8 @@ bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method)
     case WEB_API_ROUTE_AUTH_SESSION:
     case WEB_API_ROUTE_DIAGNOSTICS_FULL:
         return method == WEB_API_METHOD_GET;
+    case WEB_API_ROUTE_BLOB_COLLECTION:
+        return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_POST;
     case WEB_API_ROUTE_SETTINGS:
         return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_PUT;
     case WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD:
@@ -117,7 +137,8 @@ bool web_api_route_requires_body(web_api_route_t route, web_api_method_t method)
     if (method == WEB_API_METHOD_GET || route == WEB_API_ROUTE_DEVICE_RESTART) {
         return false;
     }
-    return route == WEB_API_ROUTE_SETTINGS || route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD ||
+    return route == WEB_API_ROUTE_BLOB_COLLECTION || route == WEB_API_ROUTE_SETTINGS ||
+           route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD ||
            route == WEB_API_ROUTE_DEVICE_RESET_SETTINGS ||
            route == WEB_API_ROUTE_DEVICE_FACTORY_RESET;
 }
