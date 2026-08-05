@@ -20,6 +20,7 @@ static void expect_absent(const char *path) {
 
 static void test_active_routes(void) {
     expect_route("/api/v1/auth/session", WEB_API_ROUTE_AUTH_SESSION);
+    expect_route("/api/v1/blob", WEB_API_ROUTE_BLOB_COLLECTION);
     expect_route("/api/v1/settings", WEB_API_ROUTE_SETTINGS);
     expect_route("/api/v1/settings/change-password", WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD);
     expect_route("/api/v1/device/restart", WEB_API_ROUTE_DEVICE_RESTART);
@@ -73,6 +74,9 @@ static void test_method_and_body_policy(void) {
     TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_AUTH_SESSION, WEB_API_METHOD_POST));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_DIAGNOSTICS_FULL, WEB_API_METHOD_GET));
     TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_DIAGNOSTICS_FULL, WEB_API_METHOD_DELETE));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_GET));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_POST));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_PUT));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
     TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_POST));
@@ -87,6 +91,8 @@ static void test_method_and_body_policy(void) {
         web_api_route_allows_method(WEB_API_ROUTE_DEVICE_FACTORY_RESET, WEB_API_METHOD_POST));
     TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_UNKNOWN, WEB_API_METHOD_GET));
 
+    TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_GET));
+    TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_POST));
     TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
     TEST_CHECK(
@@ -100,6 +106,7 @@ static void test_method_and_body_policy(void) {
 }
 
 static void test_session_confirmation_and_worker_policy(void) {
+    TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_BLOB_COLLECTION));
     TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_DIAGNOSTICS_FULL));
     TEST_CHECK(!web_api_route_requires_session(WEB_API_ROUTE_UNKNOWN));
 
@@ -108,9 +115,11 @@ static void test_session_confirmation_and_worker_policy(void) {
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_RESTART));
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_RESET_SETTINGS));
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_FACTORY_RESET));
+    TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_BLOB_COLLECTION));
     TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SETTINGS));
     TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_FACTORY_RESET, false));
     TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_SETTINGS, true));
+    TEST_CHECK(!web_api_route_requires_worker(WEB_API_ROUTE_BLOB_COLLECTION));
     TEST_CHECK(!web_api_route_requires_worker(WEB_API_ROUTE_SETTINGS));
     TEST_CHECK(!web_api_route_requires_worker(WEB_API_ROUTE_UNKNOWN));
 }
@@ -126,6 +135,14 @@ static void test_content_type_policy(void) {
     TEST_CHECK(!web_api_content_type_is_json("application/json; charset=ascii"));
     TEST_CHECK(!web_api_content_type_is_json("application/json; charset=utf-8; version=1"));
     TEST_CHECK(!web_api_content_type_is_json("application/jsonx"));
+
+    TEST_CHECK(!web_api_content_type_is_gzip(NULL));
+    TEST_CHECK(web_api_content_type_is_gzip("application/gzip"));
+    TEST_CHECK(web_api_content_type_is_gzip("  Application/GZip  "));
+    TEST_CHECK(!web_api_content_type_is_gzip(""));
+    TEST_CHECK(!web_api_content_type_is_gzip("application/x-gzip"));
+    TEST_CHECK(!web_api_content_type_is_gzip("application/gzip; charset=binary"));
+    TEST_CHECK(!web_api_content_type_is_gzip("application/gzipx"));
 }
 
 static void test_request_id_policy(void) {
