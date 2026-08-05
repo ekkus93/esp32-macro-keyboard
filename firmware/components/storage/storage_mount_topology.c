@@ -1,5 +1,6 @@
 #include "storage.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "app_error.h"
