@@ -77,21 +77,13 @@ static void reset_fixture(fixture_t *fixture, bool provisioned) {
         .require_physical_confirmation = true,
         .always_select_package = true,
     };
-    TEST_CHECK(snprintf(fixture->provisioning.ap_ssid, sizeof(fixture->provisioning.ap_ssid),
-                        "%s", "Macro Keyboard") >= 0);
-    TEST_CHECK(snprintf(fixture->provisioning.ap_passphrase,
-                        sizeof(fixture->provisioning.ap_passphrase), "%s",
-                        "correct-horse-battery") >= 0);
+    strcpy(fixture->provisioning.ap_ssid, "Macro Keyboard");
+    strcpy(fixture->provisioning.ap_passphrase, "correct-horse-battery");
     fixture->provisioning.password_record.iterations = AUTH_PBKDF2_ITERATIONS;
-    TEST_CHECK(snprintf(fixture->bootstrap.device_id, sizeof(fixture->bootstrap.device_id), "%s",
-                        "102030A0B0C0") >= 0);
-    TEST_CHECK(snprintf(fixture->bootstrap.ap_ssid, sizeof(fixture->bootstrap.ap_ssid), "%s",
-                        "ESP32-Macro-A0B0C0") >= 0);
-    TEST_CHECK(snprintf(fixture->bootstrap.ap_passphrase,
-                        sizeof(fixture->bootstrap.ap_passphrase), "%s",
-                        "0665630870D7FE643BA4B540") >= 0);
-    TEST_CHECK(snprintf(fixture->bootstrap.setup_code, sizeof(fixture->bootstrap.setup_code), "%s",
-                        "45175C9BB39D8BE5FC7EF773") >= 0);
+    strcpy(fixture->bootstrap.device_id, "102030A0B0C0");
+    strcpy(fixture->bootstrap.ap_ssid, "ESP32-Macro-A0B0C0");
+    strcpy(fixture->bootstrap.ap_passphrase, "0665630870D7FE643BA4B540");
+    strcpy(fixture->bootstrap.setup_code, "45175C9BB39D8BE5FC7EF773");
 }
 
 static app_error_code_t stage_result(const fixture_t *fixture, failure_stage_t stage) {
@@ -121,8 +113,7 @@ static app_error_code_t fake_provisioning_load(void *context,
     return result;
 }
 
-static app_error_code_t fake_bootstrap(void *context,
-                                       provisioning_bootstrap_t *out_bootstrap) {
+static app_error_code_t fake_bootstrap(void *context, provisioning_bootstrap_t *out_bootstrap) {
     fixture_t *fixture = context;
     record(fixture, "bootstrap");
     const app_error_code_t result = stage_result(fixture, FAIL_BOOTSTRAP);
