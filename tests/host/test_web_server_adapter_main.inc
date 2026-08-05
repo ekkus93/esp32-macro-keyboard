@@ -1,6 +1,8 @@
 int main(void) {
     test_bounded_body_reads();
     test_body_timeout_and_io_failures();
+    test_streamed_body_is_bounded();
+    test_streamed_body_failures();
     test_mutation_authorization();
     test_json_envelopes();
     test_diagnostics_exact_allowed_fields();
