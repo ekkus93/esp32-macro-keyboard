@@ -175,10 +175,11 @@ static app_error_code_t append_entry(storage_blob_entry_t **entries, size_t *ent
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t process_directory_entry(
-    const storage_fs_ops_t *operations, const char *directory_path, const char *name,
-    const storage_blob_scan_observer_t *observer, storage_blob_entry_t **entries,
-    size_t *entry_count, size_t *entry_capacity, storage_blob_scan_summary_t *summary) {
+static app_error_code_t
+process_directory_entry(const storage_fs_ops_t *operations, const char *directory_path,
+                        const char *name, const storage_blob_scan_observer_t *observer,
+                        storage_blob_entry_t **entries, size_t *entry_count,
+                        size_t *entry_capacity, storage_blob_scan_summary_t *summary) {
     uint64_t blob_id = 0U;
     if (!storage_blob_parse_filename(name, &blob_id)) {
         ++summary->invalid_name_count;
@@ -216,10 +217,12 @@ static app_error_code_t process_directory_entry(
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t scan_directory_entries(
-    const storage_fs_ops_t *operations, void *directory, const char *directory_path,
-    const storage_blob_scan_observer_t *observer, storage_blob_entry_t **entries,
-    size_t *entry_count, size_t *entry_capacity, storage_blob_scan_summary_t *summary) {
+static app_error_code_t
+scan_directory_entries(const storage_fs_ops_t *operations, void *directory,
+                       const char *directory_path,
+                       const storage_blob_scan_observer_t *observer,
+                       storage_blob_entry_t **entries, size_t *entry_count,
+                       size_t *entry_capacity, storage_blob_scan_summary_t *summary) {
     while (true) {
         char name[STORAGE_FS_ENTRY_NAME_MAX] = {0};
         bool end = false;
@@ -243,9 +246,9 @@ static app_error_code_t scan_directory_entries(
     }
 }
 
-static app_error_code_t notify_entries_newest_first(
-    storage_blob_entry_t *entries, size_t entry_count,
-    const storage_blob_scan_observer_t *observer) {
+static app_error_code_t
+notify_entries_newest_first(storage_blob_entry_t *entries, size_t entry_count,
+                            const storage_blob_scan_observer_t *observer) {
     storage_blob_sort_newest_first(entries, entry_count);
     for (size_t index = 0U; index < entry_count; ++index) {
         const app_error_code_t result = notify_entry(observer, &entries[index]);
