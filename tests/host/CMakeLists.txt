@@ -286,6 +286,9 @@ add_executable(
     storage_mount_tests
     test_storage_mount.c ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/storage/storage_mount_core.c
+    ../../firmware/components/storage/storage_fs_ops.c
+    ../../firmware/components/storage/storage_blob_core.c
+    ../../firmware/components/storage/storage_blob.c
     ../../firmware/components/storage/storage_mount_topology.c
 )
 target_include_directories(
@@ -294,6 +297,21 @@ target_include_directories(
             ../../firmware/components/storage
 )
 register_host_test(storage_mount_tests storage_mount storage)
+
+add_executable(
+    storage_blob_tests
+    test_storage_blob.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/storage/storage_fs_ops.c
+    ../../firmware/components/storage/storage_blob_core.c
+    ../../firmware/components/storage/storage_blob.c
+)
+target_include_directories(
+    storage_blob_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
+            ../../firmware/components/storage
+)
+register_host_test(storage_blob_tests storage_blob storage)
 
 add_executable(
     storage_atomic_tests

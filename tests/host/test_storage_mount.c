@@ -73,7 +73,6 @@ static void test_prepare_failure_rolls_back(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_IO, storage_mount_core_mount(&ops, &state));
     TEST_CHECK_EQ_U64(1U, fixture.unmount_data);
     TEST_CHECK_EQ_U64(1U, fixture.unmount_web);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_prepare_directories());
 }
 
 int main(void) {

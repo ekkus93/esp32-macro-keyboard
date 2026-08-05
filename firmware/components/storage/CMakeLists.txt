@@ -4,6 +4,8 @@ idf_component_register(
     "storage_mount_core.c"
     "storage_mount_topology.c"
     "storage_fs_ops.c"
+    "storage_blob_core.c"
+    "storage_blob.c"
     "storage_atomic.c"
     "storage_health.c"
     INCLUDE_DIRS
