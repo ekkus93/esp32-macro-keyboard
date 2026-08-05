@@ -84,10 +84,10 @@ See `docs/implementation-v2/V2_MIGRATION_MAP.md` and the phase docs in
 Currently in force:
 
 - The project is mid a v1→v2 rebuild (package/repository data-model rewrite,
-  started 2026-08-03). `docs/SPEC.md` and `docs/TODO.md` are retired v1 stubs.
-  `docs/TODO_V2.md` self-declares authoritative but this conflicts with
-  `docs/TODO.md`'s "no v2 plan exists yet" — flag this to Phil rather than
-  assuming either is correct. Phase-by-phase status lives in
+  started 2026-08-03). `docs/SPEC.md` and `docs/TODO.md` are retired v1
+  compatibility pointers. `docs/SPEC_V2.md` and `docs/UI_UX_SPEC_V2.md` are the
+  authoritative synchronized requirements; `docs/TODO_V2.md` is the
+  authoritative implementation sequence. Phase-by-phase status lives in
   `docs/implementation-v2/` (start at `V2_MIGRATION_MAP.md`).
 - **`docs/SPEC.md` is frozen. Never modify it — not a section, not a sentence, not a
   typo — without explicit per-change permission.** Propose; do not apply. Set
