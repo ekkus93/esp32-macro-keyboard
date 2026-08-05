@@ -16,14 +16,13 @@ static void expect_revision_invalid(const char *json, size_t length) {
 static void test_expected_revision_valid(void) {
     uint32_t revision = 0U;
     static const char valid[] = "{\"expectedRevision\":7}";
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_api_json_parse_expected_revision(valid, sizeof(valid) - 1U, &revision));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE, web_api_json_parse_expected_revision(valid, sizeof(valid) - 1U, &revision));
     TEST_CHECK_EQ_U64(7U, revision);
 
     static const char maximum[] = "{\"expectedRevision\":4294967295}";
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_api_json_parse_expected_revision(maximum, sizeof(maximum) - 1U,
-                                                              &revision));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_expected_revision(
+                                             maximum, sizeof(maximum) - 1U, &revision));
     TEST_CHECK_EQ_U64(UINT32_MAX, revision);
 }
 
@@ -78,24 +77,20 @@ static void expect_settings_invalid(const char *json, size_t length) {
 static void test_settings_update_valid(void) {
     provisioning_settings_t settings = {0};
     uint32_t revision = 0U;
-    static const char valid[] =
-        "{\"expectedRevision\":3,\"requirePhysicalConfirmation\":true,"
-        "\"alwaysSelectPackage\":false}";
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_api_json_parse_settings_update(valid, sizeof(valid) - 1U, &settings,
-                                                            &revision));
+    static const char valid[] = "{\"expectedRevision\":3,\"requirePhysicalConfirmation\":true,"
+                                "\"alwaysSelectPackage\":false}";
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_settings_update(
+                                             valid, sizeof(valid) - 1U, &settings, &revision));
     TEST_CHECK_EQ_U64(3U, revision);
     TEST_CHECK_EQ_U64(APP_SCHEMA_VERSION, settings.schema_version);
     TEST_CHECK_EQ_U64(3U, settings.revision);
     TEST_CHECK(settings.require_physical_confirmation);
     TEST_CHECK(!settings.always_select_package);
 
-    static const char inverse[] =
-        "{\"alwaysSelectPackage\":true,\"expectedRevision\":9,"
-        "\"requirePhysicalConfirmation\":false}";
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_api_json_parse_settings_update(inverse, sizeof(inverse) - 1U, &settings,
-                                                            &revision));
+    static const char inverse[] = "{\"alwaysSelectPackage\":true,\"expectedRevision\":9,"
+                                  "\"requirePhysicalConfirmation\":false}";
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_json_parse_settings_update(
+                                             inverse, sizeof(inverse) - 1U, &settings, &revision));
     TEST_CHECK_EQ_U64(9U, revision);
     TEST_CHECK(!settings.require_physical_confirmation);
     TEST_CHECK(settings.always_select_package);
@@ -105,16 +100,13 @@ static void test_settings_update_invalid(void) {
     expect_settings_invalid(NULL, 0U);
     expect_settings_invalid("", 0U);
 
-    static const char missing[] =
-        "{\"expectedRevision\":3,\"requirePhysicalConfirmation\":true}";
+    static const char missing[] = "{\"expectedRevision\":3,\"requirePhysicalConfirmation\":true}";
     expect_settings_invalid(missing, sizeof(missing) - 1U);
-    static const char unknown[] =
-        "{\"expectedRevision\":3,\"requirePhysicalConfirmation\":true,"
-        "\"alwaysSelectPackage\":false,\"extra\":true}";
+    static const char unknown[] = "{\"expectedRevision\":3,\"requirePhysicalConfirmation\":true,"
+                                  "\"alwaysSelectPackage\":false,\"extra\":true}";
     expect_settings_invalid(unknown, sizeof(unknown) - 1U);
-    static const char duplicate[] =
-        "{\"expectedRevision\":3,\"requirePhysicalConfirmation\":true,"
-        "\"alwaysSelectPackage\":false,\"alwaysSelectPackage\":true}";
+    static const char duplicate[] = "{\"expectedRevision\":3,\"requirePhysicalConfirmation\":true,"
+                                    "\"alwaysSelectPackage\":false,\"alwaysSelectPackage\":true}";
     expect_settings_invalid(duplicate, sizeof(duplicate) - 1U);
     static const char wrong_confirmation[] =
         "{\"expectedRevision\":3,\"requirePhysicalConfirmation\":1,"
@@ -128,22 +120,20 @@ static void test_settings_update_invalid(void) {
         "{\"expectedRevision\":0,\"requirePhysicalConfirmation\":true,"
         "\"alwaysSelectPackage\":false}";
     expect_settings_invalid(invalid_revision, sizeof(invalid_revision) - 1U);
-    static const char trailing[] =
-        "{\"expectedRevision\":3,\"requirePhysicalConfirmation\":true,"
-        "\"alwaysSelectPackage\":false}x";
+    static const char trailing[] = "{\"expectedRevision\":3,\"requirePhysicalConfirmation\":true,"
+                                   "\"alwaysSelectPackage\":false}x";
     expect_settings_invalid(trailing, sizeof(trailing) - 1U);
 
     provisioning_settings_t settings = {0};
     uint32_t revision = 0U;
-    static const char valid[] =
-        "{\"expectedRevision\":3,\"requirePhysicalConfirmation\":true,"
-        "\"alwaysSelectPackage\":false}";
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_json_parse_settings_update(valid, sizeof(valid) - 1U, NULL,
-                                                            &revision));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         web_api_json_parse_settings_update(valid, sizeof(valid) - 1U, &settings,
-                                                            NULL));
+    static const char valid[] = "{\"expectedRevision\":3,\"requirePhysicalConfirmation\":true,"
+                                "\"alwaysSelectPackage\":false}";
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        web_api_json_parse_settings_update(valid, sizeof(valid) - 1U, NULL, &revision));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        web_api_json_parse_settings_update(valid, sizeof(valid) - 1U, &settings, NULL));
 }
 
 int main(void) {
