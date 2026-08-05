@@ -155,7 +155,6 @@ static int fake_stat_path(void *context, const char *path, struct stat *metadata
         return -1;
     }
     memset(metadata, 0, sizeof(*metadata));
-    metadata->st_mode = S_IFREG;
     return 0;
 }
 
