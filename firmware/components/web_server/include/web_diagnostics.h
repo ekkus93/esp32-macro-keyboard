@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "storage_blob.h"
 #include "subsystem_health.h"
 
 #define WEB_DIAGNOSTICS_BUILD_ID_MAX_BYTES 40U
@@ -34,6 +35,7 @@ typedef struct {
     size_t executor_stack_high_water_mark;
     web_diagnostics_capacity_t webfs;
     web_diagnostics_capacity_t userdata;
+    storage_blob_diagnostics_t blob_scan;
     const char *execution_state;
     web_diagnostics_subsystem_t subsystems[WEB_DIAGNOSTICS_SUBSYSTEM_COUNT];
 } web_diagnostics_snapshot_t;
