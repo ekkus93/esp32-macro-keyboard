@@ -212,6 +212,22 @@ export function DiagnosticsPage(): React.JSX.Element {
                   ? `${formatBytes(fullDiagnostics.userdata.usedBytes)} of ${formatBytes(fullDiagnostics.userdata.totalBytes)} used`
                   : "Unavailable"}
               </dd>
+              <dt>Repository blob scan</dt>
+              <dd>{`${String(fullDiagnostics.blobScan.blobCount)} stored blobs`}</dd>
+              <dt>Invalid storage names</dt>
+              <dd>
+                {fullDiagnostics.blobScan.invalidNames.length === 0 ? (
+                  "None"
+                ) : (
+                  <ul>
+                    {fullDiagnostics.blobScan.invalidNames.map((name) => (
+                      <li key={name}>
+                        <code>{name}</code>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </dd>
               <dt>Execution state</dt>
               <dd>{fullDiagnostics.executionState}</dd>
             </dl>
