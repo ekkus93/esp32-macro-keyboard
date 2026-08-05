@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   integrate:
-    if: github.event.head_commit.message == 'Add one-shot V2-031 integration closeup'
+    if: github.event.head_commit.message == 'Fix one-shot V2-031 integration closeup'
     runs-on: ubuntu-24.04
     steps:
       - name: Check out exact source commit
@@ -28,55 +28,61 @@ jobs:
 
           cmake = Path("tests/host/CMakeLists.txt")
           text = cmake.read_text(encoding="utf-8")
-          old = """register_host_test(storage_blob_tests storage_blob storage)
-
-add_executable(
-    storage_atomic_tests
-"""
-          new = """register_host_test(storage_blob_tests storage_blob storage)
-
-add_executable(
-    storage_blob_upload_tests
-    test_storage_blob_upload.c
-    ../../firmware/components/macro_model/app_error.c
-    ../../firmware/components/storage/storage_blob_core.c
-    ../../firmware/components/storage/storage_blob_upload_core.c
-)
-target_include_directories(
-    storage_blob_upload_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
-            ../../firmware/components/storage
-)
-register_host_test(storage_blob_upload_tests storage_blob_upload storage)
-
-add_executable(
-    storage_atomic_tests
-"""
+          old = (
+              "register_host_test(storage_blob_tests storage_blob storage)\n"
+              "\n"
+              "add_executable(\n"
+              "    storage_atomic_tests\n"
+          )
+          new = (
+              "register_host_test(storage_blob_tests storage_blob storage)\n"
+              "\n"
+              "add_executable(\n"
+              "    storage_blob_upload_tests\n"
+              "    test_storage_blob_upload.c\n"
+              "    ../../firmware/components/macro_model/app_error.c\n"
+              "    ../../firmware/components/storage/storage_blob_core.c\n"
+              "    ../../firmware/components/storage/storage_blob_upload_core.c\n"
+              ")\n"
+              "target_include_directories(\n"
+              "    storage_blob_upload_tests\n"
+              "    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include\n"
+              "            ../../firmware/components/storage\n"
+              ")\n"
+              "register_host_test(storage_blob_upload_tests storage_blob_upload storage)\n"
+              "\n"
+              "add_executable(\n"
+              "    storage_atomic_tests\n"
+          )
           if text.count(old) != 1:
               raise SystemExit("storage host target insertion point did not match exactly once")
           cmake.write_text(text.replace(old, new), encoding="utf-8")
 
           api = Path("firmware/components/web_server/web_server_api.c")
           text = api.read_text(encoding="utf-8")
-          old = """static size_t route_body_limit(web_api_route_t route) {
-    (void)route;
-    return (size_t)APP_V2_JSON_BODY_MAX_BYTES;
-}
-"""
-          new = """static size_t route_body_limit(web_api_route_t route) {
-    return route == WEB_API_ROUTE_BLOB_COLLECTION ? (size_t)APP_V2_BLOB_MAX_BYTES
-                                                   : (size_t)APP_V2_JSON_BODY_MAX_BYTES;
-}
-"""
+          old = (
+              "static size_t route_body_limit(web_api_route_t route) {\n"
+              "    (void)route;\n"
+              "    return (size_t)APP_V2_JSON_BODY_MAX_BYTES;\n"
+              "}\n"
+          )
+          new = (
+              "static size_t route_body_limit(web_api_route_t route) {\n"
+              "    return route == WEB_API_ROUTE_BLOB_COLLECTION ? (size_t)APP_V2_BLOB_MAX_BYTES\n"
+              "                                                   : (size_t)APP_V2_JSON_BODY_MAX_BYTES;\n"
+              "}\n"
+          )
           if text.count(old) != 1:
               raise SystemExit("route body limit block did not match exactly once")
           text = text.replace(old, new)
-          old = """    case WEB_REQUEST_POLICY_FAILURE_CONTENT_TYPE:
-        return \"application/json content type required\";
-"""
-          new = """    case WEB_REQUEST_POLICY_FAILURE_CONTENT_TYPE:
-        return \"request content type is invalid\";
-"""
+          old = (
+              "    case WEB_REQUEST_POLICY_FAILURE_CONTENT_TYPE:\n"
+              "        return \"application/json content type required\";\n"
+          )
+          new = (
+              "    case WEB_REQUEST_POLICY_FAILURE_CONTENT_TYPE:\n"
+              "        return \"request content type is invalid\";\n"
+          )
           if text.count(old) != 1:
               raise SystemExit("content-type failure message did not match exactly once")
           api.write_text(text.replace(old, new), encoding="utf-8")
