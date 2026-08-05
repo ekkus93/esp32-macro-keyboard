@@ -89,6 +89,8 @@ static void test_success_matrix(void) {
         web_api_method_t method;
     } cases[] = {
         {WEB_API_ROUTE_AUTH_SESSION, WEB_API_METHOD_GET},
+        {WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_GET},
+        {WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_POST},
         {WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET},
         {WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT},
         {WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD, WEB_API_METHOD_POST},
@@ -99,7 +101,9 @@ static void test_success_matrix(void) {
     };
     for (size_t index = 0U; index < sizeof(cases) / sizeof(cases[0]); ++index) {
         fixture_t fixture = {
-            .content_type = "application/json",
+            .content_type = cases[index].route == WEB_API_ROUTE_BLOB_COLLECTION
+                                ? "application/gzip"
+                                : "application/json",
             .validation_result = APP_ERROR_NONE,
             .confirmation_result = APP_ERROR_NONE,
         };
@@ -136,6 +140,14 @@ static void test_fail_closed_ordering(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_request_policy_evaluate(&policy, &ops, &result, &failure));
     TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_CONTENT_TYPE, failure);
+
+    fixture = (fixture_t){.content_type = "application/json"};
+    ops = operations(&fixture);
+    policy = input(WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_POST);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_request_policy_evaluate(&policy, &ops, &result, &failure));
+    TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_CONTENT_TYPE, failure);
+    TEST_CHECK_EQ_U64(0U, fixture.validation_calls);
 
     fixture = (fixture_t){0};
     ops = operations(&fixture);
