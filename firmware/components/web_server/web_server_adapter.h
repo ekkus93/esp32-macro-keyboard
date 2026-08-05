@@ -14,6 +14,8 @@
 #define WEB_ADAPTER_STATIC_CHUNK_BYTES 1024U
 
 typedef int (*web_adapter_receive_fn)(void *context, char *buffer, size_t capacity);
+typedef app_error_code_t (*web_adapter_consume_fn)(void *context, const char *buffer,
+                                                   size_t length);
 typedef app_error_code_t (*web_adapter_get_header_fn)(void *context, const char *name, char *buffer,
                                                       size_t buffer_size);
 typedef app_error_code_t (*web_adapter_validate_session_fn)(void *context,
@@ -60,6 +62,10 @@ typedef struct {
 app_error_code_t web_adapter_read_bounded_body(size_t content_length, char *buffer,
                                                size_t buffer_size, size_t maximum_length,
                                                web_adapter_receive_fn receive, void *context);
+app_error_code_t web_adapter_stream_bounded_body(
+    size_t content_length, size_t maximum_length, char *buffer, size_t buffer_size,
+    web_adapter_receive_fn receive, void *receive_context, web_adapter_consume_fn consume,
+    void *consume_context);
 app_error_code_t web_adapter_authorize_mutation(web_adapter_get_header_fn get_header,
                                                 web_adapter_validate_session_fn validate,
                                                 void *context, char *out_session_token,
