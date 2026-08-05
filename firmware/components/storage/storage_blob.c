@@ -62,3 +62,15 @@ app_error_code_t storage_blob_collect_diagnostics(storage_blob_diagnostics_t *ou
 storage_blob_scan_summary_t storage_blob_scan_state(void) {
     return scan_state;
 }
+
+void storage_blob_record_committed_entry(const storage_blob_entry_t *entry) {
+    if (entry == NULL || entry->id == 0U || entry->id == UINT64_MAX) {
+        return;
+    }
+    ++scan_state.valid_count;
+    if (!scan_state.has_max_id || entry->id > scan_state.max_id) {
+        scan_state.has_max_id = true;
+        scan_state.max_id = entry->id;
+    }
+    scan_state.next_id = entry->id + UINT64_C(1);
+}
