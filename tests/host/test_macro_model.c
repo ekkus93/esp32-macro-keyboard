@@ -21,18 +21,18 @@ static void test_text_policy(void) {
     char *text = malloc(APP_MACRO_SOURCE_MAX_BYTES + 1U);
     TEST_CHECK(text != NULL);
     memset(text, 'x', APP_MACRO_SOURCE_MAX_BYTES + 1U);
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        macro_model_validate_text(text, APP_MACRO_SOURCE_MAX_BYTES, APP_MACRO_SOURCE_MAX_BYTES));
+    const app_error_code_t maximum_result =
+        macro_model_validate_text(text, APP_MACRO_SOURCE_MAX_BYTES, APP_MACRO_SOURCE_MAX_BYTES);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, maximum_result);
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          macro_model_validate_text(text, APP_MACRO_SOURCE_MAX_BYTES + 1U,
                                                    APP_MACRO_SOURCE_MAX_BYTES));
     free(text);
 
     static const char embedded_nul[] = {'a', 'b', '\0', 'c'};
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        macro_model_validate_text(embedded_nul, sizeof(embedded_nul), sizeof(embedded_nul)));
+    const app_error_code_t embedded_nul_result =
+        macro_model_validate_text(embedded_nul, sizeof(embedded_nul), sizeof(embedded_nul));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, embedded_nul_result);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_model_validate_text(embedded_nul, 2U, 2U));
 }
 

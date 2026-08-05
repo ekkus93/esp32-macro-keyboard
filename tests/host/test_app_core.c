@@ -59,11 +59,9 @@ static size_t count_call(const fixture_t *fixture, const char *name) {
     return count;
 }
 
-static void expect_calls(const fixture_t *fixture, const char *const *expected, size_t count) {
-    TEST_CHECK_EQ_U64(count, fixture->call_count);
-    for (size_t index = 0U; index < count; ++index) {
-        TEST_CHECK_EQ_STRING(expected[index], fixture->calls[index]);
-    }
+static void expect_call(const fixture_t *fixture, size_t index, const char *expected) {
+    TEST_CHECK(index < fixture->call_count);
+    TEST_CHECK_EQ_STRING(expected, fixture->calls[index]);
 }
 
 static void reset_fixture(fixture_t *fixture, bool provisioned) {
@@ -77,13 +75,16 @@ static void reset_fixture(fixture_t *fixture, bool provisioned) {
         .require_physical_confirmation = true,
         .always_select_package = true,
     };
-    strcpy(fixture->provisioning.ap_ssid, "Macro Keyboard");
-    strcpy(fixture->provisioning.ap_passphrase, "correct-horse-battery");
+    memcpy(fixture->provisioning.ap_ssid, "Macro Keyboard", sizeof("Macro Keyboard"));
+    memcpy(fixture->provisioning.ap_passphrase, "correct-horse-battery",
+           sizeof("correct-horse-battery"));
     fixture->provisioning.password_record.iterations = AUTH_PBKDF2_ITERATIONS;
-    strcpy(fixture->bootstrap.device_id, "102030A0B0C0");
-    strcpy(fixture->bootstrap.ap_ssid, "ESP32-Macro-A0B0C0");
-    strcpy(fixture->bootstrap.ap_passphrase, "0665630870D7FE643BA4B540");
-    strcpy(fixture->bootstrap.setup_code, "45175C9BB39D8BE5FC7EF773");
+    memcpy(fixture->bootstrap.device_id, "102030A0B0C0", sizeof("102030A0B0C0"));
+    memcpy(fixture->bootstrap.ap_ssid, "ESP32-Macro-A0B0C0", sizeof("ESP32-Macro-A0B0C0"));
+    memcpy(fixture->bootstrap.ap_passphrase, "0665630870D7FE643BA4B540",
+           sizeof("0665630870D7FE643BA4B540"));
+    memcpy(fixture->bootstrap.setup_code, "45175C9BB39D8BE5FC7EF773",
+           sizeof("45175C9BB39D8BE5FC7EF773"));
 }
 
 static app_error_code_t stage_result(const fixture_t *fixture, failure_stage_t stage) {
@@ -285,22 +286,20 @@ static void test_normal_start_has_no_repository_stage(void) {
     app_core_ops_t ops = operations(&fixture);
     const app_core_policy_t policy = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_core_sequence_start(&ops, &policy));
-    static const char *const expected[] = {
-        "indicator_booting",
-        "nvs",
-        "provisioning_init",
-        "provisioning_load",
-        "storage_mount",
-        "auth_init",
-        "usb_init",
-        "executor_init",
-        "controls_init",
-        "wifi_start",
-        "http_start",
-        "secure_zero",
-        "indicator_ready",
-    };
-    expect_calls(&fixture, expected, sizeof(expected) / sizeof(expected[0]));
+    TEST_CHECK_EQ_U64(13U, fixture.call_count);
+    expect_call(&fixture, 0U, "indicator_booting");
+    expect_call(&fixture, 1U, "nvs");
+    expect_call(&fixture, 2U, "provisioning_init");
+    expect_call(&fixture, 3U, "provisioning_load");
+    expect_call(&fixture, 4U, "storage_mount");
+    expect_call(&fixture, 5U, "auth_init");
+    expect_call(&fixture, 6U, "usb_init");
+    expect_call(&fixture, 7U, "executor_init");
+    expect_call(&fixture, 8U, "controls_init");
+    expect_call(&fixture, 9U, "wifi_start");
+    expect_call(&fixture, 10U, "http_start");
+    expect_call(&fixture, 11U, "secure_zero");
+    expect_call(&fixture, 12U, "indicator_ready");
     TEST_CHECK_EQ_INT(WEB_SERVER_MODE_NORMAL, fixture.observed_web.mode);
     TEST_CHECK(fixture.observed_web.login_enabled);
 }
