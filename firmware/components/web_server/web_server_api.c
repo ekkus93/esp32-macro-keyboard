@@ -268,10 +268,10 @@ static app_error_code_t prepare_api_call(httpd_req_t *request, web_api_call_t *c
     return result;
 }
 
-static app_error_code_t authorize_and_read_api_call(
-    httpd_req_t *request, web_api_call_t *call, size_t body_limit,
-    web_request_policy_result_t *policy, web_api_response_t *response, char **out_body,
-    size_t preread_length, bool *out_response_ready) {
+static app_error_code_t
+authorize_and_read_api_call(httpd_req_t *request, web_api_call_t *call, size_t body_limit,
+                            web_request_policy_result_t *policy, web_api_response_t *response,
+                            char **out_body, size_t preread_length, bool *out_response_ready) {
     web_request_policy_failure_t failure = WEB_REQUEST_POLICY_FAILURE_NONE;
     app_error_code_t result = apply_request_policy(request, call, body_limit, policy, &failure);
     if (result != APP_ERROR_NONE) {
