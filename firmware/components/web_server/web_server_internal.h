@@ -38,6 +38,7 @@ esp_err_t status_handler(httpd_req_t *request);
 esp_err_t limits_handler(httpd_req_t *request);
 esp_err_t login_handler(httpd_req_t *request);
 esp_err_t logout_handler(httpd_req_t *request);
+esp_err_t blob_create_handler(httpd_req_t *request);
 esp_err_t api_handler(httpd_req_t *request);
 esp_err_t web_api_handle_call(httpd_req_t *request, bool *out_should_restart);
 esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body,
