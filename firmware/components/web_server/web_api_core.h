@@ -17,6 +17,7 @@ typedef enum {
 typedef enum {
     WEB_API_ROUTE_UNKNOWN = 0,
     WEB_API_ROUTE_AUTH_SESSION,
+    WEB_API_ROUTE_BLOB_COLLECTION,
     WEB_API_ROUTE_SETTINGS,
     WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD,
     WEB_API_ROUTE_DEVICE_RESTART,
@@ -37,6 +38,7 @@ bool web_api_route_requires_physical_confirmation(web_api_route_t route);
 bool web_api_physical_confirmation_required(web_api_route_t route, bool confirmation_enabled);
 bool web_api_route_requires_worker(web_api_route_t route);
 bool web_api_content_type_is_json(const char *content_type);
+bool web_api_content_type_is_gzip(const char *content_type);
 bool web_api_request_id_is_valid(const char *request_id);
 unsigned int web_api_http_status_for_error(app_error_code_t error);
 
