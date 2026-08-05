@@ -1,4 +1,5 @@
 import type {
+  DiagnosticsBlobScan,
   DiagnosticsCapacity,
   DiagnosticsStack,
   DiagnosticsSubsystem,
@@ -139,6 +140,19 @@ function isDiagnosticsStack(value: unknown): value is DiagnosticsStack {
   );
 }
 
+function isDiagnosticsBlobScan(value: unknown): value is DiagnosticsBlobScan {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["blobCount", "invalidNameCount", "invalidNames"]) &&
+    isNonNegativeInteger(value.blobCount) &&
+    isNonNegativeInteger(value.invalidNameCount) &&
+    Array.isArray(value.invalidNames) &&
+    value.invalidNames.length === value.invalidNameCount &&
+    value.invalidNames.length <= 8 &&
+    value.invalidNames.every((name) => isBoundedString(name, 255))
+  );
+}
+
 export function isFullDiagnostics(value: unknown): value is FullDiagnostics {
   return (
     isRecord(value) &&
@@ -153,6 +167,7 @@ export function isFullDiagnostics(value: unknown): value is FullDiagnostics {
       "stack",
       "webfs",
       "userdata",
+      "blobScan",
       "executionState",
       "subsystems",
     ]) &&
@@ -166,9 +181,10 @@ export function isFullDiagnostics(value: unknown): value is FullDiagnostics {
     isDiagnosticsStack(value.stack) &&
     isDiagnosticsCapacity(value.webfs) &&
     isDiagnosticsCapacity(value.userdata) &&
+    isDiagnosticsBlobScan(value.blobScan) &&
     isBoundedString(value.executionState, 64) &&
     Array.isArray(value.subsystems) &&
-    value.subsystems.length === 9 &&
+    value.subsystems.length === 8 &&
     value.subsystems.every(isDiagnosticsSubsystem)
   );
 }
