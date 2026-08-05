@@ -12,6 +12,8 @@
 #define STORAGE_BLOB_ID_DIGITS 20U
 #define STORAGE_BLOB_FILENAME_LENGTH (STORAGE_BLOB_ID_DIGITS + 3U)
 #define STORAGE_BLOB_FILENAME_CAPACITY (STORAGE_BLOB_FILENAME_LENGTH + 1U)
+#define STORAGE_BLOB_DIAGNOSTIC_INVALID_NAME_MAX 8U
+#define STORAGE_BLOB_DIAGNOSTIC_NAME_CAPACITY 256U
 
 typedef struct {
     uint64_t id;
@@ -25,6 +27,14 @@ typedef struct {
     uint64_t max_id;
     uint64_t next_id;
 } storage_blob_scan_summary_t;
+
+typedef struct {
+    storage_blob_scan_summary_t summary;
+    size_t reported_invalid_name_count;
+    bool invalid_names_truncated;
+    char invalid_names[STORAGE_BLOB_DIAGNOSTIC_INVALID_NAME_MAX]
+                      [STORAGE_BLOB_DIAGNOSTIC_NAME_CAPACITY];
+} storage_blob_diagnostics_t;
 
 typedef app_error_code_t (*storage_blob_entry_visitor_t)(void *context,
                                                          const storage_blob_entry_t *entry);
@@ -45,6 +55,7 @@ app_error_code_t storage_blob_scan_startup(uint64_t persisted_next_id);
 app_error_code_t storage_blob_scan(uint64_t persisted_next_id,
                                    const storage_blob_scan_observer_t *observer,
                                    storage_blob_scan_summary_t *out_summary);
+app_error_code_t storage_blob_collect_diagnostics(storage_blob_diagnostics_t *out_diagnostics);
 storage_blob_scan_summary_t storage_blob_scan_state(void);
 
 #endif
