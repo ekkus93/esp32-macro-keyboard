@@ -35,6 +35,14 @@ static void make_repository(test_temp_dir_t *directory, char *repository, size_t
     TEST_CHECK(mkdir(repository, (mode_t)0700) == 0);
 }
 
+static ssize_t overreport_read(void *context, int descriptor, void *buffer, size_t length) {
+    (void)context;
+    (void)descriptor;
+    (void)buffer;
+    (void)length;
+    return 2;
+}
+
 static void test_reader_preserves_exact_bytes(void) {
     test_temp_dir_t directory = {0};
     char repository[TEST_TEMP_DIR_PATH_MAX];
@@ -74,6 +82,33 @@ static void test_reader_preserves_exact_bytes(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_reader_close_with_ops(&reader));
     TEST_CHECK(!reader.active);
 
+    test_temp_dir_remove(&directory);
+}
+
+static void test_reader_rejects_overreported_count(void) {
+    test_temp_dir_t directory = {0};
+    char repository[TEST_TEMP_DIR_PATH_MAX];
+    make_repository(&directory, repository, sizeof(repository));
+    char path[TEST_TEMP_DIR_PATH_MAX];
+    path_join(path, sizeof(path), repository, "00000000000000000008.gz");
+    create_file(path, "x", 1U);
+
+    storage_fs_ops_t operations = *storage_fs_ops_posix();
+    operations.read_file = overreport_read;
+    storage_blob_reader_t reader = {0};
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        storage_blob_reader_open_with_ops(&operations, repository, 8U, &reader));
+
+    unsigned char output = 0U;
+    size_t count = 99U;
+    bool eof = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
+                         storage_blob_reader_read_with_ops(&reader, &output, sizeof(output), &count,
+                                                           &eof));
+    TEST_CHECK_EQ_U64(0U, count);
+    TEST_CHECK(!eof);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_reader_close_with_ops(&reader));
     test_temp_dir_remove(&directory);
 }
 
@@ -187,6 +222,7 @@ static void test_delete_rejects_nonregular(void) {
 
 int main(void) {
     test_reader_preserves_exact_bytes();
+    test_reader_rejects_overreported_count();
     test_empty_blob_streams_as_empty();
     test_open_rejects_missing_and_nonregular();
     test_reader_argument_validation();
