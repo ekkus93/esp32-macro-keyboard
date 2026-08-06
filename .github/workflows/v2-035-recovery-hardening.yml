@@ -1,0 +1,66 @@
+name: V2-035 Recovery Hardening
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - scripts/apply-v2-035-recovery-hardening.py
+      - .github/workflows/v2-035-recovery-hardening.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply scoped hardening
+        run: python3 scripts/apply-v2-035-recovery-hardening.py
+
+      - name: Validate collector and regression suite
+        run: |
+          python3 -m py_compile \
+            scripts/run-v2-035-hardware.py \
+            tests/scripts/test-v2-035-hardware.py
+          python3 tests/scripts/test-v2-035-hardware.py
+          python3 scripts/run-v2-035-hardware.py --help >/dev/null
+          python3 scripts/run-v2-035-hardware.py recover-cleanup --help >/dev/null
+          git diff --check
+
+      - name: Remove materialization files
+        run: |
+          rm -f -- \
+            scripts/apply-v2-035-recovery-hardening.py \
+            .github/workflows/v2-035-recovery-hardening.yml
+
+      - name: Verify and publish exact scope
+        run: |
+          git add -A -- \
+            scripts/run-v2-035-hardware.py \
+            tests/scripts/test-v2-035-hardware.py \
+            docs/implementation-v2/V2_035_HARDWARE_EVIDENCE_HARNESS_2026-08-06.md \
+            scripts/apply-v2-035-recovery-hardening.py \
+            .github/workflows/v2-035-recovery-hardening.yml
+
+          git diff --cached --name-only | sort > /tmp/actual-paths
+          cat > /tmp/expected-paths <<'EOF'
+          .github/workflows/v2-035-recovery-hardening.yml
+          docs/implementation-v2/V2_035_HARDWARE_EVIDENCE_HARNESS_2026-08-06.md
+          scripts/apply-v2-035-recovery-hardening.py
+          scripts/run-v2-035-hardware.py
+          tests/scripts/test-v2-035-hardware.py
+          EOF
+          sed -i 's/^          //' /tmp/expected-paths
+          sort -o /tmp/expected-paths /tmp/expected-paths
+          diff -u /tmp/expected-paths /tmp/actual-paths
+
+          git config user.name "Phillip Chin"
+          git config user.email "ekkus93@gmail.com"
+          git commit -m "Harden V2-035 recovery and artifact verification"
+          git push origin HEAD:master
