@@ -23,6 +23,36 @@ jobs:
       - name: Apply provenance hardening
         run: |
           set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          patch_path = Path('.github/v2-035-provenance-hardening.py')
+          patch_text = patch_path.read_text(encoding='utf-8')
+          obsolete = '''replace_once(
+              "tests/scripts/test-v2-035-hardware.py",
+              "            \\"buildId\\": \\"abc123\\",\\n",
+              "            \\"buildId\\": \\"a\\" * 39,\\n",
+          )
+          replace_once(
+              "tests/scripts/test-v2-035-hardware.py",
+              "            \\"buildId\\": \\"abc123\\",\\n",
+              "            \\"buildId\\": \\"a\\" * 39,\\n",
+          )
+          '''
+          if patch_text.count(obsolete) != 1:
+              raise SystemExit('temporary patch cardinality bootstrap did not match exactly once')
+          patch_path.write_text(patch_text.replace(obsolete, '', 1), encoding='utf-8')
+
+          test_path = Path('tests/scripts/test-v2-035-hardware.py')
+          test_text = test_path.read_text(encoding='utf-8')
+          needle = '            "buildId": "abc123",\n'
+          if test_text.count(needle) != 2:
+              raise SystemExit(f'expected two diagnostics fixtures, found {test_text.count(needle)}')
+          test_path.write_text(
+              test_text.replace(needle, '            "buildId": "a" * 39,\n'),
+              encoding='utf-8',
+          )
+          PY
           python3 .github/v2-035-provenance-hardening.py
           chmod +x tests/scripts/fakes/esptool.py
 
