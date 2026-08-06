@@ -55,7 +55,10 @@ jobs:
           set -euo pipefail
           rm .github/workflows/v2-033-closeout.yml
           git diff --check
-          test "$(git diff --name-only | sort)" = "docs/TODO_V2.md"
+          expected_paths="$(printf '%s\n' \
+            .github/workflows/v2-033-closeout.yml \
+            docs/TODO_V2.md | sort)"
+          test "$(git diff --name-only | sort)" = "${expected_paths}"
           git diff -- docs/TODO_V2.md
 
       - name: Commit closeout
