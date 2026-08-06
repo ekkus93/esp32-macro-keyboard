@@ -11,8 +11,10 @@ import http.client
 import json
 import os
 import re
+import shutil
 import socket
 import ssl
+import subprocess
 import sys
 import time
 import urllib.error
@@ -25,10 +27,12 @@ from typing import Any
 
 BLOB_MAX_BYTES = 131_072
 USERDATA_BYTES = 524_288
-STATE_SCHEMA = 2
+STATE_SCHEMA = 3
+ESP_IDF_VERSION = "ESP-IDF v5.5.5"
 FIRMWARE_COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 BUILD_ID_PATTERN = re.compile(r"^[0-9a-f]{39}$")
+ELF_SHA_OUTPUT_PATTERN = re.compile(r"ELF file SHA256:\s*([0-9A-Fa-f]{64})")
 AUTH_LOGIN_PATH = "/api/v1/auth/login"
 BLOB_COLLECTION_PATH = "/api/v1/blob"
 DIAGNOSTICS_PATH = "/api/v1/diagnostics"
@@ -61,6 +65,43 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(65_536), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def resolve_manifest_app_image(manifest_path: Path, manifest: dict[str, Any]) -> Path:
+    app_image = manifest.get("appImage")
+    require(isinstance(app_image, str) and bool(app_image),
+            "flash manifest appImage is missing")
+    relative = Path(app_image)
+    require(not relative.is_absolute() and ".." not in relative.parts,
+            "flash manifest appImage must remain inside the build directory")
+    build_directory = manifest_path.parent.resolve()
+    resolved = (build_directory / relative).resolve()
+    require(resolved.is_relative_to(build_directory),
+            "flash manifest appImage escapes the build directory")
+    require(resolved.is_file(), f"flash manifest application image is missing: {resolved}")
+    return resolved
+
+
+def read_app_elf_sha256(app_image: Path) -> str:
+    esptool = shutil.which("esptool.py")
+    require(esptool is not None,
+            "esptool.py is required to verify the flash manifest application image")
+    try:
+        result = subprocess.run(
+            [esptool, "image_info", str(app_image)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as error:
+        raise EvidenceError(f"could not run esptool.py image_info: {error}") from error
+    output = result.stdout + "\n" + result.stderr
+    require(result.returncode == 0,
+            f"esptool.py image_info failed with exit {result.returncode}: {output.strip()}")
+    match = ELF_SHA_OUTPUT_PATTERN.search(output)
+    require(match is not None,
+            "esptool.py image_info did not report a full ELF file SHA256")
+    return match.group(1).lower()
 
 
 def deterministic_bytes(label: str, length: int) -> bytes:
@@ -126,6 +167,39 @@ def write_json(path: Path, value: dict[str, Any]) -> None:
     os.replace(temporary, path)
 
 
+def owned_blobs(state: dict[str, Any]) -> list[dict[str, str]]:
+    value = state.setdefault("ownedBlobs", [])
+    require(isinstance(value, list), "evidence ownedBlobs must be a list")
+    seen: set[str] = set()
+    for item in value:
+        require(isinstance(item, dict)
+                and isinstance(item.get("id"), str)
+                and isinstance(item.get("sha256"), str)
+                and SHA256_PATTERN.fullmatch(item["sha256"]) is not None,
+                "evidence ownedBlobs contains an invalid entry")
+        require(item["id"] not in seen, f"duplicate collector-owned blob ID {item['id']}")
+        seen.add(item["id"])
+    return value
+
+
+def journal_created_blob(state_path: Path, state: dict[str, Any], item: dict[str, str],
+                         stage_key: str | None = None) -> None:
+    current = owned_blobs(state)
+    require(all(existing["id"] != item["id"] for existing in current),
+            f"collector-owned blob ID {item['id']} was already recorded")
+    current.append(dict(item))
+    if stage_key is not None:
+        stage = state.setdefault(stage_key, [])
+        require(isinstance(stage, list), f"evidence {stage_key} must be a list")
+        stage.append(dict(item))
+    write_json(state_path, state)
+
+
+def journal_deleted_blob(state_path: Path, state: dict[str, Any], blob_id: str) -> None:
+    state["ownedBlobs"] = [item for item in owned_blobs(state) if item["id"] != blob_id]
+    write_json(state_path, state)
+
+
 def load_state(path: Path, expected_phase: str | None = None) -> dict[str, Any]:
     state = read_json(path)
     require(state.get("schemaVersion") == STATE_SCHEMA, "unsupported evidence state schema")
@@ -147,6 +221,7 @@ def load_flash_manifest(path: Path) -> dict[str, str]:
     app_image_sha256 = manifest.get("appImageSha256")
     app_elf_sha256 = manifest.get("appElfSha256")
     diagnostics_build_id = manifest.get("diagnosticsBuildId")
+    esp_idf_version = manifest.get("espIdfVersion")
     require(isinstance(git_commit, str)
             and FIRMWARE_COMMIT_PATTERN.fullmatch(git_commit) is not None,
             "flash manifest gitCommit must be an exact 40-character SHA")
@@ -154,6 +229,8 @@ def load_flash_manifest(path: Path) -> dict[str, str]:
             "flash manifest records a dirty build; rebuild from a clean checkout")
     require(manifest.get("buildType") == "production",
             "flash manifest is not a production build")
+    require(esp_idf_version == ESP_IDF_VERSION,
+            f"flash manifest must use {ESP_IDF_VERSION}, found {esp_idf_version!r}")
     require(isinstance(app_image_sha256, str)
             and SHA256_PATTERN.fullmatch(app_image_sha256) is not None,
             "flash manifest appImageSha256 is invalid")
@@ -163,14 +240,22 @@ def load_flash_manifest(path: Path) -> dict[str, str]:
     require(isinstance(diagnostics_build_id, str)
             and BUILD_ID_PATTERN.fullmatch(diagnostics_build_id) is not None,
             "flash manifest diagnosticsBuildId is invalid")
-    require(app_elf_sha256.startswith(diagnostics_build_id),
-            "flash manifest diagnosticsBuildId is not the ELF SHA prefix")
+    app_image = resolve_manifest_app_image(path, manifest)
+    actual_image_sha256 = sha256_file(app_image)
+    require(actual_image_sha256 == app_image_sha256,
+            "flash manifest application-image SHA-256 does not match the actual image")
+    actual_elf_sha256 = read_app_elf_sha256(app_image)
+    require(actual_elf_sha256 == app_elf_sha256,
+            "flash manifest ELF SHA-256 does not match esptool.py image_info")
+    require(actual_elf_sha256.startswith(diagnostics_build_id),
+            "flash manifest diagnosticsBuildId is not the verified ELF SHA prefix")
     return {
         "gitCommit": git_commit,
-        "appImageSha256": app_image_sha256,
-        "appElfSha256": app_elf_sha256,
+        "appImage": str(manifest["appImage"]),
+        "appImageSha256": actual_image_sha256,
+        "appElfSha256": actual_elf_sha256,
         "diagnosticsBuildId": diagnostics_build_id,
-        "espIdfVersion": str(manifest.get("espIdfVersion", "")),
+        "espIdfVersion": esp_idf_version,
         "flashManifestSha256": sha256_file(path),
     }
 
@@ -341,13 +426,38 @@ def command_start(args: argparse.Namespace) -> None:
     verify_firmware_provenance(manifest, initial_diagnostics)
     baseline = snapshot(api)
 
+    state: dict[str, Any] = {
+        "schemaVersion": STATE_SCHEMA,
+        "task": "V2-035",
+        "createdAt": utc_now(),
+        "baseUrl": args.base_url.rstrip("/"),
+        "firmwareCommit": manifest["gitCommit"],
+        "firmwareBuildId": manifest["diagnosticsBuildId"],
+        "appImage": manifest["appImage"],
+        "appImageSha256": manifest["appImageSha256"],
+        "appElfSha256": manifest["appElfSha256"],
+        "flashManifestSha256": manifest["flashManifestSha256"],
+        "espIdfVersion": manifest["espIdfVersion"],
+        "targetHardware": "ESP32-S3R8",
+        "phase": "start_in_progress",
+        "baseline": baseline,
+        "sentinels": [],
+        "ownedBlobs": [],
+        "startCreated": [],
+        "initialDiagnostics": initial_diagnostics,
+        "scenarios": {},
+    }
+    write_json(args.state, state)
+
     created: list[dict[str, str]] = []
     for label in ("ordering-a", "ordering-b", "ordering-c"):
         payload = small_payload(label)
         status, data = api.create_blob(payload)
         require(status == 201 and isinstance(data, dict) and isinstance(data.get("id"), str),
                 f"blob creation returned HTTP {status}: {data!r}")
-        created.append({"id": data["id"], "sha256": sha256_bytes(payload)})
+        item = {"id": data["id"], "sha256": sha256_bytes(payload)}
+        created.append(item)
+        journal_created_blob(args.state, state, item, "startCreated")
 
     numeric = [int(item["id"]) for item in created]
     require(numeric == sorted(numeric) and len(set(numeric)) == 3,
@@ -361,32 +471,17 @@ def command_start(args: argparse.Namespace) -> None:
                 f"new blob {item['id']} did not round-trip byte-identically")
 
     removed = created[1]
-    api.delete_blob(removed["id"])
+    delete_owned_blob(api, state, args.state, removed)
     expected = dict(baseline)
     for item in (created[0], created[2]):
         expected[item["id"]] = item["sha256"]
     verify_snapshot(api, expected, exact_ids=True)
 
-    state: dict[str, Any] = {
-        "schemaVersion": STATE_SCHEMA,
-        "task": "V2-035",
-        "createdAt": utc_now(),
-        "baseUrl": args.base_url.rstrip("/"),
-        "firmwareCommit": manifest["gitCommit"],
-        "firmwareBuildId": manifest["diagnosticsBuildId"],
-        "appImageSha256": manifest["appImageSha256"],
-        "appElfSha256": manifest["appElfSha256"],
-        "flashManifestSha256": manifest["flashManifestSha256"],
-        "espIdfVersion": manifest["espIdfVersion"],
-        "targetHardware": "ESP32-S3R8",
-        "phase": "awaiting_power_cycle",
-        "baseline": baseline,
-        "sentinels": [created[0], created[2]],
-        "initialDiagnostics": initial_diagnostics,
-        "scenarios": {},
-    }
+    state["sentinels"] = [created[0], created[2]]
+    state.pop("startCreated", None)
     add_scenario(state, "numeric_ordering", {"listedIds": listed, "createdIds": [x["id"] for x in created]})
     add_scenario(state, "delete_preservation", {"deletedId": removed["id"], "preservedHashes": expected})
+    state["phase"] = "awaiting_power_cycle"
     write_json(args.state, state)
     print(f"PASS: ordering and deletion evidence written to {args.state}")
     print("Physically remove power from the ESP32-S3, restore power, wait for Wi-Fi, then run verify-power-cycle.")
@@ -403,6 +498,57 @@ def expected_live_snapshot(state: dict[str, Any]) -> dict[str, str]:
     for item in state["sentinels"]:
         expected[item["id"]] = item["sha256"]
     return expected
+
+
+def owned_snapshot(state: dict[str, Any]) -> dict[str, str]:
+    return {item["id"]: item["sha256"] for item in owned_blobs(state)}
+
+
+def delete_owned_blob(api: DeviceApi, state: dict[str, Any], state_path: Path,
+                      item: dict[str, str]) -> None:
+    current_ids = set(blob_ids(api))
+    if item["id"] in current_ids:
+        require(sha256_bytes(api.load_blob(item["id"])) == item["sha256"],
+                f"collector-owned blob {item['id']} changed before cleanup")
+        api.delete_blob(item["id"])
+    journal_deleted_blob(state_path, state, item["id"])
+
+
+def verify_recoverable_snapshot(api: DeviceApi, state: dict[str, Any]) -> None:
+    baseline = state.get("baseline")
+    require(isinstance(baseline, dict), "evidence baseline is invalid")
+    collector = owned_snapshot(state)
+    actual_ids = set(blob_ids(api))
+    allowed_ids = set(baseline) | set(collector)
+    unknown = actual_ids - allowed_ids
+    require(not unknown,
+            f"refusing recovery because unowned blob IDs appeared: {sorted(unknown)}")
+    for blob_id, expected_hash in baseline.items():
+        require(blob_id in actual_ids, f"baseline blob {blob_id} disappeared")
+        require(sha256_bytes(api.load_blob(blob_id)) == expected_hash,
+                f"baseline blob {blob_id} changed byte-for-byte")
+    for blob_id, expected_hash in collector.items():
+        if blob_id in actual_ids:
+            require(sha256_bytes(api.load_blob(blob_id)) == expected_hash,
+                    f"collector-owned blob {blob_id} changed byte-for-byte")
+
+
+def command_recover_cleanup(args: argparse.Namespace) -> None:
+    state = load_state(args.state)
+    require(state.get("phase") != "complete", "complete evidence cannot be recovered or discarded")
+    api = api_from_state(state, args)
+    verify_recoverable_snapshot(api, state)
+    for item in list(reversed(owned_blobs(state))):
+        delete_owned_blob(api, state, args.state, item)
+    verify_snapshot(api, state["baseline"], exact_ids=True)
+    state["phase"] = "recovered"
+    state["recoveredAt"] = utc_now()
+    write_json(args.state, state)
+    try:
+        args.state.unlink()
+    except OSError as error:
+        raise EvidenceError(f"cleanup succeeded but state file could not be removed: {error}") from error
+    print("PASS: collector-owned blobs were removed and the original baseline was restored")
 
 
 def command_verify_power_cycle(args: argparse.Namespace) -> None:
@@ -517,6 +663,10 @@ def command_fill_storage(args: argparse.Namespace) -> None:
     original = snapshot(api)
     require(original == expected_live_snapshot(state), "live blobs changed before storage-full test")
     payload = exact_gzip_payload("storage-full")
+    state["phase"] = "storage_full_in_progress"
+    state["fillCreated"] = []
+    write_json(args.state, state)
+
     fill_created: list[dict[str, str]] = []
     failure: Any = None
     for attempt in range(1, 9):
@@ -524,7 +674,9 @@ def command_fill_storage(args: argparse.Namespace) -> None:
         if status == 201:
             require(isinstance(data, dict) and isinstance(data.get("id"), str),
                     "successful fill upload returned an invalid response")
-            fill_created.append({"id": data["id"], "sha256": sha256_bytes(payload)})
+            item = {"id": data["id"], "sha256": sha256_bytes(payload)}
+            fill_created.append(item)
+            journal_created_blob(args.state, state, item, "fillCreated")
             continue
         require(status == 507, f"within-limit storage exhaustion returned HTTP {status}: {data!r}")
         failure = {"attempt": attempt, "httpStatus": status, "response": data}
@@ -535,7 +687,7 @@ def command_fill_storage(args: argparse.Namespace) -> None:
         preserved[item["id"]] = item["sha256"]
     verify_snapshot(api, preserved, exact_ids=True)
     for item in reversed(fill_created):
-        api.delete_blob(item["id"])
+        delete_owned_blob(api, state, args.state, item)
     verify_snapshot(api, original, exact_ids=True)
     add_scenario(
         state,
@@ -548,6 +700,7 @@ def command_fill_storage(args: argparse.Namespace) -> None:
             "cleanupVerified": True,
         },
     )
+    state.pop("fillCreated", None)
     state["phase"] = "ready_for_mount_failure_record"
     write_json(args.state, state)
     print("PASS: HTTP 507 observed and every committed final blob remained byte-identical")
@@ -643,18 +796,31 @@ def validate_complete_state(state: dict[str, Any]) -> None:
         value = scenarios.get(name)
         require(isinstance(value, dict) and value.get("status") == "pass",
                 f"scenario {name} is not supported by passing physical evidence")
-    require(state.get("phase") in ("ready_to_finalize", "complete"),
+    require(state.get("phase") in ("ready_to_finalize", "finalize_in_progress", "complete"),
             f"evidence phase is incomplete: {state.get('phase')!r}")
+    recorded_owned = state.get("ownedBlobs")
+    require(isinstance(recorded_owned, list), "evidence is missing the owned-blob journal")
+    if state.get("phase") == "complete":
+        require(recorded_owned == [], "complete evidence still owns test blobs")
 
 
 def command_finalize(args: argparse.Namespace) -> None:
-    state = load_state(args.state, "ready_to_finalize")
-    validate_complete_state(state)
+    state = load_state(args.state)
+    require(state.get("phase") in ("ready_to_finalize", "finalize_in_progress"),
+            f"cannot finalize from phase {state.get('phase')!r}")
     api = api_from_state(state, args)
-    expected = expected_live_snapshot(state)
-    verify_snapshot(api, expected, exact_ids=True)
-    for item in reversed(state["sentinels"]):
-        api.delete_blob(item["id"])
+    if state["phase"] == "ready_to_finalize":
+        validate_complete_state(state)
+        verify_snapshot(api, expected_live_snapshot(state), exact_ids=True)
+        state["phase"] = "finalize_in_progress"
+        write_json(args.state, state)
+    else:
+        expected = dict(state["baseline"])
+        expected.update(owned_snapshot(state))
+        verify_snapshot(api, expected, exact_ids=True)
+
+    for item in list(reversed(owned_blobs(state))):
+        delete_owned_blob(api, state, args.state, item)
     verify_snapshot(api, state["baseline"], exact_ids=True)
     state["phase"] = "complete"
     state["completedAt"] = utc_now()
@@ -718,6 +884,13 @@ def build_parser() -> argparse.ArgumentParser:
     mount.add_argument("--restored-image", type=Path, required=True)
     mount.add_argument("--serial-log", type=Path, required=True)
     mount.set_defaults(function=command_record_mount_failure)
+
+    recover = subparsers.add_parser(
+        "recover-cleanup",
+        help="remove journaled collector blobs after a failed or interrupted stage",
+    )
+    add_online_arguments(recover)
+    recover.set_defaults(function=command_recover_cleanup)
 
     finalize = subparsers.add_parser("finalize")
     add_online_arguments(finalize)

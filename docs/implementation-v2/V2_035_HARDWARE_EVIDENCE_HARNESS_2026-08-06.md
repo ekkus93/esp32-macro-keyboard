@@ -60,10 +60,11 @@ bash scripts/generate-flash-manifest.sh
 python3 -m json.tool firmware/build/flash-manifest.json
 ```
 
-The collector rejects dirty or development manifests and refuses to start if
-the board's 39-character diagnostics `buildId` differs from the ELF SHA prefix
-recorded by `esptool.py image_info` for the manifest's application image. This
-comparison happens before any V2-035 blob is created or deleted.
+The collector rejects dirty or development manifests, requires exactly ESP-IDF
+v5.5.5, hashes the application image named by the manifest, reruns `esptool.py
+image_info` to verify the full ELF SHA-256, and refuses to start if the board's
+39-character diagnostics `buildId` differs from that verified ELF SHA prefix.
+These checks happen before any V2-035 blob is created or deleted.
 
 Example environment:
 
@@ -76,6 +77,24 @@ export V2_035_STATE='/tmp/esp32-macro-keyboard-v2-035-state.json'
 
 Do not place the password directly in a shell command, evidence file, serial
 log, or Git commit.
+
+## Recovery after a failed mutating stage
+
+The collector writes its state before the first mutation and journals every
+collector-owned blob immediately after creation. If `start`, `fill-storage`, or
+`finalize` fails or the host process is interrupted, do not delete IDs by hand.
+Run:
+
+```bash
+python3 scripts/run-v2-035-hardware.py recover-cleanup \
+  --state "${V2_035_STATE}"
+```
+
+Recovery verifies every baseline hash, refuses to touch unowned IDs, verifies
+each surviving collector-owned blob before deletion, tolerates an owned blob
+that was already deleted immediately before a host crash, restores the exact
+pre-test blob set, and only then removes the local state file. After recovery,
+restart V2-035 from Stage 1 with a newly generated state path.
 
 ## Stage 1 — Numeric ordering and deletion preservation
 

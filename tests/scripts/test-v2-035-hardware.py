@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import gzip
 import importlib.util
+import os
+import subprocess
 import json
 import tempfile
 from argparse import Namespace
@@ -40,6 +42,8 @@ def complete_state() -> dict:
         "appElfSha256": "a" * 64,
         "flashManifestSha256": "c" * 64,
         "targetHardware": "ESP32-S3R8",
+        "espIdfVersion": MODULE.ESP_IDF_VERSION,
+        "ownedBlobs": [],
         "phase": "ready_to_finalize",
         "scenarios": scenarios,
     }
@@ -102,33 +106,59 @@ def test_diagnostics_schema() -> None:
 
 def test_flash_manifest_provenance() -> None:
     with tempfile.TemporaryDirectory() as temporary_directory:
-        manifest_path = Path(temporary_directory) / "flash-manifest.json"
+        root = Path(temporary_directory)
+        manifest_path = root / "flash-manifest.json"
+        app_image = root / "esp32_macro_keyboard.bin"
+        app_image.write_bytes(b"verified application image")
+        image_sha256 = MODULE.sha256_file(app_image)
         manifest_path.write_text(
             json.dumps(
                 {
                     "gitCommit": "0123456789abcdef0123456789abcdef01234567",
                     "gitDirty": False,
                     "buildType": "production",
-                    "espIdfVersion": "ESP-IDF v5.5.5",
-                    "appImageSha256": "b" * 64,
+                    "espIdfVersion": MODULE.ESP_IDF_VERSION,
+                    "appImage": app_image.name,
+                    "appImageSha256": image_sha256,
                     "appElfSha256": "a" * 64,
                     "diagnosticsBuildId": "a" * 39,
                 }
             ),
             encoding="utf-8",
         )
-        manifest = MODULE.load_flash_manifest(manifest_path)
-        MODULE.verify_firmware_provenance(manifest, {"buildId": "a" * 39})
-        expect_failure(
-            MODULE.verify_firmware_provenance,
-            manifest,
-            {"buildId": "d" * 39},
+        original_which = MODULE.shutil.which
+        original_run = MODULE.subprocess.run
+        MODULE.shutil.which = lambda name: "/fake/esptool.py" if name == "esptool.py" else None
+        MODULE.subprocess.run = lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=args[0], returncode=0, stdout=f"ELF file SHA256: {'a' * 64}\n", stderr=""
         )
+        try:
+            manifest = MODULE.load_flash_manifest(manifest_path)
+            MODULE.verify_firmware_provenance(manifest, {"buildId": "a" * 39})
+            expect_failure(
+                MODULE.verify_firmware_provenance,
+                manifest,
+                {"buildId": "d" * 39},
+            )
 
-        dirty = json.loads(manifest_path.read_text(encoding="utf-8"))
-        dirty["gitDirty"] = True
-        manifest_path.write_text(json.dumps(dirty), encoding="utf-8")
-        expect_failure(MODULE.load_flash_manifest, manifest_path)
+            dirty = json.loads(manifest_path.read_text(encoding="utf-8"))
+            dirty["gitDirty"] = True
+            manifest_path.write_text(json.dumps(dirty), encoding="utf-8")
+            expect_failure(MODULE.load_flash_manifest, manifest_path)
+
+            dirty["gitDirty"] = False
+            dirty["espIdfVersion"] = "ESP-IDF v5.5.4"
+            manifest_path.write_text(json.dumps(dirty), encoding="utf-8")
+            expect_failure(MODULE.load_flash_manifest, manifest_path)
+
+            dirty["espIdfVersion"] = MODULE.ESP_IDF_VERSION
+            app_image.write_bytes(b"tampered application image")
+            manifest_path.write_text(json.dumps(dirty), encoding="utf-8")
+            expect_failure(MODULE.load_flash_manifest, manifest_path)
+        finally:
+            MODULE.shutil.which = original_which
+            MODULE.subprocess.run = original_run
+
 
 def test_interrupted_upload_request_headers() -> None:
     class FakeApi:
@@ -226,6 +256,112 @@ def test_mount_failure_record() -> None:
         expect_failure(MODULE.command_record_mount_failure, args)
 
 
+class FakeRecoveryApi:
+    def __init__(self, blobs: dict[str, bytes], fail_delete_once: str | None = None) -> None:
+        self.blobs = dict(blobs)
+        self.fail_delete_once = fail_delete_once
+
+    def list_blobs(self) -> list[dict]:
+        return [
+            {"id": blob_id, "sizeBytes": len(self.blobs[blob_id])}
+            for blob_id in sorted(self.blobs, key=int, reverse=True)
+        ]
+
+    def load_blob(self, blob_id: str) -> bytes:
+        if blob_id not in self.blobs:
+            raise MODULE.EvidenceError(f"missing blob {blob_id}")
+        return self.blobs[blob_id]
+
+    def delete_blob(self, blob_id: str) -> None:
+        if self.fail_delete_once == blob_id:
+            self.fail_delete_once = None
+            raise MODULE.EvidenceError(f"injected delete failure for {blob_id}")
+        self.blobs.pop(blob_id, None)
+
+
+def test_recover_cleanup_uses_owned_journal() -> None:
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        root = Path(temporary_directory)
+        state_path = root / "state.json"
+        baseline_payload = b"baseline"
+        owned_payload = b"collector"
+        state = {
+            "schemaVersion": MODULE.STATE_SCHEMA,
+            "task": "V2-035",
+            "phase": "start_in_progress",
+            "baseUrl": "http://device.test",
+            "baseline": {"0000000001": MODULE.sha256_bytes(baseline_payload)},
+            "ownedBlobs": [
+                {"id": "0000000002", "sha256": MODULE.sha256_bytes(owned_payload)}
+            ],
+        }
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+        fake = FakeRecoveryApi(
+            {"0000000001": baseline_payload, "0000000002": owned_payload}
+        )
+        original_api_from_state = MODULE.api_from_state
+        MODULE.api_from_state = lambda current, args: fake
+        try:
+            MODULE.command_recover_cleanup(
+                Namespace(state=state_path, timeout=1.0, password_env="UNUSED")
+            )
+        finally:
+            MODULE.api_from_state = original_api_from_state
+        assert fake.blobs == {"0000000001": baseline_payload}
+        assert not state_path.exists()
+
+
+def test_finalize_resumes_partial_cleanup() -> None:
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        root = Path(temporary_directory)
+        state_path = root / "state.json"
+        output_path = root / "evidence.json"
+        baseline_payload = b"baseline"
+        first_payload = b"first"
+        second_payload = b"second"
+        first = {"id": "0000000002", "sha256": MODULE.sha256_bytes(first_payload)}
+        second = {"id": "0000000003", "sha256": MODULE.sha256_bytes(second_payload)}
+        state = complete_state()
+        state.update(
+            {
+                "baseUrl": "http://device.test",
+                "baseline": {"0000000001": MODULE.sha256_bytes(baseline_payload)},
+                "sentinels": [first, second],
+                "ownedBlobs": [first, second],
+            }
+        )
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+        fake = FakeRecoveryApi(
+            {
+                "0000000001": baseline_payload,
+                "0000000002": first_payload,
+                "0000000003": second_payload,
+            },
+            fail_delete_once="0000000002",
+        )
+        args = Namespace(
+            state=state_path,
+            output=output_path,
+            timeout=1.0,
+            password_env="UNUSED",
+        )
+        original_api_from_state = MODULE.api_from_state
+        MODULE.api_from_state = lambda current, current_args: fake
+        try:
+            expect_failure(MODULE.command_finalize, args)
+            partial = json.loads(state_path.read_text(encoding="utf-8"))
+            assert partial["phase"] == "finalize_in_progress"
+            assert partial["ownedBlobs"] == [first]
+            MODULE.command_finalize(args)
+        finally:
+            MODULE.api_from_state = original_api_from_state
+        complete = json.loads(state_path.read_text(encoding="utf-8"))
+        assert complete["phase"] == "complete"
+        assert complete["ownedBlobs"] == []
+        assert fake.blobs == {"0000000001": baseline_payload}
+        MODULE.command_validate(Namespace(evidence=output_path))
+
+
 def main() -> int:
     test_exact_gzip()
     test_complete_validation()
@@ -234,6 +370,8 @@ def main() -> int:
     test_flash_manifest_provenance()
     test_interrupted_upload_request_headers()
     test_mount_failure_record()
+    test_recover_cleanup_uses_owned_journal()
+    test_finalize_resumes_partial_cleanup()
     print("PASS: V2-035 hardware evidence collector regression tests")
     return 0
 
