@@ -25,10 +25,12 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           patch_path = Path('.github/v2-035-provenance-hardening.py')
           patch_text = patch_path.read_text(encoding='utf-8')
-          obsolete = '''replace_once(
+
+          duplicate_fixture_patch = '''replace_once(
               "tests/scripts/test-v2-035-hardware.py",
               "            \\"buildId\\": \\"abc123\\",\\n",
               "            \\"buildId\\": \\"a\\" * 39,\\n",
@@ -39,9 +41,22 @@ jobs:
               "            \\"buildId\\": \\"a\\" * 39,\\n",
           )
           '''
-          if patch_text.count(obsolete) != 1:
-              raise SystemExit('temporary patch cardinality bootstrap did not match exactly once')
-          patch_path.write_text(patch_text.replace(obsolete, '', 1), encoding='utf-8')
+          if patch_text.count(duplicate_fixture_patch) != 1:
+              raise SystemExit('temporary fixture cardinality bootstrap did not match exactly once')
+          patch_text = patch_text.replace(duplicate_fixture_patch, '', 1)
+
+          brittle_doc_patch = '''insert_after(
+              "docs/implementation-v2/V2_035_HARDWARE_EVIDENCE_HARNESS_2026-08-06.md",
+              "- Final evidence is bound to an exact 40-character firmware commit and the\\n  `ESP32-S3R8` target.\\n",
+              "- The exact commit is accepted only from a clean production flash manifest;\\n  the manifest's application-image SHA-256, full ELF SHA-256, 39-character\\n  diagnostics build ID, and manifest SHA-256 are preserved in the evidence.\\n",
+          )
+          '''
+          if patch_text.count(brittle_doc_patch) != 1:
+              raise SystemExit('temporary documentation bootstrap did not match exactly once')
+          patch_path.write_text(
+              patch_text.replace(brittle_doc_patch, '', 1),
+              encoding='utf-8',
+          )
 
           test_path = Path('tests/scripts/test-v2-035-hardware.py')
           test_text = test_path.read_text(encoding='utf-8')
@@ -52,6 +67,23 @@ jobs:
               test_text.replace(needle, '            "buildId": "a" * 39,\n'),
               encoding='utf-8',
           )
+
+          doc_path = Path('docs/implementation-v2/V2_035_HARDWARE_EVIDENCE_HARNESS_2026-08-06.md')
+          doc_text = doc_path.read_text(encoding='utf-8')
+          pattern = re.compile(
+              r'(- Final evidence is bound to an exact 40-character firmware commit and the\n'
+              r'\s+`ESP32-S3R8` target\.\n)'
+          )
+          replacement = (
+              r'\1'
+              '- The exact commit is accepted only from a clean production flash manifest;\n'
+              "  the manifest's application-image SHA-256, full ELF SHA-256, 39-character\n"
+              '  diagnostics build ID, and manifest SHA-256 are preserved in the evidence.\n'
+          )
+          doc_text, count = pattern.subn(replacement, doc_text, count=1)
+          if count != 1:
+              raise SystemExit(f'expected one firmware evidence sentence, found {count}')
+          doc_path.write_text(doc_text, encoding='utf-8')
           PY
           python3 .github/v2-035-provenance-hardening.py
           chmod +x tests/scripts/fakes/esptool.py
