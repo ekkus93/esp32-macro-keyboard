@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
 
 #include "app_error.h"
 #include "macro_limits.h"
@@ -24,8 +23,9 @@ static app_error_code_t write_all(const storage_fs_ops_t *operations, int descri
                                   const uint8_t *data, size_t length) {
     size_t written = 0U;
     while (written < length) {
-        const ssize_t count = operations->write_file(operations->context, descriptor,
-                                                     data + written, length - written);
+        const size_t requested = length - written;
+        const intmax_t count = operations->write_file(operations->context, descriptor,
+                                                      data + written, requested);
         if (count < 0) {
             const int write_error = errno;
             if (write_error == EINTR) {
@@ -33,7 +33,7 @@ static app_error_code_t write_all(const storage_fs_ops_t *operations, int descri
             }
             return map_error_number(write_error);
         }
-        if (count == 0) {
+        if (count == 0 || (uintmax_t)count > (uintmax_t)requested) {
             return APP_ERROR_IO;
         }
         written += (size_t)count;
@@ -55,7 +55,7 @@ static app_error_code_t verify_file(const storage_fs_ops_t *operations, const ch
     while (verified < length) {
         const size_t remaining = length - verified;
         const size_t requested = remaining < sizeof(buffer) ? remaining : sizeof(buffer);
-        const ssize_t count =
+        const intmax_t count =
             operations->read_file(operations->context, descriptor, buffer, requested);
         if (count < 0) {
             const int read_error = errno;
@@ -65,16 +65,22 @@ static app_error_code_t verify_file(const storage_fs_ops_t *operations, const ch
             result = map_error_number(read_error);
             break;
         }
-        if (count == 0 || memcmp(buffer, expected + verified, (size_t)count) != 0) {
+        if (count == 0 || (uintmax_t)count > (uintmax_t)requested) {
             result = APP_ERROR_IO;
             break;
         }
-        verified += (size_t)count;
+        const size_t count_bytes = (size_t)count;
+        if (memcmp(buffer, expected + verified, count_bytes) != 0) {
+            result = APP_ERROR_IO;
+            break;
+        }
+        verified += count_bytes;
     }
 
     if (result == APP_ERROR_NONE) {
         uint8_t extra = 0U;
-        const ssize_t count = operations->read_file(operations->context, descriptor, &extra, 1U);
+        const intmax_t count =
+            operations->read_file(operations->context, descriptor, &extra, 1U);
         if (count < 0) {
             const int read_error = errno;
             result = map_error_number(read_error);
