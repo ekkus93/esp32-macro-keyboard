@@ -4,9 +4,10 @@
 **Task:** V2-035  
 **Target hardware:** ESP32-S3R8  
 **Harness implementation commit:** `bb61b57207dc01510dafd84f26115ea50d0b63fd`  
-**Provenance hardening commit:** `15ad1a2aa0e913c03338abeb016f7aa20acb05ec`  
+**Initial evidence provenance commit:** `15ad1a2aa0e913c03338abeb016f7aa20acb05ec`  
 **V2 API and diagnostics alignment commit:** `5d6e8ef152e6db9a318844915f6506b4f8e31f34`  
-**Executable-mode repair commit:** `d8da917da3168e69322ae90e99368830b6c47e1c`
+**Executable-mode repair commit:** `d8da917da3168e69322ae90e99368830b6c47e1c`  
+**Firmware artifact binding commit:** `c540b95e8ce55a5a7178f176a4dab8b0e8f696dc`
 
 ## Prepared capability
 
@@ -32,6 +33,16 @@ The collector stages and verifies all seven V2-035 scenarios:
 - Every preserved blob is verified byte-for-byte with SHA-256.
 - Final evidence is bound to an exact 40-character firmware commit and the
   `ESP32-S3R8` target.
+- The exact commit is accepted only from a clean production flash manifest.
+- The flash manifest records the application image path, application-image
+  SHA-256, full ELF SHA-256, and the 39-character ELF SHA prefix exposed by the
+  production diagnostics endpoint as `buildId`.
+- Before the collector takes its baseline snapshot or mutates any blob, the
+  board-reported `buildId` must exactly match the manifest's
+  `diagnosticsBuildId`.
+- The sanitized evidence retains the Git commit, board-visible build ID,
+  application-image SHA-256, full ELF SHA-256, flash-manifest SHA-256, and
+  ESP-IDF version.
 - The HTTP collector uses the current V2 production paths:
   `/api/v1/auth/login`, `/api/v1/blob`, `/api/v1/blob/{id}`, and
   `/api/v1/diagnostics`.
@@ -51,11 +62,13 @@ The collector stages and verifies all seven V2-035 scenarios:
 ## Pre-hardware audit corrections
 
 The first collector draft was not accepted as ready merely because its isolated
-unit tests passed. A source-to-production audit before physical execution found
+unit tests passed. Source-to-production audits before physical execution found
 and corrected these defects:
 
 - the raw interrupted upload could emit duplicate `Host` headers;
-- evidence was not bound to an exact firmware commit;
+- evidence was not initially bound to an exact firmware commit;
+- the supplied commit was not initially proven to be the firmware image running
+  on the physical board;
 - login used the nonexistent `/api/v1/login` path instead of
   `/api/v1/auth/login`;
 - blob operations used nonexistent plural `/api/v1/blobs` paths instead of the
@@ -65,20 +78,28 @@ and corrected these defects:
 - reboot cleanup queried `/api/v1/status` for fields that exist only under the
   full diagnostics route and used the wrong field shape.
 
-All repair workflows failed closed when a patch, obsolete test, or scope check
-was wrong. No failed attempt committed partial production changes.
+All repair workflows failed closed when a patch, obsolete test, documentation
+anchor, or scope check was wrong. No failed attempt committed partial production
+changes.
 
 ## Validation already performed
 
-The provenance-hardening workflow:
+### Initial provenance hardening
+
+The initial provenance-hardening workflow:
 
 - run `31093306125`, job `92589209791`;
 - compiled the collector and regression test;
 - executed `tests/scripts/test-v2-035-hardware.py`;
-- checked the required `--firmware-sha` option;
+- checked the then-current required `--firmware-sha` option;
 - passed `git diff --check`;
 - verified the exact staged path set; and
 - removed its temporary patch and workflow files.
+
+The later firmware artifact binding supersedes the command-line SHA mechanism
+with the stronger required `--flash-manifest` input and board build-ID match.
+
+### V2 route and diagnostics alignment
 
 The V2 route and diagnostics alignment workflow:
 
@@ -91,7 +112,47 @@ The V2 route and diagnostics alignment workflow:
 - verified the exact staged path set; and
 - removed its temporary patch and workflow files.
 
-## Authoritative CI repair and exact-SHA evidence
+### Firmware artifact binding
+
+Commit `c540b95e8ce55a5a7178f176a4dab8b0e8f696dc` extends the existing flash
+manifest instead of introducing a parallel provenance format. The manifest
+generator now:
+
+- resolves the production `esp32_macro_keyboard.bin` application image from
+  ESP-IDF's `flasher_args.json`;
+- hashes the exact application image;
+- uses `esptool.py image_info` to obtain the full ELF SHA-256;
+- derives the 39-character `diagnosticsBuildId` that fits the production
+  diagnostics buffer; and
+- fails closed when the application image, `esptool.py`, or a valid full ELF
+  SHA-256 is unavailable.
+
+The collector state schema is now version 2. `start` requires
+`--flash-manifest`, rejects dirty and development manifests, validates all
+provenance hashes, and compares the board-reported diagnostics `buildId` before
+reading the blob baseline or creating/deleting any test blob.
+
+The temporary materialization attempts failed before committing:
+
+- run `31099492921`, job `92609343815`: the patch bootstrap incorrectly assumed
+  one diagnostics fixture when the regression test intentionally had two;
+- run `31099623407`, job `92609759523`: a documentation insertion targeted text
+  that was not present in the execution runbook; and
+- run `31099742769`, job `92610151121`: a replacement regex still targeted the
+  wrong document location.
+
+The successful scoped workflow was:
+
+- run `31099845187`, job `92610479417` — success;
+- Python compilation passed;
+- the V2-035 collector regression suite passed;
+- the flash-manifest regression suite passed, including valid ELF derivation,
+  missing application-image rejection, and malformed ELF-SHA rejection;
+- shell syntax and `git diff --check` passed;
+- the exact staged path set was verified; and
+- both temporary materialization files were removed in the permanent commit.
+
+## Authoritative CI repair and earlier exact-SHA evidence
 
 The first complete fan-out on `aee8b24e636d77f2448a4782aa5be8d689291536`
 passed Host Tests, Browser Tests, and Device Test Build, but Quality failed in
