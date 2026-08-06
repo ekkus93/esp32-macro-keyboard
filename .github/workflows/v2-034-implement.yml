@@ -1,0 +1,286 @@
+name: V2-034 Implementation
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/v2-034-implement.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install validation dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends build-essential cmake libcjson-dev clang-format
+          python3 -m pip install --user littlefs-python==0.15.0
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Apply V2-034 implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path_text, old, new):
+              path = Path(path_text)
+              text = path.read_text()
+              if text.count(old) != 1:
+                  raise SystemExit(f"expected exactly one target in {path_text}")
+              path.write_text(text.replace(old, new))
+
+          replace_once(
+              "firmware/components/web_server/web_server_blob.c",
+              '''    if (!cJSON_AddNumberToObject(root, "usedBytes", (double)list.used_bytes) ||
+                  !cJSON_AddNumberToObject(root, "remainingBytes", (double)remaining_bytes) ||
+                  !cJSON_AddItemToObject(root, "blobs", entries)) {''',
+              '''    if (!cJSON_AddNumberToObject(root, "totalBytes", (double)total_bytes) ||
+                  !cJSON_AddNumberToObject(root, "usedBytes", (double)list.used_bytes) ||
+                  !cJSON_AddNumberToObject(root, "remainingBytes", (double)remaining_bytes) ||
+                  !cJSON_AddNumberToObject(root, "maxBlobBytes", (double)APP_V2_BLOB_MAX_BYTES) ||
+                  !cJSON_AddItemToObject(root, "blobs", entries)) {''',
+          )
+
+          replace_once(
+              "tests/host/test_web_api_core.c",
+              '''    TEST_CHECK_EQ_U64(422U, web_api_http_status_for_error(APP_ERROR_MACRO_LIMIT));
+              TEST_CHECK_EQ_U64(404U, web_api_http_status_for_error(APP_ERROR_NOT_FOUND));''',
+              '''    TEST_CHECK_EQ_U64(422U, web_api_http_status_for_error(APP_ERROR_MACRO_LIMIT));
+              TEST_CHECK_EQ_U64(413U, web_api_http_status_for_error(APP_ERROR_LIMIT));
+              TEST_CHECK_EQ_U64(404U, web_api_http_status_for_error(APP_ERROR_NOT_FOUND));''',
+          )
+
+          replace_once(
+              "scripts/check-all.sh",
+              '''./scripts/check-partitions.sh
+          bash ./scripts/check-production-config.sh''',
+              '''./scripts/check-partitions.sh
+          python3 ./scripts/check-v2-034-capacity.py
+          bash ./scripts/check-production-config.sh''',
+          )
+
+          Path("scripts/check-v2-034-capacity.py").write_text(r'''#!/usr/bin/env python3
+          """Fail-closed V2-034 LittleFS capacity and HTTP contract proof."""
+
+          from __future__ import annotations
+
+          import csv
+          import hashlib
+          import re
+          import tempfile
+          from pathlib import Path
+
+          from littlefs import LittleFS
+
+          REPO_ROOT = Path(__file__).resolve().parents[1]
+          BLOCK_SIZE = 4096
+          NAME_MAX = 64
+          EXPECTED_CANDIDATE_BYTES = 128 * 1024
+          REQUIRED_MARGIN_BLOCKS = 1
+
+
+          def read_partition_size(name: str) -> int:
+              path = REPO_ROOT / "firmware" / "partitions.csv"
+              with path.open(encoding="utf-8") as handle:
+                  rows = (line for line in handle if line.strip() and not line.lstrip().startswith("#"))
+                  for row in csv.reader(rows):
+                      if len(row) == 6 and row[0].strip() == name:
+                          return int(row[4].strip(), 0)
+              raise SystemExit(f"partition table has no {name} partition")
+
+
+          def read_decimal_define(path: Path, name: str) -> int:
+              text = path.read_text(encoding="utf-8")
+              match = re.search(rf"^#define\s+{re.escape(name)}\s+([0-9]+)u?$", text, re.MULTILINE)
+              if match is None:
+                  raise SystemExit(f"could not resolve {name} from {path.relative_to(REPO_ROOT)}")
+              return int(match.group(1))
+
+
+          def verify_http_contract(maximum: int) -> None:
+              source = (REPO_ROOT / "firmware/components/web_server/web_server_blob.c").read_text(
+                  encoding="utf-8"
+              )
+              required_fields = (
+                  'cJSON_AddNumberToObject(root, "totalBytes", (double)total_bytes)',
+                  'cJSON_AddNumberToObject(root, "usedBytes", (double)list.used_bytes)',
+                  'cJSON_AddNumberToObject(root, "remainingBytes", (double)remaining_bytes)',
+                  'cJSON_AddNumberToObject(root, "maxBlobBytes", (double)APP_V2_BLOB_MAX_BYTES)',
+              )
+              for field in required_fields:
+                  if source.count(field) != 1:
+                      raise SystemExit(f"blob list capacity field missing or duplicated: {field}")
+
+              limit_check = "content_length > (size_t)APP_V2_BLOB_MAX_BYTES"
+              authentication = "result = authenticate_blob_request(request);"
+              upload_begin = "result = storage_blob_upload_begin(content_length, &upload);"
+              if source.find(limit_check) < 0 or source.find(authentication) < 0 or source.find(upload_begin) < 0:
+                  raise SystemExit("blob upload limit ordering anchors are missing")
+              create_handler = source.index("esp_err_t blob_create_handler")
+              limit_position = source.index(limit_check, create_handler)
+              auth_position = source.index(authentication, create_handler)
+              begin_position = source.index(upload_begin, create_handler)
+              if not create_handler < limit_position < auth_position < begin_position:
+                  raise SystemExit("oversize blob rejection must precede authentication and storage mutation")
+              if "WEB_HTTP_STATUS_PAYLOAD_TOO_LARGE" not in source[limit_position:auth_position]:
+                  raise SystemExit("oversize blob request does not produce HTTP 413")
+
+              api_source = (REPO_ROOT / "firmware/components/web_server/web_api_core.c").read_text(
+                  encoding="utf-8"
+              )
+              if "case APP_ERROR_LIMIT:" not in api_source or "WEB_HTTP_STATUS_PAYLOAD_TOO_LARGE" not in api_source:
+                  raise SystemExit("APP_ERROR_LIMIT must map to HTTP 413")
+              if "case APP_ERROR_STORAGE_FULL:" not in api_source or "WEB_HTTP_STATUS_INSUFFICIENT_STORAGE" not in api_source:
+                  raise SystemExit("APP_ERROR_STORAGE_FULL must map to HTTP 507")
+
+              upload_source = (
+                  REPO_ROOT / "firmware/components/storage/storage_blob_upload_core.c"
+              ).read_text(encoding="utf-8")
+              for error_name in ("ENOSPC", "EDQUOT", "EFBIG"):
+                  if error_name not in upload_source:
+                      raise SystemExit(f"storage exhaustion mapping is missing {error_name}")
+              if "APP_ERROR_STORAGE_FULL" not in upload_source:
+                  raise SystemExit("storage exhaustion is not surfaced as APP_ERROR_STORAGE_FULL")
+
+              if maximum != EXPECTED_CANDIDATE_BYTES:
+                  raise SystemExit(
+                      f"candidate changed from {EXPECTED_CANDIDATE_BYTES} to {maximum}; "
+                      "update the specification and V2-034 evidence intentionally"
+                  )
+
+
+          def build_and_verify_image(partition_bytes: int, maximum: int) -> tuple[int, int, int]:
+              if partition_bytes <= 0 or partition_bytes % BLOCK_SIZE != 0:
+                  raise SystemExit("userdata partition must be a positive whole number of LittleFS blocks")
+
+              filesystem = LittleFS(
+                  block_size=BLOCK_SIZE,
+                  block_count=partition_bytes // BLOCK_SIZE,
+                  name_max=NAME_MAX,
+              )
+              filesystem.mkdir("/repository")
+              filenames = (
+                  "00000000000000000001.gz",
+                  "00000000000000000002.gz",
+                  "00000000000000000003.gz.tmp",
+              )
+              expected_hashes: dict[str, str] = {}
+              for seed, filename in enumerate(filenames, start=1):
+                  payload = bytes((offset + seed) % 251 for offset in range(maximum))
+                  expected_hashes[filename] = hashlib.sha256(payload).hexdigest()
+                  with filesystem.open(f"/repository/{filename}", "wb") as handle:
+                      written = handle.write(payload)
+                  if written != maximum:
+                      raise SystemExit(f"short LittleFS image write for {filename}: {written}")
+
+              used_blocks = filesystem.used_block_count
+              used_bytes = used_blocks * BLOCK_SIZE
+              payload_bytes = maximum * len(filenames)
+              overhead_bytes = used_bytes - payload_bytes
+              remaining_bytes = partition_bytes - used_bytes
+              if overhead_bytes <= 0:
+                  raise SystemExit("capacity proof did not account for positive filesystem overhead")
+              if remaining_bytes < REQUIRED_MARGIN_BLOCKS * BLOCK_SIZE:
+                  raise SystemExit(
+                      f"candidate leaves only {remaining_bytes} bytes; at least one block is required"
+                  )
+
+              for filename, expected_hash in expected_hashes.items():
+                  stat = filesystem.stat(f"/repository/{filename}")
+                  if stat.size != maximum:
+                      raise SystemExit(f"stored size mismatch for {filename}: {stat.size}")
+                  with filesystem.open(f"/repository/{filename}", "rb") as handle:
+                      actual_hash = hashlib.sha256(handle.read()).hexdigest()
+                  if actual_hash != expected_hash:
+                      raise SystemExit(f"byte identity mismatch for {filename}")
+
+              with tempfile.TemporaryDirectory(prefix="v2-034-") as temporary:
+                  image_path = Path(temporary) / "userdata.bin"
+                  image_path.write_bytes(bytes(filesystem.context.buffer))
+                  if image_path.stat().st_size != partition_bytes:
+                      raise SystemExit("generated image size does not equal the userdata partition")
+
+              return used_bytes, overhead_bytes, remaining_bytes
+
+
+          def main() -> int:
+              partition_bytes = read_partition_size("userdata")
+              storage_maximum = read_decimal_define(
+                  REPO_ROOT / "firmware/components/storage/include/storage_blob.h",
+                  "STORAGE_BLOB_MAX_BYTES",
+              )
+              app_limits_text = (
+                  REPO_ROOT / "firmware/components/app_contracts_v2/include/app_limits_v2.h"
+              ).read_text(encoding="utf-8")
+              if "#define APP_V2_BLOB_MAX_BYTES (128u * 1024u)" not in app_limits_text:
+                  raise SystemExit("APP_V2_BLOB_MAX_BYTES is not the reviewed 128 KiB candidate")
+              if storage_maximum != EXPECTED_CANDIDATE_BYTES:
+                  raise SystemExit("storage and v2 blob maximums have drifted")
+
+              verify_http_contract(storage_maximum)
+              used_bytes, overhead_bytes, remaining_bytes = build_and_verify_image(
+                  partition_bytes, storage_maximum
+              )
+              print(
+                  "V2-034 LittleFS capacity passed: "
+                  f"partition={partition_bytes} maxBlob={storage_maximum} "
+                  f"payload={storage_maximum * 3} used={used_bytes} "
+                  f"overhead={overhead_bytes} remaining={remaining_bytes}"
+              )
+              return 0
+
+
+          if __name__ == "__main__":
+              raise SystemExit(main())
+          '''.replace("\n          ", "\n").lstrip())
+          PY
+
+          clang-format -i firmware/components/web_server/web_server_blob.c tests/host/test_web_api_core.c
+          chmod +x scripts/check-v2-034-capacity.py
+
+      - name: Run focused validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ./scripts/check-v2-034-capacity.py
+          ./scripts/run-tests.sh
+
+      - name: Verify scope and self-delete
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/v2-034-capacity-probe.yml
+          rm .github/workflows/v2-034-implement.yml
+          git diff --check
+          expected_paths="$(printf '%s\n' \
+            .github/workflows/v2-034-capacity-probe.yml \
+            .github/workflows/v2-034-implement.yml \
+            firmware/components/web_server/web_server_blob.c \
+            scripts/check-all.sh \
+            scripts/check-v2-034-capacity.py \
+            tests/host/test_web_api_core.c | sort)"
+          test "$(git diff --name-only | sort)" = "${expected_paths}"
+          git status --short
+
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "Implement V2-034 capacity and blob limits"
+          git push origin HEAD:master
