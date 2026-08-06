@@ -1,0 +1,55 @@
+name: V2-031 TODO Closeout
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  closeout:
+    if: github.event.head_commit.message == 'Add one-shot V2-031 TODO closeout'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact source commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+
+      - name: Mark only V2-031 complete and remove this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("docs/TODO_V2.md")
+          text = path.read_text(encoding="utf-8")
+          old = (
+              "## V2-031 — Atomic blob add\n"
+              "\n"
+              "- [ ] Implement bounded `application/gzip` streaming upload.\n"
+              "- [ ] Write to `<id>.gz.tmp` in bounded chunks.\n"
+              "- [ ] Treat short write, write error, flush error, close error, sync error, and\n"
+              "      rename error as failures.\n"
+              "- [ ] Synchronize the temporary file before rename.\n"
+              "- [ ] Use rename as the commit point.\n"
+              "- [ ] Synchronize the directory when supported.\n"
+              "- [ ] Return `201` only after the final file is committed.\n"
+              "- [ ] Leave existing final blobs unchanged on every failure path.\n"
+          )
+          new = old.replace("- [ ]", "- [x]")
+          if text.count(old) != 1:
+              raise SystemExit("V2-031 TODO block did not match exactly once")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+          rm .github/workflows/v2-031-todo-closeout.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/TODO_V2.md .github/workflows/v2-031-todo-closeout.yml
+          git diff --cached --check
+          git commit -m "Mark V2-031 atomic blob add complete"
+          git push origin HEAD:master
