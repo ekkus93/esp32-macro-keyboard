@@ -1,0 +1,111 @@
+name: V2-035 Esptool v4 Image Info Fix
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - scripts/apply-v2-035-esptool-v4-image-info.py
+      - .github/workflows/v2-035-esptool-v4-image-info.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+
+      - name: Apply scoped fix
+        run: |
+          python3 -m py_compile scripts/apply-v2-035-esptool-v4-image-info.py
+          python3 scripts/apply-v2-035-esptool-v4-image-info.py
+
+      - name: Install host lint tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes clang-format clang-tidy jq libcjson-dev shellcheck
+          python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
+          export GOTOOLCHAIN=go1.25.12
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install ESP-IDF v5.5.5
+        run: ./scripts/install-esp-idf.sh
+
+      - name: Install V2-034 LittleFS dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          python3 -m pip install littlefs-python==0.15.0
+          python3 -c 'from importlib.metadata import version; assert version("littlefs-python") == "0.15.0"'
+
+      - name: Install frontend dependencies
+        working-directory: webapp
+        run: npm ci
+
+      - name: Run focused regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/run-v2-035-hardware.py \
+            tests/scripts/test-v2-035-hardware.py
+          python3 tests/scripts/test-v2-035-hardware.py
+          bash tests/scripts/test-generate-flash-manifest.sh
+          git diff --check
+
+      - name: Enforce reviewed npm audit policy
+        working-directory: webapp
+        run: npm run audit:ci
+
+      - name: Run authoritative checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          ./scripts/check-all.sh
+
+      - name: Remove materialization files
+        run: |
+          rm -f -- \
+            scripts/apply-v2-035-esptool-v4-image-info.py \
+            .github/workflows/v2-035-esptool-v4-image-info.yml
+
+      - name: Verify and publish exact scope
+        run: |
+          git add -A -- \
+            scripts/generate-flash-manifest.sh \
+            scripts/run-v2-035-hardware.py \
+            tests/scripts/fakes/esptool.py \
+            tests/scripts/test-v2-035-hardware.py \
+            scripts/apply-v2-035-esptool-v4-image-info.py \
+            .github/workflows/v2-035-esptool-v4-image-info.yml
+
+          git diff --cached --name-only | sort > /tmp/actual-paths
+          cat > /tmp/expected-paths <<'EOF'
+          .github/workflows/v2-035-esptool-v4-image-info.yml
+          scripts/apply-v2-035-esptool-v4-image-info.py
+          scripts/generate-flash-manifest.sh
+          scripts/run-v2-035-hardware.py
+          tests/scripts/fakes/esptool.py
+          tests/scripts/test-v2-035-hardware.py
+          EOF
+          sed -i 's/^          //' /tmp/expected-paths
+          sort -o /tmp/expected-paths /tmp/expected-paths
+          diff -u /tmp/expected-paths /tmp/actual-paths
+
+          git config user.name "Phillip Chin"
+          git config user.email "ekkus93@gmail.com"
+          git commit -m "Fix V2-035 esptool v4 ELF metadata parsing"
+          git push origin HEAD:master
