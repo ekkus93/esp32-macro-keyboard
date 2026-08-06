@@ -57,6 +57,11 @@ jobs:
           python3 ./scripts/check-v2-034-capacity.py
           bash ./scripts/check-production-config.sh''',
           )
+          replace_once(
+              "scripts/check-v2-034-capacity.py",
+              '''    if "#define APP_V2_BLOB_MAX_BYTES (128u * 1024u)" not in app_limits_text:''',
+              '''    if "#define APP_V2_BLOB_MAX_BYTES UINT32_C(131072)" not in app_limits_text:''',
+          )
           PY
           clang-format -i tests/host/test_web_api_core.c
           chmod +x scripts/check-v2-034-capacity.py
