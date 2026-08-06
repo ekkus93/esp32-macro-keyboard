@@ -41,6 +41,24 @@ jobs:
           PY
           python3 /tmp/v2-033-implement.py
 
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/host/CMakeLists.txt')
+          text = path.read_text()
+          core = '    ../../firmware/components/storage/storage_blob_core.c\n'
+          recovery = '    ../../firmware/components/storage/storage_blob_recovery.c\n'
+          upload = '    ../../firmware/components/storage/storage_blob_upload_core.c\n'
+          access = '    ../../firmware/components/storage/storage_blob_access_core.c\n'
+          for following in (upload, access):
+              old = core + following
+              new = core + recovery + following
+              if old not in text:
+                  raise SystemExit(f'missing standalone storage target dependency before {following.strip()}')
+              text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+
           clang-format -i \
             firmware/components/storage/include/storage_blob.h \
             firmware/components/storage/storage_blob_internal.h \
