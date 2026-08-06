@@ -1,0 +1,74 @@
+name: V2-035 Hardware Evidence Harness Repair
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/v2-035-harness-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Recover and install scoped bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          trap 'rm -rf "${work}"' EXIT
+          bundle="$(sed -n 's/^          V2_035_BUNDLE: //p' \
+            .github/workflows/v2-035-harness-implement.yml)"
+          test -n "${bundle}"
+          printf '%s' "${bundle}" | base64 --decode > "${work}/bundle.tgz"
+          tar -xzf "${work}/bundle.tgz" -C "${work}"
+          install -m 0644 "${work}/scripts/run-v2-035-hardware.py" scripts/run-v2-035-hardware.py
+          install -m 0644 "${work}/scripts/check-scripts.sh" scripts/check-scripts.sh
+          install -m 0644 "${work}/tests/scripts/test-v2-035-hardware.py" tests/scripts/test-v2-035-hardware.py
+          install -m 0644 \
+            "${work}/docs/implementation-v2/V2_035_HARDWARE_EVIDENCE_HARNESS_2026-08-06.md" \
+            docs/implementation-v2/V2_035_HARDWARE_EVIDENCE_HARNESS_2026-08-06.md
+
+      - name: Validate scoped implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/run-v2-035-hardware.py \
+            tests/scripts/test-v2-035-hardware.py
+          python3 tests/scripts/test-v2-035-hardware.py
+          git diff --check
+
+      - name: Stage and verify exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm \
+            .github/workflows/v2-035-harness-implement.yml \
+            .github/workflows/v2-035-harness-repair.yml
+          git add --all
+          expected_paths="$(printf '%s\n' \
+            .github/workflows/v2-035-harness-implement.yml \
+            .github/workflows/v2-035-harness-repair.yml \
+            docs/implementation-v2/V2_035_HARDWARE_EVIDENCE_HARNESS_2026-08-06.md \
+            scripts/check-scripts.sh \
+            scripts/run-v2-035-hardware.py \
+            tests/scripts/test-v2-035-hardware.py | sort)"
+          test "$(git diff --cached --name-only | sort)" = "${expected_paths}"
+
+      - name: Commit V2-035 harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "test(V2-035): add physical storage evidence harness"
+          git push origin HEAD:master
