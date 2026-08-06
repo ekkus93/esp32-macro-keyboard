@@ -311,6 +311,118 @@ def test_recover_cleanup_uses_owned_journal() -> None:
         assert not state_path.exists()
 
 
+def test_pending_creation_recovery_adopts_exact_hash() -> None:
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        root = Path(temporary_directory)
+        state_path = root / "state.json"
+        baseline_payload = b"baseline"
+        pending_payload = b"unguessable pending payload"
+        baseline = {"0000000001": MODULE.sha256_bytes(baseline_payload)}
+        state = {
+            "schemaVersion": MODULE.STATE_SCHEMA,
+            "task": "V2-035",
+            "phase": "start_in_progress",
+            "baseUrl": "http://device.test",
+            "baseline": baseline,
+            "ownedBlobs": [],
+            "startCreated": [],
+            "pendingCreation": {
+                "startedAt": "2026-08-06T00:00:00Z",
+                "payloadSha256": MODULE.sha256_bytes(pending_payload),
+                "beforeHashes": baseline,
+                "stageKey": "startCreated",
+            },
+        }
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+        fake = FakeRecoveryApi(
+            {"0000000001": baseline_payload, "0000000002": pending_payload}
+        )
+        adopted = MODULE.reconcile_pending_creation(fake, state_path, state)
+        assert adopted == {
+            "id": "0000000002",
+            "sha256": MODULE.sha256_bytes(pending_payload),
+        }
+        recorded = json.loads(state_path.read_text(encoding="utf-8"))
+        assert "pendingCreation" not in recorded
+        assert recorded["ownedBlobs"] == [adopted]
+        assert recorded["startCreated"] == [adopted]
+
+        MODULE.verify_recoverable_snapshot(fake, recorded)
+
+
+def test_pending_creation_rejects_ambiguous_unknown_blobs() -> None:
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        root = Path(temporary_directory)
+        state_path = root / "state.json"
+        baseline_payload = b"baseline"
+        pending_payload = b"pending"
+        baseline = {"0000000001": MODULE.sha256_bytes(baseline_payload)}
+        state = {
+            "schemaVersion": MODULE.STATE_SCHEMA,
+            "task": "V2-035",
+            "phase": "start_in_progress",
+            "baseline": baseline,
+            "ownedBlobs": [],
+            "pendingCreation": {
+                "startedAt": "2026-08-06T00:00:00Z",
+                "payloadSha256": MODULE.sha256_bytes(pending_payload),
+                "beforeHashes": baseline,
+                "stageKey": "startCreated",
+            },
+        }
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+        fake = FakeRecoveryApi(
+            {
+                "0000000001": baseline_payload,
+                "0000000002": pending_payload,
+                "0000000003": b"concurrent unowned blob",
+            }
+        )
+        expect_failure(
+            MODULE.reconcile_pending_creation, fake, state_path, state
+        )
+        recorded = json.loads(state_path.read_text(encoding="utf-8"))
+        assert recorded["pendingCreation"] == state["pendingCreation"]
+        assert recorded["ownedBlobs"] == []
+
+
+def test_journaled_create_closes_response_window() -> None:
+    class CreatingApi(FakeRecoveryApi):
+        def create_blob(self, payload: bytes):
+            blob_id = f"{max(map(int, self.blobs), default=0) + 1:010d}"
+            self.blobs[blob_id] = payload
+            return 201, {"id": blob_id}
+
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        root = Path(temporary_directory)
+        state_path = root / "state.json"
+        baseline_payload = b"baseline"
+        state = {
+            "schemaVersion": MODULE.STATE_SCHEMA,
+            "task": "V2-035",
+            "phase": "start_in_progress",
+            "baseline": {"0000000001": MODULE.sha256_bytes(baseline_payload)},
+            "ownedBlobs": [],
+            "startCreated": [],
+        }
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+        fake = CreatingApi({"0000000001": baseline_payload})
+        payload = b"journaled payload"
+        status, data, item = MODULE.create_journaled_blob(
+            fake, state_path, state, payload, "startCreated"
+        )
+        assert status == 201
+        assert data == {"id": "0000000002"}
+        assert item == {
+            "id": "0000000002",
+            "sha256": MODULE.sha256_bytes(payload),
+        }
+        recorded = json.loads(state_path.read_text(encoding="utf-8"))
+        assert "pendingCreation" not in recorded
+        assert recorded["ownedBlobs"] == [item]
+        assert recorded["startCreated"] == [item]
+
+
 def test_finalize_resumes_partial_cleanup() -> None:
     with tempfile.TemporaryDirectory() as temporary_directory:
         root = Path(temporary_directory)
@@ -371,6 +483,9 @@ def main() -> int:
     test_interrupted_upload_request_headers()
     test_mount_failure_record()
     test_recover_cleanup_uses_owned_journal()
+    test_pending_creation_recovery_adopts_exact_hash()
+    test_pending_creation_rejects_ambiguous_unknown_blobs()
+    test_journaled_create_closes_response_window()
     test_finalize_resumes_partial_cleanup()
     print("PASS: V2-035 hardware evidence collector regression tests")
     return 0

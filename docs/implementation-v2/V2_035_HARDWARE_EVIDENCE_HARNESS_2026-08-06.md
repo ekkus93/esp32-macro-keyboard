@@ -80,9 +80,11 @@ log, or Git commit.
 
 ## Recovery after a failed mutating stage
 
-The collector writes its state before the first mutation and journals every
-collector-owned blob immediately after creation. If `start`, `fill-storage`, or
-`finalize` fails or the host process is interrupted, do not delete IDs by hand.
+The collector writes its state before the first mutation and persists a
+hash-bound creation intent before every upload request. After a successful
+response it converts that intent into a collector-owned blob journal entry. If
+`start`, `arm-interrupted-upload`, `fill-storage`, or `finalize` fails or the
+host process is interrupted, do not delete IDs by hand.
 Run:
 
 ```bash
@@ -90,11 +92,14 @@ python3 scripts/run-v2-035-hardware.py recover-cleanup \
   --state "${V2_035_STATE}"
 ```
 
-Recovery verifies every baseline hash, refuses to touch unowned IDs, verifies
-each surviving collector-owned blob before deletion, tolerates an owned blob
-that was already deleted immediately before a host crash, restores the exact
-pre-test blob set, and only then removes the local state file. After recovery,
-restart V2-035 from Stage 1 with a newly generated state path.
+Recovery verifies every baseline hash and first reconciles any pending
+creation. It adopts at most one new blob only when its bytes match the
+pre-request SHA-256 exactly; multiple new IDs or a hash mismatch fail closed.
+It then refuses to touch unowned IDs, verifies each surviving collector-owned
+blob before deletion, tolerates an owned blob that was already deleted
+immediately before a host crash, restores the exact pre-test blob set, and only
+then removes the local state file. After recovery, restart V2-035 from Stage 1
+with a newly generated state path.
 
 ## Stage 1 — Numeric ordering and deletion preservation
 

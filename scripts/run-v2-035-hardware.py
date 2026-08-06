@@ -11,6 +11,7 @@ import http.client
 import json
 import os
 import re
+import secrets
 import shutil
 import socket
 import ssl
@@ -451,13 +452,13 @@ def command_start(args: argparse.Namespace) -> None:
 
     created: list[dict[str, str]] = []
     for label in ("ordering-a", "ordering-b", "ordering-c"):
-        payload = small_payload(label)
-        status, data = api.create_blob(payload)
-        require(status == 201 and isinstance(data, dict) and isinstance(data.get("id"), str),
+        payload = small_payload(f"{label}:{secrets.token_hex(16)}")
+        status, data, item = create_journaled_blob(
+            api, args.state, state, payload, "startCreated"
+        )
+        require(status == 201 and item is not None,
                 f"blob creation returned HTTP {status}: {data!r}")
-        item = {"id": data["id"], "sha256": sha256_bytes(payload)}
         created.append(item)
-        journal_created_blob(args.state, state, item, "startCreated")
 
     numeric = [int(item["id"]) for item in created]
     require(numeric == sorted(numeric) and len(set(numeric)) == 3,
@@ -504,6 +505,124 @@ def owned_snapshot(state: dict[str, Any]) -> dict[str, str]:
     return {item["id"]: item["sha256"] for item in owned_blobs(state)}
 
 
+def expected_owned_snapshot(state: dict[str, Any]) -> dict[str, str]:
+    expected = state.get("baseline")
+    require(isinstance(expected, dict), "evidence baseline is invalid")
+    result = dict(expected)
+    result.update(owned_snapshot(state))
+    return result
+
+
+def pending_creation(state: dict[str, Any]) -> dict[str, Any] | None:
+    value = state.get("pendingCreation")
+    if value is None:
+        return None
+    require(isinstance(value, dict), "evidence pendingCreation must be an object")
+    payload_sha256 = value.get("payloadSha256")
+    before_hashes = value.get("beforeHashes")
+    stage_key = value.get("stageKey")
+    require(isinstance(payload_sha256, str)
+            and SHA256_PATTERN.fullmatch(payload_sha256) is not None,
+            "pending creation payload SHA-256 is invalid")
+    require(isinstance(before_hashes, dict)
+            and all(isinstance(blob_id, str)
+                    and isinstance(blob_hash, str)
+                    and SHA256_PATTERN.fullmatch(blob_hash) is not None
+                    for blob_id, blob_hash in before_hashes.items()),
+            "pending creation beforeHashes is invalid")
+    require(stage_key is None or isinstance(stage_key, str),
+            "pending creation stageKey is invalid")
+    return value
+
+
+def begin_pending_creation(api: DeviceApi, state_path: Path, state: dict[str, Any],
+                           payload: bytes, stage_key: str | None) -> None:
+    require(pending_creation(state) is None,
+            "another blob creation is already pending recovery")
+    before = snapshot(api)
+    require(before == expected_owned_snapshot(state),
+            "live blobs changed before the journaled creation request")
+    state["pendingCreation"] = {
+        "startedAt": utc_now(),
+        "payloadSha256": sha256_bytes(payload),
+        "beforeHashes": before,
+        "stageKey": stage_key,
+    }
+    write_json(state_path, state)
+
+
+def finish_pending_creation(state_path: Path, state: dict[str, Any],
+                            item: dict[str, str]) -> None:
+    pending = pending_creation(state)
+    require(pending is not None, "no pending blob creation is available to finish")
+    require(item["sha256"] == pending["payloadSha256"],
+            "created blob hash does not match the pending creation intent")
+    require(item["id"] not in pending["beforeHashes"],
+            f"created blob ID {item['id']} already existed before the request")
+    current = owned_blobs(state)
+    require(all(existing["id"] != item["id"] for existing in current),
+            f"collector-owned blob ID {item['id']} was already recorded")
+    current.append(dict(item))
+    stage_key = pending["stageKey"]
+    if stage_key is not None:
+        stage = state.setdefault(stage_key, [])
+        require(isinstance(stage, list), f"evidence {stage_key} must be a list")
+        stage.append(dict(item))
+    state.pop("pendingCreation", None)
+    write_json(state_path, state)
+
+
+def clear_pending_creation_if_unchanged(api: DeviceApi, state_path: Path,
+                                        state: dict[str, Any]) -> None:
+    pending = pending_creation(state)
+    require(pending is not None, "no pending blob creation is available to clear")
+    require(snapshot(api) == pending["beforeHashes"],
+            "failed blob creation changed the live blob set; run recover-cleanup")
+    state.pop("pendingCreation", None)
+    write_json(state_path, state)
+
+
+def create_journaled_blob(api: DeviceApi, state_path: Path, state: dict[str, Any],
+                          payload: bytes, stage_key: str) -> tuple[int, Any, dict[str, str] | None]:
+    begin_pending_creation(api, state_path, state, payload, stage_key)
+    status, data = api.create_blob(payload)
+    if status != 201:
+        clear_pending_creation_if_unchanged(api, state_path, state)
+        return status, data, None
+    require(isinstance(data, dict) and isinstance(data.get("id"), str),
+            "successful blob creation returned an invalid response")
+    item = {"id": data["id"], "sha256": sha256_bytes(payload)}
+    require(sha256_bytes(api.load_blob(item["id"])) == item["sha256"],
+            f"new blob {item['id']} did not round-trip byte-identically")
+    finish_pending_creation(state_path, state, item)
+    return status, data, item
+
+
+def reconcile_pending_creation(api: DeviceApi, state_path: Path,
+                               state: dict[str, Any]) -> dict[str, str] | None:
+    pending = pending_creation(state)
+    if pending is None:
+        return None
+    current = snapshot(api)
+    before = pending["beforeHashes"]
+    for blob_id, expected_hash in before.items():
+        require(current.get(blob_id) == expected_hash,
+                f"blob {blob_id} changed while a creation intent was pending")
+    unknown = sorted(set(current) - set(before))
+    require(len(unknown) <= 1,
+            f"pending creation produced multiple unknown blob IDs: {unknown}")
+    if not unknown:
+        state.pop("pendingCreation", None)
+        write_json(state_path, state)
+        return None
+    blob_id = unknown[0]
+    require(current[blob_id] == pending["payloadSha256"],
+            f"unknown blob {blob_id} does not match the pending creation hash")
+    item = {"id": blob_id, "sha256": current[blob_id]}
+    finish_pending_creation(state_path, state, item)
+    return item
+
+
 def delete_owned_blob(api: DeviceApi, state: dict[str, Any], state_path: Path,
                       item: dict[str, str]) -> None:
     current_ids = set(blob_ids(api))
@@ -537,6 +656,7 @@ def command_recover_cleanup(args: argparse.Namespace) -> None:
     state = load_state(args.state)
     require(state.get("phase") != "complete", "complete evidence cannot be recovered or discarded")
     api = api_from_state(state, args)
+    reconcile_pending_creation(api, args.state, state)
     verify_recoverable_snapshot(api, state)
     for item in list(reversed(owned_blobs(state))):
         delete_owned_blob(api, state, args.state, item)
@@ -595,7 +715,10 @@ def command_arm_interrupted_upload(args: argparse.Namespace) -> None:
     before = snapshot(api)
     require(before == expected_live_snapshot(state), "live blobs changed before interruption test")
     before_diagnostics = parse_diagnostics(api.diagnostics())
-    payload = exact_gzip_payload("power-cut-upload")
+    payload = exact_gzip_payload(f"power-cut-upload:{secrets.token_hex(16)}")
+    state["phase"] = "interrupted_upload_in_progress"
+    write_json(args.state, state)
+    begin_pending_creation(api, args.state, state, payload, None)
     connection = open_upload_connection(api)
     sent = 0
     disconnected = False
@@ -634,6 +757,9 @@ def command_verify_interrupted_upload(args: argparse.Namespace) -> None:
     state = load_state(args.state, "awaiting_interrupted_upload_reboot")
     api = api_from_state(state, args)
     before = state["interruptedUpload"]["beforeHashes"]
+    pending = pending_creation(state)
+    require(pending is not None and pending["beforeHashes"] == before,
+            "interrupted-upload creation intent is missing or does not match its baseline")
     verify_snapshot(api, before, exact_ids=True)
     diagnostics = parse_diagnostics(api.diagnostics())
     before_diagnostics = state["interruptedUpload"]["beforeDiagnostics"]
@@ -652,6 +778,7 @@ def command_verify_interrupted_upload(args: argparse.Namespace) -> None:
     }
     add_scenario(state, "interrupted_upload_no_partial_final", details)
     add_scenario(state, "reboot_temporary_cleanup", details)
+    state.pop("pendingCreation", None)
     state["phase"] = "ready_for_storage_full"
     write_json(args.state, state)
     print("PASS: interrupted upload produced no final blob and reboot cleanup reports zero temporary files")
@@ -662,7 +789,6 @@ def command_fill_storage(args: argparse.Namespace) -> None:
     api = api_from_state(state, args)
     original = snapshot(api)
     require(original == expected_live_snapshot(state), "live blobs changed before storage-full test")
-    payload = exact_gzip_payload("storage-full")
     state["phase"] = "storage_full_in_progress"
     state["fillCreated"] = []
     write_json(args.state, state)
@@ -670,13 +796,15 @@ def command_fill_storage(args: argparse.Namespace) -> None:
     fill_created: list[dict[str, str]] = []
     failure: Any = None
     for attempt in range(1, 9):
-        status, data = api.create_blob(payload)
+        payload = exact_gzip_payload(
+            f"storage-full:{attempt}:{secrets.token_hex(16)}"
+        )
+        status, data, item = create_journaled_blob(
+            api, args.state, state, payload, "fillCreated"
+        )
         if status == 201:
-            require(isinstance(data, dict) and isinstance(data.get("id"), str),
-                    "successful fill upload returned an invalid response")
-            item = {"id": data["id"], "sha256": sha256_bytes(payload)}
+            require(item is not None, "successful fill upload was not journaled")
             fill_created.append(item)
-            journal_created_blob(args.state, state, item, "fillCreated")
             continue
         require(status == 507, f"within-limit storage exhaustion returned HTTP {status}: {data!r}")
         failure = {"attempt": attempt, "httpStatus": status, "response": data}
@@ -693,7 +821,7 @@ def command_fill_storage(args: argparse.Namespace) -> None:
         state,
         "storage_full_507_preservation",
         {
-            "maximumUploadBytes": len(payload),
+            "maximumUploadBytes": BLOB_MAX_BYTES,
             "committedBefore507": fill_created,
             "failure": failure,
             "preservedHashes": preserved,
@@ -798,6 +926,8 @@ def validate_complete_state(state: dict[str, Any]) -> None:
                 f"scenario {name} is not supported by passing physical evidence")
     require(state.get("phase") in ("ready_to_finalize", "finalize_in_progress", "complete"),
             f"evidence phase is incomplete: {state.get('phase')!r}")
+    require(state.get("pendingCreation") is None,
+            "evidence still contains an unresolved creation intent")
     recorded_owned = state.get("ownedBlobs")
     require(isinstance(recorded_owned, list), "evidence is missing the owned-blob journal")
     if state.get("phase") == "complete":
