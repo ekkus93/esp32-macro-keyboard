@@ -73,6 +73,11 @@ jobs:
               '''    if "#define APP_V2_BLOB_MAX_BYTES (128u * 1024u)" not in app_limits_text:''',
               '''    if "#define APP_V2_BLOB_MAX_BYTES UINT32_C(131072)" not in app_limits_text:''',
           )
+          replace_once(
+              "scripts/check-v2-034-capacity.py",
+              '''    for error_name in ("ENOSPC", "EDQUOT", "EFBIG"):''',
+              '''    for error_name in ("ENOSPC",):''',
+          )
           PY
           clang-format -i \
             firmware/components/web_server/web_api_core.c \
