@@ -131,8 +131,10 @@ esp_err_t blob_create_handler(httpd_req_t *request) {
     char request_id[WEB_API_REQUEST_ID_MAX_BYTES + 1U] = {0};
     app_error_code_t result = establish_request_id(request, request_id, sizeof(request_id));
     if (result != APP_ERROR_NONE) {
-        return web_api_send_status_error(request, WEB_HTTP_STATUS_BAD_REQUEST, result,
-                                         "invalid request ID");
+        const unsigned int status = result == APP_ERROR_INVALID_ARGUMENT
+                                        ? WEB_HTTP_STATUS_BAD_REQUEST
+                                        : web_api_http_status_for_error(result);
+        return web_api_send_status_error(request, status, result, "invalid request ID");
     }
 
     const size_t content_length = request->content_len;

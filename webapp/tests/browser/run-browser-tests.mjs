@@ -301,7 +301,7 @@ async function devToolsUrl(processHandle) {
     let output = "";
     const timeout = setTimeout(() => {
       reject(new Error(`Chrome did not expose DevTools. Output:\n${output}`));
-    }, 15_000);
+    }, 30_000);
     const receive = (chunk) => {
       output += chunk.toString("utf8");
       const match = output.match(/DevTools listening on (ws:\/\/[^\s]+)/);
