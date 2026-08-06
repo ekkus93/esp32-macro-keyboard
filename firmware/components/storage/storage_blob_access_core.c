@@ -13,6 +13,8 @@
 #include "storage_blob.h"
 #include "storage_fs_ops.h"
 
+#define STORAGE_BLOB_ACCESS_PATH_CAPACITY (STORAGE_FS_ENTRY_NAME_MAX * 2U)
+
 static bool access_ops_valid(const storage_fs_ops_t *operations) {
     return operations != NULL && operations->open_file != NULL && operations->read_file != NULL &&
            operations->close_file != NULL && operations->stat_path != NULL &&
@@ -63,7 +65,7 @@ app_error_code_t storage_blob_reader_open_with_ops(const storage_fs_ops_t *opera
         return APP_ERROR_INVALID_ARGUMENT;
     }
 
-    char path[STORAGE_BLOB_UPLOAD_PATH_CAPACITY];
+    char path[STORAGE_BLOB_ACCESS_PATH_CAPACITY];
     app_error_code_t result = build_blob_path(directory_path, blob_id, path, sizeof(path));
     if (result != APP_ERROR_NONE) {
         return result;
@@ -144,7 +146,7 @@ app_error_code_t storage_blob_delete_with_ops(const storage_fs_ops_t *operations
     if (!access_ops_valid(operations)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    char path[STORAGE_BLOB_UPLOAD_PATH_CAPACITY];
+    char path[STORAGE_BLOB_ACCESS_PATH_CAPACITY];
     app_error_code_t result = build_blob_path(directory_path, blob_id, path, sizeof(path));
     if (result != APP_ERROR_NONE) {
         return result;
