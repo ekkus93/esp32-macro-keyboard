@@ -1,6 +1,5 @@
 #include "storage_blob_internal.h"
 
-#include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
