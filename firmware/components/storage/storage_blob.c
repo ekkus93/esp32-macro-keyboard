@@ -10,6 +10,25 @@
 
 static storage_blob_scan_summary_t scan_state;
 
+static app_error_code_t capture_temporary_file(void *context, const char *name) {
+    storage_blob_diagnostics_t *diagnostics = context;
+    if (diagnostics == NULL || name == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (diagnostics->reported_temporary_file_count >= STORAGE_BLOB_DIAGNOSTIC_INVALID_NAME_MAX) {
+        diagnostics->temporary_files_truncated = true;
+        return APP_ERROR_NONE;
+    }
+    const size_t length = strlen(name);
+    if (length >= STORAGE_BLOB_DIAGNOSTIC_NAME_CAPACITY) {
+        return APP_ERROR_STORAGE_CORRUPT;
+    }
+    memcpy(diagnostics->temporary_files[diagnostics->reported_temporary_file_count], name,
+           length + 1U);
+    ++diagnostics->reported_temporary_file_count;
+    return APP_ERROR_NONE;
+}
+
 static app_error_code_t capture_invalid_name(void *context, const char *name) {
     storage_blob_diagnostics_t *diagnostics = context;
     if (diagnostics == NULL || name == NULL) {
@@ -71,6 +90,7 @@ app_error_code_t storage_blob_collect_diagnostics(storage_blob_diagnostics_t *ou
         .context = out_diagnostics,
         .visit_entry = NULL,
         .visit_invalid_name = capture_invalid_name,
+        .visit_temporary_file = capture_temporary_file,
     };
     return storage_blob_scan(scan_state.next_id, &observer, &out_diagnostics->summary);
 }

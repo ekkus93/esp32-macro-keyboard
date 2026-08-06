@@ -86,7 +86,11 @@ static app_error_code_t copy_blob_scan(web_diagnostics_blob_scan_t *out_blob_sca
     if (storage_diagnostics->invalid_names_truncated ||
         storage_diagnostics->reported_invalid_name_count !=
             storage_diagnostics->summary.invalid_name_count ||
-        storage_diagnostics->reported_invalid_name_count > WEB_DIAGNOSTICS_INVALID_NAME_MAX) {
+        storage_diagnostics->reported_invalid_name_count > WEB_DIAGNOSTICS_INVALID_NAME_MAX ||
+        storage_diagnostics->temporary_files_truncated ||
+        storage_diagnostics->reported_temporary_file_count !=
+            storage_diagnostics->summary.temporary_file_count ||
+        storage_diagnostics->reported_temporary_file_count > WEB_DIAGNOSTICS_INVALID_NAME_MAX) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
 
@@ -99,6 +103,17 @@ static app_error_code_t copy_blob_scan(web_diagnostics_blob_scan_t *out_blob_sca
             return APP_ERROR_STORAGE_CORRUPT;
         }
         memcpy(out_blob_scan->invalid_names[index], storage_diagnostics->invalid_names[index],
+               length + 1U);
+    }
+    out_blob_scan->temporary_file_count = storage_diagnostics->summary.temporary_file_count;
+    out_blob_scan->reported_temporary_file_count =
+        storage_diagnostics->reported_temporary_file_count;
+    for (size_t index = 0U; index < storage_diagnostics->reported_temporary_file_count; ++index) {
+        const size_t length = strlen(storage_diagnostics->temporary_files[index]);
+        if (length >= WEB_DIAGNOSTICS_INVALID_NAME_CAPACITY) {
+            return APP_ERROR_STORAGE_CORRUPT;
+        }
+        memcpy(out_blob_scan->temporary_files[index], storage_diagnostics->temporary_files[index],
                length + 1U);
     }
     return APP_ERROR_NONE;

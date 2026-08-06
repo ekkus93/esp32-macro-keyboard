@@ -9,6 +9,9 @@
 
 app_error_code_t storage_blob_prepare_directory_with_ops(const storage_fs_ops_t *operations,
                                                          const char *directory_path);
+app_error_code_t storage_blob_recover_with_ops(const storage_fs_ops_t *operations,
+                                               const char *directory_path,
+                                               storage_blob_recovery_summary_t *out_summary);
 app_error_code_t storage_blob_scan_with_ops(const storage_fs_ops_t *operations,
                                             const char *directory_path, uint64_t persisted_next_id,
                                             const storage_blob_scan_observer_t *observer,

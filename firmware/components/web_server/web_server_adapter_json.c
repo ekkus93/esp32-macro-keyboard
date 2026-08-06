@@ -146,6 +146,17 @@ static void append_blob_scan(json_writer_t *writer,
         writer_append_escaped(writer, diagnostics->invalid_names[index]);
         writer_append_text(writer, "\"");
     }
+    writer_append_text(writer, "],\"temporaryFileCount\":");
+    append_uint64(writer, (uint64_t)diagnostics->temporary_file_count);
+    writer_append_text(writer, ",\"temporaryFiles\":[");
+    for (size_t index = 0U; index < diagnostics->reported_temporary_file_count; ++index) {
+        if (index > 0U) {
+            writer_append_text(writer, ",");
+        }
+        writer_append_text(writer, "\"");
+        writer_append_escaped(writer, diagnostics->temporary_files[index]);
+        writer_append_text(writer, "\"");
+    }
     writer_append_text(writer, "]}");
 }
 
@@ -158,7 +169,10 @@ app_error_code_t web_adapter_build_diagnostics_json(const web_diagnostics_snapsh
         return APP_ERROR_INVALID_ARGUMENT;
     }
     if (snapshot->blob_scan.invalid_names_truncated ||
-        snapshot->blob_scan.reported_invalid_name_count != snapshot->blob_scan.invalid_name_count) {
+        snapshot->blob_scan.reported_invalid_name_count != snapshot->blob_scan.invalid_name_count ||
+        snapshot->blob_scan.temporary_files_truncated ||
+        snapshot->blob_scan.reported_temporary_file_count !=
+            snapshot->blob_scan.temporary_file_count) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
     json_writer_t writer = {.buffer = output, .capacity = output_size};

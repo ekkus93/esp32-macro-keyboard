@@ -30,6 +30,10 @@ typedef struct {
     size_t reported_invalid_name_count;
     bool invalid_names_truncated;
     char invalid_names[WEB_DIAGNOSTICS_INVALID_NAME_MAX][WEB_DIAGNOSTICS_INVALID_NAME_CAPACITY];
+    size_t temporary_file_count;
+    size_t reported_temporary_file_count;
+    bool temporary_files_truncated;
+    char temporary_files[WEB_DIAGNOSTICS_INVALID_NAME_MAX][WEB_DIAGNOSTICS_INVALID_NAME_CAPACITY];
 } web_diagnostics_blob_scan_t;
 
 typedef struct {

@@ -14,13 +14,12 @@ static web_diagnostics_snapshot_t default_diagnostics_snapshot(void) {
         .blob_scan =
             {
                 .blob_count = 3U,
-                .invalid_name_count = 2U,
-                .reported_invalid_name_count = 2U,
-                .invalid_names =
-                    {
-                        "notes.txt",
-                        "00000000000000000004.gz.tmp",
-                    },
+                .invalid_name_count = 1U,
+                .reported_invalid_name_count = 1U,
+                .invalid_names = {"notes.txt"},
+                .temporary_file_count = 1U,
+                .reported_temporary_file_count = 1U,
+                .temporary_files = {"00000000000000000004.gz.tmp"},
             },
         .execution_state = "idle",
         .subsystems =
@@ -54,20 +53,36 @@ static void test_diagnostics_exact_allowed_fields(void) {
                          web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
 
     static const char *const expected_keys[] = {
-        "\"buildId\":",          "\"firmwareVersion\":", "\"schemaVersion\":",
-        "\"resetReason\":",      "\"uptimeMs\":",        "\"freeHeapBytes\":",
-        "\"minFreeHeapBytes\":", "\"stack\":",           "\"controlsWords\":",
-        "\"executorWords\":",    "\"webfs\":",           "\"userdata\":",
-        "\"blobScan\":",         "\"blobCount\":",       "\"invalidNameCount\":",
-        "\"invalidNames\":",     "\"executionState\":",  "\"subsystems\":",
-        "\"totalBytes\":",       "\"usedBytes\":",
+        "\"buildId\":",
+        "\"firmwareVersion\":",
+        "\"schemaVersion\":",
+        "\"resetReason\":",
+        "\"uptimeMs\":",
+        "\"freeHeapBytes\":",
+        "\"minFreeHeapBytes\":",
+        "\"stack\":",
+        "\"controlsWords\":",
+        "\"executorWords\":",
+        "\"webfs\":",
+        "\"userdata\":",
+        "\"blobScan\":",
+        "\"blobCount\":",
+        "\"invalidNameCount\":",
+        "\"invalidNames\":",
+        "\"temporaryFileCount\":",
+        "\"temporaryFiles\":",
+        "\"executionState\":",
+        "\"subsystems\":",
+        "\"totalBytes\":",
+        "\"usedBytes\":",
     };
     for (size_t index = 0U; index < sizeof(expected_keys) / sizeof(expected_keys[0]); ++index) {
         TEST_CHECK(strstr(output, expected_keys[index]) != NULL);
     }
 
-    TEST_CHECK(strstr(output, "\"blobScan\":{\"blobCount\":3,\"invalidNameCount\":2") != NULL);
-    TEST_CHECK(strstr(output, "\"invalidNames\":[\"notes.txt\","
+    TEST_CHECK(strstr(output, "\"blobScan\":{\"blobCount\":3,\"invalidNameCount\":1") != NULL);
+    TEST_CHECK(strstr(output, "\"invalidNames\":[\"notes.txt\"]") != NULL);
+    TEST_CHECK(strstr(output, "\"temporaryFileCount\":1,\"temporaryFiles\":["
                               "\"00000000000000000004.gz.tmp\"]") != NULL);
 
     /* Phase 2 removes the repository subsystem together with its ownership layer. */
@@ -144,7 +159,19 @@ static void test_diagnostics_rejects_partial_invalid_name_reporting(void) {
     TEST_CHECK_EQ_STRING("", output);
 
     snapshot = default_diagnostics_snapshot();
-    snapshot.blob_scan.reported_invalid_name_count = 1U;
+    snapshot.blob_scan.reported_invalid_name_count = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
+                         web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
+    TEST_CHECK_EQ_STRING("", output);
+
+    snapshot = default_diagnostics_snapshot();
+    snapshot.blob_scan.temporary_files_truncated = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
+                         web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
+    TEST_CHECK_EQ_STRING("", output);
+
+    snapshot = default_diagnostics_snapshot();
+    snapshot.blob_scan.reported_temporary_file_count = 0U;
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
                          web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
     TEST_CHECK_EQ_STRING("", output);

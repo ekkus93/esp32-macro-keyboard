@@ -289,6 +289,7 @@ add_executable(
     ../../firmware/components/storage/storage_mount_core.c
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_blob_core.c
+    ../../firmware/components/storage/storage_blob_recovery.c
     ../../firmware/components/storage/storage_blob.c
     ../../firmware/components/storage/storage_mount_topology.c
 )
@@ -299,12 +300,22 @@ target_include_directories(
 )
 register_host_test(storage_mount_tests storage_mount storage)
 
+add_test(
+    NAME storage_no_format_policy
+    COMMAND
+        ${CMAKE_COMMAND}
+        -DSTORAGE_MOUNT_SOURCE=${CMAKE_SOURCE_DIR}/../../firmware/components/storage/storage_mount.c
+        -P ${CMAKE_SOURCE_DIR}/cmake/storage_no_format_policy.cmake
+)
+set_tests_properties(storage_no_format_policy PROPERTIES LABELS "storage")
+
 add_executable(
     storage_blob_tests
     test_storage_blob.c
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_blob_core.c
+    ../../firmware/components/storage/storage_blob_recovery.c
     ../../firmware/components/storage/storage_blob.c
 )
 target_include_directories(
@@ -319,6 +330,7 @@ add_executable(
     test_storage_blob_upload.c
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/storage/storage_blob_core.c
+    ../../firmware/components/storage/storage_blob_recovery.c
     ../../firmware/components/storage/storage_blob_upload_core.c
     ../../firmware/components/storage/storage_fs_ops.c
 )
@@ -335,6 +347,7 @@ add_executable(
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_blob_core.c
+    ../../firmware/components/storage/storage_blob_recovery.c
     ../../firmware/components/storage/storage_blob_access_core.c
 )
 target_include_directories(

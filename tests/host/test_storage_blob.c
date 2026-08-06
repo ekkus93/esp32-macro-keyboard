@@ -21,6 +21,8 @@ typedef struct {
     size_t entry_count;
     char invalid_names[CAPTURE_MAX][STORAGE_FS_ENTRY_NAME_MAX];
     size_t invalid_count;
+    char temporary_names[CAPTURE_MAX][STORAGE_FS_ENTRY_NAME_MAX];
+    size_t temporary_count;
 } capture_t;
 
 static app_error_code_t capture_entry(void *context, const storage_blob_entry_t *entry) {
@@ -30,6 +32,20 @@ static app_error_code_t capture_entry(void *context, const storage_blob_entry_t 
     }
     capture->entries[capture->entry_count] = *entry;
     ++capture->entry_count;
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t capture_temporary_name(void *context, const char *name) {
+    capture_t *capture = context;
+    if (capture == NULL || name == NULL || capture->temporary_count >= CAPTURE_MAX) {
+        return APP_ERROR_INTERNAL;
+    }
+    const size_t length = strlen(name);
+    if (length >= sizeof(capture->temporary_names[0])) {
+        return APP_ERROR_INTERNAL;
+    }
+    memcpy(capture->temporary_names[capture->temporary_count], name, length + 1U);
+    ++capture->temporary_count;
     return APP_ERROR_NONE;
 }
 
@@ -75,6 +91,12 @@ static void test_filename_contract(void) {
     TEST_CHECK(!storage_blob_parse_filename("0000000000000000000x.gz", &id));
     TEST_CHECK(!storage_blob_parse_filename(NULL, &id));
     TEST_CHECK(!storage_blob_parse_filename("00000000000000000001.gz", NULL));
+
+    TEST_CHECK(storage_blob_parse_temporary_filename("00000000000000000001.gz.tmp", &id));
+    TEST_CHECK_EQ_U64(1U, id);
+    TEST_CHECK(!storage_blob_parse_temporary_filename("00000000000000000000.gz.tmp", &id));
+    TEST_CHECK(!storage_blob_parse_temporary_filename("00000000000000000001.gz", &id));
+    TEST_CHECK(!storage_blob_parse_temporary_filename("notes.tmp", &id));
 
     char name[STORAGE_BLOB_FILENAME_CAPACITY];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_format_filename(1U, name, sizeof(name)));
@@ -151,17 +173,21 @@ static void test_directory_prepare_and_scan(void) {
         .context = &capture,
         .visit_entry = capture_entry,
         .visit_invalid_name = capture_invalid_name,
+        .visit_temporary_file = capture_temporary_name,
     };
     storage_blob_scan_summary_t summary;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_scan_with_ops(operations, repository, 2U,
                                                                     &observer, &summary));
     TEST_CHECK_EQ_U64(2U, summary.valid_count);
-    TEST_CHECK_EQ_U64(3U, summary.invalid_name_count);
+    TEST_CHECK_EQ_U64(2U, summary.invalid_name_count);
+    TEST_CHECK_EQ_U64(1U, summary.temporary_file_count);
     TEST_CHECK(summary.has_max_id);
     TEST_CHECK_EQ_U64(3U, summary.max_id);
     TEST_CHECK_EQ_U64(4U, summary.next_id);
     TEST_CHECK_EQ_U64(2U, capture.entry_count);
-    TEST_CHECK_EQ_U64(3U, capture.invalid_count);
+    TEST_CHECK_EQ_U64(2U, capture.invalid_count);
+    TEST_CHECK_EQ_U64(1U, capture.temporary_count);
+    TEST_CHECK_EQ_STRING("00000000000000000004.gz.tmp", capture.temporary_names[0]);
 
     TEST_CHECK_EQ_U64(3U, capture.entries[0].id);
     TEST_CHECK_EQ_U64(3U, capture.entries[0].stored_bytes);
@@ -171,6 +197,82 @@ static void test_directory_prepare_and_scan(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          storage_blob_scan_with_ops(operations, repository, 50U, NULL, &summary));
     TEST_CHECK_EQ_U64(50U, summary.next_id);
+    test_temp_dir_remove(&directory);
+}
+
+static int fail_unlink(void *context, const char *path) {
+    (void)context;
+    (void)path;
+    return -1;
+}
+
+static void test_boot_recovery_removes_only_canonical_regular_temporaries(void) {
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char repository[TEST_TEMP_DIR_PATH_MAX];
+    path_join(repository, sizeof(repository), directory.path, "repository");
+    TEST_CHECK(mkdir(repository, (mode_t)0700) == 0);
+
+    char final_path[TEST_TEMP_DIR_PATH_MAX];
+    path_join(final_path, sizeof(final_path), repository, "00000000000000000001.gz");
+    create_file_with_size(final_path, 7U);
+    char temporary_path[TEST_TEMP_DIR_PATH_MAX];
+    path_join(temporary_path, sizeof(temporary_path), repository, "00000000000000000002.gz.tmp");
+    create_file_with_size(temporary_path, 3U);
+    char arbitrary_tmp[TEST_TEMP_DIR_PATH_MAX];
+    path_join(arbitrary_tmp, sizeof(arbitrary_tmp), repository, "notes.tmp");
+    create_file_with_size(arbitrary_tmp, 2U);
+    char temporary_directory[TEST_TEMP_DIR_PATH_MAX];
+    path_join(temporary_directory, sizeof(temporary_directory), repository,
+              "00000000000000000003.gz.tmp");
+    TEST_CHECK(mkdir(temporary_directory, (mode_t)0700) == 0);
+
+    storage_blob_recovery_summary_t recovery = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_recover_with_ops(storage_fs_ops_posix(),
+                                                                       repository, &recovery));
+    TEST_CHECK_EQ_U64(1U, recovery.removed_temporary_file_count);
+    TEST_CHECK(access(temporary_path, F_OK) != 0);
+    TEST_CHECK(access(final_path, F_OK) == 0);
+    TEST_CHECK(access(arbitrary_tmp, F_OK) == 0);
+    TEST_CHECK(access(temporary_directory, F_OK) == 0);
+
+    storage_blob_scan_summary_t summary = {0};
+    capture_t capture = {0};
+    const storage_blob_scan_observer_t observer = {
+        .context = &capture,
+        .visit_entry = capture_entry,
+        .visit_invalid_name = capture_invalid_name,
+        .visit_temporary_file = capture_temporary_name,
+    };
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        storage_blob_scan_with_ops(storage_fs_ops_posix(), repository, 0U, &observer, &summary));
+    TEST_CHECK_EQ_U64(1U, summary.valid_count);
+    TEST_CHECK_EQ_U64(2U, summary.invalid_name_count);
+    TEST_CHECK_EQ_U64(0U, summary.temporary_file_count);
+    TEST_CHECK_EQ_U64(0U, capture.temporary_count);
+
+    test_temp_dir_remove(&directory);
+}
+
+static void test_boot_recovery_reports_unlink_failure(void) {
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char repository[TEST_TEMP_DIR_PATH_MAX];
+    path_join(repository, sizeof(repository), directory.path, "repository");
+    TEST_CHECK(mkdir(repository, (mode_t)0700) == 0);
+    char temporary_path[TEST_TEMP_DIR_PATH_MAX];
+    path_join(temporary_path, sizeof(temporary_path), repository, "00000000000000000002.gz.tmp");
+    create_file_with_size(temporary_path, 3U);
+
+    storage_fs_ops_t operations = *storage_fs_ops_posix();
+    operations.unlink_path = fail_unlink;
+    storage_blob_recovery_summary_t recovery = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO,
+                         storage_blob_recover_with_ops(&operations, repository, &recovery));
+    TEST_CHECK_EQ_U64(0U, recovery.removed_temporary_file_count);
+    TEST_CHECK(access(temporary_path, F_OK) == 0);
+
     test_temp_dir_remove(&directory);
 }
 
@@ -190,6 +292,8 @@ int main(void) {
     test_next_id_derivation();
     test_sort_newest_first();
     test_directory_prepare_and_scan();
+    test_boot_recovery_removes_only_canonical_regular_temporaries();
+    test_boot_recovery_reports_unlink_failure();
     test_prepare_rejects_non_directory();
     puts("storage blob tests passed");
     return EXIT_SUCCESS;

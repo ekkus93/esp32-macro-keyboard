@@ -5,6 +5,7 @@ idf_component_register(
     "storage_mount_topology.c"
     "storage_fs_ops.c"
     "storage_blob_core.c"
+    "storage_blob_recovery.c"
     "storage_blob.c"
     "storage_blob_upload_core.c"
     "storage_blob_upload.c"

@@ -140,6 +140,14 @@ static app_error_code_t notify_invalid_name(const storage_blob_scan_observer_t *
     return observer->visit_invalid_name(observer->context, name);
 }
 
+static app_error_code_t notify_temporary_file(const storage_blob_scan_observer_t *observer,
+                                              const char *name) {
+    if (observer == NULL || observer->visit_temporary_file == NULL) {
+        return APP_ERROR_NONE;
+    }
+    return observer->visit_temporary_file(observer->context, name);
+}
+
 static app_error_code_t notify_entry(const storage_blob_scan_observer_t *observer,
                                      const storage_blob_entry_t *entry) {
     if (observer == NULL || observer->visit_entry == NULL) {
@@ -189,6 +197,24 @@ static app_error_code_t process_directory_entry(storage_blob_scan_context_t *con
                                                 const char *name) {
     uint64_t blob_id = 0U;
     if (!storage_blob_parse_filename(name, &blob_id)) {
+        uint64_t temporary_id = 0U;
+        if (storage_blob_parse_temporary_filename(name, &temporary_id)) {
+            char temporary_path[STORAGE_FS_ENTRY_NAME_MAX * 2U] = {0};
+            app_error_code_t temporary_result =
+                join_path(context->directory_path, name, temporary_path, sizeof(temporary_path));
+            if (temporary_result != APP_ERROR_NONE) {
+                return temporary_result;
+            }
+            struct stat temporary_metadata;
+            if (context->operations->stat_path(context->operations->context, temporary_path,
+                                               &temporary_metadata) != 0) {
+                return APP_ERROR_IO;
+            }
+            if (S_ISREG(temporary_metadata.st_mode)) {
+                ++context->summary->temporary_file_count;
+                return notify_temporary_file(context->observer, name);
+            }
+        }
         ++context->summary->invalid_name_count;
         return notify_invalid_name(context->observer, name);
     }

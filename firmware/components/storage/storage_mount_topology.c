@@ -62,6 +62,11 @@ app_error_code_t storage_prepare_directories(void) {
         return prepared;
     }
 
+    const app_error_code_t recovery_result = storage_blob_recover_startup();
+    if (recovery_result != APP_ERROR_NONE) {
+        return recovery_result;
+    }
+
     uint64_t persisted_next_id = 0U;
     const app_error_code_t counter_result = read_persisted_next_id(&persisted_next_id);
     if (counter_result != APP_ERROR_NONE) {

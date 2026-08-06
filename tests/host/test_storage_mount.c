@@ -13,17 +13,21 @@ typedef struct {
     size_t prepare;
     size_t unmount_web;
     size_t unmount_data;
+    app_error_code_t mount_web_result;
+    app_error_code_t mount_data_result;
     app_error_code_t prepare_result;
 } fixture_t;
 
 static app_error_code_t mount_web(void *context) {
-    ++((fixture_t *)context)->mount_web;
-    return APP_ERROR_NONE;
+    fixture_t *fixture = context;
+    ++fixture->mount_web;
+    return fixture->mount_web_result;
 }
 
 static app_error_code_t mount_data(void *context) {
-    ++((fixture_t *)context)->mount_data;
-    return APP_ERROR_NONE;
+    fixture_t *fixture = context;
+    ++fixture->mount_data;
+    return fixture->mount_data_result;
 }
 
 static app_error_code_t prepare(void *context) {
@@ -66,6 +70,30 @@ static void test_mount_and_unmount(void) {
     TEST_CHECK(!state.data_mounted);
 }
 
+static void test_mount_failures_are_explicit_and_never_prepare(void) {
+    fixture_t fixture = {.mount_web_result = APP_ERROR_STORAGE_UNAVAILABLE};
+    storage_mount_state_t state = {0};
+    storage_mount_ops_t ops = operations(&fixture);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, storage_mount_core_mount(&ops, &state));
+    TEST_CHECK_EQ_U64(1U, fixture.mount_web);
+    TEST_CHECK_EQ_U64(0U, fixture.mount_data);
+    TEST_CHECK_EQ_U64(0U, fixture.prepare);
+    TEST_CHECK_EQ_U64(0U, fixture.unmount_web);
+    TEST_CHECK(!state.web_mounted);
+    TEST_CHECK(!state.data_mounted);
+
+    fixture = (fixture_t){.mount_data_result = APP_ERROR_STORAGE_UNAVAILABLE};
+    state = (storage_mount_state_t){0};
+    ops = operations(&fixture);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, storage_mount_core_mount(&ops, &state));
+    TEST_CHECK_EQ_U64(1U, fixture.mount_web);
+    TEST_CHECK_EQ_U64(1U, fixture.mount_data);
+    TEST_CHECK_EQ_U64(0U, fixture.prepare);
+    TEST_CHECK_EQ_U64(1U, fixture.unmount_web);
+    TEST_CHECK(!state.web_mounted);
+    TEST_CHECK(!state.data_mounted);
+}
+
 static void test_prepare_failure_rolls_back(void) {
     fixture_t fixture = {.prepare_result = APP_ERROR_IO};
     storage_mount_state_t state = {0};
@@ -77,6 +105,7 @@ static void test_prepare_failure_rolls_back(void) {
 
 int main(void) {
     test_mount_and_unmount();
+    test_mount_failures_are_explicit_and_never_prepare();
     test_prepare_failure_rolls_back();
     puts("storage mount tests passed");
     return EXIT_SUCCESS;
