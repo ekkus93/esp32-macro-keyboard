@@ -47,6 +47,20 @@ jobs:
       - name: Apply scoped hardening
         run: python3 scripts/apply-v2-035-recovery-hardening.py
 
+      - name: Repair generated ELF SHA matcher
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/run-v2-035-hardware.py")
+          text = path.read_text(encoding="utf-8")
+          old = 'ELF_SHA_OUTPUT_PATTERN = re.compile(r"ELF file SHA256:\\\\s*([0-9A-Fa-f]{64})")'
+          new = 'ELF_SHA_OUTPUT_PATTERN = re.compile(r"ELF file SHA256:\\s*([0-9A-Fa-f]{64})")'
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one matcher anchor, found {text.count(old)}")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
       - name: Validate collector and regression suite
         run: |
           python3 -m py_compile \
