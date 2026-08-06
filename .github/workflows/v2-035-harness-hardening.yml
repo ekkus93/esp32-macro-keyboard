@@ -1,0 +1,242 @@
+name: V2-035 Hardware Harness Hardening
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/v2-035-harness-hardening.yml
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Harden interrupted upload and evidence provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          script_path = Path("scripts/run-v2-035-hardware.py")
+          script = script_path.read_text(encoding="utf-8")
+          script = script.replace(
+              "import os\nimport socket\n",
+              "import os\nimport re\nimport socket\n",
+              1,
+          )
+          script = script.replace(
+              "STATE_SCHEMA = 1\nREQUIRED_SCENARIOS = (\n",
+              "STATE_SCHEMA = 1\nFIRMWARE_COMMIT_PATTERN = re.compile(r\"^[0-9a-f]{40}$\")\nREQUIRED_SCENARIOS = (\n",
+              1,
+          )
+          script = script.replace(
+              "    baseline = snapshot(api)\n\n    created: list[dict[str, str]] = []\n",
+              "    firmware_commit = args.firmware_sha.strip().lower()\n"
+              "    require(\n"
+              "        FIRMWARE_COMMIT_PATTERN.fullmatch(firmware_commit) is not None,\n"
+              "        \"firmware SHA must be exactly 40 lowercase hexadecimal characters\",\n"
+              "    )\n"
+              "    baseline = snapshot(api)\n\n"
+              "    created: list[dict[str, str]] = []\n",
+              1,
+          )
+          script = script.replace(
+              "        \"baseUrl\": args.base_url.rstrip(\"/\"),\n"
+              "        \"phase\": \"awaiting_power_cycle\",\n",
+              "        \"baseUrl\": args.base_url.rstrip(\"/\"),\n"
+              "        \"firmwareCommit\": firmware_commit,\n"
+              "        \"targetHardware\": \"ESP32-S3R8\",\n"
+              "        \"phase\": \"awaiting_power_cycle\",\n",
+              1,
+          )
+          script = script.replace(
+              '    connection.putrequest("POST", path)\n',
+              '    connection.putrequest("POST", path, skip_host=True)\n',
+              1,
+          )
+          script = script.replace(
+              "def validate_complete_state(state: dict[str, Any]) -> None:\n"
+              "    scenarios = state.get(\"scenarios\")\n",
+              "def validate_complete_state(state: dict[str, Any]) -> None:\n"
+              "    firmware_commit = state.get(\"firmwareCommit\")\n"
+              "    require(\n"
+              "        isinstance(firmware_commit, str)\n"
+              "        and FIRMWARE_COMMIT_PATTERN.fullmatch(firmware_commit) is not None,\n"
+              "        \"evidence is not bound to an exact firmware commit\",\n"
+              "    )\n"
+              "    require(\n"
+              "        state.get(\"targetHardware\") == \"ESP32-S3R8\",\n"
+              "        \"evidence target hardware is not ESP32-S3R8\",\n"
+              "    )\n"
+              "    scenarios = state.get(\"scenarios\")\n",
+              1,
+          )
+          script = script.replace(
+              "    start.add_argument(\"--base-url\", required=True)\n"
+              "    add_online_arguments(start)\n",
+              "    start.add_argument(\"--base-url\", required=True)\n"
+              "    start.add_argument(\"--firmware-sha\", required=True)\n"
+              "    add_online_arguments(start)\n",
+              1,
+          )
+          required_script_fragments = (
+              "import re",
+              "FIRMWARE_COMMIT_PATTERN",
+              'connection.putrequest("POST", path, skip_host=True)',
+              '"firmwareCommit": firmware_commit',
+              'start.add_argument("--firmware-sha", required=True)',
+          )
+          for fragment in required_script_fragments:
+              if fragment not in script:
+                  raise SystemExit(f"script hardening failed to add {fragment!r}")
+          if script.count('connection.putheader("Host", parsed.netloc)') != 1:
+              raise SystemExit("hardware request must emit exactly one explicit Host header")
+          script_path.write_text(script, encoding="utf-8")
+
+          test_path = Path("tests/scripts/test-v2-035-hardware.py")
+          test = test_path.read_text(encoding="utf-8")
+          test = test.replace(
+              '        "task": "V2-035",\n'
+              '        "phase": "ready_to_finalize",\n',
+              '        "task": "V2-035",\n'
+              '        "firmwareCommit": "0123456789abcdef0123456789abcdef01234567",\n'
+              '        "targetHardware": "ESP32-S3R8",\n'
+              '        "phase": "ready_to_finalize",\n',
+              1,
+          )
+          marker = "\ndef test_mount_failure_record() -> None:\n"
+          request_test = r'''
+
+def test_interrupted_upload_request_headers() -> None:
+    class FakeApi:
+        base_url = "http://192.0.2.1:8080/base"
+        timeout = 3.0
+
+        @staticmethod
+        def cookie_header(path: str) -> str:
+            assert path == "/api/v1/blobs"
+            return "session=test"
+
+    class FakeConnection:
+        def __init__(self, host: str, port: int, timeout: float) -> None:
+            self.host = host
+            self.port = port
+            self.timeout = timeout
+            self.requests = []
+            self.headers = []
+            self.ended = False
+
+        def putrequest(self, method: str, path: str, **kwargs) -> None:
+            self.requests.append((method, path, kwargs))
+
+        def putheader(self, name: str, value: str) -> None:
+            self.headers.append((name, value))
+
+        def endheaders(self) -> None:
+            self.ended = True
+
+    original = MODULE.http.client.HTTPConnection
+    MODULE.http.client.HTTPConnection = FakeConnection
+    try:
+        connection = MODULE.open_upload_connection(FakeApi())
+    finally:
+        MODULE.http.client.HTTPConnection = original
+
+    assert connection.requests == [
+        ("POST", "/base/api/v1/blobs", {"skip_host": True})
+    ]
+    host_headers = [
+        value for name, value in connection.headers if name.lower() == "host"
+    ]
+    assert host_headers == ["192.0.2.1:8080"]
+    assert ("Content-Length", str(MODULE.BLOB_MAX_BYTES)) in connection.headers
+    assert connection.ended is True
+'''
+          if marker not in test:
+              raise SystemExit("test insertion marker not found")
+          test = test.replace(marker, request_test + marker, 1)
+          test = test.replace(
+              "    test_complete_validation()\n    test_mount_failure_record()\n",
+              "    test_complete_validation()\n"
+              "    test_interrupted_upload_request_headers()\n"
+              "    test_mount_failure_record()\n",
+              1,
+          )
+          test_path.write_text(test, encoding="utf-8")
+
+          report_path = Path(
+              "docs/implementation-v2/"
+              "V2_035_HARDWARE_EVIDENCE_HARNESS_2026-08-06.md"
+          )
+          report = report_path.read_text(encoding="utf-8")
+          report = report.replace(
+              "export DEVICE_URL='http://192.168.4.1'\n"
+              "export V2_035_PASSWORD='the-current-device-password'\n",
+              "export DEVICE_URL='http://192.168.4.1'\n"
+              "export FIRMWARE_SHA=\"$(git rev-parse HEAD)\"\n"
+              "export V2_035_PASSWORD='the-current-device-password'\n",
+              1,
+          )
+          report = report.replace(
+              "  --base-url \"${DEVICE_URL}\" \\\n"
+              "  --state \"${V2_035_STATE}\"\n",
+              "  --base-url \"${DEVICE_URL}\" \\\n"
+              "  --firmware-sha \"${FIRMWARE_SHA}\" \\\n"
+              "  --state \"${V2_035_STATE}\"\n",
+              1,
+          )
+          report = report.replace(
+              "Each stage verifies byte identity with SHA-256, verifies the exact expected HTTP\n"
+              "status or diagnostic state, and refuses to finalize unless all seven physical\n"
+              "scenarios have a passing observation.\n",
+              "Each stage verifies byte identity with SHA-256, verifies the exact expected HTTP\n"
+              "status or diagnostic state, binds the record to the exact 40-character firmware\n"
+              "commit supplied at the first stage, and refuses to finalize unless all seven\n"
+              "physical scenarios have a passing observation.\n",
+              1,
+          )
+          report_path.write_text(report, encoding="utf-8")
+          PY
+
+      - name: Validate hardened collector
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/run-v2-035-hardware.py \
+            tests/scripts/test-v2-035-hardware.py
+          python3 tests/scripts/test-v2-035-hardware.py
+          python3 scripts/run-v2-035-hardware.py start --help \
+            | grep -F -- '--firmware-sha'
+          git diff --check
+
+      - name: Stage and verify exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/v2-035-harness-hardening.yml
+          git add --all
+          expected_paths="$(printf '%s\n' \
+            .github/workflows/v2-035-harness-hardening.yml \
+            docs/implementation-v2/V2_035_HARDWARE_EVIDENCE_HARNESS_2026-08-06.md \
+            scripts/run-v2-035-hardware.py \
+            tests/scripts/test-v2-035-hardware.py | sort)"
+          test "$(git diff --cached --name-only | sort)" = "${expected_paths}"
+
+      - name: Commit hardened V2-035 harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "test(V2-035): harden physical evidence provenance"
+          git push origin HEAD:master
