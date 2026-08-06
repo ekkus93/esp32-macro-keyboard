@@ -332,11 +332,11 @@ knowledge in firmware.
 
 ## V2-033 — Boot cleanup and degraded states
 
-- [ ] Remove only interrupted `.tmp` files during boot recovery.
-- [ ] Never remove a final `.gz` because React cannot decode it.
-- [ ] Expose mount failure as an explicit degraded or failed storage state.
-- [ ] Ensure mount failure never triggers formatting.
-- [ ] Report temporary and invalid files in diagnostics.
+- [x] Remove only interrupted `.tmp` files during boot recovery.
+- [x] Never remove a final `.gz` because React cannot decode it.
+- [x] Expose mount failure as an explicit degraded or failed storage state.
+- [x] Ensure mount failure never triggers formatting.
+- [x] Report temporary and invalid files in diagnostics.
 
 ## V2-034 — Capacity and candidate blob limit
 
