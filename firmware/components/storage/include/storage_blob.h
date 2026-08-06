@@ -50,6 +50,14 @@ typedef struct {
     char final_path[STORAGE_BLOB_UPLOAD_PATH_CAPACITY];
 } storage_blob_upload_t;
 
+typedef struct {
+    int descriptor;
+    const void *operations;
+    size_t stored_bytes;
+    size_t bytes_read;
+    bool active;
+} storage_blob_reader_t;
+
 typedef app_error_code_t (*storage_blob_entry_visitor_t)(void *context,
                                                          const storage_blob_entry_t *entry);
 typedef app_error_code_t (*storage_blob_invalid_name_visitor_t)(void *context, const char *name);
@@ -69,6 +77,8 @@ app_error_code_t storage_blob_scan_startup(uint64_t persisted_next_id);
 app_error_code_t storage_blob_scan(uint64_t persisted_next_id,
                                    const storage_blob_scan_observer_t *observer,
                                    storage_blob_scan_summary_t *out_summary);
+app_error_code_t storage_blob_list(const storage_blob_scan_observer_t *observer,
+                                   storage_blob_scan_summary_t *out_summary);
 app_error_code_t storage_blob_collect_diagnostics(storage_blob_diagnostics_t *out_diagnostics);
 storage_blob_scan_summary_t storage_blob_scan_state(void);
 app_error_code_t storage_blob_upload_begin(size_t expected_bytes,
@@ -78,5 +88,10 @@ app_error_code_t storage_blob_upload_write(storage_blob_upload_t *upload, const 
 app_error_code_t storage_blob_upload_commit(storage_blob_upload_t *upload,
                                             storage_blob_entry_t *out_entry);
 app_error_code_t storage_blob_upload_abort(storage_blob_upload_t *upload);
+app_error_code_t storage_blob_reader_open(uint64_t blob_id, storage_blob_reader_t *out_reader);
+app_error_code_t storage_blob_reader_read(storage_blob_reader_t *reader, void *buffer,
+                                          size_t buffer_size, size_t *out_count, bool *out_eof);
+app_error_code_t storage_blob_reader_close(storage_blob_reader_t *reader);
+app_error_code_t storage_blob_delete(uint64_t blob_id);
 
 #endif
