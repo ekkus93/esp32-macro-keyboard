@@ -65,6 +65,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 -m py_compile ./scripts/check-v2-034-capacity.py
           python3 ./scripts/check-v2-034-capacity.py
           ./scripts/run-tests.sh
 
