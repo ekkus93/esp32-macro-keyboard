@@ -9,6 +9,7 @@ cd "${repo_root}"
 ./scripts/check-format.sh
 ./scripts/check-static-analysis-policy.sh
 ./scripts/check-partitions.sh
+python3 ./scripts/check-v2-034-capacity.py
 bash ./scripts/check-production-config.sh
 bash ./scripts/check-credential-logging.sh
 bash ./scripts/check-mount-policy.sh
