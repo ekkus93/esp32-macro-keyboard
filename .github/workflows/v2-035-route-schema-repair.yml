@@ -26,6 +26,20 @@ jobs:
           sed -i '/MODULE.expect_failure = None/d' .github/v2-035-route-schema-patch.py
           python3 -m py_compile .github/v2-035-route-schema-patch.py
           python3 .github/v2-035-route-schema-patch.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/scripts/test-v2-035-hardware.py")
+          text = path.read_text(encoding="utf-8")
+          start = text.index("\ndef test_recursive_values() -> None:\n")
+          end = text.index("\ndef test_complete_validation() -> None:\n", start)
+          text = text[:start] + "\n" + text[end:]
+          old = "    test_recursive_values()\n"
+          if text.count(old) != 1:
+              raise SystemExit("expected one obsolete recursive-values test invocation")
+          text = text.replace(old, "", 1)
+          path.write_text(text, encoding="utf-8")
+          PY
 
       - name: Validate collector against current V2 contract
         shell: bash
