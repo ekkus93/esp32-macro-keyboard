@@ -33,6 +33,21 @@ typedef struct {
     size_t used_bytes;
 } blob_list_context_t;
 
+typedef struct {
+    unsigned int code;
+    const char *text;
+} blob_success_status_t;
+
+static const blob_success_status_t BLOB_STATUS_OK = {
+    .code = WEB_HTTP_STATUS_OK,
+    .text = "200 OK",
+};
+
+static const blob_success_status_t BLOB_STATUS_CREATED = {
+    .code = WEB_HTTP_STATUS_CREATED,
+    .text = "201 Created",
+};
+
 static int receive_blob_body(void *context, char *buffer, size_t capacity) {
     httpd_req_t *request = context;
     const int count = httpd_req_recv(request, buffer, capacity);
@@ -96,10 +111,9 @@ static esp_err_t send_blob_error(httpd_req_t *request, const char *request_id, u
 }
 
 static esp_err_t send_blob_success_json(httpd_req_t *request, const char *request_id,
-                                        unsigned int status, const char *status_text,
-                                        const char *data_json) {
+                                        blob_success_status_t status, const char *data_json) {
     web_api_response_t response = {0};
-    const app_error_code_t result = web_api_response_success(&response, status, data_json);
+    const app_error_code_t result = web_api_response_success(&response, status.code, data_json);
     if (result != APP_ERROR_NONE) {
         return send_blob_error(request, request_id, WEB_HTTP_STATUS_INTERNAL_SERVER_ERROR,
                                APP_ERROR_INTERNAL, "blob response encoding failed");
@@ -108,7 +122,7 @@ static esp_err_t send_blob_success_json(httpd_req_t *request, const char *reques
         web_api_response_free(&response);
         return ESP_FAIL;
     }
-    const esp_err_t send_result = send_json(request, response.body, status_text);
+    const esp_err_t send_result = send_json(request, response.body, status.text);
     web_api_response_free(&response);
     return send_result;
 }
@@ -123,8 +137,7 @@ static esp_err_t send_blob_created(httpd_req_t *request, const char *request_id,
         return send_blob_error(request, request_id, WEB_HTTP_STATUS_INTERNAL_SERVER_ERROR,
                                APP_ERROR_INTERNAL, "blob response encoding failed");
     }
-    return send_blob_success_json(request, request_id, WEB_HTTP_STATUS_CREATED, "201 Created",
-                                  data_json);
+    return send_blob_success_json(request, request_id, BLOB_STATUS_CREATED, data_json);
 }
 
 static app_error_code_t authenticate_blob_request(httpd_req_t *request) {
@@ -140,11 +153,11 @@ static app_error_code_t add_blob_list_entry(void *context, const storage_blob_en
         list->used_bytes > SIZE_MAX - entry->stored_bytes) {
         return APP_ERROR_INTERNAL;
     }
-    char id[STORAGE_BLOB_ID_DIGITS + 1U];
-    const int written = snprintf(id, sizeof(id), "%" PRIu64, entry->id);
+    char blob_id_text[STORAGE_BLOB_ID_DIGITS + 1U];
+    const int written = snprintf(blob_id_text, sizeof(blob_id_text), "%" PRIu64, entry->id);
     cJSON *item = cJSON_CreateObject();
-    if (written <= 0 || (size_t)written >= sizeof(id) || item == NULL ||
-        !cJSON_AddStringToObject(item, "id", id) ||
+    if (written <= 0 || (size_t)written >= sizeof(blob_id_text) || item == NULL ||
+        !cJSON_AddStringToObject(item, "id", blob_id_text) ||
         !cJSON_AddNumberToObject(item, "sizeBytes", (double)entry->stored_bytes) ||
         !cJSON_AddItemToArray(list->entries, item)) {
         cJSON_Delete(item);
@@ -254,7 +267,7 @@ esp_err_t blob_list_handler(httpd_req_t *request) {
                                "blob list unavailable");
     }
     const esp_err_t send_result =
-        send_blob_success_json(request, request_id, WEB_HTTP_STATUS_OK, "200 OK", data_json);
+        send_blob_success_json(request, request_id, BLOB_STATUS_OK, data_json);
     cJSON_free(data_json);
     return send_result;
 }
