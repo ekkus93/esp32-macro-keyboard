@@ -1,0 +1,280 @@
+name: V2-032 Route and Ownership Hardening
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.event.head_commit.message == 'Add one-shot V2-032 route ownership hardening'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact source commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+
+      - name: Centralize blob IDs and harden cJSON ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          header = Path("firmware/components/web_server/web_api_core.h")
+          text = header.read_text(encoding="utf-8")
+          text = text.replace("#include <stdbool.h>\n", "#include <stdbool.h>\n#include <stdint.h>\n", 1)
+          old = (
+              "    WEB_API_ROUTE_AUTH_SESSION,\n"
+              "    WEB_API_ROUTE_BLOB_COLLECTION,\n"
+              "    WEB_API_ROUTE_SETTINGS,\n"
+          )
+          new = (
+              "    WEB_API_ROUTE_AUTH_SESSION,\n"
+              "    WEB_API_ROUTE_BLOB_COLLECTION,\n"
+              "    WEB_API_ROUTE_BLOB_ITEM,\n"
+              "    WEB_API_ROUTE_SETTINGS,\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("blob item enum insertion did not match exactly once")
+          text = text.replace(old, new)
+          old = "app_error_code_t web_api_parse_path(const char *uri, web_api_path_t *out_path);\n"
+          new = (
+              "app_error_code_t web_api_parse_path(const char *uri, web_api_path_t *out_path);\n"
+              "app_error_code_t web_api_parse_blob_id(const char *uri, uint64_t *out_blob_id);\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("blob ID declaration point did not match exactly once")
+          header.write_text(text.replace(old, new), encoding="utf-8")
+
+          core = Path("firmware/components/web_server/web_api_core.c")
+          text = core.read_text(encoding="utf-8")
+          text = text.replace("#include <stddef.h>\n", "#include <stddef.h>\n#include <stdint.h>\n", 1)
+          old = "#include \"web_http_status.h\"\n\n"
+          new = "#include \"web_http_status.h\"\n\n#define WEB_API_BLOB_ITEM_PREFIX \"/api/v1/blob/\"\n\n"
+          if text.count(old) != 1:
+              raise SystemExit("blob prefix insertion point did not match exactly once")
+          text = text.replace(old, new)
+          old = (
+              "typedef struct {\n"
+              "    const char *path;\n"
+              "    web_api_route_t route;\n"
+              "} route_entry_t;\n"
+          )
+          new = (
+              "app_error_code_t web_api_parse_blob_id(const char *uri, uint64_t *out_blob_id) {\n"
+              "    if (out_blob_id != NULL) {\n"
+              "        *out_blob_id = 0U;\n"
+              "    }\n"
+              "    if (uri == NULL || out_blob_id == NULL ||\n"
+              "        strncmp(uri, WEB_API_BLOB_ITEM_PREFIX,\n"
+              "                sizeof(WEB_API_BLOB_ITEM_PREFIX) - 1U) != 0 ||\n"
+              "        strchr(uri, '?') != NULL || strchr(uri, '#') != NULL ||\n"
+              "        strchr(uri, '%') != NULL || strstr(uri, \"//\") != NULL ||\n"
+              "        strstr(uri, \"..\") != NULL) {\n"
+              "        return APP_ERROR_INVALID_ARGUMENT;\n"
+              "    }\n"
+              "    const char *value = uri + sizeof(WEB_API_BLOB_ITEM_PREFIX) - 1U;\n"
+              "    const size_t length = strlen(value);\n"
+              "    if (length == 0U || length > 20U || value[0] == '0') {\n"
+              "        return APP_ERROR_INVALID_ARGUMENT;\n"
+              "    }\n"
+              "    uint64_t blob_id = 0U;\n"
+              "    for (size_t index = 0U; index < length; ++index) {\n"
+              "        const unsigned char character = (unsigned char)value[index];\n"
+              "        if (character < (unsigned char)'0' || character > (unsigned char)'9') {\n"
+              "            return APP_ERROR_INVALID_ARGUMENT;\n"
+              "        }\n"
+              "        const uint64_t digit = (uint64_t)(character - (unsigned char)'0');\n"
+              "        if (blob_id > (UINT64_MAX - digit) / UINT64_C(10)) {\n"
+              "            return APP_ERROR_INVALID_ARGUMENT;\n"
+              "        }\n"
+              "        blob_id = blob_id * UINT64_C(10) + digit;\n"
+              "    }\n"
+              "    *out_blob_id = blob_id;\n"
+              "    return APP_ERROR_NONE;\n"
+              "}\n"
+              "\n"
+              "typedef struct {\n"
+              "    const char *path;\n"
+              "    web_api_route_t route;\n"
+              "} route_entry_t;\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("blob ID parser insertion point did not match exactly once")
+          text = text.replace(old, new)
+          old = (
+              "    for (size_t index = 0U; index < sizeof(routes) / sizeof(routes[0]); ++index) {\n"
+              "        if (strcmp(uri, routes[index].path) == 0) {\n"
+              "            out_path->route = routes[index].route;\n"
+              "            return APP_ERROR_NONE;\n"
+              "        }\n"
+              "    }\n"
+              "    return APP_ERROR_NOT_FOUND;\n"
+          )
+          new = (
+              "    for (size_t index = 0U; index < sizeof(routes) / sizeof(routes[0]); ++index) {\n"
+              "        if (strcmp(uri, routes[index].path) == 0) {\n"
+              "            out_path->route = routes[index].route;\n"
+              "            return APP_ERROR_NONE;\n"
+              "        }\n"
+              "    }\n"
+              "    if (strncmp(uri, WEB_API_BLOB_ITEM_PREFIX,\n"
+              "                sizeof(WEB_API_BLOB_ITEM_PREFIX) - 1U) == 0) {\n"
+              "        uint64_t blob_id = 0U;\n"
+              "        const app_error_code_t result = web_api_parse_blob_id(uri, &blob_id);\n"
+              "        if (result != APP_ERROR_NONE) {\n"
+              "            return result;\n"
+              "        }\n"
+              "        (void)blob_id;\n"
+              "        out_path->route = WEB_API_ROUTE_BLOB_ITEM;\n"
+              "        return APP_ERROR_NONE;\n"
+              "    }\n"
+              "    return APP_ERROR_NOT_FOUND;\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("dynamic route classification block did not match exactly once")
+          text = text.replace(old, new)
+          old = (
+              "    case WEB_API_ROUTE_BLOB_COLLECTION:\n"
+              "        return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_POST;\n"
+              "    case WEB_API_ROUTE_SETTINGS:\n"
+          )
+          new = (
+              "    case WEB_API_ROUTE_BLOB_COLLECTION:\n"
+              "        return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_POST;\n"
+              "    case WEB_API_ROUTE_BLOB_ITEM:\n"
+              "        return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_DELETE;\n"
+              "    case WEB_API_ROUTE_SETTINGS:\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("blob item method block did not match exactly once")
+          core.write_text(text.replace(old, new), encoding="utf-8")
+
+          handler = Path("firmware/components/web_server/web_server_blob.c")
+          text = handler.read_text(encoding="utf-8")
+          text = text.replace("#define BLOB_ITEM_PREFIX \"/api/v1/blob/\"\n", "", 1)
+          start = text.find("static app_error_code_t parse_blob_item_id(")
+          end = text.find("static app_error_code_t add_blob_list_entry", start)
+          if start < 0 or end < 0:
+              raise SystemExit("local blob ID parser block was not found")
+          text = text[:start] + text[end:]
+          text = text.replace("parse_blob_item_id(request->uri, &blob_id)",
+                              "web_api_parse_blob_id(request->uri, &blob_id)")
+          old = (
+              "    if (!cJSON_AddItemToObject(root, \"blobs\", entries) ||\n"
+              "        !cJSON_AddNumberToObject(root, \"usedBytes\", (double)list.used_bytes) ||\n"
+              "        !cJSON_AddNumberToObject(root, \"remainingBytes\", (double)remaining_bytes)) {\n"
+              "        cJSON_Delete(root);\n"
+              "        return APP_ERROR_INTERNAL;\n"
+              "    }\n"
+              "    entries = NULL;\n"
+          )
+          new = (
+              "    if (!cJSON_AddNumberToObject(root, \"usedBytes\", (double)list.used_bytes) ||\n"
+              "        !cJSON_AddNumberToObject(root, \"remainingBytes\", (double)remaining_bytes) ||\n"
+              "        !cJSON_AddItemToObject(root, \"blobs\", entries)) {\n"
+              "        cJSON_Delete(root);\n"
+              "        cJSON_Delete(entries);\n"
+              "        return APP_ERROR_INTERNAL;\n"
+              "    }\n"
+              "    entries = NULL;\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("blob list ownership block did not match exactly once")
+          handler.write_text(text.replace(old, new), encoding="utf-8")
+
+          tests = Path("tests/host/test_web_api_core.c")
+          text = tests.read_text(encoding="utf-8")
+          old = (
+              "    expect_route(\"/api/v1/blob\", WEB_API_ROUTE_BLOB_COLLECTION);\n"
+              "    expect_route(\"/api/v1/settings\", WEB_API_ROUTE_SETTINGS);\n"
+          )
+          new = (
+              "    expect_route(\"/api/v1/blob\", WEB_API_ROUTE_BLOB_COLLECTION);\n"
+              "    expect_route(\"/api/v1/blob/7\", WEB_API_ROUTE_BLOB_ITEM);\n"
+              "    expect_route(\"/api/v1/settings\", WEB_API_ROUTE_SETTINGS);\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("active blob item route test insertion did not match exactly once")
+          text = text.replace(old, new)
+          old = (
+              "    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_PUT));\n"
+              "    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));\n"
+          )
+          new = (
+              "    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_PUT));\n"
+              "    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_BLOB_ITEM, WEB_API_METHOD_GET));\n"
+              "    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_BLOB_ITEM, WEB_API_METHOD_DELETE));\n"
+              "    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_BLOB_ITEM, WEB_API_METHOD_POST));\n"
+              "    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("blob item method tests did not match exactly once")
+          text = text.replace(old, new)
+          old = (
+              "static void test_content_type_policy(void) {\n"
+          )
+          parser_test = (
+              "static void test_blob_id_policy(void) {\n"
+              "    uint64_t blob_id = 0U;\n"
+              "    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,\n"
+              "                         web_api_parse_blob_id(\"/api/v1/blob/1\", &blob_id));\n"
+              "    TEST_CHECK_EQ_U64(1U, blob_id);\n"
+              "    TEST_CHECK_APP_ERROR(\n"
+              "        APP_ERROR_NONE,\n"
+              "        web_api_parse_blob_id(\"/api/v1/blob/18446744073709551615\", &blob_id));\n"
+              "    TEST_CHECK_EQ_U64(UINT64_MAX, blob_id);\n"
+              "    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,\n"
+              "                         web_api_parse_blob_id(\"/api/v1/blob/\", &blob_id));\n"
+              "    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,\n"
+              "                         web_api_parse_blob_id(\"/api/v1/blob/0\", &blob_id));\n"
+              "    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,\n"
+              "                         web_api_parse_blob_id(\"/api/v1/blob/01\", &blob_id));\n"
+              "    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,\n"
+              "                         web_api_parse_blob_id(\"/api/v1/blob/a\", &blob_id));\n"
+              "    TEST_CHECK_APP_ERROR(\n"
+              "        APP_ERROR_INVALID_ARGUMENT,\n"
+              "        web_api_parse_blob_id(\"/api/v1/blob/18446744073709551616\", &blob_id));\n"
+              "    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,\n"
+              "                         web_api_parse_blob_id(\"/api/v1/blob/1/2\", &blob_id));\n"
+              "}\n"
+              "\n"
+              "static void test_content_type_policy(void) {\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("blob ID test insertion point did not match exactly once")
+          text = text.replace(old, parser_test)
+          old = (
+              "    test_session_confirmation_and_worker_policy();\n"
+              "    test_content_type_policy();\n"
+          )
+          new = (
+              "    test_session_confirmation_and_worker_policy();\n"
+              "    test_blob_id_policy();\n"
+              "    test_content_type_policy();\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("blob ID test call insertion did not match exactly once")
+          tests.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+          sudo apt-get update
+          sudo apt-get install --yes clang-format
+          clang-format -i \
+            firmware/components/web_server/web_api_core.h \
+            firmware/components/web_server/web_api_core.c \
+            firmware/components/web_server/web_server_blob.c \
+            tests/host/test_web_api_core.c
+          rm .github/workflows/v2-032-route-ownership-hardening.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firmware/components/web_server tests/host/test_web_api_core.c \
+              .github/workflows/v2-032-route-ownership-hardening.yml
+          git diff --cached --check
+          git commit -m "Harden V2-032 blob routes and list ownership"
+          git push origin HEAD:master
