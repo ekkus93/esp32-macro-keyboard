@@ -1,0 +1,100 @@
+name: V2-032 Integrate and Format
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.event.head_commit.message == 'Add one-shot V2-032 integration formatter'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact source commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+
+      - name: Add host target and apply authoritative formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          cmake = Path("tests/host/CMakeLists.txt")
+          text = cmake.read_text(encoding="utf-8")
+          old = (
+              "register_host_test(storage_blob_upload_tests storage_blob_upload storage)\n"
+              "\n"
+              "add_executable(\n"
+              "    storage_atomic_tests\n"
+          )
+          new = (
+              "register_host_test(storage_blob_upload_tests storage_blob_upload storage)\n"
+              "\n"
+              "add_executable(\n"
+              "    storage_blob_access_tests\n"
+              "    test_storage_blob_access.c\n"
+              "    ../../firmware/components/macro_model/app_error.c\n"
+              "    ../../firmware/components/storage/storage_fs_ops.c\n"
+              "    ../../firmware/components/storage/storage_blob_core.c\n"
+              "    ../../firmware/components/storage/storage_blob_access_core.c\n"
+              ")\n"
+              "target_include_directories(\n"
+              "    storage_blob_access_tests\n"
+              "    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include\n"
+              "            ../../firmware/components/storage\n"
+              ")\n"
+              "register_host_test(storage_blob_access_tests storage_blob_access storage)\n"
+              "\n"
+              "add_executable(\n"
+              "    storage_atomic_tests\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("storage access target insertion point did not match exactly once")
+          cmake.write_text(text.replace(old, new), encoding="utf-8")
+
+          handler = Path("firmware/components/web_server/web_server_blob.c")
+          text = handler.read_text(encoding="utf-8")
+          old = (
+              "    app_error_code_t result = storage_blob_list(&observer, &summary);\n"
+              "    if (result != APP_ERROR_NONE || summary.valid_count != cJSON_GetArraySize(entries)) {\n"
+          )
+          new = (
+              "    app_error_code_t result = storage_blob_list(&observer, &summary);\n"
+              "    const int entry_count = cJSON_GetArraySize(entries);\n"
+              "    if (result != APP_ERROR_NONE || entry_count < 0 ||\n"
+              "        summary.valid_count != (size_t)entry_count) {\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("blob list count block did not match exactly once")
+          handler.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+          sudo apt-get update
+          sudo apt-get install --yes clang-format
+          python3 -m pip install --user cmakelang==0.6.13
+          export PATH="$HOME/.local/bin:$PATH"
+          clang-format -i \
+            firmware/components/storage/include/storage_blob.h \
+            firmware/components/storage/storage_blob_internal.h \
+            firmware/components/storage/storage_blob.c \
+            firmware/components/storage/storage_blob_access_core.c \
+            firmware/components/storage/storage_blob_access.c \
+            firmware/components/web_server/web_server_blob.c \
+            firmware/components/web_server/web_server_internal.h \
+            firmware/components/web_server/web_server_lifecycle.c \
+            tests/host/test_storage_blob_access.c
+          cmake-format -i firmware/components/storage/CMakeLists.txt tests/host/CMakeLists.txt
+          rm .github/workflows/v2-032-integrate-format.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firmware/components/storage firmware/components/web_server \
+              tests/host .github/workflows/v2-032-integrate-format.yml
+          git diff --cached --check
+          git commit -m "Integrate V2-032 blob access"
+          git push origin HEAD:master
