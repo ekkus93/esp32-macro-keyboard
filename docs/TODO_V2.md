@@ -340,46 +340,46 @@ knowledge in firmware.
 
 ## V2-034 — Capacity and candidate blob limit
 
-- [ ] Report userdata `totalBytes`, `usedBytes`, and `remainingBytes` through the
+- [x] Report userdata `totalBytes`, `usedBytes`, and `remainingBytes` through the
       existing status contract, and report `blobMaxBytes` through
       `GET /api/v1/limits` from the authoritative shared constant.
-- [ ] Preserve the exact v2 API schemas while adding capacity evidence; do not
+- [x] Preserve the exact v2 API schemas while adding capacity evidence; do not
       silently add `totalBytes` or `maxBlobBytes` to the blob-list response.
-- [ ] Keep `APP_V2_BLOB_MAX_BYTES` at exactly 131,072 bytes (128 KiB) only when
+- [x] Keep `APP_V2_BLOB_MAX_BYTES` at exactly 131,072 bytes (128 KiB) only when
       the real LittleFS image proof supports it; reduce the constant explicitly if
       the proof fails rather than weakening the test or silently changing the
       specification.
-- [ ] Remove the failed `APP_ERROR_LIMIT` mapping and host-test attempt; do not add
+- [x] Remove the failed `APP_ERROR_LIMIT` mapping and host-test attempt; do not add
       a new generic application error solely to represent direct HTTP body-size
       rejection.
-- [ ] Enforce and test direct handler-level `413 Payload Too Large` for a request
+- [x] Enforce and test direct handler-level `413 Payload Too Large` for a request
       body above `APP_V2_BLOB_MAX_BYTES`.
-- [ ] Prove oversized rejection occurs before authentication, temporary-file
+- [x] Prove oversized rejection occurs before authentication, temporary-file
       creation, upload initialization, or any other storage mutation.
-- [ ] Enforce and test `ENOSPC` to `APP_ERROR_STORAGE_FULL` to
+- [x] Enforce and test `ENOSPC` to `APP_ERROR_STORAGE_FULL` to
       `507 Insufficient Storage` when a within-limit upload cannot fit.
-- [ ] Prove every `507` failure leaves all previously committed final blobs
+- [x] Prove every `507` failure leaves all previously committed final blobs
       byte-identical and does not replace or delete them.
-- [ ] Build a real 524,288-byte userdata LittleFS image containing two
+- [x] Build a real 524,288-byte userdata LittleFS image containing two
       maximum-size final blobs and one maximum-size temporary upload.
-- [ ] Include directory and filesystem metadata overhead in the image proof;
+- [x] Include directory and filesystem metadata overhead in the image proof;
       verify all three files byte-for-byte and require a positive safety margin.
-- [ ] Record the measured 128 KiB candidate evidence: 393,216 payload bytes,
+- [x] Record the measured 128 KiB candidate evidence: 393,216 payload bytes,
       421,888 used bytes, 28,672 overhead bytes, and 102,400 remaining bytes.
-- [ ] Integrate the permanent LittleFS capacity and HTTP-contract proof into
+- [x] Integrate the permanent LittleFS capacity and HTTP-contract proof into
       `scripts/check-all.sh` and the authoritative CI dependency setup so missing
       tooling fails explicitly rather than skipping the gate.
-- [ ] Remove all temporary V2-034 probe, implementation, and TODO-edit workflows
+- [x] Remove all temporary V2-034 probe, implementation, and TODO-edit workflows
       after the permanent implementation is committed.
-- [ ] Run Host Tests, Browser Tests, Device Test Build, and Quality on the exact
+- [x] Run Host Tests, Browser Tests, Device Test Build, and Quality on the exact
       final implementation SHA; do not claim completion from an older or partial
       commit.
-- [ ] Create
+- [x] Create
       `docs/implementation-v2/V2_034_CAPACITY_AND_BLOB_LIMIT_2026-08-06.md`
       with the final accepted value, measured image results, commands, CI run and
       job IDs, exact implementation SHA, failed-attempt explanation, and any
       deferred hardware evidence.
-- [ ] Mark V2-034 complete only after the permanent gate, cleanup, implementation
+- [x] Mark V2-034 complete only after the permanent gate, cleanup, implementation
       report, and exact-SHA authoritative CI evidence are all committed.
 
 ## V2-035 — Storage hardware evidence
