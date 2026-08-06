@@ -17,12 +17,24 @@ endif()
 get_filename_component(storage_component_dir "${STORAGE_MOUNT_SOURCE}" DIRECTORY)
 get_filename_component(components_dir "${storage_component_dir}" DIRECTORY)
 get_filename_component(firmware_root "${components_dir}" DIRECTORY)
-file(
-    GLOB_RECURSE production_sources
-    LIST_DIRECTORIES false
-    "${firmware_root}/*.c"
-    "${firmware_root}/*.h"
+set(
+    production_roots
+    "${firmware_root}/components"
+    "${firmware_root}/main"
 )
+set(production_sources)
+foreach(production_root IN LISTS production_roots)
+    if(NOT IS_DIRECTORY "${production_root}")
+        message(FATAL_ERROR "firmware production source root is unavailable: ${production_root}")
+    endif()
+    file(
+        GLOB_RECURSE root_sources
+        LIST_DIRECTORIES false
+        "${production_root}/*.c"
+        "${production_root}/*.h"
+    )
+    list(APPEND production_sources ${root_sources})
+endforeach()
 if(NOT production_sources)
     message(FATAL_ERROR "firmware production sources are unavailable")
 endif()
