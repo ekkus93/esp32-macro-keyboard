@@ -105,7 +105,8 @@ idf_version="$(idf.py --version)"
 	exit 2
 }
 
-app_relative="$(python3 - "${flasher_args}" <<'PY'
+app_relative="$(
+	python3 - "${flasher_args}" <<'PY'
 import json
 import sys
 
