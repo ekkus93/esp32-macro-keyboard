@@ -26,6 +26,22 @@ static ssize_t adapter_write(void *context, int descriptor, const void *buffer, 
     return fake_fs_write(context, descriptor, buffer, length);
 }
 
+static ssize_t overreport_read(void *context, int descriptor, void *buffer, size_t length) {
+    (void)context;
+    (void)descriptor;
+    (void)buffer;
+    (void)length;
+    return 2;
+}
+
+static ssize_t overreport_write(void *context, int descriptor, const void *buffer, size_t length) {
+    (void)context;
+    (void)descriptor;
+    (void)buffer;
+    (void)length;
+    return 2;
+}
+
 static int adapter_sync(void *context, int descriptor) {
     return fake_fs_sync(context, descriptor);
 }
@@ -168,6 +184,32 @@ static void test_short_io_is_completed(void) {
     test_temp_dir_remove(&directory);
 }
 
+static void test_impossible_io_counts_are_rejected(void) {
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char path[APP_PATH_MAX_BYTES];
+    make_path(path, sizeof(path), &directory, "object.bin");
+    static const char data[] = "x";
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    operations.write_file = overreport_write;
+    TEST_CHECK_EQ_INT(APP_ERROR_IO, storage_atomic_write_with_ops(path, data, sizeof(data) - 1U,
+                                                                  true, &operations));
+    TEST_CHECK(access(path, F_OK) != 0);
+    assert_no_temporary_files(&directory);
+
+    fake_fs_backend_reset(&filesystem);
+    operations = make_operations(&filesystem);
+    operations.read_file = overreport_read;
+    TEST_CHECK_EQ_INT(APP_ERROR_IO, storage_atomic_write_with_ops(path, data, sizeof(data) - 1U,
+                                                                  true, &operations));
+    TEST_CHECK(access(path, F_OK) != 0);
+    assert_no_temporary_files(&directory);
+    test_temp_dir_remove(&directory);
+}
+
 /* SPEC 24.2 item: interruption between writing `.tmp` and `rename()` */
 static void test_failures_preserve_destination(void) {
     static const fake_fs_operation_t operations_to_fail[] = {
@@ -265,6 +307,7 @@ int main(void) {
     test_create_and_replace();
     test_create_enforces_operation_sequence();
     test_short_io_is_completed();
+    test_impossible_io_counts_are_rejected();
     test_failures_preserve_destination();
     test_activation_failure_leaves_destination_untouched();
     puts("storage atomic tests passed");

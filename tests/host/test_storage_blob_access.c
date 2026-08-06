@@ -96,16 +96,15 @@ static void test_reader_rejects_overreported_count(void) {
     storage_fs_ops_t operations = *storage_fs_ops_posix();
     operations.read_file = overreport_read;
     storage_blob_reader_t reader = {0};
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        storage_blob_reader_open_with_ops(&operations, repository, 8U, &reader));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_blob_reader_open_with_ops(&operations, repository, 8U, &reader));
 
     unsigned char output = 0U;
     size_t count = 99U;
     bool eof = true;
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
-                         storage_blob_reader_read_with_ops(&reader, &output, sizeof(output), &count,
-                                                           &eof));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_STORAGE_CORRUPT,
+        storage_blob_reader_read_with_ops(&reader, &output, sizeof(output), &count, &eof));
     TEST_CHECK_EQ_U64(0U, count);
     TEST_CHECK(!eof);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_reader_close_with_ops(&reader));

@@ -24,8 +24,8 @@ static app_error_code_t write_all(const storage_fs_ops_t *operations, int descri
     size_t written = 0U;
     while (written < length) {
         const size_t requested = length - written;
-        const intmax_t count = operations->write_file(operations->context, descriptor,
-                                                      data + written, requested);
+        const intmax_t count =
+            operations->write_file(operations->context, descriptor, data + written, requested);
         if (count < 0) {
             const int write_error = errno;
             if (write_error == EINTR) {
@@ -79,8 +79,7 @@ static app_error_code_t verify_file(const storage_fs_ops_t *operations, const ch
 
     if (result == APP_ERROR_NONE) {
         uint8_t extra = 0U;
-        const intmax_t count =
-            operations->read_file(operations->context, descriptor, &extra, 1U);
+        const intmax_t count = operations->read_file(operations->context, descriptor, &extra, 1U);
         if (count < 0) {
             const int read_error = errno;
             result = map_error_number(read_error);
