@@ -8,6 +8,8 @@ idf_component_register(
     "storage_blob.c"
     "storage_blob_upload_core.c"
     "storage_blob_upload.c"
+    "storage_blob_access_core.c"
+    "storage_blob_access.c"
     "storage_atomic.c"
     "storage_health.c"
     INCLUDE_DIRS
