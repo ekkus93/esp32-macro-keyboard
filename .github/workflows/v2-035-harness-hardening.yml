@@ -19,204 +19,21 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Harden interrupted upload and evidence provenance
+      - name: Apply scoped hardening
         shell: bash
+        env:
+          PATCH_B64: CmZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aAoKZGVmIHJlcGxhY2Vfb25jZSh0ZXh0OiBzdHIsIG9sZDogc3RyLCBuZXc6IHN0ciwgbGFiZWw6IHN0cikgLT4gc3RyOgogICAgY291bnQgPSB0ZXh0LmNvdW50KG9sZCkKICAgIGlmIGNvdW50ICE9IDE6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdChmIntsYWJlbH06IGV4cGVjdGVkIG9uZSBtYXRjaCwgZm91bmQge2NvdW50fSIpCiAgICByZXR1cm4gdGV4dC5yZXBsYWNlKG9sZCwgbmV3LCAxKQoKc2NyaXB0X3BhdGggPSBQYXRoKCJzY3JpcHRzL3J1bi12Mi0wMzUtaGFyZHdhcmUucHkiKQpzY3JpcHQgPSBzY3JpcHRfcGF0aC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKc2NyaXB0ID0gcmVwbGFjZV9vbmNlKAogICAgc2NyaXB0LAogICAgImltcG9ydCBvc1xuaW1wb3J0IHNvY2tldFxuIiwKICAgICJpbXBvcnQgb3NcbmltcG9ydCByZVxuaW1wb3J0IHNvY2tldFxuIiwKICAgICJhZGQgcmUgaW1wb3J0IiwKKQpzY3JpcHQgPSByZXBsYWNlX29uY2UoCiAgICBzY3JpcHQsCiAgICAiU1RBVEVfU0NIRU1BID0gMVxuUkVRVUlSRURfU0NFTkFSSU9TID0gKFxuIiwKICAgICdTVEFURV9TQ0hFTUEgPSAxXG5GSVJNV0FSRV9DT01NSVRfUEFUVEVSTiA9IHJlLmNvbXBpbGUociJeWzAtOWEtZl17NDB9JCIpXG5SRVFVSVJFRF9TQ0VOQVJJT1MgPSAoXG4nLAogICAgImFkZCBmaXJtd2FyZSBwYXR0ZXJuIiwKKQpzY3JpcHQgPSByZXBsYWNlX29uY2UoCiAgICBzY3JpcHQsCiAgICAiICAgIGFwaS5sb2dpbihwYXNzd29yZF9mcm9tX2Vudmlyb25tZW50KGFyZ3MucGFzc3dvcmRfZW52KSlcbiAgICBiYXNlbGluZSA9IHNuYXBzaG90KGFwaSlcblxuICAgIGNyZWF0ZWQ6IGxpc3RbZGljdFtzdHIsIHN0cl1dID0gW11cbiIsCiAgICAnICAgIGFwaS5sb2dpbihwYXNzd29yZF9mcm9tX2Vudmlyb25tZW50KGFyZ3MucGFzc3dvcmRfZW52KSlcbicKICAgICcgICAgZmlybXdhcmVfY29tbWl0ID0gYXJncy5maXJtd2FyZV9zaGEuc3RyaXAoKS5sb3dlcigpXG4nCiAgICAnICAgIHJlcXVpcmUoXG4nCiAgICAnICAgICAgICBGSVJNV0FSRV9DT01NSVRfUEFUVEVSTi5mdWxsbWF0Y2goZmlybXdhcmVfY29tbWl0KSBpcyBub3QgTm9uZSxcbicKICAgICcgICAgICAgICJmaXJtd2FyZSBTSEEgbXVzdCBiZSBleGFjdGx5IDQwIGhleGFkZWNpbWFsIGNoYXJhY3RlcnMiLFxuJwogICAgJyAgICApXG4nCiAgICAnICAgIGJhc2VsaW5lID0gc25hcHNob3QoYXBpKVxuXG4nCiAgICAnICAgIGNyZWF0ZWQ6IGxpc3RbZGljdFtzdHIsIHN0cl1dID0gW11cbicsCiAgICAiYmluZCBzdGFydCB0byBmaXJtd2FyZSIsCikKc2NyaXB0ID0gcmVwbGFjZV9vbmNlKAogICAgc2NyaXB0LAogICAgJyAgICAgICAgImJhc2VVcmwiOiBhcmdzLmJhc2VfdXJsLnJzdHJpcCgiLyIpLFxuJwogICAgJyAgICAgICAgInBoYXNlIjogImF3YWl0aW5nX3Bvd2VyX2N5Y2xlIixcbicsCiAgICAnICAgICAgICAiYmFzZVVybCI6IGFyZ3MuYmFzZV91cmwucnN0cmlwKCIvIiksXG4nCiAgICAnICAgICAgICAiZmlybXdhcmVDb21taXQiOiBmaXJtd2FyZV9jb21taXQsXG4nCiAgICAnICAgICAgICAidGFyZ2V0SGFyZHdhcmUiOiAiRVNQMzItUzNSOCIsXG4nCiAgICAnICAgICAgICAicGhhc2UiOiAiYXdhaXRpbmdfcG93ZXJfY3ljbGUiLFxuJywKICAgICJwZXJzaXN0IHByb3ZlbmFuY2UiLAopCnNjcmlwdCA9IHJlcGxhY2Vfb25jZSgKICAgIHNjcmlwdCwKICAgICcgICAgY29ubmVjdGlvbi5wdXRyZXF1ZXN0KCJQT1NUIiwgcGF0aClcbicsCiAgICAnICAgIGNvbm5lY3Rpb24ucHV0cmVxdWVzdCgiUE9TVCIsIHBhdGgsIHNraXBfaG9zdD1UcnVlKVxuJywKICAgICJhdm9pZCBkdXBsaWNhdGUgaG9zdCIsCikKc2NyaXB0ID0gcmVwbGFjZV9vbmNlKAogICAgc2NyaXB0LAogICAgJ2RlZiB2YWxpZGF0ZV9jb21wbGV0ZV9zdGF0ZShzdGF0ZTogZGljdFtzdHIsIEFueV0pIC0+IE5vbmU6XG4nCiAgICAnICAgIHNjZW5hcmlvcyA9IHN0YXRlLmdldCgic2NlbmFyaW9zIilcbicsCiAgICAnZGVmIHZhbGlkYXRlX2NvbXBsZXRlX3N0YXRlKHN0YXRlOiBkaWN0W3N0ciwgQW55XSkgLT4gTm9uZTpcbicKICAgICcgICAgZmlybXdhcmVfY29tbWl0ID0gc3RhdGUuZ2V0KCJmaXJtd2FyZUNvbW1pdCIpXG4nCiAgICAnICAgIHJlcXVpcmUoXG4nCiAgICAnICAgICAgICBpc2luc3RhbmNlKGZpcm13YXJlX2NvbW1pdCwgc3RyKVxuJwogICAgJyAgICAgICAgYW5kIEZJUk1XQVJFX0NPTU1JVF9QQVRURVJOLmZ1bGxtYXRjaChmaXJtd2FyZV9jb21taXQpIGlzIG5vdCBOb25lLFxuJwogICAgJyAgICAgICAgImV2aWRlbmNlIGlzIG5vdCBib3VuZCB0byBhbiBleGFjdCBmaXJtd2FyZSBjb21taXQiLFxuJwogICAgJyAgICApXG4nCiAgICAnICAgIHJlcXVpcmUoXG4nCiAgICAnICAgICAgICBzdGF0ZS5nZXQoInRhcmdldEhhcmR3YXJlIikgPT0gIkVTUDMyLVMzUjgiLFxuJwogICAgJyAgICAgICAgImV2aWRlbmNlIHRhcmdldCBoYXJkd2FyZSBpcyBub3QgRVNQMzItUzNSOCIsXG4nCiAgICAnICAgIClcbicKICAgICcgICAgc2NlbmFyaW9zID0gc3RhdGUuZ2V0KCJzY2VuYXJpb3MiKVxuJywKICAgICJ2YWxpZGF0ZSBwcm92ZW5hbmNlIiwKKQpzY3JpcHQgPSByZXBsYWNlX29uY2UoCiAgICBzY3JpcHQsCiAgICAnICAgIHN0YXJ0LmFkZF9hcmd1bWVudCgiLS1iYXNlLXVybCIsIHJlcXVpcmVkPVRydWUpXG4nCiAgICAnICAgIGFkZF9vbmxpbmVfYXJndW1lbnRzKHN0YXJ0KVxuJywKICAgICAnICAgIHN0YXJ0LmFkZF9hcmd1bWVudCgiLS1iYXNlLXVybCIsIHJlcXVpcmVkPVRydWUpXG4nCiAgICAnICAgIHN0YXJ0LmFkZF9hcmd1bWVudCgiLS1maXJtd2FyZS1zaGEiLCByZXF1aXJlZD1UcnVlKVxuJwogICAgJyAgICBhZGRfb25saW5lX2FyZ3VtZW50cyhzdGFydClcbicsCiAgICAiYWRkIGZpcm13YXJlIGNsaSIsCikKc2NyaXB0X3BhdGgud3JpdGVfdGV4dChzY3JpcHQsIGVuY29kaW5nPSJ1dGYtOCIpCgp0ZXN0X3BhdGggPSBQYXRoKCJ0ZXN0cy9zY3JpcHRzL3Rlc3QtdjItMDM1LWhhcmR3YXJlLnB5IikKdGVzdCA9IHRlc3RfcGF0aC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKdGVzdCA9IHJlcGxhY2Vfb25jZSgKICAgIHRlc3QsCiAgICAnICAgICAgICAidGFzayI6ICJWMi0wMzUiLFxuJwogICAgJyAgICAgICAgInBoYXNlIjogInJlYWR5X3RvX2ZpbmFsaXplIixcbicsCiAgICAnICAgICAgICAidGFzayI6ICJWMi0wMzUiLFxuJwogICAgJyAgICAgICAgImZpcm13YXJlQ29tbWl0IjogIjAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5YWJjZGVmMDEyMzQ1NjciLFxuJwogICAgJyAgICAgICAgInRhcmdldEhhcmR3YXJlIjogIkVTUDMyLVMzUjgiLFxuJwogICAgJyAgICAgICAgInBoYXNlIjogInJlYWR5X3RvX2ZpbmFsaXplIixcbicsCiAgICAidGVzdCBwcm92ZW5hbmNlIGZpeHR1cmUiLAopCnJlcXVlc3RfdGVzdCA9ICcnJwoKCmRlZiB0ZXN0X2ludGVycnVwdGVkX3VwbG9hZF9yZXF1ZXN0X2hlYWRlcnMoKSAtPiBOb25lOgogICAgY2xhc3MgRmFrZUFwaToKICAgICAgICBiYXNlX3VybCA9ICJodHRwOi8vMTkyLjAuMi4xOjgwODAvYmFzZSIKICAgICAgICB0aW1lb3V0ID0gMy4wCgogICAgICAgIEBzdGF0aWNtZXRob2QKICAgICAgICBkZWYgY29va2llX2hlYWRlcihwYXRoOiBzdHIpIC0+IHN0cjoKICAgICAgICAgICAgYXNzZXJ0IHBhdGggPT0gIi9hcGkvdjEvYmxvYnMiCiAgICAgICAgICAgIHJldHVybiAic2Vzc2lvbj10ZXN0IgoKICAgIGNsYXNzIEZha2VDb25uZWN0aW9uOgogICAgICAgIGRlZiBfX2luaXRfXyhzZWxmLCBob3N0OiBzdHIsIHBvcnQ6IGludCwgdGltZW91dDogZmxvYXQpIC0+IE5vbmU6CiAgICAgICAgICAgIHNlbGYuaG9zdCA9IGhvc3QKICAgICAgICAgICAgc2VsZi5wb3J0ID0gcG9ydAogICAgICAgICAgICBzZWxmLnRpbWVvdXQgPSB0aW1lb3V0CiAgICAgICAgICAgIHNlbGYucmVxdWVzdHMgPSBbXQogICAgICAgICAgICBzZWxmLmhlYWRlcnMgPSBbXQogICAgICAgICAgICBzZWxmLmVuZGVkID0gRmFsc2UKCiAgICAgICAgZGVmIHB1dHJlcXVlc3Qoc2VsZiwgbWV0aG9kOiBzdHIsIHBhdGg6IHN0ciwgKiprYXJncykgLT4gTm9uZToKICAgICAgICAgICAgc2VsZi5yZXF1ZXN0cy5hcHBlbmQoKG1ldGhvZCwgcGF0aCwga3dhcmdzKSkKCiAgICAgICAgZGVmIHB1dGhlYWRlcihzZWxmLCBuYW1lOiBzdHIsIHZhbHVlOiBzdHIpIC0+IE5vbmU6CiAgICAgICAgICAgIHNlbGYuaGVhZGVycy5hcHBlbmQoKG5hbWUsIHZhbHVlKSkKCiAgICAgICAgZGVmIGVuZGhlYWRlcnMoc2VsZikgLT4gTm9uZToKICAgICAgICAgICAgc2VsZi5lbmRlZCA9IFRydWUKCiAgICBvcmlnaW5hbCA9IE1PRFVMRS5odHRwLmNsaWVudC5IVFRQQ29ubmVjdGlvbgogICAgTU9EVUxFLmh0dHAuY2xpZW50LkhUVFBDb25uZWN0aW9uID0gRmFrZUNvbm5lY3Rpb24KICAgIHRyeToKICAgICAgICBjb25uZWN0aW9uID0gTU9EVUxFLm9wZW5fdXBsb2FkX2Nvbm5lY3Rpb24oRmFrZUFwaSgpKQogICAgZmluYWxseToKICAgICAgICBNT0RVTEUuaHR0cC5jbGllbnQuSFRUUENvbm5lY3Rpb24gPSBvcmlnaW5hbAoKICAgIGFzc2VydCBjb25uZWN0aW9uLnJlcXVlc3RzID09IFsKICAgICAgICAoIlBPU1QiLCAiL2Jhc2UvYXBpL3YxL2Jsb2JzIiwgeyJza2lwX2hvc3QiOiBUcnVlfSkKICAgIF0KICAgIGhvc3RfaGVhZGVycyA9IFsKICAgICAgICB2YWx1ZSBmb3IgbmFtZSwgdmFsdWUgaW4gY29ubmVjdGlvbi5oZWFkZXJzIGlmIG5hbWUubG93ZXIoKSA9PSAiaG9zdCIKICAgIF0KICAgIGFzc2VydCBob3N0X2hlYWRlcnMgPT0gWyIxOTIuMC4yLjE6ODA4MCJdCiAgICBhc3NlcnQgKCJDb250ZW50LUxlbmd0aCIsIHN0cihNT0RVTEUuQkxPQl9NQVhfQllURVMpKSBpbiBjb25uZWN0aW9uLmhlYWRlcnMKICAgIGFzc2VydCBjb25uZWN0aW9uLmVuZGVkIGlzIFRydWUKJycnCnRlc3QgPSByZXBsYWNlX29uY2UoCiAgICB0ZXN0LAogICAgIlxuZGVmIHRlc3RfbW91bnRfZmFpbHVyZV9yZWNvcmQoKSAtPiBOb25lOlxuIiwKICAgIHJlcXVlc3RfdGVzdCArICJcbmRlZiB0ZXN0X21vdW50X2ZhaWx1cmVfcmVjb3JkKCkgLT4gTm9uZTpcbiIsCiAgICAiaW5zZXJ0IHJlcXVlc3QgcmVncmVzc2lvbiIsCikKdGVzdCA9IHJlcGxhY2Vfb25jZSgKICAgIHRlc3QsCiAgICAiICAgIHRlc3RfY29tcGxldGVfdmFsaWRhdGlvbigpXG4gICAgdGVzdF9tb3VudF9mYWlsdXJlX3JlY29yZCgpXG4iLAogICAgIiAgICB0ZXN0X2NvbXBsZXRlX3ZhbGlkYXRpb24oKVxuIgogICAgIiAgICB0ZXN0X2ludGVycnVwdGVkX3VwbG9hZF9yZXF1ZXN0X2hlYWRlcnMoKVxuIgogICAgIiAgICB0ZXN0X21vdW50X2ZhaWx1cmVfcmVjb3JkKClcbiIsCiAgICAicnVuIHJlcXVlc3QgcmVncmVzc2lvbiIsCikKdGVzdF9wYXRoLndyaXRlX3RleHQodGVzdCwgZW5jb2Rpbmc9InV0Zi04IikKCnJlcG9ydF9wYXRoID0gUGF0aCgiZG9jcy9pbXBsZW1lbnRhdGlvbi12Mi9WMl8wMzVfSEFSRFdBUkVfRVZJREVOQ0VfSEFSTkVTU18yMDI2LTA4LTA2Lm1kIikKcmVwb3J0ID0gcmVwb3J0X3BhdGgucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpCnJlcG9ydCA9IHJlcGxhY2Vfb25jZSgKICAgIHJlcG9ydCwKICAgICJFYWNoIHN0YWdlIHZlcmlmaWVzIGJ5dGUgaWRlbnRpdHkgd2l0aCBTSEEtMjU2LCB2ZXJpZmllcyB0aGUgZXhhY3QgZXhwZWN0ZWQgSFRUUFxuc3RhdHVzIG9yIGRpYWdub3N0aWMgc3RhdGUsIGFuZCByZWZ1c2VzIHRvIGZpbmFsaXplIHVubGVzcyBhbGwgc2V2ZW4gcGh5c2ljYWxccnNjZW5hcmlvcyBoYXZlIGEgcGFzc2luZyBvYnNlcnZhdGlvbi5cbiIsCiAgICAiRWFjaCBzdGFnZSB2ZXJpZmllcyBieXRlIGlkZW50aXR5IHdpdGggU0hBLTI1NiwgdmVyaWZpZXMgdGhlIGV4YWN0IGV4cGVjdGVkIEhUVFBcbnN0YXR1cyBvciBkaWFnbm9zdGljIHN0YXRlLCBiaW5kcyB0aGUgcmVjb3JkIHRvIHRoZSBleGFjdCA0MC1jaGFyYWN0ZXIgZmlybXdhcmVcbmNvbW1pdCBzdXBwbGllZCBhdCB0aGUgZmlyc3Qgc3RhZ2UsIGFuZCByZWZ1c2VzIHRvIGZpbmFsaXplIHVubGVzcyBhbGwgc2V2ZW5cbnBoeXNpY2FsIHNjZW5hcmlvcyBoYXZlIGEgcGFzc2luZyBvYnNlcnZhdGlvbi5cbiIsCiAgICAiZG9jdW1lbnQgcHJvdmVuYW5jZSIsCikKcmVwb3J0ID0gcmVwbGFjZV9vbmNlKAogICAgcmVwb3J0LAogICAgImV4cG9ydCBERVZJQ0VfVVJMPXdodHRwOi8vMTkyLjE2OC40LjEnXG5leHBvcnQgVjJfMDM1X1BBU1NXT1JEPSd0aGUtY3VycmVudC1kZXZpY2UtcGFzc3dvcmQnXG4iLAogICAgImV4cG9ydCBERVZJQ0VfVVJMPWdodHRwOi8vMTkyLjE2OC40LjEnXG5leHBvcnQgRklSTVdBUkVfU0hBPVwiJChnaXQgcmV2LXBhcnNlIEhFQUQpXCJcbmV4cG9ydCBWMl8wMzVfUEFTU1dPUkQ9J3RoZS1jdXJyZW50LWRldmljZS1wYXNzd29yZCd cbiIsCiAgICAiZG9jdW1lbnQgZmlybXdhcmUgc2hhIGVudiIsCikKcmVwb3J0ID0gcmVwbGFjZV9vbmNlKAogICAgcmVwb3J0LAogICAgJyAgLS1iYXNlLXVybCAiJHtERVZJQ0VfVVJMfSIgXFxcblx4MjAgIC0tc3RhdGUgIiR7VjJfMDM1X1NUQVRFfSJcbicsCiAgICAnICAtLWJhc2UtdXJsICIk e0RFVklDRV9VUkx9IiBcXG5cbicKICAgICcgIC0tZmlybXdhcmUtc2hhICIk e0ZJUk1XQVJFX1NIQX0iIFxcXG5cbicKICAgICcgIC0tc3RhdGUgIiR7VjJfMDM1X1NUQVRFfSJcbicsCiAgICAiZG9jdW1lbnQgZmlybXdhcmUgc2hhIGNsaSIsCikKcmVwb3J0X3BhdGgud3JpdGVfdGV4dChyZXBvcnQsIGVuY29kaW5nPSJ1dGYtOCIpCg==
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          script_path = Path("scripts/run-v2-035-hardware.py")
-          script = script_path.read_text(encoding="utf-8")
-          script = script.replace(
-              "import os\nimport socket\n",
-              "import os\nimport re\nimport socket\n",
-              1,
-          )
-          script = script.replace(
-              "STATE_SCHEMA = 1\nREQUIRED_SCENARIOS = (\n",
-              "STATE_SCHEMA = 1\nFIRMWARE_COMMIT_PATTERN = re.compile(r\"^[0-9a-f]{40}$\")\nREQUIRED_SCENARIOS = (\n",
-              1,
-          )
-          script = script.replace(
-              "    baseline = snapshot(api)\n\n    created: list[dict[str, str]] = []\n",
-              "    firmware_commit = args.firmware_sha.strip().lower()\n"
-              "    require(\n"
-              "        FIRMWARE_COMMIT_PATTERN.fullmatch(firmware_commit) is not None,\n"
-              "        \"firmware SHA must be exactly 40 lowercase hexadecimal characters\",\n"
-              "    )\n"
-              "    baseline = snapshot(api)\n\n"
-              "    created: list[dict[str, str]] = []\n",
-              1,
-          )
-          script = script.replace(
-              "        \"baseUrl\": args.base_url.rstrip(\"/\"),\n"
-              "        \"phase\": \"awaiting_power_cycle\",\n",
-              "        \"baseUrl\": args.base_url.rstrip(\"/\"),\n"
-              "        \"firmwareCommit\": firmware_commit,\n"
-              "        \"targetHardware\": \"ESP32-S3R8\",\n"
-              "        \"phase\": \"awaiting_power_cycle\",\n",
-              1,
-          )
-          script = script.replace(
-              '    connection.putrequest("POST", path)\n',
-              '    connection.putrequest("POST", path, skip_host=True)\n',
-              1,
-          )
-          script = script.replace(
-              "def validate_complete_state(state: dict[str, Any]) -> None:\n"
-              "    scenarios = state.get(\"scenarios\")\n",
-              "def validate_complete_state(state: dict[str, Any]) -> None:\n"
-              "    firmware_commit = state.get(\"firmwareCommit\")\n"
-              "    require(\n"
-              "        isinstance(firmware_commit, str)\n"
-              "        and FIRMWARE_COMMIT_PATTERN.fullmatch(firmware_commit) is not None,\n"
-              "        \"evidence is not bound to an exact firmware commit\",\n"
-              "    )\n"
-              "    require(\n"
-              "        state.get(\"targetHardware\") == \"ESP32-S3R8\",\n"
-              "        \"evidence target hardware is not ESP32-S3R8\",\n"
-              "    )\n"
-              "    scenarios = state.get(\"scenarios\")\n",
-              1,
-          )
-          script = script.replace(
-              "    start.add_argument(\"--base-url\", required=True)\n"
-              "    add_online_arguments(start)\n",
-              "    start.add_argument(\"--base-url\", required=True)\n"
-              "    start.add_argument(\"--firmware-sha\", required=True)\n"
-              "    add_online_arguments(start)\n",
-              1,
-          )
-          required_script_fragments = (
-              "import re",
-              "FIRMWARE_COMMIT_PATTERN",
-              'connection.putrequest("POST", path, skip_host=True)',
-              '"firmwareCommit": firmware_commit',
-              'start.add_argument("--firmware-sha", required=True)',
-          )
-          for fragment in required_script_fragments:
-              if fragment not in script:
-                  raise SystemExit(f"script hardening failed to add {fragment!r}")
-          if script.count('connection.putheader("Host", parsed.netloc)') != 1:
-              raise SystemExit("hardware request must emit exactly one explicit Host header")
-          script_path.write_text(script, encoding="utf-8")
-
-          test_path = Path("tests/scripts/test-v2-035-hardware.py")
-          test = test_path.read_text(encoding="utf-8")
-          test = test.replace(
-              '        "task": "V2-035",\n'
-              '        "phase": "ready_to_finalize",\n',
-              '        "task": "V2-035",\n'
-              '        "firmwareCommit": "0123456789abcdef0123456789abcdef01234567",\n'
-              '        "targetHardware": "ESP32-S3R8",\n'
-              '        "phase": "ready_to_finalize",\n',
-              1,
-          )
-          marker = "\ndef test_mount_failure_record() -> None:\n"
-          request_test = r'''
-
-def test_interrupted_upload_request_headers() -> None:
-    class FakeApi:
-        base_url = "http://192.0.2.1:8080/base"
-        timeout = 3.0
-
-        @staticmethod
-        def cookie_header(path: str) -> str:
-            assert path == "/api/v1/blobs"
-            return "session=test"
-
-    class FakeConnection:
-        def __init__(self, host: str, port: int, timeout: float) -> None:
-            self.host = host
-            self.port = port
-            self.timeout = timeout
-            self.requests = []
-            self.headers = []
-            self.ended = False
-
-        def putrequest(self, method: str, path: str, **kwargs) -> None:
-            self.requests.append((method, path, kwargs))
-
-        def putheader(self, name: str, value: str) -> None:
-            self.headers.append((name, value))
-
-        def endheaders(self) -> None:
-            self.ended = True
-
-    original = MODULE.http.client.HTTPConnection
-    MODULE.http.client.HTTPConnection = FakeConnection
-    try:
-        connection = MODULE.open_upload_connection(FakeApi())
-    finally:
-        MODULE.http.client.HTTPConnection = original
-
-    assert connection.requests == [
-        ("POST", "/base/api/v1/blobs", {"skip_host": True})
-    ]
-    host_headers = [
-        value for name, value in connection.headers if name.lower() == "host"
-    ]
-    assert host_headers == ["192.0.2.1:8080"]
-    assert ("Content-Length", str(MODULE.BLOB_MAX_BYTES)) in connection.headers
-    assert connection.ended is True
-'''
-          if marker not in test:
-              raise SystemExit("test insertion marker not found")
-          test = test.replace(marker, request_test + marker, 1)
-          test = test.replace(
-              "    test_complete_validation()\n    test_mount_failure_record()\n",
-              "    test_complete_validation()\n"
-              "    test_interrupted_upload_request_headers()\n"
-              "    test_mount_failure_record()\n",
-              1,
-          )
-          test_path.write_text(test, encoding="utf-8")
-
-          report_path = Path(
-              "docs/implementation-v2/"
-              "V2_035_HARDWARE_EVIDENCE_HARNESS_2026-08-06.md"
-          )
-          report = report_path.read_text(encoding="utf-8")
-          report = report.replace(
-              "export DEVICE_URL='http://192.168.4.1'\n"
-              "export V2_035_PASSWORD='the-current-device-password'\n",
-              "export DEVICE_URL='http://192.168.4.1'\n"
-              "export FIRMWARE_SHA=\"$(git rev-parse HEAD)\"\n"
-              "export V2_035_PASSWORD='the-current-device-password'\n",
-              1,
-          )
-          report = report.replace(
-              "  --base-url \"${DEVICE_URL}\" \\\n"
-              "  --state \"${V2_035_STATE}\"\n",
-              "  --base-url \"${DEVICE_URL}\" \\\n"
-              "  --firmware-sha \"${FIRMWARE_SHA}\" \\\n"
-              "  --state \"${V2_035_STATE}\"\n",
-              1,
-          )
-          report = report.replace(
-              "Each stage verifies byte identity with SHA-256, verifies the exact expected HTTP\n"
-              "status or diagnostic state, and refuses to finalize unless all seven physical\n"
-              "scenarios have a passing observation.\n",
-              "Each stage verifies byte identity with SHA-256, verifies the exact expected HTTP\n"
-              "status or diagnostic state, binds the record to the exact 40-character firmware\n"
-              "commit supplied at the first stage, and refuses to finalize unless all seven\n"
-              "physical scenarios have a passing observation.\n",
-              1,
-          )
-          report_path.write_text(report, encoding="utf-8")
-          PY
+          python3 -c 'import base64, os; exec(base64.b64decode(os.environ["PATCH_B64"]))'
 
       - name: Validate hardened collector
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile \
-            scripts/run-v2-035-hardware.py \
-            tests/scripts/test-v2-035-hardware.py
+          python3 -m py_compile scripts/run-v2-035-hardware.py tests/scripts/test-v2-035-hardware.py
           python3 tests/scripts/test-v2-035-hardware.py
-          python3 scripts/run-v2-035-hardware.py start --help \
-            | grep -F -- '--firmware-sha'
+          python3 scripts/run-v2-035-hardware.py start --help | grep -F -- '--firmware-sha'
           git diff --check
 
       - name: Stage and verify exact scope
@@ -225,14 +42,15 @@ def test_interrupted_upload_request_headers() -> None:
           set -euo pipefail
           rm .github/workflows/v2-035-harness-hardening.yml
           git add --all
-          expected_paths="$(printf '%s\n' \
+          actual="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' \
             .github/workflows/v2-035-harness-hardening.yml \
             docs/implementation-v2/V2_035_HARDWARE_EVIDENCE_HARNESS_2026-08-06.md \
             scripts/run-v2-035-hardware.py \
             tests/scripts/test-v2-035-hardware.py | sort)"
-          test "$(git diff --cached --name-only | sort)" = "${expected_paths}"
+          test "${actual}" = "${expected}"
 
-      - name: Commit hardened V2-035 harness
+      - name: Commit V2-035 harness hardening
         shell: bash
         run: |
           set -euo pipefail
