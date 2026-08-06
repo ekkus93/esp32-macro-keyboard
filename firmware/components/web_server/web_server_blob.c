@@ -24,6 +24,9 @@
 #define BLOB_CONTENT_TYPE_MAX_BYTES 64U
 #define BLOB_CREATED_JSON_MAX_BYTES 128U
 
+_Static_assert(WEB_API_BLOB_ID_DIGITS == STORAGE_BLOB_ID_DIGITS,
+               "API and storage blob ID widths must match");
+
 typedef struct {
     storage_blob_upload_t *upload;
 } blob_stream_context_t;

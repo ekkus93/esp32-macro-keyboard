@@ -6,7 +6,6 @@
 #include <string.h>
 
 #include "app_error.h"
-#include "storage_blob.h"
 #include "web_http_status.h"
 
 #define WEB_API_BLOB_ITEM_PREFIX "/api/v1/blob/"
@@ -96,7 +95,7 @@ app_error_code_t web_api_parse_blob_id(const char *uri, uint64_t *out_blob_id) {
     }
     const char *value = uri + sizeof(WEB_API_BLOB_ITEM_PREFIX) - 1U;
     const size_t length = strlen(value);
-    if (length == 0U || length > STORAGE_BLOB_ID_DIGITS || value[0] == '0') {
+    if (length == 0U || length > WEB_API_BLOB_ID_DIGITS || value[0] == '0') {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     uint64_t blob_id = 0U;
