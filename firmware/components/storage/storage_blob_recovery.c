@@ -124,7 +124,7 @@ app_error_code_t storage_blob_recover_startup(void) {
         return result;
     }
     if (summary.removed_temporary_file_count > 0U &&
-        storage_fs_sync_parent_path(NULL, STORAGE_BLOB_DIRECTORY "/recovery") != 0) {
+        storage_fs_sync_parent_path(NULL, STORAGE_BLOB_DIRECTORY "/.") != 0) {
         return APP_ERROR_IO;
     }
     return APP_ERROR_NONE;
