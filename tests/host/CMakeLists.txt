@@ -330,6 +330,21 @@ target_include_directories(
 register_host_test(storage_blob_upload_tests storage_blob_upload storage)
 
 add_executable(
+    storage_blob_access_tests
+    test_storage_blob_access.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/storage/storage_fs_ops.c
+    ../../firmware/components/storage/storage_blob_core.c
+    ../../firmware/components/storage/storage_blob_access_core.c
+)
+target_include_directories(
+    storage_blob_access_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/storage/include
+            ../../firmware/components/storage
+)
+register_host_test(storage_blob_access_tests storage_blob_access storage)
+
+add_executable(
     storage_atomic_tests
     test_storage_atomic.c
     ../../firmware/components/macro_model/app_error.c

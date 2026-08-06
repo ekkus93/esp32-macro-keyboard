@@ -139,8 +139,8 @@ static app_error_code_t parse_blob_item_id(const char *uri, uint64_t *out_blob_i
     if (out_blob_id != NULL) {
         *out_blob_id = 0U;
     }
-    if (uri == NULL || out_blob_id == NULL || strncmp(uri, BLOB_ITEM_PREFIX,
-                                                       sizeof(BLOB_ITEM_PREFIX) - 1U) != 0) {
+    if (uri == NULL || out_blob_id == NULL ||
+        strncmp(uri, BLOB_ITEM_PREFIX, sizeof(BLOB_ITEM_PREFIX) - 1U) != 0) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     const char *value = uri + sizeof(BLOB_ITEM_PREFIX) - 1U;
@@ -202,7 +202,8 @@ static app_error_code_t build_blob_list_json(char **out_json) {
     };
     storage_blob_scan_summary_t summary = {0};
     app_error_code_t result = storage_blob_list(&observer, &summary);
-    if (result != APP_ERROR_NONE || summary.valid_count != cJSON_GetArraySize(entries)) {
+    const int entry_count = cJSON_GetArraySize(entries);
+    if (result != APP_ERROR_NONE || entry_count < 0 || summary.valid_count != (size_t)entry_count) {
         cJSON_Delete(root);
         cJSON_Delete(entries);
         return result == APP_ERROR_NONE ? APP_ERROR_INTERNAL : result;
@@ -210,8 +211,8 @@ static app_error_code_t build_blob_list_json(char **out_json) {
 
     size_t total_bytes = 0U;
     size_t partition_used_bytes = 0U;
-    result = storage_partition_capacity(STORAGE_DATA_PARTITION, &total_bytes,
-                                        &partition_used_bytes);
+    result =
+        storage_partition_capacity(STORAGE_DATA_PARTITION, &total_bytes, &partition_used_bytes);
     if (result != APP_ERROR_NONE || partition_used_bytes > total_bytes) {
         cJSON_Delete(root);
         cJSON_Delete(entries);
@@ -281,8 +282,8 @@ esp_err_t blob_list_handler(httpd_req_t *request) {
         return send_blob_error(request, request_id, blob_error_status(result), result,
                                "blob list unavailable");
     }
-    const esp_err_t send_result = send_blob_success_json(
-        request, request_id, WEB_HTTP_STATUS_OK, "200 OK", data_json);
+    const esp_err_t send_result =
+        send_blob_success_json(request, request_id, WEB_HTTP_STATUS_OK, "200 OK", data_json);
     cJSON_free(data_json);
     return send_result;
 }

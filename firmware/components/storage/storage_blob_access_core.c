@@ -14,17 +14,17 @@
 #include "storage_fs_ops.h"
 
 static bool access_ops_valid(const storage_fs_ops_t *operations) {
-    return operations != NULL && operations->open_file != NULL &&
-           operations->read_file != NULL && operations->close_file != NULL &&
-           operations->stat_path != NULL && operations->unlink_path != NULL;
+    return operations != NULL && operations->open_file != NULL && operations->read_file != NULL &&
+           operations->close_file != NULL && operations->stat_path != NULL &&
+           operations->unlink_path != NULL;
 }
 
 static app_error_code_t path_error(int error_number) {
     return error_number == ENOENT ? APP_ERROR_NOT_FOUND : APP_ERROR_IO;
 }
 
-static app_error_code_t build_blob_path(const char *directory_path, uint64_t blob_id, char *out_path,
-                                        size_t path_size) {
+static app_error_code_t build_blob_path(const char *directory_path, uint64_t blob_id,
+                                        char *out_path, size_t path_size) {
     if (directory_path == NULL || directory_path[0] == '\0' || out_path == NULL ||
         path_size == 0U || blob_id == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -112,8 +112,8 @@ app_error_code_t storage_blob_reader_read_with_ops(storage_blob_reader_t *reader
     if (requested > buffer_size) {
         requested = buffer_size;
     }
-    const ssize_t count = operations->read_file(operations->context, reader->descriptor, buffer,
-                                                requested);
+    const ssize_t count =
+        operations->read_file(operations->context, reader->descriptor, buffer, requested);
     if (count < 0) {
         return APP_ERROR_IO;
     }
@@ -127,8 +127,7 @@ app_error_code_t storage_blob_reader_read_with_ops(storage_blob_reader_t *reader
 }
 
 app_error_code_t storage_blob_reader_close_with_ops(storage_blob_reader_t *reader) {
-    if (reader == NULL || !reader->active || reader->descriptor < 0 ||
-        reader->operations == NULL) {
+    if (reader == NULL || !reader->active || reader->descriptor < 0 || reader->operations == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     const storage_fs_ops_t *operations = reader->operations;

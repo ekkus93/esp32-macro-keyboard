@@ -46,9 +46,8 @@ static void test_reader_preserves_exact_bytes(void) {
     create_file(path, payload, sizeof(payload));
 
     storage_blob_reader_t reader = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_reader_open_with_ops(storage_fs_ops_posix(), repository, 7U,
-                                                          &reader));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_reader_open_with_ops(
+                                             storage_fs_ops_posix(), repository, 7U, &reader));
     TEST_CHECK(reader.active);
     TEST_CHECK_EQ_U64(sizeof(payload), reader.stored_bytes);
 
@@ -59,19 +58,17 @@ static void test_reader_preserves_exact_bytes(void) {
                          storage_blob_reader_read_with_ops(&reader, output, 2U, &count, &eof));
     TEST_CHECK_EQ_U64(2U, count);
     TEST_CHECK(!eof);
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE,
-        storage_blob_reader_read_with_ops(&reader, output + count, sizeof(output) - count, &count,
-                                          &eof));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         storage_blob_reader_read_with_ops(&reader, output + count,
+                                                           sizeof(output) - count, &count, &eof));
     TEST_CHECK_EQ_U64(sizeof(payload) - 2U, count);
     TEST_CHECK(eof);
     TEST_CHECK(memcmp(output, payload, sizeof(payload)) == 0);
 
     count = 99U;
     eof = false;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_reader_read_with_ops(&reader, output, sizeof(output), &count,
-                                                          &eof));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_reader_read_with_ops(
+                                             &reader, output, sizeof(output), &count, &eof));
     TEST_CHECK_EQ_U64(0U, count);
     TEST_CHECK(eof);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_reader_close_with_ops(&reader));
@@ -89,15 +86,13 @@ static void test_empty_blob_streams_as_empty(void) {
     create_file(path, NULL, 0U);
 
     storage_blob_reader_t reader = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_reader_open_with_ops(storage_fs_ops_posix(), repository, 1U,
-                                                          &reader));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_reader_open_with_ops(
+                                             storage_fs_ops_posix(), repository, 1U, &reader));
     unsigned char byte = 0U;
     size_t count = 1U;
     bool eof = false;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         storage_blob_reader_read_with_ops(&reader, &byte, sizeof(byte), &count,
-                                                          &eof));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_reader_read_with_ops(
+                                             &reader, &byte, sizeof(byte), &count, &eof));
     TEST_CHECK_EQ_U64(0U, count);
     TEST_CHECK(eof);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_reader_close_with_ops(&reader));
@@ -110,26 +105,25 @@ static void test_open_rejects_missing_and_nonregular(void) {
     make_repository(&directory, repository, sizeof(repository));
 
     storage_blob_reader_t reader = {.descriptor = 99, .active = true};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND,
-                         storage_blob_reader_open_with_ops(storage_fs_ops_posix(), repository, 4U,
-                                                          &reader));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NOT_FOUND, storage_blob_reader_open_with_ops(
+                                                  storage_fs_ops_posix(), repository, 4U, &reader));
     TEST_CHECK_EQ_INT(-1, reader.descriptor);
     TEST_CHECK(!reader.active);
 
     char path[TEST_TEMP_DIR_PATH_MAX];
     path_join(path, sizeof(path), repository, "00000000000000000004.gz");
     TEST_CHECK(mkdir(path, (mode_t)0700) == 0);
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
-                         storage_blob_reader_open_with_ops(storage_fs_ops_posix(), repository, 4U,
-                                                          &reader));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_blob_reader_open_with_ops(storage_fs_ops_posix(), repository, 0U,
-                                                          &reader));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_STORAGE_CORRUPT,
+        storage_blob_reader_open_with_ops(storage_fs_ops_posix(), repository, 4U, &reader));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        storage_blob_reader_open_with_ops(storage_fs_ops_posix(), repository, 0U, &reader));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          storage_blob_reader_open_with_ops(NULL, repository, 1U, &reader));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_blob_reader_open_with_ops(storage_fs_ops_posix(), repository, 1U,
-                                                          NULL));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        storage_blob_reader_open_with_ops(storage_fs_ops_posix(), repository, 1U, NULL));
     test_temp_dir_remove(&directory);
 }
 
@@ -138,13 +132,12 @@ static void test_reader_argument_validation(void) {
     size_t count = 0U;
     bool eof = false;
     storage_blob_reader_t reader = {.descriptor = -1};
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_blob_reader_read_with_ops(NULL, &byte, sizeof(byte), &count, &eof));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_blob_reader_read_with_ops(&reader, &byte, sizeof(byte), &count,
-                                                          &eof));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                         storage_blob_reader_close_with_ops(&reader));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_blob_reader_read_with_ops(
+                                                         NULL, &byte, sizeof(byte), &count, &eof));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        storage_blob_reader_read_with_ops(&reader, &byte, sizeof(byte), &count, &eof));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, storage_blob_reader_close_with_ops(&reader));
 }
 
 static void test_delete_removes_only_selected_final_blob(void) {
