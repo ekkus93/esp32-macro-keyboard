@@ -40,7 +40,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install --yes clang-format clang-tidy jq libcjson-dev shellcheck
-          python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0 littlefs-python==0.15.0
+          python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0
           export GOTOOLCHAIN=go1.25.12
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
           go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0
@@ -49,6 +49,14 @@ jobs:
 
       - name: Install ESP-IDF v5.5.5
         run: ./scripts/install-esp-idf.sh
+
+      - name: Install V2-034 LittleFS dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh"
+          python3 -m pip install littlefs-python==0.15.0
+          python3 -c 'from importlib.metadata import version; assert version("littlefs-python") == "0.15.0"'
 
       - name: Install frontend dependencies
         working-directory: webapp
