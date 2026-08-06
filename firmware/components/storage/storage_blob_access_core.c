@@ -8,7 +8,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 
 #include "app_error.h"
 #include "storage_blob.h"
@@ -115,16 +114,17 @@ app_error_code_t storage_blob_reader_read_with_ops(storage_blob_reader_t *reader
     if (requested > buffer_size) {
         requested = buffer_size;
     }
-    const ssize_t count =
+    const intmax_t count =
         operations->read_file(operations->context, reader->descriptor, buffer, requested);
     if (count < 0) {
         return APP_ERROR_IO;
     }
-    if (count == 0 || (size_t)count > requested) {
+    if (count == 0 || (uintmax_t)count > (uintmax_t)requested) {
         return APP_ERROR_STORAGE_CORRUPT;
     }
-    reader->bytes_read += (size_t)count;
-    *out_count = (size_t)count;
+    const size_t count_bytes = (size_t)count;
+    reader->bytes_read += count_bytes;
+    *out_count = count_bytes;
     *out_eof = reader->bytes_read == reader->stored_bytes;
     return APP_ERROR_NONE;
 }
