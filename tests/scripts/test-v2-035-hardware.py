@@ -35,6 +35,10 @@ def complete_state() -> dict:
         "schemaVersion": MODULE.STATE_SCHEMA,
         "task": "V2-035",
         "firmwareCommit": "0123456789abcdef0123456789abcdef01234567",
+        "firmwareBuildId": "a" * 39,
+        "appImageSha256": "b" * 64,
+        "appElfSha256": "a" * 64,
+        "flashManifestSha256": "c" * 64,
         "targetHardware": "ESP32-S3R8",
         "phase": "ready_to_finalize",
         "scenarios": scenarios,
@@ -73,9 +77,10 @@ def test_current_v2_routes() -> None:
 
 
 def test_diagnostics_schema() -> None:
+    assert MODULE.BUILD_ID_PATTERN.fullmatch("a" * 39) is not None
     parsed = MODULE.parse_diagnostics(
         {
-            "buildId": "abc123",
+            "buildId": "a" * 39,
             "resetReason": "power-on",
             "uptimeMs": 12,
             "blobScan": {"temporaryFileCount": 0, "temporaryFiles": []},
@@ -87,12 +92,43 @@ def test_diagnostics_schema() -> None:
     expect_failure(
         MODULE.parse_diagnostics,
         {
-            "buildId": "abc123",
+            "buildId": "a" * 39,
             "resetReason": "power-on",
             "uptimeMs": 12,
             "blobScan": {"temporaryFileCount": 1, "temporaryFiles": []},
         },
     )
+
+
+def test_flash_manifest_provenance() -> None:
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        manifest_path = Path(temporary_directory) / "flash-manifest.json"
+        manifest_path.write_text(
+            json.dumps(
+                {
+                    "gitCommit": "0123456789abcdef0123456789abcdef01234567",
+                    "gitDirty": False,
+                    "buildType": "production",
+                    "espIdfVersion": "ESP-IDF v5.5.5",
+                    "appImageSha256": "b" * 64,
+                    "appElfSha256": "a" * 64,
+                    "diagnosticsBuildId": "a" * 39,
+                }
+            ),
+            encoding="utf-8",
+        )
+        manifest = MODULE.load_flash_manifest(manifest_path)
+        MODULE.verify_firmware_provenance(manifest, {"buildId": "a" * 39})
+        expect_failure(
+            MODULE.verify_firmware_provenance,
+            manifest,
+            {"buildId": "d" * 39},
+        )
+
+        dirty = json.loads(manifest_path.read_text(encoding="utf-8"))
+        dirty["gitDirty"] = True
+        manifest_path.write_text(json.dumps(dirty), encoding="utf-8")
+        expect_failure(MODULE.load_flash_manifest, manifest_path)
 
 def test_interrupted_upload_request_headers() -> None:
     class FakeApi:
@@ -195,6 +231,7 @@ def main() -> int:
     test_complete_validation()
     test_current_v2_routes()
     test_diagnostics_schema()
+    test_flash_manifest_provenance()
     test_interrupted_upload_request_headers()
     test_mount_failure_record()
     print("PASS: V2-035 hardware evidence collector regression tests")

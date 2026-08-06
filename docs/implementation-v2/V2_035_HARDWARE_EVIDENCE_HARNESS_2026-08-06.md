@@ -41,18 +41,35 @@ plural blob paths are rejected by the collector regression suite.
 
 ## Prerequisites
 
-1. Flash the production firmware from the exact commit being validated.
-2. Complete first-run provisioning and connect the test computer to the board.
-3. Confirm `GET /api/v1/status` is reachable through the production network
+1. Check out the exact clean commit being validated and source ESP-IDF v5.5.5.
+2. Build the production firmware and generate `firmware/build/flash-manifest.json`
+   with `scripts/generate-flash-manifest.sh`. The manifest must report
+   `gitDirty: false` and `buildType: production`.
+3. Flash the application image represented by that exact manifest.
+4. Complete first-run provisioning and connect the test computer to the board.
+5. Confirm `GET /api/v1/status` is reachable through the production network
    path.
-4. Use ESP-IDF v5.5.5 for the destructive partition stage.
-5. Keep the working state outside the repository until finalization.
+6. Keep the working state outside the repository until finalization.
+
+Example build provenance commands:
+
+```bash
+git status --short
+idf.py -C firmware build
+bash scripts/generate-flash-manifest.sh
+python3 -m json.tool firmware/build/flash-manifest.json
+```
+
+The collector rejects dirty or development manifests and refuses to start if
+the board's 39-character diagnostics `buildId` differs from the ELF SHA prefix
+recorded by `esptool.py image_info` for the manifest's application image. This
+comparison happens before any V2-035 blob is created or deleted.
 
 Example environment:
 
 ```bash
 export DEVICE_URL='http://192.168.4.1'
-export FIRMWARE_SHA="$(git rev-parse HEAD)"
+export FLASH_MANIFEST="${PWD}/firmware/build/flash-manifest.json"
 export V2_035_PASSWORD='the-current-device-password'
 export V2_035_STATE='/tmp/esp32-macro-keyboard-v2-035-state.json'
 ```
@@ -65,7 +82,7 @@ log, or Git commit.
 ```bash
 python3 scripts/run-v2-035-hardware.py start \
   --base-url "${DEVICE_URL}" \
-  --firmware-sha "${FIRMWARE_SHA}" \
+  --flash-manifest "${FLASH_MANIFEST}" \
   --state "${V2_035_STATE}"
 ```
 

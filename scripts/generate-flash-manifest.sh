@@ -94,11 +94,46 @@ command -v idf.py >/dev/null 2>&1 || {
 	exit 2
 }
 
+command -v esptool.py >/dev/null 2>&1 || {
+	printf 'error: esptool.py not found; source the pinned ESP-IDF v5.5.5 export.sh first (see CLAUDE.md).\n' >&2
+	exit 2
+}
+
 idf_version="$(idf.py --version)"
 [ -n "${idf_version}" ] || {
 	printf 'error: idf.py --version produced no output\n' >&2
 	exit 2
 }
+
+app_relative="$(python3 - "${flasher_args}" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    flash_files = json.load(handle)["flash_files"]
+
+candidates = [
+    path for path in flash_files.values()
+    if path.endswith(".bin") and path.rsplit("/", 1)[-1] == "esp32_macro_keyboard.bin"
+]
+if len(candidates) != 1:
+    raise SystemExit("expected exactly one esp32_macro_keyboard.bin application image")
+print(candidates[0])
+PY
+)"
+app_image="${build_dir}/${app_relative}"
+[ -f "${app_image}" ] || {
+	printf 'error: application image not found: %s\n' "${app_image}" >&2
+	exit 2
+}
+app_image_sha256="$(sha256sum -- "${app_image}" | awk '{print $1}')"
+image_info="$(esptool.py image_info "${app_image}")"
+app_elf_sha256="$(printf '%s\n' "${image_info}" | python3 -c 'import re,sys; text=sys.stdin.read(); match=re.search(r"ELF file SHA256:\s*([0-9A-Fa-f]{64})", text); print(match.group(1).lower() if match else "")')"
+if ! printf '%s' "${app_elf_sha256}" | grep -Eq '^[0-9a-f]{64}$'; then
+	printf 'error: esptool.py image_info did not report a full ELF file SHA256\n' >&2
+	exit 2
+fi
+diagnostics_build_id="${app_elf_sha256:0:39}"
 
 git_commit="$(git -C "${repo_root}" rev-parse HEAD)"
 if [ -n "$(git -C "${repo_root}" status --porcelain)" ]; then
@@ -141,13 +176,15 @@ fi
 
 python3 - "${output_file}" "${flasher_args}" "${git_commit}" "${git_dirty}" \
 	"${idf_version}" "${component_lock_sha256}" "${frontend_lock_sha256}" \
-	"${build_type}" "${build_timestamp}" "${webfs_relative}" "${webfs_offset}" <<'PY'
+	"${build_type}" "${build_timestamp}" "${webfs_relative}" "${webfs_offset}" \
+	"${app_relative}" "${app_image_sha256}" "${app_elf_sha256}" "${diagnostics_build_id}" <<'PY'
 import json
 import sys
 
 (output_path, flasher_args_path, git_commit, git_dirty, idf_version,
  component_lock_sha256, frontend_lock_sha256, build_type, build_timestamp,
- webfs_relative, webfs_offset) = sys.argv[1:12]
+ webfs_relative, webfs_offset, app_relative, app_image_sha256,
+ app_elf_sha256, diagnostics_build_id) = sys.argv[1:16]
 
 with open(flasher_args_path, encoding="utf-8") as handle:
     flasher_args = json.load(handle)
@@ -164,6 +201,10 @@ manifest = {
     "frontendLockSha256": frontend_lock_sha256,
     "buildType": build_type,
     "buildTimestamp": build_timestamp,
+    "appImage": app_relative,
+    "appImageSha256": app_image_sha256,
+    "appElfSha256": app_elf_sha256,
+    "diagnosticsBuildId": diagnostics_build_id,
     "flashSettings": flasher_args["flash_settings"],
     "flashFiles": dict(sorted(flash_files.items(), key=lambda item: int(item[0], 16))),
 }

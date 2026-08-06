@@ -45,6 +45,7 @@ write_fixtures() {
 }
 JSON
 	: >"${build_dir}/partition_table/partition-table.bin"
+	printf 'fixture application image\n' >"${build_dir}/esp32_macro_keyboard.bin"
 	if [ "${production}" = "production" ]; then
 		printf '# CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG is not set\n' >"${sdkconfig}"
 		printf '# CONFIG_APP_MANUFACTURING_PROVISIONING_LOG is not set\n' >>"${sdkconfig}"
@@ -110,6 +111,22 @@ expect_pass 'happy path, no webfs image'
 	printf 'FAIL: gitCommit is not a 40-character SHA\n' >&2
 	exit 1
 }
+[ "$(field appImage)" = "esp32_macro_keyboard.bin" ] || {
+	printf 'FAIL: unexpected appImage: %s\n' "$(field appImage)" >&2
+	exit 1
+}
+[ "$(field appElfSha256)" = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ] || {
+	printf 'FAIL: unexpected appElfSha256: %s\n' "$(field appElfSha256)" >&2
+	exit 1
+}
+[ "$(field diagnosticsBuildId)" = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ] || {
+	printf 'FAIL: unexpected diagnosticsBuildId: %s\n' "$(field diagnosticsBuildId)" >&2
+	exit 1
+}
+[ "$(python3 -c "import json,re; value=json.load(open('${output_file}'))['appImageSha256']; print(bool(re.fullmatch(r'[0-9a-f]{64}', value)))")" = True ] || {
+	printf 'FAIL: appImageSha256 is not a full lowercase SHA-256\n' >&2
+	exit 1
+}
 [ "$(python3 -c "import json; print('webfs.bin' in json.load(open('${output_file}'))['flashFiles'].values())")" = "False" ] || {
 	printf 'FAIL: webfs.bin listed without a webfs image present\n' >&2
 	exit 1
@@ -145,6 +162,22 @@ expect_pass 'changed lock hash'
 	printf 'FAIL: managedComponentLockSha256 did not change with lockfile content\n' >&2
 	exit 1
 }
+
+# The board-visible diagnostics build ID must be the exact 39-character prefix
+# produced by esp_app_get_elf_sha256 with the production diagnostics buffer.
+write_fixtures production
+FAKE_ELF_SHA256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef expect_pass 'ELF build ID derivation'
+[ "$(field diagnosticsBuildId)" = "0123456789abcdef0123456789abcdef0123456" ] || {
+	printf 'FAIL: diagnosticsBuildId did not match the ELF SHA prefix\n' >&2
+	exit 1
+}
+
+write_fixtures production
+rm -f -- "${build_dir}/esp32_macro_keyboard.bin"
+expect_fail 'missing application image' 'application image not found'
+
+write_fixtures production
+FAKE_ELF_SHA256=not-a-sha expect_fail 'invalid ELF SHA' 'did not report a full ELF file SHA256'
 
 # Missing required build artifacts must fail closed with a clear message,
 # not a bare Python traceback.

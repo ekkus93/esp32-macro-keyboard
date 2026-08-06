@@ -25,8 +25,10 @@ from typing import Any
 
 BLOB_MAX_BYTES = 131_072
 USERDATA_BYTES = 524_288
-STATE_SCHEMA = 1
+STATE_SCHEMA = 2
 FIRMWARE_COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+BUILD_ID_PATTERN = re.compile(r"^[0-9a-f]{39}$")
 AUTH_LOGIN_PATH = "/api/v1/auth/login"
 BLOB_COLLECTION_PATH = "/api/v1/blob"
 DIAGNOSTICS_PATH = "/api/v1/diagnostics"
@@ -137,6 +139,45 @@ def password_from_environment(name: str) -> str:
     password = os.environ.get(name, "")
     require(bool(password), f"set {name} instead of placing the password on the command line")
     return password
+
+
+def load_flash_manifest(path: Path) -> dict[str, str]:
+    manifest = read_json(path)
+    git_commit = manifest.get("gitCommit")
+    app_image_sha256 = manifest.get("appImageSha256")
+    app_elf_sha256 = manifest.get("appElfSha256")
+    diagnostics_build_id = manifest.get("diagnosticsBuildId")
+    require(isinstance(git_commit, str)
+            and FIRMWARE_COMMIT_PATTERN.fullmatch(git_commit) is not None,
+            "flash manifest gitCommit must be an exact 40-character SHA")
+    require(manifest.get("gitDirty") is False,
+            "flash manifest records a dirty build; rebuild from a clean checkout")
+    require(manifest.get("buildType") == "production",
+            "flash manifest is not a production build")
+    require(isinstance(app_image_sha256, str)
+            and SHA256_PATTERN.fullmatch(app_image_sha256) is not None,
+            "flash manifest appImageSha256 is invalid")
+    require(isinstance(app_elf_sha256, str)
+            and SHA256_PATTERN.fullmatch(app_elf_sha256) is not None,
+            "flash manifest appElfSha256 is invalid")
+    require(isinstance(diagnostics_build_id, str)
+            and BUILD_ID_PATTERN.fullmatch(diagnostics_build_id) is not None,
+            "flash manifest diagnosticsBuildId is invalid")
+    require(app_elf_sha256.startswith(diagnostics_build_id),
+            "flash manifest diagnosticsBuildId is not the ELF SHA prefix")
+    return {
+        "gitCommit": git_commit,
+        "appImageSha256": app_image_sha256,
+        "appElfSha256": app_elf_sha256,
+        "diagnosticsBuildId": diagnostics_build_id,
+        "espIdfVersion": str(manifest.get("espIdfVersion", "")),
+        "flashManifestSha256": sha256_file(path),
+    }
+
+
+def verify_firmware_provenance(manifest: dict[str, str], diagnostics: dict[str, Any]) -> None:
+    require(diagnostics["buildId"] == manifest["diagnosticsBuildId"],
+            "board buildId does not match the exact application image in the flash manifest")
 
 
 def parse_success(body: bytes) -> Any:
@@ -266,7 +307,9 @@ def parse_diagnostics(diagnostics: Any) -> dict[str, Any]:
     reset_reason = diagnostics.get("resetReason")
     uptime_ms = diagnostics.get("uptimeMs")
     blob_scan = diagnostics.get("blobScan")
-    require(isinstance(build_id, str) and bool(build_id), "diagnostics buildId is invalid")
+    require(isinstance(build_id, str)
+            and BUILD_ID_PATTERN.fullmatch(build_id) is not None,
+            "diagnostics buildId must be a 39-character lowercase ELF SHA prefix")
     require(isinstance(reset_reason, str) and bool(reset_reason),
             "diagnostics resetReason is invalid")
     require(type(uptime_ms) is int and uptime_ms >= 0, "diagnostics uptimeMs is invalid")
@@ -291,15 +334,12 @@ def parse_diagnostics(diagnostics: Any) -> dict[str, Any]:
 
 def command_start(args: argparse.Namespace) -> None:
     require(not args.state.exists(), f"refusing to overwrite existing state {args.state}")
+    manifest = load_flash_manifest(args.flash_manifest)
     api = DeviceApi(args.base_url, args.timeout)
     api.login(password_from_environment(args.password_env))
-    firmware_commit = args.firmware_sha.strip().lower()
-    require(
-        FIRMWARE_COMMIT_PATTERN.fullmatch(firmware_commit) is not None,
-        "firmware SHA must be exactly 40 hexadecimal characters",
-    )
-    baseline = snapshot(api)
     initial_diagnostics = parse_diagnostics(api.diagnostics())
+    verify_firmware_provenance(manifest, initial_diagnostics)
+    baseline = snapshot(api)
 
     created: list[dict[str, str]] = []
     for label in ("ordering-a", "ordering-b", "ordering-c"):
@@ -332,7 +372,12 @@ def command_start(args: argparse.Namespace) -> None:
         "task": "V2-035",
         "createdAt": utc_now(),
         "baseUrl": args.base_url.rstrip("/"),
-        "firmwareCommit": firmware_commit,
+        "firmwareCommit": manifest["gitCommit"],
+        "firmwareBuildId": manifest["diagnosticsBuildId"],
+        "appImageSha256": manifest["appImageSha256"],
+        "appElfSha256": manifest["appElfSha256"],
+        "flashManifestSha256": manifest["flashManifestSha256"],
+        "espIdfVersion": manifest["espIdfVersion"],
         "targetHardware": "ESP32-S3R8",
         "phase": "awaiting_power_cycle",
         "baseline": baseline,
@@ -578,6 +623,20 @@ def validate_complete_state(state: dict[str, Any]) -> None:
         state.get("targetHardware") == "ESP32-S3R8",
         "evidence target hardware is not ESP32-S3R8",
     )
+    firmware_build_id = state.get("firmwareBuildId")
+    app_image_sha256 = state.get("appImageSha256")
+    app_elf_sha256 = state.get("appElfSha256")
+    manifest_sha256 = state.get("flashManifestSha256")
+    require(isinstance(firmware_build_id, str)
+            and BUILD_ID_PATTERN.fullmatch(firmware_build_id) is not None,
+            "evidence is not bound to the board-visible firmware build ID")
+    for label, value in (("app image", app_image_sha256),
+                         ("app ELF", app_elf_sha256),
+                         ("flash manifest", manifest_sha256)):
+        require(isinstance(value, str) and SHA256_PATTERN.fullmatch(value) is not None,
+                f"evidence {label} SHA-256 is invalid")
+    require(app_elf_sha256.startswith(firmware_build_id),
+            "evidence firmware build ID is not the recorded ELF SHA prefix")
     scenarios = state.get("scenarios")
     require(isinstance(scenarios, dict), "evidence is missing scenarios")
     for name in REQUIRED_SCENARIOS:
@@ -630,7 +689,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     start = subparsers.add_parser("start", help="run ordering/delete tests and stage persistence")
     start.add_argument("--base-url", required=True)
-    start.add_argument("--firmware-sha", required=True)
+    start.add_argument("--flash-manifest", type=Path, required=True)
     add_online_arguments(start)
     start.set_defaults(function=command_start)
 

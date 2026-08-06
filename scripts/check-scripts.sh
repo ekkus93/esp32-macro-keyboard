@@ -9,7 +9,7 @@ actionlint
 shell_files=(
 	scripts/*.sh tests/scripts/*.sh tests/scripts/fakes/run-clang-tidy
 	tests/scripts/fakes/npm tests/scripts/fakes/littlefs-python
-	tests/scripts/fakes/idf.py
+	tests/scripts/fakes/idf.py tests/scripts/fakes/esptool.py
 )
 
 shellcheck "${shell_files[@]}"
