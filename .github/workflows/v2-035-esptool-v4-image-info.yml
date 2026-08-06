@@ -77,11 +77,38 @@ jobs:
         run: npm run audit:ci
 
       - name: Run authoritative checks
+        id: authoritative
         shell: bash
+        env:
+          V2_035_LOG_PATH: ${{ runner.temp }}/v2-035-esptool-failure.log
+          V2_035_TAIL_PATH: ${{ runner.temp }}/v2-035-esptool-failure-tail.log
         run: |
           set -euo pipefail
           . "$HOME/esp/esp-idf-v5.5.5/export.sh"
-          ./scripts/check-all.sh
+          set +e
+          ./scripts/check-all.sh 2>&1 | tee "${V2_035_LOG_PATH}"
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "${status}" -ne 0 ]; then
+            tail -n 80 "${V2_035_LOG_PATH}" > "${V2_035_TAIL_PATH}"
+            tail_text="$(cat "${V2_035_TAIL_PATH}")"
+            tail_text="${tail_text//'%'/'%25'}"
+            tail_text="${tail_text//$'\r'/'%0D'}"
+            tail_text="${tail_text//$'\n'/'%0A'}"
+            printf '::error title=V2-035 authoritative checks failed::%s\n' "${tail_text}"
+            exit "${status}"
+          fi
+
+      - name: Upload authoritative failure diagnostics
+        if: failure() && steps.authoritative.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v2-035-esptool-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/v2-035-esptool-failure.log
+            ${{ runner.temp }}/v2-035-esptool-failure-tail.log
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Remove materialization files
         run: |
