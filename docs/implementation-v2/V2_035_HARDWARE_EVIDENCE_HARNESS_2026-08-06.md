@@ -21,6 +21,10 @@ status or diagnostic state, binds the record to the exact 40-character firmware
 commit supplied at the first stage, and refuses to finalize unless all seven
 physical scenarios have a passing observation.
 
+The HTTP client uses the current V2 production routes: `/api/v1/auth/login`,
+`/api/v1/blob`, `/api/v1/blob/{id}`, and `/api/v1/diagnostics`. Legacy
+plural blob paths are rejected by the collector regression suite.
+
 ## Safety boundaries
 
 - Run against a dedicated validation board or back up all important device data.
@@ -70,7 +74,7 @@ This stage:
 - snapshots every pre-existing final blob and its SHA-256;
 - creates three deterministic gzip blobs;
 - requires strictly increasing created IDs;
-- requires the list endpoint to return numeric order;
+- requires the list endpoint to return newest-first numeric order;
 - loads every new blob and verifies byte identity;
 - deletes the middle blob; and
 - proves all pre-existing blobs and both remaining test blobs are unchanged.
@@ -119,8 +123,9 @@ The verification requires:
 
 - no new final blob ID;
 - every previously committed final blob remains byte-identical;
-- diagnostics report `temporaryFiles == 0`; and
-- diagnostics do not report `scanFailed == true`.
+- `GET /api/v1/diagnostics` reports `blobScan.temporaryFileCount == 0`;
+- `blobScan.temporaryFiles` is empty; and
+- diagnostics report a physical `power-on` reset with the same build ID.
 
 Closing the client connection normally is not equivalent to this test because
 the production handler can then execute normal abort cleanup. The required

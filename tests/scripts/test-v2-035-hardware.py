@@ -51,10 +51,6 @@ def test_exact_gzip() -> None:
     assert len(gzip.decompress(first)) == MODULE.BLOB_MAX_BYTES - 64
 
 
-def test_recursive_values() -> None:
-    value = {"storage": {"content": {"temporaryFiles": 0}}, "other": [{"temporaryFiles": 2}]}
-    assert MODULE.recursive_values(value, "temporaryFiles") == [0, 2]
-
 
 def test_complete_validation() -> None:
     state = complete_state()
@@ -65,6 +61,39 @@ def test_complete_validation() -> None:
 
 
 
+
+
+def test_current_v2_routes() -> None:
+    assert MODULE.AUTH_LOGIN_PATH == "/api/v1/auth/login"
+    assert MODULE.BLOB_COLLECTION_PATH == "/api/v1/blob"
+    assert MODULE.DIAGNOSTICS_PATH == "/api/v1/diagnostics"
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "/api/v1/blobs" not in source
+    assert '"/api/v1/login"' not in source
+
+
+def test_diagnostics_schema() -> None:
+    parsed = MODULE.parse_diagnostics(
+        {
+            "buildId": "abc123",
+            "resetReason": "power-on",
+            "uptimeMs": 12,
+            "blobScan": {"temporaryFileCount": 0, "temporaryFiles": []},
+        }
+    )
+    assert parsed["temporaryFileCount"] == 0
+    assert parsed["temporaryFiles"] == []
+
+    expect_failure(
+        MODULE.parse_diagnostics,
+        {
+            "buildId": "abc123",
+            "resetReason": "power-on",
+            "uptimeMs": 12,
+            "blobScan": {"temporaryFileCount": 1, "temporaryFiles": []},
+        },
+    )
+
 def test_interrupted_upload_request_headers() -> None:
     class FakeApi:
         base_url = "http://192.0.2.1:8080/base"
@@ -72,7 +101,7 @@ def test_interrupted_upload_request_headers() -> None:
 
         @staticmethod
         def cookie_header(path: str) -> str:
-            assert path == "/api/v1/blobs"
+            assert path == MODULE.BLOB_COLLECTION_PATH
             return "session=test"
 
     class FakeConnection:
@@ -101,7 +130,7 @@ def test_interrupted_upload_request_headers() -> None:
         MODULE.http.client.HTTPConnection = original
 
     assert connection.requests == [
-        ("POST", "/base/api/v1/blobs", {"skip_host": True})
+        ("POST", "/base/api/v1/blob", {"skip_host": True})
     ]
     host_headers = [
         value for name, value in connection.headers if name.lower() == "host"
@@ -163,8 +192,9 @@ def test_mount_failure_record() -> None:
 
 def main() -> int:
     test_exact_gzip()
-    test_recursive_values()
     test_complete_validation()
+    test_current_v2_routes()
+    test_diagnostics_schema()
     test_interrupted_upload_request_headers()
     test_mount_failure_record()
     print("PASS: V2-035 hardware evidence collector regression tests")

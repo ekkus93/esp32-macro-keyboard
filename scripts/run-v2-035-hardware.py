@@ -27,6 +27,9 @@ BLOB_MAX_BYTES = 131_072
 USERDATA_BYTES = 524_288
 STATE_SCHEMA = 1
 FIRMWARE_COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+AUTH_LOGIN_PATH = "/api/v1/auth/login"
+BLOB_COLLECTION_PATH = "/api/v1/blob"
+DIAGNOSTICS_PATH = "/api/v1/diagnostics"
 REQUIRED_SCENARIOS = (
     "power_cycle_persistence",
     "numeric_ordering",
@@ -176,14 +179,14 @@ class DeviceApi:
     def login(self, password: str) -> None:
         body = json.dumps({"password": password}, separators=(",", ":")).encode()
         status, response, _ = self._request(
-            "POST", "/api/v1/login", body, {"Content-Type": "application/json"}
+            "POST", AUTH_LOGIN_PATH, body, {"Content-Type": "application/json"}
         )
         require(status == 200, f"login failed with HTTP {status}: {response!r}")
         parse_success(response)
         require(any(True for _ in self.cookies), "login succeeded without setting a session cookie")
 
     def list_blobs(self) -> list[dict[str, Any]]:
-        status, body, _ = self._request("GET", "/api/v1/blobs")
+        status, body, _ = self._request("GET", BLOB_COLLECTION_PATH)
         require(status == 200, f"blob list failed with HTTP {status}: {body!r}")
         data = parse_success(body)
         require(isinstance(data, dict) and isinstance(data.get("blobs"), list),
@@ -196,7 +199,7 @@ class DeviceApi:
 
     def create_blob(self, payload: bytes) -> tuple[int, Any]:
         status, body, _ = self._request(
-            "POST", "/api/v1/blobs", payload, {"Content-Type": "application/gzip"}
+            "POST", BLOB_COLLECTION_PATH, payload, {"Content-Type": "application/gzip"}
         )
         if 200 <= status < 300:
             return status, parse_success(body)
@@ -207,18 +210,18 @@ class DeviceApi:
         return status, parsed
 
     def load_blob(self, blob_id: str) -> bytes:
-        status, body, _ = self._request("GET", f"/api/v1/blobs/{blob_id}")
+        status, body, _ = self._request("GET", f"{BLOB_COLLECTION_PATH}/{blob_id}")
         require(status == 200, f"blob {blob_id} load failed with HTTP {status}")
         return body
 
     def delete_blob(self, blob_id: str) -> None:
-        status, body, _ = self._request("DELETE", f"/api/v1/blobs/{blob_id}")
+        status, body, _ = self._request("DELETE", f"{BLOB_COLLECTION_PATH}/{blob_id}")
         require(status in (200, 204),
                 f"blob {blob_id} delete failed with HTTP {status}: {body!r}")
 
-    def status(self) -> Any:
-        status, body, _ = self._request("GET", "/api/v1/status")
-        require(status == 200, f"status failed with HTTP {status}: {body!r}")
+    def diagnostics(self) -> Any:
+        status, body, _ = self._request("GET", DIAGNOSTICS_PATH)
+        require(status == 200, f"diagnostics failed with HTTP {status}: {body!r}")
         return parse_success(body)
 
     def cookie_header(self, path: str) -> str:
@@ -257,17 +260,33 @@ def add_scenario(state: dict[str, Any], name: str, details: dict[str, Any]) -> N
     scenarios[name] = {"status": "pass", "observedAt": utc_now(), **details}
 
 
-def recursive_values(value: Any, key: str) -> list[Any]:
-    found: list[Any] = []
-    if isinstance(value, dict):
-        for child_key, child in value.items():
-            if child_key == key:
-                found.append(child)
-            found.extend(recursive_values(child, key))
-    elif isinstance(value, list):
-        for child in value:
-            found.extend(recursive_values(child, key))
-    return found
+def parse_diagnostics(diagnostics: Any) -> dict[str, Any]:
+    require(isinstance(diagnostics, dict), "diagnostics data must be an object")
+    build_id = diagnostics.get("buildId")
+    reset_reason = diagnostics.get("resetReason")
+    uptime_ms = diagnostics.get("uptimeMs")
+    blob_scan = diagnostics.get("blobScan")
+    require(isinstance(build_id, str) and bool(build_id), "diagnostics buildId is invalid")
+    require(isinstance(reset_reason, str) and bool(reset_reason),
+            "diagnostics resetReason is invalid")
+    require(type(uptime_ms) is int and uptime_ms >= 0, "diagnostics uptimeMs is invalid")
+    require(isinstance(blob_scan, dict), "diagnostics blobScan is invalid")
+    temporary_count = blob_scan.get("temporaryFileCount")
+    temporary_files = blob_scan.get("temporaryFiles")
+    require(type(temporary_count) is int and temporary_count >= 0,
+            "diagnostics temporaryFileCount is invalid")
+    require(isinstance(temporary_files, list)
+            and all(isinstance(value, str) for value in temporary_files),
+            "diagnostics temporaryFiles is invalid")
+    require(temporary_count == len(temporary_files),
+            "diagnostics temporary-file count does not match its list")
+    return {
+        "buildId": build_id,
+        "resetReason": reset_reason,
+        "uptimeMs": uptime_ms,
+        "temporaryFileCount": temporary_count,
+        "temporaryFiles": temporary_files,
+    }
 
 
 def command_start(args: argparse.Namespace) -> None:
@@ -280,6 +299,7 @@ def command_start(args: argparse.Namespace) -> None:
         "firmware SHA must be exactly 40 hexadecimal characters",
     )
     baseline = snapshot(api)
+    initial_diagnostics = parse_diagnostics(api.diagnostics())
 
     created: list[dict[str, str]] = []
     for label in ("ordering-a", "ordering-b", "ordering-c"):
@@ -293,8 +313,9 @@ def command_start(args: argparse.Namespace) -> None:
     require(numeric == sorted(numeric) and len(set(numeric)) == 3,
             f"created IDs are not strictly increasing: {numeric}")
     listed = blob_ids(api)
-    require([int(value) for value in listed] == sorted(int(value) for value in listed),
-            f"blob list is not in numeric order: {listed}")
+    listed_numeric = [int(value) for value in listed]
+    require(listed_numeric == sorted(listed_numeric, reverse=True),
+            f"blob list is not newest-first numeric order: {listed}")
     for item in created:
         require(sha256_bytes(api.load_blob(item["id"])) == item["sha256"],
                 f"new blob {item['id']} did not round-trip byte-identically")
@@ -316,6 +337,7 @@ def command_start(args: argparse.Namespace) -> None:
         "phase": "awaiting_power_cycle",
         "baseline": baseline,
         "sentinels": [created[0], created[2]],
+        "initialDiagnostics": initial_diagnostics,
         "scenarios": {},
     }
     add_scenario(state, "numeric_ordering", {"listedIds": listed, "createdIds": [x["id"] for x in created]})
@@ -343,7 +365,13 @@ def command_verify_power_cycle(args: argparse.Namespace) -> None:
     api = api_from_state(state, args)
     expected = expected_live_snapshot(state)
     verify_snapshot(api, expected, exact_ids=True)
-    add_scenario(state, "power_cycle_persistence", {"verifiedHashes": expected})
+    diagnostics = parse_diagnostics(api.diagnostics())
+    require(diagnostics["buildId"] == state["initialDiagnostics"]["buildId"],
+            "firmware build changed across the power-cycle stage")
+    require(diagnostics["resetReason"] == "power-on",
+            f"expected a physical power-on reset, found {diagnostics["resetReason"]!r}")
+    add_scenario(state, "power_cycle_persistence",
+                 {"verifiedHashes": expected, "postBootDiagnostics": diagnostics})
     state["phase"] = "ready_for_interrupted_upload"
     write_json(args.state, state)
     print("PASS: all pre-power-cycle blobs reloaded byte-identically")
@@ -359,12 +387,12 @@ def open_upload_connection(api: DeviceApi) -> http.client.HTTPConnection:
         connection = connection_type(parsed.hostname, port, timeout=api.timeout)
     else:
         connection = connection_type(parsed.hostname, port, timeout=api.timeout, context=context)
-    path = (parsed.path.rstrip("/") if parsed.path else "") + "/api/v1/blobs"
+    path = (parsed.path.rstrip("/") if parsed.path else "") + BLOB_COLLECTION_PATH
     connection.putrequest("POST", path, skip_host=True)
     connection.putheader("Host", parsed.netloc)
     connection.putheader("Content-Type", "application/gzip")
     connection.putheader("Content-Length", str(BLOB_MAX_BYTES))
-    connection.putheader("Cookie", api.cookie_header("/api/v1/blobs"))
+    connection.putheader("Cookie", api.cookie_header(BLOB_COLLECTION_PATH))
     connection.putheader("Connection", "close")
     connection.endheaders()
     return connection
@@ -375,6 +403,7 @@ def command_arm_interrupted_upload(args: argparse.Namespace) -> None:
     api = api_from_state(state, args)
     before = snapshot(api)
     require(before == expected_live_snapshot(state), "live blobs changed before interruption test")
+    before_diagnostics = parse_diagnostics(api.diagnostics())
     payload = exact_gzip_payload("power-cut-upload")
     connection = open_upload_connection(api)
     sent = 0
@@ -403,6 +432,7 @@ def command_arm_interrupted_upload(args: argparse.Namespace) -> None:
         "bytesSentBeforeDisconnect": sent,
         "contentLength": len(payload),
         "beforeHashes": before,
+        "beforeDiagnostics": before_diagnostics,
     }
     state["phase"] = "awaiting_interrupted_upload_reboot"
     write_json(args.state, state)
@@ -414,18 +444,20 @@ def command_verify_interrupted_upload(args: argparse.Namespace) -> None:
     api = api_from_state(state, args)
     before = state["interruptedUpload"]["beforeHashes"]
     verify_snapshot(api, before, exact_ids=True)
-    status = api.status()
-    temporary_values = recursive_values(status, "temporaryFiles")
-    scan_failed_values = recursive_values(status, "scanFailed")
-    require(temporary_values and all(value == 0 for value in temporary_values),
-            f"diagnostics did not prove temporary-file cleanup: {temporary_values}")
-    require(not scan_failed_values or all(value is False for value in scan_failed_values),
-            f"diagnostics reported a failed storage scan: {scan_failed_values}")
+    diagnostics = parse_diagnostics(api.diagnostics())
+    before_diagnostics = state["interruptedUpload"]["beforeDiagnostics"]
+    require(diagnostics["buildId"] == before_diagnostics["buildId"],
+            "firmware build changed across interrupted-upload reboot")
+    require(diagnostics["resetReason"] == "power-on",
+            f"expected power-on reset after interruption, found {diagnostics["resetReason"]!r}")
+    require(diagnostics["temporaryFileCount"] == 0
+            and diagnostics["temporaryFiles"] == [],
+            f"reboot left temporary files: {diagnostics}")
     details = {
         "bytesSentBeforePowerLoss": state["interruptedUpload"]["bytesSentBeforeDisconnect"],
         "preservedHashes": before,
-        "temporaryFiles": temporary_values,
-        "scanFailed": scan_failed_values,
+        "prePowerLossDiagnostics": before_diagnostics,
+        "postBootDiagnostics": diagnostics,
     }
     add_scenario(state, "interrupted_upload_no_partial_final", details)
     add_scenario(state, "reboot_temporary_cleanup", details)
