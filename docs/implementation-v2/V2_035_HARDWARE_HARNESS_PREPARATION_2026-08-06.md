@@ -5,7 +5,8 @@
 **Target hardware:** ESP32-S3R8  
 **Harness implementation commit:** `bb61b57207dc01510dafd84f26115ea50d0b63fd`  
 **Provenance hardening commit:** `15ad1a2aa0e913c03338abeb016f7aa20acb05ec`  
-**V2 API and diagnostics alignment commit:** `5d6e8ef152e6db9a318844915f6506b4f8e31f34`
+**V2 API and diagnostics alignment commit:** `5d6e8ef152e6db9a318844915f6506b4f8e31f34`  
+**Executable-mode repair commit:** `d8da917da3168e69322ae90e99368830b6c47e1c`
 
 ## Prepared capability
 
@@ -89,6 +90,33 @@ The V2 route and diagnostics alignment workflow:
 - passed `git diff --check`;
 - verified the exact staged path set; and
 - removed its temporary patch and workflow files.
+
+## Authoritative CI repair and exact-SHA evidence
+
+The first complete fan-out on `aee8b24e636d77f2448a4782aa5be8d689291536`
+passed Host Tests, Browser Tests, and Device Test Build, but Quality failed in
+run `31094181799`, job `92592142179`. The authoritative log showed that all
+checks before the shell-script gate had passed and then `scripts/check-all.sh`
+failed with exit 126 because `scripts/check-scripts.sh` was stored as mode
+`100644`.
+
+Commit `d8da917da3168e69322ae90e99368830b6c47e1c` restored only that Git tree mode
+to `100755`. The script blob remained exactly
+`cd718c948b6869dc3291a295905f3edb2c849f86`; no script contents changed and the
+authoritative gate was not weakened by routing around the executable-bit
+requirement.
+
+All permanent authoritative workflows passed on that exact repaired SHA:
+
+- Browser Tests: run `31096647086`, job `92600153401` — success;
+- Host Tests functional: run `31096649654`, job `92600162013` — success;
+- Host Tests sanitizers: run `31096649654`, job `92600161933` — success;
+- Host Tests coverage: run `31096649654`, job `92600161950` — success;
+- Device Test Build: run `31096647486`, job `92600154701` — success; and
+- Quality: run `31096648338`, job `92600158903` — success.
+
+The successful Quality job executed the full `./scripts/check-all.sh`, including
+the restored executable `scripts/check-scripts.sh` gate.
 
 ## Remaining gate
 
