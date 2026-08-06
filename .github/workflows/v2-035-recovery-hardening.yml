@@ -20,6 +20,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Repair materializer escape
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/apply-v2-035-recovery-hardening.py")
+          text = path.read_text(encoding="utf-8")
+          old = '    output = result.stdout + "\\n" + result.stderr\n'
+          new = '    output = result.stdout + "\\\\n" + result.stderr\n'
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one escape anchor, found {text.count(old)}")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
       - name: Apply scoped hardening
         run: python3 scripts/apply-v2-035-recovery-hardening.py
 
