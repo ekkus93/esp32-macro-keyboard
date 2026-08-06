@@ -1,0 +1,79 @@
+name: V2-032 ID Contract Boundary
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.head_commit.message == 'Add one-shot V2-032 ID contract boundary fix'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact source commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+
+      - name: Restore component boundary with compile-time drift check
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          header = Path("firmware/components/web_server/web_api_core.h")
+          text = header.read_text(encoding="utf-8")
+          marker = "#define WEB_API_REQUEST_ID_MAX_BYTES 64U\n"
+          replacement = (
+              "#define WEB_API_REQUEST_ID_MAX_BYTES 64U\n"
+              "#define WEB_API_BLOB_ID_DIGITS 20U\n"
+          )
+          if text.count(marker) != 1:
+              raise SystemExit("API constant insertion point did not match exactly once")
+          header.write_text(text.replace(marker, replacement), encoding="utf-8")
+
+          core = Path("firmware/components/web_server/web_api_core.c")
+          text = core.read_text(encoding="utf-8")
+          include = '#include "storage_blob.h"\n'
+          if text.count(include) != 1:
+              raise SystemExit("storage include did not match exactly once")
+          text = text.replace(include, "")
+          use = "length > STORAGE_BLOB_ID_DIGITS"
+          if text.count(use) != 1:
+              raise SystemExit("storage width use did not match exactly once")
+          core.write_text(
+              text.replace(use, "length > WEB_API_BLOB_ID_DIGITS"), encoding="utf-8"
+          )
+
+          handler = Path("firmware/components/web_server/web_server_blob.c")
+          text = handler.read_text(encoding="utf-8")
+          marker = "#define BLOB_CREATED_JSON_MAX_BYTES 128U\n"
+          replacement = (
+              "#define BLOB_CREATED_JSON_MAX_BYTES 128U\n"
+              "\n"
+              "_Static_assert(WEB_API_BLOB_ID_DIGITS == STORAGE_BLOB_ID_DIGITS,\n"
+              "               \"API and storage blob ID widths must match\");\n"
+          )
+          if text.count(marker) != 1:
+              raise SystemExit("drift assertion insertion point did not match exactly once")
+          handler.write_text(text.replace(marker, replacement), encoding="utf-8")
+          PY
+          clang-format -i \
+            firmware/components/web_server/web_api_core.h \
+            firmware/components/web_server/web_api_core.c \
+            firmware/components/web_server/web_server_blob.c
+          rm .github/workflows/v2-032-id-contract-boundary.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firmware/components/web_server/web_api_core.h \
+              firmware/components/web_server/web_api_core.c \
+              firmware/components/web_server/web_server_blob.c \
+              .github/workflows/v2-032-id-contract-boundary.yml
+          git diff --cached --check
+          git commit -m "Restore V2-032 blob ID contract boundary"
+          git push origin HEAD:master
