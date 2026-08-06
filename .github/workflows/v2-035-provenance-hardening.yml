@@ -1,0 +1,63 @@
+name: V2-035 firmware provenance hardening
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/v2-035-provenance-hardening.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out master
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Apply provenance hardening
+        run: |
+          set -euo pipefail
+          python3 .github/v2-035-provenance-hardening.py
+          chmod +x tests/scripts/fakes/esptool.py
+
+      - name: Run focused regression gates
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/run-v2-035-hardware.py tests/scripts/test-v2-035-hardware.py
+          python3 tests/scripts/test-v2-035-hardware.py
+          bash -n scripts/generate-flash-manifest.sh tests/scripts/test-generate-flash-manifest.sh tests/scripts/fakes/esptool.py
+          bash tests/scripts/test-generate-flash-manifest.sh
+          git diff --check
+
+      - name: Commit permanent scoped changes
+        run: |
+          set -euo pipefail
+          rm -f .github/v2-035-provenance-hardening.py
+          rm -f .github/workflows/v2-035-provenance-hardening.yml
+          git add -A
+
+          cat > /tmp/expected-paths <<'EOF'
+          .github/v2-035-provenance-hardening.py
+          .github/workflows/v2-035-provenance-hardening.yml
+          docs/implementation-v2/V2_035_HARDWARE_EVIDENCE_HARNESS_2026-08-06.md
+          scripts/check-scripts.sh
+          scripts/generate-flash-manifest.sh
+          scripts/run-v2-035-hardware.py
+          tests/scripts/fakes/esptool.py
+          tests/scripts/test-generate-flash-manifest.sh
+          tests/scripts/test-v2-035-hardware.py
+          EOF
+          git diff --cached --name-only | sort > /tmp/actual-paths
+          sort -o /tmp/expected-paths /tmp/expected-paths
+          diff -u /tmp/expected-paths /tmp/actual-paths
+
+          git config user.name "Phillip Chin"
+          git config user.email "ekkus93@gmail.com"
+          git commit -m "Harden V2-035 firmware provenance"
+          git push origin HEAD:master
