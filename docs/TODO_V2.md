@@ -310,15 +310,15 @@ knowledge in firmware.
 
 ## V2-031 — Atomic blob add
 
-- [ ] Implement bounded `application/gzip` streaming upload.
-- [ ] Write to `<id>.gz.tmp` in bounded chunks.
-- [ ] Treat short write, write error, flush error, close error, sync error, and
+- [x] Implement bounded `application/gzip` streaming upload.
+- [x] Write to `<id>.gz.tmp` in bounded chunks.
+- [x] Treat short write, write error, flush error, close error, sync error, and
       rename error as failures.
-- [ ] Synchronize the temporary file before rename.
-- [ ] Use rename as the commit point.
-- [ ] Synchronize the directory when supported.
-- [ ] Return `201` only after the final file is committed.
-- [ ] Leave existing final blobs unchanged on every failure path.
+- [x] Synchronize the temporary file before rename.
+- [x] Use rename as the commit point.
+- [x] Synchronize the directory when supported.
+- [x] Return `201` only after the final file is committed.
+- [x] Leave existing final blobs unchanged on every failure path.
 
 ## V2-032 — List, load, and delete
 
