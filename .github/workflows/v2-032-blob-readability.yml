@@ -1,0 +1,134 @@
+name: V2-032 Blob Readability Hardening
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.event.head_commit.message == 'Add one-shot V2-032 blob readability fix'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact source commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+
+      - name: Make blob response arguments type-safe
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("firmware/components/web_server/web_server_blob.c")
+          text = path.read_text(encoding="utf-8")
+
+          marker = (
+              "typedef struct {\n"
+              "    cJSON *entries;\n"
+              "    size_t used_bytes;\n"
+              "} blob_list_context_t;\n"
+          )
+          addition = marker + (
+              "\n"
+              "typedef struct {\n"
+              "    unsigned int code;\n"
+              "    const char *text;\n"
+              "} blob_success_status_t;\n"
+              "\n"
+              "static const blob_success_status_t BLOB_STATUS_OK = {\n"
+              "    .code = WEB_HTTP_STATUS_OK,\n"
+              "    .text = \"200 OK\",\n"
+              "};\n"
+              "\n"
+              "static const blob_success_status_t BLOB_STATUS_CREATED = {\n"
+              "    .code = WEB_HTTP_STATUS_CREATED,\n"
+              "    .text = \"201 Created\",\n"
+              "};\n"
+          )
+          if text.count(marker) != 1:
+              raise SystemExit("status type insertion point did not match exactly once")
+          text = text.replace(marker, addition)
+
+          old = (
+              "static esp_err_t send_blob_success_json(httpd_req_t *request, const char *request_id,\n"
+              "                                        unsigned int status, const char *status_text,\n"
+              "                                        const char *data_json) {\n"
+              "    web_api_response_t response = {0};\n"
+              "    const app_error_code_t result = web_api_response_success(&response, status, data_json);\n"
+          )
+          new = (
+              "static esp_err_t send_blob_success_json(httpd_req_t *request, const char *request_id,\n"
+              "                                        blob_success_status_t status,\n"
+              "                                        const char *data_json) {\n"
+              "    web_api_response_t response = {0};\n"
+              "    const app_error_code_t result =\n"
+              "        web_api_response_success(&response, status.code, data_json);\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("success helper signature did not match exactly once")
+          text = text.replace(old, new)
+          text = text.replace(
+              "    const esp_err_t send_result = send_json(request, response.body, status_text);\n",
+              "    const esp_err_t send_result = send_json(request, response.body, status.text);\n",
+          )
+
+          old = (
+              "    return send_blob_success_json(request, request_id, WEB_HTTP_STATUS_CREATED, \"201 Created\",\n"
+              "                                  data_json);\n"
+          )
+          new = (
+              "    return send_blob_success_json(request, request_id, BLOB_STATUS_CREATED, data_json);\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("created response call did not match exactly once")
+          text = text.replace(old, new)
+
+          old = (
+              "    const esp_err_t send_result =\n"
+              "        send_blob_success_json(request, request_id, WEB_HTTP_STATUS_OK, \"200 OK\", data_json);\n"
+          )
+          new = (
+              "    const esp_err_t send_result =\n"
+              "        send_blob_success_json(request, request_id, BLOB_STATUS_OK, data_json);\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("list response call did not match exactly once")
+          text = text.replace(old, new)
+
+          old = (
+              "    char id[STORAGE_BLOB_ID_DIGITS + 1U];\n"
+              "    const int written = snprintf(id, sizeof(id), \"%\" PRIu64, entry->id);\n"
+              "    cJSON *item = cJSON_CreateObject();\n"
+              "    if (written <= 0 || (size_t)written >= sizeof(id) || item == NULL ||\n"
+              "        !cJSON_AddStringToObject(item, \"id\", id) ||\n"
+          )
+          new = (
+              "    char blob_id_text[STORAGE_BLOB_ID_DIGITS + 1U];\n"
+              "    const int written =\n"
+              "        snprintf(blob_id_text, sizeof(blob_id_text), \"%\" PRIu64, entry->id);\n"
+              "    cJSON *item = cJSON_CreateObject();\n"
+              "    if (written <= 0 || (size_t)written >= sizeof(blob_id_text) || item == NULL ||\n"
+              "        !cJSON_AddStringToObject(item, \"id\", blob_id_text) ||\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("blob ID variable block did not match exactly once")
+          text = text.replace(old, new)
+
+          path.write_text(text, encoding="utf-8")
+          PY
+          clang-format -i firmware/components/web_server/web_server_blob.c
+          rm .github/workflows/v2-032-blob-readability.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firmware/components/web_server/web_server_blob.c \
+              .github/workflows/v2-032-blob-readability.yml
+          git diff --cached --check
+          git commit -m "Harden V2-032 blob response readability"
+          git push origin HEAD:master
