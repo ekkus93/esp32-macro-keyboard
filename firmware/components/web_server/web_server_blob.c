@@ -23,7 +23,6 @@
 
 #define BLOB_CONTENT_TYPE_MAX_BYTES 64U
 #define BLOB_CREATED_JSON_MAX_BYTES 128U
-#define BLOB_ITEM_PREFIX "/api/v1/blob/"
 
 typedef struct {
     storage_blob_upload_t *upload;
@@ -135,35 +134,6 @@ static app_error_code_t authenticate_blob_request(httpd_req_t *request) {
     return result;
 }
 
-static app_error_code_t parse_blob_item_id(const char *uri, uint64_t *out_blob_id) {
-    if (out_blob_id != NULL) {
-        *out_blob_id = 0U;
-    }
-    if (uri == NULL || out_blob_id == NULL ||
-        strncmp(uri, BLOB_ITEM_PREFIX, sizeof(BLOB_ITEM_PREFIX) - 1U) != 0) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    const char *value = uri + sizeof(BLOB_ITEM_PREFIX) - 1U;
-    const size_t length = strlen(value);
-    if (length == 0U || length > STORAGE_BLOB_ID_DIGITS || value[0] == '0') {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    uint64_t blob_id = 0U;
-    for (size_t index = 0U; index < length; ++index) {
-        const unsigned char character = (unsigned char)value[index];
-        if (character < (unsigned char)'0' || character > (unsigned char)'9') {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        const uint64_t digit = (uint64_t)(character - (unsigned char)'0');
-        if (blob_id > (UINT64_MAX - digit) / UINT64_C(10)) {
-            return APP_ERROR_INVALID_ARGUMENT;
-        }
-        blob_id = blob_id * UINT64_C(10) + digit;
-    }
-    *out_blob_id = blob_id;
-    return APP_ERROR_NONE;
-}
-
 static app_error_code_t add_blob_list_entry(void *context, const storage_blob_entry_t *entry) {
     blob_list_context_t *list = context;
     if (list == NULL || list->entries == NULL || entry == NULL ||
@@ -219,10 +189,11 @@ static app_error_code_t build_blob_list_json(char **out_json) {
         return result == APP_ERROR_NONE ? APP_ERROR_STORAGE_CORRUPT : result;
     }
     const size_t remaining_bytes = total_bytes - partition_used_bytes;
-    if (!cJSON_AddItemToObject(root, "blobs", entries) ||
-        !cJSON_AddNumberToObject(root, "usedBytes", (double)list.used_bytes) ||
-        !cJSON_AddNumberToObject(root, "remainingBytes", (double)remaining_bytes)) {
+    if (!cJSON_AddNumberToObject(root, "usedBytes", (double)list.used_bytes) ||
+        !cJSON_AddNumberToObject(root, "remainingBytes", (double)remaining_bytes) ||
+        !cJSON_AddItemToObject(root, "blobs", entries)) {
         cJSON_Delete(root);
+        cJSON_Delete(entries);
         return APP_ERROR_INTERNAL;
     }
     entries = NULL;
@@ -375,7 +346,7 @@ esp_err_t blob_load_handler(httpd_req_t *request) {
                                "authentication required");
     }
     uint64_t blob_id = 0U;
-    result = parse_blob_item_id(request->uri, &blob_id);
+    result = web_api_parse_blob_id(request->uri, &blob_id);
     if (result != APP_ERROR_NONE) {
         return send_blob_error(request, request_id, WEB_HTTP_STATUS_BAD_REQUEST, result,
                                "invalid blob ID");
@@ -421,7 +392,7 @@ esp_err_t blob_delete_handler(httpd_req_t *request) {
                                "authentication required");
     }
     uint64_t blob_id = 0U;
-    result = parse_blob_item_id(request->uri, &blob_id);
+    result = web_api_parse_blob_id(request->uri, &blob_id);
     if (result != APP_ERROR_NONE) {
         return send_blob_error(request, request_id, WEB_HTTP_STATUS_BAD_REQUEST, result,
                                "invalid blob ID");

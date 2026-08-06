@@ -2,6 +2,7 @@
 #define WEB_API_CORE_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "app_error.h"
 
@@ -18,6 +19,7 @@ typedef enum {
     WEB_API_ROUTE_UNKNOWN = 0,
     WEB_API_ROUTE_AUTH_SESSION,
     WEB_API_ROUTE_BLOB_COLLECTION,
+    WEB_API_ROUTE_BLOB_ITEM,
     WEB_API_ROUTE_SETTINGS,
     WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD,
     WEB_API_ROUTE_DEVICE_RESTART,
@@ -31,6 +33,7 @@ typedef struct {
 } web_api_path_t;
 
 app_error_code_t web_api_parse_path(const char *uri, web_api_path_t *out_path);
+app_error_code_t web_api_parse_blob_id(const char *uri, uint64_t *out_blob_id);
 bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method);
 bool web_api_route_requires_body(web_api_route_t route, web_api_method_t method);
 bool web_api_route_requires_session(web_api_route_t route);

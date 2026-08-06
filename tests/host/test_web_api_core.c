@@ -21,6 +21,7 @@ static void expect_absent(const char *path) {
 static void test_active_routes(void) {
     expect_route("/api/v1/auth/session", WEB_API_ROUTE_AUTH_SESSION);
     expect_route("/api/v1/blob", WEB_API_ROUTE_BLOB_COLLECTION);
+    expect_route("/api/v1/blob/7", WEB_API_ROUTE_BLOB_ITEM);
     expect_route("/api/v1/settings", WEB_API_ROUTE_SETTINGS);
     expect_route("/api/v1/settings/change-password", WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD);
     expect_route("/api/v1/device/restart", WEB_API_ROUTE_DEVICE_RESTART);
@@ -77,6 +78,9 @@ static void test_method_and_body_policy(void) {
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_POST));
     TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_PUT));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_BLOB_ITEM, WEB_API_METHOD_GET));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_BLOB_ITEM, WEB_API_METHOD_DELETE));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_BLOB_ITEM, WEB_API_METHOD_POST));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_PUT));
     TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_POST));
@@ -122,6 +126,27 @@ static void test_session_confirmation_and_worker_policy(void) {
     TEST_CHECK(!web_api_route_requires_worker(WEB_API_ROUTE_BLOB_COLLECTION));
     TEST_CHECK(!web_api_route_requires_worker(WEB_API_ROUTE_SETTINGS));
     TEST_CHECK(!web_api_route_requires_worker(WEB_API_ROUTE_UNKNOWN));
+}
+
+static void test_blob_id_policy(void) {
+    uint64_t blob_id = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_parse_blob_id("/api/v1/blob/1", &blob_id));
+    TEST_CHECK_EQ_U64(1U, blob_id);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_api_parse_blob_id("/api/v1/blob/18446744073709551615", &blob_id));
+    TEST_CHECK_EQ_U64(UINT64_MAX, blob_id);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_parse_blob_id("/api/v1/blob/", &blob_id));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_parse_blob_id("/api/v1/blob/0", &blob_id));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_parse_blob_id("/api/v1/blob/01", &blob_id));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_parse_blob_id("/api/v1/blob/a", &blob_id));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_parse_blob_id("/api/v1/blob/18446744073709551616", &blob_id));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_parse_blob_id("/api/v1/blob/1/2", &blob_id));
 }
 
 static void test_content_type_policy(void) {
@@ -190,6 +215,7 @@ int main(void) {
     test_invalid_paths();
     test_method_and_body_policy();
     test_session_confirmation_and_worker_policy();
+    test_blob_id_policy();
     test_content_type_policy();
     test_request_id_policy();
     test_error_status_mapping();

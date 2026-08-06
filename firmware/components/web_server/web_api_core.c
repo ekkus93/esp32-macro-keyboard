@@ -2,10 +2,13 @@
 
 #include <ctype.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "app_error.h"
 #include "web_http_status.h"
+
+#define WEB_API_BLOB_ITEM_PREFIX "/api/v1/blob/"
 
 static bool token_equals_ci(const char *start, size_t length, const char *expected) {
     if (start == NULL || expected == NULL || strlen(expected) != length) {
@@ -80,6 +83,37 @@ bool web_api_request_id_is_valid(const char *request_id) {
     return true;
 }
 
+app_error_code_t web_api_parse_blob_id(const char *uri, uint64_t *out_blob_id) {
+    if (out_blob_id != NULL) {
+        *out_blob_id = 0U;
+    }
+    if (uri == NULL || out_blob_id == NULL ||
+        strncmp(uri, WEB_API_BLOB_ITEM_PREFIX, sizeof(WEB_API_BLOB_ITEM_PREFIX) - 1U) != 0 ||
+        strchr(uri, '?') != NULL || strchr(uri, '#') != NULL || strchr(uri, '%') != NULL ||
+        strstr(uri, "//") != NULL || strstr(uri, "..") != NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const char *value = uri + sizeof(WEB_API_BLOB_ITEM_PREFIX) - 1U;
+    const size_t length = strlen(value);
+    if (length == 0U || length > 20U || value[0] == '0') {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    uint64_t blob_id = 0U;
+    for (size_t index = 0U; index < length; ++index) {
+        const unsigned char character = (unsigned char)value[index];
+        if (character < (unsigned char)'0' || character > (unsigned char)'9') {
+            return APP_ERROR_INVALID_ARGUMENT;
+        }
+        const uint64_t digit = (uint64_t)(character - (unsigned char)'0');
+        if (blob_id > (UINT64_MAX - digit) / UINT64_C(10)) {
+            return APP_ERROR_INVALID_ARGUMENT;
+        }
+        blob_id = blob_id * UINT64_C(10) + digit;
+    }
+    *out_blob_id = blob_id;
+    return APP_ERROR_NONE;
+}
+
 typedef struct {
     const char *path;
     web_api_route_t route;
@@ -110,6 +144,16 @@ app_error_code_t web_api_parse_path(const char *uri, web_api_path_t *out_path) {
             return APP_ERROR_NONE;
         }
     }
+    if (strncmp(uri, WEB_API_BLOB_ITEM_PREFIX, sizeof(WEB_API_BLOB_ITEM_PREFIX) - 1U) == 0) {
+        uint64_t blob_id = 0U;
+        const app_error_code_t result = web_api_parse_blob_id(uri, &blob_id);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+        (void)blob_id;
+        out_path->route = WEB_API_ROUTE_BLOB_ITEM;
+        return APP_ERROR_NONE;
+    }
     return APP_ERROR_NOT_FOUND;
 }
 
@@ -120,6 +164,8 @@ bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method)
         return method == WEB_API_METHOD_GET;
     case WEB_API_ROUTE_BLOB_COLLECTION:
         return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_POST;
+    case WEB_API_ROUTE_BLOB_ITEM:
+        return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_DELETE;
     case WEB_API_ROUTE_SETTINGS:
         return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_PUT;
     case WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD:
