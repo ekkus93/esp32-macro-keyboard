@@ -322,12 +322,12 @@ knowledge in firmware.
 
 ## V2-032 — List, load, and delete
 
-- [ ] Implement newest-first listing with ID and stored byte size only.
-- [ ] Implement byte-identical streaming download as `application/gzip`.
-- [ ] Implement explicit deletion of exactly one selected blob.
-- [ ] Permit deletion of the final blob.
-- [ ] Never select or load a replacement automatically.
-- [ ] Never inspect gzip headers, decompress, parse JSON, compute metadata, or add
+- [x] Implement newest-first listing with ID and stored byte size only.
+- [x] Implement byte-identical streaming download as `application/gzip`.
+- [x] Implement explicit deletion of exactly one selected blob.
+- [x] Permit deletion of the final blob.
+- [x] Never select or load a replacement automatically.
+- [x] Never inspect gzip headers, decompress, parse JSON, compute metadata, or add
       a checksum, hash, digest, or CRC.
 
 ## V2-033 — Boot cleanup and degraded states
