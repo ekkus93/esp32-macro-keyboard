@@ -34,6 +34,8 @@ def complete_state() -> dict:
     return {
         "schemaVersion": MODULE.STATE_SCHEMA,
         "task": "V2-035",
+        "firmwareCommit": "0123456789abcdef0123456789abcdef01234567",
+        "targetHardware": "ESP32-S3R8",
         "phase": "ready_to_finalize",
         "scenarios": scenarios,
     }
@@ -60,6 +62,53 @@ def test_complete_validation() -> None:
     del state["scenarios"][MODULE.REQUIRED_SCENARIOS[0]]
     expect_failure(MODULE.validate_complete_state, state)
 
+
+
+
+def test_interrupted_upload_request_headers() -> None:
+    class FakeApi:
+        base_url = "http://192.0.2.1:8080/base"
+        timeout = 3.0
+
+        @staticmethod
+        def cookie_header(path: str) -> str:
+            assert path == "/api/v1/blobs"
+            return "session=test"
+
+    class FakeConnection:
+        def __init__(self, host: str, port: int, timeout: float) -> None:
+            self.host = host
+            self.port = port
+            self.timeout = timeout
+            self.requests = []
+            self.headers = []
+            self.ended = False
+
+        def putrequest(self, method: str, path: str, **kwargs) -> None:
+            self.requests.append((method, path, kwargs))
+
+        def putheader(self, name: str, value: str) -> None:
+            self.headers.append((name, value))
+
+        def endheaders(self) -> None:
+            self.ended = True
+
+    original = MODULE.http.client.HTTPConnection
+    MODULE.http.client.HTTPConnection = FakeConnection
+    try:
+        connection = MODULE.open_upload_connection(FakeApi())
+    finally:
+        MODULE.http.client.HTTPConnection = original
+
+    assert connection.requests == [
+        ("POST", "/base/api/v1/blobs", {"skip_host": True})
+    ]
+    host_headers = [
+        value for name, value in connection.headers if name.lower() == "host"
+    ]
+    assert host_headers == ["192.0.2.1:8080"]
+    assert ("Content-Length", str(MODULE.BLOB_MAX_BYTES)) in connection.headers
+    assert connection.ended is True
 
 def test_mount_failure_record() -> None:
     with tempfile.TemporaryDirectory() as temporary_directory:
@@ -116,6 +165,7 @@ def main() -> int:
     test_exact_gzip()
     test_recursive_values()
     test_complete_validation()
+    test_interrupted_upload_request_headers()
     test_mount_failure_record()
     print("PASS: V2-035 hardware evidence collector regression tests")
     return 0

@@ -17,8 +17,9 @@ session cookie. The password is read only from an environment variable.
 
 The collector does not check a V2-035 TODO item merely because a command ran.
 Each stage verifies byte identity with SHA-256, verifies the exact expected HTTP
-status or diagnostic state, and refuses to finalize unless all seven physical
-scenarios have a passing observation.
+status or diagnostic state, binds the record to the exact 40-character firmware
+commit supplied at the first stage, and refuses to finalize unless all seven
+physical scenarios have a passing observation.
 
 ## Safety boundaries
 
@@ -47,6 +48,7 @@ Example environment:
 
 ```bash
 export DEVICE_URL='http://192.168.4.1'
+export FIRMWARE_SHA="$(git rev-parse HEAD)"
 export V2_035_PASSWORD='the-current-device-password'
 export V2_035_STATE='/tmp/esp32-macro-keyboard-v2-035-state.json'
 ```
@@ -59,6 +61,7 @@ log, or Git commit.
 ```bash
 python3 scripts/run-v2-035-hardware.py start \
   --base-url "${DEVICE_URL}" \
+  --firmware-sha "${FIRMWARE_SHA}" \
   --state "${V2_035_STATE}"
 ```
 

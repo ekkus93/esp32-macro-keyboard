@@ -10,6 +10,7 @@ import http.cookiejar
 import http.client
 import json
 import os
+import re
 import socket
 import ssl
 import sys
@@ -25,6 +26,7 @@ from typing import Any
 BLOB_MAX_BYTES = 131_072
 USERDATA_BYTES = 524_288
 STATE_SCHEMA = 1
+FIRMWARE_COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 REQUIRED_SCENARIOS = (
     "power_cycle_persistence",
     "numeric_ordering",
@@ -272,6 +274,11 @@ def command_start(args: argparse.Namespace) -> None:
     require(not args.state.exists(), f"refusing to overwrite existing state {args.state}")
     api = DeviceApi(args.base_url, args.timeout)
     api.login(password_from_environment(args.password_env))
+    firmware_commit = args.firmware_sha.strip().lower()
+    require(
+        FIRMWARE_COMMIT_PATTERN.fullmatch(firmware_commit) is not None,
+        "firmware SHA must be exactly 40 hexadecimal characters",
+    )
     baseline = snapshot(api)
 
     created: list[dict[str, str]] = []
@@ -304,6 +311,8 @@ def command_start(args: argparse.Namespace) -> None:
         "task": "V2-035",
         "createdAt": utc_now(),
         "baseUrl": args.base_url.rstrip("/"),
+        "firmwareCommit": firmware_commit,
+        "targetHardware": "ESP32-S3R8",
         "phase": "awaiting_power_cycle",
         "baseline": baseline,
         "sentinels": [created[0], created[2]],
@@ -351,7 +360,7 @@ def open_upload_connection(api: DeviceApi) -> http.client.HTTPConnection:
     else:
         connection = connection_type(parsed.hostname, port, timeout=api.timeout, context=context)
     path = (parsed.path.rstrip("/") if parsed.path else "") + "/api/v1/blobs"
-    connection.putrequest("POST", path)
+    connection.putrequest("POST", path, skip_host=True)
     connection.putheader("Host", parsed.netloc)
     connection.putheader("Content-Type", "application/gzip")
     connection.putheader("Content-Length", str(BLOB_MAX_BYTES))
@@ -527,6 +536,16 @@ def command_record_mount_failure(args: argparse.Namespace) -> None:
 
 
 def validate_complete_state(state: dict[str, Any]) -> None:
+    firmware_commit = state.get("firmwareCommit")
+    require(
+        isinstance(firmware_commit, str)
+        and FIRMWARE_COMMIT_PATTERN.fullmatch(firmware_commit) is not None,
+        "evidence is not bound to an exact firmware commit",
+    )
+    require(
+        state.get("targetHardware") == "ESP32-S3R8",
+        "evidence target hardware is not ESP32-S3R8",
+    )
     scenarios = state.get("scenarios")
     require(isinstance(scenarios, dict), "evidence is missing scenarios")
     for name in REQUIRED_SCENARIOS:
@@ -579,6 +598,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     start = subparsers.add_parser("start", help="run ordering/delete tests and stage persistence")
     start.add_argument("--base-url", required=True)
+    start.add_argument("--firmware-sha", required=True)
     add_online_arguments(start)
     start.set_defaults(function=command_start)
 
