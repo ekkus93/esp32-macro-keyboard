@@ -1,0 +1,93 @@
+name: V2-034 Closeout
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/v2-034-closeout.yml
+
+permissions:
+  contents: write
+
+jobs:
+  closeout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Close only V2-034
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          todo_path = Path("docs/TODO_V2.md")
+          report_path = Path(
+              "docs/implementation-v2/"
+              "V2_034_CAPACITY_AND_BLOB_LIMIT_2026-08-06.md"
+          )
+          text = todo_path.read_text(encoding="utf-8")
+          report = report_path.read_text(encoding="utf-8")
+
+          start_marker = "## V2-034 — Capacity and candidate blob limit\n"
+          end_marker = "## V2-035 — Storage hardware evidence\n"
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+          section = text[start:end]
+
+          open_count = section.count("- [ ]")
+          if open_count != 16:
+              raise SystemExit(
+                  f"expected 16 open V2-034 checks, found {open_count}"
+              )
+          if "- [x]" in section:
+              raise SystemExit("V2-034 was partially closed before exact evidence")
+          if (
+              "**Status:** Complete" not in report
+              or "5b138fe21c49b94938713a2433ca67b606f4f41e" not in report
+              or "31087971174" not in report
+              or "31087969416" not in report
+              or "31087971115" not in report
+              or "31087971163" not in report
+          ):
+              raise SystemExit("V2-034 report is missing required exact-SHA evidence")
+
+          closed = section.replace("- [ ]", "- [x]")
+          if "- [ ]" in closed or closed.count("- [x]") != 16:
+              raise SystemExit("V2-034 closeout replacement was incomplete")
+
+          updated = text[:start] + closed + text[end:]
+          v2_035_start = updated.index(end_marker)
+          phase_gate = updated.index("## Phase 3 exit gate", v2_035_start)
+          v2_035 = updated[v2_035_start:phase_gate]
+          if v2_035.count("- [ ]") != 7 or "- [x]" in v2_035:
+              raise SystemExit("V2-035 hardware checklist changed unexpectedly")
+
+          todo_path.write_text(updated, encoding="utf-8")
+          PY
+
+      - name: Verify scope and self-delete
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/v2-034-closeout.yml
+          git diff --check
+          expected_paths="$(printf '%s\n' \
+            .github/workflows/v2-034-closeout.yml \
+            docs/TODO_V2.md | sort)"
+          test "$(git diff --name-only | sort)" = "${expected_paths}"
+
+      - name: Commit V2-034 closeout
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "docs(V2-034): record completion evidence"
+          git push origin HEAD:master
