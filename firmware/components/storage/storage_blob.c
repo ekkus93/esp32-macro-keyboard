@@ -46,6 +46,22 @@ app_error_code_t storage_blob_scan_startup(uint64_t persisted_next_id) {
     return APP_ERROR_NONE;
 }
 
+app_error_code_t storage_blob_list(const storage_blob_scan_observer_t *observer,
+                                   storage_blob_scan_summary_t *out_summary) {
+    if (out_summary == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    storage_blob_scan_summary_t summary = {0};
+    const app_error_code_t result = storage_blob_scan(scan_state.next_id, observer, &summary);
+    if (result != APP_ERROR_NONE) {
+        *out_summary = (storage_blob_scan_summary_t){0};
+        return result;
+    }
+    scan_state = summary;
+    *out_summary = summary;
+    return APP_ERROR_NONE;
+}
+
 app_error_code_t storage_blob_collect_diagnostics(storage_blob_diagnostics_t *out_diagnostics) {
     if (out_diagnostics == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
@@ -73,4 +89,10 @@ void storage_blob_record_committed_entry(const storage_blob_entry_t *entry) {
         scan_state.max_id = entry->id;
     }
     scan_state.next_id = entry->id + UINT64_C(1);
+}
+
+void storage_blob_record_deleted_entry(void) {
+    if (scan_state.valid_count > 0U) {
+        --scan_state.valid_count;
+    }
 }
