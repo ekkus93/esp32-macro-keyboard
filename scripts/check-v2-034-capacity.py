@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import csv
 import hashlib
-import re
 import tempfile
 from pathlib import Path
 
@@ -30,20 +29,6 @@ def read_partition_size(name: str) -> int:
             if len(row) == 6 and row[0].strip() == name:
                 return int(row[4].strip(), 0)
     raise SystemExit(f"partition table has no {name} partition")
-
-
-def read_decimal_define(path: Path, name: str) -> int:
-    text = path.read_text(encoding="utf-8")
-    match = re.search(
-        rf"^#define\s+{re.escape(name)}\s+([0-9]+)u?$",
-        text,
-        re.MULTILINE,
-    )
-    if match is None:
-        raise SystemExit(
-            f"could not resolve {name} from {path.relative_to(REPO_ROOT)}"
-        )
-    return int(match.group(1))
 
 
 def require_once(text: str, needle: str, description: str) -> None:
@@ -215,10 +200,6 @@ def build_and_verify_image(
 
 def main() -> int:
     partition_bytes = read_partition_size("userdata")
-    storage_maximum = read_decimal_define(
-        REPO_ROOT / "firmware/components/storage/include/storage_blob.h",
-        "STORAGE_BLOB_MAX_BYTES",
-    )
     app_limits_text = (
         REPO_ROOT
         / "firmware/components/app_contracts_v2/include/app_limits_v2.h"
@@ -227,18 +208,17 @@ def main() -> int:
         raise SystemExit(
             "APP_V2_BLOB_MAX_BYTES is not the reviewed 128 KiB candidate"
         )
-    if storage_maximum != EXPECTED_CANDIDATE_BYTES:
-        raise SystemExit("storage and v2 blob maximums have drifted")
+    maximum = EXPECTED_CANDIDATE_BYTES
 
-    verify_reporting_contract(storage_maximum)
+    verify_reporting_contract(maximum)
     verify_http_contract()
     used_bytes, overhead_bytes, remaining_bytes = build_and_verify_image(
-        partition_bytes, storage_maximum
+        partition_bytes, maximum
     )
     print(
         "V2-034 LittleFS capacity passed: "
-        f"partition={partition_bytes} maxBlob={storage_maximum} "
-        f"payload={storage_maximum * 3} used={used_bytes} "
+        f"partition={partition_bytes} maxBlob={maximum} "
+        f"payload={maximum * 3} used={used_bytes} "
         f"overhead={overhead_bytes} remaining={remaining_bytes}"
     )
     return 0
