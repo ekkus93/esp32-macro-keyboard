@@ -5,7 +5,9 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "api_contracts_v2.h"
 #include "app_limits_v2.h"
+#include "device_settings_v2.h"
 
 #define APP_V2_SETUP_UTF8_CONTINUATION_SHIFT 6U
 
