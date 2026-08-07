@@ -61,9 +61,9 @@ add_executable(
 target_include_directories(v2_device_settings_tests PRIVATE ${V2_CONTRACT_INCLUDE_DIR})
 
 add_executable(
-    v2_setup_contract_tests test_setup_contract.c
-                            ../../firmware/components/app_contracts_v2/setup_contract_v2.c
-                            ../../firmware/components/app_contracts_v2/device_settings_v2.c
+    v2_setup_contract_tests
+    test_setup_contract.c ../../firmware/components/app_contracts_v2/setup_contract_v2.c
+    ../../firmware/components/app_contracts_v2/device_settings_v2.c
 )
 target_include_directories(v2_setup_contract_tests PRIVATE ${V2_CONTRACT_INCLUDE_DIR})
 
