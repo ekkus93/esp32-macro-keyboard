@@ -1,7 +1,9 @@
 # V2-035 — Finalization crash-recovery hardening
 
-**Status:** Hosted harness hardening implemented; physical V2-035 evidence still required  
+**Status:** Hosted harness hardening implemented and regression-validated; physical V2-035 evidence still required  
 **Task:** V2-035  
+**Implementation commit:** `3fd93a01b1fa825fc674166d522c5744cb5702c8`  
+**Materialization trigger commit:** `d8bdbc0b5957f2bb7187543add5baec493c1c10a`  
 **Target hardware:** ESP32-S3R8
 
 ## Finding
@@ -20,6 +22,41 @@ The audit also found that the standalone `validate` command accepted any state p
 - Regression coverage now injects the exact device-delete/local-journal crash window and proves a second `finalize` invocation recovers it.
 - Regression coverage also proves a hash-consistent but non-finalized evidence object is rejected by the standalone validator.
 
+## Scoped materialization and regression evidence
+
+The one-time, self-removing materializer ran as GitHub Actions run `31157019104`, job `92798622525`, from trigger commit `d8bdbc0b5957f2bb7187543add5baec493c1c10a`.
+
+The run completed successfully and, before publishing production changes, required:
+
+```text
+python3 -m py_compile scripts/run-v2-035-hardware.py tests/scripts/test-v2-035-hardware.py
+python3 tests/scripts/test-v2-035-hardware.py
+git diff --check
+```
+
+Observed regression output included:
+
+```text
+PASS: failed mount left the corrupt userdata partition byte-identical and backup restoration matched
+PASS: collector-owned blobs were removed and the original baseline was restored
+PASS: complete V2-035 evidence written to <temporary path>/evidence.json
+PASS: <temporary path>/evidence.json contains all seven required physical scenarios
+PASS: V2-035 hardware evidence collector regression tests
+```
+
+The staged scope was limited to:
+
+- `scripts/run-v2-035-hardware.py`;
+- `tests/scripts/test-v2-035-hardware.py`;
+- this implementation report; and
+- deletion of the one-time materializer workflow.
+
+The materializer then committed and pushed implementation commit `3fd93a01b1fa825fc674166d522c5744cb5702c8`. The temporary workflow is not present in the resulting repository.
+
+## Permanent-CI boundary
+
+This report update is a normal GitHub API commit so the permanent Browser Tests, Host Tests, Device Test Build, and Quality workflows run on the resulting exact repository head. Those runs must all succeed before hosted V2-035 preparation is considered settled. Any failure remains a blocker and must be repaired rather than documented away.
+
 ## Completion boundary
 
-This repair does not satisfy any physical V2-035 checklist item. V2-035 remains open until the seven scenarios are executed on the reference ESP32-S3R8 and sanitized finalized evidence is committed.
+This repair does not satisfy any physical V2-035 checklist item. V2-035 remains open until the seven scenarios are executed on the reference ESP32-S3R8 and sanitized finalized evidence is committed. No unchecked V2-035 task is claimed complete by this report.
