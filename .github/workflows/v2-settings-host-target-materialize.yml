@@ -21,7 +21,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Re-run after the warning-as-error encode-helper repair.
+          # Re-run after fixing the fixture to satisfy canonical V2 settings invariants.
           python3 - <<'PY'
           from pathlib import Path
 
