@@ -1,0 +1,98 @@
+name: V2-035 Finalization Hardening Materializer
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/v2-035-finalization-hardening-materialize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch V2-035 collector and regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          collector = Path("scripts/run-v2-035-hardware.py")
+          source = collector.read_text(encoding="utf-8")
+
+          old = '''def validate_complete_state(state: dict[str, Any]) -> None:\n    firmware_commit = state.get("firmwareCommit")\n'''
+          new = '''def validate_complete_state(state: dict[str, Any]) -> None:\n    require(state.get("schemaVersion") == STATE_SCHEMA,\n            "evidence schemaVersion is invalid")\n    require(state.get("task") == "V2-035",\n            "evidence task is not V2-035")\n    require(state.get("espIdfVersion") == ESP_IDF_VERSION,\n            f"evidence ESP-IDF version is not {ESP_IDF_VERSION}")\n    firmware_commit = state.get("firmwareCommit")\n'''
+          if source.count(old) != 1:
+              raise SystemExit("validate_complete_state anchor drifted")
+          source = source.replace(old, new)
+
+          old = '''    else:\n        expected = dict(state["baseline"])\n        expected.update(owned_snapshot(state))\n        verify_snapshot(api, expected, exact_ids=True)\n\n    for item in list(reversed(owned_blobs(state))):\n'''
+          new = '''    else:\n        # A host crash can occur after the device has deleted a collector-owned\n        # blob but before the local ownership journal is updated.  Treat an\n        # already-missing collector-owned blob as the intended delete having\n        # reached the device, while still failing closed on any baseline change\n        # or unowned blob.\n        reconcile_pending_creation(api, args.state, state)\n        verify_recoverable_snapshot(api, state)\n\n    for item in list(reversed(owned_blobs(state))):\n'''
+          if source.count(old) != 1:
+              raise SystemExit("finalize resume anchor drifted")
+          source = source.replace(old, new)
+
+          old = '''def command_validate(args: argparse.Namespace) -> None:\n    state = read_json(args.evidence)\n    validate_complete_state(state)\n    require(state.get("testBlobCleanup", {}).get("status") == "pass",\n            "test-created blob cleanup is not verified")\n    print(f"PASS: {args.evidence} contains all seven required physical scenarios")\n'''
+          new = '''def command_validate(args: argparse.Namespace) -> None:\n    state = read_json(args.evidence)\n    require(state.get("phase") == "complete",\n            f"evidence is not finalized: {state.get('phase')!r}")\n    evidence_sha256 = state.get("evidenceSha256")\n    require(isinstance(evidence_sha256, str)\n            and SHA256_PATTERN.fullmatch(evidence_sha256) is not None,\n            "evidenceSha256 is missing or invalid")\n    unhashed = dict(state)\n    unhashed.pop("evidenceSha256", None)\n    expected_sha256 = sha256_bytes(\n        json.dumps(unhashed, sort_keys=True, separators=(",", ":")).encode()\n    )\n    require(evidence_sha256 == expected_sha256,\n            "evidenceSha256 does not match the finalized evidence contents")\n    validate_complete_state(state)\n    require(state.get("testBlobCleanup", {}).get("status") == "pass",\n            "test-created blob cleanup is not verified")\n    print(f"PASS: {args.evidence} contains all seven required physical scenarios")\n'''
+          if source.count(old) != 1:
+              raise SystemExit("command_validate anchor drifted")
+          source = source.replace(old, new)
+          collector.write_text(source, encoding="utf-8")
+
+          tests = Path("tests/scripts/test-v2-035-hardware.py")
+          source = tests.read_text(encoding="utf-8")
+          anchor = '''def test_finalize_resumes_partial_cleanup() -> None:\n'''
+          if source.count(anchor) != 1:
+              raise SystemExit("finalization test anchor drifted")
+          inserted = '''class DeleteThenFailApi(FakeRecoveryApi):\n    def __init__(self, blobs: dict[str, bytes], fail_after_delete_once: str) -> None:\n        super().__init__(blobs)\n        self.fail_after_delete_once = fail_after_delete_once\n\n    def delete_blob(self, blob_id: str) -> None:\n        self.blobs.pop(blob_id, None)\n        if self.fail_after_delete_once == blob_id:\n            self.fail_after_delete_once = ""\n            raise MODULE.EvidenceError(\n                f"injected host crash after device delete for {blob_id}"\n            )\n\n\ndef test_finalize_resumes_after_device_delete_before_journal() -> None:\n    with tempfile.TemporaryDirectory() as temporary_directory:\n        root = Path(temporary_directory)\n        state_path = root / "state.json"\n        output_path = root / "evidence.json"\n        baseline_payload = b"baseline"\n        first_payload = b"first"\n        second_payload = b"second"\n        first = {"id": "0000000002", "sha256": MODULE.sha256_bytes(first_payload)}\n        second = {"id": "0000000003", "sha256": MODULE.sha256_bytes(second_payload)}\n        state = complete_state()\n        state.update(\n            {\n                "baseUrl": "http://device.test",\n                "baseline": {"0000000001": MODULE.sha256_bytes(baseline_payload)},\n                "sentinels": [first, second],\n                "ownedBlobs": [first, second],\n            }\n        )\n        state_path.write_text(json.dumps(state), encoding="utf-8")\n        fake = DeleteThenFailApi(\n            {\n                "0000000001": baseline_payload,\n                "0000000002": first_payload,\n                "0000000003": second_payload,\n            },\n            fail_after_delete_once="0000000003",\n        )\n        args = Namespace(\n            state=state_path,\n            output=output_path,\n            timeout=1.0,\n            password_env="UNUSED",\n        )\n        original_api_from_state = MODULE.api_from_state\n        MODULE.api_from_state = lambda current, current_args: fake\n        try:\n            expect_failure(MODULE.command_finalize, args)\n            partial = json.loads(state_path.read_text(encoding="utf-8"))\n            assert partial["phase"] == "finalize_in_progress"\n            assert partial["ownedBlobs"] == [first, second]\n            assert "0000000003" not in fake.blobs\n            MODULE.command_finalize(args)\n        finally:\n            MODULE.api_from_state = original_api_from_state\n        complete = json.loads(state_path.read_text(encoding="utf-8"))\n        assert complete["phase"] == "complete"\n        assert complete["ownedBlobs"] == []\n        assert fake.blobs == {"0000000001": baseline_payload}\n        MODULE.command_validate(Namespace(evidence=output_path))\n\n\n'''
+          source = source.replace(anchor, inserted + anchor)
+
+          old = '''    test_journaled_create_closes_response_window()\n    test_finalize_resumes_partial_cleanup()\n'''
+          new = '''    test_journaled_create_closes_response_window()\n    test_finalize_resumes_after_device_delete_before_journal()\n    test_finalize_resumes_partial_cleanup()\n'''
+          if source.count(old) != 1:
+              raise SystemExit("test main anchor drifted")
+          source = source.replace(old, new)
+
+          old = '''        MODULE.command_validate(Namespace(evidence=output_path))\n\n\ndef main() -> int:\n'''
+          new = '''        MODULE.command_validate(Namespace(evidence=output_path))\n        evidence = json.loads(output_path.read_text(encoding="utf-8"))\n        evidence["phase"] = "ready_to_finalize"\n        unhashed = dict(evidence)\n        unhashed.pop("evidenceSha256", None)\n        evidence["evidenceSha256"] = MODULE.sha256_bytes(\n            json.dumps(unhashed, sort_keys=True, separators=(",", ":")).encode()\n        )\n        output_path.write_text(json.dumps(evidence), encoding="utf-8")\n        expect_failure(\n            MODULE.command_validate, Namespace(evidence=output_path)\n        )\n\n\ndef main() -> int:\n'''
+          if source.count(old) != 1:
+              raise SystemExit("validation regression anchor drifted")
+          source = source.replace(old, new)
+          tests.write_text(source, encoding="utf-8")
+
+          report = Path("docs/implementation-v2/V2_035_FINALIZATION_CRASH_RECOVERY_HARDENING_2026-08-07.md")
+          report.write_text('''# V2-035 — Finalization crash-recovery hardening\n\n**Status:** Hosted harness hardening implemented; physical V2-035 evidence still required  \n**Task:** V2-035  \n**Target hardware:** ESP32-S3R8\n\n## Finding\n\nA fail-closed audit of the prepared V2-035 physical collector found a real crash-window bug in finalization. The collector documented that `finalize` was resumable if the host stopped after deleting a sentinel, but the resume precheck required every journaled collector-owned blob to still exist. A host failure after the device accepted a delete and before the local ownership journal was rewritten therefore made finalization unrecoverable.\n\nThe audit also found that the standalone `validate` command accepted any state phase allowed by the internal pre-finalization validator and did not verify the emitted `evidenceSha256`. That was stricter than no validation, but weaker than the finalized-evidence contract.\n\n## Repair\n\n- `finalize_in_progress` now uses the ownership-aware recovery snapshot check. Baseline blobs must all exist and remain byte-identical, unowned IDs are rejected, and collector-owned blobs may already be absent because deletion is the intended operation.\n- The delete loop then journals already-missing collector-owned blobs and completes the bounded cleanup.\n- Finalized evidence validation now requires `phase == complete`.\n- Finalized evidence validation recomputes and verifies `evidenceSha256`.\n- Common complete-state validation now requires the exact state schema, task ID, and ESP-IDF version.\n- Regression coverage now injects the exact device-delete/local-journal crash window and proves a second `finalize` invocation recovers it.\n- Regression coverage also proves a hash-consistent but non-finalized evidence object is rejected by the standalone validator.\n\n## Completion boundary\n\nThis repair does not satisfy any physical V2-035 checklist item. V2-035 remains open until the seven scenarios are executed on the reference ESP32-S3R8 and sanitized finalized evidence is committed.\n''', encoding="utf-8")
+          PY
+
+      - name: Validate hardening
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/run-v2-035-hardware.py tests/scripts/test-v2-035-hardware.py
+          python3 tests/scripts/test-v2-035-hardware.py
+          git diff --check
+
+      - name: Commit production hardening and remove materializer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/run-v2-035-hardware.py tests/scripts/test-v2-035-hardware.py docs/implementation-v2/V2_035_FINALIZATION_CRASH_RECOVERY_HARDENING_2026-08-07.md
+          git rm .github/workflows/v2-035-finalization-hardening-materialize.yml
+          expected=$(printf '%s\n' \
+            '.github/workflows/v2-035-finalization-hardening-materialize.yml' \
+            'docs/implementation-v2/V2_035_FINALIZATION_CRASH_RECOVERY_HARDENING_2026-08-07.md' \
+            'scripts/run-v2-035-hardware.py' \
+            'tests/scripts/test-v2-035-hardware.py')
+          actual=$(git diff --cached --name-only | sort)
+          test "$actual" = "$(printf '%s\n' "$expected" | sort)"
+          git commit -m "Harden V2-035 finalization recovery"
+          git push origin HEAD:master
