@@ -111,18 +111,14 @@ app_error_code_t auth_core_generate_session_tokens(auth_core_t *core, auth_sessi
 
 void auth_core_snapshot_state(const auth_core_t *core, auth_core_state_snapshot_t *snapshot) {
     memcpy(snapshot->sessions, core->sessions, sizeof(snapshot->sessions));
-    snapshot->failure_count = core->failure_count;
-    snapshot->failure_window_start_us = core->failure_window_start_us;
-    snapshot->failure_window_active = core->failure_window_active;
+    memcpy(snapshot->rate_limits, core->rate_limits, sizeof(snapshot->rate_limits));
     snapshot->last_now_us = core->last_now_us;
     snapshot->clock_initialized = core->clock_initialized;
 }
 
 void auth_core_restore_state(auth_core_t *core, const auth_core_state_snapshot_t *snapshot) {
     memcpy(core->sessions, snapshot->sessions, sizeof(core->sessions));
-    core->failure_count = snapshot->failure_count;
-    core->failure_window_start_us = snapshot->failure_window_start_us;
-    core->failure_window_active = snapshot->failure_window_active;
+    memcpy(core->rate_limits, snapshot->rate_limits, sizeof(core->rate_limits));
     core->last_now_us = snapshot->last_now_us;
     core->clock_initialized = snapshot->clock_initialized;
 }
