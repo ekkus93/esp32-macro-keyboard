@@ -107,6 +107,7 @@ The focused integration loop found several defects and test-fixture errors befor
 3. After caller-invalid settings were correctly separated from storage corruption at `60b013347f9d0233029ec6e371df8897b1305fe5`, permanent Host Tests exposed one stale expectation that still demanded `APP_ERROR_STORAGE_CORRUPT`. The regression was changed to require `APP_ERROR_INVALID_ARGUMENT`.
 4. Source review found that mutex-release failure was visible only when the protected operation had otherwise succeeded. The adapter now returns `APP_ERROR_INTERNAL` for any release failure so synchronization failure cannot be silently masked.
 5. The first production-hardening materializer failed before committing because its source-edit marker was indentation-sensitive. The marker was made semantic/regex-based; no production check was weakened or bypassed.
+6. The first ordinary exact-SHA candidate `a2e7099217630f67910fcc1a44ac8e73b198b0d2` passed Browser and all five Host jobs, but Quality run `31205157494` rejected non-canonical `clang-format` layout in the newly added settings adapter/core/headers and host test. The files were formatted with the same `clang-format` package used by Quality; the focused formatter run also reran the permanent settings policy guard and full host suite. No formatting check was disabled or scoped away.
 
 Focused materializer evidence includes:
 
@@ -115,7 +116,8 @@ Focused materializer evidence includes:
 - run `31202791579`, job `92946547669`: focused host target passed and permanently registered the test;
 - Host Tests run `31202977934`: exposed the stale invalid-candidate error expectation after the production classification repair;
 - run `31204791048`: rejected the brittle materializer marker before any permanent patch was committed;
-- run `31204904346`, job `92953434594`: production hardening, policy guard, settings schema check, complete host test suite, and `git diff --check` all passed; the workflow then self-removed.
+- run `31204904346`, job `92953434594`: production hardening, policy guard, settings schema check, complete host test suite, and `git diff --check` all passed; the workflow then self-removed;
+- run `31205797823`, job `92956400330`: exact settings sources were formatted, rechecked with `clang-format --dry-run --Werror`, the policy guard and full host suite passed, and the formatter workflow self-removed.
 
 ## Implementation commits
 
@@ -123,13 +125,14 @@ The permanent settings foundation culminates in:
 
 - `5fb0a59b71f5fe6614655df39f07326200f68da9` — register the V2 settings host target;
 - `60b013347f9d0233029ec6e371df8897b1305fe5` — separate caller validation from stored-record corruption;
-- `803aea637ac797b62c2e20199b155b3814a285b4` — harden canonical V2 settings persistence, add the permanent policy guard, surface unlock failures, and add the production dependency.
+- `803aea637ac797b62c2e20199b155b3814a285b4` — harden canonical V2 settings persistence, add the permanent policy guard, surface unlock failures, and add the production dependency;
+- `5a0ab01330c8ccae817abed66a428f41b932ddf5` — apply the repository-required formatter output to the new first-party settings sources and regression.
 
-The temporary materializer workflow is not part of the permanent tree.
+The temporary materializer workflows are not part of the permanent tree.
 
 ## Exact-SHA validation boundary
 
-The ordinary commit containing this report must pass all four permanent workflows on one exact SHA before this foundation is treated as settled:
+The ordinary commit containing this revised report must pass all four permanent workflows on one exact SHA before this foundation is treated as settled:
 
 - Browser Tests;
 - Host Tests, including native tests, ASan/UBSan, native coverage, frontend tests, and frontend coverage;
