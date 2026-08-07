@@ -8,17 +8,35 @@
 #include "app_error.h"
 #include "auth.h"
 #include "cJSON.h"
+#include "lwip/sockets.h"
 
 #define LOGIN_COOKIE_BYTES 160U
 #define LOGIN_RESPONSE_BYTES 192U
 
-/* Enforce the login throttle. Sets *out_proceed to true when the attempt is
- * allowed; otherwise sends the throttled/failed response and returns its result
- * (which the caller returns directly). */
-static esp_err_t enforce_login_rate_limit(httpd_req_t *request, bool *out_proceed) {
+static app_error_code_t login_source_ipv4(httpd_req_t *request, uint32_t *out_source_ipv4) {
+    if (request == NULL || out_source_ipv4 == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const int socket_fd = httpd_req_to_sockfd(request);
+    if (socket_fd < 0) {
+        return APP_ERROR_INTERNAL;
+    }
+    struct sockaddr_storage peer = {0};
+    socklen_t peer_length = sizeof(peer);
+    if (getpeername(socket_fd, (struct sockaddr *)&peer, &peer_length) != 0 ||
+        peer.ss_family != AF_INET) {
+        return APP_ERROR_INTERNAL;
+    }
+    const struct sockaddr_in *ipv4 = (const struct sockaddr_in *)&peer;
+    *out_source_ipv4 = ipv4->sin_addr.s_addr;
+    return APP_ERROR_NONE;
+}
+
+static esp_err_t enforce_login_rate_limit(httpd_req_t *request, uint32_t source_ipv4,
+                                          bool *out_proceed) {
     *out_proceed = false;
     uint32_t retry_after = 0U;
-    const app_error_code_t allowed = auth_login_attempt_allowed(&retry_after);
+    const app_error_code_t allowed = auth_login_attempt_allowed(source_ipv4, &retry_after);
     if (allowed == APP_ERROR_RATE_LIMITED) {
         char retry_value[16U];
         const int written =
@@ -43,8 +61,14 @@ esp_err_t login_handler(httpd_req_t *request) {
         return send_error(request, "503 Service Unavailable", APP_ERROR_AUTH_REQUIRED,
                           "login is not provisioned");
     }
+    uint32_t source_ipv4 = 0U;
+    const app_error_code_t source_result = login_source_ipv4(request, &source_ipv4);
+    if (source_result != APP_ERROR_NONE) {
+        return send_error(request, "500 Internal Server Error", source_result,
+                          "login peer address unavailable");
+    }
     bool proceed = false;
-    const esp_err_t throttle = enforce_login_rate_limit(request, &proceed);
+    const esp_err_t throttle = enforce_login_rate_limit(request, source_ipv4, &proceed);
     if (!proceed) {
         return throttle;
     }
@@ -74,14 +98,15 @@ esp_err_t login_handler(httpd_req_t *request) {
     cJSON_Delete(root);
     memset(body, 0, sizeof(body));
     if (verify_result != APP_ERROR_NONE) {
-        /* A PBKDF2 failure or a corrupt password record is a subsystem problem,
-         * not a wrong password: do not count a login failure and do not answer 401
-         * (FIX1 §10.2). */
         return send_error(request, "500 Internal Server Error", verify_result,
                           "authentication subsystem unavailable");
     }
     if (!password_matches) {
-        const app_error_code_t failure_result = auth_login_record_failure();
+        const app_error_code_t failure_result = auth_login_record_failure(source_ipv4);
+        if (failure_result == APP_ERROR_RATE_LIMITED) {
+            return send_error(request, "429 Too Many Requests", failure_result,
+                              "login throttle capacity unavailable");
+        }
         if (failure_result != APP_ERROR_NONE) {
             return send_error(request, "500 Internal Server Error", failure_result,
                               "could not record login failure");
@@ -89,7 +114,7 @@ esp_err_t login_handler(httpd_req_t *request) {
         return send_error(request, "401 Unauthorized", APP_ERROR_AUTH_FAILED,
                           "invalid credentials");
     }
-    const app_error_code_t success_result = auth_login_record_success();
+    const app_error_code_t success_result = auth_login_record_success(source_ipv4);
     if (success_result != APP_ERROR_NONE) {
         return send_error(request, "500 Internal Server Error", success_result,
                           "could not reset login throttle");
@@ -97,10 +122,8 @@ esp_err_t login_handler(httpd_req_t *request) {
     auth_session_view_t session = {0};
     const app_error_code_t session_result = auth_session_create(&session);
     if (session_result != APP_ERROR_NONE) {
-        return send_error(request,
-                          session_result == APP_ERROR_CONFLICT ? "503 Service Unavailable"
-                                                               : "500 Internal Server Error",
-                          session_result, "could not create session");
+        return send_error(request, "500 Internal Server Error", session_result,
+                          "could not create session");
     }
     char cookie[LOGIN_COOKIE_BYTES];
     const int cookie_length = snprintf(cookie, sizeof(cookie),
