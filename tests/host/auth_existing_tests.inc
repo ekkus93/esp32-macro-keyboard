@@ -126,7 +126,11 @@ static void test_session_expiry_and_capacity(void) {
     fake_reset(&fake);
     init_core(&core, &fake);
     TEST_CHECK(auth_core_session_create(&core, &expiring) == APP_ERROR_NONE);
-    fake.now_us = expiring.absolute_expires_at_us - 1U;
+    for (uint64_t step = UINT64_C(1); step <= UINT64_C(7); ++step) {
+        fake.now_us = step * UINT64_C(80000000000);
+        TEST_CHECK(auth_core_session_validate(&core, expiring.session_token) == APP_ERROR_NONE);
+    }
+    fake.now_us = expiring.absolute_expires_at_us - UINT64_C(1);
     TEST_CHECK(auth_core_session_validate(&core, expiring.session_token) == APP_ERROR_NONE);
     TEST_CHECK_EQ_U64(expiring.absolute_expires_at_us, core.sessions[0].view.expires_at_us);
     fake.now_us = expiring.absolute_expires_at_us;
