@@ -5,21 +5,23 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "app_limits_v2.h"
 #include "auth_core.h"
 
 #define AUTH_CORE_PBKDF2_ITERATIONS AUTH_PBKDF2_ITERATIONS
-#define AUTH_CORE_SESSION_IDLE_US (15ULL * 60ULL * 1000000ULL)
-#define AUTH_CORE_MAX_FAILURES 5U
-#define AUTH_CORE_FAILURE_WINDOW_US (60ULL * 1000000ULL)
+#define AUTH_CORE_SESSION_IDLE_US \
+    ((uint64_t)APP_V2_SESSION_IDLE_LIFETIME_SECONDS * UINT64_C(1000000))
+#define AUTH_CORE_SESSION_ABSOLUTE_US \
+    ((uint64_t)APP_V2_SESSION_ABSOLUTE_LIFETIME_SECONDS * UINT64_C(1000000))
+#define AUTH_CORE_FAILURE_WINDOW_US (UINT64_C(60) * UINT64_C(1000000))
+#define AUTH_CORE_LOCKOUT_US (UINT64_C(300) * UINT64_C(1000000))
 #define AUTH_CORE_PASSWORD_MIN_BYTES AUTH_PASSWORD_MIN_BYTES
 #define AUTH_CORE_PASSWORD_MAX_BYTES AUTH_PASSWORD_MAX_BYTES
 #define AUTH_CORE_TOKEN_GENERATION_ATTEMPTS 4U
 
 typedef struct {
     auth_session_entry_t sessions[APP_SESSION_TABLE_MAX];
-    uint32_t failure_count;
-    uint64_t failure_window_start_us;
-    bool failure_window_active;
+    auth_rate_limit_entry_t rate_limits[AUTH_RATE_LIMIT_SOURCE_MAX];
     uint64_t last_now_us;
     bool clock_initialized;
 } auth_core_state_snapshot_t;
