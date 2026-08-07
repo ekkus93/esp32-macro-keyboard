@@ -32,8 +32,7 @@ static void clear_record(device_settings_core_t *core, uint8_t *record) {
     core->ops.secure_zero(core->ops.context, record, APP_V2_SETTINGS_RECORD_BYTES);
 }
 
-static app_error_code_t encode_settings(device_settings_core_t *core,
-                                        const app_v2_device_settings_t *settings,
+static app_error_code_t encode_settings(const app_v2_device_settings_t *settings,
                                         uint8_t *record) {
     const app_v2_settings_result_t result =
         app_v2_device_settings_encode(settings, record, APP_V2_SETTINGS_RECORD_BYTES);
@@ -116,9 +115,9 @@ app_error_code_t device_settings_core_replace(device_settings_core_t *core,
 
     uint8_t current_record[APP_V2_SETTINGS_RECORD_BYTES] = {0};
     uint8_t candidate_record[APP_V2_SETTINGS_RECORD_BYTES] = {0};
-    result = encode_settings(core, &core->current, current_record);
+    result = encode_settings(&core->current, current_record);
     if (result == APP_ERROR_NONE) {
-        result = encode_settings(core, settings, candidate_record);
+        result = encode_settings(settings, candidate_record);
     }
     if (result != APP_ERROR_NONE) {
         clear_record(core, current_record);
