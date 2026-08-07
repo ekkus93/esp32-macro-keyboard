@@ -89,8 +89,8 @@ static app_v2_device_settings_t configured_settings(void) {
     settings.require_serial_confirmation = true;
     settings.station_configured = true;
     TEST_CHECK(snprintf(settings.last_selected_package_id,
-                        sizeof(settings.last_selected_package_id),
-                        "%s", "123e4567-e89b-42d3-a456-426614174000") > 0);
+                        sizeof(settings.last_selected_package_id), "%s",
+                        "123e4567-e89b-42d3-a456-426614174000") > 0);
     TEST_CHECK(snprintf(settings.device_name, sizeof(settings.device_name), "%s", "Desk Keyboard") >
                0);
     TEST_CHECK(snprintf(settings.ap_ssid, sizeof(settings.ap_ssid), "%s", "Macro Keyboard") > 0);
@@ -104,11 +104,9 @@ static app_v2_device_settings_t configured_settings(void) {
     return settings;
 }
 
-static void seed_durable(fake_settings_store_t *fake,
-                         const app_v2_device_settings_t *settings) {
-    TEST_CHECK_EQ_INT(APP_V2_SETTINGS_OK,
-                      app_v2_device_settings_encode(settings, fake->durable,
-                                                    sizeof(fake->durable)));
+static void seed_durable(fake_settings_store_t *fake, const app_v2_device_settings_t *settings) {
+    TEST_CHECK_EQ_INT(APP_V2_SETTINGS_OK, app_v2_device_settings_encode(settings, fake->durable,
+                                                                        sizeof(fake->durable)));
     fake->durable_length = sizeof(fake->durable);
     fake->present = true;
 }

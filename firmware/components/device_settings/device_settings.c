@@ -24,16 +24,16 @@ static device_settings_core_t settings_core;
 
 static app_error_code_t map_nvs_error(esp_err_t result) {
     switch (result) {
-        case ESP_OK:
-            return APP_ERROR_NONE;
-        case ESP_ERR_NVS_NOT_FOUND:
-            return APP_ERROR_NOT_FOUND;
-        case ESP_ERR_NVS_NOT_ENOUGH_SPACE:
-            return APP_ERROR_STORAGE_FULL;
-        case ESP_ERR_NVS_INVALID_LENGTH:
-            return APP_ERROR_STORAGE_CORRUPT;
-        default:
-            return APP_ERROR_STORAGE_UNAVAILABLE;
+    case ESP_OK:
+        return APP_ERROR_NONE;
+    case ESP_ERR_NVS_NOT_FOUND:
+        return APP_ERROR_NOT_FOUND;
+    case ESP_ERR_NVS_NOT_ENOUGH_SPACE:
+        return APP_ERROR_STORAGE_FULL;
+    case ESP_ERR_NVS_INVALID_LENGTH:
+        return APP_ERROR_STORAGE_CORRUPT;
+    default:
+        return APP_ERROR_STORAGE_UNAVAILABLE;
     }
 }
 
@@ -85,8 +85,8 @@ static app_error_code_t read_record(void *context, uint8_t *record, size_t capac
     }
 
     size_t actual = capacity;
-    result = map_nvs_error(
-        nvs_get_blob(settings_handle, DEVICE_SETTINGS_RECORD_KEY, record, &actual));
+    result =
+        map_nvs_error(nvs_get_blob(settings_handle, DEVICE_SETTINGS_RECORD_KEY, record, &actual));
     if (result != APP_ERROR_NONE) {
         return result;
     }
@@ -98,8 +98,7 @@ static app_error_code_t read_record(void *context, uint8_t *record, size_t capac
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t replace_record_atomic(void *context, const uint8_t *record,
-                                              size_t length) {
+static app_error_code_t replace_record_atomic(void *context, const uint8_t *record, size_t length) {
     (void)context;
     if (!settings_handle_open || record == NULL || length != APP_V2_SETTINGS_RECORD_BYTES) {
         return APP_ERROR_INVALID_ARGUMENT;

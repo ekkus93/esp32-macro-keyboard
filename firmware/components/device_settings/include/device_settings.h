@@ -13,7 +13,8 @@ extern "C" {
 app_error_code_t device_settings_init(void);
 app_error_code_t device_settings_deinit(void);
 app_error_code_t device_settings_read(app_v2_device_settings_t *out_settings);
-app_error_code_t device_settings_replace(const app_v2_device_settings_t *settings, bool *out_changed);
+app_error_code_t device_settings_replace(const app_v2_device_settings_t *settings,
+                                         bool *out_changed);
 app_error_code_t device_settings_reset_noncredential(app_v2_device_settings_t *out_settings,
                                                      bool *out_changed);
 

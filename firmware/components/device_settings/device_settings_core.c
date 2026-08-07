@@ -15,30 +15,30 @@ static bool operations_valid(const device_settings_core_ops_t *operations) {
 
 static app_error_code_t map_decode_result(app_v2_settings_result_t result) {
     switch (result) {
-        case APP_V2_SETTINGS_OK:
-            return APP_ERROR_NONE;
-        case APP_V2_SETTINGS_INVALID_ARGUMENT:
-            return APP_ERROR_INVALID_ARGUMENT;
-        case APP_V2_SETTINGS_INVALID_LENGTH:
-        case APP_V2_SETTINGS_CORRUPT:
-        case APP_V2_SETTINGS_UNSUPPORTED_VERSION:
-            return APP_ERROR_STORAGE_CORRUPT;
-        default:
-            return APP_ERROR_INTERNAL;
+    case APP_V2_SETTINGS_OK:
+        return APP_ERROR_NONE;
+    case APP_V2_SETTINGS_INVALID_ARGUMENT:
+        return APP_ERROR_INVALID_ARGUMENT;
+    case APP_V2_SETTINGS_INVALID_LENGTH:
+    case APP_V2_SETTINGS_CORRUPT:
+    case APP_V2_SETTINGS_UNSUPPORTED_VERSION:
+        return APP_ERROR_STORAGE_CORRUPT;
+    default:
+        return APP_ERROR_INTERNAL;
     }
 }
 
 static app_error_code_t map_candidate_result(app_v2_settings_result_t result) {
     switch (result) {
-        case APP_V2_SETTINGS_OK:
-            return APP_ERROR_NONE;
-        case APP_V2_SETTINGS_INVALID_ARGUMENT:
-        case APP_V2_SETTINGS_CORRUPT:
-            return APP_ERROR_INVALID_ARGUMENT;
-        case APP_V2_SETTINGS_INVALID_LENGTH:
-        case APP_V2_SETTINGS_UNSUPPORTED_VERSION:
-        default:
-            return APP_ERROR_INTERNAL;
+    case APP_V2_SETTINGS_OK:
+        return APP_ERROR_NONE;
+    case APP_V2_SETTINGS_INVALID_ARGUMENT:
+    case APP_V2_SETTINGS_CORRUPT:
+        return APP_ERROR_INVALID_ARGUMENT;
+    case APP_V2_SETTINGS_INVALID_LENGTH:
+    case APP_V2_SETTINGS_UNSUPPORTED_VERSION:
+    default:
+        return APP_ERROR_INTERNAL;
     }
 }
 
@@ -46,8 +46,7 @@ static void clear_record(device_settings_core_t *core, uint8_t *record) {
     core->ops.secure_zero(core->ops.context, record, APP_V2_SETTINGS_RECORD_BYTES);
 }
 
-static app_error_code_t encode_settings(const app_v2_device_settings_t *settings,
-                                        uint8_t *record) {
+static app_error_code_t encode_settings(const app_v2_device_settings_t *settings, uint8_t *record) {
     const app_v2_settings_result_t result =
         app_v2_device_settings_encode(settings, record, APP_V2_SETTINGS_RECORD_BYTES);
     return map_candidate_result(result);
@@ -114,8 +113,7 @@ app_error_code_t device_settings_core_load(device_settings_core_t *core,
 app_error_code_t device_settings_core_replace(device_settings_core_t *core,
                                               const app_v2_device_settings_t *settings,
                                               bool *out_changed) {
-    if (core == NULL || settings == NULL || out_changed == NULL ||
-        !operations_valid(&core->ops)) {
+    if (core == NULL || settings == NULL || out_changed == NULL || !operations_valid(&core->ops)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     *out_changed = false;

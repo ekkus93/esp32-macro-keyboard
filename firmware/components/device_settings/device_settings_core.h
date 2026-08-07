@@ -12,8 +12,7 @@ typedef struct {
     void *context;
     app_error_code_t (*read_record)(void *context, uint8_t *record, size_t capacity,
                                     size_t *out_length);
-    app_error_code_t (*replace_record_atomic)(void *context, const uint8_t *record,
-                                              size_t length);
+    app_error_code_t (*replace_record_atomic)(void *context, const uint8_t *record, size_t length);
     void (*secure_zero)(void *context, void *memory, size_t length);
 } device_settings_core_ops_t;
 
