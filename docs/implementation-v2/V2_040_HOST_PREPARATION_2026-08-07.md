@@ -5,7 +5,8 @@
 **Status:** Host-side contract preparation only; V2-040 remains open  
 **Implementation commit:** `904f9dc1e40b92ace3cc77382c81285a24785c1e`  
 **C/C-header formatter repair:** `fc3e997c3e74390de527cb19b371d9d9bd198943`  
-**CMake formatter repair:** `238b7299b2bdff4603ffc21910efaffb258e6c7e`
+**CMake formatter repair:** `238b7299b2bdff4603ffc21910efaffb258e6c7e`  
+**Clang-Tidy direct-include repair:** `0e8cdef6407b319cba0dce93bddec0aa966b3dc6`
 
 ## Scope
 
@@ -21,7 +22,7 @@ The host-preparation implementation changed exactly these permanent files:
 - `tests/v2_contracts/CMakeLists.txt`
 - `tests/v2_contracts/test_setup_contract.c`
 
-The two subsequent repair commits contain formatter-only changes to those new host-prep files. Neither repair changes contract behavior or test semantics. Both temporary materializer workflows removed themselves and are not part of the permanent repository state.
+The two formatter repair commits contain formatter-only changes to those new host-prep files. The later Clang-Tidy repair adds only the two direct owning includes required by `misc-include-cleaner`; it does not change runtime behavior or test semantics. Both temporary formatter materializer workflows removed themselves and are not part of the permanent repository state.
 
 ## Contract behavior prepared
 
@@ -121,7 +122,36 @@ CMake repair evidence:
 - native V2 contract suite: pass
 - resulting repair: `238b7299b2bdff4603ffc21910efaffb258e6c7e`
 
-No warning suppression, ignored exit code, analyzer exclusion, compatibility fallback, or quiet failure was introduced to make either gate pass.
+### 3. Clang-Tidy direct include ownership
+
+The next final-candidate attempt `6fa42dc0d6f51a68b21d6c0c5d5755c04a5433f2` passed Browser Tests and Host Tests and reached the deeper Quality analyzer stage. Quality then correctly failed `clang-tidy` `misc-include-cleaner` in `firmware/components/app_contracts_v2/setup_contract_v2.c`: the implementation was using declarations through transitive inclusion rather than directly including the headers that own them.
+
+Failing evidence:
+
+- Quality workflow run: `31179495713`
+- Quality job: `92869166014`
+- failing step: `Run authoritative checks`
+- failed-quality artifact: `failed-quality-31179495713-1`
+- artifact SHA-256: `d55bca64da2e64193ee5208600affca76923d9d00844562ab8ca948db2eead39`
+- analyzer rule: `misc-include-cleaner`
+
+The repair adds direct includes for the two owning headers:
+
+- `api_contracts_v2.h` for the setup/request/string-view and setup-response contract declarations;
+- `device_settings_v2.h` for the device-settings and credential/password-version declarations.
+
+The repair commit `0e8cdef6407b319cba0dce93bddec0aa966b3dc6` changes exactly one permanent file, `firmware/components/app_contracts_v2/setup_contract_v2.c`, with two include additions and no deletions. No analyzer suppression, excluded file, ignored exit code, compatibility fallback, or transitive-include workaround was introduced.
+
+## Exact code-SHA verification
+
+The direct-include repair was then validated by every permanent workflow on exact code SHA `0e8cdef6407b319cba0dce93bddec0aa966b3dc6`:
+
+- Browser Tests run `31180214806`: pass
+- Host Tests run `31180215013`: pass
+- Device Test Build run `31180215061`, job `92871376481`: pass, including device-test source lint, ESP-IDF v5.5.5 installation, and the actual ESP32-S3 device-test firmware build
+- Quality run `31180214543`, job `92871344767`: pass; `Run authoritative checks` completed successfully and the failed-quality artifact upload was skipped
+
+This exact-SHA result proves that the formatter defects and the Clang-Tidy include-ownership defect are repaired without weakening the permanent gates.
 
 ## Deferred live-firmware work
 
@@ -147,7 +177,7 @@ No hardware was used in this host-preparation cycle. Therefore there are no hard
 
 ## Final exact-SHA CI boundary
 
-The commit containing this revised report is the final host-preparation candidate. The cycle closes only if the permanent Browser Tests, Host Tests, Device Test Build, and Quality workflows all complete successfully on that exact commit. GitHub's immutable workflow/run records are the exact-SHA evidence for that final gate; a further documentation commit is not required merely to copy those IDs into this file.
+The commit containing this revised report is the final host-preparation candidate. The cycle closes only if the permanent Browser Tests, Host Tests, Device Test Build, and Quality workflows all complete successfully on that exact commit. GitHub's immutable workflow/run records are the exact-SHA evidence for that final gate; a further documentation commit is not required merely to copy those final run IDs into this file.
 
 If any of the four permanent gates fails, this report is not completion evidence and the Ralph loop remains open until the defect is repaired and all four gates pass on a new exact final candidate SHA.
 
