@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "auth_core.h"
+#include "auth_core_internal.h"
 #include "fake_call_log.h"
 #include "test_assert.h"
 
