@@ -79,9 +79,11 @@ app_error_code_t auth_core_session_create(auth_core_t *core, auth_session_view_t
         if (result == APP_ERROR_NONE) {
             slot->active = true;
             *out_session = slot->view;
-        } else {
-            memset(slot, 0, sizeof(*slot));
         }
+    }
+    if (result != APP_ERROR_NONE) {
+        auth_core_restore_state(core, &snapshot);
+        memset(out_session, 0, sizeof(*out_session));
     }
     const app_error_code_t unlock_result = auth_core_unlock(core);
     if (unlock_result != APP_ERROR_NONE) {
