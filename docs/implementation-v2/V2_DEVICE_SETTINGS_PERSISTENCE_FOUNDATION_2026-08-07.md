@@ -100,7 +100,7 @@ It fails CI if the implementation drifts away from the reviewed invariants, incl
 
 ## Ralph-loop findings
 
-The focused integration loop found several defects and test-fixture errors before this foundation was accepted:
+The focused integration loop found several defects and test-fixture/conformance errors before this foundation was accepted:
 
 1. The first core build failed the repository's warning-as-error policy because an encoding helper carried an unused `core` parameter. The unnecessary parameter was removed; no warning was suppressed.
 2. The first configured-settings fixture used credential version `7`, but the canonical record correctly requires `APP_V2_CREDENTIAL_VERSION == 1`. The fixture was repaired rather than weakening validation.
@@ -108,6 +108,7 @@ The focused integration loop found several defects and test-fixture errors befor
 4. Source review found that mutex-release failure was visible only when the protected operation had otherwise succeeded. The adapter now returns `APP_ERROR_INTERNAL` for any release failure so synchronization failure cannot be silently masked.
 5. The first production-hardening materializer failed before committing because its source-edit marker was indentation-sensitive. The marker was made semantic/regex-based; no production check was weakened or bypassed.
 6. The first ordinary exact-SHA candidate `a2e7099217630f67910fcc1a44ac8e73b198b0d2` passed Browser and all five Host jobs, but Quality run `31205157494` rejected non-canonical `clang-format` layout in the newly added settings adapter/core/headers and host test. The files were formatted with the same `clang-format` package used by Quality; the focused formatter run also reran the permanent settings policy guard and full host suite. No formatting check was disabled or scoped away.
+7. The repaired ordinary candidate `8971250c23af6a509cf3f5f1c41686bf79e7fdbe` passed Browser, all five Host jobs, and Device Test Build, and got past the C formatter. Quality run `31205933653` then rejected only the newly inserted `device_settings_core_tests` block in `tests/host/CMakeLists.txt` under the repository-pinned `cmake-format` policy. The block was normalized with `cmakelang==0.6.13`, the exact Quality version. The formatter materializer reran `cmake-format --check`, `cmake-lint`, the permanent settings policy guard, the full host suite, and `git diff --check`; no CMake check was disabled or relaxed.
 
 Focused materializer evidence includes:
 
@@ -117,7 +118,8 @@ Focused materializer evidence includes:
 - Host Tests run `31202977934`: exposed the stale invalid-candidate error expectation after the production classification repair;
 - run `31204791048`: rejected the brittle materializer marker before any permanent patch was committed;
 - run `31204904346`, job `92953434594`: production hardening, policy guard, settings schema check, complete host test suite, and `git diff --check` all passed; the workflow then self-removed;
-- run `31205797823`, job `92956400330`: exact settings sources were formatted, rechecked with `clang-format --dry-run --Werror`, the policy guard and full host suite passed, and the formatter workflow self-removed.
+- run `31205797823`, job `92956400330`: exact settings sources were formatted, rechecked with `clang-format --dry-run --Werror`, the policy guard and full host suite passed, and the formatter workflow self-removed;
+- run `31206629341`: `tests/host/CMakeLists.txt` was normalized with `cmakelang==0.6.13`, then `cmake-format --check`, `cmake-lint`, the permanent settings policy guard, the full host suite, and `git diff --check` all passed; the CMake formatter workflow self-removed.
 
 ## Implementation commits
 
@@ -126,7 +128,8 @@ The permanent settings foundation culminates in:
 - `5fb0a59b71f5fe6614655df39f07326200f68da9` — register the V2 settings host target;
 - `60b013347f9d0233029ec6e371df8897b1305fe5` — separate caller validation from stored-record corruption;
 - `803aea637ac797b62c2e20199b155b3814a285b4` — harden canonical V2 settings persistence, add the permanent policy guard, surface unlock failures, and add the production dependency;
-- `5a0ab01330c8ccae817abed66a428f41b932ddf5` — apply the repository-required formatter output to the new first-party settings sources and regression.
+- `5a0ab01330c8ccae817abed66a428f41b932ddf5` — apply the repository-required formatter output to the new first-party settings sources and regression;
+- `3795bd338a04b38bb9b665837197ed1b9f7b4da2` — apply the repository-pinned cmakelang output to the permanent host-target registration.
 
 The temporary materializer workflows are not part of the permanent tree.
 
