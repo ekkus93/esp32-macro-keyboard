@@ -62,7 +62,6 @@ static void test_derive_failures_zero_outputs(void) {
     TEST_CHECK_EQ_U64(AUTH_HASH_BYTES, fake.last_zero_length);
 }
 
-/* SPEC 24.4 item: authentication and logout */
 static void test_sessions(void) {
     auth_fake_t fake;
     fake_reset(&fake);
@@ -72,11 +71,12 @@ static void test_sessions(void) {
     auth_session_view_t session;
     TEST_CHECK(auth_core_session_create(&core, &session) == APP_ERROR_NONE);
     TEST_CHECK(strlen(session.session_token) == AUTH_TOKEN_HEX_BYTES - 1U);
+    TEST_CHECK_EQ_U64(fake.now_us + AUTH_CORE_SESSION_IDLE_US, session.expires_at_us);
+    TEST_CHECK_EQ_U64(fake.now_us + AUTH_CORE_SESSION_ABSOLUTE_US,
+                      session.absolute_expires_at_us);
     const uint64_t original_expiry = session.expires_at_us;
     TEST_CHECK(auth_core_session_validate(&core, session.session_token) == APP_ERROR_NONE);
 
-    /* A validated request extends the idle window; a rejected one must not, or
-       an attacker guessing tokens would keep a session alive indefinitely. */
     fake.now_us += 1000000U;
     TEST_CHECK(auth_core_session_validate(&core, session.session_token) == APP_ERROR_NONE);
     TEST_CHECK(core.sessions[0].view.expires_at_us > original_expiry);
@@ -95,7 +95,6 @@ static void test_sessions(void) {
     TEST_CHECK(auth_core_session_logout(&core, session.session_token) == APP_ERROR_NOT_FOUND);
 }
 
-/* SPEC 24.4 item: session expiry */
 static void test_session_expiry_and_capacity(void) {
     auth_fake_t fake;
     fake_reset(&fake);
@@ -103,44 +102,64 @@ static void test_session_expiry_and_capacity(void) {
     init_core(&core, &fake);
     auth_session_view_t sessions[APP_SESSION_TABLE_MAX];
     for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
+        fake.now_us = (uint64_t)index * 100U;
         TEST_CHECK(auth_core_session_create(&core, &sessions[index]) == APP_ERROR_NONE);
     }
-    auth_session_view_t extra;
-    TEST_CHECK(auth_core_session_create(&core, &extra) == APP_ERROR_CONFLICT);
 
-    fake.now_us = sessions[0].expires_at_us;
-    TEST_CHECK(auth_core_session_validate(&core, sessions[0].session_token) ==
+    fake.now_us = 1000U;
+    TEST_CHECK(auth_core_session_validate(&core, sessions[0].session_token) == APP_ERROR_NONE);
+    auth_session_view_t ninth;
+    fake.now_us = 1100U;
+    TEST_CHECK(auth_core_session_create(&core, &ninth) == APP_ERROR_NONE);
+    TEST_CHECK(auth_core_session_validate(&core, sessions[1].session_token) ==
                APP_ERROR_AUTH_REQUIRED);
-    TEST_CHECK(auth_core_session_create(&core, &extra) == APP_ERROR_NONE);
+    TEST_CHECK(auth_core_session_validate(&core, sessions[0].session_token) == APP_ERROR_NONE);
+    TEST_CHECK(auth_core_session_validate(&core, ninth.session_token) == APP_ERROR_NONE);
+
+    auth_session_view_t expiring;
+    fake_reset(&fake);
+    init_core(&core, &fake);
+    TEST_CHECK(auth_core_session_create(&core, &expiring) == APP_ERROR_NONE);
+    fake.now_us = expiring.expires_at_us;
+    TEST_CHECK(auth_core_session_validate(&core, expiring.session_token) == APP_ERROR_AUTH_REQUIRED);
+
+    fake_reset(&fake);
+    init_core(&core, &fake);
+    TEST_CHECK(auth_core_session_create(&core, &expiring) == APP_ERROR_NONE);
+    fake.now_us = expiring.absolute_expires_at_us - 1U;
+    TEST_CHECK(auth_core_session_validate(&core, expiring.session_token) == APP_ERROR_NONE);
+    TEST_CHECK_EQ_U64(expiring.absolute_expires_at_us, core.sessions[0].view.expires_at_us);
+    fake.now_us = expiring.absolute_expires_at_us;
+    TEST_CHECK(auth_core_session_validate(&core, expiring.session_token) == APP_ERROR_AUTH_REQUIRED);
 }
 
-/* SPEC 24.4 item: rate limiting */
 static void test_rate_limit(void) {
+    const uint32_t source = UINT32_C(0x01020304);
     auth_fake_t fake;
     fake_reset(&fake);
     auth_core_t core;
     init_core(&core, &fake);
     uint32_t retry = UINT32_MAX;
-    TEST_CHECK(auth_core_login_attempt_allowed(&core, &retry) == APP_ERROR_NONE);
+    TEST_CHECK(auth_core_login_attempt_allowed(&core, source, &retry) == APP_ERROR_NONE);
     TEST_CHECK_EQ_U64(0U, retry);
-    for (size_t index = 0U; index < 5U; ++index) {
-        TEST_CHECK(auth_core_login_record_failure(&core) == APP_ERROR_NONE);
+    for (size_t index = 0U; index < AUTH_RATE_LIMIT_FAILURE_MAX; ++index) {
+        TEST_CHECK(auth_core_login_record_failure(&core, source) == APP_ERROR_NONE);
     }
-    TEST_CHECK(auth_core_login_attempt_allowed(&core, &retry) == APP_ERROR_RATE_LIMITED);
-    TEST_CHECK_EQ_U64(60U, retry);
+    TEST_CHECK(auth_core_login_attempt_allowed(&core, source, &retry) == APP_ERROR_RATE_LIMITED);
+    TEST_CHECK_EQ_U64(300U, retry);
     fake.now_us = 1500000U;
-    TEST_CHECK(auth_core_login_attempt_allowed(&core, &retry) == APP_ERROR_RATE_LIMITED);
-    TEST_CHECK_EQ_U64(59U, retry);
-    fake.now_us = 60000000U;
-    TEST_CHECK(auth_core_login_attempt_allowed(&core, &retry) == APP_ERROR_NONE);
+    TEST_CHECK(auth_core_login_attempt_allowed(&core, source, &retry) == APP_ERROR_RATE_LIMITED);
+    TEST_CHECK_EQ_U64(299U, retry);
+    fake.now_us = AUTH_CORE_LOCKOUT_US;
+    TEST_CHECK(auth_core_login_attempt_allowed(&core, source, &retry) == APP_ERROR_NONE);
     TEST_CHECK_EQ_U64(0U, retry);
 
-    TEST_CHECK(auth_core_login_record_failure(&core) == APP_ERROR_NONE);
-    TEST_CHECK(auth_core_login_record_success(&core) == APP_ERROR_NONE);
-    TEST_CHECK(auth_core_login_attempt_allowed(&core, &retry) == APP_ERROR_NONE);
+    TEST_CHECK(auth_core_login_record_failure(&core, source) == APP_ERROR_NONE);
+    TEST_CHECK(auth_core_login_record_success(&core, source) == APP_ERROR_NONE);
+    TEST_CHECK(auth_core_login_attempt_allowed(&core, source, &retry) == APP_ERROR_NONE);
 
     fake.now_us = 50000000U;
-    TEST_CHECK(auth_core_login_attempt_allowed(&core, &retry) == APP_ERROR_INTERNAL);
+    TEST_CHECK(auth_core_login_attempt_allowed(&core, source, &retry) == APP_ERROR_INTERNAL);
 }
 
 static void test_strict_password_create_sequence(void) {
@@ -153,12 +172,6 @@ static void test_strict_password_create_sequence(void) {
     password[12] = '\0';
     auth_password_record_t record;
 
-    /*
-     * Strict fake enforcement (UNIT_TESTS1 L915): creating a password record
-     * draws salt bytes from the random source, then derives the hash -- exactly
-     * one "random" followed by one "derive" and nothing else. Strict mode aborts
-     * on any unexpected, missing, or out-of-order operation.
-     */
     fake_call_log_reset(&fake.calls);
     static const char *const expected[] = {"random", "derive"};
     fake_call_log_set_strict(&fake.calls, true);
