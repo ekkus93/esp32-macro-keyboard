@@ -10,6 +10,7 @@ cd "${repo_root}"
 ./scripts/check-static-analysis-policy.sh
 ./scripts/check-partitions.sh
 python3 ./scripts/check-v2-034-capacity.py
+python3 ./scripts/check-v2-device-settings-policy.py
 bash ./scripts/check-production-config.sh
 bash ./scripts/check-credential-logging.sh
 bash ./scripts/check-mount-policy.sh

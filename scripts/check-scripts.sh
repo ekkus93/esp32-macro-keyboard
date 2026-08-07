@@ -20,6 +20,7 @@ bash -n "${shell_files[@]}"
 # firmware/web mirrors.
 python3 scripts/check-v2-limits.py
 python3 scripts/check-v2-settings-schema.py
+python3 scripts/check-v2-device-settings-policy.py
 python3 scripts/check-v2-setup-route-policy.py
 python3 scripts/check-v2-api-routes.py
 python3 scripts/check-v2-auth-policy.py

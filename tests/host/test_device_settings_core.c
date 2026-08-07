@@ -211,7 +211,7 @@ static void test_replace_and_failure_preservation(void) {
     failed.snapshot_retention_target = 101U;
     fake.replace_error = APP_ERROR_NONE;
     const unsigned int writes_before = fake.replace_calls;
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          device_settings_core_replace(&core, &failed, &changed));
     TEST_CHECK_EQ_U64(writes_before, fake.replace_calls);
 }
