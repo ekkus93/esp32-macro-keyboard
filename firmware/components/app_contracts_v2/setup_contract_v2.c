@@ -133,7 +133,7 @@ static bool password_material_valid(const app_v2_setup_password_material_t *mate
 }
 
 app_v2_setup_result_t app_v2_setup_session_generate(const app_v2_setup_random_ops_t *operations,
-                                                     app_v2_setup_session_t *session) {
+                                                    app_v2_setup_session_t *session) {
     if (session != NULL) {
         secure_zero(session, sizeof(*session));
     }
@@ -191,8 +191,9 @@ app_v2_setup_result_t app_v2_setup_session_consume(app_v2_setup_session_t *sessi
     return APP_V2_SETUP_OK;
 }
 
-app_v2_setup_result_t app_v2_setup_state_from_settings(
-    const app_v2_device_settings_t *settings, app_v2_setup_state_response_t *out_response) {
+app_v2_setup_result_t
+app_v2_setup_state_from_settings(const app_v2_device_settings_t *settings,
+                                 app_v2_setup_state_response_t *out_response) {
     if (out_response != NULL) {
         memset(out_response, 0, sizeof(*out_response));
     }
@@ -219,11 +220,12 @@ app_v2_setup_result_t app_v2_setup_state_from_settings(
     return APP_V2_SETUP_OK;
 }
 
-app_v2_setup_result_t app_v2_setup_prepare_candidate(
-    const app_v2_setup_session_t *session, const app_v2_setup_request_t *request,
-    const app_v2_device_settings_t *current,
-    const app_v2_setup_password_material_t *password_material,
-    app_v2_device_settings_t *out_candidate) {
+app_v2_setup_result_t
+app_v2_setup_prepare_candidate(const app_v2_setup_session_t *session,
+                               const app_v2_setup_request_t *request,
+                               const app_v2_device_settings_t *current,
+                               const app_v2_setup_password_material_t *password_material,
+                               app_v2_device_settings_t *out_candidate) {
     if (out_candidate != NULL) {
         memset(out_candidate, 0, sizeof(*out_candidate));
     }

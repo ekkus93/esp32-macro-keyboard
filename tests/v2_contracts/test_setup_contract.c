@@ -128,7 +128,8 @@ static void test_setup_state_is_minimal_and_unprovisioned_only(void) {
     CHECK(app_v2_setup_state_from_settings(&settings, &response) == APP_V2_SETUP_OK);
     CHECK(!response.provisioned);
     CHECK(response.device_name.length == strlen("ESP32 Macro Keyboard"));
-    CHECK(memcmp(response.device_name.data, "ESP32 Macro Keyboard", response.device_name.length) == 0);
+    CHECK(memcmp(response.device_name.data, "ESP32 Macro Keyboard", response.device_name.length) ==
+          0);
 
     app_v2_setup_password_material_t material = password_material();
     app_v2_setup_session_t session;
@@ -158,8 +159,8 @@ static void test_prepare_candidate_preserves_unrelated_settings(void) {
     CHECK(strcmp(candidate.ap_passphrase, "example-passphrase") == 0);
     CHECK(candidate.require_serial_confirmation);
     CHECK(candidate.password_iterations == material.password_iterations);
-    CHECK(memcmp(candidate.password_salt, material.password_salt, sizeof(candidate.password_salt)) ==
-          0);
+    CHECK(memcmp(candidate.password_salt, material.password_salt,
+                 sizeof(candidate.password_salt)) == 0);
     CHECK(memcmp(candidate.password_verifier, material.password_verifier,
                  sizeof(candidate.password_verifier)) == 0);
 
@@ -234,7 +235,8 @@ static void test_strict_field_boundaries(void) {
 
     request = request_for_code("12345678");
     const char invalid_utf8[] = {(char)0xc0, (char)0xaf};
-    request.device_name = (app_v2_string_view_t){.data = invalid_utf8, .length = sizeof(invalid_utf8)};
+    request.device_name =
+        (app_v2_string_view_t){.data = invalid_utf8, .length = sizeof(invalid_utf8)};
     CHECK(app_v2_setup_prepare_candidate(&session, &request, &current, &material, &candidate) ==
           APP_V2_SETUP_INVALID_DEVICE_NAME);
 

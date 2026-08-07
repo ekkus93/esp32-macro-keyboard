@@ -51,19 +51,20 @@ typedef struct {
 } app_v2_setup_password_material_t;
 
 app_v2_setup_result_t app_v2_setup_session_generate(const app_v2_setup_random_ops_t *operations,
-                                                     app_v2_setup_session_t *session);
+                                                    app_v2_setup_session_t *session);
 app_v2_setup_result_t app_v2_setup_session_init(app_v2_setup_session_t *session,
                                                 app_v2_string_view_t code);
 app_v2_setup_result_t app_v2_setup_session_consume(app_v2_setup_session_t *session);
 
-app_v2_setup_result_t app_v2_setup_state_from_settings(
-    const app_v2_device_settings_t *settings, app_v2_setup_state_response_t *out_response);
+app_v2_setup_result_t app_v2_setup_state_from_settings(const app_v2_device_settings_t *settings,
+                                                       app_v2_setup_state_response_t *out_response);
 
-app_v2_setup_result_t app_v2_setup_prepare_candidate(
-    const app_v2_setup_session_t *session, const app_v2_setup_request_t *request,
-    const app_v2_device_settings_t *current,
-    const app_v2_setup_password_material_t *password_material,
-    app_v2_device_settings_t *out_candidate);
+app_v2_setup_result_t
+app_v2_setup_prepare_candidate(const app_v2_setup_session_t *session,
+                               const app_v2_setup_request_t *request,
+                               const app_v2_device_settings_t *current,
+                               const app_v2_setup_password_material_t *password_material,
+                               app_v2_device_settings_t *out_candidate);
 
 void app_v2_setup_accepted_response_init(app_v2_setup_accepted_t *response);
 
