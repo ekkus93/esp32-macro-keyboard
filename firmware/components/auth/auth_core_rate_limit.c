@@ -58,7 +58,7 @@ static auth_rate_limit_entry_t *find_entry(auth_core_t *core, uint32_t source_ip
     return NULL;
 }
 
-static auth_rate_limit_entry_t *allocate_entry(auth_core_t *core, uint32_t source_ipv4,
+static auth_rate_limit_entry_t *allocate_entry(auth_core_t *core, const uint32_t *source_ipv4,
                                                uint64_t now) {
     auth_rate_limit_entry_t *least_recent_unlocked = NULL;
     for (size_t index = 0U; index < AUTH_RATE_LIMIT_SOURCE_MAX; ++index) {
@@ -66,7 +66,7 @@ static auth_rate_limit_entry_t *allocate_entry(auth_core_t *core, uint32_t sourc
         if (!entry->active) {
             memset(entry, 0, sizeof(*entry));
             entry->active = true;
-            entry->source_ipv4 = source_ipv4;
+            entry->source_ipv4 = *source_ipv4;
             entry->last_used_us = now;
             return entry;
         }
@@ -84,7 +84,7 @@ static auth_rate_limit_entry_t *allocate_entry(auth_core_t *core, uint32_t sourc
     }
     memset(least_recent_unlocked, 0, sizeof(*least_recent_unlocked));
     least_recent_unlocked->active = true;
-    least_recent_unlocked->source_ipv4 = source_ipv4;
+    least_recent_unlocked->source_ipv4 = *source_ipv4;
     least_recent_unlocked->last_used_us = now;
     return least_recent_unlocked;
 }
@@ -136,7 +136,7 @@ app_error_code_t auth_core_login_record_failure(auth_core_t *core, uint32_t sour
     if (result == APP_ERROR_NONE) {
         auth_rate_limit_entry_t *entry = find_entry(core, source_ipv4);
         if (entry == NULL) {
-            entry = allocate_entry(core, source_ipv4, now);
+            entry = allocate_entry(core, &source_ipv4, now);
         } else {
             prune_failures(entry, now);
         }
