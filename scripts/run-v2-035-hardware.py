@@ -894,6 +894,12 @@ def command_record_mount_failure(args: argparse.Namespace) -> None:
 
 
 def validate_complete_state(state: dict[str, Any]) -> None:
+    require(state.get("schemaVersion") == STATE_SCHEMA,
+            "evidence schemaVersion is invalid")
+    require(state.get("task") == "V2-035",
+            "evidence task is not V2-035")
+    require(state.get("espIdfVersion") == ESP_IDF_VERSION,
+            f"evidence ESP-IDF version is not {ESP_IDF_VERSION}")
     firmware_commit = state.get("firmwareCommit")
     require(
         isinstance(firmware_commit, str)
@@ -945,9 +951,13 @@ def command_finalize(args: argparse.Namespace) -> None:
         state["phase"] = "finalize_in_progress"
         write_json(args.state, state)
     else:
-        expected = dict(state["baseline"])
-        expected.update(owned_snapshot(state))
-        verify_snapshot(api, expected, exact_ids=True)
+        # A host crash can occur after the device has deleted a collector-owned
+        # blob but before the local ownership journal is updated.  Treat an
+        # already-missing collector-owned blob as the intended delete having
+        # reached the device, while still failing closed on any baseline change
+        # or unowned blob.
+        reconcile_pending_creation(api, args.state, state)
+        verify_recoverable_snapshot(api, state)
 
     for item in list(reversed(owned_blobs(state))):
         delete_owned_blob(api, state, args.state, item)
@@ -967,6 +977,19 @@ def command_finalize(args: argparse.Namespace) -> None:
 
 def command_validate(args: argparse.Namespace) -> None:
     state = read_json(args.evidence)
+    require(state.get("phase") == "complete",
+            f"evidence is not finalized: {state.get('phase')!r}")
+    evidence_sha256 = state.get("evidenceSha256")
+    require(isinstance(evidence_sha256, str)
+            and SHA256_PATTERN.fullmatch(evidence_sha256) is not None,
+            "evidenceSha256 is missing or invalid")
+    unhashed = dict(state)
+    unhashed.pop("evidenceSha256", None)
+    expected_sha256 = sha256_bytes(
+        json.dumps(unhashed, sort_keys=True, separators=(",", ":")).encode()
+    )
+    require(evidence_sha256 == expected_sha256,
+            "evidenceSha256 does not match the finalized evidence contents")
     validate_complete_state(state)
     require(state.get("testBlobCleanup", {}).get("status") == "pass",
             "test-created blob cleanup is not verified")

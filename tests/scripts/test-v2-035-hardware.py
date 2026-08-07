@@ -445,6 +445,72 @@ def test_journaled_create_closes_response_window() -> None:
         assert recorded["startCreated"] == [item]
 
 
+class DeleteThenFailApi(FakeRecoveryApi):
+    def __init__(self, blobs: dict[str, bytes], fail_after_delete_once: str) -> None:
+        super().__init__(blobs)
+        self.fail_after_delete_once = fail_after_delete_once
+
+    def delete_blob(self, blob_id: str) -> None:
+        self.blobs.pop(blob_id, None)
+        if self.fail_after_delete_once == blob_id:
+            self.fail_after_delete_once = ""
+            raise MODULE.EvidenceError(
+                f"injected host crash after device delete for {blob_id}"
+            )
+
+
+def test_finalize_resumes_after_device_delete_before_journal() -> None:
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        root = Path(temporary_directory)
+        state_path = root / "state.json"
+        output_path = root / "evidence.json"
+        baseline_payload = b"baseline"
+        first_payload = b"first"
+        second_payload = b"second"
+        first = {"id": "0000000002", "sha256": MODULE.sha256_bytes(first_payload)}
+        second = {"id": "0000000003", "sha256": MODULE.sha256_bytes(second_payload)}
+        state = complete_state()
+        state.update(
+            {
+                "baseUrl": "http://device.test",
+                "baseline": {"0000000001": MODULE.sha256_bytes(baseline_payload)},
+                "sentinels": [first, second],
+                "ownedBlobs": [first, second],
+            }
+        )
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+        fake = DeleteThenFailApi(
+            {
+                "0000000001": baseline_payload,
+                "0000000002": first_payload,
+                "0000000003": second_payload,
+            },
+            fail_after_delete_once="0000000003",
+        )
+        args = Namespace(
+            state=state_path,
+            output=output_path,
+            timeout=1.0,
+            password_env="UNUSED",
+        )
+        original_api_from_state = MODULE.api_from_state
+        MODULE.api_from_state = lambda current, current_args: fake
+        try:
+            expect_failure(MODULE.command_finalize, args)
+            partial = json.loads(state_path.read_text(encoding="utf-8"))
+            assert partial["phase"] == "finalize_in_progress"
+            assert partial["ownedBlobs"] == [first, second]
+            assert "0000000003" not in fake.blobs
+            MODULE.command_finalize(args)
+        finally:
+            MODULE.api_from_state = original_api_from_state
+        complete = json.loads(state_path.read_text(encoding="utf-8"))
+        assert complete["phase"] == "complete"
+        assert complete["ownedBlobs"] == []
+        assert fake.blobs == {"0000000001": baseline_payload}
+        MODULE.command_validate(Namespace(evidence=output_path))
+
+
 def test_finalize_resumes_partial_cleanup() -> None:
     with tempfile.TemporaryDirectory() as temporary_directory:
         root = Path(temporary_directory)
@@ -494,6 +560,17 @@ def test_finalize_resumes_partial_cleanup() -> None:
         assert complete["ownedBlobs"] == []
         assert fake.blobs == {"0000000001": baseline_payload}
         MODULE.command_validate(Namespace(evidence=output_path))
+        evidence = json.loads(output_path.read_text(encoding="utf-8"))
+        evidence["phase"] = "ready_to_finalize"
+        unhashed = dict(evidence)
+        unhashed.pop("evidenceSha256", None)
+        evidence["evidenceSha256"] = MODULE.sha256_bytes(
+            json.dumps(unhashed, sort_keys=True, separators=(",", ":")).encode()
+        )
+        output_path.write_text(json.dumps(evidence), encoding="utf-8")
+        expect_failure(
+            MODULE.command_validate, Namespace(evidence=output_path)
+        )
 
 
 def main() -> int:
@@ -508,6 +585,7 @@ def main() -> int:
     test_pending_creation_recovery_adopts_exact_hash()
     test_pending_creation_rejects_ambiguous_unknown_blobs()
     test_journaled_create_closes_response_window()
+    test_finalize_resumes_after_device_delete_before_journal()
     test_finalize_resumes_partial_cleanup()
     print("PASS: V2-035 hardware evidence collector regression tests")
     return 0
