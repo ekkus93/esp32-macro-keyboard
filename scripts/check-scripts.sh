@@ -22,6 +22,7 @@ python3 scripts/check-v2-limits.py
 python3 scripts/check-v2-settings-schema.py
 python3 scripts/check-v2-setup-route-policy.py
 python3 scripts/check-v2-api-routes.py
+python3 scripts/check-v2-auth-policy.py
 python3 tests/scripts/test-generate-v2-macro-corpus.py
 python3 tests/scripts/test-v2-035-hardware.py
 
