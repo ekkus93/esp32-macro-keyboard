@@ -1,8 +1,9 @@
 # V2-035 — esptool v4 image-info production repair
 
-**Status:** Hosted repair implemented; physical V2-035 evidence still required  
+**Status:** Hosted repair validated; physical V2-035 evidence still required  
 **Task:** V2-035  
 **Production repair commit:** `cd95fc5528f1608c77801c1bdcddc1c615cecf65`  
+**Permanent-CI evidence commit:** `9779baace75fd395395fd55fca7813831c30f964`  
 **Target hardware:** ESP32-S3R8  
 **Required toolchain:** ESP-IDF v5.5.5
 
@@ -79,11 +80,31 @@ Scoped publication evidence:
 
 ## Permanent CI evidence
 
-The report commit is intentionally a normal GitHub API write to `master`, so it
-triggers the permanent Browser Tests, Host Tests, Device Test Build, and Quality
-workflows. Their exact run and job IDs will be recorded after all four gates have
-completed successfully. A failure remains a blocker and must be repaired rather
-than documented away.
+A normal GitHub API commit, `9779baace75fd395395fd55fca7813831c30f964`,
+was used to trigger every permanent workflow after the production repair. All
+four permanent gates completed successfully on that exact SHA:
+
+- Browser Tests — run `31145502545`, job `92763965174`: success;
+- Host Tests — run `31145502514`: success across all five jobs:
+  - Native Coverage `92763965184`;
+  - Frontend Coverage `92763965190`;
+  - Host Tests `92763965196`;
+  - Host ASan and UBSan `92763965203`;
+  - Frontend Tests `92763965209`;
+- Device Test Build — run `31145502503`, job `92763992223`: success, including
+  device-test source lint and the ESP32-S3 device-test firmware build; and
+- Quality — run `31145502509`, job `92764007163`: success, including the reviewed
+  npm audit policy, pinned ESP-IDF v5.5.5 setup, V2-034 LittleFS dependency, and
+  the complete authoritative `./scripts/check-all.sh` gate.
+
+The failed-log upload in Quality was skipped because the authoritative gate
+passed.
+
+This report update is itself a new evidence-only commit and therefore cannot
+contain its own resulting commit SHA or future workflow run IDs without creating
+an endless self-referential commit chain. The Ralph loop separately requires the
+permanent Browser, Host, Device, and Quality workflows to pass on this final
+report-update SHA before hosted V2-035 preparation is considered settled.
 
 ## Remaining physical gate
 
