@@ -73,4 +73,31 @@ static void test_session_token_formats_and_failures(void) {
     fake.calls.failure_name = NULL;
     fake.calls.failure_occurrence = 0U;
     fake.calls.failure_seen = 0U;
+
+    fake_reset(&fake);
+    init_core(&core, &fake);
+    auth_session_view_t reboot_session = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_session_create(&core, &reboot_session));
+    auth_core_t rebooted_core;
+    init_core(&rebooted_core, &fake);
+    TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
+                         auth_core_session_validate(&rebooted_core,
+                                                    reboot_session.session_token));
+
+    fake_reset(&fake);
+    init_core(&core, &fake);
+    auth_session_view_t full_sessions[APP_SESSION_TABLE_MAX];
+    for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
+        fake.now_us = (uint64_t)index;
+        TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                             auth_core_session_create(&core, &full_sessions[index]));
+    }
+    auth_session_entry_t sessions_before_failure[APP_SESSION_TABLE_MAX];
+    memcpy(sessions_before_failure, core.sessions, sizeof(sessions_before_failure));
+    fake.now_us = UINT64_C(1000);
+    fake.random_fail = true;
+    memset(&failed, 0xa5, sizeof(failed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, auth_core_session_create(&core, &failed));
+    TEST_CHECK_EQ_BUFFER(zeros, &failed, sizeof(failed));
+    TEST_CHECK_EQ_BUFFER(sessions_before_failure, core.sessions, sizeof(core.sessions));
 }
