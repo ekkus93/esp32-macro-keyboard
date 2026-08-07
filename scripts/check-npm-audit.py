@@ -62,6 +62,16 @@ def advisory_sources(finding: dict[str, Any]) -> set[int]:
     return sources
 
 
+def finding_diagnostics(finding: dict[str, Any]) -> dict[str, Any]:
+    """Return bounded fields needed to review unexpected npm audit findings."""
+    return {
+        "nodes": finding.get("nodes"),
+        "range": finding.get("range"),
+        "fixAvailable": finding.get("fixAvailable"),
+        "via": finding.get("via"),
+    }
+
+
 def read_counts(report: dict[str, Any]) -> dict[str, int]:
     if "error" in report:
         raise ValueError(f"npm audit returned an error object: {report['error']!r}")
@@ -129,9 +139,12 @@ def validate_policy(
         for name in severity_names[severity]
     )
     if unexpected_non_high:
+        details = {
+            name: finding_diagnostics(findings[name]) for name in unexpected_non_high
+        }
         raise ValueError(
             "npm audit contains unreviewed non-high findings: "
-            + ", ".join(unexpected_non_high)
+            f"names={unexpected_non_high}, details={details!r}"
         )
 
     high_names = severity_names["high"]
@@ -144,8 +157,11 @@ def validate_policy(
     if high_names != ACCEPTED_HIGH_FINDINGS:
         unexpected = sorted(high_names - ACCEPTED_HIGH_FINDINGS)
         missing = sorted(ACCEPTED_HIGH_FINDINGS - high_names)
+        details = {name: finding_diagnostics(findings[name]) for name in unexpected}
         raise ValueError(
-            f"npm audit high-finding set changed; unexpected={unexpected}, missing={missing}"
+            "npm audit high-finding set changed; "
+            f"unexpected={unexpected}, missing={missing}, "
+            f"unexpected_details={details!r}"
         )
 
     packages = lockfile.get("packages", {})
