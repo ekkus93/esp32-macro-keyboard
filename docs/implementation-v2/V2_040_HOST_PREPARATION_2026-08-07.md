@@ -4,13 +4,14 @@
 **Task:** V2-040 — First-run provisioning  
 **Status:** Host-side contract preparation only; V2-040 remains open  
 **Implementation commit:** `904f9dc1e40b92ace3cc77382c81285a24785c1e`  
-**Formatter repair commit:** `fc3e997c3e74390de527cb19b371d9d9bd198943`
+**C/C-header formatter repair:** `fc3e997c3e74390de527cb19b371d9d9bd198943`  
+**CMake formatter repair:** `238b7299b2bdff4603ffc21910efaffb258e6c7e`
 
 ## Scope
 
 This change prepares the fail-closed C contract and native regression coverage needed before the live firmware route migration. It deliberately does **not** register or expose the V2 setup HTTP handlers and does not claim any unchecked V2-040 item complete.
 
-The host-preparation commit changed exactly these permanent files:
+The host-preparation implementation changed exactly these permanent files:
 
 - `firmware/components/app_contracts_v2/CMakeLists.txt`
 - `firmware/components/app_contracts_v2/include/setup_contract_v2.h`
@@ -20,7 +21,7 @@ The host-preparation commit changed exactly these permanent files:
 - `tests/v2_contracts/CMakeLists.txt`
 - `tests/v2_contracts/test_setup_contract.c`
 
-The subsequent formatter repair changed only the three new C/C-header sources above plus removal of its temporary self-materializing workflow. It made no behavioral changes.
+The two subsequent repair commits contain formatter-only changes to those new host-prep files. Neither repair changes contract behavior or test semantics. Both temporary materializer workflows removed themselves and are not part of the permanent repository state.
 
 ## Contract behavior prepared
 
@@ -56,7 +57,7 @@ The fixture validator `scripts/check-v2-setup-contract.py` fails closed if the r
 - already-provisioned rejection;
 - exact accepted/restart/reconnect response flags.
 
-The native V2 CTest suite now contains six targets:
+The native V2 CTest suite contains six targets:
 
 1. `v2_macro_conformance`
 2. `v2_macro_canonical_tokens`
@@ -67,11 +68,13 @@ The native V2 CTest suite now contains six targets:
 
 All native targets compile with the repository's warning-as-error policy.
 
-## Quality failure and repair
+## Quality failures and repairs
 
-The first permanent Quality run on `904f9dc1e40b92ace3cc77382c81285a24785c1e` failed in the authoritative checks because the three new setup-contract source files were not fully `clang-format` compliant. This was a formatting defect, not a test, algorithm, or analyzer failure.
+### 1. C/C-header formatting
 
-Initial failing Quality evidence:
+The first permanent Quality run on `904f9dc1e40b92ace3cc77382c81285a24785c1e` failed in the authoritative checks because the three new setup-contract C/C-header files were not fully `clang-format` compliant. This was a formatting defect, not a test, algorithm, or analyzer failure.
+
+Failing evidence:
 
 - workflow run: `31167622201`
 - job: `92831983100`
@@ -79,20 +82,46 @@ Initial failing Quality evidence:
 - uploaded artifact: `failed-quality-31167622201-1`
 - artifact SHA-256: `79b12e0969015efab75477bdb9e7fa48c44ca4899ebbc0aabdaf496edcf68734`
 
-A temporary self-removing formatter workflow was committed only to materialize the repository's actual Ubuntu 24.04 `clang-format` output. It ran `clang-format -i`, immediately required `clang-format --dry-run --Werror`, ran `git diff --check`, and ran the native V2 contract suite before pushing the formatter-only repair.
+A temporary self-removing formatter workflow materialized the Ubuntu 24.04 `clang-format` result. It ran `clang-format -i`, immediately required `clang-format --dry-run --Werror`, ran `git diff --check`, and ran the native V2 contract suite before pushing the formatter-only repair.
 
-Formatter materializer evidence:
+Repair evidence:
 
 - trigger commit: `5139f8f61f8827e65e69a305dedf6a6343831af7`
 - workflow run: `31178562547`
 - job: `92866103555`
-- `Install formatter`: pass
-- `Format V2-040 setup contract sources`: pass
-- `Validate native V2 contracts`: pass
-- `Commit formatter-only repair and remove materializer`: pass
-- resulting formatter repair: `fc3e997c3e74390de527cb19b371d9d9bd198943`
+- formatter validation: pass
+- native V2 contract suite: pass
+- resulting repair: `fc3e997c3e74390de527cb19b371d9d9bd198943`
 
-No warning suppression, ignored exit code, analyzer exclusion, compatibility fallback, or quiet failure was introduced to make the gate pass.
+### 2. CMake formatting
+
+The first documentation candidate `ec7c658e72f71939fa68a062935f65bc26bc23b4` then reached the permanent gates. Browser Tests, Host Tests, and Device Test Build passed, while Quality correctly rejected the new `tests/v2_contracts/CMakeLists.txt` because it was not `cmake-format` compliant.
+
+Intermediate permanent-CI evidence on `ec7c658e72f71939fa68a062935f65bc26bc23b4`:
+
+- Browser Tests run `31178807291`: pass
+- Host Tests run `31178807966`: pass
+- Device Test Build run `31178807559`, job `92866937498`: pass, including device-test source lint and ESP32-S3 device-test firmware build
+- Quality run `31178808406`, job `92866956767`: fail at `Run authoritative checks`
+- failed-quality artifact: `failed-quality-31178808406-1`
+- artifact SHA-256: `28335d552a1a7ff381e7ea9a6308d768badc0994767ff2563c0abf1664b4141e`
+- authoritative log finding: `Check failed: tests/v2_contracts/CMakeLists.txt`
+
+A second temporary self-removing workflow installed the repository-pinned `cmakelang==0.6.13`, formatted only `tests/v2_contracts/CMakeLists.txt`, then required `cmake-format --check`, `cmake-lint`, `git diff --check`, and the complete native V2 contract suite before committing.
+
+CMake repair evidence:
+
+- trigger commit: `2c6c89786d7d784d127a09ff94a96fb779acdf80`
+- workflow run: `31179336283`
+- job: `92868598089`
+- pinned formatter installation: pass
+- `cmake-format --check`: pass
+- `cmake-lint`: pass
+- `git diff --check`: pass
+- native V2 contract suite: pass
+- resulting repair: `238b7299b2bdff4603ffc21910efaffb258e6c7e`
+
+No warning suppression, ignored exit code, analyzer exclusion, compatibility fallback, or quiet failure was introduced to make either gate pass.
 
 ## Deferred live-firmware work
 
@@ -116,9 +145,11 @@ No fallback route, compatibility alias, or alternate success path is being added
 
 No hardware was used in this host-preparation cycle. Therefore there are no hardware model, serial port, firmware build ID, timing, reconnect, storage, or memory observations to report here.
 
-## Final CI boundary
+## Final exact-SHA CI boundary
 
-The permanent Browser Tests, Host Tests, Device Test Build, and Quality workflows must all pass on the exact documentation/evidence SHA containing this report before this host-preparation cycle is considered closed. That final exact-SHA evidence is intentionally recorded in a follow-up documentation-only update after those runs complete.
+The commit containing this revised report is the final host-preparation candidate. The cycle closes only if the permanent Browser Tests, Host Tests, Device Test Build, and Quality workflows all complete successfully on that exact commit. GitHub's immutable workflow/run records are the exact-SHA evidence for that final gate; a further documentation commit is not required merely to copy those IDs into this file.
+
+If any of the four permanent gates fails, this report is not completion evidence and the Ralph loop remains open until the defect is repaired and all four gates pass on a new exact final candidate SHA.
 
 ## Completion statement
 
