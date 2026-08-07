@@ -2,7 +2,7 @@
 
 **Phase:** 4 — Authentication, provisioning, and device settings  
 **Task:** V2-042 — Sessions and rate limiting  
-**Status:** Software implementation candidate; final exact-SHA CI pending  
+**Status:** Software implementation complete; physical Phase 4 evidence remains deferred
 **Hardware:** None required for this task's software semantics; Phase 4 hardware exit remains blocked elsewhere
 
 ## Scope
@@ -117,6 +117,8 @@ That failure was not bypassed or weakened.
 
 A subsequent source review found a separate production failure window: with all eight slots full, LRU replacement cleared the selected session before random token generation. If entropy acquisition then failed, the new login failed while the old session was lost. Session creation now restores the pre-operation session table on any creation failure, and a regression proves the invariant.
 
+Quality then found two additional first-party defects without any gate suppression. On `d03835da56f90fb93cebac956bfb0edd90ea4402`, run `31198448498` rejected one non-canonical `clang-format` line in `auth_core_session.c`. The formatter-only repair was `ae7fc0875502b33f7e26d8b4b6944c0c092ebc0b`. On that SHA, Quality run `31199760339` progressed through formatting and rejected `allocate_entry(auth_core_t *, uint32_t, uint64_t)` under `bugprone-easily-swappable-parameters`. The internal helper now accepts the source address by pointer, making the adjacent argument types non-swappable without changing rate-limit semantics. That repair is `cd32bc8cf9a1fca313d2da7c0af7ae821e537b94`.
+
 ## Commit trail
 
 Major implementation commits include:
@@ -132,20 +134,21 @@ Major implementation commits include:
 - `3a7b66980ea6a507336f94beb69b53079142254a` — transactional failed replacement;
 - `25221dfcd3e9072c24de5175d483d4e58c1a6a87` — reboot and replacement-failure regressions;
 - `c610a81a034f9a23af47bd25a4fe5cdcb359c36d` — permanent V2 auth policy guard;
-- `58dba47d30c001fece913c78a2c6775070998d6d` and `b101e4af7cbc8d20a89800a987d097f7d30a363a` — authoritative gate integration.
+- `58dba47d30c001fece913c78a2c6775070998d6d` and `b101e4af7cbc8d20a89800a987d097f7d30a363a` — authoritative gate integration;
+- `d03835da56f90fb93cebac956bfb0edd90ea4402` — pin exact 32-byte token entropy and table-size drift protection;
+- `ae7fc0875502b33f7e26d8b4b6944c0c092ebc0b` — formatter-required session-core layout;
+- `cd32bc8cf9a1fca313d2da7c0af7ae821e537b94` — remove the Clang-Tidy swappable-integer helper API.
 
 ## Validation boundary
 
-On code SHA `25221dfcd3e9072c24de5175d483d4e58c1a6a87`, the complete Host Tests workflow passed, including ordinary native tests, ASan/UBSan, native coverage, frontend tests, and frontend coverage. Browser Tests also passed on that SHA.
+The final implementation code SHA `cd32bc8cf9a1fca313d2da7c0af7ae821e537b94` passed all four permanent workflows on that exact commit:
 
-The commit containing this report and the permanent auth-policy guard must still pass all four permanent workflows on one exact final SHA:
+- Browser Tests run `31200659221`: success;
+- Host Tests run `31200659173`: all five jobs success, including native tests, ASan/UBSan, native coverage, frontend tests, and frontend coverage;
+- Device Test Build run `31200659077`: success, including device-test source lint, ESP-IDF v5.5.5 installation, and ESP32-S3 device-test firmware compilation;
+- Quality run `31200658651`, job `92939572842`: success, including `Run authoritative checks`; the failed-quality artifact step was correctly skipped.
 
-- Browser Tests;
-- Host Tests;
-- Device Test Build;
-- Quality, including `Run authoritative checks`.
-
-The TODO must not be marked complete until that exact-SHA gate is green. GitHub's immutable workflow records are the final CI evidence; another documentation-only commit is not required merely to copy run IDs into this report.
+No older or partial SHA is used as completion evidence. This closeout commit changes documentation/checklist state only; its own permanent CI must also pass before the Ralph-loop cycle is treated as settled.
 
 ## Hardware-deferred boundary
 
@@ -158,4 +161,4 @@ No physical ESP32-S3R8 was used. V2-042's session/rate-limit semantics are deter
 
 ## Completion statement
 
-This is a software-completion candidate for V2-042 only. Until the final exact-SHA permanent CI gate passes, **V2-042 remains unchecked**. All hardware-dependent tasks elsewhere remain explicitly deferred.
+V2-042's software requirements are complete and the eight task items are checked. The Phase 4 exit gate remains open because the PBKDF2 hardware benchmark and other physical Phase 4 evidence are deliberately deferred. No hardware-dependent task is claimed complete.

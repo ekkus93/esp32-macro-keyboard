@@ -435,16 +435,16 @@ knowledge in firmware.
 
 ## V2-042 — Sessions and rate limiting
 
-- [ ] Generate session tokens with 32 random bytes of entropy.
-- [ ] Store at most eight sessions in bounded RAM.
-- [ ] Set `HttpOnly`, `SameSite=Strict`, and `Path=/` on the cookie.
-- [ ] Enforce 24-hour idle and seven-day absolute expiry.
-- [ ] Define deterministic behavior when the ninth session is created.
-- [ ] Enforce five failed logins within 60 seconds followed by a five-minute
+- [x] Generate session tokens with 32 random bytes of entropy.
+- [x] Store at most eight sessions in bounded RAM.
+- [x] Set `HttpOnly`, `SameSite=Strict`, and `Path=/` on the cookie.
+- [x] Enforce 24-hour idle and seven-day absolute expiry.
+- [x] Define deterministic behavior when the ninth session is created.
+- [x] Enforce five failed logins within 60 seconds followed by a five-minute
       lockout.
-- [ ] Ensure rate-limit state is bounded and does not become a denial-of-service
+- [x] Ensure rate-limit state is bounded and does not become a denial-of-service
       memory leak.
-- [ ] Test login, logout, expiry, lockout, session replacement, reboot, and cookie
+- [x] Test login, logout, expiry, lockout, session replacement, reboot, and cookie
       attributes.
 
 ## V2-043 — Device UI preferences
