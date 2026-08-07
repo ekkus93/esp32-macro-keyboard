@@ -23,18 +23,22 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           test_path = Path("tests/host/test_device_settings_core.c")
           test = test_path.read_text(encoding="utf-8")
-          old = """    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
-                               device_settings_core_replace(&core, &failed, &changed));
-          """
-          new = """    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
-                               device_settings_core_replace(&core, &failed, &changed));
-          """
-          if test.count(old) != 1:
+          pattern = re.compile(
+              r"TEST_CHECK_APP_ERROR\(APP_ERROR_STORAGE_CORRUPT,\s*"
+              r"device_settings_core_replace\(&core, &failed, &changed\)\);"
+          )
+          replacement = (
+              "TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,\n"
+              "                         device_settings_core_replace(&core, &failed, &changed));"
+          )
+          test, count = pattern.subn(replacement, test)
+          if count != 1:
               raise SystemExit("expected exactly one stale invalid-candidate expectation")
-          test_path.write_text(test.replace(old, new), encoding="utf-8")
+          test_path.write_text(test, encoding="utf-8")
 
           adapter_path = Path("firmware/components/device_settings/device_settings.c")
           adapter = adapter_path.read_text(encoding="utf-8")
@@ -174,8 +178,13 @@ jobs:
           )
           require(
               host_test,
-              "TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,\n                         device_settings_core_replace(&core, &failed, &changed));",
+              "TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,",
               "invalid caller settings must be covered as invalid arguments",
+          )
+          require(
+              host_test,
+              "device_settings_core_replace(&core, &failed, &changed));",
+              "invalid caller settings replacement path must remain covered",
           )
           require(
               host_test,
