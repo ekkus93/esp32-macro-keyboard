@@ -28,7 +28,8 @@ static auth_session_entry_t *select_session_slot(auth_core_t *core) {
         if (!entry->active) {
             return entry;
         }
-        if (least_recently_used == NULL || entry->last_used_us < least_recently_used->last_used_us) {
+        if (least_recently_used == NULL ||
+            entry->last_used_us < least_recently_used->last_used_us) {
             least_recently_used = entry;
         }
     }
