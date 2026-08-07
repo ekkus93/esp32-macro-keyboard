@@ -13,7 +13,7 @@ static bool operations_valid(const device_settings_core_ops_t *operations) {
            operations->replace_record_atomic != NULL && operations->secure_zero != NULL;
 }
 
-static app_error_code_t map_settings_result(app_v2_settings_result_t result) {
+static app_error_code_t map_decode_result(app_v2_settings_result_t result) {
     switch (result) {
         case APP_V2_SETTINGS_OK:
             return APP_ERROR_NONE;
@@ -28,6 +28,20 @@ static app_error_code_t map_settings_result(app_v2_settings_result_t result) {
     }
 }
 
+static app_error_code_t map_candidate_result(app_v2_settings_result_t result) {
+    switch (result) {
+        case APP_V2_SETTINGS_OK:
+            return APP_ERROR_NONE;
+        case APP_V2_SETTINGS_INVALID_ARGUMENT:
+        case APP_V2_SETTINGS_CORRUPT:
+            return APP_ERROR_INVALID_ARGUMENT;
+        case APP_V2_SETTINGS_INVALID_LENGTH:
+        case APP_V2_SETTINGS_UNSUPPORTED_VERSION:
+        default:
+            return APP_ERROR_INTERNAL;
+    }
+}
+
 static void clear_record(device_settings_core_t *core, uint8_t *record) {
     core->ops.secure_zero(core->ops.context, record, APP_V2_SETTINGS_RECORD_BYTES);
 }
@@ -36,7 +50,7 @@ static app_error_code_t encode_settings(const app_v2_device_settings_t *settings
                                         uint8_t *record) {
     const app_v2_settings_result_t result =
         app_v2_device_settings_encode(settings, record, APP_V2_SETTINGS_RECORD_BYTES);
-    return map_settings_result(result);
+    return map_candidate_result(result);
 }
 
 app_error_code_t device_settings_core_init(device_settings_core_t *core,
@@ -86,7 +100,7 @@ app_error_code_t device_settings_core_load(device_settings_core_t *core,
     clear_record(core, record);
     if (decode_result != APP_V2_SETTINGS_OK) {
         core->ops.secure_zero(core->ops.context, &decoded, sizeof(decoded));
-        return map_settings_result(decode_result);
+        return map_decode_result(decode_result);
     }
 
     core->current = decoded;
@@ -156,7 +170,7 @@ app_error_code_t device_settings_core_reset_noncredential(device_settings_core_t
     app_v2_device_settings_t candidate = {0};
     app_error_code_t result = device_settings_core_load(core, &candidate);
     if (result == APP_ERROR_NONE) {
-        result = map_settings_result(app_v2_device_settings_reset_noncredential(&candidate));
+        result = map_candidate_result(app_v2_device_settings_reset_noncredential(&candidate));
     }
     if (result == APP_ERROR_NONE) {
         result = device_settings_core_replace(core, &candidate, out_changed);
