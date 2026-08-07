@@ -49,7 +49,7 @@ jobs:
           report = report_path.read_text(encoding="utf-8")
           report = report.replace(
               "**Status:** Software implementation candidate; final exact-SHA CI pending  ",
-              "**Status:** Software implementation complete; physical Phase 4 evidence remains deferred  ",
+              "**Status:** Software implementation complete; physical Phase 4 evidence remains deferred",
               1,
           )
           marker = """A subsequent source review found a separate production failure window: with all eight slots full, LRU replacement cleared the selected session before random token generation. If entropy acquisition then failed, the new login failed while the old session was lost. Session creation now restores the pre-operation session table on any creation failure, and a regression proves the invariant.
