@@ -11,6 +11,7 @@ idf_component_register(
     PRIV_INCLUDE_DIRS
     "."
     REQUIRES
+    app_contracts_v2
     macro_model
     support
     esp_timer
