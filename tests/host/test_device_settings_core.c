@@ -77,7 +77,7 @@ static app_v2_device_settings_t configured_settings(void) {
     app_v2_device_settings_t settings;
     app_v2_device_settings_init_unprovisioned(&settings);
     settings.provisioned = true;
-    settings.credential_version = 7U;
+    settings.credential_version = APP_V2_CREDENTIAL_VERSION;
     settings.password_algorithm_version = APP_V2_PASSWORD_ALGORITHM_VERSION;
     settings.password_iterations = 120000U;
     memset(settings.password_salt, 0x11, sizeof(settings.password_salt));
@@ -208,10 +208,10 @@ static void test_replace_and_failure_preservation(void) {
     TEST_CHECK(strcmp(after_failure.device_name, replacement.device_name) == 0);
 
     failed = replacement;
-    failed.snapshot_retention_target = 0U;
+    failed.snapshot_retention_target = 101U;
     fake.replace_error = APP_ERROR_NONE;
     const unsigned int writes_before = fake.replace_calls;
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_CORRUPT,
                          device_settings_core_replace(&core, &failed, &changed));
     TEST_CHECK_EQ_U64(writes_before, fake.replace_calls);
 }
