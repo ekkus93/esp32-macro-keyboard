@@ -405,8 +405,7 @@ register_host_test(provisioning_settings_tests provisioning_settings storage)
 
 add_executable(
     device_settings_core_tests
-    test_device_settings_core.c
-    ../../firmware/components/device_settings/device_settings_core.c
+    test_device_settings_core.c ../../firmware/components/device_settings/device_settings_core.c
     ../../firmware/components/app_contracts_v2/device_settings_v2.c
 )
 target_include_directories(
