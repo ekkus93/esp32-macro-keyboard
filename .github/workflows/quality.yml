@@ -34,6 +34,20 @@ jobs:
           cache: npm
           cache-dependency-path: webapp/package-lock.json
 
+      - name: Install frontend dependencies
+        working-directory: webapp
+        run: npm ci
+
+      - name: Enforce reviewed npm audit policy
+        working-directory: webapp
+        shell: bash
+        env:
+          QUALITY_LOG_PATH: ${{ runner.temp }}/quality-checks.log
+        run: |
+          set -euo pipefail
+          : > "${QUALITY_LOG_PATH}"
+          npm run audit:ci 2>&1 | tee -a "${QUALITY_LOG_PATH}"
+
       - name: Install host lint tools
         shell: bash
         run: |
@@ -57,20 +71,6 @@ jobs:
           . "$HOME/esp/esp-idf-v5.5.5/export.sh"
           python3 -m pip install littlefs-python==0.15.0
           python3 -c 'from importlib.metadata import version; assert version("littlefs-python") == "0.15.0"'
-
-      - name: Install frontend dependencies
-        working-directory: webapp
-        run: npm ci
-
-      - name: Enforce reviewed npm audit policy
-        working-directory: webapp
-        shell: bash
-        env:
-          QUALITY_LOG_PATH: ${{ runner.temp }}/quality-checks.log
-        run: |
-          set -euo pipefail
-          : > "${QUALITY_LOG_PATH}"
-          npm run audit:ci 2>&1 | tee -a "${QUALITY_LOG_PATH}"
 
       - name: Run authoritative checks
         shell: bash
