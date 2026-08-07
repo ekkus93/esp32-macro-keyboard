@@ -404,6 +404,21 @@ target_include_directories(
 register_host_test(provisioning_settings_tests provisioning_settings storage)
 
 add_executable(
+    device_settings_core_tests
+    test_device_settings_core.c
+    ../../firmware/components/device_settings/device_settings_core.c
+    ../../firmware/components/app_contracts_v2/device_settings_v2.c
+)
+target_include_directories(
+    device_settings_core_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/app_contracts_v2/include
+            ../../firmware/components/device_settings/include
+            ../../firmware/components/device_settings
+)
+register_host_test(device_settings_core_tests device_settings_core storage)
+
+add_executable(
     web_api_core_tests test_web_api_core.c ../../firmware/components/macro_model/app_error.c
                        ../../firmware/components/web_server/web_api_core.c
 )
