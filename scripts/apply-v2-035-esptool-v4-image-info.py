@@ -33,17 +33,13 @@ replace_once(
 \texit 0
 fi
 ''',
-    (
-        'if [ "$#" -eq 4 ] && [ "${1:-}" = "image_info" ] && '
-        + chr(92)
-        + '''
+    '''if [ "$#" -eq 4 ] && [ "${1:-}" = "image_info" ] &&
 \t[ "${2:-}" = "--version" ] && [ "${3:-}" = "2" ] && [ -n "${4:-}" ]; then
 \tprintf 'Application Information\\n'
 \tprintf 'ELF file SHA256: %s\\n' "${FAKE_ELF_SHA256:-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}"
 \texit 0
 fi
-'''
-    ),
+''',
 )
 
 replace_once(
