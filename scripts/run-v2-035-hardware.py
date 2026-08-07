@@ -89,7 +89,7 @@ def read_app_elf_sha256(app_image: Path) -> str:
             "esptool.py is required to verify the flash manifest application image")
     try:
         result = subprocess.run(
-            [esptool, "image_info", str(app_image)],
+            [esptool, "image_info", "--version", "2", str(app_image)],
             check=False,
             capture_output=True,
             text=True,

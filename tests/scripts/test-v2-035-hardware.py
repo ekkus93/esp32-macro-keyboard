@@ -129,11 +129,33 @@ def test_flash_manifest_provenance() -> None:
         original_which = MODULE.shutil.which
         original_run = MODULE.subprocess.run
         MODULE.shutil.which = lambda name: "/fake/esptool.py" if name == "esptool.py" else None
-        MODULE.subprocess.run = lambda *args, **kwargs: subprocess.CompletedProcess(
-            args=args[0], returncode=0, stdout=f"ELF file SHA256: {'a' * 64}\n", stderr=""
-        )
+        esptool_commands: list[list[str]] = []
+
+        def fake_run(command, **kwargs):
+            assert command == [
+                "/fake/esptool.py",
+                "image_info",
+                "--version",
+                "2",
+                str(app_image),
+            ]
+            assert kwargs == {
+                "check": False,
+                "capture_output": True,
+                "text": True,
+            }
+            esptool_commands.append(command)
+            return subprocess.CompletedProcess(
+                args=command,
+                returncode=0,
+                stdout=f"ELF file SHA256: {'a' * 64}\n",
+                stderr="",
+            )
+
+        MODULE.subprocess.run = fake_run
         try:
             manifest = MODULE.load_flash_manifest(manifest_path)
+            assert len(esptool_commands) == 1
             MODULE.verify_firmware_provenance(manifest, {"buildId": "a" * 39})
             expect_failure(
                 MODULE.verify_firmware_provenance,

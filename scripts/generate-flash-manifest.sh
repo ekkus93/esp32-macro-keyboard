@@ -128,7 +128,7 @@ app_image="${build_dir}/${app_relative}"
 	exit 2
 }
 app_image_sha256="$(sha256sum -- "${app_image}" | awk '{print $1}')"
-image_info="$(esptool.py image_info "${app_image}")"
+image_info="$(esptool.py image_info --version 2 "${app_image}")"
 app_elf_sha256="$(printf '%s\n' "${image_info}" | python3 -c 'import re,sys; text=sys.stdin.read(); match=re.search(r"ELF file SHA256:\s*([0-9A-Fa-f]{64})", text); print(match.group(1).lower() if match else "")')"
 if ! printf '%s' "${app_elf_sha256}" | grep -Eq '^[0-9a-f]{64}$'; then
 	printf 'error: esptool.py image_info did not report a full ELF file SHA256\n' >&2
