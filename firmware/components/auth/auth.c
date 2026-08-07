@@ -88,8 +88,6 @@ app_error_code_t auth_deinit(void) {
     }
     vSemaphoreDelete(auth_mutex);
     auth_mutex = NULL;
-    /* Zero the credential/session state so nothing sensitive lingers after
-     * teardown. */
     adapter_secure_zero(NULL, &auth_core, sizeof(auth_core));
     return APP_ERROR_NONE;
 }
@@ -116,14 +114,15 @@ app_error_code_t auth_session_logout(const char *session_token) {
     return auth_core_session_logout(&auth_core, session_token);
 }
 
-app_error_code_t auth_login_attempt_allowed(uint32_t *out_retry_after_seconds) {
-    return auth_core_login_attempt_allowed(&auth_core, out_retry_after_seconds);
+app_error_code_t auth_login_attempt_allowed(uint32_t source_ipv4,
+                                            uint32_t *out_retry_after_seconds) {
+    return auth_core_login_attempt_allowed(&auth_core, source_ipv4, out_retry_after_seconds);
 }
 
-app_error_code_t auth_login_record_failure(void) {
-    return auth_core_login_record_failure(&auth_core);
+app_error_code_t auth_login_record_failure(uint32_t source_ipv4) {
+    return auth_core_login_record_failure(&auth_core, source_ipv4);
 }
 
-app_error_code_t auth_login_record_success(void) {
-    return auth_core_login_record_success(&auth_core);
+app_error_code_t auth_login_record_success(uint32_t source_ipv4) {
+    return auth_core_login_record_success(&auth_core, source_ipv4);
 }
