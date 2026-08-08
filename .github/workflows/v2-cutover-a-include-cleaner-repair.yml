@@ -52,3 +52,5 @@ jobs:
           git diff --cached --check
           git commit -m "Fix V2-040 Cutover A direct includes"
           git push origin HEAD:master
+
+# Retriggered from the current master after the first validated run lost a push race.
