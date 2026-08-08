@@ -2,7 +2,7 @@ static web_diagnostics_snapshot_t default_diagnostics_snapshot(void) {
     return (web_diagnostics_snapshot_t){
         .build_id = "abcdef0123456789",
         .firmware_version = "1.2.3",
-        .reset_reason = "power-on",
+        .reset_reason = "power_on",
         .uptime_ms = 123456U,
         .free_heap_bytes = 200000U,
         .minimum_free_heap_bytes = 150000U,

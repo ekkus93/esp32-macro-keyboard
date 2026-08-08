@@ -34,24 +34,30 @@
 #define WEB_DIAGNOSTICS_RESPONSE_MAX_BYTES 16384U
 #define MICROSECONDS_PER_MILLISECOND 1000U
 
+/* SPEC_V2.md and contracts/v2/api/examples.json pin "power_on" (snake_case,
+ * not "power-on") as the exact resetReason value for ESP_RST_POWERON; no
+ * other value has an explicit example, but every other v2 API string enum in
+ * this codebase (state, sendMode, accessPointState, ...) uses unhyphenated
+ * lowercase words, so the rest of this enum follows the same snake_case
+ * convention for consistency rather than mixing hyphens and underscores. */
 static const char *reset_reason_string(esp_reset_reason_t reason) {
     switch (reason) {
     case ESP_RST_POWERON:
-        return "power-on";
+        return "power_on";
     case ESP_RST_EXT:
-        return "external-pin";
+        return "external_pin";
     case ESP_RST_SW:
         return "software";
     case ESP_RST_PANIC:
         return "panic";
     case ESP_RST_INT_WDT:
-        return "interrupt-watchdog";
+        return "interrupt_watchdog";
     case ESP_RST_TASK_WDT:
-        return "task-watchdog";
+        return "task_watchdog";
     case ESP_RST_WDT:
-        return "other-watchdog";
+        return "other_watchdog";
     case ESP_RST_DEEPSLEEP:
-        return "deep-sleep-wake";
+        return "deep_sleep_wake";
     case ESP_RST_BROWNOUT:
         return "brownout";
     case ESP_RST_SDIO:
@@ -61,11 +67,11 @@ static const char *reset_reason_string(esp_reset_reason_t reason) {
     case ESP_RST_JTAG:
         return "jtag";
     case ESP_RST_EFUSE:
-        return "efuse-error";
+        return "efuse_error";
     case ESP_RST_PWR_GLITCH:
-        return "power-glitch";
+        return "power_glitch";
     case ESP_RST_CPU_LOCKUP:
-        return "cpu-lockup";
+        return "cpu_lockup";
     case ESP_RST_UNKNOWN:
     default:
         return "unknown";

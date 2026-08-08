@@ -85,7 +85,7 @@ def test_diagnostics_schema() -> None:
     parsed = MODULE.parse_diagnostics(
         {
             "buildId": "a" * 39,
-            "resetReason": "power-on",
+            "resetReason": "power_on",
             "uptimeMs": 12,
             "blobScan": {"temporaryFileCount": 0, "temporaryFiles": []},
         }
@@ -97,7 +97,7 @@ def test_diagnostics_schema() -> None:
         MODULE.parse_diagnostics,
         {
             "buildId": "a" * 39,
-            "resetReason": "power-on",
+            "resetReason": "power_on",
             "uptimeMs": 12,
             "blobScan": {"temporaryFileCount": 1, "temporaryFiles": []},
         },

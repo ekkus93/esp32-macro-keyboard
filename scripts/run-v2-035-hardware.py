@@ -679,8 +679,8 @@ def command_verify_power_cycle(args: argparse.Namespace) -> None:
     diagnostics = parse_diagnostics(api.diagnostics())
     require(diagnostics["buildId"] == state["initialDiagnostics"]["buildId"],
             "firmware build changed across the power-cycle stage")
-    require(diagnostics["resetReason"] == "power-on",
-            f"expected a physical power-on reset, found {diagnostics['resetReason']!r}")
+    require(diagnostics["resetReason"] == "power_on",
+            f"expected a physical power_on reset, found {diagnostics['resetReason']!r}")
     add_scenario(state, "power_cycle_persistence",
                  {"verifiedHashes": expected, "postBootDiagnostics": diagnostics})
     state["phase"] = "ready_for_interrupted_upload"
@@ -765,8 +765,8 @@ def command_verify_interrupted_upload(args: argparse.Namespace) -> None:
     before_diagnostics = state["interruptedUpload"]["beforeDiagnostics"]
     require(diagnostics["buildId"] == before_diagnostics["buildId"],
             "firmware build changed across interrupted-upload reboot")
-    require(diagnostics["resetReason"] == "power-on",
-            f"expected power-on reset after interruption, found {diagnostics['resetReason']!r}")
+    require(diagnostics["resetReason"] == "power_on",
+            f"expected power_on reset after interruption, found {diagnostics['resetReason']!r}")
     require(diagnostics["temporaryFileCount"] == 0
             and diagnostics["temporaryFiles"] == [],
             f"reboot left temporary files: {diagnostics}")

@@ -488,53 +488,65 @@ knowledge in firmware.
 
 ## V2-050 — Common HTTP policy
 
-- [ ] Register only documented `/api/v1` routes.
-- [ ] Enforce authentication per route.
-- [ ] Enforce exact methods and content types.
-- [ ] Enforce bounded request bodies before allocation or parsing.
-- [ ] Reject unknown JSON fields.
-- [ ] Reject malformed, duplicate, overflowing, and trailing JSON content.
-- [ ] Prevent user-controlled filesystem paths.
-- [ ] Return the standard error envelope on JSON errors.
-- [ ] Disable CORS.
-- [ ] Test malformed paths and unsupported methods.
+- [x] Register only documented `/api/v1` routes.
+- [x] Enforce authentication per route.
+- [x] Enforce exact methods and content types.
+- [x] Enforce bounded request bodies before allocation or parsing.
+- [x] Reject unknown JSON fields.
+- [x] Reject malformed, duplicate, overflowing, and trailing JSON content.
+- [x] Prevent user-controlled filesystem paths.
+- [x] Return the standard error envelope on JSON errors.
+- [x] Disable CORS.
+- [ ] Test malformed paths and unsupported methods. Covered at the
+      policy-table level; no live HTTP-socket-level test exists (no
+      `esp_http_server` fake exists anywhere in this codebase).
 
 ## V2-051 — Setup and authentication routes
 
-- [ ] Implement unprovisioned-only `GET /api/v1/setup`.
-- [ ] Implement `POST /api/v1/setup`.
-- [ ] Implement `POST /api/v1/auth/login`.
-- [ ] Implement `POST /api/v1/auth/logout`.
-- [ ] Implement `GET /api/v1/auth/session`.
+- [x] Implement unprovisioned-only `GET /api/v1/setup`.
+- [x] Implement `POST /api/v1/setup`.
+- [x] Implement `POST /api/v1/auth/login`.
+- [x] Implement `POST /api/v1/auth/logout`.
+- [ ] Implement `GET /api/v1/auth/session`. Component pieces
+      (`auth_session_remaining`, JSON builder) are tested individually, but
+      the composing `handle_session()` in `web_api_administration.c` is not
+      compiled into any host test target.
 - [ ] Match exact schemas, status codes, cookie behavior, and expiry fields.
+      Expiry math and JSON shape are tested; cookie string formatting
+      (`web_server_login.c::send_login_accepted`) is httpd-dependent and
+      untested.
 - [ ] Test the complete unprovisioned/provisioned route-access matrix.
+      Guaranteed structurally by `check-setup-route-isolation.sh`, not by an
+      executed test exercising every route/method pair in both states.
 
 ## V2-052 — Status and limits routes
 
-- [ ] Implement `GET /api/v1/status` with stable fields for provisioning, device,
+- [x] Implement `GET /api/v1/status` with stable fields for provisioning, device,
       firmware, uptime, USB, AP, station, storage, and send state.
-- [ ] Implement `GET /api/v1/limits` from centralized constants.
-- [ ] Exclude secrets, repository content, package names, macro names, and macro
+- [x] Implement `GET /api/v1/limits` from centralized constants.
+- [x] Exclude secrets, repository content, package names, macro names, and macro
       source.
 
 ## V2-053 — Blob routes
 
-- [ ] Implement `GET /api/v1/blob`.
-- [ ] Implement `POST /api/v1/blob`.
-- [ ] Implement `GET /api/v1/blob/{blob_id}`.
-- [ ] Implement `DELETE /api/v1/blob/{blob_id}`.
-- [ ] Verify exact binary behavior and status codes.
+- [x] Implement `GET /api/v1/blob`.
+- [x] Implement `POST /api/v1/blob`.
+- [x] Implement `GET /api/v1/blob/{blob_id}`.
+- [x] Implement `DELETE /api/v1/blob/{blob_id}`.
+- [ ] Verify exact binary behavior and status codes. No host test exercises
+      the blob HTTP handlers at any level (only the underlying
+      `storage_blob_*` core is tested).
 
 ## V2-054 — Send routes
 
-- [ ] Implement `POST /api/v1/send` with source and timing only.
-- [ ] Reject package ID, macro ID, blob ID, revision, or extra fields.
-- [ ] Compile the full source before returning acceptance.
-- [ ] Return exact parser locations on `422` and type nothing.
-- [ ] Return `409` when a send is already active.
-- [ ] Implement `GET /api/v1/send` for current or most recent state.
-- [ ] Implement idempotent `DELETE /api/v1/send` cancellation.
-- [ ] Return `404` when no send has existed since boot.
+- [x] Implement `POST /api/v1/send` with source and timing only.
+- [x] Reject package ID, macro ID, blob ID, revision, or extra fields.
+- [x] Compile the full source before returning acceptance.
+- [x] Return exact parser locations on `422` and type nothing.
+- [x] Return `409` when a send is already active.
+- [x] Implement `GET /api/v1/send` for current or most recent state.
+- [x] Implement idempotent `DELETE /api/v1/send` cancellation.
+- [x] Return `404` when no send has existed since boot.
 
 ## V2-055 — Settings and device-action routes
 
@@ -549,32 +561,63 @@ knowledge in firmware.
 
 ## V2-056 — Diagnostics route
 
-- [ ] Implement `GET /api/v1/diagnostics` using a fixed schema.
+- [x] Implement `GET /api/v1/diagnostics` using a fixed schema.
 - [ ] Include required subsystem health, memory, stack, storage, USB, Wi-Fi, send,
-      invalid filename, and temporary-file data.
-- [ ] Exclude credentials, sessions, repository bytes, repository JSON, package
+      invalid filename, and temporary-file data. No `stack` field exists:
+      neither `docs/SPEC_V2.md` §13.13 nor the checked-in
+      `contracts/v2/api/examples.json` `"diagnostics"` example has one. Per
+      `CLAUDE.md`'s rule that the committed contract corpus is authoritative,
+      this is very likely stale TODO wording rather than a real gap, but the
+      item as literally written is unmet — flagged rather than silently
+      decided either way.
+- [x] Exclude credentials, sessions, repository bytes, repository JSON, package
       information, macro information, and macro source.
 
 ## V2-057 — Contract and security tests
 
 - [ ] Test every route with valid, missing, extra, wrong-type, wrong-content-type,
       oversized, unauthorized, expired-session, malformed-path, and method-error
-      cases.
-- [ ] Test the unprovisioned route surface contains only setup GET/POST and static
+      cases. Strong coverage for status/limits/login/send; zero coverage for
+      session-response composition, device-restart, and setup-conflict
+      handling in `web_api_administration.c` (not compiled into any host test
+      target); no live end-to-end HTTP test exists (no `esp_http_server` fake
+      anywhere in this codebase).
+- [x] Test the unprovisioned route surface contains only setup GET/POST and static
       setup assets.
 - [ ] Test setup-state GET returns only the approved two fields and returns `404`
-      after provisioning.
-- [ ] Test setup POST returns `409` after provisioning.
-- [ ] Test exact response schemas and status codes.
+      after provisioning. No test exists for `setup_state_handler` or the
+      provisioned-mode 404 path.
+- [ ] Test setup POST returns `409` after provisioning. The existing test
+      (`test_already_provisioned_rejected`) exercises a different,
+      defense-in-depth function, not the actual live routing path
+      (`setup_route_response()`) that answers real requests — that path has
+      zero coverage.
+- [ ] Test exact response schemas and status codes. Strong for
+      status/limits/send/login/diagnostics; absent for session/restart/
+      setup-conflict/blob.
 - [ ] Test that secret-like sentinel values never appear in responses or logs.
-- [ ] Consume the same checked-in examples from C and TypeScript tests.
+      Explicit checks exist for diagnostics and status; no equivalent test
+      for send/session/login (though password material is secure-zeroed by
+      construction).
+- [ ] Consume the same checked-in examples from C and TypeScript tests. The
+      TypeScript side genuinely validates against
+      `contracts/v2/api/examples.json`; the C side never parses that file —
+      one divergence this actually caught and fixed:
+      `web_server_diagnostics.c`'s `resetReason` values used hyphens
+      (`"power-on"`) against the contract's underscores (`"power_on"`).
 
 ## Phase 5 exit gate
 
-- [ ] Route table exactly matches the v2 specification.
-- [ ] Old routes are absent.
-- [ ] Contract and security tests pass.
-- [ ] API documentation examples match observed responses.
+- [x] Route table exactly matches the v2 specification.
+- [x] Old routes are absent.
+- [ ] Contract and security tests pass. The tests that exist pass (45/45),
+      but this masks the real coverage gaps enumerated under V2-057 — passing
+      tests is not the same as complete contract/security coverage.
+- [ ] API documentation examples match observed responses. No script or test
+      diffs actual handler output against `contracts/v2/api/examples.json`
+      wholesale; the one concrete mismatch found during this audit
+      (`diagnostics.resetReason`) is now fixed, but nothing guards against a
+      recurrence of this class of drift.
 
 ---
 
