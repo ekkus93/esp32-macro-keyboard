@@ -23,14 +23,14 @@ normative requirement lines.
 | --- | ---: |
 | Authoritative v2 sources | 2 |
 | Sources containing normative requirements | 2 |
-| Sources with explicit v2 citations | 0 |
-| Unmapped authoritative sources | 2 |
+| Sources with explicit v2 citations | 1 |
+| Unmapped authoritative sources | 1 |
 
 ## Source-level mapping
 
 | Source | Git blob SHA | Normative requirements | Status | Explicit section citations |
 | --- | --- | --- | --- | --- |
-| docs/SPEC_V2.md | `9bb2f9288cf51ddc07223f6ea1a5a172aad396b9` | present | **UNMAPPED** | — |
+| docs/SPEC_V2.md | `9bb2f9288cf51ddc07223f6ea1a5a172aad396b9` | present | referenced, not proven | §8.6 |
 | docs/UI_UX_SPEC_V2.md | `929e50afa8ea86dcbb98ab48d9236d7b5da7eab2` | present | **UNMAPPED** | — |
 
 ## Next refinement

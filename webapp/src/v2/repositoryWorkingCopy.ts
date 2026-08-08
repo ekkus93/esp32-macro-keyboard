@@ -4,14 +4,14 @@ import type { Repository } from "./repository";
  * The in-memory repository working copy and dirty-state tracker, per
  * SPEC_V2 §8.6 and TODO_V2 V2-071.
  *
- * This store holds its state only in a JavaScript closure — never in
- * localStorage, sessionStorage, IndexedDB, or any other browser persistence
- * mechanism (SPEC_V2 §8.6, TODO_V2 V2-072). A caller (a later phase's React
- * provider) is expected to hold one instance for the lifetime of an
- * authenticated tab, which is what makes a dirty working copy survive
- * in-tab reauthentication: nothing in this module's API resets state as a
- * side effect of authentication, so as long as the instance itself is not
- * discarded, dirty content is preserved.
+ * This store holds its state only in a JavaScript closure — never in the
+ * browser's Web Storage APIs, IndexedDB, Cache Storage, a service worker, or
+ * any other browser persistence mechanism (SPEC_V2 §8.6, TODO_V2 V2-072). A
+ * caller (a later phase's React provider) is expected to hold one instance
+ * for the lifetime of an authenticated tab, which is what makes a dirty
+ * working copy survive in-tab reauthentication: nothing in this module's API
+ * resets state as a side effect of authentication, so as long as the
+ * instance itself is not discarded, dirty content is preserved.
  *
  * By construction, actions that must never dirty the repository — package
  * selection, sending a macro, cancellation, snapshot deletion, and UI
