@@ -273,6 +273,18 @@ target_include_directories(
 )
 register_host_test(device_controls_tests device_controls controls)
 
+add_executable(
+    device_controls_reset_tests test_device_controls_reset.c
+                                ../../firmware/components/device_controls/device_controls_reset.c
+)
+target_include_directories(
+    device_controls_reset_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/device_controls/include
+            ../../firmware/components/device_controls
+)
+register_host_test(device_controls_reset_tests device_controls_reset controls)
+
 add_executable(wifi_ap_tests test_wifi_ap.c ../../firmware/components/wifi_ap/wifi_ap_state.c)
 target_include_directories(
     wifi_ap_tests
@@ -280,6 +292,17 @@ target_include_directories(
             ../../firmware/components/wifi_ap ../../firmware/components/support/include
 )
 register_host_test(wifi_ap_tests wifi_ap wifi)
+
+add_executable(
+    wifi_ap_station_tests test_wifi_ap_station.c
+                          ../../firmware/components/wifi_ap/wifi_ap_station.c
+)
+target_include_directories(
+    wifi_ap_station_tests
+    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/wifi_ap/include
+            ../../firmware/components/wifi_ap ../../firmware/components/support/include
+)
+register_host_test(wifi_ap_station_tests wifi_ap_station wifi)
 
 add_executable(
     provisioning_tests test_provisioning.c ../../firmware/components/macro_model/app_uuid.c
@@ -304,6 +327,7 @@ add_executable(
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_blob_core.c
     ../../firmware/components/storage/storage_blob_recovery.c
+    ../../firmware/components/storage/storage_blob_access_core.c
     ../../firmware/components/storage/storage_blob.c
     ../../firmware/components/storage/storage_mount_topology.c
 )
@@ -330,6 +354,7 @@ add_executable(
     ../../firmware/components/storage/storage_fs_ops.c
     ../../firmware/components/storage/storage_blob_core.c
     ../../firmware/components/storage/storage_blob_recovery.c
+    ../../firmware/components/storage/storage_blob_access_core.c
     ../../firmware/components/storage/storage_blob.c
 )
 target_include_directories(
