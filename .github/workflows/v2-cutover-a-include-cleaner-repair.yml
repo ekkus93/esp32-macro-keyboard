@@ -1,0 +1,54 @@
+name: V2 Cutover A include-cleaner repair
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/v2-cutover-a-include-cleaner-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: true
+      - name: Install validation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends clang-format build-essential cmake libcjson-dev
+      - name: Add direct includes and validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('firmware/components/app_core/app_core.c')
+          text = path.read_text()
+          text = text.replace('#include <stdint.h>\n', '#include <stdint.h>\n#include <string.h>\n', 1)
+          text = text.replace('#include "device_settings.h"\n', '#include "device_settings.h"\n#include "device_settings_v2.h"\n', 1)
+          path.write_text(text)
+          PY
+          clang-format -i firmware/components/app_core/app_core.c
+          clang-format --dry-run --Werror firmware/components/app_core/app_core.c
+          ./scripts/run-tests.sh
+          git diff --check
+          grep -F '#include <string.h>' firmware/components/app_core/app_core.c
+          grep -F '#include "device_settings_v2.h"' firmware/components/app_core/app_core.c
+      - name: Commit include repair and remove materializer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Phillip Chin"
+          git config user.email "ekkus93@gmail.com"
+          git add firmware/components/app_core/app_core.c
+          git rm .github/workflows/v2-cutover-a-include-cleaner-repair.yml
+          git diff --cached --check
+          git commit -m "Fix V2-040 Cutover A direct includes"
+          git push origin HEAD:master
