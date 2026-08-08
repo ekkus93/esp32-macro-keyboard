@@ -1,0 +1,54 @@
+name: V2 npm audit repair
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/v2-npm-audit-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: true
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Repair lockfile and require clean audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd webapp
+          npm ci
+          npm audit fix --package-lock-only
+          npm ci
+          npm audit --json > /tmp/npm-audit.json
+          npm run audit:ci
+          cd ..
+          python3 tests/scripts/test-check-npm-audit.py
+          git diff --check
+      - name: Commit repaired lockfile and remove materializer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Phillip Chin"
+          git config user.email "ekkus93@gmail.com"
+          git add webapp/package-lock.json
+          git rm .github/workflows/v2-npm-audit-repair.yml
+          if git diff --cached --quiet; then
+            echo "error: repair produced no permanent change" >&2
+            exit 1
+          fi
+          git diff --cached --check
+          git commit -m "Repair npm audit dependency drift"
+          git push origin HEAD:master
