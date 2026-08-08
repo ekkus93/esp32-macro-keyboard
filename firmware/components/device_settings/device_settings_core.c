@@ -182,6 +182,26 @@ app_error_code_t device_settings_core_reset_noncredential(device_settings_core_t
     return result;
 }
 
+app_error_code_t device_settings_core_factory_reset(device_settings_core_t *core,
+                                                    app_v2_device_settings_t *out_settings,
+                                                    bool *out_changed) {
+    if (core == NULL || out_settings == NULL || out_changed == NULL ||
+        !operations_valid(&core->ops)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+
+    app_v2_device_settings_t candidate = {0};
+    app_v2_device_settings_init_unprovisioned(&candidate);
+    const app_error_code_t result = device_settings_core_replace(core, &candidate, out_changed);
+    if (result == APP_ERROR_NONE) {
+        *out_settings = core->current;
+    } else {
+        memset(out_settings, 0, sizeof(*out_settings));
+    }
+    core->ops.secure_zero(core->ops.context, &candidate, sizeof(candidate));
+    return result;
+}
+
 void device_settings_core_deinit(device_settings_core_t *core) {
     if (core == NULL) {
         return;

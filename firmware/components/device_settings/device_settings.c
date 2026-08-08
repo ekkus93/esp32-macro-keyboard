@@ -270,3 +270,22 @@ app_error_code_t device_settings_reset_noncredential(app_v2_device_settings_t *o
     }
     return finish_locked(result);
 }
+
+app_error_code_t device_settings_factory_reset(app_v2_device_settings_t *out_settings,
+                                               bool *out_changed) {
+    if (out_settings == NULL || out_changed == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    memset(out_settings, 0, sizeof(*out_settings));
+    *out_changed = false;
+    app_error_code_t result = lock_settings();
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    result = device_settings_core_factory_reset(&settings_core, out_settings, out_changed);
+    if (result != APP_ERROR_NONE) {
+        memset(out_settings, 0, sizeof(*out_settings));
+        *out_changed = false;
+    }
+    return finish_locked(result);
+}

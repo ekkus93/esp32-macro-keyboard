@@ -245,12 +245,88 @@ static void test_reset_preserves_credentials_and_blob_counter(void) {
     TEST_CHECK(reset.station_passphrase[0] == '\0');
 }
 
+/* SPEC_V2.md §11.4 "Factory reset": erases device configuration, credentials,
+ * and provisioning state (repository blobs are a separate storage concern --
+ * device_controls erases those independently). */
+static void test_factory_reset_erases_everything(void) {
+    fake_settings_store_t fake;
+    device_settings_core_t core;
+    init_core(&core, &fake);
+    const app_v2_device_settings_t original = configured_settings();
+    seed_durable(&fake, &original);
+
+    app_v2_device_settings_t reset;
+    bool changed = false;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         device_settings_core_factory_reset(&core, &reset, &changed));
+    TEST_CHECK(changed);
+    TEST_CHECK(!reset.provisioned);
+    /* init_unprovisioned() sets these two version fields even in the
+     * unprovisioned default; only the derived credential material clears. */
+    TEST_CHECK_EQ_U64(APP_V2_CREDENTIAL_VERSION, reset.credential_version);
+    TEST_CHECK_EQ_U64(APP_V2_PASSWORD_ALGORITHM_VERSION, reset.password_algorithm_version);
+    TEST_CHECK_EQ_U64(0U, reset.password_iterations);
+    static const uint8_t zero_salt[APP_V2_PASSWORD_SALT_BYTES] = {0};
+    static const uint8_t zero_verifier[APP_V2_PASSWORD_VERIFIER_BYTES] = {0};
+    TEST_CHECK_EQ_BUFFER(zero_salt, reset.password_salt, sizeof(zero_salt));
+    TEST_CHECK_EQ_BUFFER(zero_verifier, reset.password_verifier, sizeof(zero_verifier));
+    TEST_CHECK_EQ_U64(0U, reset.next_blob_id);
+    TEST_CHECK(reset.ap_ssid[0] == '\0');
+    TEST_CHECK(reset.ap_passphrase[0] == '\0');
+    TEST_CHECK(reset.station_ssid[0] == '\0');
+    TEST_CHECK(reset.station_passphrase[0] == '\0');
+    TEST_CHECK(!reset.station_configured);
+    TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_QUICK, reset.send_mode);
+    TEST_CHECK_EQ_U64(5U, reset.snapshot_retention_target);
+    TEST_CHECK(!reset.show_macro_source_previews);
+    TEST_CHECK(!reset.require_serial_confirmation);
+    TEST_CHECK(reset.last_selected_package_id[0] == '\0');
+    TEST_CHECK(strcmp(reset.device_name, "ESP32 Macro Keyboard") == 0);
+
+    /* Re-run on an already-unprovisioned device: idempotent, no redundant
+     * write, and still reports success. */
+    const unsigned int writes_before = fake.replace_calls;
+    app_v2_device_settings_t reset_again;
+    bool changed_again = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         device_settings_core_factory_reset(&core, &reset_again, &changed_again));
+    TEST_CHECK(!changed_again);
+    TEST_CHECK_EQ_U64(writes_before, fake.replace_calls);
+    TEST_CHECK(!reset_again.provisioned);
+
+    /* Invalid arguments and a durable-write failure are both surfaced and
+     * leave the caller's output buffers cleared. */
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         device_settings_core_factory_reset(NULL, &reset, &changed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         device_settings_core_factory_reset(&core, NULL, &changed));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         device_settings_core_factory_reset(&core, &reset, NULL));
+
+    /* A durable-write failure needs a genuine change pending -- against an
+     * already-unprovisioned core the candidate record is identical to the
+     * current one, so device_settings_core_replace() short-circuits before
+     * ever calling replace_record_atomic(). Re-seed a provisioned record on a
+     * fresh core so the write is actually attempted. */
+    fake_settings_store_t failing_fake;
+    device_settings_core_t failing_core;
+    init_core(&failing_core, &failing_fake);
+    seed_durable(&failing_fake, &original);
+    failing_fake.replace_error = APP_ERROR_IO;
+    app_v2_device_settings_t failed = {.provisioned = true};
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO,
+                         device_settings_core_factory_reset(&failing_core, &failed, &changed));
+    TEST_CHECK_EQ_U64(0U, failed.credential_version);
+    TEST_CHECK(!failed.provisioned);
+}
+
 int main(void) {
     test_init_validation();
     test_missing_record_uses_defaults_without_write();
     test_load_valid_and_reject_corruption();
     test_replace_and_failure_preservation();
     test_reset_preserves_credentials_and_blob_counter();
+    test_factory_reset_erases_everything();
     puts("V2 device settings store tests passed");
     return EXIT_SUCCESS;
 }
