@@ -4,15 +4,17 @@
 #include <string.h>
 
 #include "app_error.h"
+#include "app_limits_v2.h"
 #include "app_uuid.h"
 #include "macro_executor.h"
 #include "macro_executor_ops.h"
 #include "macro_limits.h"
 #include "macro_parser.h"
 
-#define EXECUTION_WATCHDOG_MARGIN_MS 1000U
 #define CANCELLATION_SLICE_MS 10U
 #define CURRENT_ACTION_NONE "none"
+/* SPEC_V2 §7.12: "for at most 60 seconds". */
+#define CONFIRMATION_TIMEOUT_MS (APP_V2_SERIAL_CONFIRMATION_TIMEOUT_SECONDS * 1000U)
 
 static const char *action_type_string(macro_action_type_t type) {
     switch (type) {
@@ -68,6 +70,22 @@ static app_error_code_t read_cancellation(macro_executor_engine_t *engine, bool 
     return result;
 }
 
+static app_error_code_t read_confirmation(macro_executor_engine_t *engine, bool *out_confirmed) {
+    if (out_confirmed == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    app_error_code_t result = lock_engine(engine);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    *out_confirmed = engine->confirmed_requested;
+    result = unlock_engine(engine);
+    if (result != APP_ERROR_NONE) {
+        *out_confirmed = false;
+    }
+    return result;
+}
+
 static app_error_code_t reset_terminal_flags(macro_executor_engine_t *engine) {
     app_error_code_t result = lock_engine(engine);
     if (result != APP_ERROR_NONE) {
@@ -75,6 +93,7 @@ static app_error_code_t reset_terminal_flags(macro_executor_engine_t *engine) {
     }
     engine->busy = false;
     engine->cancellation_requested = false;
+    engine->confirmed_requested = false;
     return unlock_engine(engine);
 }
 
@@ -83,11 +102,15 @@ static bool deadline_expired(uint32_t now, uint32_t deadline) {
 }
 
 static app_error_code_t validate_request(const macro_execution_request_t *request) {
+    /* key_press_ms accepts the complete SPEC_V2 §7.11 range, 0 through 10,000 ms
+     * inclusive -- the same range macro_compile_v2() already validates and
+     * documents. A lower bound of 1 here was a v1-shaped constraint the v2
+     * contract does not share (PHASE_5_EXACT_V2_HTTP_API_2026-08-08.md Known
+     * gap #4); a keyPressMs of 0 is a legitimate "no dwell" request. */
     if (request == NULL || request->plan.actions == NULL || request->plan.action_count == 0U ||
         request->plan.action_count > APP_COMPILED_ACTION_MAX ||
         request->plan.estimated_duration_ms > APP_ESTIMATED_DURATION_MAX_MS ||
-        request->key_press_ms == 0U || request->key_press_ms > APP_DELAY_MAX_MS ||
-        request->inter_key_ms > APP_DELAY_MAX_MS ||
+        request->key_press_ms > APP_DELAY_MAX_MS || request->inter_key_ms > APP_DELAY_MAX_MS ||
         !app_uuid_is_valid_string(request->execution_id.value) ||
         !app_uuid_is_valid_string(request->set_id.value) ||
         !app_uuid_is_valid_string(request->macro_id.value) || request->macro_revision == 0U) {
@@ -121,6 +144,45 @@ static app_error_code_t cancellable_delay(macro_executor_engine_t *engine, uint3
     return APP_ERROR_NONE;
 }
 
+/* SPEC_V2 §7.12: waits up to CONFIRMATION_TIMEOUT_MS for macro_executor_confirm()
+ * (or a cancellation) while status.state is EXECUTION_AWAITING_CONFIRMATION.
+ * Returns APP_ERROR_NONE once confirmed, APP_ERROR_EXECUTION_CANCELLED if
+ * cancelled first, or APP_ERROR_TIMEOUT ("Expiry produces timed_out and types
+ * nothing") if neither happens before the deadline. No key or chord action runs
+ * before this returns APP_ERROR_NONE. Polls in CANCELLATION_SLICE_MS slices
+ * against a wall-clock deadline, the same idiom cancellable_delay() uses for
+ * the execution-phase watchdog, rather than counting down a fixed number of
+ * slices -- so it stays correct even if a wait_ms() call takes longer than
+ * requested. */
+static app_error_code_t await_confirmation(macro_executor_engine_t *engine) {
+    const uint32_t deadline = engine->ops.now_ms(engine->ops.context) + CONFIRMATION_TIMEOUT_MS;
+    while (true) {
+        bool cancelled = false;
+        app_error_code_t result = read_cancellation(engine, &cancelled);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+        if (cancelled) {
+            return APP_ERROR_EXECUTION_CANCELLED;
+        }
+        bool confirmed = false;
+        result = read_confirmation(engine, &confirmed);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+        if (confirmed) {
+            return APP_ERROR_NONE;
+        }
+        if (deadline_expired(engine->ops.now_ms(engine->ops.context), deadline)) {
+            return APP_ERROR_TIMEOUT;
+        }
+        result = engine->ops.wait_ms(engine->ops.context, CANCELLATION_SLICE_MS);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+    }
+}
+
 static app_error_code_t finish_execution(macro_executor_engine_t *engine,
                                          macro_execution_status_t status, execution_state_t state,
                                          app_error_code_t primary_error) {
@@ -141,6 +203,24 @@ static app_error_code_t finish_execution(macro_executor_engine_t *engine,
         return publish_result;
     }
     return reset_result;
+}
+
+/* Publishes status; on failure, frees the request's plan and drives the engine to
+ * a EXECUTION_FAILED terminal state through the same finish_execution() path
+ * every other failure uses. Returns true (with *out_result untouched) when the
+ * caller should keep going; false when the caller must return *out_result
+ * immediately -- the request is already finished. */
+static bool publish_step(macro_executor_engine_t *engine, macro_execution_request_t *request,
+                         macro_execution_status_t status, app_error_code_t *out_result) {
+    const app_error_code_t result = publish_status(engine, status);
+    if (result == APP_ERROR_NONE) {
+        return true;
+    }
+    engine->ops.plan_free(&request->plan);
+    const app_error_code_t finish_result =
+        finish_execution(engine, status, EXECUTION_FAILED, result);
+    *out_result = finish_result != APP_ERROR_NONE ? finish_result : result;
+    return false;
 }
 
 app_error_code_t macro_executor_engine_init(macro_executor_engine_t *engine,
@@ -185,12 +265,20 @@ app_error_code_t macro_executor_engine_submit(macro_executor_engine_t *engine,
     }
     engine->busy = true;
     engine->cancellation_requested = false;
+    engine->confirmed_requested = false;
     result = unlock_engine(engine);
     if (result != APP_ERROR_NONE) {
+        /* SPEC_V2 §7.3 names "internal error" explicitly among the release-all
+         * triggers. No action for this request ever ran, but the attempt costs
+         * nothing and guards against a stuck key from whatever ran immediately
+         * before this submission. */
+        (void)engine->ops.usb_release_all(engine->ops.context);
         const app_error_code_t cleanup = reset_terminal_flags(engine);
         return cleanup == APP_ERROR_NONE ? result : cleanup;
     }
     if (!engine->ops.queue_send(engine->ops.context, request)) {
+        /* SPEC_V2 §7.3 names "queue failure" explicitly. */
+        (void)engine->ops.usb_release_all(engine->ops.context);
         const app_error_code_t cleanup = reset_terminal_flags(engine);
         return cleanup == APP_ERROR_NONE ? APP_ERROR_INTERNAL : cleanup;
     }
@@ -218,6 +306,32 @@ app_error_code_t macro_executor_engine_cancel(macro_executor_engine_t *engine) {
         return unlock_engine(engine) == APP_ERROR_NONE ? APP_ERROR_CONFLICT : APP_ERROR_INTERNAL;
     }
     engine->cancellation_requested = true;
+    result = unlock_engine(engine);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    engine->ops.notify_executor(engine->ops.context);
+    return APP_ERROR_NONE;
+}
+
+app_error_code_t macro_executor_engine_confirm(macro_executor_engine_t *engine) {
+    if (engine == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (engine->unavailable) {
+        return APP_ERROR_STORAGE_UNAVAILABLE;
+    }
+    app_error_code_t result = lock_engine(engine);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    if (!engine->busy || engine->status.state != EXECUTION_AWAITING_CONFIRMATION) {
+        return unlock_engine(engine) == APP_ERROR_NONE ? APP_ERROR_NOT_FOUND : APP_ERROR_INTERNAL;
+    }
+    if (engine->confirmed_requested) {
+        return unlock_engine(engine) == APP_ERROR_NONE ? APP_ERROR_CONFLICT : APP_ERROR_INTERNAL;
+    }
+    engine->confirmed_requested = true;
     result = unlock_engine(engine);
     if (result != APP_ERROR_NONE) {
         return result;
@@ -268,13 +382,44 @@ static app_error_code_t execute_action(macro_executor_engine_t *engine, macro_ac
     return result;
 }
 
+/* Runs the require_confirmation branch of macro_executor_engine_execute(): waits
+ * for confirmation (or cancellation/expiry), and republishes *status as RUNNING
+ * on success. Returns true when the caller should proceed to execute the
+ * plan's actions; false when the send already reached a terminal state and the
+ * caller must return *out_result immediately. Split out of
+ * macro_executor_engine_execute() to keep its cognitive complexity bounded. */
+static bool run_confirmation_phase(macro_executor_engine_t *engine,
+                                   macro_execution_request_t *request,
+                                   macro_execution_status_t *status, app_error_code_t *out_result) {
+    /* SPEC_V2 §7.12: no action executes until macro_executor_confirm() is
+     * called, up to the 60-second timeout; a cancellation or expiry here ends
+     * the send having typed nothing. */
+    const app_error_code_t confirm_result = await_confirmation(engine);
+    if (confirm_result == APP_ERROR_NONE) {
+        status->state = EXECUTION_RUNNING;
+        return publish_step(engine, request, *status, out_result);
+    }
+    engine->ops.plan_free(&request->plan);
+    execution_state_t confirm_terminal = EXECUTION_FAILED;
+    if (confirm_result == APP_ERROR_EXECUTION_CANCELLED) {
+        confirm_terminal = EXECUTION_CANCELLED;
+    } else if (confirm_result == APP_ERROR_TIMEOUT) {
+        confirm_terminal = EXECUTION_TIMED_OUT;
+    }
+    const app_error_code_t finish_result =
+        finish_execution(engine, *status, confirm_terminal, confirm_result);
+    *out_result = finish_result == APP_ERROR_NONE ? confirm_result : finish_result;
+    return false;
+}
+
 app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
                                                macro_execution_request_t *request) {
     if (engine == NULL || validate_request(request) != APP_ERROR_NONE) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     macro_execution_status_t status = {
-        .state = EXECUTION_RUNNING,
+        .state =
+            request->require_confirmation ? EXECUTION_AWAITING_CONFIRMATION : EXECUTION_RUNNING,
         .error = APP_ERROR_NONE,
         .release_error = APP_ERROR_NONE,
         .execution_id = request->execution_id,
@@ -287,18 +432,24 @@ app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
         .accepted_ms = request->accepted_ms,
         .current_action = CURRENT_ACTION_NONE,
     };
-    app_error_code_t result = publish_status(engine, status);
-    if (result != APP_ERROR_NONE) {
-        engine->ops.plan_free(&request->plan);
-        const app_error_code_t finish_result =
-            finish_execution(engine, status, EXECUTION_FAILED, result);
-        return finish_result != APP_ERROR_NONE ? finish_result : result;
+    app_error_code_t result = APP_ERROR_NONE;
+    if (!publish_step(engine, request, status, &result)) {
+        return result;
+    }
+
+    if (request->require_confirmation &&
+        !run_confirmation_phase(engine, request, &status, &result)) {
+        return result;
     }
 
     const uint32_t started = engine->ops.now_ms(engine->ops.context);
     status.started_ms = started;
-    const uint32_t watchdog_ms = request->plan.estimated_duration_ms + EXECUTION_WATCHDOG_MARGIN_MS;
-    engine->deadline = started + watchdog_ms;
+    /* SPEC_V2 §7.11: "absolute executor deadline 310,000 ms", "a 10-second
+     * safety margin beyond the maximum accepted estimate" (300,000 ms) -- a
+     * fixed ceiling from the moment execution actually starts, independent of
+     * this particular request's own (possibly much smaller) estimated
+     * duration. */
+    engine->deadline = started + APP_V2_EXECUTOR_ABSOLUTE_DEADLINE_MS;
 
     for (size_t index = 0U; index < request->plan.action_count; ++index) {
         status.action_index = index;

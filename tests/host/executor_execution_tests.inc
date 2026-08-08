@@ -135,19 +135,25 @@ static void test_timestamps_and_current_action_track_execution(void) {
     executor_assert_terminal(&engine, EXECUTION_COMPLETED, APP_ERROR_NONE, false);
 }
 
-/* SPEC 24.3 item: timeout */
+/* SPEC 24.3 item: timeout
+ * SPEC_V2 §7.11: the absolute executor deadline is a fixed 310,000 ms ceiling
+ * from the moment execution actually starts -- independent of this request's
+ * own (much smaller) estimated duration, unlike the retired per-request
+ * estimate+margin watchdog this replaced. Two delay slices are used so the
+ * jump-past-deadline lands on the loop's pre-wait deadline check rather than
+ * being invisible until an action that never comes. */
 static void test_watchdog_and_wait_failures(void) {
     executor_fake_t fake;
     executor_fake_reset(&fake);
     macro_executor_engine_t engine;
     executor_init_engine(&engine, &fake);
     macro_execution_request_t request = executor_make_request(1U);
-    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_DELAY, .delay_ms = 2000U};
-    request.plan.estimated_duration_ms = 1U;
-    fake.extra_advance_on_wait_ms = 2000U;
+    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_DELAY, .delay_ms = 20U};
+    request.plan.estimated_duration_ms = 20U;
+    fake.extra_advance_on_wait_ms = APP_V2_EXECUTOR_ABSOLUTE_DEADLINE_MS;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
     TEST_CHECK_APP_ERROR(APP_ERROR_TIMEOUT, executor_execute_queued(&engine, &fake));
-    TEST_CHECK(fake.wait_count > 0U);
+    TEST_CHECK_EQ_U64(1U, fake.wait_count);
     TEST_CHECK_EQ_U64(1U, fake.release_index);
     /* A watchdog timeout is its own terminal state, distinct from a failure. */
     executor_assert_terminal(&engine, EXECUTION_TIMED_OUT, APP_ERROR_TIMEOUT, false);

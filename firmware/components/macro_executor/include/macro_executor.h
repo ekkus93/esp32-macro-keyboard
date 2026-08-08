@@ -11,12 +11,20 @@
 
 typedef enum {
     EXECUTION_IDLE = 0,
+    /* SPEC_V2 §7.12: an accepted send waiting for the serial-console `confirm`
+     * command (or the 60-second timeout) before any action executes. Only
+     * entered when the request set require_confirmation; skipped entirely
+     * otherwise (submission moves straight to EXECUTION_RUNNING). */
+    EXECUTION_AWAITING_CONFIRMATION,
     EXECUTION_RUNNING,
     EXECUTION_COMPLETED,
     EXECUTION_CANCELLED,
     EXECUTION_FAILED,
     /* A run that exceeded its watchdog deadline. Distinct from EXECUTION_FAILED so
-     * the API and frontend can report a timeout specifically (FIX1 §12.4). */
+     * the API and frontend can report a timeout specifically (FIX1 §12.4). Also
+     * the terminal state for an awaiting_confirmation request that expired
+     * without confirmation (SPEC_V2 §7.12: "Expiry produces timed_out and types
+     * nothing"). */
     EXECUTION_TIMED_OUT
 } execution_state_t;
 
@@ -35,6 +43,12 @@ typedef struct {
      * copy it into the published status alongside its own started/completed
      * stamps. */
     uint32_t accepted_ms;
+    /* SPEC_V2 §7.12: when true, the request enters EXECUTION_AWAITING_CONFIRMATION
+     * instead of EXECUTION_RUNNING and waits (bounded by the 60-second serial
+     * confirmation timeout) for macro_executor_confirm() before typing anything.
+     * Defaults to false (zero-initialized), which is the current, unchanged
+     * behavior for every existing caller. */
+    bool require_confirmation;
 } macro_execution_request_t;
 
 typedef struct {
@@ -72,6 +86,11 @@ app_error_code_t macro_executor_init(void);
 app_error_code_t macro_executor_deinit(void);
 app_error_code_t macro_executor_submit(macro_execution_request_t *request);
 app_error_code_t macro_executor_cancel(void);
+/* SPEC_V2 §7.12: releases a send currently in EXECUTION_AWAITING_CONFIRMATION so
+ * it proceeds to EXECUTION_RUNNING. APP_ERROR_NOT_FOUND when no send is awaiting
+ * confirmation, APP_ERROR_CONFLICT when confirmation was already recorded
+ * (idempotent no-op), matching macro_executor_cancel()'s convention. */
+app_error_code_t macro_executor_confirm(void);
 macro_execution_status_t macro_executor_get_status(void);
 
 /* Executor task stack high-water mark in words for Phase 19 diagnostics (FIX1

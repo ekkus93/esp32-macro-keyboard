@@ -627,32 +627,62 @@ knowledge in firmware.
 
 ## V2-060 — Compiler compliance
 
-- [ ] Adapt or replace the C parser to satisfy the shared corpus.
-- [ ] Compile the complete source before execution begins.
-- [ ] Reject partial parses and all invalid Unicode.
-- [ ] Produce exact byte offset, line, and column.
-- [ ] Enforce action-count and duration limits before acceptance.
-- [ ] Ensure compile failure emits no HID report.
+- [x] Adapt or replace the C parser to satisfy the shared corpus.
+- [x] Compile the complete source before execution begins.
+- [x] Reject partial parses and all invalid Unicode.
+- [x] Produce exact byte offset, line, and column.
+- [x] Enforce action-count and duration limits before acceptance.
+- [x] Ensure compile failure emits no HID report.
+
+Evidence: `docs/implementation-v2/V2_060_061_062_COMPILER_EXECUTOR_RELEASE_ALL_2026-08-08.md`.
+Audit of the already-adapted `macro_parser_v2.c`/`macro_plan_v2.c`; no code
+changes required. `bash scripts/check-v2-contracts.sh --native-only` (21/21
+native corpus cases) and `npm --prefix webapp run test --
+tests/v2-macro-conformance.test.ts tests/v2-macro-canonical-tokens.test.ts`
+(30/30) both pass against the shared `contracts/v2/macro-conformance.json`
+corpus.
 
 ## V2-061 — Single executor and state machine
 
-- [ ] Use exactly one executor task.
-- [ ] Prevent HTTP handlers from typing directly.
-- [ ] Support `awaiting_confirmation`, `running`, `completed`, `cancelled`,
+- [x] Use exactly one executor task.
+- [x] Prevent HTTP handlers from typing directly.
+- [x] Support `awaiting_confirmation`, `running`, `completed`, `cancelled`,
       `failed`, and `timed_out`.
-- [ ] Do not queue a second send.
-- [ ] Enforce the 60-second confirmation timeout.
-- [ ] Enforce the 310-second absolute deadline.
-- [ ] Preserve the current or most recent send for status recovery.
+- [x] Do not queue a second send.
+- [x] Enforce the 60-second confirmation timeout.
+- [x] Enforce the 310-second absolute deadline.
+- [x] Preserve the current or most recent send for status recovery.
+
+Evidence: `docs/implementation-v2/V2_060_061_062_COMPILER_EXECUTOR_RELEASE_ALL_2026-08-08.md`,
+branch `phase6-compiler-executor-release-all`. `EXECUTION_AWAITING_CONFIRMATION`,
+`require_confirmation`, `macro_executor_confirm()`, and a wall-clock-deadline
+confirmation wait added to `macro_executor_engine.c`; the fixed
+`APP_V2_EXECUTOR_ABSOLUTE_DEADLINE_MS` (310,000 ms) replaces a v1-shaped
+per-request watchdog margin. `./scripts/run-tests.sh --sanitizers executor`
+(ASan+UBSan, 2/2) and `./scripts/run-tests.sh` (all 45 suites) pass; new
+`tests/host/executor_confirmation_tests.inc` covers confirm/cancel/expiry.
+`POST /api/v1/send` does not yet gate on physical confirmation — that HTTP-layer
+wiring is a documented, deliberate gap (owned by whichever stream next touches
+`web_server`, not this task).
 
 ## V2-062 — Release-all invariant
 
-- [ ] Emit release-all after every key or chord action.
-- [ ] Attempt release-all on completion, cancellation, disconnect, suspension,
+- [x] Emit release-all after every key or chord action.
+- [x] Attempt release-all on completion, cancellation, disconnect, suspension,
       timeout, parser invariant failure, task failure, queue failure, and internal
       error.
-- [ ] Clear internal pressed-key state even when transport delivery fails.
-- [ ] Report release failures separately from primary execution failures.
+- [x] Clear internal pressed-key state even when transport delivery fails.
+- [x] Report release failures separately from primary execution failures.
+
+Evidence: `docs/implementation-v2/V2_060_061_062_COMPILER_EXECUTOR_RELEASE_ALL_2026-08-08.md`.
+Most of this was already correct and covered by pre-existing tests; the one
+genuine gap found and fixed was `macro_executor_engine_submit()`'s unlock- and
+queue-failure paths never attempting release-all (SPEC_V2 §7.3 names "internal
+error" and "queue failure" explicitly) — fixed, with new
+`test_submission_ownership_and_recovery` assertions confirming `release_index`
+increments on exactly those two paths. `./scripts/run-tests.sh` (all 45 suites)
+and `./scripts/check-firmware.sh` (GCC + clang-tidy clean for `firmware/` and
+`firmware/test_app/`) pass.
 
 ## V2-063 — Cancellation responsiveness
 
@@ -675,8 +705,8 @@ knowledge in firmware.
 
 ## Phase 6 exit gate
 
-- [ ] C and TypeScript conformance suites pass the same corpus.
-- [ ] Executor host tests pass under sanitizers.
+- [x] C and TypeScript conformance suites pass the same corpus.
+- [x] Executor host tests pass under sanitizers.
 - [ ] Required HID and cancellation hardware evidence is committed.
 
 ---

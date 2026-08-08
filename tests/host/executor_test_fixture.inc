@@ -103,6 +103,13 @@ static app_error_code_t fake_wait_ms(void *context, uint32_t milliseconds) {
         TEST_CHECK(fake->engine != NULL);
         TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_cancel(fake->engine));
     }
+    if (fake->confirm_on_wait != 0U && fake->wait_count == fake->confirm_on_wait) {
+        TEST_CHECK(fake->engine != NULL);
+        TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_confirm(fake->engine));
+        if (fake->capture_second_confirm) {
+            fake->second_confirm_result = macro_executor_engine_confirm(fake->engine);
+        }
+    }
     if (fake->wait_failure_on != 0U && fake->wait_count == fake->wait_failure_on) {
         return fake->wait_failure_result;
     }
