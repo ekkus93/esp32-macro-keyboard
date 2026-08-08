@@ -1,0 +1,46 @@
+name: V2 Cutover A quality log extractor
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/v2-cutover-a-quality-artifact-extract.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: true
+      - name: Extract exact failed Quality artifact and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/quality-artifact
+          gh run download 31248449179 \
+            --repo "$GITHUB_REPOSITORY" \
+            --name failed-quality-31248449179-1 \
+            --dir /tmp/quality-artifact
+          find /tmp/quality-artifact -maxdepth 2 -type f -print
+          log_file="$(find /tmp/quality-artifact -type f -name '*.log' -o -name '*.txt' | head -n 1)"
+          if [[ -z "$log_file" ]]; then
+            echo "error: failed Quality artifact contained no .log or .txt file" >&2
+            exit 1
+          fi
+          cp "$log_file" docs/implementation-v2/V2_040_CUTOVER_A_QUALITY_FAILURE_2.txt
+          git config user.name "Phillip Chin"
+          git config user.email "ekkus93@gmail.com"
+          git add docs/implementation-v2/V2_040_CUTOVER_A_QUALITY_FAILURE_2.txt
+          git rm .github/workflows/v2-cutover-a-quality-artifact-extract.yml
+          git diff --cached --check
+          git commit -m "Capture second Cutover A quality failure"
+          git push origin HEAD:master
