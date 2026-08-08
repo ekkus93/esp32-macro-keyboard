@@ -41,8 +41,8 @@ static app_error_code_t fake_settings_read(void *context, app_v2_device_settings
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t fake_settings_replace(void *context, const app_v2_device_settings_t *settings,
-                                              bool *out_changed) {
+static app_error_code_t
+fake_settings_replace(void *context, const app_v2_device_settings_t *settings, bool *out_changed) {
     fake_t *fake = context;
     ++fake->settings_replace_calls;
     fake->committed_candidate = *settings;
@@ -205,7 +205,7 @@ static void test_put_access_point_sets_restart_and_reconnect(void) {
     const web_settings_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-              "{\"accessPoint\":{\"ssid\":\"NewAp\",\"passphrase\":\"new-example-passphrase\"}}");
+               "{\"accessPoint\":{\"ssid\":\"NewAp\",\"passphrase\":\"new-example-passphrase\"}}");
     char *json = NULL;
 
     const web_settings_put_outcome_t outcome =
@@ -221,7 +221,7 @@ static void test_put_access_point_sets_restart_and_reconnect(void) {
 static void test_put_last_selected_package_id_null_clears(void) {
     fake_t fake = {.current = provisioned_settings()};
     memcpy(fake.current.last_selected_package_id, "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
-          sizeof("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"));
+           sizeof("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"));
     const web_settings_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body), "{\"lastSelectedPackageId\":null}");
@@ -241,7 +241,7 @@ static void test_put_station_removal(void) {
     fake.current.station_configured = true;
     memcpy(fake.current.station_ssid, "OfficeWiFi", sizeof("OfficeWiFi"));
     memcpy(fake.current.station_passphrase, "station-example-passphrase",
-          sizeof("station-example-passphrase"));
+           sizeof("station-example-passphrase"));
     const web_settings_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body), "{\"station\":null}");
@@ -422,10 +422,11 @@ static void test_change_password_success(void) {
     const web_settings_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-              "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
-              "password\"}");
+               "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
+               "password\"}");
 
-    const web_change_password_outcome_t outcome = web_change_password_handle(body, sizeof(body), &ops);
+    const web_change_password_outcome_t outcome =
+        web_change_password_handle(body, sizeof(body), &ops);
 
     TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_OK, outcome.result);
     TEST_CHECK_EQ_STRING("old-example-password", fake.observed_current_password);
@@ -443,9 +444,10 @@ static void test_change_password_incorrect_current_password(void) {
     const web_settings_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-              "{\"currentPassword\":\"wrong-password\",\"newPassword\":\"new-example-password\"}");
+               "{\"currentPassword\":\"wrong-password\",\"newPassword\":\"new-example-password\"}");
 
-    const web_change_password_outcome_t outcome = web_change_password_handle(body, sizeof(body), &ops);
+    const web_change_password_outcome_t outcome =
+        web_change_password_handle(body, sizeof(body), &ops);
 
     TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_INCORRECT_CURRENT_PASSWORD, outcome.result);
     TEST_CHECK_EQ_U64(0U, fake.settings_replace_calls);
@@ -458,9 +460,10 @@ static void test_change_password_new_password_too_short_rejected(void) {
     const web_settings_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-              "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"short\"}");
+               "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"short\"}");
 
-    const web_change_password_outcome_t outcome = web_change_password_handle(body, sizeof(body), &ops);
+    const web_change_password_outcome_t outcome =
+        web_change_password_handle(body, sizeof(body), &ops);
 
     TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_INVALID_NEW_PASSWORD, outcome.result);
     TEST_CHECK_EQ_U64(0U, fake.password_verify_calls);
@@ -473,7 +476,8 @@ static void test_change_password_missing_field_rejected(void) {
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body), "{\"currentPassword\":\"old-example-password\"}");
 
-    const web_change_password_outcome_t outcome = web_change_password_handle(body, sizeof(body), &ops);
+    const web_change_password_outcome_t outcome =
+        web_change_password_handle(body, sizeof(body), &ops);
 
     TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_INVALID_BODY, outcome.result);
 }
@@ -487,10 +491,11 @@ static void test_change_password_settings_replace_backend_unavailable(void) {
     const web_settings_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-              "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
-              "password\"}");
+               "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
+               "password\"}");
 
-    const web_change_password_outcome_t outcome = web_change_password_handle(body, sizeof(body), &ops);
+    const web_change_password_outcome_t outcome =
+        web_change_password_handle(body, sizeof(body), &ops);
 
     TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE, outcome.result);
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL, outcome.detail);
@@ -506,10 +511,11 @@ static void test_change_password_invalidate_failure(void) {
     const web_settings_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-              "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
-              "password\"}");
+               "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
+               "password\"}");
 
-    const web_change_password_outcome_t outcome = web_change_password_handle(body, sizeof(body), &ops);
+    const web_change_password_outcome_t outcome =
+        web_change_password_handle(body, sizeof(body), &ops);
 
     TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE, outcome.result);
     TEST_CHECK_EQ_U64(1U, fake.settings_replace_calls);

@@ -161,7 +161,7 @@ static void test_reset_settings_unknown_field_rejected(void) {
     const web_device_actions_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-              "{\"confirmation\":\"RESET SETTINGS\",\"adminPassword\":\"whatever\"}");
+               "{\"confirmation\":\"RESET SETTINGS\",\"adminPassword\":\"whatever\"}");
 
     const web_device_reset_settings_outcome_t outcome =
         web_device_reset_settings_handle(body, sizeof(body), &ops);
@@ -204,7 +204,7 @@ static void test_factory_reset_success(void) {
     const web_device_actions_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-              "{\"adminPassword\":\"example-admin-password\",\"confirmation\":\"FACTORY RESET\"}");
+               "{\"adminPassword\":\"example-admin-password\",\"confirmation\":\"FACTORY RESET\"}");
 
     const web_device_factory_reset_outcome_t outcome =
         web_device_factory_reset_handle(body, sizeof(body), &ops);
@@ -220,7 +220,7 @@ static void test_factory_reset_wrong_confirmation_rejected_before_password_check
     const web_device_actions_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-              "{\"adminPassword\":\"example-admin-password\",\"confirmation\":\"factory reset\"}");
+               "{\"adminPassword\":\"example-admin-password\",\"confirmation\":\"factory reset\"}");
 
     const web_device_factory_reset_outcome_t outcome =
         web_device_factory_reset_handle(body, sizeof(body), &ops);
@@ -236,7 +236,7 @@ static void test_factory_reset_wrong_password_rejected(void) {
     const web_device_actions_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-              "{\"adminPassword\":\"wrong-password\",\"confirmation\":\"FACTORY RESET\"}");
+               "{\"adminPassword\":\"wrong-password\",\"confirmation\":\"FACTORY RESET\"}");
 
     const web_device_factory_reset_outcome_t outcome =
         web_device_factory_reset_handle(body, sizeof(body), &ops);
@@ -250,8 +250,8 @@ static void test_factory_reset_unknown_field_rejected(void) {
     const web_device_actions_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-              "{\"adminPassword\":\"example-admin-password\",\"confirmation\":\"FACTORY "
-              "RESET\",\"extra\":true}");
+               "{\"adminPassword\":\"example-admin-password\",\"confirmation\":\"FACTORY "
+               "RESET\",\"extra\":true}");
 
     const web_device_factory_reset_outcome_t outcome =
         web_device_factory_reset_handle(body, sizeof(body), &ops);
@@ -277,7 +277,7 @@ static void test_factory_reset_settings_read_backend_unavailable(void) {
     const web_device_actions_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-              "{\"adminPassword\":\"example-admin-password\",\"confirmation\":\"FACTORY RESET\"}");
+               "{\"adminPassword\":\"example-admin-password\",\"confirmation\":\"FACTORY RESET\"}");
 
     const web_device_factory_reset_outcome_t outcome =
         web_device_factory_reset_handle(body, sizeof(body), &ops);
@@ -292,7 +292,7 @@ static void test_factory_reset_backend_failure(void) {
     const web_device_actions_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-              "{\"adminPassword\":\"example-admin-password\",\"confirmation\":\"FACTORY RESET\"}");
+               "{\"adminPassword\":\"example-admin-password\",\"confirmation\":\"FACTORY RESET\"}");
 
     const web_device_factory_reset_outcome_t outcome =
         web_device_factory_reset_handle(body, sizeof(body), &ops);

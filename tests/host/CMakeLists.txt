@@ -212,8 +212,7 @@ register_host_test(web_auth_routes_tests web_auth_routes web)
 
 add_executable(
     web_settings_tests
-    test_web_settings.c
-    ../../firmware/components/web_server/web_settings.c
+    test_web_settings.c ../../firmware/components/web_server/web_settings.c
     ../../firmware/components/app_contracts_v2/settings_contract_v2.c
     ../../firmware/components/app_contracts_v2/device_settings_v2.c
 )

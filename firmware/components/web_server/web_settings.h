@@ -21,12 +21,10 @@ typedef struct {
                                          bool *out_changed);
     /* Verifies `password` against the credential material already present in
      * `settings` (the record ops->settings_read() just returned). */
-    app_error_code_t (*password_verify)(void *context, const char *password,
-                                        size_t password_length,
+    app_error_code_t (*password_verify)(void *context, const char *password, size_t password_length,
                                         const app_v2_device_settings_t *settings,
                                         bool *out_matches);
-    app_error_code_t (*password_create)(void *context, const char *password,
-                                        size_t password_length,
+    app_error_code_t (*password_create)(void *context, const char *password, size_t password_length,
                                         app_v2_setup_password_material_t *out_material);
     app_error_code_t (*invalidate_all_sessions)(void *context);
 } web_settings_ops_t;
@@ -105,6 +103,6 @@ typedef struct {
  * no concept of a cookie. `body` is wiped before this function returns on
  * every path. */
 web_change_password_outcome_t web_change_password_handle(char *body, size_t body_capacity,
-                                                          const web_settings_ops_t *ops);
+                                                         const web_settings_ops_t *ops);
 
 #endif

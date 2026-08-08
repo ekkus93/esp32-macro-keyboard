@@ -5,13 +5,21 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "api_contracts_v2.h"
 #include "app_error.h"
 #include "cJSON.h"
+#include "device_settings_v2.h"
 #include "settings_contract_v2.h"
+#include "setup_contract_v2.h"
 
 #define SETTINGS_NUL_ESCAPE "\\u0000"
 #define SETTINGS_SEND_MODE_QUICK "quick"
 #define SETTINGS_SEND_MODE_PREVIEW "preview"
+/* Raw wire-shape ceiling for snapshotRetentionTarget: the widest value that
+ * still fits the field's uint8_t storage. app_v2_settings_prepare_update()
+ * separately enforces the narrower SPEC_V2 0-100 semantic range, mapped to
+ * WEB_SETTINGS_PUT_INVALID_SNAPSHOT_RETENTION_TARGET. */
+#define SETTINGS_RETENTION_RAW_MAX 255.0
 
 static void secure_zero_local(void *memory, size_t length) {
     volatile uint8_t *bytes = memory;
@@ -72,8 +80,7 @@ static cJSON *parse_exact_body(char *body, size_t body_capacity) {
  * response).
  * ---------------------------------------------------------------------- */
 
-static bool add_optional_string(cJSON *root, const char *key,
-                                app_v2_optional_string_view_t value) {
+static bool add_optional_string(cJSON *root, const char *key, app_v2_optional_string_view_t value) {
     if (!value.present) {
         return cJSON_AddNullToObject(root, key) != NULL;
     }
@@ -99,8 +106,7 @@ static bool add_view_string(cJSON *root, const char *key, app_v2_string_view_t v
 }
 
 static const char *send_mode_string(app_v2_send_mode_t mode) {
-    return mode == APP_V2_SEND_MODE_PREVIEW ? SETTINGS_SEND_MODE_PREVIEW
-                                            : SETTINGS_SEND_MODE_QUICK;
+    return mode == APP_V2_SEND_MODE_PREVIEW ? SETTINGS_SEND_MODE_PREVIEW : SETTINGS_SEND_MODE_QUICK;
 }
 
 static bool settings_response_populate(cJSON *root, const app_v2_settings_response_t *response) {
@@ -115,8 +121,7 @@ static bool settings_response_populate(cJSON *root, const app_v2_settings_respon
                                  response->show_macro_source_previews) != NULL &&
            add_optional_string(root, "lastSelectedPackageId", response->last_selected_package_id) &&
            add_view_string(root, "apSsid", response->ap_ssid) &&
-           cJSON_AddBoolToObject(root, "stationConfigured", response->station_configured) !=
-               NULL &&
+           cJSON_AddBoolToObject(root, "stationConfigured", response->station_configured) != NULL &&
            add_optional_string(root, "stationSsid", response->station_ssid);
 }
 
@@ -133,8 +138,7 @@ static char *finish_json(cJSON *root) {
  * GET /api/v1/settings
  * ---------------------------------------------------------------------- */
 
-web_settings_get_outcome_t web_settings_get_handle(const web_settings_ops_t *ops,
-                                                   char **out_json) {
+web_settings_get_outcome_t web_settings_get_handle(const web_settings_ops_t *ops, char **out_json) {
     if (out_json != NULL) {
         *out_json = NULL;
     }
@@ -152,8 +156,7 @@ web_settings_get_outcome_t web_settings_get_handle(const web_settings_ops_t *ops
     }
 
     app_v2_settings_response_t response = {0};
-    if (app_v2_settings_response_from_settings(&settings, &response) !=
-        APP_V2_SETTINGS_UPDATE_OK) {
+    if (app_v2_settings_response_from_settings(&settings, &response) != APP_V2_SETTINGS_UPDATE_OK) {
         return (web_settings_get_outcome_t){.result = WEB_SETTINGS_GET_INTERNAL};
     }
 
@@ -177,8 +180,14 @@ web_settings_get_outcome_t web_settings_get_handle(const web_settings_ops_t *ops
 #define SETTINGS_PUT_FIELD_COUNT 8U
 
 static const char *const SETTINGS_PUT_FIELDS[SETTINGS_PUT_FIELD_COUNT] = {
-    "deviceName",  "requireSerialConfirmation", "sendMode",  "snapshotRetentionTarget",
-    "showMacroSourcePreviews", "lastSelectedPackageId", "accessPoint", "station",
+    "deviceName",
+    "requireSerialConfirmation",
+    "sendMode",
+    "snapshotRetentionTarget",
+    "showMacroSourcePreviews",
+    "lastSelectedPackageId",
+    "accessPoint",
+    "station",
 };
 
 static bool exact_settings_put_fields(const cJSON *root) {
@@ -238,110 +247,158 @@ static bool exact_credential_fields(const cJSON *object, app_v2_network_credenti
            string_view_from_item(passphrase, &out->passphrase);
 }
 
+static bool populate_device_name(const cJSON *root, app_v2_settings_update_request_t *out_request) {
+    const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "deviceName");
+    if (item == NULL) {
+        return true;
+    }
+    out_request->has_device_name = true;
+    return string_view_from_item(item, &out_request->device_name);
+}
+
+static bool populate_require_confirmation(const cJSON *root,
+                                          app_v2_settings_update_request_t *out_request) {
+    const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "requireSerialConfirmation");
+    if (item == NULL) {
+        return true;
+    }
+    if (!cJSON_IsBool(item)) {
+        return false;
+    }
+    out_request->has_require_serial_confirmation = true;
+    out_request->require_serial_confirmation = cJSON_IsTrue(item);
+    return true;
+}
+
+/* Structurally-a-string-but-unrecognized ("sendMode":"eventually") is not a
+ * malformed-body condition: it leaves has_send_mode false and reports itself
+ * through *out_invalid_enum instead of a false return, so the caller can
+ * answer the dedicated WEB_SETTINGS_PUT_INVALID_SEND_MODE result (matching
+ * accessPoint/station's field-specific errors) rather than a generic
+ * invalid-body one -- and so no out-of-range app_v2_send_mode_t value is
+ * ever constructed. */
+static bool populate_send_mode(const cJSON *root, app_v2_settings_update_request_t *out_request,
+                               bool *out_invalid_enum) {
+    const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "sendMode");
+    if (item == NULL) {
+        return true;
+    }
+    if (!cJSON_IsString(item) || item->valuestring == NULL) {
+        return false;
+    }
+    if (strcmp(item->valuestring, SETTINGS_SEND_MODE_QUICK) == 0) {
+        out_request->has_send_mode = true;
+        out_request->send_mode = APP_V2_SEND_MODE_QUICK;
+    } else if (strcmp(item->valuestring, SETTINGS_SEND_MODE_PREVIEW) == 0) {
+        out_request->has_send_mode = true;
+        out_request->send_mode = APP_V2_SEND_MODE_PREVIEW;
+    } else {
+        *out_invalid_enum = true;
+    }
+    return true;
+}
+
+static bool populate_snapshot_retention_target(const cJSON *root,
+                                               app_v2_settings_update_request_t *out_request) {
+    const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "snapshotRetentionTarget");
+    if (item == NULL) {
+        return true;
+    }
+    if (!cJSON_IsNumber(item) || item->valuedouble < 0.0 ||
+        item->valuedouble > SETTINGS_RETENTION_RAW_MAX) {
+        return false;
+    }
+    const uint8_t candidate = (uint8_t)item->valuedouble;
+    if ((double)candidate != item->valuedouble) {
+        return false;
+    }
+    out_request->has_snapshot_retention_target = true;
+    out_request->snapshot_retention_target = candidate;
+    return true;
+}
+
+static bool populate_show_previews(const cJSON *root,
+                                   app_v2_settings_update_request_t *out_request) {
+    const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "showMacroSourcePreviews");
+    if (item == NULL) {
+        return true;
+    }
+    if (!cJSON_IsBool(item)) {
+        return false;
+    }
+    out_request->has_show_macro_source_previews = true;
+    out_request->show_macro_source_previews = cJSON_IsTrue(item);
+    return true;
+}
+
+static bool populate_last_selected_package_id(const cJSON *root,
+                                              app_v2_settings_update_request_t *out_request) {
+    const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "lastSelectedPackageId");
+    if (item == NULL) {
+        return true;
+    }
+    out_request->has_last_selected_package_id = true;
+    if (cJSON_IsNull(item)) {
+        out_request->last_selected_package_id.present = false;
+        return true;
+    }
+    if (!cJSON_IsString(item) || item->valuestring == NULL) {
+        return false;
+    }
+    out_request->last_selected_package_id.present = true;
+    out_request->last_selected_package_id.value = (app_v2_string_view_t){
+        .data = item->valuestring,
+        .length = strlen(item->valuestring),
+    };
+    return true;
+}
+
+static bool populate_access_point(const cJSON *root,
+                                  app_v2_settings_update_request_t *out_request) {
+    const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "accessPoint");
+    if (item == NULL) {
+        return true;
+    }
+    if (!exact_credential_fields(item, &out_request->access_point)) {
+        return false;
+    }
+    out_request->has_access_point = true;
+    return true;
+}
+
+static bool populate_station(const cJSON *root, app_v2_settings_update_request_t *out_request) {
+    const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "station");
+    if (item == NULL) {
+        return true;
+    }
+    out_request->has_station = true;
+    if (cJSON_IsNull(item)) {
+        out_request->remove_station = true;
+        return true;
+    }
+    if (!exact_credential_fields(item, &out_request->station)) {
+        return false;
+    }
+    out_request->remove_station = false;
+    return true;
+}
+
 /* Populates `*out_request`'s has_-flag/value pairs from `root`. Returns false
  * on any wrong-type field; the caller has already confirmed the field-name
  * shape via exact_settings_put_fields(). Every populated string view points
  * into `root`, which must stay alive (and un-wiped) until the caller is
- * finished reading `*out_request`. */
+ * finished reading `*out_request`. See populate_send_mode()'s doc comment
+ * for *out_invalid_send_mode. */
 static bool populate_settings_update_request(const cJSON *root,
-                                             app_v2_settings_update_request_t *out_request) {
-    const cJSON *device_name = cJSON_GetObjectItemCaseSensitive(root, "deviceName");
-    if (device_name != NULL) {
-        out_request->has_device_name = true;
-        if (!string_view_from_item(device_name, &out_request->device_name)) {
-            return false;
-        }
-    }
-
-    const cJSON *require_confirmation =
-        cJSON_GetObjectItemCaseSensitive(root, "requireSerialConfirmation");
-    if (require_confirmation != NULL) {
-        if (!cJSON_IsBool(require_confirmation)) {
-            return false;
-        }
-        out_request->has_require_serial_confirmation = true;
-        out_request->require_serial_confirmation = cJSON_IsTrue(require_confirmation);
-    }
-
-    const cJSON *send_mode = cJSON_GetObjectItemCaseSensitive(root, "sendMode");
-    if (send_mode != NULL) {
-        if (!cJSON_IsString(send_mode) || send_mode->valuestring == NULL) {
-            return false;
-        }
-        out_request->has_send_mode = true;
-        if (strcmp(send_mode->valuestring, SETTINGS_SEND_MODE_QUICK) == 0) {
-            out_request->send_mode = APP_V2_SEND_MODE_QUICK;
-        } else if (strcmp(send_mode->valuestring, SETTINGS_SEND_MODE_PREVIEW) == 0) {
-            out_request->send_mode = APP_V2_SEND_MODE_PREVIEW;
-        } else {
-            /* Structurally a string, semantically not one of the two
-             * accepted values -- WEB_SETTINGS_PUT_INVALID_SEND_MODE, not a
-             * generic invalid-body result. Signalled by leaving has_send_mode
-             * set with an out-of-enum sentinel the caller checks for. */
-            out_request->send_mode = (app_v2_send_mode_t)-1;
-        }
-    }
-
-    const cJSON *retention = cJSON_GetObjectItemCaseSensitive(root, "snapshotRetentionTarget");
-    if (retention != NULL) {
-        if (!cJSON_IsNumber(retention) || retention->valuedouble < 0.0 ||
-            retention->valuedouble > 255.0) {
-            return false;
-        }
-        const uint8_t candidate = (uint8_t)retention->valuedouble;
-        if ((double)candidate != retention->valuedouble) {
-            return false;
-        }
-        out_request->has_snapshot_retention_target = true;
-        out_request->snapshot_retention_target = candidate;
-    }
-
-    const cJSON *show_previews = cJSON_GetObjectItemCaseSensitive(root, "showMacroSourcePreviews");
-    if (show_previews != NULL) {
-        if (!cJSON_IsBool(show_previews)) {
-            return false;
-        }
-        out_request->has_show_macro_source_previews = true;
-        out_request->show_macro_source_previews = cJSON_IsTrue(show_previews);
-    }
-
-    const cJSON *package_id = cJSON_GetObjectItemCaseSensitive(root, "lastSelectedPackageId");
-    if (package_id != NULL) {
-        out_request->has_last_selected_package_id = true;
-        if (cJSON_IsNull(package_id)) {
-            out_request->last_selected_package_id.present = false;
-        } else if (cJSON_IsString(package_id) && package_id->valuestring != NULL) {
-            out_request->last_selected_package_id.present = true;
-            out_request->last_selected_package_id.value = (app_v2_string_view_t){
-                .data = package_id->valuestring,
-                .length = strlen(package_id->valuestring),
-            };
-        } else {
-            return false;
-        }
-    }
-
-    const cJSON *access_point = cJSON_GetObjectItemCaseSensitive(root, "accessPoint");
-    if (access_point != NULL) {
-        if (!exact_credential_fields(access_point, &out_request->access_point)) {
-            return false;
-        }
-        out_request->has_access_point = true;
-    }
-
-    const cJSON *station = cJSON_GetObjectItemCaseSensitive(root, "station");
-    if (station != NULL) {
-        out_request->has_station = true;
-        if (cJSON_IsNull(station)) {
-            out_request->remove_station = true;
-        } else if (exact_credential_fields(station, &out_request->station)) {
-            out_request->remove_station = false;
-        } else {
-            return false;
-        }
-    }
-
-    return true;
+                                             app_v2_settings_update_request_t *out_request,
+                                             bool *out_invalid_send_mode) {
+    return populate_device_name(root, out_request) &&
+           populate_require_confirmation(root, out_request) &&
+           populate_send_mode(root, out_request, out_invalid_send_mode) &&
+           populate_snapshot_retention_target(root, out_request) &&
+           populate_show_previews(root, out_request) &&
+           populate_last_selected_package_id(root, out_request) &&
+           populate_access_point(root, out_request) && populate_station(root, out_request);
 }
 
 static web_settings_put_outcome_t put_outcome(web_settings_put_result_t result) {
@@ -379,18 +436,45 @@ static web_settings_put_result_t map_prepare_update_result(app_v2_settings_updat
     }
 }
 
+/* Builds the exact SPEC_V2 13.9 PUT response
+ * ({"settings":{...},"restartRequired","reconnectRequired"}). Returns NULL on
+ * any encoding failure. */
+static char *build_settings_put_response_json(const app_v2_device_settings_t *candidate,
+                                              bool restart_required, bool reconnect_required) {
+    app_v2_settings_response_t response = {0};
+    if (app_v2_settings_response_from_settings(candidate, &response) != APP_V2_SETTINGS_UPDATE_OK) {
+        return NULL;
+    }
+
+    cJSON *response_root = cJSON_CreateObject();
+    if (response_root == NULL) {
+        return NULL;
+    }
+    cJSON *settings_fields = cJSON_CreateObject();
+    if (settings_fields == NULL || !settings_response_populate(settings_fields, &response)) {
+        cJSON_Delete(settings_fields);
+        cJSON_Delete(response_root);
+        return NULL;
+    }
+    if (!cJSON_AddItemToObject(response_root, "settings", settings_fields)) {
+        cJSON_Delete(settings_fields);
+        cJSON_Delete(response_root);
+        return NULL;
+    }
+    if (cJSON_AddBoolToObject(response_root, "restartRequired", restart_required) == NULL ||
+        cJSON_AddBoolToObject(response_root, "reconnectRequired", reconnect_required) == NULL) {
+        cJSON_Delete(response_root);
+        return NULL;
+    }
+    return finish_json(response_root);
+}
+
 web_settings_put_outcome_t web_settings_put_handle(char *body, size_t body_capacity,
                                                    const web_settings_ops_t *ops, char **out_json) {
     if (out_json != NULL) {
         *out_json = NULL;
     }
-    if (!ops_valid_common(ops)) {
-        if (body != NULL && body_capacity > 0U) {
-            secure_zero_local(body, body_capacity);
-        }
-        return put_outcome(WEB_SETTINGS_PUT_INTERNAL);
-    }
-    if (body == NULL || body_capacity == 0U || out_json == NULL) {
+    if (!ops_valid_common(ops) || body == NULL || body_capacity == 0U || out_json == NULL) {
         if (body != NULL && body_capacity > 0U) {
             secure_zero_local(body, body_capacity);
         }
@@ -398,21 +482,18 @@ web_settings_put_outcome_t web_settings_put_handle(char *body, size_t body_capac
     }
 
     cJSON *root = parse_exact_body(body, body_capacity);
-    if (root == NULL) {
-        return put_outcome(WEB_SETTINGS_PUT_INVALID_BODY);
-    }
-    if (!exact_settings_put_fields(root)) {
+    if (root == NULL || !exact_settings_put_fields(root)) {
         cJSON_Delete(root);
         return put_outcome(WEB_SETTINGS_PUT_INVALID_BODY);
     }
 
     app_v2_settings_update_request_t request = {0};
-    if (!populate_settings_update_request(root, &request)) {
+    bool invalid_send_mode = false;
+    if (!populate_settings_update_request(root, &request, &invalid_send_mode)) {
         cJSON_Delete(root);
         return put_outcome(WEB_SETTINGS_PUT_INVALID_BODY);
     }
-    if (request.has_send_mode && request.send_mode != APP_V2_SEND_MODE_QUICK &&
-        request.send_mode != APP_V2_SEND_MODE_PREVIEW) {
+    if (invalid_send_mode) {
         cJSON_Delete(root);
         return put_outcome(WEB_SETTINGS_PUT_INVALID_SEND_MODE);
     }
@@ -435,38 +516,13 @@ web_settings_put_outcome_t web_settings_put_handle(char *body, size_t body_capac
     }
 
     bool changed = false;
-    const app_error_code_t replace_result = ops->settings_replace(ops->context, &candidate, &changed);
+    const app_error_code_t replace_result =
+        ops->settings_replace(ops->context, &candidate, &changed);
     if (replace_result != APP_ERROR_NONE) {
         return put_outcome_with_detail(WEB_SETTINGS_PUT_BACKEND_UNAVAILABLE, replace_result);
     }
 
-    app_v2_settings_response_t response = {0};
-    if (app_v2_settings_response_from_settings(&candidate, &response) !=
-        APP_V2_SETTINGS_UPDATE_OK) {
-        return put_outcome(WEB_SETTINGS_PUT_INTERNAL);
-    }
-
-    cJSON *response_root = cJSON_CreateObject();
-    if (response_root == NULL) {
-        return put_outcome(WEB_SETTINGS_PUT_INTERNAL);
-    }
-    cJSON *settings_object = cJSON_CreateObject();
-    if (settings_object == NULL || !settings_response_populate(settings_object, &response)) {
-        cJSON_Delete(settings_object);
-        cJSON_Delete(response_root);
-        return put_outcome(WEB_SETTINGS_PUT_INTERNAL);
-    }
-    if (!cJSON_AddItemToObject(response_root, "settings", settings_object)) {
-        cJSON_Delete(settings_object);
-        cJSON_Delete(response_root);
-        return put_outcome(WEB_SETTINGS_PUT_INTERNAL);
-    }
-    if (cJSON_AddBoolToObject(response_root, "restartRequired", restart_required) == NULL ||
-        cJSON_AddBoolToObject(response_root, "reconnectRequired", reconnect_required) == NULL) {
-        cJSON_Delete(response_root);
-        return put_outcome(WEB_SETTINGS_PUT_INTERNAL);
-    }
-    char *json = finish_json(response_root);
+    char *json = build_settings_put_response_json(&candidate, restart_required, reconnect_required);
     if (json == NULL) {
         return put_outcome(WEB_SETTINGS_PUT_INTERNAL);
     }
@@ -516,21 +572,18 @@ static web_change_password_outcome_t change_password_outcome(web_change_password
 }
 
 static web_change_password_outcome_t
-change_password_outcome_with_detail(web_change_password_result_t result,
-                                    app_error_code_t detail) {
+change_password_outcome_with_detail(web_change_password_result_t result, app_error_code_t detail) {
     return (web_change_password_outcome_t){.result = result, .detail = detail};
 }
 
+static bool ops_valid_change_password(const web_settings_ops_t *ops) {
+    return ops_valid_common(ops) && ops->password_verify != NULL && ops->password_create != NULL &&
+           ops->invalidate_all_sessions != NULL;
+}
+
 web_change_password_outcome_t web_change_password_handle(char *body, size_t body_capacity,
-                                                          const web_settings_ops_t *ops) {
-    if (ops == NULL || !ops_valid_common(ops) || ops->password_verify == NULL ||
-        ops->password_create == NULL || ops->invalidate_all_sessions == NULL) {
-        if (body != NULL && body_capacity > 0U) {
-            secure_zero_local(body, body_capacity);
-        }
-        return change_password_outcome(WEB_CHANGE_PASSWORD_INTERNAL);
-    }
-    if (body == NULL || body_capacity == 0U) {
+                                                         const web_settings_ops_t *ops) {
+    if (!ops_valid_change_password(ops) || body == NULL || body_capacity == 0U) {
         if (body != NULL && body_capacity > 0U) {
             secure_zero_local(body, body_capacity);
         }
@@ -538,10 +591,7 @@ web_change_password_outcome_t web_change_password_handle(char *body, size_t body
     }
 
     cJSON *root = parse_exact_body(body, body_capacity);
-    if (root == NULL) {
-        return change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_BODY);
-    }
-    if (!exact_change_password_fields(root)) {
+    if (root == NULL || !exact_change_password_fields(root)) {
         cJSON_Delete(root);
         return change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_BODY);
     }
@@ -549,9 +599,9 @@ web_change_password_outcome_t web_change_password_handle(char *body, size_t body
     app_v2_string_view_t current_password_view = {0};
     app_v2_string_view_t new_password_view = {0};
     if (!string_view_from_item(cJSON_GetObjectItemCaseSensitive(root, "currentPassword"),
-                              &current_password_view) ||
+                               &current_password_view) ||
         !string_view_from_item(cJSON_GetObjectItemCaseSensitive(root, "newPassword"),
-                              &new_password_view)) {
+                               &new_password_view)) {
         cJSON_Delete(root);
         return change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_BODY);
     }
@@ -564,16 +614,15 @@ web_change_password_outcome_t web_change_password_handle(char *body, size_t body
                                                    read_result);
     }
 
-    if (app_v2_password_change_validate(&current, new_password_view) !=
-        APP_V2_PASSWORD_CHANGE_OK) {
+    if (app_v2_password_change_validate(&current, new_password_view) != APP_V2_PASSWORD_CHANGE_OK) {
         cJSON_Delete(root);
         return change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_NEW_PASSWORD);
     }
 
     bool current_matches = false;
     const app_error_code_t verify_result =
-        ops->password_verify(ops->context, current_password_view.data,
-                             current_password_view.length, &current, &current_matches);
+        ops->password_verify(ops->context, current_password_view.data, current_password_view.length,
+                             &current, &current_matches);
     if (verify_result != APP_ERROR_NONE) {
         cJSON_Delete(root);
         return change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
@@ -602,7 +651,8 @@ web_change_password_outcome_t web_change_password_handle(char *body, size_t body
     }
 
     bool changed = false;
-    const app_error_code_t replace_result = ops->settings_replace(ops->context, &candidate, &changed);
+    const app_error_code_t replace_result =
+        ops->settings_replace(ops->context, &candidate, &changed);
     if (replace_result != APP_ERROR_NONE) {
         return change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
                                                    replace_result);

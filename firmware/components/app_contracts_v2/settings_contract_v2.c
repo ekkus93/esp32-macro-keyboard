@@ -1,8 +1,14 @@
 #include "settings_contract_v2.h"
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
+#include "api_contracts_v2.h"
 #include "app_limits_v2.h"
+#include "device_settings_v2.h"
+#include "setup_contract_v2.h"
 
 #define SETTINGS_UTF8_CONTINUATION_SHIFT 6U
 #define SETTINGS_UUID_TEXT_BYTES 36U
@@ -158,6 +164,126 @@ app_v2_settings_response_from_settings(const app_v2_device_settings_t *settings,
     return APP_V2_SETTINGS_UPDATE_OK;
 }
 
+static bool settings_update_request_is_empty(const app_v2_settings_update_request_t *request) {
+    return !request->has_device_name && !request->has_require_serial_confirmation &&
+           !request->has_send_mode && !request->has_snapshot_retention_target &&
+           !request->has_show_macro_source_previews && !request->has_last_selected_package_id &&
+           !request->has_access_point && !request->has_station;
+}
+
+static app_v2_settings_update_result_t
+apply_device_name(const app_v2_settings_update_request_t *request,
+                  app_v2_device_settings_t *candidate) {
+    if (!request->has_device_name) {
+        return APP_V2_SETTINGS_UPDATE_OK;
+    }
+    if (!valid_text(request->device_name, 1U, (size_t)APP_V2_DEVICE_NAME_MAX_BYTES) ||
+        !copy_view(candidate->device_name, sizeof(candidate->device_name), request->device_name)) {
+        return APP_V2_SETTINGS_UPDATE_INVALID_DEVICE_NAME;
+    }
+    return APP_V2_SETTINGS_UPDATE_OK;
+}
+
+static app_v2_settings_update_result_t
+apply_snapshot_retention_target(const app_v2_settings_update_request_t *request,
+                                app_v2_device_settings_t *candidate) {
+    if (!request->has_snapshot_retention_target) {
+        return APP_V2_SETTINGS_UPDATE_OK;
+    }
+    if (request->snapshot_retention_target > APP_V2_SNAPSHOT_RETENTION_TARGET_MAX) {
+        return APP_V2_SETTINGS_UPDATE_INVALID_SNAPSHOT_RETENTION_TARGET;
+    }
+    candidate->snapshot_retention_target = request->snapshot_retention_target;
+    return APP_V2_SETTINGS_UPDATE_OK;
+}
+
+static app_v2_settings_update_result_t
+apply_last_selected_package_id(const app_v2_settings_update_request_t *request,
+                               app_v2_device_settings_t *candidate) {
+    if (!request->has_last_selected_package_id) {
+        return APP_V2_SETTINGS_UPDATE_OK;
+    }
+    if (!request->last_selected_package_id.present) {
+        memset(candidate->last_selected_package_id, 0, sizeof(candidate->last_selected_package_id));
+        return APP_V2_SETTINGS_UPDATE_OK;
+    }
+    if (!valid_uuid_v4(request->last_selected_package_id.value) ||
+        !copy_view(candidate->last_selected_package_id, sizeof(candidate->last_selected_package_id),
+                   request->last_selected_package_id.value)) {
+        return APP_V2_SETTINGS_UPDATE_INVALID_LAST_SELECTED_PACKAGE_ID;
+    }
+    return APP_V2_SETTINGS_UPDATE_OK;
+}
+
+/* Bundles the two independent output flags apply_access_point()/
+ * apply_station() report so neither function takes two adjacent `bool *`
+ * parameters (bugprone-easily-swappable-parameters). */
+typedef struct {
+    bool restart_required;
+    bool reconnect_required;
+} settings_update_flags_t;
+
+/* Sets out_flags->restart_required and out_flags->reconnect_required only on
+ * success -- the caller initializes both to false and never clears them, so
+ * a later field's failure cannot un-set an earlier field's true. */
+static app_v2_settings_update_result_t
+apply_access_point(const app_v2_settings_update_request_t *request,
+                   app_v2_device_settings_t *candidate, settings_update_flags_t *out_flags) {
+    if (!request->has_access_point) {
+        return APP_V2_SETTINGS_UPDATE_OK;
+    }
+    if (!valid_text(request->access_point.ssid, 1U, (size_t)APP_V2_WIFI_SSID_MAX_BYTES)) {
+        return APP_V2_SETTINGS_UPDATE_INVALID_ACCESS_POINT_SSID;
+    }
+    if (!valid_text(request->access_point.passphrase, (size_t)APP_V2_WIFI_PASSPHRASE_MIN_BYTES,
+                    (size_t)APP_V2_WIFI_PASSPHRASE_MAX_BYTES)) {
+        return APP_V2_SETTINGS_UPDATE_INVALID_ACCESS_POINT_PASSPHRASE;
+    }
+    if (!copy_view(candidate->ap_ssid, sizeof(candidate->ap_ssid), request->access_point.ssid) ||
+        !copy_view(candidate->ap_passphrase, sizeof(candidate->ap_passphrase),
+                   request->access_point.passphrase)) {
+        return APP_V2_SETTINGS_UPDATE_INVALID_ACCESS_POINT_PASSPHRASE;
+    }
+    out_flags->restart_required = true;
+    out_flags->reconnect_required = true;
+    return APP_V2_SETTINGS_UPDATE_OK;
+}
+
+/* Station changes never touch out_flags->reconnect_required: they do not
+ * disturb the browser's own access-point session. See
+ * settings_contract_v2.h's app_v2_settings_prepare_update() doc comment for
+ * why they still require a restart. */
+static app_v2_settings_update_result_t
+apply_station(const app_v2_settings_update_request_t *request, app_v2_device_settings_t *candidate,
+              settings_update_flags_t *out_flags) {
+    if (!request->has_station) {
+        return APP_V2_SETTINGS_UPDATE_OK;
+    }
+    if (request->remove_station) {
+        candidate->station_configured = false;
+        memset(candidate->station_ssid, 0, sizeof(candidate->station_ssid));
+        memset(candidate->station_passphrase, 0, sizeof(candidate->station_passphrase));
+        out_flags->restart_required = true;
+        return APP_V2_SETTINGS_UPDATE_OK;
+    }
+    if (!valid_text(request->station.ssid, 1U, (size_t)APP_V2_WIFI_SSID_MAX_BYTES)) {
+        return APP_V2_SETTINGS_UPDATE_INVALID_STATION_SSID;
+    }
+    if (!valid_text(request->station.passphrase, (size_t)APP_V2_WIFI_PASSPHRASE_MIN_BYTES,
+                    (size_t)APP_V2_WIFI_PASSPHRASE_MAX_BYTES)) {
+        return APP_V2_SETTINGS_UPDATE_INVALID_STATION_PASSPHRASE;
+    }
+    if (!copy_view(candidate->station_ssid, sizeof(candidate->station_ssid),
+                   request->station.ssid) ||
+        !copy_view(candidate->station_passphrase, sizeof(candidate->station_passphrase),
+                   request->station.passphrase)) {
+        return APP_V2_SETTINGS_UPDATE_INVALID_STATION_PASSPHRASE;
+    }
+    candidate->station_configured = true;
+    out_flags->restart_required = true;
+    return APP_V2_SETTINGS_UPDATE_OK;
+}
+
 app_v2_settings_update_result_t
 app_v2_settings_prepare_update(const app_v2_device_settings_t *current,
                                const app_v2_settings_update_request_t *request,
@@ -179,88 +305,37 @@ app_v2_settings_prepare_update(const app_v2_device_settings_t *current,
     if (app_v2_device_settings_validate(current) != APP_V2_SETTINGS_OK || !current->provisioned) {
         return APP_V2_SETTINGS_UPDATE_INVALID_CURRENT_SETTINGS;
     }
-    if (!request->has_device_name && !request->has_require_serial_confirmation &&
-        !request->has_send_mode && !request->has_snapshot_retention_target &&
-        !request->has_show_macro_source_previews && !request->has_last_selected_package_id &&
-        !request->has_access_point && !request->has_station) {
+    if (settings_update_request_is_empty(request)) {
         return APP_V2_SETTINGS_UPDATE_EMPTY;
     }
 
     app_v2_device_settings_t candidate = *current;
-    bool restart_required = false;
-    bool reconnect_required = false;
+    settings_update_flags_t flags = {0};
 
-    if (request->has_device_name) {
-        if (!valid_text(request->device_name, 1U, (size_t)APP_V2_DEVICE_NAME_MAX_BYTES) ||
-            !copy_view(candidate.device_name, sizeof(candidate.device_name),
-                      request->device_name)) {
-            return APP_V2_SETTINGS_UPDATE_INVALID_DEVICE_NAME;
-        }
-    }
-    if (request->has_require_serial_confirmation) {
+    app_v2_settings_update_result_t result = apply_device_name(request, &candidate);
+    if (result == APP_V2_SETTINGS_UPDATE_OK && request->has_require_serial_confirmation) {
         candidate.require_serial_confirmation = request->require_serial_confirmation;
     }
-    if (request->has_send_mode) {
+    if (result == APP_V2_SETTINGS_UPDATE_OK && request->has_send_mode) {
         candidate.send_mode = request->send_mode;
     }
-    if (request->has_snapshot_retention_target) {
-        if (request->snapshot_retention_target > APP_V2_SNAPSHOT_RETENTION_TARGET_MAX) {
-            return APP_V2_SETTINGS_UPDATE_INVALID_SNAPSHOT_RETENTION_TARGET;
-        }
-        candidate.snapshot_retention_target = request->snapshot_retention_target;
+    if (result == APP_V2_SETTINGS_UPDATE_OK) {
+        result = apply_snapshot_retention_target(request, &candidate);
     }
-    if (request->has_show_macro_source_previews) {
+    if (result == APP_V2_SETTINGS_UPDATE_OK && request->has_show_macro_source_previews) {
         candidate.show_macro_source_previews = request->show_macro_source_previews;
     }
-    if (request->has_last_selected_package_id) {
-        if (!request->last_selected_package_id.present) {
-            memset(candidate.last_selected_package_id, 0,
-                  sizeof(candidate.last_selected_package_id));
-        } else if (!valid_uuid_v4(request->last_selected_package_id.value) ||
-                  !copy_view(candidate.last_selected_package_id,
-                            sizeof(candidate.last_selected_package_id),
-                            request->last_selected_package_id.value)) {
-            return APP_V2_SETTINGS_UPDATE_INVALID_LAST_SELECTED_PACKAGE_ID;
-        }
+    if (result == APP_V2_SETTINGS_UPDATE_OK) {
+        result = apply_last_selected_package_id(request, &candidate);
     }
-    if (request->has_access_point) {
-        if (!valid_text(request->access_point.ssid, 1U, (size_t)APP_V2_WIFI_SSID_MAX_BYTES)) {
-            return APP_V2_SETTINGS_UPDATE_INVALID_ACCESS_POINT_SSID;
-        }
-        if (!valid_text(request->access_point.passphrase, (size_t)APP_V2_WIFI_PASSPHRASE_MIN_BYTES,
-                        (size_t)APP_V2_WIFI_PASSPHRASE_MAX_BYTES)) {
-            return APP_V2_SETTINGS_UPDATE_INVALID_ACCESS_POINT_PASSPHRASE;
-        }
-        if (!copy_view(candidate.ap_ssid, sizeof(candidate.ap_ssid), request->access_point.ssid) ||
-            !copy_view(candidate.ap_passphrase, sizeof(candidate.ap_passphrase),
-                      request->access_point.passphrase)) {
-            return APP_V2_SETTINGS_UPDATE_INVALID_ACCESS_POINT_PASSPHRASE;
-        }
-        restart_required = true;
-        reconnect_required = true;
+    if (result == APP_V2_SETTINGS_UPDATE_OK) {
+        result = apply_access_point(request, &candidate, &flags);
     }
-    if (request->has_station) {
-        if (request->remove_station) {
-            candidate.station_configured = false;
-            memset(candidate.station_ssid, 0, sizeof(candidate.station_ssid));
-            memset(candidate.station_passphrase, 0, sizeof(candidate.station_passphrase));
-        } else {
-            if (!valid_text(request->station.ssid, 1U, (size_t)APP_V2_WIFI_SSID_MAX_BYTES)) {
-                return APP_V2_SETTINGS_UPDATE_INVALID_STATION_SSID;
-            }
-            if (!valid_text(request->station.passphrase, (size_t)APP_V2_WIFI_PASSPHRASE_MIN_BYTES,
-                            (size_t)APP_V2_WIFI_PASSPHRASE_MAX_BYTES)) {
-                return APP_V2_SETTINGS_UPDATE_INVALID_STATION_PASSPHRASE;
-            }
-            if (!copy_view(candidate.station_ssid, sizeof(candidate.station_ssid),
-                          request->station.ssid) ||
-                !copy_view(candidate.station_passphrase, sizeof(candidate.station_passphrase),
-                          request->station.passphrase)) {
-                return APP_V2_SETTINGS_UPDATE_INVALID_STATION_PASSPHRASE;
-            }
-            candidate.station_configured = true;
-        }
-        restart_required = true;
+    if (result == APP_V2_SETTINGS_UPDATE_OK) {
+        result = apply_station(request, &candidate, &flags);
+    }
+    if (result != APP_V2_SETTINGS_UPDATE_OK) {
+        return result;
     }
 
     if (app_v2_device_settings_validate(&candidate) != APP_V2_SETTINGS_OK) {
@@ -268,8 +343,8 @@ app_v2_settings_prepare_update(const app_v2_device_settings_t *current,
     }
 
     *out_candidate = candidate;
-    *out_restart_required = restart_required;
-    *out_reconnect_required = reconnect_required;
+    *out_restart_required = flags.restart_required;
+    *out_reconnect_required = flags.reconnect_required;
     return APP_V2_SETTINGS_UPDATE_OK;
 }
 
@@ -304,7 +379,7 @@ bool app_v2_password_change_prepare_candidate(const app_v2_device_settings_t *cu
     candidate.password_iterations = material->password_iterations;
     memcpy(candidate.password_salt, material->password_salt, sizeof(candidate.password_salt));
     memcpy(candidate.password_verifier, material->password_verifier,
-          sizeof(candidate.password_verifier));
+           sizeof(candidate.password_verifier));
     if (app_v2_device_settings_validate(&candidate) != APP_V2_SETTINGS_OK) {
         secure_zero(&candidate, sizeof(candidate));
         return false;

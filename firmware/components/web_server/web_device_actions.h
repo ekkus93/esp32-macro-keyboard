@@ -20,8 +20,7 @@ typedef struct {
     app_error_code_t (*settings_read)(void *context, app_v2_device_settings_t *out_settings);
     /* Verifies `password` against the credential material already present in
      * `settings`. Used only by factory-reset. */
-    app_error_code_t (*password_verify)(void *context, const char *password,
-                                        size_t password_length,
+    app_error_code_t (*password_verify)(void *context, const char *password, size_t password_length,
                                         const app_v2_device_settings_t *settings,
                                         bool *out_matches);
     app_error_code_t (*restart)(void *context);

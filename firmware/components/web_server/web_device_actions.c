@@ -6,6 +6,7 @@
 
 #include "app_error.h"
 #include "cJSON.h"
+#include "device_settings_v2.h"
 
 #define DEVICE_ACTIONS_NUL_ESCAPE "\\u0000"
 #define RESET_SETTINGS_CONFIRMATION "RESET SETTINGS"
@@ -131,21 +132,21 @@ web_device_reset_settings_handle(char *body, size_t body_capacity,
 
     cJSON *root = parse_exact_body(body, body_capacity);
     if (root == NULL) {
-        return (web_device_reset_settings_outcome_t){
-            .result = WEB_DEVICE_RESET_SETTINGS_INVALID_BODY};
+        return (web_device_reset_settings_outcome_t){.result =
+                                                         WEB_DEVICE_RESET_SETTINGS_INVALID_BODY};
     }
     if (!exact_reset_settings_fields(root)) {
         cJSON_Delete(root);
-        return (web_device_reset_settings_outcome_t){
-            .result = WEB_DEVICE_RESET_SETTINGS_INVALID_BODY};
+        return (web_device_reset_settings_outcome_t){.result =
+                                                         WEB_DEVICE_RESET_SETTINGS_INVALID_BODY};
     }
 
     const char *confirmation = NULL;
     size_t confirmation_length = 0U;
     if (!string_field(root, "confirmation", &confirmation, &confirmation_length)) {
         cJSON_Delete(root);
-        return (web_device_reset_settings_outcome_t){
-            .result = WEB_DEVICE_RESET_SETTINGS_INVALID_BODY};
+        return (web_device_reset_settings_outcome_t){.result =
+                                                         WEB_DEVICE_RESET_SETTINGS_INVALID_BODY};
     }
     const bool matches =
         confirmation_matches(confirmation, confirmation_length, RESET_SETTINGS_CONFIRMATION);
@@ -210,11 +211,13 @@ web_device_factory_reset_handle(char *body, size_t body_capacity,
 
     cJSON *root = parse_exact_body(body, body_capacity);
     if (root == NULL) {
-        return (web_device_factory_reset_outcome_t){.result = WEB_DEVICE_FACTORY_RESET_INVALID_BODY};
+        return (web_device_factory_reset_outcome_t){.result =
+                                                        WEB_DEVICE_FACTORY_RESET_INVALID_BODY};
     }
     if (!exact_factory_reset_fields(root)) {
         cJSON_Delete(root);
-        return (web_device_factory_reset_outcome_t){.result = WEB_DEVICE_FACTORY_RESET_INVALID_BODY};
+        return (web_device_factory_reset_outcome_t){.result =
+                                                        WEB_DEVICE_FACTORY_RESET_INVALID_BODY};
     }
 
     const char *confirmation = NULL;
@@ -224,7 +227,8 @@ web_device_factory_reset_handle(char *body, size_t body_capacity,
     if (!string_field(root, "confirmation", &confirmation, &confirmation_length) ||
         !string_field(root, "adminPassword", &password, &password_length)) {
         cJSON_Delete(root);
-        return (web_device_factory_reset_outcome_t){.result = WEB_DEVICE_FACTORY_RESET_INVALID_BODY};
+        return (web_device_factory_reset_outcome_t){.result =
+                                                        WEB_DEVICE_FACTORY_RESET_INVALID_BODY};
     }
 
     if (!confirmation_matches(confirmation, confirmation_length, FACTORY_RESET_CONFIRMATION)) {

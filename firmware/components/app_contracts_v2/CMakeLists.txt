@@ -1,9 +1,5 @@
 idf_component_register(
-    SRCS
-    "device_settings_v2.c"
-    "setup_contract_v2.c"
-    "settings_contract_v2.c"
-    INCLUDE_DIRS
+    SRCS "device_settings_v2.c" "setup_contract_v2.c" "settings_contract_v2.c" INCLUDE_DIRS
     "include"
 )
 

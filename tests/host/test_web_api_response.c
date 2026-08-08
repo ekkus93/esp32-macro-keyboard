@@ -122,9 +122,8 @@ static void test_no_content(void) {
 
 static void test_no_content_rejects_out_of_range_status(void) {
     web_api_response_t response = {0};
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_INVALID_ARGUMENT,
-        web_api_response_no_content(&response, WEB_HTTP_STATUS_NOT_FOUND));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_api_response_no_content(&response, WEB_HTTP_STATUS_NOT_FOUND));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_api_response_no_content(NULL, 204U));
 }
 

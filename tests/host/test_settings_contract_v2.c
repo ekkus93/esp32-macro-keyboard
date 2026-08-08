@@ -7,8 +7,8 @@
 #include "api_contracts_v2.h"
 #include "app_error.h"
 #include "device_settings_v2.h"
-#include "setup_contract_v2.h"
 #include "settings_contract_v2.h"
+#include "setup_contract_v2.h"
 #include "test_assert.h"
 
 #define TEST_UUID_A "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
@@ -38,7 +38,7 @@ static void test_response_from_settings_excludes_secrets(void) {
     settings.station_configured = true;
     memcpy(settings.station_ssid, "OfficeWiFi", sizeof("OfficeWiFi"));
     memcpy(settings.station_passphrase, "station-example-passphrase",
-          sizeof("station-example-passphrase"));
+           sizeof("station-example-passphrase"));
     memcpy(settings.last_selected_package_id, TEST_UUID_A, sizeof(TEST_UUID_A));
 
     app_v2_settings_response_t response = {0};
@@ -161,18 +161,18 @@ static void test_prepare_update_last_selected_package_id_set_and_clear(void) {
     app_v2_device_settings_t candidate = {0};
     bool restart = false;
     bool reconnect = false;
-    TEST_CHECK_EQ_INT(APP_V2_SETTINGS_UPDATE_OK,
-                      app_v2_settings_prepare_update(&current, &clear_request, &candidate, &restart,
-                                                     &reconnect));
+    TEST_CHECK_EQ_INT(
+        APP_V2_SETTINGS_UPDATE_OK,
+        app_v2_settings_prepare_update(&current, &clear_request, &candidate, &restart, &reconnect));
     TEST_CHECK_EQ_STRING("", candidate.last_selected_package_id);
 
     app_v2_settings_update_request_t set_request = {
         .has_last_selected_package_id = true,
         .last_selected_package_id = {.present = true, .value = view(TEST_UUID_B)},
     };
-    TEST_CHECK_EQ_INT(APP_V2_SETTINGS_UPDATE_OK,
-                      app_v2_settings_prepare_update(&current, &set_request, &candidate, &restart,
-                                                     &reconnect));
+    TEST_CHECK_EQ_INT(
+        APP_V2_SETTINGS_UPDATE_OK,
+        app_v2_settings_prepare_update(&current, &set_request, &candidate, &restart, &reconnect));
     TEST_CHECK_EQ_STRING(TEST_UUID_B, candidate.last_selected_package_id);
 }
 
@@ -259,7 +259,7 @@ static void test_prepare_update_station_removal(void) {
     current.station_configured = true;
     memcpy(current.station_ssid, "OfficeWiFi", sizeof("OfficeWiFi"));
     memcpy(current.station_passphrase, "station-example-passphrase",
-          sizeof("station-example-passphrase"));
+           sizeof("station-example-passphrase"));
     app_v2_settings_update_request_t request = {
         .has_station = true,
         .remove_station = true,
