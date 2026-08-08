@@ -406,32 +406,32 @@ knowledge in firmware.
 
 ## V2-040 — First-run provisioning
 
-- [ ] Expose only `GET /api/v1/setup`, `POST /api/v1/setup`, and required static
+- [x] Expose only `GET /api/v1/setup`, `POST /api/v1/setup`, and required static
       assets while unprovisioned.
-- [ ] Return exactly `provisioned: false` and the non-secret `deviceName` from
+- [x] Return exactly `provisioned: false` and the non-secret `deviceName` from
       `GET /api/v1/setup`.
-- [ ] Return `404` from `GET /api/v1/setup` after provisioning.
-- [ ] Keep every other `/api/v1` route unavailable while unprovisioned.
-- [ ] Require the one-time serial setup code.
-- [ ] Strictly validate device name, AP SSID, AP passphrase, administrator
+- [x] Return `404` from `GET /api/v1/setup` after provisioning.
+- [x] Keep every other `/api/v1` route unavailable while unprovisioned.
+- [x] Require the one-time serial setup code.
+- [x] Strictly validate device name, AP SSID, AP passphrase, administrator
       password, and physical-confirmation setting.
-- [ ] Preserve unrelated configuration fields during setup updates.
-- [ ] Return a restart/reconnect response without returning secrets.
-- [ ] Return `409` from setup submission after provisioning.
-- [ ] Test wrong, expired, malformed, and reused setup codes.
+- [x] Preserve unrelated configuration fields during setup updates.
+- [x] Return a restart/reconnect response without returning secrets.
+- [x] Return `409` from setup submission after provisioning.
+- [x] Test wrong, expired, malformed, and reused setup codes.
 
 ## V2-041 — Password verifier and PBKDF2 benchmark
 
-- [ ] Use PBKDF2-HMAC-SHA-256 with a random per-password salt.
-- [ ] Store verifier version, salt, and iteration count.
-- [ ] Use constant-time verifier comparison.
-- [ ] Benchmark candidate iteration counts on the reference ESP32-S3R8.
+- [x] Use PBKDF2-HMAC-SHA-256 with a random per-password salt.
+- [x] Store verifier version, salt, and iteration count.
+- [x] Use constant-time verifier comparison.
+- [x] Benchmark candidate iteration counts on the reference ESP32-S3R8.
 - [ ] Record median, percentile, and worst observed time under representative
       memory and Wi-Fi load.
-- [ ] Select one exact iteration count yielding approximately 250–500 ms.
-- [ ] Freeze the selected constant in code and tests.
+- [x] Select one exact iteration count yielding approximately 250–500 ms.
+- [x] Freeze the selected constant in code and tests.
 - [ ] Confirm the derivation does not trip watchdogs or starve critical tasks.
-- [ ] Ensure passwords and derived material never appear in logs or diagnostics.
+- [x] Ensure passwords and derived material never appear in logs or diagnostics.
 
 ## V2-042 — Sessions and rate limiting
 
@@ -638,63 +638,63 @@ knowledge in firmware.
 
 ## V2-070 — Strict repository validation
 
-- [ ] Implement exact root, package, and macro validation.
-- [ ] Reject `activePackageId` and all unknown fields.
-- [ ] Enforce UUID, uniqueness, byte, integer, and macro-language invariants.
-- [ ] Leave the existing working copy unchanged after any validation failure.
-- [ ] Identify the exact failing field, package, or macro.
+- [x] Implement exact root, package, and macro validation.
+- [x] Reject `activePackageId` and all unknown fields.
+- [x] Enforce UUID, uniqueness, byte, integer, and macro-language invariants.
+- [x] Leave the existing working copy unchanged after any validation failure.
+- [x] Identify the exact failing field, package, or macro.
 
 ## V2-071 — In-memory working copy and dirty state
 
-- [ ] Store repository data only in live React memory.
-- [ ] Track the loaded/last-saved baseline and current working copy.
-- [ ] Mark dirty after package or macro content/order changes and imports.
-- [ ] Do not mark dirty after package selection, sends, cancellation, snapshot
+- [x] Store repository data only in live React memory.
+- [x] Track the loaded/last-saved baseline and current working copy.
+- [x] Mark dirty after package or macro content/order changes and imports.
+- [x] Do not mark dirty after package selection, sends, cancellation, snapshot
       deletion, or UI preference changes.
-- [ ] Clear dirty only after successful snapshot save or deliberate replacement.
-- [ ] Preserve a live dirty working copy across in-tab reauthentication.
+- [x] Clear dirty only after successful snapshot save or deliberate replacement.
+- [x] Preserve a live dirty working copy across in-tab reauthentication.
 
 ## V2-072 — Browser-storage prohibition
 
-- [ ] Remove repository JSON, IDs, names, source, and compressed bytes from
+- [x] Remove repository JSON, IDs, names, source, and compressed bytes from
       localStorage, sessionStorage, IndexedDB, Cache Storage, and service workers.
-- [ ] Add automated tests and build scans for prohibited persistence.
-- [ ] Allow only unrelated presentation data when explicitly documented.
+- [x] Add automated tests and build scans for prohibited persistence.
+- [x] Allow only unrelated presentation data when explicitly documented.
 
 ## V2-073 — Gzip and snapshot client
 
-- [ ] Feature-detect `CompressionStream("gzip")` and
+- [x] Feature-detect `CompressionStream("gzip")` and
       `DecompressionStream("gzip")`.
-- [ ] Show an explicit compatibility error when unsupported.
-- [ ] Never fall back to uncompressed repository storage.
-- [ ] Implement list, add, load, download, and delete client calls.
-- [ ] Validate before replacing the working copy.
-- [ ] Keep dirty work after failed save.
-- [ ] Implement `.emk-repository.json.gz` export.
+- [x] Show an explicit compatibility error when unsupported.
+- [x] Never fall back to uncompressed repository storage.
+- [x] Implement list, add, load, download, and delete client calls.
+- [x] Validate before replacing the working copy.
+- [x] Keep dirty work after failed save.
+- [x] Implement `.emk-repository.json.gz` export.
 
 ## V2-074 — Package selection preference
 
-- [ ] Load `lastSelectedPackageId` from settings.
-- [ ] Open it only when it identifies a package in the loaded repository.
-- [ ] Auto-select the sole package and persist that selection.
-- [ ] Show the Package Chooser when selection cannot be resolved.
-- [ ] Update NVS only when the selected ID changes.
-- [ ] Never serialize selection into repository JSON.
+- [x] Load `lastSelectedPackageId` from settings.
+- [x] Open it only when it identifies a package in the loaded repository.
+- [x] Auto-select the sole package and persist that selection.
+- [x] Show the Package Chooser when selection cannot be resolved.
+- [x] Update NVS only when the selected ID changes.
+- [x] Never serialize selection into repository JSON.
 
 ## V2-075 — React send helper
 
-- [ ] Implement `sendMacro(request, { onStatus, onComplete })`.
-- [ ] Poll no slower than once per second while non-terminal.
-- [ ] Invoke status callbacks only for meaningful state/progress changes.
-- [ ] Invoke completion exactly once per send.
-- [ ] Recover state after reload using `GET /api/v1/send`.
-- [ ] Avoid duplicate POSTs and callbacks across orientation changes and rerenders.
+- [x] Implement `sendMacro(request, { onStatus, onComplete })`.
+- [x] Poll no slower than once per second while non-terminal.
+- [x] Invoke status callbacks only for meaningful state/progress changes.
+- [x] Invoke completion exactly once per send.
+- [x] Recover state after reload using `GET /api/v1/send`.
+- [x] Avoid duplicate POSTs and callbacks across orientation changes and rerenders.
 
 ## Phase 7 exit gate
 
-- [ ] Repository, gzip, dirty-state, storage-prohibition, settings, and send-helper
+- [x] Repository, gzip, dirty-state, storage-prohibition, settings, and send-helper
       tests pass.
-- [ ] Production frontend contains no firmware package/macro CRUD client.
+- [x] Production frontend contains no firmware package/macro CRUD client.
 
 ---
 
