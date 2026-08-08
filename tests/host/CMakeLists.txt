@@ -226,6 +226,18 @@ target_link_libraries(web_settings_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_settings_tests web_settings web)
 
 add_executable(
+    web_device_actions_tests test_web_device_actions.c
+                             ../../firmware/components/web_server/web_device_actions.c
+)
+target_include_directories(
+    web_device_actions_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/app_contracts_v2/include ../../firmware/components/web_server
+)
+target_link_libraries(web_device_actions_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_device_actions_tests web_device_actions web)
+
+add_executable(
     web_send_tests
     test_web_send.c
     ../../firmware/components/web_server/web_send.c
