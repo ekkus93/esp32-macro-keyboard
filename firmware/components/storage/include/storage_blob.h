@@ -108,5 +108,9 @@ app_error_code_t storage_blob_reader_read(storage_blob_reader_t *reader, void *b
                                           size_t buffer_size, size_t *out_count, bool *out_eof);
 app_error_code_t storage_blob_reader_close(storage_blob_reader_t *reader);
 app_error_code_t storage_blob_delete(uint64_t blob_id);
+/* Deletes every blob under STORAGE_BLOB_DIRECTORY. See
+ * storage_blob_delete_all_with_ops() for the failure-handling contract this
+ * follows. */
+app_error_code_t storage_blob_delete_all(size_t *out_deleted_count);
 
 #endif

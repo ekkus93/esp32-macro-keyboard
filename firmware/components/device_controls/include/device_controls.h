@@ -40,6 +40,29 @@ app_error_code_t device_controls_wait_for_confirmation(unsigned int timeout_ms);
 app_error_code_t device_controls_signal_confirmation(void);
 device_controls_health_t device_controls_get_health(void);
 
+/* SPEC_V2.md §13.12 device actions. The destructive confirmation phrase and
+ * (for factory reset) admin password are validated by the caller before any
+ * of these run -- SPEC_V2.md §13.12: "The destructive operation MUST NOT
+ * begin until the complete request, password, and confirmation phrase have
+ * been validated." Each schedules an asynchronous reboot after
+ * DEVICE_CONTROLS_RESTART_DELAY_MS so an HTTP caller's response has time to
+ * flush before the connection drops; none of them block waiting for it. */
+#define DEVICE_CONTROLS_RESTART_DELAY_MS 500U
+
+/* No settings, credential, or repository change; schedules a reboot. */
+app_error_code_t device_controls_restart(void);
+
+/* Applies SPEC_V2.md §11.4 "reset settings", invalidates every session, and
+ * schedules a reboot. Repository blobs and the AP/admin credentials are
+ * untouched. */
+app_error_code_t device_controls_reset_settings(void);
+
+/* Applies SPEC_V2.md §11.4 "factory reset": erases device configuration,
+ * credentials, and provisioning state; invalidates every session; deletes
+ * every repository blob; and schedules a reboot into the unprovisioned
+ * state. */
+app_error_code_t device_controls_factory_reset(void);
+
 /* Derives a stable subsystem_health_state_t for Phase 19 diagnostics (FIX1
  * handoff §7.1) from the existing device_controls_health_t fields: FAILED if
  * any error or specific-failure flag is set (never HEALTHY while one is),

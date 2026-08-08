@@ -25,6 +25,15 @@ app_error_code_t storage_blob_reader_read_with_ops(storage_blob_reader_t *reader
 app_error_code_t storage_blob_reader_close_with_ops(storage_blob_reader_t *reader);
 app_error_code_t storage_blob_delete_with_ops(const storage_fs_ops_t *operations,
                                               const char *directory_path, uint64_t blob_id);
+/* Deletes every valid blob found by a scan of directory_path. Continues past
+ * an individual delete failure so one stuck file can never strand the rest
+ * (mirrors the wifi_ap/device_controls "continue past failure, report the
+ * first error" cleanup pattern); out_deleted_count always reports how many
+ * deletes actually succeeded, even when the return value is an error. Used by
+ * SPEC_V2.md §11.4 "factory reset" ("erases ... all repository blobs"). */
+app_error_code_t storage_blob_delete_all_with_ops(const storage_fs_ops_t *operations,
+                                                  const char *directory_path,
+                                                  size_t *out_deleted_count);
 void storage_blob_record_committed_entry(const storage_blob_entry_t *entry);
 void storage_blob_record_deleted_entry(void);
 

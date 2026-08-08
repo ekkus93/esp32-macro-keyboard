@@ -116,3 +116,69 @@ void storage_blob_record_deleted_entry(void) {
         --scan_state.valid_count;
     }
 }
+
+typedef struct {
+    const storage_fs_ops_t *operations;
+    const char *directory_path;
+    app_error_code_t first_error;
+    size_t deleted_count;
+} storage_blob_delete_all_state_t;
+
+static app_error_code_t delete_all_visit_entry(void *context, const storage_blob_entry_t *entry) {
+    storage_blob_delete_all_state_t *state = context;
+    if (state == NULL || entry == NULL) {
+        return APP_ERROR_NONE;
+    }
+    const app_error_code_t result =
+        storage_blob_delete_with_ops(state->operations, state->directory_path, entry->id);
+    if (result == APP_ERROR_NONE) {
+        ++state->deleted_count;
+    } else if (state->first_error == APP_ERROR_NONE) {
+        state->first_error = result;
+    }
+    /* Always continue: one blob that resists deletion must never strand the
+     * rest (SPEC_V2.md §11.4 "factory reset ... erases ... all repository
+     * blobs"). The accumulated first_error is returned by the caller once the
+     * scan finishes. */
+    return APP_ERROR_NONE;
+}
+
+app_error_code_t storage_blob_delete_all_with_ops(const storage_fs_ops_t *operations,
+                                                  const char *directory_path,
+                                                  size_t *out_deleted_count) {
+    if (out_deleted_count != NULL) {
+        *out_deleted_count = 0U;
+    }
+    storage_blob_delete_all_state_t state = {
+        .operations = operations,
+        .directory_path = directory_path,
+        .first_error = APP_ERROR_NONE,
+        .deleted_count = 0U,
+    };
+    const storage_blob_scan_observer_t observer = {
+        .context = &state,
+        .visit_entry = delete_all_visit_entry,
+        .visit_invalid_name = NULL,
+        .visit_temporary_file = NULL,
+    };
+    storage_blob_scan_summary_t summary = {0};
+    const app_error_code_t scan_result =
+        storage_blob_scan_with_ops(operations, directory_path, 0U, &observer, &summary);
+    if (out_deleted_count != NULL) {
+        *out_deleted_count = state.deleted_count;
+    }
+    return scan_result != APP_ERROR_NONE ? scan_result : state.first_error;
+}
+
+app_error_code_t storage_blob_delete_all(size_t *out_deleted_count) {
+    size_t deleted_count = 0U;
+    const app_error_code_t result = storage_blob_delete_all_with_ops(
+        storage_fs_ops_posix(), STORAGE_BLOB_DIRECTORY, &deleted_count);
+    for (size_t index = 0U; index < deleted_count; ++index) {
+        storage_blob_record_deleted_entry();
+    }
+    if (out_deleted_count != NULL) {
+        *out_deleted_count = deleted_count;
+    }
+    return result;
+}

@@ -33,6 +33,17 @@ app_error_code_t device_settings_core_replace(device_settings_core_t *core,
 app_error_code_t device_settings_core_reset_noncredential(device_settings_core_t *core,
                                                           app_v2_device_settings_t *out_settings,
                                                           bool *out_changed);
+/* SPEC_V2.md §11.4 "Factory reset": erases device configuration, credentials,
+ * and provisioning state by replacing the stored record with the unprovisioned
+ * default (app_v2_device_settings_init_unprovisioned()). Idempotent when the
+ * device is already unprovisioned: device_settings_core_replace() detects the
+ * candidate record is identical to the current one and reports out_changed as
+ * false without a redundant write. Does not touch repository blobs; callers
+ * that need "erase blobs too" (factory reset) call storage_blob_delete_all()
+ * separately -- this module owns NVS settings only. */
+app_error_code_t device_settings_core_factory_reset(device_settings_core_t *core,
+                                                    app_v2_device_settings_t *out_settings,
+                                                    bool *out_changed);
 void device_settings_core_deinit(device_settings_core_t *core);
 
 #endif

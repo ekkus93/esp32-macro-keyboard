@@ -17,6 +17,7 @@
 #include "freertos/task.h"
 #include "wifi_ap_ops.h"
 #include "wifi_ap_state.h"
+#include "wifi_ap_station.h"
 
 static const char *const TAG = "wifi_ap";
 
@@ -216,6 +217,35 @@ static volatile bool sta_got_ip;
 static volatile uint32_t sta_ip_addr;
 static volatile int32_t sta_disconnect_reason;
 
+static portMUX_TYPE station_status_lock = portMUX_INITIALIZER_UNLOCKED;
+static wifi_station_status_t station_status = {
+    .state = WIFI_STATION_DISABLED,
+    .last_error = APP_ERROR_NONE,
+    .attempt_count = 0U,
+};
+
+static wifi_station_status_t adapter_station_status_get(void *context) {
+    (void)context;
+    portENTER_CRITICAL(&station_status_lock);
+    const wifi_station_status_t snapshot = station_status;
+    portEXIT_CRITICAL(&station_status_lock);
+    return snapshot;
+}
+
+static void adapter_station_status_set(void *context, const wifi_station_status_t *next) {
+    (void)context;
+    if (next == NULL) {
+        return;
+    }
+    portENTER_CRITICAL(&station_status_lock);
+    station_status = *next;
+    portEXIT_CRITICAL(&station_status_lock);
+}
+
+wifi_station_status_t wifi_ap_get_station_status(void) {
+    return adapter_station_status_get(NULL);
+}
+
 static void station_event(void *argument, esp_event_base_t base, int32_t event_id,
                           void *event_data) {
     (void)argument;
@@ -260,25 +290,15 @@ static app_error_code_t ensure_station_netif(void) {
     return APP_ERROR_NONE;
 }
 
-app_error_code_t wifi_ap_connect_station(const char *ssid, const char *password,
-                                         uint32_t timeout_ms, char *out_ip, size_t out_ip_size) {
-    if (ssid == NULL || password == NULL || out_ip == NULL ||
-        out_ip_size < WIFI_STA_IP_STRING_BYTES || strlen(ssid) == 0U ||
-        strlen(ssid) >= sizeof(((wifi_sta_config_t *)NULL)->ssid) ||
-        strlen(password) >= sizeof(((wifi_sta_config_t *)NULL)->password)) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-
-    const app_error_code_t netif_result = ensure_station_netif();
-    if (netif_result != APP_ERROR_NONE) {
-        return netif_result;
-    }
-    if (sta_outcome_semaphore == NULL) {
-        sta_outcome_semaphore = xSemaphoreCreateBinary();
-        if (sta_outcome_semaphore == NULL) {
-            return APP_ERROR_INTERNAL;
-        }
-    }
+/* Exactly one blocking connection attempt: drop any existing session, apply
+ * the requested credentials, connect, and wait for either a lease or a
+ * disconnect/timeout. This is the wifi_ap_station_ops_t.connect_attempt
+ * implementation; wifi_ap_station_connect() (host-tested) calls it up to
+ * WIFI_STATION_MAX_ATTEMPTS times. */
+static app_error_code_t attempt_station_connect_once(void *context, const char *ssid,
+                                                     const char *password, uint32_t timeout_ms,
+                                                     char *out_ip, size_t out_ip_size) {
+    (void)context;
     /* Drop any station session already up. esp_wifi_connect() otherwise fails
      * with "sta is connected, disconnect before connecting to new ap", which
      * made this command non-idempotent: re-running it after a successful
@@ -319,4 +339,33 @@ app_error_code_t wifi_ap_connect_station(const char *ssid, const char *password,
                  (unsigned long)((address >> 8) & 0xFFU), (unsigned long)((address >> 16) & 0xFFU),
                  (unsigned long)((address >> 24) & 0xFFU));
     return written > 0 && (size_t)written < out_ip_size ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
+}
+
+app_error_code_t wifi_ap_connect_station(const char *ssid, const char *password,
+                                         uint32_t timeout_ms, char *out_ip, size_t out_ip_size) {
+    if (ssid == NULL || password == NULL || out_ip == NULL ||
+        out_ip_size < WIFI_STA_IP_STRING_BYTES || strlen(ssid) == 0U ||
+        strlen(ssid) >= sizeof(((wifi_sta_config_t *)NULL)->ssid) ||
+        strlen(password) >= sizeof(((wifi_sta_config_t *)NULL)->password)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+
+    const app_error_code_t netif_result = ensure_station_netif();
+    if (netif_result != APP_ERROR_NONE) {
+        return netif_result;
+    }
+    if (sta_outcome_semaphore == NULL) {
+        sta_outcome_semaphore = xSemaphoreCreateBinary();
+        if (sta_outcome_semaphore == NULL) {
+            return APP_ERROR_INTERNAL;
+        }
+    }
+
+    const wifi_ap_station_ops_t operations = {
+        .context = NULL,
+        .status_get = adapter_station_status_get,
+        .status_set = adapter_station_status_set,
+        .connect_attempt = attempt_station_connect_once,
+    };
+    return wifi_ap_station_connect(&operations, ssid, password, timeout_ms, out_ip, out_ip_size);
 }

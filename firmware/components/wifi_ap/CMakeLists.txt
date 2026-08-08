@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
     "wifi_ap.c"
     "wifi_ap_state.c"
+    "wifi_ap_station.c"
     INCLUDE_DIRS
     "include"
     PRIV_INCLUDE_DIRS

@@ -44,6 +44,12 @@ app_error_code_t auth_core_password_verify(auth_core_t *core, const char *passwo
 app_error_code_t auth_core_session_create(auth_core_t *core, auth_session_view_t *out_session);
 app_error_code_t auth_core_session_validate(auth_core_t *core, const char *session_token);
 app_error_code_t auth_core_session_logout(auth_core_t *core, const char *session_token);
+/* Invalidates every active session in the bounded table at once. Used by
+ * SPEC_V2.md §13.12 device actions ("reset-settings" and "factory-reset" both
+ * "invalidate all sessions") -- unlike auth_core_session_logout(), which needs
+ * the caller's own token, this needs none because it is not a self-service
+ * logout. Always succeeds once locking succeeds; an empty table is a no-op. */
+app_error_code_t auth_core_session_logout_all(auth_core_t *core);
 app_error_code_t auth_core_login_attempt_allowed(auth_core_t *core, uint32_t source_ipv4,
                                                  uint32_t *out_retry_after_seconds);
 app_error_code_t auth_core_login_record_failure(auth_core_t *core, uint32_t source_ipv4);

@@ -5,13 +5,20 @@
 #include <stdint.h>
 
 #include "app_error.h"
+#include "auth.h"
 #include "device_controls_logic.h"
+#include "device_controls_reset.h"
+#include "device_settings.h"
+#include "device_settings_v2.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
+#include "esp_system.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "sdkconfig.h"
+#include "storage_blob.h"
 
 #define CONTROL_POLL_MS 20U
 #define CONTROLS_TASK_PRIORITY 5U
@@ -354,4 +361,84 @@ device_controls_health_t device_controls_get_health(void) {
 size_t device_controls_stack_high_water_mark(void) {
     return controls_task_handle != NULL ? (size_t)uxTaskGetStackHighWaterMark(controls_task_handle)
                                         : 0U;
+}
+
+/* --- Device actions: restart, reset-settings, factory-reset (SPEC_V2.md §13.12) --- */
+
+static void restart_timer_callback(void *argument) {
+    (void)argument;
+    esp_restart();
+}
+
+static void adapter_reset_schedule_restart(void *context, uint32_t delay_ms) {
+    (void)context;
+    const esp_timer_create_args_t timer_args = {
+        .callback = restart_timer_callback,
+        .arg = NULL,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "device_restart",
+        .skip_unhandled_events = false,
+    };
+    esp_timer_handle_t timer = NULL;
+    /* A caller (e.g. the HTTP layer) that scheduled this already committed to
+     * returning its "accepted" response; if the timer cannot even be created,
+     * restarting immediately is safer than silently never rebooting into the
+     * state that was just written to NVS. */
+    if (esp_timer_create(&timer_args, &timer) != ESP_OK ||
+        esp_timer_start_once(timer, (uint64_t)delay_ms * UINT64_C(1000)) != ESP_OK) {
+        esp_restart();
+    }
+}
+
+static app_error_code_t adapter_reset_settings_noncredential(void *context) {
+    (void)context;
+    app_v2_device_settings_t settings = {0};
+    bool changed = false;
+    return device_settings_reset_noncredential(&settings, &changed);
+}
+
+static app_error_code_t adapter_reset_erase_all_settings(void *context) {
+    (void)context;
+    app_v2_device_settings_t settings = {0};
+    bool changed = false;
+    return device_settings_factory_reset(&settings, &changed);
+}
+
+static app_error_code_t adapter_reset_invalidate_all_sessions(void *context) {
+    (void)context;
+    return auth_session_logout_all();
+}
+
+static app_error_code_t adapter_reset_delete_all_blobs(void *context) {
+    (void)context;
+    size_t deleted_count = 0U;
+    return storage_blob_delete_all(&deleted_count);
+}
+
+static device_controls_reset_ops_t reset_operations(void) {
+    return (device_controls_reset_ops_t){
+        .context = NULL,
+        .reset_settings_noncredential = adapter_reset_settings_noncredential,
+        .erase_all_settings = adapter_reset_erase_all_settings,
+        .invalidate_all_sessions = adapter_reset_invalidate_all_sessions,
+        .delete_all_blobs = adapter_reset_delete_all_blobs,
+        .schedule_restart = adapter_reset_schedule_restart,
+    };
+}
+
+app_error_code_t device_controls_restart(void) {
+    const device_controls_reset_ops_t operations = reset_operations();
+    return device_controls_reset_engine_restart(&operations, DEVICE_CONTROLS_RESTART_DELAY_MS);
+}
+
+app_error_code_t device_controls_reset_settings(void) {
+    const device_controls_reset_ops_t operations = reset_operations();
+    return device_controls_reset_engine_reset_settings(&operations,
+                                                       DEVICE_CONTROLS_RESTART_DELAY_MS);
+}
+
+app_error_code_t device_controls_factory_reset(void) {
+    const device_controls_reset_ops_t operations = reset_operations();
+    return device_controls_reset_engine_factory_reset(&operations,
+                                                      DEVICE_CONTROLS_RESTART_DELAY_MS);
 }

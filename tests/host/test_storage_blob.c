@@ -287,6 +287,89 @@ static void test_prepare_rejects_non_directory(void) {
     test_temp_dir_remove(&directory);
 }
 
+/* SPEC_V2.md §11.4 "factory reset": "erases ... all repository blobs." Every
+ * valid blob in the directory is gone afterward, and one undeletable file does
+ * not strand the rest. */
+static void test_delete_all_removes_every_blob(void) {
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char repository[TEST_TEMP_DIR_PATH_MAX];
+    path_join(repository, sizeof(repository), directory.path, "repository");
+    TEST_CHECK(mkdir(repository, (mode_t)0700) == 0);
+
+    char path[TEST_TEMP_DIR_PATH_MAX];
+    path_join(path, sizeof(path), repository, "00000000000000000001.gz");
+    create_file_with_size(path, 1U);
+    path_join(path, sizeof(path), repository, "00000000000000000002.gz");
+    create_file_with_size(path, 2U);
+    path_join(path, sizeof(path), repository, "00000000000000000003.gz");
+    create_file_with_size(path, 3U);
+    /* An invalid name is not a blob and must survive untouched. */
+    path_join(path, sizeof(path), repository, "notes.txt");
+    create_file_with_size(path, 4U);
+
+    size_t deleted_count = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_delete_all_with_ops(
+                                             storage_fs_ops_posix(), repository, &deleted_count));
+    TEST_CHECK_EQ_U64(3U, deleted_count);
+
+    storage_blob_scan_summary_t summary = {0};
+    capture_t capture = {0};
+    const storage_blob_scan_observer_t observer = {
+        .context = &capture,
+        .visit_entry = capture_entry,
+        .visit_invalid_name = capture_invalid_name,
+        .visit_temporary_file = capture_temporary_name,
+    };
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        storage_blob_scan_with_ops(storage_fs_ops_posix(), repository, 0U, &observer, &summary));
+    TEST_CHECK_EQ_U64(0U, summary.valid_count);
+    TEST_CHECK_EQ_U64(1U, summary.invalid_name_count);
+    char notes_path[TEST_TEMP_DIR_PATH_MAX];
+    path_join(notes_path, sizeof(notes_path), repository, "notes.txt");
+    TEST_CHECK(access(notes_path, F_OK) == 0);
+
+    /* An empty directory is a harmless no-op. */
+    deleted_count = 1U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_delete_all_with_ops(
+                                             storage_fs_ops_posix(), repository, &deleted_count));
+    TEST_CHECK_EQ_U64(0U, deleted_count);
+
+    test_temp_dir_remove(&directory);
+}
+
+static void test_delete_all_continues_past_one_failure(void) {
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char repository[TEST_TEMP_DIR_PATH_MAX];
+    path_join(repository, sizeof(repository), directory.path, "repository");
+    TEST_CHECK(mkdir(repository, (mode_t)0700) == 0);
+
+    char path[TEST_TEMP_DIR_PATH_MAX];
+    path_join(path, sizeof(path), repository, "00000000000000000001.gz");
+    create_file_with_size(path, 1U);
+    path_join(path, sizeof(path), repository, "00000000000000000002.gz");
+    create_file_with_size(path, 2U);
+
+    storage_fs_ops_t operations = *storage_fs_ops_posix();
+    operations.unlink_path = fail_unlink;
+    size_t deleted_count = 42U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO,
+                         storage_blob_delete_all_with_ops(&operations, repository, &deleted_count));
+    TEST_CHECK_EQ_U64(0U, deleted_count);
+
+    /* Both files are still present: unlink failed for both, but scanning and
+     * attempting every entry did not stop after the first failure. */
+    storage_blob_scan_summary_t summary = {0};
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        storage_blob_scan_with_ops(storage_fs_ops_posix(), repository, 0U, NULL, &summary));
+    TEST_CHECK_EQ_U64(2U, summary.valid_count);
+
+    test_temp_dir_remove(&directory);
+}
+
 int main(void) {
     test_filename_contract();
     test_next_id_derivation();
@@ -295,6 +378,8 @@ int main(void) {
     test_boot_recovery_removes_only_canonical_regular_temporaries();
     test_boot_recovery_reports_unlink_failure();
     test_prepare_rejects_non_directory();
+    test_delete_all_removes_every_blob();
+    test_delete_all_continues_past_one_failure();
     puts("storage blob tests passed");
     return EXIT_SUCCESS;
 }

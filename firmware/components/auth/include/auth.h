@@ -41,6 +41,10 @@ app_error_code_t auth_password_verify(const char *password, size_t password_leng
 app_error_code_t auth_session_create(auth_session_view_t *out_session);
 app_error_code_t auth_session_validate(const char *session_token);
 app_error_code_t auth_session_logout(const char *session_token);
+/* Invalidates every active session. Used by the device restart/reset-settings/
+ * factory-reset actions (SPEC_V2.md §13.12), which invalidate all sessions
+ * before scheduling a reboot rather than requiring the caller's own token. */
+app_error_code_t auth_session_logout_all(void);
 app_error_code_t auth_login_attempt_allowed(uint32_t source_ipv4,
                                             uint32_t *out_retry_after_seconds);
 app_error_code_t auth_login_record_failure(uint32_t source_ipv4);
