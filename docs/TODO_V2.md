@@ -753,22 +753,22 @@ knowledge in firmware.
 
 ## V2-080 — First-run setup screens
 
-- [ ] Load first-run state from unprovisioned-only `GET /api/v1/setup`.
-- [ ] Reject any setup-state response with fields beyond `provisioned` and
+- [x] Load first-run state from unprovisioned-only `GET /api/v1/setup`.
+- [x] Reject any setup-state response with fields beyond `provisioned` and
       `deviceName`.
-- [ ] Implement device identification and setup-code entry.
-- [ ] Implement device name, AP credentials, administrator password, and optional
+- [x] Implement device identification and setup-code entry.
+- [x] Implement device name, AP credentials, administrator password, and optional
       physical-confirmation fields.
-- [ ] Implement review without displaying secret values.
-- [ ] Implement apply, restart, reconnect guidance, and Sign In transition.
-- [ ] Keep repository creation outside provisioning.
+- [x] Implement review without displaying secret values.
+- [x] Implement apply, restart, reconnect guidance, and Sign In transition.
+- [x] Keep repository creation outside provisioning.
 
 ## V2-081 — Sign In
 
-- [ ] Show Sign In only for a configured device without a valid session.
-- [ ] Display rate-limit and lockout errors without leaking account state.
-- [ ] Redirect successful authentication into repository startup.
-- [ ] Do not add per-phone onboarding.
+- [x] Show Sign In only for a configured device without a valid session.
+- [x] Display rate-limit and lockout errors without leaking account state.
+- [x] Redirect successful authentication into repository startup.
+- [x] Do not add per-phone onboarding.
 
 ## V2-082 — Authenticated startup state machine
 

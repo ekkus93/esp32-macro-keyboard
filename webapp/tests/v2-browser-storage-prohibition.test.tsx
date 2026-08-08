@@ -19,7 +19,18 @@ import {
   resolveSelectedPackage,
 } from "../src/v2/packageSelection";
 import { recoverSendState, sendMacro } from "../src/v2/sendClient";
+import { FirstRunSetupPage } from "../src/features/auth/v2/FirstRunSetupPage";
+import { SignInPage } from "../src/features/auth/v2/SignInPage";
 import { jsonResponse, planFetch, planJsonResponse } from "./fakeFetch";
+import {
+  buttonWithText,
+  click,
+  flushReact,
+  render,
+  requiredElement,
+  setInputValue,
+  submit as submitForm,
+} from "./render";
 
 const canonical = canonicalRepository as Repository;
 
@@ -30,21 +41,30 @@ const canonical = canonicalRepository as Repository;
  * static "build scan" (source never references the forbidden APIs at all)
  * and a runtime behavioral check (exercising the Phase 7 client leaves
  * browser storage untouched).
+ *
+ * The scan also covers `src/features/auth/v2/` (the Phase 8 V2-080/V2-081
+ * setup and sign-in pages): they hold a device setup code, a Wi-Fi
+ * passphrase, and an administrator password in React state, so the same
+ * "never touches browser storage" invariant applies to them, not just the
+ * Phase 7 `src/v2/` data layer.
  */
 
 const forbiddenApiPattern =
   /\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b|\bcaches\.\w|\bserviceWorker\b|\bopenDatabase\b/;
 
-// Reads every v2 source file's raw text through Vite's glob import rather
-// than Node's `fs` module: browser app code (this project's `tsconfig.app.json`
-// `types`) intentionally excludes Node types, so a Node-based file scan
-// cannot type-check here, and a bundler-level glob is the idiomatic
-// alternative that stays consistent with that boundary.
-const v2SourceModules = import.meta.glob<string>("../src/v2/**/*.{ts,tsx}", {
-  eager: true,
-  query: "?raw",
-  import: "default",
-});
+// Reads every scanned source file's raw text through Vite's glob import
+// rather than Node's `fs` module: browser app code (this project's
+// `tsconfig.app.json` `types`) intentionally excludes Node types, so a
+// Node-based file scan cannot type-check here, and a bundler-level glob is
+// the idiomatic alternative that stays consistent with that boundary.
+const v2SourceModules = import.meta.glob<string>(
+  ["../src/v2/**/*.{ts,tsx}", "../src/features/auth/v2/**/*.{ts,tsx}"],
+  {
+    eager: true,
+    query: "?raw",
+    import: "default",
+  },
+);
 
 /**
  * Strips `//` and `/* *\/` comments so the scan only flags actual code
@@ -57,7 +77,7 @@ function stripComments(source: string): string {
 }
 
 describe("v2 browser-storage prohibition: static scan", () => {
-  test("no file under src/v2 references localStorage, sessionStorage, IndexedDB, Cache Storage, or service workers", () => {
+  test("no file under src/v2 or src/features/auth/v2 references localStorage, sessionStorage, IndexedDB, Cache Storage, or service workers", () => {
     const entries = Object.entries(v2SourceModules);
     expect(entries.length).toBeGreaterThan(0);
     const offenders = entries
@@ -155,6 +175,91 @@ describe("v2 browser-storage prohibition: runtime behavior", () => {
 
     // Covers both localStorage and sessionStorage: jsdom's Storage.prototype
     // is shared by both instances.
+    expect(localStorageSetItem).not.toHaveBeenCalled();
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  test("exercising the V2-080 setup page and V2-081 sign-in page never touches browser storage", async () => {
+    const localStorageSetItem = vi.spyOn(Storage.prototype, "setItem");
+
+    planJsonResponse({
+      provisioned: false,
+      deviceName: "ESP32 Macro Keyboard",
+    });
+    const setupView = await render(
+      <FirstRunSetupPage
+        onSetupComplete={() => {
+          /* not exercised in this test */
+        }}
+      />,
+    );
+    await flushReact();
+    await setInputValue(
+      requiredElement("#setup-code", HTMLInputElement),
+      "12345678",
+    );
+    await setInputValue(
+      requiredElement("#device-name", HTMLInputElement),
+      "Desk Macro Keyboard",
+    );
+    await setInputValue(
+      requiredElement("#ap-ssid", HTMLInputElement),
+      "MacroKeyboard",
+    );
+    await setInputValue(
+      requiredElement("#ap-passphrase", HTMLInputElement),
+      "example-passphrase",
+    );
+    await setInputValue(
+      requiredElement("#admin-password", HTMLInputElement),
+      "example-admin-password",
+    );
+    await submitForm(requiredElement("form", HTMLFormElement));
+    await flushReact();
+    planFetch(() =>
+      jsonResponse(
+        {
+          accepted: true,
+          restartRequired: true,
+          connectionWillClose: true,
+          reprovisioningRequired: false,
+        },
+        202,
+      ),
+    );
+    await click(buttonWithText("Apply setup"));
+    await flushReact();
+    await setupView.unmount();
+
+    planJsonResponse(
+      { error: { code: "unauthorized", message: "Sign in required." } },
+      401,
+    );
+    const signInView = await render(
+      <SignInPage
+        onAuthenticated={() => {
+          /* not exercised in this test */
+        }}
+      />,
+    );
+    await flushReact();
+    await setInputValue(
+      requiredElement("#admin-password", HTMLInputElement),
+      "correct horse battery staple",
+    );
+    planJsonResponse(
+      {
+        authenticated: true,
+        idleExpiresInSeconds: 86_400,
+        absoluteExpiresInSeconds: 604_800,
+      },
+      200,
+    );
+    await submitForm(requiredElement("form", HTMLFormElement));
+    await flushReact();
+    await signInView.unmount();
+
     expect(localStorageSetItem).not.toHaveBeenCalled();
     expect(window.localStorage.length).toBe(0);
     expect(window.sessionStorage.length).toBe(0);
