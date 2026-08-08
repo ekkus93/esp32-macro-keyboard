@@ -30,4 +30,8 @@ The audit drift was not allowlisted. A self-removing repair workflow ran `npm au
 
 Because the old reviewed audit exceptions were no longer needed, a second self-removing materializer replaced the exception-based audit policy with a strict-zero policy: any npm vulnerability finding at any severity now fails CI. Its regression suite covers info, low, moderate, high, critical, malformed reports, audit errors, and count mismatches. The permanent strict-policy commit is `11357f957cdfd98aa4722e2d386495999f0eac54`.
 
-The documentation commit containing this evidence is the final Cutover A candidate and must pass Browser Tests, all Host Tests jobs, Device Test Build, and Quality on its own exact SHA before Cutover B begins.
+The next ordinary candidate, `a1b83b1bfcf69a190056653fed3fa9400a3a8664`, passed Browser Tests, all five Host Tests jobs, and Device Test Build. Its strict-zero npm audit also passed. Quality then reached the authoritative source checks and rejected three Cutover A files for repository `clang-format` conformance only: `firmware/components/app_core/app_core.c`, `firmware/components/app_core/app_core_ops.h`, and `tests/host/test_app_core.c`.
+
+A self-removing diagnostic captured that exact failure in `docs/implementation-v2/V2_040_CUTOVER_A_QUALITY_DIAGNOSTIC.txt`. A separate self-removing formatter workflow then ran repository `clang-format` on exactly those three files, required `clang-format --dry-run --Werror`, ran the full host test suite, and required `git diff --check`. All of those checks passed. The permanent formatter repair is `5074c67e87203b86c22214729bcdd43c15389215`; it changes formatting only.
+
+The documentation commit containing this updated evidence is the final Cutover A candidate and must pass Browser Tests, all Host Tests jobs, Device Test Build, and Quality on its own exact SHA before Cutover B begins.
