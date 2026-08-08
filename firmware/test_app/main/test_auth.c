@@ -7,6 +7,8 @@
 #include "app_error.h"
 #include "auth.h"
 #include "esp_timer.h"
+#include "mbedtls/md.h"
+#include "mbedtls/pkcs5.h"
 #include "unity.h"
 
 /* PBKDF2 iteration count baked into the fixed known-answer vector below. */
@@ -72,29 +74,40 @@ TEST_CASE("authentication adapters create and validate secrets", "[device][auth]
     memset(&session, 0, sizeof(session));
 }
 
+/* This benchmark measures the raw PBKDF2-HMAC-SHA-256 primitive directly
+ * (the same call auth's adapter_derive() makes) rather than going through
+ * auth_password_verify(). That verify path enforces AUTH_PBKDF2_ITERATIONS as
+ * a production anti-downgrade floor -- correct for real login attempts, but
+ * it would reject every candidate below the current placeholder floor before
+ * this benchmark ever got to measure it, defeating the point of exploring
+ * candidates to pick that floor in the first place. */
 TEST_CASE("PBKDF2 candidate timings are reported", "[device][auth][benchmark]") {
-    const app_error_code_t init_result = auth_init();
-    TEST_ASSERT_TRUE(init_result == APP_ERROR_NONE || init_result == APP_ERROR_CONFLICT);
-
     static const char benchmark_password[] = "phase1-benchmark-password";
-    static const uint32_t candidates[] = {60000U, 90000U, 120000U, 150000U};
+    /* Candidates bracket the 250-500ms target using the measured ~80us/iteration
+     * on the reference ESP32-S3R8 (60000 iterations measured at ~4.82s median);
+     * the original 60000-150000 range assumed desktop-class throughput and was
+     * off by roughly 15-20x on this MCU. */
+    static const uint32_t candidates[] = {2500U, 3500U, 4500U, 5500U, 6500U};
     const size_t candidate_count = sizeof(candidates) / sizeof(candidates[0]);
 
+    static uint8_t salt[AUTH_SALT_BYTES];
+    for (size_t index = 0U; index < sizeof(salt); ++index) {
+        salt[index] = (uint8_t)index;
+    }
+
     for (size_t candidate_index = 0U; candidate_index < candidate_count; ++candidate_index) {
-        auth_password_record_t record = {.iterations = candidates[candidate_index]};
-        for (size_t index = 0U; index < sizeof(record.salt); ++index) {
-            record.salt[index] = (uint8_t)index;
-        }
+        const uint32_t iterations = candidates[candidate_index];
 
         int64_t timings[PBKDF2_BENCHMARK_SAMPLE_COUNT] = {0};
         for (size_t sample = 0U; sample < PBKDF2_BENCHMARK_SAMPLE_COUNT; ++sample) {
-            bool matches = true;
+            uint8_t derived[AUTH_HASH_BYTES];
             const int64_t started_us = esp_timer_get_time();
-            const app_error_code_t verify_result = auth_password_verify(
-                benchmark_password, sizeof(benchmark_password) - 1U, &record, &matches);
-            TEST_ASSERT_EQUAL(APP_ERROR_NONE, verify_result);
+            const int derive_result = mbedtls_pkcs5_pbkdf2_hmac_ext(
+                MBEDTLS_MD_SHA256, (const unsigned char *)benchmark_password,
+                sizeof(benchmark_password) - 1U, salt, sizeof(salt), iterations, sizeof(derived),
+                derived);
             timings[sample] = esp_timer_get_time() - started_us;
-            TEST_ASSERT_FALSE(matches);
+            TEST_ASSERT_EQUAL(0, derive_result);
         }
 
         sort_timings(timings, PBKDF2_BENCHMARK_SAMPLE_COUNT);
@@ -103,9 +116,8 @@ TEST_CASE("PBKDF2 candidate timings are reported", "[device][auth][benchmark]") 
         const size_t worst_index = PBKDF2_BENCHMARK_SAMPLE_COUNT - 1U;
         (void)printf("PBKDF2_BENCH iterations=%" PRIu32 " samples=%u median_us=%" PRId64
                      " p90_us=%" PRId64 " worst_us=%" PRId64 "\n",
-                     record.iterations, (unsigned int)PBKDF2_BENCHMARK_SAMPLE_COUNT,
-                     timings[median_index], timings[p90_index], timings[worst_index]);
-        memset(&record, 0, sizeof(record));
+                     iterations, (unsigned int)PBKDF2_BENCHMARK_SAMPLE_COUNT, timings[median_index],
+                     timings[p90_index], timings[worst_index]);
         memset(timings, 0, sizeof(timings));
     }
 }
