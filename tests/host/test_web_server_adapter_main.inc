@@ -6,6 +6,7 @@ int main(void) {
     test_mutation_authorization();
     test_json_envelopes();
     test_diagnostics_exact_allowed_fields();
+    test_diagnostics_send_present_carries_state();
     test_diagnostics_secret_sentinels_absent();
     test_diagnostics_output_passes_secret_sentinel_scanner();
     test_diagnostics_bounded_output();
