@@ -177,6 +177,53 @@ target_link_libraries(web_server_setup_submit_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_server_setup_submit_tests web_server_setup_submit web)
 
 add_executable(
+    web_status_limits_tests test_web_status_limits.c
+                            ../../firmware/components/web_server/web_status_limits.c
+)
+target_include_directories(
+    web_status_limits_tests PRIVATE ../../firmware/components/macro_model/include
+                                    ../../firmware/components/web_server
+)
+target_link_libraries(web_status_limits_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_status_limits_tests web_status_limits web)
+
+add_executable(
+    web_auth_routes_tests test_web_auth_routes.c
+                          ../../firmware/components/web_server/web_auth_routes.c
+)
+target_include_directories(
+    web_auth_routes_tests PRIVATE ../../firmware/components/macro_model/include
+                                  ../../firmware/components/web_server
+)
+target_link_libraries(web_auth_routes_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_auth_routes_tests web_auth_routes web)
+
+add_executable(
+    web_send_tests
+    test_web_send.c
+    ../../firmware/components/web_server/web_send.c
+    ../../firmware/components/macro_parser/macro_parser.c
+    ../../firmware/components/macro_parser/macro_parser_v2.c
+    ../../firmware/components/macro_parser/macro_plan_v2.c
+    ../../firmware/components/macro_parser/macro_keymap_us.c
+    ../../firmware/components/macro_parser/macro_keymap_us_v2.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/macro_model/macro_model.c
+)
+target_include_directories(
+    web_send_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/app_contracts_v2/include
+            ../../firmware/components/web_server
+            fakes
+)
+target_link_libraries(web_send_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_send_tests web_send web)
+
+add_executable(
     app_core_tests test_app_core.c ../../firmware/components/app_core/app_core_sequence.c
                    ../../firmware/components/support/app_operation_result.c
 )

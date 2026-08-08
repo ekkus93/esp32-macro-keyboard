@@ -40,6 +40,14 @@ app_error_code_t auth_password_verify(const char *password, size_t password_leng
                                       const auth_password_record_t *record, bool *out_matches);
 app_error_code_t auth_session_create(auth_session_view_t *out_session);
 app_error_code_t auth_session_validate(const char *session_token);
+/* Read-only: idle/absolute seconds remaining for an already-active,
+ * unexpired session, without refreshing its idle deadline. Used by
+ * GET /api/v1/auth/session (SPEC_V2 13.5), which is called only after the
+ * request policy layer has already validated (and thereby refreshed) the
+ * session, so a second refresh here would be misleading. */
+app_error_code_t auth_session_remaining(const char *session_token,
+                                        uint32_t *out_idle_seconds_remaining,
+                                        uint32_t *out_absolute_seconds_remaining);
 app_error_code_t auth_session_logout(const char *session_token);
 app_error_code_t auth_login_attempt_allowed(uint32_t source_ipv4,
                                             uint32_t *out_retry_after_seconds);

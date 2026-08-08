@@ -110,6 +110,13 @@ app_error_code_t auth_session_validate(const char *session_token) {
     return auth_core_session_validate(&auth_core, session_token);
 }
 
+app_error_code_t auth_session_remaining(const char *session_token,
+                                        uint32_t *out_idle_seconds_remaining,
+                                        uint32_t *out_absolute_seconds_remaining) {
+    return auth_core_session_remaining(&auth_core, session_token, out_idle_seconds_remaining,
+                                       out_absolute_seconds_remaining);
+}
+
 app_error_code_t auth_session_logout(const char *session_token) {
     return auth_core_session_logout(&auth_core, session_token);
 }

@@ -43,6 +43,13 @@ app_error_code_t auth_core_password_verify(auth_core_t *core, const char *passwo
                                            const auth_password_record_t *record, bool *out_matches);
 app_error_code_t auth_core_session_create(auth_core_t *core, auth_session_view_t *out_session);
 app_error_code_t auth_core_session_validate(auth_core_t *core, const char *session_token);
+/* Read-only: reports the remaining idle/absolute lifetime (in whole seconds,
+ * rounded down) of an already-active, unexpired session without refreshing
+ * its idle deadline. APP_ERROR_AUTH_REQUIRED if the token is malformed or
+ * names no active, unexpired session. */
+app_error_code_t auth_core_session_remaining(auth_core_t *core, const char *session_token,
+                                             uint32_t *out_idle_seconds_remaining,
+                                             uint32_t *out_absolute_seconds_remaining);
 app_error_code_t auth_core_session_logout(auth_core_t *core, const char *session_token);
 app_error_code_t auth_core_login_attempt_allowed(auth_core_t *core, uint32_t source_ipv4,
                                                  uint32_t *out_retry_after_seconds);

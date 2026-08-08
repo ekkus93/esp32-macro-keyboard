@@ -23,6 +23,7 @@ int main(void) {
     test_password_verification_boundaries();
     test_password_verify_result_matrix();
     test_session_token_formats_and_failures();
+    test_session_remaining();
     test_complete_rate_limit_matrix();
     puts("authentication tests passed");
     return EXIT_SUCCESS;

@@ -81,8 +81,7 @@ static void test_session_token_formats_and_failures(void) {
     auth_core_t rebooted_core;
     init_core(&rebooted_core, &fake);
     TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
-                         auth_core_session_validate(&rebooted_core,
-                                                    reboot_session.session_token));
+                         auth_core_session_validate(&rebooted_core, reboot_session.session_token));
 
     fake_reset(&fake);
     init_core(&core, &fake);
@@ -100,4 +99,73 @@ static void test_session_token_formats_and_failures(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, auth_core_session_create(&core, &failed));
     TEST_CHECK_EQ_BUFFER(zeros, &failed, sizeof(failed));
     TEST_CHECK_EQ_BUFFER(sessions_before_failure, core.sessions, sizeof(core.sessions));
+}
+
+static void test_session_remaining(void) {
+    auth_fake_t fake;
+    fake_reset(&fake);
+    auth_core_t core;
+    init_core(&core, &fake);
+
+    uint32_t idle_seconds = 0U;
+    uint32_t absolute_seconds = 0U;
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        auth_core_session_remaining(&core, "short", &idle_seconds, &absolute_seconds));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        auth_core_session_remaining(&core, NULL, &idle_seconds, &absolute_seconds));
+
+    auth_session_view_t session = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_session_create(&core, &session));
+
+    /* Immediately after creation, at the same fake "now", remaining equals
+     * the full configured lifetimes exactly. */
+    idle_seconds = 0U;
+    absolute_seconds = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         auth_core_session_remaining(&core, session.session_token, &idle_seconds,
+                                                     &absolute_seconds));
+    TEST_CHECK_EQ_U64(86400U, idle_seconds);
+    TEST_CHECK_EQ_U64(604800U, absolute_seconds);
+
+    /* Reading remaining time does not itself refresh the idle deadline. */
+    fake.now_us += UINT64_C(1000) * UINT64_C(1000000);
+    idle_seconds = 0U;
+    absolute_seconds = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         auth_core_session_remaining(&core, session.session_token, &idle_seconds,
+                                                     &absolute_seconds));
+    TEST_CHECK_EQ_U64(86400U - 1000U, idle_seconds);
+    TEST_CHECK_EQ_U64(604800U - 1000U, absolute_seconds);
+    /* A subsequent validate() (which does refresh) restores the full idle
+     * window without touching the absolute deadline. */
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_session_validate(&core, session.session_token));
+    idle_seconds = 0U;
+    absolute_seconds = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         auth_core_session_remaining(&core, session.session_token, &idle_seconds,
+                                                     &absolute_seconds));
+    TEST_CHECK_EQ_U64(86400U, idle_seconds);
+    TEST_CHECK_EQ_U64(604800U - 1000U, absolute_seconds);
+
+    char wrong_session[AUTH_TOKEN_HEX_BYTES];
+    memcpy(wrong_session, session.session_token, sizeof(wrong_session));
+    mutate_token(wrong_session, wrong_session[0] == '0' ? '1' : '0');
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_AUTH_REQUIRED,
+        auth_core_session_remaining(&core, wrong_session, &idle_seconds, &absolute_seconds));
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_session_logout(&core, session.session_token));
+    TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
+                         auth_core_session_remaining(&core, session.session_token, &idle_seconds,
+                                                     &absolute_seconds));
+
+    fake_call_log_fail_on(&fake.calls, "unlock", 1U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL,
+                         auth_core_session_remaining(&core, session.session_token, &idle_seconds,
+                                                     &absolute_seconds));
+    fake.calls.failure_name = NULL;
+    fake.calls.failure_occurrence = 0U;
+    fake.calls.failure_seen = 0U;
 }
