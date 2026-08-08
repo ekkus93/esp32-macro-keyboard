@@ -105,6 +105,29 @@ static void test_parser_error_envelope(void) {
     web_api_response_free(&response);
 }
 
+static void test_no_content(void) {
+    web_api_response_t response = {0};
+    response.body = (char *)"stale";
+    response.body_length = 5U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_api_response_no_content(&response, WEB_HTTP_STATUS_NO_CONTENT));
+    TEST_CHECK_EQ_U64(WEB_HTTP_STATUS_NO_CONTENT, response.status);
+    TEST_CHECK(response.body == NULL);
+    TEST_CHECK_EQ_U64(0U, response.body_length);
+    TEST_CHECK(response.body_free == NULL);
+    /* Freeing a no-content response must be a safe no-op (no dangling
+     * body_free call on a NULL body). */
+    web_api_response_free(&response);
+}
+
+static void test_no_content_rejects_out_of_range_status(void) {
+    web_api_response_t response = {0};
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        web_api_response_no_content(&response, WEB_HTTP_STATUS_NOT_FOUND));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_api_response_no_content(NULL, 204U));
+}
+
 static void test_invalid_payload_rejected(void) {
     web_api_response_t response = {0};
     TEST_CHECK_APP_ERROR(
@@ -139,6 +162,8 @@ int main(void) {
     test_error_envelope();
     test_error_envelope_without_field();
     test_parser_error_envelope();
+    test_no_content();
+    test_no_content_rejects_out_of_range_status();
     test_invalid_payload_rejected();
     return 0;
 }

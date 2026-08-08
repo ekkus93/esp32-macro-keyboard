@@ -57,6 +57,10 @@ app_error_code_t web_api_handler_success_json(web_api_response_t *response, unsi
     return web_api_response_success(response, status, data_json);
 }
 
+app_error_code_t web_api_handler_no_content(web_api_response_t *response, unsigned int status) {
+    return web_api_response_no_content(response, status);
+}
+
 app_error_code_t web_api_handler_settings_json(const provisioning_settings_t *settings,
                                                char **out_json) {
     if (settings == NULL || out_json == NULL) {

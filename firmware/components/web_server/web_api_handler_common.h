@@ -18,6 +18,9 @@ app_error_code_t web_api_handler_parser_error(web_api_response_t *response, cons
                                               size_t column);
 app_error_code_t web_api_handler_success_json(web_api_response_t *response, unsigned int status,
                                               const char *data_json);
+/* A body-less success response, e.g. the 204 SPEC_V2 13.9 requires for a
+ * successful password change. */
+app_error_code_t web_api_handler_no_content(web_api_response_t *response, unsigned int status);
 app_error_code_t web_api_handler_settings_json(const provisioning_settings_t *settings,
                                                char **out_json);
 void web_api_handler_json_free(char *json);

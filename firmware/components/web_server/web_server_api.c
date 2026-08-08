@@ -166,14 +166,22 @@ static app_error_code_t set_error_response(web_api_response_t *response, unsigne
 
 static esp_err_t send_api_response(httpd_req_t *request, const char *request_id,
                                    const web_api_response_t *response) {
-    if (request == NULL || response == NULL || response->body == NULL ||
-        response->body_length == 0U || httpd_resp_set_type(request, "application/json") != ESP_OK ||
+    if (request == NULL || response == NULL || response->status == 0U ||
         httpd_resp_set_status(request, status_text(response->status)) != ESP_OK ||
         httpd_resp_set_hdr(request, "Cache-Control", "no-store") != ESP_OK) {
         return ESP_FAIL;
     }
     if (request_id != NULL && request_id[0] != '\0' &&
         httpd_resp_set_hdr(request, "X-Request-ID", request_id) != ESP_OK) {
+        return ESP_FAIL;
+    }
+    /* A body-less response (web_api_response_no_content(), e.g. the 204
+     * SPEC_V2 13.9 requires for a successful password change) has no JSON
+     * to type or send. */
+    if (response->body == NULL || response->body_length == 0U) {
+        return httpd_resp_send(request, NULL, 0);
+    }
+    if (httpd_resp_set_type(request, "application/json") != ESP_OK) {
         return ESP_FAIL;
     }
     return httpd_resp_send(request, response->body, (int)response->body_length);
@@ -233,6 +241,21 @@ static bool restart_after_response(const web_api_call_t *call, const web_api_res
     return response->status == WEB_HTTP_STATUS_ACCEPTED &&
            (call->path.route == WEB_API_ROUTE_DEVICE_RESTART ||
             call->path.route == WEB_API_ROUTE_DEVICE_FACTORY_RESET);
+}
+
+/* SPEC_V2 13.9: a successful password change "invalidates all sessions
+ * including the current one, and clears the current cookie." The generic
+ * JSON pipeline (send_api_response()) has no other notion of a Set-Cookie
+ * header -- login/logout set theirs directly because they bypass this
+ * pipeline entirely (dedicated httpd_uri_t registrations); change-password
+ * cannot do the same because WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD is one of
+ * the routes web_api_physical_confirmation_required() gates, and that gate
+ * only runs inside this pipeline's apply_request_policy() -- see
+ * web_api_core.c. */
+static bool should_clear_session_cookie(const web_api_call_t *call,
+                                        const web_api_response_t *response) {
+    return response->status == WEB_HTTP_STATUS_NO_CONTENT &&
+           call->path.route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD;
 }
 
 static app_error_code_t prepare_api_call(httpd_req_t *request, web_api_call_t *call,
@@ -301,7 +324,10 @@ static bool dispatch_api_call(const web_api_call_t *call, web_api_response_t *re
         result = set_error_response(response, web_api_http_status_for_error(result), result,
                                     "API operation failed");
     }
-    return result == APP_ERROR_NONE && response->body != NULL;
+    /* response->status (not response->body) is the readiness signal: a
+     * successful body-less response (web_api_response_no_content()) leaves
+     * body NULL by design. */
+    return result == APP_ERROR_NONE && response->status != 0U;
 }
 
 esp_err_t web_api_send_status_error(httpd_req_t *request, unsigned int status,
@@ -355,6 +381,14 @@ esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body
     }
 
     const bool should_restart = response.body != NULL && restart_after_response(&call, &response);
+    if (should_clear_session_cookie(&call, &response) &&
+        httpd_resp_set_hdr(request, "Set-Cookie",
+                           SESSION_COOKIE_NAME
+                           "=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0") != ESP_OK) {
+        web_api_response_free(&response);
+        (void)set_error_response(&response, WEB_HTTP_STATUS_INTERNAL_SERVER_ERROR,
+                                 APP_ERROR_INTERNAL, "response encoding failed");
+    }
     const esp_err_t send_result = send_api_response(request, policy.request_id, &response);
     free(body);
     web_api_response_free(&response);

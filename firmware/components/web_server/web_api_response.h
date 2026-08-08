@@ -35,6 +35,12 @@ typedef struct {
 
 app_error_code_t web_api_response_success(web_api_response_t *response, unsigned int status,
                                           const char *data_json);
+/* A body-less success response (SPEC_V2 13.14's 204, e.g. change-password).
+ * response->body/body_length/body_free stay NULL/0/NULL; response->status is
+ * the only populated field, which callers must treat as the readiness
+ * signal instead of a non-NULL body (see web_server_api.c's
+ * dispatch_api_call()). */
+app_error_code_t web_api_response_no_content(web_api_response_t *response, unsigned int status);
 app_error_code_t web_api_response_take_json(web_api_response_t *response, unsigned int status,
                                             char *body, size_t body_length);
 app_error_code_t web_api_response_error(web_api_response_t *response,

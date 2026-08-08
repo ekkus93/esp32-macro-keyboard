@@ -64,6 +64,18 @@ app_error_code_t web_api_response_success(web_api_response_t *response, unsigned
     return set_serialized(response, status, data);
 }
 
+app_error_code_t web_api_response_no_content(web_api_response_t *response, unsigned int status) {
+    if (response != NULL) {
+        memset(response, 0, sizeof(*response));
+    }
+    if (response == NULL || status < WEB_HTTP_STATUS_OK ||
+        status >= WEB_HTTP_SUCCESS_STATUS_UPPER_BOUND) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    response->status = status;
+    return APP_ERROR_NONE;
+}
+
 app_error_code_t web_api_response_take_json(web_api_response_t *response, unsigned int status,
                                             char *body, size_t body_length) {
     if (response != NULL) {
