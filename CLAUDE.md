@@ -64,6 +64,60 @@ Several C suites keep their bodies in `.inc` fragments that one `test_*.c`
 includes (auth, executor, web security, web-server adapter), so grepping only
 `test_*.c` for a test will miss them.
 
+## Architecture
+
+### Firmware (`firmware/components/`)
+
+`main/app_main.c` hands startup to `app_core`, which wires every subsystem in an
+explicit, fail-visible order (NVS/settings → userdata blob store → AP/station →
+USB → executor → auth → static server → diagnostics) and does rollback on
+failure rather than partial-booting. Components, each first-party and lint-scoped:
+
+| Component | Owns |
+| --- | --- |
+| `app_core` | Startup ordering, dependency wiring, fatal-state coordination |
+| `app_contracts_v2` | The v2 wire-format contracts shared with the webapp — device settings record layout (`device_settings_v2.c`) and the `/api/v1/setup` request/response shape (`setup_contract_v2.c`) |
+| `macro_model` | Bounded data types, canonical UUIDs (`app_uuid`), stable app error codes (`app_error`) — v1's package/repository object model was deleted here; only execution-time macro/action types remain |
+| `macro_parser` | The v0.1 macro language: US-ASCII/chord/directive parsing into action plans, complete-before-execute, exact source-location errors |
+| `macro_executor` | Single-owner FreeRTOS execution engine: one active send, cancellation, progress, unconditional release-all |
+| `usb_keyboard` | TinyUSB HID integration, readiness gating, bounded report transmission |
+| `auth` | PBKDF2-HMAC-SHA-256 passwords, RAM-only sessions, login rate limiting, constant-time comparison |
+| `provisioning` | First-run state, NVS-backed settings record, `/api/v1/setup` workflow |
+| `wifi_ap` | Protected SoftAP + optional station mode; no open-AP fallback ever |
+| `serial_console` | The trusted UART0 dev console (`confirm`, `cancel`, `wifi-connect`, …) — see the hardware table below |
+| `device_controls` | Status indication, physical confirmation signal, restart/reset-settings/factory-reset |
+| `device_settings` | Device-level settings storage separate from Wi-Fi/auth provisioning |
+| `storage` | LittleFS mount (no auto-format on failure), bounded fs ops, atomic `<id>.gz.tmp`→`<id>.gz` blob commit, opaque byte-blob repository under `/data/repository/` |
+| `web_server` | Bounded ESP-IDF HTTP server, same-origin checks, JSON responses, static frontend delivery |
+| `support` | Cross-cutting: operation results, health reporting, CRC, clocks, random, bounded helpers |
+
+The project is mid v1→v2 rebuild (see `docs/implementation-v2/V2_MIGRATION_MAP.md`):
+firmware no longer owns package/repository semantics — it stores and serves
+opaque blobs; the webapp owns package/macro modeling and talks to the firmware
+through the fixed `/api/v1/*` contracts in `app_contracts_v2` and
+`docs/schemas/*.schema.json`. Don't reintroduce package/revision/index logic
+into firmware storage or `macro_model` without checking the migration map first.
+
+### Webapp (`webapp/src/`)
+
+- `v2/` — the current v2 contract layer: `apiContracts.ts`/`apiGuards.ts`/`apiRequestGuards.ts` (runtime type guards for every `/api/v1/*` payload), `apiTypes.ts`, `apiRouteManifest.ts`, `limits.ts` (mirrors firmware `app_limits_v2.h`), `macroCompiler.ts` (shares the parser conformance corpus with `macro_parser`), `repository.ts`/`repositoryValidation.ts` (client-owned package/macro modeling, since firmware doesn't do this anymore).
+- `types/` — legacy v1 model types; being superseded by `v2/`.
+- `api/` — the HTTP client (`client.ts`), route table, and error handling used by feature pages.
+- `features/<domain>/` — route-level pages by domain (`auth`, `execution`, `macros`, `package`, `settings`); most are presentation scaffolds over representative data per `webapp/README.md` — a page rendering doesn't mean its persistence/API path is real, check the component before relying on one.
+- `routing.ts` — hash-based routing across all planned screens.
+- `App.tsx`/`main.tsx`/`components/` — shell, layout, and shared widgets (`AppShell`, `ConnectivityBanner`, `ErrorBanner`, `StatusBadge`, `AccessibleDialog`).
+
+### Host tests (`tests/host/`)
+
+First-party firmware code is written against small backend interfaces
+(filesystem, GPIO, HTTP, USB, Wi-Fi, FreeRTOS, clock, random), each with a fake
+in `tests/host/fakes/` — that's what makes `./scripts/run-tests.sh` exercise real
+firmware logic natively without hardware or QEMU. `tests/host/support/` holds the
+custom assert harness plus test-only utilities (temp dirs, secret-sentinel
+scanning, memory tracking). Large suites (auth, executor, web-server adapter, web
+security) split their bodies across `.inc` fragments included by one `test_*.c` —
+search those, not just `test_*.c`, when looking for a specific test.
+
 ## Hard rules
 
 - **No failure-hiding**: no `|| true`, no redirecting errors away, no warning suppression, no first-party lint/analyzer exclusions. Every first-party warning is a defect (`scripts/README.md`). CI runs clang-tidy with `WarningsAsErrors: '*'` and ESLint/stylelint with `--max-warnings=0`. Approved exceptions are tracked in `docs/STATIC_ANALYSIS_EXCEPTIONS.md` — don't add a new suppression without registering it there.
