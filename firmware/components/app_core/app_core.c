@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "app_core_ops.h"
 #include "app_core_sequence.h"
@@ -12,6 +13,7 @@
 #include "auth_health.h"
 #include "device_controls.h"
 #include "device_settings.h"
+#include "device_settings_v2.h"
 #include "esp_log.h"
 #include "esp_random.h"
 #include "executor_health.h"
