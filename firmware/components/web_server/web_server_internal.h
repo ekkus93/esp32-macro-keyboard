@@ -45,6 +45,9 @@ esp_err_t blob_list_handler(httpd_req_t *request);
 esp_err_t blob_create_handler(httpd_req_t *request);
 esp_err_t blob_load_handler(httpd_req_t *request);
 esp_err_t blob_delete_handler(httpd_req_t *request);
+esp_err_t send_create_handler(httpd_req_t *request);
+esp_err_t send_get_handler(httpd_req_t *request);
+esp_err_t send_cancel_handler(httpd_req_t *request);
 esp_err_t api_handler(httpd_req_t *request);
 esp_err_t web_api_handle_call(httpd_req_t *request, bool *out_should_restart);
 esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body,
