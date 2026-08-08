@@ -1,18 +1,31 @@
 #include "web_api_handlers.h"
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include "app_error.h"
+#include "auth.h"
 #include "web_api_core.h"
 #include "web_api_handler_common.h"
 #include "web_api_response.h"
+#include "web_auth_routes.h"
 #include "web_http_status.h"
 #include "web_server_internal.h"
 
+/* The request policy layer (web_request_policy.c) has already validated (and
+ * thereby refreshed the idle deadline of) call->session_token before
+ * dispatch reaches here -- see web_request_policy_evaluate()'s
+ * enforce_session() step -- so this reads the resulting TTLs without a
+ * second refresh. */
 static app_error_code_t handle_session(const web_api_call_t *call, web_api_response_t *response) {
-    (void)call;
+    uint32_t idle_seconds = 0U;
+    uint32_t absolute_seconds = 0U;
+    app_error_code_t result =
+        auth_session_remaining(call->session_token, &idle_seconds, &absolute_seconds);
     char *json = NULL;
-    app_error_code_t result = web_api_handler_session_json(&json);
+    if (result == APP_ERROR_NONE) {
+        result = web_auth_session_response_json(idle_seconds, absolute_seconds, &json);
+    }
     if (result == APP_ERROR_NONE) {
         result = web_api_handler_success_json(response, WEB_HTTP_STATUS_OK, json);
     } else {

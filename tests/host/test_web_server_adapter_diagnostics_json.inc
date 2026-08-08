@@ -2,13 +2,15 @@ static web_diagnostics_snapshot_t default_diagnostics_snapshot(void) {
     return (web_diagnostics_snapshot_t){
         .build_id = "abcdef0123456789",
         .firmware_version = "1.2.3",
-        .schema_version = 1U,
         .reset_reason = "power-on",
         .uptime_ms = 123456U,
         .free_heap_bytes = 200000U,
-        .min_free_heap_bytes = 150000U,
-        .controls_stack_high_water_mark = 512U,
-        .executor_stack_high_water_mark = 1024U,
+        .minimum_free_heap_bytes = 150000U,
+        .largest_free_block_bytes = 120000U,
+        .usb_state = "ready",
+        .access_point_state = "running",
+        .station_state = "disabled",
+        .storage_state = "ready",
         .webfs = {.ok = true, .total_bytes = 1000000U, .used_bytes = 400000U},
         .userdata = {.ok = true, .total_bytes = 2000000U, .used_bytes = 900000U},
         .blob_scan =
@@ -21,7 +23,8 @@ static web_diagnostics_snapshot_t default_diagnostics_snapshot(void) {
                 .reported_temporary_file_count = 1U,
                 .temporary_files = {"00000000000000000004.gz.tmp"},
             },
-        .execution_state = "idle",
+        .send_present = false,
+        .send_state = NULL,
         .subsystems =
             {
                 {.name = "app_core", .state = SUBSYSTEM_HEALTH_HEALTHY},
@@ -52,44 +55,67 @@ static void test_diagnostics_exact_allowed_fields(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
 
+    /* Matches contracts/v2/api/examples.json's "diagnostics" example exactly
+     * (SPEC_V2 13.13): no "ok"/"data" wrapper, no "schemaVersion", no
+     * "stack". */
+    TEST_CHECK(strstr(output, "\"ok\":true") == NULL || strstr(output, "\"ok\":false") == NULL);
+    TEST_CHECK(strstr(output, "\"data\":") == NULL);
+    TEST_CHECK(strstr(output, "\"schemaVersion\":") == NULL);
+    TEST_CHECK(strstr(output, "\"stack\":") == NULL);
+    TEST_CHECK(strstr(output, "\"controlsWords\":") == NULL);
+    TEST_CHECK(strstr(output, "\"executorWords\":") == NULL);
+    TEST_CHECK(strstr(output, "\"executionState\":") == NULL);
+    TEST_CHECK(strstr(output, "\"blobScan\":") == NULL);
+
     static const char *const expected_keys[] = {
-        "\"buildId\":",
         "\"firmwareVersion\":",
-        "\"schemaVersion\":",
+        "\"buildId\":",
         "\"resetReason\":",
         "\"uptimeMs\":",
+        "\"memory\":",
         "\"freeHeapBytes\":",
-        "\"minFreeHeapBytes\":",
-        "\"stack\":",
-        "\"controlsWords\":",
-        "\"executorWords\":",
-        "\"webfs\":",
-        "\"userdata\":",
-        "\"blobScan\":",
+        "\"minimumFreeHeapBytes\":",
+        "\"largestFreeBlockBytes\":",
+        "\"usb\":",
+        "\"wifi\":",
+        "\"accessPointState\":",
+        "\"stationState\":",
+        "\"storage\":",
+        "\"webfsTotalBytes\":",
+        "\"webfsUsedBytes\":",
+        "\"userdataTotalBytes\":",
+        "\"userdataUsedBytes\":",
         "\"blobCount\":",
-        "\"invalidNameCount\":",
         "\"invalidNames\":",
-        "\"temporaryFileCount\":",
         "\"temporaryFiles\":",
-        "\"executionState\":",
+        "\"send\":",
+        "\"present\":",
         "\"subsystems\":",
-        "\"totalBytes\":",
-        "\"usedBytes\":",
     };
     for (size_t index = 0U; index < sizeof(expected_keys) / sizeof(expected_keys[0]); ++index) {
         TEST_CHECK(strstr(output, expected_keys[index]) != NULL);
     }
 
-    TEST_CHECK(strstr(output, "\"blobScan\":{\"blobCount\":3,\"invalidNameCount\":1") != NULL);
+    TEST_CHECK(strstr(output, "\"blobCount\":3") != NULL);
     TEST_CHECK(strstr(output, "\"invalidNames\":[\"notes.txt\"]") != NULL);
-    TEST_CHECK(strstr(output, "\"temporaryFileCount\":1,\"temporaryFiles\":["
-                              "\"00000000000000000004.gz.tmp\"]") != NULL);
+    TEST_CHECK(strstr(output, "\"temporaryFiles\":[\"00000000000000000004.gz.tmp\"]") != NULL);
+    TEST_CHECK(strstr(output, "\"present\":false,\"state\":null") != NULL);
 
     /* Phase 2 removes the repository subsystem together with its ownership layer. */
     TEST_CHECK_EQ_U64(8U, count_occurrences(output, "\"name\":"));
     TEST_CHECK(strstr(output, "\"name\":\"app_core\"") != NULL);
     TEST_CHECK(strstr(output, "\"name\":\"repository\"") == NULL);
     TEST_CHECK(strstr(output, "\"name\":\"http\"") != NULL);
+}
+
+static void test_diagnostics_send_present_carries_state(void) {
+    web_diagnostics_snapshot_t snapshot = default_diagnostics_snapshot();
+    snapshot.send_present = true;
+    snapshot.send_state = "running";
+    char output[4096U];
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
+    TEST_CHECK(strstr(output, "\"present\":true,\"state\":\"running\"") != NULL);
 }
 
 static void test_diagnostics_secret_sentinels_absent(void) {
@@ -127,9 +153,8 @@ static void test_diagnostics_bounded_output(void) {
     snapshot.firmware_version[sizeof(snapshot.firmware_version) - 1U] = '\0';
     snapshot.uptime_ms = UINT64_MAX;
     snapshot.free_heap_bytes = UINT32_MAX;
-    snapshot.min_free_heap_bytes = UINT32_MAX;
-    snapshot.controls_stack_high_water_mark = SIZE_MAX;
-    snapshot.executor_stack_high_water_mark = SIZE_MAX;
+    snapshot.minimum_free_heap_bytes = UINT32_MAX;
+    snapshot.largest_free_block_bytes = UINT32_MAX;
     snapshot.webfs.total_bytes = SIZE_MAX;
     snapshot.webfs.used_bytes = SIZE_MAX;
     snapshot.userdata.total_bytes = SIZE_MAX;
@@ -180,14 +205,15 @@ static void test_diagnostics_rejects_partial_invalid_name_reporting(void) {
 static void test_diagnostics_failed_query_never_fabricates_data(void) {
     web_diagnostics_snapshot_t snapshot = default_diagnostics_snapshot();
     snapshot.webfs = (web_diagnostics_capacity_t){.ok = false, .total_bytes = 0U, .used_bytes = 0U};
+    snapshot.storage_state = "unavailable";
 
     char output[4096U];
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_adapter_build_diagnostics_json(&snapshot, output, sizeof(output)));
-    TEST_CHECK(strstr(output, "\"webfs\":{\"ok\":false,\"totalBytes\":0,\"usedBytes\":0}") != NULL);
-    TEST_CHECK(
-        strstr(output, "\"userdata\":{\"ok\":true,\"totalBytes\":2000000,\"usedBytes\":900000}") !=
-        NULL);
+    TEST_CHECK(strstr(output, "\"webfsTotalBytes\":0,\"webfsUsedBytes\":0") != NULL);
+    TEST_CHECK(strstr(output, "\"userdataTotalBytes\":2000000,\"userdataUsedBytes\":900000") !=
+               NULL);
+    TEST_CHECK(strstr(output, "\"storage\":{\"state\":\"unavailable\"") != NULL);
 }
 
 static void test_diagnostics_no_false_healthy_state(void) {

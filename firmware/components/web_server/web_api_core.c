@@ -130,7 +130,12 @@ app_error_code_t web_api_parse_path(const char *uri, web_api_path_t *out_path) {
     }
     static const route_entry_t routes[] = {
         {"/api/v1/auth/session", WEB_API_ROUTE_AUTH_SESSION},
+        {"/api/v1/auth/login", WEB_API_ROUTE_AUTH_LOGIN},
+        {"/api/v1/auth/logout", WEB_API_ROUTE_AUTH_LOGOUT},
+        {"/api/v1/status", WEB_API_ROUTE_STATUS},
+        {"/api/v1/limits", WEB_API_ROUTE_LIMITS},
         {"/api/v1/blob", WEB_API_ROUTE_BLOB_COLLECTION},
+        {"/api/v1/send", WEB_API_ROUTE_SEND},
         {"/api/v1/settings", WEB_API_ROUTE_SETTINGS},
         {"/api/v1/settings/change-password", WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD},
         {"/api/v1/device/restart", WEB_API_ROUTE_DEVICE_RESTART},
@@ -162,11 +167,19 @@ bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method)
     switch (route) {
     case WEB_API_ROUTE_AUTH_SESSION:
     case WEB_API_ROUTE_DIAGNOSTICS_FULL:
+    case WEB_API_ROUTE_STATUS:
+    case WEB_API_ROUTE_LIMITS:
         return method == WEB_API_METHOD_GET;
+    case WEB_API_ROUTE_AUTH_LOGIN:
+    case WEB_API_ROUTE_AUTH_LOGOUT:
+        return method == WEB_API_METHOD_POST;
     case WEB_API_ROUTE_BLOB_COLLECTION:
         return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_POST;
     case WEB_API_ROUTE_BLOB_ITEM:
         return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_DELETE;
+    case WEB_API_ROUTE_SEND:
+        return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_POST ||
+               method == WEB_API_METHOD_DELETE;
     case WEB_API_ROUTE_SETTINGS:
         return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_PUT;
     case WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD:
@@ -186,6 +199,12 @@ bool web_api_route_requires_body(web_api_route_t route, web_api_method_t method)
     if (method == WEB_API_METHOD_GET || route == WEB_API_ROUTE_DEVICE_RESTART) {
         return false;
     }
+    /* Both routes below only require a body on their POST method -- SEND's
+     * other allowed method is DELETE (no body), and DEVICE_RESTART is POST-
+     * only but already excluded above. */
+    if (route == WEB_API_ROUTE_SEND) {
+        return method == WEB_API_METHOD_POST;
+    }
     /* WEB_API_ROUTE_SETUP is included so a POST /api/v1/setup submission body
      * on an already-provisioned device is accepted rather than rejected with
      * 422 before it can reach the 409 conflict response (SPEC 13.4); the body
@@ -193,14 +212,21 @@ bool web_api_route_requires_body(web_api_route_t route, web_api_method_t method)
     return route == WEB_API_ROUTE_BLOB_COLLECTION || route == WEB_API_ROUTE_SETTINGS ||
            route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD ||
            route == WEB_API_ROUTE_DEVICE_RESET_SETTINGS ||
-           route == WEB_API_ROUTE_DEVICE_FACTORY_RESET || route == WEB_API_ROUTE_SETUP;
+           route == WEB_API_ROUTE_DEVICE_FACTORY_RESET || route == WEB_API_ROUTE_SETUP ||
+           route == WEB_API_ROUTE_AUTH_LOGIN;
 }
 
 bool web_api_route_requires_session(web_api_route_t route) {
     /* WEB_API_ROUTE_SETUP must answer 404/409 without a session: SPEC 13.4
      * requires the same unauthenticated conflict behavior whether or not the
-     * caller ever logged in. */
-    return route != WEB_API_ROUTE_UNKNOWN && route != WEB_API_ROUTE_SETUP;
+     * caller ever logged in. WEB_API_ROUTE_AUTH_LOGIN is
+     * "none-provisioned-only" per contracts/v2/api/routes.json: it is the
+     * route that establishes a session in the first place, so it cannot
+     * itself require one. (The "unprovisioned" half of that qualifier is
+     * enforced structurally -- this route is never registered while
+     * unprovisioned; see web_server_lifecycle.c's setup_routes[].) */
+    return route != WEB_API_ROUTE_UNKNOWN && route != WEB_API_ROUTE_SETUP &&
+           route != WEB_API_ROUTE_AUTH_LOGIN;
 }
 
 bool web_api_physical_confirmation_required(web_api_route_t route, bool confirmation_enabled) {

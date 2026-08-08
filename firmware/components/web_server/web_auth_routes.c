@@ -1,0 +1,139 @@
+#include "web_auth_routes.h"
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+
+#include "app_error.h"
+#include "cJSON.h"
+
+#define LOGIN_NUL_ESCAPE "\\u0000"
+
+static void secure_zero_local(void *memory, size_t length) {
+    volatile uint8_t *bytes = memory;
+    for (size_t index = 0U; index < length; ++index) {
+        bytes[index] = 0U;
+    }
+}
+
+app_error_code_t web_auth_session_response_json(uint32_t idle_seconds_remaining,
+                                                uint32_t absolute_seconds_remaining,
+                                                char **out_json) {
+    if (out_json != NULL) {
+        *out_json = NULL;
+    }
+    if (out_json == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL || !cJSON_AddBoolToObject(root, "authenticated", true) ||
+        !cJSON_AddNumberToObject(root, "idleExpiresInSeconds", (double)idle_seconds_remaining) ||
+        !cJSON_AddNumberToObject(root, "absoluteExpiresInSeconds",
+                                 (double)absolute_seconds_remaining)) {
+        cJSON_Delete(root);
+        return APP_ERROR_INTERNAL;
+    }
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (json == NULL) {
+        return APP_ERROR_INTERNAL;
+    }
+    *out_json = json;
+    return APP_ERROR_NONE;
+}
+
+static bool bounded_body_length(const char *body, size_t capacity, size_t *out_length) {
+    if (body == NULL || out_length == NULL || capacity == 0U) {
+        return false;
+    }
+    for (size_t index = 0U; index < capacity; ++index) {
+        if (body[index] == '\0') {
+            *out_length = index;
+            return index > 0U;
+        }
+    }
+    return false;
+}
+
+/* See web_server_setup_submit.c's contains_embedded_nul_escape() for why the
+ * six-character \u0000 escape must be rejected before parsing rather than
+ * left to a post-parse strlen() mismatch. */
+static bool contains_embedded_nul_escape(const char *body, size_t length) {
+    const size_t escape_length = sizeof(LOGIN_NUL_ESCAPE) - 1U;
+    if (length < escape_length) {
+        return false;
+    }
+    for (size_t index = 0U; index <= length - escape_length; ++index) {
+        if (memcmp(body + index, LOGIN_NUL_ESCAPE, escape_length) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool exact_login_fields(const cJSON *root) {
+    if (!cJSON_IsObject(root)) {
+        return false;
+    }
+    bool seen_password = false;
+    size_t field_count = 0U;
+    for (const cJSON *item = root->child; item != NULL; item = item->next) {
+        if (item->string == NULL || strcmp(item->string, "adminPassword") != 0 || seen_password) {
+            return false;
+        }
+        seen_password = true;
+        ++field_count;
+    }
+    return seen_password && field_count == 1U;
+}
+
+web_auth_login_parse_result_t web_auth_login_parse(char *body, size_t body_length,
+                                                   char *out_password, size_t out_password_capacity,
+                                                   size_t *out_password_length) {
+    if (out_password != NULL && out_password_capacity > 0U) {
+        out_password[0] = '\0';
+    }
+    if (out_password_length != NULL) {
+        *out_password_length = 0U;
+    }
+    if (body == NULL || out_password == NULL || out_password_capacity == 0U ||
+        out_password_length == NULL) {
+        if (body != NULL && body_length > 0U) {
+            secure_zero_local(body, body_length);
+        }
+        return WEB_AUTH_LOGIN_PARSE_INVALID_BODY;
+    }
+
+    size_t exact_length = 0U;
+    if (!bounded_body_length(body, body_length, &exact_length) ||
+        contains_embedded_nul_escape(body, exact_length)) {
+        secure_zero_local(body, body_length);
+        return WEB_AUTH_LOGIN_PARSE_INVALID_BODY;
+    }
+
+    const char *parse_end = NULL;
+    cJSON *root = cJSON_ParseWithLengthOpts(body, exact_length + 1U, &parse_end, true);
+    secure_zero_local(body, body_length);
+    const bool exact_document = root != NULL && parse_end == body + exact_length;
+    if (!exact_document || !exact_login_fields(root)) {
+        cJSON_Delete(root);
+        return WEB_AUTH_LOGIN_PARSE_INVALID_BODY;
+    }
+
+    const cJSON *password = cJSON_GetObjectItemCaseSensitive(root, "adminPassword");
+    web_auth_login_parse_result_t result = WEB_AUTH_LOGIN_PARSE_INVALID_BODY;
+    if (cJSON_IsString(password) && password->valuestring != NULL) {
+        const size_t password_length = strlen(password->valuestring);
+        if (password_length < out_password_capacity) {
+            memcpy(out_password, password->valuestring, password_length + 1U);
+            *out_password_length = password_length;
+            result = WEB_AUTH_LOGIN_PARSE_OK;
+        }
+    }
+    if (password != NULL && cJSON_IsString(password) && password->valuestring != NULL) {
+        secure_zero_local(password->valuestring, strlen(password->valuestring));
+    }
+    cJSON_Delete(root);
+    return result;
+}

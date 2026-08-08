@@ -10,17 +10,20 @@
 #include "app_lifecycle_health.h"
 #include "auth_health.h"
 #include "device_controls.h"
+#include "device_settings.h"
+#include "device_settings_v2.h"
 #include "esp_app_desc.h"
+#include "esp_heap_caps.h"
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "executor_health.h"
 #include "http_health.h"
 #include "macro_executor.h"
-#include "macro_limits.h"
 #include "storage.h"
 #include "storage_blob.h"
 #include "storage_health.h"
 #include "usb_health.h"
+#include "usb_keyboard.h"
 #include "web_api_handler_common.h"
 #include "web_api_response.h"
 #include "web_diagnostics.h"
@@ -137,6 +140,26 @@ static app_error_code_t fill_blob_scan(web_diagnostics_blob_scan_t *out_blob_sca
     return result;
 }
 
+static const char *diagnostics_access_point_state(wifi_ap_state_t state) {
+    switch (state) {
+    case WIFI_AP_STOPPED:
+        return "stopped";
+    case WIFI_AP_STARTING:
+        return "starting";
+    case WIFI_AP_READY:
+        return "running";
+    case WIFI_AP_ERROR:
+    default:
+        return "error";
+    }
+}
+
+/* See web_server_status_limits.c's identical station_state_string() comment:
+ * no live station-connection tracking exists yet (V2-044 scope). */
+static const char *diagnostics_station_state(bool configured) {
+    return configured ? "unknown" : "disabled";
+}
+
 static void fill_subsystems(web_diagnostics_subsystem_t *out_subsystems) {
     size_t index = 0U;
     out_subsystems[index++] = (web_diagnostics_subsystem_t){
@@ -167,20 +190,29 @@ static app_error_code_t collect_diagnostics(web_diagnostics_snapshot_t *out_snap
     const esp_app_desc_t *description = esp_app_get_description();
     (void)snprintf(out_snapshot->firmware_version, sizeof(out_snapshot->firmware_version), "%s",
                    description->version);
-    out_snapshot->schema_version = APP_SCHEMA_VERSION;
     out_snapshot->reset_reason = reset_reason_string(esp_reset_reason());
     out_snapshot->uptime_ms = (uint64_t)(esp_timer_get_time() / MICROSECONDS_PER_MILLISECOND);
     out_snapshot->free_heap_bytes = esp_get_free_heap_size();
-    out_snapshot->min_free_heap_bytes = esp_get_minimum_free_heap_size();
-    out_snapshot->controls_stack_high_water_mark = device_controls_stack_high_water_mark();
-    out_snapshot->executor_stack_high_water_mark = macro_executor_stack_high_water_mark();
+    out_snapshot->minimum_free_heap_bytes = esp_get_minimum_free_heap_size();
+    out_snapshot->largest_free_block_bytes = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+    out_snapshot->usb_state = usb_state_string(usb_keyboard_get_state());
+    const wifi_ap_status_t wifi = wifi_ap_get_status();
+    out_snapshot->access_point_state = diagnostics_access_point_state(wifi.state);
+    app_v2_device_settings_t settings = {0};
+    out_snapshot->station_state = diagnostics_station_state(
+        device_settings_read(&settings) == APP_ERROR_NONE && settings.station_configured);
     fill_capacity(STORAGE_WEB_PARTITION, &out_snapshot->webfs);
     fill_capacity(STORAGE_DATA_PARTITION, &out_snapshot->userdata);
+    const storage_mount_state_t mount_state = storage_mount_state();
+    out_snapshot->storage_state = mount_state.data_mounted ? "ready" : "unavailable";
     const app_error_code_t blob_result = fill_blob_scan(&out_snapshot->blob_scan);
     if (blob_result != APP_ERROR_NONE) {
         return blob_result;
     }
-    out_snapshot->execution_state = execution_state_string(macro_executor_get_status().state);
+    const macro_execution_status_t execution = macro_executor_get_status();
+    out_snapshot->send_present = execution.state != EXECUTION_IDLE;
+    out_snapshot->send_state =
+        out_snapshot->send_present ? execution_state_string(execution.state) : NULL;
     fill_subsystems(out_snapshot->subsystems);
     return APP_ERROR_NONE;
 }

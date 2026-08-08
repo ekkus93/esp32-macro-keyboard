@@ -169,6 +169,72 @@ app_error_code_t auth_core_session_validate(auth_core_t *core, const char *sessi
     return validate_session(core, session_token);
 }
 
+/* A single bundled result (rather than two adjacent out-parameters of the
+ * same type) so the idle/absolute values cannot be swapped by mistake at a
+ * call site. */
+typedef struct {
+    uint32_t idle_seconds_remaining;
+    uint32_t absolute_seconds_remaining;
+} session_remaining_t;
+
+static app_error_code_t find_session_remaining(auth_core_t *core, uint64_t now,
+                                               const auth_session_validation_t *validation,
+                                               session_remaining_t *out_remaining) {
+    for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
+        const auth_session_entry_t *entry = &core->sessions[index];
+        if (!entry->active || session_expired(entry, now)) {
+            continue;
+        }
+        if (!session_entry_matches(entry, validation)) {
+            continue;
+        }
+        const uint64_t idle_remaining_us =
+            entry->view.expires_at_us > now ? entry->view.expires_at_us - now : 0U;
+        const uint64_t absolute_remaining_us = entry->view.absolute_expires_at_us > now
+                                                   ? entry->view.absolute_expires_at_us - now
+                                                   : 0U;
+        out_remaining->idle_seconds_remaining = (uint32_t)(idle_remaining_us / UINT64_C(1000000));
+        out_remaining->absolute_seconds_remaining =
+            (uint32_t)(absolute_remaining_us / UINT64_C(1000000));
+        return APP_ERROR_NONE;
+    }
+    return APP_ERROR_AUTH_REQUIRED;
+}
+
+app_error_code_t auth_core_session_remaining(auth_core_t *core, const char *session_token,
+                                             uint32_t *out_idle_seconds_remaining,
+                                             uint32_t *out_absolute_seconds_remaining) {
+    if (out_idle_seconds_remaining != NULL) {
+        *out_idle_seconds_remaining = 0U;
+    }
+    if (out_absolute_seconds_remaining != NULL) {
+        *out_absolute_seconds_remaining = 0U;
+    }
+    const auth_session_validation_t validation = {.session_token = session_token};
+    if (!validation_tokens_valid(core, &validation) || out_idle_seconds_remaining == NULL ||
+        out_absolute_seconds_remaining == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    app_error_code_t result = auth_core_lock(core);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    uint64_t now = 0U;
+    result = auth_core_read_now(core, &now);
+    session_remaining_t remaining = {0};
+    if (result == APP_ERROR_NONE) {
+        result = find_session_remaining(core, now, &validation, &remaining);
+        if (result == APP_ERROR_NONE) {
+            *out_idle_seconds_remaining = remaining.idle_seconds_remaining;
+            *out_absolute_seconds_remaining = remaining.absolute_seconds_remaining;
+        }
+    }
+    if (auth_core_unlock(core) != APP_ERROR_NONE) {
+        return APP_ERROR_INTERNAL;
+    }
+    return result;
+}
+
 app_error_code_t auth_core_session_logout(auth_core_t *core, const char *session_token) {
     if (core == NULL || !auth_core_valid_hex_token(session_token)) {
         return APP_ERROR_INVALID_ARGUMENT;

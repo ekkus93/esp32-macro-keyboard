@@ -36,20 +36,28 @@ typedef struct {
     char temporary_files[WEB_DIAGNOSTICS_INVALID_NAME_MAX][WEB_DIAGNOSTICS_INVALID_NAME_CAPACITY];
 } web_diagnostics_blob_scan_t;
 
+/* Matches the fixed schema in SPEC_V2 13.13 / contracts/v2/api/examples.json's
+ * "diagnostics" example exactly. No "schemaVersion" or "stack" field: neither
+ * appears in that checked-in contract, and CLAUDE.md/SPEC_V2 forbid adding
+ * response fields the frozen contract does not define. */
 typedef struct {
     char build_id[WEB_DIAGNOSTICS_BUILD_ID_MAX_BYTES];
     char firmware_version[WEB_DIAGNOSTICS_VERSION_MAX_BYTES];
-    uint32_t schema_version;
     const char *reset_reason;
     uint64_t uptime_ms;
-    uint32_t free_heap_bytes;
-    uint32_t min_free_heap_bytes;
-    size_t controls_stack_high_water_mark;
-    size_t executor_stack_high_water_mark;
+    uint64_t free_heap_bytes;
+    uint64_t minimum_free_heap_bytes;
+    uint64_t largest_free_block_bytes;
+    const char *usb_state;
+    const char *access_point_state;
+    const char *station_state;
+    const char *storage_state;
     web_diagnostics_capacity_t webfs;
     web_diagnostics_capacity_t userdata;
     web_diagnostics_blob_scan_t blob_scan;
-    const char *execution_state;
+    bool send_present;
+    /* NULL (emitted as JSON null) unless send_present is true. */
+    const char *send_state;
     web_diagnostics_subsystem_t subsystems[WEB_DIAGNOSTICS_SUBSYSTEM_COUNT];
 } web_diagnostics_snapshot_t;
 

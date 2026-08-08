@@ -7,6 +7,7 @@
 #include "provisioning.h"
 #include "web_api_core.h"
 #include "web_api_response.h"
+#include "web_http_status.h"
 
 static app_error_code_t finish_json(cJSON *root, char **out_json) {
     if (out_json != NULL) {
@@ -27,33 +28,33 @@ static app_error_code_t finish_json(cJSON *root, char **out_json) {
 }
 
 app_error_code_t web_api_handler_error(web_api_response_t *response, app_error_code_t error,
-                                       const char *message, const char *details_json) {
+                                       const char *message, const char *field) {
     return web_api_response_error(response, &(web_api_error_spec_t){
                                                 .status = web_api_http_status_for_error(error),
                                                 .code = error,
                                                 .message = message,
-                                                .details_json = details_json,
+                                                .field = field,
+                                            });
+}
+
+app_error_code_t web_api_handler_parser_error(web_api_response_t *response, const char *message,
+                                              const char *field, size_t byte_offset, size_t line,
+                                              size_t column) {
+    return web_api_response_error(response, &(web_api_error_spec_t){
+                                                .status = WEB_HTTP_STATUS_UNPROCESSABLE_ENTITY,
+                                                .code = APP_ERROR_MACRO_SYNTAX,
+                                                .message = message,
+                                                .field = field,
+                                                .has_parser_location = true,
+                                                .byte_offset = byte_offset,
+                                                .line = line,
+                                                .column = column,
                                             });
 }
 
 app_error_code_t web_api_handler_success_json(web_api_response_t *response, unsigned int status,
                                               const char *data_json) {
     return web_api_response_success(response, status, data_json);
-}
-
-app_error_code_t web_api_handler_session_json(char **out_json) {
-    if (out_json != NULL) {
-        *out_json = NULL;
-    }
-    if (out_json == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    cJSON *root = cJSON_CreateObject();
-    if (root == NULL || !cJSON_AddBoolToObject(root, "authenticated", true)) {
-        cJSON_Delete(root);
-        return APP_ERROR_INTERNAL;
-    }
-    return finish_json(root, out_json);
 }
 
 app_error_code_t web_api_handler_settings_json(const provisioning_settings_t *settings,

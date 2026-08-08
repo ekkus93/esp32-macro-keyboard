@@ -54,15 +54,14 @@ app_error_code_t web_api_response_success(web_api_response_t *response, unsigned
         status >= WEB_HTTP_SUCCESS_STATUS_UPPER_BOUND) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
+    /* SPEC_V2 13 success responses are the flat object itself -- no v1-style
+     * {"ok":true,"data":...} envelope. data_json is parsed (not merely
+     * copied) so a malformed caller-supplied string is still rejected. */
     cJSON *data = parse_data(data_json);
-    cJSON *root = cJSON_CreateObject();
-    if (data == NULL || root == NULL || !cJSON_AddBoolToObject(root, "ok", true) ||
-        !cJSON_AddItemToObject(root, "data", data)) {
-        cJSON_Delete(data);
-        cJSON_Delete(root);
+    if (data == NULL) {
         return APP_ERROR_INTERNAL;
     }
-    return set_serialized(response, status, root);
+    return set_serialized(response, status, data);
 }
 
 app_error_code_t web_api_response_take_json(web_api_response_t *response, unsigned int status,
@@ -92,23 +91,31 @@ app_error_code_t web_api_response_error(web_api_response_t *response,
         error_spec->status > WEB_HTTP_ERROR_STATUS_UPPER_BOUND) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
+    /* SPEC_V2 13.2's exact error envelope: {"error":{"code","message",
+     * ["field"],["byteOffset","line","column"]}} -- no top-level "ok" key,
+     * and no generic "details" sub-object. */
     cJSON *root = cJSON_CreateObject();
     cJSON *error = cJSON_CreateObject();
-    if (root == NULL || error == NULL || !cJSON_AddBoolToObject(root, "ok", false) ||
-        !cJSON_AddStringToObject(error, "code", app_error_code_string(error_spec->code)) ||
+    const char *code_string = error_spec->has_parser_location
+                                  ? "macro_parse_error"
+                                  : app_error_code_string(error_spec->code);
+    if (root == NULL || error == NULL || !cJSON_AddStringToObject(error, "code", code_string) ||
         !cJSON_AddStringToObject(error, "message", error_spec->message) ||
         !cJSON_AddItemToObject(root, "error", error)) {
         cJSON_Delete(error);
         cJSON_Delete(root);
         return APP_ERROR_INTERNAL;
     }
-    if (error_spec->details_json != NULL) {
-        cJSON *details = parse_data(error_spec->details_json);
-        if (details == NULL || !cJSON_AddItemToObject(error, "details", details)) {
-            cJSON_Delete(details);
-            cJSON_Delete(root);
-            return APP_ERROR_INTERNAL;
-        }
+    if (error_spec->field != NULL && !cJSON_AddStringToObject(error, "field", error_spec->field)) {
+        cJSON_Delete(root);
+        return APP_ERROR_INTERNAL;
+    }
+    if (error_spec->has_parser_location &&
+        (!cJSON_AddNumberToObject(error, "byteOffset", (double)error_spec->byte_offset) ||
+         !cJSON_AddNumberToObject(error, "line", (double)error_spec->line) ||
+         !cJSON_AddNumberToObject(error, "column", (double)error_spec->column))) {
+        cJSON_Delete(root);
+        return APP_ERROR_INTERNAL;
     }
     return set_serialized(response, error_spec->status, root);
 }
