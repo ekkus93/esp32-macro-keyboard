@@ -177,6 +177,18 @@ target_link_libraries(web_server_setup_submit_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_server_setup_submit_tests web_server_setup_submit web)
 
 add_executable(
+    settings_contract_v2_tests
+    test_settings_contract_v2.c ../../firmware/components/app_contracts_v2/settings_contract_v2.c
+    ../../firmware/components/app_contracts_v2/device_settings_v2.c
+    ../../firmware/components/app_contracts_v2/setup_contract_v2.c
+)
+target_include_directories(
+    settings_contract_v2_tests PRIVATE ../../firmware/components/macro_model/include
+                                       ../../firmware/components/app_contracts_v2/include
+)
+register_host_test(settings_contract_v2_tests settings_contract_v2 web)
+
+add_executable(
     web_status_limits_tests test_web_status_limits.c
                             ../../firmware/components/web_server/web_status_limits.c
 )
@@ -197,6 +209,21 @@ target_include_directories(
 )
 target_link_libraries(web_auth_routes_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_auth_routes_tests web_auth_routes web)
+
+add_executable(
+    web_settings_tests
+    test_web_settings.c
+    ../../firmware/components/web_server/web_settings.c
+    ../../firmware/components/app_contracts_v2/settings_contract_v2.c
+    ../../firmware/components/app_contracts_v2/device_settings_v2.c
+)
+target_include_directories(
+    web_settings_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/app_contracts_v2/include ../../firmware/components/web_server
+)
+target_link_libraries(web_settings_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_settings_tests web_settings web)
 
 add_executable(
     web_send_tests
