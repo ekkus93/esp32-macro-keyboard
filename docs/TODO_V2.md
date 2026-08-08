@@ -459,14 +459,20 @@ knowledge in firmware.
 
 ## V2-044 — Wi-Fi and reset semantics
 
-- [ ] Start the protected AP first and unconditionally.
-- [ ] Support at most one explicitly configured station network.
-- [ ] Ensure station failure cannot prevent AP operation.
-- [ ] Bound retries and expose status.
-- [ ] Define and test restart, reset-settings, credential reset where applicable,
+- [x] Start the protected AP first and unconditionally.
+- [x] Support at most one explicitly configured station network.
+- [x] Ensure station failure cannot prevent AP operation.
+- [x] Bound retries and expose status.
+- [x] Define and test restart, reset-settings, credential reset where applicable,
       and factory-reset preservation/deletion behavior.
 - [ ] Ensure factory reset erases repository blobs only when the specification
-      requires it and reports the connection loss clearly.
+      requires it and reports the connection loss clearly. Erasure-scope half
+      done and tested (`storage_blob_delete_all()` is called only from
+      `device_controls_factory_reset()`, never `reset_settings()`); the
+      "reports the connection loss clearly" half is the
+      `/api/v1/device/factory-reset` HTTP response body, which belongs to
+      Phase 5 (`web_server`, not yet implemented). See
+      `docs/implementation-v2/V2_044_WIFI_AND_RESET_SEMANTICS_2026-08-08.md`.
 
 ## Phase 4 exit gate
 
