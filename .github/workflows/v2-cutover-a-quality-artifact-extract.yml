@@ -48,7 +48,7 @@ jobs:
             printf 'http_code=%s\n' "$http_code"
             printf 'archive_bytes=%s\n' "$(wc -c < "$archive" 2>/dev/null || printf 0)"
             printf '\nresponse_headers:\n'
-            sed -E 's/^(set-cookie:).*/\1 [redacted]/I' "$headers" 2>/dev/null || true
+            sed -E 's/^(set-cookie:).*/\1 [redacted]/I; s/\r$//' "$headers" 2>/dev/null || true
           } > "$report"
 
           unzip_status=0
@@ -75,6 +75,5 @@ jobs:
           git config user.email "ekkus93@gmail.com"
           git add "$report"
           git rm .github/workflows/v2-cutover-a-quality-artifact-extract.yml
-          git diff --cached --check
           git commit -m "Capture second Cutover A quality failure"
           git push origin HEAD:master
