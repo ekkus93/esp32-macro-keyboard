@@ -9,6 +9,7 @@
 #include "cJSON.h"
 #include "esp_http_server.h"
 #include "macro_executor.h"
+#include "setup_contract_v2.h"
 #include "usb_keyboard.h"
 #include "web_server.h"
 #include "web_server_adapter.h"
@@ -18,6 +19,7 @@
 
 web_server_config_t server_configuration;
 web_adapter_lifecycle_t server_lifecycle;
+app_v2_setup_session_t setup_session;
 
 const char *usb_state_string(usb_keyboard_state_t state) {
     switch (state) {

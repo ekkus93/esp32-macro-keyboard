@@ -27,6 +27,21 @@ static app_error_code_t v2_configuration_route_pending(web_api_response_t *respo
                                  "V2 configuration route is not enabled yet", NULL);
 }
 
+/* Reached only once provisioned (the setup route table itself has no
+ * wildcard fallthrough into this dispatcher while unprovisioned -- see
+ * web_server_lifecycle.c). GET matches the unprovisioned-only semantics of
+ * setup_state_handler by answering 404; POST answers the 409 SPEC 13.4
+ * requires for a setup submission after provisioning. Neither branch reads
+ * `response`'s request body. */
+static app_error_code_t setup_route_response(const web_api_call_t *call,
+                                             web_api_response_t *response) {
+    if (call->method == WEB_API_METHOD_GET) {
+        return web_api_handler_error(response, APP_ERROR_NOT_FOUND, "route not found", NULL);
+    }
+    return web_api_handler_error(response, APP_ERROR_CONFLICT, "device is already provisioned",
+                                 NULL);
+}
+
 app_error_code_t web_api_handle_administration(const web_api_call_t *call,
                                                web_api_response_t *response) {
     if (call == NULL || response == NULL) {
@@ -46,6 +61,8 @@ app_error_code_t web_api_handle_administration(const web_api_call_t *call,
     case WEB_API_ROUTE_DEVICE_RESET_SETTINGS:
     case WEB_API_ROUTE_DEVICE_FACTORY_RESET:
         return v2_configuration_route_pending(response);
+    case WEB_API_ROUTE_SETUP:
+        return setup_route_response(call, response);
     case WEB_API_ROUTE_UNKNOWN:
     default:
         return APP_ERROR_NOT_FOUND;

@@ -163,6 +163,20 @@ target_include_directories(
 register_host_test(web_server_adapter_tests web_server_adapter web)
 
 add_executable(
+    web_server_setup_submit_tests
+    test_web_server_setup_submit.c ../../firmware/components/web_server/web_server_setup_submit.c
+    ../../firmware/components/app_contracts_v2/setup_contract_v2.c
+    ../../firmware/components/app_contracts_v2/device_settings_v2.c
+)
+target_include_directories(
+    web_server_setup_submit_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/app_contracts_v2/include ../../firmware/components/web_server
+)
+target_link_libraries(web_server_setup_submit_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_server_setup_submit_tests web_server_setup_submit web)
+
+add_executable(
     app_core_tests test_app_core.c ../../firmware/components/app_core/app_core_sequence.c
                    ../../firmware/components/support/app_operation_result.c
 )

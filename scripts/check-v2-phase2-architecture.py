@@ -31,7 +31,10 @@ FORBIDDEN_PATHS = [
 
 FORBIDDEN_SOURCE = re.compile(
     r"storage_repository|storage_package|macro_package_t|activePackageId|"
-    r"WEB_API_ROUTE_(SET(?!TING)S?|SET_|EXECUTIONS?|BACKUP|RESTORE)|"
+    # SET(?!TING|UP) also excludes WEB_API_ROUTE_SETUP: the V2-mandated first-run
+    # setup route (SPEC_V2 12.3/13.3/13.4), unrelated to the retired v1 "package
+    # set" family this pattern exists to block.
+    r"WEB_API_ROUTE_(SET(?!TING|UP)S?|SET_|EXECUTIONS?|BACKUP|RESTORE)|"
     r'\"/api/v1/(?:package|executions|repository|restore)(?:/|\")'
 )
 

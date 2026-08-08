@@ -26,7 +26,11 @@ typedef enum {
     WEB_API_ROUTE_DEVICE_RESTART,
     WEB_API_ROUTE_DEVICE_RESET_SETTINGS,
     WEB_API_ROUTE_DEVICE_FACTORY_RESET,
-    WEB_API_ROUTE_DIAGNOSTICS_FULL
+    WEB_API_ROUTE_DIAGNOSTICS_FULL,
+    /* Reached only once provisioned: GET returns 404, POST returns 409 (SPEC
+     * 13.4). While unprovisioned this path is served by setup_state_handler
+     * / setup_submit_handler instead -- see web_server_lifecycle.c. */
+    WEB_API_ROUTE_SETUP
 } web_api_route_t;
 
 typedef struct {

@@ -28,6 +28,7 @@ static void test_active_routes(void) {
     expect_route("/api/v1/device/reset-settings", WEB_API_ROUTE_DEVICE_RESET_SETTINGS);
     expect_route("/api/v1/device/factory-reset", WEB_API_ROUTE_DEVICE_FACTORY_RESET);
     expect_route("/api/v1/diagnostics", WEB_API_ROUTE_DIAGNOSTICS_FULL);
+    expect_route("/api/v1/setup", WEB_API_ROUTE_SETUP);
 }
 
 static void test_retired_routes_are_absent(void) {
@@ -95,6 +96,13 @@ static void test_method_and_body_policy(void) {
         web_api_route_allows_method(WEB_API_ROUTE_DEVICE_FACTORY_RESET, WEB_API_METHOD_POST));
     TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_UNKNOWN, WEB_API_METHOD_GET));
 
+    /* WEB_API_ROUTE_SETUP: reachable only once provisioned (SPEC 13.4), where
+     * GET answers 404 and POST answers 409 -- see web_api_administration.c. */
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETUP, WEB_API_METHOD_GET));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETUP, WEB_API_METHOD_POST));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETUP, WEB_API_METHOD_PUT));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SETUP, WEB_API_METHOD_DELETE));
+
     TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_GET));
     TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_BLOB_COLLECTION, WEB_API_METHOD_POST));
     TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET));
@@ -107,12 +115,18 @@ static void test_method_and_body_policy(void) {
     TEST_CHECK(
         web_api_route_requires_body(WEB_API_ROUTE_DEVICE_FACTORY_RESET, WEB_API_METHOD_POST));
     TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_UNKNOWN, WEB_API_METHOD_POST));
+    /* A POST /api/v1/setup submission body on a provisioned device must not
+     * be rejected with 422 before it can reach the 409 conflict response. */
+    TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_SETUP, WEB_API_METHOD_POST));
+    TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_SETUP, WEB_API_METHOD_GET));
 }
 
 static void test_session_confirmation_and_worker_policy(void) {
     TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_BLOB_COLLECTION));
     TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_DIAGNOSTICS_FULL));
     TEST_CHECK(!web_api_route_requires_session(WEB_API_ROUTE_UNKNOWN));
+    /* SPEC 13.4: the 404/409 setup response must not require a session. */
+    TEST_CHECK(!web_api_route_requires_session(WEB_API_ROUTE_SETUP));
 
     TEST_CHECK(
         web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD));
@@ -121,6 +135,7 @@ static void test_session_confirmation_and_worker_policy(void) {
     TEST_CHECK(web_api_route_requires_physical_confirmation(WEB_API_ROUTE_DEVICE_FACTORY_RESET));
     TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_BLOB_COLLECTION));
     TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SETTINGS));
+    TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SETUP));
     TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_FACTORY_RESET, false));
     TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_SETTINGS, true));
     TEST_CHECK(!web_api_route_requires_worker(WEB_API_ROUTE_BLOB_COLLECTION));

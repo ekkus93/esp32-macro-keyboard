@@ -10,7 +10,16 @@
 
 #define AUTH_SALT_BYTES 16U
 #define AUTH_HASH_BYTES 32U
+/* Provisional PBKDF2-HMAC-SHA-256 iteration count. V2-041 has not yet run the
+ * ESP32-S3R8 hardware benchmark that must select the frozen value (target
+ * approximately 250-500 ms derivation time); this number is NOT that frozen
+ * result and must be replaced once the benchmark lands before V2-040/V2-041
+ * are claimed complete. */
 #define AUTH_PBKDF2_ITERATIONS 120000U
+/* Explicit V2 alias for call sites (setup/provisioning) that derive password
+ * material for the V2 device-settings record, so it is unambiguous which
+ * value they depend on and why it is not yet final. */
+#define AUTH_V2_PBKDF2_ITERATIONS_PROVISIONAL AUTH_PBKDF2_ITERATIONS
 #define AUTH_PASSWORD_MIN_BYTES 12U
 #define AUTH_PASSWORD_MAX_BYTES 128U
 #define AUTH_TOKEN_HEX_BYTES ((APP_SESSION_TOKEN_BYTES * 2U) + 1U)

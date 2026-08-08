@@ -7,6 +7,7 @@
 #include "app_error.h"
 #include "esp_http_server.h"
 #include "macro_executor.h"
+#include "setup_contract_v2.h"
 #include "usb_keyboard.h"
 #include "web_api_response.h"
 #include "web_server.h"
@@ -19,6 +20,10 @@
 
 extern web_server_config_t server_configuration;
 extern web_adapter_lifecycle_t server_lifecycle;
+/* Owns the one-time setup code for the lifetime of setup mode. web_server_start()
+ * initializes it (and wipes the plaintext copy in server_configuration) when
+ * starting in WEB_SERVER_MODE_SETUP; setup_submit_handler() is the only reader. */
+extern app_v2_setup_session_t setup_session;
 
 const char *usb_state_string(usb_keyboard_state_t state);
 const char *wifi_state_string(wifi_ap_state_t state);
