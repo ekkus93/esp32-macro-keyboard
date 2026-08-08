@@ -10,7 +10,7 @@ static void test_password_boundaries(void) {
     TEST_CHECK(auth_core_password_create(&core, password, 11U, &record) ==
                APP_ERROR_INVALID_ARGUMENT);
     TEST_CHECK(auth_core_password_create(&core, password, 12U, &record) == APP_ERROR_NONE);
-    TEST_CHECK_EQ_U64(120000U, record.iterations);
+    TEST_CHECK_EQ_U64(AUTH_PBKDF2_ITERATIONS, record.iterations);
     static const uint8_t expected_salt[AUTH_SALT_BYTES] = {
         0x75U, 0xcdU, 0x25U, 0x4bU, 0x84U, 0xe2U, 0xeaU, 0xf2U,
         0xa6U, 0x81U, 0x20U, 0x67U, 0x43U, 0x34U, 0xb2U, 0x6eU,

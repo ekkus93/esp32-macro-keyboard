@@ -10,7 +10,12 @@
 
 #define AUTH_SALT_BYTES 16U
 #define AUTH_HASH_BYTES 32U
-#define AUTH_PBKDF2_ITERATIONS 120000U
+/* Measured on the reference ESP32-S3R8 (Aug 2026): 5500 iterations gave a
+ * 436.6ms median / 496.8ms worst-case PBKDF2-HMAC-SHA-256 verify, the
+ * highest of the measured candidates that stays under the 500ms target
+ * ceiling. See docs/implementation-v2/V2_041_PBKDF2_BENCHMARK_2026-08-08.md
+ * for the full candidate sweep and raw PBKDF2_BENCH data. */
+#define AUTH_PBKDF2_ITERATIONS 5500U
 #define AUTH_PASSWORD_MIN_BYTES 12U
 #define AUTH_PASSWORD_MAX_BYTES 128U
 #define AUTH_TOKEN_HEX_BYTES ((APP_SESSION_TOKEN_BYTES * 2U) + 1U)

@@ -87,7 +87,7 @@ static void test_password_verification_boundaries(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          auth_core_password_verify(&core, password, 12U, &record, &matches));
     password[5] = 'p';
-    record.iterations = 119999U;
+    record.iterations = AUTH_PBKDF2_ITERATIONS - 1U;
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          auth_core_password_verify(&core, password, 12U, &record, &matches));
 }
@@ -125,7 +125,7 @@ static void test_password_verify_result_matrix(void) {
     fake.derive_fail = false;
 
     auth_password_record_t corrupt = record;
-    corrupt.iterations = 119999U;
+    corrupt.iterations = AUTH_PBKDF2_ITERATIONS - 1U;
     matches = true;
     TEST_CHECK_APP_ERROR(
         APP_ERROR_INVALID_ARGUMENT,
