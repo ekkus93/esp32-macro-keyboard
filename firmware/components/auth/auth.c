@@ -114,6 +114,10 @@ app_error_code_t auth_session_logout(const char *session_token) {
     return auth_core_session_logout(&auth_core, session_token);
 }
 
+app_error_code_t auth_session_logout_all(void) {
+    return auth_core_session_logout_all(&auth_core);
+}
+
 app_error_code_t auth_login_attempt_allowed(uint32_t source_ipv4,
                                             uint32_t *out_retry_after_seconds) {
     return auth_core_login_attempt_allowed(&auth_core, source_ipv4, out_retry_after_seconds);

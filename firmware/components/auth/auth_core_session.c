@@ -196,3 +196,15 @@ app_error_code_t auth_core_session_logout(auth_core_t *core, const char *session
     }
     return result;
 }
+
+app_error_code_t auth_core_session_logout_all(auth_core_t *core) {
+    if (core == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const app_error_code_t lock_result = auth_core_lock(core);
+    if (lock_result != APP_ERROR_NONE) {
+        return lock_result;
+    }
+    memset(core->sessions, 0, sizeof(core->sessions));
+    return auth_core_unlock(core) == APP_ERROR_NONE ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
+}

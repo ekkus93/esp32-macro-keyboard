@@ -81,8 +81,7 @@ static void test_session_token_formats_and_failures(void) {
     auth_core_t rebooted_core;
     init_core(&rebooted_core, &fake);
     TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
-                         auth_core_session_validate(&rebooted_core,
-                                                    reboot_session.session_token));
+                         auth_core_session_validate(&rebooted_core, reboot_session.session_token));
 
     fake_reset(&fake);
     init_core(&core, &fake);
@@ -100,4 +99,50 @@ static void test_session_token_formats_and_failures(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, auth_core_session_create(&core, &failed));
     TEST_CHECK_EQ_BUFFER(zeros, &failed, sizeof(failed));
     TEST_CHECK_EQ_BUFFER(sessions_before_failure, core.sessions, sizeof(core.sessions));
+}
+
+/* SPEC_V2.md §13.12: "reset-settings" and "factory-reset" both "invalidate all
+ * sessions" without being handed any one caller's token. */
+static void test_session_logout_all(void) {
+    auth_fake_t fake;
+    fake_reset(&fake);
+    auth_core_t core;
+    init_core(&core, &fake);
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, auth_core_session_logout_all(NULL));
+
+    /* An empty table is a harmless no-op. */
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_session_logout_all(&core));
+
+    auth_session_view_t sessions[APP_SESSION_TABLE_MAX];
+    for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
+        fake.now_us = (uint64_t)index;
+        TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_session_create(&core, &sessions[index]));
+    }
+    for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
+        TEST_CHECK(core.sessions[index].active);
+    }
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_session_logout_all(&core));
+    for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
+        TEST_CHECK(!core.sessions[index].active);
+    }
+    for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
+        TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
+                             auth_core_session_validate(&core, sessions[index].session_token));
+    }
+
+    /* A locking failure leaves every session exactly as it was. */
+    for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
+        fake.now_us = (uint64_t)(index + 100U);
+        TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_session_create(&core, &sessions[index]));
+    }
+    fake_call_log_fail_on(&fake.calls, "lock", 1U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, auth_core_session_logout_all(&core));
+    fake.calls.failure_name = NULL;
+    fake.calls.failure_occurrence = 0U;
+    fake.calls.failure_seen = 0U;
+    for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
+        TEST_CHECK(core.sessions[index].active);
+    }
 }
