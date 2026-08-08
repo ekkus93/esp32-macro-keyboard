@@ -8,6 +8,7 @@ idf_component_register(
     PRIV_INCLUDE_DIRS
     "."
     REQUIRES
+    app_contracts_v2
     macro_model
     macro_parser
     usb_keyboard

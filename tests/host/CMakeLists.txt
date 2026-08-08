@@ -110,6 +110,7 @@ target_include_directories(
             ../../firmware/components/macro_parser/include
             ../../firmware/components/macro_executor/include
             ../../firmware/components/macro_executor
+            ../../firmware/components/app_contracts_v2/include
 )
 register_host_test(macro_executor_tests macro_executor executor)
 

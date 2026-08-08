@@ -19,6 +19,16 @@ typedef struct {
     uint32_t now_ms;
     size_t wait_count;
     size_t cancel_on_wait;
+    /* When non-zero, calls macro_executor_engine_confirm() on the wait_ms call
+     * whose 1-based ordinal equals this value -- the confirmation-flow analogue
+     * of cancel_on_wait. */
+    size_t confirm_on_wait;
+    /* When true, a second macro_executor_engine_confirm() call is made
+     * immediately after the confirm_on_wait one and its result captured in
+     * second_confirm_result, so a test can observe the idempotent-conflict
+     * outcome without a second thread. */
+    bool capture_second_confirm;
+    app_error_code_t second_confirm_result;
     size_t wait_failure_on;
     app_error_code_t wait_failure_result;
     uint32_t extra_advance_on_wait_ms;
@@ -50,5 +60,6 @@ void executor_assert_relevant_call(const executor_fake_t *fake, size_t ordinal, 
 void executor_run_validation_tests(void);
 void executor_run_execution_tests(void);
 void executor_run_terminal_tests(void);
+void executor_run_confirmation_tests(void);
 
 #endif

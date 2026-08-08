@@ -286,6 +286,10 @@ app_error_code_t macro_executor_cancel(void) {
     return macro_executor_engine_cancel(&engine);
 }
 
+app_error_code_t macro_executor_confirm(void) {
+    return macro_executor_engine_confirm(&engine);
+}
+
 macro_execution_status_t macro_executor_get_status(void) {
     return macro_executor_engine_get_status(&engine);
 }
