@@ -20,8 +20,13 @@ static void expect_absent(const char *path) {
 
 static void test_active_routes(void) {
     expect_route("/api/v1/auth/session", WEB_API_ROUTE_AUTH_SESSION);
+    expect_route("/api/v1/auth/login", WEB_API_ROUTE_AUTH_LOGIN);
+    expect_route("/api/v1/auth/logout", WEB_API_ROUTE_AUTH_LOGOUT);
+    expect_route("/api/v1/status", WEB_API_ROUTE_STATUS);
+    expect_route("/api/v1/limits", WEB_API_ROUTE_LIMITS);
     expect_route("/api/v1/blob", WEB_API_ROUTE_BLOB_COLLECTION);
     expect_route("/api/v1/blob/7", WEB_API_ROUTE_BLOB_ITEM);
+    expect_route("/api/v1/send", WEB_API_ROUTE_SEND);
     expect_route("/api/v1/settings", WEB_API_ROUTE_SETTINGS);
     expect_route("/api/v1/settings/change-password", WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD);
     expect_route("/api/v1/device/restart", WEB_API_ROUTE_DEVICE_RESTART);
@@ -96,6 +101,29 @@ static void test_method_and_body_policy(void) {
         web_api_route_allows_method(WEB_API_ROUTE_DEVICE_FACTORY_RESET, WEB_API_METHOD_POST));
     TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_UNKNOWN, WEB_API_METHOD_GET));
 
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_STATUS, WEB_API_METHOD_GET));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_STATUS, WEB_API_METHOD_POST));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_STATUS, WEB_API_METHOD_PUT));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_STATUS, WEB_API_METHOD_DELETE));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_LIMITS, WEB_API_METHOD_GET));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_LIMITS, WEB_API_METHOD_POST));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_AUTH_LOGIN, WEB_API_METHOD_POST));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_AUTH_LOGIN, WEB_API_METHOD_GET));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_AUTH_LOGOUT, WEB_API_METHOD_POST));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_AUTH_LOGOUT, WEB_API_METHOD_GET));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SEND, WEB_API_METHOD_POST));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SEND, WEB_API_METHOD_GET));
+    TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SEND, WEB_API_METHOD_DELETE));
+    TEST_CHECK(!web_api_route_allows_method(WEB_API_ROUTE_SEND, WEB_API_METHOD_PUT));
+
+    TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_STATUS, WEB_API_METHOD_GET));
+    TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_LIMITS, WEB_API_METHOD_GET));
+    TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_AUTH_LOGIN, WEB_API_METHOD_POST));
+    TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_AUTH_LOGOUT, WEB_API_METHOD_POST));
+    TEST_CHECK(web_api_route_requires_body(WEB_API_ROUTE_SEND, WEB_API_METHOD_POST));
+    TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_SEND, WEB_API_METHOD_GET));
+    TEST_CHECK(!web_api_route_requires_body(WEB_API_ROUTE_SEND, WEB_API_METHOD_DELETE));
+
     /* WEB_API_ROUTE_SETUP: reachable only once provisioned (SPEC 13.4), where
      * GET answers 404 and POST answers 409 -- see web_api_administration.c. */
     TEST_CHECK(web_api_route_allows_method(WEB_API_ROUTE_SETUP, WEB_API_METHOD_GET));
@@ -127,6 +155,13 @@ static void test_session_confirmation_and_worker_policy(void) {
     TEST_CHECK(!web_api_route_requires_session(WEB_API_ROUTE_UNKNOWN));
     /* SPEC 13.4: the 404/409 setup response must not require a session. */
     TEST_CHECK(!web_api_route_requires_session(WEB_API_ROUTE_SETUP));
+    TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_STATUS));
+    TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_LIMITS));
+    TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_SEND));
+    TEST_CHECK(web_api_route_requires_session(WEB_API_ROUTE_AUTH_LOGOUT));
+    /* contracts/v2/api/routes.json: login is "none-provisioned-only" -- it
+     * establishes a session, so it cannot itself require one. */
+    TEST_CHECK(!web_api_route_requires_session(WEB_API_ROUTE_AUTH_LOGIN));
 
     TEST_CHECK(
         web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD));
