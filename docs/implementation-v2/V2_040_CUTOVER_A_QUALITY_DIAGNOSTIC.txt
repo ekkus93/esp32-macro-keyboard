@@ -1,0 +1,25 @@
+source_sha=7421ef49905e4796a96971cb61cc2d24d6880b78
+exit_status=1
+
+Toolchain verified: ESP-IDF v5.5.5, target esp32s3, Node.js v24.18.0
+firmware/components/app_core/app_core.c:80:53: error: code should be clang-formatted [-Wclang-format-violations]
+static app_error_code_t adapter_setup_code_generate(
+                                                    ^
+firmware/components/app_core/app_core.c:81:19: error: code should be clang-formatted [-Wclang-format-violations]
+    void *context, char out_code[APP_V2_SETUP_CODE_BUFFER_BYTES]) {
+                  ^
+firmware/components/app_core/app_core_ops.h:53:45: error: code should be clang-formatted [-Wclang-format-violations]
+    app_error_code_t (*setup_code_generate)(
+                                            ^
+firmware/components/app_core/app_core_ops.h:54:23: error: code should be clang-formatted [-Wclang-format-violations]
+        void *context, char out_code[APP_V2_SETUP_CODE_BUFFER_BYTES]);
+                      ^
+tests/host/test_app_core.c:190:60: error: code should be clang-formatted [-Wclang-format-violations]
+        TEST_CHECK(snprintf(fixture->observed_station_ssid,
+                                                           ^
+tests/host/test_app_core.c:191:68: error: code should be clang-formatted [-Wclang-format-violations]
+                            sizeof(fixture->observed_station_ssid), "%s",
+                                                                   ^
+tests/host/test_app_core.c:191:74: error: code should be clang-formatted [-Wclang-format-violations]
+                            sizeof(fixture->observed_station_ssid), "%s",
+                                                                         ^
