@@ -14,3 +14,20 @@ It establishes the fail-closed runtime boundary required before the transactiona
 - legacy normal-mode configuration mutations are explicitly unavailable rather than allowed to write state V2 startup would ignore.
 
 `POST /api/v1/setup` remains deliberately fail-closed with `503` in this slice. The next slice replaces that temporary explicit failure with the already-reviewed V2 setup contract and transactional `device_settings_replace()` flow. No V1-to-V2 migration, conversion, alias, dual read, dual write, or fallback is introduced.
+
+## Gate history
+
+The runtime cutover first reached `master` at `371c51828a5d13b5a4c89d38faaa4b947ec7c225`.
+
+On that exact SHA:
+
+- Browser Tests passed;
+- the complete Host Tests workflow passed;
+- Device Test Build passed, including the ESP32-S3 device-test firmware build;
+- Quality stopped before authoritative source checks because the live npm advisory set changed: the previous reviewed ESLint findings disappeared and a new `nanoid <3.3.17` high-severity finding appeared.
+
+The audit drift was not allowlisted. A self-removing repair workflow ran `npm audit fix --package-lock-only` without `--force`, updated only `nanoid` from `3.3.16` to `3.3.18`, reinstalled from the resulting lockfile, and required a clean live `npm audit`. The permanent dependency repair is `69c74b5031718b9322f4432df5c8553cdb660108`.
+
+Because the old reviewed audit exceptions were no longer needed, a second self-removing materializer replaced the exception-based audit policy with a strict-zero policy: any npm vulnerability finding at any severity now fails CI. Its regression suite covers info, low, moderate, high, critical, malformed reports, audit errors, and count mismatches. The permanent strict-policy commit is `11357f957cdfd98aa4722e2d386495999f0eac54`.
+
+The documentation commit containing this evidence is the final Cutover A candidate and must pass Browser Tests, all Host Tests jobs, Device Test Build, and Quality on its own exact SHA before Cutover B begins.
