@@ -1,0 +1,262 @@
+name: V2 strict npm audit policy
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/v2-strict-npm-audit-policy.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: true
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Replace reviewed exception with strict-zero policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > scripts/check-npm-audit.py <<'PY'
+          #!/usr/bin/env python3
+          """Fail closed unless npm audit reports zero vulnerabilities."""
+
+          from __future__ import annotations
+
+          import argparse
+          import json
+          import subprocess
+          import sys
+          from pathlib import Path
+          from typing import Any
+
+          SEVERITIES = ("info", "low", "moderate", "high", "critical", "total")
+
+
+          def load_json(path: Path) -> dict[str, Any]:
+              value = json.loads(path.read_text(encoding="utf-8"))
+              if not isinstance(value, dict):
+                  raise ValueError(f"{path}: expected a JSON object")
+              return value
+
+
+          def run_audit() -> dict[str, Any]:
+              completed = subprocess.run(
+                  ["npm", "audit", "--json"],
+                  check=False,
+                  capture_output=True,
+                  text=True,
+              )
+              if not completed.stdout.strip():
+                  if completed.stderr:
+                      print(completed.stderr, file=sys.stderr)
+                  raise RuntimeError("npm audit produced no JSON report")
+              value = json.loads(completed.stdout)
+              if not isinstance(value, dict):
+                  raise ValueError("npm audit did not return a JSON object")
+              return value
+
+
+          def read_counts(report: dict[str, Any]) -> dict[str, int]:
+              if "error" in report:
+                  raise ValueError(f"npm audit returned an error object: {report['error']!r}")
+              metadata = report.get("metadata")
+              if not isinstance(metadata, dict):
+                  raise ValueError("audit metadata must be an object")
+              raw_counts = metadata.get("vulnerabilities")
+              if not isinstance(raw_counts, dict):
+                  raise ValueError("audit metadata.vulnerabilities must be an object")
+              counts: dict[str, int] = {}
+              for severity in SEVERITIES:
+                  value = raw_counts.get(severity)
+                  if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                      raise ValueError(f"audit count {severity} must be a non-negative integer")
+                  counts[severity] = value
+              return counts
+
+
+          def read_findings(report: dict[str, Any]) -> dict[str, dict[str, Any]]:
+              raw_findings = report.get("vulnerabilities")
+              if not isinstance(raw_findings, dict):
+                  raise ValueError("audit vulnerabilities must be an object")
+              findings: dict[str, dict[str, Any]] = {}
+              for name, finding in raw_findings.items():
+                  if not isinstance(name, str) or not isinstance(finding, dict):
+                      raise ValueError("every audit finding must be a named object")
+                  severity = finding.get("severity")
+                  if severity not in {"info", "low", "moderate", "high", "critical"}:
+                      raise ValueError(f"{name}: invalid or missing severity")
+                  findings[name] = finding
+              return findings
+
+
+          def validate_policy(report: dict[str, Any]) -> str:
+              counts = read_counts(report)
+              findings = read_findings(report)
+              severity_names = {
+                  severity: {
+                      name for name, finding in findings.items() if finding["severity"] == severity
+                  }
+                  for severity in ("info", "low", "moderate", "high", "critical")
+              }
+              for severity, names in severity_names.items():
+                  if counts[severity] != len(names):
+                      raise ValueError(
+                          f"npm audit {severity} count does not match finding set: "
+                          f"count={counts[severity]}, names={sorted(names)}"
+                      )
+              if counts["total"] != len(findings):
+                  raise ValueError(
+                      "npm audit total count does not match finding set: "
+                      f"count={counts['total']}, findings={len(findings)}"
+                  )
+              if findings:
+                  details = {
+                      name: {
+                          "severity": finding["severity"],
+                          "range": finding.get("range"),
+                          "fixAvailable": finding.get("fixAvailable"),
+                      }
+                      for name, finding in sorted(findings.items())
+                  }
+                  raise ValueError(f"npm audit contains vulnerability findings: {details!r}")
+              return "npm audit policy: no findings"
+
+
+          def main() -> int:
+              parser = argparse.ArgumentParser()
+              parser.add_argument("--input", type=Path, help="Read npm audit JSON from this path")
+              args = parser.parse_args()
+              try:
+                  report = load_json(args.input) if args.input is not None else run_audit()
+                  print(validate_policy(report))
+              except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as error:
+                  print(f"npm audit policy failed: {error}", file=sys.stderr)
+                  return 1
+              return 0
+
+
+          if __name__ == "__main__":
+              raise SystemExit(main())
+          PY
+          cat > tests/scripts/test-check-npm-audit.py <<'PY'
+          #!/usr/bin/env python3
+          """Regression tests for the strict-zero npm audit policy."""
+
+          from __future__ import annotations
+
+          import importlib.util
+          from pathlib import Path
+          from typing import Any
+
+          REPO_ROOT = Path(__file__).resolve().parents[2]
+          MODULE_PATH = REPO_ROOT / "scripts" / "check-npm-audit.py"
+          SPEC = importlib.util.spec_from_file_location("check_npm_audit", MODULE_PATH)
+          if SPEC is None or SPEC.loader is None:
+              raise SystemExit("could not load check-npm-audit.py")
+          MODULE = importlib.util.module_from_spec(SPEC)
+          SPEC.loader.exec_module(MODULE)
+
+
+          def clean_report() -> dict[str, Any]:
+              return {
+                  "metadata": {
+                      "vulnerabilities": {
+                          "info": 0,
+                          "low": 0,
+                          "moderate": 0,
+                          "high": 0,
+                          "critical": 0,
+                          "total": 0,
+                      }
+                  },
+                  "vulnerabilities": {},
+              }
+
+
+          def report_with_finding(severity: str) -> dict[str, Any]:
+              report = clean_report()
+              report["metadata"]["vulnerabilities"][severity] = 1
+              report["metadata"]["vulnerabilities"]["total"] = 1
+              report["vulnerabilities"]["example-package"] = {
+                  "severity": severity,
+                  "nodes": ["node_modules/example-package"],
+                  "range": "<1.0.0",
+                  "fixAvailable": True,
+                  "via": [{"source": 999999}],
+              }
+              return report
+
+
+          def expect_failure(report: dict[str, Any]) -> None:
+              try:
+                  MODULE.validate_policy(report)
+              except ValueError:
+                  return
+              raise AssertionError("policy unexpectedly accepted invalid audit data")
+
+
+          def main() -> None:
+              assert MODULE.validate_policy(clean_report()) == "npm audit policy: no findings"
+              for severity in ("info", "low", "moderate", "high", "critical"):
+                  expect_failure(report_with_finding(severity))
+
+              network_error = {"error": {"code": "ENETUNREACH", "summary": "offline"}}
+              expect_failure(network_error)
+              expect_failure({"vulnerabilities": {}})
+
+              count_mismatch = clean_report()
+              count_mismatch["metadata"]["vulnerabilities"]["high"] = 1
+              expect_failure(count_mismatch)
+
+              total_mismatch = clean_report()
+              total_mismatch["metadata"]["vulnerabilities"]["total"] = 1
+              expect_failure(total_mismatch)
+
+              malformed_finding = clean_report()
+              malformed_finding["vulnerabilities"]["example-package"] = "not-an-object"
+              malformed_finding["metadata"]["vulnerabilities"]["total"] = 1
+              expect_failure(malformed_finding)
+
+              invalid_severity = clean_report()
+              invalid_severity["vulnerabilities"]["example-package"] = {
+                  "severity": "severe"
+              }
+              invalid_severity["metadata"]["vulnerabilities"]["total"] = 1
+              expect_failure(invalid_severity)
+
+              print("npm audit policy tests passed")
+
+
+          if __name__ == "__main__":
+              main()
+          PY
+          chmod +x scripts/check-npm-audit.py tests/scripts/test-check-npm-audit.py
+          python3 tests/scripts/test-check-npm-audit.py
+          cd webapp
+          npm ci
+          npm run audit:ci
+          cd ..
+          git diff --check
+      - name: Commit strict policy and remove materializer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Phillip Chin"
+          git config user.email "ekkus93@gmail.com"
+          git add scripts/check-npm-audit.py tests/scripts/test-check-npm-audit.py
+          git rm .github/workflows/v2-strict-npm-audit-policy.yml
+          git diff --cached --check
+          git commit -m "Require zero npm audit findings"
+          git push origin HEAD:master
