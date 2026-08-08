@@ -187,9 +187,8 @@ static app_error_code_t fake_wifi_start(void *context,
     if (configuration->station_configured) {
         TEST_CHECK(configuration->station_ssid != NULL);
         TEST_CHECK(configuration->station_passphrase != NULL);
-        TEST_CHECK(snprintf(fixture->observed_station_ssid,
-                            sizeof(fixture->observed_station_ssid), "%s",
-                            configuration->station_ssid) >= 0);
+        TEST_CHECK(snprintf(fixture->observed_station_ssid, sizeof(fixture->observed_station_ssid),
+                            "%s", configuration->station_ssid) >= 0);
     }
     return stage_result(fixture, FAIL_WIFI_START);
 }

@@ -77,8 +77,8 @@ static bool adapter_setup_random_u32(void *context, uint32_t *out_value) {
     return true;
 }
 
-static app_error_code_t adapter_setup_code_generate(
-    void *context, char out_code[APP_V2_SETUP_CODE_BUFFER_BYTES]) {
+static app_error_code_t adapter_setup_code_generate(void *context,
+                                                    char out_code[APP_V2_SETUP_CODE_BUFFER_BYTES]) {
     (void)context;
     if (out_code == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;

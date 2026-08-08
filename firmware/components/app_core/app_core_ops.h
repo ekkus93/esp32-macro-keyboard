@@ -50,8 +50,8 @@ typedef struct {
     app_error_code_t (*settings_init)(void *context);
     app_error_code_t (*settings_read)(void *context, app_v2_device_settings_t *out_settings);
     app_error_code_t (*bootstrap_derive)(void *context, provisioning_bootstrap_t *out_bootstrap);
-    app_error_code_t (*setup_code_generate)(
-        void *context, char out_code[APP_V2_SETUP_CODE_BUFFER_BYTES]);
+    app_error_code_t (*setup_code_generate)(void *context,
+                                            char out_code[APP_V2_SETUP_CODE_BUFFER_BYTES]);
     app_error_code_t (*storage_mount)(void *context);
     app_error_code_t (*auth_init)(void *context);
     app_error_code_t (*usb_init)(void *context);
