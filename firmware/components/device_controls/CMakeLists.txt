@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
     "device_controls.c"
     "device_controls_logic.c"
+    "device_controls_reset.c"
     INCLUDE_DIRS
     "include"
     PRIV_INCLUDE_DIRS
@@ -10,6 +11,12 @@ idf_component_register(
     macro_model
     driver
     support
+    app_contracts_v2
+    device_settings
+    auth
+    storage
+    esp_system
+    esp_timer
 )
 
 target_compile_options(
