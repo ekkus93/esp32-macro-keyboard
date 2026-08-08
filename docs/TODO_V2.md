@@ -449,13 +449,13 @@ knowledge in firmware.
 
 ## V2-043 — Device UI preferences
 
-- [ ] Implement NVS-backed Quick Send/Always Preview mode.
-- [ ] Default to Quick Send.
-- [ ] Implement advisory snapshot retention target, default five.
-- [ ] Implement source-preview setting, default hidden.
-- [ ] Implement opaque `lastSelectedPackageId`.
-- [ ] Suppress duplicate NVS writes when a value has not changed.
-- [ ] Ensure changing UI preferences never creates or changes a repository blob.
+- [x] Implement NVS-backed Quick Send/Always Preview mode.
+- [x] Default to Quick Send.
+- [x] Implement advisory snapshot retention target, default five.
+- [x] Implement source-preview setting, default hidden.
+- [x] Implement opaque `lastSelectedPackageId`.
+- [x] Suppress duplicate NVS writes when a value has not changed.
+- [x] Ensure changing UI preferences never creates or changes a repository blob.
 
 ## V2-044 — Wi-Fi and reset semantics
 

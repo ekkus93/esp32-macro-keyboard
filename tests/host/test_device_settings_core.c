@@ -245,12 +245,86 @@ static void test_reset_preserves_credentials_and_blob_counter(void) {
     TEST_CHECK(reset.station_passphrase[0] == '\0');
 }
 
+static void test_duplicate_write_suppressed_after_prior_value(void) {
+    fake_settings_store_t fake;
+    device_settings_core_t core;
+    init_core(&core, &fake);
+
+    app_v2_device_settings_t configured = configured_settings();
+    bool changed = false;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         device_settings_core_replace(&core, &configured, &changed));
+    TEST_CHECK(changed);
+    TEST_CHECK_EQ_U64(1U, fake.replace_calls);
+
+    /* Replaying the exact same settings a second time must not touch the
+     * durable store again, even though a value has previously been written
+     * (unlike the all-defaults case already covered above). */
+    changed = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         device_settings_core_replace(&core, &configured, &changed));
+    TEST_CHECK(!changed);
+    TEST_CHECK_EQ_U64(1U, fake.replace_calls);
+
+    /* A copy built independently (not the same struct instance) with
+     * identical field values must also be recognized as unchanged. */
+    app_v2_device_settings_t identical_copy = configured;
+    changed = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         device_settings_core_replace(&core, &identical_copy, &changed));
+    TEST_CHECK(!changed);
+    TEST_CHECK_EQ_U64(1U, fake.replace_calls);
+
+    /* Changing exactly one preference field does trigger a write. */
+    app_v2_device_settings_t modified = configured;
+    modified.send_mode = APP_V2_SEND_MODE_QUICK;
+    changed = false;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_replace(&core, &modified, &changed));
+    TEST_CHECK(changed);
+    TEST_CHECK_EQ_U64(2U, fake.replace_calls);
+}
+
+static void test_last_selected_package_id_is_opaque(void) {
+    fake_settings_store_t fake;
+    device_settings_core_t core;
+    init_core(&core, &fake);
+
+    app_v2_device_settings_t settings = configured_settings();
+    /* This UUID identifies nothing: no repository, package, or blob in this
+     * test (or in firmware at all -- v2 firmware carries no repository
+     * model) ever exists with this ID. Firmware must accept, store, and
+     * return it purely as an opaque, syntactically-checked string. */
+    TEST_CHECK(snprintf(settings.last_selected_package_id,
+                        sizeof(settings.last_selected_package_id), "%s",
+                        "ffffffff-ffff-4fff-bfff-ffffffffffff") > 0);
+    bool changed = false;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_replace(&core, &settings, &changed));
+    TEST_CHECK(changed);
+
+    app_v2_device_settings_t reloaded;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_load(&core, &reloaded));
+    TEST_CHECK(strcmp("ffffffff-ffff-4fff-bfff-ffffffffffff", reloaded.last_selected_package_id) ==
+               0);
+
+    /* Clearing it back to null (empty string) is equally accepted -- there is
+     * no membership check against any package/repository state to satisfy or
+     * violate either way. */
+    settings.last_selected_package_id[0] = '\0';
+    changed = false;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_replace(&core, &settings, &changed));
+    TEST_CHECK(changed);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_load(&core, &reloaded));
+    TEST_CHECK(reloaded.last_selected_package_id[0] == '\0');
+}
+
 int main(void) {
     test_init_validation();
     test_missing_record_uses_defaults_without_write();
     test_load_valid_and_reject_corruption();
     test_replace_and_failure_preservation();
     test_reset_preserves_credentials_and_blob_counter();
+    test_duplicate_write_suppressed_after_prior_value();
+    test_last_selected_package_id_is_opaque();
     puts("V2 device settings store tests passed");
     return EXIT_SUCCESS;
 }
