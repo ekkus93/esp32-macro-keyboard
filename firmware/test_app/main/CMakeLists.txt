@@ -16,6 +16,7 @@ idf_component_register(
     macro_executor
     auth
     usb_keyboard
+    WHOLE_ARCHIVE
 )
 
 target_compile_options(
