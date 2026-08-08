@@ -137,6 +137,7 @@ app_error_code_t web_api_parse_path(const char *uri, web_api_path_t *out_path) {
         {"/api/v1/device/reset-settings", WEB_API_ROUTE_DEVICE_RESET_SETTINGS},
         {"/api/v1/device/factory-reset", WEB_API_ROUTE_DEVICE_FACTORY_RESET},
         {"/api/v1/diagnostics", WEB_API_ROUTE_DIAGNOSTICS_FULL},
+        {"/api/v1/setup", WEB_API_ROUTE_SETUP},
     };
     for (size_t index = 0U; index < sizeof(routes) / sizeof(routes[0]); ++index) {
         if (strcmp(uri, routes[index].path) == 0) {
@@ -173,6 +174,8 @@ bool web_api_route_allows_method(web_api_route_t route, web_api_method_t method)
     case WEB_API_ROUTE_DEVICE_RESET_SETTINGS:
     case WEB_API_ROUTE_DEVICE_FACTORY_RESET:
         return method == WEB_API_METHOD_POST;
+    case WEB_API_ROUTE_SETUP:
+        return method == WEB_API_METHOD_GET || method == WEB_API_METHOD_POST;
     case WEB_API_ROUTE_UNKNOWN:
     default:
         return false;
@@ -183,14 +186,21 @@ bool web_api_route_requires_body(web_api_route_t route, web_api_method_t method)
     if (method == WEB_API_METHOD_GET || route == WEB_API_ROUTE_DEVICE_RESTART) {
         return false;
     }
+    /* WEB_API_ROUTE_SETUP is included so a POST /api/v1/setup submission body
+     * on an already-provisioned device is accepted rather than rejected with
+     * 422 before it can reach the 409 conflict response (SPEC 13.4); the body
+     * itself is never parsed. */
     return route == WEB_API_ROUTE_BLOB_COLLECTION || route == WEB_API_ROUTE_SETTINGS ||
            route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD ||
            route == WEB_API_ROUTE_DEVICE_RESET_SETTINGS ||
-           route == WEB_API_ROUTE_DEVICE_FACTORY_RESET;
+           route == WEB_API_ROUTE_DEVICE_FACTORY_RESET || route == WEB_API_ROUTE_SETUP;
 }
 
 bool web_api_route_requires_session(web_api_route_t route) {
-    return route != WEB_API_ROUTE_UNKNOWN;
+    /* WEB_API_ROUTE_SETUP must answer 404/409 without a session: SPEC 13.4
+     * requires the same unauthenticated conflict behavior whether or not the
+     * caller ever logged in. */
+    return route != WEB_API_ROUTE_UNKNOWN && route != WEB_API_ROUTE_SETUP;
 }
 
 bool web_api_physical_confirmation_required(web_api_route_t route, bool confirmation_enabled) {

@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "api_contracts_v2.h"
 #include "app_error.h"
 #include "setup_contract_v2.h"
 #include "web_server.h"
@@ -13,6 +14,12 @@
 #define WEB_HTTPD_TASK_STACK_BYTES 24576U
 
 static const httpd_uri_t normal_routes[] = {
+    /* /api/v1/setup is deliberately absent here (scripts/check-setup-route-
+     * isolation.sh enforces that): once provisioned, GET/POST /api/v1/setup
+     * fall through to the generic wildcard routes below and are answered by
+     * api_handler through the WEB_API_ROUTE_SETUP case in
+     * web_api_handle_administration(), which returns 404 / 409 per SPEC 13.4
+     * without requiring a session. */
     {.uri = "/api/v1/status", .method = HTTP_GET, .handler = status_handler},
     {.uri = "/api/v1/limits", .method = HTTP_GET, .handler = limits_handler},
     {.uri = "/api/v1/auth/login", .method = HTTP_POST, .handler = login_handler},
@@ -66,6 +73,20 @@ static bool setup_code_valid(const char *code) {
 
 static void clear_setup_configuration_secret(void) {
     memset(server_configuration.setup_code, 0, sizeof(server_configuration.setup_code));
+}
+
+/* server_configuration.setup_code is only the transport for the plaintext
+ * code from app_core; it is wiped immediately below. The persistent,
+ * one-time-consumable copy that setup_submit_handler() validates against for
+ * the rest of setup mode lives in `setup_session`. */
+static app_error_code_t initialize_setup_session(void) {
+    const app_v2_string_view_t code_view = {
+        .data = server_configuration.setup_code,
+        .length = strlen(server_configuration.setup_code),
+    };
+    return app_v2_setup_session_init(&setup_session, code_view) == APP_V2_SETUP_OK
+               ? APP_ERROR_NONE
+               : APP_ERROR_INVALID_ARGUMENT;
 }
 
 static int start_server_adapter(void *context, void **out_handle) {
@@ -134,6 +155,13 @@ app_error_code_t web_server_start(const web_server_config_t *configuration) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     server_configuration = *configuration;
+    memset(&setup_session, 0, sizeof(setup_session));
+    if (server_configuration.mode == WEB_SERVER_MODE_SETUP &&
+        initialize_setup_session() != APP_ERROR_NONE) {
+        clear_setup_configuration_secret();
+        memset(&server_configuration, 0, sizeof(server_configuration));
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
     const web_adapter_lifecycle_ops_t operations = server_lifecycle_ops();
     const route_table_t table = active_route_table();
     const app_error_code_t result =
@@ -143,6 +171,7 @@ app_error_code_t web_server_start(const web_server_config_t *configuration) {
     }
     if (result != APP_ERROR_NONE && server_lifecycle.handle == NULL) {
         memset(&server_configuration, 0, sizeof(server_configuration));
+        memset(&setup_session, 0, sizeof(setup_session));
     }
     return result;
 }
@@ -152,6 +181,7 @@ app_error_code_t web_server_stop(void) {
     const app_error_code_t result = web_adapter_lifecycle_stop(&server_lifecycle, &operations);
     if (result == APP_ERROR_NONE) {
         memset(&server_configuration, 0, sizeof(server_configuration));
+        memset(&setup_session, 0, sizeof(setup_session));
     }
     return result;
 }

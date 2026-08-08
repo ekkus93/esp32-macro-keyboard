@@ -170,8 +170,35 @@ static void test_fail_closed_ordering(void) {
     TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION, failure);
 }
 
+/* SPEC 13.4: GET/POST /api/v1/setup on a provisioned device must answer
+ * 404/409 without requiring a session -- unlike every other route in
+ * test_success_matrix(), which all require one. */
+static void test_setup_route_requires_no_session(void) {
+    fixture_t fixture = {
+        .missing = "Cookie",
+        .content_type = "application/json",
+    };
+    web_request_policy_ops_t ops = operations(&fixture);
+    web_request_policy_input_t policy = input(WEB_API_ROUTE_SETUP, WEB_API_METHOD_GET);
+    web_request_policy_result_t result = {0};
+    web_request_policy_failure_t failure = WEB_REQUEST_POLICY_FAILURE_NONE;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_request_policy_evaluate(&policy, &ops, &result, &failure));
+    TEST_CHECK_EQ_U64(0U, fixture.validation_calls);
+    TEST_CHECK_EQ_STRING("", result.session_token);
+
+    fixture = (fixture_t){.missing = "Cookie", .content_type = "application/json"};
+    ops = operations(&fixture);
+    policy = input(WEB_API_ROUTE_SETUP, WEB_API_METHOD_POST);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_request_policy_evaluate(&policy, &ops, &result, &failure));
+    TEST_CHECK_EQ_U64(0U, fixture.validation_calls);
+    TEST_CHECK_EQ_U64(0U, fixture.confirmation_calls);
+}
+
 int main(void) {
     test_success_matrix();
     test_fail_closed_ordering();
+    test_setup_route_requires_no_session();
     return 0;
 }

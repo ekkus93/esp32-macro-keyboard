@@ -13,6 +13,7 @@ idf_component_register(
     "web_server_blob.c"
     "web_server_static.c"
     "web_server_setup.c"
+    "web_server_setup_submit.c"
     "web_server_api.c"
     "web_server_async.c"
     "web_server_diagnostics.c"
@@ -40,6 +41,7 @@ idf_component_register(
     storage
     provisioning
     device_controls
+    device_settings
     support
     app_contracts_v2
     json
