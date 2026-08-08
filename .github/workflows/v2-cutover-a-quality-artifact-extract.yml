@@ -24,27 +24,56 @@ jobs:
       - name: Extract exact failed Quality artifact and self-remove
         shell: bash
         run: |
-          set -euo pipefail
+          set -u
           archive=/tmp/failed-quality.zip
+          headers=/tmp/failed-quality.headers
           out=/tmp/quality-artifact
+          report=docs/implementation-v2/V2_040_CUTOVER_A_QUALITY_FAILURE_2.txt
           mkdir -p "$out"
-          curl --fail --silent --show-error --location \
+
+          curl_status=0
+          http_code="$(curl --silent --show-error --location \
             --header "Authorization: Bearer $GH_TOKEN" \
             --header "X-GitHub-Api-Version: 2022-11-28" \
             --header "Accept: application/vnd.github+json" \
+            --dump-header "$headers" \
+            --write-out '%{http_code}' \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/9019302277/zip" \
-            --output "$archive"
-          unzip -q "$archive" -d "$out"
-          find "$out" -maxdepth 3 -type f -print
-          log_file="$(find "$out" -type f -print -quit)"
-          if [[ -z "$log_file" ]]; then
-            echo "error: failed Quality artifact contained no regular file" >&2
-            exit 1
+            --output "$archive")" || curl_status=$?
+
+          {
+            printf 'artifact_id=9019302277\n'
+            printf 'source_quality_run=31248449179\n'
+            printf 'curl_status=%s\n' "$curl_status"
+            printf 'http_code=%s\n' "$http_code"
+            printf 'archive_bytes=%s\n' "$(wc -c < "$archive" 2>/dev/null || printf 0)"
+            printf '\nresponse_headers:\n'
+            sed -E 's/^(set-cookie:).*/\1 [redacted]/I' "$headers" 2>/dev/null || true
+          } > "$report"
+
+          unzip_status=0
+          if [[ "$curl_status" -eq 0 && "$http_code" == "200" ]]; then
+            unzip -q "$archive" -d "$out" || unzip_status=$?
+            printf '\nunzip_status=%s\n' "$unzip_status" >> "$report"
+            if [[ "$unzip_status" -eq 0 ]]; then
+              find "$out" -maxdepth 3 -type f -print >> "$report"
+              log_file="$(find "$out" -type f -print -quit)"
+              if [[ -n "$log_file" ]]; then
+                printf '\n--- captured Quality log ---\n' >> "$report"
+                cat "$log_file" >> "$report"
+              fi
+            fi
+          else
+            printf '\nresponse_body_if_text:\n' >> "$report"
+            file "$archive" >> "$report" 2>&1 || true
+            if file "$archive" | grep -qiE 'text|json|xml|html'; then
+              cat "$archive" >> "$report"
+            fi
           fi
-          cp "$log_file" docs/implementation-v2/V2_040_CUTOVER_A_QUALITY_FAILURE_2.txt
+
           git config user.name "Phillip Chin"
           git config user.email "ekkus93@gmail.com"
-          git add docs/implementation-v2/V2_040_CUTOVER_A_QUALITY_FAILURE_2.txt
+          git add "$report"
           git rm .github/workflows/v2-cutover-a-quality-artifact-extract.yml
           git diff --cached --check
           git commit -m "Capture second Cutover A quality failure"
