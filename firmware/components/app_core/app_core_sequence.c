@@ -8,24 +8,25 @@
 #include "app_error.h"
 #include "app_operation_result.h"
 #include "device_controls.h"
-#include "provisioning.h"
+#include "device_settings_v2.h"
 #include "provisioning_bootstrap.h"
+#include "setup_contract_v2.h"
 #include "web_server.h"
 
 static bool operations_valid(const app_core_ops_t *operations) {
     return operations != NULL && operations->nvs_init != NULL &&
-           operations->provisioning_init != NULL && operations->provisioning_load != NULL &&
-           operations->bootstrap_derive != NULL && operations->storage_mount != NULL &&
-           operations->auth_init != NULL && operations->usb_init != NULL &&
-           operations->executor_init != NULL && operations->controls_init != NULL &&
-           operations->wifi_start != NULL && operations->http_start != NULL &&
-           operations->http_stop != NULL && operations->wifi_stop != NULL &&
-           operations->storage_unmount != NULL && operations->auth_deinit != NULL &&
-           operations->usb_deinit != NULL && operations->executor_deinit != NULL &&
-           operations->controls_deinit != NULL && operations->provisioning_deinit != NULL &&
-           operations->nvs_deinit != NULL && operations->http_owns_resources != NULL &&
-           operations->wifi_owns_resources != NULL && operations->storage_owns_mount != NULL &&
-           operations->provisioning_owns_resources != NULL && operations->set_indicator != NULL &&
+           operations->settings_init != NULL && operations->settings_read != NULL &&
+           operations->bootstrap_derive != NULL && operations->setup_code_generate != NULL &&
+           operations->storage_mount != NULL && operations->auth_init != NULL &&
+           operations->usb_init != NULL && operations->executor_init != NULL &&
+           operations->controls_init != NULL && operations->wifi_start != NULL &&
+           operations->http_start != NULL && operations->http_stop != NULL &&
+           operations->wifi_stop != NULL && operations->storage_unmount != NULL &&
+           operations->auth_deinit != NULL && operations->usb_deinit != NULL &&
+           operations->executor_deinit != NULL && operations->controls_deinit != NULL &&
+           operations->settings_deinit != NULL && operations->nvs_deinit != NULL &&
+           operations->http_owns_resources != NULL && operations->wifi_owns_resources != NULL &&
+           operations->storage_owns_mount != NULL && operations->set_indicator != NULL &&
            operations->secure_zero != NULL && operations->log_event != NULL;
 }
 
@@ -38,8 +39,6 @@ static void log_stage(const app_core_ops_t *operations, const char *stage,
         .cleanup_error = APP_ERROR_NONE,
         .cleanup_incomplete = false,
         .operation_id = 0U,
-        .ssid = NULL,
-        .ap_passphrase = NULL,
         .setup_code = NULL,
     };
     operations->log_event(operations->context, &event);
@@ -55,25 +54,20 @@ static void log_simple(const app_core_ops_t *operations, app_core_log_type_t typ
         .cleanup_error = cleanup,
         .cleanup_incomplete = cleanup_incomplete,
         .operation_id = 0U,
-        .ssid = NULL,
-        .ap_passphrase = NULL,
         .setup_code = NULL,
     };
     operations->log_event(operations->context, &event);
 }
 
-static void log_manufacturing_credentials(const app_core_ops_t *operations,
-                                          const provisioning_bootstrap_t *bootstrap) {
+static void log_setup_code(const app_core_ops_t *operations, const char *setup_code) {
     const app_core_log_event_t event = {
-        .type = APP_CORE_LOG_MANUFACTURING_CREDENTIALS,
+        .type = APP_CORE_LOG_SETUP_CODE,
         .stage = NULL,
         .primary_error = APP_ERROR_NONE,
         .cleanup_error = APP_ERROR_NONE,
         .cleanup_incomplete = false,
         .operation_id = 0U,
-        .ssid = bootstrap->ap_ssid,
-        .ap_passphrase = bootstrap->ap_passphrase,
-        .setup_code = bootstrap->setup_code,
+        .setup_code = setup_code,
     };
     operations->log_event(operations->context, &event);
 }
@@ -93,7 +87,7 @@ app_error_code_t app_core_map_nvs_result(app_core_nvs_result_t result) {
 
 typedef struct {
     bool nvs_initialized;
-    bool provisioning_initialized;
+    bool settings_initialized;
     bool storage_mounted;
     bool auth_initialized;
     bool usb_initialized;
@@ -104,16 +98,11 @@ typedef struct {
 } app_core_owned_t;
 
 typedef struct {
-    provisioning_config_t provisioning;
+    app_v2_device_settings_t settings;
     provisioning_bootstrap_t bootstrap;
+    char setup_code[APP_V2_SETUP_CODE_BUFFER_BYTES];
     web_server_config_t web;
 } app_core_startup_secrets_t;
-
-typedef struct {
-    const char *ssid;
-    const char *passphrase;
-    const web_server_config_t *web_configuration;
-} app_core_network_start_t;
 
 static void teardown_stage(const app_core_ops_t *operations, app_operation_result_t *result,
                            bool should_run, bool *owned_flag,
@@ -151,10 +140,8 @@ static app_operation_result_t cleanup_after_failure(const app_core_ops_t *operat
     teardown_stage(operations, &result,
                    owned->storage_mounted || operations->storage_owns_mount(operations->context),
                    &owned->storage_mounted, operations->storage_unmount);
-    teardown_stage(operations, &result,
-                   owned->provisioning_initialized ||
-                       operations->provisioning_owns_resources(operations->context),
-                   &owned->provisioning_initialized, operations->provisioning_deinit);
+    teardown_stage(operations, &result, owned->settings_initialized, &owned->settings_initialized,
+                   operations->settings_deinit);
     teardown_stage(operations, &result, owned->nvs_initialized, &owned->nvs_initialized,
                    operations->nvs_deinit);
 
@@ -186,42 +173,42 @@ static app_error_code_t fail_with_secrets(const app_core_ops_t *operations, app_
     return finish_failure(operations, owned, primary_error);
 }
 
-static void configure_setup_server(const app_core_policy_t *policy,
-                                   const provisioning_bootstrap_t *bootstrap,
+static void configure_setup_server(const app_v2_device_settings_t *settings, const char *setup_code,
                                    web_server_config_t *configuration) {
     *configuration = (web_server_config_t){
         .mode = WEB_SERVER_MODE_SETUP,
         .login_enabled = false,
-        .setup_physical_confirmation_required = true,
-        .setup_manufacturing_bypass = policy->manufacturing_provisioning_enabled,
     };
-    memcpy(configuration->setup_device_id, bootstrap->device_id,
-           sizeof(configuration->setup_device_id));
-    memcpy(configuration->setup_ap_ssid, bootstrap->ap_ssid, sizeof(configuration->setup_ap_ssid));
-    memcpy(configuration->setup_code, bootstrap->setup_code, sizeof(configuration->setup_code));
+    memcpy(configuration->setup_device_name, settings->device_name,
+           sizeof(configuration->setup_device_name));
+    memcpy(configuration->setup_code, setup_code, sizeof(configuration->setup_code));
 }
 
-static void configure_normal_server(const provisioning_config_t *provisioning,
+static void configure_normal_server(const app_v2_device_settings_t *settings,
                                     web_server_config_t *configuration) {
     *configuration = (web_server_config_t){
         .mode = WEB_SERVER_MODE_NORMAL,
         .login_enabled = true,
-        .password_record = provisioning->password_record,
-        .require_physical_confirmation = provisioning->require_physical_confirmation,
+        .require_physical_confirmation = settings->require_serial_confirmation,
     };
+    configuration->password_record.iterations = settings->password_iterations;
+    memcpy(configuration->password_record.salt, settings->password_salt,
+           sizeof(configuration->password_record.salt));
+    memcpy(configuration->password_record.hash, settings->password_verifier,
+           sizeof(configuration->password_record.hash));
 }
 
 static app_error_code_t start_network(const app_core_ops_t *operations, app_core_owned_t *owned,
-                                      const app_core_network_start_t *network) {
-    app_error_code_t result =
-        operations->wifi_start(operations->context, network->ssid, network->passphrase);
+                                      const app_core_wifi_configuration_t *wifi,
+                                      const web_server_config_t *web) {
+    app_error_code_t result = operations->wifi_start(operations->context, wifi);
     log_stage(operations, "wifi", result);
     if (result != APP_ERROR_NONE) {
         return result;
     }
     owned->wifi_started = true;
 
-    result = operations->http_start(operations->context, network->web_configuration);
+    result = operations->http_start(operations->context, web);
     log_stage(operations, "http", result);
     if (result == APP_ERROR_NONE) {
         owned->http_started = true;
@@ -259,17 +246,18 @@ static app_error_code_t start_normal_mode(const app_core_ops_t *operations, app_
     }
     owned->controls_initialized = true;
 
-    configure_normal_server(&secrets->provisioning, &secrets->web);
-    const app_core_network_start_t network = {
-        .ssid = secrets->provisioning.ap_ssid,
-        .passphrase = secrets->provisioning.ap_passphrase,
-        .web_configuration = &secrets->web,
+    configure_normal_server(&secrets->settings, &secrets->web);
+    const app_core_wifi_configuration_t wifi = {
+        .ap_ssid = secrets->settings.ap_ssid,
+        .ap_passphrase = secrets->settings.ap_passphrase,
+        .station_configured = secrets->settings.station_configured,
+        .station_ssid = secrets->settings.station_ssid,
+        .station_passphrase = secrets->settings.station_passphrase,
     };
-    return start_network(operations, owned, &network);
+    return start_network(operations, owned, &wifi, &secrets->web);
 }
 
-static app_error_code_t start_setup_mode(const app_core_ops_t *operations,
-                                         const app_core_policy_t *policy, app_core_owned_t *owned,
+static app_error_code_t start_setup_mode(const app_core_ops_t *operations, app_core_owned_t *owned,
                                          app_core_startup_secrets_t *secrets) {
     log_simple(operations, APP_CORE_LOG_PROVISIONING_REQUIRED, APP_ERROR_AUTH_REQUIRED,
                APP_ERROR_NONE, false);
@@ -281,34 +269,32 @@ static app_error_code_t start_setup_mode(const app_core_ops_t *operations,
     }
     owned->auth_initialized = true;
 
-    result = operations->controls_init(operations->context);
-    log_stage(operations, "controls", result);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    owned->controls_initialized = true;
-
     result = operations->bootstrap_derive(operations->context, &secrets->bootstrap);
     log_stage(operations, "setup_bootstrap", result);
     if (result != APP_ERROR_NONE) {
         return result;
     }
 
-    configure_setup_server(policy, &secrets->bootstrap, &secrets->web);
-    if (policy->manufacturing_provisioning_enabled) {
-        log_manufacturing_credentials(operations, &secrets->bootstrap);
+    result = operations->setup_code_generate(operations->context, secrets->setup_code);
+    log_stage(operations, "setup_code", result);
+    if (result != APP_ERROR_NONE) {
+        return result;
     }
-    const app_core_network_start_t network = {
-        .ssid = secrets->bootstrap.ap_ssid,
-        .passphrase = secrets->bootstrap.ap_passphrase,
-        .web_configuration = &secrets->web,
+    log_setup_code(operations, secrets->setup_code);
+
+    configure_setup_server(&secrets->settings, secrets->setup_code, &secrets->web);
+    const app_core_wifi_configuration_t wifi = {
+        .ap_ssid = secrets->bootstrap.ap_ssid,
+        .ap_passphrase = secrets->bootstrap.ap_passphrase,
+        .station_configured = false,
+        .station_ssid = NULL,
+        .station_passphrase = NULL,
     };
-    return start_network(operations, owned, &network);
+    return start_network(operations, owned, &wifi, &secrets->web);
 }
 
-app_error_code_t app_core_sequence_start(const app_core_ops_t *operations,
-                                         const app_core_policy_t *policy) {
-    if (!operations_valid(operations) || policy == NULL) {
+app_error_code_t app_core_sequence_start(const app_core_ops_t *operations) {
+    if (!operations_valid(operations)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
 
@@ -328,15 +314,15 @@ app_error_code_t app_core_sequence_start(const app_core_ops_t *operations,
     }
     owned.nvs_initialized = true;
 
-    result = operations->provisioning_init(operations->context);
-    log_stage(operations, "provisioning_init", result);
+    result = operations->settings_init(operations->context);
+    log_stage(operations, "settings_init", result);
     if (result != APP_ERROR_NONE) {
         return fail_with_secrets(operations, &owned, &secrets, result);
     }
-    owned.provisioning_initialized = true;
+    owned.settings_initialized = true;
 
-    result = operations->provisioning_load(operations->context, &secrets.provisioning);
-    log_stage(operations, "provisioning_load", result);
+    result = operations->settings_read(operations->context, &secrets.settings);
+    log_stage(operations, "settings_read", result);
     if (result != APP_ERROR_NONE) {
         return fail_with_secrets(operations, &owned, &secrets, result);
     }
@@ -348,9 +334,8 @@ app_error_code_t app_core_sequence_start(const app_core_ops_t *operations,
     }
     owned.storage_mounted = true;
 
-    result = secrets.provisioning.provisioned
-                 ? start_normal_mode(operations, &owned, &secrets)
-                 : start_setup_mode(operations, policy, &owned, &secrets);
+    result = secrets.settings.provisioned ? start_normal_mode(operations, &owned, &secrets)
+                                          : start_setup_mode(operations, &owned, &secrets);
     if (result != APP_ERROR_NONE) {
         return fail_with_secrets(operations, &owned, &secrets, result);
     }

@@ -9,6 +9,7 @@ idf_component_register(
     REQUIRES
     macro_model
     support
+    app_contracts_v2
     device_settings
     provisioning
     storage
@@ -19,6 +20,7 @@ idf_component_register(
     auth
     web_server
     nvs_flash
+    esp_hw_support
 )
 
 target_compile_options(

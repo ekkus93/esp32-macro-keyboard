@@ -13,18 +13,15 @@ pass_count=0
 write_valid_fixture() {
 	cat >"${temporary_dir}/routes.c" <<'SOURCE'
 static const httpd_uri_t normal_routes[] = {
-    {.uri = "/api/v1/status"},
-    {.uri = "/api/v1/auth/login"},
-    {.uri = "/api/v1/executions/current"},
-    {.uri = "/*"},
+    {.uri = "/api/v1/status", .method = HTTP_GET, .handler = status_handler},
+    {.uri = "/api/v1/auth/login", .method = HTTP_POST, .handler = login_handler},
+    {.uri = "/*", .method = HTTP_GET, .handler = static_handler},
 };
 
 static const httpd_uri_t setup_routes[] = {
-    {.uri = "/api/v1/setup-state"},
-    {.uri = "/api/v1/setup/credentials"},
-    {.uri = "/api/v1/setup/complete"},
-    {.uri = "/api/v1/setup/restart"},
-    {.uri = "/*"},
+    {.uri = "/api/v1/setup", .method = HTTP_GET, .handler = setup_state_handler},
+    {.uri = "/api/v1/setup", .method = HTTP_POST, .handler = setup_submit_handler},
+    {.uri = "/*", .method = HTTP_GET, .handler = static_handler},
 };
 SOURCE
 }
@@ -55,28 +52,30 @@ expect_fail() {
 }
 
 write_valid_fixture
-expect_pass 'isolated route tables'
+expect_pass 'V2 isolated route tables'
 
 write_valid_fixture
-sed -i '/setup\/restart/a\    {.uri = "/api/v1/auth/login"},' "${temporary_dir}/routes.c"
+sed -i '/setup_submit_handler/a\    {.uri = "/api/v1/auth/login", .method = HTTP_POST, .handler = login_handler},' \
+	"${temporary_dir}/routes.c"
 expect_fail 'normal route in setup' 'setup route table mismatch'
 
 write_valid_fixture
-sed -i '/setup\/complete/d' "${temporary_dir}/routes.c"
-expect_fail 'missing setup route' 'setup route table mismatch'
+sed -i '/setup_submit_handler/d' "${temporary_dir}/routes.c"
+expect_fail 'missing setup POST' 'setup route table mismatch'
 
 write_valid_fixture
-sed -i '/setup-state/a\    {.uri = "/api/v1/setup-state"},' "${temporary_dir}/routes.c"
-expect_fail 'duplicate setup route' 'duplicate URI'
+sed -i '/setup_state_handler/a\    {.uri = "/api/v1/setup", .method = HTTP_GET, .handler = setup_state_handler},' \
+	"${temporary_dir}/routes.c"
+expect_fail 'duplicate setup method' 'duplicate URI/method pair'
 
 write_valid_fixture
-sed -i '/normal_routes\[\]/,/^};/ s#"/api/v1/status"#"/api/v1/setup-state"#' \
+sed -i '/normal_routes\[\]/,/^};/ s#"/api/v1/status"#"/api/v1/setup"#' \
 	"${temporary_dir}/routes.c"
 expect_fail 'setup route in normal table' 'setup route exposed in normal route table'
 
 write_valid_fixture
-sed -i '/setup\/restart/d' "${temporary_dir}/routes.c"
-sed -i '/setup\/complete/a\    {.uri = "/api/v1/admin/restart"},' "${temporary_dir}/routes.c"
-expect_fail 'administration route in setup' 'setup route table mismatch'
+sed -i 's#"/api/v1/setup", .method = HTTP_POST#"/api/v1/setup/credentials", .method = HTTP_POST#' \
+	"${temporary_dir}/routes.c"
+expect_fail 'retired setup route' 'setup route table mismatch'
 
 printf 'check-setup-route-isolation regression tests passed: %d\n' "${pass_count}"

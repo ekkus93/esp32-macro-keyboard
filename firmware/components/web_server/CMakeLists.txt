@@ -26,8 +26,6 @@ idf_component_register(
     "web_api_dispatch.c"
     "web_api_administration.c"
     "web_request_policy.c"
-    "web_setup_core.c"
-    "web_setup_json.c"
     "http_health.c"
     INCLUDE_DIRS
     "include"

@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "app_error.h"
+#include "setup_contract_v2.h"
 #include "web_server.h"
 #include "web_server_adapter.h"
 
@@ -28,10 +29,8 @@ static const httpd_uri_t normal_routes[] = {
 };
 
 static const httpd_uri_t setup_routes[] = {
-    {.uri = "/api/v1/setup-state", .method = HTTP_GET, .handler = setup_state_handler},
-    {.uri = "/api/v1/setup/credentials", .method = HTTP_POST, .handler = setup_credentials_handler},
-    {.uri = "/api/v1/setup/complete", .method = HTTP_POST, .handler = setup_complete_handler},
-    {.uri = "/api/v1/setup/restart", .method = HTTP_POST, .handler = setup_restart_handler},
+    {.uri = "/api/v1/setup", .method = HTTP_GET, .handler = setup_state_handler},
+    {.uri = "/api/v1/setup", .method = HTTP_POST, .handler = setup_submit_handler},
     {.uri = "/*", .method = HTTP_GET, .handler = static_handler},
 };
 
@@ -53,9 +52,19 @@ static route_table_t active_route_table(void) {
     };
 }
 
-static void clear_setup_configuration_secrets(void) {
-    memset(server_configuration.setup_device_id, 0, sizeof(server_configuration.setup_device_id));
-    memset(server_configuration.setup_ap_ssid, 0, sizeof(server_configuration.setup_ap_ssid));
+static bool setup_code_valid(const char *code) {
+    if (code == NULL || strlen(code) != APP_V2_SETUP_CODE_DIGITS) {
+        return false;
+    }
+    for (size_t index = 0U; index < APP_V2_SETUP_CODE_DIGITS; ++index) {
+        if (code[index] < '0' || code[index] > '9') {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void clear_setup_configuration_secret(void) {
     memset(server_configuration.setup_code, 0, sizeof(server_configuration.setup_code));
 }
 
@@ -113,50 +122,34 @@ static bool server_configuration_valid(const web_server_config_t *configuration)
     case WEB_SERVER_MODE_NORMAL:
         return configuration->login_enabled;
     case WEB_SERVER_MODE_SETUP:
-        return !configuration->login_enabled;
+        return !configuration->login_enabled && configuration->setup_device_name[0] != '\0' &&
+               setup_code_valid(configuration->setup_code);
     default:
         return false;
     }
 }
 
 app_error_code_t web_server_start(const web_server_config_t *configuration) {
-    if (!server_configuration_valid(configuration) || server_lifecycle.handle != NULL ||
-        web_server_setup_owns_resources()) {
+    if (!server_configuration_valid(configuration) || server_lifecycle.handle != NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     server_configuration = *configuration;
-    app_error_code_t result = APP_ERROR_NONE;
+    const web_adapter_lifecycle_ops_t operations = server_lifecycle_ops();
+    const route_table_t table = active_route_table();
+    const app_error_code_t result =
+        web_adapter_lifecycle_start(&server_lifecycle, &operations, table.count);
     if (server_configuration.mode == WEB_SERVER_MODE_SETUP) {
-        result = web_server_setup_init(&server_configuration);
-        clear_setup_configuration_secrets();
-    }
-    if (result == APP_ERROR_NONE) {
-        const web_adapter_lifecycle_ops_t operations = server_lifecycle_ops();
-        const route_table_t table = active_route_table();
-        result = web_adapter_lifecycle_start(&server_lifecycle, &operations, table.count);
+        clear_setup_configuration_secret();
     }
     if (result != APP_ERROR_NONE && server_lifecycle.handle == NULL) {
-        app_error_code_t setup_cleanup = APP_ERROR_NONE;
-        if (server_configuration.mode == WEB_SERVER_MODE_SETUP &&
-            web_server_setup_owns_resources()) {
-            setup_cleanup = web_server_setup_deinit();
-        }
-        if (setup_cleanup == APP_ERROR_NONE) {
-            memset(&server_configuration, 0, sizeof(server_configuration));
-        }
+        memset(&server_configuration, 0, sizeof(server_configuration));
     }
     return result;
 }
 
 app_error_code_t web_server_stop(void) {
     const web_adapter_lifecycle_ops_t operations = server_lifecycle_ops();
-    app_error_code_t result = web_adapter_lifecycle_stop(&server_lifecycle, &operations);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    if (server_configuration.mode == WEB_SERVER_MODE_SETUP) {
-        result = web_server_setup_deinit();
-    }
+    const app_error_code_t result = web_adapter_lifecycle_stop(&server_lifecycle, &operations);
     if (result == APP_ERROR_NONE) {
         memset(&server_configuration, 0, sizeof(server_configuration));
     }
@@ -164,6 +157,5 @@ app_error_code_t web_server_stop(void) {
 }
 
 bool web_server_owns_resources(void) {
-    return web_adapter_lifecycle_owns_resources(&server_lifecycle) ||
-           web_server_setup_owns_resources();
+    return web_adapter_lifecycle_owns_resources(&server_lifecycle);
 }

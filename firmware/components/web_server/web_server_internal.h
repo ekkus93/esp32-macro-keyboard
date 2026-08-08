@@ -11,7 +11,6 @@
 #include "web_api_response.h"
 #include "web_server.h"
 #include "web_server_adapter.h"
-#include "web_setup_core.h"
 #include "wifi_ap.h"
 
 #define HTTP_HEADER_MAX_BYTES 256U
@@ -20,7 +19,6 @@
 
 extern web_server_config_t server_configuration;
 extern web_adapter_lifecycle_t server_lifecycle;
-extern web_setup_core_t server_setup_core;
 
 const char *usb_state_string(usb_keyboard_state_t state);
 const char *wifi_state_string(wifi_ap_state_t state);
@@ -56,13 +54,7 @@ app_error_code_t web_server_async_stop(void);
 esp_err_t web_server_async_dispatch(httpd_req_t *request);
 esp_err_t static_handler(httpd_req_t *request);
 esp_err_t setup_state_handler(httpd_req_t *request);
-esp_err_t setup_credentials_handler(httpd_req_t *request);
-esp_err_t setup_complete_handler(httpd_req_t *request);
-esp_err_t setup_restart_handler(httpd_req_t *request);
-
-app_error_code_t web_server_setup_init(const web_server_config_t *configuration);
-app_error_code_t web_server_setup_deinit(void);
-bool web_server_setup_owns_resources(void);
+esp_err_t setup_submit_handler(httpd_req_t *request);
 app_error_code_t web_diagnostics_handle(web_api_response_t *response);
 
 #endif

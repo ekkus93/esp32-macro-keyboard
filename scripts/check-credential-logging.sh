@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# SPEC 16.5: "The console MUST NOT expose credentials or secret material even
-# so, because the failure mode there is disclosure rather than control" -- and
-# SPEC 16.5 names this script as the enforcement for all firmware sources, the
-# console included.
+# V2 SPEC 12.3/12.4: the per-boot eight-digit setup code is intentionally shown
+# on the trusted serial console. No other credential, token, passphrase, or
+# secret material may be emitted by firmware.
 
 readonly source_root="${1:-firmware}"
 
@@ -14,17 +13,10 @@ import sys
 from pathlib import Path
 
 APPROVED_PATH = Path("components/app_core/app_core.c")
-MANUFACTURING_GUARD = "#if CONFIG_APP_MANUFACTURING_PROVISIONING_LOG"
-MANUFACTURING_BANNER = (
-    "MANUFACTURING MODE ENABLED: plaintext one-time credentials follow; "
-    "never deploy this build"
-)
-APPROVED_MESSAGES = {
-    "manufacturing-only AP SSID: %s",
-    "manufacturing-only AP passphrase: %s",
-    "manufacturing-only setup code: %s",
+APPROVED_SETUP_MESSAGE = "setup code: %s"
+LEGACY_OPTIONS = {
+    "CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG",
 }
-LEGACY_OPTION = "CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG"
 STRING_LITERAL_SOURCE = r'"(?:\\.|[^"\\])*"'
 STRING_LITERAL = re.compile(STRING_LITERAL_SOURCE)
 OUTPUT_CALL = re.compile(
@@ -32,7 +24,7 @@ OUTPUT_CALL = re.compile(
     re.DOTALL,
 )
 SENSITIVE_WORD = re.compile(
-    r"(?:password|passphrase|ssid|(?:session|csrf|api|access)[_ -]?token|setup[_ -]?code)",
+    r"(?:password|passphrase|(?:session|csrf|api|access)[_ -]?token|setup[_ -]?code)",
     re.IGNORECASE,
 )
 FORMAT_VALUE = re.compile(r"%(?:\.\*)?[a-zA-Z]")
@@ -51,44 +43,20 @@ def joined_literals(call: str) -> str:
     return "".join(pieces)
 
 
-def manufacturing_region(text: str, path: Path) -> tuple[int, int]:
-    guard_start = text.find(MANUFACTURING_GUARD)
-    if guard_start < 0:
-        fail(f"{path}: missing manufacturing credential guard")
-    guard_end = text.find("#else", guard_start)
-    if guard_end < 0:
-        fail(f"{path}: manufacturing credential guard has no #else")
-    guarded_text = text[guard_start:guard_end]
-    banner_present = any(
-        MANUFACTURING_BANNER in joined_literals(match.group(0))
-        for match in OUTPUT_CALL.finditer(guarded_text)
-    )
-    if not banner_present:
-        fail(f"{path}: missing permanent manufacturing warning banner")
-    return guard_start, guard_end
-
-
-def validate_approved_file(root: Path, path: Path, text: str) -> None:
-    region_start, region_end = manufacturing_region(text, path)
-    seen: dict[str, int] = {message: 0 for message in APPROVED_MESSAGES}
+def validate_approved_file(path: Path, text: str) -> None:
+    approved_count = 0
     for match in OUTPUT_CALL.finditer(text):
         call = match.group(0)
         message = joined_literals(call)
         if not SENSITIVE_WORD.search(message) or not FORMAT_VALUE.search(message):
             continue
-        if not (region_start <= match.start() < region_end):
-            fail(f"{path}: credential-bearing output exists outside manufacturing guard")
-        approved = [item for item in APPROVED_MESSAGES if item in message]
-        if len(approved) != 1:
-            fail(f"{path}: unapproved manufacturing credential output")
-        seen[approved[0]] += 1
-    for message, count in seen.items():
-        if count != 1:
-            fail(f"{path}: expected one approved output for {message!r}, found {count}")
-
-    relative = path.relative_to(root)
-    if relative != APPROVED_PATH:
-        fail(f"approved credential output must be in {APPROVED_PATH}, not {relative}")
+        if APPROVED_SETUP_MESSAGE not in message:
+            fail(f"{path}: unapproved credential-bearing output")
+        approved_count += 1
+    if approved_count != 1:
+        fail(
+            f"{path}: expected exactly one serial setup-code output, found {approved_count}"
+        )
 
 
 def validate_other_file(path: Path, text: str) -> None:
@@ -103,24 +71,25 @@ def validate(root: Path) -> None:
         fail(f"source root not found: {root}")
     approved_path = root / APPROVED_PATH
     if not approved_path.is_file():
-        fail(f"approved manufacturing source not found: {approved_path}")
+        fail(f"approved setup-code source not found: {approved_path}")
 
     approved_seen = False
     for path in sorted(root.rglob("*")):
         if not path.is_file() or path.suffix not in SOURCE_SUFFIXES:
             continue
         text = path.read_text(encoding="utf-8")
-        if LEGACY_OPTION in text:
-            fail(f"{path}: legacy credential logging option is forbidden")
+        for option in LEGACY_OPTIONS:
+            if option in text:
+                fail(f"{path}: legacy credential logging option is forbidden")
         if path == approved_path:
-            validate_approved_file(root, path, text)
+            validate_approved_file(path, text)
             approved_seen = True
         else:
             validate_other_file(path, text)
     if not approved_seen:
-        fail("approved manufacturing source was not scanned")
+        fail("approved setup-code source was not scanned")
 
 
 validate(Path(sys.argv[1]))
-print("credential logging policy passed")
+print("V2 credential logging policy passed")
 PY2

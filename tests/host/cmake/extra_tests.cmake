@@ -1,6 +1,8 @@
 target_include_directories(
-    app_core_tests PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/wifi_ap/include"
-                           "${CMAKE_SOURCE_DIR}/../../firmware/components/provisioning/include"
+    app_core_tests
+    PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/wifi_ap/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/provisioning/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/app_contracts_v2/include"
 )
 
 add_executable(
