@@ -179,20 +179,19 @@ New/changed test binaries in that run: `device_controls_reset` (9 cases), `wifi_
 still green.
 
 ```console
-$ ./scripts/check-format.sh
+./scripts/check-format.sh
 ```
 
 clang-format and cmake-lint report zero findings across every file this task touched (21
 CMakeLists.txt files scanned, "found lint:" empty; targeted `clang-format --dry-run --Werror`
-against all 25 touched C/H files also confirms zero diffs). `check-format.sh`'s webapp
-`prettier` step fails in this sandbox with `prettier: not found` — this is a pre-existing
-environment gap (`npm --prefix webapp ci` was never run in this session) unrelated to this task;
-no webapp file was touched.
+against all 25 touched C/H files also confirms zero diffs). The webapp `prettier` step needed
+`npm --prefix webapp ci` run once first (fresh sandbox, no `node_modules`); after that it passes
+too — no webapp file was touched by this task.
 
 ```console
-$ source "$HOME/esp/esp-idf-v5.5.5/export.sh"
-$ export NVM_DIR="$HOME/.nvm"; source "$NVM_DIR/nvm.sh"; nvm use
-$ ./scripts/check-firmware.sh
+source "$HOME/esp/esp-idf-v5.5.5/export.sh"
+export NVM_DIR="$HOME/.nvm"; source "$NVM_DIR/nvm.sh"; nvm use
+./scripts/check-firmware.sh
 ```
 
 First run caught two genuine `clang-tidy` `misc-include-cleaner` errors in the new files
@@ -202,7 +201,7 @@ direct includes; the second run built clean (ESP-IDF v5.5.5, target `esp32s3`) w
 `WarningsAsErrors: '*'` passing on every first-party file, no suppressions added.
 
 ```console
-$ ./scripts/generate-native-coverage.sh
+./scripts/generate-native-coverage.sh
 ```
 
 Added `device_controls_reset.c` and `wifi_ap_station.c` to `pure_policy_args` in
@@ -211,6 +210,23 @@ Added `device_controls_reset.c` and `wifi_ap_station.c` to `pure_policy_args` in
 `device_controls_reset.c` 100% line / 100% branch, `wifi_ap_station.c` 100% line / 100% branch;
 overall pure-policy total 95% line / (gate requires ≥90 line / ≥80 branch) — passes with margin,
 exit 0.
+
+```console
+./scripts/check-all.sh
+```
+
+The complete gate — toolchain verification, format, static-analysis policy, partition/capacity/
+production-config/credential-logging/mount-policy/layer-boundary/removed-features/USB-identity/
+frontend-persisted-state/setup-route-isolation/auth-policy/contracts checks, `check-firmware.sh`
+(both `firmware/` and `firmware/test_app/`, GCC build + clang-tidy), stack-usage, webfs image,
+flash manifest, release budgets, `check-webapp.sh` (ci/typecheck/lint/stylelint/vitest+coverage/
+build/local-assets/**browser**), `check-scripts.sh` (shfmt/shellcheck/actionlint plus every
+script's own regression test suite), `check-docs.sh` (markdownlint-cli2/yamllint), and the full
+host test run — passed end to end: `FINAL_EXIT=0`. One real issue surfaced on the way here and
+was fixed: `markdownlint-cli2`'s MD014 rule flagged four `$ command` shell-prompt lines in this
+report's own "Commands and results" section that showed no output beneath them; the leading
+dollar-sign prompts were removed (the commands are meant to be run directly, not read as a
+terminal transcript).
 
 ## What this task did not do (explicitly out of scope)
 
