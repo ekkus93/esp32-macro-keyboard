@@ -1,6 +1,7 @@
 #ifndef WEB_API_RESPONSE_H
 #define WEB_API_RESPONSE_H
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #include "app_error.h"
@@ -20,7 +21,16 @@ typedef struct {
     unsigned int status;
     app_error_code_t code;
     const char *message;
-    const char *details_json;
+    /* Optional: the single request field that caused the error (SPEC_V2 13.2).
+     * NULL when no single field is responsible. */
+    const char *field;
+    /* When true, byte_offset/line/column are populated and the emitted "code"
+     * is the literal "macro_parse_error" (SPEC_V2 13.2's parser-error shape)
+     * regardless of `code`. */
+    bool has_parser_location;
+    size_t byte_offset;
+    size_t line;
+    size_t column;
 } web_api_error_spec_t;
 
 app_error_code_t web_api_response_success(web_api_response_t *response, unsigned int status,

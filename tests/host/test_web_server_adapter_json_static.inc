@@ -3,29 +3,23 @@ static void test_json_envelopes(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          web_adapter_build_error_json(APP_ERROR_IO, "bad \"value\"\n<script>",
                                                       output, sizeof(output)));
-    TEST_CHECK_EQ_STRING("{\"ok\":false,\"error\":{\"code\":\"io\","
+    TEST_CHECK_EQ_STRING("{\"error\":{\"code\":\"io\","
                          "\"message\":\"bad \\\"value\\\"\\n<script>\"}}",
                          output);
-
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_adapter_build_status_json("0.1.0", "v5.5.5", "ready", "ready", 4U,
-                                                       "running", output, sizeof(output)));
-    TEST_CHECK(strstr(output, "\"wifiClients\":4") != NULL);
-    TEST_CHECK(strstr(output, "\"executionState\":\"running\"") != NULL);
+    TEST_CHECK(strstr(output, "\"ok\"") == NULL);
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_adapter_build_limits_json(output, sizeof(output)));
-    TEST_CHECK_EQ_STRING(
-        "{\"packageNameMaxBytes\":64,\"macroNameMaxBytes\":64,"
-        "\"macroSourceMaxBytes\":4096,\"compiledActionsMax\":4096,"
-        "\"delayDirectiveMaxMs\":10000,\"keyPressMaxMs\":10000,"
-        "\"interKeyMaxMs\":10000,\"estimatedDurationMaxMs\":300000,"
-        "\"executorAbsoluteDeadlineMs\":310000,\"jsonBodyMaxBytes\":8192,"
-        "\"blobMaxBytes\":131072,\"activeSessionsMax\":8,"
-        "\"sessionIdleLifetimeSeconds\":86400,"
-        "\"sessionAbsoluteLifetimeSeconds\":604800,"
-        "\"serialConfirmationTimeoutSeconds\":60,\"adminPasswordMinBytes\":12,"
-        "\"adminPasswordMaxBytes\":128,\"snapshotRetentionTargetMax\":100}",
-        output);
+    TEST_CHECK_EQ_STRING("{\"packageNameMaxBytes\":64,\"macroNameMaxBytes\":64,"
+                         "\"macroSourceMaxBytes\":4096,\"compiledActionsMax\":4096,"
+                         "\"delayDirectiveMaxMs\":10000,\"keyPressMaxMs\":10000,"
+                         "\"interKeyMaxMs\":10000,\"estimatedDurationMaxMs\":300000,"
+                         "\"executorAbsoluteDeadlineMs\":310000,\"jsonBodyMaxBytes\":8192,"
+                         "\"blobMaxBytes\":131072,\"activeSessionsMax\":8,"
+                         "\"sessionIdleLifetimeSeconds\":86400,"
+                         "\"sessionAbsoluteLifetimeSeconds\":604800,"
+                         "\"serialConfirmationTimeoutSeconds\":60,\"adminPasswordMinBytes\":12,"
+                         "\"adminPasswordMaxBytes\":128,\"snapshotRetentionTargetMax\":100}",
+                         output);
     TEST_CHECK(strstr(output, "\"ok\"") == NULL);
     TEST_CHECK(strstr(output, "\"data\"") == NULL);
     TEST_CHECK(strstr(output, "macrosPerPackage") == NULL);

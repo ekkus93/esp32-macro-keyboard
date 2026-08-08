@@ -19,49 +19,12 @@ app_error_code_t web_adapter_build_error_json(app_error_code_t code, const char 
     if (message == NULL || output == NULL || output_size == 0U) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
+    /* SPEC_V2 13.2's exact error envelope -- no v1-style top-level "ok" key. */
     json_writer_t writer = {.buffer = output, .capacity = output_size};
-    writer_append_text(&writer, "{\"ok\":false,\"error\":{\"code\":\"");
+    writer_append_text(&writer, "{\"error\":{\"code\":\"");
     writer_append_escaped(&writer, app_error_code_string(code));
     writer_append_text(&writer, "\",\"message\":\"");
     writer_append_escaped(&writer, message);
-    writer_append_text(&writer, "\"}}");
-    const app_error_code_t result = writer_finish(&writer);
-    if (result != APP_ERROR_NONE) {
-        output[0] = '\0';
-    }
-    return result;
-}
-
-app_error_code_t web_adapter_build_status_json(const char *version, const char *idf_version,
-                                               const char *usb_state, const char *wifi_state,
-                                               uint32_t wifi_clients, const char *execution_state,
-                                               char *output, size_t output_size) {
-    if (output != NULL && output_size > 0U) {
-        output[0] = '\0';
-    }
-    if (version == NULL || idf_version == NULL || usb_state == NULL || wifi_state == NULL ||
-        execution_state == NULL || output == NULL || output_size == 0U) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    char clients[16U];
-    const int client_length =
-        snprintf(clients, sizeof(clients), "%lu", (unsigned long)wifi_clients);
-    if (client_length < 0 || (size_t)client_length >= sizeof(clients)) {
-        return APP_ERROR_INTERNAL;
-    }
-    json_writer_t writer = {.buffer = output, .capacity = output_size};
-    writer_append_text(&writer, "{\"ok\":true,\"data\":{\"version\":\"");
-    writer_append_escaped(&writer, version);
-    writer_append_text(&writer, "\",\"idf\":\"");
-    writer_append_escaped(&writer, idf_version);
-    writer_append_text(&writer, "\",\"usbState\":\"");
-    writer_append_escaped(&writer, usb_state);
-    writer_append_text(&writer, "\",\"wifiState\":\"");
-    writer_append_escaped(&writer, wifi_state);
-    writer_append_text(&writer, "\",\"wifiClients\":");
-    writer_append_text(&writer, clients);
-    writer_append_text(&writer, ",\"executionState\":\"");
-    writer_append_escaped(&writer, execution_state);
     writer_append_text(&writer, "\"}}");
     const app_error_code_t result = writer_finish(&writer);
     if (result != APP_ERROR_NONE) {
@@ -118,48 +81,24 @@ static void append_uint64(json_writer_t *writer, uint64_t value) {
     writer_append_text(writer, buffer);
 }
 
-static void append_capacity(json_writer_t *writer, const char *key,
-                            const web_diagnostics_capacity_t *capacity) {
-    writer_append_text(writer, "\"");
-    writer_append_text(writer, key);
-    writer_append_text(writer, "\":{\"ok\":");
-    writer_append_text(writer, capacity->ok ? "true" : "false");
-    writer_append_text(writer, ",\"totalBytes\":");
-    append_uint64(writer, (uint64_t)capacity->total_bytes);
-    writer_append_text(writer, ",\"usedBytes\":");
-    append_uint64(writer, (uint64_t)capacity->used_bytes);
-    writer_append_text(writer, "}");
-}
-
-static void append_blob_scan(json_writer_t *writer,
-                             const web_diagnostics_blob_scan_t *diagnostics) {
-    writer_append_text(writer, "\"blobScan\":{\"blobCount\":");
-    append_uint64(writer, (uint64_t)diagnostics->blob_count);
-    writer_append_text(writer, ",\"invalidNameCount\":");
-    append_uint64(writer, (uint64_t)diagnostics->invalid_name_count);
-    writer_append_text(writer, ",\"invalidNames\":[");
-    for (size_t index = 0U; index < diagnostics->reported_invalid_name_count; ++index) {
+static void append_string_array(json_writer_t *writer,
+                                const char (*values)[WEB_DIAGNOSTICS_INVALID_NAME_CAPACITY],
+                                size_t count) {
+    writer_append_text(writer, "[");
+    for (size_t index = 0U; index < count; ++index) {
         if (index > 0U) {
             writer_append_text(writer, ",");
         }
         writer_append_text(writer, "\"");
-        writer_append_escaped(writer, diagnostics->invalid_names[index]);
+        writer_append_escaped(writer, values[index]);
         writer_append_text(writer, "\"");
     }
-    writer_append_text(writer, "],\"temporaryFileCount\":");
-    append_uint64(writer, (uint64_t)diagnostics->temporary_file_count);
-    writer_append_text(writer, ",\"temporaryFiles\":[");
-    for (size_t index = 0U; index < diagnostics->reported_temporary_file_count; ++index) {
-        if (index > 0U) {
-            writer_append_text(writer, ",");
-        }
-        writer_append_text(writer, "\"");
-        writer_append_escaped(writer, diagnostics->temporary_files[index]);
-        writer_append_text(writer, "\"");
-    }
-    writer_append_text(writer, "]}");
+    writer_append_text(writer, "]");
 }
 
+/* Matches SPEC_V2 13.13 / contracts/v2/api/examples.json's "diagnostics"
+ * example exactly: firmwareVersion, buildId, resetReason, uptimeMs, memory{},
+ * usb{}, wifi{}, storage{}, send{}, subsystems[]. */
 app_error_code_t web_adapter_build_diagnostics_json(const web_diagnostics_snapshot_t *snapshot,
                                                     char *output, size_t output_size) {
     if (output != NULL && output_size > 0U) {
@@ -176,33 +115,65 @@ app_error_code_t web_adapter_build_diagnostics_json(const web_diagnostics_snapsh
         return APP_ERROR_STORAGE_CORRUPT;
     }
     json_writer_t writer = {.buffer = output, .capacity = output_size};
-    writer_append_text(&writer, "{\"buildId\":\"");
-    writer_append_escaped(&writer, snapshot->build_id);
-    writer_append_text(&writer, "\",\"firmwareVersion\":\"");
+    writer_append_text(&writer, "{\"firmwareVersion\":\"");
     writer_append_escaped(&writer, snapshot->firmware_version);
-    writer_append_text(&writer, "\",\"schemaVersion\":");
-    append_uint64(&writer, snapshot->schema_version);
-    writer_append_text(&writer, ",\"resetReason\":\"");
+    writer_append_text(&writer, "\",\"buildId\":\"");
+    writer_append_escaped(&writer, snapshot->build_id);
+    writer_append_text(&writer, "\",\"resetReason\":\"");
     writer_append_escaped(&writer, snapshot->reset_reason);
     writer_append_text(&writer, "\",\"uptimeMs\":");
     append_uint64(&writer, snapshot->uptime_ms);
-    writer_append_text(&writer, ",\"freeHeapBytes\":");
+
+    writer_append_text(&writer, ",\"memory\":{\"freeHeapBytes\":");
     append_uint64(&writer, snapshot->free_heap_bytes);
-    writer_append_text(&writer, ",\"minFreeHeapBytes\":");
-    append_uint64(&writer, snapshot->min_free_heap_bytes);
-    writer_append_text(&writer, ",\"stack\":{\"controlsWords\":");
-    append_uint64(&writer, (uint64_t)snapshot->controls_stack_high_water_mark);
-    writer_append_text(&writer, ",\"executorWords\":");
-    append_uint64(&writer, (uint64_t)snapshot->executor_stack_high_water_mark);
-    writer_append_text(&writer, "},");
-    append_capacity(&writer, "webfs", &snapshot->webfs);
-    writer_append_text(&writer, ",");
-    append_capacity(&writer, "userdata", &snapshot->userdata);
-    writer_append_text(&writer, ",");
-    append_blob_scan(&writer, &snapshot->blob_scan);
-    writer_append_text(&writer, ",\"executionState\":\"");
-    writer_append_escaped(&writer, snapshot->execution_state);
-    writer_append_text(&writer, "\",\"subsystems\":[");
+    writer_append_text(&writer, ",\"minimumFreeHeapBytes\":");
+    append_uint64(&writer, snapshot->minimum_free_heap_bytes);
+    writer_append_text(&writer, ",\"largestFreeBlockBytes\":");
+    append_uint64(&writer, snapshot->largest_free_block_bytes);
+    writer_append_text(&writer, "}");
+
+    writer_append_text(&writer, ",\"usb\":{\"state\":\"");
+    writer_append_escaped(&writer, snapshot->usb_state);
+    writer_append_text(&writer, "\"}");
+
+    writer_append_text(&writer, ",\"wifi\":{\"accessPointState\":\"");
+    writer_append_escaped(&writer, snapshot->access_point_state);
+    writer_append_text(&writer, "\",\"stationState\":\"");
+    writer_append_escaped(&writer, snapshot->station_state);
+    writer_append_text(&writer, "\"}");
+
+    writer_append_text(&writer, ",\"storage\":{\"state\":\"");
+    writer_append_escaped(&writer, snapshot->storage_state);
+    writer_append_text(&writer, "\",\"webfsTotalBytes\":");
+    append_uint64(&writer, (uint64_t)snapshot->webfs.total_bytes);
+    writer_append_text(&writer, ",\"webfsUsedBytes\":");
+    append_uint64(&writer, (uint64_t)snapshot->webfs.used_bytes);
+    writer_append_text(&writer, ",\"userdataTotalBytes\":");
+    append_uint64(&writer, (uint64_t)snapshot->userdata.total_bytes);
+    writer_append_text(&writer, ",\"userdataUsedBytes\":");
+    append_uint64(&writer, (uint64_t)snapshot->userdata.used_bytes);
+    writer_append_text(&writer, ",\"blobCount\":");
+    append_uint64(&writer, (uint64_t)snapshot->blob_scan.blob_count);
+    writer_append_text(&writer, ",\"invalidNames\":");
+    append_string_array(&writer, snapshot->blob_scan.invalid_names,
+                        snapshot->blob_scan.reported_invalid_name_count);
+    writer_append_text(&writer, ",\"temporaryFiles\":");
+    append_string_array(&writer, snapshot->blob_scan.temporary_files,
+                        snapshot->blob_scan.reported_temporary_file_count);
+    writer_append_text(&writer, "}");
+
+    writer_append_text(&writer, ",\"send\":{\"present\":");
+    writer_append_text(&writer, snapshot->send_present ? "true" : "false");
+    if (snapshot->send_present && snapshot->send_state != NULL) {
+        writer_append_text(&writer, ",\"state\":\"");
+        writer_append_escaped(&writer, snapshot->send_state);
+        writer_append_text(&writer, "\"");
+    } else {
+        writer_append_text(&writer, ",\"state\":null");
+    }
+    writer_append_text(&writer, "}");
+
+    writer_append_text(&writer, ",\"subsystems\":[");
     for (size_t index = 0U; index < WEB_DIAGNOSTICS_SUBSYSTEM_COUNT; ++index) {
         if (index > 0U) {
             writer_append_text(&writer, ",");

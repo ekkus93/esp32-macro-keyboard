@@ -74,10 +74,6 @@ app_error_code_t web_adapter_authorize_mutation(web_adapter_get_header_fn get_he
                                                 size_t token_size);
 app_error_code_t web_adapter_build_error_json(app_error_code_t code, const char *message,
                                               char *output, size_t output_size);
-app_error_code_t web_adapter_build_status_json(const char *version, const char *idf_version,
-                                               const char *usb_state, const char *wifi_state,
-                                               uint32_t wifi_clients, const char *execution_state,
-                                               char *output, size_t output_size);
 app_error_code_t web_adapter_build_limits_json(char *output, size_t output_size);
 app_error_code_t web_adapter_build_diagnostics_json(const web_diagnostics_snapshot_t *snapshot,
                                                     char *output, size_t output_size);
