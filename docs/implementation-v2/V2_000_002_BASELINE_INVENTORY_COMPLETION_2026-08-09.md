@@ -28,7 +28,7 @@ implementation TODO"), already recorded in
 `PHASE_0_BASELINE_2026-08-03.md:5` and `V2_MIGRATION_MAP.md:4`. Reconfirmed
 this session:
 
-```
+```bash
 git cat-file -t ad75859f56986a81a2faf01832008b69b26a94e1   # commit
 git log --oneline --reverse ad75859f..HEAD | head -3
   # 1697731 Add v2 migration map
@@ -49,7 +49,7 @@ re-verified. Two independent facts close this out honestly:
 1. **The toolchain pin has not changed since the starting commit.** Byte-for-byte
    diff across the baseline commit and current `HEAD`:
 
-   ```
+   ```bash
    git diff ad75859f HEAD -- scripts/verify-toolchain.sh   # empty
    git log --oneline ad75859f..HEAD -- scripts/verify-toolchain.sh   # empty
    git show ad75859f:.nvmrc            # 24.18.0  (matches current .nvmrc)
@@ -64,7 +64,7 @@ re-verified. Two independent facts close this out honestly:
 2. **The pinned versions are actually present in this environment**, confirmed
    directly rather than assumed:
 
-   ```
+   ```bash
    git -C "$HOME/esp/esp-idf-v5.5.5" describe --tags        # v5.5.5
    "$HOME/.nvm/versions/node/v24.18.0/bin/node" --version   # v24.18.0
    ```
@@ -94,7 +94,7 @@ that conclusion firmer, not just repeated:
   authenticated `gh`, unlike the connector-only environment the original
   baseline doc and the 2026-08-09 audit ran in):
 
-  ```
+  ```bash
   gh api repos/ekkus93/esp32-macro-keyboard/commits/ad75859f.../check-runs
   ```
 
@@ -106,7 +106,7 @@ that conclusion firmer, not just repeated:
   that actually runs `check-all.sh`) ever started. Confirmed directly from
   the job log (`gh api .../actions/jobs/91814925270/logs`):
 
-  ```
+  ```text
   npm audit policy failed: npm audit contains unreviewed non-high findings: postcss
   ##[error]Process completed with exit code 1.
   ```
@@ -225,7 +225,7 @@ below), not copied from an earlier report.
 
 ### Native host tests (`tests/host/`)
 
-```
+```bash
 find tests/host -maxdepth 1 -name 'test_*.c' | wc -l   # 53
 find tests/host -maxdepth 1 -name '*.inc' | wc -l       # 26
 find tests/host/fakes -type f | wc -l                   # 27 (.c/.h backend fakes)
@@ -266,7 +266,7 @@ file surface).
 
 ### Vitest / browser (`webapp/tests/`)
 
-```
+```bash
 find webapp/tests -maxdepth 1 -name '*.test.ts*' | wc -l   # 51
 npm --prefix webapp run test -- --run                       # Test Files 51 passed (51); Tests 523 passed (523)
 find webapp/tests/browser -type f                            # webapp/tests/browser/run-browser-tests.mjs (1 file)
@@ -288,7 +288,7 @@ find webapp/tests/browser -type f                            # webapp/tests/brow
 
 ### On-device Unity (`firmware/test_app/`)
 
-```
+```bash
 find firmware/test_app -name 'test_*.c'   # 7 files
 ```
 
@@ -303,7 +303,7 @@ find firmware/test_app -name 'test_*.c'   # 7 files
 
 ### Hardware scripts (`tests/hardware/`)
 
-```
+```bash
 find tests/hardware -maxdepth 1 -type f   # 8 files
 ```
 
