@@ -604,18 +604,33 @@ knowledge in firmware.
 
 - [ ] Test every route with valid, missing, extra, wrong-type, wrong-content-type,
       oversized, unauthorized, expired-session, malformed-path, and method-error
-      cases. Strong coverage for status/limits/login/send/blob (blob has no
-      JSON body, so "extra"/"wrong-type" fields do not apply to its raw-byte
-      request/response format); `web_api_administration.c` is now compiled
-      into `web_api_administration_tests`, which covers session-response
-      composition, device-restart, and setup-conflict handling
-      (valid/backend-failure), but not the full valid/missing/extra/wrong-type/
-      wrong-content-type/oversized/unauthorized/expired-session/malformed-path/
-      method-error matrix for every route. A live `esp_http_server` fake now
-      exists and is exercised for blob (`tests/host/fakes/esp_http_server_stub`,
-      `fake_httpd.c`); `web_api_administration.c` routes are instead tested via
-      direct function calls with narrow test doubles — no single live
-      end-to-end HTTP test exercises every route the same way.
+      cases. Now strong, at the live-`httpd_req_t`-handler level (the same
+      `tests/host/fakes/esp_http_server_stub`/`fake_httpd.c` technique blob
+      uses), for status, limits, login, send, and blob: `status_handler()`/
+      `limits_handler()` (`test_web_server_status_limits_route.c`) and
+      `send_create_handler()`/`send_get_handler()`/`send_cancel_handler()`
+      (`test_web_server_send_route.c`) now each exercise valid/unauthorized/
+      expired-session/backend-failure, plus wrong-content-type/oversized/
+      missing/wrong-type/extra-field/parse-error for send's request body
+      (status/limits are bodyless GETs, so those categories don't apply, same
+      carve-out already noted for blob's raw-byte body). These three routes
+      have fixed, single-purpose URI registrations ahead of the generic
+      `/api/v1/*` wildcard, so malformed-path (no path parameter) and
+      method-error (answered by httpd routing falling through to the wildcard,
+      never by the handler itself) are instead covered at the pure-function
+      level in `test_web_api_core.c`
+      (`WEB_API_ROUTE_STATUS`/`LIMITS`/`SEND` cases). `web_api_administration.c`'s
+      routes (session, restart, settings, change-password, reset-settings,
+      factory-reset, diagnostics, setup-conflict) are still tested only via
+      direct function calls with narrow test doubles, plus
+      `web_request_policy_evaluate()` unit coverage of the shared auth/
+      content-type/body-limit/confirmation gate all of them pass through
+      first (now including a `WEB_API_ROUTE_DIAGNOSTICS_FULL`-specific
+      unauthorized/expired-session case, and a dispatch-wiring test proving
+      that route reaches `web_diagnostics_handle()`) — no live end-to-end HTTP
+      test wires `web_server_api.c`/`web_request_policy.c` to the httpd fake
+      for that group; investigated and deliberately deferred, see
+      `docs/implementation-v2/V2_057_FULL_HTTP_CONTRACT_MATRIX_2026-08-09.md`.
 - [x] Test the unprovisioned route surface contains only setup GET/POST and static
       setup assets.
 - [ ] Test setup-state GET returns only the approved two fields and returns `404`
@@ -628,7 +643,9 @@ knowledge in firmware.
       `web_api_handle_administration(WEB_API_ROUTE_SETUP, POST, …)`, distinct from
       `test_already_provisioned_rejected`'s defense-in-depth check.
 - [x] Test exact response schemas and status codes. Strong for
-      status/limits/send/login/diagnostics/blob; session/restart/setup-conflict
+      status/limits/send/login/diagnostics/blob — status/limits/send are now
+      also verified at the live-handler level, not just their pure JSON
+      builders (see the matrix bullet above); session/restart/setup-conflict
       are now covered too via `web_api_administration_tests`.
 - [x] Test that secret-like sentinel values never appear in responses or logs.
       Explicit checks exist for diagnostics and status; send's password material
@@ -648,7 +665,7 @@ knowledge in firmware.
 
 - [x] Route table exactly matches the v2 specification.
 - [x] Old routes are absent.
-- [ ] Contract and security tests pass. The tests that exist pass (45/45),
+- [ ] Contract and security tests pass. The tests that exist pass (52/52),
       but this masks the real coverage gaps enumerated under V2-057 — passing
       tests is not the same as complete contract/security coverage.
 - [ ] API documentation examples match observed responses. No script or test

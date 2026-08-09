@@ -170,6 +170,42 @@ static void test_fail_closed_ordering(void) {
     TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION, failure);
 }
 
+/* GET /api/v1/diagnostics (WEB_API_ROUTE_DIAGNOSTICS_FULL) reaches
+ * web_diagnostics_handle() only through this exact same generic-pipeline gate
+ * (web_server_api.c's apply_request_policy(), called from
+ * web_api_handle_call_with_body() before web_api_dispatch() is ever reached)
+ * -- unlike status/limits/send, which have their own dedicated httpd_uri_t
+ * registrations and never touch web_request_policy.c at all (see
+ * test_web_server_status_limits_route.c / test_web_server_send_route.c's
+ * header comments). test_fail_closed_ordering() above already proves the
+ * cookie/content-type/body-limit/confirmation failure modes are route-
+ * agnostic (WEB_API_ROUTE_SETTINGS/BLOB_COLLECTION/DEVICE_FACTORY_RESET); this
+ * exercises the identical missing-cookie ("unauthorized") and invalid-session
+ * ("expired-session") failures specifically for WEB_API_ROUTE_DIAGNOSTICS_FULL
+ * so that route's own matrix entry is not just inferred by analogy. */
+static void test_diagnostics_route_unauthorized_and_expired_session(void) {
+    fixture_t fixture = {.missing = "Cookie", .content_type = "application/json"};
+    web_request_policy_ops_t ops = operations(&fixture);
+    web_request_policy_input_t policy = input(WEB_API_ROUTE_DIAGNOSTICS_FULL, WEB_API_METHOD_GET);
+    web_request_policy_result_t result = {0};
+    web_request_policy_failure_t failure = WEB_REQUEST_POLICY_FAILURE_NONE;
+    TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
+                         web_request_policy_evaluate(&policy, &ops, &result, &failure));
+    TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_COOKIE, failure);
+    TEST_CHECK_EQ_U64(0U, fixture.validation_calls);
+
+    fixture = (fixture_t){
+        .content_type = "application/json",
+        .validation_result = APP_ERROR_AUTH_REQUIRED, /* Simulates an expired session. */
+    };
+    ops = operations(&fixture);
+    policy = input(WEB_API_ROUTE_DIAGNOSTICS_FULL, WEB_API_METHOD_GET);
+    TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
+                         web_request_policy_evaluate(&policy, &ops, &result, &failure));
+    TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_SESSION, failure);
+    TEST_CHECK_EQ_U64(1U, fixture.validation_calls);
+}
+
 /* SPEC 13.4: GET/POST /api/v1/setup on a provisioned device must answer
  * 404/409 without requiring a session -- unlike every other route in
  * test_success_matrix(), which all require one. */
@@ -199,6 +235,7 @@ static void test_setup_route_requires_no_session(void) {
 int main(void) {
     test_success_matrix();
     test_fail_closed_ordering();
+    test_diagnostics_route_unauthorized_and_expired_session();
     test_setup_route_requires_no_session();
     return 0;
 }
