@@ -19,6 +19,17 @@ typedef struct {
     uint32_t now_ms;
     size_t wait_count;
     size_t cancel_on_wait;
+    /* When non-zero, simulates a network-cancel/serial-cancel race on the
+     * wait_ms() call whose 1-based ordinal equals this value: two independent
+     * callers each invoke macro_executor_engine_cancel() back-to-back,
+     * modeling DELETE /api/v1/send and the serial console's `cancel` command
+     * reaching the same macro_executor_cancel() singleton at effectively the
+     * same instant. Both results are captured (race_cancel_first_result,
+     * race_cancel_second_result) so a test can assert the race resolves
+     * deterministically without real concurrent threads. */
+    size_t race_cancel_on_wait;
+    app_error_code_t race_cancel_first_result;
+    app_error_code_t race_cancel_second_result;
     /* When non-zero, calls macro_executor_engine_confirm() on the wait_ms call
      * whose 1-based ordinal equals this value -- the confirmation-flow analogue
      * of cancel_on_wait. */
@@ -68,5 +79,6 @@ void executor_run_validation_tests(void);
 void executor_run_execution_tests(void);
 void executor_run_terminal_tests(void);
 void executor_run_confirmation_tests(void);
+void executor_run_cancellation_race_tests(void);
 
 #endif
