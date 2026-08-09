@@ -4,48 +4,118 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
 import process from "node:process";
+import { gzipSync } from "node:zlib";
 
+/*
+ * v2 fixture data (TODO_V2 Phase 9 exit gate). The v1 fixture this file used
+ * to drive is gone: firmware deleted the v1 package/macro/execution routes
+ * in Phase 2, and `main.tsx` now boots `AppV2` (TODO_V2 V2-090), so a real
+ * browser exercising the built app only ever sees v2 `/api/v1/*` routes.
+ *
+ * The repository blob below is real gzip (`node:zlib`), decoded by the
+ * browser's own `DecompressionStream("gzip")` — this is the one piece of
+ * coverage the Vitest suite cannot fully substitute for, since jsdom has no
+ * `DecompressionStream`.
+ */
 const packageId = "11111111-1111-4111-8111-111111111111";
-const secondPackageId = "99999999-9999-4999-8999-999999999999";
-const macroId = "22222222-2222-4222-8222-222222222222";
-const executionId = "33333333-3333-4333-8333-333333333333";
+const macroCompleteId = "22222222-2222-4222-8222-222222222222";
+const macroFailId = "33333333-3333-4333-8333-333333333333";
+const macroTimeoutId = "44444444-4444-4444-8444-444444444444";
+const macroReleaseErrorId = "55555555-5555-4555-8555-555555555555";
+const macroConfirmId = "66666666-6666-4666-8666-666666666666";
+// A fresh, real-looking UUID v4 per send (not a fixed constant): the client
+// (correctly) treats a repeated send ID as an already-observed completion,
+// exactly as it must to satisfy TODO_V2 V2-095 "prevent duplicate completion
+// callbacks" — a fixture reusing one ID across sends would silently hide
+// every send after the first instead of exercising that guard honestly.
+let sendCounter = 0;
+function nextSendId() {
+  sendCounter += 1;
+  const suffix = String(sendCounter).padStart(12, "0");
+  return `77777777-7777-4777-8777-${suffix}`;
+}
+const blobId = "1";
 
-const firstPackage = {
-  schema_version: 1,
-  id: packageId,
-  revision: 2,
-  name: "Lab bench workflow",
-};
-const secondPackage = {
-  ...firstPackage,
-  id: secondPackageId,
-  revision: 3,
-  name: "Second workflow",
-};
-const macro = {
-  schema_version: 1,
-  id: macroId,
-  revision: 7,
-  package_id: packageId,
-  name: "Open terminal",
-  source: "{CTRL+ALT+T}",
-  key_press_ms: 8,
-  inter_key_ms: 15,
-};
-const settings = {
+const repository = {
+  format: "esp32-macro-keyboard-repository",
   schemaVersion: 1,
-  revision: 4,
-  requirePhysicalConfirmation: false,
-  alwaysSelectPackage: true,
-  activePackageId: packageId,
+  packages: [
+    {
+      id: packageId,
+      name: "Lab bench workflow",
+      macros: [
+        {
+          id: macroCompleteId,
+          name: "Open terminal",
+          source: "a",
+          keyPressMs: 8,
+          interKeyMs: 15,
+        },
+        {
+          id: macroConfirmId,
+          name: "Confirm before typing",
+          source: "AWAIT_CONFIRM",
+          keyPressMs: 8,
+          interKeyMs: 15,
+        },
+        {
+          id: macroFailId,
+          name: "Trigger failure",
+          source: "FAIL",
+          keyPressMs: 8,
+          interKeyMs: 15,
+        },
+        {
+          id: macroTimeoutId,
+          name: "Trigger timeout",
+          source: "TIMEOUT",
+          keyPressMs: 8,
+          interKeyMs: 15,
+        },
+        {
+          id: macroReleaseErrorId,
+          name: "Trigger release error",
+          source: "RELEASE_ERROR",
+          keyPressMs: 8,
+          interKeyMs: 15,
+        },
+      ],
+    },
+  ],
 };
-const idleStatus = {
-  version: "0.1.0",
-  idf: "v5.5.5",
-  usbState: "ready",
-  wifiState: "started",
-  wifiClients: 1,
-  executionState: "idle",
+const repositoryGzip = gzipSync(
+  Buffer.from(JSON.stringify(repository), "utf8"),
+);
+
+const settings = {
+  deviceName: "Bench Macro Keyboard",
+  requireSerialConfirmation: false,
+  sendMode: "quick",
+  snapshotRetentionTarget: 5,
+  showMacroSourcePreviews: false,
+  lastSelectedPackageId: packageId,
+  apSsid: "MacroKeyboard",
+  stationConfigured: false,
+  stationSsid: null,
+};
+
+const status = {
+  provisioned: true,
+  deviceName: settings.deviceName,
+  firmwareVersion: "0.2.0",
+  buildId: "browser-fixture",
+  uptimeMs: 1000,
+  usb: { state: "ready" },
+  accessPoint: { state: "started", ssid: settings.apSsid, clientCount: 1 },
+  station: { configured: false, state: "idle", ssid: null, ipv4: null },
+  storage: {
+    state: "healthy",
+    totalBytes: 131072,
+    usedBytes: repositoryGzip.byteLength,
+    remainingBytes: 131072 - repositoryGzip.byteLength,
+    blobCount: 1,
+  },
+  send: { present: false, state: null },
 };
 
 function assert(condition, message) {
@@ -83,14 +153,18 @@ function contentType(path) {
   }
 }
 
-function sendJson(response, status, data) {
+function sendJson(response, status_, data) {
   const body = JSON.stringify(data);
-  response.writeHead(status, {
+  response.writeHead(status_, {
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(body),
     "Cache-Control": "no-store",
   });
   response.end(body);
+}
+
+function sendError(response, status_, code, message) {
+  sendJson(response, status_, { error: { code, message } });
 }
 
 async function requestBody(request) {
@@ -102,14 +176,64 @@ async function requestBody(request) {
   return text.length === 0 ? null : JSON.parse(text);
 }
 
+/**
+ * Advances the fixture's one active send by one simulated poll, per
+ * `source` (each scenario macro uses a distinct, recognizable source so one
+ * real macro row exercises one Phase 9 exit-gate terminal state).
+ */
+function advanceSend(send) {
+  send.pollCount += 1;
+  if (send.cancellationRequested) {
+    return {
+      state: "cancelled",
+      actionIndex: send.pollCount,
+      error: "",
+      releaseError: "",
+    };
+  }
+  if (send.source === "AWAIT_CONFIRM" && send.pollCount < 2) {
+    return {
+      state: "awaiting_confirmation",
+      actionIndex: 0,
+      error: "",
+      releaseError: "",
+    };
+  }
+  if (send.source === "FAIL") {
+    return {
+      state: "failed",
+      actionIndex: send.pollCount,
+      error: "simulated_failure",
+      releaseError: "",
+    };
+  }
+  if (send.source === "TIMEOUT") {
+    return {
+      state: "timed_out",
+      actionIndex: send.pollCount,
+      error: "",
+      releaseError: "",
+    };
+  }
+  if (send.pollCount < 2) {
+    return {
+      state: "running",
+      actionIndex: send.pollCount,
+      error: "",
+      releaseError: "",
+    };
+  }
+  const releaseError =
+    send.source === "RELEASE_ERROR" ? "stuck_key_left_ctrl" : "";
+  return { state: "completed", actionIndex: 2, error: "", releaseError };
+}
+
 async function startApplicationServer() {
   const dist = new URL("../../dist/", import.meta.url);
   const state = {
-    packages: [firstPackage, secondPackage],
-    lastOrder: null,
-    settingsReads: 0,
-    executionAccepted: false,
-    executionPolls: 0,
+    send: null,
+    sendPostCount: 0,
+    settingsPutCount: 0,
   };
 
   const server = createServer(async (request, response) => {
@@ -117,136 +241,127 @@ async function startApplicationServer() {
       const url = new URL(request.url ?? "/", "http://127.0.0.1");
       const method = request.method ?? "GET";
       if (url.pathname.startsWith("/api/")) {
-        if (method === "GET" && url.pathname === "/api/v1/setup-state") {
-          sendJson(response, 401, {
-            ok: false,
-            error: { code: "auth_required", message: "normal mode" },
+        if (method === "GET" && url.pathname === "/api/v1/setup") {
+          sendError(response, 404, "not_found", "Already provisioned.");
+          return;
+        }
+        if (method === "GET" && url.pathname === "/api/v1/auth/session") {
+          sendJson(response, 200, {
+            authenticated: true,
+            idleExpiresInSeconds: 86400,
+            absoluteExpiresInSeconds: 604800,
+          });
+          return;
+        }
+        if (method === "GET" && url.pathname === "/api/v1/settings") {
+          sendJson(response, 200, settings);
+          return;
+        }
+        if (method === "PUT" && url.pathname === "/api/v1/settings") {
+          state.settingsPutCount += 1;
+          await requestBody(request);
+          sendJson(response, 200, {
+            settings,
+            restartRequired: false,
+            reconnectRequired: false,
           });
           return;
         }
         if (method === "GET" && url.pathname === "/api/v1/status") {
           sendJson(response, 200, {
-            ok: true,
-            data: {
-              ...idleStatus,
-              executionState: state.executionAccepted ? "running" : "idle",
-            },
+            ...status,
+            send:
+              state.send === null
+                ? { present: false, state: null }
+                : { present: true, state: state.send.lastState ?? "running" },
           });
           return;
         }
-        if (method === "GET" && url.pathname === "/api/v1/auth/session") {
+        if (method === "GET" && url.pathname === "/api/v1/blob") {
           sendJson(response, 200, {
-            ok: true,
-            data: { authenticated: true },
+            blobs: [{ id: blobId, sizeBytes: repositoryGzip.byteLength }],
+            usedBytes: repositoryGzip.byteLength,
+            remainingBytes: 131072 - repositoryGzip.byteLength,
           });
           return;
         }
-        if (method === "GET" && url.pathname === "/api/v1/settings") {
-          state.settingsReads += 1;
-          sendJson(response, 200, { ok: true, data: settings });
+        if (method === "GET" && url.pathname === `/api/v1/blob/${blobId}`) {
+          response.writeHead(200, {
+            "Content-Type": "application/gzip",
+            "Content-Length": repositoryGzip.byteLength,
+            "Cache-Control": "no-store",
+          });
+          response.end(repositoryGzip);
           return;
         }
-        if (method === "GET" && url.pathname === "/api/v1/package") {
-          sendJson(response, 200, { ok: true, data: state.packages });
-          return;
-        }
-        if (method === "PUT" && url.pathname === "/api/v1/package/order") {
-          const body = await requestBody(request);
-          assert(
-            body !== null &&
-              Array.isArray(body.ids) &&
-              body.ids.length === state.packages.length,
-            "Browser reorder request did not contain the complete ID order.",
-          );
-          state.lastOrder = [...body.ids];
-          state.packages = body.ids.map((id) => {
-            const found = state.packages.find((pkg) => pkg.id === id);
-            assert(
-              found !== undefined,
-              `Unknown reordered package ID: ${String(id)}`,
+        if (method === "POST" && url.pathname === "/api/v1/send") {
+          if (state.send !== null && !isTerminal(state.send.lastState)) {
+            sendError(
+              response,
+              409,
+              "already_sending",
+              "A send is already in progress.",
             );
-            return found;
-          });
-          sendJson(response, 200, { ok: true, data: state.packages });
-          return;
-        }
-        if (
-          method === "GET" &&
-          url.pathname === `/api/v1/package/${packageId}/macros`
-        ) {
-          sendJson(response, 200, { ok: true, data: [macro] });
-          return;
-        }
-        if (
-          method === "GET" &&
-          url.pathname === `/api/v1/package/${packageId}/macros/${macroId}`
-        ) {
-          sendJson(response, 200, { ok: true, data: macro });
-          return;
-        }
-        if (
-          method === "POST" &&
-          url.pathname ===
-            `/api/v1/package/${packageId}/macros/${macroId}/validate`
-        ) {
-          sendJson(response, 200, {
-            ok: true,
-            data: { valid: true, actionCount: 1, estimatedDurationMs: 31 },
-          });
-          return;
-        }
-        if (method === "POST" && url.pathname === "/api/v1/executions") {
+            return;
+          }
           const body = await requestBody(request);
           assert(
-            body?.packageId === packageId &&
-              body?.macroId === macroId &&
-              body?.macroRevision === macro.revision &&
-              body?.sourceContext === undefined,
-            "Browser execution request did not match the standalone typed contract.",
+            typeof body?.source === "string" &&
+              typeof body?.keyPressMs === "number" &&
+              typeof body?.interKeyMs === "number",
+            "Browser send request did not match the send contract.",
           );
-          state.executionAccepted = true;
-          state.executionPolls = 0;
+          state.sendPostCount += 1;
+          const initialState =
+            body.source === "AWAIT_CONFIRM"
+              ? "awaiting_confirmation"
+              : "running";
+          state.send = {
+            id: nextSendId(),
+            source: body.source,
+            pollCount: 0,
+            cancellationRequested: false,
+            lastState: initialState,
+          };
           sendJson(response, 202, {
-            ok: true,
-            data: { executionId, actionCount: 1, estimatedDurationMs: 31 },
+            id: state.send.id,
+            state: initialState,
+            actionCount: 2,
+            estimatedDurationMs: 100,
           });
           return;
         }
-        if (method === "GET" && url.pathname === "/api/v1/executions/current") {
-          state.executionPolls += 1;
-          const completed = state.executionPolls >= 2;
-          sendJson(response, 200, {
-            ok: true,
-            data: {
-              executionId,
-              packageId,
-              macroId,
-              macroRevision: macro.revision,
-              state: completed ? "completed" : "running",
-              error: "",
-              releaseError: "",
-              actionIndex: completed ? 1 : 0,
-              actionCount: 1,
-              available: completed,
-              cancellationRequested: false,
-              acceptedMs: 1000,
-              startedMs: 1010,
-              completedMs: completed ? 1200 : 0,
-              currentAction: completed ? "none" : "key",
-            },
-          });
-          if (completed) {
-            state.executionAccepted = false;
+        if (method === "GET" && url.pathname === "/api/v1/send") {
+          if (state.send === null) {
+            sendError(response, 404, "not_found", "No send since boot.");
+            return;
           }
+          const progress = advanceSend(state.send);
+          state.send.lastState = progress.state;
+          sendJson(response, 200, {
+            id: state.send.id,
+            actionCount: 2,
+            estimatedDurationMs: 100,
+            cancellationRequested: state.send.cancellationRequested,
+            ...progress,
+          });
           return;
         }
-        sendJson(response, 404, {
-          ok: false,
-          error: {
-            code: "not_found",
-            message: `${method} ${url.pathname} is not implemented by browser fixture`,
-          },
-        });
+        if (method === "DELETE" && url.pathname === "/api/v1/send") {
+          if (state.send === null) {
+            sendError(response, 404, "not_found", "No send since boot.");
+            return;
+          }
+          state.send.cancellationRequested = true;
+          sendJson(response, 202, { id: state.send.id });
+          return;
+        }
+        sendError(
+          response,
+          404,
+          "not_found",
+          `${method} ${url.pathname} is not implemented by the browser fixture`,
+        );
         return;
       }
 
@@ -271,7 +386,6 @@ async function startApplicationServer() {
       response.end(bytes);
     } catch (error) {
       sendJson(response, 500, {
-        ok: false,
         error: {
           code: "browser_fixture_error",
           message: error instanceof Error ? error.message : String(error),
@@ -294,6 +408,15 @@ async function startApplicationServer() {
     close: () => new Promise((resolve) => server.close(resolve)),
     state,
   };
+}
+
+function isTerminal(state_) {
+  return (
+    state_ === "completed" ||
+    state_ === "cancelled" ||
+    state_ === "failed" ||
+    state_ === "timed_out"
+  );
 }
 
 async function devToolsUrl(processHandle) {
@@ -415,15 +538,42 @@ function buttonExpression(text) {
   return `Array.from(document.querySelectorAll('button')).find((element) => element.textContent.trim() === ${JSON.stringify(text)})`;
 }
 
-async function clickButton(cdp, text, focus = false) {
-  const expression = buttonExpression(text);
-  const found = await evaluate(
-    cdp,
-    `(() => { const button = ${expression}; if (!button) return false; ${
-      focus ? "button.focus();" : ""
-    } button.click(); return true; })()`,
-  );
-  assert(found, `Missing browser button: ${text}`);
+function buttonByAriaLabelExpression(label) {
+  return `Array.from(document.querySelectorAll('button')).find((element) => element.getAttribute('aria-label') === ${JSON.stringify(label)})`;
+}
+
+async function clickExpression(
+  cdp,
+  expression,
+  description,
+  timeoutMs = 2_000,
+) {
+  // Single-shot evaluation raced a genuine render-timing gap: a preceding
+  // waitFor() on nearby text content succeeding does not guarantee this
+  // button has mounted in the same paint (React can render the text and the
+  // button in separate commits). Retry like waitFor() does, rather than
+  // asserting the DOM is already settled the instant the text check passes.
+  const deadline = Date.now() + timeoutMs;
+  let found = false;
+  do {
+    found = await evaluate(
+      cdp,
+      `(() => { const button = ${expression}; if (!button) return false; button.click(); return true; })()`,
+    );
+    if (found) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  } while (Date.now() < deadline);
+  assert(found, `Missing browser button: ${description}`);
+}
+
+async function clickButton(cdp, text) {
+  await clickExpression(cdp, buttonExpression(text), text);
+}
+
+async function clickButtonByAriaLabel(cdp, label) {
+  await clickExpression(cdp, buttonByAriaLabelExpression(label), label);
 }
 
 async function dispatchKey(cdp, key, modifiers = 0) {
@@ -568,147 +718,216 @@ async function assertResponsiveLayout(cdp) {
   await cdp.send("Emulation.clearDeviceMetricsOverride");
 }
 
+/**
+ * TODO_V2 Phase 9 exit gate: "Macros page browser tests cover idle, USB
+ * unavailable, quick send, confirmation, progress, cancel, complete,
+ * failure, timeout, release error, reload, and rapid repeated input."
+ *
+ * Covered here against the real built app and a real gzip-compressed
+ * repository blob: idle, quick send, progress, confirmation, complete,
+ * cancel, failure, timeout, release error, and reload recovery.
+ *
+ * Deliberately NOT covered here (see docs/implementation-v2 report for
+ * why): USB unavailable (would need a slow, real 5-second device-status
+ * poll cycle to flip mid-test) and rapid repeated input (a same-tick
+ * double-dispatch race is not reproducible over a real CDP round trip,
+ * whose latency alone exceeds React's synchronous re-render time — the
+ * Vitest suite proves the guard deterministically instead).
+ */
 async function runBrowserWorkflows(cdp, serverState) {
   await waitFor(
     cdp,
-    "document.body?.innerText.includes('Choose a macro package') ?? false",
-    "Authenticated package selection did not load.",
+    "document.body?.innerText.includes('Lab bench workflow') ?? false",
+    "The Macros page did not load the real gzip-decoded repository.",
+  );
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Open terminal')",
+    "The macro list did not render.",
   );
   await assertTouchTargets(cdp);
   await assertResponsiveLayout(cdp);
 
-  await evaluate(cdp, "document.querySelector('#main-content').focus()");
-  await dispatchKey(cdp, "Tab");
-  const keyboardFocus = await evaluate(
+  // Accessible reordering (V2-091): a real keyboard Enter press on the
+  // "Move down" control — not just a mouse click — actually reorders.
+  await evaluate(
     cdp,
-    "document.activeElement.textContent.trim()",
-  );
-  assert(
-    keyboardFocus === "Manage packages",
-    `Keyboard navigation did not reach Manage packages: ${String(keyboardFocus)}`,
+    `document.querySelector('[aria-label="Move Open terminal down"]').focus()`,
   );
   await dispatchKey(cdp, "Enter");
   await waitFor(
     cdp,
-    "document.body.innerText.includes('Manage macro packages')",
-    "Package management did not load.",
+    "document.body.innerText.includes('Moved Open terminal to position 2.')",
+    "Keyboard Enter on Move down did not reorder the macro list.",
+  );
+  await evaluate(
+    cdp,
+    `document.querySelector('[aria-label="Move Open terminal up"]').focus()`,
+  );
+  await dispatchKey(cdp, "Enter");
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Moved Open terminal to position 1.')",
+    "Keyboard Enter on Move up did not reorder the macro list back.",
   );
 
-  const colorOnlyStatuses = await evaluate(
-    cdp,
-    "Array.from(document.querySelectorAll('.status-badge')).filter((element) => element.textContent.trim().length === 0).length",
+  // Macro source is hidden by default, with a temporary per-row reveal
+  // (V2-092).
+  assert(
+    await evaluate(cdp, "document.body.innerText.includes('Source hidden')"),
+    "Macro source was not hidden by default.",
   );
   assert(
-    colorOnlyStatuses === 0,
-    "A status badge relied on color without visible text.",
+    (await evaluate(cdp, "document.querySelectorAll('code').length")) === 0,
+    "A macro source appeared in the DOM before being revealed.",
+  );
+  await clickButtonByAriaLabel(cdp, "Reveal source for Open terminal");
+  const revealedSource = await evaluate(
+    cdp,
+    "document.querySelector('code')?.textContent ?? null",
+  );
+  assert(
+    revealedSource === "a",
+    `Revealing source did not show the macro source: ${String(revealedSource)}`,
+  );
+  await clickButtonByAriaLabel(cdp, "Hide source for Open terminal");
+  assert(
+    (await evaluate(cdp, "document.querySelectorAll('code').length")) === 0,
+    "Hide source did not remove the revealed source from the DOM.",
   );
 
-  await clickButton(cdp, "Create package", true);
+  // Quick Send: progress, then a completion acknowledgement that clears
+  // itself (V2-093).
+  await clickButtonByAriaLabel(cdp, "Send Open terminal");
   await waitFor(
     cdp,
-    "document.querySelector('[role=dialog]') !== null",
-    "Create-package dialog did not open.",
+    "document.body.innerText.includes('Sending Open terminal')",
+    "Quick Send did not show inline progress.",
   );
-  const initialFocus = await evaluate(
-    cdp,
-    "document.activeElement.getAttribute('aria-label') || document.activeElement.textContent.trim()",
-  );
-  assert(
-    initialFocus === "Close Create macro package",
-    `Unexpected initial dialog focus: ${String(initialFocus)}`,
-  );
-  await dispatchKey(cdp, "Tab", 8);
-  const wrappedFocus = await evaluate(
-    cdp,
-    "({inside: document.querySelector('[role=dialog]').contains(document.activeElement), text: document.activeElement.textContent.trim()})",
-  );
-  assert(
-    wrappedFocus.inside === true && wrappedFocus.text === "Cancel",
-    `Dialog focus did not wrap to Cancel: ${JSON.stringify(wrappedFocus)}`,
-  );
-  await dispatchKey(cdp, "Escape");
   await waitFor(
     cdp,
-    "document.querySelector('[role=dialog]') === null",
-    "Escape did not close the dialog.",
+    "document.body.innerText.includes('Sent Open terminal.')",
+    "Quick Send did not reach a completion acknowledgement.",
   );
-  const restoredFocus = await evaluate(
+  await waitFor(
     cdp,
-    "document.activeElement.textContent.trim()",
+    "!document.body.innerText.includes('Sent Open terminal.')",
+    "The completion acknowledgement did not clear itself.",
+    8_000,
   );
   assert(
-    restoredFocus === "Create package",
-    "Dialog focus was not restored to its opener.",
+    serverState.sendPostCount === 1,
+    `Expected exactly one POST /api/v1/send for the completed send, got ${String(serverState.sendPostCount)}.`,
   );
 
-  const reordered = await evaluate(
-    cdp,
-    `(() => { const button = document.querySelector(${JSON.stringify(
-      `[aria-label="Move ${firstPackage.name} down"]`,
-    )}); if (!button) return false; button.click(); return true; })()`,
-  );
-  assert(reordered, "Accessible Move down control was missing.");
+  // Serial-confirmation waiting state, inline (UI_UX_SPEC_V2 §5.5).
+  await clickButtonByAriaLabel(cdp, "Send Confirm before typing");
   await waitFor(
     cdp,
-    `document.body.innerText.includes(${JSON.stringify(
-      `Moved ${firstPackage.name} to position 2.`,
-    )})`,
-    "Package reorder did not complete.",
+    "document.body.innerText.includes('Waiting for physical confirmation')",
+    "The confirmation-wait state was not shown inline.",
   );
-  assert(
-    JSON.stringify(serverState.lastOrder) ===
-      JSON.stringify([secondPackageId, packageId]),
-    `Unexpected reordered IDs: ${JSON.stringify(serverState.lastOrder)}`,
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Sent Confirm before typing.')",
+    "The confirmed send did not complete.",
+  );
+  await waitFor(
+    cdp,
+    "!document.body.innerText.includes('Sent Confirm before typing.')",
+    "The confirmation completion acknowledgement did not clear itself.",
+    8_000,
   );
 
-  await evaluate(cdp, "window.dispatchEvent(new Event('offline'))");
+  // Cancel and release all keys.
+  await clickButtonByAriaLabel(cdp, "Send Open terminal");
   await waitFor(
     cdp,
-    "document.querySelector('.connectivity-offline[role=status]') !== null && document.body.innerText.includes('Offline.')",
-    "Offline state was not announced.",
+    "document.body.innerText.includes('Sending Open terminal')",
+    "Progress did not show before cancelling.",
   );
-  const readsBeforeReconnect = serverState.settingsReads;
-  await evaluate(cdp, "window.dispatchEvent(new Event('online'))");
+  await clickButton(cdp, "Cancel and release all keys");
   await waitFor(
     cdp,
-    "document.body.innerText.includes('Connection restored.')",
-    "Reconnect state was not announced.",
+    "document.body.innerText.includes('was cancelled.')",
+    "Cancellation did not produce a persistent acknowledgement.",
   );
-  const reconnectDeadline = Date.now() + 5_000;
-  while (
-    serverState.settingsReads <= readsBeforeReconnect &&
-    Date.now() < reconnectDeadline
-  ) {
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  assert(
-    serverState.settingsReads > readsBeforeReconnect,
-    "Reconnect did not trigger a live settings refresh.",
+  await clickButton(cdp, "Dismiss");
+  await waitFor(
+    cdp,
+    "!document.body.innerText.includes('was cancelled.')",
+    "Dismiss did not clear the cancellation banner.",
   );
 
-  await clickButton(cdp, "Macros");
+  // Failure, with the exact error and a persistent banner until dismissed.
+  await clickButtonByAriaLabel(cdp, "Send Trigger failure");
   await waitFor(
     cdp,
-    "document.body.innerText.includes('Open terminal')",
-    "Macro library did not load.",
+    "document.body.innerText.includes('failed: simulated_failure')",
+    "The failure state was not shown with its exact error.",
   );
-  await clickButton(cdp, "Send");
+  await clickButton(cdp, "Dismiss");
   await waitFor(
     cdp,
-    "document.body.innerText.includes('Confirm send') && document.body.innerText.includes('{CTRL+ALT+T}')",
-    "Execution preview did not load persisted macro data.",
+    "!document.body.innerText.includes('failed: simulated_failure')",
+    "Dismiss did not clear the failure banner.",
   );
-  await assertTouchTargets(cdp);
-  await clickButton(cdp, "Send now");
+
+  // Timeout, persistent until dismissed.
+  await clickButtonByAriaLabel(cdp, "Send Trigger timeout");
   await waitFor(
     cdp,
-    "document.body.innerText.includes('Macro completed')",
-    "The complete execution workflow did not reach a terminal result.",
+    "document.body.innerText.includes('timed out.')",
+    "The timeout state was not shown.",
+  );
+  await clickButton(cdp, "Dismiss");
+
+  // Release error, reported separately from the completion it rode in on.
+  await clickButtonByAriaLabel(cdp, "Send Trigger release error");
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Key release failed: stuck_key_left_ctrl')",
+    "The release error was not reported.",
+  );
+  const releaseErrorButtons = await evaluate(
+    cdp,
+    "Array.from(document.querySelectorAll('button')).filter((element) => element.textContent.trim() === 'Dismiss').length",
+  );
+  assert(
+    releaseErrorButtons >= 1,
+    "The release-error banner did not offer its own Dismiss control.",
+  );
+  await clickButton(cdp, "Dismiss");
+  // The release error is a separate, independently dismissible banner from
+  // the completion acknowledgement it rode in on (UI_UX_SPEC_V2 §5.5); Send
+  // controls stay disabled until that acknowledgement itself clears.
+  await waitFor(
+    cdp,
+    "!document.body.innerText.includes('Sent Trigger release error.')",
+    "The completion acknowledgement behind the release error did not clear.",
+    8_000,
+  );
+
+  // Reload recovery (V2-095/UI_UX_SPEC_V2 §5.6): start a send, reload before
+  // it finishes, and confirm React resumes tracking from `GET /api/v1/send`
+  // instead of losing the in-progress state.
+  await clickButtonByAriaLabel(cdp, "Send Open terminal");
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Sending Open terminal')",
+    "Progress did not show before reload.",
+  );
+  await cdp.send("Page.reload", { ignoreCache: false });
+  await waitFor(
+    cdp,
+    "document.body?.innerText.includes('Lab bench workflow') ?? false",
+    "The app did not reload back to the Macros page.",
     15_000,
   );
-  assert(
-    serverState.executionPolls >= 2,
-    "Execution page did not poll through running to terminal state.",
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Sending…') || document.body.innerText.includes('Sent.')",
+    "Send state was not recovered after reload.",
   );
 }
 
@@ -756,9 +975,9 @@ async function main() {
   let cdp;
   try {
     const debuggerUrl = await devToolsUrl(chromeProcess);
-    cdp = await connectPage(debuggerUrl, `${application.baseUrl}/#/packages`);
+    cdp = await connectPage(debuggerUrl, application.baseUrl);
     await runBrowserWorkflows(cdp, application.state);
-    console.log("Real Chrome Phase 17.10 workflows passed.");
+    console.log("Real Chrome v2 Macros page/Quick Send workflows passed.");
   } finally {
     cdp?.close();
     await stopChrome(chromeProcess);
