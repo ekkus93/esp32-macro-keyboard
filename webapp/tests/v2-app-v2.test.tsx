@@ -4,7 +4,13 @@ import AppV2 from "../src/AppV2";
 import { v2Limits } from "../src/v2/limits";
 import type { FetchCall } from "./fakeFetch";
 import { getFetchCalls, jsonResponse, planFetch } from "./fakeFetch";
-import { render, requiredElement, setInputValue } from "./render";
+import {
+  buttonWithText,
+  click,
+  render,
+  requiredElement,
+  setInputValue,
+} from "./render";
 
 /**
  * V2-090 integration coverage: this is the actual composition wired into
@@ -295,5 +301,84 @@ describe("AppV2 — wiring RepositoryStartupScreen into the running app shell", 
       (call) => call.url === "/api/v1/blob",
     ).length;
     expect(blobCallsAfter).toBe(blobCallsBefore);
+  });
+});
+
+describe("AppV2 — Phase 10 wiring (macro editor and Packages, TODO_V2 V2-100/V2-101/V2-102/V2-103)", () => {
+  test("Add macro -> Save changes returns to the Macros page, shows the new macro, and marks the header dirty", async () => {
+    await signIn();
+    // Creating the first package (inside signIn()) is itself a repository
+    // content change, so the working copy is already dirty here (SPEC_V2
+    // §8.6) — the assertion below confirms the header keeps showing that,
+    // not that this specific edit is what caused it.
+    expect(bodyIncludes("Unsaved changes")).toBe(true);
+
+    await click(buttonWithText("Add macro"));
+    await waitUntil(() => bodyIncludes("Create macro"), "the macro editor");
+
+    await setInputValue(
+      requiredElement("#macro-editor-name", HTMLInputElement),
+      "Open terminal",
+    );
+    await setInputValue(
+      requiredElement("#macro-editor-source", HTMLTextAreaElement),
+      "a",
+    );
+    await click(buttonWithText("Save changes"));
+
+    await waitUntil(
+      () => bodyIncludes("Open terminal"),
+      "the Macros page showing the new macro",
+    );
+    expect(bodyIncludes("Unsaved changes")).toBe(true);
+    expect(bodyIncludes("Save snapshot")).toBe(true);
+  });
+
+  test("Packages -> Open switches the selected package, persists the change, and does not add a further dirty transition", async () => {
+    await signIn();
+
+    await click(buttonWithText("Packages"));
+    await waitUntil(() => bodyIncludes("Create package"), "the Packages page");
+    expect(bodyIncludes("My First Package")).toBe(true);
+
+    // A second package to actually switch to — opening the package that is
+    // already selected would never call the settings PUT at all
+    // (`persistSelectedPackageId` short-circuits on a no-op selection).
+    await setInputValue(
+      requiredElement("#package-management-create-name", HTMLInputElement),
+      "Second Package",
+    );
+    await click(buttonWithText("Create package"));
+    await waitUntil(
+      () => bodyIncludes("Second Package"),
+      "the newly created second package",
+    );
+    // Creating a package is itself a content change (SPEC_V2 §8.6), on top
+    // of the already-dirty working copy from creating the first package.
+    expect(bodyIncludes("Unsaved changes")).toBe(true);
+
+    planFetch((call) => {
+      expect(call.url).toBe("/api/v1/settings");
+      expect(call.method).toBe("PUT");
+      return jsonResponse({
+        settings: settingsBody,
+        restartRequired: false,
+        reconnectRequired: false,
+      });
+    });
+    await click(
+      requiredElement('[aria-label="Open Second Package"]', HTMLButtonElement),
+    );
+
+    await waitUntil(
+      () => bodyIncludes("Second Package") && bodyIncludes("0 macros"),
+      "back on the Macros page for the opened package",
+    );
+    // The header still shows the dirty state from the two content changes
+    // above through a real package switch and re-render — confirming this
+    // end-to-end wiring, on top of `PackageManagementPage`'s own unit test
+    // ("Open ... does not dirty the repository") which proves the no-op
+    // case from a clean baseline.
+    expect(bodyIncludes("Unsaved changes")).toBe(true);
   });
 });

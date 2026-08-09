@@ -5,8 +5,10 @@ import { SignInPage } from "./features/auth/v2/SignInPage";
 import { AppShellV2 } from "./features/shell/v2/AppShellV2";
 import { PlaceholderPage } from "./features/shell/v2/PlaceholderPage";
 import { useDeviceStatus } from "./features/shell/v2/useDeviceStatus";
+import { MacroEditorPage } from "./features/macros/v2/MacroEditorPage";
 import { MacroPreviewPage } from "./features/macros/v2/MacroPreviewPage";
 import { MacrosPage } from "./features/macros/v2/MacrosPage";
+import { PackageManagementPage } from "./features/macros/v2/PackageManagementPage";
 import type { RepositoryStartupReady } from "./features/startup/v2/RepositoryStartupScreen";
 import { RepositoryStartupScreen } from "./features/startup/v2/RepositoryStartupScreen";
 import { ErrorBanner } from "./components/ErrorBanner";
@@ -15,7 +17,10 @@ import { isSetupStateResponse } from "./v2/apiGuards";
 import { getSettings } from "./v2/settingsClient";
 import { saveWorkingCopyAsSnapshot } from "./v2/snapshotClient";
 import {
+  macroEditorTargetFromHash,
   macroPreviewTargetFromHash,
+  navigateToAddMacro,
+  navigateToEditMacro,
   navigateToMacroPreview,
   navigateToMacros,
   navigateV2,
@@ -47,9 +52,15 @@ interface AuthenticatedShellProps {
 function AuthenticatedShell({
   ready,
 }: AuthenticatedShellProps): React.JSX.Element {
-  const { store, packageId } = ready;
+  const { store } = ready;
   const [snapshot, setSnapshot] = useState(() => store.getSnapshot());
   useEffect(() => store.subscribe(setSnapshot), [store]);
+
+  // Mutable so the Packages page (TODO_V2 V2-102) can change the open
+  // package — via Open (persisted, non-dirtying) or by resolving a new
+  // selection after the previously selected package is deleted — without
+  // remounting the whole authenticated shell.
+  const [packageId, setPackageId] = useState(ready.packageId);
 
   const usbState = useDeviceStatus();
 
@@ -143,11 +154,9 @@ function AuthenticatedShell({
             onChangePackage={() => {
               navigateV2("packages");
             }}
-            onOpenAddMacro={() => {
-              navigateV2("macro-editor");
-            }}
-            onOpenEditMacro={() => {
-              navigateV2("macro-editor");
+            onOpenAddMacro={navigateToAddMacro}
+            onOpenEditMacro={(macroId) => {
+              navigateToEditMacro(macroId);
             }}
             onOpenPreview={(macroId) => {
               navigateToMacroPreview(macroId);
@@ -185,15 +194,38 @@ function AuthenticatedShell({
           />
         );
       }
-      case "macro-editor":
+      case "macro-editor": {
+        const target = macroEditorTargetFromHash();
+        if (target.kind === "invalid") {
+          return (
+            <section>
+              <h2>Macro editor</h2>
+              <p role="alert">This macro editor link is invalid.</p>
+              <button onClick={navigateToMacros} type="button">
+                Back to Macros
+              </button>
+            </section>
+          );
+        }
         return (
-          <PlaceholderPage
-            phase="Phase 10 (V2-100/V2-101)"
-            title="Macro editor"
+          <MacroEditorPage
+            macroId={target.kind === "edit" ? target.macroId : null}
+            onBack={navigateToMacros}
+            onSaved={navigateToMacros}
+            packageId={packageId}
+            store={store}
           />
         );
+      }
       case "packages":
-        return <PlaceholderPage phase="Phase 10 (V2-102)" title="Packages" />;
+        return (
+          <PackageManagementPage
+            onOpenMacros={navigateToMacros}
+            onSelectionChange={setPackageId}
+            selectedPackageId={packageId}
+            store={store}
+          />
+        );
       case "snapshots":
         return (
           <PlaceholderPage phase="Phase 11 (V2-110/V2-111)" title="Snapshots" />

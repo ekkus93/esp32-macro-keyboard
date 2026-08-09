@@ -3,13 +3,17 @@ import { ErrorBanner } from "../../../components/ErrorBanner";
 import { StatusBadge } from "../../../components/StatusBadge";
 import type { ScreenV2 } from "../../../v2/routingV2";
 import type { UsbState } from "../../../v2/apiTypes";
+import { useBeforeUnloadGuard } from "./useBeforeUnloadGuard";
 
 /**
  * The authenticated application shell, per UI_UX_SPEC_V2 §2 (TODO_V2
  * V2-090): device name, selected package, USB state, repository state, Save
  * snapshot when dirty, and the fixed bottom navigation. Purely presentational
  * — this component owns no network calls; its caller supplies live state and
- * the Save snapshot handler.
+ * the Save snapshot handler. It also registers the `beforeunload` warning
+ * while dirty (TODO_V2 V2-103) since every authenticated route renders
+ * inside this one shell instance, making it the single place that guard
+ * needs to live.
  */
 
 export interface AppShellV2Props {
@@ -69,6 +73,8 @@ export function AppShellV2({
   saving,
   saveError,
 }: AppShellV2Props): React.JSX.Element {
+  useBeforeUnloadGuard(dirty);
+
   return (
     <div className="app-shell">
       <header className="app-header">
