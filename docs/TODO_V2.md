@@ -1253,7 +1253,7 @@ Macros | Packages | Snapshots | Settings
 - [ ] Update `CLAUDE.md` to remove v1 authority and stale implementation guidance.
 - [ ] Update `docs/TODO.md` to point exclusively to this file.
 - [x] Update development, API, test, hardware, and recovery documentation.
-      Evidence: commit (this worktree). `docs/API.md` (entirely v1 firmware-owned
+      Evidence: commit `e28daf4442ac66ef502a56902dfb461f2795f504`. `docs/API.md` (entirely v1 firmware-owned
       package/set/macro/backup/restore routes, all deleted per
       `docs/implementation-v2/V2_MIGRATION_MAP.md` §2.14/§8) got a retirement
       banner pointing to `docs/SPEC_V2.md` §13 and `contracts/v2/api/routes.json`
@@ -1283,7 +1283,7 @@ Macros | Packages | Snapshots | Settings
 - [ ] Add approved mockup references under `docs/mockups/v2/` only when the image
       files are available and licensed for repository use.
 - [x] Clearly label current implementation status versus specification intent.
-      Evidence: commit (this worktree). Audited `README.md`'s "Repository
+      Evidence: commit `e28daf4442ac66ef502a56902dfb461f2795f504`. Audited `README.md`'s "Repository
       status" section (already corrected by the prior README-authority track)
       and found it accurately mid-rebuild-framed; no other file in scope made
       confident claims that unbuilt Phase 10-15 features (macro editing,
