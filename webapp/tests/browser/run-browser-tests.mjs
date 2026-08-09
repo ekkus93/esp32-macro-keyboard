@@ -542,11 +542,29 @@ function buttonByAriaLabelExpression(label) {
   return `Array.from(document.querySelectorAll('button')).find((element) => element.getAttribute('aria-label') === ${JSON.stringify(label)})`;
 }
 
-async function clickExpression(cdp, expression, description) {
-  const found = await evaluate(
-    cdp,
-    `(() => { const button = ${expression}; if (!button) return false; button.click(); return true; })()`,
-  );
+async function clickExpression(
+  cdp,
+  expression,
+  description,
+  timeoutMs = 2_000,
+) {
+  // Single-shot evaluation raced a genuine render-timing gap: a preceding
+  // waitFor() on nearby text content succeeding does not guarantee this
+  // button has mounted in the same paint (React can render the text and the
+  // button in separate commits). Retry like waitFor() does, rather than
+  // asserting the DOM is already settled the instant the text check passes.
+  const deadline = Date.now() + timeoutMs;
+  let found = false;
+  do {
+    found = await evaluate(
+      cdp,
+      `(() => { const button = ${expression}; if (!button) return false; button.click(); return true; })()`,
+    );
+    if (found) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  } while (Date.now() < deadline);
   assert(found, `Missing browser button: ${description}`);
 }
 
