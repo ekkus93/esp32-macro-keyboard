@@ -2,7 +2,13 @@ import { describe, expect, test, vi } from "vitest";
 import { PackageManagementPage } from "../src/features/macros/v2/PackageManagementPage";
 import type { Repository } from "../src/v2/repository";
 import { createRepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";
-import { buttonWithText, click, render, requiredElement, setInputValue } from "./render";
+import {
+  buttonWithText,
+  click,
+  render,
+  requiredElement,
+  setInputValue,
+} from "./render";
 
 const packageAId = "550e8400-e29b-41d4-a716-446655440000";
 const packageBId = "550e8400-e29b-41d4-a716-446655440001";
@@ -66,7 +72,9 @@ describe("PackageManagementPage — V2-102 create/rename/duplicate/reorder/delet
   test("renames a package and dirties the working copy", async () => {
     const store = createRepositoryWorkingCopyStore(repository());
     const { unmount } = await renderPage(store, packageAId);
-    await click(requiredElement('[aria-label="Rename Package A"]', HTMLButtonElement));
+    await click(
+      requiredElement('[aria-label="Rename Package A"]', HTMLButtonElement),
+    );
     const renameInput = requiredElement(
       `#package-rename-${packageAId}`,
       HTMLInputElement,
@@ -84,7 +92,9 @@ describe("PackageManagementPage — V2-102 create/rename/duplicate/reorder/delet
   test("renaming to the exact same name does not dirty the working copy (avoids a no-op transition)", async () => {
     const store = createRepositoryWorkingCopyStore(repository());
     const { unmount } = await renderPage(store, packageAId);
-    await click(requiredElement('[aria-label="Rename Package A"]', HTMLButtonElement));
+    await click(
+      requiredElement('[aria-label="Rename Package A"]', HTMLButtonElement),
+    );
     await click(buttonWithText("Save name"));
 
     expect(store.getIsDirty()).toBe(false);
@@ -94,7 +104,9 @@ describe("PackageManagementPage — V2-102 create/rename/duplicate/reorder/delet
   test("duplicates a package with a fresh UUID and dirties the working copy", async () => {
     const store = createRepositoryWorkingCopyStore(repository());
     const { container, unmount } = await renderPage(store, packageAId);
-    await click(requiredElement('[aria-label="Duplicate Package A"]', HTMLButtonElement));
+    await click(
+      requiredElement('[aria-label="Duplicate Package A"]', HTMLButtonElement),
+    );
 
     expect(store.getIsDirty()).toBe(true);
     expect(container.textContent).toContain("Package A copy");
@@ -118,7 +130,9 @@ describe("PackageManagementPage — V2-102 create/rename/duplicate/reorder/delet
         .disabled,
     ).toBe(true);
 
-    await click(requiredElement('[aria-label="Move Package A down"]', HTMLButtonElement));
+    await click(
+      requiredElement('[aria-label="Move Package A down"]', HTMLButtonElement),
+    );
     expect(store.getRepository().packages.map((pkg) => pkg.id)).toEqual([
       packageBId,
       packageAId,
@@ -133,7 +147,9 @@ describe("PackageManagementPage — V2-102 create/rename/duplicate/reorder/delet
       store,
       packageAId,
     );
-    await click(requiredElement('[aria-label="Delete Package B"]', HTMLButtonElement));
+    await click(
+      requiredElement('[aria-label="Delete Package B"]', HTMLButtonElement),
+    );
     expect(container.textContent).toContain("Delete");
     expect(container.textContent).toContain("Package B");
     expect(store.getIsDirty()).toBe(false);
@@ -150,7 +166,9 @@ describe("PackageManagementPage — V2-102 create/rename/duplicate/reorder/delet
   test("Cancel on a delete confirmation changes nothing", async () => {
     const store = createRepositoryWorkingCopyStore(repository());
     const { unmount } = await renderPage(store, packageAId);
-    await click(requiredElement('[aria-label="Delete Package B"]', HTMLButtonElement));
+    await click(
+      requiredElement('[aria-label="Delete Package B"]', HTMLButtonElement),
+    );
     await click(buttonWithText("Cancel"));
     expect(store.getIsDirty()).toBe(false);
     expect(store.getRepository().packages).toHaveLength(2);
@@ -162,7 +180,9 @@ describe("PackageManagementPage — V2-102 selected-package deletion", () => {
   test("deleting the selected package explains that another package must be selected", async () => {
     const store = createRepositoryWorkingCopyStore(repository());
     const { container, unmount } = await renderPage(store, packageAId);
-    await click(requiredElement('[aria-label="Delete Package A"]', HTMLButtonElement));
+    await click(
+      requiredElement('[aria-label="Delete Package A"]', HTMLButtonElement),
+    );
     expect(container.textContent).toContain("currently selected package");
     await unmount();
   });
@@ -171,11 +191,16 @@ describe("PackageManagementPage — V2-102 selected-package deletion", () => {
     const store = createRepositoryWorkingCopyStore(repository());
     const { onSelectionChange, persistSelectedPackageId, unmount } =
       await renderPage(store, packageAId);
-    await click(requiredElement('[aria-label="Delete Package A"]', HTMLButtonElement));
+    await click(
+      requiredElement('[aria-label="Delete Package A"]', HTMLButtonElement),
+    );
     await click(buttonWithText("Confirm delete"));
 
     expect(onSelectionChange).toHaveBeenCalledWith(packageBId);
-    expect(persistSelectedPackageId).toHaveBeenCalledWith(packageBId, packageAId);
+    expect(persistSelectedPackageId).toHaveBeenCalledWith(
+      packageBId,
+      packageAId,
+    );
     await unmount();
   });
 
@@ -195,7 +220,9 @@ describe("PackageManagementPage — V2-102 selected-package deletion", () => {
     };
     const store = createRepositoryWorkingCopyStore(threePackages);
     const { onSelectionChange, unmount } = await renderPage(store, packageAId);
-    await click(requiredElement('[aria-label="Delete Package A"]', HTMLButtonElement));
+    await click(
+      requiredElement('[aria-label="Delete Package A"]', HTMLButtonElement),
+    );
     await click(buttonWithText("Confirm delete"));
 
     expect(onSelectionChange).not.toHaveBeenCalled();
@@ -207,11 +234,20 @@ describe("PackageManagementPage — V2-102 selected-package deletion", () => {
 describe("PackageManagementPage — V2-102 ordinary switching never dirties", () => {
   test("Open persists selection, notifies the caller, and navigates without dirtying the repository", async () => {
     const store = createRepositoryWorkingCopyStore(repository());
-    const { onOpenMacros, onSelectionChange, persistSelectedPackageId, unmount } =
-      await renderPage(store, packageAId);
-    await click(requiredElement('[aria-label="Open Package B"]', HTMLButtonElement));
+    const {
+      onOpenMacros,
+      onSelectionChange,
+      persistSelectedPackageId,
+      unmount,
+    } = await renderPage(store, packageAId);
+    await click(
+      requiredElement('[aria-label="Open Package B"]', HTMLButtonElement),
+    );
 
-    expect(persistSelectedPackageId).toHaveBeenCalledWith(packageBId, packageAId);
+    expect(persistSelectedPackageId).toHaveBeenCalledWith(
+      packageBId,
+      packageAId,
+    );
     expect(onSelectionChange).toHaveBeenCalledWith(packageBId);
     expect(onOpenMacros).toHaveBeenCalledOnce();
     expect(store.getIsDirty()).toBe(false);

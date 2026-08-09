@@ -209,7 +209,10 @@ function MacroOverflowMenu({
         More actions
       </button>
       {open ? (
-        <div aria-label={`Actions for ${macro.name}`} className="overflow-panel">
+        <div
+          aria-label={`Actions for ${macro.name}`}
+          className="overflow-panel"
+        >
           <button
             aria-label={`Preview and send ${macro.name}`}
             onClick={() => {
@@ -233,8 +236,8 @@ function MacroOverflowMenu({
           {confirmingDelete ? (
             <div className="confirmation-panel" role="alertdialog">
               <p>
-                Delete <strong>{macro.name}</strong>? This cannot be undone
-                once the working copy is saved.
+                Delete <strong>{macro.name}</strong>? This cannot be undone once
+                the working copy is saved.
               </p>
               <button
                 className="danger"
@@ -608,7 +611,11 @@ export function MacrosPage({
     }
     const moved = activePackage.macros[index];
     const target = index + direction;
-    if (moved === undefined || target < 0 || target >= activePackage.macros.length) {
+    if (
+      moved === undefined ||
+      target < 0 ||
+      target >= activePackage.macros.length
+    ) {
       return;
     }
     store.applyContentChange(

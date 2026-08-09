@@ -1,4 +1,9 @@
-import { utf8ByteLength, type Repository, type RepositoryMacro, type RepositoryPackage } from "./repository";
+import {
+  utf8ByteLength,
+  type Repository,
+  type RepositoryMacro,
+  type RepositoryPackage,
+} from "./repository";
 import { v2Limits } from "./limits";
 
 /**
@@ -189,7 +194,10 @@ export function duplicateMacro(
   };
 }
 
-export function deleteMacro(repository: Repository, macroId: string): Repository {
+export function deleteMacro(
+  repository: Repository,
+  macroId: string,
+): Repository {
   const located = findMacro(repository, macroId);
   if (located === undefined) {
     return repository;
@@ -212,7 +220,12 @@ export function moveMacro(
     return repository;
   }
   const target = index + direction;
-  if (index < 0 || index >= pkg.macros.length || target < 0 || target >= pkg.macros.length) {
+  if (
+    index < 0 ||
+    index >= pkg.macros.length ||
+    target < 0 ||
+    target >= pkg.macros.length
+  ) {
     return repository;
   }
   const macros = [...pkg.macros];

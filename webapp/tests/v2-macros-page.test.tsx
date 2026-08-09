@@ -516,7 +516,10 @@ describe("MacrosPage — V2-101 overflow menu (Duplicate/Delete)", () => {
       ),
     );
     await click(
-      requiredElement('[aria-label="Delete Start the build"]', HTMLButtonElement),
+      requiredElement(
+        '[aria-label="Delete Start the build"]',
+        HTMLButtonElement,
+      ),
     );
 
     // Not yet deleted, and not yet dirty — only a confirmation panel is showing.
@@ -541,7 +544,10 @@ describe("MacrosPage — V2-101 overflow menu (Duplicate/Delete)", () => {
       ),
     );
     await click(
-      requiredElement('[aria-label="Delete Start the build"]', HTMLButtonElement),
+      requiredElement(
+        '[aria-label="Delete Start the build"]',
+        HTMLButtonElement,
+      ),
     );
     await click(buttonWithText("Confirm delete"));
 

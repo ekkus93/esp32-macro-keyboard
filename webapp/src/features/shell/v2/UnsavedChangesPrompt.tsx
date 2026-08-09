@@ -47,9 +47,9 @@ export function UnsavedChangesPrompt({
           <h2 id="unsaved-changes-prompt-title">Unsaved changes</h2>
         </div>
         <p>
-          You have unsaved changes. Continuing to {actionLabel} will lose
-          them — once this working copy is closed without saving, the
-          changes cannot be recovered.
+          You have unsaved changes. Continuing to {actionLabel} will lose them —
+          once this working copy is closed without saving, the changes cannot be
+          recovered.
         </p>
         <div className="form-actions">
           <button onClick={onCancel} type="button">

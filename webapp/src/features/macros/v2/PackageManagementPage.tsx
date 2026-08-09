@@ -237,8 +237,8 @@ function PackageRow({
             </p>
             {isSelected ? (
               <p>
-                This is your currently selected package — another package
-                must be selected afterward.
+                This is your currently selected package — another package must
+                be selected afterward.
               </p>
             ) : null}
             <button
@@ -316,7 +316,9 @@ export function PackageManagementPage({
   };
 
   const renamePackageRow = (packageId: string, name: string): void => {
-    const pkg = repository.packages.find((candidate) => candidate.id === packageId);
+    const pkg = repository.packages.find(
+      (candidate) => candidate.id === packageId,
+    );
     // Avoid a dirty transition after a no-op rename (TODO_V2 V2-102, same
     // rule V2-101 states for macro edits).
     if (pkg === undefined || pkg.name === name) {

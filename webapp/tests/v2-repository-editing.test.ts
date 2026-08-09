@@ -58,7 +58,11 @@ describe("repositoryEditing — macro CRUD and ordering (V2-101)", () => {
   test("addMacro appends to the end of the named package only", () => {
     const next = addMacro(repository(), packageAId, macro("new-id", "New"));
     const pkg = findPackage(next, packageAId);
-    expect(pkg?.macros.map((m) => m.id)).toEqual([macroAId, macroBId, "new-id"]);
+    expect(pkg?.macros.map((m) => m.id)).toEqual([
+      macroAId,
+      macroBId,
+      "new-id",
+    ]);
     expect(findPackage(next, packageBId)?.macros).toEqual([]);
   });
 
@@ -228,9 +232,9 @@ describe("repositoryEditing — name truncation on duplicate", () => {
     const duplicated = findPackage(result.repository, result.newPackageId);
     expect(duplicated).toBeDefined();
     const encoder = new TextEncoder();
-    expect(encoder.encode(duplicated?.name ?? "").byteLength).toBeLessThanOrEqual(
-      64,
-    );
+    expect(
+      encoder.encode(duplicated?.name ?? "").byteLength,
+    ).toBeLessThanOrEqual(64);
     expect(duplicated?.name.endsWith(" copy")).toBe(false);
   });
 });

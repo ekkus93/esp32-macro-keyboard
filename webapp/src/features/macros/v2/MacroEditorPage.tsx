@@ -101,7 +101,9 @@ function byteOffsetToCodeUnit(source: string, byteOffset: number): number {
   return codeUnit;
 }
 
-function estimatedDurationText(result: Extract<MacroCompileResult, { ok: true }>): string {
+function estimatedDurationText(
+  result: Extract<MacroCompileResult, { ok: true }>,
+): string {
   return `${String(result.actions.length)} actions · ${String(result.estimatedDurationMs)} ms estimated`;
 }
 
@@ -130,9 +132,9 @@ export function MacroEditorPage({
   const sourceRef = useRef<HTMLTextAreaElement>(null);
   const pendingSelection = useRef<number | null>(null);
   const [chordKey, setChordKey] = useState("");
-  const [chordModifiers, setChordModifiers] = useState<
-    ReadonlySet<Modifier>
-  >(new Set());
+  const [chordModifiers, setChordModifiers] = useState<ReadonlySet<Modifier>>(
+    new Set(),
+  );
   const [delayMs, setDelayMs] = useState(500);
 
   useEffect(() => {
@@ -175,7 +177,9 @@ export function MacroEditorPage({
     if (key.length === 0 || chordModifiers.size === 0) {
       return;
     }
-    const ordered = modifiers.filter((modifier) => chordModifiers.has(modifier));
+    const ordered = modifiers.filter((modifier) =>
+      chordModifiers.has(modifier),
+    );
     insertAtCursor(`{${[...ordered, key].join("+")}}`);
   };
 
@@ -210,7 +214,13 @@ export function MacroEditorPage({
     if (!canSave) {
       return;
     }
-    const candidate: RepositoryMacro = { id: macroId ?? createMacroId(), name, source, keyPressMs, interKeyMs };
+    const candidate: RepositoryMacro = {
+      id: macroId ?? createMacroId(),
+      name,
+      source,
+      keyPressMs,
+      interKeyMs,
+    };
     if (macroId === null) {
       const next = addMacro(repository, packageId, candidate);
       store.applyContentChange(next);
@@ -358,7 +368,11 @@ export function MacroEditorPage({
 
           <div aria-label="Insert chord" className="directive-toolbar">
             {modifiers.map((modifier) => (
-              <label className="checkbox-row" htmlFor={`macro-editor-chord-${modifier}`} key={modifier}>
+              <label
+                className="checkbox-row"
+                htmlFor={`macro-editor-chord-${modifier}`}
+                key={modifier}
+              >
                 <input
                   checked={chordModifiers.has(modifier)}
                   id={`macro-editor-chord-${modifier}`}
@@ -413,8 +427,8 @@ export function MacroEditorPage({
                 : "field-help"
             }
           >
-            {String(sourceBytes)} / {String(v2Limits.macroSourceMaxBytes)}{" "}
-            UTF-8 bytes
+            {String(sourceBytes)} / {String(v2Limits.macroSourceMaxBytes)} UTF-8
+            bytes
           </span>
         </label>
 

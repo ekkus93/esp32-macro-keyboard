@@ -207,12 +207,8 @@ describe("MacroEditorPage — V2-100 directive insertion controls", () => {
         store={store}
       />,
     );
-    await click(
-      requiredElement("#macro-editor-chord-CTRL", HTMLInputElement),
-    );
-    await click(
-      requiredElement("#macro-editor-chord-SHIFT", HTMLInputElement),
-    );
+    await click(requiredElement("#macro-editor-chord-CTRL", HTMLInputElement));
+    await click(requiredElement("#macro-editor-chord-SHIFT", HTMLInputElement));
     await setInputValue(
       requiredElement("#macro-editor-chord-key", HTMLInputElement),
       "t",
