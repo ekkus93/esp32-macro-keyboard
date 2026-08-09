@@ -974,7 +974,22 @@ Macros | Packages | Snapshots | Settings
 ## V2-091 — Macro list
 
 - [x] Show ordered macros for the selected package.
-- [ ] Show Add macro, Edit, Send, and overflow controls.
+- [x] Show Add macro, Edit, Send, and overflow controls. All four are direct
+      controls in `MacrosPage.tsx`: an **Add macro** header button, a
+      per-row **Edit** button (labeled "Edit `<macro name>`", wired to
+      `onOpenEditMacro` -> `navigateToEditMacro` -> `MacroEditorPage` loading
+      that exact macro by ID -- verified by reading `AppV2.tsx` and
+      `routingV2.ts`), a per-row **Send** button, and a per-row
+      `MacroOverflowMenu` (Preview and send/Duplicate/Delete, added in Phase
+      10's V2-101). Left unchecked through Phase 9 because the overflow menu
+      did not exist yet and Edit had no direct test; both gaps are now
+      closed -- overflow is tested in
+      `tests/v2-macros-page.test.tsx::"MacrosPage — V2-101 overflow menu
+      (Duplicate/Delete)"` and `"the overflow menu still offers Preview and
+      send"`, and Edit now has its own direct test, added by this audit:
+      `tests/v2-macros-page.test.tsx::"MacrosPage — V2-091 macro list >
+      Edit calls onOpenEditMacro with exactly the clicked row's macro ID"`
+      (`npm --prefix webapp run test` -- 523/523 passed).
 - [x] Support accessible reordering.
 - [x] Disable Send unless USB is `ready` and no other send is active.
 - [x] Keep the user on the Macros page for ordinary sends.

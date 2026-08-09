@@ -160,6 +160,16 @@ describe("MacrosPage — V2-091 macro list", () => {
     );
   });
 
+  test("Edit calls onOpenEditMacro with exactly the clicked row's macro ID", async () => {
+    const { callbacks } = await renderMacrosPage();
+    await click(
+      requiredElement('[aria-label="Edit Open terminal"]', HTMLButtonElement),
+    );
+    expect(callbacks.onOpenEditMacro).toHaveBeenCalledExactlyOnceWith(
+      macroBId,
+    );
+  });
+
   test("the first row cannot move up and the last row cannot move down", async () => {
     await renderMacrosPage();
     const moveUpFirst = requiredElement(
