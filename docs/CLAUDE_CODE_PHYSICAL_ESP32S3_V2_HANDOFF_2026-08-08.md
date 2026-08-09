@@ -14,6 +14,20 @@ This document is a handoff/status document. It is **not** a specification and it
 must not be treated as authority when it conflicts with the V2 specification or
 V2 TODO.
 
+**Status superseded.** This snapshot describes the repository as of its
+`34fb4bf4f3dfed94205b6294203dac3c05aabc3f` baseline. Substantial implementation
+has landed since (Phase 4 through at least Phase 9 per `docs/TODO_V2.md`),
+including replacing the `POST /api/v1/setup` `503` stub this document calls
+"the most important immediate fact for continuation" (§6.3) with the real
+transactional handler — see
+`docs/implementation-v2/V2_040_CUTOVER_B_TRANSACTIONAL_SETUP_SUBMISSION_2026-08-08.md`.
+Sections 1, 2, 4, 8, 13, 14, and 15 (authority order, hard rules, toolchain,
+USB port identification, execution/evidence discipline, trap history) remain
+generally applicable operating guidance; sections 3, 5, 6, 7, 9-12, and 16
+describe a specific point-in-time status and must be re-verified against
+`docs/TODO_V2.md`'s current checkbox state and the reports under
+`docs/implementation-v2/` before being relied on, not treated as current.
+
 ---
 
 ## 1. Read these first and use this authority order

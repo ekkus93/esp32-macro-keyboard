@@ -1,6 +1,20 @@
 # HTTP API reference
 
-**Validation status:** every route below is implemented and covered by host
+> **Retired — describes the v1 firmware-owned package/repository API.**
+> Everything below this notice documents routes the v1→v2 rebuild deleted:
+> `/api/v1/sets*`, `/api/v1/sets/{setId}/macros*`, plural `/api/v1/executions`,
+> `/api/v1/backup`, and `/api/v1/restore` do not exist in the current
+> firmware, which owns no package/macro/set repository or revision model at
+> all (`docs/implementation-v2/V2_MIGRATION_MAP.md` §2.14, §8). The current,
+> authoritative v2 HTTP API — `/api/v1/setup`, `/api/v1/auth/*`,
+> `/api/v1/blob*`, `/api/v1/send`, `/api/v1/settings*`, `/api/v1/device/*`,
+> `/api/v1/status`, `/api/v1/limits`, `/api/v1/diagnostics` — is specified in
+> `docs/SPEC_V2.md` §13 and enumerated machine-readably in
+> `contracts/v2/api/routes.json` (consumed by
+> `webapp/src/v2/apiRouteManifest.ts`). This file is kept only as a historical
+> record of the pre-rebuild API surface; do not implement or test against it.
+
+**Validation status (historical, describes the routes above):** every route below is implemented and covered by host
 tests against the real request-parsing and JSON-encoding code (fakes replace
 only ESP-IDF/FreeRTOS/filesystem calls, per `tests/host/`'s design). One
 execution submit→poll→cancel workflow is additionally covered by a real

@@ -1,6 +1,15 @@
 # Frontend Test Expansion — Progress
 
-Status: **Implemented and validated in pull-request CI**
+**Retired v1-era snapshot.** This document predates the v1→v2 rebuild
+(started 2026-08-03) and describes the pre-rebuild frontend test suite
+(execution/routing pages the v2 rebuild deleted or rewrote per
+`docs/implementation-v2/V2_MIGRATION_MAP.md` §3, §4.2). It is not a current
+status source. Current frontend test status lives in `docs/TODO_V2.md` and
+`docs/implementation-v2/`; the current suite location and command are in
+`README.md`'s "Build and test" section.
+
+Status (historical, as of the date below): **Implemented and validated in
+pull-request CI**
 
 Branch: `ralph/frontend-tests`
 

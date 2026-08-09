@@ -1260,10 +1260,47 @@ Macros | Packages | Snapshots | Settings
       correct: its sole content is "The authoritative v2 implementation
       sequence is `TODO_V2.md`", with an explicit instruction not to
       implement from the retired v1 TODO.
-- [ ] Update development, API, test, hardware, and recovery documentation.
+- [x] Update development, API, test, hardware, and recovery documentation.
+      Evidence: commit `e28daf4442ac66ef502a56902dfb461f2795f504`. `docs/API.md` (entirely v1 firmware-owned
+      package/set/macro/backup/restore routes, all deleted per
+      `docs/implementation-v2/V2_MIGRATION_MAP.md` §2.14/§8) got a retirement
+      banner pointing to `docs/SPEC_V2.md` §13 and `contracts/v2/api/routes.json`
+      as current authority, since a confident full route rewrite was out of this
+      pass's scope; `docs/RECOVERY.md` was rewritten from the deleted v1
+      set/trash/transaction-manifest model to the current opaque-blob recovery
+      rules (`docs/SPEC_V2.md` §10.1/§10.3/§10.5/§10.6/§10.9) with corrected test
+      citations; `docs/PROVISIONING_SECURITY.md`'s four nonexistent setup routes
+      were corrected to the real `GET`/`POST /api/v1/setup` pair (verified
+      against `web_server_lifecycle.c`); `docs/HARDWARE_TEST_PLAN.md`'s
+      "Chromebook workflow dry run" and "Physical controls" sections were
+      corrected from v1 set/procedure/checkpoint/reset-gesture language (all
+      explicit `docs/SPEC_V2.md` §4 non-goals or, per
+      `firmware/components/device_controls/README.md`, never-implemented) to v2
+      package/send terminology; `docs/FRONTEND_TESTS_PROGRESS.md` (a pre-rebuild
+      status snapshot presented as current) got a retired banner;
+      `README.md`'s on-device Unity test-menu table and prose were missing the
+      `[benchmark]` selector that
+      `docs/implementation-v2/V2_143_DOC_AUTHORITY_SYNC_2026-08-09.md` had
+      flagged but left for this track; and
+      `docs/CLAUDE_CODE_PHYSICAL_ESP32S3_V2_HANDOFF_2026-08-08.md`'s
+      point-in-time "current state" sections (describing the now-replaced
+      `POST /api/v1/setup` `503` stub as current) got a superseded-status note.
+      `docs/DEVELOPMENT.md` was investigated and found already accurate; no
+      change needed. Full detail:
+      `docs/implementation-v2/V2_143_DEV_STATUS_DOCS_SYNC_2026-08-09.md`.
 - [ ] Add approved mockup references under `docs/mockups/v2/` only when the image
       files are available and licensed for repository use.
-- [ ] Clearly label current implementation status versus specification intent.
+- [x] Clearly label current implementation status versus specification intent.
+      Evidence: commit `e28daf4442ac66ef502a56902dfb461f2795f504`. Audited `README.md`'s "Repository
+      status" section (already corrected by the prior README-authority track)
+      and found it accurately mid-rebuild-framed; no other file in scope made
+      confident claims that unbuilt Phase 10-15 features (macro editing,
+      snapshots UI, settings UI, portrait/accessibility, hardware validation)
+      already exist. The one residual instance found —
+      `docs/CLAUDE_CODE_PHYSICAL_ESP32S3_V2_HANDOFF_2026-08-08.md` presenting an
+      80-commits-stale Phase 4 snapshot as current status — was labeled
+      superseded per the change above. Full detail:
+      `docs/implementation-v2/V2_143_DEV_STATUS_DOCS_SYNC_2026-08-09.md`.
 
 ## Phase 14 exit gate
 

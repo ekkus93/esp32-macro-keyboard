@@ -14,18 +14,27 @@ Use only harmless text in a disposable editor during validation.
 
 ## Chromebook workflow dry run
 
-Create representative sets for HP Chromebook 11 G6 EE and one other model or a
-generic test set. Verify explicit set selection, procedure order, manual
-checkpoints, send confirmation, resend, skip, reset, cancellation, and no
-automatic next execution.
+Create representative packages for HP Chromebook 11 G6 EE and one other model
+or a generic test package. Verify explicit package selection, macro order,
+optional physical send confirmation, cancellation, and no automatic next
+execution (`docs/SPEC_V2.md` §6.3-§6.4, §7.12). Version 0.2 has no procedures,
+workflow steps, checkpoints, or progress-tracking concept - `docs/SPEC_V2.md`
+§4 lists that as an explicit non-goal.
 
 ## Persistence and fault tests
 
-Record power interruption after each transaction phase, credential change,
-firmware slot switch, full userdata, corrupt object, mount failure, and progress
-updates. Verify old or new committed state, never partial active state.
+Record power interruption during a blob-add commit (before and after the
+`.tmp`→`.gz` rename, `docs/SPEC_V2.md` §10.3), credential change, firmware
+slot switch, full userdata, corrupt object, and mount failure. Verify old or
+new committed state, never partial active state. Unlike repository blobs and
+device settings, current send/execution state has no persistence or
+reboot-recovery contract in `docs/SPEC_V2.md` §13.10 or §18.3 and is not
+expected to survive a reboot.
 
 ## Physical controls
 
-Measure cancel latency during a 10-second delay and rapid typing. Verify setup
-reset and factory reset gestures cannot be triggered by normal short presses.
+Measure cancel latency during a 10-second delay and rapid typing. There is no
+physical reset gesture to test against: reset settings and factory reset are
+network requests gated by a typed confirmation phrase (and, for factory
+reset, the administrator password), not a button press
+(`firmware/components/device_controls/README.md`, `docs/SPEC_V2.md` §13.12).
