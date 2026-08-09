@@ -1618,31 +1618,16 @@ just confirms it and closes the checkboxes.
       correct: its sole content is "The authoritative v2 implementation
       sequence is `TODO_V2.md`", with an explicit instruction not to
       implement from the retired v1 TODO.
-- [ ] Update development, API, test, hardware, and recovery documentation.
-      Re-audited 2026-08-09: **uncheck**. The `docs/*.md` work below is real
-      and stands, but `webapp/README.md` — the webapp's own development
-      README, never in scope for either prior V2-143 track (both explicitly
-      called only `webapp/src/features/settings/README.md` out-of-scope, not
-      this file) — is now materially false, not just dated: (1) it says "A
-      committed `package-lock.json` does not exist yet," but
-      `webapp/package-lock.json` has existed since commit `69c74b5` and every
-      `npm ci` in this repo's CI and docs depends on it; (2) it calls package/
-      macro/import-export/snapshot screens "presentation scaffolds with
-      representative data" whose "buttons must not be interpreted as
-      completed persistence or API workflows" — false for the current v2
-      surface: `features/macros/v2/MacrosPage.tsx`,
-      `features/macros/v2/PackageManagementPage.tsx`, and
-      `features/snapshots/v2/SnapshotsPage.tsx` all import and are wired to
-      `v2/repository`, `v2/apiClient`, `v2/sendClient`, and
-      `v2/repositoryWorkingCopy` (verified by import inspection, 2026-08-09) —
-      real functionality landed in Phases 9–11 (commits `389ede9`, `606fa02`,
-      `90f5eec`) after this file was last touched (`f7c884f`, a pre-v2-rebuild
-      "set becomes package" refactor). `CLAUDE.md`'s own webapp architecture
-      section cites this exact file as authority for the "presentation
-      scaffolds" characterization, so the staleness propagates. The `docs/*.md`
-      work described below was not undone and remains accurate; the gap is
-      `webapp/README.md` specifically, which needs the same treatment
-      `docs/README.md` already got.
+- [x] Update development, API, test, hardware, and recovery documentation.
+      `webapp/README.md`'s two false claims (identified 2026-08-09) are now
+      fixed: it no longer claims `package-lock.json` doesn't exist, and its
+      "Current implementation" section now distinguishes the real, v2-wired
+      Macros/Packages/Snapshots surface (`AppV2`, the mounted entry point)
+      from the retired v1 `App.tsx`'s genuine presentation scaffolds, rather
+      than blanket-labeling both as scaffolds. `CLAUDE.md`'s matching webapp
+      architecture citations were corrected the same way (same commit) so the
+      staleness doesn't propagate. The `docs/*.md` work below was real and
+      stands unchanged.
       Evidence: commit `e28daf4442ac66ef502a56902dfb461f2795f504`. `docs/API.md` (entirely v1 firmware-owned
       package/set/macro/backup/restore routes, all deleted per
       `docs/implementation-v2/V2_MIGRATION_MAP.md` §2.14/§8) got a retirement
@@ -1672,16 +1657,13 @@ just confirms it and closes the checkboxes.
       `docs/implementation-v2/V2_143_DEV_STATUS_DOCS_SYNC_2026-08-09.md`.
 - [ ] Add approved mockup references under `docs/mockups/v2/` only when the image
       files are available and licensed for repository use.
-- [ ] Clearly label current implementation status versus specification intent.
-      Re-audited 2026-08-09: **uncheck**, for the same `webapp/README.md`
-      reason as the sub-bullet above — labeling now-real Phase 9–11 macro/
-      package/snapshot functionality as unreliable "presentation scaffolds"
-      is a status-vs-intent mislabeling too, just in the understating rather
-      than overstating direction (the direction this project's prior
-      incidents, e.g. the frozen-SPEC rule, have been about is overclaiming;
-      this is the opposite failure, but it is still inaccurate labeling of
-      current status). The audit below, of `README.md` and other `docs/*.md`
-      files, was real and stands.
+- [x] Clearly label current implementation status versus specification intent.
+      The same `webapp/README.md` fix closes this: it no longer
+      under-states Phase 9–11's real macro/package/snapshot functionality as
+      unreliable "presentation scaffolds" (the opposite failure direction
+      from this project's prior overclaiming incidents, but still inaccurate
+      status labeling). The audit of `README.md` and other `docs/*.md` files
+      remains accurate and stands unchanged.
       Evidence: commit `e28daf4442ac66ef502a56902dfb461f2795f504`. Audited `README.md`'s "Repository
       status" section (already corrected by the prior README-authority track)
       and found it accurately mid-rebuild-framed; no other file in scope made
@@ -1712,9 +1694,15 @@ just confirms it and closes the checkboxes.
       evidence as V2-141 above): `verify-no-remote-assets.sh webapp/dist` exit
       0 on a real production build, and the webfs image uses 393,216 of
       1,048,576 partition bytes (37.5%), inside the 85% budget ratio.
-- [ ] Documentation accurately describes the implemented v2 system. Not yet:
-      `webapp/README.md` materially misdescribes current Phase 9–11
-      functionality as non-functional scaffolding (see V2-143 above).
+- [ ] Documentation accurately describes the implemented v2 system. The
+      specific defect this line cited (`webapp/README.md` materially
+      misdescribing Phase 9–11 functionality as non-functional scaffolding)
+      is now fixed — see V2-143 above. Left unchecked regardless: this is a
+      Phase 14 exit-gate line, and Phase 14 as a whole is not done (V2-140
+      dead-code removal has not run, per the line above), so the phase
+      cannot honestly close yet; also, only the docs actually audited across
+      V2-143's four rounds have been re-verified accurate, not every
+      markdown file in the repository.
 
 ---
 

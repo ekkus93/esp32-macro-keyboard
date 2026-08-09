@@ -105,9 +105,9 @@ into firmware storage or `macro_model` without checking the migration map first.
 - `v2/` — the current v2 contract layer: `apiContracts.ts`/`apiGuards.ts`/`apiRequestGuards.ts` (runtime type guards for every `/api/v1/*` payload), `apiTypes.ts`, `apiRouteManifest.ts`, `limits.ts` (mirrors firmware `app_limits_v2.h`), `macroCompiler.ts` (shares the parser conformance corpus with `macro_parser`), `repository.ts`/`repositoryValidation.ts` (client-owned package/macro modeling, since firmware doesn't do this anymore).
 - `types/` — legacy v1 model types; being superseded by `v2/`.
 - `api/` — the HTTP client (`client.ts`), route table, and error handling used by feature pages.
-- `features/<domain>/` — route-level pages by domain (`auth`, `execution`, `macros`, `package`, `settings`); most are presentation scaffolds over representative data per `webapp/README.md` — a page rendering doesn't mean its persistence/API path is real, check the component before relying on one.
-- `routing.ts` — hash-based routing across all planned screens.
-- `App.tsx`/`main.tsx`/`components/` — shell, layout, and shared widgets (`AppShell`, `ConnectivityBanner`, `ErrorBanner`, `StatusBadge`, `AccessibleDialog`).
+- `features/<domain>/` — legacy v1 route-level pages by domain (`auth`, `execution`, `macros`, `package`, `settings`); these are presentation scaffolds over representative data per `webapp/README.md` — a page rendering doesn't mean its persistence/API path is real, check the component before relying on one. `features/<domain>/v2/` subdirectories (`auth`, `macros`, `shell`, `snapshots`, `startup`) are the real, `v2/`-contract-wired implementations that `AppV2` actually renders — Settings and Diagnostics have no `v2/` implementation yet (Phase 12, unstarted) and render a placeholder.
+- `routing.ts` — legacy v1 hash-based routing; `v2/routingV2.ts` is what `AppV2` actually uses.
+- `App.tsx`/`components/` — the retired v1 shell, layout, and shared widgets (`AppShell`, `ConnectivityBanner`, `ErrorBanner`, `StatusBadge`, `AccessibleDialog`); not the mounted entry point. `main.tsx` boots `AppV2.tsx` instead.
 - `pages/` — placeholder only (see its own `README.md`); route components currently live in `App.tsx`, not here.
 
 ### Host tests (`tests/host/`)
