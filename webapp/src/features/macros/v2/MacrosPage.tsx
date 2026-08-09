@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import { V2ApiError } from "../../../v2/apiClient";
 import type { RepositoryMacro } from "../../../v2/repository";
+import {
+  deleteMacro,
+  duplicateMacro,
+  moveMacro as moveMacroInRepository,
+} from "../../../v2/repositoryEditing";
 import type { RepositoryWorkingCopyStore } from "../../../v2/repositoryWorkingCopy";
 import {
   cancelSend as defaultCancelSend,
@@ -164,6 +169,112 @@ interface MacroRowProps {
   onEdit: () => void;
   onPreview: () => void;
   onMove: (direction: -1 | 1) => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}
+
+/**
+ * Overflow menu (TODO_V2 V2-101, closing a gap Phase 9 flagged rather than
+ * faked — UI_UX_SPEC_V2 §5.1 "overflow actions such as Preview and send,
+ * Duplicate, Move, and Delete"). Delete asks for an explicit, name-bearing
+ * confirmation before it ever touches the working copy, matching the
+ * destructive-target identification UI_UX_SPEC_V2 §6.2 requires for package
+ * deletion.
+ */
+function MacroOverflowMenu({
+  macro,
+  onPreview,
+  onDuplicate,
+  onDelete,
+}: {
+  macro: RepositoryMacro;
+  onPreview: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  return (
+    <div className="overflow-menu">
+      <button
+        aria-expanded={open}
+        aria-label={`More actions for ${macro.name}`}
+        onClick={() => {
+          setOpen((current) => !current);
+          setConfirmingDelete(false);
+        }}
+        type="button"
+      >
+        More actions
+      </button>
+      {open ? (
+        <div
+          aria-label={`Actions for ${macro.name}`}
+          className="overflow-panel"
+        >
+          <button
+            aria-label={`Preview and send ${macro.name}`}
+            onClick={() => {
+              setOpen(false);
+              onPreview();
+            }}
+            type="button"
+          >
+            Preview and send
+          </button>
+          <button
+            aria-label={`Duplicate ${macro.name}`}
+            onClick={() => {
+              setOpen(false);
+              onDuplicate();
+            }}
+            type="button"
+          >
+            Duplicate
+          </button>
+          {confirmingDelete ? (
+            <div className="confirmation-panel" role="alertdialog">
+              <p>
+                Delete <strong>{macro.name}</strong>? This cannot be undone once
+                the working copy is saved.
+              </p>
+              <button
+                className="danger"
+                onClick={() => {
+                  setOpen(false);
+                  setConfirmingDelete(false);
+                  onDelete();
+                }}
+                type="button"
+              >
+                Confirm delete
+              </button>
+              <button
+                onClick={() => {
+                  setConfirmingDelete(false);
+                }}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              aria-label={`Delete ${macro.name}`}
+              className="danger"
+              onClick={() => {
+                setConfirmingDelete(true);
+              }}
+              type="button"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function MacroRow({
@@ -178,6 +289,8 @@ function MacroRow({
   onEdit,
   onPreview,
   onMove,
+  onDuplicate,
+  onDelete,
 }: MacroRowProps): React.JSX.Element {
   return (
     <article className="card">
@@ -219,13 +332,6 @@ function MacroRow({
         >
           Edit
         </button>
-        <button
-          aria-label={`Preview and send ${macro.name}`}
-          onClick={onPreview}
-          type="button"
-        >
-          Preview and send
-        </button>
         <div className="reorder-actions">
           <button
             aria-label={`Move ${macro.name} up`}
@@ -248,6 +354,12 @@ function MacroRow({
             Move down
           </button>
         </div>
+        <MacroOverflowMenu
+          macro={macro}
+          onDelete={onDelete}
+          onDuplicate={onDuplicate}
+          onPreview={onPreview}
+        />
       </div>
     </article>
   );
@@ -497,26 +609,36 @@ export function MacrosPage({
     if (activePackage === undefined) {
       return;
     }
+    const moved = activePackage.macros[index];
     const target = index + direction;
-    if (target < 0 || target >= activePackage.macros.length) {
+    if (
+      moved === undefined ||
+      target < 0 ||
+      target >= activePackage.macros.length
+    ) {
       return;
     }
-    const macros = [...activePackage.macros];
-    const moved = macros[index];
-    if (moved === undefined) {
-      return;
-    }
-    macros.splice(index, 1);
-    macros.splice(target, 0, moved);
-    store.applyContentChange({
-      ...repository,
-      packages: repository.packages.map((pkg) =>
-        pkg.id === activePackage.id ? { ...pkg, macros } : pkg,
-      ),
-    });
+    store.applyContentChange(
+      moveMacroInRepository(repository, activePackage.id, index, direction),
+    );
     setMoveAnnouncement(
       `Moved ${moved.name} to position ${String(target + 1)}.`,
     );
+  };
+
+  // V2-101 — duplicate/delete always change repository content, so both
+  // unconditionally dirty the working copy (no no-op case exists: a
+  // duplicate always adds an item and a delete only runs against a macro
+  // that is confirmed present).
+  const duplicateMacroRow = (macroId: string): void => {
+    const result = duplicateMacro(repository, macroId);
+    if (result !== null) {
+      store.applyContentChange(result.repository);
+    }
+  };
+
+  const deleteMacroRow = (macroId: string): void => {
+    store.applyContentChange(deleteMacro(repository, macroId));
   };
 
   if (activePackage === undefined) {
@@ -630,6 +752,12 @@ export function MacrosPage({
               key={macro.id}
               macro={macro}
               macroCount={activePackage.macros.length}
+              onDelete={() => {
+                deleteMacroRow(macro.id);
+              }}
+              onDuplicate={() => {
+                duplicateMacroRow(macro.id);
+              }}
               onEdit={() => {
                 onOpenEditMacro(macro.id);
               }}
@@ -640,6 +768,14 @@ export function MacrosPage({
                 onOpenPreview(macro.id);
               }}
               onSend={() => {
+                // SPEC_V2 §14.5/UI_UX_SPEC_V2 §5.4: with `sendMode: preview`
+                // the primary Send control opens Preview and Send first
+                // instead of calling `POST /api/v1/send` directly (TODO_V2
+                // V2-094 "Honor Always Preview when configured").
+                if (sendMode === "preview") {
+                  onOpenPreview(macro.id);
+                  return;
+                }
                 void startSend(macro);
               }}
               onToggleReveal={() => {

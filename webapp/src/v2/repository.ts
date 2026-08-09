@@ -43,7 +43,12 @@ export type RepositoryValidationResult =
   | { ok: true; value: Repository }
   | { ok: false; issues: RepositoryValidationIssue[] };
 
-function utf8ByteLength(value: string): number {
+/**
+ * Exported so editing UI (Phase 10, TODO_V2 V2-100) can show live UTF-8 byte
+ * counts against the same primitive this module's own validation uses,
+ * rather than reimplementing it.
+ */
+export function utf8ByteLength(value: string): number {
   return textEncoder.encode(value).byteLength;
 }
 

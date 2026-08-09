@@ -6,12 +6,12 @@
  * Macros | Packages | Snapshots | Settings
  * ```
  *
- * Only Macros is a real destination as of Phase 9 — Packages, Snapshots, and
- * Settings render a placeholder until their own phases land (Phase 10-12).
- * A route may encode a macro selection (the optional preview screen,
- * TODO_V2 V2-094) but the in-memory repository working copy remains the
- * source of truth; a URL never causes a firmware package or macro lookup
- * (UI_UX_SPEC_V2 §2.3).
+ * Macros, macro editing, and Packages are real destinations as of Phase 10;
+ * Snapshots and Settings still render a placeholder until their own phases
+ * land (Phase 11-12). A route may encode a macro selection (the optional
+ * preview screen, TODO_V2 V2-094, or the editor, TODO_V2 V2-100) but the
+ * in-memory repository working copy remains the source of truth; a URL
+ * never causes a firmware package or macro lookup (UI_UX_SPEC_V2 §2.3).
  */
 
 export const screensV2 = [
@@ -27,6 +27,11 @@ export type ScreenV2 = (typeof screensV2)[number];
 
 export type MacroPreviewTarget =
   | { kind: "valid"; macroId: string }
+  | { kind: "invalid" };
+
+export type MacroEditorTarget =
+  | { kind: "create" }
+  | { kind: "edit"; macroId: string }
   | { kind: "invalid" };
 
 const uuidPattern =
@@ -74,12 +79,48 @@ export function macroPreviewTargetFromHash(): MacroPreviewTarget {
   return { kind: "valid", macroId };
 }
 
+/**
+ * Reads the macro-editor target (TODO_V2 V2-100) from the current hash. No
+ * `macroId` query parameter means "create a new macro" — any other malformed
+ * combination (wrong key, extra keys, a non-UUID value) is `invalid` so the
+ * caller can fall back rather than editing the wrong macro.
+ */
+export function macroEditorTargetFromHash(): MacroEditorTarget {
+  const [route, query] = hashRouteAndQuery();
+  if (route !== "macro-editor") {
+    return { kind: "invalid" };
+  }
+  if (query.length === 0) {
+    return { kind: "create" };
+  }
+  const parameters = new URLSearchParams(query);
+  const keys = Array.from(parameters.keys());
+  const macroId = parameters.get("macroId");
+  if (
+    keys.length !== 1 ||
+    keys[0] !== "macroId" ||
+    macroId === null ||
+    !uuidPattern.test(macroId)
+  ) {
+    return { kind: "invalid" };
+  }
+  return { kind: "edit", macroId };
+}
+
 export function navigateV2(target: ScreenV2): void {
   window.location.hash = `/${target}`;
 }
 
 export function navigateToMacroPreview(macroId: string): void {
   window.location.hash = `/macro-preview?macroId=${encodeURIComponent(macroId)}`;
+}
+
+export function navigateToAddMacro(): void {
+  window.location.hash = "/macro-editor";
+}
+
+export function navigateToEditMacro(macroId: string): void {
+  window.location.hash = `/macro-editor?macroId=${encodeURIComponent(macroId)}`;
 }
 
 /** UI_UX_SPEC_V2 §5.3/§5.5 — Quick Send never leaves the Macros page. */

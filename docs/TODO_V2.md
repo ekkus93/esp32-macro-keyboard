@@ -965,8 +965,17 @@ Macros | Packages | Snapshots | Settings
 
 ## V2-094 — Optional Preview and Send
 
-- [ ] Make preview available from overflow actions.
-- [ ] Honor Always Preview when configured.
+- [x] Make preview available from overflow actions. `MacrosPage.tsx`'s
+      overflow menu offers "Preview and send" per macro row, tested in
+      `tests/v2-macros-page.test.tsx::"the overflow menu still offers Preview
+      and send"`.
+- [x] Honor Always Preview when configured. The primary Send control now
+      reads the device's `sendMode` setting: `preview` routes through the
+      Preview and Send page instead of quick-sending, `quick` sends directly
+      as before — both branches tested in
+      `tests/v2-macros-page.test.tsx::"MacrosPage — V2-094 honoring Always
+      Preview"`. Closed by
+      `docs/implementation-v2/V2_100_103_MACRO_EDITING_PACKAGE_MANAGEMENT_2026-08-09.md`.
 - [x] Show package, macro, source/action summary, timing, action count, duration,
       and USB state.
 - [x] Provide explicit Send now and Cancel.
@@ -995,47 +1004,84 @@ Macros | Packages | Snapshots | Settings
 
 ## V2-100 — Macro editor
 
-- [ ] Implement name, source, key-press duration, and inter-key delay fields.
-- [ ] Show UTF-8 byte counts.
-- [ ] Implement directive insertion controls.
-- [ ] Run live TypeScript validation against the shared corpus implementation.
-- [ ] Show exact error location and Go to error.
-- [ ] Show action count and estimated duration when valid.
-- [ ] Save only to the in-memory working copy.
-- [ ] Cancel without changing the working copy.
+- [x] Implement name, source, key-press duration, and inter-key delay fields.
+- [x] Show UTF-8 byte counts.
+- [x] Implement directive insertion controls.
+- [x] Run live TypeScript validation against the shared corpus implementation.
+- [x] Show exact error location and Go to error.
+- [x] Show action count and estimated duration when valid.
+- [x] Save only to the in-memory working copy.
+- [x] Cancel without changing the working copy.
+
+Evidence: commit `606fa02`, `webapp/src/features/macros/v2/MacroEditorPage.tsx`,
+tested by `webapp/tests/v2-macro-editor-page.test.tsx`. See
+`docs/implementation-v2/V2_100_103_MACRO_EDITING_PACKAGE_MANAGEMENT_2026-08-09.md`.
 
 ## V2-101 — Macro CRUD and ordering
 
-- [ ] Create, edit, duplicate, move, reorder, and delete macros locally.
-- [ ] Generate IDs with `crypto.randomUUID()`.
-- [ ] Preserve global macro-ID uniqueness.
-- [ ] Mark repository dirty after every actual content/order change.
-- [ ] Avoid dirty transitions after no-op edits.
+- [x] Create, edit, duplicate, move, reorder, and delete macros locally.
+- [x] Generate IDs with `crypto.randomUUID()`.
+- [x] Preserve global macro-ID uniqueness.
+- [x] Mark repository dirty after every actual content/order change.
+- [x] Avoid dirty transitions after no-op edits.
+
+Evidence: commit `606fa02`, `webapp/src/v2/repositoryEditing.ts` plus
+`MacrosPage.tsx`'s new overflow menu (the gap Phase 9 explicitly deferred
+here), tested by `webapp/tests/v2-repository-editing.test.ts` and
+`webapp/tests/v2-macros-page.test.tsx::"MacrosPage — V2-101 overflow menu
+(Duplicate/Delete)"`. See
+`docs/implementation-v2/V2_100_103_MACRO_EDITING_PACKAGE_MANAGEMENT_2026-08-09.md`.
 
 ## V2-102 — Package management
 
-- [ ] Create, rename, duplicate, reorder, and delete packages locally.
-- [ ] Generate canonical UUID v4 package IDs.
-- [ ] Mark repository dirty after actual changes.
-- [ ] Identify destructive targets by name.
-- [ ] Resolve and persist package selection after selected-package deletion.
-- [ ] Do not make ordinary package switching dirty.
+- [x] Create, rename, duplicate, reorder, and delete packages locally.
+- [x] Generate canonical UUID v4 package IDs.
+- [x] Mark repository dirty after actual changes.
+- [x] Identify destructive targets by name.
+- [x] Resolve and persist package selection after selected-package deletion.
+- [x] Do not make ordinary package switching dirty.
+
+Evidence: commit `606fa02`,
+`webapp/src/features/macros/v2/PackageManagementPage.tsx`, tested by
+`webapp/tests/v2-package-management-page.test.tsx` and
+`webapp/tests/v2-repository-editing.test.ts::"repositoryEditing — package
+management (V2-102)"`. See
+`docs/implementation-v2/V2_100_103_MACRO_EDITING_PACKAGE_MANAGEMENT_2026-08-09.md`.
 
 ## V2-103 — Unsaved-change protection
 
-- [ ] Keep Unsaved changes and Save snapshot visible on all operational screens.
-- [ ] Register `beforeunload` while dirty where supported.
+- [x] Keep Unsaved changes and Save snapshot visible on all operational
+      screens. `MacroEditorPage`/`PackageManagementPage` render inside
+      `AppShellV2` (`AppV2.tsx`), which already provides this per V2-090.
+- [x] Register `beforeunload` while dirty where supported.
+      `useBeforeUnloadGuard.ts`, tested in `tests/v2-before-unload-guard.test.tsx`;
+      confirmed real in an actual browser, not just jsdom, while diagnosing
+      and fixing a genuine CDP-harness hang this listener exposed — see
+      `docs/implementation-v2/V2_100_103_MACRO_EDITING_PACKAGE_MANAGEMENT_2026-08-09.md`.
 - [ ] Warn before Sign Out, snapshot load, import replacement, reset settings,
-      and factory reset.
-- [ ] Offer context-appropriate Cancel, Export working copy, Save snapshot, and
-      Discard options.
-- [ ] Never claim closed unsaved work can be recovered.
+      and factory reset. `UnsavedChangesPrompt.tsx` exists and is unit-tested
+      in isolation, but none of its five trigger points are wired to it yet
+      — none of those screens (Sign Out control, Snapshots UI, Import UI,
+      Settings UI) exist before Phase 11/12.
+- [x] Offer context-appropriate Cancel, Export working copy, Save snapshot, and
+      Discard options. `UnsavedChangesPrompt.tsx` implements all four; only
+      its call sites (the item above) are missing.
+- [x] Never claim closed unsaved work can be recovered.
 
 ## Phase 10 exit gate
 
-- [ ] Editing and package-management unit and browser tests pass.
-- [ ] No edit calls a firmware package or macro route.
-- [ ] Dirty-state transition matrix is fully tested.
+- [ ] Editing and package-management unit and browser tests pass. Unit tests
+      pass in full (478/478); no browser (real-Chrome/CDP) scenario exists
+      yet for macro editing or package management specifically —
+      `run-browser-tests.mjs` still only exercises the Quick Send/Macros-list
+      flow inherited from Phases 8/9.
+- [x] No edit calls a firmware package or macro route. True by construction:
+      v2 firmware has no package/macro CRUD routes at all (Phase 2), and
+      `repositoryEditing.ts` makes no HTTP calls — it only mutates the
+      in-memory working copy.
+- [x] Dirty-state transition matrix is fully tested. Every named
+      dirty/no-op transition has a direct test — content/order changes
+      dirty, no-op edits don't, ordinary package switching doesn't.
 
 ---
 
