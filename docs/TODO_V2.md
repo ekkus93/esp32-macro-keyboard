@@ -1859,21 +1859,19 @@ that the project is close to final sign-off.
       covers `docs/mockups/v2/`, `webapp/README.md`, and status-vs-intent
       labeling — those remain open (see V2-143 above; `webapp/README.md` in
       particular was found stale by this pass).
-- [ ] `./scripts/check-all.sh` passes from a clean checkout. **Unchecked** on
-      re-audit: the prior verification covered commit `9bb47bb`, which is now
-      16 commits behind `HEAD` and predates all of Phase 9 (Macros/Quick
-      Send), Phase 10 (macro editor/package management), and Phase 11
-      (snapshots/import-export) landing — substantial new code the prior
-      clean-checkout run never saw. This pass did not redo the full clean-
-      checkout gate (not required per this audit's instructions), but did
-      confirm the two fast suites pass in the current working tree: host
-      tests 54/54 CTest suites (`./scripts/run-tests.sh`, 2026-08-09) and
-      frontend 51/51 vitest files, 522/522 tests
-      (`npm --prefix webapp run test -- --run`, 2026-08-09). That is a
-      positive signal, not equivalent to the clean-checkout claim this line
-      makes; a real re-verification (fresh clone, full `check-all.sh`,
-      including the firmware build) is still owed before this can be checked
-      again.
+- [x] `./scripts/check-all.sh` passes from a clean checkout. Audit Track G
+      correctly unchecked this pending re-verification (the prior claim
+      covered commit `9bb47bb`, 16 commits stale, predating Phases 9–11).
+      Re-verified 2026-08-09 against commit `575dae5`: an actual fresh
+      `git clone` from the local repository (not the working tree), `npm ci`
+      in `webapp/`, `littlefs-python==0.15.0` installed into the sourced
+      ESP-IDF virtualenv exactly as `.github/workflows/quality.yml` does it,
+      then the full gate. First attempt (commit `50ada5b`, before this fix)
+      caught a real pre-existing Prettier formatting defect in Audit Track
+      E's added test (`webapp/tests/v2-macros-page.test.tsx`), fixed in
+      `575dae5`. Second attempt at `575dae5`: exit `0`, 54/54 host tests, all
+      steps clean. Same caveat as before — this is a snapshot fact about this
+      commit, not a permanent one.
 - [ ] Required ESP32-S3R8, USB HID, storage, Wi-Fi, authentication, and Android
       evidence is committed. Multiple hardware-only items remain open
       throughout this file (V2-035, part of V2-041, part of V2-044, V2-064,
