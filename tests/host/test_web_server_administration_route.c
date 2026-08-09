@@ -1,11 +1,12 @@
 /* Live end-to-end HTTP tests for the administration route group (TODO_V2
- * V2-057's last remaining item, see
+ * V2-057's remaining items, see
  * docs/implementation-v2/V2_057_FULL_HTTP_CONTRACT_MATRIX_2026-08-09.md's
  * "What remains open" section): GET /api/v1/auth/session,
  * POST /api/v1/device/restart, GET/PUT /api/v1/settings,
  * POST /api/v1/settings/change-password,
- * POST /api/v1/device/reset-settings, POST /api/v1/device/factory-reset, and
- * GET/POST /api/v1/setup (provisioned-mode conflict).
+ * POST /api/v1/device/reset-settings, POST /api/v1/device/factory-reset,
+ * GET/POST /api/v1/setup (provisioned-mode conflict), and
+ * GET /api/v1/diagnostics.
  *
  * Unlike test_web_api_administration.c (which calls
  * web_api_handle_administration() directly with a hand-built web_api_call_t)
@@ -35,14 +36,33 @@
  * decision of *whether* confirmation is required for a route is already
  * covered by test_web_request_policy.c and test_web_api_core.c.
  *
- * diagnostics (GET /api/v1/diagnostics) is excluded: its own handler
- * (web_diagnostics_handle(), web_server_diagnostics.c) needs
- * esp_heap_caps.h/esp_system.h's esp_reset_reason()/esp_get_free_heap_size()
- * plus eight subsystem-health snapshot functions with no host stand-in yet
- * -- see V2_057_FULL_HTTP_CONTRACT_MATRIX_2026-08-09.md's "diagnostics"
- * bullet, unchanged by this track. A stub definition is provided below only
- * so the linker resolves web_api_handle_administration()'s reference to it;
- * no test exercises WEB_API_ROUTE_DIAGNOSTICS_FULL here. */
+ * diagnostics (GET /api/v1/diagnostics) is now included too: the prior
+ * track's report framed the eight subsystem-health snapshot functions
+ * web_diagnostics_handle()'s collect_diagnostics() (web_server_diagnostics.c)
+ * calls as needing "host stand-ins ... none of which exist yet", but reading
+ * each one's own module comment shows six of them
+ * (app_lifecycle_health_snapshot(), storage_health_snapshot(),
+ * auth_health_snapshot(), usb_health_snapshot(), executor_health_snapshot(),
+ * http_health_snapshot()) are already portable C with no ESP-IDF dependency
+ * -- they link in real, unfaked, the same way this file's own
+ * device_controls_logic.c-backed device_controls_health_derive_state() and
+ * wifi_ap_state.c-backed wifi_ap_health_derive_state() do. Only two
+ * (device_controls_get_health(), wifi_ap_get_status()) live in
+ * ESP-IDF/FreeRTOS-bound files and need fakes, both provided below using the
+ * same narrow-substitution technique already used for this file's other
+ * device_controls.h entry points. web_diagnostics_handle() itself, and the
+ * esp_heap_caps.h/esp_system.h entry points collect_diagnostics() calls
+ * (esp_reset_reason(), esp_get_free_heap_size(), esp_get_minimum_free_heap_size(),
+ * heap_caps_get_largest_free_block()), are real too -- see
+ * fakes/esp_idf_misc_stub/esp_system.h and the new
+ * fakes/esp_idf_misc_stub/esp_heap_caps.h for those two headers' stand-ins.
+ * Diagnostics' own JSON composition (schema, exact status codes,
+ * secret-sentinel absence, bounded-output/corrupt-input handling) keeps its
+ * existing deep, dedicated coverage in
+ * test_web_server_adapter_diagnostics_json.inc; the tests added here prove
+ * only that a live request reaches that composition through the same
+ * policy/dispatch pipeline every other route in this file already proves,
+ * plus one representative backend-failure mapping. */
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -56,13 +76,22 @@
 #include "device_controls.h"
 #include "device_settings.h"
 #include "device_settings_v2.h"
+#include "esp_app_desc.h"
+#include "esp_heap_caps.h"
 #include "esp_system.h"
+#include "esp_timer.h"
 #include "fake_httpd.h"
+#include "macro_executor.h"
+#include "storage.h"
+#include "storage_blob.h"
 #include "test_assert.h"
+#include "test_examples_fixture.h"
+#include "usb_keyboard.h"
 #include "web_api_response.h"
 #include "web_diagnostics.h"
 #include "web_server.h"
 #include "web_server_internal.h"
+#include "wifi_ap.h"
 
 #define ADMIN_TEST_SESSION_TOKEN                                                                   \
     "0123456789abcdef"                                                                             \
@@ -205,9 +234,125 @@ void esp_restart(void) {
     ++g_esp_restart_calls;
 }
 
-app_error_code_t web_diagnostics_handle(web_api_response_t *response) {
-    /* Never reached by any test below -- see the file header comment. */
-    return web_api_response_success(response, 200U, "{\"stub\":true}");
+/* ---------------------------------------------------------------------- *
+ * Test doubles for GET /api/v1/diagnostics's own dependencies --
+ * web_diagnostics_handle() itself (web_server_diagnostics.c) links in real
+ * (see the file header comment for why); these are the handful of
+ * NVS/FreeRTOS/hardware-backed entry points its collect_diagnostics() calls
+ * that are not host-linkable, the same narrow-substitution technique used
+ * throughout this file. Matches test_web_server_status_limits_route.c's
+ * device_settings_read/wifi_ap_get_status/macro_executor_get_status/
+ * usb_keyboard_get_state/storage_mount_state/storage_partition_capacity
+ * fakes exactly (status_handler() and collect_diagnostics() read the same
+ * subsystems), plus storage_blob_collect_diagnostics()/
+ * device_controls_get_health(), which status/limits do not need.
+ * ---------------------------------------------------------------------- */
+
+static wifi_ap_status_t g_wifi_status;
+
+wifi_ap_status_t wifi_ap_get_status(void) {
+    return g_wifi_status;
+}
+
+static macro_execution_status_t g_execution_status;
+
+macro_execution_status_t macro_executor_get_status(void) {
+    return g_execution_status;
+}
+
+static usb_keyboard_state_t g_usb_state;
+
+usb_keyboard_state_t usb_keyboard_get_state(void) {
+    return g_usb_state;
+}
+
+static storage_mount_state_t g_mount_state;
+
+storage_mount_state_t storage_mount_state(void) {
+    return g_mount_state;
+}
+
+static app_error_code_t g_webfs_capacity_result;
+static size_t g_webfs_total_bytes;
+static size_t g_webfs_used_bytes;
+static app_error_code_t g_userdata_capacity_result;
+static size_t g_userdata_total_bytes;
+static size_t g_userdata_used_bytes;
+
+app_error_code_t storage_partition_capacity(const char *partition_label, size_t *out_total_bytes,
+                                            size_t *out_used_bytes) {
+    if (strcmp(partition_label, STORAGE_WEB_PARTITION) == 0) {
+        if (g_webfs_capacity_result != APP_ERROR_NONE) {
+            return g_webfs_capacity_result;
+        }
+        *out_total_bytes = g_webfs_total_bytes;
+        *out_used_bytes = g_webfs_used_bytes;
+        return APP_ERROR_NONE;
+    }
+    TEST_CHECK_EQ_STRING(STORAGE_DATA_PARTITION, partition_label);
+    if (g_userdata_capacity_result != APP_ERROR_NONE) {
+        return g_userdata_capacity_result;
+    }
+    *out_total_bytes = g_userdata_total_bytes;
+    *out_used_bytes = g_userdata_used_bytes;
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t g_blob_diagnostics_result;
+static size_t g_blob_valid_count;
+
+app_error_code_t storage_blob_collect_diagnostics(storage_blob_diagnostics_t *out_diagnostics) {
+    if (g_blob_diagnostics_result != APP_ERROR_NONE) {
+        return g_blob_diagnostics_result;
+    }
+    *out_diagnostics = (storage_blob_diagnostics_t){0};
+    out_diagnostics->summary.valid_count = g_blob_valid_count;
+    return APP_ERROR_NONE;
+}
+
+static device_controls_health_t g_device_controls_health;
+
+device_controls_health_t device_controls_get_health(void) {
+    return g_device_controls_health;
+}
+
+const esp_app_desc_t *esp_app_get_description(void) {
+    static const esp_app_desc_t description = {.version = "0.2.0"};
+    return &description;
+}
+
+int esp_app_get_elf_sha256(char *dst, size_t size) {
+    (void)snprintf(dst, size, "%s", "git-abcdef0");
+    return 0;
+}
+
+int64_t esp_timer_get_time(void) {
+    return 123456000; /* 123456 ms. */
+}
+
+static esp_reset_reason_t g_reset_reason;
+
+esp_reset_reason_t esp_reset_reason(void) {
+    return g_reset_reason;
+}
+
+static uint32_t g_free_heap_bytes;
+
+uint32_t esp_get_free_heap_size(void) {
+    return g_free_heap_bytes;
+}
+
+static uint32_t g_minimum_free_heap_bytes;
+
+uint32_t esp_get_minimum_free_heap_size(void) {
+    return g_minimum_free_heap_bytes;
+}
+
+static size_t g_largest_free_block_bytes;
+
+size_t heap_caps_get_largest_free_block(uint32_t caps) {
+    TEST_CHECK_EQ_U64((uint64_t)MALLOC_CAP_8BIT, (uint64_t)caps);
+    return g_largest_free_block_bytes;
 }
 
 esp_err_t web_server_async_dispatch(httpd_req_t *request) {
@@ -261,6 +406,30 @@ static void reset_fakes(void) {
     g_factory_reset_result = APP_ERROR_NONE;
     g_factory_reset_calls = 0U;
     g_esp_restart_calls = 0U;
+
+    g_wifi_status = (wifi_ap_status_t){.state = WIFI_AP_READY, .client_count = 1U};
+    g_execution_status = (macro_execution_status_t){.state = EXECUTION_IDLE, .available = true};
+    g_usb_state = USB_KEYBOARD_READY;
+    g_mount_state = (storage_mount_state_t){.web_mounted = true, .data_mounted = true};
+    /* webfsTotalBytes/webfsUsedBytes/userdataTotalBytes/userdataUsedBytes/
+     * blobCount below are chosen to equal contracts/v2/api/examples.json's
+     * "diagnostics" fixture exactly (not just plausible-looking numbers), so
+     * test_diagnostics_get_valid() can compare the real response against
+     * that checked-in example directly -- see its own comment. */
+    g_webfs_capacity_result = APP_ERROR_NONE;
+    g_webfs_total_bytes = 1048576U;
+    g_webfs_used_bytes = 500000U;
+    g_userdata_capacity_result = APP_ERROR_NONE;
+    g_userdata_total_bytes = 524288U;
+    g_userdata_used_bytes = 4096U;
+    g_blob_diagnostics_result = APP_ERROR_NONE;
+    g_blob_valid_count = 3U;
+    g_device_controls_health = (device_controls_health_t){.task_running = true};
+    g_reset_reason = ESP_RST_POWERON;
+    g_free_heap_bytes = 200000U;
+    g_minimum_free_heap_bytes = 180000U;
+    g_largest_free_block_bytes = 120000U;
+
     server_configuration = (web_server_config_t){0};
     server_configuration.require_physical_confirmation = false;
 }
@@ -599,6 +768,102 @@ static void test_setup_post_conflict_when_provisioned(void) {
     TEST_CHECK_EQ_STRING("409 Conflict", fake.response_status);
 }
 
+/* -------------------------------------------------------------------------
+ * GET /api/v1/diagnostics
+ * ---------------------------------------------------------------------- */
+
+static void test_diagnostics_get_valid(void) {
+    reset_fakes();
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    bind_bodyless(&request, &fake, "/api/v1/diagnostics", HTTP_GET);
+
+    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+    TEST_CHECK_EQ_STRING("200 OK", fake.response_status);
+    TEST_CHECK_EQ_STRING("application/json", fake.response_type);
+
+    cJSON *root = parse_response(&fake);
+    /* reset_fakes() above chose every backend value (heap sizes, reset
+     * reason, webfs/userdata capacity, blob count, USB/Wi-Fi/send state) to
+     * equal contracts/v2/api/examples.json's own "diagnostics" fixture
+     * exactly -- the same file webapp/tests/v2-api-contracts.test.ts
+     * validates isDiagnosticsResponse(examples.diagnostics) against
+     * (TODO_V2 V2-057's "consume the same checked-in examples from C and
+     * TypeScript tests" bullet). The one field that cannot match literally
+     * is "subsystems": the example leaves it "[]" as a documentation
+     * placeholder, but a real device always reports all
+     * WEB_DIAGNOSTICS_SUBSYSTEM_COUNT (8) entries (asserted separately
+     * below) -- so this compares a copy of the response with "subsystems"
+     * normalized to an empty array against the example, deep and
+     * order-independent, rather than skip the comparison. */
+    cJSON *comparable = cJSON_Duplicate(root, true);
+    TEST_CHECK(comparable != NULL);
+    TEST_CHECK(
+        cJSON_ReplaceItemInObjectCaseSensitive(comparable, "subsystems", cJSON_CreateArray()));
+    const cJSON *example = test_examples_fixture_get("diagnostics");
+    TEST_CHECK(cJSON_Compare(comparable, example, true) != 0);
+    cJSON_Delete(comparable);
+
+    const cJSON *subsystems = cJSON_GetObjectItemCaseSensitive(root, "subsystems");
+    TEST_CHECK_EQ_INT(8, cJSON_GetArraySize(subsystems));
+    /* device_controls_get_health() above reports task_running=true and no
+     * errors, so device_controls_health_derive_state() (the real,
+     * unfaked device_controls_logic.c function) derives SUBSYSTEM_HEALTH_HEALTHY
+     * -- proving the fake-to-pure-logic-to-JSON chain, not just that some
+     * string came out. */
+    const cJSON *controls_entry = NULL;
+    cJSON *entry = NULL;
+    cJSON_ArrayForEach(entry, subsystems) {
+        const cJSON *name = cJSON_GetObjectItemCaseSensitive(entry, "name");
+        if (strcmp(name->valuestring, "controls") == 0) {
+            controls_entry = entry;
+        }
+    }
+    TEST_CHECK(controls_entry != NULL);
+    TEST_CHECK_EQ_STRING("healthy",
+                         cJSON_GetObjectItemCaseSensitive(controls_entry, "state")->valuestring);
+    cJSON_Delete(root);
+}
+
+static void test_diagnostics_get_unauthorized_without_cookie(void) {
+    reset_fakes();
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    bind_bodyless(&request, &fake, "/api/v1/diagnostics", HTTP_GET);
+
+    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+    TEST_CHECK_EQ_STRING("401 Unauthorized", fake.response_status);
+}
+
+static void test_diagnostics_get_unauthorized_expired_session(void) {
+    reset_fakes();
+    g_auth_session_validate_result = APP_ERROR_AUTH_REQUIRED;
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    bind_bodyless(&request, &fake, "/api/v1/diagnostics", HTTP_GET);
+
+    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+    TEST_CHECK_EQ_STRING("401 Unauthorized", fake.response_status);
+}
+
+static void test_diagnostics_get_blob_scan_failure_maps_to_503(void) {
+    reset_fakes();
+    g_blob_diagnostics_result = APP_ERROR_STORAGE_UNAVAILABLE;
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    bind_bodyless(&request, &fake, "/api/v1/diagnostics", HTTP_GET);
+
+    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+    TEST_CHECK_EQ_STRING("503 Service Unavailable", fake.response_status);
+}
+
 int main(void) {
     test_session_get_valid();
     test_session_get_unauthorized_without_cookie();
@@ -622,6 +887,11 @@ int main(void) {
 
     test_setup_get_not_found_when_provisioned();
     test_setup_post_conflict_when_provisioned();
+
+    test_diagnostics_get_valid();
+    test_diagnostics_get_unauthorized_without_cookie();
+    test_diagnostics_get_unauthorized_expired_session();
+    test_diagnostics_get_blob_scan_failure_maps_to_503();
 
     puts("web server administration route tests passed");
     return 0;

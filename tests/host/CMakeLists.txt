@@ -45,6 +45,13 @@ set(SECRET_SENTINEL_SCANNER "${CMAKE_SOURCE_DIR}/../../scripts/check-secret-sent
 target_compile_definitions(
     test_support PRIVATE TEST_SECRET_SENTINEL_SCANNER_PATH="${SECRET_SENTINEL_SCANNER}"
 )
+# The single checked-in API response fixture file both the webapp
+# (webapp/tests/v2-api-contracts.test.ts) and, via support/test_examples_fixture.c, select C host
+# tests validate real handler output against -- see that file's header comment. Only targets that
+# add support/test_examples_fixture.c to their own sources (not every test_support consumer) need
+# this defined; it lives here, next to SECRET_SENTINEL_SCANNER, because it is the same kind of
+# repo-relative fixture path.
+set(API_EXAMPLES_JSON "${CMAKE_SOURCE_DIR}/../../contracts/v2/api/examples.json")
 target_compile_options(test_support PRIVATE ${STRICT_WARNINGS})
 
 # Link a host test executable against test_support, register it with CTest, and tag it with its
@@ -352,17 +359,75 @@ target_include_directories(
 target_link_libraries(web_server_send_route_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_server_send_route_tests web_server_send_route web)
 
+# HTTP-adapter-level test for the unprovisioned-mode GET /api/v1/setup route (setup_state_handler(),
+# web_server_setup.c), exercised against the same fake esp_http_server.h
+# (fakes/esp_http_server_stub) the blob/status/limits/send route tests use. Distinct from
+# web_api_administration.c's provisioned-mode setup_route_response() (already covered by
+# test_web_server_administration_route.c) -- see test_web_server_setup_route.c's header comment for
+# why both exist. web_server_setup_submit.c is linked in real (it is already host-testable, no
+# ESP-IDF dependency) because web_server_setup.c's setup_submit_handler() references it, even though
+# this target's tests never call that handler.
+add_executable(
+    web_server_setup_route_tests
+    test_web_server_setup_route.c
+    ../../firmware/components/web_server/web_server_setup.c
+    ../../firmware/components/web_server/web_server_setup_submit.c
+    ../../firmware/components/web_server/web_server_common.c
+    ../../firmware/components/web_server/web_server_adapter_common.c
+    ../../firmware/components/web_server/web_server_adapter_body_auth.c
+    ../../firmware/components/web_server/web_server_adapter_json.c
+    ../../firmware/components/web_server/web_cookie.c
+    ../../firmware/components/support/subsystem_health.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/app_contracts_v2/setup_contract_v2.c
+    ../../firmware/components/app_contracts_v2/device_settings_v2.c
+    support/test_examples_fixture.c
+    fakes/fake_httpd.c
+)
+target_include_directories(
+    web_server_setup_route_tests
+    PRIVATE fakes/esp_http_server_stub
+            fakes
+            ../../firmware/components/web_server
+            ../../firmware/components/web_server/include
+            ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/app_contracts_v2/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/storage/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/usb_keyboard/include
+            ../../firmware/components/device_settings/include
+            ../../firmware/components/support/include
+)
+target_compile_definitions(
+    web_server_setup_route_tests PRIVATE EXAMPLES_JSON_PATH="${API_EXAMPLES_JSON}"
+)
+target_link_libraries(web_server_setup_route_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_server_setup_route_tests web_server_setup_route web)
+
 # Live end-to-end HTTP tests for the administration route group (session, restart, settings,
-# change-password, reset-settings, factory-reset, setup-conflict) -- V2-057's last remaining gap.
-# Drives the real api_handler() (web_server_api.c, the generic "/api/v1/*" wildcard handler) against
-# the same fake esp_http_server.h (fakes/esp_http_server_stub) and fake_httpd.c the blob/status/
-# limits/send route tests use, plus the esp_idf_misc_stub/esp_system.h stand-in for esp_restart()
-# (the fake definition lives in the test file itself). This proves a request actually flows through
-# method_from_request() -> web_api_parse_path() -> web_request_policy_evaluate() ->
+# change-password, reset-settings, factory-reset, setup-conflict, diagnostics) -- V2-057's last
+# remaining gaps. Drives the real api_handler() (web_server_api.c, the generic "/api/v1/*" wildcard
+# handler) against the same fake esp_http_server.h (fakes/esp_http_server_stub) and fake_httpd.c the
+# blob/status/limits/send route tests use, plus the esp_idf_misc_stub/esp_system.h,
+# esp_idf_misc_stub/esp_app_desc.h, esp_idf_misc_stub/esp_timer.h, and esp_idf_misc_stub/
+# esp_heap_caps.h stand-ins GET /api/v1/diagnostics needs. This proves a request actually flows
+# through method_from_request() -> web_api_parse_path() -> web_request_policy_evaluate() ->
 # web_api_dispatch() -> web_api_handle_administration(), not just the last step of that pipeline --
 # see test_web_server_administration_route.c's header comment for exactly what is and is not covered
-# (diagnostics and the physical-confirmation-required=true/async-worker path are out of scope; both
-# are already covered elsewhere).
+# (the physical-confirmation-required=true/async-worker path is out of scope; already covered
+# elsewhere). Six of the eight subsystem-health snapshot functions web_server_diagnostics.c's
+# collect_diagnostics() calls (app_lifecycle_health_snapshot(), storage_health_snapshot(),
+# auth_health_snapshot(), usb_health_snapshot(), executor_health_snapshot(), http_health_snapshot())
+# are pure C with no ESP-IDF dependency and link in real, unfaked -- their own module comments say
+# so explicitly. The other two (device_controls_get_health(), wifi_ap_get_status()) live in
+# ESP-IDF/FreeRTOS-bound files and stay faked, alongside this target's other
+# device_controls.h/wifi_ap.h fakes; the pure logic that turns their results into a
+# subsystem_health_state_t (device_controls_health_derive_state(), wifi_ap_health_derive_state())
+# links in real from device_controls_logic.c/wifi_ap_state.c, the same two files
+# device_controls_tests/wifi_ap_tests already prove are host-linkable.
 add_executable(
     web_server_administration_route_tests
     test_web_server_administration_route.c
@@ -382,12 +447,22 @@ add_executable(
     ../../firmware/components/web_server/web_server_adapter_common.c
     ../../firmware/components/web_server/web_server_adapter_body_auth.c
     ../../firmware/components/web_server/web_server_adapter_json.c
+    ../../firmware/components/web_server/web_server_diagnostics.c
+    ../../firmware/components/web_server/http_health.c
     ../../firmware/components/support/subsystem_health.c
+    ../../firmware/components/support/app_lifecycle_health.c
+    ../../firmware/components/storage/storage_health.c
+    ../../firmware/components/auth/auth_health.c
+    ../../firmware/components/usb_keyboard/usb_health.c
+    ../../firmware/components/macro_executor/executor_health.c
+    ../../firmware/components/device_controls/device_controls_logic.c
+    ../../firmware/components/wifi_ap/wifi_ap_state.c
     ../../firmware/components/macro_model/app_uuid.c
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/app_contracts_v2/settings_contract_v2.c
     ../../firmware/components/app_contracts_v2/device_settings_v2.c
     ../../firmware/components/app_contracts_v2/setup_contract_v2.c
+    support/test_examples_fixture.c
     fakes/fake_httpd.c
 )
 target_include_directories(
@@ -402,12 +477,18 @@ target_include_directories(
             ../../firmware/components/macro_executor/include
             ../../firmware/components/app_contracts_v2/include
             ../../firmware/components/auth/include
+            ../../firmware/components/device_controls
             ../../firmware/components/device_controls/include
             ../../firmware/components/device_settings/include
             ../../firmware/components/provisioning/include
+            ../../firmware/components/storage/include
+            ../../firmware/components/wifi_ap
             ../../firmware/components/wifi_ap/include
             ../../firmware/components/usb_keyboard/include
             ../../firmware/components/support/include
+)
+target_compile_definitions(
+    web_server_administration_route_tests PRIVATE EXAMPLES_JSON_PATH="${API_EXAMPLES_JSON}"
 )
 target_link_libraries(web_server_administration_route_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_server_administration_route_tests web_server_administration_route web)
