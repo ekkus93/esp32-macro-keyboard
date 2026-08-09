@@ -105,6 +105,8 @@ static const char *status_text(unsigned int status) {
         return "201 Created";
     case WEB_HTTP_STATUS_ACCEPTED:
         return "202 Accepted";
+    case WEB_HTTP_STATUS_NO_CONTENT:
+        return "204 No Content";
     case WEB_HTTP_STATUS_BAD_REQUEST:
         return "400 Bad Request";
     case WEB_HTTP_STATUS_UNAUTHORIZED:

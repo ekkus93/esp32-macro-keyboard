@@ -28,6 +28,13 @@ void fake_httpd_bind(httpd_req_t *request, fake_httpd_request_t *fake, const cha
     memcpy(request->uri, uri, strlen(uri) + 1U);
 }
 
+void fake_httpd_set_method(httpd_req_t *request, httpd_method_t method) {
+    if (request == NULL) {
+        abort();
+    }
+    request->method = method;
+}
+
 void fake_httpd_set_body(fake_httpd_request_t *fake, const void *body, size_t length,
                          size_t receive_chunk) {
     if (fake == NULL || (body == NULL && length != 0U) || length > sizeof(fake->body)) {

@@ -25,9 +25,22 @@ typedef int esp_err_t;
 #define ESP_OK 0
 #define ESP_FAIL (-1)
 
+/* Only the four methods web_server_api.c's method_from_request() maps
+ * (HTTP_GET/POST/PUT/DELETE) -- the real llhttp-derived httpd_method_t has
+ * dozens more, none of which any first-party handler under host test reads.
+ * Values are internal to this stub (nothing compares them against the real
+ * ESP-IDF enum), so they need not match http_parser.h's numbering. */
+typedef enum {
+    HTTP_GET = 0,
+    HTTP_POST,
+    HTTP_PUT,
+    HTTP_DELETE,
+} httpd_method_t;
+
 typedef struct httpd_req {
     size_t content_len;
     char uri[256];
+    httpd_method_t method;
     void *aux;
 } httpd_req_t;
 

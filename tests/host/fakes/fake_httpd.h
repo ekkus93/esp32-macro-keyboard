@@ -55,9 +55,18 @@ typedef struct {
 } fake_httpd_request_t;
 
 void fake_httpd_reset(fake_httpd_request_t *fake);
-/* Wires request->aux to `fake` and request->content_len/uri to the given values. */
+/* Wires request->aux to `fake` and request->content_len/uri to the given values.
+ * request->method is left at its zero value (HTTP_GET); callers exercising
+ * a non-GET route through method_from_request() (web_server_api.c) must call
+ * fake_httpd_set_method() afterward. */
 void fake_httpd_bind(httpd_req_t *request, fake_httpd_request_t *fake, const char *uri,
                      size_t content_len);
+/* Sets request->method; must be called after fake_httpd_bind(), which
+ * overwrites the whole struct (including method) via memset. Only
+ * web_server_api.c's method_from_request() reads this field -- handlers
+ * with their own dedicated httpd_uri_t registration (blob/status/limits/
+ * send) never do, so no other fake_httpd caller needs it. */
+void fake_httpd_set_method(httpd_req_t *request, httpd_method_t method);
 void fake_httpd_set_body(fake_httpd_request_t *fake, const void *body, size_t length,
                          size_t receive_chunk);
 void fake_httpd_add_request_header(fake_httpd_request_t *fake, const char *name, const char *value);
