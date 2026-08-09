@@ -256,6 +256,10 @@ async function startApplicationServer() {
     // that gzip round trip is proven against a real browser).
     blobs: [{ id: blobId, bytes: repositoryGzip }],
     nextBlobId: 2,
+    // TODO_V2 V2-120: a mutable copy, not the fixed `settings` fixture
+    // above, so the Settings-page browser workflow's device-name edit
+    // genuinely round-trips through a subsequent GET.
+    settings: { ...settings },
   };
 
   const server = createServer(async (request, response) => {
@@ -276,16 +280,89 @@ async function startApplicationServer() {
           return;
         }
         if (method === "GET" && url.pathname === "/api/v1/settings") {
-          sendJson(response, 200, settings);
+          sendJson(response, 200, state.settings);
           return;
         }
         if (method === "PUT" && url.pathname === "/api/v1/settings") {
           state.settingsPutCount += 1;
-          await requestBody(request);
+          const body = await requestBody(request);
+          // A real (if partial) partial-update merge — TODO_V2 V2-120's
+          // browser workflow edits the device name and needs the change to
+          // actually round-trip through GET afterward, not just echo the
+          // fixed fixture back unchanged.
+          if (body !== null && typeof body === "object") {
+            if (typeof body.deviceName === "string") {
+              state.settings.deviceName = body.deviceName;
+            }
+            if (typeof body.requireSerialConfirmation === "boolean") {
+              state.settings.requireSerialConfirmation =
+                body.requireSerialConfirmation;
+            }
+            if (typeof body.sendMode === "string") {
+              state.settings.sendMode = body.sendMode;
+            }
+            if (typeof body.snapshotRetentionTarget === "number") {
+              state.settings.snapshotRetentionTarget =
+                body.snapshotRetentionTarget;
+            }
+            if (typeof body.showMacroSourcePreviews === "boolean") {
+              state.settings.showMacroSourcePreviews =
+                body.showMacroSourcePreviews;
+            }
+            if (Object.hasOwn(body, "lastSelectedPackageId")) {
+              state.settings.lastSelectedPackageId = body.lastSelectedPackageId;
+            }
+            if (
+              body.accessPoint !== null &&
+              typeof body.accessPoint === "object"
+            ) {
+              state.settings.apSsid = body.accessPoint.ssid;
+            }
+            if (Object.hasOwn(body, "station")) {
+              if (body.station === null) {
+                state.settings.stationConfigured = false;
+                state.settings.stationSsid = null;
+              } else if (typeof body.station === "object") {
+                state.settings.stationConfigured = true;
+                state.settings.stationSsid = body.station.ssid;
+              }
+            }
+          }
           sendJson(response, 200, {
-            settings,
+            settings: state.settings,
             restartRequired: false,
             reconnectRequired: false,
+          });
+          return;
+        }
+        if (method === "GET" && url.pathname === "/api/v1/diagnostics") {
+          sendJson(response, 200, {
+            firmwareVersion: "0.2.0",
+            buildId: "browser-fixture-abc123",
+            resetReason: "power_on",
+            uptimeMs: 123456,
+            memory: {
+              freeHeapBytes: 200000,
+              minimumFreeHeapBytes: 180000,
+              largestFreeBlockBytes: 120000,
+            },
+            usb: { state: "ready" },
+            wifi: { accessPointState: "running", stationState: "disabled" },
+            storage: {
+              state: "ready",
+              webfsTotalBytes: 1048576,
+              webfsUsedBytes: 500000,
+              userdataTotalBytes: 131072,
+              userdataUsedBytes: state.blobs.reduce(
+                (sum, blob) => sum + blob.bytes.byteLength,
+                0,
+              ),
+              blobCount: state.blobs.length,
+              invalidNames: [],
+              temporaryFiles: [],
+            },
+            send: { present: false, state: null },
+            subsystems: [{ name: "storage", state: "healthy" }],
           });
           return;
         }
@@ -1281,6 +1358,68 @@ async function runSnapshotsWorkflows(cdp, application, fixtures) {
   );
 }
 
+/**
+ * Settings and Diagnostics against a real Chrome (TODO_V2 V2-120/V2-122).
+ * Deliberately scoped to non-destructive, order-independent coverage —
+ * device-name edit and Diagnostics rendering — rather than the
+ * restart/reset-settings/factory-reset reconnect flows: those need this
+ * fixture server to simulate a genuine connection loss (the point of the
+ * feature), which this hand-rolled harness has no way to do safely, and
+ * `AppV2` (`tests/v2-app-v2.test.tsx`) already exercises that full
+ * disruption-and-reconnect sequence end to end against the real,
+ * unmocked v2 API clients. Sign Out is likewise left to that same jsdom
+ * suite and `SettingsPage`'s own unit tests: exercising it here would
+ * leave every following browser assertion running unauthenticated.
+ */
+async function runSettingsWorkflows(cdp) {
+  await clickButton(cdp, "Settings");
+  await waitFor(
+    cdp,
+    "document.querySelector('#settings-device-name') !== null",
+    "The Settings page did not render.",
+  );
+
+  await evaluate(
+    cdp,
+    `(() => {
+      const input = document.querySelector('#settings-device-name');
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      setter.call(input, 'Bench Macro Keyboard (renamed)');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`,
+  );
+  await clickButton(cdp, "Save");
+  await waitFor(
+    cdp,
+    // `textContent`, not `innerText`: the header renders the device name
+    // inside `.eyebrow`, which is visually `text-transform: uppercase` —
+    // `innerText` reflects that rendered casing, `textContent` does not.
+    "document.body.textContent.includes('Bench Macro Keyboard (renamed)')",
+    "Saving the device name did not update the shell header.",
+  );
+
+  await clickButton(cdp, "View diagnostics");
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('browser-fixture-abc123')",
+    "The Diagnostics page did not render the fixed diagnostics schema.",
+  );
+  assert(
+    !(await evaluate(
+      cdp,
+      "document.body.innerText.includes('Lab bench workflow')",
+    )),
+    "Diagnostics rendered package/macro data, which SPEC_V2 §13.13 forbids.",
+  );
+  await clickButton(cdp, "Back to Settings");
+  await waitFor(
+    cdp,
+    "document.querySelector('#settings-device-name') !== null",
+    "Back to Settings did not return to the Settings page.",
+  );
+}
+
 async function stopChrome(processHandle) {
   if (processHandle.exitCode !== null) {
     return;
@@ -1382,6 +1521,8 @@ async function main() {
       browserCdp,
     });
     console.log("Real Chrome v2 Snapshots/import-export workflows passed.");
+    await runSettingsWorkflows(cdp);
+    console.log("Real Chrome v2 Settings/Diagnostics workflows passed.");
   } finally {
     cdp?.close();
     browserCdp?.close();

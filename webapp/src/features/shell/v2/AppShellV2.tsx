@@ -36,10 +36,18 @@ const navigation = [
   ["settings", "Settings"],
 ] as const satisfies readonly (readonly [ScreenV2, string])[];
 
-/** `macro-preview` belongs to the Macros section for nav-highlighting purposes. */
+/**
+ * `macro-preview` belongs to the Macros section, and `diagnostics` to the
+ * Settings section (it is reachable only from Settings, not its own
+ * bottom-nav destination — UI_UX_SPEC_V2 §4/§11), for nav-highlighting
+ * purposes.
+ */
 function navigationActive(route: ScreenV2, target: ScreenV2): boolean {
   if (target === "macros") {
     return route === "macros" || route === "macro-preview";
+  }
+  if (target === "settings") {
+    return route === "settings" || route === "diagnostics";
   }
   return route === target;
 }

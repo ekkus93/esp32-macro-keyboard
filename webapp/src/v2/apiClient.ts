@@ -51,6 +51,23 @@ function notifyUnauthorized(): void {
   });
 }
 
+/**
+ * Manually triggers the same "session is gone" transition an unexpected
+ * `401` response would (every `subscribeUnauthorized` listener runs), for
+ * call sites that already know the session ended without needing to wait
+ * for a failing request to prove it — Sign Out (`POST
+ * /api/v1/auth/logout` succeeding) and an administrator password change
+ * (`POST /api/v1/settings/change-password` succeeding, which SPEC_V2 §13.9
+ * says "invalidates all sessions including the current one"). Reusing this
+ * path, rather than a bespoke one, keeps the same guarantee the session-
+ * expiry case already has: the in-memory repository working copy is not
+ * discarded (SPEC_V2 §7.3), only the authenticated screen is replaced with
+ * Sign In.
+ */
+export function forceSessionEnded(): void {
+  notifyUnauthorized();
+}
+
 function invalidResponse(status: number, message: string): V2ApiError {
   return new V2ApiError(status, { code: "invalid_response", message });
 }
@@ -183,11 +200,18 @@ export async function v2PostJson<T>(
   guard: (value: unknown) => value is T,
   options: V2RequestOptions = {},
 ): Promise<T> {
-  const result = await requestJson(
-    path,
-    { method: "POST", body: JSON.stringify(body) },
-    options,
-  );
+  // `body === undefined` means a bodyless POST (e.g. restart, per its route
+  // contract's `request.body: "none"`) — omitting the `body` key entirely
+  // (not setting it to `JSON.stringify(undefined)`, the string
+  // `"undefined"`, which is not valid JSON, and not an explicit
+  // `body: undefined` — disallowed under `exactOptionalPropertyTypes`) keeps
+  // `requestJson` from adding a `Content-Type` header the route contract
+  // says this request never has.
+  const init: RequestInit =
+    body === undefined
+      ? { method: "POST" }
+      : { method: "POST", body: JSON.stringify(body) };
+  const result = await requestJson(path, init, options);
   if (!guard(result.value)) {
     throw invalidResponse(
       result.status,
@@ -256,6 +280,40 @@ export async function v2DeleteNoContent(
     { method: "DELETE", headers: { Accept: jsonContentType } },
     options,
   );
+  if (!response.ok) {
+    await handleErrorResponse(response, options);
+  }
+  if (response.status !== 204) {
+    throw invalidResponse(response.status, "Expected 204 No Content.");
+  }
+}
+
+/**
+ * POST with no response body, for routes whose success is `204 No Content`
+ * (change-password, sign-out) — `v2PostJson`'s guard parameter has nothing to
+ * validate against in that case, so this is a dedicated helper rather than a
+ * caller passing a vacuous guard.
+ */
+export async function v2PostNoContent(
+  path: string,
+  body: unknown,
+  options: V2RequestOptions = {},
+): Promise<void> {
+  // See `v2PostJson` — `body === undefined` (e.g. sign-out's bodyless
+  // request) must omit both the `body` key and the `Content-Type` header,
+  // not send the literal string `"undefined"`.
+  const init: RequestInit =
+    body === undefined
+      ? { method: "POST", headers: { Accept: jsonContentType } }
+      : {
+          method: "POST",
+          headers: {
+            Accept: jsonContentType,
+            "Content-Type": jsonContentType,
+          },
+          body: JSON.stringify(body),
+        };
+  const response = await performRequest(path, init, options);
   if (!response.ok) {
     await handleErrorResponse(response, options);
   }
