@@ -394,9 +394,29 @@ knowledge in firmware.
 
 ## Phase 3 exit gate
 
-- [ ] Host storage tests, image tests, and static analysis pass.
-- [ ] Required hardware evidence is committed.
-- [ ] Firmware remains completely unaware of repository contents.
+- [x] Host storage tests, image tests, and static analysis pass. Verified
+      2026-08-09 at `50ada5b`: `./scripts/run-tests.sh storage` — 100% passed,
+      13/13. `python3 ./scripts/check-v2-034-capacity.py` (the LittleFS
+      capacity/image proof) — passed with the exact committed values
+      (partition=524288, maxBlob=131072, payload=393216, used=421888,
+      overhead=28672, remaining=102400). `./scripts/check-firmware.sh` (GCC
+      build + esp-clang `run-clang-tidy` with `WarningsAsErrors: '*'` for both
+      `firmware/` and `firmware/test_app/`) — completed with exit code 0 and
+      zero first-party findings.
+- [ ] Required hardware evidence is committed. `docs/hardware-evidence/` does
+      not exist in the repository; V2-035's harness
+      (`scripts/run-v2-035-hardware.py`, documented in
+      `docs/implementation-v2/V2_035_HARDWARE_EVIDENCE_HARNESS_2026-08-06.md`)
+      is prepared but has never been executed against physical hardware. All
+      seven V2-035 checklist items remain open for the same reason.
+- [x] Firmware remains completely unaware of repository contents. Verified by
+      inspection 2026-08-09: no gzip-header, decompress, JSON-parse, checksum,
+      hash, digest, or CRC logic anywhere in `firmware/components/storage/`
+      (`grep -rn "gzip\|checksum\|hash\|digest\|crc\|CRC"` over
+      `storage_blob*.c` returns nothing); blob objects carry only `id` and
+      `sizeBytes` (`firmware/components/web_server/web_server_blob.c`); the
+      v1 package/repository object model was already deleted in Phase 2 per
+      `V2_MIGRATION_MAP.md`.
 
 ---
 
@@ -484,8 +504,11 @@ knowledge in firmware.
 ## Phase 4 exit gate
 
 - [x] Provisioning, authentication, session, NVS, and Wi-Fi host tests pass.
-      Verified via the full `./scripts/run-tests.sh` / `check-all.sh` suite
-      (50/50), including the `auth`, `startup`, `wifi`, and `web` labels.
+      Re-verified 2026-08-09 at `50ada5b` via `./scripts/run-tests.sh` (full
+      suite, no label): 100% tests passed, 54/54 (the "50/50" figure in the
+      prior note is stale — the suite has grown since). Confirmed per-label
+      too: `auth` 2/2, `startup` 2/2, `wifi` 2/2, `web` 23/23, `storage`
+      13/13.
 - [ ] PBKDF2 hardware benchmark and selected iteration count are committed.
       Blocked on V2-041's two remaining hardware-only items (real-device
       timing percentiles, watchdog/starvation confirmation).
