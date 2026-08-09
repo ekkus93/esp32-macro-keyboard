@@ -23,4 +23,15 @@ app_error_code_t web_server_start(const web_server_config_t *configuration);
 app_error_code_t web_server_stop(void);
 bool web_server_owns_resources(void);
 
+/* The single running server's configuration, set by web_server_start() and
+ * read by every handler that needs it (e.g. web_server_login.c::login_handler()
+ * checks login_enabled; web_api_administration.c's change-password handler
+ * refreshes password_record after a successful change). Declared here
+ * (rather than web_server_internal.h, which pulls in esp_http_server.h
+ * transitively) so consumers that take no httpd_req_t of their own, like
+ * web_api_administration.c, do not acquire an ESP-IDF dependency they
+ * otherwise avoid -- see web_diagnostics_handle()'s identical rationale in
+ * web_diagnostics.h. Defined in web_server_common.c. */
+extern web_server_config_t server_configuration;
+
 #endif
