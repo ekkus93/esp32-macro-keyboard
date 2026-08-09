@@ -1367,12 +1367,14 @@ claim that the project is close to final sign-off.
 - [ ] `docs/UI_UX_SPEC_V2.md` matches production behavior. Same reason.
 - [ ] `docs/TODO_V2.md` contains no falsely completed task. Not yet audited —
       that audit is V2-156's job and V2-156 has not been started.
-- [ ] `docs/TODO.md`, `README.md`, and `CLAUDE.md` point to the v2 authority
-      set. `docs/TODO.md` and `CLAUDE.md` already do. `README.md` does not:
-      its opening section still states "The authoritative design is in
-      `docs/SPEC.md`" (the frozen, retired v1 stub) and never mentions
-      `SPEC_V2.md`/`TODO_V2.md` at all — this is V2-143's job (Phase 14,
-      unstarted).
+- [x] `docs/TODO.md`, `README.md`, and `CLAUDE.md` point to the v2 authority
+      set. `docs/TODO.md` and `CLAUDE.md` already did; `README.md`'s opening
+      section was fixed to cite `SPEC_V2.md`/`UI_UX_SPEC_V2.md`/`TODO_V2.md`
+      (V2-143's first sub-bullet, see
+      `docs/implementation-v2/V2_143_DOC_AUTHORITY_SYNC_2026-08-09.md`). This
+      is narrower than V2-143 as a whole, which also covers
+      `docs/mockups/v2/`, API/test/hardware/recovery documentation, and
+      status-vs-intent labeling — those remain open.
 - [x] `./scripts/check-all.sh` passes from a clean checkout. Verified against
       an actual fresh `git clone` of commit `9bb47bb` from `origin/master`
       (not the working tree), with `npm ci` run in `webapp/` and
