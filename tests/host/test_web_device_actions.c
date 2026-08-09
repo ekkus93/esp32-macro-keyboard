@@ -493,6 +493,7 @@ static void test_restart_accepted_json(void) {
 static void test_reset_accepted_json_reset_settings_shape(void) {
     char *json = NULL;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_device_reset_accepted_json(false, true, &json));
+    TEST_CHECK(strstr(json, "\"connectionWillClose\":true") != NULL);
     TEST_CHECK(strstr(json, "\"reprovisioningRequired\":false") != NULL);
     TEST_CHECK(strstr(json, "\"repositoryBlobsPreserved\":true") != NULL);
     free(json);
@@ -501,6 +502,7 @@ static void test_reset_accepted_json_reset_settings_shape(void) {
 static void test_reset_accepted_json_factory_reset_shape(void) {
     char *json = NULL;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_device_reset_accepted_json(true, false, &json));
+    TEST_CHECK(strstr(json, "\"connectionWillClose\":true") != NULL);
     TEST_CHECK(strstr(json, "\"reprovisioningRequired\":true") != NULL);
     TEST_CHECK(strstr(json, "\"repositoryBlobsPreserved\":false") != NULL);
     free(json);

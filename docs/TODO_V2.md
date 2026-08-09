@@ -465,20 +465,36 @@ knowledge in firmware.
 - [x] Bound retries and expose status.
 - [x] Define and test restart, reset-settings, credential reset where applicable,
       and factory-reset preservation/deletion behavior.
-- [ ] Ensure factory reset erases repository blobs only when the specification
+- [x] Ensure factory reset erases repository blobs only when the specification
       requires it and reports the connection loss clearly. Erasure-scope half
       done and tested (`storage_blob_delete_all()` is called only from
-      `device_controls_factory_reset()`, never `reset_settings()`); the
-      "reports the connection loss clearly" half is the
-      `/api/v1/device/factory-reset` HTTP response body, which belongs to
-      Phase 5 (`web_server`, not yet implemented). See
+      `device_controls_factory_reset()`, never `reset_settings()`). The
+      "reports the connection loss clearly" half was blocked on Phase 5's
+      `web_server` when this note was written; V2-055 has since implemented
+      `POST /api/v1/device/factory-reset` (`web_api_administration.c`),
+      whose live route handler calls
+      `web_device_reset_accepted_json(true, false, &json)` and returns `202`
+      — that function unconditionally includes `"connectionWillClose":true`
+      per `SPEC_V2.md` §13.14's exact example, now directly asserted by
+      `test_reset_accepted_json_factory_reset_shape` (and the reset-settings
+      variant) in `tests/host/test_web_device_actions.c`, not just implied by
+      the shared restart test. See
       `docs/implementation-v2/V2_044_WIFI_AND_RESET_SEMANTICS_2026-08-08.md`.
 
 ## Phase 4 exit gate
 
-- [ ] Provisioning, authentication, session, NVS, and Wi-Fi host tests pass.
+- [x] Provisioning, authentication, session, NVS, and Wi-Fi host tests pass.
+      Verified via the full `./scripts/run-tests.sh` / `check-all.sh` suite
+      (50/50), including the `auth`, `startup`, `wifi`, and `web` labels.
 - [ ] PBKDF2 hardware benchmark and selected iteration count are committed.
+      Blocked on V2-041's two remaining hardware-only items (real-device
+      timing percentiles, watchdog/starvation confirmation).
 - [ ] No secret appears in logs, APIs, diagnostics, or test artifacts.
+      Partial, automated evidence exists (`check-credential-logging.sh`'s
+      firmware log-call source scan, plus secret-sentinel tests for
+      diagnostics/status/session/login), but that doesn't add up to a
+      blanket guarantee across every API, webapp artifact, and test log —
+      left open rather than claimed from partial coverage.
 
 ---
 
