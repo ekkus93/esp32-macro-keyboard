@@ -9,6 +9,7 @@ import { MacroEditorPage } from "./features/macros/v2/MacroEditorPage";
 import { MacroPreviewPage } from "./features/macros/v2/MacroPreviewPage";
 import { MacrosPage } from "./features/macros/v2/MacrosPage";
 import { PackageManagementPage } from "./features/macros/v2/PackageManagementPage";
+import { SnapshotsPage } from "./features/snapshots/v2/SnapshotsPage";
 import type { RepositoryStartupReady } from "./features/startup/v2/RepositoryStartupScreen";
 import { RepositoryStartupScreen } from "./features/startup/v2/RepositoryStartupScreen";
 import { ErrorBanner } from "./components/ErrorBanner";
@@ -104,11 +105,21 @@ function AuthenticatedShell({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // The blob ID the working copy currently reflects, if any (TODO_V2 V2-111
+  // "loaded snapshot indicator"). Kept here — not inside SnapshotsPage —
+  // because both the header's Save snapshot button and the Snapshots page's
+  // own Save/Load/Import/Replace actions all need to update it, and this is
+  // the one place both are rendered from.
+  const [loadedBlobId, setLoadedBlobId] = useState<string | null>(
+    ready.loadedBlobId,
+  );
+
   const saveSnapshot = async (): Promise<void> => {
     setSaving(true);
     setSaveError(null);
     try {
-      await saveWorkingCopyAsSnapshot(store);
+      const created = await saveWorkingCopyAsSnapshot(store);
+      setLoadedBlobId(created.id);
     } catch (error: unknown) {
       setSaveError(v2ErrorText(error));
     } finally {
@@ -228,7 +239,21 @@ function AuthenticatedShell({
         );
       case "snapshots":
         return (
-          <PlaceholderPage phase="Phase 11 (V2-110/V2-111)" title="Snapshots" />
+          <SnapshotsPage
+            loadedBlobId={loadedBlobId}
+            onOpenMacros={navigateToMacros}
+            onOpenPackages={() => {
+              navigateV2("packages");
+            }}
+            onSaveSnapshot={saveSnapshot}
+            onSelectionChange={setPackageId}
+            onWorkingCopyOriginChanged={setLoadedBlobId}
+            retentionTarget={settings.snapshotRetentionTarget}
+            saveError={saveError}
+            saving={saving}
+            selectedPackageId={packageId}
+            store={store}
+          />
         );
       case "settings":
         return <PlaceholderPage phase="Phase 12 (V2-120)" title="Settings" />;

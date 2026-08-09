@@ -42,6 +42,13 @@ export interface RepositoryStartupReady {
   store: RepositoryWorkingCopyStore;
   packageId: string;
   send: SendStatusResponse | null;
+  /**
+   * The blob ID the working copy currently reflects, or `null` when no
+   * stored blob corresponds to it (a brand-new local repository/package
+   * created because none existed, or one loaded but then discarded — see
+   * {@link FirstPackageForm}). TODO_V2 V2-111's "loaded snapshot indicator".
+   */
+  loadedBlobId: string | null;
 }
 
 export interface RepositoryStartupScreenProps {
@@ -87,6 +94,7 @@ type Phase =
       store: RepositoryWorkingCopyStore;
       settings: SettingsResponse;
       send: SendStatusResponse | null;
+      blobId: string;
     }
   | {
       kind: "snapshot-recovery";
@@ -181,7 +189,15 @@ function FirstPackageForm({
       // Best-effort device UI preference write (V2-074): its failure must
       // not block opening the package the user just created locally.
     }
-    onReady({ store, packageId: packageIdRef.current, send });
+    // This form always builds a brand-new local store (see `submit` above),
+    // discarding whatever blob (if any) was loaded to reach this screen — so
+    // the resulting working copy does not correspond to any stored blob yet.
+    onReady({
+      store,
+      packageId: packageIdRef.current,
+      send,
+      loadedBlobId: null,
+    });
   };
 
   return (
@@ -238,6 +254,7 @@ interface PackageChooserViewProps {
   store: RepositoryWorkingCopyStore;
   settings: SettingsResponse;
   send: SendStatusResponse | null;
+  loadedBlobId: string;
   onReady: (ready: RepositoryStartupReady) => void;
 }
 
@@ -251,6 +268,7 @@ function PackageChooserView({
   store,
   settings,
   send,
+  loadedBlobId,
   onReady,
 }: PackageChooserViewProps): React.JSX.Element {
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -264,7 +282,7 @@ function PackageChooserView({
       // Best-effort device UI preference write (V2-074); the chosen
       // package still opens locally regardless of persistence success.
     }
-    onReady({ store, packageId, send });
+    onReady({ store, packageId, send, loadedBlobId });
   };
 
   return (
@@ -313,6 +331,7 @@ type RecoveryResolution =
       store: RepositoryWorkingCopyStore;
       settings: SettingsResponse;
       send: SendStatusResponse | null;
+      blobId: string;
     };
 
 function invalidLoadMessage(result: LoadSnapshotResult): string {
@@ -364,6 +383,7 @@ function SnapshotRecoveryView({
   if (resolution?.kind === "package-chooser") {
     return (
       <PackageChooserView
+        loadedBlobId={resolution.blobId}
         onReady={onReady}
         send={resolution.send}
         settings={resolution.settings}
@@ -407,7 +427,13 @@ function SnapshotRecoveryView({
       return;
     }
     if (destination.kind === "package-chooser") {
-      setResolution({ kind: "package-chooser", store, settings, send });
+      setResolution({
+        kind: "package-chooser",
+        store,
+        settings,
+        send,
+        blobId: blob.id,
+      });
       return;
     }
     if (destination.shouldPersist) {
@@ -420,7 +446,12 @@ function SnapshotRecoveryView({
         // Best-effort; see FirstPackageForm/PackageChooserView.
       }
     }
-    onReady({ store, packageId: destination.packageId, send });
+    onReady({
+      store,
+      packageId: destination.packageId,
+      send,
+      loadedBlobId: blob.id,
+    });
   };
 
   return (
@@ -505,6 +536,7 @@ export function RepositoryStartupScreen({
             store: result.store,
             settings: result.settings,
             send: result.send,
+            blobId: result.blobId,
           });
         }
         return;
@@ -524,6 +556,7 @@ export function RepositoryStartupScreen({
           store: result.store,
           packageId: result.destination.packageId,
           send: result.send,
+          loadedBlobId: result.blobId,
         });
       }
     };
@@ -639,6 +672,7 @@ export function RepositoryStartupScreen({
     case "package-chooser":
       return (
         <PackageChooserView
+          loadedBlobId={phase.blobId}
           onReady={onReady}
           send={phase.send}
           settings={phase.settings}

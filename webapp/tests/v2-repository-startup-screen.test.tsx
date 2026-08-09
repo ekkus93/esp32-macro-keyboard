@@ -168,6 +168,7 @@ describe("v2 RepositoryStartupScreen", () => {
       store,
       packageId: canonicalPackageId,
       send: null,
+      loadedBlobId: "1",
     };
     const onReady = vi.fn<(ready: RepositoryStartupReady) => void>();
     const view = await render(
@@ -392,6 +393,7 @@ describe("v2 RepositoryStartupScreen", () => {
       store: expect.anything() as unknown,
       packageId: canonicalPackageId,
       send: sendStatus,
+      loadedBlobId: "1",
     });
     await view.unmount();
   });

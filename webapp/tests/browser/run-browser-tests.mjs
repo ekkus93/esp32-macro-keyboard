@@ -1,10 +1,17 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
 import process from "node:process";
-import { gzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 
 /*
  * v2 fixture data (TODO_V2 Phase 9 exit gate). The v1 fixture this file used
@@ -176,6 +183,14 @@ async function requestBody(request) {
   return text.length === 0 ? null : JSON.parse(text);
 }
 
+async function rawRequestBody(request) {
+  const chunks = [];
+  for await (const chunk of request) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
 /**
  * Advances the fixture's one active send by one simulated poll, per
  * `source` (each scenario macro uses a distinct, recognizable source so one
@@ -234,6 +249,13 @@ async function startApplicationServer() {
     send: null,
     sendPostCount: 0,
     settingsPutCount: 0,
+    // TODO_V2 V2-110/V2-111: a real, mutable multi-blob store — Save/Load/
+    // Delete/Import/Export all round-trip through these routes against a
+    // real gzip payload the browser itself decompresses
+    // (`DecompressionStream`, unavailable to jsdom, so this is the one place
+    // that gzip round trip is proven against a real browser).
+    blobs: [{ id: blobId, bytes: repositoryGzip }],
+    nextBlobId: 2,
   };
 
   const server = createServer(async (request, response) => {
@@ -278,21 +300,68 @@ async function startApplicationServer() {
           return;
         }
         if (method === "GET" && url.pathname === "/api/v1/blob") {
+          const usedBytes = state.blobs.reduce(
+            (sum, blob) => sum + blob.bytes.byteLength,
+            0,
+          );
           sendJson(response, 200, {
-            blobs: [{ id: blobId, sizeBytes: repositoryGzip.byteLength }],
-            usedBytes: repositoryGzip.byteLength,
-            remainingBytes: 131072 - repositoryGzip.byteLength,
+            blobs: [...state.blobs]
+              .sort((a, b) => Number(b.id) - Number(a.id))
+              .map((blob) => ({
+                id: blob.id,
+                sizeBytes: blob.bytes.byteLength,
+              })),
+            usedBytes,
+            remainingBytes: 131072 - usedBytes,
           });
           return;
         }
-        if (method === "GET" && url.pathname === `/api/v1/blob/${blobId}`) {
-          response.writeHead(200, {
-            "Content-Type": "application/gzip",
-            "Content-Length": repositoryGzip.byteLength,
-            "Cache-Control": "no-store",
-          });
-          response.end(repositoryGzip);
+        if (method === "POST" && url.pathname === "/api/v1/blob") {
+          const bytes = await rawRequestBody(request);
+          if (bytes.byteLength > 131072) {
+            sendError(
+              response,
+              413,
+              "payload_too_large",
+              "The snapshot exceeds the maximum accepted blob size.",
+            );
+            return;
+          }
+          const id = String(state.nextBlobId);
+          state.nextBlobId += 1;
+          state.blobs.push({ id, bytes });
+          sendJson(response, 201, { id, sizeBytes: bytes.byteLength });
           return;
+        }
+        const blobIdMatch = /^\/api\/v1\/blob\/([^/]+)$/.exec(url.pathname);
+        if (blobIdMatch !== null) {
+          const id = decodeURIComponent(blobIdMatch[1]);
+          const blob = state.blobs.find((candidate) => candidate.id === id);
+          if (method === "GET") {
+            if (blob === undefined) {
+              sendError(response, 404, "not_found", "No such blob.");
+              return;
+            }
+            response.writeHead(200, {
+              "Content-Type": "application/gzip",
+              "Content-Length": blob.bytes.byteLength,
+              "Cache-Control": "no-store",
+            });
+            response.end(blob.bytes);
+            return;
+          }
+          if (method === "DELETE") {
+            if (blob === undefined) {
+              sendError(response, 404, "not_found", "No such blob.");
+              return;
+            }
+            state.blobs = state.blobs.filter(
+              (candidate) => candidate.id !== id,
+            );
+            response.writeHead(204);
+            response.end();
+            return;
+          }
         }
         if (method === "POST" && url.pathname === "/api/v1/send") {
           if (state.send !== null && !isTerminal(state.send.lastState)) {
@@ -499,6 +568,22 @@ class Cdp {
   }
 }
 
+/**
+ * A browser-level (not page-level) CDP session. Required for
+ * `Browser.setDownloadBehavior` — the page-level `Page.setDownloadBehavior`
+ * is deprecated and, empirically against headless-new Chrome, does not
+ * reliably enable downloads at all (a real, reproducible hang this harness
+ * hit while adding V2-115 export coverage: no error, no file, just silence).
+ */
+async function connectBrowser(browserWebSocketUrl) {
+  const socket = new WebSocket(browserWebSocketUrl);
+  await new Promise((resolve, reject) => {
+    socket.addEventListener("open", resolve, { once: true });
+    socket.addEventListener("error", reject, { once: true });
+  });
+  return new Cdp(socket);
+}
+
 async function connectPage(browserWebSocketUrl, applicationUrl) {
   const browserUrl = new URL(browserWebSocketUrl);
   const target = await fetch(
@@ -547,7 +632,10 @@ async function waitFor(cdp, expression, message, timeoutMs = 12_000) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   const text = await evaluate(cdp, "document.body.innerText");
-  throw new Error(`${message}\nCurrent page:\n${String(text)}`);
+  const hash = await evaluate(cdp, "window.location.hash");
+  throw new Error(
+    `${message}\nCurrent hash: ${String(hash)}\nCurrent page:\n${String(text)}`,
+  );
 }
 
 function buttonExpression(text) {
@@ -947,6 +1035,252 @@ async function runBrowserWorkflows(cdp, serverState) {
   );
 }
 
+async function setFileInputFiles(cdp, selector, filePaths) {
+  await cdp.send("DOM.enable");
+  const { root } = await cdp.send("DOM.getDocument", { depth: 1 });
+  const { nodeId } = await cdp.send("DOM.querySelector", {
+    nodeId: root.nodeId,
+    selector,
+  });
+  assert(nodeId !== 0, `Missing element for file input: ${selector}`);
+  await cdp.send("DOM.setFileInputFiles", { files: filePaths, nodeId });
+}
+
+/**
+ * Resolves with the completed download's file path by listening for
+ * `Browser.downloadProgress`'s terminal `state: "completed"` on the
+ * browser-level session (requires `Browser.setDownloadBehavior` to have been
+ * called with `eventsEnabled: true`). More reliable than polling the
+ * directory: this fires exactly when Chrome itself considers the file
+ * finished and renamed from its `.crdownload` staging name, with no
+ * filesystem-propagation guessing.
+ */
+function waitForDownloadEvent(browserCdp, timeoutMs = 15_000) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      browserCdp.socket.removeEventListener("message", onMessage);
+      reject(new Error("Timed out waiting for a completed download event."));
+    }, timeoutMs);
+    function onMessage(event) {
+      const message = JSON.parse(String(event.data));
+      if (
+        message.method === "Browser.downloadProgress" &&
+        message.params?.state === "completed"
+      ) {
+        clearTimeout(timeout);
+        browserCdp.socket.removeEventListener("message", onMessage);
+        resolve(message.params.filePath);
+      }
+    }
+    browserCdp.socket.addEventListener("message", onMessage);
+  });
+}
+
+/**
+ * TODO_V2 Phase 11 exit gate: "Snapshot and import/export browser tests
+ * pass." Covered here against the real built app, real gzip
+ * (`CompressionStream`/`DecompressionStream`, unavailable to jsdom), and a
+ * real multi-blob fixture server: snapshot list rendering, manual Save,
+ * dirty-work protection during Load (discard-and-load), exact-ID-confirmed
+ * Delete, Export (a real file landing on disk via a real Chrome download),
+ * and Import (a real file selected via `DOM.setFileInputFiles`, since
+ * scripts cannot assign `HTMLInputElement.files` directly for security
+ * reasons — this is the one thing the Vitest suite cannot exercise at all).
+ */
+async function runSnapshotsWorkflows(cdp, application, fixtures) {
+  const { importFixturePath, downloadDirectory, browserCdp } = fixtures;
+
+  await clickButton(cdp, "Snapshots");
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Snapshot 1')",
+    "The Snapshots page did not render the stored blob.",
+  );
+  assert(
+    await evaluate(
+      cdp,
+      "document.body.innerText.includes('retention target 5')",
+    ),
+    "The configured advisory retention target was not shown.",
+  );
+
+  // Manual Save (V2-110): an explicit click, never automatic, and never
+  // deletes an existing snapshot (V2-111/V2-112).
+  await clickButton(cdp, "Save current snapshot");
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Snapshot 2')",
+    "Save current snapshot did not add a new blob.",
+  );
+  assert(
+    application.state.blobs.length === 2,
+    `Expected 2 stored blobs after one save, got ${String(application.state.blobs.length)}.`,
+  );
+  assert(
+    application.state.blobs.some((blob) => blob.id === "1"),
+    "Save current snapshot deleted the original blob — saves must be additive only.",
+  );
+
+  // Dirty-work protection during load (V2-113): dirty the working copy,
+  // then confirm Load warns with all four spec'd choices before touching
+  // anything, and that Discard changes and load both discards and loads.
+  await clickButton(cdp, "Macros");
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Add macro')",
+    "Did not return to the Macros page.",
+  );
+  await evaluate(
+    cdp,
+    `document.querySelector('[aria-label="Move Open terminal down"]').focus()`,
+  );
+  await dispatchKey(cdp, "Enter");
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Unsaved changes')",
+    "Reordering a macro did not dirty the working copy.",
+  );
+
+  await clickButton(cdp, "Snapshots");
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Snapshot 1')",
+    "The Snapshots page did not render after dirtying the working copy.",
+  );
+  await clickButtonByAriaLabel(cdp, "Load snapshot 1");
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Discard changes and load')",
+    "Loading while dirty did not show the unsaved-changes warning.",
+  );
+  for (const label of [
+    "Cancel",
+    "Export working copy",
+    "Save snapshot",
+    "Discard changes and load",
+  ]) {
+    assert(
+      await evaluate(cdp, `!!(${buttonExpression(label)})`),
+      `The dirty-load warning was missing its "${label}" choice.`,
+    );
+  }
+  await clickButton(cdp, "Discard changes and load");
+  // "Lab bench workflow" alone is not a safe signal here: it is also the
+  // selected-package name shown in the app header on every route, so it (and
+  // the "Unsaved changes" clear) is satisfied the instant the synchronous
+  // `store.discardChanges()` runs — before the async `performLoad()` it
+  // kicks off has actually navigated away from the Snapshots route. Wait for
+  // "Add macro", a Macros-page-only marker, so the subsequent Export step
+  // does not race that in-flight navigation.
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Add macro') && !document.body.innerText.includes('Unsaved changes')",
+    "Discard changes and load did not restore a clean, loaded working copy.",
+  );
+
+  // Export (V2-115): a real Chrome download of the exact gzip bytes.
+  await clickButton(cdp, "Snapshots");
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Snapshot 1')",
+    "The Snapshots page did not render before export.",
+  );
+  await browserCdp.send("Browser.setDownloadBehavior", {
+    behavior: "allow",
+    downloadPath: downloadDirectory,
+    eventsEnabled: true,
+  });
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Import and export')",
+    "The Import/export section did not render before export.",
+  );
+  const downloadPromise = waitForDownloadEvent(browserCdp);
+  await clickButton(cdp, "Export working copy");
+  const downloadedPath = await downloadPromise;
+  assert(
+    downloadedPath.endsWith(".emk-repository.json.gz"),
+    `Exported filename did not match the spec'd suffix: ${downloadedPath}`,
+  );
+  // A snap-confined Chromium's download-completion event has been observed
+  // to arrive a beat before the file is actually visible to this separate
+  // process — retry briefly rather than trusting the event alone.
+  let downloadedBytes;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      downloadedBytes = await readFile(downloadedPath);
+      break;
+    } catch (error) {
+      if (attempt >= 20) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  const decompressed = JSON.parse(gunzipSync(downloadedBytes).toString("utf8"));
+  assert(
+    decompressed.format === "esp32-macro-keyboard-repository" &&
+      decompressed.packages?.[0]?.name === "Lab bench workflow",
+    "The exported file did not decompress to the current working copy.",
+  );
+
+  // Import (V2-115): a real file selection through `DOM.setFileInputFiles`
+  // — jsdom cannot exercise this at all, since scripts cannot assign
+  // `HTMLInputElement.files` directly.
+  await setFileInputFiles(cdp, 'input[type="file"]', [importFixturePath]);
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('1 packages') && document.body.innerText.includes('1 macros')",
+    "Import did not show package/macro counts before confirmation.",
+  );
+  await clickButton(cdp, "Replace working copy with this import");
+  // As with Discard changes and load above: "Imported bench" and "Unsaved
+  // changes" both become true the instant the synchronous
+  // `store.applyImport()` runs, before the async navigation back to Macros
+  // that follows it completes. Also require "Add macro" (a Macros-page-only
+  // marker) so the next step does not race that in-flight navigation.
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Imported bench') && document.body.innerText.includes('Unsaved changes') && document.body.innerText.includes('Add macro')",
+    "Import did not replace the working copy, mark it dirty, and return to the Macros page.",
+  );
+
+  // Manual deletion (V2-111), confirmed by exact blob ID, never automatic.
+  await clickButton(cdp, "Snapshots");
+  await waitFor(
+    cdp,
+    "document.body.innerText.includes('Snapshot 2')",
+    "The Snapshots page did not render before delete.",
+  );
+  await clickButtonByAriaLabel(cdp, "Delete snapshot 2");
+  await waitFor(
+    cdp,
+    "document.querySelector('#snapshot-delete-confirm-2') !== null",
+    "Delete did not show the exact-ID confirmation field.",
+  );
+  await evaluate(
+    cdp,
+    `(() => {
+      const input = document.querySelector('#snapshot-delete-confirm-2');
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      setter.call(input, '2');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`,
+  );
+  await clickButton(cdp, "Confirm delete");
+  await waitFor(
+    cdp,
+    "!document.body.innerText.includes('Snapshot 2')",
+    "Confirmed delete did not remove the blob from the list.",
+  );
+  assert(
+    application.state.blobs.length === 1 &&
+      application.state.blobs[0]?.id === "1",
+    "Delete removed the wrong blob, or left the store in an unexpected state.",
+  );
+}
+
 async function stopChrome(processHandle) {
   if (processHandle.exitCode !== null) {
     return;
@@ -963,6 +1297,30 @@ async function stopChrome(processHandle) {
   });
 }
 
+const importFixtureRepository = {
+  format: "esp32-macro-keyboard-repository",
+  schemaVersion: 1,
+  packages: [
+    {
+      // Deliberately the same package ID the fixture device already has
+      // selected, so importing resolves straight to the Macros page
+      // (UI_UX_SPEC_V2 §3.6) instead of the Package chooser — this test
+      // targets import replacement, not package resolution.
+      id: packageId,
+      name: "Imported bench",
+      macros: [
+        {
+          id: "88888888-8888-4888-8888-888888888888",
+          name: "Imported macro",
+          source: "b",
+          keyPressMs: 8,
+          interKeyMs: 15,
+        },
+      ],
+    },
+  ],
+};
+
 async function main() {
   const chrome = commandPath([
     "google-chrome",
@@ -972,6 +1330,28 @@ async function main() {
   ]);
   const userDataDirectory = await mkdtemp(
     join(tmpdir(), "esp32-macro-browser-"),
+  );
+  // A snap-packaged Chromium runs sandboxed with its own private `/tmp`
+  // mount namespace: a download it writes under `os.tmpdir()` is invisible
+  // to this unconfined Node process (a real, reproducible ENOENT this
+  // harness hit while adding V2-115 export/import coverage — the CDP
+  // "completed" event still fires, but the file never appears on the host's
+  // view of `/tmp`). The `home` interface is connected for this snap, so a
+  // directory under the real `$HOME` is visible in both namespaces — but it
+  // must not be a top-level hidden (dot) directory: the snap's AppArmor
+  // profile explicitly excludes those from its `$HOME` read/write grant
+  // (`snap.chromium.chromium`: "except... toplevel hidden directories in
+  // @{HOME}"), which silently produced the same invisible-file symptom.
+  const browserExchangeBase = join(homedir(), "esp32-macro-browser-tests");
+  await mkdir(browserExchangeBase, { recursive: true });
+  const downloadDirectory = await mkdtemp(
+    join(browserExchangeBase, "download-"),
+  );
+  const fixtureDirectory = await mkdtemp(join(browserExchangeBase, "fixture-"));
+  const importFixturePath = join(fixtureDirectory, "import-fixture.gz");
+  await writeFile(
+    importFixturePath,
+    gzipSync(Buffer.from(JSON.stringify(importFixtureRepository), "utf8")),
   );
   const application = await startApplicationServer();
   const chromeProcess = spawn(
@@ -989,16 +1369,37 @@ async function main() {
     { stdio: ["ignore", "pipe", "pipe"] },
   );
   let cdp;
+  let browserCdp;
   try {
     const debuggerUrl = await devToolsUrl(chromeProcess);
+    browserCdp = await connectBrowser(debuggerUrl);
     cdp = await connectPage(debuggerUrl, application.baseUrl);
     await runBrowserWorkflows(cdp, application.state);
     console.log("Real Chrome v2 Macros page/Quick Send workflows passed.");
+    await runSnapshotsWorkflows(cdp, application, {
+      importFixturePath,
+      downloadDirectory,
+      browserCdp,
+    });
+    console.log("Real Chrome v2 Snapshots/import-export workflows passed.");
   } finally {
     cdp?.close();
+    browserCdp?.close();
     await stopChrome(chromeProcess);
     await application.close();
     await rm(userDataDirectory, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    });
+    await rm(downloadDirectory, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    });
+    await rm(fixtureDirectory, {
       recursive: true,
       force: true,
       maxRetries: 5,

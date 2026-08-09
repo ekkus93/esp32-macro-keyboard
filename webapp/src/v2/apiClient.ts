@@ -284,6 +284,12 @@ export async function v2PostBinary<T>(
   if (!response.ok) {
     await handleErrorResponse(response, options);
   }
+  // SPEC_V2 §10.3 / TODO_V2 V2-110: "Mark saved only after 201 Created" — the
+  // only caller of this helper is the blob-create route, so this enforces
+  // the exact success status rather than accepting any 2xx.
+  if (response.status !== 201) {
+    throw invalidResponse(response.status, "Expected 201 Created.");
+  }
   const responseContentType = response.headers.get("content-type") ?? "";
   if (!responseContentType.toLowerCase().startsWith(jsonContentType)) {
     throw invalidResponse(

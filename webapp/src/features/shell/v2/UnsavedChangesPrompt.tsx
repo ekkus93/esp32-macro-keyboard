@@ -7,13 +7,11 @@
  *
  * This component is the shared primitive every dirty-blocking action needs
  * (Sign Out, loading another snapshot, import replacement, reset settings,
- * factory reset) — but as of Phase 10 none of those actions has a surface
- * in the v2 UI yet (Sign Out and Reset/Factory reset belong to Phase 12's
- * Settings screen, V2-120/V2-121; snapshot load and import replacement
- * belong to Phase 11, V2-113/V2-116). It is built and tested here so those
- * later phases render it rather than inventing their own warning, but no
- * v2 screen invokes it yet — see the Phase 10 implementation report for
- * exactly what evidence this does and does not cover.
+ * factory reset). As of Phase 11 (V2-113/V2-115), the Snapshots page wires
+ * it for the two trigger points that phase owns — loading another snapshot
+ * and import replacement (`SnapshotsPage.tsx`). Sign Out and Reset/Factory
+ * reset belong to Phase 12's Settings screen (V2-120/V2-121) and remain
+ * unwired until then.
  */
 
 export interface UnsavedChangesPromptProps {
@@ -25,6 +23,12 @@ export interface UnsavedChangesPromptProps {
   onDiscard: () => void;
   exporting?: boolean;
   saving?: boolean;
+  /**
+   * The discard button's exact label. Defaults to the generic "Discard
+   * changes" (SPEC_V2 §8.7). UI_UX_SPEC_V2 §9.4 spells out a more specific
+   * label for the snapshot-load trigger point: "Discard changes and load".
+   */
+  discardLabel?: string;
 }
 
 export function UnsavedChangesPrompt({
@@ -35,6 +39,7 @@ export function UnsavedChangesPrompt({
   onDiscard,
   exporting = false,
   saving = false,
+  discardLabel = "Discard changes",
 }: UnsavedChangesPromptProps): React.JSX.Element {
   return (
     <div className="dialog-backdrop" role="presentation">
@@ -67,7 +72,7 @@ export function UnsavedChangesPrompt({
             {saving ? "Saving…" : "Save snapshot"}
           </button>
           <button className="danger" onClick={onDiscard} type="button">
-            Discard changes
+            {discardLabel}
           </button>
         </div>
       </div>

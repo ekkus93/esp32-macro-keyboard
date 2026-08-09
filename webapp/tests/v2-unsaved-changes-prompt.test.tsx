@@ -57,6 +57,21 @@ describe("UnsavedChangesPrompt — V2-103", () => {
     await unmount();
   });
 
+  test("supports a context-specific discard label (V2-113 'Discard changes and load')", async () => {
+    const { unmount } = await render(
+      <UnsavedChangesPrompt
+        actionLabel="load this snapshot"
+        discardLabel="Discard changes and load"
+        onCancel={vi.fn()}
+        onDiscard={vi.fn()}
+        onExport={vi.fn()}
+        onSaveSnapshot={vi.fn()}
+      />,
+    );
+    buttonWithText("Discard changes and load");
+    await unmount();
+  });
+
   test("disables Export and Save while their operations are in flight", async () => {
     const { unmount } = await render(
       <UnsavedChangesPrompt
