@@ -453,6 +453,22 @@ class Cdp {
     this.pending = new Map();
     socket.addEventListener("message", (event) => {
       const message = JSON.parse(String(event.data));
+      // Unsolicited CDP events (no `id`) include Page.javascriptDialogOpening.
+      // TODO_V2 V2-103 registers a real `beforeunload` listener while the
+      // working copy is dirty, which fires a native, unstyleable browser
+      // dialog on reload/navigation-away. A native dialog blocks the page's
+      // JS thread until dismissed; with no auto-responder here, every
+      // subsequent Runtime.evaluate() call hangs forever rather than failing
+      // fast. Auto-accept any dialog so scenarios that intentionally leave
+      // the store dirty (e.g. reorder-then-reload) don't wedge the harness --
+      // no current scenario asserts on the dialog's own presence, only on
+      // app state before/after it.
+      if (message.method === "Page.javascriptDialogOpening") {
+        this.send("Page.handleJavaScriptDialog", { accept: true }).catch(() => {
+          // Best-effort: if the socket is already closing, ignore it.
+        });
+        return;
+      }
       if (message.id === undefined) {
         return;
       }
