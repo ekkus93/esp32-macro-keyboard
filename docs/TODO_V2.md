@@ -933,7 +933,7 @@ explicitly not claimed.
 - [x] Create an empty valid repository in memory.
 - [x] Ask for the first package name.
 - [x] Set `lastSelectedPackageId` to the new package.
-- [ ] Open the empty Macros page.
+- [x] Open the empty Macros page.
 - [x] State clearly that data exists only in this tab until Save snapshot succeeds.
 - [x] Keep Unsaved changes visible.
 
