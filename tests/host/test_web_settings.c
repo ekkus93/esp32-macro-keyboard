@@ -725,6 +725,102 @@ static void test_put_station_valid_object_success(void) {
     free(json);
 }
 
+static void test_put_send_mode_wrong_type_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"sendMode\":42}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
+}
+
+/* The five tests below each carry a validly-shaped field past
+ * exact_settings_put_fields()/populate_settings_update_request() so that
+ * map_prepare_update_result() maps app_v2_settings_prepare_update()'s
+ * contract-level rejection to its web_settings_put_result_t counterpart --
+ * distinct from the field-shape rejections above (missing/extra/wrong-typed
+ * fields), which never reach app_v2_settings_prepare_update() at all. */
+
+static void test_put_access_point_ssid_too_long_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    /* APP_V2_WIFI_SSID_MAX_BYTES is 32; this ssid is 33 bytes. */
+    build_body(body, sizeof(body),
+               "{\"accessPoint\":{\"ssid\":\"123456789012345678901234567890123\","
+               "\"passphrase\":\"new-example-passphrase\"}}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_ACCESS_POINT_SSID, outcome.result);
+    TEST_CHECK_EQ_U64(0U, fake.settings_replace_calls);
+}
+
+static void test_put_access_point_passphrase_too_short_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    /* APP_V2_WIFI_PASSPHRASE_MIN_BYTES is 8; "short12" is 7 bytes. */
+    build_body(body, sizeof(body), "{\"accessPoint\":{\"ssid\":\"NewAp\",\"passphrase\":\"short12\"}}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_ACCESS_POINT_PASSPHRASE, outcome.result);
+    TEST_CHECK_EQ_U64(0U, fake.settings_replace_calls);
+}
+
+static void test_put_station_ssid_too_long_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"station\":{\"ssid\":\"123456789012345678901234567890123\","
+               "\"passphrase\":\"station-example-passphrase\"}}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_STATION_SSID, outcome.result);
+    TEST_CHECK_EQ_U64(0U, fake.settings_replace_calls);
+}
+
+static void test_put_station_passphrase_too_short_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"station\":{\"ssid\":\"OfficeWiFi\",\"passphrase\":\"short12\"}}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_STATION_PASSPHRASE, outcome.result);
+    TEST_CHECK_EQ_U64(0U, fake.settings_replace_calls);
+}
+
+static void test_put_last_selected_package_id_malformed_uuid_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"lastSelectedPackageId\":\"not-a-uuid\"}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_LAST_SELECTED_PACKAGE_ID, outcome.result);
+    TEST_CHECK_EQ_U64(0U, fake.settings_replace_calls);
+}
+
 /* ---------------------------------------------------------------------- */
 /* POST /api/v1/settings/change-password                                   */
 /* ---------------------------------------------------------------------- */
@@ -1008,6 +1104,12 @@ int main(void) {
     test_put_last_selected_package_id_wrong_type_rejected();
     test_put_last_selected_package_id_valid_string_success();
     test_put_station_valid_object_success();
+    test_put_send_mode_wrong_type_rejected();
+    test_put_access_point_ssid_too_long_rejected();
+    test_put_access_point_passphrase_too_short_rejected();
+    test_put_station_ssid_too_long_rejected();
+    test_put_station_passphrase_too_short_rejected();
+    test_put_last_selected_package_id_malformed_uuid_rejected();
     test_change_password_success();
     test_change_password_incorrect_current_password();
     test_change_password_new_password_too_short_rejected();
