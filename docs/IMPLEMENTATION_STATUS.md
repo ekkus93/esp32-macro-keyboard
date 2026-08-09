@@ -2,12 +2,20 @@
 
 **Updated:** 2026-08-01
 
+**Document status:** Retired v1-era snapshot; not a source of current status.
+This file predates the v1→v2 rebuild (started 2026-08-03) and describes the
+retired FIX1/v1 firmware-owned package and macro architecture. For current v2
+status, use [`docs/TODO_V2.md`](TODO_V2.md) and the phase reports under
+[`docs/implementation-v2/`](implementation-v2/) (start at
+[`V2_MIGRATION_MAP.md`](implementation-v2/V2_MIGRATION_MAP.md)). Do not cite
+this file as current v2 status.
+
 This file distinguishes implemented software from host-tested, device-tested,
 and release-ready behavior. It is a snapshot; the authoritative,
-continuously-maintained record is
+continuously-maintained record for the retired v1/FIX1 work it describes was
 `docs/ESP32_MACRO_KEYBOARD_RUNTIME_INTEGRITY_AND_PRODUCT_COMPLETION_FIX1_TODO.md`
-(the "FIX1 doc") - consult it, not this file, for anything more current than
-the date above.
+(the "FIX1 doc") - consult it, not this file, for anything about that retired
+work more current than the date above.
 
 ## Completed software phases
 
