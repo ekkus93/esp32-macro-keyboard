@@ -5,7 +5,10 @@
 **Date:** 2026-08-08
 **Worktree:** `.claude/worktrees/agent-a27c84ca506f9385a`
 **Branch:** `worktree-agent-a27c84ca506f9385a`
-**Commit SHA (this task):** `7922d4a55342f954f6a77ce53ffe03b3a20171d7`
+**Commit SHA (this task):** `8628b776ee83fd311e349ff012f471320ec62e10`
+(implementation: tests, fixture, and TODO_V2.md checkboxes) plus a small
+follow-up docs-only commit that corrected this SHA reference itself (a
+commit cannot embed its own final hash in one step).
 
 ## Scope
 
