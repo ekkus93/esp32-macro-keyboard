@@ -6,8 +6,11 @@
 ESP32-S3 firmware that enumerates as a native USB HID keyboard and serves a local,
 mobile-first web application for managing and running explicit keyboard macros.
 
-The authoritative design is in [`docs/SPEC.md`](docs/SPEC.md). The mandatory
-implementation sequence is in [`docs/TODO.md`](docs/TODO.md).
+The authoritative design is in [`docs/SPEC_V2.md`](docs/SPEC_V2.md) and
+[`docs/UI_UX_SPEC_V2.md`](docs/UI_UX_SPEC_V2.md). The mandatory implementation
+sequence is in [`docs/TODO_V2.md`](docs/TODO_V2.md). `docs/SPEC.md` and
+`docs/TODO.md` are retired v1 compatibility pointers, kept only for historical
+investigation.
 
 ## Repository status
 
@@ -21,12 +24,27 @@ commits. Device-test firmware is linted and compiled for the ESP32-S3 on the sam
 events. Compiled assets and test logs are uploaded only for tagged commits.
 
 Per-capability validation state — host-tested, sanitizer-tested, coverage-gated,
-frontend-tested, device-build-tested, device-executed, and HIL-verified — is tracked
-in [`docs/UNIT_TESTS1_PROGRESS.md`](docs/UNIT_TESTS1_PROGRESS.md) and
-[`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md).
+frontend-tested, device-build-tested, device-executed, and HIL-verified — was
+tracked for the pre-rebuild codebase in
+[`docs/UNIT_TESTS1_PROGRESS.md`](docs/UNIT_TESTS1_PROGRESS.md) and
+[`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md); both predate the
+v1→v2 rebuild (started 2026-08-03) and are retired v1-era snapshots. Current v2
+phase-by-phase status and evidence live in
+[`docs/TODO_V2.md`](docs/TODO_V2.md) and the reports under
+[`docs/implementation-v2/`](docs/implementation-v2/).
 
 **Verified on real hardware (2026-08-02),** by the scripts in `tests/hardware/`
-against an attached ESP32-S3:
+against an attached ESP32-S3, **before the v1→v2 rebuild began (2026-08-03).**
+The package/repository items below (whole-repository restore, package import,
+and package replacement) describe the retired firmware-owned package model:
+firmware now stores and serves opaque blobs only, and the webapp owns
+package/macro modeling (see
+[`docs/implementation-v2/V2_MIGRATION_MAP.md`](docs/implementation-v2/V2_MIGRATION_MAP.md)).
+The typing, cancellation, and provisioning/persistence items remain
+architecturally applicable; the package-repository item does not reflect
+current firmware behavior. v2 hardware validation is separate, not-yet-complete
+work tracked in [`docs/TODO_V2.md`](docs/TODO_V2.md) Phase 15
+(V2-150 through V2-155):
 
 - **typing**, read back from the kernel's `hidraw` node as USB HID reports — the
   bytes on the wire, not text captured from an editor: printable text arrives
@@ -44,9 +62,11 @@ against an attached ESP32-S3:
   per-package outcomes, import as a new package, and replacing an existing package's
   contents — against a real repository, on the device.
 
-Still not verified on hardware: the on-device Unity test menu, repeated USB and
-access-point reconnects, a firmware slot switch, and any host other than Linux.
-Those are the open items in `docs/SPEC.md` §24.6.
+Still not verified on hardware as of that 2026-08-02 date: the on-device Unity
+test menu, repeated USB and access-point reconnects, a firmware slot switch, and
+any host other than Linux — those were the open items in the retired v1
+specification's hardware-acceptance section. Current v2 hardware-validation
+scope and status live in [`docs/TODO_V2.md`](docs/TODO_V2.md) Phase 15.
 
 ## Known product limitation: unauthenticated serial console
 
@@ -61,8 +81,8 @@ friction without adding protection. The network surface is held to the
 opposite standard: every Wi-Fi-reachable route requires a valid session, and
 authentication is rate-limited. The session cookie is `HttpOnly` and
 `SameSite=Strict`, which is what stops another site driving the device through
-a browser (SPEC §16.2). See
-[`docs/SPEC.md`](docs/SPEC.md) §16.5.
+a browser ([`docs/SPEC_V2.md`](docs/SPEC_V2.md) §12.2). See
+[`docs/SPEC_V2.md`](docs/SPEC_V2.md) §12.4.
 
 Before any release to third parties this console must be excluded from the
 shipped image, because a shipped device's physical surface belongs to its
@@ -91,8 +111,8 @@ That is the gate a change has to pass. While iterating, use the narrower loops:
 
 | Suite | Where the tests live | Run just this |
 | --- | --- | --- |
-| Host C — 52 `test_*.c` plus 20 `.inc` fragments | `tests/host/` | `./scripts/run-tests.sh` |
-| Frontend — 17 vitest files, 118 tests, ~2s | `webapp/tests/` (**not** `webapp/src/`) | `npm --prefix webapp run test` |
+| Host C — 53 `test_*.c` plus 26 `.inc` fragments (50 CTest suites) | `tests/host/` | `./scripts/run-tests.sh` |
+| Frontend — 37 vitest files, 352 tests, ~3s | `webapp/tests/` (**not** `webapp/src/`) | `npm --prefix webapp run test` |
 | Browser (Playwright) | `webapp/tests/browser/` | `npm --prefix webapp run test:browser` |
 | On-device Unity | `firmware/test_app/` | see the next section |
 | Hardware-in-the-loop (Python) | `tests/hardware/` | needs the board attached |

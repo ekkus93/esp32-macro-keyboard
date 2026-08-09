@@ -1,6 +1,14 @@
 # Unit Test Expansion 1 — Progress
 
-Status: **In progress**
+Status: **In progress** (retired; see below)
+
+**Document status:** Retired v1-era progress snapshot; not a source of current
+status. This file predates the v1→v2 rebuild (started 2026-08-03) and records
+progress against the retired `docs/UNIT_TESTS1_TODO.md` plan under the v1
+firmware-owned package/macro architecture. For the current v2 implementation
+sequence and evidence, use [`docs/TODO_V2.md`](TODO_V2.md) and the phase
+reports under [`docs/implementation-v2/`](implementation-v2/). Do not cite
+this file as current v2 status.
 
 Validated milestones: **Storage fault injection, ESP32-S3 device build, and frontend test slice**
 

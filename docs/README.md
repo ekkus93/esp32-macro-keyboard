@@ -6,12 +6,19 @@ ESP32 Macro Keyboard project.
 
 ## Authoritative documents
 
-- [`SPEC.md`](SPEC.md) defines required behavior, architecture, data models, APIs,
-  safety invariants, and acceptance criteria.
-- [`TODO.md`](TODO.md) defines the implementation order and completion gates.
-- [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) records implemented,
-  validated, and still-open work without treating unverified hardware results as
-  complete.
+- [`SPEC_V2.md`](SPEC_V2.md) and [`UI_UX_SPEC_V2.md`](UI_UX_SPEC_V2.md) define
+  required behavior, architecture, data models, APIs, safety invariants, and
+  acceptance criteria for the v2 rebuild.
+- [`TODO_V2.md`](TODO_V2.md) defines the implementation order and completion
+  gates.
+- [`SPEC.md`](SPEC.md) and [`TODO.md`](TODO.md) are retired v1 compatibility
+  pointers, kept only for historical investigation; see
+  [`implementation-v2/V2_MIGRATION_MAP.md`](implementation-v2/V2_MIGRATION_MAP.md)
+  for what changed and why.
+- [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) and
+  [`UNIT_TESTS1_PROGRESS.md`](UNIT_TESTS1_PROGRESS.md) are retired v1-era
+  snapshots (both predate the v1→v2 rebuild); current v2 status lives in
+  `TODO_V2.md` and the reports under [`implementation-v2/`](implementation-v2/).
 
 ## Reference documents
 

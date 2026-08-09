@@ -1219,7 +1219,20 @@ Macros | Packages | Snapshots | Settings
 
 ## V2-143 — Documentation synchronization
 
-- [ ] Update `README.md` to point to both v2 specifications and this TODO.
+- [x] Update `README.md` to point to both v2 specifications and this TODO.
+      Evidence: commit `5b1b771ff9e036486dee05ccd736206ee26befb7`. README.md's
+      opening authority sentence now cites `docs/SPEC_V2.md`,
+      `docs/UI_UX_SPEC_V2.md`, and `docs/TODO_V2.md`; several stale v1-era
+      claims found in the same file while auditing it (dead `docs/SPEC.md`
+      section citations, v1 package/repository hardware-validation claims,
+      stale host/frontend test counts) were also corrected, and
+      `docs/README.md`, `docs/IMPLEMENTATION_STATUS.md`, and
+      `docs/UNIT_TESTS1_PROGRESS.md` were updated the same way. Full detail:
+      `docs/implementation-v2/V2_143_DOC_AUTHORITY_SYNC_2026-08-09.md`. This
+      closes only this sub-bullet — the rest of V2-143 (`CLAUDE.md`,
+      `docs/TODO.md` itself, development/API/test/hardware/recovery
+      documentation, `docs/mockups/v2/` references, status-vs-intent
+      labeling) remains open.
 - [ ] Update `CLAUDE.md` to remove v1 authority and stale implementation guidance.
 - [ ] Update `docs/TODO.md` to point exclusively to this file.
 - [ ] Update development, API, test, hardware, and recovery documentation.
