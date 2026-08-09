@@ -200,6 +200,47 @@ target_include_directories(
 target_link_libraries(web_status_limits_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_status_limits_tests web_status_limits web)
 
+# HTTP-adapter-level tests for status_handler()/limits_handler() (web_server_status_limits.c),
+# exercised against the same fake esp_http_server.h (fakes/esp_http_server_stub) the blob route
+# tests use, plus small host stand-ins for the ESP-IDF-only esp_app_desc.h/esp_timer.h headers
+# (fakes/esp_idf_misc_stub) and for every NVS/FreeRTOS/hardware-backed dependency status_handler()
+# reads (auth, device_settings, wifi_ap, macro_executor, usb_keyboard, storage, storage_blob) -- see
+# test_web_server_status_limits_route.c's header comment for why.
+add_executable(
+    web_server_status_limits_route_tests
+    test_web_server_status_limits_route.c
+    ../../firmware/components/web_server/web_server_status_limits.c
+    ../../firmware/components/web_server/web_server_common.c
+    ../../firmware/components/web_server/web_server_adapter_common.c
+    ../../firmware/components/web_server/web_server_adapter_body_auth.c
+    ../../firmware/components/web_server/web_server_adapter_json.c
+    ../../firmware/components/web_server/web_status_limits.c
+    ../../firmware/components/web_server/web_cookie.c
+    ../../firmware/components/support/subsystem_health.c
+    ../../firmware/components/macro_model/app_error.c
+    fakes/fake_httpd.c
+)
+target_include_directories(
+    web_server_status_limits_route_tests
+    PRIVATE fakes/esp_http_server_stub
+            fakes/esp_idf_misc_stub
+            fakes
+            ../../firmware/components/web_server
+            ../../firmware/components/web_server/include
+            ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/app_contracts_v2/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/storage/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/usb_keyboard/include
+            ../../firmware/components/device_settings/include
+            ../../firmware/components/support/include
+)
+target_link_libraries(web_server_status_limits_route_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_server_status_limits_route_tests web_server_status_limits_route web)
+
 add_executable(
     web_auth_routes_tests test_web_auth_routes.c
                           ../../firmware/components/web_server/web_auth_routes.c
@@ -261,6 +302,55 @@ target_include_directories(
 )
 target_link_libraries(web_send_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_send_tests web_send web)
+
+# HTTP-adapter-level tests for send_create_handler()/send_get_handler()/ send_cancel_handler()
+# (web_server_send.c), exercised against the same fake esp_http_server.h
+# (fakes/esp_http_server_stub) the blob/status/limits route tests use, with the real macro_parser_v2
+# compile path linked in (as web_send_tests already does) and test doubles for auth_session_validate
+# and macro_executor.c's public entry points (NVS/mbedtls- and FreeRTOS-backed respectively, neither
+# host-linkable) -- see test_web_server_send_route.c's header comment for why.
+add_executable(
+    web_server_send_route_tests
+    test_web_server_send_route.c
+    ../../firmware/components/web_server/web_server_send.c
+    ../../firmware/components/web_server/web_server_common.c
+    ../../firmware/components/web_server/web_server_adapter_common.c
+    ../../firmware/components/web_server/web_server_adapter_body_auth.c
+    ../../firmware/components/web_server/web_server_adapter_json.c
+    ../../firmware/components/web_server/web_send.c
+    ../../firmware/components/web_server/web_cookie.c
+    ../../firmware/components/web_server/web_api_core.c
+    ../../firmware/components/web_server/web_api_response.c
+    ../../firmware/components/support/subsystem_health.c
+    ../../firmware/components/macro_parser/macro_parser.c
+    ../../firmware/components/macro_parser/macro_parser_v2.c
+    ../../firmware/components/macro_parser/macro_plan_v2.c
+    ../../firmware/components/macro_parser/macro_keymap_us.c
+    ../../firmware/components/macro_parser/macro_keymap_us_v2.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/macro_model/macro_model.c
+    fakes/fake_httpd.c
+)
+target_include_directories(
+    web_server_send_route_tests
+    PRIVATE fakes/esp_http_server_stub
+            fakes/esp_idf_misc_stub
+            fakes
+            ../../firmware/components/web_server
+            ../../firmware/components/web_server/include
+            ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/app_contracts_v2/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/storage/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/usb_keyboard/include
+            ../../firmware/components/support/include
+)
+target_link_libraries(web_server_send_route_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_server_send_route_tests web_server_send_route web)
 
 # HTTP-adapter-level tests for the blob route handlers (web_server_blob.c), exercised against a fake
 # esp_http_server.h (fakes/esp_http_server_stub) and a fake storage_blob backend

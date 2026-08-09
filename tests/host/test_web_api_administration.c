@@ -383,6 +383,34 @@ static void test_setup_route_post_returns_conflict(void) {
 }
 
 /* -------------------------------------------------------------------------
+ * GET /api/v1/diagnostics (WEB_API_ROUTE_DIAGNOSTICS_FULL dispatch wiring).
+ * web_diagnostics_handle()'s own composition (collecting a snapshot from
+ * storage/auth/usb/executor/controls/wifi/http health and building its JSON)
+ * is out of this track's scope -- see the stub above and V2-056 -- but
+ * nothing anywhere else in this suite proves web_api_handle_administration()'s
+ * switch statement actually reaches WEB_API_ROUTE_DIAGNOSTICS_FULL's case
+ * rather than silently falling into APP_ERROR_NOT_FOUND alongside every
+ * dedicated-handler route (STATUS, LIMITS, SEND, BLOB_COLLECTION, BLOB_ITEM,
+ * AUTH_LOGIN, AUTH_LOGOUT).
+ * This closes that one gap cheaply against the stub.
+ * ---------------------------------------------------------------------- */
+
+static void test_diagnostics_route_dispatches_to_handler(void) {
+    reset_fakes();
+    const web_api_call_t call = {
+        .method = WEB_API_METHOD_GET,
+        .path = {.route = WEB_API_ROUTE_DIAGNOSTICS_FULL},
+    };
+    web_api_response_t response = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_handle_administration(&call, &response));
+    TEST_CHECK_EQ_U64(200U, response.status);
+    cJSON *root = parse_response_body(&response);
+    TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "stub")));
+    cJSON_Delete(root);
+    web_api_response_free(&response);
+}
+
+/* -------------------------------------------------------------------------
  * Invalid arguments.
  * ---------------------------------------------------------------------- */
 
@@ -402,6 +430,7 @@ int main(void) {
     test_handle_device_restart_backend_unavailable();
     test_setup_route_get_returns_not_found();
     test_setup_route_post_returns_conflict();
+    test_diagnostics_route_dispatches_to_handler();
     test_null_arguments_rejected();
     puts("web api administration tests passed");
     return 0;
