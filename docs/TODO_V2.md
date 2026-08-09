@@ -635,30 +635,49 @@ knowledge in firmware.
       `web_server_api.c`'s `status_text()` had no case for `WEB_HTTP_STATUS_NO_CONTENT`
       (204), so a *successful* change-password response was sent to the
       client as "500 Internal Server Error" — fixed in the same commit.
-      `diagnostics` and the physical-confirmation-required=true/async-worker
-      path for this group remain live-untested (the former needs ESP-IDF
-      heap/reset-reason stand-ins and eight health-snapshot functions with no
-      host stand-in yet; the latter is FreeRTOS-dependent `web_server_async.c`
-      code, not `web_server_api.c`/`web_request_policy.c`) — both
-      investigated and deliberately deferred, see
-      `docs/implementation-v2/V2_057_FULL_HTTP_CONTRACT_MATRIX_2026-08-09.md`
-      and `docs/implementation-v2/V2_057_LIVE_ADMINISTRATION_HTTP_TEST_2026-08-09.md`.
+      `GET /api/v1/diagnostics` now also has live end-to-end coverage in the
+      same file: six of the eight subsystem-health snapshot functions
+      `collect_diagnostics()` calls turned out to already be portable C with
+      no ESP-IDF dependency (their own module comments say so) and link in
+      real, unfaked; only `device_controls_get_health()` and
+      `wifi_ap_get_status()` needed fakes, plus new
+      `esp_idf_misc_stub/esp_heap_caps.h` and three additions to
+      `esp_idf_misc_stub/esp_system.h` (`esp_reset_reason_t`,
+      `esp_reset_reason()`, `esp_get_free_heap_size()`,
+      `esp_get_minimum_free_heap_size()`) — see
+      `docs/implementation-v2/V2_057_DIAGNOSTICS_AND_SETUP_STATE_2026-08-09.md`.
+      Only the physical-confirmation-required=true/async-worker path for this
+      group remains live-untested (FreeRTOS-dependent `web_server_async.c`
+      code, not `web_server_api.c`/`web_request_policy.c`) — investigated and
+      deliberately deferred, see
+      `docs/implementation-v2/V2_057_FULL_HTTP_CONTRACT_MATRIX_2026-08-09.md`,
+      `docs/implementation-v2/V2_057_LIVE_ADMINISTRATION_HTTP_TEST_2026-08-09.md`,
+      and `docs/implementation-v2/V2_057_DIAGNOSTICS_AND_SETUP_STATE_2026-08-09.md`.
 - [x] Test the unprovisioned route surface contains only setup GET/POST and static
       setup assets.
-- [ ] Test setup-state GET returns only the approved two fields and returns `404`
+- [x] Test setup-state GET returns only the approved two fields and returns `404`
       after provisioning. The provisioned-mode `404` path
-      (`setup_route_response()`'s GET branch in `web_api_administration.c`) is now
-      tested; `setup_state_handler` (the unprovisioned-mode GET, in
-      `web_server_setup.c`) is httpd-dependent and remains untested.
+      (`setup_route_response()`'s GET branch in `web_api_administration.c`) was
+      already tested. `setup_state_handler` (the unprovisioned-mode GET, in
+      `web_server_setup.c`) is now also tested directly against the same
+      `esp_http_server_stub`/`fake_httpd.c` technique other fixed-URI handlers
+      use (`tests/host/test_web_server_setup_route.c`): the 200 response is
+      compared field-for-field, and via `cJSON_Compare()`, against
+      `contracts/v2/api/examples.json`'s own `setupState` fixture, proving
+      exactly two members and no more; a defense-in-depth case also confirms
+      the handler's own `server_configuration.mode` guard answers `404` if it
+      is ever reached outside `WEB_SERVER_MODE_SETUP`. See
+      `docs/implementation-v2/V2_057_DIAGNOSTICS_AND_SETUP_STATE_2026-08-09.md`.
 - [x] Test setup POST returns `409` after provisioning. `setup_route_response()`'s
       POST branch is now directly tested via
       `web_api_handle_administration(WEB_API_ROUTE_SETUP, POST, …)`, distinct from
       `test_already_provisioned_rejected`'s defense-in-depth check.
 - [x] Test exact response schemas and status codes. Strong for
-      status/limits/send/login/diagnostics/blob — status/limits/send are now
-      also verified at the live-handler level, not just their pure JSON
-      builders (see the matrix bullet above); session/restart/setup-conflict
-      are now covered too via `web_api_administration_tests`.
+      status/limits/send/login/diagnostics/blob — status/limits/send/diagnostics
+      are now also verified at the live-handler level, not just their pure
+      JSON builders (see the matrix bullet above); session/restart/
+      setup-conflict/setup-state are now covered too via
+      `web_api_administration_tests` and `test_web_server_setup_route.c`.
 - [x] Test that secret-like sentinel values never appear in responses or logs.
       Explicit checks exist for diagnostics and status; send's password material
       is secure-zeroed by construction; session (`handle_session()`'s JSON) and
@@ -668,23 +687,41 @@ knowledge in firmware.
       pair only, with no secret-like field to scan.
 - [ ] Consume the same checked-in examples from C and TypeScript tests. The
       TypeScript side genuinely validates against
-      `contracts/v2/api/examples.json`; the C side never parses that file —
-      one divergence this actually caught and fixed:
+      `contracts/v2/api/examples.json`
+      (`webapp/tests/v2-api-contracts.test.ts`'s `isDiagnosticsResponse(examples.diagnostics)`
+      etc.); the C side now does too, for the two routes this track touched:
+      a new shared helper (`tests/host/support/test_examples_fixture.c`)
+      loads and parses `examples.json` once per test binary, and
+      `test_web_server_setup_route.c`/`test_web_server_administration_route.c`
+      each use `cJSON_Compare()` to diff a live handler's real response
+      against the checked-in `setupState`/`diagnostics` fixture objects
+      (diagnostics' `subsystems` array is normalized to empty first — the
+      fixture leaves it `[]` as a placeholder, but a real device always
+      reports all 8 entries, checked separately). One divergence this
+      already caught and fixed (prior track):
       `web_server_diagnostics.c`'s `resetReason` values used hyphens
-      (`"power-on"`) against the contract's underscores (`"power_on"`).
+      (`"power-on"`) against the contract's underscores (`"power_on"`). Every
+      other route's C tests still hand-build fixture JSON inline rather than
+      parse this file — deliberately out of this track's scope (see
+      `docs/implementation-v2/V2_057_DIAGNOSTICS_AND_SETUP_STATE_2026-08-09.md`).
 
 ## Phase 5 exit gate
 
 - [x] Route table exactly matches the v2 specification.
 - [x] Old routes are absent.
-- [ ] Contract and security tests pass. The tests that exist pass (53/53),
-      but this masks the real coverage gaps enumerated under V2-057 — passing
-      tests is not the same as complete contract/security coverage.
+- [ ] Contract and security tests pass. The tests that exist pass (54/54),
+      but this masks the real coverage gap enumerated under V2-057's route
+      matrix bullet (the physical-confirmation-required=true/async-worker
+      path) — passing tests is not the same as complete contract/security
+      coverage.
 - [ ] API documentation examples match observed responses. No script or test
       diffs actual handler output against `contracts/v2/api/examples.json`
-      wholesale; the one concrete mismatch found during this audit
-      (`diagnostics.resetReason`) is now fixed, but nothing guards against a
-      recurrence of this class of drift.
+      wholesale; `setup-state` and `diagnostics` now do this individually
+      (`cJSON_Compare()` against the checked-in fixture, see the V2-057
+      "consume the same checked-in examples" bullet), and the one concrete
+      mismatch found during the original audit (`diagnostics.resetReason`)
+      remains fixed, but nothing guards against a recurrence of this class of
+      drift for the routes not yet doing this comparison.
 
 ---
 
