@@ -23,6 +23,13 @@ typedef struct {
      * whose 1-based ordinal equals this value -- the confirmation-flow analogue
      * of cancel_on_wait. */
     size_t confirm_on_wait;
+    /* Result of the confirm_on_wait-triggered macro_executor_engine_confirm()
+     * call itself, always captured -- lets a test inject a lock/unlock
+     * failure on that specific reentrant call (the only way to reach
+     * confirm()'s own lock/unlock failure branches, since confirm() while
+     * genuinely awaiting confirmation can only be invoked reentrantly from
+     * inside wait_ms()). */
+    app_error_code_t confirm_on_wait_result;
     /* When true, a second macro_executor_engine_confirm() call is made
      * immediately after the confirm_on_wait one and its result captured in
      * second_confirm_result, so a test can observe the idempotent-conflict

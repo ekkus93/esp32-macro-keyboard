@@ -61,6 +61,7 @@ static void test_confirmation_granted_runs_the_macro_and_is_idempotent(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, executor_execute_queued(&engine, &fake));
 
     executor_assert_terminal(&engine, EXECUTION_COMPLETED, APP_ERROR_NONE, false);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, fake.confirm_on_wait_result);
     TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, fake.second_confirm_result);
     /* Exactly one 10 ms slice was spent awaiting confirmation (confirm_on_wait
      * == 1) before the press proceeded. */
@@ -114,10 +115,122 @@ static void test_confirmation_expiry_times_out_and_types_nothing(void) {
     }
 }
 
+/* A lock() failure inside await_confirmation()'s own read_confirmation() call
+ * propagates as the send's terminal error, exactly like a lock failure inside
+ * read_cancellation() does. */
+static void test_confirmation_read_confirmation_lock_failure_ends_the_send(void) {
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+
+    macro_execution_request_t request = confirmation_single_key_request(4U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
+    /* fake_call_log_fail_on()'s occurrence counter starts from this call, not
+     * from executor_fake_reset() -- submit()'s own lock/unlock already
+     * happened above and does not count. Occurrence 3 is await_confirmation()'s
+     * first read_confirmation() call (1: the initial AWAITING_CONFIRMATION
+     * publish, 2: the first read_cancellation()). */
+    fake_call_log_fail_on(&fake.calls, "lock", 3U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, executor_execute_queued(&engine, &fake));
+
+    executor_assert_terminal(&engine, EXECUTION_FAILED, APP_ERROR_INTERNAL, false);
+    for (size_t index = 0U; index < fake.calls.call_count; ++index) {
+        TEST_CHECK(strcmp(fake_call_log_at(&fake.calls, index)->name, "press") != 0);
+    }
+}
+
+/* A wait_ms() failure while awaiting confirmation (distinct from a timeout or
+ * a cancellation) also ends the send in EXECUTION_FAILED with that error. */
+static void test_confirmation_wait_failure_ends_the_send(void) {
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+
+    macro_execution_request_t request = confirmation_single_key_request(4U);
+    fake.wait_failure_on = 1U;
+    fake.wait_failure_result = APP_ERROR_IO;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, executor_execute_queued(&engine, &fake));
+
+    executor_assert_terminal(&engine, EXECUTION_FAILED, APP_ERROR_IO, false);
+    TEST_CHECK_EQ_U64(1U, fake.wait_count);
+    for (size_t index = 0U; index < fake.calls.call_count; ++index) {
+        TEST_CHECK(strcmp(fake_call_log_at(&fake.calls, index)->name, "press") != 0);
+    }
+}
+
+/* macro_executor_engine_confirm() can only be reached while genuinely
+ * awaiting confirmation by calling it reentrantly from inside wait_ms() (via
+ * confirm_on_wait); that is the only way to exercise confirm()'s own
+ * lock()/unlock() failure branches. A failed lock() leaves confirmed_requested
+ * unset, so the send keeps waiting and eventually times out. */
+static void test_confirm_lock_failure_leaves_send_awaiting_and_it_times_out(void) {
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+
+    macro_execution_request_t request = confirmation_single_key_request(4U);
+    fake.confirm_on_wait = 1U;
+    /* Applied on every wait_ms() call, including the one that triggers the
+     * failed confirm() attempt, so the very next confirmation-loop iteration
+     * already sees the deadline passed rather than looping thousands of
+     * 10 ms slices. */
+    fake.extra_advance_on_wait_ms = APP_V2_SERIAL_CONFIRMATION_TIMEOUT_SECONDS * 1000U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
+    /* fake_call_log_fail_on()'s occurrence counter starts from this call, not
+     * from executor_fake_reset() -- submit()'s own lock/unlock already
+     * happened above and does not count. Occurrence 4 is confirm()'s own
+     * lock: (1) initial AWAITING publish, (2) first read_cancellation, (3)
+     * first read_confirmation, (4) the reentrant confirm() call triggered
+     * from inside wait_ms(). */
+    fake_call_log_fail_on(&fake.calls, "lock", 4U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_TIMEOUT, executor_execute_queued(&engine, &fake));
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, fake.confirm_on_wait_result);
+    executor_assert_terminal(&engine, EXECUTION_TIMED_OUT, APP_ERROR_TIMEOUT, false);
+    for (size_t index = 0U; index < fake.calls.call_count; ++index) {
+        TEST_CHECK(strcmp(fake_call_log_at(&fake.calls, index)->name, "press") != 0);
+    }
+}
+
+/* A failed unlock() inside confirm() is reported back to the caller, but
+ * confirmed_requested was already set (line order: flag write, then unlock)
+ * before that unlock failed, so the send still proceeds and completes on the
+ * confirmation loop's next pass -- confirm()'s own reported failure does not
+ * un-confirm the send. */
+static void test_confirm_unlock_failure_still_lets_the_send_proceed(void) {
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+
+    macro_execution_request_t request = confirmation_single_key_request(4U);
+    fake.confirm_on_wait = 1U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
+    /* fake_call_log_fail_on()'s occurrence counter starts from this call, not
+     * from executor_fake_reset() -- submit()'s own lock/unlock already
+     * happened above and does not count. Occurrence 4 is confirm()'s own
+     * unlock: (1) the initial AWAITING publish, (2) first read_cancellation,
+     * (3) first read_confirmation, (4) the reentrant confirm() call's own
+     * unlock. */
+    fake_call_log_fail_on(&fake.calls, "unlock", 4U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, executor_execute_queued(&engine, &fake));
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, fake.confirm_on_wait_result);
+    executor_assert_terminal(&engine, EXECUTION_COMPLETED, APP_ERROR_NONE, false);
+}
+
 void executor_run_confirmation_tests(void) {
     test_confirm_before_any_send_is_not_found();
     test_confirm_while_running_without_confirmation_is_not_found();
     test_confirmation_granted_runs_the_macro_and_is_idempotent();
     test_cancellation_while_awaiting_confirmation_types_nothing();
     test_confirmation_expiry_times_out_and_types_nothing();
+    test_confirmation_read_confirmation_lock_failure_ends_the_send();
+    test_confirmation_wait_failure_ends_the_send();
+    test_confirm_lock_failure_leaves_send_awaiting_and_it_times_out();
+    test_confirm_unlock_failure_still_lets_the_send_proceed();
 }

@@ -206,6 +206,72 @@ static void test_no_terminal_outcome_advances_to_another_macro(void) {
     }
 }
 
+/* A lock() failure inside the main loop's own read_cancellation() call (not
+ * cancellable_delay()'s) ends the run in EXECUTION_FAILED with that lock
+ * failure as the primary error -- distinct from an actual cancellation. A
+ * single zero-length delay keeps the lock sequence fixed, per
+ * test_terminal_publish_failure_leaves_executor_unavailable()'s comment:
+ * RUNNING publish (1), per-action publish (2), cancellation read (3). */
+static void test_main_loop_cancellation_read_lock_failure(void) {
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+    macro_execution_request_t request = executor_make_request(1U);
+    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_DELAY, .delay_ms = 0U};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
+    fake_call_log_fail_on(&fake.calls, "lock", 3U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, executor_execute_queued(&engine, &fake));
+
+    executor_assert_terminal(&engine, EXECUTION_FAILED, APP_ERROR_INTERNAL, false);
+}
+
+/* A lock() failure inside reset_terminal_flags() itself (as opposed to the
+ * terminal publish_status() call finish_execution() makes first) latches the
+ * engine unavailable exactly as a terminal-publish failure does, but leaves
+ * `busy` stuck true: reset_terminal_flags() returns before ever reaching the
+ * assignments that clear busy/cancellation_requested/confirmed_requested.
+ * Lock ordinal 5 is reset_terminal_flags()'s own lock, per the same fixed
+ * zero-length-delay sequence (... terminal publish (4), terminal reset (5)). */
+static void test_reset_terminal_flags_lock_failure_leaves_engine_stuck_busy(void) {
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+    macro_execution_request_t request = executor_make_request(1U);
+    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_DELAY, .delay_ms = 0U};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
+    fake_call_log_fail_on(&fake.calls, "lock", 5U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, executor_execute_queued(&engine, &fake));
+
+    /* The terminal publish (lock 4) succeeded, so status reflects the
+     * completed run even though the busy flag never got cleared. */
+    executor_assert_terminal(&engine, EXECUTION_COMPLETED, APP_ERROR_NONE, true);
+    executor_clear_injected_failure(&fake);
+
+    macro_execution_request_t rejected = executor_make_request(1U);
+    rejected.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 5U};
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_submit(&engine, &rejected));
+    executor_free_unowned_request(&rejected);
+}
+
+/* macro_executor_engine_get_status()'s own unlock() failure (as opposed to a
+ * lock() failure, already covered by test_cancel_and_status_lock_failures())
+ * forces the fail-closed FAILED/INTERNAL result even though the status read
+ * itself succeeded. */
+static void test_get_status_unlock_failure_is_fail_closed(void) {
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+
+    fake_call_log_fail_on(&fake.calls, "unlock", 1U);
+    const macro_execution_status_t status = macro_executor_engine_get_status(&engine);
+    TEST_CHECK(status.state == EXECUTION_FAILED);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, status.error);
+    TEST_CHECK_EQ_STRING("none", status.current_action);
+}
+
 void executor_run_terminal_tests(void) {
     test_no_terminal_outcome_advances_to_another_macro();
     test_press_release_and_final_release_errors();
@@ -213,4 +279,7 @@ void executor_run_terminal_tests(void) {
     test_cancel_and_status_lock_failures();
     test_key_release_failure_after_success();
     test_terminal_publish_failure_leaves_executor_unavailable();
+    test_main_loop_cancellation_read_lock_failure();
+    test_reset_terminal_flags_lock_failure_leaves_engine_stuck_busy();
+    test_get_status_unlock_failure_is_fail_closed();
 }

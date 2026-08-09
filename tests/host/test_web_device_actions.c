@@ -182,6 +182,106 @@ static void test_reset_settings_missing_field_rejected(void) {
     TEST_CHECK_EQ_INT(WEB_DEVICE_RESET_SETTINGS_INVALID_BODY, outcome.result);
 }
 
+static void test_reset_settings_body_without_nul_terminator_rejected(void) {
+    fake_t fake = {0};
+    const web_device_actions_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    memset(body, 'x', sizeof(body));
+
+    const web_device_reset_settings_outcome_t outcome =
+        web_device_reset_settings_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_DEVICE_RESET_SETTINGS_INVALID_BODY, outcome.result);
+    TEST_CHECK(buffer_all_zero(body, sizeof(body)));
+}
+
+static void test_reset_settings_embedded_nul_escape_rejected(void) {
+    fake_t fake = {0};
+    const web_device_actions_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"confirmation\":\"A\\u0000B\"}");
+
+    const web_device_reset_settings_outcome_t outcome =
+        web_device_reset_settings_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_DEVICE_RESET_SETTINGS_INVALID_BODY, outcome.result);
+    TEST_CHECK(buffer_all_zero(body, sizeof(body)));
+}
+
+static void test_reset_settings_malformed_json_rejected(void) {
+    fake_t fake = {0};
+    const web_device_actions_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"confirmation\":");
+
+    const web_device_reset_settings_outcome_t outcome =
+        web_device_reset_settings_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_DEVICE_RESET_SETTINGS_INVALID_BODY, outcome.result);
+}
+
+static void test_reset_settings_trailing_content_rejected(void) {
+    fake_t fake = {0};
+    const web_device_actions_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"confirmation\":\"RESET SETTINGS\"}garbage");
+
+    const web_device_reset_settings_outcome_t outcome =
+        web_device_reset_settings_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_DEVICE_RESET_SETTINGS_INVALID_BODY, outcome.result);
+}
+
+static void test_reset_settings_non_object_top_level_rejected(void) {
+    fake_t fake = {0};
+    const web_device_actions_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "[]");
+
+    const web_device_reset_settings_outcome_t outcome =
+        web_device_reset_settings_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_DEVICE_RESET_SETTINGS_INVALID_BODY, outcome.result);
+}
+
+static void test_reset_settings_confirmation_wrong_type_rejected(void) {
+    fake_t fake = {0};
+    const web_device_actions_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"confirmation\":123}");
+
+    const web_device_reset_settings_outcome_t outcome =
+        web_device_reset_settings_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_DEVICE_RESET_SETTINGS_INVALID_BODY, outcome.result);
+    TEST_CHECK_EQ_U64(0U, fake.reset_settings_calls);
+}
+
+static void test_reset_settings_null_ops_wipes_body(void) {
+    web_device_actions_ops_t ops = {0}; /* reset_settings == NULL */
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"confirmation\":\"RESET SETTINGS\"}");
+
+    const web_device_reset_settings_outcome_t outcome =
+        web_device_reset_settings_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_DEVICE_RESET_SETTINGS_INTERNAL, outcome.result);
+    TEST_CHECK(buffer_all_zero(body, sizeof(body)));
+}
+
+static void test_reset_settings_zero_capacity_body_wiped(void) {
+    fake_t fake = {0};
+    const web_device_actions_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"confirmation\":\"RESET SETTINGS\"}");
+
+    const web_device_reset_settings_outcome_t outcome =
+        web_device_reset_settings_handle(body, 0U, &ops);
+
+    TEST_CHECK_EQ_INT(WEB_DEVICE_RESET_SETTINGS_INTERNAL, outcome.result);
+    TEST_CHECK_EQ_U64(0U, fake.reset_settings_calls);
+}
+
 static void test_reset_settings_backend_failure(void) {
     fake_t fake = {.reset_settings_error = APP_ERROR_STORAGE_UNAVAILABLE};
     const web_device_actions_ops_t ops = operations(&fake);
@@ -287,6 +387,73 @@ static void test_factory_reset_settings_read_backend_unavailable(void) {
     TEST_CHECK_EQ_U64(0U, fake.factory_reset_calls);
 }
 
+static void test_factory_reset_malformed_json_rejected(void) {
+    fake_t fake = {.password_matches = true};
+    const web_device_actions_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"adminPassword\":");
+
+    const web_device_factory_reset_outcome_t outcome =
+        web_device_factory_reset_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_DEVICE_FACTORY_RESET_INVALID_BODY, outcome.result);
+}
+
+static void test_factory_reset_admin_password_wrong_type_rejected(void) {
+    fake_t fake = {.password_matches = true};
+    const web_device_actions_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"adminPassword\":123,\"confirmation\":\"FACTORY RESET\"}");
+
+    const web_device_factory_reset_outcome_t outcome =
+        web_device_factory_reset_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_DEVICE_FACTORY_RESET_INVALID_BODY, outcome.result);
+    TEST_CHECK_EQ_U64(0U, fake.settings_read_calls);
+}
+
+static void test_factory_reset_null_ops_wipes_body(void) {
+    web_device_actions_ops_t ops = {0}; /* every callback missing */
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"adminPassword\":\"example-admin-password\",\"confirmation\":\"FACTORY RESET\"}");
+
+    const web_device_factory_reset_outcome_t outcome =
+        web_device_factory_reset_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_DEVICE_FACTORY_RESET_INTERNAL, outcome.result);
+    TEST_CHECK(buffer_all_zero(body, sizeof(body)));
+}
+
+static void test_factory_reset_zero_capacity_body_rejected(void) {
+    fake_t fake = {.password_matches = true};
+    const web_device_actions_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"adminPassword\":\"example-admin-password\",\"confirmation\":\"FACTORY RESET\"}");
+
+    const web_device_factory_reset_outcome_t outcome =
+        web_device_factory_reset_handle(body, 0U, &ops);
+
+    TEST_CHECK_EQ_INT(WEB_DEVICE_FACTORY_RESET_INTERNAL, outcome.result);
+    TEST_CHECK_EQ_U64(0U, fake.settings_read_calls);
+}
+
+static void test_factory_reset_verify_backend_unavailable(void) {
+    fake_t fake = {.password_verify_error = APP_ERROR_INTERNAL};
+    const web_device_actions_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"adminPassword\":\"example-admin-password\",\"confirmation\":\"FACTORY RESET\"}");
+
+    const web_device_factory_reset_outcome_t outcome =
+        web_device_factory_reset_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_DEVICE_FACTORY_RESET_BACKEND_UNAVAILABLE, outcome.result);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, outcome.detail);
+    TEST_CHECK_EQ_U64(0U, fake.factory_reset_calls);
+}
+
 static void test_factory_reset_backend_failure(void) {
     fake_t fake = {.password_matches = true, .factory_reset_error = APP_ERROR_INTERNAL};
     const web_device_actions_ops_t ops = operations(&fake);
@@ -304,6 +471,15 @@ static void test_factory_reset_backend_failure(void) {
 /* ---------------------------------------------------------------------- */
 /* Response JSON                                                           */
 /* ---------------------------------------------------------------------- */
+
+static void test_restart_accepted_json_null_out_json_rejected(void) {
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_device_restart_accepted_json(NULL));
+}
+
+static void test_reset_accepted_json_null_out_json_rejected(void) {
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_device_reset_accepted_json(false, true, NULL));
+}
 
 static void test_restart_accepted_json(void) {
     char *json = NULL;
@@ -338,14 +514,29 @@ int main(void) {
     test_reset_settings_wrong_confirmation_rejected();
     test_reset_settings_unknown_field_rejected();
     test_reset_settings_missing_field_rejected();
+    test_reset_settings_body_without_nul_terminator_rejected();
+    test_reset_settings_embedded_nul_escape_rejected();
+    test_reset_settings_malformed_json_rejected();
+    test_reset_settings_trailing_content_rejected();
+    test_reset_settings_non_object_top_level_rejected();
+    test_reset_settings_confirmation_wrong_type_rejected();
+    test_reset_settings_null_ops_wipes_body();
+    test_reset_settings_zero_capacity_body_wiped();
     test_reset_settings_backend_failure();
     test_factory_reset_success();
     test_factory_reset_wrong_confirmation_rejected_before_password_check();
     test_factory_reset_wrong_password_rejected();
     test_factory_reset_unknown_field_rejected();
     test_factory_reset_missing_field_rejected();
+    test_factory_reset_malformed_json_rejected();
+    test_factory_reset_admin_password_wrong_type_rejected();
+    test_factory_reset_null_ops_wipes_body();
+    test_factory_reset_zero_capacity_body_rejected();
+    test_factory_reset_verify_backend_unavailable();
     test_factory_reset_settings_read_backend_unavailable();
     test_factory_reset_backend_failure();
+    test_restart_accepted_json_null_out_json_rejected();
+    test_reset_accepted_json_null_out_json_rejected();
     test_restart_accepted_json();
     test_reset_accepted_json_reset_settings_shape();
     test_reset_accepted_json_factory_reset_shape();

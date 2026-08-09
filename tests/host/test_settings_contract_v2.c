@@ -310,6 +310,240 @@ static void test_prepare_update_rejects_unprovisioned_current(void) {
         app_v2_settings_prepare_update(&current, &request, &candidate, &restart, &reconnect));
 }
 
+static void test_response_from_settings_invalid_arguments(void) {
+    app_v2_device_settings_t settings = provisioned_settings();
+    app_v2_settings_response_t response = {0};
+    TEST_CHECK_EQ_INT(APP_V2_SETTINGS_UPDATE_INVALID_ARGUMENT,
+                      app_v2_settings_response_from_settings(NULL, &response));
+    TEST_CHECK_EQ_INT(APP_V2_SETTINGS_UPDATE_INVALID_ARGUMENT,
+                      app_v2_settings_response_from_settings(&settings, NULL));
+}
+
+static void test_prepare_update_require_confirmation_and_send_mode_and_previews(void) {
+    app_v2_device_settings_t current = provisioned_settings();
+    current.require_serial_confirmation = false;
+    current.show_macro_source_previews = false;
+    app_v2_settings_update_request_t request = {
+        .has_require_serial_confirmation = true,
+        .require_serial_confirmation = true,
+        .has_send_mode = true,
+        .send_mode = APP_V2_SEND_MODE_PREVIEW,
+        .has_show_macro_source_previews = true,
+        .show_macro_source_previews = true,
+    };
+    app_v2_device_settings_t candidate = {0};
+    bool restart = true;
+    bool reconnect = true;
+    TEST_CHECK_EQ_INT(
+        APP_V2_SETTINGS_UPDATE_OK,
+        app_v2_settings_prepare_update(&current, &request, &candidate, &restart, &reconnect));
+    TEST_CHECK(candidate.require_serial_confirmation);
+    TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_PREVIEW, candidate.send_mode);
+    TEST_CHECK(candidate.show_macro_source_previews);
+    TEST_CHECK(!restart);
+    TEST_CHECK(!reconnect);
+}
+
+static void test_prepare_update_device_name_multibyte_utf8_accepted(void) {
+    app_v2_device_settings_t current = provisioned_settings();
+    /* "Caf" + U+00E9 (2-byte) + " " + U+20AC (3-byte) + U+1F600 (4-byte). */
+    const char name[] = "Caf\xC3\xA9 \xE2\x82\xAC\xF0\x9F\x98\x80";
+    app_v2_settings_update_request_t request = {
+        .has_device_name = true,
+        .device_name = view(name),
+    };
+    app_v2_device_settings_t candidate = {0};
+    bool restart = false;
+    bool reconnect = false;
+    TEST_CHECK_EQ_INT(
+        APP_V2_SETTINGS_UPDATE_OK,
+        app_v2_settings_prepare_update(&current, &request, &candidate, &restart, &reconnect));
+    TEST_CHECK_EQ_STRING(name, candidate.device_name);
+}
+
+static void test_prepare_update_device_name_invalid_leading_byte_rejected(void) {
+    app_v2_device_settings_t current = provisioned_settings();
+    /* 0x80 is a stray continuation byte, never valid as a lead byte. */
+    const char name[] = "A\x80"
+                        "B";
+    app_v2_settings_update_request_t request = {
+        .has_device_name = true,
+        .device_name = {.data = name, .length = sizeof(name) - 1U},
+    };
+    app_v2_device_settings_t candidate = {0};
+    bool restart = false;
+    bool reconnect = false;
+    TEST_CHECK_EQ_INT(
+        APP_V2_SETTINGS_UPDATE_INVALID_DEVICE_NAME,
+        app_v2_settings_prepare_update(&current, &request, &candidate, &restart, &reconnect));
+}
+
+static void test_prepare_update_device_name_truncated_multibyte_rejected(void) {
+    app_v2_device_settings_t current = provisioned_settings();
+    /* 0xC3 announces a 2-byte sequence but the string ends immediately. */
+    const char name[] = "A\xC3";
+    app_v2_settings_update_request_t request = {
+        .has_device_name = true,
+        .device_name = {.data = name, .length = sizeof(name) - 1U},
+    };
+    app_v2_device_settings_t candidate = {0};
+    bool restart = false;
+    bool reconnect = false;
+    TEST_CHECK_EQ_INT(
+        APP_V2_SETTINGS_UPDATE_INVALID_DEVICE_NAME,
+        app_v2_settings_prepare_update(&current, &request, &candidate, &restart, &reconnect));
+}
+
+static void test_prepare_update_device_name_bad_continuation_byte_rejected(void) {
+    app_v2_device_settings_t current = provisioned_settings();
+    /* 0xC3 announces a 2-byte sequence; 'A' (0x41) is not a 10xxxxxx
+     * continuation byte. */
+    const char name[] = "A\xC3"
+                        "AB";
+    app_v2_settings_update_request_t request = {
+        .has_device_name = true,
+        .device_name = {.data = name, .length = sizeof(name) - 1U},
+    };
+    app_v2_device_settings_t candidate = {0};
+    bool restart = false;
+    bool reconnect = false;
+    TEST_CHECK_EQ_INT(
+        APP_V2_SETTINGS_UPDATE_INVALID_DEVICE_NAME,
+        app_v2_settings_prepare_update(&current, &request, &candidate, &restart, &reconnect));
+}
+
+static void test_prepare_update_device_name_overlong_and_surrogate_rejected(void) {
+    app_v2_device_settings_t current = provisioned_settings();
+    app_v2_device_settings_t candidate = {0};
+    bool restart = false;
+    bool reconnect = false;
+
+    /* 0xE0 0x80 0x80 is an overlong 3-byte encoding of U+0000 (< the 0x800
+     * minimum a 3-byte sequence must encode). */
+    const char overlong[] = "A\xE0\x80\x80"
+                            "B";
+    app_v2_settings_update_request_t overlong_request = {
+        .has_device_name = true,
+        .device_name = {.data = overlong, .length = sizeof(overlong) - 1U},
+    };
+    TEST_CHECK_EQ_INT(APP_V2_SETTINGS_UPDATE_INVALID_DEVICE_NAME,
+                      app_v2_settings_prepare_update(&current, &overlong_request, &candidate,
+                                                     &restart, &reconnect));
+
+    /* 0xED 0xA0 0x80 encodes U+D800, a UTF-16 surrogate half that is never a
+     * valid Unicode scalar value. */
+    const char surrogate[] = "A\xED\xA0\x80"
+                             "B";
+    app_v2_settings_update_request_t surrogate_request = {
+        .has_device_name = true,
+        .device_name = {.data = surrogate, .length = sizeof(surrogate) - 1U},
+    };
+    TEST_CHECK_EQ_INT(APP_V2_SETTINGS_UPDATE_INVALID_DEVICE_NAME,
+                      app_v2_settings_prepare_update(&current, &surrogate_request, &candidate,
+                                                     &restart, &reconnect));
+}
+
+static void test_prepare_update_device_name_embedded_nul_rejected(void) {
+    app_v2_device_settings_t current = provisioned_settings();
+    const char name[] = {'A', 'B', '\0', 'C', 'D'};
+    app_v2_settings_update_request_t request = {
+        .has_device_name = true,
+        .device_name = {.data = name, .length = sizeof(name)},
+    };
+    app_v2_device_settings_t candidate = {0};
+    bool restart = false;
+    bool reconnect = false;
+    TEST_CHECK_EQ_INT(
+        APP_V2_SETTINGS_UPDATE_INVALID_DEVICE_NAME,
+        app_v2_settings_prepare_update(&current, &request, &candidate, &restart, &reconnect));
+}
+
+static void test_prepare_update_last_selected_package_id_bad_hyphen_rejected(void) {
+    app_v2_device_settings_t current = provisioned_settings();
+    /* Same shape as TEST_UUID_A but with the hyphen at index 8 replaced by a
+     * hex digit. */
+    app_v2_settings_update_request_t request = {
+        .has_last_selected_package_id = true,
+        .last_selected_package_id = {.present = true,
+                                     .value = view("aaaaaaaaXbbbb-4ccc-8ddd-eeeeeeeeeeee")},
+    };
+    app_v2_device_settings_t candidate = {0};
+    bool restart = false;
+    bool reconnect = false;
+    TEST_CHECK_EQ_INT(
+        APP_V2_SETTINGS_UPDATE_INVALID_LAST_SELECTED_PACKAGE_ID,
+        app_v2_settings_prepare_update(&current, &request, &candidate, &restart, &reconnect));
+}
+
+static void test_prepare_update_last_selected_package_id_bad_hex_digit_rejected(void) {
+    app_v2_device_settings_t current = provisioned_settings();
+    /* 'g' is not a lowercase hex digit. */
+    app_v2_settings_update_request_t request = {
+        .has_last_selected_package_id = true,
+        .last_selected_package_id = {.present = true,
+                                     .value = view("gaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee")},
+    };
+    app_v2_device_settings_t candidate = {0};
+    bool restart = false;
+    bool reconnect = false;
+    TEST_CHECK_EQ_INT(
+        APP_V2_SETTINGS_UPDATE_INVALID_LAST_SELECTED_PACKAGE_ID,
+        app_v2_settings_prepare_update(&current, &request, &candidate, &restart, &reconnect));
+}
+
+static void test_prepare_update_last_selected_package_id_bad_variant_rejected(void) {
+    app_v2_device_settings_t current = provisioned_settings();
+    /* Version nibble '4' is correct; variant nibble 'c' is not one of
+     * 8/9/a/b, so this fails only the variant check. */
+    app_v2_settings_update_request_t request = {
+        .has_last_selected_package_id = true,
+        .last_selected_package_id = {.present = true,
+                                     .value = view("aaaaaaaa-bbbb-4ccc-cddd-eeeeeeeeeeee")},
+    };
+    app_v2_device_settings_t candidate = {0};
+    bool restart = false;
+    bool reconnect = false;
+    TEST_CHECK_EQ_INT(
+        APP_V2_SETTINGS_UPDATE_INVALID_LAST_SELECTED_PACKAGE_ID,
+        app_v2_settings_prepare_update(&current, &request, &candidate, &restart, &reconnect));
+}
+
+static void test_prepare_update_access_point_invalid_ssid_rejected(void) {
+    app_v2_device_settings_t current = provisioned_settings();
+    app_v2_settings_update_request_t request = {
+        .has_access_point = true,
+        .access_point =
+            {
+                .ssid = view(""),
+                .passphrase = view("new-example-passphrase"),
+            },
+    };
+    app_v2_device_settings_t candidate = {0};
+    bool restart = false;
+    bool reconnect = false;
+    TEST_CHECK_EQ_INT(
+        APP_V2_SETTINGS_UPDATE_INVALID_ACCESS_POINT_SSID,
+        app_v2_settings_prepare_update(&current, &request, &candidate, &restart, &reconnect));
+}
+
+static void test_prepare_update_invalid_station_passphrase_rejected(void) {
+    app_v2_device_settings_t current = provisioned_settings();
+    app_v2_settings_update_request_t request = {
+        .has_station = true,
+        .station =
+            {
+                .ssid = view("OfficeWiFi"),
+                .passphrase = view("short"),
+            },
+    };
+    app_v2_device_settings_t candidate = {0};
+    bool restart = false;
+    bool reconnect = false;
+    TEST_CHECK_EQ_INT(
+        APP_V2_SETTINGS_UPDATE_INVALID_STATION_PASSPHRASE,
+        app_v2_settings_prepare_update(&current, &request, &candidate, &restart, &reconnect));
+}
+
 static void test_prepare_update_invalid_arguments(void) {
     app_v2_device_settings_t current = provisioned_settings();
     app_v2_settings_update_request_t request = {.has_device_name = true, .device_name = view("X")};
@@ -369,6 +603,28 @@ static void test_password_change_prepare_candidate_merges_material_only(void) {
     TEST_CHECK(candidate.provisioned);
 }
 
+static void test_password_change_validate_null_current_rejected(void) {
+    TEST_CHECK_EQ_INT(APP_V2_PASSWORD_CHANGE_INVALID_ARGUMENT,
+                      app_v2_password_change_validate(NULL, view("new-example-password")));
+}
+
+static void test_password_change_prepare_candidate_bad_credential_version_rejected(void) {
+    app_v2_device_settings_t current = provisioned_settings();
+    /* Wrong credential_version makes the merged candidate fail
+     * app_v2_device_settings_validate(), so the function must reject it
+     * rather than commit a corrupt record. */
+    app_v2_setup_password_material_t material = {
+        .credential_version = (uint16_t)(APP_V2_CREDENTIAL_VERSION + 1U),
+        .password_algorithm_version = APP_V2_PASSWORD_ALGORITHM_VERSION,
+        .password_iterations = 5500U,
+    };
+    memset(material.password_salt, 0x55, sizeof(material.password_salt));
+    memset(material.password_verifier, 0x66, sizeof(material.password_verifier));
+
+    app_v2_device_settings_t candidate = {0};
+    TEST_CHECK(!app_v2_password_change_prepare_candidate(&current, &material, &candidate));
+}
+
 static void test_password_change_prepare_candidate_invalid_arguments(void) {
     app_v2_device_settings_t current = provisioned_settings();
     app_v2_setup_password_material_t material = {0};
@@ -394,12 +650,27 @@ int main(void) {
     test_prepare_update_station_set_requires_restart_only();
     test_prepare_update_station_removal();
     test_prepare_update_invalid_station_ssid_rejected();
+    test_prepare_update_invalid_station_passphrase_rejected();
     test_prepare_update_rejects_unprovisioned_current();
     test_prepare_update_invalid_arguments();
+    test_response_from_settings_invalid_arguments();
+    test_prepare_update_require_confirmation_and_send_mode_and_previews();
+    test_prepare_update_device_name_multibyte_utf8_accepted();
+    test_prepare_update_device_name_invalid_leading_byte_rejected();
+    test_prepare_update_device_name_truncated_multibyte_rejected();
+    test_prepare_update_device_name_bad_continuation_byte_rejected();
+    test_prepare_update_device_name_overlong_and_surrogate_rejected();
+    test_prepare_update_device_name_embedded_nul_rejected();
+    test_prepare_update_last_selected_package_id_bad_hyphen_rejected();
+    test_prepare_update_last_selected_package_id_bad_hex_digit_rejected();
+    test_prepare_update_last_selected_package_id_bad_variant_rejected();
+    test_prepare_update_access_point_invalid_ssid_rejected();
     test_password_change_validate_ok();
     test_password_change_validate_too_short_rejected();
     test_password_change_validate_unprovisioned_rejected();
+    test_password_change_validate_null_current_rejected();
     test_password_change_prepare_candidate_merges_material_only();
+    test_password_change_prepare_candidate_bad_credential_version_rejected();
     test_password_change_prepare_candidate_invalid_arguments();
     puts("settings contract v2 tests passed");
     return EXIT_SUCCESS;
