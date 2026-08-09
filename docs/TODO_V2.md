@@ -836,37 +836,37 @@ explicitly not claimed.
 
 ## V2-082 — Authenticated startup state machine
 
-- [ ] Show a brief repository-loading state when no live working copy exists.
-- [ ] Load settings and the newest blob by numeric ID.
-- [ ] Never show the chooser merely because several blobs exist.
-- [ ] Never silently fall back after newest-blob failure.
-- [ ] Route valid repositories through package-selection resolution.
-- [ ] Recover active or recent send status.
-- [ ] Restore the exact current route and draft when the tab still has a live
+- [x] Show a brief repository-loading state when no live working copy exists.
+- [x] Load settings and the newest blob by numeric ID.
+- [x] Never show the chooser merely because several blobs exist.
+- [x] Never silently fall back after newest-blob failure.
+- [x] Route valid repositories through package-selection resolution.
+- [x] Recover active or recent send status.
+- [x] Restore the exact current route and draft when the tab still has a live
       working copy.
 
 ## V2-083 — First repository and first package
 
-- [ ] Show Create Your First Repository when no blobs exist.
-- [ ] Create an empty valid repository in memory.
-- [ ] Ask for the first package name.
-- [ ] Set `lastSelectedPackageId` to the new package.
+- [x] Show Create Your First Repository when no blobs exist.
+- [x] Create an empty valid repository in memory.
+- [x] Ask for the first package name.
+- [x] Set `lastSelectedPackageId` to the new package.
 - [ ] Open the empty Macros page.
-- [ ] State clearly that data exists only in this tab until Save snapshot succeeds.
-- [ ] Keep Unsaved changes visible.
+- [x] State clearly that data exists only in this tab until Save snapshot succeeds.
+- [x] Keep Unsaved changes visible.
 
 ## V2-084 — Startup failure surfaces
 
-- [ ] Handle device unreachable.
-- [ ] Handle unsupported Compression Streams.
-- [ ] Handle invalid settings response.
-- [ ] Handle unreadable or invalid newest snapshot.
-- [ ] Handle missing or invalid selected package.
-- [ ] Preserve recoverable working state and provide precise next actions.
+- [x] Handle device unreachable.
+- [x] Handle unsupported Compression Streams.
+- [x] Handle invalid settings response.
+- [x] Handle unreadable or invalid newest snapshot.
+- [x] Handle missing or invalid selected package.
+- [x] Preserve recoverable working state and provide precise next actions.
 
 ## Phase 8 exit gate
 
-- [ ] Startup decision-table tests cover every provisioning/session/blob/package
+- [x] Startup decision-table tests cover every provisioning/session/blob/package
       combination.
 - [ ] Real-browser tests cover first phone, refresh, expired session, no blobs,
       invalid newest blob, and send recovery.
