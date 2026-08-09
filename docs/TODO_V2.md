@@ -686,11 +686,23 @@ and `./scripts/check-firmware.sh` (GCC + clang-tidy clean for `firmware/` and
 
 ## V2-063 — Cancellation responsiveness
 
-- [ ] Make cancellation responsive during ordinary typing.
-- [ ] Make cancellation responsive during delay directives.
-- [ ] Make network and serial cancellation converge on the same state machine.
-- [ ] Add deterministic host tests for cancellation races.
+- [x] Make cancellation responsive during ordinary typing.
+- [x] Make cancellation responsive during delay directives.
+- [x] Make network and serial cancellation converge on the same state machine.
+- [x] Add deterministic host tests for cancellation races.
 - [ ] Measure real-device last-keystroke latency after cancellation.
+
+Evidence: `docs/implementation-v2/V2_063_EXECUTOR_CANCELLATION_RESPONSIVENESS_2026-08-08.md`.
+`macro_executor_engine.c`'s pre-existing `cancellable_delay()`/`CANCELLATION_SLICE_MS`
+(10 ms) design already bounds cancellation latency during both key/chord dwell
+and delay directives to one slice, and both `web_server_send.c`'s
+`executor_cancel_adapter()` and `serial_console.c`'s `command_cancel()` already
+call the same `macro_executor_cancel()` singleton (`macro_executor_engine_cancel()`
+on the one global engine) — no code change was needed for the first three items,
+only new deterministic tests (`tests/host/executor_cancellation_race_tests.inc`)
+proving the one-slice bound and the network/serial convergence under a simulated
+two-caller race. The last item requires the physical ESP32-S3R8 board and is
+explicitly not claimed.
 
 ## V2-064 — USB identity and HIL evidence
 

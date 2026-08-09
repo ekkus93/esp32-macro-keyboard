@@ -16,6 +16,7 @@
 #include "executor_execution_tests.inc"
 #include "executor_terminal_tests.inc"
 #include "executor_confirmation_tests.inc"
+#include "executor_cancellation_race_tests.inc"
 // clang-format on
 
 int main(void) {
@@ -23,6 +24,7 @@ int main(void) {
     executor_run_execution_tests();
     executor_run_terminal_tests();
     executor_run_confirmation_tests();
+    executor_run_cancellation_race_tests();
     puts("macro executor tests passed");
     return EXIT_SUCCESS;
 }

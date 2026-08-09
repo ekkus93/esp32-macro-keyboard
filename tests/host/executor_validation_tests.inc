@@ -149,6 +149,12 @@ static void test_cancel_unlock_failure_is_reported(void) {
     for (size_t index = 0U; index < fake.calls.call_count; ++index) {
         TEST_CHECK(strcmp(fake_call_log_at(&fake.calls, index)->name, "notify") != 0);
     }
+    executor_clear_injected_failure(&fake);
+
+    /* This test never runs the queued request through execute() -- it only
+     * exercises cancel()'s own unlock-failure branch -- so the plan submit()
+     * handed to the (fake) queue is otherwise never freed. */
+    executor_free_unowned_request(&fake.queued);
 }
 
 /* SPEC 24.3 item: busy rejection */
