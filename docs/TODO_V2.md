@@ -1250,8 +1250,16 @@ Macros | Packages | Snapshots | Settings
       `docs/TODO.md` itself, development/API/test/hardware/recovery
       documentation, `docs/mockups/v2/` references, status-vs-intent
       labeling) remains open.
-- [ ] Update `CLAUDE.md` to remove v1 authority and stale implementation guidance.
-- [ ] Update `docs/TODO.md` to point exclusively to this file.
+- [x] Update `CLAUDE.md` to remove v1 authority and stale implementation
+      guidance. Already correct: `CLAUDE.md`'s Project layout and Active
+      development constraints sections cite `SPEC_V2.md`/`TODO_V2.md` as
+      authoritative and name `SPEC.md`/`TODO.md` only as retired v1 stubs
+      (fixed during this session's `/init` review, commit `9bb47bb`, before
+      Track F's broader doc-authority sweep).
+- [x] Update `docs/TODO.md` to point exclusively to this file. Already
+      correct: its sole content is "The authoritative v2 implementation
+      sequence is `TODO_V2.md`", with an explicit instruction not to
+      implement from the retired v1 TODO.
 - [ ] Update development, API, test, hardware, and recovery documentation.
 - [ ] Add approved mockup references under `docs/mockups/v2/` only when the image
       files are available and licensed for repository use.
