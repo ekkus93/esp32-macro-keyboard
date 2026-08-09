@@ -107,7 +107,7 @@ new.
 ### 1. `tests/host/test_web_server_setup_route.c` (new, 3 tests)
 
 Drives the real `setup_state_handler()` against `fakes/esp_http_server_stub`
-+ `fakes/fake_httpd.c`. Cases: valid response while unprovisioned (200,
+and `fakes/fake_httpd.c`. Cases: valid response while unprovisioned (200,
 exactly the two SPEC_V2 13.4 fields, deep-compared via `cJSON_Compare()`
 against `contracts/v2/api/examples.json`'s `setupState` fixture — see item 3
 below), the response reflecting a different configured device name, and `404`
