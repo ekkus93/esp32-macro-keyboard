@@ -126,16 +126,20 @@ An unprovisioned device initializes only the resources required for setup:
 - the protected bootstrap SoftAP;
 - the setup-only HTTP server.
 
-It does not initialize the storage object repository, USB HID, or macro executor. The
+It does not initialize the blob repository, USB HID, or macro executor. The
 setup server registers only:
 
 ```text
-GET  /api/v1/setup-state
-POST /api/v1/setup/credentials
-POST /api/v1/setup/complete
-POST /api/v1/setup/restart
+GET  /api/v1/setup
+POST /api/v1/setup
 GET  /*
 ```
+
+`GET /api/v1/setup` returns the minimal unprovisioned state (`provisioned:
+false` and the current device name) and `404` once provisioning is complete.
+`POST /api/v1/setup` accepts the complete setup request in one call - it does
+not use separate credentials/complete/restart steps (`docs/SPEC_V2.md` §13.4;
+`firmware/components/web_server/web_server_lifecycle.c`).
 
 Setup credential submission requires exact bounded JSON, a matching Host and Origin,
 the setup code, and physical confirmation unless manufacturing bypass is explicitly

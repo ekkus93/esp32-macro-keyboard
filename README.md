@@ -149,8 +149,9 @@ Firmware and device commands need the pinned ESP-IDF on `PATH` first:
 The device-test application uses ESP-IDF's Unity test menu. The current suite runs
 on one ESP32-S3 and tests hardware-RNG UUID generation, UUID validation, macro
 parsing and compilation, parser failure atomicity, the authoritative firmware
-limits, authentication adapters, the macro executor's idle/USB-not-ready behavior,
-and USB keyboard state initialization. The firmware is device-build-tested (it
+limits, authentication adapters, a PBKDF2 iteration-count timing benchmark, the
+macro executor's idle/USB-not-ready behavior, and USB keyboard state
+initialization. The firmware is device-build-tested (it
 compiles for the ESP32-S3 in CI); running it on hardware and reviewing serial
 output is separate, not-yet-completed work.
 
@@ -205,6 +206,7 @@ Then enter one of these selectors:
 [macro_parser]          Run macro parser/compiler tests
 [limits]                Run centralized-limit tests
 [auth]                  Run authentication adapter tests
+[benchmark]             Run the PBKDF2 iteration-count timing benchmark
 [executor]              Run macro executor state tests
 [usb]                   Run USB keyboard state tests
 ```

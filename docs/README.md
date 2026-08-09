@@ -22,8 +22,9 @@ ESP32 Macro Keyboard project.
 
 ## Reference documents
 
-- [`API.md`](API.md) documents implemented routes and explicitly lists missing API
-  groups.
+- [`API.md`](API.md) is retired: it documents the pre-rebuild v1 firmware-owned
+  package/repository API, most of which no longer exists. The current v2 HTTP
+  API is `docs/SPEC_V2.md` §13 and `contracts/v2/api/routes.json`.
 - [`DEVELOPMENT.md`](DEVELOPMENT.md) contains the pinned ESP-IDF and frontend setup.
 - [`MACRO_LANGUAGE.md`](MACRO_LANGUAGE.md) defines the version 0.1 macro grammar.
 - [`RECOVERY.md`](RECOVERY.md) defines persistence and corruption-recovery rules.
