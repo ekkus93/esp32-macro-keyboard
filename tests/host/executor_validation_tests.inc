@@ -76,6 +76,79 @@ static void test_engine_and_request_validation(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, macro_executor_engine_submit(&engine, &request));
     TEST_CHECK(request.plan.actions != NULL);
     executor_free_unowned_request(&request);
+
+    request = executor_make_request(1U);
+    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 4U};
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_submit(NULL, &request));
+    executor_free_unowned_request(&request);
+
+    /* macro_executor_engine_execute() re-validates independently of submit():
+     * engine == NULL and an invalid request are both rejected before any
+     * queued/owned state is touched, so the caller keeps ownership of the
+     * plan on both paths. */
+    request = executor_make_request(1U);
+    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 4U};
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_execute(NULL, &request));
+    TEST_CHECK(request.plan.actions != NULL);
+    executor_free_unowned_request(&request);
+
+    request = executor_make_request(1U);
+    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 4U};
+    request.macro_revision = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         macro_executor_engine_execute(&engine, &request));
+    TEST_CHECK(request.plan.actions != NULL);
+    executor_free_unowned_request(&request);
+}
+
+static void test_cancel_confirm_null_argument_and_unavailable_and_double_cancel(void) {
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_cancel(NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_confirm(NULL));
+
+    /* A latched-unavailable engine rejects both cancel() and confirm() with
+     * the same fixed code the engine's other operations use for that state,
+     * without touching the lock at all. */
+    engine.unavailable = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, macro_executor_engine_cancel(&engine));
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, macro_executor_engine_confirm(&engine));
+    engine.unavailable = false;
+
+    /* SPEC_V2 §7.12's confirm() idempotent-conflict convention (already
+     * covered by test_confirmation_granted_runs_the_macro_and_is_idempotent())
+     * has a cancel() analogue: a second cancel() on the same send is a
+     * conflict, not success. */
+    executor_submit_single_key(&engine, &fake, 4U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_cancel(&engine));
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, macro_executor_engine_cancel(&engine));
+    TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTION_CANCELLED, executor_execute_queued(&engine, &fake));
+    executor_assert_terminal(&engine, EXECUTION_CANCELLED, APP_ERROR_EXECUTION_CANCELLED, false);
+}
+
+/* A failed unlock() inside cancel() itself -- after cancellation_requested has
+ * already been set true -- is reported back to the caller and skips
+ * notify_executor(), but the flag stays set (nothing rolls it back). */
+static void test_cancel_unlock_failure_is_reported(void) {
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+    executor_submit_single_key(&engine, &fake, 4U);
+
+    /* fake_call_log_fail_on()'s occurrence counter starts from this call, not
+     * from executor_fake_reset() -- submit()'s own unlock already happened
+     * above and does not count. cancel()'s own unlock is the 1st occurrence
+     * from here. */
+    fake_call_log_fail_on(&fake.calls, "unlock", 1U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_cancel(&engine));
+    TEST_CHECK(engine.cancellation_requested);
+    for (size_t index = 0U; index < fake.calls.call_count; ++index) {
+        TEST_CHECK(strcmp(fake_call_log_at(&fake.calls, index)->name, "notify") != 0);
+    }
 }
 
 /* SPEC 24.3 item: busy rejection */
@@ -187,4 +260,6 @@ void executor_run_validation_tests(void) {
     test_submission_ownership_and_recovery();
     test_zero_key_press_ms_is_accepted();
     test_strict_get_status_sequence();
+    test_cancel_confirm_null_argument_and_unavailable_and_double_cancel();
+    test_cancel_unlock_failure_is_reported();
 }
