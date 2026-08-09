@@ -514,8 +514,26 @@ knowledge in firmware.
 - [x] Return the standard error envelope on JSON errors.
 - [x] Disable CORS.
 - [ ] Test malformed paths and unsupported methods. Covered at the
-      policy-table level; no live HTTP-socket-level test exists (no
-      `esp_http_server` fake exists anywhere in this codebase).
+      policy-table level (`test_web_api_core.c`'s `web_api_parse_path()`/
+      `web_api_route_allows_method()` cases, exercised for every route).
+      Stale as of the V2-053/V2-057 blob and route-matrix tracks: an
+      `esp_http_server` fake now exists
+      (`tests/host/fakes/esp_http_server_stub`, `fakes/fake_httpd.c`) and is
+      used by `test_web_server_blob*.c`, `test_web_server_status_limits_route.c`,
+      `test_web_server_send_route.c`, `test_web_server_setup_route.c`, and
+      `test_web_server_administration_route.c` — but it is a hand-built test
+      double that answers handler calls directly, not ESP-IDF's real httpd
+      URI-trie/method dispatch, so it still cannot prove what a malformed path
+      or unsupported method actually receives from the real server (a 404/405
+      from `esp_http_server` itself, before any first-party handler runs).
+      Blob's parameterized routes do get live malformed-path coverage through
+      this fake (`web_api_parse_blob_id()`); status/limits/send/setup have no
+      path parameter and, along with every route's wrong-method case, remain
+      covered only at the pure-function level per the same investigation
+      recorded in
+      `docs/implementation-v2/V2_057_FULL_HTTP_CONTRACT_MATRIX_2026-08-09.md`.
+      No live-socket-level test against the real `esp_http_server` exists or
+      can exist without hardware or a QEMU/ESP-IDF host harness.
 
 ## V2-051 — Setup and authentication routes
 
