@@ -21,6 +21,7 @@ typedef struct {
     app_error_code_t password_create_error;
     app_error_code_t invalidate_error;
     bool password_matches;
+    bool bad_credential_material;
     unsigned int settings_read_calls;
     unsigned int settings_replace_calls;
     unsigned int password_verify_calls;
@@ -84,7 +85,9 @@ static app_error_code_t fake_password_create(void *context, const char *password
         return fake->password_create_error;
     }
     memset(out_material, 0, sizeof(*out_material));
-    out_material->credential_version = APP_V2_CREDENTIAL_VERSION;
+    out_material->credential_version =
+        (uint16_t)(fake->bad_credential_material ? APP_V2_CREDENTIAL_VERSION + 1U
+                                                 : APP_V2_CREDENTIAL_VERSION);
     out_material->password_algorithm_version = APP_V2_PASSWORD_ALGORITHM_VERSION;
     out_material->password_iterations = 5500U;
     memset(out_material->password_salt, 0x77, sizeof(out_material->password_salt));
@@ -160,6 +163,47 @@ static void test_get_success(void) {
     TEST_CHECK(!json_contains(json, "example-passphrase"));
     TEST_CHECK(!json_contains(json, "password"));
     free(json);
+}
+
+static void test_get_success_with_optional_fields_present(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    fake.current.station_configured = true;
+    memcpy(fake.current.station_ssid, "OfficeWiFi", sizeof("OfficeWiFi"));
+    memcpy(fake.current.station_passphrase, "station-example-passphrase",
+           sizeof("station-example-passphrase"));
+    memcpy(fake.current.last_selected_package_id, "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+           sizeof("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"));
+    const web_settings_ops_t ops = operations(&fake);
+    char *json = NULL;
+
+    const web_settings_get_outcome_t outcome = web_settings_get_handle(&ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_GET_OK, outcome.result);
+    TEST_CHECK(json_contains(json, "\"lastSelectedPackageId\":\"aaaaaaaa-bbbb-4ccc-8ddd-"
+                                   "eeeeeeeeeeee\""));
+    TEST_CHECK(json_contains(json, "\"stationConfigured\":true"));
+    TEST_CHECK(json_contains(json, "\"stationSsid\":\"OfficeWiFi\""));
+    TEST_CHECK(!json_contains(json, "station-example-passphrase"));
+    free(json);
+}
+
+static void test_get_invalid_ops_rejected(void) {
+    char *json = NULL;
+    const web_settings_get_outcome_t outcome = web_settings_get_handle(NULL, &json);
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_GET_INTERNAL, outcome.result);
+    TEST_CHECK_EQ_PTR(NULL, json);
+}
+
+static void test_get_unprovisioned_backend_record_is_internal_error(void) {
+    fake_t fake = {0};
+    app_v2_device_settings_init_unprovisioned(&fake.current);
+    const web_settings_ops_t ops = operations(&fake);
+    char *json = NULL;
+
+    const web_settings_get_outcome_t outcome = web_settings_get_handle(&ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_GET_INTERNAL, outcome.result);
+    TEST_CHECK_EQ_PTR(NULL, json);
 }
 
 static void test_get_backend_unavailable(void) {
@@ -413,6 +457,274 @@ static void test_put_settings_replace_backend_unavailable(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL, outcome.detail);
 }
 
+static void test_put_invalid_ops_wipes_body(void) {
+    web_settings_ops_t ops = {0}; /* missing settings_read/settings_replace */
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"deviceName\":\"New Name\"}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INTERNAL, outcome.result);
+    TEST_CHECK(buffer_all_zero(body, sizeof(body)));
+    TEST_CHECK_EQ_PTR(NULL, json);
+}
+
+static void test_put_body_without_nul_terminator_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    memset(body, 'x', sizeof(body));
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
+    TEST_CHECK(buffer_all_zero(body, sizeof(body)));
+}
+
+static void test_put_embedded_nul_escape_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"deviceName\":\"A\\u0000B\"}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
+    TEST_CHECK(buffer_all_zero(body, sizeof(body)));
+}
+
+static void test_put_malformed_json_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"deviceName\":");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
+}
+
+static void test_put_trailing_content_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"deviceName\":\"New Name\"}garbage");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
+}
+
+static void test_put_non_object_top_level_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "[]");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
+}
+
+static void test_put_device_name_wrong_type_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"deviceName\":123}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
+}
+
+static void test_put_access_point_extra_credential_field_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"accessPoint\":{\"ssid\":\"NewAp\",\"passphrase\":\"new-example-passphrase\","
+               "\"extra\":\"x\"}}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
+}
+
+static void test_put_require_serial_confirmation_success(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    fake.current.require_serial_confirmation = false;
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"requireSerialConfirmation\":true}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_OK, outcome.result);
+    TEST_CHECK(fake.committed_candidate.require_serial_confirmation);
+    TEST_CHECK(json_contains(json, "\"requireSerialConfirmation\":true"));
+    free(json);
+}
+
+static void test_put_send_mode_preview_success(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"sendMode\":\"preview\"}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_OK, outcome.result);
+    TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_PREVIEW, fake.committed_candidate.send_mode);
+    TEST_CHECK(json_contains(json, "\"sendMode\":\"preview\""));
+    free(json);
+}
+
+static void test_put_send_mode_quick_success(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    fake.current.send_mode = APP_V2_SEND_MODE_PREVIEW;
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"sendMode\":\"quick\"}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_OK, outcome.result);
+    TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_QUICK, fake.committed_candidate.send_mode);
+    TEST_CHECK(json_contains(json, "\"sendMode\":\"quick\""));
+    free(json);
+}
+
+static void test_put_snapshot_retention_negative_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"snapshotRetentionTarget\":-1}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
+}
+
+static void test_put_snapshot_retention_fractional_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"snapshotRetentionTarget\":50.5}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
+}
+
+static void test_put_show_macro_source_previews_wrong_type_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"showMacroSourcePreviews\":\"yes\"}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
+}
+
+static void test_put_show_macro_source_previews_success(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    fake.current.show_macro_source_previews = false;
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"showMacroSourcePreviews\":true}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_OK, outcome.result);
+    TEST_CHECK(fake.committed_candidate.show_macro_source_previews);
+    TEST_CHECK(json_contains(json, "\"showMacroSourcePreviews\":true"));
+    free(json);
+}
+
+static void test_put_last_selected_package_id_wrong_type_rejected(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"lastSelectedPackageId\":42}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
+}
+
+static void test_put_last_selected_package_id_valid_string_success(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"lastSelectedPackageId\":\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\"}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_OK, outcome.result);
+    TEST_CHECK_EQ_STRING("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+                         fake.committed_candidate.last_selected_package_id);
+    TEST_CHECK(json_contains(json, "\"lastSelectedPackageId\":\"aaaaaaaa-bbbb-4ccc-8ddd-"
+                                   "eeeeeeeeeeee\""));
+    free(json);
+}
+
+static void test_put_station_valid_object_success(void) {
+    fake_t fake = {.current = provisioned_settings()};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"station\":{\"ssid\":\"OfficeWiFi\",\"passphrase\":\"station-example-"
+               "passphrase\"}}");
+    char *json = NULL;
+
+    const web_settings_put_outcome_t outcome =
+        web_settings_put_handle(body, sizeof(body), &ops, &json);
+
+    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_OK, outcome.result);
+    TEST_CHECK(fake.committed_candidate.station_configured);
+    TEST_CHECK_EQ_STRING("OfficeWiFi", fake.committed_candidate.station_ssid);
+    TEST_CHECK(json_contains(json, "\"stationConfigured\":true"));
+    TEST_CHECK(json_contains(json, "\"restartRequired\":true"));
+    TEST_CHECK(json_contains(json, "\"reconnectRequired\":false"));
+    free(json);
+}
+
 /* ---------------------------------------------------------------------- */
 /* POST /api/v1/settings/change-password                                   */
 /* ---------------------------------------------------------------------- */
@@ -521,8 +833,147 @@ static void test_change_password_invalidate_failure(void) {
     TEST_CHECK_EQ_U64(1U, fake.settings_replace_calls);
 }
 
+static void test_change_password_invalid_ops_wipes_body(void) {
+    fake_t fake = {.current = provisioned_settings(), .password_matches = true};
+    web_settings_ops_t ops = operations(&fake);
+    ops.password_verify = NULL; /* makes ops_valid_change_password() reject it */
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
+               "password\"}");
+
+    const web_change_password_outcome_t outcome =
+        web_change_password_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_INTERNAL, outcome.result);
+    TEST_CHECK(buffer_all_zero(body, sizeof(body)));
+}
+
+static void test_change_password_duplicate_field_rejected(void) {
+    fake_t fake = {.current = provisioned_settings(), .password_matches = true};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"currentPassword\":\"old-example-password\",\"currentPassword\":\"dup\","
+               "\"newPassword\":\"new-example-password\"}");
+
+    const web_change_password_outcome_t outcome =
+        web_change_password_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_INVALID_BODY, outcome.result);
+}
+
+static void test_change_password_unknown_field_rejected(void) {
+    fake_t fake = {.current = provisioned_settings(), .password_matches = true};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
+               "password\",\"extra\":\"x\"}");
+
+    const web_change_password_outcome_t outcome =
+        web_change_password_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_INVALID_BODY, outcome.result);
+}
+
+static void test_change_password_wrong_type_field_rejected(void) {
+    fake_t fake = {.current = provisioned_settings(), .password_matches = true};
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"currentPassword\":123,\"newPassword\":\"new-example-password\"}");
+
+    const web_change_password_outcome_t outcome =
+        web_change_password_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_INVALID_BODY, outcome.result);
+}
+
+static void test_change_password_settings_read_backend_unavailable(void) {
+    fake_t fake = {
+        .current = provisioned_settings(),
+        .password_matches = true,
+        .settings_read_error = APP_ERROR_STORAGE_UNAVAILABLE,
+    };
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
+               "password\"}");
+
+    const web_change_password_outcome_t outcome =
+        web_change_password_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE, outcome.result);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, outcome.detail);
+    TEST_CHECK_EQ_U64(0U, fake.password_verify_calls);
+}
+
+static void test_change_password_verify_backend_unavailable(void) {
+    fake_t fake = {
+        .current = provisioned_settings(),
+        .password_verify_error = APP_ERROR_INTERNAL,
+    };
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
+               "password\"}");
+
+    const web_change_password_outcome_t outcome =
+        web_change_password_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE, outcome.result);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, outcome.detail);
+    TEST_CHECK_EQ_U64(0U, fake.password_create_calls);
+}
+
+static void test_change_password_create_backend_unavailable(void) {
+    fake_t fake = {
+        .current = provisioned_settings(),
+        .password_matches = true,
+        .password_create_error = APP_ERROR_INTERNAL,
+    };
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
+               "password\"}");
+
+    const web_change_password_outcome_t outcome =
+        web_change_password_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE, outcome.result);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, outcome.detail);
+    TEST_CHECK_EQ_U64(0U, fake.settings_replace_calls);
+}
+
+static void test_change_password_prepare_candidate_failure_is_internal(void) {
+    fake_t fake = {
+        .current = provisioned_settings(),
+        .password_matches = true,
+        .bad_credential_material = true,
+    };
+    const web_settings_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
+               "password\"}");
+
+    const web_change_password_outcome_t outcome =
+        web_change_password_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_INTERNAL, outcome.result);
+    TEST_CHECK_EQ_U64(0U, fake.settings_replace_calls);
+    TEST_CHECK_EQ_U64(0U, fake.invalidate_calls);
+}
+
 int main(void) {
     test_get_success();
+    test_get_success_with_optional_fields_present();
+    test_get_invalid_ops_rejected();
+    test_get_unprovisioned_backend_record_is_internal_error();
     test_get_backend_unavailable();
     test_put_device_name_success();
     test_put_access_point_sets_restart_and_reconnect();
@@ -539,12 +990,38 @@ int main(void) {
     test_put_snapshot_retention_out_of_range_rejected();
     test_put_settings_read_backend_unavailable();
     test_put_settings_replace_backend_unavailable();
+    test_put_invalid_ops_wipes_body();
+    test_put_body_without_nul_terminator_rejected();
+    test_put_embedded_nul_escape_rejected();
+    test_put_malformed_json_rejected();
+    test_put_trailing_content_rejected();
+    test_put_non_object_top_level_rejected();
+    test_put_device_name_wrong_type_rejected();
+    test_put_access_point_extra_credential_field_rejected();
+    test_put_require_serial_confirmation_success();
+    test_put_send_mode_preview_success();
+    test_put_send_mode_quick_success();
+    test_put_snapshot_retention_negative_rejected();
+    test_put_snapshot_retention_fractional_rejected();
+    test_put_show_macro_source_previews_wrong_type_rejected();
+    test_put_show_macro_source_previews_success();
+    test_put_last_selected_package_id_wrong_type_rejected();
+    test_put_last_selected_package_id_valid_string_success();
+    test_put_station_valid_object_success();
     test_change_password_success();
     test_change_password_incorrect_current_password();
     test_change_password_new_password_too_short_rejected();
     test_change_password_missing_field_rejected();
     test_change_password_settings_replace_backend_unavailable();
     test_change_password_invalidate_failure();
+    test_change_password_invalid_ops_wipes_body();
+    test_change_password_duplicate_field_rejected();
+    test_change_password_unknown_field_rejected();
+    test_change_password_wrong_type_field_rejected();
+    test_change_password_settings_read_backend_unavailable();
+    test_change_password_verify_backend_unavailable();
+    test_change_password_create_backend_unavailable();
+    test_change_password_prepare_candidate_failure_is_internal();
     puts("web settings tests passed");
     return EXIT_SUCCESS;
 }
