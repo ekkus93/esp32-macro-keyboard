@@ -1193,14 +1193,19 @@ management (V2-102)"`. See
       confirmed real in an actual browser, not just jsdom, while diagnosing
       and fixing a genuine CDP-harness hang this listener exposed — see
       `docs/implementation-v2/V2_100_103_MACRO_EDITING_PACKAGE_MANAGEMENT_2026-08-09.md`.
-- [ ] Warn before Sign Out, snapshot load, import replacement, reset settings,
+- [x] Warn before Sign Out, snapshot load, import replacement, reset settings,
       and factory reset. `UnsavedChangesPrompt.tsx` exists and is
-      unit-tested in isolation. Two of its five trigger points are now
-      wired: snapshot load and import replacement, both in
-      `SnapshotsPage.tsx` (Phase 11, V2-113/V2-115), with dedicated unit and
-      real-browser coverage. Sign Out, reset settings, and factory reset
-      remain unwired — those screens (Sign Out control, Settings UI) don't
-      exist before Phase 12 (V2-120/V2-121).
+      unit-tested in isolation. All five trigger points are now wired:
+      snapshot load and import replacement in `SnapshotsPage.tsx` (Phase 11,
+      V2-113/V2-115); Sign Out, reset settings, and factory reset in
+      `features/settings/v2/SettingsPage.tsx` (Phase 12, V2-120/V2-121).
+      Restart is deliberately not gated by this same prompt: SPEC_V2 §7.3's
+      own trigger list names only Sign Out/snapshot load/import
+      replacement/reset settings/factory reset, and restart preserves the
+      dirty working copy through its reconnect-and-reauthenticate flow
+      rather than discarding it (see V2-121 below), so there is nothing at
+      risk for that prompt to protect. See
+      `docs/implementation-v2/V2_120_122_SETTINGS_DIAGNOSTICS_DESTRUCTIVE_2026-08-09.md`.
 - [x] Offer context-appropriate Cancel, Export working copy, Save snapshot, and
       Discard options. `UnsavedChangesPrompt.tsx` implements all four; only
       its call sites (the item above) are missing.
@@ -1358,38 +1363,114 @@ Evidence: `webapp/src/v2/snapshotClient.ts` (`replaceSnapshotWithWorkingCopy`),
 
 ## V2-120 — Settings UI
 
-- [ ] Implement device name.
-- [ ] Implement serial-confirmation policy.
-- [ ] Implement AP and optional station configuration.
-- [ ] Implement administrator password change.
-- [ ] Implement Quick Send/Always Preview.
-- [ ] Implement advisory retention target.
-- [ ] Implement source-preview preference.
-- [ ] Keep `lastSelectedPackageId` hidden from ordinary text editing.
-- [ ] Ensure preference changes do not dirty the repository.
+- [x] Implement device name.
+- [x] Implement serial-confirmation policy.
+- [x] Implement AP and optional station configuration.
+- [x] Implement administrator password change.
+- [x] Implement Quick Send/Always Preview.
+- [x] Implement advisory retention target.
+- [x] Implement source-preview preference.
+- [x] Keep `lastSelectedPackageId` hidden from ordinary text editing.
+- [x] Ensure preference changes do not dirty the repository.
+
+Evidence: `webapp/src/features/settings/v2/SettingsPage.tsx`,
+`webapp/src/v2/settingsClient.ts` (`updateSettings`/`changePassword`),
+tested by `webapp/tests/v2-settings-page.test.tsx`,
+`webapp/tests/v2-settings-client.test.ts`, and real-Chrome
+`webapp/tests/browser/run-browser-tests.mjs`. See
+`docs/implementation-v2/V2_120_122_SETTINGS_DIAGNOSTICS_DESTRUCTIVE_2026-08-09.md`.
 
 ## V2-121 — Restart and reset flows
 
-- [ ] Implement restart confirmation and reconnect guidance.
-- [ ] Implement reset-settings confirmation with exact preservation behavior.
-- [ ] Implement factory-reset confirmation with exact erase and reprovision
+- [x] Implement restart confirmation and reconnect guidance.
+- [x] Implement reset-settings confirmation with exact preservation behavior.
+- [x] Implement factory-reset confirmation with exact erase and reprovision
       behavior.
-- [ ] Protect dirty work before every disruptive action.
-- [ ] Handle connection loss and recovery explicitly.
+- [x] Protect dirty work before every disruptive action. Sign Out, reset
+      settings, and factory reset are dirty-guarded via
+      `UnsavedChangesPrompt`; restart is not — see the V2-103 entry above for
+      why that is correct rather than a gap.
+- [x] Handle connection loss and recovery explicitly.
+      `features/settings/v2/useDeviceReconnect.ts` polls an authenticated
+      route until the device answers again (network failure and transient
+      `5xx` both mean "still down"; a `401` means "back, but the RAM-only
+      session is gone") and `DeviceReconnectScreen.tsx` replaces the whole
+      authenticated shell while that is in flight, per `AppV2.tsx`'s
+      `AuthenticatedShell`.
+
+Evidence: `webapp/src/features/settings/v2/SettingsPage.tsx`,
+`webapp/src/features/settings/v2/DeviceReconnectScreen.tsx`,
+`webapp/src/features/settings/v2/useDeviceReconnect.ts`,
+`webapp/src/v2/deviceActionsClient.ts`, `webapp/src/AppV2.tsx`, tested by
+`webapp/tests/v2-settings-page.test.tsx`,
+`webapp/tests/v2-device-reconnect.test.ts(x)`,
+`webapp/tests/v2-device-reconnect-screen.test.tsx`,
+`webapp/tests/v2-device-actions-client.test.ts`, and
+`webapp/tests/v2-app-v2.test.tsx`'s real (unmocked) end-to-end restart ->
+reconnect -> reauthenticate -> resume test. No real-Chrome coverage exists
+for the restart/reset-settings/factory-reset reconnect sequence itself
+(deliberately — see the implementation report for why). See
+`docs/implementation-v2/V2_120_122_SETTINGS_DIAGNOSTICS_DESTRUCTIVE_2026-08-09.md`.
 
 ## V2-122 — Diagnostics UI
 
-- [ ] Render the fixed diagnostics schema.
+- [x] Render the fixed diagnostics schema.
 - [ ] Show firmware/build, uptime, reset reason, memory, stack, USB, Wi-Fi,
       storage, blob count, send state, health, and invalid/temp filenames.
-- [ ] Do not display package or macro data.
-- [ ] Provide copy/download only after filtering sensitive content.
+      Left unchecked as literally written: SPEC_V2 §13.13's fixed
+      `GET /api/v1/diagnostics` schema has no `stack` field anywhere (not at
+      the top level, not inside `memory`) — only `freeHeapBytes`,
+      `minimumFreeHeapBytes`, and `largestFreeBlockBytes`. Every other item
+      in this line is rendered (`DiagnosticsPage.tsx`) and tested. Not
+      fabricating a `stack` field to check this box — see the implementation
+      report for the recommendation to the product owner.
+- [x] Do not display package or macro data. True by construction
+      (`isDiagnosticsResponse`'s exact-key guard) and directly tested: a
+      unit test asserts a response carrying an unexpected field is rejected
+      before it reaches React state, and the real-Chrome test asserts the
+      rendered Diagnostics page never contains the fixture's package name.
+- [x] Provide copy/download only after filtering sensitive content.
+      `v2/diagnosticsExport.ts`'s `buildDiagnosticsExportText` re-derives
+      Copy/Download's output field by field from the typed response rather
+      than passing any raw object through; tested directly, including that
+      an injected extra field never survives into the exported text.
+
+Evidence: `webapp/src/features/settings/v2/DiagnosticsPage.tsx`,
+`webapp/src/v2/diagnosticsClient.ts`, `webapp/src/v2/diagnosticsExport.ts`,
+tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
+`webapp/tests/v2-diagnostics-client.test.ts`,
+`webapp/tests/v2-diagnostics-export.test.ts`, and real-Chrome
+`webapp/tests/browser/run-browser-tests.mjs`. See
+`docs/implementation-v2/V2_120_122_SETTINGS_DIAGNOSTICS_DESTRUCTIVE_2026-08-09.md`.
 
 ## Phase 12 exit gate
 
-- [ ] Settings and diagnostics contract/browser tests pass.
-- [ ] Destructive flows preserve or explicitly discard dirty work.
-- [ ] Secret-leak tests pass.
+- [x] Settings and diagnostics contract/browser tests pass. Vitest unit and
+      `AppV2` integration coverage pass in full (576/576); real-Chrome
+      coverage exists for Settings device-name edit and Diagnostics render
+      but not for the restart/reset-settings/factory-reset reconnect
+      sequence (see V2-121). No dedicated firmware/C-side contract test
+      exists yet for the device-action or diagnostics routes under
+      `tests/v2_contracts/` — out of this track's webapp-only file surface;
+      left for whichever track owns that suite.
+- [x] Destructive flows preserve or explicitly discard dirty work. Sign Out,
+      reset settings, and factory reset each go through
+      `UnsavedChangesPrompt` when the working copy is dirty (Cancel/Export
+      working copy/Save snapshot/Discard changes), tested per action in
+      `webapp/tests/v2-settings-page.test.tsx` and end to end for Sign Out
+      in `webapp/tests/v2-app-v2.test.tsx`. Restart preserves the working
+      copy without a prompt because nothing about it discards or replaces
+      that copy (see V2-121/V2-103 above).
+- [x] Secret-leak tests pass. `webapp/tests/v2-diagnostics-export.test.ts`
+      proves the Diagnostics copy/download text cannot carry an injected
+      field beyond the fixed schema; `isDiagnosticsResponse`
+      (`apiGuards.ts`, pre-existing) already rejects any response outside
+      that schema before it reaches React state. No password, passphrase,
+      or session token field exists anywhere in the Settings or Diagnostics
+      UI's rendered output, copy text, or download text — `SettingsPage.tsx`
+      never echoes back a submitted password/passphrase value, and
+      `changePassword`/`factoryResetDevice`'s request bodies (the only place
+      a password appears client-side) are never logged or rendered.
 
 ---
 

@@ -3,9 +3,11 @@ import {
   macroEditorTargetFromHash,
   macroPreviewTargetFromHash,
   navigateToAddMacro,
+  navigateToDiagnostics,
   navigateToEditMacro,
   navigateToMacroPreview,
   navigateToMacros,
+  navigateToSettings,
   navigateV2,
   routeFromHashV2,
 } from "../src/v2/routingV2";
@@ -20,6 +22,7 @@ describe("v2 routing", () => {
       "packages",
       "snapshots",
       "settings",
+      "diagnostics",
       "macro-preview",
       "macro-editor",
     ] as const) {
@@ -109,5 +112,12 @@ describe("v2 routing", () => {
   test("navigateToEditMacro encodes the macro ID", () => {
     navigateToEditMacro(macroId);
     expect(window.location.hash).toBe(`#/macro-editor?macroId=${macroId}`);
+  });
+
+  test("navigateToSettings and navigateToDiagnostics set the expected hash", () => {
+    navigateToSettings();
+    expect(window.location.hash).toBe("#/settings");
+    navigateToDiagnostics();
+    expect(window.location.hash).toBe("#/diagnostics");
   });
 });

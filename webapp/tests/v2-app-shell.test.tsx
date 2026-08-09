@@ -124,4 +124,29 @@ describe("AppShellV2 — V2-090 application shell", () => {
     expect(active?.textContent).toBe("Macros");
     await unmount();
   });
+
+  test("highlights Settings while on the diagnostics route (TODO_V2 V2-122: reachable only from Settings, not its own nav destination)", async () => {
+    const { container, unmount } = await render(
+      <AppShellV2
+        deviceName="Desk Macro Keyboard"
+        dirty={false}
+        navigate={vi.fn()}
+        onSaveSnapshot={vi.fn()}
+        packageName={null}
+        route="diagnostics"
+        saveError={null}
+        saving={false}
+        usbState="ready"
+      >
+        <p>content</p>
+      </AppShellV2>,
+    );
+    const active = container.querySelector('[aria-current="page"]');
+    expect(active?.textContent).toBe("Settings");
+    const navButtons = Array.from(
+      container.querySelectorAll('nav[aria-label="Primary navigation"] button'),
+    ).map((button) => button.textContent);
+    expect(navButtons).toEqual(["Macros", "Packages", "Snapshots", "Settings"]);
+    await unmount();
+  });
 });

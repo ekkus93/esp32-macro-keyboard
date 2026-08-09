@@ -6,6 +6,7 @@ import {
 } from "../src/v2/apiContracts";
 import {
   V2ApiError,
+  forceSessionEnded,
   subscribeUnauthorized,
   v2DeleteNoContent,
   v2DeleteWithUnvalidatedJson,
@@ -13,6 +14,7 @@ import {
   v2GetJson,
   v2PostBinary,
   v2PostJson,
+  v2PostNoContent,
   v2PutJson,
 } from "../src/v2/apiClient";
 import {
@@ -142,6 +144,79 @@ describe("v2 API client", () => {
       restartRequired: false,
       reconnectRequired: false,
     });
+  });
+
+  test("v2PostJson with an undefined body sends no body and no Content-Type header (bodyless routes, e.g. restart)", async () => {
+    planFetch((call) => {
+      expect(call.method).toBe("POST");
+      expect(call.headers.has("Content-Type")).toBe(false);
+      expect(call.body).toBeUndefined();
+      return jsonResponse({
+        accepted: true,
+        connectionWillClose: true,
+        reprovisioningRequired: false,
+      });
+    });
+    const result = await v2PostJson(
+      "/api/v1/device/restart",
+      undefined,
+      (value): value is unknown => value !== undefined,
+    );
+    expect(result).toEqual({
+      accepted: true,
+      connectionWillClose: true,
+      reprovisioningRequired: false,
+    });
+  });
+
+  test("v2PostNoContent with a body sends JSON and expects 204", async () => {
+    planFetch((call) => {
+      expect(call.method).toBe("POST");
+      expect(call.headers.get("Content-Type")).toBe("application/json");
+      expect(call.body).toBe(JSON.stringify({ a: 1 }));
+      return new Response(null, { status: 204 });
+    });
+    await expect(
+      v2PostNoContent("/api/v1/settings/change-password", { a: 1 }),
+    ).resolves.toBeUndefined();
+  });
+
+  test("v2PostNoContent with an undefined body sends no body and no Content-Type header (e.g. sign-out)", async () => {
+    planFetch((call) => {
+      expect(call.headers.has("Content-Type")).toBe(false);
+      expect(call.body).toBeUndefined();
+      return new Response(null, { status: 204 });
+    });
+    await expect(
+      v2PostNoContent("/api/v1/auth/logout", undefined),
+    ).resolves.toBeUndefined();
+  });
+
+  test("v2PostNoContent throws when the status is not 204", async () => {
+    planFetch(() => jsonResponse({}, 200));
+    await expect(
+      v2PostNoContent("/api/v1/auth/logout", undefined),
+    ).rejects.toMatchObject({ code: "invalid_response" });
+  });
+
+  test("v2PostNoContent surfaces the error envelope on failure", async () => {
+    planJsonResponse(
+      { error: { code: "unauthorized", message: "Session expired." } },
+      401,
+    );
+    await expect(
+      v2PostNoContent("/api/v1/auth/logout", undefined),
+    ).rejects.toBeInstanceOf(V2ApiError);
+  });
+
+  test("forceSessionEnded runs every subscribeUnauthorized listener", () => {
+    let notified = 0;
+    const unsubscribe = subscribeUnauthorized(() => {
+      notified += 1;
+    });
+    forceSessionEnded();
+    expect(notified).toBe(1);
+    unsubscribe();
   });
 
   test("v2PutJson issues a PUT request", async () => {
