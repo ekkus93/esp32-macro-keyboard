@@ -767,7 +767,8 @@ static void test_put_access_point_passphrase_too_short_rejected(void) {
     const web_settings_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     /* APP_V2_WIFI_PASSPHRASE_MIN_BYTES is 8; "short12" is 7 bytes. */
-    build_body(body, sizeof(body), "{\"accessPoint\":{\"ssid\":\"NewAp\",\"passphrase\":\"short12\"}}");
+    build_body(body, sizeof(body),
+               "{\"accessPoint\":{\"ssid\":\"NewAp\",\"passphrase\":\"short12\"}}");
     char *json = NULL;
 
     const web_settings_put_outcome_t outcome =
@@ -797,7 +798,8 @@ static void test_put_station_passphrase_too_short_rejected(void) {
     fake_t fake = {.current = provisioned_settings()};
     const web_settings_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
-    build_body(body, sizeof(body), "{\"station\":{\"ssid\":\"OfficeWiFi\",\"passphrase\":\"short12\"}}");
+    build_body(body, sizeof(body),
+               "{\"station\":{\"ssid\":\"OfficeWiFi\",\"passphrase\":\"short12\"}}");
     char *json = NULL;
 
     const web_settings_put_outcome_t outcome =
