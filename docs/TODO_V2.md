@@ -533,9 +533,17 @@ knowledge in firmware.
 - [x] Implement `POST /api/v1/blob`.
 - [x] Implement `GET /api/v1/blob/{blob_id}`.
 - [x] Implement `DELETE /api/v1/blob/{blob_id}`.
-- [ ] Verify exact binary behavior and status codes. No host test exercises
-      the blob HTTP handlers at any level (only the underlying
-      `storage_blob_*` core is tested).
+- [x] Verify exact binary behavior and status codes. HTTP-adapter-level host
+      tests (`tests/host/test_web_server_blob.c` and its `.inc` fragments)
+      now call `blob_list_handler`/`blob_create_handler`/`blob_load_handler`/
+      `blob_delete_handler` directly against a fake `esp_http_server.h`
+      (`tests/host/fakes/esp_http_server_stub`, `fake_httpd.c`) and a fake
+      `storage_blob`/`storage_partition_capacity` backend
+      (`fake_storage_blob.c`), covering exact status codes (200/201/204/400/
+      401/404/413/415/500/503/507), `application/gzip`/`application/json`
+      content types, and a byte-identical upload/download round trip through
+      the handler. See
+      `docs/implementation-v2/V2_053_057_BLOB_ROUTE_TEST_COVERAGE_2026-08-08.md`.
 
 ## V2-054 — Send routes
 
@@ -577,11 +585,14 @@ knowledge in firmware.
 
 - [ ] Test every route with valid, missing, extra, wrong-type, wrong-content-type,
       oversized, unauthorized, expired-session, malformed-path, and method-error
-      cases. Strong coverage for status/limits/login/send; zero coverage for
-      session-response composition, device-restart, and setup-conflict
-      handling in `web_api_administration.c` (not compiled into any host test
-      target); no live end-to-end HTTP test exists (no `esp_http_server` fake
-      anywhere in this codebase).
+      cases. Strong coverage for status/limits/login/send/blob (blob has no
+      JSON body, so "extra"/"wrong-type" fields do not apply to its raw-byte
+      request/response format); zero coverage for session-response
+      composition, device-restart, and setup-conflict handling in
+      `web_api_administration.c` (not compiled into any host test target); a
+      live `esp_http_server` fake now exists and is exercised for blob only
+      (`tests/host/fakes/esp_http_server_stub`, `fake_httpd.c`) — no
+      equivalent exists yet for the other routes.
 - [x] Test the unprovisioned route surface contains only setup GET/POST and static
       setup assets.
 - [ ] Test setup-state GET returns only the approved two fields and returns `404`
@@ -593,8 +604,8 @@ knowledge in firmware.
       (`setup_route_response()`) that answers real requests — that path has
       zero coverage.
 - [ ] Test exact response schemas and status codes. Strong for
-      status/limits/send/login/diagnostics; absent for session/restart/
-      setup-conflict/blob.
+      status/limits/send/login/diagnostics/blob; absent for session/restart/
+      setup-conflict.
 - [ ] Test that secret-like sentinel values never appear in responses or logs.
       Explicit checks exist for diagnostics and status; no equivalent test
       for send/session/login (though password material is secure-zeroed by

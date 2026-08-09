@@ -262,6 +262,49 @@ target_include_directories(
 target_link_libraries(web_send_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_send_tests web_send web)
 
+# HTTP-adapter-level tests for the blob route handlers (web_server_blob.c), exercised against a fake
+# esp_http_server.h (fakes/esp_http_server_stub) and a fake storage_blob backend
+# (fakes/fake_storage_blob.c) -- see test_web_server_blob.c and fakes/fake_storage_blob.h for why
+# real esp_http_server / storage_blob*.c cannot be linked on a host build.
+add_executable(
+    web_server_blob_tests
+    test_web_server_blob.c
+    ../../firmware/components/web_server/web_server_blob.c
+    ../../firmware/components/web_server/web_server_common.c
+    ../../firmware/components/web_server/web_server_adapter_common.c
+    ../../firmware/components/web_server/web_server_adapter_body_auth.c
+    ../../firmware/components/web_server/web_server_adapter_static_stream.c
+    ../../firmware/components/web_server/web_server_adapter_json.c
+    ../../firmware/components/web_server/web_cookie.c
+    ../../firmware/components/web_server/web_content.c
+    ../../firmware/components/web_server/web_static_path.c
+    ../../firmware/components/web_server/web_api_core.c
+    ../../firmware/components/web_server/web_api_response.c
+    ../../firmware/components/support/subsystem_health.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/macro_model/app_error.c
+    fakes/fake_httpd.c
+    fakes/fake_storage_blob.c
+)
+target_include_directories(
+    web_server_blob_tests
+    PRIVATE fakes/esp_http_server_stub
+            fakes
+            ../../firmware/components/web_server
+            ../../firmware/components/web_server/include
+            ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/app_contracts_v2/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/storage/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/usb_keyboard/include
+            ../../firmware/components/support/include
+)
+target_link_libraries(web_server_blob_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_server_blob_tests web_server_blob web)
+
 add_executable(
     app_core_tests test_app_core.c ../../firmware/components/app_core/app_core_sequence.c
                    ../../firmware/components/support/app_operation_result.c
