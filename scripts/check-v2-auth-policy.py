@@ -56,6 +56,7 @@ def main() -> None:
     auth_rate = read("firmware/components/auth/auth_core_rate_limit.c")
     login = read("firmware/components/web_server/web_server_login.c")
     logout = read("firmware/components/web_server/web_server_logout.c")
+    cookie = read("firmware/components/web_server/web_cookie.c")
     session_tests = read("tests/host/auth_additional_session_tests.inc")
     rate_tests = read("tests/host/auth_additional_rate_tests.inc")
 
@@ -172,11 +173,11 @@ def main() -> None:
         "successful login is not clearing only its source throttle",
     )
     require(
-        "HttpOnly; SameSite=Strict; Path=/" in login,
+        "HttpOnly; SameSite=Strict; Path=/" in cookie,
         "login cookie attributes drifted from V2 policy",
     )
     require(
-        "Secure" not in login,
+        "Secure" not in login and "Secure" not in cookie,
         "login cookie must not claim Secure while the device serves plain HTTP",
     )
 

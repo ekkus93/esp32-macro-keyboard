@@ -128,7 +128,7 @@ Also added to `tests/host/web_security_cookie.inc`
 
 ## Commands run and results
 
-```
+```text
 $ ./scripts/run-tests.sh web
 100% tests passed, 0 tests failed out of 18   (label: web)
 

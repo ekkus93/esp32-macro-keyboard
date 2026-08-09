@@ -237,7 +237,7 @@ Full host suite (all 49 registered tests across every label) — unaffected by
 this change outside the new `web_server_blob` target.
 
 ```console
-$ ./scripts/check-format.sh
+./scripts/check-format.sh
 ```
 
 clang-format / shfmt / shellcheck / cmake-format / cmake-lint / yamllint /
@@ -251,7 +251,7 @@ was never run in this worktree) and this track made no changes under
 change.
 
 ```console
-$ ./scripts/check-firmware.sh
+./scripts/check-firmware.sh
 ```
 
 **Not run** — see "Honest limitations" above (sandbox blocks the required
