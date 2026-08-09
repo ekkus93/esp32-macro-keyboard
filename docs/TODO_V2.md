@@ -87,7 +87,7 @@ subsystem before modifying production behavior.
 ## V2-000 — Record the starting state
 
 - [x] Record the starting `master` commit SHA.
-- [ ] Record toolchain versions and confirm ESP-IDF `v5.5.5`, target `esp32s3`,
+- [x] Record toolchain versions and confirm ESP-IDF `v5.5.5`, target `esp32s3`,
       and Node.js `v24.18.0`.
 - [ ] Run the current authoritative local gate:
 
@@ -105,11 +105,11 @@ subsystem before modifying production behavior.
 - [x] Inventory production firmware components under `firmware/`.
 - [x] Inventory React routes, feature modules, API clients, models, validators,
       and persistent-browser-storage use under `webapp/`.
-- [ ] Inventory native host tests under `tests/host/`.
-- [ ] Inventory browser and Vitest coverage under `webapp/tests/`.
-- [ ] Inventory on-device Unity coverage under `firmware/test_app/`.
-- [ ] Inventory hardware scripts under `tests/hardware/`.
-- [ ] Inventory schemas, generated files, static assets, scripts, CI workflows,
+- [x] Inventory native host tests under `tests/host/`.
+- [x] Inventory browser and Vitest coverage under `webapp/tests/`.
+- [x] Inventory on-device Unity coverage under `firmware/test_app/`.
+- [x] Inventory hardware scripts under `tests/hardware/`.
+- [x] Inventory schemas, generated files, static assets, scripts, CI workflows,
       and documentation references.
 
 ## V2-002 — Create the explicit migration map
@@ -126,8 +126,8 @@ subsystem before modifying production behavior.
       Storage, and service-worker repository persistence.
 - [x] Identify all standalone send-confirmation, send-progress, and result routes
       that conflict with the v2 primary workflow.
-- [ ] Identify all documentation and scripts that still point to v1 authority.
-- [ ] For every retained subsystem, name the v2 requirement and tests proving it
+- [x] Identify all documentation and scripts that still point to v1 authority.
+- [x] For every retained subsystem, name the v2 requirement and tests proving it
       remains valid.
 
 ## Phase 0 exit gate
