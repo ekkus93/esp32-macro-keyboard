@@ -536,9 +536,17 @@ knowledge in firmware.
 - [x] Implement `POST /api/v1/blob`.
 - [x] Implement `GET /api/v1/blob/{blob_id}`.
 - [x] Implement `DELETE /api/v1/blob/{blob_id}`.
-- [ ] Verify exact binary behavior and status codes. No host test exercises
-      the blob HTTP handlers at any level (only the underlying
-      `storage_blob_*` core is tested).
+- [x] Verify exact binary behavior and status codes. HTTP-adapter-level host
+      tests (`tests/host/test_web_server_blob.c` and its `.inc` fragments)
+      now call `blob_list_handler`/`blob_create_handler`/`blob_load_handler`/
+      `blob_delete_handler` directly against a fake `esp_http_server.h`
+      (`tests/host/fakes/esp_http_server_stub`, `fake_httpd.c`) and a fake
+      `storage_blob`/`storage_partition_capacity` backend
+      (`fake_storage_blob.c`), covering exact status codes (200/201/204/400/
+      401/404/413/415/500/503/507), `application/gzip`/`application/json`
+      content types, and a byte-identical upload/download round trip through
+      the handler. See
+      `docs/implementation-v2/V2_053_057_BLOB_ROUTE_TEST_COVERAGE_2026-08-08.md`.
 
 ## V2-054 — Send routes
 
@@ -580,14 +588,18 @@ knowledge in firmware.
 
 - [ ] Test every route with valid, missing, extra, wrong-type, wrong-content-type,
       oversized, unauthorized, expired-session, malformed-path, and method-error
-      cases. Strong coverage for status/limits/login/send; `web_api_administration.c`
-      is now compiled into `web_api_administration_tests`, which covers
-      session-response composition, device-restart, and setup-conflict handling
+      cases. Strong coverage for status/limits/login/send/blob (blob has no
+      JSON body, so "extra"/"wrong-type" fields do not apply to its raw-byte
+      request/response format); `web_api_administration.c` is now compiled
+      into `web_api_administration_tests`, which covers session-response
+      composition, device-restart, and setup-conflict handling
       (valid/backend-failure), but not the full valid/missing/extra/wrong-type/
       wrong-content-type/oversized/unauthorized/expired-session/malformed-path/
-      method-error matrix for every route; blob-route coverage is unchanged (a
-      different track's scope); no live end-to-end HTTP test exists (no
-      `esp_http_server` fake anywhere in this codebase).
+      method-error matrix for every route. A live `esp_http_server` fake now
+      exists and is exercised for blob (`tests/host/fakes/esp_http_server_stub`,
+      `fake_httpd.c`); `web_api_administration.c` routes are instead tested via
+      direct function calls with narrow test doubles — no single live
+      end-to-end HTTP test exercises every route the same way.
 - [x] Test the unprovisioned route surface contains only setup GET/POST and static
       setup assets.
 - [ ] Test setup-state GET returns only the approved two fields and returns `404`
@@ -599,15 +611,16 @@ knowledge in firmware.
       POST branch is now directly tested via
       `web_api_handle_administration(WEB_API_ROUTE_SETUP, POST, …)`, distinct from
       `test_already_provisioned_rejected`'s defense-in-depth check.
-- [ ] Test exact response schemas and status codes. Strong for
-      status/limits/send/login/diagnostics; session/restart/setup-conflict are now
-      covered; blob is unchanged (a different track's scope).
+- [x] Test exact response schemas and status codes. Strong for
+      status/limits/send/login/diagnostics/blob; session/restart/setup-conflict
+      are now covered too via `web_api_administration_tests`.
 - [x] Test that secret-like sentinel values never appear in responses or logs.
       Explicit checks exist for diagnostics and status; send's password material
       is secure-zeroed by construction; session (`handle_session()`'s JSON) and
       login (the cookie header `web_cookie_build_session_header()` composes) are
       now scanned with the same `check-secret-sentinel.py`-backed harness
-      diagnostics/status use.
+      diagnostics/status use; blob responses carry raw gzip bytes and an ID/size
+      pair only, with no secret-like field to scan.
 - [ ] Consume the same checked-in examples from C and TypeScript tests. The
       TypeScript side genuinely validates against
       `contracts/v2/api/examples.json`; the C side never parses that file —
