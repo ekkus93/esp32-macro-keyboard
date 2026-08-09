@@ -1323,14 +1323,53 @@ Macros | Packages | Snapshots | Settings
 
 ## Final sign-off checklist
 
-- [ ] `docs/SPEC_V2.md` matches production behavior.
-- [ ] `docs/UI_UX_SPEC_V2.md` matches production behavior.
-- [ ] `docs/TODO_V2.md` contains no falsely completed task.
-- [ ] `docs/TODO.md`, `README.md`, and `CLAUDE.md` point to the v2 authority set.
-- [ ] `./scripts/check-all.sh` passes from a clean checkout.
+This checklist is Phase 15's release gate, not a running progress meter — most
+items below can only be honestly checked once Phases 9–14 (the entire Macros/
+editing/snapshots/settings/accessibility UI and the migration-cleanup phase) are
+built and V2-156's acceptance audit has actually been walked, neither of which
+has happened yet. The items below reflect only what is independently,
+currently, and reproducibly true as of commit `9bb47bb` (2026-08-09) — not a
+claim that the project is close to final sign-off.
+
+- [ ] `docs/SPEC_V2.md` matches production behavior. Cannot be true yet: Phases
+      9–14 (Macros page, editing, snapshots, settings UI, accessibility,
+      migration cleanup) are unstarted, so most of SPEC_V2's UI-facing
+      requirements have no implementation to match against.
+- [ ] `docs/UI_UX_SPEC_V2.md` matches production behavior. Same reason.
+- [ ] `docs/TODO_V2.md` contains no falsely completed task. Not yet audited —
+      that audit is V2-156's job and V2-156 has not been started.
+- [ ] `docs/TODO.md`, `README.md`, and `CLAUDE.md` point to the v2 authority
+      set. `docs/TODO.md` and `CLAUDE.md` already do. `README.md` does not:
+      its opening section still states "The authoritative design is in
+      `docs/SPEC.md`" (the frozen, retired v1 stub) and never mentions
+      `SPEC_V2.md`/`TODO_V2.md` at all — this is V2-143's job (Phase 14,
+      unstarted).
+- [x] `./scripts/check-all.sh` passes from a clean checkout. Verified against
+      an actual fresh `git clone` of commit `9bb47bb` from `origin/master`
+      (not the working tree), with `npm ci` run in `webapp/` and
+      `littlefs-python==0.15.0` installed into the sourced ESP-IDF virtualenv
+      exactly as `.github/workflows/quality.yml` does it: full gate exit 0,
+      50/50 host tests. This is a snapshot fact about the current commit, not
+      a permanent one — it will need re-verification at the actual final
+      sign-off after more work lands.
 - [ ] Required ESP32-S3R8, USB HID, storage, Wi-Fi, authentication, and Android
-      evidence is committed.
-- [ ] No v1 compatibility architecture remains in production code.
+      evidence is committed. Multiple hardware-only items remain open
+      throughout this file (V2-035, part of V2-041, part of V2-044, V2-064,
+      and all of Phase 15's V2-151 through V2-155 matrices) — none of that
+      evidence exists yet.
+- [x] No v1 compatibility architecture remains in production code. Phase 2's
+      exit gate (all four items) is complete, and this is continuously
+      enforced, not just asserted: `check-all.sh` runs
+      `check-v2-phase2-architecture.py` ("phase 2 architecture: no
+      firmware-owned package or macro repository") and
+      `check-removed-features.sh` ("removed features: none of the SPEC 1.1
+      rejections have reappeared") on every invocation, and both currently
+      pass. This covers production firmware code specifically; it does not
+      by itself certify the webapp or the rest of this checklist.
 - [ ] No known silent failure, dangerous fallback, secret leak, automatic
-      snapshot deletion, or inaccessible cancellation path remains.
-- [ ] Final implementation report records the accepted release commit SHA.
+      snapshot deletion, or inaccessible cancellation path remains. Cannot be
+      claimed yet — the snapshot-management UI (Phase 11) that "automatic
+      snapshot deletion" is about does not exist yet, and V2-156's audit
+      hasn't walked the rest.
+- [ ] Final implementation report records the accepted release commit SHA. No
+      such report exists; it is V2-156's own deliverable.
