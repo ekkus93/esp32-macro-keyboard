@@ -86,7 +86,7 @@ subsystem before modifying production behavior.
 
 ## V2-000 — Record the starting state
 
-- [ ] Record the starting `master` commit SHA.
+- [x] Record the starting `master` commit SHA.
 - [ ] Record toolchain versions and confirm ESP-IDF `v5.5.5`, target `esp32s3`,
       and Node.js `v24.18.0`.
 - [ ] Run the current authoritative local gate:
@@ -102,8 +102,8 @@ subsystem before modifying production behavior.
 
 ## V2-001 — Build a complete code inventory
 
-- [ ] Inventory production firmware components under `firmware/`.
-- [ ] Inventory React routes, feature modules, API clients, models, validators,
+- [x] Inventory production firmware components under `firmware/`.
+- [x] Inventory React routes, feature modules, API clients, models, validators,
       and persistent-browser-storage use under `webapp/`.
 - [ ] Inventory native host tests under `tests/host/`.
 - [ ] Inventory browser and Vitest coverage under `webapp/tests/`.
@@ -114,17 +114,17 @@ subsystem before modifying production behavior.
 
 ## V2-002 — Create the explicit migration map
 
-- [ ] Create `docs/implementation-v2/V2_MIGRATION_MAP.md`.
-- [ ] Classify every production subsystem as **retain**, **adapt**, **rewrite**, or
+- [x] Create `docs/implementation-v2/V2_MIGRATION_MAP.md`.
+- [x] Classify every production subsystem as **retain**, **adapt**, **rewrite**, or
       **delete**.
-- [ ] Classify every test suite and fixture the same way.
-- [ ] Identify all firmware-owned package and macro state.
-- [ ] Identify all package/macro CRUD routes and validation routes.
-- [ ] Identify all revision, ETag, optimistic-concurrency, restore, import,
+- [x] Classify every test suite and fixture the same way.
+- [x] Identify all firmware-owned package and macro state.
+- [x] Identify all package/macro CRUD routes and validation routes.
+- [x] Identify all revision, ETag, optimistic-concurrency, restore, import,
       replace, and repository-index behavior from v1.
-- [ ] Identify all frontend localStorage, sessionStorage, IndexedDB, Cache
+- [x] Identify all frontend localStorage, sessionStorage, IndexedDB, Cache
       Storage, and service-worker repository persistence.
-- [ ] Identify all standalone send-confirmation, send-progress, and result routes
+- [x] Identify all standalone send-confirmation, send-progress, and result routes
       that conflict with the v2 primary workflow.
 - [ ] Identify all documentation and scripts that still point to v1 authority.
 - [ ] For every retained subsystem, name the v2 requirement and tests proving it
@@ -133,9 +133,9 @@ subsystem before modifying production behavior.
 ## Phase 0 exit gate
 
 - [ ] Baseline evidence is committed.
-- [ ] Migration map covers production code, tests, scripts, schemas, and docs.
-- [ ] Every known v1 feature has an explicit delete/adapt decision.
-- [ ] No production behavior has changed in this phase.
+- [x] Migration map covers production code, tests, scripts, schemas, and docs.
+- [x] Every known v1 feature has an explicit delete/adapt decision.
+- [x] No production behavior has changed in this phase.
 
 ---
 
@@ -147,7 +147,7 @@ subsystem before modifying production behavior.
 
 ## V2-010 — Repository model and schema contracts
 
-- [ ] Define the strict TypeScript repository types:
+- [x] Define the strict TypeScript repository types:
 
 ```json
 {
@@ -157,88 +157,88 @@ subsystem before modifying production behavior.
 }
 ```
 
-- [ ] Ensure the root has exactly `format`, `schemaVersion`, and `packages`.
-- [ ] Prohibit `activePackageId` and all unknown fields.
-- [ ] Define package and macro types exactly as specified.
-- [ ] Enforce canonical lowercase UUID v4 identifiers.
-- [ ] Enforce repository-wide package-ID and macro-ID uniqueness.
-- [ ] Add valid, boundary, malformed, duplicate-ID, prototype-bearing, sparse
+- [x] Ensure the root has exactly `format`, `schemaVersion`, and `packages`.
+- [x] Prohibit `activePackageId` and all unknown fields.
+- [x] Define package and macro types exactly as specified.
+- [x] Enforce canonical lowercase UUID v4 identifiers.
+- [x] Enforce repository-wide package-ID and macro-ID uniqueness.
+- [x] Add valid, boundary, malformed, duplicate-ID, prototype-bearing, sparse
       array, non-finite-number, and unknown-field fixtures.
-- [ ] Add a checked-in canonical example repository and canonical compact JSON.
+- [x] Add a checked-in canonical example repository and canonical compact JSON.
 
 ## V2-011 — API contract models
 
-- [ ] Define shared request/response examples for every `/api/v1` route.
-- [ ] Define the unprovisioned-only `GET /api/v1/setup` response with exactly
+- [x] Define shared request/response examples for every `/api/v1` route.
+- [x] Define the unprovisioned-only `GET /api/v1/setup` response with exactly
       `provisioned: false` and `deviceName`.
-- [ ] Define the standard JSON error envelope with stable `code`, human-readable
+- [x] Define the standard JSON error envelope with stable `code`, human-readable
       `message`, and optional `field`.
-- [ ] Define exact setup, session, status, limits, settings, password-change,
+- [x] Define exact setup, session, status, limits, settings, password-change,
       restart, reset-settings, factory-reset, diagnostics, blob, and send objects.
-- [ ] Define strict unknown-field rejection for JSON requests.
-- [ ] Define content types, maximum body sizes, success status codes, and error
+- [x] Define strict unknown-field rejection for JSON requests.
+- [x] Define content types, maximum body sizes, success status codes, and error
       status codes per route.
-- [ ] Add TypeScript types and C-side parsing/serialization contracts that match
+- [x] Add TypeScript types and C-side parsing/serialization contracts that match
       the same checked-in examples.
 
 ## V2-012 — Centralized limits
 
-- [ ] Create one authoritative firmware limits module.
-- [ ] Mirror client-relevant limits in generated or verified TypeScript types.
-- [ ] Include at least:
-  - [ ] package name: 64 UTF-8 bytes;
-  - [ ] macro name: 64 UTF-8 bytes;
-  - [ ] macro source: 4096 UTF-8 bytes;
-  - [ ] compiled actions: 4096;
-  - [ ] key press: 0–10,000 ms;
-  - [ ] inter-key delay: 0–10,000 ms;
-  - [ ] directive delay: 1–10,000 ms;
-  - [ ] estimated macro duration: 300,000 ms;
-  - [ ] absolute executor deadline: 310,000 ms;
-  - [ ] JSON request body: 8192 bytes;
-  - [ ] candidate repository blob maximum: 131,072 bytes;
-  - [ ] active sessions: 8;
-  - [ ] session idle lifetime: 86,400 seconds;
-  - [ ] session absolute lifetime: 604,800 seconds;
-  - [ ] serial-confirmation timeout: 60 seconds;
-  - [ ] administrator password: 12–128 UTF-8 bytes.
-- [ ] Make `GET /api/v1/limits` derive from the same constants.
-- [ ] Add boundary tests for every numeric and byte-count limit.
+- [x] Create one authoritative firmware limits module.
+- [x] Mirror client-relevant limits in generated or verified TypeScript types.
+- [x] Include at least:
+  - [x] package name: 64 UTF-8 bytes;
+  - [x] macro name: 64 UTF-8 bytes;
+  - [x] macro source: 4096 UTF-8 bytes;
+  - [x] compiled actions: 4096;
+  - [x] key press: 0–10,000 ms;
+  - [x] inter-key delay: 0–10,000 ms;
+  - [x] directive delay: 1–10,000 ms;
+  - [x] estimated macro duration: 300,000 ms;
+  - [x] absolute executor deadline: 310,000 ms;
+  - [x] JSON request body: 8192 bytes;
+  - [x] candidate repository blob maximum: 131,072 bytes;
+  - [x] active sessions: 8;
+  - [x] session idle lifetime: 86,400 seconds;
+  - [x] session absolute lifetime: 604,800 seconds;
+  - [x] serial-confirmation timeout: 60 seconds;
+  - [x] administrator password: 12–128 UTF-8 bytes.
+- [x] Make `GET /api/v1/limits` derive from the same constants.
+- [x] Add boundary tests for every numeric and byte-count limit.
 
 ## V2-013 — Shared macro-language conformance corpus
 
-- [ ] Retain or replace the current corpus with one format consumed by C and
+- [x] Retain or replace the current corpus with one format consumed by C and
       TypeScript tests.
 - [ ] Cover printable ASCII, line endings, tabs, directives, chords, escaping,
       delays, malformed braces, Unicode rejection, duplicate modifiers, unknown
       names, source positions, action limits, and duration limits.
-- [ ] Define expected compiled actions for valid cases.
-- [ ] Define expected code, byte offset, line, column, and message class for
+- [x] Define expected compiled actions for valid cases.
+- [x] Define expected code, byte offset, line, column, and message class for
       invalid cases.
-- [ ] Make parser drift fail both local gates and CI.
+- [x] Make parser drift fail both local gates and CI.
 
 ## V2-014 — Device settings schema
 
-- [ ] Define a versioned NVS settings record.
-- [ ] Include device name, AP settings, optional station settings, password
+- [x] Define a versioned NVS settings record.
+- [x] Include device name, AP settings, optional station settings, password
       verifier metadata, physical-confirmation policy, provisioning state,
       credential version, optional next-blob counter, and UI preferences.
-- [ ] Include:
-  - [ ] `sendMode`, default `quick`;
-  - [ ] `snapshotRetentionTarget`, default `5`, advisory only;
-  - [ ] `showMacroSourcePreviews`, default `false`;
-  - [ ] `lastSelectedPackageId`, default `null`.
-- [ ] Validate `lastSelectedPackageId` only as an opaque canonical UUID or null.
-- [ ] Specify reset-settings and factory-reset defaults exactly.
-- [ ] Add wrong-version, wrong-length, truncated-record, invalid-enum, and invalid
+- [x] Include:
+  - [x] `sendMode`, default `quick`;
+  - [x] `snapshotRetentionTarget`, default `5`, advisory only;
+  - [x] `showMacroSourcePreviews`, default `false`;
+  - [x] `lastSelectedPackageId`, default `null`.
+- [x] Validate `lastSelectedPackageId` only as an opaque canonical UUID or null.
+- [x] Specify reset-settings and factory-reset defaults exactly.
+- [x] Add wrong-version, wrong-length, truncated-record, invalid-enum, and invalid
       UUID tests.
 
 ## Phase 1 exit gate
 
-- [ ] Contract fixtures are checked in and consumed by tests.
-- [ ] C and TypeScript agree on every shared boundary and enum.
+- [x] Contract fixtures are checked in and consumed by tests.
+- [x] C and TypeScript agree on every shared boundary and enum.
 - [ ] No production route or repository serializer still depends on a v1 shape.
-- [ ] Narrow contract test suites pass with zero warnings.
+- [x] Narrow contract test suites pass with zero warnings.
 
 ---
 
