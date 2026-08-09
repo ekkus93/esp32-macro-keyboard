@@ -21,6 +21,8 @@ import {
 import { recoverSendState, sendMacro } from "../src/v2/sendClient";
 import { FirstRunSetupPage } from "../src/features/auth/v2/FirstRunSetupPage";
 import { SignInPage } from "../src/features/auth/v2/SignInPage";
+import { RepositoryStartupScreen } from "../src/features/startup/v2/RepositoryStartupScreen";
+import type { RepositoryStartupReady } from "../src/features/startup/v2/RepositoryStartupScreen";
 import { jsonResponse, planFetch, planJsonResponse } from "./fakeFetch";
 import {
   buttonWithText,
@@ -47,6 +49,11 @@ const canonical = canonicalRepository as Repository;
  * passphrase, and an administrator password in React state, so the same
  * "never touches browser storage" invariant applies to them, not just the
  * Phase 7 `src/v2/` data layer.
+ *
+ * It also covers `src/features/startup/v2/` (the Phase 8 V2-082/V2-083/
+ * V2-084 repository startup state machine): its first-package form holds a
+ * package name and its recovered `RepositoryWorkingCopyStore` holds the
+ * entire loaded (or freshly created) repository, all in React state.
  */
 
 const forbiddenApiPattern =
@@ -58,7 +65,11 @@ const forbiddenApiPattern =
 // Node-based file scan cannot type-check here, and a bundler-level glob is
 // the idiomatic alternative that stays consistent with that boundary.
 const v2SourceModules = import.meta.glob<string>(
-  ["../src/v2/**/*.{ts,tsx}", "../src/features/auth/v2/**/*.{ts,tsx}"],
+  [
+    "../src/v2/**/*.{ts,tsx}",
+    "../src/features/auth/v2/**/*.{ts,tsx}",
+    "../src/features/startup/v2/**/*.{ts,tsx}",
+  ],
   {
     eager: true,
     query: "?raw",
@@ -259,6 +270,74 @@ describe("v2 browser-storage prohibition: runtime behavior", () => {
     await submitForm(requiredElement("form", HTMLFormElement));
     await flushReact();
     await signInView.unmount();
+
+    expect(localStorageSetItem).not.toHaveBeenCalled();
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  test("exercising the V2-082/V2-083/V2-084 repository startup screen (Create Your First Repository) never touches browser storage", async () => {
+    const localStorageSetItem = vi.spyOn(Storage.prototype, "setItem");
+
+    planJsonResponse({
+      deviceName: "Desk Macro Keyboard",
+      requireSerialConfirmation: false,
+      sendMode: "quick",
+      snapshotRetentionTarget: 5,
+      showMacroSourcePreviews: false,
+      lastSelectedPackageId: null,
+      apSsid: "MacroKeyboard",
+      stationConfigured: false,
+      stationSsid: null,
+    });
+    planJsonResponse({ blobs: [], usedBytes: 0, remainingBytes: 100 });
+
+    const onReady = vi.fn<(ready: RepositoryStartupReady) => void>();
+    const startupView = await render(
+      <RepositoryStartupScreen existing={null} onReady={onReady} />,
+    );
+    await flushReact();
+    for (
+      let attempt = 0;
+      attempt < 50 && document.querySelector("#first-package-name") === null;
+      attempt += 1
+    ) {
+      await flushReact();
+    }
+    await setInputValue(
+      requiredElement("#first-package-name", HTMLInputElement),
+      "My First Package",
+    );
+    planFetch(() =>
+      jsonResponse(
+        {
+          settings: {
+            deviceName: "Desk Macro Keyboard",
+            requireSerialConfirmation: false,
+            sendMode: "quick",
+            snapshotRetentionTarget: 5,
+            showMacroSourcePreviews: false,
+            lastSelectedPackageId: "550e8400-e29b-41d4-a716-446655440000",
+            apSsid: "MacroKeyboard",
+            stationConfigured: false,
+            stationSsid: null,
+          },
+          restartRequired: false,
+          reconnectRequired: false,
+        },
+        200,
+      ),
+    );
+    await submitForm(requiredElement("form", HTMLFormElement));
+    for (
+      let attempt = 0;
+      attempt < 50 && onReady.mock.calls.length === 0;
+      attempt += 1
+    ) {
+      await flushReact();
+    }
+    expect(onReady).toHaveBeenCalledTimes(1);
+    await startupView.unmount();
 
     expect(localStorageSetItem).not.toHaveBeenCalled();
     expect(window.localStorage.length).toBe(0);
