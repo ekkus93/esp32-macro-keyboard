@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import App from "./App";
+import AppV2 from "./AppV2";
 import "./styles.css";
 import "./management.css";
 
@@ -11,6 +11,6 @@ if (root === null) {
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <AppV2 />
   </StrictMode>,
 );

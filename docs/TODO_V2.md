@@ -879,68 +879,68 @@ explicitly not claimed.
 
 ## V2-090 — Application shell
 
-- [ ] Show device name, selected package, USB state, and repository state.
-- [ ] Show Save snapshot whenever dirty.
-- [ ] Implement bottom navigation:
+- [x] Show device name, selected package, USB state, and repository state.
+- [x] Show Save snapshot whenever dirty.
+- [x] Implement bottom navigation:
 
 ```text
 Macros | Packages | Snapshots | Settings
 ```
 
-- [ ] Preserve accessibility and safe-area behavior.
+- [x] Preserve accessibility and safe-area behavior.
 
 ## V2-091 — Macro list
 
-- [ ] Show ordered macros for the selected package.
+- [x] Show ordered macros for the selected package.
 - [ ] Show Add macro, Edit, Send, and overflow controls.
-- [ ] Support accessible reordering.
-- [ ] Disable Send unless USB is `ready` and no other send is active.
-- [ ] Keep the user on the Macros page for ordinary sends.
+- [x] Support accessible reordering.
+- [x] Disable Send unless USB is `ready` and no other send is active.
+- [x] Keep the user on the Macros page for ordinary sends.
 
 ## V2-092 — Macro-source privacy
 
-- [ ] Hide source previews by default.
-- [ ] Show a non-revealing placeholder.
-- [ ] Support temporary per-row reveal.
-- [ ] Honor the device-wide source-preview preference.
-- [ ] Prevent hidden source from entering acknowledgements, accessible names,
+- [x] Hide source previews by default.
+- [x] Show a non-revealing placeholder.
+- [x] Support temporary per-row reveal.
+- [x] Honor the device-wide source-preview preference.
+- [x] Prevent hidden source from entering acknowledgements, accessible names,
       live regions, logs, diagnostics, notifications, or telemetry.
 
 ## V2-093 — Quick Send
 
-- [ ] Make the primary Send control issue one explicit `POST /api/v1/send`.
-- [ ] Show selected-row and page-level progress inline.
-- [ ] Disable other Send controls while active.
-- [ ] Show serial-confirmation waiting state inline.
-- [ ] Keep Cancel and release all keys accessible.
-- [ ] Show completion acknowledgement for approximately three to five seconds.
-- [ ] Persist cancellation, failure, timeout, and release-error messages until the
+- [x] Make the primary Send control issue one explicit `POST /api/v1/send`.
+- [x] Show selected-row and page-level progress inline.
+- [x] Disable other Send controls while active.
+- [x] Show serial-confirmation waiting state inline.
+- [x] Keep Cancel and release all keys accessible.
+- [x] Show completion acknowledgement for approximately three to five seconds.
+- [x] Persist cancellation, failure, timeout, and release-error messages until the
       user can understand or dismiss them.
-- [ ] Never include source in the acknowledgement.
+- [x] Never include source in the acknowledgement.
 
 ## V2-094 — Optional Preview and Send
 
 - [ ] Make preview available from overflow actions.
 - [ ] Honor Always Preview when configured.
-- [ ] Show package, macro, source/action summary, timing, action count, duration,
+- [x] Show package, macro, source/action summary, timing, action count, duration,
       and USB state.
-- [ ] Provide explicit Send now and Cancel.
-- [ ] Return to the Macros page for progress.
+- [x] Provide explicit Send now and Cancel.
+- [x] Return to the Macros page for progress.
 
 ## V2-095 — Reload and race handling
 
-- [ ] Recover inline send state after reload.
-- [ ] Prevent double-send on rapid taps.
-- [ ] Prevent duplicate completion callbacks.
-- [ ] Handle `409` by showing the actual current send.
-- [ ] Handle session expiry without discarding the working copy.
+- [x] Recover inline send state after reload.
+- [x] Prevent double-send on rapid taps.
+- [x] Prevent duplicate completion callbacks.
+- [x] Handle `409` by showing the actual current send.
+- [x] Handle session expiry without discarding the working copy.
 
 ## Phase 9 exit gate
 
 - [ ] Macros page browser tests cover idle, USB unavailable, quick send,
       confirmation, progress, cancel, complete, failure, timeout, release error,
       reload, and rapid repeated input.
-- [ ] Ordinary Quick Send never navigates to a standalone progress/result route.
+- [x] Ordinary Quick Send never navigates to a standalone progress/result route.
 
 ---
 

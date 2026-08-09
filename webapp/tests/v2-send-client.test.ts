@@ -4,7 +4,9 @@ import {
   isTerminalSendState,
   recoverSendState,
   sendMacro,
+  trackSend,
 } from "../src/v2/sendClient";
+import type { SendStatusResponse } from "../src/v2/apiTypes";
 import {
   getFetchCalls,
   jsonResponse,
@@ -165,5 +167,80 @@ describe("v2 send helper", () => {
       return jsonResponse({ id: sendId }, 202);
     });
     await cancelSend();
+  });
+
+  test("trackSend resumes polling a recovered send without posting", async () => {
+    vi.useFakeTimers();
+    try {
+      const seed = statusAt("running", 3);
+      const onStatus = vi.fn();
+      const onComplete = vi.fn();
+
+      trackSend(seed as unknown as SendStatusResponse, {
+        onStatus,
+        onComplete,
+      });
+
+      // No POST is ever made by trackSend.
+      expect(
+        getFetchCalls().filter((call) => call.method === "POST"),
+      ).toHaveLength(0);
+
+      planJsonResponse(statusAt("running", 3));
+      await vi.advanceTimersByTimeAsync(1000);
+      // Unchanged from the seed: no onStatus call yet.
+      expect(onStatus).not.toHaveBeenCalled();
+
+      planJsonResponse(statusAt("completed", 9));
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(onStatus).toHaveBeenCalledTimes(1);
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(onComplete).toHaveBeenCalledWith(statusAt("completed", 9));
+
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("trackSend never polls or completes when seeded with an already-terminal status", async () => {
+    vi.useFakeTimers();
+    try {
+      const seed = statusAt("failed", 4, { error: "usb_not_ready" });
+      const onComplete = vi.fn();
+      const handle = trackSend(seed as unknown as SendStatusResponse, {
+        onComplete,
+      });
+
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(onComplete).not.toHaveBeenCalled();
+      expect(
+        getFetchCalls().filter((call) => call.method === "GET"),
+      ).toHaveLength(0);
+      handle.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("trackSend.stop() halts polling", async () => {
+    vi.useFakeTimers();
+    try {
+      const seed = statusAt("running", 0);
+      const onStatus = vi.fn();
+      const handle = trackSend(seed as unknown as SendStatusResponse, {
+        onStatus,
+      });
+      handle.stop();
+
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(onStatus).not.toHaveBeenCalled();
+      expect(
+        getFetchCalls().filter((call) => call.method === "GET"),
+      ).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

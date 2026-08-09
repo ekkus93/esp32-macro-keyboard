@@ -67,33 +67,28 @@ function isMeaningfulChange(
   );
 }
 
-/**
- * Sends a macro and tracks it to completion.
- *
- * 1. Calls `POST /api/v1/send`; the returned promise rejects if this fails
- *    (invalid source, `409` already sending, network failure, etc.) and no
- *    polling ever starts.
- * 2. On acceptance, polls `GET /api/v1/send` no slower than once per second.
- * 3. Calls `onStatus` only when state or `actionIndex` changes.
- * 4. Calls `onComplete` exactly once, after a terminal state is observed.
- *
- * If the page closes, delivery of these callbacks is not guaranteed —
- * firmware continues the send independently. Use {@link recoverSendState}
- * after a reload to resume tracking.
- */
-export async function sendMacro(
-  request: SendRequest,
-  callbacks: SendMacroCallbacks = {},
-): Promise<SendMacroHandle> {
-  const accepted: SendAcceptedResponse = await v2PostJson(
-    sendPath,
-    request,
-    isSendAcceptedResponse,
-  );
+interface SendTracker {
+  stop: () => void;
+}
 
+/**
+ * The shared poll loop behind both {@link sendMacro} (which seeds it with no
+ * prior status, right after a fresh `202`) and {@link trackSend} (which seeds
+ * it with an already-known status recovered from `GET /api/v1/send`, without
+ * ever issuing a `POST`). Factored out so a reload-recovered or
+ * race-recovered send (TODO_V2 V2-095) polls with the exact same cadence,
+ * meaningful-change filtering, and at-most-once `onComplete` guarantee as a
+ * send this module itself initiated — no second implementation of the
+ * protocol.
+ */
+function createSendTracker(
+  id: string,
+  seed: SendStatusResponse | null,
+  callbacks: SendMacroCallbacks,
+): SendTracker {
   const flags: { stopped: boolean; completed: boolean } = {
     stopped: false,
-    completed: false,
+    completed: seed !== null && isTerminalSendState(seed.state),
   };
   // Reading these through functions (rather than the bare property) keeps
   // TypeScript from narrowing `flags.stopped`/`flags.completed` to a stale
@@ -105,11 +100,11 @@ export async function sendMacro(
   function isCompleted(): boolean {
     return flags.completed;
   }
-  let previous: SendStatusResponse | null = null;
+  let previous: SendStatusResponse | null = seed;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   function schedulePoll(): void {
-    if (isStopped()) {
+    if (isStopped() || isCompleted()) {
       return;
     }
     timer = setTimeout(() => {
@@ -128,7 +123,7 @@ export async function sendMacro(
       schedulePoll();
       return;
     }
-    if (isStopped() || status.id !== accepted.id) {
+    if (isStopped() || status.id !== id) {
       return;
     }
     if (isMeaningfulChange(previous, status)) {
@@ -155,13 +150,58 @@ export async function sendMacro(
     }
   }
 
+  schedulePoll();
+
+  return { stop };
+}
+
+/**
+ * Sends a macro and tracks it to completion.
+ *
+ * 1. Calls `POST /api/v1/send`; the returned promise rejects if this fails
+ *    (invalid source, `409` already sending, network failure, etc.) and no
+ *    polling ever starts.
+ * 2. On acceptance, polls `GET /api/v1/send` no slower than once per second.
+ * 3. Calls `onStatus` only when state or `actionIndex` changes.
+ * 4. Calls `onComplete` exactly once, after a terminal state is observed.
+ *
+ * If the page closes, delivery of these callbacks is not guaranteed —
+ * firmware continues the send independently. Use {@link recoverSendState}
+ * after a reload to resume tracking.
+ */
+export async function sendMacro(
+  request: SendRequest,
+  callbacks: SendMacroCallbacks = {},
+): Promise<SendMacroHandle> {
+  const accepted: SendAcceptedResponse = await v2PostJson(
+    sendPath,
+    request,
+    isSendAcceptedResponse,
+  );
+
+  const tracker = createSendTracker(accepted.id, null, callbacks);
+
   async function cancel(): Promise<void> {
     await cancelSend();
   }
 
-  schedulePoll();
+  return { accepted, cancel, stop: tracker.stop };
+}
 
-  return { accepted, cancel, stop };
+/**
+ * Resumes polling an already-known, not-yet-dismissed send without issuing a
+ * new `POST` — the reload-recovery and `409`-recovery case from TODO_V2
+ * V2-095 ("recover inline send state after reload", "handle `409` by showing
+ * the actual current send"). `seed` is normally the result of
+ * {@link recoverSendState}. Polling starts immediately at the same bounded
+ * cadence as {@link sendMacro}; if `seed` is already terminal, no request is
+ * made and `stop()` is a no-op.
+ */
+export function trackSend(
+  seed: SendStatusResponse,
+  callbacks: SendMacroCallbacks = {},
+): SendTracker {
+  return createSendTracker(seed.id, seed, callbacks);
 }
 
 /**

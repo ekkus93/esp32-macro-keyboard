@@ -92,7 +92,7 @@ main {
   gap: 1rem;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem;
+  padding: calc(1rem + env(safe-area-inset-top)) 1rem 1rem;
   color: white;
   background: #0f172a;
 }
@@ -175,7 +175,7 @@ main {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0.5rem;
-  padding: 0.75rem;
+  padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
   background: white;
   border-top: 1px solid #cbd5e1;
 }
@@ -376,4 +376,22 @@ summary {
 
 code {
   overflow-wrap: anywhere;
+}
+
+.send-status {
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 0.75rem;
+}
+
+.send-status p {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+}
+
+.send-status[role="alert"] {
+  background: #fee2e2;
+  border-color: #fca5a5;
 }
