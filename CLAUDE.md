@@ -42,6 +42,7 @@ Run scripts from the repo root. All frontend commands go through `npm --prefix w
 - Firmware build + clang-tidy: `./scripts/check-firmware.sh` (or `cd firmware && idf.py set-target esp32s3 && idf.py build`)
 - Format check (no auto-fix): `./scripts/check-format.sh`. Auto-fix frontend only: `npm --prefix webapp run format:write`
 - Native coverage gate (line ≥90 / branch ≥80 on policy files): `./scripts/generate-native-coverage.sh`
+- The `check-v2-*.py`/`check-v2-*.sh` script family (invoked from `check-all.sh`) enforces v1→v2 migration policy — API routes, auth policy, device-settings policy, limits, setup contract/route policy, phase-2 architecture. Treat these as first-party lint, not optional checks.
 
 ### Where the tests are, and the fast loops
 
@@ -49,8 +50,9 @@ The two suites are in different places and neither sits beside the code it tests
 
 | Suite | Location | Run just this |
 | --- | --- | --- |
-| Host C (33 `test_*.c` + 19 `.inc` fragments) | `tests/host/` | `./scripts/run-tests.sh [label]` |
-| Frontend vitest (26 files) | `webapp/tests/` — **not** under `webapp/src/` | `npm --prefix webapp run test` |
+| Host C (47 `test_*.c` + 20 `.inc` fragments) | `tests/host/` | `./scripts/run-tests.sh [label]` |
+| v2 contract tests (API routes, device settings, setup contract, macro tokens/conformance) | `tests/v2_contracts/` — separate from `tests/host/` | `./scripts/check-v2-contracts.sh` |
+| Frontend vitest (35 files) | `webapp/tests/` — **not** under `webapp/src/` | `npm --prefix webapp run test` |
 | Browser (Playwright) | `webapp/tests/browser/` | `npm --prefix webapp run test:browser` |
 | On-device Unity | `firmware/test_app/` | flash it; see the port table above |
 | Hardware-in-the-loop (Python) | `tests/hardware/` | needs the board attached |
@@ -79,7 +81,7 @@ failure rather than partial-booting. Components, each first-party and lint-scope
 | `app_contracts_v2` | The v2 wire-format contracts shared with the webapp — device settings record layout (`device_settings_v2.c`) and the `/api/v1/setup` request/response shape (`setup_contract_v2.c`) |
 | `macro_model` | Bounded data types, canonical UUIDs (`app_uuid`), stable app error codes (`app_error`) — v1's package/repository object model was deleted here; only execution-time macro/action types remain |
 | `macro_parser` | The v0.1 macro language: US-ASCII/chord/directive parsing into action plans, complete-before-execute, exact source-location errors |
-| `macro_executor` | Single-owner FreeRTOS execution engine: one active send, cancellation, progress, unconditional release-all |
+| `macro_executor` | Single-owner FreeRTOS execution engine: one active send, cancellation, progress, confirmation-wait (`EXECUTION_AWAITING_CONFIRMATION` + `macro_executor_confirm()`), unconditional release-all |
 | `usb_keyboard` | TinyUSB HID integration, readiness gating, bounded report transmission |
 | `auth` | PBKDF2-HMAC-SHA-256 passwords, RAM-only sessions, login rate limiting, constant-time comparison |
 | `provisioning` | First-run state, NVS-backed settings record, `/api/v1/setup` workflow |
@@ -106,6 +108,7 @@ into firmware storage or `macro_model` without checking the migration map first.
 - `features/<domain>/` — route-level pages by domain (`auth`, `execution`, `macros`, `package`, `settings`); most are presentation scaffolds over representative data per `webapp/README.md` — a page rendering doesn't mean its persistence/API path is real, check the component before relying on one.
 - `routing.ts` — hash-based routing across all planned screens.
 - `App.tsx`/`main.tsx`/`components/` — shell, layout, and shared widgets (`AppShell`, `ConnectivityBanner`, `ErrorBanner`, `StatusBadge`, `AccessibleDialog`).
+- `pages/` — placeholder only (see its own `README.md`); route components currently live in `App.tsx`, not here.
 
 ### Host tests (`tests/host/`)
 
@@ -122,6 +125,7 @@ search those, not just `test_*.c`, when looking for a specific test.
 
 - **No failure-hiding**: no `|| true`, no redirecting errors away, no warning suppression, no first-party lint/analyzer exclusions. Every first-party warning is a defect (`scripts/README.md`). CI runs clang-tidy with `WarningsAsErrors: '*'` and ESLint/stylelint with `--max-warnings=0`. Approved exceptions are tracked in `docs/STATIC_ANALYSIS_EXCEPTIONS.md` — don't add a new suppression without registering it there.
 - **Production web assets must be fully local** — no remote `//` URLs in `webapp/dist`; `verify-no-remote-assets.sh` enforces this.
+- **Never embed a raw NUL byte in a markdown/doc file** — write the literal `\u0000` escape text instead; a raw NUL corrupts git's file-type detection (bit this repo twice — see commits `c33322f`/`2fd5e5d`).
 
 ## Code style (differs from defaults)
 
