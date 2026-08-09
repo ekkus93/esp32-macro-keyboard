@@ -16,8 +16,9 @@
 #include "web_api_response.h"
 #include "web_auth_routes.h"
 #include "web_device_actions.h"
+#include "web_diagnostics.h"
 #include "web_http_status.h"
-#include "web_server_internal.h"
+#include "web_server.h"
 #include "web_settings.h"
 
 /* The request policy layer (web_request_policy.c) has already validated (and

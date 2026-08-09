@@ -1,6 +1,7 @@
 #include "web_cookie.h"
 
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "app_error.h"
@@ -64,5 +65,24 @@ app_error_code_t web_cookie_extract_session(const char *cookie, char *out_token,
     }
     memcpy(out_token, match, match_length);
     out_token[match_length] = '\0';
+    return APP_ERROR_NONE;
+}
+
+app_error_code_t web_cookie_build_session_header(const char *session_token, char *out_header,
+                                                 size_t out_header_size) {
+    if (out_header != NULL && out_header_size > 0U) {
+        out_header[0] = '\0';
+    }
+    if (session_token == NULL || out_header == NULL || out_header_size == 0U ||
+        !valid_token(session_token, strlen(session_token))) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const int written =
+        snprintf(out_header, out_header_size,
+                 SESSION_COOKIE_NAME "=%s; HttpOnly; SameSite=Strict; Path=/", session_token);
+    if (written < 0 || (size_t)written >= out_header_size) {
+        out_header[0] = '\0';
+        return APP_ERROR_INTERNAL;
+    }
     return APP_ERROR_NONE;
 }

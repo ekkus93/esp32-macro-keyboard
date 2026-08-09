@@ -12,6 +12,8 @@
 #include "lwip/sockets.h"
 #include "web_api_core.h"
 #include "web_auth_routes.h"
+#include "web_cookie.h"
+#include "web_server.h"
 
 #define LOGIN_COOKIE_BYTES 160U
 #define LOGIN_CONTENT_TYPE_MAX_BYTES 64U
@@ -87,10 +89,8 @@ static esp_err_t send_login_error_and_forget_session(httpd_req_t *request,
 static esp_err_t send_login_accepted(httpd_req_t *request, const auth_session_view_t *session,
                                      uint32_t idle_seconds, uint32_t absolute_seconds) {
     char cookie[LOGIN_COOKIE_BYTES];
-    const int cookie_length = snprintf(cookie, sizeof(cookie),
-                                       SESSION_COOKIE_NAME "=%s; HttpOnly; SameSite=Strict; Path=/",
-                                       session->session_token);
-    if (cookie_length < 0 || (size_t)cookie_length >= sizeof(cookie) ||
+    if (web_cookie_build_session_header(session->session_token, cookie, sizeof(cookie)) !=
+            APP_ERROR_NONE ||
         httpd_resp_set_hdr(request, "Set-Cookie", cookie) != ESP_OK) {
         return send_login_error_and_forget_session(request, session,
                                                    "could not create login response");

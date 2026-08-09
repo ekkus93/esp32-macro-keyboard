@@ -633,6 +633,43 @@ target_include_directories(
 target_link_libraries(web_api_dispatch_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_api_dispatch_tests web_api_dispatch web)
 
+# web_api_administration.c binds to auth.c/device_controls.c/device_settings.c's public entry
+# points, none of which are host-linkable (mbedtls/FreeRTOS/NVS/GPIO); this target provides
+# host-safe stand-ins for those symbols directly in test_web_api_administration.c (see its header
+# comment) and links every other, genuinely host-testable dependency for real -- the same set
+# web_settings_tests/web_device_actions_tests/web_auth_routes_tests already link individually.
+add_executable(
+    web_api_administration_tests
+    test_web_api_administration.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/web_server/web_api_administration.c
+    ../../firmware/components/web_server/web_api_core.c
+    ../../firmware/components/web_server/web_api_response.c
+    ../../firmware/components/web_server/web_api_handler_common.c
+    ../../firmware/components/web_server/web_auth_routes.c
+    ../../firmware/components/web_server/web_settings.c
+    ../../firmware/components/web_server/web_device_actions.c
+    ../../firmware/components/web_server/web_cookie.c
+    ../../firmware/components/app_contracts_v2/settings_contract_v2.c
+    ../../firmware/components/app_contracts_v2/device_settings_v2.c
+    ../../firmware/components/app_contracts_v2/setup_contract_v2.c
+)
+target_include_directories(
+    web_api_administration_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/app_contracts_v2/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/provisioning/include
+            ../../firmware/components/device_controls/include
+            ../../firmware/components/device_settings/include
+            ../../firmware/components/support/include
+            ../../firmware/components/web_server
+            ../../firmware/components/web_server/include
+)
+target_link_libraries(web_api_administration_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_api_administration_tests web_api_administration web)
+
 add_executable(app_crc32_tests test_app_crc32.c ../../firmware/components/support/app_crc32.c)
 target_include_directories(app_crc32_tests PRIVATE ../../firmware/components/support/include)
 register_host_test(app_crc32_tests app_crc32 support)

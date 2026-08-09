@@ -5,7 +5,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "app_error.h"
 #include "subsystem_health.h"
+#include "web_api_response.h"
 
 #define WEB_DIAGNOSTICS_BUILD_ID_MAX_BYTES 40U
 #define WEB_DIAGNOSTICS_VERSION_MAX_BYTES 32U
@@ -60,5 +62,15 @@ typedef struct {
     const char *send_state;
     web_diagnostics_subsystem_t subsystems[WEB_DIAGNOSTICS_SUBSYSTEM_COUNT];
 } web_diagnostics_snapshot_t;
+
+/* GET /api/v1/diagnostics (SPEC_V2 13.13). Declared here (rather than
+ * web_server_internal.h, which pulls in esp_http_server.h transitively) so
+ * web_api_administration.c's dispatcher -- which takes only web_api_call_t /
+ * web_api_response_t, not an httpd_req_t -- can call it without acquiring an
+ * ESP-IDF dependency it does not otherwise need; that keeps
+ * web_api_administration.c host-testable. Defined in web_server_diagnostics.c,
+ * which is not itself host-testable (it reads live heap/USB/Wi-Fi/storage
+ * state via ESP-IDF headers). */
+app_error_code_t web_diagnostics_handle(web_api_response_t *response);
 
 #endif

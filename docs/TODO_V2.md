@@ -507,14 +507,17 @@ knowledge in firmware.
 - [x] Implement `POST /api/v1/setup`.
 - [x] Implement `POST /api/v1/auth/login`.
 - [x] Implement `POST /api/v1/auth/logout`.
-- [ ] Implement `GET /api/v1/auth/session`. Component pieces
-      (`auth_session_remaining`, JSON builder) are tested individually, but
-      the composing `handle_session()` in `web_api_administration.c` is not
-      compiled into any host test target.
-- [ ] Match exact schemas, status codes, cookie behavior, and expiry fields.
-      Expiry math and JSON shape are tested; cookie string formatting
-      (`web_server_login.c::send_login_accepted`) is httpd-dependent and
-      untested.
+- [x] Implement `GET /api/v1/auth/session`. `handle_session()` in
+      `web_api_administration.c` is now compiled and exercised by
+      `web_api_administration_tests` (success and backend-failure paths, exact
+      JSON shape and status code) — see
+      `docs/implementation-v2/V2_051_057_AUTH_SESSION_SETUP_TEST_COVERAGE_2026-08-08.md`.
+- [x] Match exact schemas, status codes, cookie behavior, and expiry fields.
+      Expiry math and JSON shape were already tested; cookie string formatting
+      is now factored into `web_cookie_build_session_header()`
+      (`web_cookie.c`, used by `web_server_login.c::send_login_accepted`) and
+      covered by a host test, round-tripping through
+      `web_cookie_extract_session()`.
 - [ ] Test the complete unprovisioned/provisioned route-access matrix.
       Guaranteed structurally by `check-setup-route-isolation.sh`, not by an
       executed test exercising every route/method pair in both states.
@@ -577,28 +580,34 @@ knowledge in firmware.
 
 - [ ] Test every route with valid, missing, extra, wrong-type, wrong-content-type,
       oversized, unauthorized, expired-session, malformed-path, and method-error
-      cases. Strong coverage for status/limits/login/send; zero coverage for
-      session-response composition, device-restart, and setup-conflict
-      handling in `web_api_administration.c` (not compiled into any host test
-      target); no live end-to-end HTTP test exists (no `esp_http_server` fake
-      anywhere in this codebase).
+      cases. Strong coverage for status/limits/login/send; `web_api_administration.c`
+      is now compiled into `web_api_administration_tests`, which covers
+      session-response composition, device-restart, and setup-conflict handling
+      (valid/backend-failure), but not the full valid/missing/extra/wrong-type/
+      wrong-content-type/oversized/unauthorized/expired-session/malformed-path/
+      method-error matrix for every route; blob-route coverage is unchanged (a
+      different track's scope); no live end-to-end HTTP test exists (no
+      `esp_http_server` fake anywhere in this codebase).
 - [x] Test the unprovisioned route surface contains only setup GET/POST and static
       setup assets.
 - [ ] Test setup-state GET returns only the approved two fields and returns `404`
-      after provisioning. No test exists for `setup_state_handler` or the
-      provisioned-mode 404 path.
-- [ ] Test setup POST returns `409` after provisioning. The existing test
-      (`test_already_provisioned_rejected`) exercises a different,
-      defense-in-depth function, not the actual live routing path
-      (`setup_route_response()`) that answers real requests — that path has
-      zero coverage.
+      after provisioning. The provisioned-mode `404` path
+      (`setup_route_response()`'s GET branch in `web_api_administration.c`) is now
+      tested; `setup_state_handler` (the unprovisioned-mode GET, in
+      `web_server_setup.c`) is httpd-dependent and remains untested.
+- [x] Test setup POST returns `409` after provisioning. `setup_route_response()`'s
+      POST branch is now directly tested via
+      `web_api_handle_administration(WEB_API_ROUTE_SETUP, POST, …)`, distinct from
+      `test_already_provisioned_rejected`'s defense-in-depth check.
 - [ ] Test exact response schemas and status codes. Strong for
-      status/limits/send/login/diagnostics; absent for session/restart/
-      setup-conflict/blob.
-- [ ] Test that secret-like sentinel values never appear in responses or logs.
-      Explicit checks exist for diagnostics and status; no equivalent test
-      for send/session/login (though password material is secure-zeroed by
-      construction).
+      status/limits/send/login/diagnostics; session/restart/setup-conflict are now
+      covered; blob is unchanged (a different track's scope).
+- [x] Test that secret-like sentinel values never appear in responses or logs.
+      Explicit checks exist for diagnostics and status; send's password material
+      is secure-zeroed by construction; session (`handle_session()`'s JSON) and
+      login (the cookie header `web_cookie_build_session_header()` composes) are
+      now scanned with the same `check-secret-sentinel.py`-backed harness
+      diagnostics/status use.
 - [ ] Consume the same checked-in examples from C and TypeScript tests. The
       TypeScript side genuinely validates against
       `contracts/v2/api/examples.json`; the C side never parses that file —

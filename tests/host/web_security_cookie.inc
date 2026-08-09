@@ -54,3 +54,53 @@ static void test_cookie_boundaries(void) {
         web_cookie_extract_session("MKSESSION=" TOKEN, output, AUTH_TOKEN_HEX_BYTES - 1U));
     TEST_CHECK_EQ_STRING("", output);
 }
+
+/* web_cookie_build_session_header() is the pure half of send_login_accepted()'s
+ * (web_server_login.c) Set-Cookie construction -- see that function's header
+ * comment. Covering it here, and round-tripping through
+ * web_cookie_extract_session() above, is the host-testable proof for the
+ * cookie string formatting SPEC_V2 13.5/V2-051 requires; login_handler()
+ * itself stays untestable on host (it needs a live httpd_req_t). */
+static void test_cookie_build_session_header(void) {
+    char header[160U];
+
+    memset(header, 'x', sizeof(header));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_cookie_build_session_header(TOKEN, header, sizeof(header)));
+    TEST_CHECK_EQ_STRING("MKSESSION=" TOKEN "; HttpOnly; SameSite=Strict; Path=/", header);
+
+    /* Round-trips through the extraction side above. */
+    char extracted[AUTH_TOKEN_HEX_BYTES];
+    memset(extracted, 'x', sizeof(extracted));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_cookie_extract_session(header, extracted, sizeof(extracted)));
+    TEST_CHECK_EQ_STRING(TOKEN, extracted);
+
+    memset(header, 'x', sizeof(header));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_cookie_build_session_header(NULL, header, sizeof(header)));
+    TEST_CHECK_EQ_STRING("", header);
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_cookie_build_session_header(TOKEN, NULL, sizeof(header)));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_cookie_build_session_header(TOKEN, header, 0U));
+
+    memset(header, 'x', sizeof(header));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_cookie_build_session_header(TOKEN_UPPER, header, sizeof(header)));
+    TEST_CHECK_EQ_STRING("", header);
+    memset(header, 'x', sizeof(header));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_cookie_build_session_header("short", header, sizeof(header)));
+    TEST_CHECK_EQ_STRING("", header);
+
+    /* A buffer that fits the token but not the full cookie attributes fails
+     * cleanly rather than truncating -- login_handler's fixed 160-byte stack
+     * buffer relies on this. */
+    char tiny[16U];
+    memset(tiny, 'x', sizeof(tiny));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL,
+                         web_cookie_build_session_header(TOKEN, tiny, sizeof(tiny)));
+    TEST_CHECK_EQ_STRING("", tiny);
+}

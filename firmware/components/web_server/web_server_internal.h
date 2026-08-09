@@ -18,7 +18,8 @@
 #define LOGIN_BODY_MAX_BYTES 256U
 #define SESSION_COOKIE_NAME "MKSESSION"
 
-extern web_server_config_t server_configuration;
+/* server_configuration is declared in web_server.h, not here -- see that
+ * header's comment. */
 extern web_adapter_lifecycle_t server_lifecycle;
 /* Owns the one-time setup code for the lifetime of setup mode. web_server_start()
  * initializes it (and wipes the plaintext copy in server_configuration) when
@@ -63,6 +64,7 @@ esp_err_t web_server_async_dispatch(httpd_req_t *request);
 esp_err_t static_handler(httpd_req_t *request);
 esp_err_t setup_state_handler(httpd_req_t *request);
 esp_err_t setup_submit_handler(httpd_req_t *request);
-app_error_code_t web_diagnostics_handle(web_api_response_t *response);
+/* web_diagnostics_handle() is declared in web_diagnostics.h, not here -- see
+ * that header's comment for why. */
 
 #endif
