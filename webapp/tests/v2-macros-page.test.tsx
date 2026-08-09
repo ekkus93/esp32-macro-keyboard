@@ -165,9 +165,7 @@ describe("MacrosPage — V2-091 macro list", () => {
     await click(
       requiredElement('[aria-label="Edit Open terminal"]', HTMLButtonElement),
     );
-    expect(callbacks.onOpenEditMacro).toHaveBeenCalledExactlyOnceWith(
-      macroBId,
-    );
+    expect(callbacks.onOpenEditMacro).toHaveBeenCalledExactlyOnceWith(macroBId);
   });
 
   test("the first row cannot move up and the last row cannot move down", async () => {
