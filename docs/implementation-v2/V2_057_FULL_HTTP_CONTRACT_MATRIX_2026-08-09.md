@@ -117,7 +117,7 @@ body (413), wrong-type field (400), extra field (400), missing field (400),
 macro-syntax parse error (422, with byte offset/line/column), executor busy
 (409), USB not ready (503). For `GET /api/v1/send`: valid (200, exact
 status schema), unauthorized (no cookie), unauthorized (expired session),
-never-sent (404). For `DELETE /api/v1/send`: valid (202, accepted), 
+never-sent (404). For `DELETE /api/v1/send`: valid (202, accepted),
 unauthorized (no cookie), never-sent (404). Malformed-path (no path
 parameter on this route) and method-error (e.g. `PUT /api/v1/send`) are
 covered at the pure-function level in `test_web_api_core.c`
@@ -211,7 +211,7 @@ parallel worktrees.
 
 Host tests (fast loop, `web` label only):
 
-```
+```bash
 ./scripts/run-tests.sh web
 ```
 
@@ -221,7 +221,7 @@ Host tests (fast loop, `web` label only):
 
 Full host suite:
 
-```
+```bash
 ./scripts/run-tests.sh
 ```
 
@@ -230,7 +230,7 @@ Full host suite:
 
 Format check:
 
-```
+```bash
 ./scripts/check-format.sh
 ```
 
@@ -245,7 +245,7 @@ files.
 
 Firmware build + clang-tidy:
 
-```
+```bash
 . "$HOME/esp/esp-idf-v5.5.5/export.sh" && ./scripts/check-firmware.sh
 ```
 
