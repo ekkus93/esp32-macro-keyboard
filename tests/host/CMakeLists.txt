@@ -493,6 +493,51 @@ target_compile_definitions(
 target_link_libraries(web_server_administration_route_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_server_administration_route_tests web_server_administration_route web)
 
+# Live route-registration/dispatch matrix test for web_server_lifecycle.c (TODO_V2 V2-051's "Test
+# the complete unprovisioned/provisioned route-access matrix"). Every other route test target above
+# calls one fixed-URI handler directly; this is the one target that actually calls
+# web_server_start()/web_server_stop() and lets the real normal_routes[]/setup_routes[] tables
+# register into fakes/fake_httpd_router.c -- a faithful host port of ESP-IDF's own
+# httpd_register_uri_handler()/httpd_find_uri_handler()/httpd_uri_match_wildcard() -- then asks it
+# which handler, if any, a given uri/method resolves to in each provisioning mode. Every route
+# handler symbol web_server_lifecycle.c references is defined as a never-called stand-in directly in
+# test_web_server_lifecycle.c (see that file's header comment for why); only
+# web_server_async_start()/web_server_async_stop() (FreeRTOS-backed, not host-linkable) and the
+# httpd layer are faked outside of it, so this target's only first-party sources are
+# web_server_lifecycle.c itself, the adapter lifecycle helper it calls
+# (web_server_adapter_lifecycle.c/ web_server_adapter_common.c), and
+# setup_contract_v2.c/device_settings_v2.c (app_v2_setup_session_init()).
+add_executable(
+    web_server_lifecycle_tests
+    test_web_server_lifecycle.c
+    ../../firmware/components/web_server/web_server_lifecycle.c
+    ../../firmware/components/web_server/web_server_adapter_lifecycle.c
+    ../../firmware/components/web_server/web_server_adapter_common.c
+    ../../firmware/components/app_contracts_v2/setup_contract_v2.c
+    ../../firmware/components/app_contracts_v2/device_settings_v2.c
+    ../../firmware/components/macro_model/app_error.c
+    fakes/fake_httpd_router.c
+)
+target_include_directories(
+    web_server_lifecycle_tests
+    PRIVATE fakes/esp_http_server_stub
+            fakes
+            ../../firmware/components/web_server
+            ../../firmware/components/web_server/include
+            ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/app_contracts_v2/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/storage/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/usb_keyboard/include
+            ../../firmware/components/device_settings/include
+            ../../firmware/components/support/include
+)
+target_link_libraries(web_server_lifecycle_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_server_lifecycle_tests web_server_lifecycle web)
+
 # HTTP-adapter-level tests for the blob route handlers (web_server_blob.c), exercised against a fake
 # esp_http_server.h (fakes/esp_http_server_stub) and a fake storage_blob backend
 # (fakes/fake_storage_blob.c) -- see test_web_server_blob.c and fakes/fake_storage_blob.h for why

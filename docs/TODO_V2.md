@@ -575,9 +575,40 @@ knowledge in firmware.
       (`web_cookie.c`, used by `web_server_login.c::send_login_accepted`) and
       covered by a host test, round-tripping through
       `web_cookie_extract_session()`.
-- [ ] Test the complete unprovisioned/provisioned route-access matrix.
-      Guaranteed structurally by `check-setup-route-isolation.sh`, not by an
-      executed test exercising every route/method pair in both states.
+- [x] Test the complete unprovisioned/provisioned route-access matrix.
+      Previously guaranteed only structurally, by
+      `check-setup-route-isolation.sh` parsing `web_server_lifecycle.c`'s
+      `normal_routes[]`/`setup_routes[]` array literals with a regex. Closed
+      with an executed test: `fakes/fake_httpd_router.c` is a faithful host
+      port of ESP-IDF v5.5.5's own `httpd_register_uri_handler()`/
+      `httpd_find_uri_handler()`/`httpd_uri_match_wildcard()`
+      (`components/esp_http_server/src/httpd_uri.c`), so
+      `tests/host/test_web_server_lifecycle.c` calls the real, unmodified
+      `web_server_start()`/`web_server_stop()` (previously linked into no host
+      test target at all) in both `WEB_SERVER_MODE_SETUP` and
+      `WEB_SERVER_MODE_NORMAL`, letting the real route tables register into
+      the fake router, then resolves a representative uri/method pair for
+      every route named in `docs/SPEC_V2.md` against it in each mode and
+      asserts which handler answers, if any. This is a level up from testing
+      only that one fixed-URI handler behaves correctly (already covered
+      elsewhere) or that the array-literal source text looks right (the
+      isolation script): it proves what ESP-IDF's own dispatch algorithm
+      actually resolves. Confirmed SPEC_V2 12.3 end to end ("every other
+      `/api/v1` route is unavailable while unprovisioned") and, as a
+      genuinely new finding no static check could show, that both route
+      tables' trailing `GET *` static-asset catch-all means a mismatched
+      route never resolves as a routing-layer 404 — it is always either
+      answered by a specific handler, falls through to `static_handler()` (a
+      GET request, which then 404s at the static-file layer, not the routing
+      layer), or is `405 Method Not Allowed` (a non-GET request to a uri the
+      catch-all's pattern still matches), never a bare "route not found" at
+      the `httpd_find_uri_handler()` level. Also proves the provisioning
+      transition itself: the same lifecycle object started in setup mode,
+      stopped, then restarted in normal mode ends up with the swapped route
+      surface, not a leaked or accumulated one. 3 tests
+      (`web_server_lifecycle_tests`), covering 52 uri/method combinations
+      across both provisioning modes, passing under `--sanitizers` too. See
+      `docs/implementation-v2/V2_051_057_ROUTE_ACCESS_MATRIX_2026-08-09.md`.
 
 ## V2-052 — Status and limits routes
 
@@ -750,11 +781,22 @@ knowledge in firmware.
 
 - [x] Route table exactly matches the v2 specification.
 - [x] Old routes are absent.
-- [ ] Contract and security tests pass. The tests that exist pass (54/54),
-      but this masks the real coverage gap enumerated under V2-057's route
-      matrix bullet (the physical-confirmation-required=true/async-worker
-      path) — passing tests is not the same as complete contract/security
-      coverage.
+- [ ] Contract and security tests pass. The tests that exist pass (55/55,
+      up from 54/54 after V2-051's new `web_server_lifecycle_tests` route-
+      access-matrix target), but this masks the real coverage gap enumerated
+      under V2-057's route matrix bullet (the physical-confirmation-
+      required=true/async-worker path) — passing tests is not the same as
+      complete contract/security coverage. That gap was re-investigated in
+      this same track and remains genuinely unreachable at the host level:
+      `web_server_async.c` calls FreeRTOS APIs directly
+      (`xQueueCreate`/`xTaskCreate`/`xSemaphoreCreateBinary`/
+      `portENTER_CRITICAL`, none behind a testable backend interface the way
+      `macro_executor` is), and no FreeRTOS host fake exists anywhere in this
+      codebase (`tests/host/fakes/fake_freertos.*` is a small executor-only
+      test double, not a `freertos/queue.h`/`freertos/task.h` stand-in) —
+      building one would be a substantial new concurrency-fake, not a narrow
+      test addition, and is left undone rather than forced. See
+      `docs/implementation-v2/V2_051_057_ROUTE_ACCESS_MATRIX_2026-08-09.md`.
 - [ ] API documentation examples match observed responses. No script or test
       diffs actual handler output against `contracts/v2/api/examples.json`
       wholesale; `setup-state` and `diagnostics` now do this individually
