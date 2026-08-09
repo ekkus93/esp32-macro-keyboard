@@ -1059,10 +1059,13 @@ management (V2-102)"`. See
       and fixing a genuine CDP-harness hang this listener exposed — see
       `docs/implementation-v2/V2_100_103_MACRO_EDITING_PACKAGE_MANAGEMENT_2026-08-09.md`.
 - [ ] Warn before Sign Out, snapshot load, import replacement, reset settings,
-      and factory reset. `UnsavedChangesPrompt.tsx` exists and is unit-tested
-      in isolation, but none of its five trigger points are wired to it yet
-      — none of those screens (Sign Out control, Snapshots UI, Import UI,
-      Settings UI) exist before Phase 11/12.
+      and factory reset. `UnsavedChangesPrompt.tsx` exists and is
+      unit-tested in isolation. Two of its five trigger points are now
+      wired: snapshot load and import replacement, both in
+      `SnapshotsPage.tsx` (Phase 11, V2-113/V2-115), with dedicated unit and
+      real-browser coverage. Sign Out, reset settings, and factory reset
+      remain unwired — those screens (Sign Out control, Settings UI) don't
+      exist before Phase 12 (V2-120/V2-121).
 - [x] Offer context-appropriate Cancel, Export working copy, Save snapshot, and
       Discard options. `UnsavedChangesPrompt.tsx` implements all four; only
       its call sites (the item above) are missing.
@@ -1091,71 +1094,126 @@ management (V2-102)"`. See
 
 ## V2-110 — Manual Save snapshot
 
-- [ ] Validate the entire repository.
-- [ ] Serialize compact UTF-8 JSON.
-- [ ] Gzip in React.
-- [ ] Enforce device limits before upload.
-- [ ] Upload only after an explicit user action.
-- [ ] Mark saved only after `201 Created`.
-- [ ] Preserve dirty work after every failure.
-- [ ] Never autosave after edits, sends, package selection, timers, or navigation.
+- [x] Validate the entire repository. `saveWorkingCopyAsSnapshot` now calls
+      `validateRepositoryForUse` before ever serializing, per SPEC_V2 §8.5;
+      `SnapshotValidationError` on failure.
+- [x] Serialize compact UTF-8 JSON. `serializeRepository` (Phase 7).
+- [x] Gzip in React. Reuses `gzipCompress`/`CompressionStream("gzip")`
+      (Phase 7 V2-073) unmodified.
+- [x] Enforce device limits before upload. `SnapshotTooLargeError` against
+      `v2Limits.blobMaxBytes` before any `fetch` call.
+- [x] Upload only after an explicit user action. Only two call sites exist:
+      the header Save snapshot button and `SnapshotsPage`'s Save current
+      snapshot button, both plain `onClick` handlers.
+- [x] Mark saved only after `201 Created`. `v2PostBinary` now requires
+      exactly `201` (previously accepted any 2xx); `store.markSaved` runs
+      only after that resolves.
+- [x] Preserve dirty work after every failure. Tested for validation, size,
+      and network/server failures — working copy stays dirty and unchanged.
+- [x] Never autosave after edits, sends, package selection, timers, or
+      navigation. True by construction (no timer or edit path calls save);
+      tests assert zero incidental save/delete calls.
+
+Evidence: `webapp/src/v2/snapshotClient.ts`, `webapp/src/v2/apiClient.ts`,
+tested by `webapp/tests/v2-snapshot-client.test.ts` and
+`webapp/tests/v2-api-client.test.ts`. See
+`docs/implementation-v2/V2_110_116_SNAPSHOTS_IMPORT_EXPORT_2026-08-09.md`.
 
 ## V2-111 — Snapshot management
 
-- [ ] Show blob ID, stored size, loaded indicator, storage usage, and configured
+- [x] Show blob ID, stored size, loaded indicator, storage usage, and configured
       advisory target.
-- [ ] Provide Load, Download, Delete, and Save current snapshot.
-- [ ] Avoid device-generated dates.
-- [ ] Permit manual loading at any time.
-- [ ] Confirm deletion by exact blob ID and consequence.
-- [ ] Never automatically delete a snapshot.
+- [x] Provide Load, Download, Delete, and Save current snapshot.
+- [x] Avoid device-generated dates.
+- [x] Permit manual loading at any time.
+- [x] Confirm deletion by exact blob ID and consequence.
+- [x] Never automatically delete a snapshot.
+
+Evidence: `webapp/src/features/snapshots/v2/SnapshotsPage.tsx`, tested by
+`webapp/tests/v2-snapshots-page.test.tsx` and real-Chrome
+`webapp/tests/browser/run-browser-tests.mjs`. See
+`docs/implementation-v2/V2_110_116_SNAPSHOTS_IMPORT_EXPORT_2026-08-09.md`.
 
 ## V2-112 — Advisory retention target
 
-- [ ] Default target to five.
-- [ ] Show a non-blocking cleanup indicator when count exceeds target.
-- [ ] Let the user choose which snapshots to delete.
-- [ ] Permit a sixth or later snapshot when storage permits.
-- [ ] Test that no save path triggers deletion.
+- [x] Default target to five. Read from `settings.snapshotRetentionTarget`
+      (device default `5`, V2-014/V2-043) — never hardcoded client-side.
+- [x] Show a non-blocking cleanup indicator when count exceeds target.
+- [x] Let the user choose which snapshots to delete.
+- [x] Permit a sixth or later snapshot when storage permits.
+- [x] Test that no save path triggers deletion.
+
+Evidence: `webapp/src/v2/snapshotRetention.ts`, tested by
+`webapp/tests/v2-snapshot-retention.test.ts` and
+`webapp/tests/v2-snapshots-page.test.tsx`. See
+`docs/implementation-v2/V2_110_116_SNAPSHOTS_IMPORT_EXPORT_2026-08-09.md`.
 
 ## V2-113 — Dirty-work protection during load
 
-- [ ] Warn when loading another snapshot while dirty.
-- [ ] Offer Cancel, Export working copy, Save snapshot, and Discard changes and
+- [x] Warn when loading another snapshot while dirty.
+- [x] Offer Cancel, Export working copy, Save snapshot, and Discard changes and
       load.
-- [ ] Validate the selected snapshot before replacing memory.
-- [ ] Leave stored snapshots untouched.
-- [ ] Resolve selected package after load.
+- [x] Validate the selected snapshot before replacing memory.
+- [x] Leave stored snapshots untouched.
+- [x] Resolve selected package after load.
+
+Evidence: `webapp/src/features/snapshots/v2/SnapshotsPage.tsx` (reuses
+`UnsavedChangesPrompt.tsx` from Phase 10), tested by
+`webapp/tests/v2-snapshots-page.test.tsx` and real-Chrome
+`webapp/tests/browser/run-browser-tests.mjs`. See
+`docs/implementation-v2/V2_110_116_SNAPSHOTS_IMPORT_EXPORT_2026-08-09.md`.
 
 ## V2-114 — Unreadable snapshot recovery
 
-- [ ] Show the failing blob and exact decompression/schema error.
-- [ ] Keep it stored.
-- [ ] Allow download, delete, or deliberate selection of another blob.
-- [ ] Never silently fall back.
+- [x] Show the failing blob and exact decompression/schema error.
+- [x] Keep it stored.
+- [x] Allow download, delete, or deliberate selection of another blob.
+- [x] Never silently fall back.
+
+Evidence: `webapp/src/features/snapshots/v2/SnapshotsPage.tsx`, tested by
+`webapp/tests/v2-snapshots-page.test.tsx`. See
+`docs/implementation-v2/V2_110_116_SNAPSHOTS_IMPORT_EXPORT_2026-08-09.md`.
 
 ## V2-115 — Import and export
 
-- [ ] Export the current working copy as `.emk-repository.json.gz`.
-- [ ] Import bytes, decompress, decode, parse, and fully validate before
+- [x] Export the current working copy as `.emk-repository.json.gz`.
+- [x] Import bytes, decompress, decode, parse, and fully validate before
       replacement.
-- [ ] Show package and macro counts before confirmation.
-- [ ] Mark imported data dirty.
-- [ ] Do not upload automatically.
-- [ ] Exclude every device credential, session, key, and diagnostic field.
+- [x] Show package and macro counts before confirmation.
+- [x] Mark imported data dirty.
+- [x] Do not upload automatically.
+- [x] Exclude every device credential, session, key, and diagnostic field.
+      True by construction of the frozen `Repository` schema type (Phase 1):
+      only `format`/`schemaVersion`/`packages`/`macros` fields exist to
+      serialize, and `validateRepositoryForUse`'s exact-key check rejects any
+      extra field on import.
+
+Evidence: `webapp/src/features/snapshots/v2/SnapshotsPage.tsx`, tested by
+`webapp/tests/v2-snapshots-page.test.tsx` and real-Chrome
+`webapp/tests/browser/run-browser-tests.mjs` (a real file selected via CDP
+`DOM.setFileInputFiles` and a real downloaded, gzip-decompressed export). See
+`docs/implementation-v2/V2_110_116_SNAPSHOTS_IMPORT_EXPORT_2026-08-09.md`.
 
 ## V2-116 — Advanced non-atomic replace
 
-- [ ] Keep normal saves additive.
-- [ ] Implement replacement only as an explicitly advanced delete-then-add flow.
-- [ ] Warn that a failed add does not restore the deleted blob.
-- [ ] Test delete-success/add-failure behavior.
+- [x] Keep normal saves additive.
+- [x] Implement replacement only as an explicitly advanced delete-then-add flow.
+- [x] Warn that a failed add does not restore the deleted blob.
+- [x] Test delete-success/add-failure behavior.
+
+Evidence: `webapp/src/v2/snapshotClient.ts` (`replaceSnapshotWithWorkingCopy`),
+`webapp/src/features/snapshots/v2/SnapshotsPage.tsx`, tested by
+`webapp/tests/v2-snapshot-client.test.ts` and
+`webapp/tests/v2-snapshots-page.test.tsx`. See
+`docs/implementation-v2/V2_110_116_SNAPSHOTS_IMPORT_EXPORT_2026-08-09.md`.
 
 ## Phase 11 exit gate
 
-- [ ] Snapshot and import/export browser tests pass.
-- [ ] No automatic snapshot creation or deletion exists.
-- [ ] Dirty work survives all recoverable failure paths.
+- [x] Snapshot and import/export browser tests pass. Real-Chrome coverage
+      added to `run-browser-tests.mjs`; run repeatedly and stable — see the
+      implementation report for exact run counts.
+- [x] No automatic snapshot creation or deletion exists.
+- [x] Dirty work survives all recoverable failure paths.
 
 ---
 

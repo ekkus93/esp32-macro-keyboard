@@ -109,6 +109,13 @@ export type StartupResult =
       settings: SettingsResponse;
       send: SendStatusResponse | null;
       destination: StartupPackageDestination;
+      /**
+       * The blob ID the working copy was just loaded from (TODO_V2 V2-111
+       * "loaded snapshot indicator"). Always populated here: reaching `kind:
+       * "ready"` requires a successful {@link StartupDependencies.loadBlobIntoStore}
+       * call, which only ever happens against `newest.id`.
+       */
+      blobId: string;
     };
 
 function invalidSnapshotMessage(result: LoadSnapshotResult): string {
@@ -231,5 +238,6 @@ export async function runStartup(
       loaded.repository,
       settings.lastSelectedPackageId,
     ),
+    blobId: newest.id,
   };
 }

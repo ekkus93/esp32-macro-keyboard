@@ -57,19 +57,44 @@ export class SnapshotTooLargeError extends Error {
 }
 
 /**
+ * Raised when {@link saveWorkingCopyAsSnapshot} finds the working copy fails
+ * full repository validation — SPEC_V2 §8.5 "Before React accepts a
+ * repository as a working copy or uploads it as a snapshot, it MUST
+ * validate..." (TODO_V2 V2-110). In practice every editing path already
+ * enforces field-level limits before calling
+ * {@link import("./repositoryWorkingCopy").RepositoryWorkingCopyStore.applyContentChange},
+ * so this is defense in depth, not the primary gate — but it is the one
+ * point that unconditionally guards every byte this application ever
+ * uploads.
+ */
+export class SnapshotValidationError extends Error {
+  public readonly issues: readonly RepositoryValidationIssue[];
+  public constructor(issues: readonly RepositoryValidationIssue[]) {
+    super("The working copy failed repository validation and was not saved.");
+    this.name = "SnapshotValidationError";
+    this.issues = issues;
+  }
+}
+
+/**
  * Serializes and gzip-compresses the current working copy and uploads it as
  * a new blob (`POST /api/v1/blob`, per SPEC_V2 §10.3). On success (`201`),
  * the working copy's dirty flag is cleared via
- * {@link RepositoryWorkingCopyStore.markSaved}. On any failure — including a
- * pre-flight size check against `v2Limits.blobMaxBytes`, network failure, or
- * a server error such as `413`/`507` — the working copy is left untouched
- * and dirty, per TODO_V2 V2-073 "Keep dirty work after failed save."
+ * {@link RepositoryWorkingCopyStore.markSaved}. On any failure — a full
+ * validation failure, a pre-flight size check against
+ * `v2Limits.blobMaxBytes`, network failure, or a server error such as
+ * `413`/`507` — the working copy is left untouched and dirty, per TODO_V2
+ * V2-073/V2-110 "Keep dirty work after failed save."
  */
 export async function saveWorkingCopyAsSnapshot(
   store: RepositoryWorkingCopyStore,
 ): Promise<BlobCreatedResponse> {
   const repository = store.getRepository();
-  const bytes = await encodeRepositorySnapshot(repository);
+  const validated = validateRepositoryForUse(repository);
+  if (!validated.ok) {
+    throw new SnapshotValidationError(validated.issues);
+  }
+  const bytes = await encodeRepositorySnapshot(validated.value);
   if (bytes.byteLength > v2Limits.blobMaxBytes) {
     throw new SnapshotTooLargeError(bytes.byteLength);
   }
@@ -79,7 +104,7 @@ export async function saveWorkingCopyAsSnapshot(
     gzipContentType,
     isBlobCreatedResponse,
   );
-  store.markSaved(repository);
+  store.markSaved(validated.value);
   return created;
 }
 
@@ -141,6 +166,44 @@ export async function downloadSnapshotBytes(id: string): Promise<Uint8Array> {
 /** `DELETE /api/v1/blob/{id}` (`204`). Always an explicit user action (SPEC_V2 §10.5). */
 export async function deleteSnapshot(id: string): Promise<void> {
   await v2DeleteNoContent(blobPath(id));
+}
+
+export type ReplaceSnapshotResult =
+  | { ok: true; deletedId: string; created: BlobCreatedResponse }
+  | { ok: false; stage: "delete"; deletedId: null; error: unknown }
+  | { ok: false; stage: "add"; deletedId: string; error: unknown };
+
+/**
+ * The advanced, explicitly non-atomic "replace this snapshot" flow, per
+ * SPEC_V2 §10.6 and UI_UX_SPEC_V2 §9.7 (TODO_V2 V2-116): "There is no `PUT`
+ * and no atomic blob-replace operation... React performs two independent
+ * operations: 1. delete the selected blob; 2. add the replacement as a new
+ * blob." Ordinary saves (`saveWorkingCopyAsSnapshot`) never call this —
+ * normal snapshot saving only ever adds.
+ *
+ * If the delete fails, nothing else happens and the original blob is
+ * untouched (`stage: "delete"`). If the delete succeeds but the subsequent
+ * add fails, the deleted blob is already gone and stays gone — the caller
+ * MUST warn about exactly that non-atomic consequence before ever calling
+ * this (`stage: "add"`, `deletedId` identifies what was already removed).
+ * The working copy itself is never touched by this function; a failed add
+ * leaves it exactly as `saveWorkingCopyAsSnapshot` would (dirty, unchanged).
+ */
+export async function replaceSnapshotWithWorkingCopy(
+  id: string,
+  store: RepositoryWorkingCopyStore,
+): Promise<ReplaceSnapshotResult> {
+  try {
+    await deleteSnapshot(id);
+  } catch (error: unknown) {
+    return { ok: false, stage: "delete", deletedId: null, error };
+  }
+  try {
+    const created = await saveWorkingCopyAsSnapshot(store);
+    return { ok: true, deletedId: id, created };
+  } catch (error: unknown) {
+    return { ok: false, stage: "add", deletedId: id, error };
+  }
 }
 
 export interface ExportedRepository {

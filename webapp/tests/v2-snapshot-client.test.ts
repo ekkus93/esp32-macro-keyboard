@@ -8,12 +8,14 @@ import { createEmptyRepository } from "../src/v2/repositoryValidation";
 import { createRepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";
 import {
   SnapshotTooLargeError,
+  SnapshotValidationError,
   deleteSnapshot,
   downloadSnapshotBytes,
   exportRepository,
   importRepository,
   listSnapshots,
   loadSnapshotIntoWorkingCopy,
+  replaceSnapshotWithWorkingCopy,
   saveWorkingCopyAsSnapshot,
 } from "../src/v2/snapshotClient";
 import {
@@ -83,13 +85,59 @@ describe("v2 snapshot client", () => {
   function randomSource(length: number): string {
     // High-entropy filler: gzip cannot meaningfully compress this, unlike a
     // repeated character, so the compressed upload genuinely exceeds
-    // v2Limits.blobMaxBytes.
+    // v2Limits.blobMaxBytes. `{` and `}` are excluded — they are the macro
+    // language's directive delimiters (§7), and this fixture must stay
+    // grammar-valid now that `saveWorkingCopyAsSnapshot` validates the whole
+    // repository before ever reaching the size check (V2-110).
     const bytes = new Uint8Array(length);
     crypto.getRandomValues(bytes);
-    return Array.from(bytes, (byte) =>
-      String.fromCharCode(33 + (byte % 94)),
-    ).join("");
+    return Array.from(bytes, (byte) => {
+      let codePoint = 33 + (byte % 92);
+      if (codePoint >= 123) {
+        codePoint += 1; // skip '{' (123)
+      }
+      if (codePoint >= 125) {
+        codePoint += 1; // skip '}' (125)
+      }
+      return String.fromCharCode(codePoint);
+    }).join("");
   }
+
+  test("saveWorkingCopyAsSnapshot validates the entire repository before ever calling fetch, and leaves the working copy dirty on failure (V2-110)", async () => {
+    const invalid: Repository = {
+      ...canonical,
+      packages: [
+        { id: "not-a-uuid", name: "Bad package", macros: [] },
+        ...canonical.packages,
+      ],
+    };
+    const store = createRepositoryWorkingCopyStore(createEmptyRepository());
+    store.applyContentChange(invalid);
+
+    const rejection = expect(saveWorkingCopyAsSnapshot(store)).rejects;
+    await rejection.toBeInstanceOf(SnapshotValidationError);
+    await rejection.toMatchObject({
+      issues: expect.arrayContaining([
+        expect.objectContaining({ path: "$.packages[0].id" }) as unknown,
+      ]) as unknown,
+    });
+    expect(getFetchCalls()).toHaveLength(0);
+    expect(store.getIsDirty()).toBe(true);
+    expect(store.getRepository()).toEqual(invalid);
+  });
+
+  test("saveWorkingCopyAsSnapshot never issues a DELETE — normal saves are additive only (V2-116)", async () => {
+    const store = createRepositoryWorkingCopyStore(createEmptyRepository());
+    store.applyContentChange(canonical);
+    planFetch((call) => {
+      expect(call.method).toBe("POST");
+      return jsonResponse({ id: "6", sizeBytes: 42 }, 201);
+    });
+    await saveWorkingCopyAsSnapshot(store);
+    expect(getFetchCalls().every((call) => call.method !== "DELETE")).toBe(
+      true,
+    );
+  });
 
   test("saveWorkingCopyAsSnapshot refuses an oversized snapshot before ever calling fetch", async () => {
     const oversizedPackage = {
@@ -228,5 +276,73 @@ describe("v2 snapshot client", () => {
     );
     const result = await importRepository(bytes);
     expect(result.ok).toBe(false);
+  });
+
+  describe("replaceSnapshotWithWorkingCopy — V2-116 advanced non-atomic replace", () => {
+    test("deletes then adds, in that order, on success", async () => {
+      const store = createRepositoryWorkingCopyStore(createEmptyRepository());
+      store.applyContentChange(canonical);
+      const order: string[] = [];
+      planFetch((call) => {
+        expect(call.method).toBe("DELETE");
+        expect(call.url).toBe("/api/v1/blob/1");
+        order.push("delete");
+        return new Response(null, { status: 204 });
+      });
+      planFetch((call) => {
+        expect(call.method).toBe("POST");
+        order.push("add");
+        return jsonResponse({ id: "9", sizeBytes: 42 }, 201);
+      });
+
+      const result = await replaceSnapshotWithWorkingCopy("1", store);
+      expect(order).toEqual(["delete", "add"]);
+      expect(result).toEqual({
+        ok: true,
+        deletedId: "1",
+        created: { id: "9", sizeBytes: 42 },
+      });
+      expect(store.getIsDirty()).toBe(false);
+    });
+
+    test("a delete failure never attempts the add, and changes nothing", async () => {
+      const store = createRepositoryWorkingCopyStore(createEmptyRepository());
+      store.applyContentChange(canonical);
+      planJsonResponse(
+        { error: { code: "not_found", message: "No such blob." } },
+        404,
+      );
+
+      const result = await replaceSnapshotWithWorkingCopy("1", store);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.stage).toBe("delete");
+        expect(result.deletedId).toBeNull();
+      }
+      expect(getFetchCalls()).toHaveLength(1);
+      expect(store.getIsDirty()).toBe(true);
+    });
+
+    test("a delete success followed by an add failure reports the deleted ID, and the working copy stays dirty (not restored)", async () => {
+      const store = createRepositoryWorkingCopyStore(createEmptyRepository());
+      store.applyContentChange(canonical);
+      planFetch(() => new Response(null, { status: 204 }));
+      planJsonResponse(
+        { error: { code: "storage_full", message: "No space remains." } },
+        507,
+      );
+
+      const result = await replaceSnapshotWithWorkingCopy("1", store);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.stage).toBe("add");
+        expect(result.deletedId).toBe("1");
+      }
+      // The deleted blob is gone and this function never recreates it under
+      // the old ID — the working copy remains dirty and unsaved, exactly as
+      // an ordinary failed save would leave it (SPEC_V2 §10.6).
+      expect(store.getIsDirty()).toBe(true);
+      expect(store.getRepository()).toEqual(canonical);
+    });
   });
 });

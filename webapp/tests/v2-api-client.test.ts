@@ -210,6 +210,19 @@ describe("v2 API client", () => {
     expect(created).toEqual({ id: "4", sizeBytes: 3 });
   });
 
+  test("v2PostBinary requires exactly 201, per SPEC_V2 §10.3 / TODO_V2 V2-110 'Mark saved only after 201 Created'", async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    planFetch(() => jsonResponse({ id: "4", sizeBytes: 3 }, 200));
+    await expect(
+      v2PostBinary(
+        "/api/v1/blob",
+        bytes,
+        "application/gzip",
+        isBlobCreatedResponse,
+      ),
+    ).rejects.toMatchObject({ code: "invalid_response" });
+  });
+
   test("v2GetBinary returns raw bytes and checks the content type", async () => {
     const bytes = new Uint8Array([9, 9, 9]);
     planFetch(
