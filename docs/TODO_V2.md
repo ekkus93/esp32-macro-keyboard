@@ -620,17 +620,29 @@ knowledge in firmware.
       never by the handler itself) are instead covered at the pure-function
       level in `test_web_api_core.c`
       (`WEB_API_ROUTE_STATUS`/`LIMITS`/`SEND` cases). `web_api_administration.c`'s
-      routes (session, restart, settings, change-password, reset-settings,
-      factory-reset, diagnostics, setup-conflict) are still tested only via
-      direct function calls with narrow test doubles, plus
-      `web_request_policy_evaluate()` unit coverage of the shared auth/
-      content-type/body-limit/confirmation gate all of them pass through
-      first (now including a `WEB_API_ROUTE_DIAGNOSTICS_FULL`-specific
-      unauthorized/expired-session case, and a dispatch-wiring test proving
-      that route reaches `web_diagnostics_handle()`) — no live end-to-end HTTP
-      test wires `web_server_api.c`/`web_request_policy.c` to the httpd fake
-      for that group; investigated and deliberately deferred, see
-      `docs/implementation-v2/V2_057_FULL_HTTP_CONTRACT_MATRIX_2026-08-09.md`.
+      session, restart, settings, change-password, reset-settings, and
+      factory-reset routes, plus the provisioned-mode setup-conflict fallback,
+      now also have live end-to-end coverage: `test_web_server_administration_route.c`
+      drives the real `api_handler()` (`web_server_api.c`'s generic
+      `/api/v1/*` wildcard handler) against the same httpd fake, proving
+      `method_from_request()` -> `web_api_parse_path()` ->
+      `web_request_policy_evaluate()` -> `web_api_dispatch()` ->
+      `web_api_handle_administration()` actually wires together — one valid
+      case per route plus unauthorized/expired-session reused across a GET,
+      a bodyless POST, and a body-bearing PUT to prove the shared gate holds
+      for every request shape, not duplicated per route. This closed a real
+      defect the live path exposed and unit tests could not:
+      `web_server_api.c`'s `status_text()` had no case for `WEB_HTTP_STATUS_NO_CONTENT`
+      (204), so a *successful* change-password response was sent to the
+      client as "500 Internal Server Error" — fixed in the same commit.
+      `diagnostics` and the physical-confirmation-required=true/async-worker
+      path for this group remain live-untested (the former needs ESP-IDF
+      heap/reset-reason stand-ins and eight health-snapshot functions with no
+      host stand-in yet; the latter is FreeRTOS-dependent `web_server_async.c`
+      code, not `web_server_api.c`/`web_request_policy.c`) — both
+      investigated and deliberately deferred, see
+      `docs/implementation-v2/V2_057_FULL_HTTP_CONTRACT_MATRIX_2026-08-09.md`
+      and `docs/implementation-v2/V2_057_LIVE_ADMINISTRATION_HTTP_TEST_2026-08-09.md`.
 - [x] Test the unprovisioned route surface contains only setup GET/POST and static
       setup assets.
 - [ ] Test setup-state GET returns only the approved two fields and returns `404`
@@ -665,7 +677,7 @@ knowledge in firmware.
 
 - [x] Route table exactly matches the v2 specification.
 - [x] Old routes are absent.
-- [ ] Contract and security tests pass. The tests that exist pass (52/52),
+- [ ] Contract and security tests pass. The tests that exist pass (53/53),
       but this masks the real coverage gaps enumerated under V2-057 — passing
       tests is not the same as complete contract/security coverage.
 - [ ] API documentation examples match observed responses. No script or test

@@ -352,6 +352,66 @@ target_include_directories(
 target_link_libraries(web_server_send_route_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_server_send_route_tests web_server_send_route web)
 
+# Live end-to-end HTTP tests for the administration route group (session, restart, settings,
+# change-password, reset-settings, factory-reset, setup-conflict) -- V2-057's last remaining gap.
+# Drives the real api_handler() (web_server_api.c, the generic "/api/v1/*" wildcard handler) against
+# the same fake esp_http_server.h (fakes/esp_http_server_stub) and fake_httpd.c the blob/status/
+# limits/send route tests use, plus the esp_idf_misc_stub/esp_system.h stand-in for esp_restart()
+# (the fake definition lives in the test file itself). This proves a request actually flows through
+# method_from_request() -> web_api_parse_path() -> web_request_policy_evaluate() ->
+# web_api_dispatch() -> web_api_handle_administration(), not just the last step of that pipeline --
+# see test_web_server_administration_route.c's header comment for exactly what is and is not covered
+# (diagnostics and the physical-confirmation-required=true/async-worker path are out of scope; both
+# are already covered elsewhere).
+add_executable(
+    web_server_administration_route_tests
+    test_web_server_administration_route.c
+    ../../firmware/components/web_server/web_server_api.c
+    ../../firmware/components/web_server/web_request_policy.c
+    ../../firmware/components/web_server/web_api_core.c
+    ../../firmware/components/web_server/web_api_dispatch.c
+    ../../firmware/components/web_server/web_api_administration.c
+    ../../firmware/components/web_server/web_api_response.c
+    ../../firmware/components/web_server/web_api_handler_common.c
+    ../../firmware/components/web_server/web_api_json.c
+    ../../firmware/components/web_server/web_auth_routes.c
+    ../../firmware/components/web_server/web_settings.c
+    ../../firmware/components/web_server/web_device_actions.c
+    ../../firmware/components/web_server/web_cookie.c
+    ../../firmware/components/web_server/web_server_common.c
+    ../../firmware/components/web_server/web_server_adapter_common.c
+    ../../firmware/components/web_server/web_server_adapter_body_auth.c
+    ../../firmware/components/web_server/web_server_adapter_json.c
+    ../../firmware/components/support/subsystem_health.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/app_contracts_v2/settings_contract_v2.c
+    ../../firmware/components/app_contracts_v2/device_settings_v2.c
+    ../../firmware/components/app_contracts_v2/setup_contract_v2.c
+    fakes/fake_httpd.c
+)
+target_include_directories(
+    web_server_administration_route_tests
+    PRIVATE fakes/esp_http_server_stub
+            fakes/esp_idf_misc_stub
+            fakes
+            ../../firmware/components/web_server
+            ../../firmware/components/web_server/include
+            ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/app_contracts_v2/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/device_controls/include
+            ../../firmware/components/device_settings/include
+            ../../firmware/components/provisioning/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/usb_keyboard/include
+            ../../firmware/components/support/include
+)
+target_link_libraries(web_server_administration_route_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_server_administration_route_tests web_server_administration_route web)
+
 # HTTP-adapter-level tests for the blob route handlers (web_server_blob.c), exercised against a fake
 # esp_http_server.h (fakes/esp_http_server_stub) and a fake storage_blob backend
 # (fakes/fake_storage_blob.c) -- see test_web_server_blob.c and fakes/fake_storage_blob.h for why
