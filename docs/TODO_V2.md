@@ -1357,11 +1357,25 @@ Evidence: `webapp/src/v2/snapshotClient.ts` (`replaceSnapshotWithWorkingCopy`),
 
 ## V2-130 — Responsive layout
 
-- [ ] Support a minimum 320 CSS-pixel viewport.
-- [ ] Use single-column phone layouts.
+- [ ] Support a minimum 320 CSS-pixel viewport. `webapp/src/styles.css` sets
+      `body { min-width: 320px; }`, but that is an incidental floor from
+      earlier phases, not a verified 320px layout (no viewport test exists).
+      Left unchecked.
+- [ ] Use single-column phone layouts. `styles.css`'s `@media (width <= 32rem)`
+      block already collapses `.app-header`/`.card`/`.page-heading` to
+      `flex-direction: column`, but this predates Phase 13 and has never been
+      deliberately audited against every screen. Left unchecked.
 - [ ] Support wider tablet and desktop layouts without changing workflow.
-- [ ] Keep touch targets at least 44 by 44 CSS pixels.
-- [ ] Respect display cutouts and gesture-navigation safe areas.
+- [ ] Keep touch targets at least 44 by 44 CSS pixels. Not true as a blanket
+      claim: `styles.css`'s base `button` rule is `min-height: 44px`, but
+      `.header-button` overrides to `min-height: 36px` and
+      `.directive-toolbar button` to `min-height: 38px` — both below the
+      44px floor. Left unchecked; concrete counter-examples exist.
+- [ ] Respect display cutouts and gesture-navigation safe areas. `.app-header`
+      and `.bottom-nav` already pad with `env(safe-area-inset-top)`/
+      `env(safe-area-inset-bottom)` in `styles.css`, which is genuine partial
+      coverage, but it is not applied everywhere a cutout could matter and has
+      no device verification. Left unchecked.
 - [ ] Ensure bottom navigation does not cover final actions.
 
 ## V2-131 — Portrait-required phone surface
@@ -1389,15 +1403,78 @@ Evidence: `webapp/src/v2/snapshotClient.ts` (`replaceSnapshotWithWorkingCopy`),
 
 ## V2-133 — Accessibility
 
-- [ ] Make all controls keyboard accessible.
-- [ ] Preserve logical focus order.
-- [ ] Trap and restore focus in dialogs.
-- [ ] Use live regions without announcing every poll tick.
-- [ ] Never use color as the only state indicator.
-- [ ] Expose source-editor labels and exact validation locations.
-- [ ] Provide Move first/up/down/last alternatives to drag and drop.
-- [ ] Honor reduced motion.
-- [ ] Prevent hidden source from leaking through accessible names.
+- [ ] Make all controls keyboard accessible. Partially true incidentally: no
+      `<div>`/`<span>` has a bare `onClick` anywhere in `webapp/src` (grep
+      confirmed, 2026-08-09) and no custom control uses `role="button"`, so
+      every click handler found is on a native `button`/`input`/`textarea`,
+      reachable and activatable by keyboard by default. But
+      `MacrosPage.tsx`'s "More actions" overflow menu has no `Escape`-to-close
+      or outside-click dismissal, and this has never been manually
+      keyboard-tested (the exit gate's "Manual keyboard ... checks are
+      recorded" item is still unchecked). Left unchecked: absence of found
+      violations is not the same as verified compliance.
+- [ ] Preserve logical focus order. No CSS `order`, `row-reverse`/
+      `column-reverse`, or positive `tabIndex` found anywhere in `webapp/src`
+      (grep confirmed, 2026-08-09) — nothing detected that would desync visual
+      from DOM/focus order. Left unchecked: not manually/screen-reader
+      verified, which this specific claim would need to be more than "no
+      known violation."
+- [ ] Trap and restore focus in dialogs. `webapp/src/components/AccessibleDialog.tsx`
+      is a real, complete implementation (initial focus, `Tab`/`Shift+Tab`
+      wrap, `Escape` close, return-focus-on-close) but is used by only 3
+      surfaces (`features/package/PackageManagementPage.tsx`,
+      `features/settings/SettingsPage.tsx`,
+      `features/settings/PackageOperationsPage.tsx`). The confirmation/
+      danger-zone dialogs actually shipped in the current v2 UI —
+      `features/snapshots/v2/SnapshotsPage.tsx` (×2), `features/macros/v2/MacrosPage.tsx`,
+      `features/macros/v2/PackageManagementPage.tsx`, and the shared, Phase-11-wired
+      `features/shell/v2/UnsavedChangesPrompt.tsx` — are plain
+      `role="alertdialog"` markup with no focus-trap JavaScript at all (grep
+      for `AccessibleDialog` usage vs. `role="alertdialog"` usage, 2026-08-09).
+      Most of the app's actual dialogs do not trap focus; left unchecked.
+- [x] Use live regions without announcing every poll tick. Genuinely true and
+      consistently applied: `role="status"`/`role="alert"` with `aria-live`
+      appear across ~30 locations in `webapp/src` (auth, macros, snapshots,
+      settings, package, execution, shell). Send-progress polling
+      (`webapp/src/v2/sendClient.ts`, `pollIntervalMs = 1000`) only changes the
+      live region's DOM text when `actionIndex`/state actually changes
+      (`activeStatusText()` in `MacrosPage.tsx`), so unchanged polls do not
+      re-announce — screen readers only fire on actual text mutation.
+- [x] Never use color as the only state indicator. Genuinely true by
+      construction: `webapp/src/components/StatusBadge.tsx` always renders a
+      text `label` alongside its `status-{state}` color class (no icon- or
+      color-only variant exists), and every banner/status region found
+      (`ErrorBanner`, `ConnectivityBanner`, `validation-good`/`validation-bad`,
+      `send-status`) pairs its color with visible text.
+- [x] Expose source-editor labels and exact validation locations. Genuinely
+      true: `features/macros/v2/MacroEditorPage.tsx` has a real
+      `<label htmlFor="macro-editor-source">Macro source</label>` around the
+      textarea, and a compile failure renders "Line {n}, column {n}, byte
+      {n}." plus a "Go to error" button — asserted by
+      `webapp/tests/v2-macro-editor-page.test.tsx:134`
+      (`expect(container.textContent).toContain("Line 1, column 3, byte 2.")`).
+- [ ] Provide Move first/up/down/last alternatives to drag and drop. No
+      drag-and-drop exists anywhere (no dnd/sortable dependency in
+      `webapp/package.json`, no `draggable`/`onDragStart`/`onDrop` in
+      `webapp/src`), so there is nothing to provide an alternative to yet, but
+      the requirement itself is only half met: the current v2 pages
+      (`features/macros/v2/MacrosPage.tsx`,
+      `features/macros/v2/PackageManagementPage.tsx`) provide only "Move up"/
+      "Move down" buttons — "Move first"/"Move last" exist only in the
+      pre-v2 `features/package/PackageManagementPage.tsx`, which is dead-code
+      territory pending V2-140. Left unchecked.
+- [ ] Honor reduced motion. No `prefers-reduced-motion` media query exists
+      anywhere in the repository (grep confirmed, 2026-08-09), and no CSS
+      `transition`/`animation`/`@keyframes` exists in `webapp/src/*.css`
+      either — there is currently no motion to guard, but that is an absence
+      of a policy, not an implemented one; a future transition added without
+      a reduced-motion guard would have nothing to stop it. Left unchecked.
+- [ ] Prevent hidden source from leaking through accessible names. Moot for
+      now rather than satisfied: source-hiding is a Phase 12 (`V2-120`
+      "source-preview preference") feature that does not exist yet —
+      `features/macros/v2/MacroPreviewPage.tsx` renders `macro.source`
+      unconditionally in a `<code>` element, so there is no hide/reveal
+      toggle for an accessible name to leak past. Left unchecked.
 
 ## Phase 13 exit gate
 
@@ -1425,23 +1502,95 @@ Evidence: `webapp/src/v2/snapshotClient.ts` (`replaceSnapshotWithWorkingCopy`),
 
 ## V2-141 — Static application production behavior
 
-- [ ] Keep all production assets local.
-- [ ] Use content-hashed Vite filenames.
-- [ ] Generate gzip variants where specified.
-- [ ] Serve correct content types.
-- [ ] Cache hashed assets immutably and revalidate `index.html`.
-- [ ] Reject path traversal.
-- [ ] Never expose the userdata mount.
-- [ ] Verify the built webfs fits the 1 MiB partition with recorded margin.
+This whole item turns out to already be implemented and tested — the static-
+serving infrastructure was built with the firmware/web_server component well
+before Phase 14 was reached, not as Phase-14 work; auditing it here (2026-08-09)
+just confirms it and closes the checkboxes.
+
+- [x] Keep all production assets local. Verified: `npm --prefix webapp run
+      build` (this worktree, node v24.18.0) then
+      `./scripts/verify-no-remote-assets.sh webapp/dist` — exit 0.
+- [x] Use content-hashed Vite filenames. Verified from the same build:
+      `dist/assets/index-DNGRoJPY.css`, `dist/assets/index-Dyil3X-o.js`
+      (`webapp/vite.config.ts` uses Vite's default hashed-output naming;
+      nothing overrides it).
+- [x] Generate gzip variants where specified. `scripts/build-webfs-image.sh`
+      runs `gzip -9 -k -f` on every staged file before packaging the webfs
+      image; `web_adapter_open_static_file()`
+      (`firmware/components/web_server/web_server_adapter_static_stream.c`)
+      prefers the `.gz` sibling when present — tested by
+      `test_static_file_selection()` in
+      `tests/host/test_web_server_adapter_json_static.inc`.
+- [x] Serve correct content types. `web_content_type()` in the same adapter
+      file, asserted by the same test (`"text/javascript; charset=utf-8"` for
+      `.js`, etc.).
+- [x] Cache hashed assets immutably and revalidate `index.html`.
+      `web_server_adapter_static_stream.c` sets
+      `"public, max-age=31536000, immutable"` for hashed assets and
+      `"no-cache"` for `/index.html`; both asserted by
+      `test_static_file_selection()`.
+- [x] Reject path traversal. `tests/host/test_web_server_blob_load.inc`'s
+      `test_blob_load_rejects_path_traversal()`, run via
+      `./scripts/run-tests.sh web` (23/23 passed, 2026-08-09).
+- [x] Never expose the userdata mount. Structural, not just policy: the only
+      catch-all route is `{.uri = "/*", .method = HTTP_GET, .handler =
+      static_handler}` in `firmware/components/web_server/web_server_lifecycle.c`,
+      fixed to the `/web` (webfs) base path; blob/userdata access exists only
+      through the separate, JSON-structured `/api/v1/blob*` routes. There is
+      no route through which a request path reaches the userdata partition via
+      the static-file handler.
+- [x] Verify the built webfs fits the 1 MiB partition with recorded margin.
+      Measured 2026-08-09: `./scripts/build-webfs-image.sh --skip-frontend-build`
+      wrote `firmware/build/webfs.bin` (1,048,576 bytes, the full `webfs`
+      partition per `firmware/partitions.csv`). Raw file size always equals
+      partition capacity for a LittleFS image, so margin was computed the way
+      `scripts/check-release-budgets.sh`'s `littlefs_used_bytes()` does — count
+      non-erased 4096-byte blocks: **393,216 bytes actually used / 1,048,576
+      bytes partition = 37.5%**, well inside the script's 85% budget ratio
+      (891,289 bytes). The full `check-release-budgets.sh` script itself needs
+      a completed ESP-IDF firmware build (`idf.py -C firmware build`) to run,
+      which this pass did not do; the number above reproduces its webfs-
+      specific calculation directly.
 
 ## V2-142 — Build, lint, and architectural guards
 
-- [ ] Update scripts for the new source and test layout.
-- [ ] Keep `./scripts/check-all.sh` authoritative.
+- [x] Update scripts for the new source and test layout. `scripts/` has no
+      references to any retired v1 path (`grep -rl "storage_repository\|
+      storage_package\|/api/v1/sets\|/api/v1/executions" scripts/` finds only
+      `check-v2-phase2-architecture.py`, which names them as forbidden
+      patterns, not live usage), and `check-all.sh` already invokes the
+      current-layout scripts (`build-webfs-image.sh`,
+      `check-release-budgets.sh`, the `check-v2-*` family,
+      `check-v2-contracts.sh`) rather than anything stale.
+- [x] Keep `./scripts/check-all.sh` authoritative. It is the single gate
+      (`scripts/check-all.sh`, read 2026-08-09) covering toolchain, format,
+      static-analysis policy, partitions, v2 contract/policy checks,
+      production-config/credential-logging/mount-policy/layer-boundary/
+      removed-features/phase-2-architecture guards, USB identity, frontend
+      persisted-state, setup-route isolation, native v2 contracts, firmware
+      build, stack usage, webfs image, flash manifest, release budgets, the
+      full webapp chain, script linting, docs, and host tests — every
+      documented command in `CLAUDE.md`/`README.md` routes through it or one
+      of its constituents.
 - [ ] Add guards against old routes, firmware repositories, `activePackageId`,
       automatic snapshot deletion, mandatory send navigation, remote assets, and
-      browser repository persistence.
-- [ ] Keep all first-party warnings fatal.
+      browser repository persistence. 5 of 7 already have a dedicated CI-run
+      guard: old routes/firmware repositories/`activePackageId`
+      (`scripts/check-v2-phase2-architecture.py`'s `FORBIDDEN_PATHS`/
+      `FORBIDDEN_SOURCE` regex, which explicitly matches `activePackageId`),
+      remote assets (`scripts/verify-no-remote-assets.sh`), and browser
+      repository persistence (`scripts/check-frontend-persisted-state.sh`'s
+      localStorage/sessionStorage/indexedDB allowlist). No dedicated
+      architectural guard exists for automatic snapshot deletion or mandatory
+      send navigation — only ordinary feature tests
+      (`webapp/tests/v2-snapshots-page.test.tsx`) cover the snapshot-deletion
+      behavior, which is easier to regress unnoticed than a checked-in guard
+      script. Left unchecked: the bullet names 7 things and 2 have no guard.
+- [x] Keep all first-party warnings fatal. `.clang-tidy`: `WarningsAsErrors:
+      '*'`; `webapp/package.json`: `"lint": "eslint . --max-warnings=0"`,
+      `"stylelint": "stylelint 'src/**/*.css' --max-warnings=0"`; host tests
+      compile with `-Wall -Wextra -Werror` per `CLAUDE.md`. Continuously
+      enforced, not phase-14-specific work.
 
 ## V2-143 — Documentation synchronization
 
@@ -1469,7 +1618,31 @@ Evidence: `webapp/src/v2/snapshotClient.ts` (`replaceSnapshotWithWorkingCopy`),
       correct: its sole content is "The authoritative v2 implementation
       sequence is `TODO_V2.md`", with an explicit instruction not to
       implement from the retired v1 TODO.
-- [x] Update development, API, test, hardware, and recovery documentation.
+- [ ] Update development, API, test, hardware, and recovery documentation.
+      Re-audited 2026-08-09: **uncheck**. The `docs/*.md` work below is real
+      and stands, but `webapp/README.md` — the webapp's own development
+      README, never in scope for either prior V2-143 track (both explicitly
+      called only `webapp/src/features/settings/README.md` out-of-scope, not
+      this file) — is now materially false, not just dated: (1) it says "A
+      committed `package-lock.json` does not exist yet," but
+      `webapp/package-lock.json` has existed since commit `69c74b5` and every
+      `npm ci` in this repo's CI and docs depends on it; (2) it calls package/
+      macro/import-export/snapshot screens "presentation scaffolds with
+      representative data" whose "buttons must not be interpreted as
+      completed persistence or API workflows" — false for the current v2
+      surface: `features/macros/v2/MacrosPage.tsx`,
+      `features/macros/v2/PackageManagementPage.tsx`, and
+      `features/snapshots/v2/SnapshotsPage.tsx` all import and are wired to
+      `v2/repository`, `v2/apiClient`, `v2/sendClient`, and
+      `v2/repositoryWorkingCopy` (verified by import inspection, 2026-08-09) —
+      real functionality landed in Phases 9–11 (commits `389ede9`, `606fa02`,
+      `90f5eec`) after this file was last touched (`f7c884f`, a pre-v2-rebuild
+      "set becomes package" refactor). `CLAUDE.md`'s own webapp architecture
+      section cites this exact file as authority for the "presentation
+      scaffolds" characterization, so the staleness propagates. The `docs/*.md`
+      work described below was not undone and remains accurate; the gap is
+      `webapp/README.md` specifically, which needs the same treatment
+      `docs/README.md` already got.
       Evidence: commit `e28daf4442ac66ef502a56902dfb461f2795f504`. `docs/API.md` (entirely v1 firmware-owned
       package/set/macro/backup/restore routes, all deleted per
       `docs/implementation-v2/V2_MIGRATION_MAP.md` §2.14/§8) got a retirement
@@ -1499,7 +1672,16 @@ Evidence: `webapp/src/v2/snapshotClient.ts` (`replaceSnapshotWithWorkingCopy`),
       `docs/implementation-v2/V2_143_DEV_STATUS_DOCS_SYNC_2026-08-09.md`.
 - [ ] Add approved mockup references under `docs/mockups/v2/` only when the image
       files are available and licensed for repository use.
-- [x] Clearly label current implementation status versus specification intent.
+- [ ] Clearly label current implementation status versus specification intent.
+      Re-audited 2026-08-09: **uncheck**, for the same `webapp/README.md`
+      reason as the sub-bullet above — labeling now-real Phase 9–11 macro/
+      package/snapshot functionality as unreliable "presentation scaffolds"
+      is a status-vs-intent mislabeling too, just in the understating rather
+      than overstating direction (the direction this project's prior
+      incidents, e.g. the frozen-SPEC rule, have been about is overclaiming;
+      this is the opposite failure, but it is still inaccurate labeling of
+      current status). The audit below, of `README.md` and other `docs/*.md`
+      files, was real and stands.
       Evidence: commit `e28daf4442ac66ef502a56902dfb461f2795f504`. Audited `README.md`'s "Repository
       status" section (already corrected by the prior README-authority track)
       and found it accurately mid-rebuild-framed; no other file in scope made
@@ -1513,10 +1695,26 @@ Evidence: `webapp/src/v2/snapshotClient.ts` (`replaceSnapshotWithWorkingCopy`),
 
 ## Phase 14 exit gate
 
-- [ ] Repository-wide searches find no authoritative v1 references.
-- [ ] No dead v1 production code or skipped v1 test remains.
-- [ ] Static assets fit and pass local-only checks.
-- [ ] Documentation accurately describes the implemented v2 system.
+- [ ] Repository-wide searches find no authoritative v1 references. Not yet:
+      `docs/API.md` still documents the full retired v1 route surface (banner
+      added, body not rewritten), `webapp/README.md` still describes the v1-
+      era scaffold state (see V2-143 above), and V2-140 (below) hasn't run.
+- [ ] No dead v1 production code or skipped v1 test remains. Not yet:
+      `webapp/src/App.tsx` and the v1 feature tree it routes to
+      (`features/macros/MacroEditorPage.tsx`, `MacroLibraryPage.tsx`,
+      `features/package/PackageSelectionPage.tsx`,
+      `features/package/PackageManagementPage.tsx`, `features/execution/*`)
+      are confirmed unreachable in production — `webapp/src/main.tsx` renders
+      only `AppV2`, never `App` — but still present in the tree; `types/` is
+      still explicitly "legacy v1 model types" per `CLAUDE.md`. V2-140 has not
+      run.
+- [x] Static assets fit and pass local-only checks. Verified 2026-08-09 (same
+      evidence as V2-141 above): `verify-no-remote-assets.sh webapp/dist` exit
+      0 on a real production build, and the webfs image uses 393,216 of
+      1,048,576 partition bytes (37.5%), inside the 85% budget ratio.
+- [ ] Documentation accurately describes the implemented v2 system. Not yet:
+      `webapp/README.md` materially misdescribes current Phase 9–11
+      functionality as non-functional scaffolding (see V2-143 above).
 
 ---
 
@@ -1627,51 +1825,81 @@ This checklist is Phase 15's release gate, not a running progress meter — most
 items below can only be honestly checked once Phases 9–14 (the entire Macros/
 editing/snapshots/settings/accessibility UI and the migration-cleanup phase) are
 built and V2-156's acceptance audit has actually been walked, neither of which
-has happened yet. The items below reflect only what is independently,
-currently, and reproducibly true as of commit `9bb47bb` (2026-08-09) — not a
-claim that the project is close to final sign-off.
+has happened yet. Phases 9–11 (Macros/Quick Send, macro editing/package
+management, snapshots/import-export) landed since the 2026-08-09 pass that
+first populated this checklist; Phases 12–14 have not. The items below reflect
+only what is independently, currently, and reproducibly true as of commit
+`50ada5bd0ea75ac0e2f76b9b804b7949831f34cf` (re-audited 2026-08-09) — not a claim
+that the project is close to final sign-off.
 
 - [ ] `docs/SPEC_V2.md` matches production behavior. Cannot be true yet: Phases
-      9–14 (Macros page, editing, snapshots, settings UI, accessibility,
-      migration cleanup) are unstarted, so most of SPEC_V2's UI-facing
-      requirements have no implementation to match against.
+      12–14 (settings/diagnostics UI, portrait/responsive/accessibility,
+      migration cleanup) remain unstarted or incomplete, so a meaningful slice
+      of SPEC_V2's UI-facing requirements still has no implementation to match
+      against. (Phases 9–11 — Macros page, macro editing, package management,
+      snapshots, import/export — are now built; this is narrower than the
+      "Phases 9–14 unstarted" this line said as of commit `9bb47bb`.)
 - [ ] `docs/UI_UX_SPEC_V2.md` matches production behavior. Same reason.
-- [ ] `docs/TODO_V2.md` contains no falsely completed task. Not yet audited —
-      that audit is V2-156's job and V2-156 has not been started.
+- [ ] `docs/TODO_V2.md` contains no falsely completed task. Partially
+      addressed, not closed: this 2026-08-09 audit pass (see
+      `docs/implementation-v2/V2_AUDIT_PHASE_13_14_15_2026-08-09.md`) walked
+      every checkbox from Phase 13 through this checklist against real code
+      and corrected several — some falsely-checked items were unchecked
+      (two V2-143 sub-bullets), several genuinely-true items were newly
+      checked (parts of V2-133, all of V2-141, most of V2-142). Six parallel
+      tracks did the same for Phases 0–12. V2-156's own acceptance audit
+      (walking every SPEC_V2/UI_UX_SPEC_V2 criterion to code/test/evidence,
+      not just checkbox truthfulness) still has not been performed.
 - [x] `docs/TODO.md`, `README.md`, and `CLAUDE.md` point to the v2 authority
-      set. `docs/TODO.md` and `CLAUDE.md` already did; `README.md`'s opening
-      section was fixed to cite `SPEC_V2.md`/`UI_UX_SPEC_V2.md`/`TODO_V2.md`
-      (V2-143's first sub-bullet, see
-      `docs/implementation-v2/V2_143_DOC_AUTHORITY_SYNC_2026-08-09.md`). This
-      is narrower than V2-143 as a whole, which also covers
-      `docs/mockups/v2/`, API/test/hardware/recovery documentation, and
-      status-vs-intent labeling — those remain open.
-- [x] `./scripts/check-all.sh` passes from a clean checkout. Verified against
-      an actual fresh `git clone` of commit `9bb47bb` from `origin/master`
-      (not the working tree), with `npm ci` run in `webapp/` and
-      `littlefs-python==0.15.0` installed into the sourced ESP-IDF virtualenv
-      exactly as `.github/workflows/quality.yml` does it: full gate exit 0,
-      50/50 host tests. This is a snapshot fact about the current commit, not
-      a permanent one — it will need re-verification at the actual final
-      sign-off after more work lands.
+      set. Re-verified 2026-08-09: `README.md`'s opening sentence still cites
+      `docs/SPEC_V2.md`, `docs/UI_UX_SPEC_V2.md`, and `docs/TODO_V2.md`;
+      `CLAUDE.md`'s Project layout and Active development constraints
+      sections still do the same; `docs/TODO.md` is still a clean pointer to
+      `TODO_V2.md`. This is narrower than V2-143 as a whole, which also
+      covers `docs/mockups/v2/`, `webapp/README.md`, and status-vs-intent
+      labeling — those remain open (see V2-143 above; `webapp/README.md` in
+      particular was found stale by this pass).
+- [ ] `./scripts/check-all.sh` passes from a clean checkout. **Unchecked** on
+      re-audit: the prior verification covered commit `9bb47bb`, which is now
+      16 commits behind `HEAD` and predates all of Phase 9 (Macros/Quick
+      Send), Phase 10 (macro editor/package management), and Phase 11
+      (snapshots/import-export) landing — substantial new code the prior
+      clean-checkout run never saw. This pass did not redo the full clean-
+      checkout gate (not required per this audit's instructions), but did
+      confirm the two fast suites pass in the current working tree: host
+      tests 54/54 CTest suites (`./scripts/run-tests.sh`, 2026-08-09) and
+      frontend 51/51 vitest files, 522/522 tests
+      (`npm --prefix webapp run test -- --run`, 2026-08-09). That is a
+      positive signal, not equivalent to the clean-checkout claim this line
+      makes; a real re-verification (fresh clone, full `check-all.sh`,
+      including the firmware build) is still owed before this can be checked
+      again.
 - [ ] Required ESP32-S3R8, USB HID, storage, Wi-Fi, authentication, and Android
       evidence is committed. Multiple hardware-only items remain open
       throughout this file (V2-035, part of V2-041, part of V2-044, V2-064,
       and all of Phase 15's V2-151 through V2-155 matrices) — none of that
       evidence exists yet.
-- [x] No v1 compatibility architecture remains in production code. Phase 2's
-      exit gate (all four items) is complete, and this is continuously
-      enforced, not just asserted: `check-all.sh` runs
-      `check-v2-phase2-architecture.py` ("phase 2 architecture: no
-      firmware-owned package or macro repository") and
-      `check-removed-features.sh` ("removed features: none of the SPEC 1.1
-      rejections have reappeared") on every invocation, and both currently
-      pass. This covers production firmware code specifically; it does not
-      by itself certify the webapp or the rest of this checklist.
+- [x] No v1 compatibility architecture remains in production code. Re-verified
+      2026-08-09 with fresh runs, not just re-read: `python3
+      ./scripts/check-v2-phase2-architecture.py` → "phase 2 architecture: no
+      firmware-owned package or macro repository" (exit 0); `bash
+      ./scripts/check-removed-features.sh` → "removed features: none of the
+      SPEC 1.1 rejections have reappeared" (exit 0). Phase 2's exit gate
+      remains complete and this is continuously enforced by `check-all.sh` on
+      every invocation. This covers production firmware code specifically; it
+      does not by itself certify the webapp (which still contains dead v1
+      React code, see the Phase 14 exit gate above) or the rest of this
+      checklist.
 - [ ] No known silent failure, dangerous fallback, secret leak, automatic
-      snapshot deletion, or inaccessible cancellation path remains. Cannot be
-      claimed yet — the snapshot-management UI (Phase 11) that "automatic
-      snapshot deletion" is about does not exist yet, and V2-156's audit
-      hasn't walked the rest.
+      snapshot deletion, or inaccessible cancellation path remains.
+      Re-assessed 2026-08-09: still cannot be claimed, but the specific
+      blocker has moved. Phase 11 is now built and its exit gate confirms "No
+      automatic snapshot creation or deletion exists" (`V2-114`: "Never
+      silently fall back"; unreadable snapshots are kept, shown, and offer
+      download/delete rather than silent substitution). What remains open:
+      Phase 12's destructive-operations UI (restart/reset-settings/factory-
+      reset confirmation flows, V2-121) is unstarted, so its silent-failure/
+      dangerous-fallback/secret-leak properties are unverified, and V2-156's
+      audit still hasn't walked the rest of the system.
 - [ ] Final implementation report records the accepted release commit SHA. No
       such report exists; it is V2-156's own deliverable.
