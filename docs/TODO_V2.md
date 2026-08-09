@@ -550,14 +550,14 @@ knowledge in firmware.
 
 ## V2-055 — Settings and device-action routes
 
-- [ ] Implement `GET /api/v1/settings` without returning passphrases.
-- [ ] Implement `PUT /api/v1/settings` with unambiguous preserve/remove semantics.
-- [ ] Reject empty strings where they would ambiguously mean preserve or delete.
-- [ ] Implement `POST /api/v1/settings/change-password`.
-- [ ] Implement `POST /api/v1/device/restart`.
-- [ ] Implement `POST /api/v1/device/reset-settings`.
-- [ ] Implement `POST /api/v1/device/factory-reset`.
-- [ ] Return exact accepted/reconnect/reprovision/preservation fields.
+- [x] Implement `GET /api/v1/settings` without returning passphrases.
+- [x] Implement `PUT /api/v1/settings` with unambiguous preserve/remove semantics.
+- [x] Reject empty strings where they would ambiguously mean preserve or delete.
+- [x] Implement `POST /api/v1/settings/change-password`.
+- [x] Implement `POST /api/v1/device/restart`.
+- [x] Implement `POST /api/v1/device/reset-settings`.
+- [x] Implement `POST /api/v1/device/factory-reset`.
+- [x] Return exact accepted/reconnect/reprovision/preservation fields.
 
 ## V2-056 — Diagnostics route
 

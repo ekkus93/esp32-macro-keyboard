@@ -64,6 +64,9 @@ pure_policy_args=(
 	--filter '^firmware/components/wifi_ap/wifi_ap_station\.c$'
 	--filter '^firmware/components/provisioning/provisioning_bootstrap_core\.c$'
 	--filter '^firmware/components/provisioning/provisioning_core\.c$'
+	--filter '^firmware/components/app_contracts_v2/settings_contract_v2\.c$'
+	--filter '^firmware/components/web_server/web_settings\.c$'
+	--filter '^firmware/components/web_server/web_device_actions\.c$'
 )
 
 gcovr "${pure_policy_args[@]}" \
