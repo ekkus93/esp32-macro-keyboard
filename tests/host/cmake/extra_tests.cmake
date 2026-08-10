@@ -110,3 +110,25 @@ add_test(
         -P ${CMAKE_SOURCE_DIR}/cmake/web_server_password_record_access_guard.cmake
 )
 set_tests_properties(web_server_password_record_access_guard PROPERTIES LABELS "auth;web")
+
+# Round 2 F-015: inspect cJSON allocator-owned strings at free-time so the
+# regression fails unless both mutation handlers scrub parsed secrets before
+# cJSON releases those heap allocations.
+add_executable(
+    web_parsed_secret_wipe_tests
+    "${CMAKE_SOURCE_DIR}/test_web_parsed_secret_wipe.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_settings.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_device_actions.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/app_contracts_v2/settings_contract_v2.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/app_contracts_v2/device_settings_v2.c"
+)
+target_include_directories(
+    web_parsed_secret_wipe_tests
+    PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/app_contracts_v2/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server"
+)
+target_link_libraries(web_parsed_secret_wipe_tests PRIVATE PkgConfig::CJSON test_support)
+target_compile_options(web_parsed_secret_wipe_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME web_parsed_secret_wipe COMMAND web_parsed_secret_wipe_tests)
+set_tests_properties(web_parsed_secret_wipe PROPERTIES LABELS "web")
