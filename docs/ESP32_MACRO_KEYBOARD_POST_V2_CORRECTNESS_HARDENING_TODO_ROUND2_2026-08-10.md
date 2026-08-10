@@ -34,8 +34,10 @@ No other task in this document touches frozen-spec content. Every other phase ma
 
 **Goal:** establish a clean, evidenced starting point before any Round 2 fix lands, so later evidence can cite "before" and "after" states honestly.
 
-- [ ] **R0-001** Confirm the working tree is clean at a known commit SHA and `./scripts/check-all.sh` passes at that SHA before any Round 2 work begins. Record the SHA and the full command output location (e.g. a log file path) in this document.
-- [ ] **R0-002** Record, for each finding F-014 through F-025 and the §4 cluster, the exact current test-suite state relevant to it (e.g., "storage_blob_upload.c has zero host-test coverage — confirmed via `tests/host/CMakeLists.txt` grep", "macro_executor.c is excluded from the host build — confirmed via grep for its filename in CMakeLists.txt"). This is the evidence baseline that later tasks' "regression test added" claims get compared against.
+- [x] **R0-001** Confirm the working tree is clean at a known commit SHA and `./scripts/check-all.sh` passes at that SHA before any Round 2 work begins. Record the SHA and the full command output location (e.g. a log file path) in this document.
+  - Evidence: connector-backed repository state was exact committed SHA `d5f3a41ea4d3c82e6797b336d91c27c449f61418` with no separate uncommitted local checkout; `./scripts/check-all.sh` passed in Quality run `31414501339`, job `93540178710`. The committed R0 ledger at `e0a6672776ef00844e5e2628abe413211ddeac28` then re-ran the same authoritative command and passed in Quality run `31415863213`, job `93544598485`.
+- [x] **R0-002** Record, for each finding F-014 through F-025 and the §4 cluster, the exact current test-suite state relevant to it (e.g., "storage_blob_upload.c has zero host-test coverage — confirmed via `tests/host/CMakeLists.txt` grep", "macro_executor.c is excluded from the host build — confirmed via grep for its filename in CMakeLists.txt"). This is the evidence baseline that later tasks' "regression test added" claims get compared against.
+  - Evidence: commit `e0a6672776ef00844e5e2628abe413211ddeac28`; finding-by-finding pre-fix coverage inventory is recorded in `docs/implementation-v2/ROUND2_R0_BASELINE_AND_TEST_COVERAGE_2026-08-10.md`; `./scripts/check-all.sh` passed on that exact SHA in Quality run `31415863213`, job `93544598485`.
 
 ---
 
