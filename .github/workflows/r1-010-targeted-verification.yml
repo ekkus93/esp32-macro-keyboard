@@ -1,0 +1,53 @@
+name: R1 Credential Concurrency Verification
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/r1-010-targeted-verification.yml"
+      - "firmware/components/auth/**"
+      - "firmware/components/web_server/**"
+      - "scripts/run-tests.sh"
+      - "tests/host/**"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/r1-010-targeted-verification.yml"
+      - "firmware/components/auth/**"
+      - "firmware/components/web_server/**"
+      - "scripts/run-tests.sh"
+      - "tests/host/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: r1-credential-concurrency-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  targeted-host-tests:
+    name: Auth and web targeted host tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install host-test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            cmake \
+            libcjson-dev
+
+      - name: Run auth host tests
+        run: ./scripts/run-tests.sh auth
+
+      - name: Run web host tests
+        run: ./scripts/run-tests.sh web
