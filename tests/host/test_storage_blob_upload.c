@@ -9,8 +9,31 @@
 
 #include "app_error.h"
 #include "storage_blob.h"
+#include "storage_blob_internal.h"
 #include "storage_blob_upload_internal.h"
 #include "test_assert.h"
+
+static storage_blob_scan_summary_t fake_inventory_state;
+static size_t fake_inventory_used_bytes;
+
+storage_blob_scan_summary_t storage_blob_scan_state(void) {
+    return fake_inventory_state;
+}
+
+void storage_blob_record_committed_entry(const storage_blob_entry_t *entry) {
+    if (entry == NULL || entry->id == 0U || entry->id == UINT64_MAX) {
+        return;
+    }
+    ++fake_inventory_state.valid_count;
+    fake_inventory_used_bytes += entry->stored_bytes;
+    if (!fake_inventory_state.has_max_id || entry->id > fake_inventory_state.max_id) {
+        fake_inventory_state.has_max_id = true;
+        fake_inventory_state.max_id = entry->id;
+    }
+    fake_inventory_state.next_id = entry->id + UINT64_C(1);
+}
+
+#include "../../firmware/components/storage/storage_blob_upload.c"
 
 typedef enum {
     UPLOAD_OPERATION_STAT = 0,
@@ -51,6 +74,11 @@ static void fake_reset(upload_fake_t *fake) {
         .fail_operation = UPLOAD_OPERATION_COUNT,
         .persist_error = APP_ERROR_NONE,
     };
+}
+
+static void fake_inventory_reset(void) {
+    fake_inventory_state = (storage_blob_scan_summary_t){0};
+    fake_inventory_used_bytes = 0U;
 }
 
 static bool record_operation(upload_fake_t *fake, upload_operation_t operation) {
@@ -179,12 +207,12 @@ static int fake_unlink_path(void *context, const char *path) {
         errno = fake->fail_errno;
         return -1;
     }
-    TEST_CHECK(path_is_temporary(path));
-    if (!fake->temporary_exists) {
+    bool *exists = path_is_temporary(path) ? &fake->temporary_exists : &fake->final_exists;
+    if (!*exists) {
         errno = ENOENT;
         return -1;
     }
-    fake->temporary_exists = false;
+    *exists = false;
     return 0;
 }
 
@@ -239,6 +267,7 @@ static storage_blob_upload_t begin_upload(upload_fake_t *fake,
                          storage_blob_upload_begin_with_ops("/repository", UINT64_C(7), 6U, 8U,
                                                             operations, &upload));
     TEST_CHECK(upload.active);
+    TEST_CHECK(!upload.final_path_owned);
     TEST_CHECK(!upload.committed);
     TEST_CHECK(fake->temporary_exists);
     TEST_CHECK_EQ_STRING("/repository/00000000000000000007.gz.tmp", upload.temporary_path);
@@ -258,6 +287,7 @@ static void test_successful_upload_sequence(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_commit_with_ops(&upload, &entry));
 
     TEST_CHECK(upload.committed);
+    TEST_CHECK(upload.final_path_owned);
     TEST_CHECK(!upload.active);
     TEST_CHECK(fake.final_exists);
     TEST_CHECK(!fake.temporary_exists);
@@ -377,6 +407,7 @@ static void run_precommit_failure(upload_operation_t operation, size_t occurrenc
     storage_blob_entry_t entry = {.id = 99U, .stored_bytes = 99U};
     TEST_CHECK_APP_ERROR(expected_error, storage_blob_upload_commit_with_ops(&upload, &entry));
     TEST_CHECK_EQ_U64(0U, entry.id);
+    TEST_CHECK(!upload.final_path_owned);
     TEST_CHECK(!upload.committed);
     TEST_CHECK(!fake.final_exists);
     TEST_CHECK(!fake.temporary_exists);
@@ -392,7 +423,7 @@ static void test_precommit_failures_leave_final_absent(void) {
     run_precommit_failure(UPLOAD_OPERATION_RENAME, 1U, EIO, APP_ERROR_NONE, APP_ERROR_IO);
 }
 
-static void test_directory_sync_failure_is_post_commit(void) {
+static void test_directory_sync_failure_remains_uncommitted_and_reclaimable(void) {
     upload_fake_t fake;
     fake_reset(&fake);
     fake.fail_operation = UPLOAD_OPERATION_SYNC_PARENT;
@@ -403,13 +434,50 @@ static void test_directory_sync_failure_is_post_commit(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_write_with_ops(&upload, "abcdef", 6U));
     storage_blob_entry_t entry = {.id = 99U, .stored_bytes = 99U};
     TEST_CHECK_APP_ERROR(APP_ERROR_IO, storage_blob_upload_commit_with_ops(&upload, &entry));
-    TEST_CHECK(upload.committed);
+    TEST_CHECK(!upload.committed);
+    TEST_CHECK(upload.final_path_owned);
     TEST_CHECK(fake.final_exists);
     TEST_CHECK(!fake.temporary_exists);
     TEST_CHECK_EQ_U64(8U, fake.persisted_next_id);
     TEST_CHECK_EQ_U64(0U, entry.id);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_abort_with_ops(&upload));
+    TEST_CHECK(!upload.final_path_owned);
+    TEST_CHECK(!fake.final_exists);
+    TEST_CHECK_EQ_U64(1U, fake.operation_counts[UPLOAD_OPERATION_UNLINK]);
+    TEST_CHECK_EQ_U64(2U, fake.operation_counts[UPLOAD_OPERATION_SYNC_PARENT]);
+}
+
+static void test_public_wrapper_records_only_durable_commit(void) {
+    upload_fake_t fake;
+    fake_reset(&fake);
+    fake_inventory_reset();
+    storage_blob_upload_ops_t operations = make_operations(&fake);
+    storage_blob_upload_t upload = begin_upload(&fake, &operations);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_write(&upload, "abcdef", 6U));
+    storage_blob_entry_t entry = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_commit(&upload, &entry));
+    TEST_CHECK_EQ_U64(1U, storage_blob_scan_state().valid_count);
+    TEST_CHECK_EQ_U64(6U, fake_inventory_used_bytes);
+
+    fake_reset(&fake);
+    fake_inventory_reset();
+    fake.fail_operation = UPLOAD_OPERATION_SYNC_PARENT;
+    fake.fail_on_occurrence = 1U;
+    fake.fail_errno = EIO;
+    operations = make_operations(&fake);
+    upload = begin_upload(&fake, &operations);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_write(&upload, "abcdef", 6U));
+    entry = (storage_blob_entry_t){.id = 99U, .stored_bytes = 99U};
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, storage_blob_upload_commit(&upload, &entry));
+    TEST_CHECK_EQ_U64(0U, entry.id);
+    TEST_CHECK_EQ_U64(0U, storage_blob_scan_state().valid_count);
+    TEST_CHECK_EQ_U64(0U, fake_inventory_used_bytes);
+    TEST_CHECK(!upload.committed);
+    TEST_CHECK(upload.final_path_owned);
     TEST_CHECK(fake.final_exists);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_abort(&upload));
+    TEST_CHECK(!fake.final_exists);
+    TEST_CHECK(!upload.final_path_owned);
 }
 
 static void test_cleanup_failure_is_reported(void) {
@@ -435,7 +503,8 @@ int main(void) {
     test_existing_paths_are_not_replaced();
     test_write_failures_abort_cleanly();
     test_precommit_failures_leave_final_absent();
-    test_directory_sync_failure_is_post_commit();
+    test_directory_sync_failure_remains_uncommitted_and_reclaimable();
+    test_public_wrapper_records_only_durable_commit();
     test_cleanup_failure_is_reported();
     puts("storage blob upload tests passed");
     return EXIT_SUCCESS;

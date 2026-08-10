@@ -56,6 +56,7 @@ typedef struct {
     size_t expected_bytes;
     size_t stored_bytes;
     bool active;
+    bool final_path_owned;
     bool committed;
     char temporary_path[STORAGE_BLOB_UPLOAD_PATH_CAPACITY];
     char final_path[STORAGE_BLOB_UPLOAD_PATH_CAPACITY];

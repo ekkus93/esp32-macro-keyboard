@@ -53,8 +53,8 @@ static app_error_code_t require_path_absent(const storage_blob_upload_ops_t *ope
     return stat_error == ENOENT ? APP_ERROR_NONE : map_io_error(stat_error);
 }
 
-static app_error_code_t unlink_temporary(const storage_blob_upload_ops_t *operations,
-                                         const char *path) {
+static app_error_code_t unlink_path_if_present(const storage_blob_upload_ops_t *operations,
+                                               const char *path) {
     if (operations->unlink_path(operations->context, path) == 0) {
         return APP_ERROR_NONE;
     }
@@ -65,7 +65,7 @@ static app_error_code_t unlink_temporary(const storage_blob_upload_ops_t *operat
 static app_error_code_t cleanup_failure(const storage_blob_upload_ops_t *operations,
                                         const char *temporary_path,
                                         app_error_code_t primary_error) {
-    const app_error_code_t cleanup_error = unlink_temporary(operations, temporary_path);
+    const app_error_code_t cleanup_error = unlink_path_if_present(operations, temporary_path);
     return cleanup_error == APP_ERROR_NONE ? primary_error : cleanup_error;
 }
 
@@ -188,10 +188,11 @@ app_error_code_t storage_blob_upload_commit_with_ops(storage_blob_upload_t *uplo
         return cleanup_failure(operations, upload->temporary_path, rename_result);
     }
 
-    upload->committed = true;
+    upload->final_path_owned = true;
     if (operations->sync_parent(operations->context, upload->final_path) != 0) {
         return map_io_error(errno);
     }
+    upload->committed = true;
     *out_entry = (storage_blob_entry_t){
         .id = upload->id,
         .stored_bytes = upload->stored_bytes,
@@ -216,6 +217,18 @@ app_error_code_t storage_blob_upload_abort_with_ops(storage_blob_upload_t *uploa
         upload->stream = NULL;
         upload->active = false;
     }
-    const app_error_code_t cleanup = unlink_temporary(operations, upload->temporary_path);
-    return result == APP_ERROR_NONE ? cleanup : result;
+    const bool cleanup_final = upload->final_path_owned;
+    const char *cleanup_path = cleanup_final ? upload->final_path : upload->temporary_path;
+    const app_error_code_t cleanup = unlink_path_if_present(operations, cleanup_path);
+    if (cleanup != APP_ERROR_NONE) {
+        return result == APP_ERROR_NONE ? cleanup : result;
+    }
+    if (cleanup_final) {
+        if (operations->sync_parent(operations->context, upload->final_path) != 0) {
+            const app_error_code_t sync_error = map_io_error(errno);
+            return result == APP_ERROR_NONE ? sync_error : result;
+        }
+        upload->final_path_owned = false;
+    }
+    return result;
 }
