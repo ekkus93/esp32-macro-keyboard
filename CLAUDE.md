@@ -32,6 +32,8 @@ The lint/test scripts assume the exact versions CI installs (see `.github/workfl
 
 `check-firmware.sh` runs **clang-tidy from the ESP-IDF clang toolchain** (esp-clang, LLVM 19), installed by `scripts/install-esp-idf.sh` and put on `PATH` by sourcing `export.sh` — not the apt `clang-tidy`. It must parse xtensa targets, which needs a clang-built compile database (`build-clang`); the apt clang-tidy and the GCC build database cannot (`clang: error: unsupported option '-mcpu='`).
 
+Sourcing `export.sh` also puts esp-clang's `clang-format` (LLVM 19.1.2) ahead of apt's pinned 18.1.3 on `PATH`, which produces false-positive diffs from `check-format.sh`/`check-all.sh`. If format checks disagree with a clean apt-only shell, check which `clang-format` is first on `PATH`.
+
 ## Commands
 
 Run scripts from the repo root. All frontend commands go through `npm --prefix webapp` (or the wrapper scripts).
@@ -50,9 +52,9 @@ The two suites are in different places and neither sits beside the code it tests
 
 | Suite | Location | Run just this |
 | --- | --- | --- |
-| Host C (47 `test_*.c` + 20 `.inc` fragments) | `tests/host/` | `./scripts/run-tests.sh [label]` |
+| Host C (60 `test_*.c` + 26 `.inc` fragments) | `tests/host/` | `./scripts/run-tests.sh [label]` |
 | v2 contract tests (API routes, device settings, setup contract, macro tokens/conformance) | `tests/v2_contracts/` — separate from `tests/host/` | `./scripts/check-v2-contracts.sh` |
-| Frontend vitest (43 files) | `webapp/tests/` — **not** under `webapp/src/` | `npm --prefix webapp run test` |
+| Frontend vitest (46 files) | `webapp/tests/` — **not** under `webapp/src/` | `npm --prefix webapp run test` |
 | Browser (Playwright) | `webapp/tests/browser/` | `npm --prefix webapp run test:browser` |
 | On-device Unity | `firmware/test_app/` | flash it; see the port table above |
 | Hardware-in-the-loop (Python) | `tests/hardware/` | needs the board attached |
@@ -144,8 +146,11 @@ search those, not just `test_*.c`, when looking for a specific test.
 ## Active development constraints
 
 See `docs/implementation-v2/V2_MIGRATION_MAP.md` and the phase docs in
-`docs/implementation-v2/` for current v2-rebuild context
-(`docs/CLAUDE_CODE_HANDOFF_2026-07-31.md` predates the v1→v2 retirement).
+`docs/implementation-v2/` for current v2-rebuild context. For current state,
+blockers, and next steps, read the newest `docs/CLAUDE_CODE_HANDOFF_*.md` by
+date — check the directory listing rather than assuming a filename, since a
+fresh one is written each session and older ones are superseded (they say so
+at the top when they are).
 Currently in force:
 
 - The project is mid a v1→v2 rebuild (package/repository data-model rewrite,
@@ -171,6 +176,8 @@ Currently in force:
 - Don't mark a TODO checkbox complete without exact implementation and reproducible evidence (commit, commands, results).
 - Don't claim physical hardware validation from compilation, host fakes, or CI device builds alone.
 - Never commit or expose real credentials, tokens, keys, or flash dumps — use generated disposable credentials for security testing.
+- Git worktrees (e.g. for parallel subagents) clone from `origin`, not the local branch tip — push `master` before launching worktree-based parallel work, or the worktree builds on a stale base.
+- The v1→v2 dead-code audit (V2-140) covered the webapp; the firmware-side half was never done — `firmware/components/` may still contain unidentified v1-only paths.
 
 ## Hardware: the two USB ports do different jobs
 
