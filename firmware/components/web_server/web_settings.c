@@ -28,6 +28,41 @@ static void secure_zero_local(void *memory, size_t length) {
     }
 }
 
+/* cJSON owns separate heap copies of parsed strings. Flatten child lists into
+ * the sibling chain while wiping every parsed key and string value so no
+ * secret survives in allocator-owned memory when cJSON_Delete() frees it. */
+static void wipe_json_tree(cJSON *item) {
+    for (cJSON *current = item; current != NULL; current = current->next) {
+        if (current->string != NULL) {
+            secure_zero_local(current->string, strlen(current->string) + 1U);
+        }
+        if (cJSON_IsString(current) && current->valuestring != NULL) {
+            secure_zero_local(current->valuestring, strlen(current->valuestring) + 1U);
+        }
+        if (current->child != NULL) {
+            cJSON *child = current->child;
+            cJSON *child_tail = child;
+            while (child_tail->next != NULL) {
+                child_tail = child_tail->next;
+            }
+            child_tail->next = current->next;
+            if (current->next != NULL) {
+                current->next->prev = child_tail;
+            }
+            current->next = child;
+            child->prev = current;
+            current->child = NULL;
+        }
+    }
+}
+
+static void wipe_and_delete_json_tree(cJSON *root) {
+    if (root != NULL) {
+        wipe_json_tree(root);
+    }
+    cJSON_Delete(root);
+}
+
 static bool ops_valid_common(const web_settings_ops_t *ops) {
     return ops != NULL && ops->settings_read != NULL && ops->settings_replace != NULL;
 }
@@ -69,7 +104,7 @@ static cJSON *parse_exact_body(char *body, size_t body_capacity) {
     cJSON *root = cJSON_ParseWithLengthOpts(body, body_length + 1U, &parse_end, true);
     secure_zero_local(body, body_capacity);
     if (root == NULL || parse_end != body + body_length || !cJSON_IsObject(root)) {
-        cJSON_Delete(root);
+        wipe_and_delete_json_tree(root);
         return NULL;
     }
     return root;
@@ -592,7 +627,7 @@ web_change_password_outcome_t web_change_password_handle(char *body, size_t body
 
     cJSON *root = parse_exact_body(body, body_capacity);
     if (root == NULL || !exact_change_password_fields(root)) {
-        cJSON_Delete(root);
+        wipe_and_delete_json_tree(root);
         return change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_BODY);
     }
 
@@ -602,20 +637,20 @@ web_change_password_outcome_t web_change_password_handle(char *body, size_t body
                                &current_password_view) ||
         !string_view_from_item(cJSON_GetObjectItemCaseSensitive(root, "newPassword"),
                                &new_password_view)) {
-        cJSON_Delete(root);
+        wipe_and_delete_json_tree(root);
         return change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_BODY);
     }
 
     app_v2_device_settings_t current = {0};
     const app_error_code_t read_result = ops->settings_read(ops->context, &current);
     if (read_result != APP_ERROR_NONE) {
-        cJSON_Delete(root);
+        wipe_and_delete_json_tree(root);
         return change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
                                                    read_result);
     }
 
     if (app_v2_password_change_validate(&current, new_password_view) != APP_V2_PASSWORD_CHANGE_OK) {
-        cJSON_Delete(root);
+        wipe_and_delete_json_tree(root);
         return change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_NEW_PASSWORD);
     }
 
@@ -624,19 +659,19 @@ web_change_password_outcome_t web_change_password_handle(char *body, size_t body
         ops->password_verify(ops->context, current_password_view.data, current_password_view.length,
                              &current, &current_matches);
     if (verify_result != APP_ERROR_NONE) {
-        cJSON_Delete(root);
+        wipe_and_delete_json_tree(root);
         return change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
                                                    verify_result);
     }
     if (!current_matches) {
-        cJSON_Delete(root);
+        wipe_and_delete_json_tree(root);
         return change_password_outcome(WEB_CHANGE_PASSWORD_INCORRECT_CURRENT_PASSWORD);
     }
 
     app_v2_setup_password_material_t material = {0};
     const app_error_code_t create_result = ops->password_create(
         ops->context, new_password_view.data, new_password_view.length, &material);
-    cJSON_Delete(root);
+    wipe_and_delete_json_tree(root);
     if (create_result != APP_ERROR_NONE) {
         secure_zero_local(&material, sizeof(material));
         return change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
