@@ -2,7 +2,9 @@
 
 #include <string.h>
 
+#include "auth.h"
 #include "freertos/FreeRTOS.h"
+#include "web_server.h"
 
 /* A portMUX is sufficient here because the protected region is only a
  * bounded structure copy. In particular, neither password hashing nor any
