@@ -10,7 +10,7 @@ Monorepo, no root build file. Work happens in these areas:
 - `webapp/` — React 19 / TypeScript / Vite / Tailwind frontend, served locally by the device
 - `tests/host/` — native C host tests (CMake/CTest) with fakes for every hardware backend
 - `scripts/` — authoritative bash entry points for build/test/lint/coverage — prefer these over ad-hoc commands
-- `docs/` — `SPEC_V2.md` (authoritative spec; `SPEC.md` is a retired v1 stub), `TODO_V2.md` (implementation sequence; `TODO.md` is a retired v1 stub), `DEVELOPMENT.md`, JSON schemas
+- `docs/` — `SPEC_V2.md` (authoritative spec; `SPEC.md` is a retired v1 stub), `TODO_V2.md` (implementation sequence; `TODO.md` is a retired v1 stub), `DEVELOPMENT.md`; the v2 machine-readable contracts (routes, examples, repository schema) live in `contracts/v2/`, not `docs/`
 
 ## Toolchain (exact versions — enforced)
 
@@ -52,7 +52,7 @@ The two suites are in different places and neither sits beside the code it tests
 | --- | --- | --- |
 | Host C (47 `test_*.c` + 20 `.inc` fragments) | `tests/host/` | `./scripts/run-tests.sh [label]` |
 | v2 contract tests (API routes, device settings, setup contract, macro tokens/conformance) | `tests/v2_contracts/` — separate from `tests/host/` | `./scripts/check-v2-contracts.sh` |
-| Frontend vitest (35 files) | `webapp/tests/` — **not** under `webapp/src/` | `npm --prefix webapp run test` |
+| Frontend vitest (43 files) | `webapp/tests/` — **not** under `webapp/src/` | `npm --prefix webapp run test` |
 | Browser (Playwright) | `webapp/tests/browser/` | `npm --prefix webapp run test:browser` |
 | On-device Unity | `firmware/test_app/` | flash it; see the port table above |
 | Hardware-in-the-loop (Python) | `tests/hardware/` | needs the board attached |
@@ -102,13 +102,20 @@ into firmware storage or `macro_model` without checking the migration map first.
 
 ### Webapp (`webapp/src/`)
 
+`main.tsx` boots `AppV2.tsx` — the only application tree in the codebase. The
+retired v1 shell (`App.tsx`), its hash router (`routing.ts`), its HTTP client
+(`api/`), its legacy model types (`types/models.ts`), its route-level pages
+(`features/execution/`, `features/package/`, `features/macros/MacroEditorPage.tsx`
+and `MacroLibraryPage.tsx`, the non-`v2/` parts of `features/auth/` and
+`features/settings/`), and its v1-only shared components (`AppShell`,
+`ConnectivityBanner`, `AccessibleDialog`) were deleted in V2-140 — nothing in the
+tree references them anymore.
+
 - `v2/` — the current v2 contract layer: `apiContracts.ts`/`apiGuards.ts`/`apiRequestGuards.ts` (runtime type guards for every `/api/v1/*` payload), `apiTypes.ts`, `apiRouteManifest.ts`, `limits.ts` (mirrors firmware `app_limits_v2.h`), `macroCompiler.ts` (shares the parser conformance corpus with `macro_parser`), `repository.ts`/`repositoryValidation.ts` (client-owned package/macro modeling, since firmware doesn't do this anymore).
-- `types/` — legacy v1 model types; being superseded by `v2/`.
-- `api/` — the HTTP client (`client.ts`), route table, and error handling used by feature pages.
-- `features/<domain>/` — legacy v1 route-level pages by domain (`auth`, `execution`, `macros`, `package`, `settings`); these are presentation scaffolds over representative data per `webapp/README.md` — a page rendering doesn't mean its persistence/API path is real, check the component before relying on one. `features/<domain>/v2/` subdirectories (`auth`, `macros`, `shell`, `snapshots`, `startup`) are the real, `v2/`-contract-wired implementations that `AppV2` actually renders — Settings and Diagnostics have no `v2/` implementation yet (Phase 12, unstarted) and render a placeholder.
-- `routing.ts` — legacy v1 hash-based routing; `v2/routingV2.ts` is what `AppV2` actually uses.
-- `App.tsx`/`components/` — the retired v1 shell, layout, and shared widgets (`AppShell`, `ConnectivityBanner`, `ErrorBanner`, `StatusBadge`, `AccessibleDialog`); not the mounted entry point. `main.tsx` boots `AppV2.tsx` instead.
-- `pages/` — placeholder only (see its own `README.md`); route components currently live in `App.tsx`, not here.
+- `types/limits.ts` — the one surviving file in `types/`; still used across `v2/` alongside `v2/limits.ts`.
+- `features/<domain>/v2/` subdirectories (`auth`, `macros`, `settings`, `shell`, `snapshots`, `startup`) are the real, `v2/`-contract-wired implementations that `AppV2` renders — including Settings and Diagnostics (shipped Phase 12, V2-120–V2-122), with the destructive device actions (restart, reset-settings, factory-reset) and their reconnect handling.
+- `components/` — shared widgets still used by `v2/`: `ErrorBanner`, `StatusBadge`.
+- `pages/` — placeholder only (see its own `README.md`); route components live under `features/<domain>/v2/`, composed by `AppV2.tsx`.
 
 ### Host tests (`tests/host/`)
 

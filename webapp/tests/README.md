@@ -1,15 +1,13 @@
 # Web Application Tests
 
-Vitest covers the runtime-validated API client, setup/login/session behavior,
-set selection, execution status, and the macro library/editor.
-
-Still required:
-
-- accessibility audits beyond component semantics
-- browser-level workflows against a device or faithful test server
-- Phase 17.7 execution confirmation and submission
-- Phase 18 package workflows
-- Phase 19 diagnostics workflows
+Vitest (this directory) covers the v2 contract layer end to end: the runtime API
+client and guards, setup/sign-in/session behavior, repository modeling and
+validation, macro compilation, the Macros/Packages/Snapshots/Settings/Diagnostics
+pages, and shared shell/hook behavior — against `AppV2`, the only application tree
+that exists (the retired v1 `App.tsx` tree and its own test suite were deleted in
+V2-140). `browser/` holds the real-Chrome Playwright suite
+(`npm run test:browser`) that drives a built `AppV2` against a deterministic
+same-origin fixture server.
 
 Run the current suite with:
 
@@ -18,4 +16,5 @@ cd webapp
 npm test
 ```
 
-No test may hide console errors, rejected requests, type failures, or lint warnings.
+No test may hide console errors, rejected requests, type failures, or lint
+warnings.

@@ -112,7 +112,7 @@ That is the gate a change has to pass. While iterating, use the narrower loops:
 | Suite | Where the tests live | Run just this |
 | --- | --- | --- |
 | Host C — 53 `test_*.c` plus 26 `.inc` fragments (50 CTest suites) | `tests/host/` | `./scripts/run-tests.sh` |
-| Frontend — 37 vitest files, 352 tests, ~3s | `webapp/tests/` (**not** `webapp/src/`) | `npm --prefix webapp run test` |
+| Frontend — 43 vitest files, 448 tests, ~4s | `webapp/tests/` (**not** `webapp/src/`) | `npm --prefix webapp run test` |
 | Browser (Playwright) | `webapp/tests/browser/` | `npm --prefix webapp run test:browser` |
 | On-device Unity | `firmware/test_app/` | see the next section |
 | Hardware-in-the-loop (Python) | `tests/hardware/` | needs the board attached |
