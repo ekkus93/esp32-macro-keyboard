@@ -36,8 +36,7 @@ static auth_password_record_t make_record(uint8_t salt_byte, uint8_t hash_byte,
     return record;
 }
 
-static bool record_equal(const auth_password_record_t *left,
-                         const auth_password_record_t *right) {
+static bool record_equal(const auth_password_record_t *left, const auth_password_record_t *right) {
     return left->iterations == right->iterations &&
            memcmp(left->salt, right->salt, sizeof(left->salt)) == 0 &&
            memcmp(left->hash, right->hash, sizeof(left->hash)) == 0;
