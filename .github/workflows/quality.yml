@@ -38,6 +38,10 @@ jobs:
         working-directory: webapp
         run: npm ci
 
+      - name: Install Playwright Chromium
+        working-directory: webapp
+        run: npx playwright install --with-deps chromium
+
       - name: Enforce reviewed npm audit policy
         working-directory: webapp
         shell: bash
