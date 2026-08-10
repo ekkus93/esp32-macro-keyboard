@@ -221,49 +221,149 @@ def verify_http_contract() -> None:
         "host test for APP_ERROR_STORAGE_FULL to HTTP 507",
     )
 
+    upload_normalized = normalized(upload_source)
     require_contains(
-        normalized(upload_source),
+        upload_normalized,
         normalized(
             "return error_number == ENOSPC ? APP_ERROR_STORAGE_FULL : APP_ERROR_IO;"
         ),
         "ENOSPC storage-full mapping",
     )
     require_contains(
-        normalized(upload_source),
+        upload_normalized,
         normalized(
             "operations->open_temporary(operations->context, "
             "out_upload->temporary_path)"
         ),
         "temporary-path-only upload open",
     )
-    require_contains(
-        normalized(upload_source),
-        normalized(
-            "operations->rename_path(operations->context, upload->temporary_path, "
-            "upload->final_path)"
-        ),
-        "temporary-to-final rename commit point",
-    )
-    require_contains(
-        normalized(upload_source),
-        normalized(
-            "const app_error_code_t cleanup = "
-            "unlink_temporary(operations, upload->temporary_path);"
-        ),
-        "abort cleanup restricted to the temporary path",
-    )
 
-    unlink_fake = section(
-        upload_test,
-        "static int fake_unlink_path",
-        "static int fake_sync_parent",
-        "host fake unlink operation",
+    rename_marker = normalized(
+        "operations->rename_path(operations->context, upload->temporary_path, "
+        "upload->final_path)"
     )
+    ownership_marker = "upload->final_path_owned = true;"
+    sync_marker = normalized(
+        "operations->sync_parent(operations->context, upload->final_path)"
+    )
+    commit_marker = "upload->committed = true;"
     require_contains(
-        unlink_fake,
-        "TEST_CHECK(path_is_temporary(path));",
-        "host guard forbidding final-path unlink",
+        upload_normalized,
+        rename_marker,
+        "temporary-to-final rename commit transition",
     )
+    require_once(
+        upload_source,
+        ownership_marker,
+        "post-rename final-path ownership transition",
+    )
+    require_once(
+        upload_source,
+        commit_marker,
+        "durable upload commit transition",
+    )
+    rename_position = upload_normalized.find(rename_marker)
+    ownership_position = upload_normalized.find(ownership_marker)
+    sync_position = upload_normalized.find(sync_marker)
+    commit_position = upload_normalized.find(commit_marker)
+    if not (
+        rename_position
+        < ownership_position
+        < sync_position
+        < commit_position
+    ):
+        raise SystemExit(
+            "blob upload durable-commit ordering must be rename -> ownership -> "
+            "parent sync -> committed"
+        )
+
+    abort_source = upload_source[
+        upload_source.find("app_error_code_t storage_blob_upload_abort_with_ops") :
+    ]
+    abort_normalized = normalized(abort_source)
+    cleanup_final_marker = "const bool cleanup_final = upload->final_path_owned;"
+    cleanup_path_marker = normalized(
+        "const char *cleanup_path = cleanup_final ? upload->final_path : "
+        "upload->temporary_path;"
+    )
+    unlink_marker = normalized(
+        "const app_error_code_t cleanup = "
+        "unlink_path_if_present(operations, cleanup_path);"
+    )
+    clear_ownership_marker = "upload->final_path_owned = false;"
+    for marker, description in (
+        (cleanup_final_marker, "owned-final abort selection"),
+        (cleanup_path_marker, "ownership-aware abort cleanup path"),
+        (unlink_marker, "ownership-aware abort unlink"),
+        (sync_marker, "final-path cleanup parent sync"),
+        (clear_ownership_marker, "post-cleanup ownership clear"),
+    ):
+        require_contains(abort_normalized, marker, description)
+    cleanup_final_position = abort_normalized.find(cleanup_final_marker)
+    cleanup_path_position = abort_normalized.find(cleanup_path_marker)
+    unlink_position = abort_normalized.find(unlink_marker)
+    cleanup_sync_position = abort_normalized.find(sync_marker)
+    clear_ownership_position = abort_normalized.find(clear_ownership_marker)
+    if not (
+        cleanup_final_position
+        < cleanup_path_position
+        < unlink_position
+        < cleanup_sync_position
+        < clear_ownership_position
+    ):
+        raise SystemExit(
+            "owned final-path abort cleanup must select ownership, unlink, sync "
+            "the parent, then clear ownership"
+        )
+
+    require_contains(
+        upload_test,
+        '#include "../../firmware/components/storage/storage_blob_upload.c"',
+        "public storage upload wrapper host coverage",
+    )
+    sync_failure_test = section(
+        upload_test,
+        "static void test_directory_sync_failure_remains_uncommitted_and_reclaimable",
+        "static void test_public_wrapper_records_only_durable_commit",
+        "directory-sync failure host regression",
+    )
+    for marker, description in (
+        ("TEST_CHECK(!upload.committed);", "uncommitted sync-failure assertion"),
+        ("TEST_CHECK(upload.final_path_owned);", "owned final-path assertion"),
+        ("TEST_CHECK(fake.final_exists);", "renamed final-path assertion"),
+        ("storage_blob_upload_abort_with_ops(&upload)", "owned final-path abort"),
+        ("TEST_CHECK(!upload.final_path_owned);", "ownership clear assertion"),
+        ("TEST_CHECK(!fake.final_exists);", "final-path reclamation assertion"),
+        (
+            "TEST_CHECK_EQ_U64(2U, fake.operation_counts[UPLOAD_OPERATION_SYNC_PARENT]);",
+            "cleanup parent-sync assertion",
+        ),
+    ):
+        require_contains(sync_failure_test, marker, description)
+
+    wrapper_test = section(
+        upload_test,
+        "static void test_public_wrapper_records_only_durable_commit",
+        "static void test_cleanup_failure_is_reported",
+        "public wrapper durable-commit host regression",
+    )
+    for marker, description in (
+        ("storage_blob_upload_commit(&upload, &entry)", "public wrapper commit call"),
+        (
+            "TEST_CHECK_EQ_U64(0U, storage_blob_scan_state().valid_count);",
+            "failed-sync inventory count assertion",
+        ),
+        (
+            "TEST_CHECK_EQ_U64(0U, fake_inventory_used_bytes);",
+            "failed-sync inventory byte assertion",
+        ),
+        ("TEST_CHECK(!upload.committed);", "public wrapper uncommitted assertion"),
+        ("TEST_CHECK(upload.final_path_owned);", "public wrapper ownership assertion"),
+        ("storage_blob_upload_abort(&upload)", "public wrapper abort call"),
+        ("TEST_CHECK(!fake.final_exists);", "public wrapper reclamation assertion"),
+    ):
+        require_contains(wrapper_test, marker, description)
+
     enospc_test = section(
         upload_test,
         "static void test_write_failures_abort_cleanly",
