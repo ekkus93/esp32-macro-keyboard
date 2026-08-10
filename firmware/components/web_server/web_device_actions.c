@@ -19,6 +19,41 @@ static void secure_zero_local(void *memory, size_t length) {
     }
 }
 
+/* cJSON owns separate heap copies of parsed strings. Flatten child lists into
+ * the sibling chain while wiping every parsed key and string value so no
+ * secret survives in allocator-owned memory when cJSON_Delete() frees it. */
+static void wipe_json_tree(cJSON *item) {
+    for (cJSON *current = item; current != NULL; current = current->next) {
+        if (current->string != NULL) {
+            secure_zero_local(current->string, strlen(current->string) + 1U);
+        }
+        if (cJSON_IsString(current) && current->valuestring != NULL) {
+            secure_zero_local(current->valuestring, strlen(current->valuestring) + 1U);
+        }
+        if (current->child != NULL) {
+            cJSON *child = current->child;
+            cJSON *child_tail = child;
+            while (child_tail->next != NULL) {
+                child_tail = child_tail->next;
+            }
+            child_tail->next = current->next;
+            if (current->next != NULL) {
+                current->next->prev = child_tail;
+            }
+            current->next = child;
+            child->prev = current;
+            current->child = NULL;
+        }
+    }
+}
+
+static void wipe_and_delete_json_tree(cJSON *root) {
+    if (root != NULL) {
+        wipe_json_tree(root);
+    }
+    cJSON_Delete(root);
+}
+
 static bool bounded_body_length(const char *body, size_t capacity, size_t *out_length) {
     if (body == NULL || out_length == NULL || capacity == 0U) {
         return false;
@@ -56,7 +91,7 @@ static cJSON *parse_exact_body(char *body, size_t body_capacity) {
     cJSON *root = cJSON_ParseWithLengthOpts(body, body_length + 1U, &parse_end, true);
     secure_zero_local(body, body_capacity);
     if (root == NULL || parse_end != body + body_length || !cJSON_IsObject(root)) {
-        cJSON_Delete(root);
+        wipe_and_delete_json_tree(root);
         return NULL;
     }
     return root;
@@ -215,7 +250,7 @@ web_device_factory_reset_handle(char *body, size_t body_capacity,
                                                         WEB_DEVICE_FACTORY_RESET_INVALID_BODY};
     }
     if (!exact_factory_reset_fields(root)) {
-        cJSON_Delete(root);
+        wipe_and_delete_json_tree(root);
         return (web_device_factory_reset_outcome_t){.result =
                                                         WEB_DEVICE_FACTORY_RESET_INVALID_BODY};
     }
@@ -226,13 +261,13 @@ web_device_factory_reset_handle(char *body, size_t body_capacity,
     size_t password_length = 0U;
     if (!string_field(root, "confirmation", &confirmation, &confirmation_length) ||
         !string_field(root, "adminPassword", &password, &password_length)) {
-        cJSON_Delete(root);
+        wipe_and_delete_json_tree(root);
         return (web_device_factory_reset_outcome_t){.result =
                                                         WEB_DEVICE_FACTORY_RESET_INVALID_BODY};
     }
 
     if (!confirmation_matches(confirmation, confirmation_length, FACTORY_RESET_CONFIRMATION)) {
-        cJSON_Delete(root);
+        wipe_and_delete_json_tree(root);
         return (web_device_factory_reset_outcome_t){
             .result = WEB_DEVICE_FACTORY_RESET_INVALID_CONFIRMATION};
     }
@@ -240,7 +275,7 @@ web_device_factory_reset_handle(char *body, size_t body_capacity,
     app_v2_device_settings_t current = {0};
     const app_error_code_t read_result = ops->settings_read(ops->context, &current);
     if (read_result != APP_ERROR_NONE) {
-        cJSON_Delete(root);
+        wipe_and_delete_json_tree(root);
         return (web_device_factory_reset_outcome_t){
             .result = WEB_DEVICE_FACTORY_RESET_BACKEND_UNAVAILABLE,
             .detail = read_result,
@@ -250,7 +285,7 @@ web_device_factory_reset_handle(char *body, size_t body_capacity,
     bool password_matches = false;
     const app_error_code_t verify_result =
         ops->password_verify(ops->context, password, password_length, &current, &password_matches);
-    cJSON_Delete(root);
+    wipe_and_delete_json_tree(root);
     if (verify_result != APP_ERROR_NONE) {
         return (web_device_factory_reset_outcome_t){
             .result = WEB_DEVICE_FACTORY_RESET_BACKEND_UNAVAILABLE,
