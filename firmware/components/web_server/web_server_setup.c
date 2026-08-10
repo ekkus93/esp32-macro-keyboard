@@ -13,6 +13,7 @@
 #include "device_settings.h"
 #include "device_settings_v2.h"
 #include "esp_http_server.h"
+#include "esp_system.h"
 #include "setup_contract_v2.h"
 #include "web_server.h"
 #include "web_server_setup_submit.h"
@@ -238,5 +239,20 @@ esp_err_t setup_submit_handler(httpd_req_t *request) {
     if (outcome.result != WEB_SETUP_SUBMIT_OK) {
         return send_setup_submit_error(request, outcome);
     }
-    return send_setup_accepted(request, &accepted);
+    const esp_err_t send_result = send_setup_accepted(request, &accepted);
+    /* Mirrors web_server_api.c's api_handler(): restart only after the
+     * response was actually sent, and only for a route whose contract
+     * promises one. accepted.restart_required is unconditionally true on a
+     * successful setup outcome (setup_contract_v2.c), so this always fires
+     * here -- without it, the device commits new settings but never leaves
+     * setup mode, matching a real gap found on physical hardware 2026-08-10:
+     * GET /api/v1/setup kept reporting provisioned:false and login stayed
+     * disabled after a real setup submission, because nothing in this
+     * dedicated setup_routes[] handler ever called esp_restart() the way the
+     * generic API dispatch does for /api/v1/device/restart and
+     * /api/v1/device/factory-reset. */
+    if (send_result == ESP_OK && accepted.restart_required) {
+        esp_restart();
+    }
+    return send_result;
 }

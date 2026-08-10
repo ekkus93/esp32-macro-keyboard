@@ -395,6 +395,7 @@ add_executable(
 target_include_directories(
     web_server_setup_route_tests
     PRIVATE fakes/esp_http_server_stub
+            fakes/esp_idf_misc_stub
             fakes
             ../../firmware/components/web_server
             ../../firmware/components/web_server/include

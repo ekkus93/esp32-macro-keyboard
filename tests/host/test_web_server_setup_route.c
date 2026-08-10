@@ -28,13 +28,16 @@
  * (test_web_api_core.c/test_web_server_lifecycle.c, not this file).
  *
  * web_server_setup.c also defines setup_submit_handler() (the unprovisioned-
- * mode POST handler), which this file does not exercise -- only
- * setup_state_handler() (GET) is this file's scope, per TODO_V2 V2-057's
- * remaining setup-state bullet. Compiling web_server_setup.c still requires
- * every symbol setup_submit_handler() references to resolve at link time
- * (device_settings_read/replace, auth_password_create), so narrow stand-ins
- * for those are provided below purely to satisfy the linker; none is called
- * by any test in this file. */
+ * mode POST handler). This file's GET coverage predates TODO_V2 V2-057's
+ * remaining setup-state bullet; POST coverage below was added 2026-08-10
+ * after real hardware testing found a genuine production bug this file's
+ * previous TEST_CHECK(false)-stub device_settings_read/replace and
+ * auth_password_create never could have caught: a successful setup
+ * submission committed new settings but never called esp_restart(), leaving
+ * the device stuck in setup mode indefinitely (GET /api/v1/setup kept
+ * reporting provisioned:false, login stayed disabled) -- fixed in
+ * web_server_setup.c's setup_submit_handler(). test_setup_submit_success_
+ * restarts_device() below is the regression test for that fix. */
 
 #include <stdio.h>
 #include <string.h>
@@ -44,52 +47,99 @@
 #include "cJSON.h"
 #include "device_settings.h"
 #include "device_settings_v2.h"
+#include "esp_system.h"
 #include "fake_httpd.h"
+#include "setup_contract_v2.h"
 #include "test_assert.h"
 #include "test_examples_fixture.h"
 #include "web_server.h"
 #include "web_server_internal.h"
 
 /* ---------------------------------------------------------------------- *
- * Test doubles, present only so web_server_setup.c (which also defines
- * setup_submit_handler(), never called here) links -- see the file header
- * comment above.
+ * Test doubles so web_server_setup.c links, and so setup_submit_handler()'s
+ * success path is genuinely exercised (not just stubbed out) below.
  * ---------------------------------------------------------------------- */
 
 app_error_code_t auth_session_validate(const char *session_token) {
     (void)session_token;
-    /* Never reached: setup_state_handler() performs no authentication. */
+    /* Never reached: neither setup_state_handler() nor setup_submit_handler()
+     * performs session authentication (SPEC_V2 13.4: unauthenticated). */
     TEST_CHECK(false);
     return APP_ERROR_AUTH_REQUIRED;
 }
 
+typedef struct {
+    app_v2_device_settings_t record;
+    app_error_code_t read_result;
+    app_error_code_t replace_result;
+    bool replace_changed;
+} fake_device_settings_t;
+
+static fake_device_settings_t fake_device_settings;
+
 app_error_code_t device_settings_read(app_v2_device_settings_t *out_settings) {
-    (void)out_settings;
-    TEST_CHECK(false); /* Never reached: only setup_submit_handler() calls this. */
-    return APP_ERROR_INTERNAL;
+    if (fake_device_settings.read_result != APP_ERROR_NONE) {
+        return fake_device_settings.read_result;
+    }
+    *out_settings = fake_device_settings.record;
+    return APP_ERROR_NONE;
 }
 
 app_error_code_t device_settings_replace(const app_v2_device_settings_t *settings,
                                          bool *out_changed) {
-    (void)settings;
-    (void)out_changed;
-    TEST_CHECK(false); /* Never reached: only setup_submit_handler() calls this. */
-    return APP_ERROR_INTERNAL;
+    if (fake_device_settings.replace_result != APP_ERROR_NONE) {
+        return fake_device_settings.replace_result;
+    }
+    fake_device_settings.record = *settings;
+    *out_changed = fake_device_settings.replace_changed;
+    return APP_ERROR_NONE;
 }
+
+static app_error_code_t g_password_create_result;
 
 app_error_code_t auth_password_create(const char *password, size_t password_length,
                                       auth_password_record_t *out_record) {
     (void)password;
     (void)password_length;
-    (void)out_record;
-    TEST_CHECK(false); /* Never reached: only setup_submit_handler() calls this. */
-    return APP_ERROR_INTERNAL;
+    if (g_password_create_result != APP_ERROR_NONE) {
+        return g_password_create_result;
+    }
+    /* setup_password_create() (web_server_setup.c) rejects iterations !=
+     * AUTH_PBKDF2_ITERATIONS defensively, and app_v2_setup_prepare_candidate()
+     * separately rejects an all-zero salt/verifier via password_material_valid()
+     * -- both must be realistic, not merely non-error, for the success path
+     * below to actually reach WEB_SETUP_SUBMIT_OK. */
+    memset(out_record->salt, 0x5A, sizeof(out_record->salt));
+    memset(out_record->hash, 0xA5, sizeof(out_record->hash));
+    out_record->iterations = AUTH_PBKDF2_ITERATIONS;
+    return APP_ERROR_NONE;
+}
+
+static size_t g_esp_restart_calls;
+
+/* Deliberately returns normally (unlike the real, noreturn esp_restart()) so
+ * the caller's post-restart code -- here, nothing, since setup_submit_
+ * handler() returns immediately after -- still executes under test. Mirrors
+ * test_web_server_administration_route.c's identical fake. */
+void esp_restart(void) {
+    ++g_esp_restart_calls;
 }
 
 /* ---------------------------------------------------------------------- */
 
 static void reset_fakes(void) {
     server_configuration = (web_server_config_t){0};
+    fake_device_settings = (fake_device_settings_t){0};
+    app_v2_device_settings_init_unprovisioned(&fake_device_settings.record);
+    g_password_create_result = APP_ERROR_NONE;
+    g_esp_restart_calls = 0U;
+}
+
+static void bind_json_body(httpd_req_t *request, fake_httpd_request_t *fake, const char *uri,
+                           const char *body) {
+    const size_t length = strlen(body);
+    fake_httpd_set_body(fake, body, length, 0U);
+    fake_httpd_bind(request, fake, uri, length);
 }
 
 static cJSON *parse_response(const fake_httpd_request_t *fake) {
@@ -174,10 +224,74 @@ static void test_setup_state_not_found_after_provisioning(void) {
     cJSON_Delete(root);
 }
 
+/* -------------------------------------------------------------------------
+ * POST /api/v1/setup (unprovisioned mode) -- setup_submit_handler()
+ * ---------------------------------------------------------------------- */
+
+static void seed_valid_setup_session(void) {
+    const app_v2_string_view_t code = {.data = "12345678", .length = 8U};
+    TEST_CHECK_EQ_INT(APP_V2_SETUP_OK, (int)app_v2_setup_session_init(&setup_session, code));
+}
+
+static const char *const VALID_SETUP_BODY =
+    "{\"setupCode\":\"12345678\",\"deviceName\":\"Desk Macro Keyboard\","
+    "\"apSsid\":\"MacroKeyboard\",\"apPassphrase\":\"example-passphrase\","
+    "\"adminPassword\":\"example-admin-password\",\"requireSerialConfirmation\":false}";
+
+/* Regression test for a real hardware bug found 2026-08-10: a successful
+ * setup submission committed new settings (confirmed separately on real
+ * hardware: resubmitting the same code afterward correctly got 409 "already
+ * provisioned") but never restarted the device, so it never left setup mode.
+ * Root cause: setup_submit_handler() is its own dedicated httpd_uri_t
+ * registration (web_server_lifecycle.c's setup_routes[]), bypassing the
+ * generic api_handler() dispatch that is the only place esp_restart() was
+ * ever called for /api/v1/device/restart and /api/v1/device/factory-reset. */
+static void test_setup_submit_success_restarts_device(void) {
+    reset_fakes();
+    server_configuration.mode = WEB_SERVER_MODE_SETUP;
+    seed_valid_setup_session();
+    fake_httpd_request_t fake;
+    fake_httpd_reset(&fake);
+    httpd_req_t request;
+    bind_json_body(&request, &fake, "/api/v1/setup", VALID_SETUP_BODY);
+
+    TEST_CHECK_EQ_INT(ESP_OK, setup_submit_handler(&request));
+    TEST_CHECK_EQ_STRING("202 Accepted", fake.response_status);
+    cJSON *root = parse_response(&fake);
+    TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "accepted")));
+    TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "restartRequired")));
+    TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "connectionWillClose")));
+    cJSON_Delete(root);
+    TEST_CHECK_EQ_U64(1U, (uint64_t)g_esp_restart_calls);
+}
+
+/* Symmetry check: a rejected submission must never restart the device
+ * (esp_restart() gated on WEB_SETUP_SUBMIT_OK, not just "a response was
+ * sent" -- see setup_submit_handler()). */
+static void test_setup_submit_failure_does_not_restart_device(void) {
+    reset_fakes();
+    server_configuration.mode = WEB_SERVER_MODE_SETUP;
+    seed_valid_setup_session();
+    fake_httpd_request_t fake;
+    fake_httpd_reset(&fake);
+    httpd_req_t request;
+    static const char *const wrong_code_body =
+        "{\"setupCode\":\"99999999\",\"deviceName\":\"Desk Macro Keyboard\","
+        "\"apSsid\":\"MacroKeyboard\",\"apPassphrase\":\"example-passphrase\","
+        "\"adminPassword\":\"example-admin-password\",\"requireSerialConfirmation\":false}";
+    bind_json_body(&request, &fake, "/api/v1/setup", wrong_code_body);
+
+    TEST_CHECK_EQ_INT(ESP_OK, setup_submit_handler(&request));
+    TEST_CHECK(strcmp(fake.response_status, "202 Accepted") != 0);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
+}
+
 int main(void) {
     test_setup_state_valid_exactly_two_fields();
     test_setup_state_reflects_configured_device_name();
     test_setup_state_not_found_after_provisioning();
+    test_setup_submit_success_restarts_device();
+    test_setup_submit_failure_does_not_restart_device();
 
     puts("web server setup route tests passed");
     return 0;
