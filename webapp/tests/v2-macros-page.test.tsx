@@ -181,6 +181,174 @@ describe("MacrosPage — V2-091 macro list", () => {
     expect(moveUpFirst.disabled).toBe(true);
     expect(moveDownLast.disabled).toBe(true);
   });
+
+  // TODO_V2 V2-133/UI_UX_SPEC_V2 §14: "Move first"/"Move last" alongside
+  // "Move up"/"Move down" — a keyboard-operable alternative to drag and drop.
+  test("Move first and Move last are disabled at their respective ends", async () => {
+    await renderMacrosPage();
+    expect(
+      requiredElement(
+        '[aria-label="Move Start the build to first"]',
+        HTMLButtonElement,
+      ).disabled,
+    ).toBe(true);
+    expect(
+      requiredElement(
+        '[aria-label="Move Open terminal to last"]',
+        HTMLButtonElement,
+      ).disabled,
+    ).toBe(true);
+    expect(
+      requiredElement(
+        '[aria-label="Move Open terminal to first"]',
+        HTMLButtonElement,
+      ).disabled,
+    ).toBe(false);
+    expect(
+      requiredElement(
+        '[aria-label="Move Start the build to last"]',
+        HTMLButtonElement,
+      ).disabled,
+    ).toBe(false);
+  });
+
+  test("Move last reorders to the end of the list and announces the move", async () => {
+    const { container, store } = await renderMacrosPage();
+    await click(
+      requiredElement(
+        '[aria-label="Move Start the build to last"]',
+        HTMLButtonElement,
+      ),
+    );
+    const firstPackage = store
+      .getRepository()
+      .packages.find((pkg) => pkg.id === packageId);
+    const names = firstPackage?.macros.map((macro) => macro.name);
+    expect(names).toEqual(["Open terminal", "Start the build"]);
+    expect(store.getIsDirty()).toBe(true);
+    expect(container.textContent).toContain(
+      "Moved Start the build to position 2.",
+    );
+  });
+
+  test("Move first reorders to the start of the list", async () => {
+    const { store } = await renderMacrosPage();
+    await click(
+      requiredElement(
+        '[aria-label="Move Open terminal to first"]',
+        HTMLButtonElement,
+      ),
+    );
+    const firstPackage = store
+      .getRepository()
+      .packages.find((pkg) => pkg.id === packageId);
+    const names = firstPackage?.macros.map((macro) => macro.name);
+    expect(names).toEqual(["Open terminal", "Start the build"]);
+  });
+});
+
+describe("MacrosPage — V2-133 overflow menu dismissal", () => {
+  test("Escape closes an open overflow menu", async () => {
+    const { unmount } = await renderMacrosPage();
+    await click(
+      requiredElement(
+        '[aria-label="More actions for Start the build"]',
+        HTMLButtonElement,
+      ),
+    );
+    expect(
+      document.querySelector('[aria-label="Actions for Start the build"]'),
+    ).not.toBeNull();
+
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      await Promise.resolve();
+    });
+    expect(
+      document.querySelector('[aria-label="Actions for Start the build"]'),
+    ).toBeNull();
+    await unmount();
+  });
+
+  test("a click outside the overflow menu closes it", async () => {
+    const { unmount } = await renderMacrosPage();
+    await click(
+      requiredElement(
+        '[aria-label="More actions for Start the build"]',
+        HTMLButtonElement,
+      ),
+    );
+    expect(
+      document.querySelector('[aria-label="Actions for Start the build"]'),
+    ).not.toBeNull();
+
+    // A real user press fires `pointerdown` before `click`; the dismiss hook
+    // listens for `pointerdown` specifically so a press-and-drag-off does
+    // not leave the menu open. jsdom has no `PointerEvent` constructor, but
+    // the hook only reads `event.target`, so a plain `Event` dispatched as
+    // "pointerdown" is indistinguishable to it.
+    await act(async () => {
+      requiredElement("#macros-title", HTMLHeadingElement).dispatchEvent(
+        new Event("pointerdown", { bubbles: true, cancelable: true }),
+      );
+      await Promise.resolve();
+    });
+    expect(
+      document.querySelector('[aria-label="Actions for Start the build"]'),
+    ).toBeNull();
+    await unmount();
+  });
+
+  test("the delete confirmation traps focus and Escape cancels without deleting", async () => {
+    const { store, unmount } = await renderMacrosPage();
+    await click(
+      requiredElement(
+        '[aria-label="More actions for Start the build"]',
+        HTMLButtonElement,
+      ),
+    );
+    await click(
+      requiredElement(
+        '[aria-label="Delete Start the build"]',
+        HTMLButtonElement,
+      ),
+    );
+    const dialog = requiredElement('[role="alertdialog"]', HTMLDivElement);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      await Promise.resolve();
+    });
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(
+      store
+        .getRepository()
+        .packages.find((candidate) => candidate.id === packageId)?.macros,
+    ).toHaveLength(2);
+    // The original "Delete Start the build" button was itself unmounted
+    // (replaced by the confirmation panel) and a new one just remounted in
+    // its place — asserts focus landed on that reappeared trigger.
+    expect(document.activeElement).toBe(
+      requiredElement(
+        '[aria-label="Delete Start the build"]',
+        HTMLButtonElement,
+      ),
+    );
+    await unmount();
+  });
 });
 
 describe("MacrosPage — V2-092 macro-source privacy", () => {

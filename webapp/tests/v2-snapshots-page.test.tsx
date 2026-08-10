@@ -699,6 +699,43 @@ describe("SnapshotsPage — V2-111 download and delete", () => {
     await unmount();
   });
 
+  // TODO_V2 V2-133/UI_UX_SPEC_V2 §14 "Dialogs trap focus and restore it to
+  // their invoking control". The "Delete snapshot 1" trigger is itself
+  // unmounted (replaced by the confirmation panel) the same render that
+  // opens it, so this asserts focus restoration on the *reappeared*
+  // trigger, not object identity with the original (now-gone) node.
+  test("the delete confirmation traps focus and Escape cancels without deleting", async () => {
+    const deleteSnapshot = vi.fn();
+    const { unmount } = await renderPage({ deps: { deleteSnapshot } });
+    await waitUntil(
+      () => document.querySelector('[aria-label="Delete snapshot 1"]') !== null,
+      "row to render",
+    );
+    await click(
+      requiredElement('[aria-label="Delete snapshot 1"]', HTMLButtonElement),
+    );
+    await flushReact();
+    const dialog = requiredElement('[role="alertdialog"]', HTMLDivElement);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      await Promise.resolve();
+    });
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(deleteSnapshot).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(
+      requiredElement('[aria-label="Delete snapshot 1"]', HTMLButtonElement),
+    );
+    await unmount();
+  });
+
   test("deleting the currently-loaded snapshot clears the loaded-snapshot association", async () => {
     const deleteSnapshot = vi.fn().mockResolvedValue(undefined);
     const { onWorkingCopyOriginChanged, unmount } = await renderPage({
@@ -957,6 +994,51 @@ describe("SnapshotsPage — V2-115 import", () => {
       "import counts to render",
     );
     expect(container.textContent).toContain("0 macros");
+    expect(store.getIsDirty()).toBe(false);
+    expect(store.getRepository()).not.toEqual(imported);
+    await unmount();
+  });
+
+  // TODO_V2 V2-133/UI_UX_SPEC_V2 §14 "Dialogs trap focus and restore it to
+  // their invoking control". This confirmation is a sibling of its trigger
+  // ("Import repository…" stays mounted; the "ready" panel is added, not
+  // swapped in), so the trap's automatic capture is exactly right — but the
+  // trigger is a native file input's proxy button, which real focus after a
+  // file selection may or may not land on depending on the browser, so this
+  // only asserts the trap itself (initial focus, Escape) rather than a
+  // specific restore target.
+  test("the import confirmation traps focus and Escape cancels it without touching the store", async () => {
+    const imported = twoPackageRepository();
+    const importResult: ImportResult = {
+      ok: true,
+      repository: imported,
+      packageCount: 2,
+      macroCount: 0,
+    };
+    const readFileBytes = vi.fn().mockResolvedValue(new Uint8Array([1]));
+    const importRepository = vi.fn().mockResolvedValue(importResult);
+    const { container, store, unmount } = await renderPage({
+      deps: { readFileBytes, importRepository },
+    });
+    await chooseFile(fakeFile());
+    await waitUntil(
+      () => container.textContent?.includes("2 packages") === true,
+      "import counts to render",
+    );
+    const dialog = requiredElement('[role="alertdialog"]', HTMLDivElement);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      await Promise.resolve();
+    });
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
     expect(store.getIsDirty()).toBe(false);
     expect(store.getRepository()).not.toEqual(imported);
     await unmount();

@@ -26,6 +26,7 @@
     "tailwindcss": "4.1.11"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
     "@eslint/js": "9.39.4",
     "@types/node": "24.13.3",
     "@types/react": "19.1.9",

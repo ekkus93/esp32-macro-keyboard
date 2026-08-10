@@ -1,3 +1,4 @@
+import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
 import { PackageManagementPage } from "../src/features/macros/v2/PackageManagementPage";
 import type { Repository } from "../src/v2/repository";
@@ -172,6 +173,103 @@ describe("PackageManagementPage — V2-102 create/rename/duplicate/reorder/delet
     await click(buttonWithText("Cancel"));
     expect(store.getIsDirty()).toBe(false);
     expect(store.getRepository().packages).toHaveLength(2);
+    await unmount();
+  });
+
+  // TODO_V2 V2-133/UI_UX_SPEC_V2 §14: "Move first"/"Move last" alongside
+  // "Move up"/"Move down".
+  test("Move first and Move last are disabled at their respective ends", async () => {
+    const store = createRepositoryWorkingCopyStore(repository());
+    const { unmount } = await renderPage(store, packageAId);
+    expect(
+      requiredElement(
+        '[aria-label="Move Package A to first"]',
+        HTMLButtonElement,
+      ).disabled,
+    ).toBe(true);
+    expect(
+      requiredElement(
+        '[aria-label="Move Package B to last"]',
+        HTMLButtonElement,
+      ).disabled,
+    ).toBe(true);
+    expect(
+      requiredElement(
+        '[aria-label="Move Package B to first"]',
+        HTMLButtonElement,
+      ).disabled,
+    ).toBe(false);
+    expect(
+      requiredElement(
+        '[aria-label="Move Package A to last"]',
+        HTMLButtonElement,
+      ).disabled,
+    ).toBe(false);
+    await unmount();
+  });
+
+  test("Move last reorders directly to the end of a longer list", async () => {
+    const threePackages: Repository = {
+      format: "esp32-macro-keyboard-repository",
+      schemaVersion: 1,
+      packages: [
+        { id: packageAId, name: "Package A", macros: [] },
+        { id: packageBId, name: "Package B", macros: [] },
+        {
+          id: "550e8400-e29b-41d4-a716-446655440002",
+          name: "Package C",
+          macros: [],
+        },
+      ],
+    };
+    const store = createRepositoryWorkingCopyStore(threePackages);
+    const { unmount } = await renderPage(store, packageAId);
+    await click(
+      requiredElement(
+        '[aria-label="Move Package A to last"]',
+        HTMLButtonElement,
+      ),
+    );
+    expect(store.getRepository().packages.map((pkg) => pkg.name)).toEqual([
+      "Package B",
+      "Package C",
+      "Package A",
+    ]);
+    expect(store.getIsDirty()).toBe(true);
+    await unmount();
+  });
+
+  // TODO_V2 V2-133/UI_UX_SPEC_V2 §14 "Dialogs trap focus and restore it to
+  // their invoking control".
+  test("the delete confirmation traps focus and Escape cancels without deleting, restoring focus to the reappeared trigger", async () => {
+    const store = createRepositoryWorkingCopyStore(repository());
+    const { unmount } = await renderPage(store, packageAId);
+    await click(
+      requiredElement('[aria-label="Delete Package B"]', HTMLButtonElement),
+    );
+    const dialog = requiredElement('[role="alertdialog"]', HTMLDivElement);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      await Promise.resolve();
+    });
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(store.getRepository().packages).toHaveLength(2);
+    // The original "Delete Package B" button was itself unmounted (replaced
+    // by the confirmation panel) and a new one just remounted in its place
+    // — this asserts focus landed on that reappeared trigger, not merely
+    // "somewhere," which is the actual "restore focus to the invoking
+    // control" requirement for this in-place-replace confirmation pattern.
+    expect(document.activeElement).toBe(
+      requiredElement('[aria-label="Delete Package B"]', HTMLButtonElement),
+    );
     await unmount();
   });
 });

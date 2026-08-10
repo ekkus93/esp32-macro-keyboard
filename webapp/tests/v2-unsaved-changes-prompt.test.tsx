@@ -1,6 +1,7 @@
+import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
 import { UnsavedChangesPrompt } from "../src/features/shell/v2/UnsavedChangesPrompt";
-import { buttonWithText, click, render } from "./render";
+import { buttonWithText, click, render, requiredElement } from "./render";
 
 describe("UnsavedChangesPrompt — V2-103", () => {
   test("names the attempted action and offers Cancel, Export, Save, and Discard", async () => {
@@ -87,5 +88,57 @@ describe("UnsavedChangesPrompt — V2-103", () => {
     expect(buttonWithText("Exporting…").disabled).toBe(true);
     expect(buttonWithText("Saving…").disabled).toBe(true);
     await unmount();
+  });
+
+  // TODO_V2 V2-133/UI_UX_SPEC_V2 §14 "Dialogs trap focus and restore it to
+  // their invoking control". This dialog stays a sibling of its trigger
+  // (the trigger is never itself unmounted), so the trap's automatic
+  // "whatever had focus when it opened" capture is exactly right here.
+  test("traps focus, closes with Escape, and restores focus to the opener", async () => {
+    const opener = document.createElement("button");
+    document.body.append(opener);
+    opener.focus();
+    const onCancel = vi.fn();
+    const { unmount } = await render(
+      <UnsavedChangesPrompt
+        actionLabel="sign out"
+        onCancel={onCancel}
+        onDiscard={vi.fn()}
+        onExport={vi.fn()}
+        onSaveSnapshot={vi.fn()}
+      />,
+    );
+    const dialog = requiredElement('[role="alertdialog"]', HTMLDivElement);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement?.textContent).toBe("Cancel");
+
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Tab",
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      await Promise.resolve();
+    });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement?.textContent).toBe("Discard changes");
+
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      await Promise.resolve();
+    });
+    expect(onCancel).toHaveBeenCalledOnce();
+    await unmount();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
   });
 });

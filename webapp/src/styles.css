@@ -411,3 +411,24 @@ code {
   border-radius: 0.75rem;
   box-shadow: 0 0.5rem 1.5rem rgb(15 23 42 / 15%);
 }
+
+/*
+ * UI_UX_SPEC_V2 §14 "Reduced-motion preferences disable nonessential
+ * animation" (TODO_V2 V2-133). No `transition`/`animation`/`@keyframes`
+ * exists anywhere in this stylesheet today, so there is currently nothing
+ * for this rule to override — it exists as a standing policy so any motion
+ * added later is disabled under `prefers-reduced-motion: reduce` by
+ * construction rather than by remembering to guard it individually. Keep
+ * this block, and add it to any future stylesheet under `src/`, rather than
+ * hand-guarding each new transition/animation declaration.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

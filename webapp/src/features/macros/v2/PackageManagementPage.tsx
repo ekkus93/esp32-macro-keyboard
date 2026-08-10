@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { v2Limits } from "../../../v2/limits";
 import {
   persistSelectedPackageId as defaultPersistSelectedPackageId,
@@ -11,9 +11,14 @@ import {
   deletePackage,
   duplicatePackage,
   movePackage,
+  movePackageToIndex,
   renamePackage,
 } from "../../../v2/repositoryEditing";
 import type { RepositoryWorkingCopyStore } from "../../../v2/repositoryWorkingCopy";
+import { useFocusTrap } from "../../shell/v2/useFocusTrap";
+
+/** TODO_V2 V2-133/UI_UX_SPEC_V2 §14 reordering alternative to drag and drop. */
+type MoveAction = "first" | "up" | "down" | "last";
 
 /**
  * The Package chooser and Package management screen, per UI_UX_SPEC_V2 §6
@@ -112,7 +117,7 @@ interface PackageRowProps {
   onRename: (name: string) => void;
   onDuplicate: () => void;
   onDelete: () => void;
-  onMove: (direction: -1 | 1) => void;
+  onMove: (action: MoveAction) => void;
 }
 
 function PackageRow({
@@ -130,6 +135,20 @@ function PackageRow({
   const [draftName, setDraftName] = useState(pkg.name);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const draftValid = validPackageName(draftName);
+  const confirmRef = useRef<HTMLDivElement>(null);
+  // See `MacroOverflowMenu`'s identical `deleteButtonRef` for why an
+  // explicit `restoreFocusRef` is needed: the "Delete" trigger is unmounted
+  // (replaced by the confirmation panel) the same render that activates the
+  // trap.
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
+  useFocusTrap({
+    active: confirmingDelete,
+    containerRef: confirmRef,
+    onClose: () => {
+      setConfirmingDelete(false);
+    },
+    restoreFocusRef: deleteButtonRef,
+  });
 
   return (
     <article className="card management-card">
@@ -208,10 +227,20 @@ function PackageRow({
         </button>
         <div className="reorder-actions">
           <button
+            aria-label={`Move ${pkg.name} to first`}
+            disabled={index === 0}
+            onClick={() => {
+              onMove("first");
+            }}
+            type="button"
+          >
+            Move first
+          </button>
+          <button
             aria-label={`Move ${pkg.name} up`}
             disabled={index === 0}
             onClick={() => {
-              onMove(-1);
+              onMove("up");
             }}
             type="button"
           >
@@ -221,15 +250,30 @@ function PackageRow({
             aria-label={`Move ${pkg.name} down`}
             disabled={index === packageCount - 1}
             onClick={() => {
-              onMove(1);
+              onMove("down");
             }}
             type="button"
           >
             Move down
           </button>
+          <button
+            aria-label={`Move ${pkg.name} to last`}
+            disabled={index === packageCount - 1}
+            onClick={() => {
+              onMove("last");
+            }}
+            type="button"
+          >
+            Move last
+          </button>
         </div>
         {confirmingDelete ? (
-          <div className="danger-zone" role="alertdialog">
+          <div
+            className="danger-zone"
+            ref={confirmRef}
+            role="alertdialog"
+            tabIndex={-1}
+          >
             <p>
               Delete <strong>{pkg.name}</strong> and all{" "}
               {String(pkg.macros.length)} of its macros? This cannot be undone
@@ -267,6 +311,7 @@ function PackageRow({
             onClick={() => {
               setConfirmingDelete(true);
             }}
+            ref={deleteButtonRef}
             type="button"
           >
             Delete
@@ -357,12 +402,26 @@ export function PackageManagementPage({
     onSelectionChange(resolution.packageId);
   };
 
-  const movePackageRow = (index: number, direction: -1 | 1): void => {
-    const target = index + direction;
-    if (target < 0 || target >= repository.packages.length) {
+  // TODO_V2 V2-133/UI_UX_SPEC_V2 §14: "Move first"/"Move last" alongside
+  // "Move up"/"Move down" — see MacrosPage's identical rationale.
+  const movePackageRow = (index: number, action: MoveAction): void => {
+    const lastIndex = repository.packages.length - 1;
+    const target =
+      action === "first"
+        ? 0
+        : action === "last"
+          ? lastIndex
+          : action === "up"
+            ? index - 1
+            : index + 1;
+    if (target < 0 || target > lastIndex || target === index) {
       return;
     }
-    store.applyContentChange(movePackage(repository, index, direction));
+    const nextRepository =
+      action === "up" || action === "down"
+        ? movePackage(repository, index, action === "up" ? -1 : 1)
+        : movePackageToIndex(repository, index, target);
+    store.applyContentChange(nextRepository);
   };
 
   return (
@@ -407,8 +466,8 @@ export function PackageManagementPage({
                   onDuplicate={() => {
                     duplicatePackageRow(pkg.id);
                   }}
-                  onMove={(direction) => {
-                    movePackageRow(index, direction);
+                  onMove={(action) => {
+                    movePackageRow(index, action);
                   }}
                   onOpen={() => {
                     void openPackage(pkg.id);

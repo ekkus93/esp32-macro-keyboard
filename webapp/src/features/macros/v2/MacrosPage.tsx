@@ -6,8 +6,11 @@ import {
   deleteMacro,
   duplicateMacro,
   moveMacro as moveMacroInRepository,
+  moveMacroToIndex,
 } from "../../../v2/repositoryEditing";
 import type { RepositoryWorkingCopyStore } from "../../../v2/repositoryWorkingCopy";
+import { useDismissibleOverlay } from "../../shell/v2/useDismissibleOverlay";
+import { useFocusTrap } from "../../shell/v2/useFocusTrap";
 import {
   cancelSend as defaultCancelSend,
   isTerminalSendState,
@@ -168,10 +171,13 @@ interface MacroRowProps {
   onSend: () => void;
   onEdit: () => void;
   onPreview: () => void;
-  onMove: (direction: -1 | 1) => void;
+  onMove: (action: MoveAction) => void;
   onDuplicate: () => void;
   onDelete: () => void;
 }
+
+/** TODO_V2 V2-133/UI_UX_SPEC_V2 §14 reordering alternative to drag and drop. */
+type MoveAction = "first" | "up" | "down" | "last";
 
 /**
  * Overflow menu (TODO_V2 V2-101, closing a gap Phase 9 flagged rather than
@@ -180,6 +186,11 @@ interface MacroRowProps {
  * confirmation before it ever touches the working copy, matching the
  * destructive-target identification UI_UX_SPEC_V2 §6.2 requires for package
  * deletion.
+ *
+ * TODO_V2 V2-133/UI_UX_SPEC_V2 §14: the menu itself closes on `Escape` or an
+ * outside click (`useDismissibleOverlay`), and the delete confirmation traps
+ * and restores focus like any other dialog (`useFocusTrap`) — this menu had
+ * neither before the accessibility audit that opened V2-133.
  */
 function MacroOverflowMenu({
   macro,
@@ -194,9 +205,34 @@ function MacroOverflowMenu({
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const confirmRef = useRef<HTMLDivElement>(null);
+  // The "Delete" trigger is unmounted (replaced by the confirmation panel)
+  // the same render that opens the trap, so `useFocusTrap`'s own automatic
+  // "whatever had focus when it activated" capture would only ever find
+  // `document.body`. This ref is attached to the *replacement* "Delete"
+  // button that remounts once the trap deactivates (see the hook's doc
+  // comment on `restoreFocusRef`).
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
+
+  const closeMenu = useCallback((): void => {
+    setOpen(false);
+    setConfirmingDelete(false);
+  }, []);
+  useDismissibleOverlay(open && !confirmingDelete, containerRef, closeMenu);
+
+  const cancelDelete = useCallback((): void => {
+    setConfirmingDelete(false);
+  }, []);
+  useFocusTrap({
+    active: confirmingDelete,
+    containerRef: confirmRef,
+    onClose: cancelDelete,
+    restoreFocusRef: deleteButtonRef,
+  });
 
   return (
-    <div className="overflow-menu">
+    <div className="overflow-menu" ref={containerRef}>
       <button
         aria-expanded={open}
         aria-label={`More actions for ${macro.name}`}
@@ -234,7 +270,12 @@ function MacroOverflowMenu({
             Duplicate
           </button>
           {confirmingDelete ? (
-            <div className="confirmation-panel" role="alertdialog">
+            <div
+              className="confirmation-panel"
+              ref={confirmRef}
+              role="alertdialog"
+              tabIndex={-1}
+            >
               <p>
                 Delete <strong>{macro.name}</strong>? This cannot be undone once
                 the working copy is saved.
@@ -250,12 +291,7 @@ function MacroOverflowMenu({
               >
                 Confirm delete
               </button>
-              <button
-                onClick={() => {
-                  setConfirmingDelete(false);
-                }}
-                type="button"
-              >
+              <button onClick={cancelDelete} type="button">
                 Cancel
               </button>
             </div>
@@ -266,6 +302,7 @@ function MacroOverflowMenu({
               onClick={() => {
                 setConfirmingDelete(true);
               }}
+              ref={deleteButtonRef}
               type="button"
             >
               Delete
@@ -334,10 +371,20 @@ function MacroRow({
         </button>
         <div className="reorder-actions">
           <button
+            aria-label={`Move ${macro.name} to first`}
+            disabled={index === 0}
+            onClick={() => {
+              onMove("first");
+            }}
+            type="button"
+          >
+            Move first
+          </button>
+          <button
             aria-label={`Move ${macro.name} up`}
             disabled={index === 0}
             onClick={() => {
-              onMove(-1);
+              onMove("up");
             }}
             type="button"
           >
@@ -347,11 +394,21 @@ function MacroRow({
             aria-label={`Move ${macro.name} down`}
             disabled={index === macroCount - 1}
             onClick={() => {
-              onMove(1);
+              onMove("down");
             }}
             type="button"
           >
             Move down
+          </button>
+          <button
+            aria-label={`Move ${macro.name} to last`}
+            disabled={index === macroCount - 1}
+            onClick={() => {
+              onMove("last");
+            }}
+            type="button"
+          >
+            Move last
           </button>
         </div>
         <MacroOverflowMenu
@@ -605,22 +662,40 @@ export function MacrosPage({
     });
   };
 
-  const moveMacro = (index: number, direction: -1 | 1): void => {
+  // TODO_V2 V2-133/UI_UX_SPEC_V2 §14: "Move first"/"Move last" alongside
+  // "Move up"/"Move down" — a keyboard-operable alternative that does not
+  // require repeatedly activating an adjacent-swap control to reach either
+  // end of the list.
+  const moveMacro = (index: number, action: MoveAction): void => {
     if (activePackage === undefined) {
       return;
     }
     const moved = activePackage.macros[index];
-    const target = index + direction;
-    if (
-      moved === undefined ||
-      target < 0 ||
-      target >= activePackage.macros.length
-    ) {
+    if (moved === undefined) {
       return;
     }
-    store.applyContentChange(
-      moveMacroInRepository(repository, activePackage.id, index, direction),
-    );
+    const lastIndex = activePackage.macros.length - 1;
+    const target =
+      action === "first"
+        ? 0
+        : action === "last"
+          ? lastIndex
+          : action === "up"
+            ? index - 1
+            : index + 1;
+    if (target < 0 || target > lastIndex || target === index) {
+      return;
+    }
+    const nextRepository =
+      action === "up" || action === "down"
+        ? moveMacroInRepository(
+            repository,
+            activePackage.id,
+            index,
+            action === "up" ? -1 : 1,
+          )
+        : moveMacroToIndex(repository, activePackage.id, index, target);
+    store.applyContentChange(nextRepository);
     setMoveAnnouncement(
       `Moved ${moved.name} to position ${String(target + 1)}.`,
     );
@@ -761,8 +836,8 @@ export function MacrosPage({
               onEdit={() => {
                 onOpenEditMacro(macro.id);
               }}
-              onMove={(direction) => {
-                moveMacro(index, direction);
+              onMove={(action) => {
+                moveMacro(index, action);
               }}
               onPreview={() => {
                 onOpenPreview(macro.id);
