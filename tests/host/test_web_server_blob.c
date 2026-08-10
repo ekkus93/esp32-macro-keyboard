@@ -15,11 +15,13 @@
 
 #include "app_error.h"
 #include "app_limits_v2.h"
+#include "cJSON.h"
 #include "fake_httpd.h"
 #include "fake_storage_blob.h"
 #include "storage.h"
 #include "storage_blob.h"
 #include "test_assert.h"
+#include "test_examples_fixture.h"
 #include "web_api_core.h"
 #include "web_api_response.h"
 #include "web_http_status.h"
@@ -45,8 +47,10 @@ int main(void) {
     test_blob_list_maps_scan_failure_to_service_unavailable();
     test_blob_list_maps_capacity_query_failure_to_internal_error();
     test_blob_list_empty_store_reports_zero_used_bytes();
+    test_blob_list_matches_example();
 
     test_blob_create_success_round_trips_bytes();
+    test_blob_create_success_matches_example();
     test_blob_create_rejects_empty_body();
     test_blob_create_rejects_oversized_body();
     test_blob_create_rejects_wrong_content_type();

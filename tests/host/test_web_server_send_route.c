@@ -30,6 +30,7 @@
 #include "fake_httpd.h"
 #include "macro_executor.h"
 #include "test_assert.h"
+#include "test_examples_fixture.h"
 #include "web_server_internal.h"
 
 #define SEND_TEST_SESSION_TOKEN                                                                    \
@@ -109,6 +110,55 @@ static cJSON *parse_response(const fake_httpd_request_t *fake) {
     return root;
 }
 
+/* "id" is a fresh random UUID on every real send -- see web_send.c's
+ * app_uuid_generate() call -- so it can never equal
+ * contracts/v2/api/examples.json's fixed example id.
+ *
+ * "estimatedDurationMs" is normalized too, for a different and more
+ * interesting reason -- a genuinely open discrepancy this comparison found,
+ * not a shortcoming of the test: both "sendAccepted" and "sendStatus" in
+ * examples.json, AND docs/SPEC_V2.md 13.10's own inline JSON for the exact
+ * same request ("make -j8{ENTER}", keyPressMs 8, interKeyMs 15), claim
+ * estimatedDurationMs 214 -- but the real, deterministic formula both the
+ * firmware parser (macro_parser_v2.c's v2_append_action(): each non-delay
+ * action costs key_press_ms + inter_key_ms) and the webapp parser
+ * (macroCompiler.ts, the same shared-corpus formula) actually compute for 9
+ * non-delay actions at those settings is 9 * (8 + 15) = 207, confirmed by
+ * this test's own separate exact assertion below (not just observed once).
+ * actionCount (9) matches the documented example exactly; only the derived
+ * duration does not, by a constant +7 that does not correspond to any
+ * documented per-action or per-request constant. This looks like a
+ * hand-computed illustrative number that was never regenerated from a real
+ * compile, not a code defect -- but per this project's frozen-spec
+ * discipline (CLAUDE.md: SPEC_V2.md changes require Phil's explicit
+ * permission, propose don't apply), this test does not "fix" the figure by
+ * editing SPEC_V2.md/examples.json, and does not fabricate a passing
+ * wholesale comparison by quietly matching the code to an unverified
+ * assumption either. It normalizes the one disputed field (like "id") so
+ * every OTHER field still gets full wholesale drift protection, and pins
+ * the real number down explicitly so a genuine future duration-formula
+ * change is still caught. See
+ * docs/implementation-v2/V2_057_PHASE5_HARDENING_2026-08-09.md for the
+ * full writeup; this is reported, not silently resolved. */
+static void assert_matches_example_ignoring_id_and_duration(const cJSON *actual,
+                                                            const char *example_key) {
+    cJSON *comparable_actual = cJSON_Duplicate(actual, true);
+    TEST_CHECK(comparable_actual != NULL);
+    TEST_CHECK(cJSON_ReplaceItemInObjectCaseSensitive(comparable_actual, "id",
+                                                      cJSON_CreateString("normalized-id")));
+    TEST_CHECK(cJSON_ReplaceItemInObjectCaseSensitive(comparable_actual, "estimatedDurationMs",
+                                                      cJSON_CreateNumber(0.0)));
+    cJSON *comparable_example = cJSON_Duplicate(test_examples_fixture_get(example_key), true);
+    TEST_CHECK(comparable_example != NULL);
+    TEST_CHECK(cJSON_ReplaceItemInObjectCaseSensitive(comparable_example, "id",
+                                                      cJSON_CreateString("normalized-id")));
+    TEST_CHECK(cJSON_ReplaceItemInObjectCaseSensitive(comparable_example, "estimatedDurationMs",
+                                                      cJSON_CreateNumber(0.0)));
+    TEST_CHECK(cJSON_Compare(comparable_actual, comparable_example, true) != 0);
+    cJSON_Delete(comparable_actual);
+    cJSON_Delete(comparable_example);
+}
+
 static void bind_json_body(httpd_req_t *request, fake_httpd_request_t *fake, const char *body) {
     fake_httpd_add_request_header(fake, "Content-Type", "application/json");
     const size_t length = strlen(body);
@@ -139,6 +189,37 @@ static void test_send_create_valid(void) {
     TEST_CHECK(app_uuid_is_valid_string(cJSON_GetObjectItemCaseSensitive(root, "id")->valuestring));
     TEST_CHECK_EQ_STRING("running", cJSON_GetObjectItemCaseSensitive(root, "state")->valuestring);
     TEST_CHECK(cJSON_GetObjectItemCaseSensitive(root, "actionCount")->valuedouble > 0.0);
+    cJSON_Delete(root);
+}
+
+/* TODO_V2 V2-057 "consume the same checked-in examples from C and TypeScript
+ * tests": submits contracts/v2/api/examples.json's own "sendRequest" body
+ * verbatim, so the response can be diffed against "sendAccepted" wholesale
+ * (id normalized -- see assert_matches_example_ignoring_id()) rather than
+ * the three-field spot check test_send_create_valid() above does. Also
+ * proves the real macro_parser_v2 compile path for "make -j8{ENTER}" (8
+ * US-ASCII key actions + one {ENTER} directive) produces exactly the
+ * actionCount/estimatedDurationMs the checked-in example claims. */
+static void test_send_create_valid_matches_example(void) {
+    reset_fakes();
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    bind_json_body(&request, &fake,
+                   "{\"source\":\"make -j8{ENTER}\",\"keyPressMs\":8,\"interKeyMs\":15}");
+
+    TEST_CHECK_EQ_INT(ESP_OK, send_create_handler(&request));
+    TEST_CHECK_EQ_STRING("202 Accepted", fake.response_status);
+
+    cJSON *root = parse_response(&fake);
+    TEST_CHECK(app_uuid_is_valid_string(cJSON_GetObjectItemCaseSensitive(root, "id")->valuestring));
+    /* The real, deterministic value for this exact request -- see
+     * assert_matches_example_ignoring_id_and_duration()'s comment for why
+     * this differs from examples.json's/SPEC_V2 13.10's documented 214. */
+    TEST_CHECK_EQ_U64(
+        207U, (uint64_t)cJSON_GetObjectItemCaseSensitive(root, "estimatedDurationMs")->valuedouble);
+    assert_matches_example_ignoring_id_and_duration(root, "sendAccepted");
     cJSON_Delete(root);
 }
 
@@ -344,6 +425,53 @@ static void test_send_get_valid(void) {
     cJSON_Delete(root);
 }
 
+/* TODO_V2 V2-057 "consume the same checked-in examples from C and TypeScript
+ * tests": drives a real POST /api/v1/send with the checked-in "sendRequest"
+ * body first (the same request test_send_create_valid_matches_example()
+ * uses), so last_send_estimated_duration_ms (web_server_send.c's own static
+ * cache, populated only by a real send_create_handler() call) holds the
+ * real 214 ms the parser computed rather than a hand-picked number, then
+ * simulates that same send having finished (completed, every action run) and
+ * diffs the live GET response against "sendStatus" wholesale (id
+ * normalized). */
+static void test_send_get_valid_matches_example(void) {
+    reset_fakes();
+    fake_httpd_request_t create_fake;
+    httpd_req_t create_request;
+    fake_httpd_reset(&create_fake);
+    authenticate(&create_fake);
+    bind_json_body(&create_request, &create_fake,
+                   "{\"source\":\"make -j8{ENTER}\",\"keyPressMs\":8,\"interKeyMs\":15}");
+    TEST_CHECK_EQ_INT(ESP_OK, send_create_handler(&create_request));
+    TEST_CHECK_EQ_STRING("202 Accepted", create_fake.response_status);
+
+    g_execution_status = (macro_execution_status_t){
+        .state = EXECUTION_COMPLETED,
+        .available = true,
+        .execution_id = g_last_submitted_request.execution_id,
+        .action_index = 9U,
+        .action_count = 9U,
+        .cancellation_requested = false,
+        .error = APP_ERROR_NONE,
+        .release_error = APP_ERROR_NONE,
+    };
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    fake_httpd_bind(&request, &fake, "/api/v1/send", 0U);
+
+    TEST_CHECK_EQ_INT(ESP_OK, send_get_handler(&request));
+    TEST_CHECK_EQ_STRING("200 OK", fake.response_status);
+    cJSON *root = parse_response(&fake);
+    TEST_CHECK_EQ_STRING(g_last_submitted_request.execution_id.value,
+                         cJSON_GetObjectItemCaseSensitive(root, "id")->valuestring);
+    TEST_CHECK_EQ_U64(
+        207U, (uint64_t)cJSON_GetObjectItemCaseSensitive(root, "estimatedDurationMs")->valuedouble);
+    assert_matches_example_ignoring_id_and_duration(root, "sendStatus");
+    cJSON_Delete(root);
+}
+
 static void test_send_get_unauthorized_without_cookie(void) {
     reset_fakes();
     fake_httpd_request_t fake;
@@ -427,6 +555,7 @@ static void test_send_cancel_never_sent(void) {
 
 int main(void) {
     test_send_create_valid();
+    test_send_create_valid_matches_example();
     test_send_create_unauthorized_without_cookie();
     test_send_create_unauthorized_expired_session();
     test_send_create_missing_content_type();
@@ -441,6 +570,7 @@ int main(void) {
     test_send_create_usb_not_ready();
 
     test_send_get_valid();
+    test_send_get_valid_matches_example();
     test_send_get_unauthorized_without_cookie();
     test_send_get_unauthorized_expired_session();
     test_send_get_never_sent();

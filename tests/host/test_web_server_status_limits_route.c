@@ -37,6 +37,7 @@
 #include "storage.h"
 #include "storage_blob.h"
 #include "test_assert.h"
+#include "test_examples_fixture.h"
 #include "usb_keyboard.h"
 #include "web_server_internal.h"
 #include "wifi_ap.h"
@@ -151,6 +152,13 @@ int64_t esp_timer_get_time(void) {
 
 /* ---------------------------------------------------------------------- */
 
+/* Every value below (device name, AP ssid/clientCount, storage
+ * total/used/blob-count, esp_timer_get_time()'s fixed 123456 ms above) is
+ * chosen to equal contracts/v2/api/examples.json's own "status" example
+ * exactly, not just plausibly -- see test_status_valid_schema()'s
+ * cJSON_Compare() against that checked-in fixture. "limits" needs no fake
+ * tuning: web_adapter_build_limits_json() serializes fixed macro_limits.h/
+ * app_limits_v2.h constants with no backend dependency at all. */
 static void reset_fakes(void) {
     g_auth_result = APP_ERROR_NONE;
 
@@ -219,6 +227,13 @@ static void test_status_valid_schema(void) {
         3U, (uint64_t)cJSON_GetObjectItemCaseSensitive(storage, "blobCount")->valuedouble);
     const cJSON *send = cJSON_GetObjectItemCaseSensitive(root, "send");
     TEST_CHECK(cJSON_IsFalse(cJSON_GetObjectItemCaseSensitive(send, "present")));
+
+    /* TODO_V2 V2-057 "consume the same checked-in examples from C and
+     * TypeScript tests": diff the whole live response against
+     * contracts/v2/api/examples.json's "status" example, not just the
+     * handful of fields spot-checked above. */
+    const cJSON *example = test_examples_fixture_get("status");
+    TEST_CHECK(cJSON_Compare(root, example, true) != 0);
     cJSON_Delete(root);
 }
 
@@ -340,6 +355,14 @@ static void test_limits_valid_schema(void) {
     cJSON *root = parse_response(&fake);
     TEST_CHECK(cJSON_GetObjectItemCaseSensitive(root, "ok") == NULL);
     TEST_CHECK(cJSON_GetObjectItemCaseSensitive(root, "error") == NULL);
+
+    /* TODO_V2 V2-057 "consume the same checked-in examples from C and
+     * TypeScript tests": web_adapter_build_limits_json() has no backend
+     * dependency (every field is a fixed macro_limits.h/app_limits_v2.h
+     * constant), so this diffs the live response against
+     * contracts/v2/api/examples.json's "limits" example wholesale. */
+    const cJSON *example = test_examples_fixture_get("limits");
+    TEST_CHECK(cJSON_Compare(root, example, true) != 0);
     cJSON_Delete(root);
 }
 

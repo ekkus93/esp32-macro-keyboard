@@ -481,6 +481,13 @@ static void test_session_get_valid(void) {
     TEST_CHECK_EQ_U64(
         86400U,
         (uint64_t)cJSON_GetObjectItemCaseSensitive(root, "idleExpiresInSeconds")->valuedouble);
+
+    /* TODO_V2 V2-057 "consume the same checked-in examples from C and
+     * TypeScript tests": reset_fakes()'s g_idle_seconds/g_absolute_seconds
+     * already equal contracts/v2/api/examples.json's "session" example
+     * exactly, so this diffs the whole live response against it wholesale. */
+    const cJSON *example = test_examples_fixture_get("session");
+    TEST_CHECK(cJSON_Compare(root, example, true) != 0);
     cJSON_Delete(root);
 }
 
@@ -537,6 +544,14 @@ static void test_restart_post_valid(void) {
 
     cJSON *root = parse_response(&fake);
     TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "accepted")));
+
+    /* TODO_V2 V2-057 "consume the same checked-in examples from C and
+     * TypeScript tests": web_device_restart_accepted_json() has no backend
+     * dependency (every field is a fixed literal), so this diffs the live
+     * response against contracts/v2/api/examples.json's "restartAccepted"
+     * example wholesale. */
+    const cJSON *example = test_examples_fixture_get("restartAccepted");
+    TEST_CHECK(cJSON_Compare(root, example, true) != 0);
     cJSON_Delete(root);
 }
 
@@ -570,6 +585,17 @@ static void test_settings_get_valid(void) {
     cJSON *root = parse_response(&fake);
     TEST_CHECK_EQ_STRING("Desk Macro Keyboard",
                          cJSON_GetObjectItemCaseSensitive(root, "deviceName")->valuestring);
+
+    /* TODO_V2 V2-057 "consume the same checked-in examples from C and
+     * TypeScript tests": provisioned_settings() above already produces every
+     * field contracts/v2/api/examples.json's "settings" example claims
+     * (app_v2_device_settings_init_unprovisioned()'s own defaults already
+     * match sendMode/snapshotRetentionTarget/showMacroSourcePreviews/
+     * requireSerialConfirmation/lastSelectedPackageId, and
+     * provisioned_settings() overrides deviceName/apSsid to the same
+     * strings), so this diffs the whole live response against it wholesale. */
+    const cJSON *example = test_examples_fixture_get("settings");
+    TEST_CHECK(cJSON_Compare(root, example, true) != 0);
     cJSON_Delete(root);
 }
 
@@ -590,6 +616,68 @@ static void test_settings_put_valid(void) {
     TEST_CHECK(settings != NULL);
     TEST_CHECK_EQ_STRING("New Device Name",
                          cJSON_GetObjectItemCaseSensitive(settings, "deviceName")->valuestring);
+    cJSON_Delete(root);
+}
+
+/* TODO_V2 V2-057 "consume the same checked-in examples from C and TypeScript
+ * tests": submits contracts/v2/api/examples.json's own "settingsUpdate" body
+ * verbatim against the "settings" example's baseline (provisioned_settings()
+ * above already matches it, see test_settings_get_valid()), so the
+ * response's "settings" sub-object can be diffed against "settingsUpdated"'s
+ * wholesale.
+ *
+ * "restartRequired"/"reconnectRequired" are the one part of this response
+ * this test does NOT diff wholesale -- a genuinely open discrepancy this
+ * comparison found, not a shortcoming of the test. Both examples.json's
+ * "settingsUpdated" AND docs/SPEC_V2.md 13.9's own inline JSON for this
+ * exact request show both flags false, but the very next sentence in
+ * SPEC_V2 13.9 says "Changing access-point credentials sets both flags to
+ * true", and apply_access_point() (settings_contract_v2.c) does exactly
+ * that unconditionally whenever a request carries "accessPoint" -- which
+ * this request does. The documented example JSON contradicts the
+ * documented prose immediately below it; the code matches the prose, not
+ * the JSON. Per this project's frozen-spec discipline (CLAUDE.md: SPEC_V2.md
+ * changes require Phil's explicit permission, propose don't apply), this
+ * test does not edit SPEC_V2.md/examples.json to "fix" the figure, and does
+ * not fabricate a passing wholesale comparison either -- it normalizes the
+ * two disputed fields (like "id" elsewhere in this file) so every other
+ * field still gets full wholesale drift protection, and separately pins the
+ * real, prose-conformant computed values (true/true) down explicitly. See
+ * docs/implementation-v2/V2_057_PHASE5_HARDENING_2026-08-09.md for the full
+ * writeup; this is reported, not silently resolved. */
+static void test_settings_put_valid_matches_example(void) {
+    reset_fakes();
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    bind_json_body(&request, &fake, "/api/v1/settings", HTTP_PUT,
+                   "{\"deviceName\":\"Desk Macro Keyboard\",\"requireSerialConfirmation\":false,"
+                   "\"sendMode\":\"quick\",\"snapshotRetentionTarget\":5,"
+                   "\"showMacroSourcePreviews\":false,\"lastSelectedPackageId\":null,"
+                   "\"accessPoint\":{\"ssid\":\"MacroKeyboard\",\"passphrase\":\"new-example-"
+                   "passphrase\"},\"station\":{\"ssid\":\"OfficeWiFi\",\"passphrase\":\"station-"
+                   "example-passphrase\"}}");
+
+    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+    TEST_CHECK_EQ_STRING("200 OK", fake.response_status);
+
+    cJSON *root = parse_response(&fake);
+    /* The real, prose-conformant values for this exact request -- see this
+     * test's own comment for why they differ from examples.json's/SPEC_V2
+     * 13.9's documented false/false. */
+    TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "restartRequired")));
+    TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "reconnectRequired")));
+
+    cJSON *comparable = cJSON_Duplicate(root, true);
+    TEST_CHECK(comparable != NULL);
+    TEST_CHECK(
+        cJSON_ReplaceItemInObjectCaseSensitive(comparable, "restartRequired", cJSON_CreateFalse()));
+    TEST_CHECK(cJSON_ReplaceItemInObjectCaseSensitive(comparable, "reconnectRequired",
+                                                      cJSON_CreateFalse()));
+    const cJSON *example = test_examples_fixture_get("settingsUpdated");
+    TEST_CHECK(cJSON_Compare(comparable, example, true) != 0);
+    cJSON_Delete(comparable);
     cJSON_Delete(root);
 }
 
@@ -679,6 +767,17 @@ static void test_reset_settings_post_valid(void) {
      * itself performs the reboot, web_server_api.c does not call
      * esp_restart() a second time. */
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
+
+    /* TODO_V2 V2-057 "consume the same checked-in examples from C and
+     * TypeScript tests": web_device_reset_accepted_json(false, true, ...)'s
+     * two bool arguments (web_api_administration.c's call site) have no
+     * backend dependency (both are fixed literals for this route), so this
+     * diffs the live response against contracts/v2/api/examples.json's
+     * "resetSettingsAccepted" example wholesale. */
+    cJSON *root = parse_response(&fake);
+    const cJSON *example = test_examples_fixture_get("resetSettingsAccepted");
+    TEST_CHECK(cJSON_Compare(root, example, true) != 0);
+    cJSON_Delete(root);
 }
 
 static void test_reset_settings_post_wrong_confirmation(void) {
@@ -714,6 +813,17 @@ static void test_factory_reset_post_valid(void) {
     TEST_CHECK_EQ_STRING("202 Accepted", fake.response_status);
     TEST_CHECK_EQ_U64(1U, (uint64_t)g_factory_reset_calls);
     TEST_CHECK_EQ_U64(1U, (uint64_t)g_esp_restart_calls);
+
+    /* TODO_V2 V2-057 "consume the same checked-in examples from C and
+     * TypeScript tests": web_device_reset_accepted_json(true, false, ...)'s
+     * call site for this route (web_api_administration.c) also passes two
+     * fixed literals, so this diffs the live response against
+     * contracts/v2/api/examples.json's "factoryResetAccepted" example
+     * wholesale. */
+    cJSON *root = parse_response(&fake);
+    const cJSON *example = test_examples_fixture_get("factoryResetAccepted");
+    TEST_CHECK(cJSON_Compare(root, example, true) != 0);
+    cJSON_Delete(root);
 }
 
 static void test_factory_reset_post_incorrect_password(void) {
@@ -874,6 +984,7 @@ int main(void) {
 
     test_settings_get_valid();
     test_settings_put_valid();
+    test_settings_put_valid_matches_example();
     test_settings_put_unauthorized_expired_session();
 
     test_change_password_post_valid();

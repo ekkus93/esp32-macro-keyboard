@@ -75,6 +75,20 @@ esp_err_t httpd_resp_send(httpd_req_t *request, const char *buffer, ssize_t buff
 esp_err_t httpd_resp_send_chunk(httpd_req_t *request, const char *buffer, ssize_t buffer_length);
 esp_err_t httpd_resp_send_err(httpd_req_t *request, httpd_err_code_t error, const char *message);
 
+/* Only web_server_async.c calls these two (httpd_req_async_handler_begin()'s
+ * "hand the request to a worker task" branch of web_server_async_dispatch());
+ * signatures match the real ESP-IDF esp_http_server.h exactly. Declared here
+ * (alongside the httpd_start()/httpd_register_uri_handler() route-registration
+ * subset below, which follows the same "declared for every target, defined
+ * only where actually exercised" pattern) but never given a working
+ * definition anywhere: every target that links web_server_async.c
+ * deliberately never reaches the branch that calls these -- see
+ * fakes/freertos_stub/freertos/FreeRTOS.h's header comment and
+ * test_web_server_async_confirmation.c for why, and what each one's
+ * dead-path canary definition looks like there. */
+esp_err_t httpd_req_async_handler_begin(httpd_req_t *request, httpd_req_t **out_request);
+esp_err_t httpd_req_async_handler_complete(httpd_req_t *request);
+
 /* Route registration/dispatch subset -- only web_server_lifecycle.c uses these.
  * Types/macro/prototypes match the real ESP-IDF esp_http_server.h exactly
  * (fields and behavior ported from $IDF_PATH/components/esp_http_server for
