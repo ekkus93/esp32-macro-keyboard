@@ -118,6 +118,7 @@ No other task in this document touches frozen-spec content. Every other phase ma
   - [ ] R4-042c Run `npm --prefix webapp run test`; must pass.
 
 **Phase exit:** `./scripts/check-webapp.sh` passes; all tasks checked with evidence.
+
 ---
 
 ## Phase R5 — Diagnostics/health synchronization
