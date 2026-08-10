@@ -48,9 +48,9 @@ Do not batch unrelated safety fixes into one opaque commit.
 
 ---
 
-# Phase H0 — Baseline, evidence reconciliation, and failure inventory
+## Phase H0 — Baseline, evidence reconciliation, and failure inventory
 
-## H0-001 — Record exact starting state
+### H0-001 — Record exact starting state
 
 - [ ] Record current `master` SHA after these two planning documents land.
 - [ ] Record working-tree cleanliness.
@@ -65,7 +65,7 @@ Do not batch unrelated safety fixes into one opaque commit.
 
 - [ ] If any baseline gate fails before product changes, diagnose it separately and do not conflate it with a hardening task.
 
-## H0-002 — Correct known `TODO_V2.md` overclaims before new acceptance work
+### H0-002 — Correct known `TODO_V2.md` overclaims before new acceptance work
 
 - [ ] Re-read V2-154's compound checkbox for login/logout/idle expiry/absolute expiry/lockout.
 - [ ] Uncheck or split it because the current committed evidence explicitly says idle and absolute expiry were not independently hardware-verified.
@@ -75,7 +75,7 @@ Do not batch unrelated safety fixes into one opaque commit.
 - [ ] Re-evaluate V2-055/V2-154 password-change completion against the stale-RAM-verifier and partial-session-invalidation failure modes.
 - [ ] Preserve historical evidence; do not rewrite old reports to pretend they proved more than they did.
 
-## H0-003 — Create a hardening failure matrix
+### H0-003 — Create a hardening failure matrix
 
 For each reviewed failure, record:
 
@@ -114,9 +114,9 @@ Include at least:
 
 ---
 
-# Phase H1 — End-to-end physical confirmation for real sends
+## Phase H1 — End-to-end physical confirmation for real sends
 
-## H1-010 — Wire authoritative setting into send acceptance
+### H1-010 — Wire authoritative setting into send acceptance
 
 - [ ] Identify the single authoritative runtime source for `requireSerialConfirmation`.
 - [ ] Extend the send adapter/core dependency seam so the accepted request receives the setting without creating a second global source of truth.
@@ -124,14 +124,14 @@ Include at least:
 - [ ] Capture the setting at acceptance so a later settings change cannot mutate an already accepted send's semantics.
 - [ ] Do not weaken behavior when settings read fails; reject the send with a visible backend-unavailable/internal error rather than defaulting confirmation off.
 
-## H1-011 — Expose `awaiting_confirmation` through the v2 send API
+### H1-011 — Expose `awaiting_confirmation` through the v2 send API
 
 - [ ] Ensure `EXECUTION_AWAITING_CONFIRMATION` maps to an explicit API state string.
 - [ ] Update frozen/checked-in contract examples only if the authoritative spec already requires the state and the fixture is stale; otherwise flag a spec conflict before changing the contract.
 - [ ] Ensure status serialization remains source/key-content redacted.
 - [ ] Ensure cancellation is accepted while awaiting confirmation.
 
-## H1-012 — React awaiting-confirmation UX
+### H1-012 — React awaiting-confirmation UX
 
 - [ ] Render a clear “awaiting confirmation” state for active sends.
 - [ ] Explain the required physical/serial confirmation action without exposing secrets.
@@ -139,7 +139,7 @@ Include at least:
 - [ ] Do not issue a second send POST because of rerender, orientation change, retry, or confirmation-state polling.
 - [ ] Preserve active-send state through the landscape blocker.
 
-## H1-013 — Host regression tests
+### H1-013 — Host regression tests
 
 - [ ] Test settings=false -> request enters normal running path.
 - [ ] Test settings=true -> request has `require_confirmation=true`.
@@ -151,14 +151,14 @@ Include at least:
 - [ ] Test release-all behavior on confirmation-phase terminal paths.
 - [ ] Run executor/web host targets under ASan + UBSan.
 
-## H1-014 — Browser regression tests
+### H1-014 — Browser regression tests
 
 - [ ] Real/Vitest browser workflow displays awaiting-confirmation.
 - [ ] Cancel remains reachable.
 - [ ] Confirmed transition does not duplicate POST.
 - [ ] Timeout is displayed distinctly from ordinary failure.
 
-## H1-015 — Hardware evidence
+### H1-015 — Hardware evidence
 
 - [ ] Enable the confirmation setting on the reference ESP32-S3R8.
 - [ ] Capture HID reports proving zero key-down reports before confirmation.
@@ -175,16 +175,16 @@ Include at least:
 
 ---
 
-# Phase H2 — Password-change atomicity and authentication coherence
+## Phase H2 — Password-change atomicity and authentication coherence
 
-## H2-020 — Remove best-effort verifier-cache refresh
+### H2-020 — Remove best-effort verifier-cache refresh
 
 - [ ] Delete the correctness dependency on `refresh_password_record_cache()` re-reading NVS after success.
 - [ ] Update RAM login verifier directly from the exact credential candidate/material that is durably committed, or centralize auth credential ownership equivalently.
 - [ ] Ensure no code path can return `204` while login still authenticates with the old verifier.
 - [ ] Securely zero all transient credential material on every return path.
 
-## H2-021 — Define password/session transaction semantics
+### H2-021 — Define password/session transaction semantics
 
 **Correction (2026-08-10, verified against `web_settings.c:653-665`,
 `web_change_password_handle()`):** the code does *not* silently return `204`
@@ -207,7 +207,7 @@ all wrong reactions to this specific failure.
 - [ ] If an explicit auth fault latch is needed, reject all login attempts until coherent recovery rather than guessing old/new credential state.
 - [ ] Ensure reboot recovery has one deterministic authoritative password.
 
-## H2-022 — Failure injection tests
+### H2-022 — Failure injection tests
 
 Add tests for at least:
 
@@ -226,7 +226,7 @@ For every case assert:
 - [ ] exact API outcome, **and that the outcome is distinguishable from a "nothing changed" failure whenever the password durably changed**,
 - [ ] no secret appears in diagnostics/log captures.
 
-## H2-023 — Success invariant tests
+### H2-023 — Success invariant tests
 
 After a returned `204` assert without reboot:
 
@@ -236,7 +236,7 @@ After a returned `204` assert without reboot:
 - [ ] all other sessions fail immediately,
 - [ ] a newly created session uses normal TTL/lockout semantics.
 
-## H2-024 — Hardware validation
+### H2-024 — Hardware validation
 
 - [ ] Repeat successful password change on the reference board.
 - [ ] Verify old/new/session behavior immediately without reboot.
@@ -252,9 +252,9 @@ After a returned `204` assert without reboot:
 
 ---
 
-# Phase H3 — Crash-safe, resumable factory reset
+## Phase H3 — Crash-safe, resumable factory reset
 
-## H3-030 — Design durable reset state
+### H3-030 — Design durable reset state
 
 - [ ] Choose and document a minimal durable reset marker/state machine.
 - [ ] Ensure the marker is committed before returning an accepted reset response.
@@ -262,7 +262,7 @@ After a returned `204` assert without reboot:
 - [ ] Ensure reset mode cannot expose ordinary normal operation with ambiguous state.
 - [ ] Keep the mechanism independent from repository semantics; blobs remain opaque firmware storage.
 
-## H3-031 — Make reset stages idempotent
+### H3-031 — Make reset stages idempotent
 
 Stages must safely tolerate repetition:
 
@@ -273,14 +273,14 @@ Stages must safely tolerate repetition:
 - [ ] reset-marker clear,
 - [ ] restart/re-entry.
 
-## H3-032 — Change accepted/error semantics
+### H3-032 — Change accepted/error semantics
 
 - [ ] Do not return `202` unless the durable reset state has been established.
 - [ ] Once reset is durably accepted, later cleanup trouble must be represented as reset recovery, not ordinary failed normal operation.
 - [ ] Do not clear the reset marker until every required destructive effect succeeds.
 - [ ] Make setup/recovery state visible enough for the UI/diagnostics to avoid lying about readiness.
 
-## H3-033 — Failure injection matrix
+### H3-033 — Failure injection matrix
 
 Inject failure:
 
@@ -302,13 +302,13 @@ Assert:
 - [ ] repeated cleanup is safe,
 - [ ] final state is fully unprovisioned with zero repository blobs.
 
-## H3-034 — Reset-settings semantics
+### H3-034 — Reset-settings semantics
 
 - [ ] Re-audit reset-settings for the same partial-session-invalidation pattern.
 - [ ] Preserve noncredential settings-reset intent while making session/restart semantics explicit.
 - [ ] Add failure tests where invalidation/restart scheduling fails.
 
-## H3-035 — Hardware interruption evidence
+### H3-035 — Hardware interruption evidence
 
 - [ ] Run normal factory reset and reprovisioning after the new state machine.
 - [ ] Interrupt/reset/power-cycle during cleanup at least once using a controlled test seam or hardware procedure.
@@ -323,15 +323,15 @@ Assert:
 
 ---
 
-# Phase H4 — Active-send recovery and cancellation visibility
+## Phase H4 — Active-send recovery and cancellation visibility
 
-## H4-040 — Replace nullable recovery with explicit state
+### H4-040 — Replace nullable recovery with explicit state
 
 - [ ] Change startup/send recovery types to distinguish `none`, `known`, and `unavailable/unknown`.
 - [ ] Do not map network, timeout, malformed response, or 5xx failures to `null`.
 - [ ] Keep a true 404/no-send result distinct from recovery failure.
 
-## H4-041 — Startup degraded-execution surface
+### H4-041 — Startup degraded-execution surface
 
 - [ ] Allow repository startup to continue when repository/settings are valid but send recovery fails.
 - [ ] Show a prominent execution-state-unavailable warning.
@@ -340,7 +340,7 @@ Assert:
 - [ ] Keep a cancellation/recovery affordance when safe cancellation can be attempted.
 - [ ] If Cancel cannot be delivered, state that explicitly.
 
-## H4-042 — Poll freshness/degradation model
+### H4-042 — Poll freshness/degradation model
 
 For send and USB status polling:
 
@@ -351,7 +351,7 @@ For send and USB status polling:
 - [ ] avoid live-region announcements on every unchanged successful poll,
 - [ ] avoid duplicate send POSTs.
 
-## H4-043 — Regression tests
+### H4-043 — Regression tests
 
 - [ ] reload while a send is active and first recovery request fails,
 - [ ] verify UI does not display “no send” as if confirmed,
@@ -362,7 +362,7 @@ For send and USB status polling:
 - [ ] verify persistent failure does become visible,
 - [ ] verify recovery clears warning.
 
-## H4-044 — Real browser workflow
+### H4-044 — Real browser workflow
 
 - [ ] Add a real-Chrome scenario with an active send and intentionally failed status recovery.
 - [ ] Confirm no duplicate POST and no loss of working-copy state.
@@ -375,9 +375,9 @@ For send and USB status polling:
 
 ---
 
-# Phase H5 — Storage error provenance and commit certainty
+## Phase H5 — Storage error provenance and commit certainty
 
-## H5-050 — Audit all primary/cleanup error replacement patterns
+### H5-050 — Audit all primary/cleanup error replacement patterns
 
 Search and classify at least:
 
@@ -388,7 +388,7 @@ Search and classify at least:
 - [ ] shutdown/drain cleanup,
 - [ ] any `cleanup == NONE ? primary : cleanup` pattern.
 
-## H5-051 — Standardize structured operation results
+### H5-051 — Standardize structured operation results
 
 - [ ] Reuse `app_operation_result` if sufficient; otherwise extend/create the minimal result type.
 - [ ] Preserve `primary_error`.
@@ -396,21 +396,21 @@ Search and classify at least:
 - [ ] Represent commit state where needed.
 - [ ] Avoid invasive abstraction where a simple existing result structure already fits.
 
-## H5-052 — Fix atomic-write error provenance
+### H5-052 — Fix atomic-write error provenance
 
 - [ ] Write failure remains primary if temporary cleanup also fails.
 - [ ] Verify failure remains primary if cleanup also fails.
 - [ ] Rename failure remains primary if temporary cleanup also fails.
 - [ ] Parent sync failure after rename is represented as commit/durability uncertain rather than ordinary uncommitted failure.
 
-## H5-053 — Define retry/reconciliation semantics for uncertain commit
+### H5-053 — Define retry/reconciliation semantics for uncertain commit
 
 - [ ] Determine how callers detect whether the canonical blob/settings value exists after a durability-uncertain result.
 - [ ] Require refresh/reconcile before blind retry where duplicate creation could occur.
 - [ ] Make blob-create retry behavior deterministic.
 - [ ] Ensure UI/client does not create duplicate snapshots simply because the final durability acknowledgement was uncertain.
 
-## H5-054 — Storage tests
+### H5-054 — Storage tests
 
 - [ ] primary write failure + unlink failure -> both retained, primary preserved,
 - [ ] verify failure + unlink failure -> both retained,
@@ -419,7 +419,7 @@ Search and classify at least:
 - [ ] retry/reconcile after uncertain commit does not silently duplicate data,
 - [ ] mount rollback preserves initiating mount error and cleanup detail.
 
-## H5-055 — Hardware durability sanity
+### H5-055 — Hardware durability sanity
 
 - [ ] Re-run interrupted upload/power-cycle evidence after storage semantic changes.
 - [ ] Confirm no formatting-on-mount-failure regression.
@@ -433,29 +433,29 @@ Search and classify at least:
 
 ---
 
-# Phase H6 — Async HTTP confirmation fail-closed behavior
+## Phase H6 — Async HTTP confirmation fail-closed behavior
 
-## H6-060 — Remove synchronous fallback
+### H6-060 — Remove synchronous fallback
 
 - [ ] Delete the fallback that runs confirmation-gated work on the main httpd task when the async worker is unavailable.
 - [ ] Return explicit `503 Service Unavailable` or the contract-consistent equivalent.
 - [ ] Do not bypass physical confirmation.
 - [ ] Do not block the whole server for the confirmation timeout.
 
-## H6-061 — Track async subsystem health
+### H6-061 — Track async subsystem health
 
 - [ ] Add sanitized health state for worker start/run/stop/queue/completion failures.
 - [ ] Keep the first/most useful failure visible.
 - [ ] Expose through existing diagnostics only if consistent with the authoritative diagnostics contract; otherwise keep internal/log evidence and flag required contract change.
 
-## H6-062 — Stop ignoring completion results
+### H6-062 — Stop ignoring completion results
 
 - [ ] Observe `web_api_handle_call_with_body` result.
 - [ ] Observe `httpd_req_async_handler_complete` result.
 - [ ] Observe stop-signal result.
 - [ ] Preserve socket/request cleanup safety even when an error cannot be returned to the original client.
 
-## H6-063 — Regression tests
+### H6-063 — Regression tests
 
 - [ ] worker unavailable -> fast visible failure, no synchronous wait,
 - [ ] queue failure -> request answered/completed and health degraded,
@@ -471,26 +471,26 @@ Search and classify at least:
 
 ---
 
-# Phase H7 — Executor/HID release safety
+## Phase H7 — Executor/HID release safety
 
-## H7-070 — Eliminate ignored release-all results
+### H7-070 — Eliminate ignored release-all results
 
 - [ ] Find every `usb_release_all()`/`ops.usb_release_all()` call.
 - [ ] Remove `(void)` discards where the result is safety-relevant.
 - [ ] Preserve primary submit/execution error separately from release error.
 
-## H7-071 — Fault latch unsafe HID state
+### H7-071 — Fault latch unsafe HID state
 
 - [ ] If defensive release-all fails and key release cannot be proven, mark executor/HID unavailable.
 - [ ] Reject new sends until a defined recovery/reinitialization path re-establishes ready state.
 - [ ] Ensure status/diagnostics exposes sanitized release failure.
 
-## H7-072 — Correct error classification
+### H7-072 — Correct error classification
 
 - [ ] Replace executor-unavailable -> `APP_ERROR_STORAGE_UNAVAILABLE` mappings with an executor/internal-appropriate error.
 - [ ] Verify HTTP mapping remains sensible and does not leak internals.
 
-## H7-073 — Tests
+### H7-073 — Tests
 
 - [ ] unlock failure + release-all failure,
 - [ ] queue-send failure + release-all failure,
@@ -506,9 +506,9 @@ Search and classify at least:
 
 ---
 
-# Phase H8 — Frontend persistence and export failure visibility
+## Phase H8 — Frontend persistence and export failure visibility
 
-## H8-080 — Package-selection persistence warning
+### H8-080 — Package-selection persistence warning
 
 Update every selection-changing call site:
 
@@ -527,7 +527,7 @@ Required behavior:
 - [ ] Retry is available where practical,
 - [ ] warning clears after successful persistence.
 
-## H8-081 — Snapshot export error handling
+### H8-081 — Snapshot export error handling
 
 - [ ] Catch export/compression/file-save errors.
 - [ ] Show `ErrorBanner` or the common equivalent.
@@ -535,7 +535,7 @@ Required behavior:
 - [ ] Do not modify repository, dirty flag, selected package, or loaded snapshot association on failure.
 - [ ] Avoid unhandled rejected promises from event handlers.
 
-## H8-082 — Frontend tests
+### H8-082 — Frontend tests
 
 - [ ] package selection persists successfully -> no warning,
 - [ ] persistence fails -> local open + warning + non-dirty state,
@@ -551,9 +551,9 @@ Required behavior:
 
 ---
 
-# Phase H9 — Cross-cutting secret, fallback, and regression audit
+## Phase H9 — Cross-cutting secret, fallback, and regression audit
 
-## H9-090 — Search for silent critical catches/ignored results
+### H9-090 — Search for silent critical catches/ignored results
 
 Audit production firmware and v2 frontend for:
 
@@ -574,7 +574,7 @@ For every hit:
 
 Do not ban best-effort globally; the criterion is whether the ignored failure changes user-visible correctness, safety, security, persistence, or recoverability.
 
-## H9-091 — Complete no-secret audit
+### H9-091 — Complete no-secret audit
 
 Audit:
 
@@ -595,7 +595,7 @@ Secret sentinels must cover:
 - [ ] session token,
 - [ ] password salt/verifier bytes.
 
-## H9-092 — Strengthen architectural guards
+### H9-092 — Strengthen architectural guards
 
 - [ ] Add/extend static checks preventing firmware package/macro repository ownership from returning.
 - [ ] Extend browser-storage prohibition scan to every production v2 frontend directory.
@@ -610,9 +610,9 @@ Secret sentinels must cover:
 
 ---
 
-# Phase H10 — Full contract, browser, sanitizer, and device regression pass
+## Phase H10 — Full contract, browser, sanitizer, and device regression pass
 
-## H10-100 — Native/contract gates
+### H10-100 — Native/contract gates
 
 - [ ] Run complete host suite.
 - [ ] Run complete host suite under ASan + UBSan.
@@ -621,7 +621,7 @@ Secret sentinels must cover:
 - [ ] Run static-analysis/clang-tidy with warnings fatal.
 - [ ] Run native coverage policy and record exact values.
 
-## H10-101 — Frontend gates
+### H10-101 — Frontend gates
 
 - [ ] `npm ci` from the pinned Node version.
 - [ ] format check.
@@ -634,7 +634,7 @@ Secret sentinels must cover:
 - [ ] local-only/static asset checks.
 - [ ] real-Chrome full scenario suite including new hardening scenarios.
 
-## H10-102 — Device Unity tests
+### H10-102 — Device Unity tests
 
 - [ ] Build `firmware/test_app` from the exact candidate SHA.
 - [ ] Flash the reference ESP32-S3R8.
@@ -642,7 +642,7 @@ Secret sentinels must cover:
 - [ ] Record pass/fail/ignored count.
 - [ ] Add device-test coverage for new low-level hardening behavior where appropriate and practical.
 
-## H10-103 — Hardware matrix refresh
+### H10-103 — Hardware matrix refresh
 
 At minimum revalidate affected areas:
 
@@ -669,9 +669,9 @@ Optional unavailable hosts remain honestly recorded:
 
 ---
 
-# Phase H11 — Final `TODO_V2.md` reconciliation and product sign-off
+## Phase H11 — Final `TODO_V2.md` reconciliation and product sign-off
 
-## H11-110 — Re-audit every affected v2 checkbox
+### H11-110 — Re-audit every affected v2 checkbox
 
 At minimum re-audit:
 
@@ -687,7 +687,7 @@ At minimum re-audit:
 - [ ] Phase 4/5/6/7/8/11/15 exit gates affected by these behaviors,
 - [ ] final sign-off checklist.
 
-## H11-111 — Literal evidence audit
+### H11-111 — Literal evidence audit
 
 For every checked affected item:
 
@@ -698,7 +698,7 @@ For every checked affected item:
 - [ ] exact evidence SHA is present,
 - [ ] evidence file exists at the referenced path.
 
-## H11-112 — Documentation synchronization
+### H11-112 — Documentation synchronization
 
 - [ ] Update current implementation/status documentation to describe the hardened semantics.
 - [ ] Document factory-reset recovery behavior.
@@ -716,15 +716,15 @@ For every checked affected item:
 
 ---
 
-# Phase H12 — Final clean-checkout release gate
+## Phase H12 — Final clean-checkout release gate
 
-## H12-120 — Clean checkout
+### H12-120 — Clean checkout
 
 - [ ] Create a fresh checkout of the exact final candidate SHA.
 - [ ] Install dependencies only through documented reproducible commands.
 - [ ] Confirm no generated/untracked source artifact is required for success.
 
-## H12-121 — Run complete authoritative gate
+### H12-121 — Run complete authoritative gate
 
 From the clean checkout:
 
@@ -738,7 +738,7 @@ From the clean checkout:
 - [ ] No warnings are ignored or downgraded.
 - [ ] Record timings and key counts/budget margins.
 
-## H12-122 — Final hardware confirmation on exact release SHA
+### H12-122 — Final hardware confirmation on exact release SHA
 
 - [ ] Build production firmware from the same exact SHA.
 - [ ] Flash reference device.
@@ -746,7 +746,7 @@ From the clean checkout:
 - [ ] Perform a bounded final smoke sequence: login, active send, confirmation-required send, cancel, snapshot save/load, password change, restart, factory reset/reprovision.
 - [ ] Confirm no production test image remains flashed at sign-off.
 
-## H12-123 — Final post-v2 acceptance statement
+### H12-123 — Final post-v2 acceptance statement
 
 Only check this when truthful:
 
@@ -762,7 +762,7 @@ Only check this when truthful:
 
 ---
 
-# Final completion gate
+## Final completion gate
 
 The post-v2 hardening program is complete only when:
 
