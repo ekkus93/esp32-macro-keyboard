@@ -80,26 +80,97 @@ def test_current_v2_routes() -> None:
     assert '"/api/v1/login"' not in source
 
 
+def test_parse_success_has_no_v1_envelope() -> None:
+    # SPEC_V2 13 success responses are the flat object itself (see
+    # web_api_response.c) - no v1-style {"ok":true,"data":...} wrapper.
+    # Found on real hardware 2026-08-10: this collector had never actually
+    # talked to a real device before, and every response-parsing call site
+    # assumed the old v1 envelope, which the real API has never returned.
+    assert MODULE.parse_success(b'{"authenticated":true}') == {"authenticated": True}
+    assert MODULE.parse_success(b'{"blobs":[],"usedBytes":0,"remainingBytes":492000}') == {
+        "blobs": [],
+        "usedBytes": 0,
+        "remainingBytes": 492000,
+    }
+    expect_failure(MODULE.parse_success, b"[]")
+    expect_failure(MODULE.parse_success, b"not json")
+
+
+def test_login_request_uses_admin_password_field() -> None:
+    # contracts/v2/api/examples.json's loginRequest uses "adminPassword",
+    # not "password" - a real login on physical hardware fails 400
+    # "invalid login request" otherwise.
+    captured: dict = {}
+
+    class RecordingApi(MODULE.DeviceApi):
+        def _request(self, method, path, body=None, headers=None):
+            captured["method"] = method
+            captured["path"] = path
+            captured["body"] = body
+            captured["headers"] = headers
+            return 200, b'{"authenticated":true}', {}
+
+        def cookie_header(self, path: str) -> str:  # pragma: no cover - unused here
+            return "session=test"
+
+    api = RecordingApi("http://device.test")
+    api.cookies = type(
+        "FakeJar", (), {"__iter__": lambda self: iter([object()])}
+    )()
+    api.login("correct horse battery staple")
+    assert captured["path"] == MODULE.AUTH_LOGIN_PATH
+    assert json.loads(captured["body"]) == {"adminPassword": "correct horse battery staple"}
+
+
 def test_diagnostics_schema() -> None:
+    # The manifest's diagnosticsBuildId is the fuller 39-character prefix;
+    # the board's own live diagnostics.buildId is a much shorter prefix
+    # (CONFIG_APP_RETRIEVE_LEN_ELF_SHA hex chars, 9 on this project's
+    # current sdkconfig) - see contracts/v2/api/examples.json's
+    # "diagnostics" example, which has no "blobScan" object at all:
+    # temporary-file evidence lives at storage.temporaryFiles, with no
+    # separate count field.
     assert MODULE.BUILD_ID_PATTERN.fullmatch("a" * 39) is not None
+    assert MODULE.LIVE_BUILD_ID_PATTERN.fullmatch("a" * 9) is not None
+    assert MODULE.LIVE_BUILD_ID_PATTERN.fullmatch("a" * 39) is not None
+    assert MODULE.LIVE_BUILD_ID_PATTERN.fullmatch("a" * 40) is None
     parsed = MODULE.parse_diagnostics(
         {
-            "buildId": "a" * 39,
+            "buildId": "a" * 9,
             "resetReason": "power_on",
             "uptimeMs": 12,
-            "blobScan": {"temporaryFileCount": 0, "temporaryFiles": []},
+            "storage": {"temporaryFiles": []},
         }
     )
     assert parsed["temporaryFileCount"] == 0
     assert parsed["temporaryFiles"] == []
 
+    parsed_with_files = MODULE.parse_diagnostics(
+        {
+            "buildId": "a" * 9,
+            "resetReason": "power_on",
+            "uptimeMs": 12,
+            "storage": {"temporaryFiles": ["0000000005.gz.tmp"]},
+        }
+    )
+    assert parsed_with_files["temporaryFileCount"] == 1
+    assert parsed_with_files["temporaryFiles"] == ["0000000005.gz.tmp"]
+
     expect_failure(
         MODULE.parse_diagnostics,
         {
-            "buildId": "a" * 39,
+            "buildId": "a" * 9,
             "resetReason": "power_on",
             "uptimeMs": 12,
-            "blobScan": {"temporaryFileCount": 1, "temporaryFiles": []},
+            "storage": {"temporaryFiles": [1]},
+        },
+    )
+    expect_failure(
+        MODULE.parse_diagnostics,
+        {
+            "buildId": "a" * 9,
+            "resetReason": "power_on",
+            "uptimeMs": 12,
         },
     )
 
@@ -156,11 +227,14 @@ def test_flash_manifest_provenance() -> None:
         try:
             manifest = MODULE.load_flash_manifest(manifest_path)
             assert len(esptool_commands) == 1
+            # The board's live buildId is a short prefix of the manifest's
+            # fuller 39-character diagnosticsBuildId, not an exact match.
+            MODULE.verify_firmware_provenance(manifest, {"buildId": "a" * 9})
             MODULE.verify_firmware_provenance(manifest, {"buildId": "a" * 39})
             expect_failure(
                 MODULE.verify_firmware_provenance,
                 manifest,
-                {"buildId": "d" * 39},
+                {"buildId": "d" * 9},
             )
 
             dirty = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -577,6 +651,8 @@ def main() -> int:
     test_exact_gzip()
     test_complete_validation()
     test_current_v2_routes()
+    test_parse_success_has_no_v1_envelope()
+    test_login_request_uses_admin_password_field()
     test_diagnostics_schema()
     test_flash_manifest_provenance()
     test_interrupted_upload_request_headers()

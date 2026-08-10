@@ -33,6 +33,13 @@ ESP_IDF_VERSION = "ESP-IDF v5.5.5"
 FIRMWARE_COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 BUILD_ID_PATTERN = re.compile(r"^[0-9a-f]{39}$")
+# The live board's diagnostics.buildId is a much shorter prefix than the flash
+# manifest's 39-character diagnosticsBuildId: esp_app_get_elf_sha256() only
+# returns CONFIG_APP_RETRIEVE_LEN_ELF_SHA hex characters (9 on this project's
+# current sdkconfig), not the full 39-character prefix. It's still the same
+# hex prefix of the same ELF SHA-256, just shorter - accept any non-empty hex
+# string up to 39 characters rather than requiring an exact 39-character match.
+LIVE_BUILD_ID_PATTERN = re.compile(r"^[0-9a-f]{1,39}$")
 ELF_SHA_OUTPUT_PATTERN = re.compile(r"ELF file SHA256:\s*([0-9A-Fa-f]{64})")
 AUTH_LOGIN_PATH = "/api/v1/auth/login"
 BLOB_COLLECTION_PATH = "/api/v1/blob"
@@ -262,19 +269,25 @@ def load_flash_manifest(path: Path) -> dict[str, str]:
 
 
 def verify_firmware_provenance(manifest: dict[str, str], diagnostics: dict[str, Any]) -> None:
-    require(diagnostics["buildId"] == manifest["diagnosticsBuildId"],
-            "board buildId does not match the exact application image in the flash manifest")
+    # The board's live buildId is a short prefix (CONFIG_APP_RETRIEVE_LEN_ELF_SHA
+    # hex chars); the manifest's diagnosticsBuildId is the fuller 39-character
+    # prefix esptool verified against the actual flashed image. Provenance is
+    # established by the shorter one being a prefix of the longer one, not
+    # exact equality of two different-length strings.
+    require(manifest["diagnosticsBuildId"].startswith(diagnostics["buildId"]),
+            "board buildId is not a prefix of the verified application image in the flash manifest")
 
 
 def parse_success(body: bytes) -> Any:
+    # SPEC_V2 13 success responses are the flat object itself - no v1-style
+    # {"ok":true,"data":...} envelope (see web_api_response.c). The caller is
+    # responsible for only invoking this on a genuinely successful HTTP status.
     try:
-        envelope = json.loads(body.decode("utf-8"))
+        payload = json.loads(body.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise EvidenceError(f"device returned invalid JSON: {error}") from error
-    require(isinstance(envelope, dict), "device response must be a JSON object")
-    require(envelope.get("ok") is True, f"device returned a failed envelope: {envelope!r}")
-    require("data" in envelope, "device success envelope is missing data")
-    return envelope["data"]
+    require(isinstance(payload, dict), "device response must be a JSON object")
+    return payload
 
 
 class DeviceApi:
@@ -304,7 +317,7 @@ class DeviceApi:
             raise EvidenceError(f"device request failed: {method} {path}: {error}") from error
 
     def login(self, password: str) -> None:
-        body = json.dumps({"password": password}, separators=(",", ":")).encode()
+        body = json.dumps({"adminPassword": password}, separators=(",", ":")).encode()
         status, response, _ = self._request(
             "POST", AUTH_LOGIN_PATH, body, {"Content-Type": "application/json"}
         )
@@ -392,28 +405,26 @@ def parse_diagnostics(diagnostics: Any) -> dict[str, Any]:
     build_id = diagnostics.get("buildId")
     reset_reason = diagnostics.get("resetReason")
     uptime_ms = diagnostics.get("uptimeMs")
-    blob_scan = diagnostics.get("blobScan")
+    # The real contract has no "blobScan" object and no separate count field
+    # (see contracts/v2/api/examples.json's "diagnostics" example): temporary
+    # files live at storage.temporaryFiles, and the count is just its length.
+    storage = diagnostics.get("storage")
     require(isinstance(build_id, str)
-            and BUILD_ID_PATTERN.fullmatch(build_id) is not None,
-            "diagnostics buildId must be a 39-character lowercase ELF SHA prefix")
+            and LIVE_BUILD_ID_PATTERN.fullmatch(build_id) is not None,
+            "diagnostics buildId must be a lowercase ELF SHA prefix")
     require(isinstance(reset_reason, str) and bool(reset_reason),
             "diagnostics resetReason is invalid")
     require(type(uptime_ms) is int and uptime_ms >= 0, "diagnostics uptimeMs is invalid")
-    require(isinstance(blob_scan, dict), "diagnostics blobScan is invalid")
-    temporary_count = blob_scan.get("temporaryFileCount")
-    temporary_files = blob_scan.get("temporaryFiles")
-    require(type(temporary_count) is int and temporary_count >= 0,
-            "diagnostics temporaryFileCount is invalid")
+    require(isinstance(storage, dict), "diagnostics storage is invalid")
+    temporary_files = storage.get("temporaryFiles")
     require(isinstance(temporary_files, list)
             and all(isinstance(value, str) for value in temporary_files),
-            "diagnostics temporaryFiles is invalid")
-    require(temporary_count == len(temporary_files),
-            "diagnostics temporary-file count does not match its list")
+            "diagnostics storage.temporaryFiles is invalid")
     return {
         "buildId": build_id,
         "resetReason": reset_reason,
         "uptimeMs": uptime_ms,
-        "temporaryFileCount": temporary_count,
+        "temporaryFileCount": len(temporary_files),
         "temporaryFiles": temporary_files,
     }
 
