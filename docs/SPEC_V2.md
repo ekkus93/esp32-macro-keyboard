@@ -1295,8 +1295,8 @@ Success returns `200`:
     "stationConfigured": true,
     "stationSsid": "OfficeWiFi"
   },
-  "restartRequired": false,
-  "reconnectRequired": false
+  "restartRequired": true,
+  "reconnectRequired": true
 }
 ```
 
@@ -1342,7 +1342,7 @@ On acceptance, firmware returns `202`:
   "id": "550e8400-e29b-41d4-a716-446655440000",
   "state": "running",
   "actionCount": 9,
-  "estimatedDurationMs": 214
+  "estimatedDurationMs": 207
 }
 ```
 
@@ -1358,7 +1358,7 @@ running returns `409`.
   "state": "completed",
   "actionIndex": 9,
   "actionCount": 9,
-  "estimatedDurationMs": 214,
+  "estimatedDurationMs": 207,
   "cancellationRequested": false,
   "error": "",
   "releaseError": ""

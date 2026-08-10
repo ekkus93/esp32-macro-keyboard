@@ -112,48 +112,30 @@ static cJSON *parse_response(const fake_httpd_request_t *fake) {
 
 /* "id" is a fresh random UUID on every real send -- see web_send.c's
  * app_uuid_generate() call -- so it can never equal
- * contracts/v2/api/examples.json's fixed example id.
+ * contracts/v2/api/examples.json's fixed example id; every other field,
+ * including "estimatedDurationMs", gets full wholesale drift protection.
  *
- * "estimatedDurationMs" is normalized too, for a different and more
- * interesting reason -- a genuinely open discrepancy this comparison found,
- * not a shortcoming of the test: both "sendAccepted" and "sendStatus" in
- * examples.json, AND docs/SPEC_V2.md 13.10's own inline JSON for the exact
- * same request ("make -j8{ENTER}", keyPressMs 8, interKeyMs 15), claim
- * estimatedDurationMs 214 -- but the real, deterministic formula both the
+ * examples.json's/SPEC_V2.md 13.10's estimatedDurationMs for this exact
+ * request ("make -j8{ENTER}", keyPressMs 8, interKeyMs 15) previously read
+ * 214, which did not match the real, deterministic formula both the
  * firmware parser (macro_parser_v2.c's v2_append_action(): each non-delay
  * action costs key_press_ms + inter_key_ms) and the webapp parser
- * (macroCompiler.ts, the same shared-corpus formula) actually compute for 9
- * non-delay actions at those settings is 9 * (8 + 15) = 207, confirmed by
- * this test's own separate exact assertion below (not just observed once).
- * actionCount (9) matches the documented example exactly; only the derived
- * duration does not, by a constant +7 that does not correspond to any
- * documented per-action or per-request constant. This looks like a
- * hand-computed illustrative number that was never regenerated from a real
- * compile, not a code defect -- but per this project's frozen-spec
- * discipline (CLAUDE.md: SPEC_V2.md changes require Phil's explicit
- * permission, propose don't apply), this test does not "fix" the figure by
- * editing SPEC_V2.md/examples.json, and does not fabricate a passing
- * wholesale comparison by quietly matching the code to an unverified
- * assumption either. It normalizes the one disputed field (like "id") so
- * every OTHER field still gets full wholesale drift protection, and pins
- * the real number down explicitly so a genuine future duration-formula
- * change is still caught. See
+ * (macroCompiler.ts, the same shared-corpus formula) compute for 9
+ * non-delay actions at those settings: 9 * (8 + 15) = 207. Confirmed as a
+ * stale hand-computed illustrative number (not a code defect), reported to
+ * and fixed by Phil per this project's frozen-spec discipline -- see
  * docs/implementation-v2/V2_057_PHASE5_HARDENING_2026-08-09.md for the
- * full writeup; this is reported, not silently resolved. */
-static void assert_matches_example_ignoring_id_and_duration(const cJSON *actual,
-                                                            const char *example_key) {
+ * original discrepancy writeup. examples.json and SPEC_V2.md now both read
+ * 207, matching this test's separate exact assertion below. */
+static void assert_matches_example_ignoring_id(const cJSON *actual, const char *example_key) {
     cJSON *comparable_actual = cJSON_Duplicate(actual, true);
     TEST_CHECK(comparable_actual != NULL);
     TEST_CHECK(cJSON_ReplaceItemInObjectCaseSensitive(comparable_actual, "id",
                                                       cJSON_CreateString("normalized-id")));
-    TEST_CHECK(cJSON_ReplaceItemInObjectCaseSensitive(comparable_actual, "estimatedDurationMs",
-                                                      cJSON_CreateNumber(0.0)));
     cJSON *comparable_example = cJSON_Duplicate(test_examples_fixture_get(example_key), true);
     TEST_CHECK(comparable_example != NULL);
     TEST_CHECK(cJSON_ReplaceItemInObjectCaseSensitive(comparable_example, "id",
                                                       cJSON_CreateString("normalized-id")));
-    TEST_CHECK(cJSON_ReplaceItemInObjectCaseSensitive(comparable_example, "estimatedDurationMs",
-                                                      cJSON_CreateNumber(0.0)));
     TEST_CHECK(cJSON_Compare(comparable_actual, comparable_example, true) != 0);
     cJSON_Delete(comparable_actual);
     cJSON_Delete(comparable_example);
@@ -215,11 +197,10 @@ static void test_send_create_valid_matches_example(void) {
     cJSON *root = parse_response(&fake);
     TEST_CHECK(app_uuid_is_valid_string(cJSON_GetObjectItemCaseSensitive(root, "id")->valuestring));
     /* The real, deterministic value for this exact request -- see
-     * assert_matches_example_ignoring_id_and_duration()'s comment for why
-     * this differs from examples.json's/SPEC_V2 13.10's documented 214. */
+     * assert_matches_example_ignoring_id()'s comment. */
     TEST_CHECK_EQ_U64(
         207U, (uint64_t)cJSON_GetObjectItemCaseSensitive(root, "estimatedDurationMs")->valuedouble);
-    assert_matches_example_ignoring_id_and_duration(root, "sendAccepted");
+    assert_matches_example_ignoring_id(root, "sendAccepted");
     cJSON_Delete(root);
 }
 
@@ -430,7 +411,7 @@ static void test_send_get_valid(void) {
  * body first (the same request test_send_create_valid_matches_example()
  * uses), so last_send_estimated_duration_ms (web_server_send.c's own static
  * cache, populated only by a real send_create_handler() call) holds the
- * real 214 ms the parser computed rather than a hand-picked number, then
+ * real 207 ms the parser computed rather than a hand-picked number, then
  * simulates that same send having finished (completed, every action run) and
  * diffs the live GET response against "sendStatus" wholesale (id
  * normalized). */
@@ -468,7 +449,7 @@ static void test_send_get_valid_matches_example(void) {
                          cJSON_GetObjectItemCaseSensitive(root, "id")->valuestring);
     TEST_CHECK_EQ_U64(
         207U, (uint64_t)cJSON_GetObjectItemCaseSensitive(root, "estimatedDurationMs")->valuedouble);
-    assert_matches_example_ignoring_id_and_duration(root, "sendStatus");
+    assert_matches_example_ignoring_id(root, "sendStatus");
     cJSON_Delete(root);
 }
 

@@ -622,29 +622,21 @@ static void test_settings_put_valid(void) {
 /* TODO_V2 V2-057 "consume the same checked-in examples from C and TypeScript
  * tests": submits contracts/v2/api/examples.json's own "settingsUpdate" body
  * verbatim against the "settings" example's baseline (provisioned_settings()
- * above already matches it, see test_settings_get_valid()), so the
- * response's "settings" sub-object can be diffed against "settingsUpdated"'s
- * wholesale.
+ * above already matches it, see test_settings_get_valid()), so the response
+ * can be diffed against "settingsUpdated" wholesale, including
+ * "restartRequired"/"reconnectRequired".
  *
- * "restartRequired"/"reconnectRequired" are the one part of this response
- * this test does NOT diff wholesale -- a genuinely open discrepancy this
- * comparison found, not a shortcoming of the test. Both examples.json's
- * "settingsUpdated" AND docs/SPEC_V2.md 13.9's own inline JSON for this
- * exact request show both flags false, but the very next sentence in
- * SPEC_V2 13.9 says "Changing access-point credentials sets both flags to
- * true", and apply_access_point() (settings_contract_v2.c) does exactly
- * that unconditionally whenever a request carries "accessPoint" -- which
- * this request does. The documented example JSON contradicts the
- * documented prose immediately below it; the code matches the prose, not
- * the JSON. Per this project's frozen-spec discipline (CLAUDE.md: SPEC_V2.md
- * changes require Phil's explicit permission, propose don't apply), this
- * test does not edit SPEC_V2.md/examples.json to "fix" the figure, and does
- * not fabricate a passing wholesale comparison either -- it normalizes the
- * two disputed fields (like "id" elsewhere in this file) so every other
- * field still gets full wholesale drift protection, and separately pins the
- * real, prose-conformant computed values (true/true) down explicitly. See
- * docs/implementation-v2/V2_057_PHASE5_HARDENING_2026-08-09.md for the full
- * writeup; this is reported, not silently resolved. */
+ * Both examples.json's "settingsUpdated" AND docs/SPEC_V2.md 13.9's own
+ * inline JSON for this exact request previously showed both flags false,
+ * which contradicted the very next sentence in SPEC_V2 13.9 ("Changing
+ * access-point credentials sets both flags to true") and
+ * apply_access_point() (settings_contract_v2.c), which does exactly that
+ * unconditionally whenever a request carries "accessPoint" -- which this
+ * request does. Confirmed as a stale example (not a code defect), reported
+ * to and fixed by Phil per this project's frozen-spec discipline -- see
+ * docs/implementation-v2/V2_057_PHASE5_HARDENING_2026-08-09.md for the
+ * original discrepancy writeup. examples.json and SPEC_V2.md now both read
+ * true/true, matching this test's separate exact assertion below. */
 static void test_settings_put_valid_matches_example(void) {
     reset_fakes();
     fake_httpd_request_t fake;
@@ -664,20 +656,12 @@ static void test_settings_put_valid_matches_example(void) {
 
     cJSON *root = parse_response(&fake);
     /* The real, prose-conformant values for this exact request -- see this
-     * test's own comment for why they differ from examples.json's/SPEC_V2
-     * 13.9's documented false/false. */
+     * test's own comment. */
     TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "restartRequired")));
     TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "reconnectRequired")));
 
-    cJSON *comparable = cJSON_Duplicate(root, true);
-    TEST_CHECK(comparable != NULL);
-    TEST_CHECK(
-        cJSON_ReplaceItemInObjectCaseSensitive(comparable, "restartRequired", cJSON_CreateFalse()));
-    TEST_CHECK(cJSON_ReplaceItemInObjectCaseSensitive(comparable, "reconnectRequired",
-                                                      cJSON_CreateFalse()));
     const cJSON *example = test_examples_fixture_get("settingsUpdated");
-    TEST_CHECK(cJSON_Compare(comparable, example, true) != 0);
-    cJSON_Delete(comparable);
+    TEST_CHECK(cJSON_Compare(root, example, true) != 0);
     cJSON_Delete(root);
 }
 

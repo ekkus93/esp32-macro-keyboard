@@ -805,24 +805,27 @@ knowledge in firmware.
       test at all yet (`login_handler`'s `httpd_req_to_sockfd()`/
       `getpeername()` IP-based rate-limiting call needs a real or faked
       socket, which no host test in this codebase provides) — a distinct,
-      larger gap than "diff against the example," left open. Two genuine,
-      previously-undetected numeric discrepancies were found by this
-      wholesale diffing (both **reported, not silently resolved or
-      applied** — SPEC_V2.md changes require Phil's explicit permission per
-      CLAUDE.md): (1) `sendAccepted`/`sendStatus`'s documented
-      `estimatedDurationMs: 214` for the exact `"make -j8{ENTER}"`/
-      `keyPressMs: 8`/`interKeyMs: 15` example (also in SPEC_V2.md 13.10)
-      does not match either the firmware or webapp parser's actual,
-      identical, deterministic computation (`207`); (2) `settingsUpdated`'s
-      documented `restartRequired`/`reconnectRequired: false` for the exact
-      `settingsUpdate` example (also in SPEC_V2.md 13.9) contradicts
-      SPEC_V2.md 13.9's own next sentence ("Changing access-point
-      credentials sets both flags to `true`") and the code, which matches
-      the prose (`true`/`true`), not the JSON. Both tests normalize the
-      disputed field(s) before comparing everything else wholesale and pin
-      the real computed value down with an explicit separate assertion — see
-      `docs/implementation-v2/V2_057_PHASE5_HARDENING_2026-08-09.md`. One
-      divergence from a prior track remains fixed:
+      larger gap than "diff against the example," left open. Two genuine
+      numeric discrepancies were found by this wholesale diffing, reported
+      to Phil rather than silently resolved, and fixed by him 2026-08-10:
+      (1) `sendAccepted`/`sendStatus`'s documented `estimatedDurationMs`
+      for the exact `"make -j8{ENTER}"`/`keyPressMs: 8`/`interKeyMs: 15`
+      example (also in SPEC_V2.md 13.10) read `214`, which did not match
+      either the firmware or webapp parser's actual, identical,
+      deterministic computation (`207`) — both `examples.json` and
+      SPEC_V2.md now read `207`, matching the code; (2) `settingsUpdated`'s
+      documented `restartRequired`/`reconnectRequired` for the exact
+      `settingsUpdate` example (also in SPEC_V2.md 13.9) read `false`/
+      `false`, contradicting SPEC_V2.md 13.9's own next sentence ("Changing
+      access-point credentials sets both flags to `true`") and the code,
+      which matched the prose, not the JSON — both `examples.json` and
+      SPEC_V2.md now read `true`/`true`, matching the code and the prose.
+      Both tests' now-unnecessary field-normalization workarounds were
+      removed in the same fix, since the wholesale comparison passes
+      cleanly on its own — see
+      `docs/implementation-v2/V2_057_PHASE5_HARDENING_2026-08-09.md` for the
+      original discrepancy writeup. One divergence from a prior track
+      remains fixed:
       `web_server_diagnostics.c`'s `resetReason` values used hyphens
       (`"power-on"`) against the contract's underscores (`"power_on"`).
 
@@ -849,13 +852,13 @@ knowledge in firmware.
       except `login`'s own POST response (no live handler test exists for it
       yet, a distinct, larger gap — see that bullet) and `changePassword`
       (genuinely bodyless, not applicable). Two concrete mismatches were
-      found and are reported, not silently fixed:
-      `sendAccepted`/`sendStatus.estimatedDurationMs` and
-      `settingsUpdated.restartRequired`/`reconnectRequired` — both also
-      appear in SPEC_V2.md itself (13.10, 13.9) and are proposed, not
-      applied, corrections per CLAUDE.md's frozen-spec discipline; the one
-      mismatch from a prior track (`diagnostics.resetReason`) remains fixed.
-      See the V2-057 bullet and
+      found (`sendAccepted`/`sendStatus.estimatedDurationMs` and
+      `settingsUpdated.restartRequired`/`reconnectRequired`, both also in
+      SPEC_V2.md itself at 13.10/13.9), reported rather than silently
+      fixed per CLAUDE.md's frozen-spec discipline, and corrected by Phil
+      2026-08-10 in both `examples.json` and SPEC_V2.md; the one mismatch
+      from a prior track (`diagnostics.resetReason`) remains fixed. See the
+      V2-057 bullet and
       `docs/implementation-v2/V2_057_PHASE5_HARDENING_2026-08-09.md` for the
       full account.
 
