@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { v2ErrorText } from "./features/auth/v2/v2ErrorText";
 import { FirstRunSetupPage } from "./features/auth/v2/FirstRunSetupPage";
 import { SignInPage } from "./features/auth/v2/SignInPage";
+import type { ActiveSendSummary } from "./features/shell/v2/activeSendSummary";
 import { AppShellV2 } from "./features/shell/v2/AppShellV2";
+import { LandscapeBlockSurface } from "./features/shell/v2/LandscapeBlockSurface";
 import { useDeviceStatus } from "./features/shell/v2/useDeviceStatus";
+import { useLandscapePhoneBlock } from "./features/shell/v2/useLandscapePhoneBlock";
 import { MacroEditorPage } from "./features/macros/v2/MacroEditorPage";
 import { MacroPreviewPage } from "./features/macros/v2/MacroPreviewPage";
 import { MacrosPage } from "./features/macros/v2/MacrosPage";
@@ -71,6 +74,15 @@ function AuthenticatedShell({
   const [packageId, setPackageId] = useState(ready.packageId);
 
   const usbState = useDeviceStatus();
+
+  // TODO_V2 V2-131/V2-132 (UI_UX_SPEC_V2 §12): on a landscape phone, the
+  // shell below stays fully mounted (its state, timers, and any active send
+  // are untouched) but is hidden behind the full-viewport orientation
+  // surface, which itself surfaces macro name/progress/Cancel via
+  // `activeSend` — reported by whichever page currently owns send tracking
+  // (only `MacrosPage` today).
+  const landscapeBlocked = useLandscapePhoneBlock();
+  const [activeSend, setActiveSend] = useState<ActiveSendSummary | null>(null);
 
   const [settings, setSettings] = useState<SettingsResponse | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
@@ -228,6 +240,7 @@ function AuthenticatedShell({
         return (
           <MacrosPage
             initialSend={sendHandoff}
+            onActiveSendChange={setActiveSend}
             onChangePackage={() => {
               navigateV2("packages");
             }}
@@ -340,21 +353,32 @@ function AuthenticatedShell({
   })();
 
   return (
-    <AppShellV2
-      deviceName={settings.deviceName}
-      dirty={snapshot.dirty}
-      navigate={navigateV2}
-      onSaveSnapshot={() => {
-        void saveSnapshot();
-      }}
-      packageName={packageName}
-      route={route}
-      saveError={saveError}
-      saving={saving}
-      usbState={usbState}
-    >
-      {content}
-    </AppShellV2>
+    <>
+      {/* TODO_V2 V2-131: hidden, not unmounted, while landscape-blocked —
+          `display: none` removes it from layout and the accessibility tree
+          without touching React state, so returning to portrait resumes
+          exactly where the tab left off. */}
+      <div style={landscapeBlocked ? { display: "none" } : undefined}>
+        <AppShellV2
+          deviceName={settings.deviceName}
+          dirty={snapshot.dirty}
+          navigate={navigateV2}
+          onSaveSnapshot={() => {
+            void saveSnapshot();
+          }}
+          packageName={packageName}
+          route={route}
+          saveError={saveError}
+          saving={saving}
+          usbState={usbState}
+        >
+          {content}
+        </AppShellV2>
+      </div>
+      {landscapeBlocked ? (
+        <LandscapeBlockSurface activeSend={activeSend} />
+      ) : null}
+    </>
   );
 }
 

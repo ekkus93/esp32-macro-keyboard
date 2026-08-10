@@ -1582,49 +1582,177 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
 
 ## V2-130 — Responsive layout
 
-- [ ] Support a minimum 320 CSS-pixel viewport. `webapp/src/styles.css` sets
-      `body { min-width: 320px; }`, but that is an incidental floor from
-      earlier phases, not a verified 320px layout (no viewport test exists).
-      Left unchecked.
+- [ ] Support a minimum 320 CSS-pixel viewport. `webapp/src/styles.css` still
+      only sets `body { min-width: 320px; }` — an incidental floor, not a
+      verified 320px layout. The real-browser responsive check
+      (`assertResponsiveLayout()` in `webapp/tests/browser/run-browser-tests.mjs`,
+      pre-existing) exercises a 360 CSS-pixel viewport, not 320. Left
+      unchecked: 2026-08-09's V2-131/V2-132 work did not touch this item.
 - [ ] Use single-column phone layouts. `styles.css`'s `@media (width <= 32rem)`
       block already collapses `.app-header`/`.card`/`.page-heading` to
       `flex-direction: column`, but this predates Phase 13 and has never been
-      deliberately audited against every screen. Left unchecked.
-- [ ] Support wider tablet and desktop layouts without changing workflow.
-- [ ] Keep touch targets at least 44 by 44 CSS pixels. Not true as a blanket
-      claim: `styles.css`'s base `button` rule is `min-height: 44px`, but
-      `.header-button` overrides to `min-height: 36px` and
-      `.directive-toolbar button` to `min-height: 38px` — both below the
-      44px floor. Left unchecked; concrete counter-examples exist.
-- [ ] Respect display cutouts and gesture-navigation safe areas. `.app-header`
-      and `.bottom-nav` already pad with `env(safe-area-inset-top)`/
-      `env(safe-area-inset-bottom)` in `styles.css`, which is genuine partial
-      coverage, but it is not applied everywhere a cutout could matter and has
-      no device verification. Left unchecked.
-- [ ] Ensure bottom navigation does not cover final actions.
+      deliberately audited against every screen. Left unchecked (unchanged by
+      2026-08-09's work).
+- [x] Support wider tablet and desktop layouts without changing workflow.
+      `styles.css` widens `.standalone`/`.app-shell` from a 48rem cap to a
+      64rem cap at `@media (width >= 60rem)` (2026-08-09) — a relaxed max
+      width, not a workflow change (same single-column markup, no split
+      panes or new routes). The pre-existing real-browser
+      `assertResponsiveLayout()` (`webapp/tests/browser/run-browser-tests.mjs`)
+      asserts desktop content (1280x800, CDP device-metrics override) is
+      wider than mobile content (360x640) with no horizontal scroll at
+      either size — `./scripts/check-webapp.sh`'s `test:browser` step,
+      2026-08-09, passed ("Real Chrome v2 Macros page/Quick Send workflows
+      passed."). UI_UX_SPEC_V2 §13's "MAY use wider cards, split panes, or
+      denser management layouts" is optional and remains unbuilt — only the
+      "without changing workflow" half of the requirement is claimed here.
+- [x] Keep touch targets at least 44 by 44 CSS pixels. Fixed 2026-08-09:
+      `.header-button` (`min-height: 36px` -> `44px`) and
+      `.directive-toolbar button` (`38px` -> `44px`) in `webapp/src/styles.css`
+      were the two counter-examples the previous audit found; `grep -n
+      "min-height" webapp/src/styles.css` now shows no value below `44px`
+      anywhere in the file. Caveat: the pre-existing real-browser
+      `assertTouchTargets()` (`webapp/tests/browser/run-browser-tests.mjs`)
+      passes but only runs against the Macros page before either fixed
+      control is on-screen (`.header-button` needs a dirty working copy;
+      `.directive-toolbar` is macro-editor-only), so it does not
+      independently exercise these two controls — the claim rests on the
+      source-level fix and the grep, not that specific browser assertion.
+- [ ] Respect display cutouts and gesture-navigation safe areas. Widened
+      2026-08-09: `.standalone` (the full-screen container for every screen
+      outside the authenticated shell — First-Run Setup, Sign In,
+      device-unreachable/loading/reconnect) previously had no safe-area
+      padding at all and now pads all four sides with
+      `env(safe-area-inset-*)`; the new `.landscape-block` orientation
+      surface (V2-131) does the same. Combined with the pre-existing
+      `.app-header`/`.bottom-nav` coverage, every full-screen container now
+      pads for cutouts. Left unchecked regardless, per the hard rule against
+      claiming device validation from source review alone — no physical
+      device with a notch/cutout has verified this.
+- [x] Ensure bottom navigation does not cover final actions. Structural:
+      `AppShellV2.tsx` renders `<header>`, `<main>`, `<nav>` as plain
+      block-flow siblings (not absolutely/fixed positioned), and
+      `styles.css`'s `.bottom-nav` uses `position: sticky; bottom: 0` rather
+      than `fixed`/`absolute` — a sticky element stuck to the viewport
+      bottom still occupies its own space in normal flow, so it can only sit
+      below `main`'s content box, never overlap it. Confirmed empirically
+      with an isolated Playwright reproduction of the same markup/CSS
+      (short-content case, 375x700 viewport): last actionable button's
+      bottom edge at y=356, nav's top edge at y=372 — no overlap
+      (2026-08-09, throwaway script, not committed).
 
 ## V2-131 — Portrait-required phone surface
 
-- [ ] Apply phone-landscape blocking using tested coarse-pointer, orientation, and
-      short-viewport criteria, initially equivalent to:
+- [x] Apply phone-landscape blocking using tested coarse-pointer, orientation, and
+      short-viewport criteria, initially equivalent to the query below.
+      Implemented 2026-08-09:
+      `webapp/src/features/shell/v2/useLandscapePhoneBlock.ts`'s
+      `landscapePhoneMediaQuery` constant is exactly this string, read via
+      `window.matchMedia` with a `change` listener (no polling). Tested in
+      jsdom with a controllable `matchMedia` fake
+      (`webapp/tests/fakeMatchMedia.ts`,
+      `webapp/tests/v2-landscape-phone-block.test.tsx`: "uses the exact
+      UI_UX_SPEC_V2 §12.4 media query", "reflects the initial matchMedia
+      state on mount", "reacts to a later matchMedia change event without
+      remounting", "stops listening after unmount"). Honest gap: this proves
+      the hook's own wiring and the query string's exactness, not that real
+      Chromium's compound `(pointer: coarse)` evaluates as intended under
+      actual touch/orientation emulation — no real-browser test exercises
+      this (see the Phase 13 exit gate's still-unchecked "Real Android phone
+      portrait/landscape tests pass").
 
 ```css
 @media (orientation: landscape) and (pointer: coarse) and (max-height: 600px)
 ```
 
-- [ ] Show Rotate your phone instead of ordinary operational content.
-- [ ] Restore the exact route, draft, working copy, and dirty state on portrait.
-- [ ] Do not reload, clear memory, restart a send, or duplicate callbacks.
+- [x] Show Rotate your phone instead of ordinary operational content.
+      `webapp/src/features/shell/v2/LandscapeBlockSurface.tsx` renders the
+      exact UI_UX_SPEC_V2 §12.2 copy ("Rotate your phone" /
+      "ESP32 Macro Keyboard is designed for portrait mode."); asserted by
+      `v2-landscape-phone-block.test.tsx` and, wired into the real running
+      app, `webapp/tests/v2-app-v2.test.tsx`'s "hides the app behind Rotate
+      your phone in landscape, and restores the exact route and dirty state
+      on return" test.
+- [x] Restore the exact route, draft, working copy, and dirty state on portrait.
+      `src/AppV2.tsx`'s `AuthenticatedShell` keeps its normal content tree
+      (`AppShellV2` and everything inside it) mounted at all times and only
+      toggles `display: none` on an ancestor `<div>` based on
+      `useLandscapePhoneBlock()` — nothing unmounts, so no route/draft/
+      working-copy/dirty state is ever lost. Proven end to end by
+      `v2-app-v2.test.tsx`'s new test: signs in (working copy already
+      dirty), navigates to Snapshots, flips the fake `matchMedia` to
+      landscape (shell hidden, `.app-shell` still present in the DOM,
+      "Rotate your phone" shown), flips back to portrait, and asserts the
+      route is still "Snapshots", `"Unsaved changes"` is still shown, and
+      the `/api/v1/blob` `GET` count is unchanged (proving
+      `RepositoryStartupScreen` never remounted/re-fetched).
+- [x] Do not reload, clear memory, restart a send, or duplicate callbacks. Same
+      "keep mounted, only hide" mechanism as above rules out all four by
+      construction: `window.location.reload()` is never called by this path,
+      nothing is cleared, `MacrosPage`'s send-tracking effects and refs are
+      untouched by a CSS-only `display` toggle, and no component
+      double-mounts (which is what would duplicate a `sendMacro`/`trackSend`
+      call — `sendClient.ts`'s own doc comment names exactly this
+      "orientation-change remount" risk as the thing callers must avoid).
+      The active-send V2-132 browser-level integration test below exercises
+      the send/cancel path across a landscape excursion as further evidence.
 - [ ] Add `orientation: "portrait-primary"` to the manifest as progressive
-      enhancement only.
+      enhancement only. Blocked on a prerequisite that does not exist:
+      `webapp/index.html` has no `<link rel="manifest">`, and there is no
+      `webapp/public/manifest.json` or any `.webmanifest` file anywhere in
+      the repository (confirmed 2026-08-09: no `public/` directory exists
+      under `webapp/` at all). Per this task's own scope instructions,
+      creating a web app manifest from scratch is a larger decision than
+      this one checkbox and was deliberately not invented here. Left
+      unchecked; the UI_UX_SPEC_V2 §12.4 wording is itself "SHOULD... as
+      progressive enhancement... correctness does not depend on" it, so
+      nothing else in V2-131/V2-132 depends on this being done.
 
 ## V2-132 — Landscape active-send safety
 
-- [ ] Show macro name and current send state/progress on the orientation surface.
-- [ ] Keep Cancel and release all keys accessible.
-- [ ] Test cancellation while landscape.
+- [x] Show macro name and current send state/progress on the orientation surface.
+      `MacrosPage.tsx` reports an `ActiveSendSummary` (macro name, the same
+      `activeStatusText()` string the ordinary inline UI shows, and a
+      cancel handle) upward via a new optional `onActiveSendChange` prop
+      whenever its send `lifecycle` is `"starting"` or `"active"`, and
+      `null` otherwise (UI_UX_SPEC_V2 §12.3 names exactly "awaiting
+      confirmation or running"). `AppV2.tsx` wires this into
+      `LandscapeBlockSurface`. Tested at both layers:
+      `webapp/tests/v2-macros-page.test.tsx`'s "MacrosPage — V2-132
+      landscape active-send summary" block (4 tests: the starting summary
+      in isolation via a deliberately-never-resolving `sendMacro` fake,
+      active progress, null after the completion acknowledgement, and
+      opt-out when the caller passes nothing) and `v2-app-v2.test.tsx`'s
+      "an active send's macro name, progress, and Cancel remain accessible
+      while landscape-blocked" end-to-end test.
+- [x] Keep Cancel and release all keys accessible. The orientation surface
+      renders the exact same "Cancel and release all keys" action (calling
+      the same `cancelActiveSend`/`DELETE /api/v1/send` path as the ordinary
+      inline button) whenever a cancel handle is available.
+      `v2-landscape-phone-block.test.tsx` unit-tests
+      `LandscapeBlockSurface` calling it; `v2-app-v2.test.tsx`'s end-to-end
+      test locates the button specifically inside `.landscape-block` (not
+      merely matching text anywhere in the document, since the ordinary
+      hidden page has its own copy of the same button) and confirms
+      clicking it issues the `DELETE`.
+- [x] Test cancellation while landscape. `v2-app-v2.test.tsx`: starts a real
+      send through the running app, flips to landscape, clicks the
+      orientation surface's own Cancel button, and asserts the resulting
+      `DELETE /api/v1/send` call and the "Send Open terminal was cancelled."
+      acknowledgement.
 - [ ] Ensure tablets, foldables classified as tablets, laptops, and desktops are
-      not incorrectly blocked.
+      not incorrectly blocked. By construction of the compound media query
+      (`(orientation: landscape) and (pointer: coarse) and (max-height:
+      600px)`): laptops/desktops fail `pointer: coarse` (fine pointer input),
+      and typical tablets in landscape exceed the 600px height ceiling this
+      project's target devices use — matching UI_UX_SPEC_V2 §12.4's own
+      wording that this is "the initial implementation target" pending
+      "implementation tests" refining exact thresholds against real
+      hardware. No real device (tablet, foldable, laptop, or desktop) has
+      verified this, per the hard rule against claiming device validation
+      from source review alone — left unchecked on that basis, matching the
+      Phase 13 exit gate's own still-open "Tablet and desktop landscape
+      tests pass".
 
 ## V2-133 — Accessibility
 
@@ -1709,7 +1837,16 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
 - [ ] Manual keyboard and screen-reader checks are recorded.
 - [ ] Real Android phone portrait/landscape tests pass.
 - [ ] Tablet and desktop landscape tests pass.
-- [ ] Active-send cancellation remains available in landscape.
+- [x] Active-send cancellation remains available in landscape. V2-132,
+      2026-08-09: `webapp/tests/v2-app-v2.test.tsx`'s "an active send's
+      macro name, progress, and Cancel remain accessible while
+      landscape-blocked" test starts a real send through the running app,
+      switches to landscape, and confirms Cancel (specifically the copy
+      inside `.landscape-block`, not merely matching text anywhere in the
+      hidden page behind it) issues `DELETE /api/v1/send` and reaches the
+      cancelled acknowledgement. This is jsdom + a `matchMedia` fake, not a
+      real Android device — the two device-hardware exit-gate items above
+      remain honestly unchecked for that reason.
 
 ---
 

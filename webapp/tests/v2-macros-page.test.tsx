@@ -1,5 +1,6 @@
 import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
+import type { ActiveSendSummary } from "../src/features/shell/v2/activeSendSummary";
 import { MacrosPage } from "../src/features/macros/v2/MacrosPage";
 import type { Repository } from "../src/v2/repository";
 import { createRepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";
@@ -85,6 +86,7 @@ interface RenderOptions {
   initialSend?: SendStatusResponse | null;
   showMacroSourcePreviews?: boolean;
   sendMode?: "quick" | "preview";
+  onActiveSendChange?: (summary: ActiveSendSummary | null) => void;
 }
 
 async function renderMacrosPage(options: RenderOptions = {}) {
@@ -98,6 +100,7 @@ async function renderMacrosPage(options: RenderOptions = {}) {
   const result = await render(
     <MacrosPage
       initialSend={options.initialSend ?? null}
+      onActiveSendChange={options.onActiveSendChange ?? (() => undefined)}
       onChangePackage={callbacks.onChangePackage}
       onOpenAddMacro={callbacks.onOpenAddMacro}
       onOpenEditMacro={callbacks.onOpenEditMacro}
@@ -391,6 +394,140 @@ describe("MacrosPage — V2-093 Quick Send", () => {
       await tick(1000);
       expect(container.textContent).toContain("Sent Start the build.");
       expect(container.textContent).not.toContain("make -j8{ENTER}");
+      await unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("MacrosPage — V2-132 landscape active-send summary", () => {
+  test("reports the starting summary before the device responds", async () => {
+    // `sendMacro` never resolves in this test, deliberately, to observe the
+    // "starting" summary in isolation — with the real dependencies (or the
+    // fake-fetch harness), the mocked `POST` resolves fast enough that a
+    // React `act()` flush already reaches "active" before any assertion can
+    // run, per the other test in this block.
+    const store = createRepositoryWorkingCopyStore(makeRepository());
+    const summaries: (ActiveSendSummary | null)[] = [];
+    const { unmount } = await render(
+      <MacrosPage
+        dependencies={{
+          sendMacro: vi.fn(() => new Promise<never>(() => undefined)),
+          trackSend: vi.fn(() => ({ stop: vi.fn() })),
+          cancelSend: vi.fn(() => Promise.resolve(undefined)),
+          recoverSendState: vi.fn(() => Promise.resolve(null)),
+        }}
+        initialSend={null}
+        onActiveSendChange={(summary) => {
+          summaries.push(summary);
+        }}
+        onChangePackage={vi.fn()}
+        onOpenAddMacro={vi.fn()}
+        onOpenEditMacro={vi.fn()}
+        onOpenPreview={vi.fn()}
+        packageId={packageId}
+        sendMode="quick"
+        showMacroSourcePreviews={false}
+        store={store}
+        usbState="ready"
+      />,
+    );
+    expect(summaries.at(-1)).toBeNull();
+
+    await click(buttonWithText("Send"));
+    const starting = summaries.at(-1);
+    expect(starting).not.toBeNull();
+    expect(starting?.macroName).toBe("Start the build");
+    expect(starting?.statusText).toBe("Sending Start the build…");
+    expect(starting?.onCancel).toBeNull();
+    await unmount();
+  });
+
+  test("reports active progress, then null once the completion acknowledgement clears", async () => {
+    vi.useFakeTimers();
+    try {
+      const summaries: (ActiveSendSummary | null)[] = [];
+      const onActiveSendChange = vi.fn((summary: ActiveSendSummary | null) => {
+        summaries.push(summary);
+      });
+      const { unmount } = await renderMacrosPage({ onActiveSendChange });
+      expect(summaries.at(-1)).toBeNull();
+
+      planJsonResponse(accepted, 202);
+      await click(buttonWithText("Send"));
+      await tick(0);
+      // By this point the mocked POST has already resolved (see the
+      // deliberately-never-resolving test above for the "starting" summary
+      // in isolation) — the summary already reflects "active".
+      const startedActive = summaries.at(-1);
+      expect(startedActive).not.toBeNull();
+      expect(startedActive?.macroName).toBe("Start the build");
+      expect(startedActive?.onCancel).not.toBeNull();
+
+      planJsonResponse(statusAt("running", 1));
+      await tick(1000);
+      const active = summaries.at(-1);
+      expect(active?.statusText).toBe("Sending Start the build… action 1 of 2");
+      expect(active?.onCancel).not.toBeNull();
+
+      planJsonResponse(statusAt("completed", 2));
+      await tick(1000);
+      // "completed" is the brief acknowledgement, not "awaiting confirmation
+      // or running" (UI_UX_SPEC_V2 §12.3) — nothing left to cancel.
+      expect(summaries.at(-1)).toBeNull();
+      await unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("the reported onCancel issues the same DELETE as the inline Cancel button", async () => {
+    vi.useFakeTimers();
+    try {
+      const summaries: (ActiveSendSummary | null)[] = [];
+      const { unmount } = await renderMacrosPage({
+        onActiveSendChange: (summary) => {
+          summaries.push(summary);
+        },
+      });
+      planJsonResponse(accepted, 202);
+      await click(buttonWithText("Send"));
+      await tick(0);
+      planJsonResponse(statusAt("running", 1));
+      await tick(1000);
+
+      planFetch((call) => {
+        expect(call.method).toBe("DELETE");
+        expect(call.url).toBe("/api/v1/send");
+        return jsonResponse({ id: sendId }, 202);
+      });
+      const summary = summaries.at(-1);
+      expect(summary).not.toBeNull();
+      await act(async () => {
+        summary?.onCancel?.();
+        await Promise.resolve();
+      });
+
+      planJsonResponse(
+        statusAt("cancelled", 1, { cancellationRequested: true }),
+      );
+      await tick(1000);
+      await unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("never reports a summary when the caller does not ask for one", async () => {
+    vi.useFakeTimers();
+    try {
+      const { unmount } = await renderMacrosPage();
+      planJsonResponse(accepted, 202);
+      await click(buttonWithText("Send"));
+      await tick(0);
+      planJsonResponse(statusAt("completed", 2));
+      await tick(1000);
       await unmount();
     } finally {
       vi.useRealTimers();

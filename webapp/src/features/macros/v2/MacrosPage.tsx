@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
+import type { ActiveSendSummary } from "../../shell/v2/activeSendSummary";
 import { V2ApiError } from "../../../v2/apiClient";
 import type { RepositoryMacro } from "../../../v2/repository";
 import {
@@ -54,6 +55,14 @@ export interface MacrosPageProps {
   showMacroSourcePreviews: boolean;
   /** The send recovered during startup (UI_UX_SPEC_V2 §3.4 step 8), if any. */
   initialSend: SendStatusResponse | null;
+  /**
+   * Reports the current active-send summary (macro name, progress, Cancel)
+   * for the phone-landscape orientation surface (TODO_V2 V2-132,
+   * UI_UX_SPEC_V2 §12.3), or `null` while no send is starting, awaiting
+   * confirmation, or running. Optional so existing tests and call sites that
+   * do not care about the orientation surface need not pass it.
+   */
+  onActiveSendChange?: (summary: ActiveSendSummary | null) => void;
   onChangePackage: () => void;
   onOpenPreview: (macroId: string) => void;
   onOpenAddMacro: () => void;
@@ -372,6 +381,7 @@ export function MacrosPage({
   sendMode,
   showMacroSourcePreviews,
   initialSend,
+  onActiveSendChange,
   onChangePackage,
   onOpenPreview,
   onOpenAddMacro,
@@ -582,13 +592,48 @@ export function MacrosPage({
     }
   };
 
-  const cancelActiveSend = async (): Promise<void> => {
+  // Stable across renders (closes only over `depsRef`, a ref, and React's
+  // stable `setStartError` setter) so the active-send-summary effect below
+  // can list it as a dependency without re-running every render.
+  const cancelActiveSend = useCallback(async (): Promise<void> => {
     try {
       await depsRef.current.cancelSend();
     } catch (error: unknown) {
       setStartError(v2ErrorText(error));
     }
-  };
+  }, []);
+
+  // TODO_V2 V2-132 / UI_UX_SPEC_V2 §12.3: reports the active-send summary
+  // upward whenever it changes so the phone-landscape orientation surface
+  // can keep macro name, progress, and Cancel and release all keys
+  // accessible while this page's ordinary content is hidden behind it. Runs
+  // as an effect (not inline during render) because it calls a parent
+  // setState — `onActiveSendChange` is expected to be a stable setter, as
+  // every current caller provides.
+  useEffect(() => {
+    if (onActiveSendChange === undefined) {
+      return;
+    }
+    if (lifecycle.kind === "starting") {
+      onActiveSendChange({
+        macroName: lifecycle.macro.name,
+        statusText: `Sending ${lifecycle.macro.name}…`,
+        onCancel: null,
+      });
+      return;
+    }
+    if (lifecycle.kind === "active") {
+      onActiveSendChange({
+        macroName: lifecycle.macro?.name ?? null,
+        statusText: activeStatusText(lifecycle.status, lifecycle.macro),
+        onCancel: () => {
+          void cancelActiveSend();
+        },
+      });
+      return;
+    }
+    onActiveSendChange(null);
+  }, [cancelActiveSend, lifecycle, onActiveSendChange]);
 
   const repository = snapshot.repository;
   const activePackage = repository.packages.find((pkg) => pkg.id === packageId);
