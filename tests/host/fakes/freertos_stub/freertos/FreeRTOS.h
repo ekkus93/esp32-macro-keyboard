@@ -66,8 +66,7 @@ typedef struct {
     volatile uint32_t placeholder;
 } portMUX_TYPE;
 
-#define portMUX_INITIALIZER_UNLOCKED                                                               \
-    { 0U }
+#define portMUX_INITIALIZER_UNLOCKED { 0U }
 
 void vPortEnterCritical(portMUX_TYPE *mux);
 void vPortExitCritical(portMUX_TYPE *mux);
