@@ -1,4 +1,3 @@
-import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
 import {
   mkdir,
@@ -8,10 +7,11 @@ import {
   stat,
   writeFile,
 } from "node:fs/promises";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
 import process from "node:process";
 import { gunzipSync, gzipSync } from "node:zlib";
+import { chromium } from "playwright";
 
 /*
  * v2 fixture data (TODO_V2 Phase 9 exit gate). The v1 fixture this file used
@@ -129,18 +129,6 @@ function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
   }
-}
-
-function commandPath(candidates) {
-  for (const candidate of candidates) {
-    const result = spawnSync("which", [candidate], { encoding: "utf8" });
-    if (result.status === 0) {
-      return result.stdout.trim();
-    }
-  }
-  throw new Error(
-    "Chrome or Chromium is required for Phase 17.10 browser validation.",
-  );
 }
 
 function contentType(path) {
@@ -565,229 +553,85 @@ function isTerminal(state_) {
   );
 }
 
-async function devToolsUrl(processHandle) {
-  return new Promise((resolve, reject) => {
-    let output = "";
-    const timeout = setTimeout(() => {
-      reject(new Error(`Chrome did not expose DevTools. Output:\n${output}`));
-    }, 30_000);
-    const receive = (chunk) => {
-      output += chunk.toString("utf8");
-      const match = output.match(/DevTools listening on (ws:\/\/[^\s]+)/);
-      if (match?.[1] !== undefined) {
-        clearTimeout(timeout);
-        resolve(match[1]);
-      }
-    };
-    processHandle.stderr.on("data", receive);
-    processHandle.stdout.on("data", receive);
-    processHandle.once("exit", (code) => {
-      clearTimeout(timeout);
-      reject(
-        new Error(
-          `Chrome exited before DevTools startup with code ${String(code)}.`,
-        ),
-      );
-    });
-  });
+/**
+ * Runs `fn` in the browser context via Playwright's own `page.evaluate()`.
+ * `fn` must be a real function (not a string): Playwright serializes its
+ * source and executes it in the page, so it can only close over values
+ * passed explicitly through `arg`, never over this module's variables.
+ */
+async function evaluate(page, fn, arg) {
+  return page.evaluate(fn, arg);
 }
 
-class Cdp {
-  constructor(socket) {
-    this.socket = socket;
-    this.nextId = 1;
-    this.pending = new Map();
-    socket.addEventListener("message", (event) => {
-      const message = JSON.parse(String(event.data));
-      // Unsolicited CDP events (no `id`) include Page.javascriptDialogOpening.
-      // TODO_V2 V2-103 registers a real `beforeunload` listener while the
-      // working copy is dirty, which fires a native, unstyleable browser
-      // dialog on reload/navigation-away. A native dialog blocks the page's
-      // JS thread until dismissed; with no auto-responder here, every
-      // subsequent Runtime.evaluate() call hangs forever rather than failing
-      // fast. Auto-accept any dialog so scenarios that intentionally leave
-      // the store dirty (e.g. reorder-then-reload) don't wedge the harness --
-      // no current scenario asserts on the dialog's own presence, only on
-      // app state before/after it.
-      if (message.method === "Page.javascriptDialogOpening") {
-        this.send("Page.handleJavaScriptDialog", { accept: true }).catch(() => {
-          // Best-effort: if the socket is already closing, ignore it.
-        });
-        return;
-      }
-      if (message.id === undefined) {
-        return;
-      }
-      const pending = this.pending.get(message.id);
-      if (pending === undefined) {
-        return;
-      }
-      this.pending.delete(message.id);
-      if (message.error !== undefined) {
-        pending.reject(new Error(JSON.stringify(message.error)));
-      } else {
-        pending.resolve(message.result);
-      }
+/**
+ * Polls `fn` in the browser context via Playwright's own
+ * `page.waitForFunction()` until it returns a truthy value, surfacing the
+ * page's current text/hash on timeout for a debuggable failure — the same
+ * diagnostic contract the CDP-based harness this replaces used to provide.
+ */
+async function waitFor(page, fn, message, timeoutMs = 12_000) {
+  try {
+    await page.waitForFunction(fn, undefined, {
+      timeout: timeoutMs,
+      polling: 50,
     });
-  }
-
-  send(method, params = {}) {
-    const id = this.nextId;
-    this.nextId += 1;
-    return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      this.socket.send(JSON.stringify({ id, method, params }));
-    });
-  }
-
-  close() {
-    this.socket.close();
+  } catch (error) {
+    if (!(error instanceof Error) || error.name !== "TimeoutError") {
+      throw error;
+    }
+    const text = await evaluate(page, () => document.body.innerText);
+    const hash = await evaluate(page, () => window.location.hash);
+    throw new Error(
+      `${message}\nCurrent hash: ${String(hash)}\nCurrent page:\n${String(text)}`,
+    );
   }
 }
 
 /**
- * A browser-level (not page-level) CDP session. Required for
- * `Browser.setDownloadBehavior` — the page-level `Page.setDownloadBehavior`
- * is deprecated and, empirically against headless-new Chrome, does not
- * reliably enable downloads at all (a real, reproducible hang this harness
- * hit while adding V2-115 export coverage: no error, no file, just silence).
+ * Clicks the first button whose exact, trimmed accessible name matches
+ * `text` — `page.getByRole()` is Playwright's own accessible-name locator,
+ * replacing the hand-rolled `querySelectorAll('button').find(...)` scan the
+ * CDP-based harness used. `.first()` preserves that scan's "first match in
+ * document order wins" semantics instead of Playwright's default strict
+ * mode, which would throw if more than one button shares a name.
  */
-async function connectBrowser(browserWebSocketUrl) {
-  const socket = new WebSocket(browserWebSocketUrl);
-  await new Promise((resolve, reject) => {
-    socket.addEventListener("open", resolve, { once: true });
-    socket.addEventListener("error", reject, { once: true });
-  });
-  return new Cdp(socket);
+async function clickButton(page, text) {
+  await page.getByRole("button", { name: text, exact: true }).first().click();
 }
 
-async function connectPage(browserWebSocketUrl, applicationUrl) {
-  const browserUrl = new URL(browserWebSocketUrl);
-  const target = await fetch(
-    `http://127.0.0.1:${browserUrl.port}/json/new?${encodeURIComponent(applicationUrl)}`,
-    { method: "PUT" },
-  ).then((response) => response.json());
-  assert(
-    typeof target.webSocketDebuggerUrl === "string",
-    "Chrome did not return a page debugger URL.",
-  );
-  const socket = new WebSocket(target.webSocketDebuggerUrl);
-  await new Promise((resolve, reject) => {
-    socket.addEventListener("open", resolve, { once: true });
-    socket.addEventListener("error", reject, { once: true });
-  });
-  const cdp = new Cdp(socket);
-  await cdp.send("Runtime.enable");
-  await cdp.send("Page.enable");
-  await cdp.send("Network.enable");
-  return cdp;
+/**
+ * Clicks the first element whose `aria-label` exactly matches `label`.
+ * `page.getByLabel()` matches the `aria-label` attribute directly (not just
+ * `<label>`-associated form controls), which is exactly what this project's
+ * icon-only buttons use for their accessible name.
+ */
+async function clickButtonByAriaLabel(page, label) {
+  await page.getByLabel(label, { exact: true }).first().click();
 }
 
-async function evaluate(cdp, expression) {
-  const result = await cdp.send("Runtime.evaluate", {
-    expression,
-    awaitPromise: true,
-    returnByValue: true,
-    userGesture: true,
-  });
-  if (result.exceptionDetails !== undefined) {
-    throw new Error(
-      result.exceptionDetails.exception?.description ??
-        result.exceptionDetails.text ??
-        "Browser evaluation failed.",
-    );
-  }
-  return result.result.value;
-}
-
-async function waitFor(cdp, expression, message, timeoutMs = 12_000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (await evaluate(cdp, expression)) {
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  const text = await evaluate(cdp, "document.body.innerText");
-  const hash = await evaluate(cdp, "window.location.hash");
-  throw new Error(
-    `${message}\nCurrent hash: ${String(hash)}\nCurrent page:\n${String(text)}`,
-  );
-}
-
-function buttonExpression(text) {
-  return `Array.from(document.querySelectorAll('button')).find((element) => element.textContent.trim() === ${JSON.stringify(text)})`;
-}
-
-function buttonByAriaLabelExpression(label) {
-  return `Array.from(document.querySelectorAll('button')).find((element) => element.getAttribute('aria-label') === ${JSON.stringify(label)})`;
-}
-
-async function clickExpression(
-  cdp,
-  expression,
-  description,
-  timeoutMs = 2_000,
-) {
-  // Single-shot evaluation raced a genuine render-timing gap: a preceding
-  // waitFor() on nearby text content succeeding does not guarantee this
-  // button has mounted in the same paint (React can render the text and the
-  // button in separate commits). Retry like waitFor() does, rather than
-  // asserting the DOM is already settled the instant the text check passes.
-  const deadline = Date.now() + timeoutMs;
-  let found = false;
-  do {
-    found = await evaluate(
-      cdp,
-      `(() => { const button = ${expression}; if (!button) return false; button.click(); return true; })()`,
-    );
-    if (found) {
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  } while (Date.now() < deadline);
-  assert(found, `Missing browser button: ${description}`);
-}
-
-async function clickButton(cdp, text) {
-  await clickExpression(cdp, buttonExpression(text), text);
-}
-
-async function clickButtonByAriaLabel(cdp, label) {
-  await clickExpression(cdp, buttonByAriaLabelExpression(label), label);
-}
-
-async function dispatchKey(cdp, key, modifiers = 0) {
-  const keyCode =
-    key === "Tab" ? 9 : key === "Escape" ? 27 : key === "Enter" ? 13 : 0;
-  await cdp.send("Input.dispatchKeyEvent", {
-    type: key === "Enter" ? "keyDown" : "rawKeyDown",
-    key,
-    code: key,
-    windowsVirtualKeyCode: keyCode,
-    nativeVirtualKeyCode: keyCode,
-    modifiers,
-    text: key === "Enter" ? "\r" : undefined,
-    unmodifiedText: key === "Enter" ? "\r" : undefined,
-  });
-  await cdp.send("Input.dispatchKeyEvent", {
-    type: "keyUp",
-    key,
-    code: key,
-    windowsVirtualKeyCode: keyCode,
-    nativeVirtualKeyCode: keyCode,
-    modifiers,
-  });
-}
-
-async function assertTouchTargets(cdp) {
-  const failures = await evaluate(
-    cdp,
-    `(() => Array.from(document.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled])')).map((element) => {
-      const target = element.matches('input[type="checkbox"]') ? element.closest('label') : element;
-      const rect = target.getBoundingClientRect();
-      return { label: element.getAttribute('aria-label') || element.textContent.trim() || element.id || element.tagName, width: rect.width, height: rect.height };
-    }).filter((item) => item.width < 44 || item.height < 44))()`,
+async function assertTouchTargets(page) {
+  const failures = await evaluate(page, () =>
+    Array.from(
+      document.querySelectorAll(
+        "button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled])",
+      ),
+    )
+      .map((element) => {
+        const target = element.matches('input[type="checkbox"]')
+          ? element.closest("label")
+          : element;
+        const rect = target.getBoundingClientRect();
+        return {
+          label:
+            element.getAttribute("aria-label") ||
+            element.textContent.trim() ||
+            element.id ||
+            element.tagName,
+          width: rect.width,
+          height: rect.height,
+        };
+      })
+      .filter((item) => item.width < 44 || item.height < 44),
   );
   assert(
     Array.isArray(failures) && failures.length === 0,
@@ -825,78 +669,100 @@ const DESKTOP_VIEWPORT = {
   mobile: false,
 };
 
-async function overflowingElements(cdp) {
-  return evaluate(
-    cdp,
-    `(() => {
-      const limit = document.documentElement.clientWidth;
-      return Array.from(document.querySelectorAll('body *'))
-        .filter((element) => {
-          const style = window.getComputedStyle(element);
-          if (style.display === 'none' || style.visibility === 'hidden') return false;
-          const rect = element.getBoundingClientRect();
-          if (rect.width === 0 && rect.height === 0) return false;
-          return rect.right > limit + 1;
-        })
-        .slice(0, 5)
-        .map((element) => ({
-          tag: element.tagName,
-          id: element.id,
-          classes: typeof element.className === 'string' ? element.className : '',
-          right: Math.round(element.getBoundingClientRect().right),
-          limit,
-        }));
-    })()`,
+async function overflowingElements(page) {
+  return evaluate(page, () => {
+    const limit = document.documentElement.clientWidth;
+    return Array.from(document.querySelectorAll("body *"))
+      .filter((element) => {
+        const style = window.getComputedStyle(element);
+        if (style.display === "none" || style.visibility === "hidden") {
+          return false;
+        }
+        const rect = element.getBoundingClientRect();
+        if (rect.width === 0 && rect.height === 0) {
+          return false;
+        }
+        return rect.right > limit + 1;
+      })
+      .slice(0, 5)
+      .map((element) => ({
+        tag: element.tagName,
+        id: element.id,
+        classes: typeof element.className === "string" ? element.className : "",
+        right: Math.round(element.getBoundingClientRect().right),
+        limit,
+      }));
+  });
+}
+
+async function contentWidth(page) {
+  return evaluate(page, () =>
+    Math.round(
+      document.querySelector("#main-content").getBoundingClientRect().width,
+    ),
   );
 }
 
-async function contentWidth(cdp) {
-  return evaluate(
-    cdp,
-    "Math.round(document.querySelector('#main-content').getBoundingClientRect().width)",
-  );
-}
-
-async function assertFitsViewport(cdp, label) {
-  const scroll = await evaluate(
-    cdp,
-    "({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth })",
-  );
+async function assertFitsViewport(page, label) {
+  const scroll = await evaluate(page, () => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
   assert(
     scroll.scrollWidth <= scroll.clientWidth + 1,
     `${label}: the page scrolls horizontally (${String(scroll.scrollWidth)} > ${String(scroll.clientWidth)}).`,
   );
-  const overflowing = await overflowingElements(cdp);
+  const overflowing = await overflowingElements(page);
   assert(
     Array.isArray(overflowing) && overflowing.length === 0,
     `${label}: elements extend past the right edge: ${JSON.stringify(overflowing)}`,
   );
 }
 
-async function assertResponsiveLayout(cdp) {
-  await cdp.send("Emulation.setDeviceMetricsOverride", MOBILE_VIEWPORT);
-  await assertFitsViewport(cdp, "Mobile 360x640");
-  /* Touch targets are re-checked here rather than trusted from the default
-     window size: a narrower viewport is where controls get squeezed. */
-  await assertTouchTargets(cdp);
-  const mobileWidth = await contentWidth(cdp);
-  assert(
-    mobileWidth > 0 && mobileWidth <= MOBILE_VIEWPORT.width,
-    `Mobile content width ${String(mobileWidth)} does not fit a ${String(MOBILE_VIEWPORT.width)}px viewport.`,
-  );
+/**
+ * Toggles real device-metrics emulation mid-test (mobile, then desktop, then
+ * cleared) via a Playwright `CDPSession` — Playwright's own supported
+ * escape hatch (`page.context().newCDPSession()`) for the one thing its
+ * high-level API has no equivalent for: changing `deviceScaleFactor`/
+ * `mobile` on an already-open page rather than only at context-creation
+ * time. This is a documented Playwright API, not the hand-rolled raw
+ * WebSocket JSON-RPC transport it replaces.
+ */
+async function assertResponsiveLayout(page) {
+  const cdpSession = await page.context().newCDPSession(page);
+  try {
+    await cdpSession.send(
+      "Emulation.setDeviceMetricsOverride",
+      MOBILE_VIEWPORT,
+    );
+    await assertFitsViewport(page, "Mobile 360x640");
+    /* Touch targets are re-checked here rather than trusted from the default
+       window size: a narrower viewport is where controls get squeezed. */
+    await assertTouchTargets(page);
+    const mobileWidth = await contentWidth(page);
+    assert(
+      mobileWidth > 0 && mobileWidth <= MOBILE_VIEWPORT.width,
+      `Mobile content width ${String(mobileWidth)} does not fit a ${String(MOBILE_VIEWPORT.width)}px viewport.`,
+    );
 
-  await cdp.send("Emulation.setDeviceMetricsOverride", DESKTOP_VIEWPORT);
-  await assertFitsViewport(cdp, "Desktop 1280x800");
-  const desktopWidth = await contentWidth(cdp);
-  /* "Mobile-first and usable from a desktop browser" is two requirements. A
-     layout locked to the phone width satisfies the first and fails the second,
-     and a horizontal-scroll check alone would never notice. */
-  assert(
-    desktopWidth > mobileWidth,
-    `The layout does not adapt: content is ${String(desktopWidth)}px at 1280px wide and ${String(mobileWidth)}px at 360px.`,
-  );
+    await cdpSession.send(
+      "Emulation.setDeviceMetricsOverride",
+      DESKTOP_VIEWPORT,
+    );
+    await assertFitsViewport(page, "Desktop 1280x800");
+    const desktopWidth = await contentWidth(page);
+    /* "Mobile-first and usable from a desktop browser" is two requirements. A
+       layout locked to the phone width satisfies the first and fails the
+       second, and a horizontal-scroll check alone would never notice. */
+    assert(
+      desktopWidth > mobileWidth,
+      `The layout does not adapt: content is ${String(desktopWidth)}px at 1280px wide and ${String(mobileWidth)}px at 360px.`,
+    );
 
-  await cdp.send("Emulation.clearDeviceMetricsOverride");
+    await cdpSession.send("Emulation.clearDeviceMetricsOverride");
+  } finally {
+    await cdpSession.detach();
+  }
 }
 
 /**
@@ -911,88 +777,88 @@ async function assertResponsiveLayout(cdp) {
  * Deliberately NOT covered here (see docs/implementation-v2 report for
  * why): USB unavailable (would need a slow, real 5-second device-status
  * poll cycle to flip mid-test) and rapid repeated input (a same-tick
- * double-dispatch race is not reproducible over a real CDP round trip,
+ * double-dispatch race is not reproducible over a real browser round trip,
  * whose latency alone exceeds React's synchronous re-render time — the
  * Vitest suite proves the guard deterministically instead).
  */
-async function runBrowserWorkflows(cdp, serverState) {
+async function runBrowserWorkflows(page, serverState) {
   await waitFor(
-    cdp,
-    "document.body?.innerText.includes('Lab bench workflow') ?? false",
+    page,
+    () => document.body?.innerText.includes("Lab bench workflow") ?? false,
     "The Macros page did not load the real gzip-decoded repository.",
   );
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Open terminal')",
+    page,
+    () => document.body.innerText.includes("Open terminal"),
     "The macro list did not render.",
   );
-  await assertTouchTargets(cdp);
-  await assertResponsiveLayout(cdp);
+  await assertTouchTargets(page);
+  await assertResponsiveLayout(page);
 
   // Accessible reordering (V2-091): a real keyboard Enter press on the
   // "Move down" control — not just a mouse click — actually reorders.
-  await evaluate(
-    cdp,
-    `document.querySelector('[aria-label="Move Open terminal down"]').focus()`,
-  );
-  await dispatchKey(cdp, "Enter");
+  // `locator.press()` focuses the element itself before dispatching the key,
+  // matching the harness's previous explicit focus()-then-key sequence.
+  await page.locator('[aria-label="Move Open terminal down"]').press("Enter");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Moved Open terminal to position 2.')",
+    page,
+    () =>
+      document.body.innerText.includes("Moved Open terminal to position 2."),
     "Keyboard Enter on Move down did not reorder the macro list.",
   );
-  await evaluate(
-    cdp,
-    `document.querySelector('[aria-label="Move Open terminal up"]').focus()`,
-  );
-  await dispatchKey(cdp, "Enter");
+  await page.locator('[aria-label="Move Open terminal up"]').press("Enter");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Moved Open terminal to position 1.')",
+    page,
+    () =>
+      document.body.innerText.includes("Moved Open terminal to position 1."),
     "Keyboard Enter on Move up did not reorder the macro list back.",
   );
 
   // Macro source is hidden by default, with a temporary per-row reveal
   // (V2-092).
   assert(
-    await evaluate(cdp, "document.body.innerText.includes('Source hidden')"),
+    await evaluate(page, () =>
+      document.body.innerText.includes("Source hidden"),
+    ),
     "Macro source was not hidden by default.",
   );
   assert(
-    (await evaluate(cdp, "document.querySelectorAll('code').length")) === 0,
+    (await evaluate(page, () => document.querySelectorAll("code").length)) ===
+      0,
     "A macro source appeared in the DOM before being revealed.",
   );
-  await clickButtonByAriaLabel(cdp, "Reveal source for Open terminal");
+  await clickButtonByAriaLabel(page, "Reveal source for Open terminal");
   const revealedSource = await evaluate(
-    cdp,
-    "document.querySelector('code')?.textContent ?? null",
+    page,
+    () => document.querySelector("code")?.textContent ?? null,
   );
   assert(
     revealedSource === "a",
     `Revealing source did not show the macro source: ${String(revealedSource)}`,
   );
-  await clickButtonByAriaLabel(cdp, "Hide source for Open terminal");
+  await clickButtonByAriaLabel(page, "Hide source for Open terminal");
   assert(
-    (await evaluate(cdp, "document.querySelectorAll('code').length")) === 0,
+    (await evaluate(page, () => document.querySelectorAll("code").length)) ===
+      0,
     "Hide source did not remove the revealed source from the DOM.",
   );
 
   // Quick Send: progress, then a completion acknowledgement that clears
   // itself (V2-093).
-  await clickButtonByAriaLabel(cdp, "Send Open terminal");
+  await clickButtonByAriaLabel(page, "Send Open terminal");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Sending Open terminal')",
+    page,
+    () => document.body.innerText.includes("Sending Open terminal"),
     "Quick Send did not show inline progress.",
   );
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Sent Open terminal.')",
+    page,
+    () => document.body.innerText.includes("Sent Open terminal."),
     "Quick Send did not reach a completion acknowledgement.",
   );
   await waitFor(
-    cdp,
-    "!document.body.innerText.includes('Sent Open terminal.')",
+    page,
+    () => !document.body.innerText.includes("Sent Open terminal."),
     "The completion acknowledgement did not clear itself.",
     8_000,
   );
@@ -1002,89 +868,91 @@ async function runBrowserWorkflows(cdp, serverState) {
   );
 
   // Serial-confirmation waiting state, inline (UI_UX_SPEC_V2 §5.5).
-  await clickButtonByAriaLabel(cdp, "Send Confirm before typing");
+  await clickButtonByAriaLabel(page, "Send Confirm before typing");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Waiting for physical confirmation')",
+    page,
+    () => document.body.innerText.includes("Waiting for physical confirmation"),
     "The confirmation-wait state was not shown inline.",
   );
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Sent Confirm before typing.')",
+    page,
+    () => document.body.innerText.includes("Sent Confirm before typing."),
     "The confirmed send did not complete.",
   );
   await waitFor(
-    cdp,
-    "!document.body.innerText.includes('Sent Confirm before typing.')",
+    page,
+    () => !document.body.innerText.includes("Sent Confirm before typing."),
     "The confirmation completion acknowledgement did not clear itself.",
     8_000,
   );
 
   // Cancel and release all keys.
-  await clickButtonByAriaLabel(cdp, "Send Open terminal");
+  await clickButtonByAriaLabel(page, "Send Open terminal");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Sending Open terminal')",
+    page,
+    () => document.body.innerText.includes("Sending Open terminal"),
     "Progress did not show before cancelling.",
   );
-  await clickButton(cdp, "Cancel and release all keys");
+  await clickButton(page, "Cancel and release all keys");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('was cancelled.')",
+    page,
+    () => document.body.innerText.includes("was cancelled."),
     "Cancellation did not produce a persistent acknowledgement.",
   );
-  await clickButton(cdp, "Dismiss");
+  await clickButton(page, "Dismiss");
   await waitFor(
-    cdp,
-    "!document.body.innerText.includes('was cancelled.')",
+    page,
+    () => !document.body.innerText.includes("was cancelled."),
     "Dismiss did not clear the cancellation banner.",
   );
 
   // Failure, with the exact error and a persistent banner until dismissed.
-  await clickButtonByAriaLabel(cdp, "Send Trigger failure");
+  await clickButtonByAriaLabel(page, "Send Trigger failure");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('failed: simulated_failure')",
+    page,
+    () => document.body.innerText.includes("failed: simulated_failure"),
     "The failure state was not shown with its exact error.",
   );
-  await clickButton(cdp, "Dismiss");
+  await clickButton(page, "Dismiss");
   await waitFor(
-    cdp,
-    "!document.body.innerText.includes('failed: simulated_failure')",
+    page,
+    () => !document.body.innerText.includes("failed: simulated_failure"),
     "Dismiss did not clear the failure banner.",
   );
 
   // Timeout, persistent until dismissed.
-  await clickButtonByAriaLabel(cdp, "Send Trigger timeout");
+  await clickButtonByAriaLabel(page, "Send Trigger timeout");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('timed out.')",
+    page,
+    () => document.body.innerText.includes("timed out."),
     "The timeout state was not shown.",
   );
-  await clickButton(cdp, "Dismiss");
+  await clickButton(page, "Dismiss");
 
   // Release error, reported separately from the completion it rode in on.
-  await clickButtonByAriaLabel(cdp, "Send Trigger release error");
+  await clickButtonByAriaLabel(page, "Send Trigger release error");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Key release failed: stuck_key_left_ctrl')",
+    page,
+    () =>
+      document.body.innerText.includes(
+        "Key release failed: stuck_key_left_ctrl",
+      ),
     "The release error was not reported.",
   );
-  const releaseErrorButtons = await evaluate(
-    cdp,
-    "Array.from(document.querySelectorAll('button')).filter((element) => element.textContent.trim() === 'Dismiss').length",
-  );
+  const releaseErrorButtons = await page
+    .getByRole("button", { name: "Dismiss", exact: true })
+    .count();
   assert(
     releaseErrorButtons >= 1,
     "The release-error banner did not offer its own Dismiss control.",
   );
-  await clickButton(cdp, "Dismiss");
+  await clickButton(page, "Dismiss");
   // The release error is a separate, independently dismissible banner from
   // the completion acknowledgement it rode in on (UI_UX_SPEC_V2 §5.5); Send
   // controls stay disabled until that acknowledgement itself clears.
   await waitFor(
-    cdp,
-    "!document.body.innerText.includes('Sent Trigger release error.')",
+    page,
+    () => !document.body.innerText.includes("Sent Trigger release error."),
     "The completion acknowledgement behind the release error did not clear.",
     8_000,
   );
@@ -1092,65 +960,26 @@ async function runBrowserWorkflows(cdp, serverState) {
   // Reload recovery (V2-095/UI_UX_SPEC_V2 §5.6): start a send, reload before
   // it finishes, and confirm React resumes tracking from `GET /api/v1/send`
   // instead of losing the in-progress state.
-  await clickButtonByAriaLabel(cdp, "Send Open terminal");
+  await clickButtonByAriaLabel(page, "Send Open terminal");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Sending Open terminal')",
+    page,
+    () => document.body.innerText.includes("Sending Open terminal"),
     "Progress did not show before reload.",
   );
-  await cdp.send("Page.reload", { ignoreCache: false });
+  await page.reload();
   await waitFor(
-    cdp,
-    "document.body?.innerText.includes('Lab bench workflow') ?? false",
+    page,
+    () => document.body?.innerText.includes("Lab bench workflow") ?? false,
     "The app did not reload back to the Macros page.",
     15_000,
   );
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Sending…') || document.body.innerText.includes('Sent.')",
+    page,
+    () =>
+      document.body.innerText.includes("Sending…") ||
+      document.body.innerText.includes("Sent."),
     "Send state was not recovered after reload.",
   );
-}
-
-async function setFileInputFiles(cdp, selector, filePaths) {
-  await cdp.send("DOM.enable");
-  const { root } = await cdp.send("DOM.getDocument", { depth: 1 });
-  const { nodeId } = await cdp.send("DOM.querySelector", {
-    nodeId: root.nodeId,
-    selector,
-  });
-  assert(nodeId !== 0, `Missing element for file input: ${selector}`);
-  await cdp.send("DOM.setFileInputFiles", { files: filePaths, nodeId });
-}
-
-/**
- * Resolves with the completed download's file path by listening for
- * `Browser.downloadProgress`'s terminal `state: "completed"` on the
- * browser-level session (requires `Browser.setDownloadBehavior` to have been
- * called with `eventsEnabled: true`). More reliable than polling the
- * directory: this fires exactly when Chrome itself considers the file
- * finished and renamed from its `.crdownload` staging name, with no
- * filesystem-propagation guessing.
- */
-function waitForDownloadEvent(browserCdp, timeoutMs = 15_000) {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      browserCdp.socket.removeEventListener("message", onMessage);
-      reject(new Error("Timed out waiting for a completed download event."));
-    }, timeoutMs);
-    function onMessage(event) {
-      const message = JSON.parse(String(event.data));
-      if (
-        message.method === "Browser.downloadProgress" &&
-        message.params?.state === "completed"
-      ) {
-        clearTimeout(timeout);
-        browserCdp.socket.removeEventListener("message", onMessage);
-        resolve(message.params.filePath);
-      }
-    }
-    browserCdp.socket.addEventListener("message", onMessage);
-  });
 }
 
 /**
@@ -1159,34 +988,33 @@ function waitForDownloadEvent(browserCdp, timeoutMs = 15_000) {
  * (`CompressionStream`/`DecompressionStream`, unavailable to jsdom), and a
  * real multi-blob fixture server: snapshot list rendering, manual Save,
  * dirty-work protection during Load (discard-and-load), exact-ID-confirmed
- * Delete, Export (a real file landing on disk via a real Chrome download),
- * and Import (a real file selected via `DOM.setFileInputFiles`, since
- * scripts cannot assign `HTMLInputElement.files` directly for security
+ * Delete, Export (a real file landing on disk via a real Playwright/Chrome
+ * download), and Import (a real file selected via `page.setInputFiles()`,
+ * since scripts cannot assign `HTMLInputElement.files` directly for security
  * reasons — this is the one thing the Vitest suite cannot exercise at all).
  */
-async function runSnapshotsWorkflows(cdp, application, fixtures) {
-  const { importFixturePath, downloadDirectory, browserCdp } = fixtures;
+async function runSnapshotsWorkflows(page, application, fixtures) {
+  const { importFixturePath, downloadDirectory } = fixtures;
 
-  await clickButton(cdp, "Snapshots");
+  await clickButton(page, "Snapshots");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Snapshot 1')",
+    page,
+    () => document.body.innerText.includes("Snapshot 1"),
     "The Snapshots page did not render the stored blob.",
   );
   assert(
-    await evaluate(
-      cdp,
-      "document.body.innerText.includes('retention target 5')",
+    await evaluate(page, () =>
+      document.body.innerText.includes("retention target 5"),
     ),
     "The configured advisory retention target was not shown.",
   );
 
   // Manual Save (V2-110): an explicit click, never automatic, and never
   // deletes an existing snapshot (V2-111/V2-112).
-  await clickButton(cdp, "Save current snapshot");
+  await clickButton(page, "Save current snapshot");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Snapshot 2')",
+    page,
+    () => document.body.innerText.includes("Snapshot 2"),
     "Save current snapshot did not add a new blob.",
   );
   assert(
@@ -1201,33 +1029,29 @@ async function runSnapshotsWorkflows(cdp, application, fixtures) {
   // Dirty-work protection during load (V2-113): dirty the working copy,
   // then confirm Load warns with all four spec'd choices before touching
   // anything, and that Discard changes and load both discards and loads.
-  await clickButton(cdp, "Macros");
+  await clickButton(page, "Macros");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Add macro')",
+    page,
+    () => document.body.innerText.includes("Add macro"),
     "Did not return to the Macros page.",
   );
-  await evaluate(
-    cdp,
-    `document.querySelector('[aria-label="Move Open terminal down"]').focus()`,
-  );
-  await dispatchKey(cdp, "Enter");
+  await page.locator('[aria-label="Move Open terminal down"]').press("Enter");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Unsaved changes')",
+    page,
+    () => document.body.innerText.includes("Unsaved changes"),
     "Reordering a macro did not dirty the working copy.",
   );
 
-  await clickButton(cdp, "Snapshots");
+  await clickButton(page, "Snapshots");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Snapshot 1')",
+    page,
+    () => document.body.innerText.includes("Snapshot 1"),
     "The Snapshots page did not render after dirtying the working copy.",
   );
-  await clickButtonByAriaLabel(cdp, "Load snapshot 1");
+  await clickButtonByAriaLabel(page, "Load snapshot 1");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Discard changes and load')",
+    page,
+    () => document.body.innerText.includes("Discard changes and load"),
     "Loading while dirty did not show the unsaved-changes warning.",
   );
   for (const label of [
@@ -1237,11 +1061,12 @@ async function runSnapshotsWorkflows(cdp, application, fixtures) {
     "Discard changes and load",
   ]) {
     assert(
-      await evaluate(cdp, `!!(${buttonExpression(label)})`),
+      (await page.getByRole("button", { name: label, exact: true }).count()) >
+        0,
       `The dirty-load warning was missing its "${label}" choice.`,
     );
   }
-  await clickButton(cdp, "Discard changes and load");
+  await clickButton(page, "Discard changes and load");
   // "Lab bench workflow" alone is not a safe signal here: it is also the
   // selected-package name shown in the app header on every route, so it (and
   // the "Unsaved changes" clear) is satisfied the instant the synchronous
@@ -1250,50 +1075,39 @@ async function runSnapshotsWorkflows(cdp, application, fixtures) {
   // "Add macro", a Macros-page-only marker, so the subsequent Export step
   // does not race that in-flight navigation.
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Add macro') && !document.body.innerText.includes('Unsaved changes')",
+    page,
+    () =>
+      document.body.innerText.includes("Add macro") &&
+      !document.body.innerText.includes("Unsaved changes"),
     "Discard changes and load did not restore a clean, loaded working copy.",
   );
 
-  // Export (V2-115): a real Chrome download of the exact gzip bytes.
-  await clickButton(cdp, "Snapshots");
+  // Export (V2-115): a real Chrome download of the exact gzip bytes, via
+  // Playwright's own `page.waitForEvent('download')` — replacing the manual
+  // `Browser.setDownloadBehavior`/`Browser.downloadProgress` CDP plumbing
+  // and its snap-AppArmor tmpdir workarounds, neither of which apply to
+  // Playwright's own (non-snap) bundled Chromium.
+  await clickButton(page, "Snapshots");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Snapshot 1')",
+    page,
+    () => document.body.innerText.includes("Snapshot 1"),
     "The Snapshots page did not render before export.",
   );
-  await browserCdp.send("Browser.setDownloadBehavior", {
-    behavior: "allow",
-    downloadPath: downloadDirectory,
-    eventsEnabled: true,
-  });
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Import and export')",
+    page,
+    () => document.body.innerText.includes("Import and export"),
     "The Import/export section did not render before export.",
   );
-  const downloadPromise = waitForDownloadEvent(browserCdp);
-  await clickButton(cdp, "Export working copy");
-  const downloadedPath = await downloadPromise;
+  const downloadPromise = page.waitForEvent("download");
+  await clickButton(page, "Export working copy");
+  const download = await downloadPromise;
   assert(
-    downloadedPath.endsWith(".emk-repository.json.gz"),
-    `Exported filename did not match the spec'd suffix: ${downloadedPath}`,
+    download.suggestedFilename().endsWith(".emk-repository.json.gz"),
+    `Exported filename did not match the spec'd suffix: ${download.suggestedFilename()}`,
   );
-  // A snap-confined Chromium's download-completion event has been observed
-  // to arrive a beat before the file is actually visible to this separate
-  // process — retry briefly rather than trusting the event alone.
-  let downloadedBytes;
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      downloadedBytes = await readFile(downloadedPath);
-      break;
-    } catch (error) {
-      if (attempt >= 20) {
-        throw error;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-  }
+  const downloadedPath = join(downloadDirectory, download.suggestedFilename());
+  await download.saveAs(downloadedPath);
+  const downloadedBytes = await readFile(downloadedPath);
   const decompressed = JSON.parse(gunzipSync(downloadedBytes).toString("utf8"));
   assert(
     decompressed.format === "esp32-macro-keyboard-repository" &&
@@ -1301,54 +1115,54 @@ async function runSnapshotsWorkflows(cdp, application, fixtures) {
     "The exported file did not decompress to the current working copy.",
   );
 
-  // Import (V2-115): a real file selection through `DOM.setFileInputFiles`
-  // — jsdom cannot exercise this at all, since scripts cannot assign
-  // `HTMLInputElement.files` directly.
-  await setFileInputFiles(cdp, 'input[type="file"]', [importFixturePath]);
+  // Import (V2-115): a real file selection through Playwright's own
+  // `page.setInputFiles()` — jsdom cannot exercise this at all, since
+  // scripts cannot assign `HTMLInputElement.files` directly.
+  await page.setInputFiles('input[type="file"]', importFixturePath);
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('1 packages') && document.body.innerText.includes('1 macros')",
+    page,
+    () =>
+      document.body.innerText.includes("1 packages") &&
+      document.body.innerText.includes("1 macros"),
     "Import did not show package/macro counts before confirmation.",
   );
-  await clickButton(cdp, "Replace working copy with this import");
+  await clickButton(page, "Replace working copy with this import");
   // As with Discard changes and load above: "Imported bench" and "Unsaved
   // changes" both become true the instant the synchronous
   // `store.applyImport()` runs, before the async navigation back to Macros
   // that follows it completes. Also require "Add macro" (a Macros-page-only
   // marker) so the next step does not race that in-flight navigation.
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Imported bench') && document.body.innerText.includes('Unsaved changes') && document.body.innerText.includes('Add macro')",
+    page,
+    () =>
+      document.body.innerText.includes("Imported bench") &&
+      document.body.innerText.includes("Unsaved changes") &&
+      document.body.innerText.includes("Add macro"),
     "Import did not replace the working copy, mark it dirty, and return to the Macros page.",
   );
 
   // Manual deletion (V2-111), confirmed by exact blob ID, never automatic.
-  await clickButton(cdp, "Snapshots");
+  await clickButton(page, "Snapshots");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('Snapshot 2')",
+    page,
+    () => document.body.innerText.includes("Snapshot 2"),
     "The Snapshots page did not render before delete.",
   );
-  await clickButtonByAriaLabel(cdp, "Delete snapshot 2");
+  await clickButtonByAriaLabel(page, "Delete snapshot 2");
   await waitFor(
-    cdp,
-    "document.querySelector('#snapshot-delete-confirm-2') !== null",
+    page,
+    () => document.querySelector("#snapshot-delete-confirm-2") !== null,
     "Delete did not show the exact-ID confirmation field.",
   );
-  await evaluate(
-    cdp,
-    `(() => {
-      const input = document.querySelector('#snapshot-delete-confirm-2');
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-      setter.call(input, '2');
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-    })()`,
-  );
-  await clickButton(cdp, "Confirm delete");
+  // `locator.fill()` is Playwright's own React-controlled-input-safe input
+  // API: it sets the value through the native property setter and dispatches
+  // real `input`/`change` events, exactly like the manual setter dispatch it
+  // replaces.
+  await page.locator("#snapshot-delete-confirm-2").fill("2");
+  await clickButton(page, "Confirm delete");
   await waitFor(
-    cdp,
-    "!document.body.innerText.includes('Snapshot 2')",
+    page,
+    () => !document.body.innerText.includes("Snapshot 2"),
     "Confirmed delete did not remove the blob from the list.",
   );
   assert(
@@ -1364,76 +1178,52 @@ async function runSnapshotsWorkflows(cdp, application, fixtures) {
  * device-name edit and Diagnostics rendering — rather than the
  * restart/reset-settings/factory-reset reconnect flows: those need this
  * fixture server to simulate a genuine connection loss (the point of the
- * feature), which this hand-rolled harness has no way to do safely, and
+ * feature), which this Playwright harness has no way to do safely, and
  * `AppV2` (`tests/v2-app-v2.test.tsx`) already exercises that full
  * disruption-and-reconnect sequence end to end against the real,
  * unmocked v2 API clients. Sign Out is likewise left to that same jsdom
  * suite and `SettingsPage`'s own unit tests: exercising it here would
  * leave every following browser assertion running unauthenticated.
  */
-async function runSettingsWorkflows(cdp) {
-  await clickButton(cdp, "Settings");
+async function runSettingsWorkflows(page) {
+  await clickButton(page, "Settings");
   await waitFor(
-    cdp,
-    "document.querySelector('#settings-device-name') !== null",
+    page,
+    () => document.querySelector("#settings-device-name") !== null,
     "The Settings page did not render.",
   );
 
-  await evaluate(
-    cdp,
-    `(() => {
-      const input = document.querySelector('#settings-device-name');
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-      setter.call(input, 'Bench Macro Keyboard (renamed)');
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-    })()`,
-  );
-  await clickButton(cdp, "Save");
+  await page
+    .locator("#settings-device-name")
+    .fill("Bench Macro Keyboard (renamed)");
+  await clickButton(page, "Save");
   await waitFor(
-    cdp,
+    page,
     // `textContent`, not `innerText`: the header renders the device name
     // inside `.eyebrow`, which is visually `text-transform: uppercase` —
     // `innerText` reflects that rendered casing, `textContent` does not.
-    "document.body.textContent.includes('Bench Macro Keyboard (renamed)')",
+    () => document.body.textContent.includes("Bench Macro Keyboard (renamed)"),
     "Saving the device name did not update the shell header.",
   );
 
-  await clickButton(cdp, "View diagnostics");
+  await clickButton(page, "View diagnostics");
   await waitFor(
-    cdp,
-    "document.body.innerText.includes('browser-fixture-abc123')",
+    page,
+    () => document.body.innerText.includes("browser-fixture-abc123"),
     "The Diagnostics page did not render the fixed diagnostics schema.",
   );
   assert(
-    !(await evaluate(
-      cdp,
-      "document.body.innerText.includes('Lab bench workflow')",
+    !(await evaluate(page, () =>
+      document.body.innerText.includes("Lab bench workflow"),
     )),
     "Diagnostics rendered package/macro data, which SPEC_V2 §13.13 forbids.",
   );
-  await clickButton(cdp, "Back to Settings");
+  await clickButton(page, "Back to Settings");
   await waitFor(
-    cdp,
-    "document.querySelector('#settings-device-name') !== null",
+    page,
+    () => document.querySelector("#settings-device-name") !== null,
     "Back to Settings did not return to the Settings page.",
   );
-}
-
-async function stopChrome(processHandle) {
-  if (processHandle.exitCode !== null) {
-    return;
-  }
-  await new Promise((resolve) => {
-    const timeout = setTimeout(() => {
-      processHandle.kill("SIGKILL");
-    }, 5_000);
-    processHandle.once("exit", () => {
-      clearTimeout(timeout);
-      resolve();
-    });
-    processHandle.kill("SIGTERM");
-  });
 }
 
 const importFixtureRepository = {
@@ -1461,27 +1251,9 @@ const importFixtureRepository = {
 };
 
 async function main() {
-  const chrome = commandPath([
-    "google-chrome",
-    "google-chrome-stable",
-    "chromium",
-    "chromium-browser",
-  ]);
-  const userDataDirectory = await mkdtemp(
-    join(tmpdir(), "esp32-macro-browser-"),
+  const browserExchangeBase = await mkdtemp(
+    join(tmpdir(), "esp32-macro-browser-tests-"),
   );
-  // A snap-packaged Chromium runs sandboxed with its own private `/tmp`
-  // mount namespace: a download it writes under `os.tmpdir()` is invisible
-  // to this unconfined Node process (a real, reproducible ENOENT this
-  // harness hit while adding V2-115 export/import coverage — the CDP
-  // "completed" event still fires, but the file never appears on the host's
-  // view of `/tmp`). The `home` interface is connected for this snap, so a
-  // directory under the real `$HOME` is visible in both namespaces — but it
-  // must not be a top-level hidden (dot) directory: the snap's AppArmor
-  // profile explicitly excludes those from its `$HOME` read/write grant
-  // (`snap.chromium.chromium`: "except... toplevel hidden directories in
-  // @{HOME}"), which silently produced the same invisible-file symptom.
-  const browserExchangeBase = join(homedir(), "esp32-macro-browser-tests");
   await mkdir(browserExchangeBase, { recursive: true });
   const downloadDirectory = await mkdtemp(
     join(browserExchangeBase, "download-"),
@@ -1493,54 +1265,42 @@ async function main() {
     gzipSync(Buffer.from(JSON.stringify(importFixtureRepository), "utf8")),
   );
   const application = await startApplicationServer();
-  const chromeProcess = spawn(
-    chrome,
-    [
-      "--headless=new",
-      "--disable-gpu",
-      "--no-sandbox",
-      "--disable-dev-shm-usage",
-      "--remote-debugging-port=0",
-      `--user-data-dir=${userDataDirectory}`,
-      "--window-size=390,844",
-      "about:blank",
-    ],
-    { stdio: ["ignore", "pipe", "pipe"] },
-  );
-  let cdp;
-  let browserCdp;
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    acceptDownloads: true,
+  });
+  const page = await context.newPage();
+  // TODO_V2 V2-103 registers a real `beforeunload` listener while the
+  // working copy is dirty, which fires a native, unstyleable browser dialog
+  // on reload/navigation-away. Playwright auto-dismisses dialogs *unless* a
+  // handler is registered, in which case the harness owns the decision —
+  // auto-accept every dialog so scenarios that intentionally leave the store
+  // dirty (e.g. reorder-then-reload) don't wedge the run; no current
+  // scenario asserts on the dialog's own presence, only on app state
+  // before/after it.
+  page.on("dialog", (dialog) => {
+    dialog.accept().catch(() => {
+      // Best-effort: if the page is already navigating away, ignore it.
+    });
+  });
+
   try {
-    const debuggerUrl = await devToolsUrl(chromeProcess);
-    browserCdp = await connectBrowser(debuggerUrl);
-    cdp = await connectPage(debuggerUrl, application.baseUrl);
-    await runBrowserWorkflows(cdp, application.state);
+    await page.goto(application.baseUrl);
+    await runBrowserWorkflows(page, application.state);
     console.log("Real Chrome v2 Macros page/Quick Send workflows passed.");
-    await runSnapshotsWorkflows(cdp, application, {
+    await runSnapshotsWorkflows(page, application, {
       importFixturePath,
       downloadDirectory,
-      browserCdp,
     });
     console.log("Real Chrome v2 Snapshots/import-export workflows passed.");
-    await runSettingsWorkflows(cdp);
+    await runSettingsWorkflows(page);
     console.log("Real Chrome v2 Settings/Diagnostics workflows passed.");
   } finally {
-    cdp?.close();
-    browserCdp?.close();
-    await stopChrome(chromeProcess);
+    await context.close();
+    await browser.close();
     await application.close();
-    await rm(userDataDirectory, {
-      recursive: true,
-      force: true,
-      maxRetries: 5,
-      retryDelay: 100,
-    });
-    await rm(downloadDirectory, {
-      recursive: true,
-      force: true,
-      maxRetries: 5,
-      retryDelay: 100,
-    });
-    await rm(fixtureDirectory, {
+    await rm(browserExchangeBase, {
       recursive: true,
       force: true,
       maxRetries: 5,

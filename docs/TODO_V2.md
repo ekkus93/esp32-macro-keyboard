@@ -1330,8 +1330,9 @@ Evidence: `webapp/src/features/snapshots/v2/SnapshotsPage.tsx`, tested by
 
 Evidence: `webapp/src/features/snapshots/v2/SnapshotsPage.tsx`, tested by
 `webapp/tests/v2-snapshots-page.test.tsx` and real-Chrome
-`webapp/tests/browser/run-browser-tests.mjs` (a real file selected via CDP
-`DOM.setFileInputFiles` and a real downloaded, gzip-decompressed export). See
+`webapp/tests/browser/run-browser-tests.mjs` (a real file selected via
+Playwright's `page.setInputFiles()` and a real downloaded, gzip-decompressed
+export). See
 `docs/implementation-v2/V2_110_116_SNAPSHOTS_IMPORT_EXPORT_2026-08-09.md`.
 
 ## V2-116 — Advanced non-atomic replace
