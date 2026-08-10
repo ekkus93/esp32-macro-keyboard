@@ -1033,8 +1033,27 @@ explicitly not claimed.
 
 - [x] Startup decision-table tests cover every provisioning/session/blob/package
       combination.
-- [ ] Real-browser tests cover first phone, refresh, expired session, no blobs,
-      invalid newest blob, and send recovery.
+- [x] Real-browser tests cover first phone, refresh, expired session, no blobs,
+      invalid newest blob, and send recovery. `webapp/tests/browser/run-browser-tests.mjs`'s
+      `runStartupWorkflows()` runs five scenarios, each against its own fresh
+      fixture server and browser context: `runStartupFirstPhoneScenario`
+      (unprovisioned device through First-Run Setup, Sign In, and Create Your
+      First Repository), `runStartupRefreshAndSendRecoveryScenario` (a real
+      `page.reload()` mid-send, asserting the full startup fetch sequence
+      re-runs and the recovered send state comes from that sequence's own
+      `GET /api/v1/send`, not merely eventually-correct page text),
+      `runStartupExpiredSessionScenario` (dirties the working copy, forces a
+      `401` server-side, waits for the app's own status poll to drop to Sign
+      In, re-authenticates, and asserts zero new blob fetches — the same
+      dirty in-memory working copy resumed), `runStartupNoBlobsScenario`, and
+      `runStartupInvalidNewestBlobScenario` (a corrupt newest blob with a
+      valid older one; asserts Snapshot recovery, explicit recovery via the
+      older blob, and that the corrupt blob is never deleted). Command:
+      `node tests/browser/run-browser-tests.mjs`, run 5 times standalone —
+      `exit=0` every time, no flakiness — plus part of
+      `./scripts/check-webapp.sh`'s `test:browser` step, run twice, both
+      green. See
+      `docs/implementation-v2/V2_BROWSER_COVERAGE_PHASE_8_9_10_2026-08-09.md`.
 
 ---
 
@@ -1126,9 +1145,26 @@ Macros | Packages | Snapshots | Settings
 
 ## Phase 9 exit gate
 
-- [ ] Macros page browser tests cover idle, USB unavailable, quick send,
+- [x] Macros page browser tests cover idle, USB unavailable, quick send,
       confirmation, progress, cancel, complete, failure, timeout, release error,
-      reload, and rapid repeated input.
+      reload, and rapid repeated input. The last two named gaps are now closed:
+      rapid repeated input is a new scenario block inside `runBrowserWorkflows()`
+      (`webapp/tests/browser/run-browser-tests.mjs`) that dispatches three
+      synchronous DOM `.click()` calls on the Send button from inside a single
+      `page.evaluate()` — unlike Playwright's own `locator.click()`, which is a
+      separately-awaited CDP round trip per call, this genuinely reproduces the
+      same-tick double-dispatch race `MacrosPage.tsx`'s `startingRef` guard
+      (V2-095) is built to withstand, and asserts exactly one
+      `POST /api/v1/send` fired. USB unavailable is a new
+      `runUsbUnavailableWorkflow()` function against its own fixture server
+      started with `usb.state: "disconnected"` from the very first
+      `GET /api/v1/status` response (no poll-flip wait needed, since
+      `useDeviceStatus` polls immediately on mount); it asserts the shell
+      header shows `USB disconnected`, every Send button is `disabled`, and
+      that USB becoming ready device-side re-enables Send within one real
+      5-second poll cycle. Command: `node tests/browser/run-browser-tests.mjs`,
+      run 5 times standalone — `exit=0` every time. See
+      `docs/implementation-v2/V2_BROWSER_COVERAGE_PHASE_8_9_10_2026-08-09.md`.
 - [x] Ordinary Quick Send never navigates to a standalone progress/result route.
 
 ---
@@ -1213,11 +1249,23 @@ management (V2-102)"`. See
 
 ## Phase 10 exit gate
 
-- [ ] Editing and package-management unit and browser tests pass. Unit tests
-      pass in full (478/478); no browser (real-Chrome/CDP) scenario exists
-      yet for macro editing or package management specifically —
-      `run-browser-tests.mjs` still only exercises the Quick Send/Macros-list
-      flow inherited from Phases 8/9.
+- [x] Editing and package-management unit and browser tests pass. Unit tests
+      pass in full (577/577, `npm --prefix webapp run test`). Browser: a new
+      `runMacroEditingWorkflows()` (`webapp/tests/browser/run-browser-tests.mjs`),
+      against its own fresh fixture server/context, covers: Add macro (name,
+      key-press/inter-key timing fields, directive insertion via a real
+      focused-textarea click, live validation); an invalid source's exact
+      error location plus "Go to error" moving real textarea focus/selection;
+      Save and Cancel; and Package management (create, rename, duplicate,
+      reorder, name-bearing two-step-confirm delete, and Open). It also
+      reloads once while the working copy is dirty to prove the native
+      `beforeunload` dialog (registered via `page.on("dialog", ...)`) doesn't
+      hang the page — the same defect
+      `V2_100_103_MACRO_EDITING_PACKAGE_MANAGEMENT_2026-08-09.md` found and
+      fixed in this harness. Command:
+      `node tests/browser/run-browser-tests.mjs`, run 5 times standalone —
+      `exit=0` every time, no flakiness. See
+      `docs/implementation-v2/V2_BROWSER_COVERAGE_PHASE_8_9_10_2026-08-09.md`.
 - [x] No edit calls a firmware package or macro route. True by construction:
       v2 firmware has no package/macro CRUD routes at all (Phase 2), and
       `repositoryEditing.ts` makes no HTTP calls — it only mutates the
