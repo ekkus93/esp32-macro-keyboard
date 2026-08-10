@@ -41,9 +41,9 @@ import type { SendStatusResponse, SettingsResponse } from "./v2/apiTypes";
  * The v2 application root (TODO_V2 V2-090): first-run setup or Sign In,
  * repository startup (Phase 8), and — once a package is resolved — the
  * authenticated shell with the Macros page (Phase 9). This is what
- * `main.tsx` mounts; the retired v1 `App` remains only for its own existing
- * test coverage — its routes no longer exist on the device (Phase 2 deleted
- * the firmware-owned package/macro/execution API it called).
+ * `main.tsx` mounts and the only application tree in the codebase — the
+ * retired v1 `App` (its own routes calling the firmware-owned
+ * package/macro/execution API Phase 2 deleted) was removed in V2-140.
  */
 
 type Phase =

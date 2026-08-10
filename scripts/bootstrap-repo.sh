@@ -20,15 +20,12 @@ readonly -a directories=(
 	firmware/components/wifi_ap
 	firmware/test_app
 	firmware/webfs
-	webapp/src/api
 	webapp/src/components
 	webapp/src/features/auth
-	webapp/src/features/execution
 	webapp/src/features/macros
-	webapp/src/features/procedures
-	webapp/src/features/sets
 	webapp/src/features/settings
 	webapp/src/pages
+	webapp/src/v2
 	webapp/src/types
 	webapp/tests
 	scripts

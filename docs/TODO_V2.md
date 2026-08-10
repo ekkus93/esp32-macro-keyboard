@@ -1584,9 +1584,11 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
       the requirement itself is only half met: the current v2 pages
       (`features/macros/v2/MacrosPage.tsx`,
       `features/macros/v2/PackageManagementPage.tsx`) provide only "Move up"/
-      "Move down" buttons — "Move first"/"Move last" exist only in the
-      pre-v2 `features/package/PackageManagementPage.tsx`, which is dead-code
-      territory pending V2-140. Left unchecked.
+      "Move down" buttons. "Move first"/"Move last" previously existed only in
+      the pre-v2 `features/package/PackageManagementPage.tsx`, which V2-140
+      deleted 2026-08-09 (it was confirmed-unreachable dead code, not a
+      reference implementation to port from) — so "Move first"/"Move last"
+      now exist nowhere in the tree. Left unchecked.
 - [ ] Honor reduced motion. No `prefers-reduced-motion` media query exists
       anywhere in the repository (grep confirmed, 2026-08-09), and no CSS
       `transition`/`animation`/`@keyframes` exists in `webapp/src/*.css`
@@ -1616,13 +1618,59 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
 
 ## V2-140 — Delete dead v1 code
 
-- [ ] Remove obsolete firmware files and build registrations.
-- [ ] Remove obsolete React routes, screens, API clients, guards, models, and
-      fixtures.
-- [ ] Remove obsolete schemas and generated artifacts.
-- [ ] Remove compatibility types and migrations that have no released v2 input.
-- [ ] Remove dead tests rather than skipping them.
-- [ ] Verify no user-visible v1 wording remains.
+- [ ] Remove obsolete firmware files and build registrations. Not
+      investigated in this pass (scoped to the webapp per the task that ran
+      it) — `scripts/check-v2-phase2-architecture.py` (CI-enforced, passes)
+      confirms firmware carries no package/macro repository model, but a full
+      audit of firmware source files and CMake/component registrations for
+      other obsolete v1 remnants was not performed. Left unchecked.
+- [x] Remove obsolete React routes, screens, API clients, guards, models, and
+      fixtures. Deleted the entire retired v1 tree — confirmed unreachable
+      from `main.tsx` by a full import-graph audit before deletion, and by a
+      clean `npm --prefix webapp run typecheck`/`build` after: `App.tsx`,
+      `routing.ts`, `api/` (`client.ts`, `errors.ts`, `executionGuards.ts`,
+      `guards.ts`, `managementGuards.ts`, `packages.ts`, `routes.ts`),
+      `types/models.ts`, `components/AppShell.tsx`,
+      `components/ConnectivityBanner.tsx`, `components/AccessibleDialog.tsx`,
+      `features/execution/*`, `features/package/*`,
+      `features/macros/MacroEditorPage.tsx`, `MacroLibraryPage.tsx`,
+      `macroDraft.ts`, `features/auth/{LoginPage,SetupPage,SessionBoundary}.tsx`,
+      `features/settings/{DiagnosticsPage,PackageOperationsPage,SettingsPage}.tsx`,
+      and their now-dead per-feature `README.md`s. `components/ErrorBanner.tsx`
+      and `components/StatusBadge.tsx` were kept — grepped and confirmed
+      imported by `v2/`-reachable code (`AppShellV2`, `MacroPreviewPage`, and
+      others); `types/limits.ts` was kept for the same reason. Full detail
+      and evidence: `docs/implementation-v2/V2_140_DEAD_V1_CODE_REMOVAL_2026-08-09.md`.
+- [x] Remove obsolete schemas and generated artifacts. Deleted
+      `docs/schemas/{all-data-backup,diagnostic-report,macro-set-package}.schema.json`
+      — pre-identified as "not part of the v2 contract set" by
+      `docs/implementation-v2/V2_000_002_BASELINE_INVENTORY_COMPLETION_2026-08-09.md`,
+      confirmed unreferenced by any script/test/source outside historical
+      evidence docs, and confirmed unused by v2 (`contracts/v2/` is the real
+      v2 contract source). Fixed the resulting `scripts/check-docs.sh` glob
+      failure (`nullglob`) so the now-empty `docs/schemas/` directory doesn't
+      break the docs gate.
+- [ ] Remove compatibility types and migrations that have no released v2
+      input. No webapp instance found (grepped `webapp/src/v2/` and
+      `features/*/v2/` for migration/compatibility-shim code reading v1-shaped
+      data; found none — this product never shipped v1 to real users, so
+      there was nothing to migrate from). Left unchecked because firmware
+      (e.g. NVS settings-schema migration code) was not audited in this pass.
+- [x] Remove dead tests rather than skipping them (webapp scope). Deleted 17
+      Vitest files that exclusively exercised deleted v1 code (16 test files
+      plus the now-orphaned `appFixtures.ts` fixture helper) — kept every
+      test file that also exercises `v2/`-reachable code (verified per file,
+      not by naming pattern: e.g. `tests/app.test.ts` looked v1-named but
+      tests the still-live `types/limits.ts`, kept). Before: 59 files / 577
+      tests. After: 43 files / 448 tests, all passing
+      (`npm --prefix webapp run test`). Host/on-device test suites were not
+      audited in this pass.
+- [x] Verify no user-visible v1 wording remains (webapp scope). Grepped
+      `webapp/src` for `v1`/`legacy`/`revision`/`procedure`/stray `set`-as-package
+      wording after deletion; the only hits were source comments (not
+      user-visible), one of which (`AppV2.tsx`'s file-header comment
+      referencing the now-deleted `App`) was corrected. No `.css`/JSX literal
+      v1 wording found.
 
 ## V2-141 — Static application production behavior
 
@@ -1801,32 +1849,39 @@ just confirms it and closes the checkboxes.
 
 ## Phase 14 exit gate
 
-- [ ] Repository-wide searches find no authoritative v1 references. Not yet:
-      `docs/API.md` still documents the full retired v1 route surface (banner
-      added, body not rewritten), `webapp/README.md` still describes the v1-
-      era scaffold state (see V2-143 above), and V2-140 (below) hasn't run.
-- [ ] No dead v1 production code or skipped v1 test remains. Not yet:
-      `webapp/src/App.tsx` and the v1 feature tree it routes to
-      (`features/macros/MacroEditorPage.tsx`, `MacroLibraryPage.tsx`,
-      `features/package/PackageSelectionPage.tsx`,
-      `features/package/PackageManagementPage.tsx`, `features/execution/*`)
-      are confirmed unreachable in production — `webapp/src/main.tsx` renders
-      only `AppV2`, never `App` — but still present in the tree; `types/` is
-      still explicitly "legacy v1 model types" per `CLAUDE.md`. V2-140 has not
-      run.
+- [ ] Repository-wide searches find no authoritative v1 references. Better
+      but not yet: `docs/API.md` now leads with the current v2 route table
+      and pushes the v1 route documentation into a clearly labeled
+      "Archived: retired v1 API" section (2026-08-09); `webapp/README.md`,
+      `webapp/tests/README.md`, `webapp/src/pages/README.md`, and `CLAUDE.md`
+      no longer describe the deleted v1 tree as present. Left unchecked
+      because this was a webapp-scoped pass — firmware source/docs and the
+      full `docs/` tree were not exhaustively re-audited for stray
+      authoritative v1 references, and the firmware half of V2-140 (below)
+      hasn't run.
+- [x] No dead v1 production code or skipped v1 test remains, in the webapp.
+      V2-140's webapp scope ran 2026-08-09: `webapp/src/App.tsx` and its
+      entire v1 feature tree, plus `routing.ts`, `api/`, `types/models.ts`,
+      and the v1-only shared components, are deleted — confirmed by a clean
+      `typecheck`/`lint`/`stylelint`/`test`/`build` and two clean
+      `./scripts/check-webapp.sh` runs (2026-08-09). Checking only the webapp
+      half of this line: firmware was not audited in this pass (see V2-140's
+      firmware bullet above), so the line is not fully true repository-wide.
 - [x] Static assets fit and pass local-only checks. Verified 2026-08-09 (same
       evidence as V2-141 above): `verify-no-remote-assets.sh webapp/dist` exit
       0 on a real production build, and the webfs image uses 393,216 of
       1,048,576 partition bytes (37.5%), inside the 85% budget ratio.
-- [ ] Documentation accurately describes the implemented v2 system. The
-      specific defect this line cited (`webapp/README.md` materially
-      misdescribing Phase 9–11 functionality as non-functional scaffolding)
-      is now fixed — see V2-143 above. Left unchecked regardless: this is a
-      Phase 14 exit-gate line, and Phase 14 as a whole is not done (V2-140
-      dead-code removal has not run, per the line above), so the phase
-      cannot honestly close yet; also, only the docs actually audited across
-      V2-143's four rounds have been re-verified accurate, not every
-      markdown file in the repository.
+- [ ] Documentation accurately describes the implemented v2 system. Progress
+      2026-08-09: `docs/API.md`, `webapp/README.md`, `webapp/tests/README.md`,
+      `webapp/src/pages/README.md`, `CLAUDE.md`, and root `README.md`'s stale
+      frontend test count were all corrected as part of this pass (including
+      a stale "Settings/Diagnostics are unimplemented placeholders" claim in
+      both `CLAUDE.md` and `webapp/README.md` that predated Phase 12
+      shipping). Left unchecked regardless: this is a Phase 14 exit-gate
+      line, and Phase 14 as a whole is not done (V2-140's firmware bullet is
+      still open), so the phase cannot honestly close yet; only the docs
+      actually touched across V2-143 and this pass have been re-verified
+      accurate, not every markdown file in the repository.
 
 ---
 

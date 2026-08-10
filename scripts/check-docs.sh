@@ -10,9 +10,11 @@ cd "${repo_root}"
 ./webapp/node_modules/.bin/markdownlint-cli2 \
 	'**/*.md' '#**/node_modules' '#**/managed_components' '#tests/host/build'
 yamllint .github firmware/main/idf_component.yml
+shopt -s nullglob
 for schema in docs/schemas/*.json; do
 	jq empty "${schema}"
 done
+shopt -u nullglob
 
 # The v2 traceability worklist fingerprints both authoritative specifications.
 # Any spec change must regenerate the checked-in report rather than leaving a

@@ -1,12 +1,11 @@
 # Pages
 
-Hash routing is implemented in `src/App.tsx` for all planned application screens.
-Unknown routes return to login.
+Placeholder only. Route-level screen components currently live directly under
+`src/features/<domain>/v2/` and are composed by `src/AppV2.tsx` (mounted from
+`src/main.tsx`), using `src/v2/routingV2.ts` for hash routing — not here. The
+retired v1 `App.tsx`, which used to centralize routing before V2-140 deleted
+it, is gone; nothing in the current tree references it.
 
-The current route implementations are still centralized in `App.tsx`; feature-owned
-page components have not yet been split into this directory. New route-level
-composition should move here as the real set, macro, execution, and settings
-workflows are implemented.
-
-A route existing does not imply its backend workflow is complete. See the feature
-README and `docs/IMPLEMENTATION_STATUS.md` before presenting a screen as functional.
+A route existing does not imply its backend workflow is complete. Check the
+component itself, not just its route, before presenting a screen as
+functional.
