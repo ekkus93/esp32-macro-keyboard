@@ -186,7 +186,22 @@ Include at least:
 
 ## H2-021 — Define password/session transaction semantics
 
+**Correction (2026-08-10, verified against `web_settings.c:653-665`,
+`web_change_password_handle()`):** the code does *not* silently return `204`
+when session invalidation fails after the durable password write succeeds.
+It already returns `WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE`, mapped to an
+error response — the original F-003/H2 framing ("durable password may
+change before `logout_all` succeeds" implying a silent-success path) does
+not match current behavior and should not be used to look for that specific
+symptom. The actual, verified gap is narrower: that error response is
+indistinguishable from "nothing happened," while the true state is that the
+password *has* durably changed and old sessions remain valid. A caller
+cannot tell these apart from the response alone, so retrying, telling the
+user "password change failed," or assuming the old password still works are
+all wrong reactions to this specific failure.
+
 - [ ] Specify the order/invariant for durable password commit, RAM verifier activation, and all-session invalidation.
+- [ ] When session invalidation fails after the durable password commit already succeeded, do not represent the outcome as an ordinary/generic failure — the response must let the caller distinguish "nothing changed" from "password changed, invalidation incomplete."
 - [ ] Ensure an error after durable password commit cannot leave the caller unable to determine which password is authoritative.
 - [ ] Prefer a coherent transaction/fault state over rollback theater.
 - [ ] If an explicit auth fault latch is needed, reject all login attempts until coherent recovery rather than guessing old/new credential state.
@@ -199,7 +214,7 @@ Add tests for at least:
 - [ ] password creation failure,
 - [ ] settings replace failure,
 - [ ] RAM verifier activation failure if any fallible step remains,
-- [ ] session invalidation failure,
+- [ ] session invalidation failure **after the durable password write already succeeded** (this is the verified current behavior, not a hypothetical — see H2-021's correction note),
 - [ ] cleanup/zeroization paths,
 - [ ] retry after each failure.
 
@@ -208,7 +223,7 @@ For every case assert:
 - [ ] whether the old password succeeds,
 - [ ] whether the new password succeeds,
 - [ ] whether old sessions remain valid,
-- [ ] exact API outcome,
+- [ ] exact API outcome, **and that the outcome is distinguishable from a "nothing changed" failure whenever the password durably changed**,
 - [ ] no secret appears in diagnostics/log captures.
 
 ## H2-023 — Success invariant tests
