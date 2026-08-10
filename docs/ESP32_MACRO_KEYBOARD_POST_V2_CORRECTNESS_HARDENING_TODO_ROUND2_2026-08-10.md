@@ -45,10 +45,11 @@ No other task in this document touches frozen-spec content. Every other phase ma
 
 **Goal:** fix F-014 and F-015 — the two findings with direct security-sensitive material (the live password-verification record; parsed password strings in heap).
 
-- [ ] **R1-010** (F-014) Add mutual exclusion around every read and write of `server_configuration.password_record`. Confirm the chosen mechanism does not extend any lock across the async confirmation-wait duration (`web_server_async.c`) — only the record access itself may be serialized.
-  - [ ] R1-010a Implement the fix in `web_api_administration.c`'s `refresh_password_record_cache()` and `web_server_login.c`'s read site.
-  - [ ] R1-010b Add a regression test. If the host fake environment cannot exercise real concurrent access, document that limitation explicitly and either add a targeted stress test (e.g. ASan/TSan-assisted) or record a hardware reproduction — do not claim this fixed on the strength of a single-threaded test alone.
-  - [ ] R1-010c Run `./scripts/run-tests.sh auth` and `./scripts/run-tests.sh web`; both must pass.
+- [x] **R1-010** (F-014) Add mutual exclusion around every read and write of `server_configuration.password_record`. Confirm the chosen mechanism does not extend any lock across the async confirmation-wait duration (`web_server_async.c`) — only the record access itself may be serialized.
+  - [x] R1-010a Implement the fix in `web_api_administration.c`'s `refresh_password_record_cache()` and `web_server_login.c`'s read site.
+  - [x] R1-010b Add a regression test. If the host fake environment cannot exercise real concurrent access, document that limitation explicitly and either add a targeted stress test (e.g. ASan/TSan-assisted) or record a hardware reproduction — do not claim this fixed on the strength of a single-threaded test alone.
+  - [x] R1-010c Run `./scripts/run-tests.sh auth` and `./scripts/run-tests.sh web`; both must pass.
+  - Evidence: F-014 implementation landed in `6bc4cd703860966456487c653bff50d9cb45c303`; final corrective candidate `37644d128280cbb3d6f8d6973c2318c466b2fe46` passed literal `./scripts/run-tests.sh auth` (4/4) and `./scripts/run-tests.sh web` (27/27) in targeted run `31427313308`, job `93581969748`, including the concurrent password-record stress test and direct-access guard. `./scripts/check-all.sh` passed in Quality run `31427313311`, job `93581969466`; Host run `31427313392`, Browser run `31427313368`, and Device Test Build run `31427313324` also passed on the same SHA.
 - [ ] **R1-011** (F-015) Securely zero parsed password strings before `cJSON_Delete()` in both:
   - [ ] R1-011a `web_settings.c`'s `web_change_password_handle()` — all six `cJSON_Delete(root)` call sites (current line numbers 605, 612, 618, 627, 632, 639 — reconfirm exact lines before editing, since this document's earlier phases may shift them).
   - [ ] R1-011b `web_device_actions.c`'s `web_device_factory_reset_handle()` — the `cJSON_Delete(root)` call site (current line 253).
