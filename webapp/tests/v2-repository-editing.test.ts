@@ -13,7 +13,9 @@ import {
   findPackage,
   macrosEqual,
   moveMacro,
+  moveMacroToIndex,
   movePackage,
+  movePackageToIndex,
   packagesEqual,
   renamePackage,
   updateMacro,
@@ -24,11 +26,35 @@ const uuidPattern =
 
 const packageAId = "550e8400-e29b-41d4-a716-446655440000";
 const packageBId = "550e8400-e29b-41d4-a716-446655440001";
+const packageCId = "550e8400-e29b-41d4-a716-446655440002";
 const macroAId = "6ba7b810-9dad-41d1-80b4-00c04fd430c8";
 const macroBId = "6ba7b810-9dad-41d1-80b4-00c04fd430c9";
+const macroCId = "6ba7b810-9dad-41d1-80b4-00c04fd430ca";
 
 function macro(id: string, name: string): RepositoryMacro {
   return { id, name, source: "a", keyPressMs: 8, interKeyMs: 15 };
+}
+
+/** Three macros/packages, needed to distinguish "move to index" from an
+ * adjacent swap — the two-item `repository()` fixture above cannot. */
+function threeItemRepository(): Repository {
+  return {
+    format: "esp32-macro-keyboard-repository",
+    schemaVersion: 1,
+    packages: [
+      {
+        id: packageAId,
+        name: "Package A",
+        macros: [
+          macro(macroAId, "Macro A"),
+          macro(macroBId, "Macro B"),
+          macro(macroCId, "Macro C"),
+        ],
+      },
+      { id: packageBId, name: "Package B", macros: [] },
+      { id: packageCId, name: "Package C", macros: [] },
+    ],
+  };
 }
 
 function repository(): Repository {
@@ -128,6 +154,33 @@ describe("repositoryEditing — macro CRUD and ordering (V2-101)", () => {
     expect(moveMacro(original, packageAId, 1, 1)).toEqual(original);
   });
 
+  // TODO_V2 V2-133/UI_UX_SPEC_V2 §14: "Move first"/"Move last" need a direct
+  // target-index move, not just the adjacent swap `moveMacro` offers.
+  test("moveMacroToIndex moves directly to a non-adjacent index", () => {
+    const moved = moveMacroToIndex(threeItemRepository(), packageAId, 0, 2);
+    expect(findPackage(moved, packageAId)?.macros.map((m) => m.id)).toEqual([
+      macroBId,
+      macroCId,
+      macroAId,
+    ]);
+  });
+
+  test("moveMacroToIndex moving the last macro to the first position", () => {
+    const moved = moveMacroToIndex(threeItemRepository(), packageAId, 2, 0);
+    expect(findPackage(moved, packageAId)?.macros.map((m) => m.id)).toEqual([
+      macroCId,
+      macroAId,
+      macroBId,
+    ]);
+  });
+
+  test("moveMacroToIndex is a no-op for an out-of-range index or an unknown package", () => {
+    const original = threeItemRepository();
+    expect(moveMacroToIndex(original, packageAId, 0, 3)).toEqual(original);
+    expect(moveMacroToIndex(original, packageAId, -1, 0)).toEqual(original);
+    expect(moveMacroToIndex(original, "missing", 0, 1)).toEqual(original);
+  });
+
   test("macrosEqual distinguishes any differing field", () => {
     const a = macro(macroAId, "Macro A");
     expect(macrosEqual(a, macro(macroAId, "Macro A"))).toBe(true);
@@ -198,6 +251,23 @@ describe("repositoryEditing — package management (V2-102)", () => {
     const original = repository();
     expect(movePackage(original, 0, -1)).toEqual(original);
     expect(movePackage(original, 1, 1)).toEqual(original);
+  });
+
+  // TODO_V2 V2-133/UI_UX_SPEC_V2 §14 — see moveMacroToIndex's identical
+  // rationale.
+  test("movePackageToIndex moves directly to a non-adjacent index", () => {
+    const moved = movePackageToIndex(threeItemRepository(), 0, 2);
+    expect(moved.packages.map((pkg) => pkg.id)).toEqual([
+      packageBId,
+      packageCId,
+      packageAId,
+    ]);
+  });
+
+  test("movePackageToIndex is a no-op for an out-of-range index", () => {
+    const original = threeItemRepository();
+    expect(movePackageToIndex(original, 0, 3)).toEqual(original);
+    expect(movePackageToIndex(original, -1, 0)).toEqual(original);
   });
 
   test("packagesEqual distinguishes name, id, and macro content/order differences", () => {

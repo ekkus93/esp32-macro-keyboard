@@ -8,6 +8,7 @@ import {
 } from "../../../v2/packageSelection";
 import type { Repository } from "../../../v2/repository";
 import { evaluateSnapshotRetention } from "../../../v2/snapshotRetention";
+import { useFocusTrap } from "../../shell/v2/useFocusTrap";
 import {
   deleteSnapshot as defaultDeleteSnapshot,
   downloadSnapshotBytes as defaultDownloadSnapshotBytes,
@@ -174,6 +175,19 @@ function SnapshotRow({
   const [typedId, setTypedId] = useState("");
   const [confirmingReplace, setConfirmingReplace] = useState(false);
   const anyBusy = busy !== null;
+  const deleteConfirmRef = useRef<HTMLDivElement>(null);
+  // See `MacroOverflowMenu`'s identical `deleteButtonRef` (MacrosPage.tsx)
+  // for why an explicit `restoreFocusRef` is needed here.
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
+  useFocusTrap({
+    active: confirmingDelete,
+    containerRef: deleteConfirmRef,
+    onClose: () => {
+      setConfirmingDelete(false);
+      setTypedId("");
+    },
+    restoreFocusRef: deleteButtonRef,
+  });
 
   return (
     <article className="card management-card">
@@ -209,7 +223,12 @@ function SnapshotRow({
           {busy === "download" ? "Downloading…" : "Download"}
         </button>
         {confirmingDelete ? (
-          <div className="danger-zone" role="alertdialog">
+          <div
+            className="danger-zone"
+            ref={deleteConfirmRef}
+            role="alertdialog"
+            tabIndex={-1}
+          >
             <p>
               This permanently deletes snapshot <strong>{id}</strong> (
               {formatBytes(sizeBytes)}). This cannot be undone. Type the
@@ -255,6 +274,7 @@ function SnapshotRow({
             onClick={() => {
               setConfirmingDelete(true);
             }}
+            ref={deleteButtonRef}
             type="button"
           >
             Delete
@@ -407,6 +427,14 @@ export function SnapshotsPage({
   const [confirmingImportWhileDirty, setConfirmingImportWhileDirty] =
     useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const importConfirmRef = useRef<HTMLDivElement>(null);
+  useFocusTrap({
+    active: importState.kind === "ready",
+    containerRef: importConfirmRef,
+    onClose: () => {
+      setImportState({ kind: "idle" });
+    },
+  });
 
   const exportWorkingCopy = async (): Promise<void> => {
     setExportingWorkingCopy(true);
@@ -747,7 +775,12 @@ export function SnapshotsPage({
         ) : null}
 
         {importState.kind === "ready" ? (
-          <div className="danger-zone" role="alertdialog">
+          <div
+            className="danger-zone"
+            ref={importConfirmRef}
+            role="alertdialog"
+            tabIndex={-1}
+          >
             <p>
               This file contains {String(importState.packageCount)} packages and{" "}
               {String(importState.macroCount)} macros. Importing replaces your

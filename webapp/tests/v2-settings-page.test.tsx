@@ -1,3 +1,4 @@
+import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
 import { subscribeUnauthorized } from "../src/v2/apiClient";
 import { SettingsPage } from "../src/features/settings/v2/SettingsPage";
@@ -330,6 +331,61 @@ describe("SettingsPage (TODO_V2 V2-120)", () => {
     await flushReact();
     expect(restartDevice).toHaveBeenCalledOnce();
     expect(onDeviceActionStarted).toHaveBeenCalledWith("restart");
+  });
+
+  // TODO_V2 V2-133/UI_UX_SPEC_V2 §14 "Dialogs trap focus and restore it to
+  // their invoking control". Both the Restart and the reset-settings/
+  // factory-reset dialogs keep their trigger button mounted underneath
+  // them (a sibling conditional block, not a ternary that swaps the
+  // trigger away), so the trap's automatic capture is exactly right.
+  test("the Restart confirmation traps focus and Escape cancels, restoring focus to Restart", async () => {
+    const { unmount } = await renderPage();
+    const restartButton = buttonWithText("Restart");
+    restartButton.focus();
+    await click(restartButton);
+    await flushReact();
+
+    const dialog = requiredElement('[role="alertdialog"]', HTMLDivElement);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      await Promise.resolve();
+    });
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(document.activeElement).toBe(restartButton);
+    await unmount();
+  });
+
+  test("the reset-settings phrase dialog traps focus and Escape cancels, restoring focus to Reset settings", async () => {
+    const { unmount } = await renderPage();
+    const resetButton = buttonWithText("Reset settings");
+    resetButton.focus();
+    await click(resetButton);
+    await flushReact();
+
+    const dialog = requiredElement('[role="alertdialog"]', HTMLDivElement);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      await Promise.resolve();
+    });
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(document.activeElement).toBe(resetButton);
+    await unmount();
   });
 
   test("Reset settings while dirty warns first, then requires the exact typed phrase", async () => {

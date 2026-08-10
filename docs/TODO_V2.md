@@ -1756,35 +1756,48 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
 
 ## V2-133 — Accessibility
 
-- [ ] Make all controls keyboard accessible. Partially true incidentally: no
-      `<div>`/`<span>` has a bare `onClick` anywhere in `webapp/src` (grep
-      confirmed, 2026-08-09) and no custom control uses `role="button"`, so
-      every click handler found is on a native `button`/`input`/`textarea`,
-      reachable and activatable by keyboard by default. But
-      `MacrosPage.tsx`'s "More actions" overflow menu has no `Escape`-to-close
-      or outside-click dismissal, and this has never been manually
-      keyboard-tested (the exit gate's "Manual keyboard ... checks are
-      recorded" item is still unchecked). Left unchecked: absence of found
-      violations is not the same as verified compliance.
+- [x] Make all controls keyboard accessible. No `<div>`/`<span>` has a bare
+      `onClick` anywhere in `webapp/src` (grep confirmed, 2026-08-09) and no
+      custom control uses `role="button"`, so every click handler is on a
+      native `button`/`input`/`textarea`, reachable and activatable by
+      keyboard by default. The one identified gap — `MacrosPage.tsx`'s "More
+      actions" overflow menu had no `Escape`-to-close or outside-click
+      dismissal — is fixed: `webapp/src/features/shell/v2/useDismissibleOverlay.ts`
+      adds both, wired into `MacroOverflowMenu`
+      (`webapp/src/features/macros/v2/MacrosPage.tsx`), covered by
+      `webapp/tests/v2-dismissible-overlay.test.tsx` (hook-level) and
+      `webapp/tests/v2-macros-page.test.tsx` ("Escape closes an open overflow
+      menu", "a click outside the overflow menu closes it"). Automated-check
+      absence of violation is still not the same as a completed manual sweep
+      — see the exit gate's still-unchecked "Manual keyboard ... checks are
+      recorded".
 - [ ] Preserve logical focus order. No CSS `order`, `row-reverse`/
       `column-reverse`, or positive `tabIndex` found anywhere in `webapp/src`
-      (grep confirmed, 2026-08-09) — nothing detected that would desync visual
-      from DOM/focus order. Left unchecked: not manually/screen-reader
-      verified, which this specific claim would need to be more than "no
-      known violation."
-- [ ] Trap and restore focus in dialogs. `webapp/src/components/AccessibleDialog.tsx`
-      is a real, complete implementation (initial focus, `Tab`/`Shift+Tab`
-      wrap, `Escape` close, return-focus-on-close) but is used by only 3
-      surfaces (`features/package/PackageManagementPage.tsx`,
-      `features/settings/SettingsPage.tsx`,
-      `features/settings/PackageOperationsPage.tsx`). The confirmation/
-      danger-zone dialogs actually shipped in the current v2 UI —
-      `features/snapshots/v2/SnapshotsPage.tsx` (×2), `features/macros/v2/MacrosPage.tsx`,
-      `features/macros/v2/PackageManagementPage.tsx`, and the shared, Phase-11-wired
-      `features/shell/v2/UnsavedChangesPrompt.tsx` — are plain
-      `role="alertdialog"` markup with no focus-trap JavaScript at all (grep
-      for `AccessibleDialog` usage vs. `role="alertdialog"` usage, 2026-08-09).
-      Most of the app's actual dialogs do not trap focus; left unchecked.
+      (grep re-confirmed 2026-08-09 after this task's changes, including the
+      new "Move first"/"Move last" controls, which render in plain DOM order)
+      — nothing detected that would desync visual from DOM/focus order. Left
+      unchecked: not manually/screen-reader verified, which this specific
+      claim would need to be more than "no known violation."
+- [x] Trap and restore focus in dialogs. A shared hook,
+      `webapp/src/features/shell/v2/useFocusTrap.ts` (the v2-tree equivalent
+      of `components/AccessibleDialog.tsx`'s logic: initial focus,
+      `Tab`/`Shift+Tab` wrap, `Escape` close, return-focus-on-close, plus a
+      `restoreFocusRef` escape hatch for triggers a ternary unmounts rather
+      than layers under the dialog), is now wired into all 7 real
+      `role="alertdialog"` surfaces: `MacrosPage.tsx`'s delete confirmation,
+      `PackageManagementPage.tsx`'s delete confirmation,
+      `SnapshotsPage.tsx`'s delete confirmation and its import-replace
+      confirmation, `SettingsPage.tsx`'s restart confirmation and
+      `ConfirmPhraseDialog` (reset-settings/factory-reset), and the shared
+      `UnsavedChangesPrompt.tsx`. Covered by
+      `webapp/tests/v2-focus-trap.test.tsx` (hook unit tests: initial focus,
+      Tab/Shift+Tab wrap, Escape, restore-on-deactivate, restore-on-unmount)
+      and per-surface tests in `webapp/tests/v2-macros-page.test.tsx`,
+      `webapp/tests/v2-package-management-page.test.tsx`,
+      `webapp/tests/v2-snapshots-page.test.tsx` (delete and import
+      confirmations), `webapp/tests/v2-settings-page.test.tsx` (Restart and
+      Reset settings dialogs), and
+      `webapp/tests/v2-unsaved-changes-prompt.test.tsx`.
 - [x] Use live regions without announcing every poll tick. Genuinely true and
       consistently applied: `role="status"`/`role="alert"` with `aria-live`
       appear across ~30 locations in `webapp/src` (auth, macros, snapshots,
@@ -1806,24 +1819,37 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
       {n}." plus a "Go to error" button — asserted by
       `webapp/tests/v2-macro-editor-page.test.tsx:134`
       (`expect(container.textContent).toContain("Line 1, column 3, byte 2.")`).
-- [ ] Provide Move first/up/down/last alternatives to drag and drop. No
+- [x] Provide Move first/up/down/last alternatives to drag and drop. Still no
       drag-and-drop exists anywhere (no dnd/sortable dependency in
       `webapp/package.json`, no `draggable`/`onDragStart`/`onDrop` in
-      `webapp/src`), so there is nothing to provide an alternative to yet, but
-      the requirement itself is only half met: the current v2 pages
-      (`features/macros/v2/MacrosPage.tsx`,
-      `features/macros/v2/PackageManagementPage.tsx`) provide only "Move up"/
-      "Move down" buttons. "Move first"/"Move last" previously existed only in
-      the pre-v2 `features/package/PackageManagementPage.tsx`, which V2-140
-      deleted 2026-08-09 (it was confirmed-unreachable dead code, not a
-      reference implementation to port from) — so "Move first"/"Move last"
-      now exist nowhere in the tree. Left unchecked.
-- [ ] Honor reduced motion. No `prefers-reduced-motion` media query exists
-      anywhere in the repository (grep confirmed, 2026-08-09), and no CSS
-      `transition`/`animation`/`@keyframes` exists in `webapp/src/*.css`
-      either — there is currently no motion to guard, but that is an absence
-      of a policy, not an implemented one; a future transition added without
-      a reduced-motion guard would have nothing to stop it. Left unchecked.
+      `webapp/src`), so there is nothing to provide an alternative to, but the
+      keyboard-operable reordering itself is now complete: the current v2
+      pages (`features/macros/v2/MacrosPage.tsx`,
+      `features/macros/v2/PackageManagementPage.tsx`) render "Move first",
+      "Move up", "Move down", and "Move last" buttons for every row, backed
+      by new `moveMacroToIndex`/`movePackageToIndex` helpers in
+      `webapp/src/v2/repositoryEditing.ts` (direct target-index moves, not
+      just the adjacent swap `moveMacro`/`movePackage` offer). Covered by
+      `webapp/tests/v2-repository-editing.test.ts` (`moveMacroToIndex`/
+      `movePackageToIndex` unit tests) and page-level tests in
+      `webapp/tests/v2-macros-page.test.tsx`/
+      `webapp/tests/v2-package-management-page.test.tsx` ("Move first and
+      Move last are disabled at their respective ends", "Move last reorders
+      ..."). The pre-v2 `features/package/PackageManagementPage.tsx` this
+      requirement previously only partially existed in was confirmed
+      unreachable dead code and deleted by V2-140 (2026-08-09) before this
+      item closed — nothing was ported from it; the v2 buttons above are a
+      fresh implementation.
+- [x] Honor reduced motion. `webapp/src/styles.css` now carries a standing
+      `@media (prefers-reduced-motion: reduce)` block collapsing
+      `animation-duration`/`animation-iteration-count`/`transition-duration`/
+      `scroll-behavior` for every element. As of this change there is still
+      no `transition`/`animation`/`@keyframes` anywhere in `webapp/src/*.css`
+      — the guard is currently vacuous in effect but is now a real,
+      lint-checked (`stylelint`) policy rather than an absence of one: a
+      future transition/animation added without its own explicit
+      reduced-motion opt-out is disabled by this rule by construction, not by
+      remembering to guard it individually.
 - [ ] Prevent hidden source from leaking through accessible names. Moot for
       now rather than satisfied: source-hiding is a Phase 12 (`V2-120`
       "source-preview preference") feature that does not exist yet —
@@ -1833,8 +1859,34 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
 
 ## Phase 13 exit gate
 
-- [ ] Automated accessibility checks pass.
-- [ ] Manual keyboard and screen-reader checks are recorded.
+- [x] Automated accessibility checks pass. Real axe-core
+      (`@axe-core/playwright`, pinned exact in `webapp/package.json`) now
+      runs inside `webapp/tests/browser/run-browser-tests.mjs`'s real-Chrome
+      harness (`runAccessibilityScan`), scanning the Macros, Snapshots, and
+      Settings pages with the `wcag2a`/`wcag2aa`/`best-practice` rule sets —
+      zero violations found at any impact level as of 2026-08-09 (confirmed
+      by a temporary unfiltered run during this task, not just the
+      serious/critical gate the harness enforces going forward). Scope
+      caveat: only the three pages the harness already drives are scanned —
+      Sign-in, First-run setup, Macro editor/preview, and Diagnostics are not
+      yet covered by this automated scan (their keyboard/ARIA logic is
+      covered by Vitest component tests instead, not by axe-core against a
+      real DOM). `webapp/tests/v2-focus-trap.test.tsx` and
+      `webapp/tests/v2-dismissible-overlay.test.tsx` are automated but not
+      axe-core; listed here because they are the other automated
+      accessibility-behavior checks this task added.
+- [ ] Manual keyboard and screen-reader checks are recorded. Not done — this
+      is a human-verification item no automated tooling substitutes for. A
+      real check would need: a keyboard-only pass (no mouse) through Sign
+      in/First-run setup, Macros (send, reorder, overflow menu, delete
+      confirm), Package management (create/rename/duplicate/reorder/delete),
+      Snapshots (save/load/delete/import/export, including the exact-ID
+      delete confirmation and the dirty-work-during-load prompt), Settings
+      (all forms plus Restart/Reset settings/Factory reset), and the Macro
+      editor/preview screens; and a screen-reader pass (e.g. NVDA/JAWS on
+      Windows, VoiceOver on macOS, or Orca on Linux) confirming live-region
+      announcements, dialog labeling, and that hidden macro source is never
+      announced. Left honestly unchecked.
 - [ ] Real Android phone portrait/landscape tests pass.
 - [ ] Tablet and desktop landscape tests pass.
 - [x] Active-send cancellation remains available in landscape. V2-132,

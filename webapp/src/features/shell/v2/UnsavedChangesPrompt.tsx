@@ -1,3 +1,6 @@
+import { useRef } from "react";
+import { useFocusTrap } from "./useFocusTrap";
+
 /**
  * The reusable "you have unsaved changes" warning, per SPEC_V2 §8.7 /
  * UI_UX_SPEC_V2 §7.3 (TODO_V2 V2-103): "the warning offers the
@@ -41,12 +44,20 @@ export function UnsavedChangesPrompt({
   saving = false,
   discardLabel = "Discard changes",
 }: UnsavedChangesPromptProps): React.JSX.Element {
+  const containerRef = useRef<HTMLDivElement>(null);
+  // Mounted only while this prompt is active (its caller conditionally
+  // renders it), so the trap is always active for this component's lifetime
+  // — TODO_V2 V2-133/UI_UX_SPEC_V2 §14.
+  useFocusTrap({ active: true, containerRef, onClose: onCancel });
+
   return (
     <div className="dialog-backdrop" role="presentation">
       <div
         aria-labelledby="unsaved-changes-prompt-title"
         className="dialog-panel"
+        ref={containerRef}
         role="alertdialog"
+        tabIndex={-1}
       >
         <div className="dialog-heading">
           <h2 id="unsaved-changes-prompt-title">Unsaved changes</h2>

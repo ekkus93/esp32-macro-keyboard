@@ -238,6 +238,41 @@ export function moveMacro(
   return replacePackage(repository, packageId, { ...pkg, macros });
 }
 
+/**
+ * Moves the macro at `index` within `packageId` to `targetIndex` directly —
+ * the keyboard-operable "Move first"/"Move last" alternative `moveMacro`'s
+ * adjacent-swap-only shape cannot express (UI_UX_SPEC_V2 §14 "Reordering has
+ * accessible Move first, Move up, Move down, and Move last actions"). A
+ * no-op if either index is out of range.
+ */
+export function moveMacroToIndex(
+  repository: Repository,
+  packageId: string,
+  index: number,
+  targetIndex: number,
+): Repository {
+  const pkg = findPackage(repository, packageId);
+  if (pkg === undefined) {
+    return repository;
+  }
+  if (
+    index < 0 ||
+    index >= pkg.macros.length ||
+    targetIndex < 0 ||
+    targetIndex >= pkg.macros.length
+  ) {
+    return repository;
+  }
+  const macros = [...pkg.macros];
+  const moved = macros[index];
+  if (moved === undefined) {
+    return repository;
+  }
+  macros.splice(index, 1);
+  macros.splice(targetIndex, 0, moved);
+  return replacePackage(repository, packageId, { ...pkg, macros });
+}
+
 // --- Package operations (TODO_V2 V2-102) --------------------------------
 
 export function addPackage(
@@ -317,5 +352,34 @@ export function movePackage(
   }
   packages.splice(index, 1);
   packages.splice(target, 0, moved);
+  return { ...repository, packages };
+}
+
+/**
+ * Moves the package at `index` to `targetIndex` directly — the
+ * keyboard-operable "Move first"/"Move last" alternative `movePackage`'s
+ * adjacent-swap-only shape cannot express (UI_UX_SPEC_V2 §14). A no-op if
+ * either index is out of range.
+ */
+export function movePackageToIndex(
+  repository: Repository,
+  index: number,
+  targetIndex: number,
+): Repository {
+  if (
+    index < 0 ||
+    index >= repository.packages.length ||
+    targetIndex < 0 ||
+    targetIndex >= repository.packages.length
+  ) {
+    return repository;
+  }
+  const packages = [...repository.packages];
+  const moved = packages[index];
+  if (moved === undefined) {
+    return repository;
+  }
+  packages.splice(index, 1);
+  packages.splice(targetIndex, 0, moved);
   return { ...repository, packages };
 }

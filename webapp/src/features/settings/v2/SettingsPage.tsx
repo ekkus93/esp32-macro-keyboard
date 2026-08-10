@@ -13,6 +13,7 @@ import {
 } from "../../../v2/deviceActionsClient";
 import { v2Limits } from "../../../v2/limits";
 import { utf8ByteLength } from "../../../v2/repository";
+import { useFocusTrap } from "../../shell/v2/useFocusTrap";
 import {
   changePassword as defaultChangePassword,
   updateSettings as defaultUpdateSettings,
@@ -562,13 +563,17 @@ function ConfirmPhraseDialog({
     (passwordBytes >= v2Limits.adminPasswordMinBytes &&
       passwordBytes <= v2Limits.adminPasswordMaxBytes);
   const canConfirm = typed === phrase && passwordValid && !busy;
+  const containerRef = useRef<HTMLDivElement>(null);
+  useFocusTrap({ active: true, containerRef, onClose: onCancel });
 
   return (
     <div className="dialog-backdrop" role="presentation">
       <div
         aria-labelledby="confirm-phrase-title"
         className="dialog-panel danger-zone"
+        ref={containerRef}
         role="alertdialog"
+        tabIndex={-1}
       >
         <div className="dialog-heading">
           <h2 id="confirm-phrase-title">
@@ -679,6 +684,14 @@ export function SettingsPage({
     "sign-out" | "restart" | "reset-settings" | "factory-reset" | null
   >(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const restartConfirmRef = useRef<HTMLDivElement>(null);
+  useFocusTrap({
+    active: restartConfirming,
+    containerRef: restartConfirmRef,
+    onClose: () => {
+      setRestartConfirming(false);
+    },
+  });
 
   const applyUpdate = async (
     request: SettingsUpdateRequest,
@@ -955,7 +968,9 @@ export function SettingsPage({
           <div
             aria-labelledby="confirm-restart-title"
             className="dialog-panel"
+            ref={restartConfirmRef}
             role="alertdialog"
+            tabIndex={-1}
           >
             <div className="dialog-heading">
               <h2 id="confirm-restart-title">Restart the device?</h2>
