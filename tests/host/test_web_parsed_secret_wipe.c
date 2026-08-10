@@ -222,7 +222,8 @@ static void test_factory_reset_confirmation_rejection_wipes_parsed_secret(void) 
     const web_device_actions_ops_t ops = device_operations();
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-               "{\"adminPassword\":\"%s\",\"confirmation\":\"factory reset\"}", TEST_SECRET);
+               "{\"adminPassword\":\"%s\",\"confirmation\":\"factory reset\"}",
+               TEST_SECRET);
 
     begin_free_guard(TEST_SECRET);
     const web_device_factory_reset_outcome_t outcome =
