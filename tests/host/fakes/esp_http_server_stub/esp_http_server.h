@@ -105,7 +105,12 @@ typedef struct {
     httpd_uri_match_func_t uri_match_fn;
 } httpd_config_t;
 
-#define HTTPD_DEFAULT_CONFIG() { .max_uri_handlers = 8, .stack_size = 4096, .uri_match_fn = NULL, }
+#define HTTPD_DEFAULT_CONFIG()                                                                     \
+    {                                                                                              \
+        .max_uri_handlers = 8,                                                                     \
+        .stack_size = 4096,                                                                        \
+        .uri_match_fn = NULL,                                                                      \
+    }
 
 typedef struct httpd_uri {
     const char *uri;
