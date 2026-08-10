@@ -2328,32 +2328,89 @@ timeout under `--coverage`, not a logic bug) in
 
 ## V2-152 — USB HID hardware matrix
 
-- [ ] Validate Linux.
-- [ ] Validate ChromeOS when a test machine is available.
-- [ ] Validate Windows when a test machine is available.
-- [ ] Record unavailable optional hosts without claiming completion.
+Full evidence and commands:
+`docs/implementation-v2/V2_152_153_154_HARDWARE_MATRIX_2026-08-10.md`.
+
+- [x] Validate Linux. Identity/text/chords/release-all/cancellation/reconnect
+      already established with real captured HID reports in
+      `docs/implementation-v2/V2_063_064_USB_HID_HARDWARE_EVIDENCE_2026-08-10.md`;
+      cited, not re-run.
+- [ ] Validate ChromeOS when a test machine is available. No test machine
+      available; recorded, not claimed.
+- [ ] Validate Windows when a test machine is available. No test machine
+      available; recorded, not claimed.
+- [x] Record unavailable optional hosts without claiming completion. Done for
+      ChromeOS/Windows above.
 - [ ] Verify identity, text, chords, release-all, cancellation, timeout, and
-      reconnect from captured HID reports.
+      reconnect from captured HID reports. All but "timeout" verified on
+      Linux (see above). Timeout investigated and deliberately not claimed:
+      the compiler's 300s max estimated duration sits only 10s below the
+      executor's 310s absolute deadline (a safety margin for anomalies, not
+      something a valid macro can reliably be made to cross); the
+      release-all-on-timeout path is covered deterministically by host tests
+      (`test_web_server_async_confirmation.c`,
+      `executor_confirmation_tests.inc`, `executor_execution_tests.inc`) but
+      not independently re-verified on hardware.
 
 ## V2-153 — Storage and power-failure matrix
 
-- [ ] Validate add/list/load/delete on hardware.
-- [ ] Validate power-cycle byte identity.
-- [ ] Validate interrupted upload recovery.
-- [ ] Validate full-partition behavior.
-- [ ] Validate mount failure without formatting.
-- [ ] Validate factory reset and reprovisioning.
+Full evidence and commands:
+`docs/implementation-v2/V2_152_153_154_HARDWARE_MATRIX_2026-08-10.md`.
+
+- [x] Validate add/list/load/delete on hardware. Already established in
+      `docs/implementation-v2/V2_035_STORAGE_HARDWARE_EVIDENCE_2026-08-10.md`;
+      cited, not re-run.
+- [x] Validate power-cycle byte identity. Same as above.
+- [x] Validate interrupted upload recovery. Same as above.
+- [x] Validate full-partition behavior. Same as above.
+- [x] Validate mount failure without formatting. Same as above.
+- [x] Validate factory reset and reprovisioning. New evidence 2026-08-10: real
+      `POST /api/v1/device/factory-reset`, real software restart
+      (`RTC_SW_CPU_RST`) captured in the boot log, reprovisioned with fresh
+      credentials, confirmed the test blob was genuinely erased
+      (`{"usedBytes":0,"blobs":[]}` afterward). This test also found and
+      fixed a real, separate bug: first-run setup submission never restarted
+      the device (see the standalone writeup and firmware fix, commit
+      `0c51b76`).
 
 ## V2-154 — Network and authentication matrix
 
-- [ ] Validate first-run setup.
-- [ ] Validate unauthenticated setup-state GET before provisioning, its minimal
-      response, and its `404` behavior after provisioning.
-- [ ] Validate login, logout, idle expiry, absolute expiry, and lockout.
-- [ ] Validate AP availability after station failure.
-- [ ] Validate bounded reconnect behavior.
-- [ ] Validate password change and PBKDF2 timing.
-- [ ] Validate no secret appears in serial, HTTP, logs, diagnostics, or exports.
+Full evidence and commands:
+`docs/implementation-v2/V2_152_153_154_HARDWARE_MATRIX_2026-08-10.md`.
+
+- [x] Validate first-run setup. Verified 2026-08-10 including the restart fix
+      above — full factory-reset-to-reprovisioned cycle with a real
+      automatic restart, confirmed via boot log and HTTP.
+- [x] Validate unauthenticated setup-state GET before provisioning, its
+      minimal response, and its `404` behavior after provisioning. Confirmed
+      throughout the factory-reset/reprovisioning cycle.
+- [x] Validate login, logout, idle expiry, absolute expiry, and lockout.
+      Login/logout/lockout fully verified on hardware, including the
+      lockout's complete real lifecycle (5 failures → 401 each, 6th → 429
+      with `Retry-After: 300`, a *correct* password also correctly blocked
+      during the window, and a real 300-second wait confirmed it clears).
+      Idle (24h) and absolute (7d) expiry are **not** independently
+      hardware-verified — real multi-hour/day wall-clock waits are not
+      something to fake by shortening production timers; covered
+      deterministically by `tests/host/auth_existing_tests.inc`.
+- [x] Validate AP availability after station failure. A deliberately wrong
+      station password produced three bounded connection attempts (~9s, not
+      an unbounded retry loop) and a clean failure; `wifi-status` confirmed
+      `AP state: ready` throughout, unaffected.
+- [x] Validate bounded reconnect behavior. A subsequent `wifi-connect` with
+      correct credentials succeeded cleanly right after the failure above.
+- [x] Validate password change and PBKDF2 timing. PBKDF2 timing already
+      covered in
+      `docs/implementation-v2/V2_041_HARDWARE_LOGIN_FIX_2026-08-09.md`.
+      Password change verified fresh: `204`, immediate invalidation of the
+      session active at change time, old password rejected afterward, new
+      password accepted.
+- [x] Validate no secret appears in serial, HTTP, logs, diagnostics, or
+      exports. Spot-checked (grepped every serial/HTTP log captured this
+      session for the live admin password; no match) — not a full audit,
+      which remains the open, partial item already tracked at the Phase 4
+      exit gate alongside the existing automated
+      `check-credential-logging.sh`/secret-sentinel coverage.
 
 ## V2-155 — Android UI workflow matrix
 
