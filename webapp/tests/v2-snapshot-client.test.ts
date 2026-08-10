@@ -140,6 +140,13 @@ describe("v2 snapshot client", () => {
   });
 
   test("saveWorkingCopyAsSnapshot refuses an oversized snapshot before ever calling fetch", async () => {
+    // This fixture is genuinely large (~1.6 MB of high-entropy filler, so
+    // gzip cannot compress it away - see randomSource()'s comment), and
+    // gzip-compressing that much incompressible data is real synchronous
+    // CPU work. Under `vitest run --coverage`, V8's coverage instrumentation
+    // slows that hot loop enough to exceed the default 5000ms timeout, even
+    // though the same code is fast under a plain (non-coverage) run. Not a
+    // logic bug - just needs more headroom for instrumented runs.
     const oversizedPackage = {
       id: "550e8400-e29b-41d4-a716-446655440099",
       name: "Oversized",
@@ -166,7 +173,7 @@ describe("v2 snapshot client", () => {
     );
     expect(getFetchCalls()).toHaveLength(0);
     expect(store.getIsDirty()).toBe(false);
-  });
+  }, 20000);
 
   test("loadSnapshotIntoWorkingCopy validates before replacing the working copy", async () => {
     const store = createRepositoryWorkingCopyStore(createEmptyRepository());
