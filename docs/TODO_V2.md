@@ -2289,31 +2289,42 @@ just confirms it and closes the checkboxes.
 
 ## V2-150 — Native and frontend quality gates
 
-- [ ] Run native host tests.
-- [ ] Run ASan and UBSan.
-- [ ] Run native coverage and meet committed policy thresholds.
-- [ ] Run C formatting and clang-tidy with warnings as errors.
-- [ ] Run TypeScript type checking.
-- [ ] Run formatting checks.
-- [ ] Run ESLint and stylelint with zero warnings.
-- [ ] Run Vitest.
-- [ ] Run real-browser tests.
-- [ ] Build production web assets and webfs image.
-- [ ] Run the firmware build for `esp32s3`.
-- [ ] Run:
+All items run and passing 2026-08-10 at clean commit `de47eee`. Full results,
+exact commands, and one real bug found and fixed along the way (a vitest
+timeout under `--coverage`, not a logic bug) in
+`docs/implementation-v2/V2_150_151_FULL_GATE_AND_ON_DEVICE_UNITY_2026-08-10.md`.
 
-```bash
-./scripts/check-all.sh
-```
-
-- [ ] Record exact commands, versions, counts, sizes, and results.
+- [x] Run native host tests. 56/56 passed.
+- [x] Run ASan and UBSan. 56/56 passed, no findings.
+- [x] Run native coverage and meet committed policy thresholds. Policy files:
+      96.2% line (≥90 required), 82.7% branch (≥80 required), 100% functions.
+- [x] Run C formatting and clang-tidy with warnings as errors. Clean; zero
+      first-party clang-tidy findings for `firmware/` and `firmware/test_app/`.
+- [x] Run TypeScript type checking. Clean.
+- [x] Run formatting checks. Prettier clean.
+- [x] Run ESLint and stylelint with zero warnings. Clean.
+- [x] Run Vitest. 494/494 passed (46 files), coverage 86.75%/83.47%/90.97%/86.82%
+      (statements/branches/functions/lines), all above the 60% policy gate.
+- [x] Run real-browser tests. 7/7 real-Chrome scenario groups passed.
+- [x] Build production web assets and webfs image. Clean.
+- [x] Run the firmware build for `esp32s3`. Clean.
+- [x] Run `./scripts/check-all.sh`. `EXIT=0`.
+- [x] Record exact commands, versions, counts, sizes, and results. See the
+      evidence doc above.
 
 ## V2-151 — On-device Unity validation
 
-- [ ] Build and flash the on-device test application.
-- [ ] Run the complete Unity menu on the reference board.
-- [ ] Record every test name and result.
-- [ ] Do not substitute a device-test build for execution.
+- [x] Build and flash the on-device test application. Built and flashed
+      `firmware/test_app` at commit `de47eee` to the reference ESP32-S3R8,
+      native USB bootloader mode, 2026-08-10.
+- [x] Run the complete Unity menu on the reference board. Sent `*` over the
+      UART console after a real boot (not build-only).
+- [x] Record every test name and result. All 10 `TEST_CASE`s (the complete
+      set in `firmware/test_app/main/`): 10 passed, 0 failed, 0 ignored. See
+      `docs/implementation-v2/V2_150_151_FULL_GATE_AND_ON_DEVICE_UNITY_2026-08-10.md`
+      for every test name and the raw Unity summary.
+- [x] Do not substitute a device-test build for execution. Ran on real
+      hardware, not claimed from the build alone.
 
 ## V2-152 — USB HID hardware matrix
 
