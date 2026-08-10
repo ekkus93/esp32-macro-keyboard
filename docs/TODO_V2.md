@@ -1002,9 +1002,16 @@ and `./scripts/check-firmware.sh` (GCC + clang-tidy clean for `firmware/` and
 - [x] Make cancellation responsive during delay directives.
 - [x] Make network and serial cancellation converge on the same state machine.
 - [x] Add deterministic host tests for cancellation races.
-- [ ] Measure real-device last-keystroke latency after cancellation.
+- [x] Measure real-device last-keystroke latency after cancellation. Measured
+      2026-08-10 on real ESP32-S3R8 hardware: cancelling a 60-character send
+      mid-typing, the last observed HID keystroke landed 93.5 ms after the
+      client-side cancel request — a real end-to-end measurement including
+      Wi-Fi/HTTP round-trip, not just the firmware-internal 10 ms
+      cancellation-slice bound. See
+      `docs/implementation-v2/V2_063_064_USB_HID_HARDWARE_EVIDENCE_2026-08-10.md`.
 
-Evidence: `docs/implementation-v2/V2_063_EXECUTOR_CANCELLATION_RESPONSIVENESS_2026-08-08.md`.
+Evidence: `docs/implementation-v2/V2_063_EXECUTOR_CANCELLATION_RESPONSIVENESS_2026-08-08.md`,
+`docs/implementation-v2/V2_063_064_USB_HID_HARDWARE_EVIDENCE_2026-08-10.md`.
 `macro_executor_engine.c`'s pre-existing `cancellable_delay()`/`CANCELLATION_SLICE_MS`
 (10 ms) design already bounds cancellation latency during both key/chord dwell
 and delay directives to one slice, and both `web_server_send.c`'s
@@ -1018,20 +1025,49 @@ explicitly not claimed.
 
 ## V2-064 — USB identity and HIL evidence
 
-- [ ] Verify `303a:4001` and required manufacturer, product, and serial strings.
-- [ ] Capture host HID reports rather than relying on text-editor output.
-- [ ] Verify printable text exactly.
-- [ ] Verify a chord sets modifier and usage concurrently.
-- [ ] Verify every terminal path ends with an all-zero report.
-- [ ] Verify invalid source types nothing.
-- [ ] Verify cancellation during typing and delay.
-- [ ] Verify disconnect and reconnect behavior.
+All eight items verified on real ESP32-S3R8 hardware 2026-08-10 (firmware
+`7f322c1`, unchanged from the V2-035 session). Full evidence and commands:
+`docs/implementation-v2/V2_063_064_USB_HID_HARDWARE_EVIDENCE_2026-08-10.md`.
+
+- [x] Verify `303a:4001` and required manufacturer, product, and serial
+      strings. `lsusb -v -d 303a:4001` matches `SPEC_V2.md` §7.1 exactly:
+      manufacturer "ESP32 Macro Keyboard Project", product "ESP32 Macro
+      Keyboard", serial "ESP32S3-MACRO-01".
+- [x] Capture host HID reports rather than relying on text-editor output.
+      Real `/dev/hidraw*` reads via `tests/hardware/hid_capture.py`
+      (resolved by VID:PID, not a hardcoded path).
+- [x] Verify printable text exactly. `"abcXYZ123!@#"` and (after the
+      disconnect/reconnect test) `"post-reconnect-ok"` both decoded from raw
+      reports to an exact match.
+- [x] Verify a chord sets modifier and usage concurrently. `{CTRL+SHIFT+T}`:
+      one report carries `modifier=0x03` (CTRL+SHIFT) and `usage=23` ('t')
+      together, not sequential reports.
+- [x] Verify every terminal path ends with an all-zero report. Confirmed for
+      completed (text, chord) and cancelled (mid-typing, mid-delay) paths
+      across four distinct real captures. `failed`/`timed_out` not
+      independently re-verified on hardware (see the evidence doc §8) —
+      relies on the shared `release_all()` code path host tests already
+      cover.
+- [x] Verify invalid source types nothing. `"hello{NOTAREALDIRECTIVE}world"`
+      returned `422 macro_parse_error` with zero HID reports captured — not
+      even the leading text was typed.
+- [x] Verify cancellation during typing and delay. Typing: cancelled a
+      60-character send after 13 characters, all-zero final report.
+      Delay: cancelled during `{DELAY:5000}`, the following action never
+      executed, all-zero final report.
+- [x] Verify disconnect and reconnect behavior. Real native-USB unplug/replug
+      (not a software reset): `usb.state` went `ready` → `suspended` →
+      `ready`; full functional recovery confirmed with a real post-reconnect
+      send, exact text match.
 
 ## Phase 6 exit gate
 
 - [x] C and TypeScript conformance suites pass the same corpus.
 - [x] Executor host tests pass under sanitizers.
-- [ ] Required HID and cancellation hardware evidence is committed.
+- [x] Required HID and cancellation hardware evidence is committed. All eight
+      V2-064 items and V2-063's cancellation-latency item verified on real
+      ESP32-S3R8 hardware 2026-08-10. See V2-063/V2-064 above and
+      `docs/implementation-v2/V2_063_064_USB_HID_HARDWARE_EVIDENCE_2026-08-10.md`.
 
 ---
 

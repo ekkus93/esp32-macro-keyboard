@@ -103,7 +103,7 @@ def main():
             ip,
             "POST",
             "/api/v1/auth/login",
-            body={"password": f"wrong-password-{attempt}"},
+            body={"adminPassword": f"wrong-password-{attempt}"},
         )
         if status == 429:
             throttled_at = attempt

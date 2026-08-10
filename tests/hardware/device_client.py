@@ -83,7 +83,7 @@ class Device:
 
     def login(self):
         password = hil_state.admin_password()
-        status, payload = self.post("/api/v1/auth/login", {"password": password})
+        status, payload = self.post("/api/v1/auth/login", {"adminPassword": password})
         if status != 200:
             raise SystemExit(f"login failed: HTTP {status} {payload}")
         status, payload = self.get("/api/v1/auth/session")
