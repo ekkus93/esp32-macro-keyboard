@@ -493,6 +493,72 @@ target_compile_definitions(
 target_link_libraries(web_server_administration_route_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_server_administration_route_tests web_server_administration_route web)
 
+# Live end-to-end HTTP test for the physical-confirmation-required=true path (TODO_V2 V2-057 / Phase
+# 5 exit gate's last open contract/security-test gap): POST /api/v1/device/restart,
+# /device/reset-settings, /device/factory-reset, and /settings/change-password with
+# server_configuration.require_physical_confirmation = true. Unlike
+# web_server_administration_route_tests (which sets that flag false and stubs
+# web_server_async_dispatch() out entirely as unreachable), this target links the real
+# web_server_async.c -- against fakes/freertos_stub's dead-path-only FreeRTOS headers -- and never
+# calls web_server_async_start(), so every request takes web_server_async_dispatch()'s real,
+# documented "worker unavailable: answer on the httpd task" fallback branch. See
+# test_web_server_async_confirmation.c's own header comment for exactly what this does and does not
+# prove, and fakes/freertos_stub/freertos/FreeRTOS.h's header comment for why a faithful FreeRTOS
+# host mock (the alternative that would additionally cover the actual queue/task worker path) stays
+# out of scope.
+add_executable(
+    web_server_async_confirmation_tests
+    test_web_server_async_confirmation.c
+    ../../firmware/components/web_server/web_server_api.c
+    ../../firmware/components/web_server/web_server_async.c
+    ../../firmware/components/web_server/web_request_policy.c
+    ../../firmware/components/web_server/web_api_core.c
+    ../../firmware/components/web_server/web_api_dispatch.c
+    ../../firmware/components/web_server/web_api_administration.c
+    ../../firmware/components/web_server/web_api_response.c
+    ../../firmware/components/web_server/web_api_handler_common.c
+    ../../firmware/components/web_server/web_api_json.c
+    ../../firmware/components/web_server/web_auth_routes.c
+    ../../firmware/components/web_server/web_settings.c
+    ../../firmware/components/web_server/web_device_actions.c
+    ../../firmware/components/web_server/web_cookie.c
+    ../../firmware/components/web_server/web_server_common.c
+    ../../firmware/components/web_server/web_server_adapter_common.c
+    ../../firmware/components/web_server/web_server_adapter_body_auth.c
+    ../../firmware/components/web_server/web_server_adapter_json.c
+    ../../firmware/components/support/subsystem_health.c
+    ../../firmware/components/macro_model/app_uuid.c
+    ../../firmware/components/macro_model/app_error.c
+    ../../firmware/components/app_contracts_v2/settings_contract_v2.c
+    ../../firmware/components/app_contracts_v2/device_settings_v2.c
+    ../../firmware/components/app_contracts_v2/setup_contract_v2.c
+    fakes/fake_httpd.c
+)
+target_include_directories(
+    web_server_async_confirmation_tests
+    PRIVATE fakes/esp_http_server_stub
+            fakes/esp_idf_misc_stub
+            fakes/freertos_stub
+            fakes
+            ../../firmware/components/web_server
+            ../../firmware/components/web_server/include
+            ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/app_contracts_v2/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/device_controls
+            ../../firmware/components/device_controls/include
+            ../../firmware/components/device_settings/include
+            ../../firmware/components/provisioning/include
+            ../../firmware/components/storage/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/usb_keyboard/include
+            ../../firmware/components/support/include
+)
+target_link_libraries(web_server_async_confirmation_tests PRIVATE PkgConfig::CJSON)
+register_host_test(web_server_async_confirmation_tests web_server_async_confirmation web)
+
 # Live route-registration/dispatch matrix test for web_server_lifecycle.c (TODO_V2 V2-051's "Test
 # the complete unprovisioned/provisioned route-access matrix"). Every other route test target above
 # calls one fixed-URI handler directly; this is the one target that actually calls
