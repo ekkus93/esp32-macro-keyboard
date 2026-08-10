@@ -384,13 +384,40 @@ knowledge in firmware.
 
 ## V2-035 — Storage hardware evidence
 
-- [ ] Add a blob, power-cycle the board, and load byte-identical data.
-- [ ] Add multiple blobs and verify numeric ordering.
-- [ ] Delete one blob and verify every other blob is byte-identical.
-- [ ] Interrupt an upload and verify no partial final file appears.
-- [ ] Reboot and verify temporary cleanup.
-- [ ] Fill storage and verify `507` leaves all final blobs unchanged.
-- [ ] Simulate or induce mount failure and verify no formatting occurs.
+All seven items verified on real ESP32-S3R8 hardware 2026-08-10 (firmware
+`7f322c1`). `scripts/run-v2-035-hardware.py` had never been executed against
+physical hardware before this session and had several real v2-contract
+mismatches (wrong login field name, a stale v1-style response envelope, a
+wrong diagnostics field path, an over-strict buildId equality check) — all
+found and fixed first, with new regression tests, before any physical stage
+ran. Full evidence:
+`docs/hardware-evidence/V2_035_STORAGE_ESP32S3R8_2026-08-10.json` (all seven
+scenarios, validated). Writeup:
+`docs/implementation-v2/V2_035_STORAGE_HARDWARE_EVIDENCE_2026-08-10.md`.
+
+- [x] Add a blob, power-cycle the board, and load byte-identical data. Real
+      USB power removal and restoration (not a software reset); all
+      baseline/sentinel blobs reloaded byte-identical; `resetReason`
+      confirmed `power_on`.
+- [x] Add multiple blobs and verify numeric ordering. Three blobs created
+      with strictly increasing IDs; newest-first listing confirmed.
+- [x] Delete one blob and verify every other blob is byte-identical. Middle
+      of three blobs deleted; both survivors verified unchanged.
+- [x] Interrupt an upload and verify no partial final file appears. Power cut
+      after 98,304 of 131,072 bytes sent (past the required 16,384-byte
+      minimum); no new final blob ID after reboot.
+- [x] Reboot and verify temporary cleanup. Post-interruption reboot reports
+      `diagnostics.storage.temporaryFiles` empty.
+- [x] Fill storage and verify `507` leaves all final blobs unchanged.
+      Maximum-size uploads repeated until `507`; every previously committed
+      blob remained byte-identical; fill blobs cleaned up.
+- [x] Simulate or induce mount failure and verify no formatting occurs. Real
+      `userdata` partition overwritten with a deterministic corrupt image via
+      `parttool.py`; real firmware output
+      (`esp_littlefs: mount failed, (-84)`, `stage failed: storage_mount`);
+      post-boot partition read back byte-identical to the corrupt image
+      (proving no silent format); backup restored and verified
+      byte-identical to the original.
 
 ## Phase 3 exit gate
 
@@ -403,12 +430,11 @@ knowledge in firmware.
       build + esp-clang `run-clang-tidy` with `WarningsAsErrors: '*'` for both
       `firmware/` and `firmware/test_app/`) — completed with exit code 0 and
       zero first-party findings.
-- [ ] Required hardware evidence is committed. `docs/hardware-evidence/` does
-      not exist in the repository; V2-035's harness
-      (`scripts/run-v2-035-hardware.py`, documented in
-      `docs/implementation-v2/V2_035_HARDWARE_EVIDENCE_HARNESS_2026-08-06.md`)
-      is prepared but has never been executed against physical hardware. All
-      seven V2-035 checklist items remain open for the same reason.
+- [x] Required hardware evidence is committed. All seven V2-035 scenarios
+      executed and validated on real ESP32-S3R8 hardware 2026-08-10:
+      `docs/hardware-evidence/V2_035_STORAGE_ESP32S3R8_2026-08-10.json`. See
+      V2-035 above and
+      `docs/implementation-v2/V2_035_STORAGE_HARDWARE_EVIDENCE_2026-08-10.md`.
 - [x] Firmware remains completely unaware of repository contents. Verified by
       inspection 2026-08-09: no gzip-header, decompress, JSON-parse, checksum,
       hash, digest, or CRC logic anywhere in `firmware/components/storage/`
