@@ -172,7 +172,7 @@ reflects that (the route-matrix bullet stays unchecked).
 
 ### What examples.json actually has (checked before assuming)
 
-```
+```text
 error, parserError, setupState, setupRequest, setupAccepted, loginRequest,
 session, status, limits, blobList, blobCreated, settings, settingsUpdate,
 settingsUpdated, passwordChangeRequest, sendRequest, sendAccepted,
@@ -367,7 +367,7 @@ and `docs/` only; **zero `firmware/`or `webapp/` files were touched**, so
 - `tests/host/test_web_server_administration_route.c` (+1 test, +5
   comparisons on existing tests)
 - `tests/host/CMakeLists.txt` (+1 new target; `support/test_examples_fixture.c`
-  + `EXAMPLES_JSON_PATH` added to 4 existing targets)
+  and `EXAMPLES_JSON_PATH` added to 4 existing targets)
 - `docs/TODO_V2.md` (V2-057 bullets and Phase 5 exit gate bullets only)
 
 ## Explicit statement
