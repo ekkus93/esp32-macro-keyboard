@@ -29,6 +29,38 @@ static void test_blob_create_success_round_trips_bytes(void) {
     TEST_CHECK_EQ_BUFFER(body, stored->data, sizeof(body));
 }
 
+/* TODO_V2 V2-057 "consume the same checked-in examples from C and TypeScript
+ * tests": diffs the live response against contracts/v2/api/examples.json's
+ * "blobCreated" example wholesale, not just the two strstr() spot checks
+ * test_blob_create_success_round_trips_bytes() above does. The fake's
+ * next-id counter is bumped to 3 first (without seeding any blob) so this,
+ * the first commit in the test, receives id 4 -- matching the example's id
+ * exactly. */
+static void test_blob_create_success_matches_example(void) {
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    blob_test_reset(&fake);
+    blob_test_authenticate(&fake);
+    fake_httpd_add_request_header(&fake, "Content-Type", "application/gzip");
+    g_fake_storage_blob.next_id = 3U;
+
+    uint8_t body[1350];
+    for (size_t index = 0U; index < sizeof(body); ++index) {
+        body[index] = (uint8_t)((index * 37U + 11U) & 0xFFU);
+    }
+    fake_httpd_set_body(&fake, body, sizeof(body), 0U);
+    fake_httpd_bind(&request, &fake, "/api/v1/blob", sizeof(body));
+
+    TEST_CHECK(blob_create_handler(&request) == ESP_OK);
+
+    TEST_CHECK_EQ_STRING("201 Created", fake.response_status);
+    cJSON *root = cJSON_ParseWithLength(fake.response_body, fake.response_body_length);
+    TEST_CHECK(root != NULL);
+    const cJSON *example = test_examples_fixture_get("blobCreated");
+    TEST_CHECK(cJSON_Compare(root, example, true) != 0);
+    cJSON_Delete(root);
+}
+
 static void test_blob_create_rejects_empty_body(void) {
     fake_httpd_request_t fake;
     httpd_req_t request;

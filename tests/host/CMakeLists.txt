@@ -225,6 +225,7 @@ add_executable(
     ../../firmware/components/web_server/web_cookie.c
     ../../firmware/components/support/subsystem_health.c
     ../../firmware/components/macro_model/app_error.c
+    support/test_examples_fixture.c
     fakes/fake_httpd.c
 )
 target_include_directories(
@@ -244,6 +245,9 @@ target_include_directories(
             ../../firmware/components/usb_keyboard/include
             ../../firmware/components/device_settings/include
             ../../firmware/components/support/include
+)
+target_compile_definitions(
+    web_server_status_limits_route_tests PRIVATE EXAMPLES_JSON_PATH="${API_EXAMPLES_JSON}"
 )
 target_link_libraries(web_server_status_limits_route_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_server_status_limits_route_tests web_server_status_limits_route web)
@@ -337,6 +341,7 @@ add_executable(
     ../../firmware/components/macro_model/app_uuid.c
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/macro_model/macro_model.c
+    support/test_examples_fixture.c
     fakes/fake_httpd.c
 )
 target_include_directories(
@@ -355,6 +360,9 @@ target_include_directories(
             ../../firmware/components/wifi_ap/include
             ../../firmware/components/usb_keyboard/include
             ../../firmware/components/support/include
+)
+target_compile_definitions(
+    web_server_send_route_tests PRIVATE EXAMPLES_JSON_PATH="${API_EXAMPLES_JSON}"
 )
 target_link_libraries(web_server_send_route_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_server_send_route_tests web_server_send_route web)
@@ -625,6 +633,7 @@ add_executable(
     ../../firmware/components/support/subsystem_health.c
     ../../firmware/components/macro_model/app_uuid.c
     ../../firmware/components/macro_model/app_error.c
+    support/test_examples_fixture.c
     fakes/fake_httpd.c
     fakes/fake_storage_blob.c
 )
@@ -644,6 +653,7 @@ target_include_directories(
             ../../firmware/components/usb_keyboard/include
             ../../firmware/components/support/include
 )
+target_compile_definitions(web_server_blob_tests PRIVATE EXAMPLES_JSON_PATH="${API_EXAMPLES_JSON}")
 target_link_libraries(web_server_blob_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_server_blob_tests web_server_blob web)
 
