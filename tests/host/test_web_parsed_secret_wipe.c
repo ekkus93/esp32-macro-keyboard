@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -81,8 +82,11 @@ static void end_free_guard(void) {
     guarded_secret = NULL;
 }
 
-static void build_body(char *buffer, size_t capacity, const char *json) {
-    const int written = snprintf(buffer, capacity, "%s", json);
+static void build_body(char *buffer, size_t capacity, const char *format, ...) {
+    va_list arguments;
+    va_start(arguments, format);
+    const int written = vsnprintf(buffer, capacity, format, arguments);
+    va_end(arguments);
     TEST_CHECK(written > 0 && (size_t)written < capacity);
 }
 
@@ -158,8 +162,9 @@ static void test_change_password_schema_rejection_wipes_parsed_secret(void) {
     const web_settings_ops_t ops = settings_operations();
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-               "{\"currentPassword\":\"" TEST_SECRET
-               "\",\"newPassword\":\"new-example-password\",\"extra\":true}");
+               "{\"currentPassword\":\"%s\",\"newPassword\":\"new-example-password\","
+               "\"extra\":true}",
+               TEST_SECRET);
 
     begin_free_guard(TEST_SECRET);
     const web_change_password_outcome_t outcome =
@@ -173,8 +178,8 @@ static void test_change_password_backend_failure_wipes_parsed_secret(void) {
     const web_settings_ops_t ops = settings_operations();
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-               "{\"currentPassword\":\"" TEST_SECRET
-               "\",\"newPassword\":\"new-example-password\"}");
+               "{\"currentPassword\":\"%s\",\"newPassword\":\"new-example-password\"}",
+               TEST_SECRET);
 
     begin_free_guard(TEST_SECRET);
     const web_change_password_outcome_t outcome =
@@ -188,7 +193,7 @@ static void test_change_password_backend_failure_wipes_parsed_secret(void) {
 static void test_change_password_non_object_wipes_parsed_secret(void) {
     const web_settings_ops_t ops = settings_operations();
     char body[TEST_BODY_CAPACITY];
-    build_body(body, sizeof(body), "[\"" TEST_SECRET "\"]");
+    build_body(body, sizeof(body), "[\"%s\"]", TEST_SECRET);
 
     begin_free_guard(TEST_SECRET);
     const web_change_password_outcome_t outcome =
@@ -202,8 +207,8 @@ static void test_factory_reset_schema_rejection_wipes_parsed_secret(void) {
     const web_device_actions_ops_t ops = device_operations();
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-               "{\"adminPassword\":\"" TEST_SECRET
-               "\",\"confirmation\":\"FACTORY RESET\",\"extra\":true}");
+               "{\"adminPassword\":\"%s\",\"confirmation\":\"FACTORY RESET\",\"extra\":true}",
+               TEST_SECRET);
 
     begin_free_guard(TEST_SECRET);
     const web_device_factory_reset_outcome_t outcome =
@@ -217,8 +222,7 @@ static void test_factory_reset_confirmation_rejection_wipes_parsed_secret(void) 
     const web_device_actions_ops_t ops = device_operations();
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
-               "{\"adminPassword\":\"" TEST_SECRET
-               "\",\"confirmation\":\"factory reset\"}");
+               "{\"adminPassword\":\"%s\",\"confirmation\":\"factory reset\"}", TEST_SECRET);
 
     begin_free_guard(TEST_SECRET);
     const web_device_factory_reset_outcome_t outcome =
@@ -231,7 +235,7 @@ static void test_factory_reset_confirmation_rejection_wipes_parsed_secret(void) 
 static void test_factory_reset_non_object_wipes_parsed_secret(void) {
     const web_device_actions_ops_t ops = device_operations();
     char body[TEST_BODY_CAPACITY];
-    build_body(body, sizeof(body), "[\"" TEST_SECRET "\"]");
+    build_body(body, sizeof(body), "[\"%s\"]", TEST_SECRET);
 
     begin_free_guard(TEST_SECRET);
     const web_device_factory_reset_outcome_t outcome =
