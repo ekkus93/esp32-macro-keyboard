@@ -19,6 +19,7 @@
 #include "web_diagnostics.h"
 #include "web_http_status.h"
 #include "web_server.h"
+#include "web_server_password_record.h"
 #include "web_settings.h"
 
 /* The request policy layer (web_request_policy.c) has already validated (and
@@ -291,24 +292,24 @@ static app_error_code_t change_password_error(web_api_response_t *response,
     }
 }
 
-/* Refreshes the in-RAM login cache after a successful password change so a
- * subsequent login -- without a reboot -- verifies against the new
- * password immediately. login_handler (web_server_login.c) reads
- * server_configuration.password_record directly; it is otherwise populated
- * exactly once, at boot, by app_core_sequence.c's configure_normal_server().
- * Best-effort: if the immediately-following read fails, the write itself
- * already succeeded and sessions are already invalidated, so the response
- * still reports success; only the RAM cache would lag until reboot. */
+/* Refresh the in-RAM login cache after a successful durable password change.
+ * Device-settings I/O happens before taking the credential lock; the lock is
+ * held only while the complete record is copied into the running server
+ * configuration. Login takes the same lock only long enough to snapshot the
+ * record, so neither PBKDF2 nor an async physical-confirmation wait can occur
+ * while the credential lock is held. */
 static void refresh_password_record_cache(void) {
     app_v2_device_settings_t updated = {0};
     if (device_settings_read(&updated) != APP_ERROR_NONE) {
+        secure_zero_local(&updated, sizeof(updated));
         return;
     }
-    server_configuration.password_record.iterations = updated.password_iterations;
-    memcpy(server_configuration.password_record.salt, updated.password_salt,
-           sizeof(server_configuration.password_record.salt));
-    memcpy(server_configuration.password_record.hash, updated.password_verifier,
-           sizeof(server_configuration.password_record.hash));
+
+    auth_password_record_t record = {.iterations = updated.password_iterations};
+    memcpy(record.salt, updated.password_salt, sizeof(record.salt));
+    memcpy(record.hash, updated.password_verifier, sizeof(record.hash));
+    web_server_password_record_replace(&record);
+    secure_zero_local(&record, sizeof(record));
     secure_zero_local(&updated, sizeof(updated));
 }
 

@@ -6,6 +6,7 @@ idf_component_register(
     "web_server_adapter_static_stream.c"
     "web_server_adapter_lifecycle.c"
     "web_server_common.c"
+    "web_server_password_record.c"
     "web_server_lifecycle.c"
     "web_server_status_limits.c"
     "web_server_login.c"

@@ -9,6 +9,7 @@
 #include "setup_contract_v2.h"
 #include "web_server.h"
 #include "web_server_adapter.h"
+#include "web_server_password_record.h"
 
 #define WEB_MAX_URI_HANDLERS 28U
 #define WEB_HTTPD_TASK_STACK_BYTES 24576U
@@ -157,12 +158,12 @@ app_error_code_t web_server_start(const web_server_config_t *configuration) {
     if (!server_configuration_valid(configuration) || server_lifecycle.handle != NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    server_configuration = *configuration;
+    web_server_configuration_store(configuration);
     memset(&setup_session, 0, sizeof(setup_session));
     if (server_configuration.mode == WEB_SERVER_MODE_SETUP &&
         initialize_setup_session() != APP_ERROR_NONE) {
         clear_setup_configuration_secret();
-        memset(&server_configuration, 0, sizeof(server_configuration));
+        web_server_configuration_clear();
         return APP_ERROR_INVALID_ARGUMENT;
     }
     const web_adapter_lifecycle_ops_t operations = server_lifecycle_ops();
@@ -173,7 +174,7 @@ app_error_code_t web_server_start(const web_server_config_t *configuration) {
         clear_setup_configuration_secret();
     }
     if (result != APP_ERROR_NONE && server_lifecycle.handle == NULL) {
-        memset(&server_configuration, 0, sizeof(server_configuration));
+        web_server_configuration_clear();
         memset(&setup_session, 0, sizeof(setup_session));
     }
     return result;
@@ -183,7 +184,7 @@ app_error_code_t web_server_stop(void) {
     const web_adapter_lifecycle_ops_t operations = server_lifecycle_ops();
     const app_error_code_t result = web_adapter_lifecycle_stop(&server_lifecycle, &operations);
     if (result == APP_ERROR_NONE) {
-        memset(&server_configuration, 0, sizeof(server_configuration));
+        web_server_configuration_clear();
         memset(&setup_session, 0, sizeof(setup_session));
     }
     return result;

@@ -62,3 +62,51 @@ target_link_libraries(web_setup_json_tests PRIVATE PkgConfig::CJSON test_support
 target_compile_options(web_setup_json_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME web_setup_json COMMAND web_setup_json_tests)
 set_tests_properties(web_setup_json PROPERTIES LABELS "web")
+
+# Round 2 F-014: route/composition targets keep their existing narrow host
+# boundaries and use a direct fake for the new password-record accessor. The
+# dedicated target below links the real accessor against a pthread-backed
+# portMUX stand-in and is the concurrency proof for the production logic.
+set(
+    WEB_PASSWORD_RECORD_FAKE
+    "${CMAKE_SOURCE_DIR}/fakes/fake_web_server_password_record.c"
+)
+foreach(
+    target
+    IN
+    ITEMS web_api_administration_tests
+          web_server_administration_route_tests
+          web_server_async_confirmation_tests
+          web_server_lifecycle_tests
+)
+    target_sources(${target} PRIVATE "${WEB_PASSWORD_RECORD_FAKE}")
+endforeach()
+
+find_package(Threads REQUIRED)
+add_executable(
+    web_server_password_record_tests
+    "${CMAKE_SOURCE_DIR}/test_web_server_password_record.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_server_password_record.c"
+)
+target_include_directories(
+    web_server_password_record_tests
+    PRIVATE "${CMAKE_SOURCE_DIR}/fakes/freertos_lock_stub"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/auth/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/app_contracts_v2/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/include"
+)
+target_link_libraries(web_server_password_record_tests PRIVATE test_support Threads::Threads)
+target_compile_options(web_server_password_record_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME web_server_password_record COMMAND web_server_password_record_tests)
+set_tests_properties(web_server_password_record PROPERTIES LABELS "auth;web")
+
+add_test(
+    NAME web_server_password_record_access_guard
+    COMMAND
+        ${CMAKE_COMMAND}
+        -DWEB_SERVER_SOURCE_DIR=${CMAKE_SOURCE_DIR}/../../firmware/components/web_server
+        -P ${CMAKE_SOURCE_DIR}/cmake/web_server_password_record_access_guard.cmake
+)
+set_tests_properties(web_server_password_record_access_guard PROPERTIES LABELS "auth;web")
