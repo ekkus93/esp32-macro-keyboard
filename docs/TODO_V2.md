@@ -718,13 +718,36 @@ knowledge in firmware.
       `esp_reset_reason()`, `esp_get_free_heap_size()`,
       `esp_get_minimum_free_heap_size()`) — see
       `docs/implementation-v2/V2_057_DIAGNOSTICS_AND_SETUP_STATE_2026-08-09.md`.
-      Only the physical-confirmation-required=true/async-worker path for this
-      group remains live-untested (FreeRTOS-dependent `web_server_async.c`
-      code, not `web_server_api.c`/`web_request_policy.c`) — investigated and
-      deliberately deferred, see
+      The physical-confirmation-required=true path is now partially covered:
+      `test_web_server_async_confirmation.c` (new target
+      `web_server_async_confirmation_tests`) links the real
+      `web_server_async.c` — against a new, deliberately minimal,
+      dead-path-only FreeRTOS host stub
+      (`tests/host/fakes/freertos_stub/freertos/{FreeRTOS,queue,semphr,task}.h`,
+      whose implementations are hard-failure canaries, never real queue/task
+      logic) — and drives `api_handler()` with
+      `server_configuration.require_physical_confirmation = true` for
+      restart/reset-settings/factory-reset/change-password without ever
+      calling `web_server_async_start()`, so `web_server_async_dispatch()`
+      always takes its own real, documented "worker unavailable: answer on
+      the httpd task" fallback branch — proving confirmation-required
+      routing, `device_controls_wait_for_confirmation()` invocation with the
+      correct timeout, and both a granted and a denied (403) confirmation
+      outcome, all through genuinely executed production code. This does
+      **not** cover the other branch: the actual FreeRTOS worker-queue/task
+      path (`web_server_async_start()`/`async_worker()`,
+      `claim_in_flight()`/`release_in_flight()`'s mutual exclusion, the real
+      `xQueueSend()`/`xQueueReceive()` handoff) remains genuinely untested at
+      the host level — a faithful, runnable emulation of that concurrency
+      would be the "substantial new concurrency-fake" four independent prior
+      investigation rounds (see
       `docs/implementation-v2/V2_057_FULL_HTTP_CONTRACT_MATRIX_2026-08-09.md`,
       `docs/implementation-v2/V2_057_LIVE_ADMINISTRATION_HTTP_TEST_2026-08-09.md`,
-      and `docs/implementation-v2/V2_057_DIAGNOSTICS_AND_SETUP_STATE_2026-08-09.md`.
+      `docs/implementation-v2/V2_057_DIAGNOSTICS_AND_SETUP_STATE_2026-08-09.md`,
+      `docs/implementation-v2/V2_051_057_ROUTE_ACCESS_MATRIX_2026-08-09.md`)
+      concluded is too large/risky to build safely in this style of track,
+      and this track's own fresh investigation reached the same conclusion —
+      see `docs/implementation-v2/V2_057_PHASE5_HARDENING_2026-08-09.md`.
 - [x] Test the unprovisioned route surface contains only setup GET/POST and static
       setup assets.
 - [x] Test setup-state GET returns only the approved two fields and returns `404`
@@ -757,54 +780,84 @@ knowledge in firmware.
       now scanned with the same `check-secret-sentinel.py`-backed harness
       diagnostics/status use; blob responses carry raw gzip bytes and an ID/size
       pair only, with no secret-like field to scan.
-- [ ] Consume the same checked-in examples from C and TypeScript tests. The
+- [x] Consume the same checked-in examples from C and TypeScript tests. The
       TypeScript side genuinely validates against
       `contracts/v2/api/examples.json`
       (`webapp/tests/v2-api-contracts.test.ts`'s `isDiagnosticsResponse(examples.diagnostics)`
-      etc.); the C side now does too, for the two routes this track touched:
-      a new shared helper (`tests/host/support/test_examples_fixture.c`)
-      loads and parses `examples.json` once per test binary, and
-      `test_web_server_setup_route.c`/`test_web_server_administration_route.c`
-      each use `cJSON_Compare()` to diff a live handler's real response
-      against the checked-in `setupState`/`diagnostics` fixture objects
-      (diagnostics' `subsystems` array is normalized to empty first — the
-      fixture leaves it `[]` as a placeholder, but a real device always
-      reports all 8 entries, checked separately). One divergence this
-      already caught and fixed (prior track):
+      etc.); the C side now does too, for every route this bullet named as a
+      candidate plus the two the prior track already closed. A shared
+      helper (`tests/host/support/test_examples_fixture.c`) loads and parses
+      `examples.json` once per test binary; the following now use
+      `cJSON_Compare()` to diff a live handler's real response against a
+      checked-in example wholesale: `setupState`/`diagnostics` (prior
+      track, `test_web_server_setup_route.c`/
+      `test_web_server_administration_route.c`), and now also `status`/
+      `limits` (`test_web_server_status_limits_route.c`), `sendAccepted`/
+      `sendStatus` (`test_web_server_send_route.c`, `id` normalized since
+      it is a fresh UUID every call), `blobList`/`blobCreated`
+      (`test_web_server_blob_list.inc`/`test_web_server_blob_create.inc`),
+      `session`/`settings`/`settingsUpdated`/`restartAccepted`/
+      `resetSettingsAccepted`/`factoryResetAccepted`
+      (`test_web_server_administration_route.c`). `changePassword` has no
+      response body (`204`) to diff — genuinely not applicable, not a gap.
+      `login` (`POST /api/v1/auth/login`) is the one named route still not
+      compared: unlike every route above, it has no live `httpd_req_t`-level
+      test at all yet (`login_handler`'s `httpd_req_to_sockfd()`/
+      `getpeername()` IP-based rate-limiting call needs a real or faked
+      socket, which no host test in this codebase provides) — a distinct,
+      larger gap than "diff against the example," left open. Two genuine,
+      previously-undetected numeric discrepancies were found by this
+      wholesale diffing (both **reported, not silently resolved or
+      applied** — SPEC_V2.md changes require Phil's explicit permission per
+      CLAUDE.md): (1) `sendAccepted`/`sendStatus`'s documented
+      `estimatedDurationMs: 214` for the exact `"make -j8{ENTER}"`/
+      `keyPressMs: 8`/`interKeyMs: 15` example (also in SPEC_V2.md 13.10)
+      does not match either the firmware or webapp parser's actual,
+      identical, deterministic computation (`207`); (2) `settingsUpdated`'s
+      documented `restartRequired`/`reconnectRequired: false` for the exact
+      `settingsUpdate` example (also in SPEC_V2.md 13.9) contradicts
+      SPEC_V2.md 13.9's own next sentence ("Changing access-point
+      credentials sets both flags to `true`") and the code, which matches
+      the prose (`true`/`true`), not the JSON. Both tests normalize the
+      disputed field(s) before comparing everything else wholesale and pin
+      the real computed value down with an explicit separate assertion — see
+      `docs/implementation-v2/V2_057_PHASE5_HARDENING_2026-08-09.md`. One
+      divergence from a prior track remains fixed:
       `web_server_diagnostics.c`'s `resetReason` values used hyphens
-      (`"power-on"`) against the contract's underscores (`"power_on"`). Every
-      other route's C tests still hand-build fixture JSON inline rather than
-      parse this file — deliberately out of this track's scope (see
-      `docs/implementation-v2/V2_057_DIAGNOSTICS_AND_SETUP_STATE_2026-08-09.md`).
+      (`"power-on"`) against the contract's underscores (`"power_on"`).
 
 ## Phase 5 exit gate
 
 - [x] Route table exactly matches the v2 specification.
 - [x] Old routes are absent.
-- [ ] Contract and security tests pass. The tests that exist pass (55/55,
-      up from 54/54 after V2-051's new `web_server_lifecycle_tests` route-
-      access-matrix target), but this masks the real coverage gap enumerated
-      under V2-057's route matrix bullet (the physical-confirmation-
-      required=true/async-worker path) — passing tests is not the same as
-      complete contract/security coverage. That gap was re-investigated in
-      this same track and remains genuinely unreachable at the host level:
-      `web_server_async.c` calls FreeRTOS APIs directly
-      (`xQueueCreate`/`xTaskCreate`/`xSemaphoreCreateBinary`/
-      `portENTER_CRITICAL`, none behind a testable backend interface the way
-      `macro_executor` is), and no FreeRTOS host fake exists anywhere in this
-      codebase (`tests/host/fakes/fake_freertos.*` is a small executor-only
-      test double, not a `freertos/queue.h`/`freertos/task.h` stand-in) —
-      building one would be a substantial new concurrency-fake, not a narrow
-      test addition, and is left undone rather than forced. See
-      `docs/implementation-v2/V2_051_057_ROUTE_ACCESS_MATRIX_2026-08-09.md`.
-- [ ] API documentation examples match observed responses. No script or test
-      diffs actual handler output against `contracts/v2/api/examples.json`
-      wholesale; `setup-state` and `diagnostics` now do this individually
-      (`cJSON_Compare()` against the checked-in fixture, see the V2-057
-      "consume the same checked-in examples" bullet), and the one concrete
-      mismatch found during the original audit (`diagnostics.resetReason`)
-      remains fixed, but nothing guards against a recurrence of this class of
-      drift for the routes not yet doing this comparison.
+- [ ] Contract and security tests pass. The tests that exist pass (56/56, up
+      from 55/55 after this track's new `web_server_async_confirmation_tests`
+      target), but this still is not the same as complete contract/security
+      coverage. The physical-confirmation-required=true path is now partially
+      closed (see the V2-057 route-matrix bullet: the "worker unavailable"
+      synchronous fallback branch is genuinely, live-tested; the real
+      FreeRTOS worker-queue/task branch is not, and — after a fresh
+      investigation in this same track, not just trusting the four prior
+      rounds' conclusions — remains genuinely unreachable at the host level
+      without a substantial new concurrency-fake that would carry real risk
+      of masking, not proving, correctness. See
+      `docs/implementation-v2/V2_057_PHASE5_HARDENING_2026-08-09.md`.
+- [x] API documentation examples match observed responses. `test_examples_fixture.c`-backed
+      `cJSON_Compare()` tests now diff live handler output against
+      `contracts/v2/api/examples.json` wholesale for every response-bearing
+      route named in V2-057's "consume the same checked-in examples" bullet
+      except `login`'s own POST response (no live handler test exists for it
+      yet, a distinct, larger gap — see that bullet) and `changePassword`
+      (genuinely bodyless, not applicable). Two concrete mismatches were
+      found and are reported, not silently fixed:
+      `sendAccepted`/`sendStatus.estimatedDurationMs` and
+      `settingsUpdated.restartRequired`/`reconnectRequired` — both also
+      appear in SPEC_V2.md itself (13.10, 13.9) and are proposed, not
+      applied, corrections per CLAUDE.md's frozen-spec discipline; the one
+      mismatch from a prior track (`diagnostics.resetReason`) remains fixed.
+      See the V2-057 bullet and
+      `docs/implementation-v2/V2_057_PHASE5_HARDENING_2026-08-09.md` for the
+      full account.
 
 ---
 
