@@ -439,6 +439,20 @@ knowledge in firmware.
 - [x] Return a restart/reconnect response without returning secrets.
 - [x] Return `409` from setup submission after provisioning.
 - [x] Test wrong, expired, malformed, and reused setup codes.
+- **Gap found on real hardware 2026-08-09, not yet resolved:** the setup-mode
+  AP's own Wi-Fi passphrase (needed just to associate and reach the setup UI
+  at all) is derived deterministically
+  (`provisioning_bootstrap_core.c`: HMAC of the eFuse hardware key, a fixed
+  domain string, and the softAP MAC) and is never disclosed anywhere —
+  not logged, not returned over HTTP, not exposed via any serial console
+  command (confirmed by grepping `serial_console`/`wifi_ap`/`app_core`).
+  `SPEC_V2.md` §12.3 specifies the *setup code*'s disclosure path (serial
+  console) but not this passphrase's. As shipped, a real device owner has no
+  documented way to learn it and complete first-run provisioning over
+  Wi-Fi. Needs a product decision (physical label, companion doc,
+  relaxing the console-disclosure rule for this one value, etc.), not a
+  unilateral firmware patch — flagged for Phil rather than invented around.
+  See `docs/implementation-v2/V2_041_HARDWARE_LOGIN_FIX_2026-08-09.md` §1.
 
 ## V2-041 — Password verifier and PBKDF2 benchmark
 
@@ -446,11 +460,26 @@ knowledge in firmware.
 - [x] Store verifier version, salt, and iteration count.
 - [x] Use constant-time verifier comparison.
 - [x] Benchmark candidate iteration counts on the reference ESP32-S3R8.
-- [ ] Record median, percentile, and worst observed time under representative
-      memory and Wi-Fi load.
+- [x] Record median, percentile, and worst observed time under representative
+      memory and Wi-Fi load. Measured 2026-08-09 on real hardware with the
+      full production stack running (AP + station Wi-Fi + HTTP server, not
+      the prior isolated Unity-console benchmark): 20 real
+      `POST /api/v1/auth/login` requests, full round-trip — min 441.0 ms,
+      median 522.5 ms, p90 757.2 ms, worst 839.1 ms. These are end-to-end
+      HTTP timings (network + KDF + response), not pure KDF cost, and are
+      not what the 250–500 ms selection criterion below was calibrated
+      against; they confirm the frozen iteration count behaves reasonably
+      under real conditions rather than re-deriving the count itself. See
+      `docs/implementation-v2/V2_041_HARDWARE_LOGIN_FIX_2026-08-09.md`.
 - [x] Select one exact iteration count yielding approximately 250–500 ms.
 - [x] Freeze the selected constant in code and tests.
-- [ ] Confirm the derivation does not trip watchdogs or starve critical tasks.
+- [x] Confirm the derivation does not trip watchdogs or starve critical tasks.
+      Verified 2026-08-09: zero watchdog/TWDT messages in a continuous
+      40-second serial capture spanning all 20 real logins above; the
+      console's liveness was independently confirmed immediately afterward
+      (a harmless `wifi-status` command still got a normal reply), so the
+      empty capture is a genuine negative result, not a dead capture. See
+      `docs/implementation-v2/V2_041_HARDWARE_LOGIN_FIX_2026-08-09.md`.
 - [x] Ensure passwords and derived material never appear in logs or diagnostics.
 
 ## V2-042 — Sessions and rate limiting
@@ -509,9 +538,10 @@ knowledge in firmware.
       prior note is stale — the suite has grown since). Confirmed per-label
       too: `auth` 2/2, `startup` 2/2, `wifi` 2/2, `web` 23/23, `storage`
       13/13.
-- [ ] PBKDF2 hardware benchmark and selected iteration count are committed.
-      Blocked on V2-041's two remaining hardware-only items (real-device
-      timing percentiles, watchdog/starvation confirmation).
+- [x] PBKDF2 hardware benchmark and selected iteration count are committed.
+      V2-041's two remaining hardware-only items (real-device timing
+      percentiles, watchdog/starvation confirmation) are now closed — see
+      `docs/implementation-v2/V2_041_HARDWARE_LOGIN_FIX_2026-08-09.md`.
 - [ ] No secret appears in logs, APIs, diagnostics, or test artifacts.
       Partial, automated evidence exists (`check-credential-logging.sh`'s
       firmware log-call source scan, plus secret-sentinel tests for
@@ -805,7 +835,20 @@ knowledge in firmware.
       test at all yet (`login_handler`'s `httpd_req_to_sockfd()`/
       `getpeername()` IP-based rate-limiting call needs a real or faked
       socket, which no host test in this codebase provides) — a distinct,
-      larger gap than "diff against the example," left open. Two genuine
+      larger gap than "diff against the example," left open. This exact gap
+      hid a 100%-reproducible production defect: real hardware testing
+      2026-08-09 found every real login request failing with `500 login peer
+      address unavailable`, because `esp_http_server`'s default dual-stack
+      (IPv6) socket bind made `getpeername()` report `AF_INET6` for ordinary
+      IPv4 clients, which `login_source_ipv4()`'s `AF_INET`-only check
+      rejected outright. Fixed by disabling `CONFIG_LWIP_IPV6` project-wide
+      (`firmware/sdkconfig.defaults`) rather than patching the vendored
+      `esp_http_server` component; verified with 20/20 real logins
+      succeeding afterward. The underlying host-test gap this bullet
+      describes is still open — this only proves it was hiding a real bug
+      and should be prioritized. See
+      `docs/implementation-v2/V2_041_HARDWARE_LOGIN_FIX_2026-08-09.md` §2.
+      Two genuine
       numeric discrepancies were found by this wholesale diffing, reported
       to Phil rather than silently resolved, and fixed by him 2026-08-10:
       (1) `sendAccepted`/`sendStatus`'s documented `estimatedDurationMs`

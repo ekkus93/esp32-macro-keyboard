@@ -15,6 +15,19 @@ CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK=y
 CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
 CONFIG_HTTPD_MAX_URI_LEN=256
 
+# Disable IPv6 project-wide. This device is a single-AP appliance with no
+# IPv6 use anywhere in its design. Found on real hardware 2026-08-10: with
+# IPv6 enabled (the ESP-IDF default), esp_http_server's httpd_server_init()
+# (esp_http_server/src/httpd_main.c) binds a dual-stack AF_INET6 socket, so
+# every real client's getpeername() reports ss_family=AF_INET6 (IPv4-mapped),
+# not AF_INET. login_source_ipv4() (web_server_login.c) only accepts
+# AF_INET, so every single login attempt failed with 500 on physical
+# hardware - a bug host tests never exercise, since the host httpd fake
+# doesn't model this dual-stack socket behavior. Disabling LWIP_IPV6 makes
+# esp_http_server bind a plain AF_INET socket instead, matching what the
+# code already expects.
+CONFIG_LWIP_IPV6=n
+
 # NOTE: do NOT set CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y here. On the
 # ESP32-S3 the USB-Serial-JTAG peripheral and the USB-OTG controller share
 # one internal PHY/pin pair, so routing the console there prevents TinyUSB
