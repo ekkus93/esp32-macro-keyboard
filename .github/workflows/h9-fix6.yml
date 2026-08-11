@@ -38,6 +38,7 @@ jobs:
           python3 scripts/tmp_h9_patch4_repair.py
           python3 scripts/tmp_h9_patch4.py
           python3 scripts/tmp_h9_patch5.py
+          python3 scripts/tmp_h9_patch6.py
           clang-format -i \
             firmware/components/app_core/app_core.c \
             firmware/components/app_core/app_core_sequence.c \
@@ -46,6 +47,7 @@ jobs:
             firmware/components/web_server/web_send.h \
             firmware/components/web_server/web_send.c \
             firmware/components/web_server/web_server_send.c \
+            tests/host/test_app_core.c \
             tests/host/test_web_server_adapter_stream_lifecycle.inc \
             tests/host/test_web_send.c \
             tests/host/test_web_server_send_route.c \
@@ -101,6 +103,7 @@ jobs:
             firmware/components/web_server/web_send.c \
             firmware/components/web_server/web_server_send.c \
             tests/host/CMakeLists.txt \
+            tests/host/test_app_core.c \
             tests/host/test_web_server_adapter_stream_lifecycle.inc \
             tests/host/test_web_send.c \
             tests/host/test_web_server_send_route.c \
