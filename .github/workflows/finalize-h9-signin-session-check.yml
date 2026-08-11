@@ -58,20 +58,17 @@ jobs:
           if end < 0:
               end = len(text)
           section = text[start:end]
-          marker = """    planFetch((call) => {
-              expect(call.url).toBe("/api/v1/status");"""
-          replacement = """    // signIn() returns as soon as the authenticated shell is visible.
+          marker = "    planFetch((call) => {"
+          marker_index = section.find(marker)
+          if marker_index < 0:
+              raise SystemExit("session-expiry fetch plan not found")
+          insertion = """    // signIn() returns as soon as the authenticated shell is visible.
             // Let the already-started initial status request finish so its next
             // five-second poll is scheduled before advancing the fake clock.
             await tick(0);
 
-            planFetch((call) => {
-              expect(call.url).toBe("/api/v1/status");"""
-          if section.count(marker) != 1:
-              raise SystemExit(
-                  f"expected one session-expiry status plan, found {section.count(marker)}"
-              )
-          section = section.replace(marker, replacement, 1)
+          """
+          section = section[:marker_index] + insertion + section[marker_index:]
           path.write_text(text[:start] + section + text[end:])
           PY
 
