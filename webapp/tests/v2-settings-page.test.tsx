@@ -176,6 +176,64 @@ describe("SettingsPage (TODO_V2 V2-120)", () => {
     expect(store.getIsDirty()).toBe(false);
   });
 
+  test("access-point update preserves unsaved identity edits when settings refresh", async () => {
+    const refreshedSettings = settings({ apSsid: "NewNetwork" });
+    const updateSettings = vi.fn().mockResolvedValue({
+      settings: refreshedSettings,
+      restartRequired: false,
+      reconnectRequired: false,
+    });
+    const store = createRepositoryWorkingCopyStore(repository());
+    const deps = makeDependencies({ updateSettings });
+    const onSettingsChanged = vi.fn();
+    const onSaveSnapshot = vi.fn().mockResolvedValue(undefined);
+    const onOpenDiagnostics = vi.fn();
+    const onDeviceActionStarted = vi.fn();
+    const page = (currentSettings: SettingsResponse) => (
+      <SettingsPage
+        dependencies={deps}
+        onDeviceActionStarted={onDeviceActionStarted}
+        onOpenDiagnostics={onOpenDiagnostics}
+        onSaveSnapshot={onSaveSnapshot}
+        onSettingsChanged={onSettingsChanged}
+        saveError={null}
+        saving={false}
+        settings={currentSettings}
+        store={store}
+      />
+    );
+
+    const view = await render(page(settings()));
+    await setInputValue(
+      requiredElement("#settings-device-name", HTMLInputElement),
+      "Unsaved identity name",
+    );
+    await setInputValue(
+      requiredElement("#settings-ap-ssid", HTMLInputElement),
+      "NewNetwork",
+    );
+    await setInputValue(
+      requiredElement("#settings-ap-passphrase", HTMLInputElement),
+      "new-passphrase",
+    );
+    await click(buttonWithText("Update access point"));
+    await flushReact();
+
+    expect(updateSettings).toHaveBeenCalledWith({
+      accessPoint: { ssid: "NewNetwork", passphrase: "new-passphrase" },
+    });
+    expect(onSettingsChanged).toHaveBeenCalledWith(refreshedSettings);
+
+    // AppV2 applies onSettingsChanged by replacing the SettingsPage settings
+    // prop. Reproduce that parent rerender: the sibling AP change must not
+    // overwrite an unsaved Identity-form edit.
+    await view.rerender(page(refreshedSettings));
+    expect(
+      requiredElement("#settings-device-name", HTMLInputElement).value,
+    ).toBe("Unsaved identity name");
+    await view.unmount();
+  });
+
   test("access-point update requires both fields and shows a restart notice when the server reports one is required", async () => {
     const updateSettings = vi.fn().mockResolvedValue({
       settings: settings({ apSsid: "NewNetwork" }),

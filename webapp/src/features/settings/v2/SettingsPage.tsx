@@ -144,7 +144,13 @@ function IdentityForm({
     setSendMode(settings.sendMode);
     setSnapshotRetentionTarget(String(settings.snapshotRetentionTarget));
     setShowMacroSourcePreviews(settings.showMacroSourcePreviews);
-  }, [settings]);
+  }, [
+    settings.deviceName,
+    settings.requireSerialConfirmation,
+    settings.sendMode,
+    settings.snapshotRetentionTarget,
+    settings.showMacroSourcePreviews,
+  ]);
 
   const retentionTargetNumber = Number(snapshotRetentionTarget);
   const request: SettingsUpdateRequest = {
