@@ -1,0 +1,73 @@
+name: H9 Mechanical Audit
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/h9-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Mechanical H9 audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          roots = [Path("firmware/components"), Path("firmware/main"), Path("webapp/src")]
+          production = []
+          for root in roots:
+              for p in root.rglob("*"):
+                  if p.is_file() and p.suffix in {".c", ".h", ".ts", ".tsx", ".js", ".jsx"}:
+                      production.append(p)
+
+          def emit(title, predicate):
+              print(f"\n===== {title} =====")
+              count = 0
+              for p in sorted(production):
+                  for n, line in enumerate(p.read_text(errors="replace").splitlines(), 1):
+                      if predicate(line):
+                          print(f"{p}:{n}:{line.strip()}")
+                          count += 1
+              print(f"COUNT={count}")
+
+          emit("EMPTY_CATCH", lambda s: bool(re.search(r"catch\s*(?:\([^)]*\))?\s*\{\s*\}", s)))
+          emit("PROMISE_EMPTY_CATCH", lambda s: bool(re.search(r"\.catch\s*\(\s*\(.*?\)\s*=>\s*\{\s*\}\s*\)", s)))
+          emit("VOID_DISCARD", lambda s: "(void)" in s)
+          emit("BEST_EFFORT", lambda s: "best-effort" in s.lower() or "best effort" in s.lower())
+          emit("FALLBACK", lambda s: "fallback" in s.lower())
+          emit("STALE_RETRY", lambda s: any(x in s.lower() for x in ("stale", "consecutive failure", "retry", "poll failure", "polling")))
+          emit("CLEANUP_REPLACEMENT", lambda s: "cleanup" in s.lower() and any(x in s.lower() for x in ("error", "result", "primary", "replace", "overwrite")))
+          emit("SECRET_RELATED_LOG_OR_RESPONSE", lambda s: (
+              any(x in s for x in ("ESP_LOG", "printf(", "fprintf(", "console.", "httpd_resp", "send_error", "send_json"))
+              and any(x in s.lower() for x in ("password", "passphrase", "setup_code", "setup code", "session", "token", "salt", "verifier"))
+          ))
+          emit("SECRET_IDENTIFIERS", lambda s: any(x in s.lower() for x in ("admin_password", "adminpassword", "ap_passphrase", "appassphrase", "setup_code", "setupcode", "session_token", "sessiontoken", "password_salt", "password_verifier", "verifier")))
+
+          print("\n===== ARCHITECTURE_GUARDS =====")
+          for root in [Path("scripts"), Path("tests"), Path("webapp/tests")]:
+              if not root.exists():
+                  continue
+              for p in sorted(root.rglob("*")):
+                  if not p.is_file() or p.suffix not in {".sh", ".py", ".c", ".h", ".ts", ".tsx", ".mjs"}:
+                      continue
+                  text = p.read_text(errors="replace").lower()
+                  if any(term in text for term in (
+                      "browser-storage prohibition", "localstorage", "repository ownership",
+                      "firmware repository", "synchronous confirmation", "requireSerialConfirmation".lower(),
+                      "no-secret", "no secret", "secret"
+                  )):
+                      print(p)
+          PY
