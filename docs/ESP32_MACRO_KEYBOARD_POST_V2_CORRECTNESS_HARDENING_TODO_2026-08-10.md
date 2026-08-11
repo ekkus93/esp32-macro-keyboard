@@ -522,42 +522,46 @@ Search and classify at least:
 
 Update every selection-changing call site:
 
-- [ ] startup package chooser,
-- [ ] first-package flow,
-- [ ] package management Open,
-- [ ] selected-package deletion resolution,
-- [ ] snapshot load/import package resolution.
+- [x] startup package chooser,
+- [x] first-package flow,
+- [x] package management Open,
+- [x] selected-package deletion resolution,
+- [x] snapshot load/import package resolution.
 
 Required behavior:
 
-- [ ] local package may still open,
-- [ ] repository dirty state remains unchanged by selection,
-- [ ] persistence failure is visible,
-- [ ] warning explains selection may not survive reload,
-- [ ] Retry is available where practical,
-- [ ] warning clears after successful persistence.
+- [x] local package may still open,
+- [x] repository dirty state remains unchanged by selection,
+- [x] persistence failure is visible,
+- [x] warning explains selection may not survive reload,
+- [x] Retry is available where practical,
+- [x] warning clears after successful persistence.
+- Evidence: existing implementation `1445ae6f35502ece15824a04805d050e7d7baa4f` provides explicit persistence outcomes, visible common warning, local continuation, and Retry. Reconciliation commit `4c2eab2d2c06609c4862fb4da82c8359de7f9045` fixes snapshot load/import to resolve from the last successfully persisted package ID rather than transient local selection, preventing false warning clearance without a successful settings write. Full evidence: `docs/implementation-v2/H8_FRONTEND_PERSISTENCE_EXPORT_VISIBILITY_2026-08-11.md`.
 
 ### H8-081 — Snapshot export error handling
 
-- [ ] Catch export/compression/file-save errors.
-- [ ] Show `ErrorBanner` or the common equivalent.
-- [ ] Always clear busy state.
-- [ ] Do not modify repository, dirty flag, selected package, or loaded snapshot association on failure.
-- [ ] Avoid unhandled rejected promises from event handlers.
+- [x] Catch export/compression/file-save errors.
+- [x] Show `ErrorBanner` or the common equivalent.
+- [x] Always clear busy state.
+- [x] Do not modify repository, dirty flag, selected package, or loaded snapshot association on failure.
+- [x] Avoid unhandled rejected promises from event handlers.
+- Evidence: `SnapshotsPage.exportWorkingCopy()` contains export/compression and file-save failure inside `try/catch/finally`, publishes the common `ErrorBanner`, and always clears busy. Permanent regressions prove dirty/clean state, repository identity, selection, and loaded-snapshot association are unchanged by export failure. Full evidence: `docs/implementation-v2/H8_FRONTEND_PERSISTENCE_EXPORT_VISIBILITY_2026-08-11.md`.
 
 ### H8-082 — Frontend tests
 
-- [ ] package selection persists successfully -> no warning,
-- [ ] persistence fails -> local open + warning + non-dirty state,
-- [ ] retry succeeds -> warning clears,
-- [ ] export compression fails -> visible error,
-- [ ] save-as-file fails -> visible error,
-- [ ] state remains unchanged after export failure.
+- [x] package selection persists successfully -> no warning,
+- [x] persistence fails -> local open + warning + non-dirty state,
+- [x] retry succeeds -> warning clears,
+- [x] export compression fails -> visible error,
+- [x] save-as-file fails -> visible error,
+- [x] state remains unchanged after export failure.
+- Evidence: targeted Node 24.18.0 workflow `31542963700`, job `93949257708`, passed format, typecheck, ESLint, stylelint, **46/46 Vitest files and 517/517 tests**, coverage (**87.43% statements / 83.35% branches / 91.43% functions / 87.51% lines**), production build, and `git diff --check`. H8 snapshot page itself passed 41 tests. Full matrix: `docs/implementation-v2/H8_FRONTEND_PERSISTENCE_EXPORT_VISIBILITY_2026-08-11.md`.
 
 ### Phase H8 exit gate
 
-- [ ] No reviewed frontend persistence/export failure is intentionally invisible.
-- [ ] Noncritical local continuation remains possible without falsely implying persistence succeeded.
+- [x] No reviewed frontend persistence/export failure is intentionally invisible.
+- [x] Noncritical local continuation remains possible without falsely implying persistence succeeded.
+- Evidence: complete H8 call-site/export audit plus the durable-vs-local snapshot-selection correction and permanent regressions above. The later H10 real-Chrome/final-candidate gate remains separate and is not claimed here.
 
 ---
 
