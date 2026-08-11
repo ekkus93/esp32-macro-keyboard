@@ -21,17 +21,18 @@ import {
   loadSnapshotIntoWorkingCopy,
 } from "../../../v2/snapshotClient";
 import type { LoadSnapshotResult } from "../../../v2/snapshotClient";
-import { resolvePackageDestination, runStartup } from "../../../v2/startup";
+import {
+  recoverSendForStartup,
+  resolvePackageDestination,
+  runStartup,
+} from "../../../v2/startup";
 import type {
+  SendRecoveryState,
   StartupDependencies,
   StartupLoadStage,
   StartupResult,
 } from "../../../v2/startup";
-import type {
-  BlobSummary,
-  SendStatusResponse,
-  SettingsResponse,
-} from "../../../v2/apiTypes";
+import type { BlobSummary, SettingsResponse } from "../../../v2/apiTypes";
 
 /**
  * V2-082/V2-083/V2-084 — the authenticated repository startup state
@@ -44,7 +45,7 @@ import type {
 export interface RepositoryStartupReady {
   store: RepositoryWorkingCopyStore;
   packageId: string;
-  send: SendStatusResponse | null;
+  sendRecovery: SendRecoveryState;
   /**
    * The blob ID the working copy currently reflects, or `null` when no
    * stored blob corresponds to it (a brand-new local repository/package
@@ -92,13 +93,13 @@ type Phase =
       kind: "first-package";
       origin: "no-blobs" | "empty-repository";
       settings: SettingsResponse;
-      send: SendStatusResponse | null;
+      sendRecovery: SendRecoveryState;
     }
   | {
       kind: "package-chooser";
       store: RepositoryWorkingCopyStore;
       settings: SettingsResponse;
-      send: SendStatusResponse | null;
+      sendRecovery: SendRecoveryState;
       blobId: string;
     }
   | {
@@ -145,7 +146,7 @@ function RetryScreen({
 interface FirstPackageFormProps {
   origin: "no-blobs" | "empty-repository";
   settings: SettingsResponse;
-  send: SendStatusResponse | null;
+  sendRecovery: SendRecoveryState;
   onReady: (ready: RepositoryStartupReady) => void;
 }
 
@@ -160,7 +161,7 @@ interface FirstPackageFormProps {
 function FirstPackageForm({
   origin,
   settings,
-  send,
+  sendRecovery,
   onReady,
 }: FirstPackageFormProps): React.JSX.Element {
   const [name, setName] = useState("");
@@ -195,7 +196,7 @@ function FirstPackageForm({
     onReady({
       store,
       packageId: packageIdRef.current,
-      send,
+      sendRecovery,
       loadedBlobId: null,
       ...(persistence.kind === "failed"
         ? { selectionPersistenceFailure: persistence.failure }
@@ -256,7 +257,7 @@ function FirstPackageForm({
 interface PackageChooserViewProps {
   store: RepositoryWorkingCopyStore;
   settings: SettingsResponse;
-  send: SendStatusResponse | null;
+  sendRecovery: SendRecoveryState;
   loadedBlobId: string;
   onReady: (ready: RepositoryStartupReady) => void;
 }
@@ -270,7 +271,7 @@ interface PackageChooserViewProps {
 function PackageChooserView({
   store,
   settings,
-  send,
+  sendRecovery,
   loadedBlobId,
   onReady,
 }: PackageChooserViewProps): React.JSX.Element {
@@ -286,7 +287,7 @@ function PackageChooserView({
     onReady({
       store,
       packageId,
-      send,
+      sendRecovery,
       loadedBlobId,
       ...(persistence.kind === "failed"
         ? { selectionPersistenceFailure: persistence.failure }
@@ -333,13 +334,13 @@ type RecoveryResolution =
   | {
       kind: "first-package";
       settings: SettingsResponse;
-      send: SendStatusResponse | null;
+      sendRecovery: SendRecoveryState;
     }
   | {
       kind: "package-chooser";
       store: RepositoryWorkingCopyStore;
       settings: SettingsResponse;
-      send: SendStatusResponse | null;
+      sendRecovery: SendRecoveryState;
       blobId: string;
     };
 
@@ -384,7 +385,7 @@ function SnapshotRecoveryView({
       <FirstPackageForm
         onReady={onReady}
         origin="empty-repository"
-        send={resolution.send}
+        sendRecovery={resolution.sendRecovery}
         settings={resolution.settings}
       />
     );
@@ -394,7 +395,7 @@ function SnapshotRecoveryView({
       <PackageChooserView
         loadedBlobId={resolution.blobId}
         onReady={onReady}
-        send={resolution.send}
+        sendRecovery={resolution.sendRecovery}
         settings={resolution.settings}
         store={resolution.store}
       />
@@ -420,19 +421,14 @@ function SnapshotRecoveryView({
       return;
     }
 
-    let send: SendStatusResponse | null = null;
-    try {
-      send = await deps.recoverSendState();
-    } catch {
-      send = null;
-    }
+    const sendRecovery = await recoverSendForStartup(deps);
 
     const destination = resolvePackageDestination(
       loaded.repository,
       settings.lastSelectedPackageId,
     );
     if (destination.kind === "first-package") {
-      setResolution({ kind: "first-package", settings, send });
+      setResolution({ kind: "first-package", settings, sendRecovery });
       return;
     }
     if (destination.kind === "package-chooser") {
@@ -440,7 +436,7 @@ function SnapshotRecoveryView({
         kind: "package-chooser",
         store,
         settings,
-        send,
+        sendRecovery,
         blobId: blob.id,
       });
       return;
@@ -454,7 +450,7 @@ function SnapshotRecoveryView({
     onReady({
       store,
       packageId: destination.packageId,
-      send,
+      sendRecovery,
       loadedBlobId: blob.id,
       ...(persistence.kind === "failed"
         ? { selectionPersistenceFailure: persistence.failure }
@@ -532,7 +528,7 @@ export function RepositoryStartupScreen({
             kind: "first-package",
             origin: "empty-repository",
             settings: result.settings,
-            send: result.send,
+            sendRecovery: result.sendRecovery,
           });
         }
         return;
@@ -543,7 +539,7 @@ export function RepositoryStartupScreen({
             kind: "package-chooser",
             store: result.store,
             settings: result.settings,
-            send: result.send,
+            sendRecovery: result.sendRecovery,
             blobId: result.blobId,
           });
         }
@@ -559,7 +555,7 @@ export function RepositoryStartupScreen({
         onReadyRef.current({
           store: result.store,
           packageId: result.destination.packageId,
-          send: result.send,
+          sendRecovery: result.sendRecovery,
           loadedBlobId: result.blobId,
           ...(persistence.kind === "failed"
             ? { selectionPersistenceFailure: persistence.failure }
@@ -599,7 +595,7 @@ export function RepositoryStartupScreen({
             kind: "first-package",
             origin: "no-blobs",
             settings: result.settings,
-            send: null,
+            sendRecovery: result.sendRecovery,
           });
           return;
         case "invalid-newest-snapshot":
@@ -672,7 +668,7 @@ export function RepositoryStartupScreen({
         <FirstPackageForm
           onReady={onReady}
           origin={phase.origin}
-          send={phase.send}
+          sendRecovery={phase.sendRecovery}
           settings={phase.settings}
         />
       );
@@ -681,7 +677,7 @@ export function RepositoryStartupScreen({
         <PackageChooserView
           loadedBlobId={phase.blobId}
           onReady={onReady}
-          send={phase.send}
+          sendRecovery={phase.sendRecovery}
           settings={phase.settings}
           store={phase.store}
         />

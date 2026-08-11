@@ -86,6 +86,28 @@ export interface StartupDependencies {
   recoverSendState: () => Promise<SendStatusResponse | null>;
 }
 
+export type SendRecoveryState =
+  | { kind: "none" }
+  | { kind: "known"; send: SendStatusResponse }
+  | { kind: "unavailable"; message: string };
+
+export async function recoverSendForStartup(
+  deps: Pick<StartupDependencies, "recoverSendState">,
+): Promise<SendRecoveryState> {
+  try {
+    const send = await deps.recoverSendState();
+    return send === null ? { kind: "none" } : { kind: "known", send };
+  } catch (error: unknown) {
+    return {
+      kind: "unavailable",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Execution state is unavailable.",
+    };
+  }
+}
+
 export type StartupLoadStage = "settings" | "blobs" | "newest-blob";
 
 export type StartupResult =
@@ -93,7 +115,11 @@ export type StartupResult =
   | { kind: "device-unreachable"; stage: StartupLoadStage; message: string }
   | { kind: "invalid-settings"; message: string }
   | { kind: "load-failed"; stage: StartupLoadStage; message: string }
-  | { kind: "first-repository"; settings: SettingsResponse }
+  | {
+      kind: "first-repository";
+      settings: SettingsResponse;
+      sendRecovery: SendRecoveryState;
+    }
   | {
       kind: "invalid-newest-snapshot";
       blobId: string;
@@ -107,7 +133,7 @@ export type StartupResult =
       kind: "ready";
       store: RepositoryWorkingCopyStore;
       settings: SettingsResponse;
-      send: SendStatusResponse | null;
+      sendRecovery: SendRecoveryState;
       destination: StartupPackageDestination;
       /**
        * The blob ID the working copy was just loaded from (TODO_V2 V2-111
@@ -179,13 +205,21 @@ export async function runStartup(
   }
 
   if (listed.blobs.length === 0) {
-    return { kind: "first-repository", settings };
+    return {
+      kind: "first-repository",
+      settings,
+      sendRecovery: await recoverSendForStartup(deps),
+    };
   }
 
   // §10.2: the blob list is sorted by numeric ID, newest first.
   const newest = listed.blobs[0];
   if (newest === undefined) {
-    return { kind: "first-repository", settings };
+    return {
+      kind: "first-repository",
+      settings,
+      sendRecovery: await recoverSendForStartup(deps),
+    };
   }
 
   const store = createRepositoryWorkingCopyStore(createEmptyRepository());
@@ -219,21 +253,13 @@ export async function runStartup(
     };
   }
 
-  // Best-effort: a failure recovering send status must not block reaching
-  // the resolved package's Macros page (UI_UX_SPEC_V2 §3.4 step 8 is
-  // supplementary to the destination decision made from steps 1-7/9).
-  let send: SendStatusResponse | null = null;
-  try {
-    send = await deps.recoverSendState();
-  } catch {
-    send = null;
-  }
+  const sendRecovery = await recoverSendForStartup(deps);
 
   return {
     kind: "ready",
     store,
     settings,
-    send,
+    sendRecovery,
     destination: resolvePackageDestination(
       loaded.repository,
       settings.lastSelectedPackageId,

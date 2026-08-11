@@ -1,8 +1,9 @@
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import AppV2 from "../src/AppV2";
+import AppV2, { AuthenticatedShell } from "../src/AppV2";
 import { landscapePhoneMediaQuery } from "../src/features/shell/v2/useLandscapePhoneBlock";
 import { v2Limits } from "../src/v2/limits";
+import { createRepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";
 import type { FetchCall } from "./fakeFetch";
 import {
   getFetchCalls,
@@ -179,6 +180,14 @@ async function signIn(options: SignInOptions = {}): Promise<RenderResult> {
     expect(call.method).toBe("GET");
     return jsonResponse({ blobs: [], usedBytes: 0, remainingBytes: 100 });
   });
+  planFetch((call) => {
+    expect(call.url).toBe("/api/v1/send");
+    expect(call.method).toBe("GET");
+    return jsonResponse(
+      { error: { code: "not_found", message: "No send exists." } },
+      404,
+    );
+  });
   await setInputValue(
     requiredElement("#admin-password", HTMLInputElement),
     "correct horse battery staple",
@@ -229,6 +238,59 @@ afterEach(() => {
 });
 
 describe("AppV2 — wiring RepositoryStartupScreen into the running app shell", () => {
+  test("execution recovery failure stays visible and Retry resolves it without discarding the working copy", async () => {
+    const packageId = "4a929c71-d7cc-40ef-982e-68cb00676bde";
+    const store = createRepositoryWorkingCopyStore({
+      format: "esp32-macro-keyboard-repository",
+      schemaVersion: 1,
+      packages: [{ id: packageId, name: "Recovery Package", macros: [] }],
+    });
+    planRace(
+      {
+        "/api/v1/settings": () => jsonResponse(settingsBody),
+        "/api/v1/status": () => jsonResponse(statusBody),
+      },
+      2,
+    );
+    const view = await render(
+      <AuthenticatedShell
+        ready={{
+          store,
+          packageId,
+          sendRecovery: {
+            kind: "unavailable",
+            message: "send recovery network failure",
+          },
+          loadedBlobId: "7",
+        }}
+      />,
+    );
+    await waitUntil(
+      () => bodyIncludes("Execution state unavailable."),
+      "execution state warning",
+    );
+    expect(document.body.textContent).toContain("Recovery Package");
+    expect(document.body.textContent).toContain(
+      "An active send may still be running on the device.",
+    );
+
+    planFetch((call) => {
+      expect(call.url).toBe("/api/v1/send");
+      expect(call.method).toBe("GET");
+      return jsonResponse(
+        { error: { code: "not_found", message: "No send exists." } },
+        404,
+      );
+    });
+    await click(buttonWithText("Retry execution status"));
+    await waitUntil(
+      () => !bodyIncludes("Execution state unavailable."),
+      "execution state warning to clear",
+    );
+    expect(document.body.textContent).toContain("Recovery Package");
+    await view.unmount();
+  });
+
   test("unprovisioned device opens First-run setup", async () => {
     // AppV2's own provisioning probe, then FirstRunSetupPage's independent
     // load of the same unauthenticated state (device name/setup-code entry).

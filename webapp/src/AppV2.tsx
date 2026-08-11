@@ -28,7 +28,9 @@ import {
   tryPersistSelectedPackageId,
   type PackageSelectionPersistenceFailure,
 } from "./v2/packageSelection";
+import { recoverSendState } from "./v2/sendClient";
 import { saveWorkingCopyAsSnapshot } from "./v2/snapshotClient";
+import type { SendRecoveryState } from "./v2/startup";
 import { getStatus } from "./v2/statusClient";
 import {
   macroEditorTargetFromHash,
@@ -65,7 +67,7 @@ interface AuthenticatedShellProps {
   ready: RepositoryStartupReady;
 }
 
-function AuthenticatedShell({
+export function AuthenticatedShell({
   ready,
 }: AuthenticatedShellProps): React.JSX.Element {
   const { store } = ready;
@@ -169,9 +171,31 @@ function AuthenticatedShell({
     };
   }, []);
 
-  const [sendHandoff, setSendHandoff] = useState<SendStatusResponse | null>(
-    ready.send,
+  const [sendRecovery, setSendRecovery] = useState<SendRecoveryState>(
+    ready.sendRecovery,
   );
+  const [sendRecoveryRetrying, setSendRecoveryRetrying] = useState(false);
+  const [sendHandoff, setSendHandoff] = useState<SendStatusResponse | null>(
+    ready.sendRecovery.kind === "known" ? ready.sendRecovery.send : null,
+  );
+
+  const retrySendRecovery = async (): Promise<void> => {
+    setSendRecoveryRetrying(true);
+    try {
+      const recovered = await recoverSendState();
+      if (recovered === null) {
+        setSendRecovery({ kind: "none" });
+        setSendHandoff(null);
+      } else {
+        setSendRecovery({ kind: "known", send: recovered });
+        setSendHandoff(recovered);
+      }
+    } catch (error: unknown) {
+      setSendRecovery({ kind: "unavailable", message: v2ErrorText(error) });
+    } finally {
+      setSendRecoveryRetrying(false);
+    }
+  };
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -430,6 +454,24 @@ function AuthenticatedShell({
           saving={saving}
           usbState={usbState}
         >
+          {sendRecovery.kind === "unavailable" ? (
+            <div className="form-stack">
+              <ErrorBanner
+                message={`Execution state unavailable. ${sendRecovery.message} An active send may still be running on the device.`}
+              />
+              <button
+                disabled={sendRecoveryRetrying}
+                onClick={() => {
+                  void retrySendRecovery();
+                }}
+                type="button"
+              >
+                {sendRecoveryRetrying
+                  ? "Retrying execution status…"
+                  : "Retry execution status"}
+              </button>
+            </div>
+          ) : null}
           {selectionPersistenceFailure !== null ? (
             <div className="form-stack">
               <ErrorBanner

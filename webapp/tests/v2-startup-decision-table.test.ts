@@ -184,6 +184,7 @@ describe("runStartup decision table", () => {
     expect(result).toEqual({
       kind: "first-repository",
       settings: baseSettings,
+      sendRecovery: { kind: "none" },
     });
   });
 
@@ -340,7 +341,7 @@ describe("runStartup decision table", () => {
       packageId: canonicalPackageId,
       shouldPersist: true,
     });
-    expect(result.send).toEqual(sendStatus);
+    expect(result.sendRecovery).toEqual({ kind: "known", send: sendStatus });
     expect(result.store.getRepository()).toEqual(canonical);
     expect(result.store.getIsDirty()).toBe(false);
   });
@@ -433,7 +434,10 @@ describe("runStartup decision table", () => {
         recoverSendState: () => Promise.reject(new Error("send poll failed")),
       }),
     );
-    expect(result).toMatchObject({ kind: "ready", send: null });
+    expect(result).toMatchObject({
+      kind: "ready",
+      sendRecovery: { kind: "unavailable", message: "send poll failed" },
+    });
   });
 
   test("loadBlobIntoStore replaces the returned store, not some other instance", async () => {

@@ -175,7 +175,7 @@ describe("v2 RepositoryStartupScreen", () => {
     const existing: RepositoryStartupReady = {
       store,
       packageId: canonicalPackageId,
-      send: null,
+      sendRecovery: { kind: "none" },
       loadedBlobId: "1",
     };
     const onReady = vi.fn<(ready: RepositoryStartupReady) => void>();
@@ -244,6 +244,7 @@ describe("v2 RepositoryStartupScreen", () => {
 
     planSettingsGet();
     planBlobList([]);
+    planNoSend();
     await click(buttonWithText("Retry"));
     await waitUntil(
       () => bodyIncludes("Create Your First Repository"),
@@ -273,6 +274,7 @@ describe("v2 RepositoryStartupScreen", () => {
   test("no blobs opens Create Your First Repository; creating the first package produces a dirty, unsaved working copy", async () => {
     planSettingsGet();
     planBlobList([]);
+    planNoSend();
     const onReady = vi.fn<(ready: RepositoryStartupReady) => void>();
     const view = await renderScreen(onReady);
     await waitUntil(
@@ -351,7 +353,7 @@ describe("v2 RepositoryStartupScreen", () => {
     expect(onReady).toHaveBeenCalledTimes(1);
     const ready = onReady.mock.calls[0]?.[0];
     expect(ready?.packageId).toBe(canonicalPackageId);
-    expect(ready?.send).toBeNull();
+    expect(ready?.sendRecovery).toEqual({ kind: "none" });
     expect(ready?.store.getRepository()).toEqual(canonical);
     await view.unmount();
   });
@@ -400,8 +402,31 @@ describe("v2 RepositoryStartupScreen", () => {
     expect(onReady).toHaveBeenCalledWith({
       store: expect.anything() as unknown,
       packageId: canonicalPackageId,
-      send: sendStatus,
+      sendRecovery: { kind: "known", send: sendStatus },
       loadedBlobId: "1",
+    });
+    await view.unmount();
+  });
+
+  test("preserves an unavailable send-recovery state instead of reporting no send", async () => {
+    planSettingsGet({
+      ...baseSettings,
+      lastSelectedPackageId: canonicalPackageId,
+    });
+    planBlobList([{ id: "1", sizeBytes: 10 }]);
+    planBlobGet("1", await canonicalGzipBytes());
+    planFetch((call) => {
+      expect(call.url).toBe("/api/v1/send");
+      expect(call.method).toBe("GET");
+      throw new TypeError("send recovery network failure");
+    });
+    const onReady = vi.fn<(ready: RepositoryStartupReady) => void>();
+    const view = await renderScreen(onReady);
+    await waitUntil(() => onReady.mock.calls.length > 0, "onReady");
+
+    expect(onReady.mock.calls[0]?.[0]?.sendRecovery).toEqual({
+      kind: "unavailable",
+      message: "send recovery network failure",
     });
     await view.unmount();
   });
@@ -557,6 +582,7 @@ describe("v2 RepositoryStartupScreen", () => {
 
     planSettingsGet();
     planBlobList([]);
+    planNoSend();
     await click(buttonWithText("Start over"));
     await waitUntil(
       () => bodyIncludes("Create Your First Repository"),
