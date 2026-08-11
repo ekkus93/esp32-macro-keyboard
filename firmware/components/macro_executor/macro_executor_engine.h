@@ -2,6 +2,7 @@
 #define MACRO_EXECUTOR_ENGINE_H
 
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <stdint.h>
 
 #include "macro_executor.h"
@@ -17,11 +18,18 @@ typedef struct {
      * discipline and is reset alongside it in reset_terminal_flags() and on
      * submission. */
     bool confirmed_requested;
-    /* Latched true when a terminal state could not be published or the busy flag
-     * could not be cleared (FIX1 §12.3): the engine's observable state is then
-     * unreliable, so it rejects new submissions until re-initialized rather than
-     * appearing falsely idle. Set only on such a failure, cleared only by init. */
-    bool unavailable;
+    /* Fail-closed availability latch. It is set when terminal status/flag
+     * publication becomes unreliable OR whenever a release-all attempt fails and
+     * HID key state therefore cannot be proven safe (post-v2 H7). Submit/cancel/
+     * confirm read it concurrently with the worker, so it is atomic. It clears
+     * only during lifecycle re-initialization after the higher-level USB/executor
+     * stack has been re-established. */
+    atomic_bool unavailable;
+    /* First release-all failure for the current fault epoch. Kept separately from
+     * status so get_status() can still surface the cleanup failure if a later
+     * terminal publish itself fails. Atomic for the same cross-task reason as the
+     * availability latch. */
+    atomic_int release_fault_error;
     /* Absolute watchdog deadline for the in-flight execution (ms). */
     uint32_t deadline;
 } macro_executor_engine_t;

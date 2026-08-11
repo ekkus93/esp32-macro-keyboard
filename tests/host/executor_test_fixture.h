@@ -55,6 +55,8 @@ typedef struct {
     app_error_code_t release_results[16U];
     size_t release_result_count;
     size_t release_index;
+    size_t release_failure_count;
+    app_error_code_t last_release_failure;
     size_t free_count;
     macro_execution_status_t snapshots[EXECUTOR_STATUS_SNAPSHOT_CAPACITY];
     size_t snapshot_count;

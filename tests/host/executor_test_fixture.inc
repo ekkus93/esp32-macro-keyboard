@@ -147,6 +147,14 @@ static app_error_code_t fake_release(void *context) {
     return result;
 }
 
+static void fake_record_release_failure(void *context, app_error_code_t error) {
+    executor_fake_t *fake = context;
+    TEST_CHECK(fake != NULL);
+    TEST_CHECK(error != APP_ERROR_NONE);
+    ++fake->release_failure_count;
+    fake->last_release_failure = error;
+}
+
 static executor_fake_t *free_context;
 
 static void fake_plan_free(macro_plan_t *plan) {
@@ -171,6 +179,7 @@ macro_executor_ops_t executor_make_ops(executor_fake_t *fake) {
         .usb_ready = fake_usb_ready,
         .usb_press = fake_press,
         .usb_release_all = fake_release,
+        .record_release_failure = fake_record_release_failure,
         .plan_free = fake_plan_free,
     };
 }

@@ -107,6 +107,16 @@ static app_error_code_t adapter_usb_release_all(void *context) {
     return usb_keyboard_release_all();
 }
 
+static void adapter_record_release_failure(void *context, app_error_code_t error) {
+    (void)context;
+    if (error != APP_ERROR_NONE) {
+        /* A failed release means key state is not proven safe. Persist that exact
+         * fixed-vocabulary error in diagnostics and keep cleanup marked
+         * incomplete until the next full app lifecycle reset/reinitialization. */
+        executor_health_record_cleanup(error, true);
+    }
+}
+
 static void adapter_plan_free(macro_plan_t *plan) {
     macro_plan_free(plan);
 }
@@ -179,6 +189,7 @@ app_error_code_t macro_executor_init(void) {
         .usb_ready = adapter_usb_ready,
         .usb_press = adapter_usb_press,
         .usb_release_all = adapter_usb_release_all,
+        .record_release_failure = adapter_record_release_failure,
         .plan_free = adapter_plan_free,
     };
     app_error_code_t result = macro_executor_engine_init(&engine, &ops);

@@ -33,7 +33,41 @@ static bool operations_valid(const macro_executor_ops_t *ops) {
     return ops != NULL && ops->lock != NULL && ops->unlock != NULL && ops->queue_send != NULL &&
            ops->notify_executor != NULL && ops->now_ms != NULL && ops->wait_ms != NULL &&
            ops->usb_ready != NULL && ops->usb_press != NULL && ops->usb_release_all != NULL &&
-           ops->plan_free != NULL;
+           ops->record_release_failure != NULL && ops->plan_free != NULL;
+}
+
+static bool engine_unavailable(const macro_executor_engine_t *engine) {
+    return atomic_load_explicit(&engine->unavailable, memory_order_acquire);
+}
+
+static void latch_engine_unavailable(macro_executor_engine_t *engine) {
+    atomic_store_explicit(&engine->unavailable, true, memory_order_release);
+}
+
+static app_error_code_t engine_release_fault(const macro_executor_engine_t *engine) {
+    return (app_error_code_t)atomic_load_explicit(&engine->release_fault_error,
+                                                  memory_order_acquire);
+}
+
+/* Release-all is a safety boundary, not ordinary cleanup. The first failure is
+ * retained independently of status publication, the engine is immediately
+ * latched unavailable so another request cannot be accepted, and the platform
+ * health hook receives the same fixed-vocabulary error for diagnostics. */
+static void record_release_failure(macro_executor_engine_t *engine,
+                                   macro_execution_status_t *status,
+                                   app_error_code_t release_error) {
+    if (release_error == APP_ERROR_NONE) {
+        return;
+    }
+    int expected = APP_ERROR_NONE;
+    (void)atomic_compare_exchange_strong_explicit(&engine->release_fault_error, &expected,
+                                                  (int)release_error, memory_order_acq_rel,
+                                                  memory_order_acquire);
+    if (status != NULL && status->release_error == APP_ERROR_NONE) {
+        status->release_error = release_error;
+    }
+    latch_engine_unavailable(engine);
+    engine->ops.record_release_failure(engine->ops.context, release_error);
 }
 
 static app_error_code_t lock_engine(macro_executor_engine_t *engine) {
@@ -186,9 +220,11 @@ static app_error_code_t await_confirmation(macro_executor_engine_t *engine) {
 static app_error_code_t finish_execution(macro_executor_engine_t *engine,
                                          macro_execution_status_t status, execution_state_t state,
                                          app_error_code_t primary_error) {
-    status.release_error = engine->ops.usb_release_all(engine->ops.context);
+    const app_error_code_t release_result = engine->ops.usb_release_all(engine->ops.context);
+    record_release_failure(engine, &status, release_result);
     status.state = state;
     status.error = primary_error;
+    status.available = !engine_unavailable(engine);
     status.completed_ms = engine->ops.now_ms(engine->ops.context);
     status.current_action = CURRENT_ACTION_NONE;
     const app_error_code_t publish_result = publish_status(engine, status);
@@ -197,7 +233,7 @@ static app_error_code_t finish_execution(macro_executor_engine_t *engine,
         /* The terminal state could not be published or the busy flag could not be
          * cleared: latch the engine unavailable so it rejects new work until
          * re-initialized rather than appearing falsely idle (FIX1 §12.3). */
-        engine->unavailable = true;
+        latch_engine_unavailable(engine);
     }
     if (publish_result != APP_ERROR_NONE) {
         return publish_result;
@@ -234,7 +270,7 @@ static app_error_code_t finish_submission_failure(macro_executor_engine_t *engin
     macro_execution_status_t status = {
         .state = EXECUTION_FAILED,
         .error = primary_error,
-        .release_error = engine->ops.usb_release_all(engine->ops.context),
+        .release_error = APP_ERROR_NONE,
         .execution_id = request->execution_id,
         .set_id = request->set_id,
         .macro_id = request->macro_id,
@@ -246,12 +282,15 @@ static app_error_code_t finish_submission_failure(macro_executor_engine_t *engin
         .completed_ms = engine->ops.now_ms(engine->ops.context),
         .current_action = CURRENT_ACTION_NONE,
     };
+    const app_error_code_t release_result = engine->ops.usb_release_all(engine->ops.context);
+    record_release_failure(engine, &status, release_result);
+    status.available = !engine_unavailable(engine);
     const app_error_code_t publish_result = publish_status(engine, status);
     const app_error_code_t reset_result = reset_terminal_flags(engine);
     if (publish_result != APP_ERROR_NONE || reset_result != APP_ERROR_NONE) {
         /* Match finish_execution(): if status publication or flag cleanup is
          * itself unreliable, fail closed until the engine is reinitialized. */
-        engine->unavailable = true;
+        latch_engine_unavailable(engine);
     }
     return primary_error;
 }
@@ -263,6 +302,8 @@ app_error_code_t macro_executor_engine_init(macro_executor_engine_t *engine,
     }
     memset(engine, 0, sizeof(*engine));
     engine->ops = *ops;
+    atomic_init(&engine->unavailable, false);
+    atomic_init(&engine->release_fault_error, APP_ERROR_NONE);
     engine->status.state = EXECUTION_IDLE;
     engine->status.available = true;
     engine->status.current_action = CURRENT_ACTION_NONE;
@@ -274,10 +315,10 @@ app_error_code_t macro_executor_engine_submit(macro_executor_engine_t *engine,
     if (engine == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    /* A prior terminal-publish/reset failure latched the engine unavailable: refuse
-     * new work until it is re-initialized (FIX1 §12.3). Read without the lock -- it
-     * is a monotonic fault latch set only when the lock itself was failing. */
-    if (engine->unavailable) {
+    /* A prior terminal-publish/reset or HID-release failure latched the engine
+     * unavailable: refuse new work until lifecycle re-initialization. The atomic
+     * latch is read without the status lock so even a lock failure stays fail-closed. */
+    if (engine_unavailable(engine)) {
         return APP_ERROR_INTERNAL;
     }
     app_error_code_t result = validate_request(request);
@@ -321,8 +362,8 @@ app_error_code_t macro_executor_engine_cancel(macro_executor_engine_t *engine) {
     if (engine == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    if (engine->unavailable) {
-        return APP_ERROR_STORAGE_UNAVAILABLE;
+    if (engine_unavailable(engine)) {
+        return APP_ERROR_INTERNAL;
     }
     app_error_code_t result = lock_engine(engine);
     if (result != APP_ERROR_NONE) {
@@ -347,8 +388,8 @@ app_error_code_t macro_executor_engine_confirm(macro_executor_engine_t *engine) 
     if (engine == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    if (engine->unavailable) {
-        return APP_ERROR_STORAGE_UNAVAILABLE;
+    if (engine_unavailable(engine)) {
+        return APP_ERROR_INTERNAL;
     }
     app_error_code_t result = lock_engine(engine);
     if (result != APP_ERROR_NONE) {
@@ -375,11 +416,20 @@ macro_execution_status_t macro_executor_engine_get_status(macro_executor_engine_
         .error = APP_ERROR_INTERNAL,
         .current_action = CURRENT_ACTION_NONE,
     };
-    if (engine == NULL || lock_engine(engine) != APP_ERROR_NONE) {
+    if (engine == NULL) {
+        return result;
+    }
+    const app_error_code_t release_fault = engine_release_fault(engine);
+    result.available = !engine_unavailable(engine);
+    result.release_error = release_fault;
+    if (lock_engine(engine) != APP_ERROR_NONE) {
         return result;
     }
     result = engine->status;
-    result.available = !engine->unavailable;
+    result.available = !engine_unavailable(engine);
+    if (result.release_error == APP_ERROR_NONE) {
+        result.release_error = release_fault;
+    }
     result.cancellation_requested = engine->cancellation_requested;
     if (unlock_engine(engine) != APP_ERROR_NONE) {
         result.state = EXECUTION_FAILED;
@@ -388,7 +438,8 @@ macro_execution_status_t macro_executor_engine_get_status(macro_executor_engine_
     return result;
 }
 
-static app_error_code_t execute_action(macro_executor_engine_t *engine, macro_action_t action,
+static app_error_code_t execute_action(macro_executor_engine_t *engine,
+                                       macro_execution_status_t *status, macro_action_t action,
                                        uint32_t key_press_ms, uint32_t inter_key_ms) {
     if (action.type == MACRO_ACTION_DELAY) {
         return cancellable_delay(engine, action.delay_ms);
@@ -402,6 +453,7 @@ static app_error_code_t execute_action(macro_executor_engine_t *engine, macro_ac
         result = cancellable_delay(engine, key_press_ms);
     }
     const app_error_code_t release_result = engine->ops.usb_release_all(engine->ops.context);
+    record_release_failure(engine, status, release_result);
     if (result == APP_ERROR_NONE) {
         result = release_result;
     }
@@ -501,8 +553,8 @@ app_error_code_t macro_executor_engine_execute(macro_executor_engine_t *engine,
             break;
         }
 
-        result = execute_action(engine, request->plan.actions[index], request->key_press_ms,
-                                request->inter_key_ms);
+        result = execute_action(engine, &status, request->plan.actions[index],
+                                request->key_press_ms, request->inter_key_ms);
         if (result != APP_ERROR_NONE) {
             break;
         }

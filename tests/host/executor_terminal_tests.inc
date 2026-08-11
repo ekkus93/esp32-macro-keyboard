@@ -38,6 +38,28 @@ static void test_press_release_and_final_release_errors(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_IO, executor_execute_queued(&engine, &fake));
     TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, engine.status.release_error);
     TEST_CHECK_APP_ERROR(APP_ERROR_IO, engine.status.error);
+    TEST_CHECK(!macro_executor_engine_get_status(&engine).available);
+    TEST_CHECK_EQ_U64(1U, fake.release_failure_count);
+    TEST_CHECK_EQ_U64(2U, fake.release_index);
+
+    /* H7-073: the action press itself is the primary failure and that action's
+     * immediate defensive release also fails. The later terminal release
+     * succeeds, so this specifically proves the first release failure is not
+     * overwritten or forgotten. */
+    executor_fake_reset(&fake);
+    executor_init_engine(&engine, &fake);
+    executor_submit_single_key(&engine, &fake, 4U);
+    fake.press_result = APP_ERROR_IO;
+    fake.release_results[0] = APP_ERROR_USB_NOT_READY;
+    fake.release_result_count = 1U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, executor_execute_queued(&engine, &fake));
+    const macro_execution_status_t status = macro_executor_engine_get_status(&engine);
+    TEST_CHECK(status.state == EXECUTION_FAILED);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, status.error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, status.release_error);
+    TEST_CHECK(!status.available);
+    TEST_CHECK_EQ_U64(1U, fake.release_failure_count);
+    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, fake.last_release_failure);
     TEST_CHECK_EQ_U64(2U, fake.release_index);
 }
 
@@ -123,7 +145,87 @@ static void test_key_release_failure_after_success(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, executor_execute_queued(&engine, &fake));
     executor_assert_terminal(&engine, EXECUTION_COMPLETED, APP_ERROR_NONE, false);
     TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, engine.status.release_error);
+    TEST_CHECK(!macro_executor_engine_get_status(&engine).available);
+    TEST_CHECK_EQ_U64(1U, fake.release_failure_count);
+    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, fake.last_release_failure);
     TEST_CHECK_EQ_U64(2U, fake.release_index);
+}
+
+/* H7-073: cancellation and timeout remain the primary terminal outcome even if
+ * the corresponding defensive release-all also fails. Both cases must latch
+ * availability false and retain the release error separately. */
+static void test_cancel_timeout_release_failure_latches_unavailable(void) {
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+    executor_submit_single_key(&engine, &fake, 4U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_cancel(&engine));
+    fake.release_results[0] = APP_ERROR_USB_NOT_READY;
+    fake.release_result_count = 1U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTION_CANCELLED, executor_execute_queued(&engine, &fake));
+    macro_execution_status_t status = macro_executor_engine_get_status(&engine);
+    TEST_CHECK(status.state == EXECUTION_CANCELLED);
+    TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTION_CANCELLED, status.error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, status.release_error);
+    TEST_CHECK(!status.available);
+    TEST_CHECK_EQ_U64(1U, fake.release_failure_count);
+
+    executor_fake_reset(&fake);
+    executor_init_engine(&engine, &fake);
+    executor_submit_single_key(&engine, &fake, 4U);
+    fake.wait_failure_on = 1U;
+    fake.wait_failure_result = APP_ERROR_TIMEOUT;
+    fake.release_results[0] = APP_ERROR_USB_NOT_READY;
+    fake.release_result_count = 1U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_TIMEOUT, executor_execute_queued(&engine, &fake));
+    status = macro_executor_engine_get_status(&engine);
+    TEST_CHECK(status.state == EXECUTION_TIMED_OUT);
+    TEST_CHECK_APP_ERROR(APP_ERROR_TIMEOUT, status.error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, status.release_error);
+    TEST_CHECK(!status.available);
+    TEST_CHECK_EQ_U64(1U, fake.release_failure_count);
+}
+
+/* H7-071/H7-073: a release fault cannot be cleared by ordinary submission. The
+ * engine only clears the latch at lifecycle re-init, and even then the normal
+ * USB readiness gate still prevents accepting work until the higher-level HID
+ * transport has actually been re-established. */
+static void test_release_fault_recovery_requires_reinit_and_ready_usb(void) {
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+    executor_submit_single_key(&engine, &fake, 4U);
+    fake.release_results[1] = APP_ERROR_USB_NOT_READY;
+    fake.release_result_count = 2U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, executor_execute_queued(&engine, &fake));
+    TEST_CHECK(!macro_executor_engine_get_status(&engine).available);
+
+    macro_execution_request_t rejected = executor_make_request(1U);
+    rejected.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 5U};
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_submit(&engine, &rejected));
+    TEST_CHECK(rejected.plan.actions != NULL);
+    executor_free_unowned_request(&rejected);
+
+    /* Model a full higher-level lifecycle reinitialization whose USB transport
+     * is not ready yet: the old release fault is reset, but no send is accepted. */
+    fake.usb_is_ready = false;
+    executor_init_engine(&engine, &fake);
+    macro_execution_request_t not_ready = executor_make_request(1U);
+    not_ready.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 6U};
+    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY,
+                         macro_executor_engine_submit(&engine, &not_ready));
+    TEST_CHECK(not_ready.plan.actions != NULL);
+    executor_free_unowned_request(&not_ready);
+
+    /* Once the reinitialized HID transport reports ready, normal submission can
+     * resume. The previous fault's configured release slot has already been
+     * consumed, so this new lifecycle's releases succeed. */
+    fake.usb_is_ready = true;
+    executor_submit_single_key(&engine, &fake, 7U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, executor_execute_queued(&engine, &fake));
+    executor_assert_terminal(&engine, EXECUTION_COMPLETED, APP_ERROR_NONE, false);
 }
 
 /* FIX1 §12.3: when the terminal state cannot be published, the engine latches
@@ -278,6 +380,8 @@ void executor_run_terminal_tests(void) {
     test_recovery_after_each_terminal_outcome();
     test_cancel_and_status_lock_failures();
     test_key_release_failure_after_success();
+    test_cancel_timeout_release_failure_latches_unavailable();
+    test_release_fault_recovery_requires_reinit_and_ready_usb();
     test_terminal_publish_failure_leaves_executor_unavailable();
     test_main_loop_cancellation_read_lock_failure();
     test_reset_terminal_flags_lock_failure_leaves_engine_stuck_busy();

@@ -7,6 +7,9 @@ static void test_engine_and_request_validation(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_init(&engine, NULL));
     ops.lock = NULL;
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_init(&engine, &ops));
+    ops = executor_make_ops(&fake);
+    ops.record_release_failure = NULL;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_init(&engine, &ops));
 
     executor_init_engine(&engine, &fake);
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_submit(&engine, NULL));
@@ -110,13 +113,13 @@ static void test_cancel_confirm_null_argument_and_unavailable_and_double_cancel(
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_cancel(NULL));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_confirm(NULL));
 
-    /* A latched-unavailable engine rejects both cancel() and confirm() with
-     * the same fixed code the engine's other operations use for that state,
-     * without touching the lock at all. */
-    engine.unavailable = true;
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, macro_executor_engine_cancel(&engine));
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, macro_executor_engine_confirm(&engine));
-    engine.unavailable = false;
+    /* A latched-unavailable engine rejects both cancel() and confirm() in the
+     * executor/internal error domain -- never the unrelated storage-unavailable
+     * code (post-v2 H7-072) -- without touching the lock at all. */
+    atomic_store(&engine.unavailable, true);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_cancel(&engine));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_confirm(&engine));
+    atomic_store(&engine.unavailable, false);
 
     /* SPEC_V2 §7.12's confirm() idempotent-conflict convention (already
      * covered by test_confirmation_granted_runs_the_macro_and_is_idempotent())
@@ -237,7 +240,18 @@ static void test_submission_cleanup_release_errors_are_published(void) {
     TEST_CHECK(status.state == EXECUTION_FAILED);
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, status.error);
     TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, status.release_error);
+    TEST_CHECK(!status.available);
+    TEST_CHECK_EQ_U64(1U, fake.release_failure_count);
+    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, fake.last_release_failure);
     TEST_CHECK_EQ_STRING("none", status.current_action);
+
+    /* H7-071/H7-073: once defensive release cannot prove a safe HID state, a
+     * subsequent send is rejected before its plan ownership can transfer. */
+    macro_execution_request_t rejected = executor_make_request(1U);
+    rejected.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 6U};
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_submit(&engine, &rejected));
+    TEST_CHECK(rejected.plan.actions != NULL);
+    executor_free_unowned_request(&rejected);
     executor_free_unowned_request(&request);
 
     executor_fake_reset(&fake);
@@ -255,6 +269,9 @@ static void test_submission_cleanup_release_errors_are_published(void) {
     TEST_CHECK(status.state == EXECUTION_FAILED);
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, status.error);
     TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, status.release_error);
+    TEST_CHECK(!status.available);
+    TEST_CHECK_EQ_U64(1U, fake.release_failure_count);
+    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, fake.last_release_failure);
     TEST_CHECK_EQ_STRING("none", status.current_action);
     executor_free_unowned_request(&request);
 }
