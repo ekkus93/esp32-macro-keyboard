@@ -45,6 +45,10 @@ jobs:
         working-directory: webapp
         run: npm ci
 
+      - name: Normalize staged H8 formatting
+        working-directory: webapp
+        run: npx prettier --write src/AppV2.tsx tests/v2-snapshots-page.test.tsx
+
       - name: Typecheck
         working-directory: webapp
         run: npm run typecheck
