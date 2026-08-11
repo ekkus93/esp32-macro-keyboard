@@ -163,15 +163,12 @@ esp_err_t web_server_async_dispatch(httpd_req_t *request) {
         return ESP_FAIL;
     }
     if (async_queue == NULL || async_task_handle == NULL) {
-        /* Worker unavailable: answer on the httpd task rather than drop the
-         * request. This blocks other clients for the confirmation window, which
-         * is the pre-existing behaviour and strictly better than failing. */
-        bool should_restart = false;
-        const esp_err_t result = web_api_handle_call(request, &should_restart);
-        if (should_restart) {
-            esp_restart();
-        }
-        return result;
+        /* Confirmation-gated work must never fall back to the httpd task:
+         * waiting there blocks the single server task and turns an async
+         * subsystem fault into whole-server unavailability. Fail closed and
+         * leave the requested operation untouched. */
+        return web_api_send_status_error(request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
+                                         APP_ERROR_INTERNAL, "confirmation service unavailable");
     }
     if (!claim_in_flight()) {
         return web_api_send_status_error(request, WEB_HTTP_STATUS_CONFLICT, APP_ERROR_CONFLICT,

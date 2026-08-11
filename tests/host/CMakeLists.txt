@@ -507,19 +507,11 @@ target_link_libraries(
 )
 register_host_test(web_server_administration_route_tests web_server_administration_route web)
 
-# Live end-to-end HTTP test for the physical-confirmation-required=true path (TODO_V2 V2-057 / Phase
-# 5 exit gate's last open contract/security-test gap): POST /api/v1/device/restart,
-# /device/reset-settings, /device/factory-reset, and /settings/change-password with
-# server_configuration.require_physical_confirmation = true. Unlike
-# web_server_administration_route_tests (which sets that flag false and stubs
-# web_server_async_dispatch() out entirely as unreachable), this target links the real
-# web_server_async.c -- against fakes/freertos_stub's dead-path-only FreeRTOS headers -- and never
-# calls web_server_async_start(), so every request takes web_server_async_dispatch()'s real,
-# documented "worker unavailable: answer on the httpd task" fallback branch. See
-# test_web_server_async_confirmation.c's own header comment for exactly what this does and does not
-# prove, and fakes/freertos_stub/freertos/FreeRTOS.h's header comment for why a faithful FreeRTOS
-# host mock (the alternative that would additionally cover the actual queue/task worker path) stays
-# out of scope.
+# Fail-closed host regression for physical-confirmation-required routes when the async worker is
+# unavailable. This target links the real web_server_async.c against fakes/freertos_stub and
+# deliberately never calls web_server_async_start(). Confirmation-gated requests must return 503
+# without invoking the confirmation wait or protected handler; the fake FreeRTOS/async-httpd
+# functions are hard-failure canaries for accidental entry into the unmodeled worker path.
 add_executable(
     web_server_async_confirmation_tests
     test_web_server_async_confirmation.c

@@ -1,57 +1,16 @@
-/* Live end-to-end HTTP test for the physical-confirmation-required=true path
- * (TODO_V2 V2-057 / Phase 5 exit gate's last open contract/security-test
- * gap): POST /api/v1/device/restart, /device/reset-settings,
- * /device/factory-reset, and /settings/change-password with
- * server_configuration.require_physical_confirmation = true.
+/* Fail-closed HTTP regression for confirmation-required routes.
  *
- * WHAT THIS DOES AND DOES NOT PROVE -- read before trusting this file's
- * coverage claims:
+ * This target links the real web_server_async.c but deliberately never starts
+ * its FreeRTOS worker. A confirmation-gated request must therefore fail fast
+ * with 503 Service Unavailable. It must not call
+ * device_controls_wait_for_confirmation(), execute the protected operation, or
+ * restart the device on the httpd task. This is the regression for post-v2
+ * hardening H6-060.
  *
- * api_handler() (web_server_api.c) routes a confirmation-required route down
- * one of two branches once web_api_request_requires_worker() answers true:
- *
- *   1. web_server_async_dispatch() (web_server_async.c) queues the request
- *      onto a FreeRTOS worker task and returns immediately, freeing the
- *      httpd task; a second thread later dequeues it, waits on
- *      device_controls_wait_for_confirmation() on ITS OWN stack, and
- *      completes the (by-then-async) request.
- *   2. If the worker was never started (async_queue/async_task_handle are
- *      still NULL -- web_server_async_dispatch()'s own "worker unavailable:
- *      answer on the httpd task rather than drop the request" branch, its
- *      documented, production fallback, not a test-only shortcut), the SAME
- *      function instead calls web_api_handle_call() synchronously, on the
- *      calling thread, and returns its result directly.
- *
- * This file exercises branch 2 only. It links the real web_server_async.c
- * (not a hand-rolled stub of web_server_async_dispatch(), unlike
- * test_web_server_administration_route.c, which never reaches
- * confirmation-required=true at all and stubs the function out entirely),
- * but every test below deliberately never calls web_server_async_start().
- * That keeps async_queue/async_task_handle at their zero-initialized NULL
- * state for the whole process, so every call here takes branch 2 -- for
- * real, in the actual compiled web_server_async_dispatch(), not a
- * reimplementation of its logic. This proves, against the live
- * api_handler() pipeline: that confirmation-required routes are correctly
- * classified and routed into web_server_async_dispatch() at all (never
- * proven anywhere else -- test_web_server_administration_route.c
- * specifically avoids this by setting require_physical_confirmation=false),
- * that device_controls_wait_for_confirmation() is invoked with the correct
- * timeout, that a successful confirmation reaches the exact same handler and
- * produces the exact same response the confirmation-disabled tests in
- * test_web_server_administration_route.c already verify, that a failed/
- * timed-out confirmation is correctly rejected with 403 Forbidden before the
- * handler ever runs, and that a route NOT requiring confirmation is
- * unaffected by the flag even when it is globally enabled.
- *
- * It does NOT prove branch 1 works: the actual FreeRTOS queue/task worker
- * machinery (web_server_async_start()/_stop(), async_worker(), the
- * xQueueSend()/xQueueReceive() handoff, claim_in_flight()/
- * release_in_flight()'s mutual exclusion) is not exercised here at all, and
- * remains genuinely untested at the host level -- see
- * fakes/freertos_stub/freertos/FreeRTOS.h's header comment and
- * docs/implementation-v2/V2_057_PHASE5_HARDENING_2026-08-09.md for exactly
- * why that gap is not closed by this file and is not believed closable
- * without a substantially larger, riskier faithful FreeRTOS host mock. */
+ * The actual FreeRTOS queue/task worker path remains outside this host target;
+ * the stubbed queue/task/async-httpd functions below are hard-failure canaries
+ * so this test cannot silently approximate concurrency semantics it does not
+ * faithfully implement. */
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -222,17 +181,10 @@ app_error_code_t web_diagnostics_handle(web_api_response_t *response) {
 }
 
 /* ---------------------------------------------------------------------- *
- * Dead-path FreeRTOS/httpd-async canaries. Every test below deliberately
- * never calls web_server_async_start(), so web_server_async.c's static
- * async_queue/async_task_handle stay NULL for the whole process and
- * web_server_async_dispatch() always takes its synchronous "worker
- * unavailable" fallback branch, which returns before any of these ten
- * symbols is reached -- see this file's own header comment and
- * fakes/freertos_stub/freertos/FreeRTOS.h's header comment for the full
- * argument. Each definition below is a hard-failure canary, not a working
- * implementation: if a future change ever makes one of these dead paths
- * reachable without updating this file, the test fails loudly here instead
- * of silently running against an approximated concurrency primitive.
+ * Dead-path FreeRTOS/httpd-async canaries. The worker is intentionally
+ * unavailable in this host regression, and H6-060 requires dispatch to
+ * return 503 before any queue/task/async-httpd primitive is reached. Each
+ * definition below therefore fails loudly if that invariant changes.
  * ---------------------------------------------------------------------- */
 
 QueueHandle_t xQueueCreate(UBaseType_t queue_length, UBaseType_t item_size) {
@@ -357,10 +309,9 @@ static void reset_fakes(void) {
     g_wait_for_confirmation_last_timeout_ms = 0U;
     g_esp_restart_calls = 0U;
 
-    /* The subject of this whole file: confirmation is required globally, but
-     * the FreeRTOS worker is never started (see the file header comment), so
-     * every request below takes web_server_async_dispatch()'s synchronous
-     * fallback branch. */
+    /* Confirmation is required globally, while the FreeRTOS worker is
+     * intentionally never started. Confirmation-gated routes must fail closed
+     * before policy confirmation or handler execution. */
     server_configuration = (web_server_config_t){0};
     server_configuration.require_physical_confirmation = true;
 }
@@ -391,10 +342,24 @@ static void bind_json_body(httpd_req_t *request, fake_httpd_request_t *fake, con
 }
 
 /* -------------------------------------------------------------------------
- * POST /api/v1/device/restart
+ * Worker-unavailable fail-closed behavior.
  * ---------------------------------------------------------------------- */
 
-static void test_restart_post_confirmation_granted(void) {
+static void assert_confirmation_service_unavailable(const fake_httpd_request_t *fake) {
+    TEST_CHECK_EQ_STRING("503 Service Unavailable", fake->response_status);
+    cJSON *root = parse_response(fake);
+    cJSON *error = cJSON_GetObjectItemCaseSensitive(root, "error");
+    TEST_CHECK(cJSON_IsObject(error));
+    cJSON *code = cJSON_GetObjectItemCaseSensitive(error, "code");
+    cJSON *message = cJSON_GetObjectItemCaseSensitive(error, "message");
+    TEST_CHECK(cJSON_IsString(code));
+    TEST_CHECK(cJSON_IsString(message));
+    TEST_CHECK_EQ_STRING("internal", code->valuestring);
+    TEST_CHECK_EQ_STRING("confirmation service unavailable", message->valuestring);
+    cJSON_Delete(root);
+}
+
+static void test_restart_worker_unavailable_fails_closed(void) {
     reset_fakes();
     fake_httpd_request_t fake;
     httpd_req_t request;
@@ -403,65 +368,13 @@ static void test_restart_post_confirmation_granted(void) {
     bind_bodyless(&request, &fake, "/api/v1/device/restart", HTTP_POST);
 
     TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
-    TEST_CHECK_EQ_STRING("202 Accepted", fake.response_status);
-    TEST_CHECK_EQ_U64(1U, (uint64_t)g_wait_for_confirmation_calls);
-    TEST_CHECK_EQ_U64(APP_PHYSICAL_CONFIRM_TIMEOUT_MS,
-                      (uint64_t)g_wait_for_confirmation_last_timeout_ms);
-    TEST_CHECK_EQ_U64(1U, (uint64_t)g_restart_calls);
-    TEST_CHECK_EQ_U64(1U, (uint64_t)g_esp_restart_calls);
-
-    cJSON *root = parse_response(&fake);
-    TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "accepted")));
-    cJSON_Delete(root);
-}
-
-static void test_restart_post_confirmation_timed_out(void) {
-    reset_fakes();
-    g_wait_for_confirmation_result = APP_ERROR_TIMEOUT;
-    fake_httpd_request_t fake;
-    httpd_req_t request;
-    fake_httpd_reset(&fake);
-    authenticate(&fake);
-    bind_bodyless(&request, &fake, "/api/v1/device/restart", HTTP_POST);
-
-    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
-    /* web_request_policy_http_status(): WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION
-     * maps to 403 regardless of the underlying app_error_code_t -- the
-     * handler is never reached, so device_controls_restart()/esp_restart()
-     * see zero calls. */
-    TEST_CHECK_EQ_STRING("403 Forbidden", fake.response_status);
-    TEST_CHECK_EQ_U64(1U, (uint64_t)g_wait_for_confirmation_calls);
-    TEST_CHECK_EQ_U64(0U, (uint64_t)g_restart_calls);
-    TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
-
-    cJSON *root = parse_response(&fake);
-    TEST_CHECK_EQ_STRING("timeout", cJSON_GetObjectItemCaseSensitive(
-                                        cJSON_GetObjectItemCaseSensitive(root, "error"), "code")
-                                        ->valuestring);
-    cJSON_Delete(root);
-}
-
-static void test_restart_post_unauthorized_before_confirmation(void) {
-    /* enforce_session() (web_request_policy.c) runs before
-     * enforce_physical_confirmation() -- an unauthenticated caller must never
-     * trigger a physical confirmation wait at all. */
-    reset_fakes();
-    fake_httpd_request_t fake;
-    httpd_req_t request;
-    fake_httpd_reset(&fake);
-    bind_bodyless(&request, &fake, "/api/v1/device/restart", HTTP_POST);
-
-    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
-    TEST_CHECK_EQ_STRING("401 Unauthorized", fake.response_status);
+    assert_confirmation_service_unavailable(&fake);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_restart_calls);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
 }
 
-/* -------------------------------------------------------------------------
- * POST /api/v1/settings/change-password
- * ---------------------------------------------------------------------- */
-
-static void test_change_password_post_confirmation_granted(void) {
+static void test_change_password_worker_unavailable_fails_closed(void) {
     reset_fakes();
     fake_httpd_request_t fake;
     httpd_req_t request;
@@ -472,39 +385,13 @@ static void test_change_password_post_confirmation_granted(void) {
                    "password\"}");
 
     TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
-    TEST_CHECK_EQ_STRING("204 No Content", fake.response_status);
-    TEST_CHECK_EQ_U64(1U, (uint64_t)g_wait_for_confirmation_calls);
-    TEST_CHECK_EQ_U64(1U, (uint64_t)g_logout_all_calls);
-    TEST_CHECK_EQ_STRING("MKSESSION=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0",
-                         fake_httpd_response_header(&fake, "Set-Cookie"));
-}
-
-static void test_change_password_post_confirmation_denied(void) {
-    reset_fakes();
-    /* APP_ERROR_CONFLICT: device_controls_wait_for_confirmation()'s other
-     * real failure mode (device_controls.c), returned when the controls
-     * task is not running or a stop was requested while waiting -- not just
-     * a timeout, see device_controls.c's own implementation. */
-    g_wait_for_confirmation_result = APP_ERROR_CONFLICT;
-    fake_httpd_request_t fake;
-    httpd_req_t request;
-    fake_httpd_reset(&fake);
-    authenticate(&fake);
-    bind_json_body(&request, &fake, "/api/v1/settings/change-password", HTTP_POST,
-                   "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
-                   "password\"}");
-
-    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
-    TEST_CHECK_EQ_STRING("403 Forbidden", fake.response_status);
+    assert_confirmation_service_unavailable(&fake);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_logout_all_calls);
     TEST_CHECK(fake_httpd_response_header(&fake, "Set-Cookie") == NULL);
 }
 
-/* -------------------------------------------------------------------------
- * POST /api/v1/device/reset-settings
- * ---------------------------------------------------------------------- */
-
-static void test_reset_settings_post_confirmation_granted(void) {
+static void test_reset_settings_worker_unavailable_fails_closed(void) {
     reset_fakes();
     fake_httpd_request_t fake;
     httpd_req_t request;
@@ -514,17 +401,13 @@ static void test_reset_settings_post_confirmation_granted(void) {
                    "{\"confirmation\":\"RESET SETTINGS\"}");
 
     TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
-    TEST_CHECK_EQ_STRING("202 Accepted", fake.response_status);
-    TEST_CHECK_EQ_U64(1U, (uint64_t)g_wait_for_confirmation_calls);
-    TEST_CHECK_EQ_U64(1U, (uint64_t)g_reset_settings_calls);
+    assert_confirmation_service_unavailable(&fake);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_reset_settings_calls);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
 }
 
-/* -------------------------------------------------------------------------
- * POST /api/v1/device/factory-reset
- * ---------------------------------------------------------------------- */
-
-static void test_factory_reset_post_confirmation_granted(void) {
+static void test_factory_reset_worker_unavailable_fails_closed(void) {
     reset_fakes();
     fake_httpd_request_t fake;
     httpd_req_t request;
@@ -534,21 +417,13 @@ static void test_factory_reset_post_confirmation_granted(void) {
                    "{\"confirmation\":\"FACTORY RESET\",\"adminPassword\":\"example-password\"}");
 
     TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
-    TEST_CHECK_EQ_STRING("202 Accepted", fake.response_status);
-    TEST_CHECK_EQ_U64(1U, (uint64_t)g_wait_for_confirmation_calls);
-    TEST_CHECK_EQ_U64(1U, (uint64_t)g_factory_reset_calls);
-    TEST_CHECK_EQ_U64(1U, (uint64_t)g_esp_restart_calls);
+    assert_confirmation_service_unavailable(&fake);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_factory_reset_calls);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
 }
 
-/* -------------------------------------------------------------------------
- * GET /api/v1/settings -- not a confirmation-required route. Proves
- * web_api_physical_confirmation_required()'s per-route allowlist, not just
- * the global require_physical_confirmation flag, is what api_handler()
- * actually consults: device_controls_wait_for_confirmation() must see zero
- * calls even though the flag is on.
- * ---------------------------------------------------------------------- */
-
-static void test_settings_get_unaffected_by_confirmation_flag(void) {
+static void test_settings_get_unaffected_by_worker_unavailability(void) {
     reset_fakes();
     fake_httpd_request_t fake;
     httpd_req_t request;
@@ -562,19 +437,12 @@ static void test_settings_get_unaffected_by_confirmation_flag(void) {
 }
 
 int main(void) {
-    test_restart_post_confirmation_granted();
-    test_restart_post_confirmation_timed_out();
-    test_restart_post_unauthorized_before_confirmation();
+    test_restart_worker_unavailable_fails_closed();
+    test_change_password_worker_unavailable_fails_closed();
+    test_reset_settings_worker_unavailable_fails_closed();
+    test_factory_reset_worker_unavailable_fails_closed();
+    test_settings_get_unaffected_by_worker_unavailability();
 
-    test_change_password_post_confirmation_granted();
-    test_change_password_post_confirmation_denied();
-
-    test_reset_settings_post_confirmation_granted();
-
-    test_factory_reset_post_confirmation_granted();
-
-    test_settings_get_unaffected_by_confirmation_flag();
-
-    puts("web server async confirmation tests passed");
+    puts("web server async confirmation fail-closed tests passed");
     return 0;
 }
