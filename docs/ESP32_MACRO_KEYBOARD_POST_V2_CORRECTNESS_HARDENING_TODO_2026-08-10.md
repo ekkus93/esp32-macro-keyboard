@@ -461,16 +461,18 @@ Search and classify at least:
 ### H6-063 — Regression tests
 
 - [x] worker unavailable -> fast visible failure, no synchronous wait,
-- [ ] queue failure -> request answered/completed and health degraded,
-- [ ] handler failure -> request completion still occurs,
-- [ ] async completion failure -> health captures failure,
-- [ ] stop while confirmation is pending remains bounded and safe,
-- [ ] unrelated status request remains responsive while a confirmation request waits.
+- [x] queue failure -> request answered/completed and health degraded,
+- [x] handler failure -> request completion still occurs,
+- [x] async completion failure -> health captures failure,
+- [x] stop while confirmation is pending remains bounded and safe,
+- [x] unrelated status request remains responsive while a confirmation request waits.
+- Evidence: H6-060 commit `30301a89cef655c9bf6420c1192c19bdb2f3a09c` proves worker-unavailable fail-closed behavior; H6-062 worker seam `f20b470bb914d3b06bae259a45fb5311dea70cc6` proves queue/handler/completion cases; `4e0355f33cb3ea025dbb6525479dc541f7e4af84` adds deterministic pending-confirmation stop safety and real status-handler responsiveness. `./scripts/run-tests.sh web` and `./scripts/run-tests.sh --sanitizers web` both passed 29/29 in targeted run `31536438755`. Full evidence: `docs/implementation-v2/H6_063_ASYNC_REGRESSION_MATRIX_2026-08-11.md`.
 
 ### Phase H6 exit gate
 
-- [ ] No async-worker failure path silently degrades to whole-server blocking behavior.
-- [ ] Confirmation-gated route failure remains fail-closed.
+- [x] No async-worker failure path silently degrades to whole-server blocking behavior.
+- [x] Confirmation-gated route failure remains fail-closed.
+- Evidence: H6-060 through H6-063 collectively cover worker absence, queue/handler/completion/stop faults, request cleanup, bounded pending-confirmation shutdown, and unrelated status responsiveness; see `docs/implementation-v2/H6_060_ASYNC_CONFIRMATION_FAIL_CLOSED_2026-08-11.md` through `H6_063_ASYNC_REGRESSION_MATRIX_2026-08-11.md`.
 
 ---
 
