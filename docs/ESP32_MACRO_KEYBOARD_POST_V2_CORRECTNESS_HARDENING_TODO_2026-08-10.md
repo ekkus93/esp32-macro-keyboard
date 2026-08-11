@@ -445,9 +445,10 @@ Search and classify at least:
 
 ### H6-061 — Track async subsystem health
 
-- [ ] Add sanitized health state for worker start/run/stop/queue/completion failures.
-- [ ] Keep the first/most useful failure visible.
-- [ ] Expose through existing diagnostics only if consistent with the authoritative diagnostics contract; otherwise keep internal/log evidence and flag required contract change.
+- [x] Add sanitized health state for worker start/run/stop/queue/completion failures.
+- [x] Keep the first/most useful failure visible.
+- [x] Expose through existing diagnostics only if consistent with the authoritative diagnostics contract; otherwise keep internal/log evidence and flag required contract change.
+- Evidence: implementation commit `8f4ccfae3abf3803f70fc487cb6471039d9d13ab` adds synchronized first-failure async HTTP health metadata for worker start/run/stop, queue, and completion failures. The frozen diagnostics schema remains unchanged: async failure degrades the existing `http` subsystem entry rather than adding fields/subsystems. `./scripts/run-tests.sh web` passed 28/28 and `./scripts/run-tests.sh --sanitizers web` passed 28/28 in targeted run `31533545046`, job `93919101444`. Full evidence: `docs/implementation-v2/H6_061_ASYNC_HTTP_HEALTH_2026-08-11.md`.
 
 ### H6-062 — Stop ignoring completion results
 
