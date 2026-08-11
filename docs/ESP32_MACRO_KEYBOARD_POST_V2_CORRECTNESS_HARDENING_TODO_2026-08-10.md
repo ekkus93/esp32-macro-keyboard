@@ -494,8 +494,9 @@ Search and classify at least:
 
 ### H7-072 — Correct error classification
 
-- [ ] Replace executor-unavailable -> `APP_ERROR_STORAGE_UNAVAILABLE` mappings with an executor/internal-appropriate error.
-- [ ] Verify HTTP mapping remains sensible and does not leak internals.
+- [x] Replace executor-unavailable -> `APP_ERROR_STORAGE_UNAVAILABLE` mappings with an executor/internal-appropriate error.
+- [x] Verify HTTP mapping remains sensible and does not leak internals.
+- Evidence: production correction landed in `48d7714d9f48621e1876c4ef3d434826542c6710`; `db5ebc475be8a21a9f18932fdbd5827b706a9a70` adds explicit web-core/live-route regression coverage for POST/GET/DELETE unavailable-executor mappings. Executor 2/2 and web 29/29 passed in normal and ASan+UBSan runs in targeted workflow `31538431440`; source guard confirms no `APP_ERROR_STORAGE_UNAVAILABLE` remains in `firmware/components/macro_executor`. Full evidence: `docs/implementation-v2/H7_072_EXECUTOR_ERROR_CLASSIFICATION_2026-08-11.md`.
 
 ### H7-073 — Tests
 
