@@ -571,56 +571,60 @@ Required behavior:
 
 Audit production firmware and v2 frontend for:
 
-- [ ] `catch {}`,
-- [ ] `.catch(() => {})`,
-- [ ] `(void)` on fallible calls,
-- [ ] ignored `esp_err_t`/`app_error_code_t`,
-- [ ] “best-effort” comments,
-- [ ] “fallback” comments,
-- [ ] stale-state retry loops,
-- [ ] cleanup-result replacement patterns.
+- [x] `catch {}`,
+- [x] `.catch(() => {})`,
+- [x] `(void)` on fallible calls,
+- [x] ignored `esp_err_t`/`app_error_code_t`,
+- [x] “best-effort” comments,
+- [x] “fallback” comments,
+- [x] stale-state retry loops,
+- [x] cleanup-result replacement patterns.
 
 For every hit:
 
-- [ ] classify as safe/visible, or
-- [ ] fix it, or
-- [ ] document why it is intentionally acceptable with tests.
+- [x] classify as safe/visible, or
+- [x] fix it, or
+- [x] document why it is intentionally acceptable with tests.
 
 Do not ban best-effort globally; the criterion is whether the ignored failure changes user-visible correctness, safety, security, persistence, or recoverability.
+- Evidence: initial mechanical audit `31544238722` / `93953189964`, H9 correction `f36b48eef170b84085f1a978b25fb8c14de99574`, and final audit `31546340375` / `93959559165`. Final inventory has zero empty catches, zero empty Promise catches, zero best-effort markers; every actual fallible discard/fallback/retry/cleanup class is fixed or explicitly classified in `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`. H5 remains open for generalized storage primary/cleanup provenance where failures are visible but exact provenance can still be compressed.
 
 ### H9-091 — Complete no-secret audit
 
 Audit:
 
-- [ ] serial logs,
-- [ ] firmware logs,
-- [ ] HTTP success/error bodies,
-- [ ] diagnostics,
-- [ ] browser console where applicable,
-- [ ] repository export,
-- [ ] snapshot export,
-- [ ] test failure output.
+- [x] serial logs,
+- [x] firmware logs,
+- [x] HTTP success/error bodies,
+- [x] diagnostics,
+- [x] browser console where applicable,
+- [x] repository export,
+- [x] snapshot export,
+- [x] test failure output.
 
 Secret sentinels must cover:
 
-- [ ] admin password,
-- [ ] AP passphrase,
-- [ ] setup code,
-- [ ] session token,
-- [ ] password salt/verifier bytes.
+- [x] admin password,
+- [x] AP passphrase,
+- [x] setup code,
+- [x] session token,
+- [x] password salt/verifier bytes.
+- Evidence: H9 removes setup-code value logging, strengthens the firmware credential-output checker and its 9-case regression suite, prohibits production-V2 browser-console output, and redacts compared values from shared host-test failure helpers. Existing exact diagnostics/HTTP allowlists and typed repository/snapshot boundaries complete the surface audit. Session tokens remain intentionally confined to cookie transport and are not reflected into JSON/log/diagnostic/export output. Full surface×sentinel matrix: `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`.
 
 ### H9-092 — Strengthen architectural guards
 
-- [ ] Add/extend static checks preventing firmware package/macro repository ownership from returning.
-- [ ] Extend browser-storage prohibition scan to every production v2 frontend directory.
-- [ ] Add a guard against reintroducing synchronous confirmation wait fallback if practical.
-- [ ] Add a guard/test ensuring real send construction considers the confirmation setting.
+- [x] Add/extend static checks preventing firmware package/macro repository ownership from returning.
+- [x] Extend browser-storage prohibition scan to every production v2 frontend directory.
+- [x] Add a guard against reintroducing synchronous confirmation wait fallback if practical.
+- [x] Add a guard/test ensuring real send construction considers the confirmation setting.
+- Evidence: Phase-2 ownership guard remains exhaustive over firmware components/main; the frontend scan now covers `AppV2.tsx`, all `src/v2`, and every `src/features/**/v2`; `scripts/check-h9-architecture.py` rejects synchronous worker-unavailable confirmation fallback; and real send construction now reads authoritative device settings, binds `require_serial_confirmation`, and fails closed if policy read fails. Host regressions passed in `31546096618` / `93958810321`.
 
 ### Phase H9 exit gate
 
-- [ ] Every production “best-effort”/ignored-error site has been classified.
-- [ ] No known critical silent failure from the review remains.
-- [ ] Complete secret audit passes with committed evidence.
+- [x] Every production “best-effort”/ignored-error site has been classified.
+- [x] No known critical silent failure from the review remains.
+- [x] Complete secret audit passes with committed evidence.
+- Evidence: `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`; validated H9 product SHA `f36b48eef170b84085f1a978b25fb8c14de99574`; final mechanical audit `31546340375` / `93959559165`.
 
 ---
 
