@@ -33,106 +33,65 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path("webapp/tests/v2-macros-page.test.tsx")
           text = path.read_text()
 
-          def replace_once(old: str, new: str) -> None:
+          def replace_exact(old: str, new: str, expected: int) -> None:
               global text
               count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"expected exactly one match, found {count}: {old[:80]!r}")
-              text = text.replace(old, new, 1)
+              if count != expected:
+                  raise SystemExit(
+                      f"expected {expected} matches, found {count}: {old!r}"
+                  )
+              text = text.replace(old, new)
 
-          replace_once(
+          replace_exact(
               'import type { SendMacroHandle } from "../src/v2/sendClient";',
-              '''import type {
-            SendMacroCallbacks,
-            SendMacroHandle,
-          } from "../src/v2/sendClient";''',
+              'import type { SendMacroCallbacks, SendMacroHandle } from "../src/v2/sendClient";',
+              1,
+          )
+          replace_exact(
+              "vi.fn(async () => undefined)",
+              "vi.fn(() => Promise.resolve(undefined))",
+              4,
+          )
+          replace_exact(
+              "vi.fn(async () => null)",
+              "vi.fn(() => Promise.resolve(null))",
+              1,
+          )
+          replace_exact(
+              'vi.fn(async () => statusAt("running", 1))',
+              'vi.fn(() => Promise.resolve(statusAt("running", 1)))',
+              1,
+          )
+          replace_exact(
+              "vi.fn(async () => ({",
+              "vi.fn(() => Promise.resolve({",
+              2,
+          )
+          replace_exact(
+              "dependencies.sendMacro = vi.fn(async () => {",
+              "dependencies.sendMacro = vi.fn(() => {",
+              1,
           )
 
-          replace_once(
-              '''    return {
-              sendMacro: vi.fn(async () => ({
-                accepted,
-                cancel: vi.fn(async () => undefined),
-                stop: vi.fn(),
-              })),
-              trackSend: vi.fn(() => ({ stop: vi.fn() })),
-              cancelSend: vi.fn(async () => undefined),
-              recoverSendState: vi.fn(async () => null),
-            };''',
-              '''    return {
-              sendMacro: vi.fn(() =>
-                Promise.resolve({
-                  accepted,
-                  cancel: vi.fn(() => Promise.resolve(undefined)),
-                  stop: vi.fn(),
-                }),
-              ),
-              trackSend: vi.fn(() => ({ stop: vi.fn() })),
-              cancelSend: vi.fn(() => Promise.resolve(undefined)),
-              recoverSendState: vi.fn(() => Promise.resolve(null)),
-            };''',
+          old_decl = (
+              "    let trackerCallbacks:\n"
+              '      | Parameters<MacrosPageDependencies["trackSend"]>[1]\n'
+              "      | undefined;"
           )
-
-          replace_once(
-              '''    dependencies.sendMacro = vi.fn(async () => {
-              throw new V2ApiError(409, {
-                code: "already_sending",
-                message: "A send is already in progress.",
-              });
-            });
-            dependencies.recoverSendState = vi.fn(async () => statusAt("running", 1));''',
-              '''    dependencies.sendMacro = vi.fn(() =>
-              Promise.reject(
-                new V2ApiError(409, {
-                  code: "already_sending",
-                  message: "A send is already in progress.",
-                }),
-              ),
-            );
-            dependencies.recoverSendState = vi.fn(() =>
-              Promise.resolve(statusAt("running", 1)),
-            );''',
+          replace_exact(
+              old_decl,
+              "    let trackerCallbacks: SendMacroCallbacks | undefined;",
+              1,
           )
-
-          replace_once(
-              '''    dependencies.sendMacro = vi.fn(async () => ({
-              accepted,
-              cancel: vi.fn(async () => undefined),
-              stop,
-            }));''',
-              '''    dependencies.sendMacro = vi.fn(() =>
-              Promise.resolve({
-                accepted,
-                cancel: vi.fn(() => Promise.resolve(undefined)),
-                stop,
-              }),
-            );''',
-          )
-
-          replace_once(
-              '''    let trackerCallbacks:
-              | Parameters<MacrosPageDependencies["trackSend"]>[1]
-              | undefined;
-            dependencies.trackSend = vi.fn((_seed, callbacks) => {
-              trackerCallbacks = callbacks;
-              return { stop: vi.fn() };
-            });''',
-              '''    let trackerCallbacks: SendMacroCallbacks | undefined;
-            dependencies.trackSend = vi.fn(
-              (_seed: SendStatusResponse, callbacks: SendMacroCallbacks) => {
-                trackerCallbacks = callbacks;
-                return { stop: vi.fn() };
-              },
-            );''',
-          )
-
-          replace_once(
-              '''      cancel: vi.fn(async () => undefined),''',
-              '''      cancel: vi.fn(() => Promise.resolve(undefined)),''',
+          replace_exact(
+              "dependencies.trackSend = vi.fn((_seed, callbacks) => {",
+              "dependencies.trackSend = vi.fn((_seed: SendStatusResponse, callbacks: SendMacroCallbacks) => {",
+              1,
           )
 
           path.write_text(text)
