@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { v2GetJson, v2PostJson } from "../../../v2/apiClient";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { V2ApiError, v2GetJson, v2PostJson } from "../../../v2/apiClient";
 import { isSessionStatus } from "../../../v2/apiGuards";
 import { isLoginRequest } from "../../../v2/apiRequestGuards";
 import type { SessionStatus } from "../../../v2/apiTypes";
@@ -17,61 +17,61 @@ export interface SignInPageProps {
   onAuthenticated: (session: SessionStatus) => void;
 }
 
-type Phase = "checking" | "form";
+type Phase = "checking" | "form" | "check-error";
 
 /**
  * V2-081 — Sign In (UI_UX_SPEC_V2 §3.2).
  *
- * This component assumes its caller has already decided a configured
- * device is the right context to mount it (V2-082's startup state machine
- * owns that overall decision — out of this task's scope). It still
- * satisfies "show Sign In only ... without a valid session" on its own
- * terms: on mount it checks `GET /api/v1/auth/session` and, if a session is
- * already valid, calls `onAuthenticated` immediately instead of ever
- * rendering the password form.
+ * A 401 from the initial session probe is the expected unauthenticated
+ * state and opens the password form. Every other probe failure is a
+ * connectivity/protocol/server failure, so it remains visible with Retry
+ * rather than being silently reclassified as "no session".
  */
 export function SignInPage({
   onAuthenticated,
 }: SignInPageProps): React.JSX.Element {
   const [phase, setPhase] = useState<Phase>("checking");
+  const [sessionCheckError, setSessionCheckError] = useState<string | null>(
+    null,
+  );
   const [adminPassword, setAdminPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Read through a ref (stable identity, no dependency-array entry needed)
-  // so the mount-only session check below can call the latest callback
-  // without re-running whenever the caller passes a new function reference.
   const onAuthenticatedRef = useRef(onAuthenticated);
   onAuthenticatedRef.current = onAuthenticated;
+  const mountedRef = useRef(false);
+
+  const checkExistingSession = useCallback(async (): Promise<void> => {
+    setPhase("checking");
+    setSessionCheckError(null);
+    try {
+      const session = await v2GetJson("/api/v1/auth/session", isSessionStatus, {
+        notifyOnUnauthorized: false,
+      });
+      if (mountedRef.current) {
+        onAuthenticatedRef.current(session);
+      }
+    } catch (checkError: unknown) {
+      if (!mountedRef.current) {
+        return;
+      }
+      if (checkError instanceof V2ApiError && checkError.status === 401) {
+        setPhase("form");
+        return;
+      }
+      setSessionCheckError(v2ErrorText(checkError));
+      setPhase("check-error");
+    }
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    const checkExistingSession = async (): Promise<void> => {
-      try {
-        const session = await v2GetJson(
-          "/api/v1/auth/session",
-          isSessionStatus,
-          { notifyOnUnauthorized: false },
-        );
-        if (active) {
-          onAuthenticatedRef.current(session);
-        }
-      } catch {
-        // A missing/invalid session (401) is the expected case that shows
-        // the form. Any other failure (device unreachable, malformed
-        // response) also falls through to the form rather than trapping
-        // the user on a silent checking screen — the login submission
-        // itself will surface a real connectivity problem.
-        if (active) {
-          setPhase("form");
-        }
-      }
-    };
+    mountedRef.current = true;
     void checkExistingSession();
     return () => {
-      active = false;
+      mountedRef.current = false;
     };
-  }, []);
+  }, [checkExistingSession]);
 
   const submit = async (
     event: React.FormEvent<HTMLFormElement>,
@@ -99,6 +99,26 @@ export function SignInPage({
     return (
       <main className="standalone" aria-busy="true">
         <p role="status">Checking for an existing session…</p>
+      </main>
+    );
+  }
+
+  if (phase === "check-error") {
+    return (
+      <main className="standalone">
+        <section>
+          <h1>Unable to check session</h1>
+          <ErrorBanner message={sessionCheckError} />
+          <button
+            className="primary"
+            onClick={() => {
+              void checkExistingSession();
+            }}
+            type="button"
+          >
+            Retry
+          </button>
+        </section>
       </main>
     );
   }

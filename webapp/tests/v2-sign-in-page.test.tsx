@@ -5,6 +5,7 @@ import type { SessionStatus } from "../src/v2/apiTypes";
 import { getFetchCalls, jsonResponse, planFetch } from "./fakeFetch";
 import {
   buttonWithText,
+  click,
   flushReact,
   render,
   requiredElement,
@@ -72,7 +73,7 @@ describe("v2 SignInPage", () => {
     await view.unmount();
   });
 
-  test("falls back to the form when the session check fails unexpectedly", async () => {
+  test("shows a retryable error when the session check fails unexpectedly", async () => {
     planSessionCheck(500, {
       error: { code: "internal_error", message: "Unexpected failure." },
     });
@@ -85,7 +86,16 @@ describe("v2 SignInPage", () => {
     );
     await flushReact();
 
+    expect(requiredElement("[role='alert']", HTMLElement).textContent).toBe(
+      "internal_error: Unexpected failure.",
+    );
+    expect(document.body.textContent).not.toContain("Administrator password");
+
+    planUnauthenticatedSessionCheck();
+    await click(buttonWithText("Retry"));
+    await flushReact();
     expect(document.body.textContent).toContain("Administrator password");
+    expect(document.body.textContent).not.toContain("Unexpected failure.");
     await view.unmount();
   });
 

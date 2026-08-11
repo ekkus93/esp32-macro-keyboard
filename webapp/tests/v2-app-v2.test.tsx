@@ -62,7 +62,13 @@ async function waitUntil(
     }
     await tick(0);
   }
-  throw new Error(`Timed out waiting for: ${description}`);
+  const recentFetches = getFetchCalls()
+    .slice(-10)
+    .map((call) => `${call.method} ${call.url}`)
+    .join(", ");
+  throw new Error(
+    `Timed out waiting for: ${description}; body=${document.body.textContent ?? ""}; recentFetches=${recentFetches}`,
+  );
 }
 
 const settingsBody = {
@@ -157,6 +163,14 @@ async function signIn(options: SignInOptions = {}): Promise<RenderResult> {
     return jsonResponse(
       { error: { code: "not_found", message: "Already provisioned." } },
       404,
+    );
+  });
+  planFetch((call) => {
+    expect(call.url).toBe("/api/v1/auth/session");
+    expect(call.method).toBe("GET");
+    return jsonResponse(
+      { error: { code: "unauthorized", message: "Sign in required." } },
+      401,
     );
   });
   const view = await render(<AppV2 />);
@@ -379,19 +393,21 @@ describe("AppV2 — wiring RepositoryStartupScreen into the running app shell", 
         deviceName: "Desk Macro Keyboard",
       });
     });
-    await render(<AppV2 />);
+    const view = await render(<AppV2 />);
     await waitUntil(() => bodyIncludes("First-run setup"), "First-run setup");
+    await view.unmount();
   });
 
   test("device unreachable at the setup check shows a retry screen", async () => {
     planFetch(() => {
       throw new TypeError("Failed to fetch");
     });
-    await render(<AppV2 />);
+    const view = await render(<AppV2 />);
     await waitUntil(
       () => bodyIncludes("Device unreachable"),
       "device unreachable",
     );
+    await view.unmount();
   });
 
   test("Sign In -> repository startup -> the Macros page, with no dedicated progress route", async () => {
@@ -456,6 +472,14 @@ describe("AppV2 — wiring RepositoryStartupScreen into the running app shell", 
 
     planFetch((call) => {
       expect(call.url).toBe("/api/v1/status");
+      planFetch((sessionCall) => {
+        expect(sessionCall.url).toBe("/api/v1/auth/session");
+        expect(sessionCall.method).toBe("GET");
+        return jsonResponse(
+          { error: { code: "unauthorized", message: "Sign in required." } },
+          401,
+        );
+      });
       return jsonResponse(
         { error: { code: "unauthorized", message: "Session expired." } },
         401,
@@ -673,6 +697,14 @@ describe("AppV2 — Phase 12 wiring (Settings, Diagnostics, Sign Out, restart re
       expect(call.method).toBe("POST");
       return new Response(null, { status: 204 });
     });
+    planFetch((call) => {
+      expect(call.url).toBe("/api/v1/auth/session");
+      expect(call.method).toBe("GET");
+      return jsonResponse(
+        { error: { code: "unauthorized", message: "Sign in required." } },
+        401,
+      );
+    });
     await click(buttonWithText("Discard changes"));
     await waitUntil(() => bodyIncludes("Sign in"), "Sign In after sign-out");
 
@@ -744,6 +776,14 @@ describe("AppV2 — Phase 12 wiring (Settings, Diagnostics, Sign Out, restart re
       expect(call.url).toBe("/api/v1/status");
       return jsonResponse(
         { error: { code: "unauthorized", message: "Session expired." } },
+        401,
+      );
+    });
+    planFetch((call) => {
+      expect(call.url).toBe("/api/v1/auth/session");
+      expect(call.method).toBe("GET");
+      return jsonResponse(
+        { error: { code: "unauthorized", message: "Sign in required." } },
         401,
       );
     });
