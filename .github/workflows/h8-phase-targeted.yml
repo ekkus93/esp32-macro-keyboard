@@ -37,77 +37,73 @@ jobs:
 
           snapshots = Path("webapp/src/features/snapshots/v2/SnapshotsPage.tsx")
           text = snapshots.read_text()
-          old = '''  /** The currently resolved/open package (device-wide `lastSelectedPackageId`). */
-            selectedPackageId: string;
-          '''
-          if old not in text:
-              raise SystemExit("SnapshotsPage selectedPackageId prop anchor missing")
-          text = text.replace(old, "", 1)
-          old = '''  store,
-            selectedPackageId,
-            persistedPackageId,
-          '''
-          new = '''  store,
-            persistedPackageId,
-          '''
-          if old not in text:
-              raise SystemExit("SnapshotsPage destructuring anchor missing")
-          text = text.replace(old, new, 1)
-          old = "const resolution = resolveSelectedPackage(repository, selectedPackageId);"
-          new = "const resolution = resolveSelectedPackage(repository, persistedPackageId);"
-          if text.count(old) != 1:
-              raise SystemExit(f"expected one transient-selection resolution, found {text.count(old)}")
-          text = text.replace(old, new, 1)
+          prop = "  /** The currently resolved/open package (device-wide `lastSelectedPackageId`). */\n  selectedPackageId: string;\n"
+          if text.count(prop) != 1:
+              raise SystemExit(f"expected one SnapshotsPage selectedPackageId prop, found {text.count(prop)}")
+          text = text.replace(prop, "", 1)
+          destructure = "  store,\n  selectedPackageId,\n  persistedPackageId,\n"
+          if text.count(destructure) != 1:
+              raise SystemExit(f"expected one SnapshotsPage selectedPackageId destructure, found {text.count(destructure)}")
+          text = text.replace(destructure, "  store,\n  persistedPackageId,\n", 1)
+          old_resolution = "const resolution = resolveSelectedPackage(repository, selectedPackageId);"
+          if text.count(old_resolution) != 1:
+              raise SystemExit(f"expected one transient selection resolution, found {text.count(old_resolution)}")
+          text = text.replace(
+              old_resolution,
+              "const resolution = resolveSelectedPackage(repository, persistedPackageId);",
+              1,
+          )
           snapshots.write_text(text)
 
           app = Path("webapp/src/AppV2.tsx")
           text = app.read_text()
-          old = '''            saveError={saveError}
-            saving={saving}
-            selectedPackageId={packageId}
-            store={store}
-          />
-          '''
-          new = '''            saveError={saveError}
-            saving={saving}
-            store={store}
-          />
-          '''
-          if text.count(old) != 1:
-              raise SystemExit("AppV2 SnapshotsPage prop anchor missing or ambiguous")
-          app.write_text(text.replace(old, new, 1))
+          marker = '      case "snapshots":\n'
+          next_marker = '      case "settings":\n'
+          start = text.index(marker)
+          end = text.index(next_marker, start)
+          before = text[:start]
+          block = text[start:end]
+          after = text[end:]
+          selected_prop = "            selectedPackageId={packageId}\n"
+          if block.count(selected_prop) != 1:
+              raise SystemExit(f"expected one SnapshotsPage selectedPackageId prop in AppV2 snapshot block, found {block.count(selected_prop)}")
+          block = block.replace(selected_prop, "", 1)
+          app.write_text(before + block + after)
 
           tests = Path("webapp/tests/v2-snapshots-page.test.tsx")
           text = tests.read_text()
-          text = text.replace("  selectedPackageId?: string;\n", "", 1)
-          old = '''  const selectedPackageId = overrides.selectedPackageId ?? packageId;
-            const persistedPackageId =
-              overrides.persistedPackageId === undefined
-                ? selectedPackageId
-                : overrides.persistedPackageId;
-          '''
-          new = '''  const persistedPackageId =
-              overrides.persistedPackageId === undefined
-                ? packageId
-                : overrides.persistedPackageId;
-          '''
-          if old not in text:
-              raise SystemExit("snapshot test helper selection anchor missing")
-          text = text.replace(old, new, 1)
-          if text.count("      selectedPackageId={selectedPackageId}\n") != 1:
-              raise SystemExit("snapshot test JSX selected prop anchor missing")
-          text = text.replace("      selectedPackageId={selectedPackageId}\n", "", 1)
-          # Direct render used by the focus-trap test.
-          if text.count("        selectedPackageId={packageId}\n") != 1:
-              raise SystemExit("snapshot direct JSX selected prop anchor missing")
-          text = text.replace("        selectedPackageId={packageId}\n", "", 1)
-          # Existing cases that meant "no durable selection resolves" must now
-          # state that fact explicitly through the durable preference.
+          option_line = "  selectedPackageId?: string;\n"
+          if text.count(option_line) != 1:
+              raise SystemExit(f"expected one snapshot test selectedPackageId option, found {text.count(option_line)}")
+          text = text.replace(option_line, "", 1)
+          helper = (
+              "  const selectedPackageId = overrides.selectedPackageId ?? packageId;\n"
+              "  const persistedPackageId =\n"
+              "    overrides.persistedPackageId === undefined\n"
+              "      ? selectedPackageId\n"
+              "      : overrides.persistedPackageId;\n"
+          )
+          replacement = (
+              "  const persistedPackageId =\n"
+              "    overrides.persistedPackageId === undefined\n"
+              "      ? packageId\n"
+              "      : overrides.persistedPackageId;\n"
+          )
+          if text.count(helper) != 1:
+              raise SystemExit(f"expected one snapshot test selection helper, found {text.count(helper)}")
+          text = text.replace(helper, replacement, 1)
+          jsx_prop = "      selectedPackageId={selectedPackageId}\n"
+          if text.count(jsx_prop) != 1:
+              raise SystemExit(f"expected one snapshot helper JSX selected prop, found {text.count(jsx_prop)}")
+          text = text.replace(jsx_prop, "", 1)
+          direct_prop = "        selectedPackageId={packageId}\n"
+          if text.count(direct_prop) != 1:
+              raise SystemExit(f"expected one direct snapshot JSX selected prop, found {text.count(direct_prop)}")
+          text = text.replace(direct_prop, "", 1)
           text = text.replace(
               '      selectedPackageId: "does-not-exist",\n',
               '      persistedPackageId: "does-not-exist",\n',
           )
-          # Redundant old local-selection fixtures: durable preference is already explicit.
           text = text.replace("      selectedPackageId: packageId,\n", "")
 
           regression = r'''
@@ -225,16 +221,19 @@ jobs:
 
           app_tests = Path("webapp/tests/v2-app-v2.test.tsx")
           text = app_tests.read_text()
-          old = '''    const view = await signIn();
-            expect(bodyIncludes("Macros")).toBe(true);
-          '''
-          new = '''    const view = await signIn();
-            expect(bodyIncludes("Macros")).toBe(true);
-            expect(bodyIncludes("This selection may not survive a reload.")).toBe(false);
-          '''
-          if text.count(old) != 1:
-              raise SystemExit("AppV2 successful selection test anchor missing or ambiguous")
-          app_tests.write_text(text.replace(old, new, 1))
+          success_anchor = (
+              '    const view = await signIn();\n'
+              '    expect(bodyIncludes("Macros")).toBe(true);\n'
+          )
+          if text.count(success_anchor) != 1:
+              raise SystemExit(f"expected one successful sign-in assertion anchor, found {text.count(success_anchor)}")
+          text = text.replace(
+              success_anchor,
+              success_anchor
+              + '    expect(bodyIncludes("This selection may not survive a reload.")).toBe(false);\n',
+              1,
+          )
+          app_tests.write_text(text)
           PY
 
           (cd webapp && npx prettier --write \
