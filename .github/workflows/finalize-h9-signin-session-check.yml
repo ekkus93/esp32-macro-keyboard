@@ -95,7 +95,9 @@ jobs:
                   401,
                 );
               });
-              await expect(getDeviceStatus()).rejects.toMatchObject({ status: 401 });'''
+              await act(async () => {
+                await expect(getDeviceStatus()).rejects.toMatchObject({ status: 401 });
+              });'''
 
           section = section[:plan_start] + replacement + section[tick_end:]
           path.write_text(text[:start] + section + text[end:])
