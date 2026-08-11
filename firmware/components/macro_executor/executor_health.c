@@ -43,3 +43,30 @@ executor_health_t executor_health_snapshot(void) {
         .cleanup_incomplete = g_state.cleanup_incomplete,
     };
 }
+
+void executor_shutdown_state_reset(executor_shutdown_state_t *state) {
+    state->shutting_down = false;
+    state->stop_unconfirmed = false;
+}
+
+void executor_shutdown_state_begin(executor_shutdown_state_t *state) {
+    state->shutting_down = true;
+}
+
+void executor_shutdown_state_complete(executor_shutdown_state_t *state, bool worker_stopped) {
+    if (worker_stopped) {
+        state->shutting_down = false;
+        state->stop_unconfirmed = false;
+        return;
+    }
+    state->shutting_down = true;
+    state->stop_unconfirmed = true;
+}
+
+bool executor_shutdown_state_accepts_submissions(const executor_shutdown_state_t *state) {
+    return !state->shutting_down;
+}
+
+bool executor_shutdown_state_fault_latched(const executor_shutdown_state_t *state) {
+    return state->stop_unconfirmed;
+}

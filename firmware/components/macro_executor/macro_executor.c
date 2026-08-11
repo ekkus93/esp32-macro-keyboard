@@ -7,6 +7,7 @@
 
 #include "app_error.h"
 #include "esp_log.h"
+#include "executor_health.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
@@ -40,9 +41,12 @@ static SemaphoreHandle_t status_mutex;
 static SemaphoreHandle_t executor_stopped;
 static TaskHandle_t executor_task_handle;
 static macro_executor_engine_t engine;
-/* Set once deinit begins so no new submission is accepted while the worker is
- * being torn down. */
-static volatile bool shutting_down;
+/* Fail-safe shutdown latch. Once deinit begins, no new submission is accepted.
+ * If the worker does not confirm its exit, the latch intentionally remains set:
+ * clearing it could admit new work while the old worker still owns the queue.
+ * A later successful macro_executor_deinit() is the only in-process recovery;
+ * executor health records the failed stop as incomplete cleanup for diagnostics. */
+static executor_shutdown_state_t shutdown_state;
 /* Health: the worker could not signal its own exit; folded into the deinit
  * result so a failed stop is never silently ignored. */
 static volatile bool executor_stop_signal_failed;
@@ -153,7 +157,7 @@ app_error_code_t macro_executor_init(void) {
         executor_task_handle != NULL) {
         return APP_ERROR_CONFLICT;
     }
-    shutting_down = false;
+    executor_shutdown_state_reset(&shutdown_state);
     executor_stop_signal_failed = false;
     status_mutex = xSemaphoreCreateMutex();
     executor_stopped = xSemaphoreCreateBinary();
@@ -233,7 +237,7 @@ app_error_code_t macro_executor_deinit(void) {
         executor_task_handle == NULL) {
         return APP_ERROR_NONE;
     }
-    shutting_down = true;
+    executor_shutdown_state_begin(&shutdown_state);
     app_error_code_t first_error = APP_ERROR_NONE;
 
     if (executor_task_handle != NULL) {
@@ -242,7 +246,10 @@ app_error_code_t macro_executor_deinit(void) {
         if (!stopped) {
             /* The worker did not confirm exit; deleting the queue and semaphores it
              * may still touch would be a use-after-free. Leave them in place and
-             * report the failure (fail-closed) rather than risk a crash. */
+             * keep the shutdown latch set (fail-closed) rather than risk a crash
+             * or admit new work while ownership is uncertain. */
+            executor_shutdown_state_complete(&shutdown_state, false);
+            executor_health_record_cleanup(first_error, true);
             return first_error;
         }
         executor_task_handle = NULL;
@@ -271,12 +278,12 @@ app_error_code_t macro_executor_deinit(void) {
         first_error = APP_ERROR_INTERNAL;
     }
     executor_stop_signal_failed = false;
-    shutting_down = false;
+    executor_shutdown_state_complete(&shutdown_state, true);
     return first_error;
 }
 
 app_error_code_t macro_executor_submit(macro_execution_request_t *request) {
-    if (shutting_down) {
+    if (!executor_shutdown_state_accepts_submissions(&shutdown_state)) {
         return APP_ERROR_CONFLICT;
     }
     return macro_executor_engine_submit(&engine, request);

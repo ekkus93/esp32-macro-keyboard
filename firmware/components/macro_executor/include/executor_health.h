@@ -18,9 +18,24 @@ typedef struct {
     bool cleanup_incomplete;
 } executor_health_t;
 
+/* Portable shutdown policy used by macro_executor.c. A worker stop that is not
+ * confirmed is a fail-safe latch: submissions remain disabled until a later
+ * deinit attempt confirms the worker has stopped. macro_executor_init() may
+ * reset this state only after verifying no executor resources are still owned. */
+typedef struct {
+    volatile bool shutting_down;
+    volatile bool stop_unconfirmed;
+} executor_shutdown_state_t;
+
 void executor_health_reset(void);
 void executor_health_record_primary(app_error_code_t error);
 void executor_health_record_cleanup(app_error_code_t cleanup_error, bool cleanup_incomplete);
 executor_health_t executor_health_snapshot(void);
+
+void executor_shutdown_state_reset(executor_shutdown_state_t *state);
+void executor_shutdown_state_begin(executor_shutdown_state_t *state);
+void executor_shutdown_state_complete(executor_shutdown_state_t *state, bool worker_stopped);
+bool executor_shutdown_state_accepts_submissions(const executor_shutdown_state_t *state);
+bool executor_shutdown_state_fault_latched(const executor_shutdown_state_t *state);
 
 #endif
