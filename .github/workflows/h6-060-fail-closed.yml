@@ -1,0 +1,307 @@
+name: H6-060 Fail-Closed Confirmation Validator
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/h6-060-fail-closed.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    if: github.event.head_commit.message == 'chore: stage H6-060 fail-closed validator'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out staging commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install host-test dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            clang-format \
+            cmake \
+            libcjson-dev
+
+      - name: Apply H6-060 fail-closed fix and regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          source_path = Path("firmware/components/web_server/web_server_async.c")
+          source = source_path.read_text()
+          old_fallback = '''    if (async_queue == NULL || async_task_handle == NULL) {
+                  /* Worker unavailable: answer on the httpd task rather than drop the
+                   * request. This blocks other clients for the confirmation window, which
+                   * is the pre-existing behaviour and strictly better than failing. */
+                  bool should_restart = false;
+                  const esp_err_t result = web_api_handle_call(request, &should_restart);
+                  if (should_restart) {
+                      esp_restart();
+                  }
+                  return result;
+              }
+          '''
+          # Keep the replacement robust to the file's normal four-space indentation.
+          old_fallback = old_fallback.replace("              ", "")
+          new_fallback = '''    if (async_queue == NULL || async_task_handle == NULL) {
+              /* Confirmation-gated work must never fall back to the httpd task:
+               * waiting there blocks the single server task and turns an async
+               * subsystem fault into whole-server unavailability. Fail closed and
+               * leave the requested operation untouched. */
+              return web_api_send_status_error(request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
+                                               APP_ERROR_INTERNAL,
+                                               "confirmation service unavailable");
+          }
+          '''
+          new_fallback = new_fallback.replace("          ", "")
+          if source.count(old_fallback) != 1:
+              raise SystemExit("expected exactly one synchronous fallback block")
+          source_path.write_text(source.replace(old_fallback, new_fallback, 1))
+
+          test_path = Path("tests/host/test_web_server_async_confirmation.c")
+          test = test_path.read_text()
+
+          new_header = r'''/* Fail-closed HTTP regression for confirmation-required routes.
+           *
+           * This target links the real web_server_async.c but deliberately never starts
+           * its FreeRTOS worker. A confirmation-gated request must therefore fail fast
+           * with 503 Service Unavailable. It must not call
+           * device_controls_wait_for_confirmation(), execute the protected operation, or
+           * restart the device on the httpd task. This is the regression for post-v2
+           * hardening H6-060.
+           *
+           * The actual FreeRTOS queue/task worker path remains outside this host target;
+           * the stubbed queue/task/async-httpd functions below are hard-failure canaries
+           * so this test cannot silently approximate concurrency semantics it does not
+           * faithfully implement. */'''
+          test, count = re.subn(r'\A/\*.*?\*/\n\n#include <stdbool\.h>',
+                                new_header + '\n\n#include <stdbool.h>', test,
+                                count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit("could not replace async-confirmation test header")
+
+          canary_pattern = re.compile(
+              r'/\* ---------------------------------------------------------------------- \*\n'
+              r' \* Dead-path FreeRTOS/httpd-async canaries\..*?'
+              r' \* ---------------------------------------------------------------------- \*/',
+              re.S,
+          )
+          new_canary = r'''/* ---------------------------------------------------------------------- *
+           * Dead-path FreeRTOS/httpd-async canaries. The worker is intentionally
+           * unavailable in this host regression, and H6-060 requires dispatch to
+           * return 503 before any queue/task/async-httpd primitive is reached. Each
+           * definition below therefore fails loudly if that invariant changes.
+           * ---------------------------------------------------------------------- */'''
+          test, count = canary_pattern.subn(new_canary, test, count=1)
+          if count != 1:
+              raise SystemExit("could not replace FreeRTOS canary comment")
+
+          old_reset_comment = '''    /* The subject of this whole file: confirmation is required globally, but
+               * the FreeRTOS worker is never started (see the file header comment), so
+               * every request below takes web_server_async_dispatch()'s synchronous
+               * fallback branch. */
+          '''.replace("          ", "")
+          new_reset_comment = '''    /* Confirmation is required globally, while the FreeRTOS worker is
+               * intentionally never started. Confirmation-gated routes must fail closed
+               * before policy confirmation or handler execution. */
+          '''.replace("          ", "")
+          if test.count(old_reset_comment) != 1:
+              raise SystemExit("could not find reset_fakes fallback comment")
+          test = test.replace(old_reset_comment, new_reset_comment, 1)
+
+          bottom_marker = "/* -------------------------------------------------------------------------\n * POST /api/v1/device/restart"
+          marker_index = test.find(bottom_marker)
+          if marker_index < 0:
+              raise SystemExit("could not find old async-confirmation test body")
+
+          new_tests = r'''/* -------------------------------------------------------------------------
+           * Worker-unavailable fail-closed behavior.
+           * ---------------------------------------------------------------------- */
+
+          static void assert_confirmation_service_unavailable(const fake_httpd_request_t *fake) {
+              TEST_CHECK_EQ_STRING("503 Service Unavailable", fake->response_status);
+              cJSON *root = parse_response(fake);
+              cJSON *error = cJSON_GetObjectItemCaseSensitive(root, "error");
+              TEST_CHECK(cJSON_IsObject(error));
+              cJSON *code = cJSON_GetObjectItemCaseSensitive(error, "code");
+              cJSON *message = cJSON_GetObjectItemCaseSensitive(error, "message");
+              TEST_CHECK(cJSON_IsString(code));
+              TEST_CHECK(cJSON_IsString(message));
+              TEST_CHECK_EQ_STRING("internal", code->valuestring);
+              TEST_CHECK_EQ_STRING("confirmation service unavailable", message->valuestring);
+              cJSON_Delete(root);
+          }
+
+          static void test_restart_worker_unavailable_fails_closed(void) {
+              reset_fakes();
+              fake_httpd_request_t fake;
+              httpd_req_t request;
+              fake_httpd_reset(&fake);
+              authenticate(&fake);
+              bind_bodyless(&request, &fake, "/api/v1/device/restart", HTTP_POST);
+
+              TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+              assert_confirmation_service_unavailable(&fake);
+              TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
+              TEST_CHECK_EQ_U64(0U, (uint64_t)g_restart_calls);
+              TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
+          }
+
+          static void test_change_password_worker_unavailable_fails_closed(void) {
+              reset_fakes();
+              fake_httpd_request_t fake;
+              httpd_req_t request;
+              fake_httpd_reset(&fake);
+              authenticate(&fake);
+              bind_json_body(&request, &fake, "/api/v1/settings/change-password", HTTP_POST,
+                             "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
+                             "password\"}");
+
+              TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+              assert_confirmation_service_unavailable(&fake);
+              TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
+              TEST_CHECK_EQ_U64(0U, (uint64_t)g_logout_all_calls);
+              TEST_CHECK(fake_httpd_response_header(&fake, "Set-Cookie") == NULL);
+          }
+
+          static void test_reset_settings_worker_unavailable_fails_closed(void) {
+              reset_fakes();
+              fake_httpd_request_t fake;
+              httpd_req_t request;
+              fake_httpd_reset(&fake);
+              authenticate(&fake);
+              bind_json_body(&request, &fake, "/api/v1/device/reset-settings", HTTP_POST,
+                             "{\"confirmation\":\"RESET SETTINGS\"}");
+
+              TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+              assert_confirmation_service_unavailable(&fake);
+              TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
+              TEST_CHECK_EQ_U64(0U, (uint64_t)g_reset_settings_calls);
+              TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
+          }
+
+          static void test_factory_reset_worker_unavailable_fails_closed(void) {
+              reset_fakes();
+              fake_httpd_request_t fake;
+              httpd_req_t request;
+              fake_httpd_reset(&fake);
+              authenticate(&fake);
+              bind_json_body(&request, &fake, "/api/v1/device/factory-reset", HTTP_POST,
+                             "{\"confirmation\":\"FACTORY RESET\",\"adminPassword\":\"example-password\"}");
+
+              TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+              assert_confirmation_service_unavailable(&fake);
+              TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
+              TEST_CHECK_EQ_U64(0U, (uint64_t)g_factory_reset_calls);
+              TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
+          }
+
+          /* A route that does not require confirmation must remain usable even when
+           * the confirmation worker is unavailable. */
+          static void test_settings_get_unaffected_by_worker_unavailability(void) {
+              reset_fakes();
+              fake_httpd_request_t fake;
+              httpd_req_t request;
+              fake_httpd_reset(&fake);
+              authenticate(&fake);
+              bind_bodyless(&request, &fake, "/api/v1/settings", HTTP_GET);
+
+              TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+              TEST_CHECK_EQ_STRING("200 OK", fake.response_status);
+              TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
+          }
+
+          int main(void) {
+              test_restart_worker_unavailable_fails_closed();
+              test_change_password_worker_unavailable_fails_closed();
+              test_reset_settings_worker_unavailable_fails_closed();
+              test_factory_reset_worker_unavailable_fails_closed();
+              test_settings_get_unaffected_by_worker_unavailability();
+
+              puts("web server async confirmation fail-closed tests passed");
+              return 0;
+          }
+          '''
+          test_path.write_text(test[:marker_index] + new_tests)
+
+          freertos_path = Path("tests/host/fakes/freertos_stub/freertos/FreeRTOS.h")
+          freertos = freertos_path.read_text()
+          freertos_pattern = re.compile(
+              r'/\* Host-test stand-in for ESP-IDF\'s FreeRTOS-Kernel component headers.*?'
+              r'V2_057_PHASE5_HARDENING_2026-08-09\.md for the full\n'
+              r' \* account of what this track built and what remains genuinely open\. \*/',
+              re.S,
+          )
+          freertos_comment = r'''/* Host-test stand-in for ESP-IDF's FreeRTOS-Kernel component headers
+           * (freertos/FreeRTOS.h plus the xtensa freertos/portmacro.h it pulls in).
+           *
+           * This is deliberately not a faithful FreeRTOS emulation. The
+           * web_server_async_confirmation host target intentionally never starts the
+           * async worker. Under H6-060, confirmation-gated dispatch must therefore fail
+           * closed with 503 before queue, task, semaphore, critical-section, or async
+           * httpd operations are reached. The corresponding definitions in
+           * test_web_server_async_confirmation.c are hard-failure canaries so a future
+           * code change cannot silently turn this compile-only stub into an approximate
+           * concurrency model. */'''
+          freertos, count = freertos_pattern.subn(freertos_comment, freertos, count=1)
+          if count != 1:
+              raise SystemExit("could not replace FreeRTOS stub header comment")
+          freertos_path.write_text(freertos)
+
+          cmake_path = Path("tests/host/CMakeLists.txt")
+          cmake = cmake_path.read_text()
+          cmake_pattern = re.compile(
+              r'# Live end-to-end HTTP test for the physical-confirmation-required=true path .*?'
+              r'# out of scope\.\n(?=add_executable\(\n    web_server_async_confirmation_tests)',
+              re.S,
+          )
+          cmake_comment = '''# Fail-closed host regression for physical-confirmation-required routes when the async worker is
+          # unavailable. This target links the real web_server_async.c against fakes/freertos_stub and
+          # deliberately never calls web_server_async_start(). Confirmation-gated requests must return 503
+          # without invoking the confirmation wait or protected handler; the fake FreeRTOS/async-httpd
+          # functions are hard-failure canaries for accidental entry into the unmodeled worker path.
+          '''.replace("          ", "")
+          cmake, count = cmake_pattern.subn(cmake_comment, cmake, count=1)
+          if count != 1:
+              raise SystemExit("could not replace async-confirmation CMake comment")
+          cmake_path.write_text(cmake)
+          PY
+
+          clang-format -i \
+            firmware/components/web_server/web_server_async.c \
+            tests/host/test_web_server_async_confirmation.c \
+            tests/host/fakes/freertos_stub/freertos/FreeRTOS.h
+          git diff --check
+
+      - name: Run web host tests
+        run: ./scripts/run-tests.sh web
+
+      - name: Run web host tests with ASan and UBSan
+        run: ./scripts/run-tests.sh --sanitizers web
+
+      - name: Commit validated product change
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/h6-060-fail-closed.yml
+          git add \
+            firmware/components/web_server/web_server_async.c \
+            tests/host/test_web_server_async_confirmation.c \
+            tests/host/fakes/freertos_stub/freertos/FreeRTOS.h \
+            tests/host/CMakeLists.txt
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(web): fail closed without confirmation worker"
+          git push origin HEAD:master
