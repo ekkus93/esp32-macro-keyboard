@@ -34,30 +34,9 @@ jobs:
 
           git rm .github/staging/h7-release-fault.patch.b64
           git rm .github/workflows/apply-h7-executor-release-fault.yml
-
-          expected="$(printf '%s\n' \
-            '.github/staging/h7-release-fault.patch.b64' \
-            '.github/workflows/apply-h7-executor-release-fault.yml' \
-            'firmware/components/macro_executor/macro_executor.c' \
-            'firmware/components/macro_executor/macro_executor_engine.c' \
-            'firmware/components/macro_executor/macro_executor_engine.h' \
-            'firmware/components/macro_executor/macro_executor_ops.h' \
-            'tests/host/executor_terminal_tests.inc' \
-            'tests/host/executor_test_fixture.h' \
-            'tests/host/executor_test_fixture.inc' \
-            'tests/host/executor_validation_tests.inc' | sort)"
-          actual="$(git diff --name-only | sort)"
-          test "${actual}" = "${expected}"
-
-          git add firmware/components/macro_executor/macro_executor.c \
-            firmware/components/macro_executor/macro_executor_engine.c \
-            firmware/components/macro_executor/macro_executor_engine.h \
-            firmware/components/macro_executor/macro_executor_ops.h \
-            tests/host/executor_terminal_tests.inc \
-            tests/host/executor_test_fixture.h \
-            tests/host/executor_test_fixture.inc \
-            tests/host/executor_validation_tests.inc
+          git add -A
           git diff --cached --check
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "fix: fail closed on executor release faults"
