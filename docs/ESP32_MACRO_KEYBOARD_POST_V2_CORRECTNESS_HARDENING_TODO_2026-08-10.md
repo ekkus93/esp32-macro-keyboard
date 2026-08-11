@@ -437,10 +437,11 @@ Search and classify at least:
 
 ### H6-060 — Remove synchronous fallback
 
-- [ ] Delete the fallback that runs confirmation-gated work on the main httpd task when the async worker is unavailable.
-- [ ] Return explicit `503 Service Unavailable` or the contract-consistent equivalent.
-- [ ] Do not bypass physical confirmation.
-- [ ] Do not block the whole server for the confirmation timeout.
+- [x] Delete the fallback that runs confirmation-gated work on the main httpd task when the async worker is unavailable.
+- [x] Return explicit `503 Service Unavailable` or the contract-consistent equivalent.
+- [x] Do not bypass physical confirmation.
+- [x] Do not block the whole server for the confirmation timeout.
+- Evidence: implementation commit `30301a89cef655c9bf6420c1192c19bdb2f3a09c`; `./scripts/run-tests.sh web` passed 28/28 and `./scripts/run-tests.sh --sanitizers web` passed 28/28 in targeted run `31530721738`, job `93909820931`. Worker-unavailable confirmation-gated routes now return `503 Service Unavailable` without invoking the confirmation wait, protected handler, or restart path; a non-confirmation settings route remains usable. Full evidence: `docs/implementation-v2/H6_060_ASYNC_CONFIRMATION_FAIL_CLOSED_2026-08-11.md`.
 
 ### H6-061 — Track async subsystem health
 
@@ -457,7 +458,7 @@ Search and classify at least:
 
 ### H6-063 — Regression tests
 
-- [ ] worker unavailable -> fast visible failure, no synchronous wait,
+- [x] worker unavailable -> fast visible failure, no synchronous wait,
 - [ ] queue failure -> request answered/completed and health degraded,
 - [ ] handler failure -> request completion still occurs,
 - [ ] async completion failure -> health captures failure,
