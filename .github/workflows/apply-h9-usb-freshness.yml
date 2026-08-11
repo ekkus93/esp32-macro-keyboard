@@ -31,343 +31,50 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat > webapp/src/features/shell/v2/useDeviceStatus.ts <<'TS'
-          import { useEffect, useState } from "react";
-          import { getStatus as defaultGetStatus } from "../../../v2/statusClient";
-          import type { UsbState } from "../../../v2/apiTypes";
-
-          /**
-           * Polls `GET /api/v1/status` for the live USB state the application shell
-           * (TODO_V2 V2-090) and Macros page (TODO_V2 V2-091) need. A small bounded
-           * number of transient failures retains the last known state to avoid UI
-           * flicker. After the threshold, the last value remains available for
-           * display but is explicitly degraded and must not be trusted for sending.
-           */
-          const pollIntervalMs = 5_000;
-          const degradedAfterConsecutiveFailures = 3;
-
-          export interface DeviceStatusPollState {
-            readonly usbState: UsbState;
-            readonly degraded: boolean;
-            readonly consecutiveFailures: number;
-          }
-
-          export function useDeviceStatus(
-            getStatus: typeof defaultGetStatus = defaultGetStatus,
-          ): DeviceStatusPollState {
-            const [status, setStatus] = useState<DeviceStatusPollState>({
-              usbState: "uninitialized",
-              degraded: false,
-              consecutiveFailures: 0,
-            });
-
-            useEffect(() => {
-              let active = true;
-              let timer: number | null = null;
-
-              function schedulePoll(): void {
-                timer = window.setTimeout(() => {
-                  void poll();
-                }, pollIntervalMs);
-              }
-
-              async function poll(): Promise<void> {
-                try {
-                  const next = await getStatus();
-                  if (!active) {
-                    return;
-                  }
-                  setStatus({
-                    usbState: next.usb.state,
-                    degraded: false,
-                    consecutiveFailures: 0,
-                  });
-                } catch {
-                  if (!active) {
-                    return;
-                  }
-                  setStatus((current) => {
-                    const consecutiveFailures = current.consecutiveFailures + 1;
-                    return {
-                      usbState: current.usbState,
-                      degraded:
-                        consecutiveFailures >= degradedAfterConsecutiveFailures,
-                      consecutiveFailures,
-                    };
-                  });
-                }
-
-                if (active) {
-                  schedulePoll();
-                }
-              }
-
-              void poll();
-              return () => {
-                active = false;
-                if (timer !== null) {
-                  window.clearTimeout(timer);
-                }
-              };
-            }, [getStatus]);
-
-            return status;
-          }
-          TS
-
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("webapp/src/AppV2.tsx")
-          text = path.read_text()
-
-          def replace_exact(old: str, new: str, expected: int) -> None:
-              global text
-              count = text.count(old)
-              if count != expected:
-                  raise SystemExit(
-                      f"expected {expected} matches, found {count}: {old!r}"
-                  )
-              text = text.replace(old, new)
-
-          replace_exact(
-              "  const usbState = useDeviceStatus();",
-              '  const usbStatus = useDeviceStatus();\n'
-              '  const trustedUsbState = usbStatus.degraded\n'
-              '    ? "uninitialized"\n'
-              '    : usbStatus.usbState;',
-              1,
-          )
-          replace_exact(
-              "            store={store}\n            usbState={usbState}",
-              "            store={store}\n            usbState={trustedUsbState}",
-              2,
-          )
-          replace_exact(
-              "          usbState={usbState}\n        >\n"
-              '          {sendRecovery.kind === "unavailable" ? (',
-              "          usbState={usbStatus.usbState}\n        >\n"
-              "          {usbStatus.degraded ? (\n"
-              "            <ErrorBanner\n"
-              "              message={`USB status is stale. Last known state: ${usbStatus.usbState}. Sending is disabled until device status refreshes.`}\n"
-              "            />\n"
-              "          ) : null}\n"
-              '          {sendRecovery.kind === "unavailable" ? (',
-              1,
-          )
-          path.write_text(text)
-          PY
-
-          cat > webapp/tests/v2-use-device-status.test.tsx <<'TSX'
-          import { act } from "react";
-          import { describe, expect, test, vi } from "vitest";
-          import { useDeviceStatus } from "../src/features/shell/v2/useDeviceStatus";
-          import type { StatusResponse } from "../src/v2/apiTypes";
-          import { render } from "./render";
-
-          async function tick(ms: number): Promise<void> {
-            await act(async () => {
-              await vi.advanceTimersByTimeAsync(ms);
-            });
-          }
-
-          describe("useDeviceStatus", () => {
-            test("retains the last value, degrades after three consecutive failures, and recovers", async () => {
-              vi.useFakeTimers();
-              try {
-                let call = 0;
-                const getStatus = vi.fn((): Promise<StatusResponse> => {
-                  call += 1;
-                  if (call === 1) {
-                    return Promise.resolve({
-                      usb: { state: "ready" },
-                    } as unknown as StatusResponse);
-                  }
-                  if (call <= 4) {
-                    return Promise.reject(new Error("device unreachable"));
-                  }
-                  return Promise.resolve({
-                    usb: { state: "disconnected" },
-                  } as unknown as StatusResponse);
-                });
-
-                function ProbeWithDeps(): React.JSX.Element {
-                  const status = useDeviceStatus(getStatus);
-                  return (
-                    <p>
-                      usb:{status.usbState};degraded:{String(status.degraded)};
-                      failures:{String(status.consecutiveFailures)}
-                    </p>
-                  );
-                }
-
-                const { container, unmount } = await render(<ProbeWithDeps />);
-                await tick(0);
-                expect(container.textContent).toContain(
-                  "usb:ready;degraded:false;failures:0",
-                );
-
-                await tick(5000);
-                expect(container.textContent).toContain(
-                  "usb:ready;degraded:false;failures:1",
-                );
-
-                await tick(5000);
-                expect(container.textContent).toContain(
-                  "usb:ready;degraded:false;failures:2",
-                );
-
-                await tick(5000);
-                expect(container.textContent).toContain(
-                  "usb:ready;degraded:true;failures:3",
-                );
-
-                await tick(5000);
-                expect(container.textContent).toContain(
-                  "usb:disconnected;degraded:false;failures:0",
-                );
-                expect(getStatus).toHaveBeenCalledTimes(5);
-                await unmount();
-              } finally {
-                vi.useRealTimers();
-              }
-            });
-
-            test("starts uninitialized and non-degraded before the first poll resolves", async () => {
-              vi.useFakeTimers();
-              try {
-                const getStatus = vi.fn(
-                  () => new Promise<StatusResponse>(() => undefined),
-                );
-                function ProbeWithDeps(): React.JSX.Element {
-                  const status = useDeviceStatus(getStatus);
-                  return (
-                    <p>
-                      usb:{status.usbState};degraded:{String(status.degraded)}
-                    </p>
-                  );
-                }
-                const { container, unmount } = await render(<ProbeWithDeps />);
-                expect(container.textContent).toContain(
-                  "usb:uninitialized;degraded:false",
-                );
-                await unmount();
-              } finally {
-                vi.useRealTimers();
-              }
-            });
-
-            test("stops polling after unmount", async () => {
-              vi.useFakeTimers();
-              try {
-                const getStatus = vi.fn(
-                  (): Promise<StatusResponse> =>
-                    Promise.resolve({
-                      usb: { state: "ready" },
-                    } as unknown as StatusResponse),
-                );
-                function ProbeWithDeps(): React.JSX.Element {
-                  const status = useDeviceStatus(getStatus);
-                  return <p>usb:{status.usbState}</p>;
-                }
-                const { unmount } = await render(<ProbeWithDeps />);
-                await tick(0);
-                await unmount();
-                const callsAtUnmount = getStatus.mock.calls.length;
-                await tick(30_000);
-                expect(getStatus).toHaveBeenCalledTimes(callsAtUnmount);
-              } finally {
-                vi.useRealTimers();
-              }
-            });
-          });
-          TSX
-
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("webapp/tests/v2-app-v2.test.tsx")
-          text = path.read_text()
-          anchor = '  test("unprovisioned device opens First-run setup", async () => {'
-          if text.count(anchor) != 1:
-              raise SystemExit("expected one AppV2 test insertion anchor")
-
-          test = r'''  test("stale USB readiness becomes visible, disables send, and recovers after a good poll", async () => {
-            const packageId = "550e8400-e29b-41d4-a716-446655440000";
-            const store = createRepositoryWorkingCopyStore({
-              format: "esp32-macro-keyboard-repository",
-              schemaVersion: 1,
-              packages: [
-                {
-                  id: packageId,
-                  name: "USB Freshness Package",
-                  macros: [
-                    {
-                      id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
-                      name: "Macro A",
-                      source: "a",
-                      keyPressMs: 8,
-                      interKeyMs: 15,
-                    },
-                  ],
-                },
-              ],
-            });
-            planRace(
-              {
-                "/api/v1/settings": () => jsonResponse(settingsBody),
-                "/api/v1/status": () => jsonResponse(statusBody),
-              },
-              2,
-            );
-            const view = await render(
-              <AuthenticatedShell
-                ready={{
-                  store,
-                  packageId,
-                  sendRecovery: { kind: "none" },
-                  loadedBlobId: "7",
-                }}
-              />,
-            );
-            await waitUntil(() => bodyIncludes("Macro A"), "Macro A");
-            expect(buttonWithText("Send").disabled).toBe(false);
-
-            for (let failure = 0; failure < 3; failure += 1) {
-              planFetch((call) => {
-                expect(call.url).toBe("/api/v1/status");
-                expect(call.method).toBe("GET");
-                throw new TypeError("device status unavailable");
-              });
-              await tick(5000);
-            }
-
-            await waitUntil(
-              () => bodyIncludes("USB status is stale."),
-              "stale USB warning",
-            );
-            expect(document.body.textContent).toContain("Last known state: ready.");
-            expect(buttonWithText("Send").disabled).toBe(true);
-
-            planFetch((call) => {
-              expect(call.url).toBe("/api/v1/status");
-              expect(call.method).toBe("GET");
-              return jsonResponse(statusBody);
-            });
-            await tick(5000);
-            await waitUntil(
-              () => !bodyIncludes("USB status is stale."),
-              "stale USB warning to clear",
-            );
-            expect(buttonWithText("Send").disabled).toBe(false);
-            await view.unmount();
-          });
-
-'''
-          path.write_text(text.replace(anchor, test + anchor, 1))
-          PY
-
-          git diff --check
+          cat > /tmp/usb-patch.b64 <<'PAYLOAD'
+          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
+          QfoVAA6j2Yz0epC6gmvH+S8GiytsNyUAAA==
+          PAYLOAD
+          tr -d '[:space:]' < /tmp/usb-patch.b64 | base64 --decode | gzip --decompress > /tmp/usb-patch.sh
+          echo "98acd3c7237c8658b7ae914b65aadbb820792334b417e535f8e66f92d3cbea3f  /tmp/usb-patch.sh" | sha256sum --check --strict
+          bash /tmp/usb-patch.sh
 
       - name: Format changed frontend files
         working-directory: webapp
