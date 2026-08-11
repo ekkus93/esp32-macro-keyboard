@@ -1,0 +1,76 @@
+name: H6-060 Ledger Update
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/h6-060-ledger.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  update-ledger:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out staging commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Reconcile H6-060 evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          todo_path = Path("docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md")
+          todo = todo_path.read_text()
+
+          old = '''### H6-060 — Remove synchronous fallback
+
+          - [ ] Delete the fallback that runs confirmation-gated work on the main httpd task when the async worker is unavailable.
+          - [ ] Return explicit `503 Service Unavailable` or the contract-consistent equivalent.
+          - [ ] Do not bypass physical confirmation.
+          - [ ] Do not block the whole server for the confirmation timeout.
+          '''.replace("          ", "")
+
+          new = '''### H6-060 — Remove synchronous fallback
+
+          - [x] Delete the fallback that runs confirmation-gated work on the main httpd task when the async worker is unavailable.
+          - [x] Return explicit `503 Service Unavailable` or the contract-consistent equivalent.
+          - [x] Do not bypass physical confirmation.
+          - [x] Do not block the whole server for the confirmation timeout.
+          - Evidence: implementation commit `30301a89cef655c9bf6420c1192c19bdb2f3a09c`; `./scripts/run-tests.sh web` passed 28/28 and `./scripts/run-tests.sh --sanitizers web` passed 28/28 in targeted run `31530721738`, job `93909820931`. Worker-unavailable confirmation-gated routes now return `503 Service Unavailable` without invoking the confirmation wait, protected handler, or restart path; a non-confirmation settings route remains usable. Full evidence: `docs/implementation-v2/H6_060_ASYNC_CONFIRMATION_FAIL_CLOSED_2026-08-11.md`.
+          '''.replace("          ", "")
+
+          if todo.count(old) != 1:
+              raise SystemExit("expected exactly one unchecked H6-060 block")
+          todo = todo.replace(old, new, 1)
+
+          old_regression = "- [ ] worker unavailable -> fast visible failure, no synchronous wait,"
+          new_regression = "- [x] worker unavailable -> fast visible failure, no synchronous wait,"
+          if todo.count(old_regression) != 1:
+              raise SystemExit("expected exactly one unchecked H6-063 worker-unavailable item")
+          todo = todo.replace(old_regression, new_regression, 1)
+
+          todo_path.write_text(todo)
+          PY
+
+          test -f docs/implementation-v2/H6_060_ASYNC_CONFIRMATION_FAIL_CLOSED_2026-08-11.md
+          ! grep -Fq "Worker unavailable: answer on the httpd task" firmware/components/web_server/web_server_async.c
+          grep -Fq '"confirmation service unavailable"' firmware/components/web_server/web_server_async.c
+          git diff --check
+
+      - name: Commit ledger update
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/h6-060-ledger.yml
+          git add docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs: close H6-060 fail-closed task"
+          git push origin HEAD:master
