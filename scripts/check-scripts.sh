@@ -23,6 +23,7 @@ python3 scripts/check-v2-settings-schema.py
 python3 scripts/check-v2-device-settings-policy.py
 python3 scripts/check-v2-setup-route-policy.py
 python3 scripts/check-v2-api-routes.py
+python3 scripts/check-web-route-dispatch-sync.py
 python3 scripts/check-v2-auth-policy.py
 python3 tests/scripts/test-generate-v2-macro-corpus.py
 python3 tests/scripts/test-v2-035-hardware.py
@@ -45,6 +46,7 @@ bash tests/scripts/test-check-production-config.sh
 bash tests/scripts/test-check-credential-logging.sh
 bash tests/scripts/test-generate-setup-label.sh
 bash tests/scripts/test-check-setup-route-isolation.sh
+bash tests/scripts/test-check-web-route-dispatch-sync.sh
 bash tests/scripts/test-check-frontend-persisted-state.sh
 bash tests/scripts/test-check-release-budgets.sh
 bash tests/scripts/test-build-webfs-image.sh

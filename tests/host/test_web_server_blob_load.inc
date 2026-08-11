@@ -87,6 +87,18 @@ static void test_blob_load_rejects_path_traversal(void) {
     TEST_CHECK_EQ_STRING("400 Bad Request", fake.response_status);
 }
 
+static void test_blob_load_auth_precedes_request_id_validation(void) {
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    blob_test_reset(&fake);
+    blob_test_set_request_id(&fake, "bad id with spaces");
+    fake_httpd_bind(&request, &fake, "/api/v1/blob/1", 0U);
+
+    TEST_CHECK(blob_load_handler(&request) == ESP_OK);
+
+    TEST_CHECK_EQ_STRING("401 Unauthorized", fake.response_status);
+}
+
 static void test_blob_load_unauthorized_without_cookie(void) {
     fake_httpd_request_t fake;
     httpd_req_t request;

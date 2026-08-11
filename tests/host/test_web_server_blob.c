@@ -42,6 +42,7 @@ int main(void) {
     test_blob_list_success_reflects_seeded_blobs();
     test_blob_list_generates_request_id_when_absent();
     test_blob_list_rejects_malformed_request_id();
+    test_blob_list_auth_precedes_request_id_validation();
     test_blob_list_unauthorized_without_cookie();
     test_blob_list_unauthorized_with_expired_session();
     test_blob_list_maps_scan_failure_to_service_unavailable();
@@ -59,6 +60,7 @@ int main(void) {
     test_blob_create_unauthorized_without_cookie();
     test_blob_create_unauthorized_with_expired_session();
     test_blob_create_rejects_malformed_request_id();
+    test_blob_create_auth_precedes_request_id_validation();
     test_blob_create_maps_storage_full_at_commit_to_507();
     test_blob_create_maps_write_failure_and_aborts_upload();
     test_blob_create_maps_begin_failure_to_service_unavailable();
@@ -69,6 +71,7 @@ int main(void) {
     test_blob_load_rejects_malformed_path_zero();
     test_blob_load_rejects_malformed_path_non_digit();
     test_blob_load_rejects_path_traversal();
+    test_blob_load_auth_precedes_request_id_validation();
     test_blob_load_unauthorized_without_cookie();
     test_blob_load_unauthorized_with_expired_session();
     test_blob_load_maps_reader_open_failure_to_service_unavailable();
@@ -76,6 +79,7 @@ int main(void) {
     test_blob_delete_success_removes_record();
     test_blob_delete_not_found();
     test_blob_delete_rejects_malformed_path();
+    test_blob_delete_auth_precedes_request_id_validation();
     test_blob_delete_unauthorized_without_cookie();
     test_blob_delete_unauthorized_with_expired_session();
     test_blob_delete_maps_backend_failure_to_internal_error();

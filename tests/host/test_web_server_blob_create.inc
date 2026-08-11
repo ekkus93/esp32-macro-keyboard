@@ -132,6 +132,21 @@ static void test_blob_create_rejects_missing_content_type(void) {
     TEST_CHECK_EQ_STRING("415 Unsupported Media Type", fake.response_status);
 }
 
+static void test_blob_create_auth_precedes_request_id_validation(void) {
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    blob_test_reset(&fake);
+    blob_test_set_request_id(&fake, "bad id with spaces");
+    fake_httpd_add_request_header(&fake, "Content-Type", "application/gzip");
+    uint8_t body[4] = {1U, 2U, 3U, 4U};
+    fake_httpd_set_body(&fake, body, sizeof(body), 0U);
+    fake_httpd_bind(&request, &fake, "/api/v1/blob", sizeof(body));
+
+    TEST_CHECK(blob_create_handler(&request) == ESP_OK);
+
+    TEST_CHECK_EQ_STRING("401 Unauthorized", fake.response_status);
+}
+
 static void test_blob_create_unauthorized_without_cookie(void) {
     fake_httpd_request_t fake;
     httpd_req_t request;

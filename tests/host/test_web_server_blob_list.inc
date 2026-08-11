@@ -58,6 +58,18 @@ static void test_blob_list_rejects_malformed_request_id(void) {
     TEST_CHECK_EQ_STRING("400 Bad Request", fake.response_status);
 }
 
+static void test_blob_list_auth_precedes_request_id_validation(void) {
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    blob_test_reset(&fake);
+    blob_test_set_request_id(&fake, "has a space");
+    fake_httpd_bind(&request, &fake, "/api/v1/blob", 0U);
+
+    TEST_CHECK(blob_list_handler(&request) == ESP_OK);
+
+    TEST_CHECK_EQ_STRING("401 Unauthorized", fake.response_status);
+}
+
 static void test_blob_list_unauthorized_without_cookie(void) {
     fake_httpd_request_t fake;
     httpd_req_t request;

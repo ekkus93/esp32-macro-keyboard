@@ -20,6 +20,7 @@ python3 ./scripts/check-v2-phase2-architecture.py
 bash ./scripts/check-usb-identity.sh
 bash ./scripts/check-frontend-persisted-state.sh
 bash ./scripts/check-setup-route-isolation.sh
+python3 ./scripts/check-web-route-dispatch-sync.py
 python3 ./scripts/check-v2-auth-policy.py
 bash ./scripts/check-v2-contracts.sh --native-only
 ./scripts/check-firmware.sh

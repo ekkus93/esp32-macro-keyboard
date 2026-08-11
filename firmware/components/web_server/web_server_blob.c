@@ -250,17 +250,17 @@ esp_err_t blob_list_handler(httpd_req_t *request) {
         return ESP_FAIL;
     }
     char request_id[WEB_API_REQUEST_ID_MAX_BYTES + 1U] = {0};
-    app_error_code_t result = establish_request_id(request, request_id, sizeof(request_id));
+    app_error_code_t result = authenticate_blob_request(request);
+    if (result != APP_ERROR_NONE) {
+        return send_blob_error(request, request_id, WEB_HTTP_STATUS_UNAUTHORIZED, result,
+                               "authentication required");
+    }
+    result = establish_request_id(request, request_id, sizeof(request_id));
     if (result != APP_ERROR_NONE) {
         const unsigned int status = result == APP_ERROR_INVALID_ARGUMENT
                                         ? WEB_HTTP_STATUS_BAD_REQUEST
                                         : web_api_http_status_for_error(result);
         return web_api_send_status_error(request, status, result, "invalid request ID");
-    }
-    result = authenticate_blob_request(request);
-    if (result != APP_ERROR_NONE) {
-        return send_blob_error(request, request_id, WEB_HTTP_STATUS_UNAUTHORIZED, result,
-                               "authentication required");
     }
 
     char *data_json = NULL;
@@ -281,13 +281,7 @@ esp_err_t blob_create_handler(httpd_req_t *request) {
     }
 
     char request_id[WEB_API_REQUEST_ID_MAX_BYTES + 1U] = {0};
-    app_error_code_t result = establish_request_id(request, request_id, sizeof(request_id));
-    if (result != APP_ERROR_NONE) {
-        const unsigned int status = result == APP_ERROR_INVALID_ARGUMENT
-                                        ? WEB_HTTP_STATUS_BAD_REQUEST
-                                        : web_api_http_status_for_error(result);
-        return web_api_send_status_error(request, status, result, "invalid request ID");
-    }
+    app_error_code_t result = APP_ERROR_NONE;
 
     const size_t content_length = request->content_len;
     if (content_length == 0U) {
@@ -312,6 +306,13 @@ esp_err_t blob_create_handler(httpd_req_t *request) {
     if (result != APP_ERROR_NONE) {
         return send_blob_error(request, request_id, WEB_HTTP_STATUS_UNAUTHORIZED, result,
                                "authentication required");
+    }
+    result = establish_request_id(request, request_id, sizeof(request_id));
+    if (result != APP_ERROR_NONE) {
+        const unsigned int status = result == APP_ERROR_INVALID_ARGUMENT
+                                        ? WEB_HTTP_STATUS_BAD_REQUEST
+                                        : web_api_http_status_for_error(result);
+        return web_api_send_status_error(request, status, result, "invalid request ID");
     }
 
     storage_blob_upload_t upload = {0};
@@ -349,17 +350,17 @@ esp_err_t blob_load_handler(httpd_req_t *request) {
         return ESP_FAIL;
     }
     char request_id[WEB_API_REQUEST_ID_MAX_BYTES + 1U] = {0};
-    app_error_code_t result = establish_request_id(request, request_id, sizeof(request_id));
+    app_error_code_t result = authenticate_blob_request(request);
+    if (result != APP_ERROR_NONE) {
+        return send_blob_error(request, request_id, WEB_HTTP_STATUS_UNAUTHORIZED, result,
+                               "authentication required");
+    }
+    result = establish_request_id(request, request_id, sizeof(request_id));
     if (result != APP_ERROR_NONE) {
         const unsigned int status = result == APP_ERROR_INVALID_ARGUMENT
                                         ? WEB_HTTP_STATUS_BAD_REQUEST
                                         : web_api_http_status_for_error(result);
         return web_api_send_status_error(request, status, result, "invalid request ID");
-    }
-    result = authenticate_blob_request(request);
-    if (result != APP_ERROR_NONE) {
-        return send_blob_error(request, request_id, WEB_HTTP_STATUS_UNAUTHORIZED, result,
-                               "authentication required");
     }
     uint64_t blob_id = 0U;
     result = web_api_parse_blob_id(request->uri, &blob_id);
@@ -395,17 +396,17 @@ esp_err_t blob_delete_handler(httpd_req_t *request) {
         return ESP_FAIL;
     }
     char request_id[WEB_API_REQUEST_ID_MAX_BYTES + 1U] = {0};
-    app_error_code_t result = establish_request_id(request, request_id, sizeof(request_id));
+    app_error_code_t result = authenticate_blob_request(request);
+    if (result != APP_ERROR_NONE) {
+        return send_blob_error(request, request_id, WEB_HTTP_STATUS_UNAUTHORIZED, result,
+                               "authentication required");
+    }
+    result = establish_request_id(request, request_id, sizeof(request_id));
     if (result != APP_ERROR_NONE) {
         const unsigned int status = result == APP_ERROR_INVALID_ARGUMENT
                                         ? WEB_HTTP_STATUS_BAD_REQUEST
                                         : web_api_http_status_for_error(result);
         return web_api_send_status_error(request, status, result, "invalid request ID");
-    }
-    result = authenticate_blob_request(request);
-    if (result != APP_ERROR_NONE) {
-        return send_blob_error(request, request_id, WEB_HTTP_STATUS_UNAUTHORIZED, result,
-                               "authentication required");
     }
     uint64_t blob_id = 0U;
     result = web_api_parse_blob_id(request->uri, &blob_id);
