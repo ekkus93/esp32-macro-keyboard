@@ -71,4 +71,39 @@ printf '%s\n' 'CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG' \
 	>"${temporary_dir}/firmware/components/legacy.h"
 expect_fail 'legacy development option' 'legacy credential logging option is forbidden'
 
+
+write_valid_fixture
+cat >"${temporary_dir}/firmware/components/dynamic_format_leak.c" <<'SOURCE'
+void leak_dynamic_format(const char *setup_code) {
+    const char *format = "%s";
+    ESP_LOGW(TAG, format, setup_code);
+}
+SOURCE
+expect_fail 'dynamic format sensitive identifier' 'credential-bearing output is forbidden'
+
+write_valid_fixture
+cat >"${temporary_dir}/firmware/components/aliased_leak.c" <<'SOURCE'
+void leak_alias(const char *session_token) {
+    const char *value = session_token;
+    ESP_LOGI(TAG, "%s", value);
+}
+SOURCE
+expect_fail 'one-hop sensitive alias' 'credential-bearing output is forbidden'
+
+write_valid_fixture
+cat >"${temporary_dir}/firmware/components/puts_leak.c" <<'SOURCE'
+void leak_puts(const char *password) {
+    puts(password);
+}
+SOURCE
+expect_fail 'puts sensitive identifier' 'credential-bearing output is forbidden'
+
+write_valid_fixture
+cat >"${temporary_dir}/firmware/components/buffer_dump_leak.c" <<'SOURCE'
+void leak_buffer(const unsigned char *verifier, unsigned length) {
+    ESP_LOG_BUFFER_HEX(TAG, verifier, length);
+}
+SOURCE
+expect_fail 'ESP log buffer sensitive identifier' 'credential-bearing output is forbidden'
+
 printf 'check-credential-logging regression tests passed: %d\n' "${pass_count}"

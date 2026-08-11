@@ -90,5 +90,7 @@ for forbidden in (
         fail(f"host test assertion failures can print compared values: {forbidden}")
 if '#actual_value " == " #expected_value' in test_assert_h:
     fail("host string/buffer assertions can stringify secret-bearing macro arguments")
+if "#expression" in test_assert_h:
+    fail("generic host assertions can stringify secret-bearing expressions")
 
 print("H9 architecture guard passed")

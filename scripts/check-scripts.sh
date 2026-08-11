@@ -45,6 +45,7 @@ bash tests/scripts/test-static-analysis-policy.sh
 bash tests/scripts/test-check-partitions.sh
 bash tests/scripts/test-check-production-config.sh
 bash tests/scripts/test-check-credential-logging.sh
+bash tests/scripts/test-test-assert-redaction.sh
 bash tests/scripts/test-generate-setup-label.sh
 bash tests/scripts/test-check-setup-route-isolation.sh
 bash tests/scripts/test-check-web-route-dispatch-sync.sh

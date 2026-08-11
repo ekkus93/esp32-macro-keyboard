@@ -14,8 +14,9 @@ from pathlib import Path
 LEGACY_OPTIONS = {"CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG"}
 STRING_LITERAL_SOURCE = r'"(?:\\.|[^"\\])*"'
 STRING_LITERAL = re.compile(STRING_LITERAL_SOURCE)
+OUTPUT_SINK = r"(?:ESP_(?:EARLY_|DRAM_)?LOG[A-Z_]*|printf|fprintf|puts|fputs|vprintf|vfprintf)"
 OUTPUT_CALL = re.compile(
-    rf"(?<![A-Za-z0-9_])(?:ESP_LOG[A-Z]+|printf|fprintf)\s*\((?:{STRING_LITERAL_SOURCE}|[^\";])*\);",
+    rf"(?<![A-Za-z0-9_]){OUTPUT_SINK}\s*\((?:{STRING_LITERAL_SOURCE}|[^\";])*\);",
     re.DOTALL,
 )
 SENSITIVE_WORD = re.compile(
@@ -27,6 +28,15 @@ SENSITIVE_IDENTIFIER = re.compile(
     re.IGNORECASE,
 )
 FORMAT_VALUE = re.compile(r"%(?:\.\*)?[a-zA-Z]")
+IDENTIFIER = re.compile(r"\b[A-Za-z_]\w*\b")
+ASSIGNMENT = re.compile(r"\b([A-Za-z_]\w*)\s*=\s*([^;]+);")
+SIMPLE_ALIAS = re.compile(
+    r"^\s*(?:\([^)]+\)\s*)?([A-Za-z_]\w*(?:\s*(?:->|\.)\s*[A-Za-z_]\w*)*)\s*$"
+)
+COMMENT_OR_LITERAL = re.compile(
+    r"//[^\n]*|/\*.*?\*/|" + STRING_LITERAL_SOURCE + r"|'(?:\\.|[^'\\])*'",
+    re.DOTALL,
+)
 SOURCE_SUFFIXES = {".c", ".h", ".cc", ".cpp", ".hpp"}
 
 
@@ -42,6 +52,51 @@ def joined_literals(call: str) -> str:
     return "".join(pieces)
 
 
+def without_literals(text: str) -> str:
+    return STRING_LITERAL.sub('""', text)
+
+
+def mask_comments_and_literals(text: str) -> str:
+    def replacement(match: re.Match[str]) -> str:
+        return "".join("\n" if char == "\n" else " " for char in match.group(0))
+
+    return COMMENT_OR_LITERAL.sub(replacement, text)
+
+
+def enclosing_scope_start(text: str, position: int) -> int:
+    masked = mask_comments_and_literals(text[:position])
+    depth = 0
+    start = 0
+    for index, char in enumerate(masked):
+        if char == "{":
+            if depth == 0:
+                start = index + 1
+            depth += 1
+        elif char == "}" and depth > 0:
+            depth -= 1
+    return start
+
+
+def tainted_aliases(scope_prefix: str) -> set[str]:
+    scope_code = mask_comments_and_literals(scope_prefix)
+    identifiers = IDENTIFIER.findall(scope_code)
+    tainted = {identifier for identifier in identifiers if SENSITIVE_IDENTIFIER.search(identifier)}
+    changed = True
+    while changed:
+        changed = False
+        for assignment in ASSIGNMENT.finditer(scope_code):
+            target = assignment.group(1)
+            rhs = assignment.group(2).strip()
+            alias = SIMPLE_ALIAS.fullmatch(rhs)
+            if alias is None:
+                continue
+            sources = set(IDENTIFIER.findall(alias.group(1)))
+            if sources & tainted and target not in tainted:
+                tainted.add(target)
+                changed = True
+    return tainted
+
+
 def validate(root: Path) -> None:
     if not root.is_dir():
         fail(f"source root not found: {root}")
@@ -53,9 +108,16 @@ def validate(root: Path) -> None:
             if option in text:
                 fail(f"{path}: legacy credential logging option is forbidden")
         for match in OUTPUT_CALL.finditer(text):
-            message = joined_literals(match.group(0))
-            if FORMAT_VALUE.search(message) and (
-                SENSITIVE_WORD.search(message) or SENSITIVE_IDENTIFIER.search(match.group(0))
+            call = match.group(0)
+            message = joined_literals(call)
+            call_without_literals = without_literals(call)
+            scope_start = enclosing_scope_start(text, match.start())
+            aliases = tainted_aliases(text[scope_start : match.start()])
+            call_identifiers = set(IDENTIFIER.findall(call_without_literals))
+            if (
+                SENSITIVE_IDENTIFIER.search(call_without_literals)
+                or call_identifiers & aliases
+                or (FORMAT_VALUE.search(message) and SENSITIVE_WORD.search(message))
             ):
                 fail(f"{path}: credential-bearing output is forbidden")
 
