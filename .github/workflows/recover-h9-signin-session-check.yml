@@ -98,18 +98,57 @@ jobs:
           if next_function >= 0 and render_index >= next_function:
               raise SystemExit("render anchor escaped signIn helper")
 
-          session_plan = """  planFetch((call) => {
-            expect(call.url).toBe("/api/v1/auth/session");
-            expect(call.method).toBe("GET");
-            return jsonResponse(
-              { error: { code: "unauthorized", message: "Sign in required." } },
-              401,
-            );
-          });
-          """
+          session_plan = "\n".join([
+              '  planFetch((call) => {',
+              '    expect(call.url).toBe("/api/v1/auth/session");',
+              '    expect(call.method).toBe("GET");',
+              '    return jsonResponse(',
+              '      { error: { code: "unauthorized", message: "Sign in required." } },',
+              '      401,',
+              '    );',
+              '  });',
+              '',
+          ])
           if "/api/v1/auth/session" in app_text[start:render_index]:
               raise SystemExit("signIn helper already plans auth/session")
           app_text = app_text[:render_index] + session_plan + app_text[render_index:]
+
+          def insert_before_in_test(source: str, title: str, marker: str, insertion: str) -> str:
+              test_anchor = f'  test("{title}"'
+              test_start = source.find(test_anchor)
+              if test_start < 0:
+                  raise SystemExit(f"test not found: {title}")
+              test_end = source.find('\n  test("', test_start + len(test_anchor))
+              if test_end < 0:
+                  test_end = len(source)
+              marker_index = source.find(marker, test_start, test_end)
+              if marker_index < 0:
+                  raise SystemExit(f"marker not found in test: {title}")
+              return source[:marker_index] + insertion + source[marker_index:]
+
+          nested_session_plan = "\n".join(
+              ("  " + line) if line else line
+              for line in session_plan.rstrip("\n").split("\n")
+          ) + "\n"
+
+          app_text = insert_before_in_test(
+              app_text,
+              "session expiry drops back to Sign In without discarding the working copy",
+              "    await tick(5_000);",
+              nested_session_plan,
+          )
+          app_text = insert_before_in_test(
+              app_text,
+              "Sign out (V2-103's fifth warning trigger) warns first because signIn() leaves the working copy dirty; Discard changes proceeds, ends the session, and a fresh sign-in recovers cleanly",
+              '    await click(buttonWithText("Discard changes"));',
+              nested_session_plan,
+          )
+          app_text = insert_before_in_test(
+              app_text,
+              "Restart shows a real reconnecting screen, then Sign In once the device answers unauthorized, resuming the same working copy",
+              "    await tick(1000);",
+              nested_session_plan,
+          )
           app_path.write_text(app_text)
           PY
           git diff --check
