@@ -510,8 +510,9 @@ Search and classify at least:
 
 ### Phase H7 exit gate
 
-- [ ] Every safety-relevant key-release attempt has an observed result.
-- [ ] Failed release cannot be silently followed by accepting new sends.
+- [x] Every safety-relevant key-release attempt has an observed result.
+- [x] Failed release cannot be silently followed by accepting new sends.
+- Evidence: current-source call-graph audit at `62d2969b17bc44d090982e64e77e88156bbf9ad0` confirms all executor action, terminal, submission-cleanup, concrete USB adapter, and executor-deinit release results are consumed rather than discarded. Active executor release failure atomically latches the engine unavailable before a later submit can transfer ownership; H7-073 regressions prove subsequent sends are rejected and recovery requires reinit plus USB readiness. `./scripts/run-tests.sh executor` and `./scripts/run-tests.sh --sanitizers executor` both passed 2/2 in targeted run `31538914176` on behavior-test SHA `896ddce7173e83f73a0113fd6ba2a16cf45039c1`; comparison through the audited source SHA contains no production/test change in this scope. Full evidence: `docs/implementation-v2/H7_PHASE_EXIT_RELEASE_SAFETY_2026-08-11.md` (evidence commit `cc682530fcf0a320d95802bf45769e058f79f9d2`).
 
 ---
 
