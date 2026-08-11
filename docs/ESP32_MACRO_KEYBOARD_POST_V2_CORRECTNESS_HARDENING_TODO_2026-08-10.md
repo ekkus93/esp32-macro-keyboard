@@ -500,12 +500,13 @@ Search and classify at least:
 
 ### H7-073 — Tests
 
-- [ ] unlock failure + release-all failure,
-- [ ] queue-send failure + release-all failure,
-- [ ] mid-action press failure + release-all failure,
-- [ ] cancellation/timeout + release-all failure,
-- [ ] fault latch rejects subsequent sends,
-- [ ] recovery/reinit clears only when safe.
+- [x] unlock failure + release-all failure,
+- [x] queue-send failure + release-all failure,
+- [x] mid-action press failure + release-all failure,
+- [x] cancellation/timeout + release-all failure,
+- [x] fault latch rejects subsequent sends,
+- [x] recovery/reinit clears only when safe.
+- Evidence: all six cases were already implemented in the current executor regression suite; targeted workflow `31538914176` verified the source-to-runner mapping and passed `./scripts/run-tests.sh executor` 2/2 plus `./scripts/run-tests.sh --sanitizers executor` 2/2 under ASan+UBSan on validation SHA `896ddce7173e83f73a0113fd6ba2a16cf45039c1`. Full mapping: `docs/implementation-v2/H7_073_EXECUTOR_RELEASE_FAULT_TESTS_2026-08-11.md`.
 
 ### Phase H7 exit gate
 
