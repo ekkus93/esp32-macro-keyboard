@@ -377,6 +377,33 @@ static void test_send_create_usb_not_ready(void) {
     TEST_CHECK_EQ_STRING("503 Service Unavailable", fake.response_status);
 }
 
+static void assert_internal_error_response(const fake_httpd_request_t *fake,
+                                           const char *expected_message) {
+    TEST_CHECK_EQ_STRING("500 Internal Server Error", fake->response_status);
+    cJSON *root = parse_response(fake);
+    const cJSON *error = cJSON_GetObjectItemCaseSensitive(root, "error");
+    TEST_CHECK(error != NULL);
+    TEST_CHECK_EQ_STRING("internal", cJSON_GetObjectItemCaseSensitive(error, "code")->valuestring);
+    TEST_CHECK_EQ_STRING(expected_message,
+                         cJSON_GetObjectItemCaseSensitive(error, "message")->valuestring);
+    TEST_CHECK(strstr(fake->response_body, "storage_unavailable") == NULL);
+    cJSON_Delete(root);
+}
+
+static void test_send_create_executor_unavailable_is_internal(void) {
+    reset_fakes();
+    g_submit_result = APP_ERROR_INTERNAL;
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    bind_json_body(&request, &fake, "{\"source\":\"first\",\"keyPressMs\":8,\"interKeyMs\":15}");
+
+    TEST_CHECK_EQ_INT(ESP_OK, send_create_handler(&request));
+    TEST_CHECK(g_submit_called);
+    assert_internal_error_response(&fake, "send could not be accepted");
+}
+
 /* -------------------------------------------------------------------------
  * GET /api/v1/send (send_get_handler)
  * ---------------------------------------------------------------------- */
@@ -507,6 +534,23 @@ static void test_send_get_release_fault_visible_when_executor_unavailable(void) 
     cJSON_Delete(root);
 }
 
+static void test_send_get_generic_executor_unavailable_is_internal(void) {
+    reset_fakes();
+    g_execution_status = (macro_execution_status_t){
+        .state = EXECUTION_RUNNING,
+        .available = false,
+        .release_error = APP_ERROR_NONE,
+    };
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    fake_httpd_bind(&request, &fake, "/api/v1/send", 0U);
+
+    TEST_CHECK_EQ_INT(ESP_OK, send_get_handler(&request));
+    assert_internal_error_response(&fake, "send status unavailable");
+}
+
 static void test_send_get_never_sent(void) {
     reset_fakes();
     g_execution_status = (macro_execution_status_t){.state = EXECUTION_IDLE, .available = true};
@@ -551,6 +595,21 @@ static void test_send_cancel_unauthorized_without_cookie(void) {
     TEST_CHECK(!g_cancel_called);
 }
 
+static void test_send_cancel_executor_unavailable_is_internal(void) {
+    reset_fakes();
+    g_execution_status = (macro_execution_status_t){.state = EXECUTION_RUNNING, .available = true};
+    g_cancel_result = APP_ERROR_INTERNAL;
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    fake_httpd_bind(&request, &fake, "/api/v1/send", 0U);
+
+    TEST_CHECK_EQ_INT(ESP_OK, send_cancel_handler(&request));
+    TEST_CHECK(g_cancel_called);
+    assert_internal_error_response(&fake, "cancellation could not be recorded");
+}
+
 static void test_send_cancel_never_sent(void) {
     reset_fakes();
     g_execution_status = (macro_execution_status_t){.state = EXECUTION_IDLE};
@@ -579,16 +638,19 @@ int main(void) {
     test_send_create_parse_error_reports_location();
     test_send_create_busy();
     test_send_create_usb_not_ready();
+    test_send_create_executor_unavailable_is_internal();
 
     test_send_get_valid();
     test_send_get_valid_matches_example();
     test_send_get_unauthorized_without_cookie();
     test_send_get_unauthorized_expired_session();
     test_send_get_release_fault_visible_when_executor_unavailable();
+    test_send_get_generic_executor_unavailable_is_internal();
     test_send_get_never_sent();
 
     test_send_cancel_valid();
     test_send_cancel_unauthorized_without_cookie();
+    test_send_cancel_executor_unavailable_is_internal();
     test_send_cancel_never_sent();
 
     puts("web server send route tests passed");

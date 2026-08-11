@@ -170,6 +170,20 @@ static void test_create_backend_internal_error(void) {
     TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT, outcome.detail);
 }
 
+static void test_create_executor_unavailable_maps_to_internal(void) {
+    fake_send_backend_t fake = {0};
+    fake.submit_result = APP_ERROR_INTERNAL;
+    const web_send_ops_t ops = fake_ops(&fake);
+    size_t body_capacity = 0U;
+    char *body =
+        dup_body("{\"source\":\"first\",\"keyPressMs\":8,\"interKeyMs\":15}", &body_capacity);
+    const web_send_create_outcome_t outcome = web_send_create_handle(body, body_capacity, &ops);
+    free(body);
+    TEST_CHECK_EQ_INT(WEB_SEND_CREATE_INTERNAL, outcome.result);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, outcome.detail);
+    TEST_CHECK(fake.submit_called);
+}
+
 static void test_create_invalid_ops_or_null_body(void) {
     fake_send_backend_t fake = {0};
     const web_send_ops_t incomplete_ops = {.context = &fake};
@@ -344,6 +358,7 @@ int main(void) {
     test_create_busy();
     test_create_usb_not_ready();
     test_create_backend_internal_error();
+    test_create_executor_unavailable_maps_to_internal();
     test_create_invalid_ops_or_null_body();
     test_get_never_sent();
     test_get_running_reports_cached_duration();
