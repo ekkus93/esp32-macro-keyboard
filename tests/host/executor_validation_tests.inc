@@ -214,6 +214,51 @@ static void test_submission_ownership_and_recovery(void) {
     TEST_CHECK_EQ_U64(2U, fake.free_count);
 }
 
+/* Post-v2 F-009 / Round 2 F-025: submission cleanup must not discard a failed
+ * release-all. The initiating submit error stays primary, while get_status()
+ * exposes the release failure separately even though no macro action ran. */
+static void test_submission_cleanup_release_errors_are_published(void) {
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+
+    macro_execution_request_t request = executor_make_request(1U);
+    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 4U};
+    fake.release_results[0] = APP_ERROR_USB_NOT_READY;
+    fake.release_result_count = 1U;
+    fake_call_log_fail_on(&fake.calls, "unlock", 1U);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK(request.plan.actions != NULL);
+    TEST_CHECK(!engine.busy);
+    TEST_CHECK_EQ_U64(1U, fake.release_index);
+    executor_clear_injected_failure(&fake);
+    macro_execution_status_t status = macro_executor_engine_get_status(&engine);
+    TEST_CHECK(status.state == EXECUTION_FAILED);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, status.error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, status.release_error);
+    TEST_CHECK_EQ_STRING("none", status.current_action);
+    executor_free_unowned_request(&request);
+
+    executor_fake_reset(&fake);
+    executor_init_engine(&engine, &fake);
+    request = executor_make_request(1U);
+    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 5U};
+    fake.queue_result = false;
+    fake.release_results[0] = APP_ERROR_USB_NOT_READY;
+    fake.release_result_count = 1U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK(request.plan.actions != NULL);
+    TEST_CHECK(!engine.busy);
+    TEST_CHECK_EQ_U64(1U, fake.release_index);
+    status = macro_executor_engine_get_status(&engine);
+    TEST_CHECK(status.state == EXECUTION_FAILED);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, status.error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY, status.release_error);
+    TEST_CHECK_EQ_STRING("none", status.current_action);
+    executor_free_unowned_request(&request);
+}
+
 /* PHASE_5_EXACT_V2_HTTP_API_2026-08-08.md Known gap #4: macro_compile_v2()
  * documents and accepts the complete 0-10,000 ms keyPressMs range, but the
  * executor's own validate_request() used to reject 0 as if it were still
@@ -264,6 +309,7 @@ static void test_strict_get_status_sequence(void) {
 void executor_run_validation_tests(void) {
     test_engine_and_request_validation();
     test_submission_ownership_and_recovery();
+    test_submission_cleanup_release_errors_are_published();
     test_zero_key_press_ms_is_accepted();
     test_strict_get_status_sequence();
     test_cancel_confirm_null_argument_and_unavailable_and_double_cancel();

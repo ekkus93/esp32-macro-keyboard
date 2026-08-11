@@ -223,6 +223,39 @@ static bool publish_step(macro_executor_engine_t *engine, macro_execution_reques
     return false;
 }
 
+/* A submission can fail after the executor has claimed busy but before the
+ * request reaches the queue. Those paths still issue the defensive release-all
+ * required by SPEC_V2 §7.3. Preserve the submit failure as the primary error
+ * while publishing the release result separately so status consumers can tell
+ * whether HID cleanup also failed (post-v2 F-009 / Round 2 F-025). */
+static app_error_code_t finish_submission_failure(
+    macro_executor_engine_t *engine, const macro_execution_request_t *request,
+    app_error_code_t primary_error) {
+    macro_execution_status_t status = {
+        .state = EXECUTION_FAILED,
+        .error = primary_error,
+        .release_error = engine->ops.usb_release_all(engine->ops.context),
+        .execution_id = request->execution_id,
+        .set_id = request->set_id,
+        .macro_id = request->macro_id,
+        .macro_revision = request->macro_revision,
+        .action_index = 0U,
+        .action_count = request->plan.action_count,
+        .available = true,
+        .accepted_ms = request->accepted_ms,
+        .completed_ms = engine->ops.now_ms(engine->ops.context),
+        .current_action = CURRENT_ACTION_NONE,
+    };
+    const app_error_code_t publish_result = publish_status(engine, status);
+    const app_error_code_t reset_result = reset_terminal_flags(engine);
+    if (publish_result != APP_ERROR_NONE || reset_result != APP_ERROR_NONE) {
+        /* Match finish_execution(): if status publication or flag cleanup is
+         * itself unreliable, fail closed until the engine is reinitialized. */
+        engine->unavailable = true;
+    }
+    return primary_error;
+}
+
 app_error_code_t macro_executor_engine_init(macro_executor_engine_t *engine,
                                             const macro_executor_ops_t *ops) {
     if (engine == NULL || !operations_valid(ops)) {
@@ -272,15 +305,11 @@ app_error_code_t macro_executor_engine_submit(macro_executor_engine_t *engine,
          * triggers. No action for this request ever ran, but the attempt costs
          * nothing and guards against a stuck key from whatever ran immediately
          * before this submission. */
-        (void)engine->ops.usb_release_all(engine->ops.context);
-        const app_error_code_t cleanup = reset_terminal_flags(engine);
-        return cleanup == APP_ERROR_NONE ? result : cleanup;
+        return finish_submission_failure(engine, request, result);
     }
     if (!engine->ops.queue_send(engine->ops.context, request)) {
         /* SPEC_V2 §7.3 names "queue failure" explicitly. */
-        (void)engine->ops.usb_release_all(engine->ops.context);
-        const app_error_code_t cleanup = reset_terminal_flags(engine);
-        return cleanup == APP_ERROR_NONE ? APP_ERROR_INTERNAL : cleanup;
+        return finish_submission_failure(engine, request, APP_ERROR_INTERNAL);
     }
     request->plan.actions = NULL;
     request->plan.action_count = 0U;
