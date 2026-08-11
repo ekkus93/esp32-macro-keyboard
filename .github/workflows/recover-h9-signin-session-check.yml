@@ -27,7 +27,7 @@ jobs:
         working-directory: webapp
         run: npm ci
 
-      - name: Recover staged Sign In source and patch regression structurally
+      - name: Recover staged Sign In source and patch regressions structurally
         shell: bash
         run: |
           set -euo pipefail
@@ -83,12 +83,44 @@ jobs:
           if count != 1:
               raise SystemExit(f"expected one legacy Sign In failure test, found {count}")
           path.write_text(text)
+
+          app_path = Path("webapp/tests/v2-app-v2.test.tsx")
+          app_text = app_path.read_text()
+          function_anchor = "async function signIn(options: SignInOptions = {}): Promise<RenderResult> {"
+          render_anchor = "  const view = await render(<AppV2 />);"
+          start = app_text.find(function_anchor)
+          if start < 0:
+              raise SystemExit("signIn helper not found")
+          render_index = app_text.find(render_anchor, start)
+          if render_index < 0:
+              raise SystemExit("signIn helper render anchor not found")
+          next_function = app_text.find("\nasync function ", start + len(function_anchor))
+          if next_function >= 0 and render_index >= next_function:
+              raise SystemExit("render anchor escaped signIn helper")
+
+          session_plan = """  planFetch((call) => {
+            expect(call.url).toBe("/api/v1/auth/session");
+            expect(call.method).toBe("GET");
+            return jsonResponse(
+              { error: { code: "unauthorized", message: "Sign in required." } },
+              401,
+            );
+          });
+          """
+          if "/api/v1/auth/session" in app_text[start:render_index]:
+              raise SystemExit("signIn helper already plans auth/session")
+          app_text = app_text[:render_index] + session_plan + app_text[render_index:]
+          app_path.write_text(app_text)
           PY
           git diff --check
 
       - name: Format changed frontend files
         working-directory: webapp
-        run: npx prettier --write src/features/auth/v2/SignInPage.tsx tests/v2-sign-in-page.test.tsx
+        run: >-
+          npx prettier --write
+          src/features/auth/v2/SignInPage.tsx
+          tests/v2-sign-in-page.test.tsx
+          tests/v2-app-v2.test.tsx
 
       - name: Typecheck
         working-directory: webapp
