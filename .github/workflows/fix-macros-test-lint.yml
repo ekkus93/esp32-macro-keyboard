@@ -33,7 +33,6 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          import re
 
           path = Path("webapp/tests/v2-macros-page.test.tsx")
           text = path.read_text()
@@ -90,7 +89,7 @@ jobs:
           )
           replace_exact(
               "dependencies.trackSend = vi.fn((_seed, callbacks) => {",
-              "dependencies.trackSend = vi.fn((_seed: SendStatusResponse, callbacks: SendMacroCallbacks) => {",
+              "dependencies.trackSend = vi.fn((_seed: SendStatusResponse, callbacks?: SendMacroCallbacks) => {",
               1,
           )
 
