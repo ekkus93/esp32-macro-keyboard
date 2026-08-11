@@ -19,6 +19,24 @@ static app_error_code_t map_error_number(int error_number) {
     return error_number == ENOSPC ? APP_ERROR_STORAGE_FULL : APP_ERROR_IO;
 }
 
+static app_operation_result_t operation_primary_error(app_error_code_t error) {
+    app_operation_result_t result = app_operation_success();
+    result.primary_error = error;
+    return result;
+}
+
+static void operation_record_cleanup(app_operation_result_t *result,
+                                     app_error_code_t cleanup_error) {
+    if (cleanup_error != APP_ERROR_NONE) {
+        result->cleanup_error = cleanup_error;
+        result->cleanup_incomplete = true;
+    }
+}
+
+static app_error_code_t operation_public_error(app_operation_result_t result) {
+    return result.primary_error != APP_ERROR_NONE ? result.primary_error : result.cleanup_error;
+}
+
 static app_error_code_t write_all(const storage_fs_ops_t *operations, int descriptor,
                                   const uint8_t *data, size_t length) {
     size_t written = 0U;
@@ -132,9 +150,9 @@ static app_error_code_t temporary_path_for(const char *path, char *temporary,
                                                             : APP_ERROR_NONE;
 }
 
-static app_error_code_t stage_temporary_file(const char *temporary, const void *data,
-                                             size_t data_length, bool sync_required,
-                                             const storage_fs_ops_t *operations) {
+static app_operation_result_t stage_temporary_file(const char *temporary, const void *data,
+                                                   size_t data_length, bool sync_required,
+                                                   const storage_fs_ops_t *operations) {
     /* O_TRUNC, not O_EXCL: a *.tmp left by an interrupted write is debris, and
      * failing here would make the destination permanently unwritable until the
      * next boot cleaned it up. */
@@ -142,63 +160,73 @@ static app_error_code_t stage_temporary_file(const char *temporary, const void *
                                            O_WRONLY | O_CREAT | O_TRUNC, STORAGE_FILE_MODE);
     if (descriptor < 0) {
         const int open_error = errno;
-        return map_error_number(open_error);
+        return operation_primary_error(map_error_number(open_error));
     }
 
-    app_error_code_t result = write_all(operations, descriptor, data, data_length);
-    if (result == APP_ERROR_NONE && operations->sync_file(operations->context, descriptor) != 0) {
+    app_error_code_t primary_error = write_all(operations, descriptor, data, data_length);
+    if (primary_error == APP_ERROR_NONE &&
+        operations->sync_file(operations->context, descriptor) != 0) {
         const int sync_error = errno;
         if (sync_required || (sync_error != EINVAL && sync_error != ENOTSUP)) {
-            result = map_error_number(sync_error);
+            primary_error = map_error_number(sync_error);
         }
     }
-    if (operations->close_file(operations->context, descriptor) != 0 && result == APP_ERROR_NONE) {
+    if (operations->close_file(operations->context, descriptor) != 0 &&
+        primary_error == APP_ERROR_NONE) {
         const int close_error = errno;
-        result = map_error_number(close_error);
+        primary_error = map_error_number(close_error);
     }
-    if (result == APP_ERROR_NONE) {
-        result = verify_file(operations, temporary, data, data_length);
+    if (primary_error == APP_ERROR_NONE) {
+        primary_error = verify_file(operations, temporary, data, data_length);
     }
-    if (result != APP_ERROR_NONE) {
-        const app_error_code_t cleanup_result = cleanup_path(operations, temporary);
-        /* R2-022 interim until Round 1 H5 publishes structured storage results:
-         * never replace the initiating error with a later cleanup failure. The
-         * cleanup result remains intentionally visible here for that H5 handoff. */
-        (void)cleanup_result;
+    if (primary_error != APP_ERROR_NONE) {
+        app_operation_result_t result = operation_primary_error(primary_error);
+        operation_record_cleanup(&result, cleanup_path(operations, temporary));
         return result;
     }
-    return APP_ERROR_NONE;
+    return app_operation_success();
+}
+
+app_operation_result_t storage_atomic_write_with_ops_and_parent_sync_result(
+    const char *path, const void *data, size_t data_length, bool sync_required,
+    const storage_fs_ops_t *operations, storage_parent_sync_fn sync_parent_path,
+    void *parent_sync_context) {
+    if (path == NULL || (data == NULL && data_length != 0U) || strlen(path) >= APP_PATH_MAX_BYTES ||
+        !storage_fs_ops_is_valid(operations) || sync_parent_path == NULL) {
+        return operation_primary_error(APP_ERROR_INVALID_ARGUMENT);
+    }
+
+    char temporary[APP_PATH_MAX_BYTES];
+    app_error_code_t primary_error = temporary_path_for(path, temporary, sizeof(temporary));
+    if (primary_error != APP_ERROR_NONE) {
+        return operation_primary_error(primary_error);
+    }
+
+    app_operation_result_t result =
+        stage_temporary_file(temporary, data, data_length, sync_required, operations);
+    if (!app_operation_result_ok(result)) {
+        return result;
+    }
+
+    if (operations->rename_path(operations->context, temporary, path) != 0) {
+        const int activate_error = errno;
+        result = operation_primary_error(map_error_number(activate_error));
+        operation_record_cleanup(&result, cleanup_path(operations, temporary));
+        return result;
+    }
+
+    primary_error = sync_parent(sync_parent_path, parent_sync_context, path);
+    return primary_error == APP_ERROR_NONE ? app_operation_success()
+                                            : operation_primary_error(primary_error);
 }
 
 app_error_code_t storage_atomic_write_with_ops_and_parent_sync(
     const char *path, const void *data, size_t data_length, bool sync_required,
     const storage_fs_ops_t *operations, storage_parent_sync_fn sync_parent_path,
     void *parent_sync_context) {
-    if (path == NULL || (data == NULL && data_length != 0U) || strlen(path) >= APP_PATH_MAX_BYTES ||
-        !storage_fs_ops_is_valid(operations) || sync_parent_path == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-
-    char temporary[APP_PATH_MAX_BYTES];
-    app_error_code_t result = temporary_path_for(path, temporary, sizeof(temporary));
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-    result = stage_temporary_file(temporary, data, data_length, sync_required, operations);
-    if (result != APP_ERROR_NONE) {
-        return result;
-    }
-
-    if (operations->rename_path(operations->context, temporary, path) != 0) {
-        const int activate_error = errno;
-        const app_error_code_t activate_result = map_error_number(activate_error);
-        const app_error_code_t cleanup_result = cleanup_path(operations, temporary);
-        /* Preserve the failed rename as the public result. Round 1 H5 owns
-         * publishing cleanup_result separately rather than masking the primary. */
-        (void)cleanup_result;
-        return activate_result;
-    }
-    return sync_parent(sync_parent_path, parent_sync_context, path);
+    return operation_public_error(storage_atomic_write_with_ops_and_parent_sync_result(
+        path, data, data_length, sync_required, operations, sync_parent_path,
+        parent_sync_context));
 }
 
 app_error_code_t storage_atomic_write_with_ops(const char *path, const void *data,
