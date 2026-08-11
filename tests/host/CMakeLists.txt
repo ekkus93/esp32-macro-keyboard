@@ -21,6 +21,7 @@ set(STRICT_WARNINGS
 )
 
 find_package(PkgConfig REQUIRED)
+find_package(Threads REQUIRED)
 pkg_check_modules(CJSON REQUIRED IMPORTED_TARGET libcjson)
 
 add_library(
@@ -430,8 +431,9 @@ register_host_test(web_server_setup_route_tests web_server_setup_route web)
 # elsewhere). Six of the eight subsystem-health snapshot functions web_server_diagnostics.c's
 # collect_diagnostics() calls (app_lifecycle_health_snapshot(), storage_health_snapshot(),
 # auth_health_snapshot(), usb_health_snapshot(), executor_health_snapshot(), http_health_snapshot())
-# are pure C with no ESP-IDF dependency and link in real, unfaked -- their own module comments say
-# so explicitly. The other two (device_controls_get_health(), wifi_ap_get_status()) live in
+# link in real, unfaked. storage/executor health use FreeRTOS portMUX critical sections in
+# production, mapped to pthread mutexes by the focused host stub. The other two
+# (device_controls_get_health(), wifi_ap_get_status()) live in
 # ESP-IDF/FreeRTOS-bound files and stay faked, alongside this target's other
 # device_controls.h/wifi_ap.h fakes; the pure logic that turns their results into a
 # subsystem_health_state_t (device_controls_health_derive_state(), wifi_ap_health_derive_state())
@@ -476,7 +478,8 @@ add_executable(
 )
 target_include_directories(
     web_server_administration_route_tests
-    PRIVATE fakes/esp_http_server_stub
+    PRIVATE fakes/freertos_lock_stub
+            fakes/esp_http_server_stub
             fakes/esp_idf_misc_stub
             fakes
             ../../firmware/components/web_server
@@ -499,7 +502,9 @@ target_include_directories(
 target_compile_definitions(
     web_server_administration_route_tests PRIVATE EXAMPLES_JSON_PATH="${API_EXAMPLES_JSON}"
 )
-target_link_libraries(web_server_administration_route_tests PRIVATE PkgConfig::CJSON)
+target_link_libraries(
+    web_server_administration_route_tests PRIVATE PkgConfig::CJSON Threads::Threads
+)
 register_host_test(web_server_administration_route_tests web_server_administration_route web)
 
 # Live end-to-end HTTP test for the physical-confirmation-required=true path (TODO_V2 V2-057 / Phase
@@ -688,9 +693,10 @@ add_executable(
 )
 target_include_directories(
     storage_health_tests
-    PRIVATE ../../firmware/components/storage/include ../../firmware/components/support/include
-            ../../firmware/components/macro_model/include
+    PRIVATE fakes/freertos_lock_stub ../../firmware/components/storage/include
+            ../../firmware/components/support/include ../../firmware/components/macro_model/include
 )
+target_link_libraries(storage_health_tests PRIVATE Threads::Threads)
 register_host_test(storage_health_tests storage_health storage)
 
 add_executable(auth_health_tests test_auth_health.c ../../firmware/components/auth/auth_health.c)
@@ -717,9 +723,10 @@ add_executable(
 )
 target_include_directories(
     executor_health_tests
-    PRIVATE ../../firmware/components/macro_executor/include
+    PRIVATE fakes/freertos_lock_stub ../../firmware/components/macro_executor/include
             ../../firmware/components/support/include ../../firmware/components/macro_model/include
 )
+target_link_libraries(executor_health_tests PRIVATE Threads::Threads)
 register_host_test(executor_health_tests executor_health executor)
 
 add_executable(

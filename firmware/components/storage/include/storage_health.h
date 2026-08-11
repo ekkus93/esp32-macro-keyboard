@@ -7,11 +7,13 @@
 #include "subsystem_health.h"
 
 /* Storage mount/recovery health for Phase 19 diagnostics (FIX1 handoff §7.1).
- * Portable C with no ESP-IDF dependency, so it is host-testable directly.
- * Recorded by the mount/recovery/unmount call sites in app_core.c (today the
- * only orchestrator of these calls) rather than duplicating that sequencing
- * here. state is always derived fresh from the recorded fields: never
- * HEALTHY while cleanup is incomplete or a cleanup error is present. */
+ * Recorded by the mount/recovery/unmount call sites in app_core.c rather than
+ * duplicating that sequencing here. Updates and snapshots share one FreeRTOS
+ * critical-section lock because an HTTP-stop failure can leave diagnostics
+ * readers live while startup rollback continues into storage teardown. Host
+ * tests map that lock to pthreads. state is always derived fresh from one
+ * coherent snapshot: never HEALTHY while cleanup is incomplete or a cleanup
+ * error is present. */
 typedef struct {
     subsystem_health_state_t state;
     app_error_code_t primary_error;

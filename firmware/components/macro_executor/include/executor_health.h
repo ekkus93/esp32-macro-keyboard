@@ -8,9 +8,10 @@
 
 /* Executor lifecycle health for Phase 19 diagnostics (FIX1 handoff §7.1),
  * distinct from a single execution's own result (macro_execution_status_t,
- * already surfaced separately as the current execution state). Portable C
- * with no ESP-IDF dependency, so it is host-testable directly. Recorded from
- * app_core.c's existing executor_init/executor_deinit call sites. */
+ * already surfaced separately as the current execution state). Updates and
+ * snapshots share one FreeRTOS critical-section lock because an HTTP-stop
+ * failure can leave diagnostics readers live while startup rollback continues
+ * into executor teardown. Host tests map that lock to pthreads. */
 typedef struct {
     subsystem_health_state_t state;
     app_error_code_t primary_error;

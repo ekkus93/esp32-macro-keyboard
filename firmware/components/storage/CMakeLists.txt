@@ -23,6 +23,7 @@ idf_component_register(
     littlefs
     nvs_flash
     app_contracts_v2
+    freertos
 )
 
 target_compile_options(
