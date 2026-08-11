@@ -7,8 +7,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../support/include/app_operation_result.h"
 #include "app_error.h"
-#include "app_operation_result.h"
 #include "macro_limits.h"
 #include "storage_atomic_internal.h"
 #include "storage_fs_ops.h"
