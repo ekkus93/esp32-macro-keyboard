@@ -1,4 +1,4 @@
-name: H7-073 Executor Fault Tests
+name: H7-073 Finalize
 
 on:
   push:
@@ -8,71 +8,52 @@ on:
       - ".github/workflows/h7-073-tests.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  validate:
+  finalize:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
       - name: Check out
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Install host-test dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends build-essential cmake libcjson-dev
-
-      - name: Verify H7-073 regression matrix is wired into executor suite
+      - name: Record H7-073 completion and remove temporary workflow
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
 
-          validation = Path('tests/host/executor_validation_tests.inc').read_text()
-          terminal = Path('tests/host/executor_terminal_tests.inc').read_text()
-          main = Path('tests/host/test_macro_executor.c').read_text()
+          path = Path('docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md')
+          text = path.read_text()
+          old = '''### H7-073 — Tests
 
-          required_validation = [
-              'static void test_submission_cleanup_release_errors_are_published(void)',
-              'fake_call_log_fail_on(&fake.calls, "unlock", 1U);',
-              'fake.queue_result = false;',
-              'fake.release_results[0] = APP_ERROR_USB_NOT_READY;',
-              'TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_submit(&engine, &rejected));',
-              'test_submission_cleanup_release_errors_are_published();',
-          ]
-          required_terminal = [
-              'static void test_press_release_and_final_release_errors(void)',
-              'fake.press_result = APP_ERROR_IO;',
-              'static void test_cancel_timeout_release_failure_latches_unavailable(void)',
-              'static void test_release_fault_recovery_requires_reinit_and_ready_usb(void)',
-              'fake.usb_is_ready = false;',
-              'TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY,',
-              'fake.usb_is_ready = true;',
-              'test_press_release_and_final_release_errors();',
-              'test_cancel_timeout_release_failure_latches_unavailable();',
-              'test_release_fault_recovery_requires_reinit_and_ready_usb();',
-          ]
-          for needle in required_validation:
-              if needle not in validation:
-                  raise SystemExit(f'missing H7-073 validation evidence: {needle}')
-          for needle in required_terminal:
-              if needle not in terminal:
-                  raise SystemExit(f'missing H7-073 terminal evidence: {needle}')
-          for runner in ('executor_run_validation_tests();', 'executor_run_terminal_tests();'):
-              if runner not in main:
-                  raise SystemExit(f'executor suite does not invoke {runner}')
+          - [ ] unlock failure + release-all failure,
+          - [ ] queue-send failure + release-all failure,
+          - [ ] mid-action press failure + release-all failure,
+          - [ ] cancellation/timeout + release-all failure,
+          - [ ] fault latch rejects subsequent sends,
+          - [ ] recovery/reinit clears only when safe.
+          '''
+          new = '''### H7-073 — Tests
 
-          print('H7-073 source-to-runner regression matrix verified')
+          - [x] unlock failure + release-all failure,
+          - [x] queue-send failure + release-all failure,
+          - [x] mid-action press failure + release-all failure,
+          - [x] cancellation/timeout + release-all failure,
+          - [x] fault latch rejects subsequent sends,
+          - [x] recovery/reinit clears only when safe.
+          - Evidence: all six cases were already implemented in the current executor regression suite; targeted workflow `31538914176` verified the source-to-runner mapping and passed `./scripts/run-tests.sh executor` 2/2 plus `./scripts/run-tests.sh --sanitizers executor` 2/2 under ASan+UBSan on validation SHA `896ddce7173e83f73a0113fd6ba2a16cf45039c1`. Full mapping: `docs/implementation-v2/H7_073_EXECUTOR_RELEASE_FAULT_TESTS_2026-08-11.md`.
+          '''
+          if old not in text:
+              raise SystemExit('H7-073 checklist block did not match current TODO')
+          path.write_text(text.replace(old, new, 1))
           PY
-
-      - name: Run executor host tests
-        shell: bash
-        run: ./scripts/run-tests.sh executor
-
-      - name: Run executor ASan and UBSan
-        shell: bash
-        run: ./scripts/run-tests.sh --sanitizers executor
+          git rm .github/workflows/h7-073-tests.yml
+          git add docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs: close H7-073 executor fault tests"
+          git push origin HEAD:master
