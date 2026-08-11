@@ -27,7 +27,7 @@ jobs:
         working-directory: webapp
         run: npm ci
 
-      - name: Reapply validated Sign In patch and fix session-expiry poll race
+      - name: Reapply validated Sign In patch and decouple session-expiry test from poll timing
         shell: bash
         run: |
           set -euo pipefail
@@ -50,6 +50,14 @@ jobs:
 
           path = Path("webapp/tests/v2-app-v2.test.tsx")
           text = path.read_text()
+
+          import_anchor = 'import { createRepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";\n'
+          import_line = 'import { getStatus as getDeviceStatus } from "../src/v2/statusClient";\n'
+          if text.count(import_anchor) != 1:
+              raise SystemExit("repository-working-copy import anchor not found")
+          if import_line not in text:
+              text = text.replace(import_anchor, import_anchor + import_line, 1)
+
           title = "session expiry drops back to Sign In without discarding the working copy"
           start = text.find(f'  test("{title}"')
           if start < 0:
@@ -58,17 +66,38 @@ jobs:
           if end < 0:
               end = len(text)
           section = text[start:end]
-          marker = "    planFetch((call) => {"
-          marker_index = section.find(marker)
-          if marker_index < 0:
-              raise SystemExit("session-expiry fetch plan not found")
-          insertion = """    // signIn() returns as soon as the authenticated shell is visible.
-            // Let the already-started initial status request finish so its next
-            // five-second poll is scheduled before advancing the fake clock.
-            await tick(0);
 
-          """
-          section = section[:marker_index] + insertion + section[marker_index:]
+          plan_start = section.find("    planFetch((call) => {")
+          tick_marker = "    await tick(5_000);"
+          tick_start = section.find(tick_marker, plan_start)
+          if plan_start < 0 or tick_start < 0:
+              raise SystemExit("legacy session-expiry poll fixture not found")
+          tick_end = tick_start + len(tick_marker)
+
+          replacement = '''    // Session-expiry behavior belongs to the global 401 path, not to
+              // useDeviceStatus's polling cadence. Drive one real production status-client
+              // request deterministically, then let the remounted SignInPage probe the
+              // now-expired session.
+              await tick(0);
+              planFetch((call) => {
+                expect(call.url).toBe("/api/v1/status");
+                expect(call.method).toBe("GET");
+                return jsonResponse(
+                  { error: { code: "unauthorized", message: "Session expired." } },
+                  401,
+                );
+              });
+              planFetch((call) => {
+                expect(call.url).toBe("/api/v1/auth/session");
+                expect(call.method).toBe("GET");
+                return jsonResponse(
+                  { error: { code: "unauthorized", message: "Sign in required." } },
+                  401,
+                );
+              });
+              await expect(getDeviceStatus()).rejects.toMatchObject({ status: 401 });'''
+
+          section = section[:plan_start] + replacement + section[tick_end:]
           path.write_text(text[:start] + section + text[end:])
           PY
 
