@@ -1,3 +1,9 @@
+/*
+ * LEGACY / NOT SHIPPED: declarations for the retained V1-shaped setup reference code.
+ * The production setup path is web_server_setup_submit.c; these APIs are not linked into
+ * the shipped web_server component.
+ */
+
 #ifndef WEB_SETUP_JSON_H
 #define WEB_SETUP_JSON_H
 

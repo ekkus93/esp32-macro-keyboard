@@ -1,3 +1,10 @@
+/*
+ * LEGACY / NOT SHIPPED: This V1-shaped setup implementation is intentionally retained
+ * for historical/reference coverage only. It is not listed in the production web_server
+ * component's SRCS and is superseded by web_server_setup_submit.c. Do not treat tests
+ * of this file as coverage of the live POST /api/v1/setup path.
+ */
+
 #include "web_setup_core.h"
 
 #include <stdbool.h>

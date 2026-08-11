@@ -1,3 +1,9 @@
+/*
+ * LEGACY COVERAGE ONLY: this test exercises retained V1-shaped setup reference code that
+ * is not linked into shipped firmware. Production POST /api/v1/setup coverage lives in
+ * the web_server_setup_submit tests; passing this target is not production setup coverage.
+ */
+
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
