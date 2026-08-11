@@ -31,6 +31,7 @@ jobs:
           echo "6b9d233d2fa718138d2b051ac6049b398a2576f147d05f085d52dc2534096bab  /tmp/h8-files.tgz" | sha256sum --check --strict
           tar -tzf /tmp/h8-files.tgz
           tar -xzf /tmp/h8-files.tgz
+          sed -i '${/^$/d;}' webapp/src/v2/packageSelection.ts
           git diff --check
 
       - name: Set up pinned Node
