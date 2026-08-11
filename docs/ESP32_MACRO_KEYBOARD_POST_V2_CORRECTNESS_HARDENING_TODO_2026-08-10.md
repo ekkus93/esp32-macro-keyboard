@@ -452,10 +452,11 @@ Search and classify at least:
 
 ### H6-062 — Stop ignoring completion results
 
-- [ ] Observe `web_api_handle_call_with_body` result.
-- [ ] Observe `httpd_req_async_handler_complete` result.
-- [ ] Observe stop-signal result.
-- [ ] Preserve socket/request cleanup safety even when an error cannot be returned to the original client.
+- [x] Observe `web_api_handle_call_with_body` result.
+- [x] Observe `httpd_req_async_handler_complete` result.
+- [x] Observe stop-signal result.
+- [x] Preserve socket/request cleanup safety even when an error cannot be returned to the original client.
+- Evidence: runtime observation landed with H6-061 commit `8f4ccfae3abf3803f70fc487cb6471039d9d13ab`; worker-capable cleanup proof `f20b470bb914d3b06bae259a45fb5311dea70cc6` executes the real async worker under handler, completion, queue-send, and stop-signal faults. `./scripts/run-tests.sh web` and `./scripts/run-tests.sh --sanitizers web` passed in targeted run `31534770326`. Full evidence: `docs/implementation-v2/H6_062_ASYNC_COMPLETION_RESULTS_2026-08-11.md`.
 
 ### H6-063 — Regression tests
 
