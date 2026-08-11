@@ -1,0 +1,129 @@
+name: Recover Sign In session-check visibility hardening
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/recover-h9-signin-session-check.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: webapp
+        run: npm ci
+
+      - name: Recover staged Sign In source and patch regression structurally
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk '
+            /cat > webapp\/src\/features\/auth\/v2\/SignInPage\.tsx <<'"'"'TSX'"'"'/ { capture=1; next }
+            capture && /^[[:space:]]*TSX$/ { exit }
+            capture { sub(/^          /, ""); print }
+          ' .github/workflows/apply-h9-signin-session-check.yml > webapp/src/features/auth/v2/SignInPage.tsx
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("webapp/tests/v2-sign-in-page.test.tsx")
+          text = path.read_text()
+          old_import = "  buttonWithText,\n  flushReact,"
+          new_import = "  buttonWithText,\n  click,\n  flushReact,"
+          if text.count(old_import) != 1:
+              raise SystemExit("unexpected Sign In render-helper import layout")
+          text = text.replace(old_import, new_import, 1)
+
+          pattern = re.compile(
+              r'(?ms)^  test\("falls back to the form when the session check fails unexpectedly", async \(\) => \{\n.*?^  \}\);$'
+          )
+          replacement = "\n".join([
+              '  test("shows a retryable error when the session check fails unexpectedly", async () => {',
+              '    planSessionCheck(500, {',
+              '      error: { code: "internal_error", message: "Unexpected failure." },',
+              '    });',
+              '    const view = await render(',
+              '      <SignInPage',
+              '        onAuthenticated={() => {',
+              '          /* not exercised in this test */',
+              '        }}',
+              '      />,',
+              '    );',
+              '    await flushReact();',
+              '',
+              '    expect(requiredElement("[role=\'alert\']", HTMLElement).textContent).toBe(',
+              '      "internal_error: Unexpected failure.",',
+              '    );',
+              '    expect(document.body.textContent).not.toContain("Administrator password");',
+              '',
+              '    planUnauthenticatedSessionCheck();',
+              '    await click(buttonWithText("Retry"));',
+              '    await flushReact();',
+              '    expect(document.body.textContent).toContain("Administrator password");',
+              '    expect(document.body.textContent).not.toContain("Unexpected failure.");',
+              '    await view.unmount();',
+              '  });',
+          ])
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f"expected one legacy Sign In failure test, found {count}")
+          path.write_text(text)
+          PY
+          git diff --check
+
+      - name: Format changed frontend files
+        working-directory: webapp
+        run: npx prettier --write src/features/auth/v2/SignInPage.tsx tests/v2-sign-in-page.test.tsx
+
+      - name: Typecheck
+        working-directory: webapp
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: webapp
+        run: npm run lint
+
+      - name: Check formatting
+        working-directory: webapp
+        run: npm run format:check
+
+      - name: Run focused Sign In regressions
+        working-directory: webapp
+        run: npx vitest run tests/v2-sign-in-page.test.tsx tests/v2-app-v2.test.tsx
+
+      - name: Build production webapp
+        working-directory: webapp
+        run: npm run build
+
+      - name: Commit validated fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_sha="$(git ls-remote origin refs/heads/master | cut -f1)"
+          if [[ "$remote_sha" != "$GITHUB_SHA" ]]; then
+            echo "master moved from triggering SHA $GITHUB_SHA to $remote_sha; refusing to overwrite" >&2
+            exit 1
+          fi
+          rm -f .github/workflows/apply-h9-signin-session-check.yml \
+                .github/workflows/recover-h9-signin-session-check.yml
+          git add -A
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(webapp): expose Sign In session-check failures"
+          git push origin HEAD:master
