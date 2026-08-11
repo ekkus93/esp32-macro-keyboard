@@ -1,10 +1,11 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import canonicalRepository from "../../contracts/v2/repository/canonical.json";
 import type { Repository } from "../src/v2/repository";
 import { createEmptyRepository } from "../src/v2/repositoryValidation";
 import {
   persistSelectedPackageId,
   resolveSelectedPackage,
+  tryPersistSelectedPackageId,
 } from "../src/v2/packageSelection";
 import { getFetchCalls, jsonResponse, planFetch } from "./fakeFetch";
 
@@ -101,6 +102,37 @@ describe("v2 package selection persistence", () => {
     const result = await persistSelectedPackageId(null, null);
     expect(result).toBeNull();
     expect(getFetchCalls()).toHaveLength(0);
+  });
+
+  test("explicit persistence attempt reports success without throwing", async () => {
+    const persist = vi.fn().mockResolvedValue(null);
+    const attempt = await tryPersistSelectedPackageId(
+      canonicalPackageId,
+      null,
+      persist,
+    );
+
+    expect(attempt).toEqual({ kind: "persisted" });
+    expect(persist).toHaveBeenCalledWith(canonicalPackageId, null);
+  });
+
+  test("explicit persistence attempt preserves the failed target and prior durable selection", async () => {
+    const error = new Error("settings unavailable");
+    const persist = vi.fn().mockRejectedValue(error);
+    const attempt = await tryPersistSelectedPackageId(
+      secondPackage.id,
+      canonicalPackageId,
+      persist,
+    );
+
+    expect(attempt).toEqual({
+      kind: "failed",
+      failure: {
+        packageId: secondPackage.id,
+        previousPackageId: canonicalPackageId,
+        error,
+      },
+    });
   });
 
   test("updates settings only when the selected ID changes", async () => {

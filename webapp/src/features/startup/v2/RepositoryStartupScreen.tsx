@@ -3,7 +3,10 @@ import { ErrorBanner } from "../../../components/ErrorBanner";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import { isGzipSupported } from "../../../v2/gzip";
 import { v2Limits } from "../../../v2/limits";
-import { persistSelectedPackageId } from "../../../v2/packageSelection";
+import {
+  tryPersistSelectedPackageId,
+  type PackageSelectionPersistenceFailure,
+} from "../../../v2/packageSelection";
 import type { Repository } from "../../../v2/repository";
 import {
   createEmptyRepository,
@@ -49,6 +52,8 @@ export interface RepositoryStartupReady {
    * {@link FirstPackageForm}). TODO_V2 V2-111's "loaded snapshot indicator".
    */
   loadedBlobId: string | null;
+  /** Selection opened locally but its device preference write failed. */
+  selectionPersistenceFailure?: PackageSelectionPersistenceFailure;
 }
 
 export interface RepositoryStartupScreenProps {
@@ -180,15 +185,10 @@ function FirstPackageForm({
     // (SPEC_V2 §8.6) — the repository exists only in this tab until Save
     // snapshot succeeds (UI_UX_SPEC_V2 §8).
     store.applyContentChange(validation.value);
-    try {
-      await persistSelectedPackageId(
-        packageIdRef.current,
-        settings.lastSelectedPackageId,
-      );
-    } catch {
-      // Best-effort device UI preference write (V2-074): its failure must
-      // not block opening the package the user just created locally.
-    }
+    const persistence = await tryPersistSelectedPackageId(
+      packageIdRef.current,
+      settings.lastSelectedPackageId,
+    );
     // This form always builds a brand-new local store (see `submit` above),
     // discarding whatever blob (if any) was loaded to reach this screen — so
     // the resulting working copy does not correspond to any stored blob yet.
@@ -197,6 +197,9 @@ function FirstPackageForm({
       packageId: packageIdRef.current,
       send,
       loadedBlobId: null,
+      ...(persistence.kind === "failed"
+        ? { selectionPersistenceFailure: persistence.failure }
+        : {}),
     });
   };
 
@@ -276,13 +279,19 @@ function PackageChooserView({
 
   const choose = async (packageId: string): Promise<void> => {
     setBusyId(packageId);
-    try {
-      await persistSelectedPackageId(packageId, settings.lastSelectedPackageId);
-    } catch {
-      // Best-effort device UI preference write (V2-074); the chosen
-      // package still opens locally regardless of persistence success.
-    }
-    onReady({ store, packageId, send, loadedBlobId });
+    const persistence = await tryPersistSelectedPackageId(
+      packageId,
+      settings.lastSelectedPackageId,
+    );
+    onReady({
+      store,
+      packageId,
+      send,
+      loadedBlobId,
+      ...(persistence.kind === "failed"
+        ? { selectionPersistenceFailure: persistence.failure }
+        : {}),
+    });
   };
 
   return (
@@ -436,21 +445,20 @@ function SnapshotRecoveryView({
       });
       return;
     }
-    if (destination.shouldPersist) {
-      try {
-        await persistSelectedPackageId(
+    const persistence = destination.shouldPersist
+      ? await tryPersistSelectedPackageId(
           destination.packageId,
           settings.lastSelectedPackageId,
-        );
-      } catch {
-        // Best-effort; see FirstPackageForm/PackageChooserView.
-      }
-    }
+        )
+      : { kind: "persisted" as const };
     onReady({
       store,
       packageId: destination.packageId,
       send,
       loadedBlobId: blob.id,
+      ...(persistence.kind === "failed"
+        ? { selectionPersistenceFailure: persistence.failure }
+        : {}),
     });
   };
 
@@ -541,22 +549,21 @@ export function RepositoryStartupScreen({
         }
         return;
       }
-      if (result.destination.shouldPersist) {
-        try {
-          await persistSelectedPackageId(
+      const persistence = result.destination.shouldPersist
+        ? await tryPersistSelectedPackageId(
             result.destination.packageId,
             result.settings.lastSelectedPackageId,
-          );
-        } catch {
-          // Best-effort; see FirstPackageForm/PackageChooserView.
-        }
-      }
+          )
+        : { kind: "persisted" as const };
       if (active) {
         onReadyRef.current({
           store: result.store,
           packageId: result.destination.packageId,
           send: result.send,
           loadedBlobId: result.blobId,
+          ...(persistence.kind === "failed"
+            ? { selectionPersistenceFailure: persistence.failure }
+            : {}),
         });
       }
     };

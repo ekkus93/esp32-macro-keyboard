@@ -17,6 +17,20 @@ export type PackageSelectionResolution =
   | { kind: "resolved"; packageId: string; shouldPersist: boolean }
   | { kind: "chooser" };
 
+export interface PackageSelectionPersistenceFailure {
+  packageId: string | null;
+  previousPackageId: string | null;
+  error: unknown;
+}
+
+export type PackageSelectionPersistenceAttempt =
+  | { kind: "persisted" }
+  | { kind: "failed"; failure: PackageSelectionPersistenceFailure };
+
+export const packageSelectionPersistenceWarning =
+  "The package opened locally, but the device could not save it as the selected package. " +
+  "This selection may not survive a reload.";
+
 /**
  * Implements the exact 3-step algorithm from UI_UX_SPEC_V2 §3.6:
  *  1. When `lastSelectedPackageId` identifies a package in the loaded
@@ -74,4 +88,28 @@ export async function persistSelectedPackageId(
     { lastSelectedPackageId: packageId },
     isSettingsUpdatedResponse,
   );
+}
+/**
+ * Converts the throwing settings client into an explicit outcome so callers
+ * cannot accidentally hide persistence failures while still allowing the
+ * local package selection to continue.
+ */
+export async function tryPersistSelectedPackageId(
+  packageId: string | null,
+  currentLastSelectedPackageId: string | null,
+  persist: typeof persistSelectedPackageId = persistSelectedPackageId,
+): Promise<PackageSelectionPersistenceAttempt> {
+  try {
+    await persist(packageId, currentLastSelectedPackageId);
+    return { kind: "persisted" };
+  } catch (error: unknown) {
+    return {
+      kind: "failed",
+      failure: {
+        packageId,
+        previousPackageId: currentLastSelectedPackageId,
+        error,
+      },
+    };
+  }
 }

@@ -5,6 +5,8 @@ import { UnsavedChangesPrompt } from "../../shell/v2/UnsavedChangesPrompt";
 import {
   persistSelectedPackageId as defaultPersistSelectedPackageId,
   resolveSelectedPackage,
+  tryPersistSelectedPackageId,
+  type PackageSelectionPersistenceFailure,
 } from "../../../v2/packageSelection";
 import type { Repository } from "../../../v2/repository";
 import { saveBytesAsFile } from "../../../v2/saveFile";
@@ -78,6 +80,14 @@ export interface SnapshotsPageProps {
   selectedPackageId: string;
   /** Updates the caller's local selection state; never touches the repository. */
   onSelectionChange: (packageId: string) => void;
+  /** Last package ID known to have persisted successfully on the device. */
+  persistedPackageId: string | null;
+  /** Makes a failed preference write visible outside this page/navigation. */
+  onSelectionPersistenceFailure: (
+    failure: PackageSelectionPersistenceFailure,
+  ) => void;
+  /** Clears any prior persistence warning after a successful preference write. */
+  onSelectionPersistenceSuccess: (packageId: string | null) => void;
   /** Navigates to the Macros page once a package resolves after load/import. */
   onOpenMacros: () => void;
   /** Navigates to the Package chooser when no package resolves after load/import. */
@@ -346,7 +356,10 @@ interface PendingReplace {
 export function SnapshotsPage({
   store,
   selectedPackageId,
+  persistedPackageId,
   onSelectionChange,
+  onSelectionPersistenceFailure,
+  onSelectionPersistenceSuccess,
   onOpenMacros,
   onOpenPackages,
   retentionTarget,
@@ -397,6 +410,7 @@ export function SnapshotsPage({
 
   const [pendingLoad, setPendingLoad] = useState<string | null>(null);
   const [exportingWorkingCopy, setExportingWorkingCopy] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const [importState, setImportState] = useState<
     | { kind: "idle" }
@@ -423,6 +437,7 @@ export function SnapshotsPage({
 
   const exportWorkingCopy = async (): Promise<void> => {
     setExportingWorkingCopy(true);
+    setExportError(null);
     try {
       const exported = await depsRef.current.exportRepository(
         store.getRepository(),
@@ -432,6 +447,8 @@ export function SnapshotsPage({
         exported.filename,
         exported.mimeType,
       );
+    } catch (error: unknown) {
+      setExportError(`Could not export working copy: ${v2ErrorText(error)}`);
     } finally {
       setExportingWorkingCopy(false);
     }
@@ -446,16 +463,18 @@ export function SnapshotsPage({
       return;
     }
     if (resolution.shouldPersist) {
-      try {
-        await depsRef.current.persistSelectedPackageId(
-          resolution.packageId,
-          selectedPackageId,
-        );
-      } catch {
-        // Best-effort device UI preference write (V2-074), matching every
-        // other package-selection call site — a persistence failure must
-        // not trap the user on this screen.
+      const persistence = await tryPersistSelectedPackageId(
+        resolution.packageId,
+        persistedPackageId,
+        depsRef.current.persistSelectedPackageId,
+      );
+      if (persistence.kind === "failed") {
+        onSelectionPersistenceFailure(persistence.failure);
+      } else {
+        onSelectionPersistenceSuccess(resolution.packageId);
       }
+    } else {
+      onSelectionPersistenceSuccess(resolution.packageId);
     }
     onSelectionChange(resolution.packageId);
     onOpenMacros();
@@ -640,6 +659,7 @@ export function SnapshotsPage({
 
       <ErrorBanner message={saveError} />
       <ErrorBanner message={rowError} />
+      <ErrorBanner message={exportError} />
 
       {retention.overTarget ? (
         <p role="status">

@@ -111,6 +111,14 @@ function planSettingsPutAccepted(): { called: () => boolean } {
   return { called: () => called };
 }
 
+function planSettingsPutFailure(error: Error): void {
+  planFetch((call) => {
+    expect(call.url).toBe("/api/v1/settings");
+    expect(call.method).toBe("PUT");
+    throw error;
+  });
+}
+
 /**
  * One real event-loop tick (not just drained microtasks) wrapped in `act`.
  * `gzipCompress`/`gzipDecompress` go through Node's zlib, which completes on
@@ -452,6 +460,41 @@ describe("v2 RepositoryStartupScreen", () => {
     expect(put.called()).toBe(true);
     expect(onReady).toHaveBeenCalledTimes(1);
     expect(onReady.mock.calls[0]?.[0]?.packageId).toBe(secondPackageId);
+    await view.unmount();
+  });
+
+  test("package chooser persistence failure still opens locally and carries a visible-warning handoff", async () => {
+    planSettingsGet({ ...baseSettings, lastSelectedPackageId: null });
+    planBlobList([{ id: "2", sizeBytes: 20 }]);
+    planBlobGet(
+      "2",
+      await gzipCompress(
+        new TextEncoder().encode(serializeRepository(twoPackageRepository)),
+      ),
+    );
+    planNoSend();
+    const onReady = vi.fn<(ready: RepositoryStartupReady) => void>();
+    const view = await renderScreen(onReady);
+    await waitUntil(
+      () => bodyIncludes("Choose a package"),
+      "the package chooser",
+    );
+
+    const failure = new TypeError("settings unavailable");
+    planSettingsPutFailure(failure);
+    await click(buttonWithText("Second package (0 macros)"));
+    await waitUntil(
+      () => onReady.mock.calls.length > 0,
+      "onReady after failed selection persistence",
+    );
+
+    const ready = onReady.mock.calls[0]?.[0];
+    expect(ready?.packageId).toBe(secondPackageId);
+    expect(ready?.selectionPersistenceFailure).toEqual({
+      packageId: secondPackageId,
+      previousPackageId: null,
+      error: failure,
+    });
     await view.unmount();
   });
 

@@ -145,7 +145,11 @@ async function submitForm(): Promise<void> {
  * reconnect sequence) can `unmount()` when done. Existing callers that don't
  * need this simply ignore the return value.
  */
-async function signIn(): Promise<RenderResult> {
+interface SignInOptions {
+  firstPackagePersistenceError?: Error;
+}
+
+async function signIn(options: SignInOptions = {}): Promise<RenderResult> {
   planFetch((call) => {
     expect(call.url).toBe("/api/v1/setup");
     expect(call.method).toBe("GET");
@@ -192,6 +196,9 @@ async function signIn(): Promise<RenderResult> {
   planFetch((call) => {
     expect(call.url).toBe("/api/v1/settings");
     expect(call.method).toBe("PUT");
+    if (options.firstPackagePersistenceError !== undefined) {
+      throw options.firstPackagePersistenceError;
+    }
     return jsonResponse({
       settings: settingsBody,
       restartRequired: false,
@@ -276,6 +283,35 @@ describe("AppV2 — wiring RepositoryStartupScreen into the running app shell", 
     // hold its own `useDeviceStatus` poll interval and `hashchange`
     // listener, competing for the same fake-fetch queue against tests that
     // render a fresh `AppV2` later.
+    await view.unmount();
+  });
+
+  test("failed first-package selection persistence stays visible after local open and Retry clears it", async () => {
+    const view = await signIn({
+      firstPackagePersistenceError: new TypeError("settings write unavailable"),
+    });
+
+    expect(bodyIncludes("My First Package")).toBe(true);
+    expect(bodyIncludes("This selection may not survive a reload.")).toBe(true);
+    expect(bodyIncludes("settings write unavailable")).toBe(true);
+    buttonWithText("Retry saving selection");
+
+    planFetch((call) => {
+      expect(call.url).toBe("/api/v1/settings");
+      expect(call.method).toBe("PUT");
+      return jsonResponse({
+        settings: settingsBody,
+        restartRequired: false,
+        reconnectRequired: false,
+      });
+    });
+    await click(buttonWithText("Retry saving selection"));
+    await waitUntil(
+      () => !bodyIncludes("This selection may not survive a reload."),
+      "selection persistence warning to clear",
+    );
+
+    expect(bodyIncludes("My First Package")).toBe(true);
     await view.unmount();
   });
 

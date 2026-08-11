@@ -23,6 +23,11 @@ import { ErrorBanner } from "./components/ErrorBanner";
 import { V2ApiError, subscribeUnauthorized, v2GetJson } from "./v2/apiClient";
 import { isSetupStateResponse } from "./v2/apiGuards";
 import { getSettings } from "./v2/settingsClient";
+import {
+  packageSelectionPersistenceWarning,
+  tryPersistSelectedPackageId,
+  type PackageSelectionPersistenceFailure,
+} from "./v2/packageSelection";
 import { saveWorkingCopyAsSnapshot } from "./v2/snapshotClient";
 import { getStatus } from "./v2/statusClient";
 import {
@@ -72,6 +77,17 @@ function AuthenticatedShell({
   // selection after the previously selected package is deleted — without
   // remounting the whole authenticated shell.
   const [packageId, setPackageId] = useState(ready.packageId);
+  const [persistedPackageId, setPersistedPackageId] = useState<string | null>(
+    ready.selectionPersistenceFailure !== undefined
+      ? ready.selectionPersistenceFailure.previousPackageId
+      : ready.packageId,
+  );
+  const [selectionPersistenceFailure, setSelectionPersistenceFailure] =
+    useState<PackageSelectionPersistenceFailure | null>(
+      ready.selectionPersistenceFailure ?? null,
+    );
+  const [selectionPersistenceRetrying, setSelectionPersistenceRetrying] =
+    useState(false);
 
   const usbState = useDeviceStatus();
 
@@ -105,6 +121,42 @@ function AuthenticatedShell({
       active = false;
     };
   }, [settingsAttempt]);
+
+  const selectionPersistenceSucceeded = (
+    nextPackageId: string | null,
+  ): void => {
+    setPersistedPackageId(nextPackageId);
+    setSelectionPersistenceFailure(null);
+    setSettings((current) =>
+      current === null
+        ? null
+        : { ...current, lastSelectedPackageId: nextPackageId },
+    );
+  };
+
+  const selectionPersistenceFailed = (
+    failure: PackageSelectionPersistenceFailure,
+  ): void => {
+    setSelectionPersistenceFailure(failure);
+  };
+
+  const retrySelectionPersistence = async (): Promise<void> => {
+    const failure = selectionPersistenceFailure;
+    if (failure === null) {
+      return;
+    }
+    setSelectionPersistenceRetrying(true);
+    const attempt = await tryPersistSelectedPackageId(
+      failure.packageId,
+      persistedPackageId,
+    );
+    if (attempt.kind === "failed") {
+      selectionPersistenceFailed(attempt.failure);
+    } else {
+      selectionPersistenceSucceeded(failure.packageId);
+    }
+    setSelectionPersistenceRetrying(false);
+  };
 
   const [route, setRoute] = useState<ScreenV2>(() => routeFromHashV2());
   useEffect(() => {
@@ -312,6 +364,9 @@ function AuthenticatedShell({
           <PackageManagementPage
             onOpenMacros={navigateToMacros}
             onSelectionChange={setPackageId}
+            onSelectionPersistenceFailure={selectionPersistenceFailed}
+            onSelectionPersistenceSuccess={selectionPersistenceSucceeded}
+            persistedPackageId={persistedPackageId}
             selectedPackageId={packageId}
             store={store}
           />
@@ -326,7 +381,10 @@ function AuthenticatedShell({
             }}
             onSaveSnapshot={saveSnapshot}
             onSelectionChange={setPackageId}
+            onSelectionPersistenceFailure={selectionPersistenceFailed}
+            onSelectionPersistenceSuccess={selectionPersistenceSucceeded}
             onWorkingCopyOriginChanged={setLoadedBlobId}
+            persistedPackageId={persistedPackageId}
             retentionTarget={settings.snapshotRetentionTarget}
             saveError={saveError}
             saving={saving}
@@ -372,6 +430,26 @@ function AuthenticatedShell({
           saving={saving}
           usbState={usbState}
         >
+          {selectionPersistenceFailure !== null ? (
+            <div className="form-stack">
+              <ErrorBanner
+                message={`${packageSelectionPersistenceWarning} ${v2ErrorText(
+                  selectionPersistenceFailure.error,
+                )}`}
+              />
+              <button
+                disabled={selectionPersistenceRetrying}
+                onClick={() => {
+                  void retrySelectionPersistence();
+                }}
+                type="button"
+              >
+                {selectionPersistenceRetrying
+                  ? "Retrying selection save…"
+                  : "Retry saving selection"}
+              </button>
+            </div>
+          ) : null}
           {content}
         </AppShellV2>
       </div>

@@ -1,6 +1,9 @@
 import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
-import { PackageManagementPage } from "../src/features/macros/v2/PackageManagementPage";
+import {
+  PackageManagementPage,
+  type PackageManagementDependencies,
+} from "../src/features/macros/v2/PackageManagementPage";
 import type { Repository } from "../src/v2/repository";
 import { createRepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";
 import {
@@ -27,18 +30,34 @@ function repository(): Repository {
   };
 }
 
+interface RenderPageOptions {
+  persistedPackageId?: string | null;
+  persistSelectedPackageId?: PackageManagementDependencies["persistSelectedPackageId"];
+}
+
 function renderPage(
   store: ReturnType<typeof createRepositoryWorkingCopyStore>,
   selectedPackageId: string,
+  options: RenderPageOptions = {},
 ) {
-  const persistSelectedPackageId = vi.fn().mockResolvedValue(null);
+  const persistSelectedPackageId =
+    options.persistSelectedPackageId ?? vi.fn().mockResolvedValue(null);
   const onSelectionChange = vi.fn();
+  const onSelectionPersistenceFailure = vi.fn();
+  const onSelectionPersistenceSuccess = vi.fn();
   const onOpenMacros = vi.fn();
+  const persistedPackageId =
+    options.persistedPackageId === undefined
+      ? selectedPackageId
+      : options.persistedPackageId;
   const renderPromise = render(
     <PackageManagementPage
       dependencies={{ persistSelectedPackageId }}
       onOpenMacros={onOpenMacros}
       onSelectionChange={onSelectionChange}
+      onSelectionPersistenceFailure={onSelectionPersistenceFailure}
+      onSelectionPersistenceSuccess={onSelectionPersistenceSuccess}
+      persistedPackageId={persistedPackageId}
       selectedPackageId={selectedPackageId}
       store={store}
     />,
@@ -47,6 +66,8 @@ function renderPage(
     ...result,
     persistSelectedPackageId,
     onSelectionChange,
+    onSelectionPersistenceFailure,
+    onSelectionPersistenceSuccess,
     onOpenMacros,
   }));
 }
@@ -302,6 +323,38 @@ describe("PackageManagementPage — V2-102 selected-package deletion", () => {
     await unmount();
   });
 
+  test("selected-package deletion reports a persistence failure but keeps the resolved local selection", async () => {
+    const store = createRepositoryWorkingCopyStore(repository());
+    const failure = new Error("settings persistence failed");
+    const persistSelectedPackageId = vi.fn().mockRejectedValue(failure);
+    const {
+      onSelectionChange,
+      onSelectionPersistenceFailure,
+      onSelectionPersistenceSuccess,
+      unmount,
+    } = await renderPage(store, packageAId, { persistSelectedPackageId });
+    await click(
+      requiredElement('[aria-label="Delete Package A"]', HTMLButtonElement),
+    );
+    await click(buttonWithText("Confirm delete"));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(onSelectionChange).toHaveBeenCalledWith(packageBId);
+    expect(onSelectionPersistenceSuccess).not.toHaveBeenCalled();
+    expect(onSelectionPersistenceFailure).toHaveBeenCalledWith({
+      packageId: packageBId,
+      previousPackageId: packageAId,
+      error: failure,
+    });
+    expect(store.getRepository().packages.map((pkg) => pkg.id)).toEqual([
+      packageBId,
+    ]);
+    expect(store.getIsDirty()).toBe(true);
+    await unmount();
+  });
+
   test("leaves selection unresolved when several packages still remain", async () => {
     const threePackages: Repository = {
       format: "esp32-macro-keyboard-repository",
@@ -335,6 +388,8 @@ describe("PackageManagementPage — V2-102 ordinary switching never dirties", ()
     const {
       onOpenMacros,
       onSelectionChange,
+      onSelectionPersistenceFailure,
+      onSelectionPersistenceSuccess,
       persistSelectedPackageId,
       unmount,
     } = await renderPage(store, packageAId);
@@ -347,7 +402,37 @@ describe("PackageManagementPage — V2-102 ordinary switching never dirties", ()
       packageAId,
     );
     expect(onSelectionChange).toHaveBeenCalledWith(packageBId);
+    expect(onSelectionPersistenceSuccess).toHaveBeenCalledWith(packageBId);
+    expect(onSelectionPersistenceFailure).not.toHaveBeenCalled();
     expect(onOpenMacros).toHaveBeenCalledOnce();
+    expect(store.getIsDirty()).toBe(false);
+    await unmount();
+  });
+
+  test("persistence failure still opens locally, reports the failure, and stays non-dirty", async () => {
+    const store = createRepositoryWorkingCopyStore(repository());
+    const failure = new TypeError("device settings unavailable");
+    const persistSelectedPackageId = vi.fn().mockRejectedValue(failure);
+    const {
+      onOpenMacros,
+      onSelectionChange,
+      onSelectionPersistenceFailure,
+      onSelectionPersistenceSuccess,
+      unmount,
+    } = await renderPage(store, packageAId, { persistSelectedPackageId });
+
+    await click(
+      requiredElement('[aria-label="Open Package B"]', HTMLButtonElement),
+    );
+
+    expect(onSelectionChange).toHaveBeenCalledWith(packageBId);
+    expect(onOpenMacros).toHaveBeenCalledOnce();
+    expect(onSelectionPersistenceSuccess).not.toHaveBeenCalled();
+    expect(onSelectionPersistenceFailure).toHaveBeenCalledWith({
+      packageId: packageBId,
+      previousPackageId: packageAId,
+      error: failure,
+    });
     expect(store.getIsDirty()).toBe(false);
     await unmount();
   });

@@ -3,6 +3,8 @@ import { v2Limits } from "../../../v2/limits";
 import {
   persistSelectedPackageId as defaultPersistSelectedPackageId,
   resolveSelectedPackage,
+  tryPersistSelectedPackageId,
+  type PackageSelectionPersistenceFailure,
 } from "../../../v2/packageSelection";
 import { utf8ByteLength, type RepositoryPackage } from "../../../v2/repository";
 import {
@@ -46,6 +48,14 @@ export interface PackageManagementPageProps {
   selectedPackageId: string;
   /** Updates the caller's local selection state; never touches the repository. */
   onSelectionChange: (packageId: string) => void;
+  /** Last package ID known to have persisted successfully on the device. */
+  persistedPackageId: string | null;
+  /** Makes a failed preference write visible outside this page/navigation. */
+  onSelectionPersistenceFailure: (
+    failure: PackageSelectionPersistenceFailure,
+  ) => void;
+  /** Clears any prior persistence warning after a successful preference write. */
+  onSelectionPersistenceSuccess: (packageId: string | null) => void;
   /** Navigates to the Macros page for whatever package is selected after Open. */
   onOpenMacros: () => void;
   dependencies?: PackageManagementDependencies;
@@ -325,7 +335,10 @@ function PackageRow({
 export function PackageManagementPage({
   store,
   selectedPackageId,
+  persistedPackageId,
   onSelectionChange,
+  onSelectionPersistenceFailure,
+  onSelectionPersistenceSuccess,
   onOpenMacros,
   dependencies,
 }: PackageManagementPageProps): React.JSX.Element {
@@ -341,15 +354,19 @@ export function PackageManagementPage({
   );
 
   const openPackage = async (packageId: string): Promise<void> => {
-    try {
-      await deps.persistSelectedPackageId(packageId, selectedPackageId);
-    } catch {
-      // Best-effort device UI preference write (V2-074), matching every
-      // other package-selection call site (RepositoryStartupScreen): the
-      // chosen package still opens locally regardless of persistence
-      // success — a persistence failure must not trap the user on this
-      // screen.
+    const persistence = await tryPersistSelectedPackageId(
+      packageId,
+      persistedPackageId,
+      deps.persistSelectedPackageId,
+    );
+    if (persistence.kind === "failed") {
+      onSelectionPersistenceFailure(persistence.failure);
+    } else {
+      onSelectionPersistenceSuccess(packageId);
     }
+    // Persistence is a device-wide preference, not repository content. Keep
+    // the local selection usable even when the preference write failed; the
+    // caller keeps the failure warning visible across this navigation.
     onSelectionChange(packageId);
     onOpenMacros();
   };
@@ -379,7 +396,7 @@ export function PackageManagementPage({
     }
   };
 
-  const deletePackageRow = (packageId: string): void => {
+  const deletePackageRow = async (packageId: string): Promise<void> => {
     const next = deletePackage(repository, packageId);
     store.applyContentChange(next);
     if (packageId !== selectedPackageId) {
@@ -388,16 +405,25 @@ export function PackageManagementPage({
     // UI_UX_SPEC_V2 §6.2 — resolve and persist the selection using the same
     // §3.6 algorithm startup uses, since the previously selected package no
     // longer exists.
-    const resolution = resolveSelectedPackage(next, selectedPackageId);
+    const resolution = resolveSelectedPackage(next, persistedPackageId);
     if (resolution.kind !== "resolved") {
       return;
     }
     if (resolution.shouldPersist) {
-      deps
-        .persistSelectedPackageId(resolution.packageId, selectedPackageId)
-        .catch(() => {
-          // Best-effort; see openPackage.
-        });
+      const persistence = await tryPersistSelectedPackageId(
+        resolution.packageId,
+        persistedPackageId,
+        deps.persistSelectedPackageId,
+      );
+      if (persistence.kind === "failed") {
+        onSelectionPersistenceFailure(persistence.failure);
+      } else {
+        onSelectionPersistenceSuccess(resolution.packageId);
+      }
+    } else {
+      // The local selection has returned to the already-durable preference;
+      // any earlier warning is now stale even though no write was needed.
+      onSelectionPersistenceSuccess(resolution.packageId);
     }
     onSelectionChange(resolution.packageId);
   };
@@ -461,7 +487,7 @@ export function PackageManagementPage({
                   index={index}
                   isSelected={pkg.id === selectedPackageId}
                   onDelete={() => {
-                    deletePackageRow(pkg.id);
+                    void deletePackageRow(pkg.id);
                   }}
                   onDuplicate={() => {
                     duplicatePackageRow(pkg.id);

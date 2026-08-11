@@ -62,6 +62,7 @@ function defaultList(): SnapshotListResult {
 interface Overrides {
   store?: RepositoryWorkingCopyStore;
   selectedPackageId?: string;
+  persistedPackageId?: string | null;
   retentionTarget?: number;
   loadedBlobId?: string | null;
   deps?: Partial<SnapshotsPageDependencies>;
@@ -92,10 +93,17 @@ async function renderPage(overrides: Overrides = {}) {
     overrides.store ?? createRepositoryWorkingCopyStore(repository());
   const deps = makeDependencies(overrides.deps);
   const onSelectionChange = vi.fn();
+  const onSelectionPersistenceFailure = vi.fn();
+  const onSelectionPersistenceSuccess = vi.fn();
   const onOpenMacros = vi.fn();
   const onOpenPackages = vi.fn();
   const onWorkingCopyOriginChanged = vi.fn();
   const onSaveSnapshot = vi.fn().mockResolvedValue(undefined);
+  const selectedPackageId = overrides.selectedPackageId ?? packageId;
+  const persistedPackageId =
+    overrides.persistedPackageId === undefined
+      ? selectedPackageId
+      : overrides.persistedPackageId;
 
   const view = await render(
     <SnapshotsPage
@@ -105,11 +113,14 @@ async function renderPage(overrides: Overrides = {}) {
       onOpenPackages={onOpenPackages}
       onSaveSnapshot={onSaveSnapshot}
       onSelectionChange={onSelectionChange}
+      onSelectionPersistenceFailure={onSelectionPersistenceFailure}
+      onSelectionPersistenceSuccess={onSelectionPersistenceSuccess}
       onWorkingCopyOriginChanged={onWorkingCopyOriginChanged}
+      persistedPackageId={persistedPackageId}
       retentionTarget={overrides.retentionTarget ?? 5}
       saveError={overrides.saveError ?? null}
       saving={overrides.saving ?? false}
-      selectedPackageId={overrides.selectedPackageId ?? packageId}
+      selectedPackageId={selectedPackageId}
       store={store}
     />,
   );
@@ -119,6 +130,8 @@ async function renderPage(overrides: Overrides = {}) {
     store,
     deps,
     onSelectionChange,
+    onSelectionPersistenceFailure,
+    onSelectionPersistenceSuccess,
     onOpenMacros,
     onOpenPackages,
     onWorkingCopyOriginChanged,
@@ -327,6 +340,64 @@ describe("SnapshotsPage — V2-110/V2-111 manual load", () => {
     await unmount();
   });
 
+  test("selection persistence failure after load still opens the resolved package and reports the failure", async () => {
+    const loaded: Repository = {
+      format: "esp32-macro-keyboard-repository",
+      schemaVersion: 1,
+      packages: [{ id: otherPackageId, name: "Loaded package", macros: [] }],
+    };
+    const loadSnapshotIntoWorkingCopy = vi
+      .fn<
+        (
+          id: string,
+          store: RepositoryWorkingCopyStore,
+        ) => Promise<LoadSnapshotResult>
+      >()
+      .mockImplementation((_id, store) => {
+        store.replaceWorkingCopy(loaded);
+        return Promise.resolve({
+          ok: true,
+          repository: loaded,
+          created: false,
+        });
+      });
+    const failure = new TypeError("settings write failed");
+    const persistSelectedPackageId = vi.fn().mockRejectedValue(failure);
+    const {
+      onOpenMacros,
+      onSelectionChange,
+      onSelectionPersistenceFailure,
+      onSelectionPersistenceSuccess,
+      store,
+      unmount,
+    } = await renderPage({
+      deps: { loadSnapshotIntoWorkingCopy, persistSelectedPackageId },
+      persistedPackageId: packageId,
+      selectedPackageId: packageId,
+    });
+    await waitUntil(
+      () => document.querySelector('[aria-label="Load snapshot 1"]') !== null,
+      "row to render",
+    );
+    await click(
+      requiredElement('[aria-label="Load snapshot 1"]', HTMLButtonElement),
+    );
+    await waitUntil(
+      () => onOpenMacros.mock.calls.length > 0,
+      "onOpenMacros after failed preference write",
+    );
+
+    expect(onSelectionChange).toHaveBeenCalledWith(otherPackageId);
+    expect(onSelectionPersistenceSuccess).not.toHaveBeenCalled();
+    expect(onSelectionPersistenceFailure).toHaveBeenCalledWith({
+      packageId: otherPackageId,
+      previousPackageId: packageId,
+      error: failure,
+    });
+    expect(store.getIsDirty()).toBe(false);
+    await unmount();
+  });
+
   test("loading a repository with several packages and no resolvable selection opens the package chooser", async () => {
     const loaded = twoPackageRepository();
     const loadSnapshotIntoWorkingCopy = vi
@@ -463,7 +534,10 @@ describe("SnapshotsPage — V2-113 dirty-work protection during load", () => {
         onOpenPackages={vi.fn()}
         onSaveSnapshot={onSaveSnapshot}
         onSelectionChange={vi.fn()}
+        onSelectionPersistenceFailure={vi.fn()}
+        onSelectionPersistenceSuccess={vi.fn()}
         onWorkingCopyOriginChanged={vi.fn()}
+        persistedPackageId={packageId}
         retentionTarget={5}
         saveError={null}
         saving={false}
@@ -953,6 +1027,80 @@ describe("SnapshotsPage — V2-115 export", () => {
     expect(onSaveSnapshot).not.toHaveBeenCalled();
     await unmount();
   });
+
+  test("export/compression failure is visible, clears busy state, and changes no repository state", async () => {
+    const failure = new Error("compression failed");
+    const exportRepository = vi.fn().mockRejectedValue(failure);
+    const store = createRepositoryWorkingCopyStore(repository());
+    store.applyContentChange(renamedRepository());
+    const repositoryBefore = store.getRepository();
+    const {
+      container,
+      onSelectionChange,
+      onWorkingCopyOriginChanged,
+      unmount,
+    } = await renderPage({
+      deps: { exportRepository },
+      loadedBlobId: "1",
+      store,
+    });
+
+    await click(buttonWithText("Export working copy"));
+    await waitUntil(
+      () =>
+        container.textContent?.includes("Could not export working copy") ===
+        true,
+      "visible export error",
+    );
+
+    expect(container.textContent).toContain("compression failed");
+    expect(buttonWithText("Export working copy").disabled).toBe(false);
+    expect(store.getRepository()).toBe(repositoryBefore);
+    expect(store.getIsDirty()).toBe(true);
+    expect(onSelectionChange).not.toHaveBeenCalled();
+    expect(onWorkingCopyOriginChanged).not.toHaveBeenCalled();
+    await unmount();
+  });
+
+  test("save-as-file failure is visible and leaves the working copy and association untouched", async () => {
+    const bytes = new Uint8Array([4, 3, 2, 1]);
+    const exportRepository = vi.fn().mockResolvedValue({
+      bytes,
+      filename: "repository.emk-repository.json.gz",
+      mimeType: "application/gzip",
+    });
+    const saveAsFile = vi.fn(() => {
+      throw new Error("download blocked");
+    });
+    const store = createRepositoryWorkingCopyStore(repository());
+    const repositoryBefore = store.getRepository();
+    const {
+      container,
+      onSelectionChange,
+      onWorkingCopyOriginChanged,
+      unmount,
+    } = await renderPage({
+      deps: { exportRepository, saveAsFile },
+      loadedBlobId: "1",
+      store,
+    });
+
+    await click(buttonWithText("Export working copy"));
+    await waitUntil(
+      () =>
+        container.textContent?.includes("Could not export working copy") ===
+        true,
+      "visible file-save error",
+    );
+
+    expect(container.textContent).toContain("download blocked");
+    expect(buttonWithText("Export working copy").disabled).toBe(false);
+    expect(store.getRepository()).toBe(repositoryBefore);
+    expect(store.getIsDirty()).toBe(false);
+    expect(onSelectionChange).not.toHaveBeenCalled();
+    expect(onWorkingCopyOriginChanged).not.toHaveBeenCalled();
+    await unmount();
+  });
 });
 
 describe("SnapshotsPage — V2-115 import", () => {
@@ -1077,6 +1225,64 @@ describe("SnapshotsPage — V2-115 import", () => {
     expect(store.getIsDirty()).toBe(true);
     expect(onSaveSnapshot).not.toHaveBeenCalled();
     expect(onWorkingCopyOriginChanged).toHaveBeenCalledWith(null);
+    await unmount();
+  });
+
+  test("import package-resolution persistence failure still opens locally and reports the failure", async () => {
+    const imported: Repository = {
+      format: "esp32-macro-keyboard-repository",
+      schemaVersion: 1,
+      packages: [{ id: otherPackageId, name: "Imported package", macros: [] }],
+    };
+    const importResult: ImportResult = {
+      ok: true,
+      repository: imported,
+      packageCount: 1,
+      macroCount: 0,
+    };
+    const readFileBytes = vi.fn().mockResolvedValue(new Uint8Array([1]));
+    const importRepository = vi.fn().mockResolvedValue(importResult);
+    const failure = new Error("settings write failed");
+    const persistSelectedPackageId = vi.fn().mockRejectedValue(failure);
+    const {
+      onOpenMacros,
+      onSelectionChange,
+      onSelectionPersistenceFailure,
+      onSelectionPersistenceSuccess,
+      onWorkingCopyOriginChanged,
+      store,
+      unmount,
+    } = await renderPage({
+      deps: {
+        importRepository,
+        persistSelectedPackageId,
+        readFileBytes,
+      },
+      persistedPackageId: packageId,
+      selectedPackageId: packageId,
+    });
+
+    await chooseFile(fakeFile());
+    await waitUntil(
+      () => document.body.textContent?.includes("1 packages") === true,
+      "import counts to render",
+    );
+    await click(buttonWithText("Replace working copy with this import"));
+    await waitUntil(
+      () => onOpenMacros.mock.calls.length > 0,
+      "local package open after failed preference write",
+    );
+
+    expect(onSelectionChange).toHaveBeenCalledWith(otherPackageId);
+    expect(onSelectionPersistenceSuccess).not.toHaveBeenCalled();
+    expect(onSelectionPersistenceFailure).toHaveBeenCalledWith({
+      packageId: otherPackageId,
+      previousPackageId: packageId,
+      error: failure,
+    });
+    expect(onWorkingCopyOriginChanged).toHaveBeenCalledWith(null);
+    expect(store.getRepository()).toBe(imported);
+    expect(store.getIsDirty()).toBe(true);
     await unmount();
   });
 
