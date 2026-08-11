@@ -1,0 +1,27 @@
+name: H7-072 Error Mapping Audit
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/h7-072-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Find storage-unavailable and executor-unavailable mappings
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== APP_ERROR_STORAGE_UNAVAILABLE production hits ==='
+          git grep -n 'APP_ERROR_STORAGE_UNAVAILABLE' -- firmware || true
+          echo '=== unavailable executor/status mapping context ==='
+          git grep -n -E 'executor.*unavailable|unavailable.*executor|available.*false|!.*available' -- firmware/components tests/host | head -n 300 || true
