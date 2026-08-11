@@ -1068,16 +1068,27 @@ register_host_test(web_api_administration_tests web_api_administration web)
 add_executable(app_crc32_tests test_app_crc32.c ../../firmware/components/support/app_crc32.c)
 target_include_directories(app_crc32_tests PRIVATE ../../firmware/components/support/include)
 register_host_test(app_crc32_tests app_crc32 support)
-# Worker-capable focused regression for H6-062. Unlike
+# Worker-capable focused regressions for H6-062/H6-063. Unlike
 # web_server_async_confirmation_tests' dead-path canaries, this target supplies a
 # pthread-backed one-slot queue/binary semaphore/task model directly in the test so the
 # real async worker executes and its handler/completion/stop results can be fault-injected.
+# H6-063 also links the real status handler so responsiveness is tested across actual
+# production status composition/serialization while the confirmation worker is blocked.
 add_executable(
     web_server_async_results_tests
     test_web_server_async_results.c
     ../../firmware/components/web_server/web_server_async.c
+    ../../firmware/components/web_server/web_server_status_limits.c
+    ../../firmware/components/web_server/web_server_common.c
+    ../../firmware/components/web_server/web_server_adapter_common.c
+    ../../firmware/components/web_server/web_server_adapter_body_auth.c
+    ../../firmware/components/web_server/web_server_adapter_json.c
+    ../../firmware/components/web_server/web_status_limits.c
+    ../../firmware/components/web_server/web_cookie.c
     ../../firmware/components/web_server/http_health.c
     ../../firmware/components/support/subsystem_health.c
+    ../../firmware/components/macro_model/app_error.c
+    fakes/fake_httpd.c
 )
 target_include_directories(
     web_server_async_results_tests
@@ -1093,10 +1104,11 @@ target_include_directories(
             ../../firmware/components/app_contracts_v2/include
             ../../firmware/components/auth/include
             ../../firmware/components/device_controls/include
+            ../../firmware/components/device_settings/include
             ../../firmware/components/storage/include
             ../../firmware/components/wifi_ap/include
             ../../firmware/components/usb_keyboard/include
             ../../firmware/components/support/include
 )
-target_link_libraries(web_server_async_results_tests PRIVATE Threads::Threads)
+target_link_libraries(web_server_async_results_tests PRIVATE Threads::Threads PkgConfig::CJSON)
 register_host_test(web_server_async_results_tests web_server_async_results web)
