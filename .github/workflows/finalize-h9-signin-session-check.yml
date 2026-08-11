@@ -1,0 +1,120 @@
+name: Finalize Sign In session-check visibility hardening
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/finalize-h9-signin-session-check.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: webapp
+        run: npm ci
+
+      - name: Reapply validated Sign In patch and fix session-expiry timer driving
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          awk '
+            /cat > webapp\/src\/features\/auth\/v2\/SignInPage\.tsx <<'"'"'TSX'"'"'/ { capture=1; next }
+            capture && /^[[:space:]]*TSX$/ { exit }
+            capture { sub(/^          /, ""); print }
+          ' .github/workflows/apply-h9-signin-session-check.yml > webapp/src/features/auth/v2/SignInPage.tsx
+
+          awk '
+            /python3 - <<'"'"'PY'"'"'/ { capture=1; next }
+            capture && /^[[:space:]]*PY$/ { exit }
+            capture { sub(/^          /, ""); print }
+          ' .github/workflows/recover-h9-signin-session-check.yml > /tmp/recover-signin.py
+          python3 /tmp/recover-signin.py
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("webapp/tests/v2-app-v2.test.tsx")
+          text = path.read_text()
+          title = "session expiry drops back to Sign In without discarding the working copy"
+          start = text.find(f'  test("{title}"')
+          if start < 0:
+              raise SystemExit("session-expiry test not found")
+          end = text.find('\n  test("', start + 1)
+          if end < 0:
+              end = len(text)
+          section = text[start:end]
+          old = "    await tick(5_000);"
+          new = """    await act(async () => {
+              await vi.advanceTimersToNextTimerAsync();
+            });"""
+          if section.count(old) != 1:
+              raise SystemExit(
+                  f"expected one hard-coded session-expiry poll tick, found {section.count(old)}"
+              )
+          section = section.replace(old, new, 1)
+          path.write_text(text[:start] + section + text[end:])
+          PY
+
+          git diff --check
+
+      - name: Format changed frontend files
+        working-directory: webapp
+        run: >-
+          npx prettier --write
+          src/features/auth/v2/SignInPage.tsx
+          tests/v2-sign-in-page.test.tsx
+          tests/v2-app-v2.test.tsx
+
+      - name: Typecheck
+        working-directory: webapp
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: webapp
+        run: npm run lint
+
+      - name: Check formatting
+        working-directory: webapp
+        run: npm run format:check
+
+      - name: Run focused Sign In regressions
+        working-directory: webapp
+        run: npx vitest run tests/v2-sign-in-page.test.tsx tests/v2-app-v2.test.tsx
+
+      - name: Build production webapp
+        working-directory: webapp
+        run: npm run build
+
+      - name: Commit validated fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_sha="$(git ls-remote origin refs/heads/master | cut -f1)"
+          if [[ "$remote_sha" != "$GITHUB_SHA" ]]; then
+            echo "master moved from triggering SHA $GITHUB_SHA to $remote_sha; refusing to overwrite" >&2
+            exit 1
+          fi
+          rm -f .github/workflows/apply-h9-signin-session-check.yml \
+                .github/workflows/recover-h9-signin-session-check.yml \
+                .github/workflows/finalize-h9-signin-session-check.yml
+          git add -A
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(webapp): expose Sign In session-check failures"
+          git push origin HEAD:master
