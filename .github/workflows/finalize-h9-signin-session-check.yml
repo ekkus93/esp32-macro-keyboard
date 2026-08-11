@@ -27,7 +27,7 @@ jobs:
         working-directory: webapp
         run: npm ci
 
-      - name: Reapply validated Sign In patch and fix session-expiry timer driving
+      - name: Reapply validated Sign In patch and fix session-expiry poll race
         shell: bash
         run: |
           set -euo pipefail
@@ -58,15 +58,20 @@ jobs:
           if end < 0:
               end = len(text)
           section = text[start:end]
-          old = "    await tick(5_000);"
-          new = """    await act(async () => {
-              await vi.advanceTimersToNextTimerAsync();
-            });"""
-          if section.count(old) != 1:
+          marker = """    planFetch((call) => {
+              expect(call.url).toBe("/api/v1/status");"""
+          replacement = """    // signIn() returns as soon as the authenticated shell is visible.
+            // Let the already-started initial status request finish so its next
+            // five-second poll is scheduled before advancing the fake clock.
+            await tick(0);
+
+            planFetch((call) => {
+              expect(call.url).toBe("/api/v1/status");"""
+          if section.count(marker) != 1:
               raise SystemExit(
-                  f"expected one hard-coded session-expiry poll tick, found {section.count(old)}"
+                  f"expected one session-expiry status plan, found {section.count(marker)}"
               )
-          section = section.replace(old, new, 1)
+          section = section.replace(marker, replacement, 1)
           path.write_text(text[:start] + section + text[end:])
           PY
 
