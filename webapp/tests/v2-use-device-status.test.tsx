@@ -11,7 +11,7 @@ async function tick(ms: number): Promise<void> {
 }
 
 describe("useDeviceStatus", () => {
-  test("polls and updates the USB state, keeping the last known value on a transient failure", async () => {
+  test("retains the last value, degrades after three consecutive failures, and recovers", async () => {
     vi.useFakeTimers();
     try {
       let call = 0;
@@ -19,51 +19,77 @@ describe("useDeviceStatus", () => {
         call += 1;
         if (call === 1) {
           return Promise.resolve({
-            usb: { state: "disconnected" },
+            usb: { state: "ready" },
           } as unknown as StatusResponse);
         }
-        if (call === 2) {
+        if (call <= 4) {
           return Promise.reject(new Error("device unreachable"));
         }
         return Promise.resolve({
-          usb: { state: "ready" },
+          usb: { state: "disconnected" },
         } as unknown as StatusResponse);
       });
 
       function ProbeWithDeps(): React.JSX.Element {
-        const usbState = useDeviceStatus(getStatus);
-        return <p>usb:{usbState}</p>;
+        const status = useDeviceStatus(getStatus);
+        return (
+          <p>
+            usb:{status.usbState};degraded:{String(status.degraded)}; failures:
+            {String(status.consecutiveFailures)}
+          </p>
+        );
       }
 
       const { container, unmount } = await render(<ProbeWithDeps />);
       await tick(0);
-      expect(container.textContent).toBe("usb:disconnected");
+      expect(container.textContent).toContain(
+        "usb:ready;degraded:false; failures:0",
+      );
 
       await tick(5000);
-      // Poll #2 failed: state unchanged rather than reset.
-      expect(container.textContent).toBe("usb:disconnected");
+      expect(container.textContent).toContain(
+        "usb:ready;degraded:false; failures:1",
+      );
 
       await tick(5000);
-      expect(container.textContent).toBe("usb:ready");
-      expect(getStatus).toHaveBeenCalledTimes(3);
+      expect(container.textContent).toContain(
+        "usb:ready;degraded:false; failures:2",
+      );
+
+      await tick(5000);
+      expect(container.textContent).toContain(
+        "usb:ready;degraded:true; failures:3",
+      );
+
+      await tick(5000);
+      expect(container.textContent).toContain(
+        "usb:disconnected;degraded:false; failures:0",
+      );
+      expect(getStatus).toHaveBeenCalledTimes(5);
       await unmount();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  test("starts as uninitialized before the first poll resolves", async () => {
+  test("starts uninitialized and non-degraded before the first poll resolves", async () => {
     vi.useFakeTimers();
     try {
       const getStatus = vi.fn(
         () => new Promise<StatusResponse>(() => undefined),
       );
       function ProbeWithDeps(): React.JSX.Element {
-        const usbState = useDeviceStatus(getStatus);
-        return <p>usb:{usbState}</p>;
+        const status = useDeviceStatus(getStatus);
+        return (
+          <p>
+            usb:{status.usbState};degraded:{String(status.degraded)}
+          </p>
+        );
       }
       const { container, unmount } = await render(<ProbeWithDeps />);
-      expect(container.textContent).toBe("usb:uninitialized");
+      expect(container.textContent).toContain(
+        "usb:uninitialized;degraded:false",
+      );
       await unmount();
     } finally {
       vi.useRealTimers();
@@ -80,8 +106,8 @@ describe("useDeviceStatus", () => {
           } as unknown as StatusResponse),
       );
       function ProbeWithDeps(): React.JSX.Element {
-        const usbState = useDeviceStatus(getStatus);
-        return <p>usb:{usbState}</p>;
+        const status = useDeviceStatus(getStatus);
+        return <p>usb:{status.usbState}</p>;
       }
       const { unmount } = await render(<ProbeWithDeps />);
       await tick(0);

@@ -91,7 +91,10 @@ export function AuthenticatedShell({
   const [selectionPersistenceRetrying, setSelectionPersistenceRetrying] =
     useState(false);
 
-  const usbState = useDeviceStatus();
+  const usbStatus = useDeviceStatus();
+  const trustedUsbState = usbStatus.degraded
+    ? "uninitialized"
+    : usbStatus.usbState;
 
   // TODO_V2 V2-131/V2-132 (UI_UX_SPEC_V2 §12): on a landscape phone, the
   // shell below stays fully mounted (its state, timers, and any active send
@@ -331,7 +334,7 @@ export function AuthenticatedShell({
             sendMode={settings.sendMode}
             showMacroSourcePreviews={settings.showMacroSourcePreviews}
             store={store}
-            usbState={usbState}
+            usbState={trustedUsbState}
           />
         );
       case "macro-preview": {
@@ -356,7 +359,7 @@ export function AuthenticatedShell({
             }}
             packageId={packageId}
             store={store}
-            usbState={usbState}
+            usbState={trustedUsbState}
           />
         );
       }
@@ -452,8 +455,13 @@ export function AuthenticatedShell({
           route={route}
           saveError={saveError}
           saving={saving}
-          usbState={usbState}
+          usbState={usbStatus.usbState}
         >
+          {usbStatus.degraded ? (
+            <ErrorBanner
+              message={`USB status is stale. Last known state: ${usbStatus.usbState}. Sending is disabled until device status refreshes.`}
+            />
+          ) : null}
           {sendRecovery.kind === "unavailable" ? (
             <div className="form-stack">
               <ErrorBanner

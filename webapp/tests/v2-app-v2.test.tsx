@@ -291,6 +291,77 @@ describe("AppV2 — wiring RepositoryStartupScreen into the running app shell", 
     await view.unmount();
   });
 
+  test("stale USB readiness becomes visible, disables send, and recovers after a good poll", async () => {
+    const packageId = "550e8400-e29b-41d4-a716-446655440000";
+    const store = createRepositoryWorkingCopyStore({
+      format: "esp32-macro-keyboard-repository",
+      schemaVersion: 1,
+      packages: [
+        {
+          id: packageId,
+          name: "USB Freshness Package",
+          macros: [
+            {
+              id: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
+              name: "Macro A",
+              source: "a",
+              keyPressMs: 8,
+              interKeyMs: 15,
+            },
+          ],
+        },
+      ],
+    });
+    planRace(
+      {
+        "/api/v1/settings": () => jsonResponse(settingsBody),
+        "/api/v1/status": () => jsonResponse(statusBody),
+      },
+      2,
+    );
+    const view = await render(
+      <AuthenticatedShell
+        ready={{
+          store,
+          packageId,
+          sendRecovery: { kind: "none" },
+          loadedBlobId: "7",
+        }}
+      />,
+    );
+    await waitUntil(() => bodyIncludes("Macro A"), "Macro A");
+    expect(buttonWithText("Send").disabled).toBe(false);
+
+    for (let failure = 0; failure < 3; failure += 1) {
+      planFetch((call) => {
+        expect(call.url).toBe("/api/v1/status");
+        expect(call.method).toBe("GET");
+        throw new TypeError("device status unavailable");
+      });
+      await tick(5000);
+    }
+
+    await waitUntil(
+      () => bodyIncludes("USB status is stale."),
+      "stale USB warning",
+    );
+    expect(document.body.textContent).toContain("Last known state: ready.");
+    expect(buttonWithText("Send").disabled).toBe(true);
+
+    planFetch((call) => {
+      expect(call.url).toBe("/api/v1/status");
+      expect(call.method).toBe("GET");
+      return jsonResponse(statusBody);
+    });
+    await tick(5000);
+    await waitUntil(
+      () => !bodyIncludes("USB status is stale."),
+      "stale USB warning to clear",
+    );
+    expect(buttonWithText("Send").disabled).toBe(false);
+    await view.unmount();
+  });
+
   test("unprovisioned device opens First-run setup", async () => {
     // AppV2's own provisioning probe, then FirstRunSetupPage's independent
     // load of the same unauthenticated state (device name/setup-code entry).
