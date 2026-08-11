@@ -1,0 +1,591 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+
+def patch_code() -> None:
+    path = Path("tests/host/test_web_server_async_results.c")
+    text = path.read_text()
+
+    text = text.replace(
+        "/* Worker-capable host regression for H6-062.\n",
+        "/* Worker-capable host regression for H6-062/H6-063.\n",
+        1,
+    )
+
+    include_marker = '#include <string.h>\n\n#include "app_error.h"\n'
+    include_replacement = '''#include <string.h>
+#include <time.h>
+
+#include "app_error.h"
+#include "auth.h"
+#include "device_settings.h"
+#include "device_settings_v2.h"
+#include "esp_app_desc.h"
+#include "esp_timer.h"
+#include "fake_httpd.h"
+'''
+    if text.count(include_marker) != 1:
+        raise SystemExit("expected include marker")
+    text = text.replace(include_marker, include_replacement, 1)
+
+    include_marker2 = '#include "http_health.h"\n#include "test_assert.h"\n'
+    include_replacement2 = '''#include "http_health.h"
+#include "macro_executor.h"
+#include "storage.h"
+#include "storage_blob.h"
+#include "test_assert.h"
+'''
+    if text.count(include_marker2) != 1:
+        raise SystemExit("expected second include marker")
+    text = text.replace(include_marker2, include_replacement2, 1)
+
+    include_marker3 = '#include "web_server_internal.h"\n'
+    include_replacement3 = '''#include "usb_keyboard.h"
+#include "web_server_internal.h"
+#include "wifi_ap.h"
+'''
+    if text.count(include_marker3) != 1:
+        raise SystemExit("expected third include marker")
+    text = text.replace(include_marker3, include_replacement3, 1)
+
+    sync_marker = 'static pthread_mutex_t g_port_lock = PTHREAD_MUTEX_INITIALIZER;\n\n'
+    sync_code = r'''static pthread_mutex_t g_port_lock = PTHREAD_MUTEX_INITIALIZER;
+
+/* The real async worker can spend up to APP_PHYSICAL_CONFIRM_TIMEOUT_MS inside
+ * web_api_handle_call_with_body() while policy confirmation waits. These
+ * synchronization points let H6-063 hold that worker deterministically without
+ * sleeping for the production timeout. */
+static pthread_mutex_t g_handler_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t g_handler_changed = PTHREAD_COND_INITIALIZER;
+static bool g_handler_should_block;
+static bool g_handler_entered;
+static bool g_handler_release;
+
+static pthread_mutex_t g_stop_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t g_stop_changed = PTHREAD_COND_INITIALIZER;
+static bool g_stop_started;
+static bool g_stop_finished;
+static app_error_code_t g_stop_result;
+
+static struct timespec realtime_deadline_after_ms(long milliseconds) {
+    struct timespec deadline = {0};
+    TEST_CHECK_EQ_INT(0, clock_gettime(CLOCK_REALTIME, &deadline));
+    deadline.tv_sec += milliseconds / 1000L;
+    deadline.tv_nsec += (milliseconds % 1000L) * 1000000L;
+    if (deadline.tv_nsec >= 1000000000L) {
+        deadline.tv_sec += 1;
+        deadline.tv_nsec -= 1000000000L;
+    }
+    return deadline;
+}
+
+static int64_t monotonic_milliseconds(void) {
+    struct timespec now = {0};
+    TEST_CHECK_EQ_INT(0, clock_gettime(CLOCK_MONOTONIC, &now));
+    return (int64_t)now.tv_sec * 1000LL + (int64_t)(now.tv_nsec / 1000000L);
+}
+
+static void handler_block_enable(void) {
+    TEST_CHECK_EQ_INT(0, pthread_mutex_lock(&g_handler_mutex));
+    g_handler_should_block = true;
+    g_handler_entered = false;
+    g_handler_release = false;
+    TEST_CHECK_EQ_INT(0, pthread_mutex_unlock(&g_handler_mutex));
+}
+
+static void wait_for_handler_entry(void) {
+    const struct timespec deadline = realtime_deadline_after_ms(1000L);
+    TEST_CHECK_EQ_INT(0, pthread_mutex_lock(&g_handler_mutex));
+    while (!g_handler_entered) {
+        TEST_CHECK_EQ_INT(0,
+                          pthread_cond_timedwait(&g_handler_changed, &g_handler_mutex, &deadline));
+    }
+    TEST_CHECK_EQ_INT(0, pthread_mutex_unlock(&g_handler_mutex));
+}
+
+static void release_blocked_handler(void) {
+    TEST_CHECK_EQ_INT(0, pthread_mutex_lock(&g_handler_mutex));
+    g_handler_release = true;
+    TEST_CHECK_EQ_INT(0, pthread_cond_broadcast(&g_handler_changed));
+    TEST_CHECK_EQ_INT(0, pthread_mutex_unlock(&g_handler_mutex));
+}
+
+static void reset_stop_state(void) {
+    TEST_CHECK_EQ_INT(0, pthread_mutex_lock(&g_stop_mutex));
+    g_stop_started = false;
+    g_stop_finished = false;
+    g_stop_result = APP_ERROR_INTERNAL;
+    TEST_CHECK_EQ_INT(0, pthread_mutex_unlock(&g_stop_mutex));
+}
+
+static void *stop_thread_entry(void *unused) {
+    (void)unused;
+    TEST_CHECK_EQ_INT(0, pthread_mutex_lock(&g_stop_mutex));
+    g_stop_started = true;
+    TEST_CHECK_EQ_INT(0, pthread_cond_broadcast(&g_stop_changed));
+    TEST_CHECK_EQ_INT(0, pthread_mutex_unlock(&g_stop_mutex));
+
+    const app_error_code_t result = web_server_async_stop();
+
+    TEST_CHECK_EQ_INT(0, pthread_mutex_lock(&g_stop_mutex));
+    g_stop_result = result;
+    g_stop_finished = true;
+    TEST_CHECK_EQ_INT(0, pthread_cond_broadcast(&g_stop_changed));
+    TEST_CHECK_EQ_INT(0, pthread_mutex_unlock(&g_stop_mutex));
+    return NULL;
+}
+
+static void wait_for_stop_start(void) {
+    const struct timespec deadline = realtime_deadline_after_ms(1000L);
+    TEST_CHECK_EQ_INT(0, pthread_mutex_lock(&g_stop_mutex));
+    while (!g_stop_started) {
+        TEST_CHECK_EQ_INT(0, pthread_cond_timedwait(&g_stop_changed, &g_stop_mutex, &deadline));
+    }
+    TEST_CHECK_EQ_INT(0, pthread_mutex_unlock(&g_stop_mutex));
+}
+
+static bool stop_finished_snapshot(void) {
+    TEST_CHECK_EQ_INT(0, pthread_mutex_lock(&g_stop_mutex));
+    const bool finished = g_stop_finished;
+    TEST_CHECK_EQ_INT(0, pthread_mutex_unlock(&g_stop_mutex));
+    return finished;
+}
+
+'''
+    if text.count(sync_marker) != 1:
+        raise SystemExit("expected async synchronization marker")
+    text = text.replace(sync_marker, sync_code, 1)
+
+    old_handler = '''esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body,
+                                        size_t preread_length, bool *out_should_restart) {
+    (void)request;
+    (void)preread_length;
+    ++g_handler_calls;
+    free(preread_body);
+    *out_should_restart = g_handler_should_restart;
+    return g_handler_result;
+}
+'''
+    new_handler = '''esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body,
+                                        size_t preread_length, bool *out_should_restart) {
+    (void)request;
+    (void)preread_length;
+    ++g_handler_calls;
+
+    TEST_CHECK_EQ_INT(0, pthread_mutex_lock(&g_handler_mutex));
+    if (g_handler_should_block) {
+        g_handler_entered = true;
+        TEST_CHECK_EQ_INT(0, pthread_cond_broadcast(&g_handler_changed));
+        while (!g_handler_release) {
+            TEST_CHECK_EQ_INT(0, pthread_cond_wait(&g_handler_changed, &g_handler_mutex));
+        }
+    }
+    TEST_CHECK_EQ_INT(0, pthread_mutex_unlock(&g_handler_mutex));
+
+    free(preread_body);
+    *out_should_restart = g_handler_should_restart;
+    return g_handler_result;
+}
+'''
+    if text.count(old_handler) != 1:
+        raise SystemExit("expected worker handler seam")
+    text = text.replace(old_handler, new_handler, 1)
+
+    reset_marker = 'static void reset_fakes(void) {\n'
+    status_fakes = r'''#define STATUS_TEST_SESSION_TOKEN                                                                  \
+    "0123456789abcdef"                                                                             \
+    "0123456789abcdef"                                                                             \
+    "0123456789abcdef"                                                                             \
+    "0123456789abcdef"
+
+/* Real GET /api/v1/status dependencies. Keeping this route real is important
+ * for H6-063: the test must prove that an unrelated production handler remains
+ * responsive while the async confirmation worker is blocked. */
+static app_error_code_t g_status_auth_result;
+static app_error_code_t g_status_settings_result;
+static app_v2_device_settings_t g_status_settings;
+static wifi_ap_status_t g_status_wifi;
+static macro_execution_status_t g_status_execution;
+static usb_keyboard_state_t g_status_usb;
+static storage_mount_state_t g_status_mount;
+static app_error_code_t g_status_capacity_result;
+static size_t g_status_total_bytes;
+static size_t g_status_used_bytes;
+static app_error_code_t g_status_blob_result;
+static size_t g_status_blob_count;
+
+app_error_code_t auth_session_validate(const char *session_token) {
+    (void)session_token;
+    return g_status_auth_result;
+}
+
+app_error_code_t device_settings_read(app_v2_device_settings_t *out_settings) {
+    if (g_status_settings_result != APP_ERROR_NONE) {
+        return g_status_settings_result;
+    }
+    *out_settings = g_status_settings;
+    return APP_ERROR_NONE;
+}
+
+app_error_code_t device_settings_replace(const app_v2_device_settings_t *settings,
+                                         bool *out_changed) {
+    (void)settings;
+    (void)out_changed;
+    TEST_CHECK(false);
+    return APP_ERROR_INTERNAL;
+}
+
+wifi_ap_status_t wifi_ap_get_status(void) {
+    return g_status_wifi;
+}
+
+macro_execution_status_t macro_executor_get_status(void) {
+    return g_status_execution;
+}
+
+usb_keyboard_state_t usb_keyboard_get_state(void) {
+    return g_status_usb;
+}
+
+storage_mount_state_t storage_mount_state(void) {
+    return g_status_mount;
+}
+
+app_error_code_t storage_partition_capacity(const char *partition_label, size_t *out_total_bytes,
+                                            size_t *out_used_bytes) {
+    TEST_CHECK_EQ_STRING(STORAGE_DATA_PARTITION, partition_label);
+    if (g_status_capacity_result != APP_ERROR_NONE) {
+        return g_status_capacity_result;
+    }
+    *out_total_bytes = g_status_total_bytes;
+    *out_used_bytes = g_status_used_bytes;
+    return APP_ERROR_NONE;
+}
+
+app_error_code_t storage_blob_list(const storage_blob_scan_observer_t *observer,
+                                   storage_blob_scan_summary_t *out_summary) {
+    (void)observer;
+    if (g_status_blob_result != APP_ERROR_NONE) {
+        return g_status_blob_result;
+    }
+    *out_summary = (storage_blob_scan_summary_t){.valid_count = g_status_blob_count};
+    return APP_ERROR_NONE;
+}
+
+const esp_app_desc_t *esp_app_get_description(void) {
+    static const esp_app_desc_t description = {.version = "0.2.0"};
+    return &description;
+}
+
+int esp_app_get_elf_sha256(char *dst, size_t size) {
+    (void)snprintf(dst, size, "%s", "git-h6063");
+    return 0;
+}
+
+int64_t esp_timer_get_time(void) {
+    return 123456000;
+}
+
+static void authenticate_status(fake_httpd_request_t *fake) {
+    fake_httpd_add_request_header(fake, "Cookie", "MKSESSION=" STATUS_TEST_SESSION_TOKEN);
+}
+
+'''
+    if text.count(reset_marker) != 1:
+        raise SystemExit("expected reset marker")
+    text = text.replace(reset_marker, status_fakes + reset_marker, 1)
+
+    reset_tail = '''    g_restart_calls = 0U;
+    http_health_reset();
+}
+'''
+    reset_new = '''    g_restart_calls = 0U;
+
+    TEST_CHECK_EQ_INT(0, pthread_mutex_lock(&g_handler_mutex));
+    g_handler_should_block = false;
+    g_handler_entered = false;
+    g_handler_release = false;
+    TEST_CHECK_EQ_INT(0, pthread_mutex_unlock(&g_handler_mutex));
+    reset_stop_state();
+
+    g_status_auth_result = APP_ERROR_NONE;
+    g_status_settings_result = APP_ERROR_NONE;
+    g_status_settings = (app_v2_device_settings_t){0};
+    g_status_settings.provisioned = true;
+    (void)snprintf(g_status_settings.device_name, sizeof(g_status_settings.device_name), "%s",
+                   "Desk Macro Keyboard");
+    (void)snprintf(g_status_settings.ap_ssid, sizeof(g_status_settings.ap_ssid), "%s",
+                   "MacroKeyboard");
+    g_status_wifi = (wifi_ap_status_t){.state = WIFI_AP_READY, .client_count = 1U};
+    g_status_execution = (macro_execution_status_t){.state = EXECUTION_IDLE, .available = true};
+    g_status_usb = USB_KEYBOARD_READY;
+    g_status_mount = (storage_mount_state_t){.web_mounted = true, .data_mounted = true};
+    g_status_capacity_result = APP_ERROR_NONE;
+    g_status_total_bytes = 524288U;
+    g_status_used_bytes = 4096U;
+    g_status_blob_result = APP_ERROR_NONE;
+    g_status_blob_count = 3U;
+
+    http_health_reset();
+}
+'''
+    if text.count(reset_tail) != 1:
+        raise SystemExit("expected reset tail")
+    text = text.replace(reset_tail, reset_new, 1)
+
+    main_marker = 'int main(void) {\n'
+    new_tests = r'''static void test_stop_while_confirmation_pending_waits_for_request_cleanup(void) {
+    reset_fakes();
+    handler_block_enable();
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_server_async_start());
+    httpd_req_t request = request_fixture();
+
+    TEST_CHECK_EQ_INT(ESP_OK, web_server_async_dispatch(&request));
+    wait_for_handler_entry();
+
+    pthread_t stop_thread;
+    TEST_CHECK_EQ_INT(0, pthread_create(&stop_thread, NULL, stop_thread_entry, NULL));
+    wait_for_stop_start();
+
+    /* The worker still owns an incomplete async request. Stop must wait for it
+     * instead of abandoning the request/socket or destroying worker state. */
+    TEST_CHECK(!stop_finished_snapshot());
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_completion_calls);
+
+    const int64_t release_at_ms = monotonic_milliseconds();
+    release_blocked_handler();
+    TEST_CHECK_EQ_INT(0, pthread_join(stop_thread, NULL));
+    const int64_t stop_after_release_ms = monotonic_milliseconds() - release_at_ms;
+
+    TEST_CHECK(stop_after_release_ms >= 0);
+    TEST_CHECK(stop_after_release_ms < 1000);
+    TEST_CHECK(stop_finished_snapshot());
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, g_stop_result);
+    TEST_CHECK_EQ_U64(1U, (uint64_t)g_handler_calls);
+    TEST_CHECK_EQ_U64(1U, (uint64_t)g_completion_calls);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_restart_calls);
+}
+
+static void test_status_remains_responsive_while_confirmation_waits(void) {
+    reset_fakes();
+    handler_block_enable();
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_server_async_start());
+    httpd_req_t confirmation_request = request_fixture();
+
+    TEST_CHECK_EQ_INT(ESP_OK, web_server_async_dispatch(&confirmation_request));
+    wait_for_handler_entry();
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_completion_calls);
+
+    fake_httpd_request_t fake_status;
+    fake_httpd_reset(&fake_status);
+    authenticate_status(&fake_status);
+    httpd_req_t status_request;
+    fake_httpd_bind(&status_request, &fake_status, "/api/v1/status", 0U);
+    fake_httpd_set_method(&status_request, HTTP_GET);
+
+    const int64_t status_start_ms = monotonic_milliseconds();
+    TEST_CHECK_EQ_INT(ESP_OK, status_handler(&status_request));
+    const int64_t status_elapsed_ms = monotonic_milliseconds() - status_start_ms;
+
+    /* A regression to synchronous confirmation would consume the sole httpd
+     * task for the physical-confirmation timeout. The real status handler must
+     * instead finish independently while the worker remains blocked. */
+    TEST_CHECK(status_elapsed_ms >= 0);
+    TEST_CHECK(status_elapsed_ms < 1000);
+    TEST_CHECK_EQ_STRING("200 OK", fake_status.response_status);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_completion_calls);
+
+    release_blocked_handler();
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_server_async_stop());
+    fake_freertos_wait_for_idle();
+    TEST_CHECK_EQ_U64(1U, (uint64_t)g_handler_calls);
+    TEST_CHECK_EQ_U64(1U, (uint64_t)g_completion_calls);
+}
+
+'''
+    if text.count(main_marker) != 1:
+        raise SystemExit("expected main marker")
+    text = text.replace(main_marker, new_tests + main_marker, 1)
+
+    old_main = '''    test_queue_failure_completes_clone_and_releases_in_flight();
+    test_stop_signal_failure_is_returned_and_retryable();
+    puts("web server async result/cleanup tests passed");
+'''
+    new_main = '''    test_queue_failure_completes_clone_and_releases_in_flight();
+    test_stop_signal_failure_is_returned_and_retryable();
+    test_stop_while_confirmation_pending_waits_for_request_cleanup();
+    test_status_remains_responsive_while_confirmation_waits();
+    puts("web server async result/cleanup/responsiveness tests passed");
+'''
+    if text.count(old_main) != 1:
+        raise SystemExit("expected main call sequence")
+    text = text.replace(old_main, new_main, 1)
+    path.write_text(text)
+
+    cmake = Path("tests/host/CMakeLists.txt")
+    ctext = cmake.read_text()
+    old_block = '''# Worker-capable focused regression for H6-062. Unlike
+# web_server_async_confirmation_tests' dead-path canaries, this target supplies a
+# pthread-backed one-slot queue/binary semaphore/task model directly in the test so the
+# real async worker executes and its handler/completion/stop results can be fault-injected.
+add_executable(
+    web_server_async_results_tests
+    test_web_server_async_results.c
+    ../../firmware/components/web_server/web_server_async.c
+    ../../firmware/components/web_server/http_health.c
+    ../../firmware/components/support/subsystem_health.c
+)
+target_include_directories(
+    web_server_async_results_tests
+    PRIVATE fakes/esp_http_server_stub
+            fakes/esp_idf_misc_stub
+            fakes/freertos_stub
+            fakes
+            ../../firmware/components/web_server
+            ../../firmware/components/web_server/include
+            ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/app_contracts_v2/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/device_controls/include
+            ../../firmware/components/storage/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/usb_keyboard/include
+            ../../firmware/components/support/include
+)
+target_link_libraries(web_server_async_results_tests PRIVATE Threads::Threads)
+register_host_test(web_server_async_results_tests web_server_async_results web)'''
+    new_block = '''# Worker-capable focused regressions for H6-062/H6-063. Unlike
+# web_server_async_confirmation_tests' dead-path canaries, this target supplies a
+# pthread-backed one-slot queue/binary semaphore/task model directly in the test so the
+# real async worker executes and its handler/completion/stop results can be fault-injected.
+# H6-063 also links the real status handler so responsiveness is tested across actual
+# production status composition/serialization while the confirmation worker is blocked.
+add_executable(
+    web_server_async_results_tests
+    test_web_server_async_results.c
+    ../../firmware/components/web_server/web_server_async.c
+    ../../firmware/components/web_server/web_server_status_limits.c
+    ../../firmware/components/web_server/web_server_common.c
+    ../../firmware/components/web_server/web_server_adapter_common.c
+    ../../firmware/components/web_server/web_server_adapter_body_auth.c
+    ../../firmware/components/web_server/web_server_adapter_json.c
+    ../../firmware/components/web_server/web_status_limits.c
+    ../../firmware/components/web_server/web_cookie.c
+    ../../firmware/components/web_server/http_health.c
+    ../../firmware/components/support/subsystem_health.c
+    ../../firmware/components/macro_model/app_error.c
+    fakes/fake_httpd.c
+)
+target_include_directories(
+    web_server_async_results_tests
+    PRIVATE fakes/esp_http_server_stub
+            fakes/esp_idf_misc_stub
+            fakes/freertos_stub
+            fakes
+            ../../firmware/components/web_server
+            ../../firmware/components/web_server/include
+            ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/app_contracts_v2/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/device_controls/include
+            ../../firmware/components/device_settings/include
+            ../../firmware/components/storage/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/usb_keyboard/include
+            ../../firmware/components/support/include
+)
+target_link_libraries(web_server_async_results_tests PRIVATE Threads::Threads PkgConfig::CJSON)
+register_host_test(web_server_async_results_tests web_server_async_results web)'''
+    if ctext.count(old_block) != 1:
+        raise SystemExit("expected async-results CMake block")
+    cmake.write_text(ctext.replace(old_block, new_block, 1))
+
+
+def patch_docs() -> None:
+    product_sha = os.environ["PRODUCT_SHA"]
+    run_id = os.environ["GITHUB_RUN_ID"]
+
+    evidence = f'''# H6-063 — Async HTTP regression matrix evidence
+
+**Date:** 2026-08-11
+**Task:** `H6-063 — Regression tests`
+**Implementation/test SHA:** `{product_sha}`
+
+## Matrix closure
+
+H6-060 already proved worker-unavailable requests fail quickly with a visible 503 and never execute confirmation synchronously. H6-062 commit `f20b470bb914d3b06bae259a45fb5311dea70cc6` added the worker-capable seam and proved queue-send failure completes the cloned request and degrades health, handler failure still completes the async request, and async-completion failure is captured in HTTP health.
+
+This H6-063 commit extends that same real-worker seam with two concurrency/shutdown regressions:
+
+1. **Stop while confirmation is pending:** the worker is held deterministically inside the handler boundary representing the physical-confirmation wait. `web_server_async_stop()` runs concurrently, is proven not to finish or destroy ownership while the request remains incomplete, then completes successfully after the blocked handler is released. The async request is completed exactly once and the bounded stop returns without abandoning the socket/request.
+2. **Unrelated status responsiveness:** while that same worker is blocked, the real production `status_handler()` runs against its normal HTTP adapter/JSON path and returns `200 OK` in under one second. The confirmation request remains incomplete until explicitly released, proving the confirmation wait is isolated from the main status-serving path rather than blocking it.
+
+The production stop budget remains explicitly bounded at `APP_PHYSICAL_CONFIRM_TIMEOUT_MS + 5000U`, so it outlasts the maximum confirmation wait while preventing an unbounded shutdown wait.
+
+## Validation
+
+Targeted workflow run **{run_id}** ran `./scripts/run-tests.sh web` and `./scripts/run-tests.sh --sanitizers web`. Both passed with **29/29** CTest cases, including the expanded `web_server_async_results` executable under normal and ASan+UBSan builds. The workflow also ran clang-format and `git diff --check` before committing.
+
+## Phase H6 disposition
+
+The complete H6 matrix now proves: no worker-unavailable fallback to the single httpd task; async subsystem failures are health-tracked; handler/completion/stop results are observed; cleanup ownership survives failures; shutdown during a pending confirmation is bounded and safe; and unrelated status handling remains responsive while confirmation waits. The H6 exit gates are therefore satisfied on this SHA.
+'''
+    evidence_path = Path("docs/implementation-v2/H6_063_ASYNC_REGRESSION_MATRIX_2026-08-11.md")
+    evidence_path.write_text(evidence)
+
+    todo = Path("docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md")
+    text = todo.read_text()
+    old = '''### H6-063 — Regression tests
+
+- [x] worker unavailable -> fast visible failure, no synchronous wait,
+- [ ] queue failure -> request answered/completed and health degraded,
+- [ ] handler failure -> request completion still occurs,
+- [ ] async completion failure -> health captures failure,
+- [ ] stop while confirmation is pending remains bounded and safe,
+- [ ] unrelated status request remains responsive while a confirmation request waits.
+
+### Phase H6 exit gate
+
+- [ ] No async-worker failure path silently degrades to whole-server blocking behavior.
+- [ ] Confirmation-gated route failure remains fail-closed.
+'''
+    new = f'''### H6-063 — Regression tests
+
+- [x] worker unavailable -> fast visible failure, no synchronous wait,
+- [x] queue failure -> request answered/completed and health degraded,
+- [x] handler failure -> request completion still occurs,
+- [x] async completion failure -> health captures failure,
+- [x] stop while confirmation is pending remains bounded and safe,
+- [x] unrelated status request remains responsive while a confirmation request waits.
+- Evidence: H6-060 commit `30301a89cef655c9bf6420c1192c19bdb2f3a09c` proves worker-unavailable fail-closed behavior; H6-062 worker seam `f20b470bb914d3b06bae259a45fb5311dea70cc6` proves queue/handler/completion cases; `{product_sha}` adds deterministic pending-confirmation stop safety and real status-handler responsiveness. `./scripts/run-tests.sh web` and `./scripts/run-tests.sh --sanitizers web` both passed 29/29 in targeted run `{run_id}`. Full evidence: `docs/implementation-v2/H6_063_ASYNC_REGRESSION_MATRIX_2026-08-11.md`.
+
+### Phase H6 exit gate
+
+- [x] No async-worker failure path silently degrades to whole-server blocking behavior.
+- [x] Confirmation-gated route failure remains fail-closed.
+- Evidence: H6-060 through H6-063 collectively cover worker absence, queue/handler/completion/stop faults, request cleanup, bounded pending-confirmation shutdown, and unrelated status responsiveness; see `docs/implementation-v2/H6_060_ASYNC_CONFIRMATION_FAIL_CLOSED_2026-08-11.md` through `H6_063_ASYNC_REGRESSION_MATRIX_2026-08-11.md`.
+'''
+    if text.count(old) != 1:
+        raise SystemExit("expected exactly one H6-063/exit ledger block")
+    todo.write_text(text.replace(old, new, 1))
+
+
+def main() -> None:
+    if len(sys.argv) != 2 or sys.argv[1] not in {"code", "docs"}:
+        raise SystemExit("usage: tmp_h6_063_patch.py code|docs")
+    if sys.argv[1] == "code":
+        patch_code()
+    else:
+        patch_docs()
+
+
+if __name__ == "__main__":
+    main()
