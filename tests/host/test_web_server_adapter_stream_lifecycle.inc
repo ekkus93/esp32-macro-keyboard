@@ -95,6 +95,7 @@ static void test_static_streaming(void) {
 
 typedef struct {
     int start_result;
+    bool handle_on_start_failure;
     size_t failed_route;
     int stop_result;
     size_t register_calls;
@@ -106,6 +107,9 @@ static int start_server(void *context, void **out_handle) {
     lifecycle_fake_t *fake = context;
     TEST_CHECK(fake != NULL);
     if (fake->start_result != 0) {
+        if (fake->handle_on_start_failure) {
+            *out_handle = &fake->handle;
+        }
         return -1;
     }
     *out_handle = &fake->handle;
@@ -161,6 +165,24 @@ static void test_server_lifecycle(void) {
     TEST_CHECK(lifecycle.handle == NULL);
     TEST_CHECK(!web_adapter_lifecycle_owns_resources(&lifecycle));
     TEST_CHECK_EQ_U64(0U, fake.stop_calls);
+
+    /* Start failure after the adapter created a live handle: ownership must be
+     * retained so cleanup is retryable and another start is rejected. */
+    fake = (lifecycle_fake_t){
+        .start_result = -1,
+        .handle_on_start_failure = true,
+        .failed_route = SIZE_MAX,
+    };
+    ops = lifecycle_ops(&fake);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, web_adapter_lifecycle_start(&lifecycle, &ops, 3U));
+    TEST_CHECK(lifecycle.handle != NULL);
+    TEST_CHECK_EQ_U64(0U, lifecycle.registered_routes);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, lifecycle.cleanup_error);
+    TEST_CHECK(web_adapter_lifecycle_owns_resources(&lifecycle));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_adapter_lifecycle_start(&lifecycle, &ops, 3U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_adapter_lifecycle_stop(&lifecycle, &ops));
+    TEST_CHECK(!web_adapter_lifecycle_owns_resources(&lifecycle));
 
     /* Registration failure plus a successful stop: fully cleaned up. */
     fake = (lifecycle_fake_t){.failed_route = 1U};

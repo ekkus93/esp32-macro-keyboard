@@ -60,6 +60,7 @@ static void log_simple(const app_core_ops_t *operations, app_core_log_type_t typ
 }
 
 static void log_setup_code(const app_core_ops_t *operations, const char *setup_code) {
+    (void)setup_code;
     const app_core_log_event_t event = {
         .type = APP_CORE_LOG_SETUP_CODE,
         .stage = NULL,
@@ -67,7 +68,7 @@ static void log_setup_code(const app_core_ops_t *operations, const char *setup_c
         .cleanup_error = APP_ERROR_NONE,
         .cleanup_incomplete = false,
         .operation_id = 0U,
-        .setup_code = setup_code,
+        .setup_code = NULL,
     };
     operations->log_event(operations->context, &event);
 }

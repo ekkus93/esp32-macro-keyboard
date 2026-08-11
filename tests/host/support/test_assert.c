@@ -16,24 +16,27 @@ void test_fail(const char *file, int line, const char *expression, const char *m
 
 void test_fail_u64(const char *file, int line, const char *expression, uint64_t expected,
                    uint64_t actual) {
-    (void)fprintf(stderr, "test failure at %s:%d: %s; expected=%" PRIu64 ", actual=%" PRIu64 "\n",
-                  safe_string(file), line, safe_string(expression), expected, actual);
+    (void)expected;
+    (void)actual;
+    (void)fprintf(stderr, "test failure at %s:%d: %s; integer values differ\n", safe_string(file),
+                  line, safe_string(expression));
     exit(EXIT_FAILURE);
 }
 
 void test_fail_string(const char *file, int line, const char *expression, const char *expected,
                       const char *actual) {
-    (void)fprintf(stderr, "test failure at %s:%d: %s; expected=\"%s\", actual=\"%s\"\n",
-                  safe_string(file), line, safe_string(expression), safe_string(expected),
-                  safe_string(actual));
+    (void)expected;
+    (void)actual;
+    (void)fprintf(stderr, "test failure at %s:%d: %s; string values differ\n", safe_string(file),
+                  line, safe_string(expression));
     exit(EXIT_FAILURE);
 }
 
 void test_fail_buffer(const char *file, int line, const char *expression, const void *expected,
                       const void *actual, size_t length) {
-    (void)fprintf(stderr,
-                  "test failure at %s:%d: %s; buffers differ across %zu byte(s), "
-                  "expected=%p, actual=%p\n",
-                  safe_string(file), line, safe_string(expression), length, expected, actual);
+    (void)expected;
+    (void)actual;
+    (void)fprintf(stderr, "test failure at %s:%d: %s; buffers differ across %zu byte(s)\n",
+                  safe_string(file), line, safe_string(expression), length);
     exit(EXIT_FAILURE);
 }

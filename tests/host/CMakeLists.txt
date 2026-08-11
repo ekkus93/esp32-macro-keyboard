@@ -357,6 +357,7 @@ target_include_directories(
             ../../firmware/components/macro_executor/include
             ../../firmware/components/app_contracts_v2/include
             ../../firmware/components/auth/include
+            ../../firmware/components/device_settings/include
             ../../firmware/components/storage/include
             ../../firmware/components/wifi_ap/include
             ../../firmware/components/usb_keyboard/include

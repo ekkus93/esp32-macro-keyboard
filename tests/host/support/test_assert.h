@@ -26,8 +26,7 @@ void test_fail_buffer(const char *file, int line, const char *expression, const 
         const uint64_t test_expected_ = (uint64_t)(expected_value);                                \
         const uint64_t test_actual_ = (uint64_t)(actual_value);                                    \
         if (test_expected_ != test_actual_) {                                                      \
-            test_fail_u64(__FILE__, __LINE__, #actual_value " == " #expected_value,                \
-                          test_expected_, test_actual_);                                           \
+            test_fail_u64(__FILE__, __LINE__, "integer equality", test_expected_, test_actual_);   \
         }                                                                                          \
     } while (0)
 
@@ -43,8 +42,7 @@ void test_fail_buffer(const char *file, int line, const char *expression, const 
         const char *const test_actual_ = (actual_value);                                           \
         if (test_expected_ == NULL || test_actual_ == NULL ||                                      \
             strcmp(test_expected_, test_actual_) != 0) {                                           \
-            test_fail_string(__FILE__, __LINE__, #actual_value " == " #expected_value,             \
-                             test_expected_, test_actual_);                                        \
+            test_fail_string(__FILE__, __LINE__, "string equality", test_expected_, test_actual_); \
         }                                                                                          \
     } while (0)
 
@@ -55,8 +53,8 @@ void test_fail_buffer(const char *file, int line, const char *expression, const 
         const void *const test_actual_ = (actual_value);                                           \
         if (test_expected_ == NULL || test_actual_ == NULL ||                                      \
             memcmp(test_expected_, test_actual_, test_length_) != 0) {                             \
-            test_fail_buffer(__FILE__, __LINE__, #actual_value " == " #expected_value,             \
-                             test_expected_, test_actual_, test_length_);                          \
+            test_fail_buffer(__FILE__, __LINE__, "buffer equality", test_expected_, test_actual_,  \
+                             test_length_);                                                        \
         }                                                                                          \
     } while (0)
 

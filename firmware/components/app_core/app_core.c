@@ -273,7 +273,7 @@ static void adapter_log_event(void *context, const app_core_log_event_t *event) 
         }
         break;
     case APP_CORE_LOG_SETUP_CODE:
-        ESP_LOGW(TAG, "setup code: %s", event->setup_code);
+        ESP_LOGI(TAG, "setup credentials are available from the manufacturing label");
         break;
     case APP_CORE_LOG_PROVISIONING_REQUIRED:
         ESP_LOGW(TAG, "device is unprovisioned; starting protected V2 setup-only service");

@@ -21,7 +21,17 @@ app_error_code_t web_adapter_lifecycle_start(web_adapter_lifecycle_t *lifecycle,
         return APP_ERROR_INVALID_ARGUMENT;
     }
     void *handle = NULL;
-    if (ops->start(ops->context, &handle) != 0 || handle == NULL) {
+    const int start_result = ops->start(ops->context, &handle);
+    if (start_result != 0) {
+        if (handle == NULL) {
+            return APP_ERROR_INTERNAL;
+        }
+        lifecycle->handle = handle;
+        lifecycle->registered_routes = 0U;
+        lifecycle->cleanup_error = APP_ERROR_IO;
+        return APP_ERROR_IO;
+    }
+    if (handle == NULL) {
         return APP_ERROR_INTERNAL;
     }
     lifecycle->handle = handle;

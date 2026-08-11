@@ -104,7 +104,10 @@ static int start_server_adapter(void *context, void **out_handle) {
         return -1;
     }
     if (web_server_async_start() != APP_ERROR_NONE) {
-        (void)httpd_stop(handle);
+        if (httpd_stop(handle) == ESP_OK) {
+            return -1;
+        }
+        *out_handle = handle;
         return -1;
     }
     *out_handle = handle;

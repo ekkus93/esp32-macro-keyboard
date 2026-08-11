@@ -13,6 +13,8 @@
 typedef struct {
     bool submit_called;
     app_error_code_t submit_result;
+    app_error_code_t confirmation_policy_result;
+    bool require_confirmation;
     macro_execution_request_t last_request;
     macro_execution_status_t status_to_return;
     app_error_code_t cancel_result;
@@ -30,6 +32,15 @@ static app_error_code_t fake_submit(void *context, macro_execution_request_t *re
     return fake->submit_result;
 }
 
+static app_error_code_t fake_get_require_confirmation(void *context, bool *out_required) {
+    fake_send_backend_t *fake = context;
+    if (fake->confirmation_policy_result != APP_ERROR_NONE) {
+        return fake->confirmation_policy_result;
+    }
+    *out_required = fake->require_confirmation;
+    return APP_ERROR_NONE;
+}
+
 static macro_execution_status_t fake_get_status(void *context) {
     fake_send_backend_t *fake = context;
     return fake->status_to_return;
@@ -45,6 +56,7 @@ static web_send_ops_t fake_ops(fake_send_backend_t *fake) {
     return (web_send_ops_t){
         .context = fake,
         .submit = fake_submit,
+        .get_require_confirmation = fake_get_require_confirmation,
         .get_status = fake_get_status,
         .cancel = fake_cancel,
     };
@@ -87,6 +99,32 @@ static void test_create_success(void) {
     TEST_CHECK_EQ_U64(8U, fake.last_request.key_press_ms);
     TEST_CHECK_EQ_U64(15U, fake.last_request.inter_key_ms);
     TEST_CHECK_EQ_U64(1U, fake.last_request.macro_revision);
+    TEST_CHECK(!fake.last_request.require_confirmation);
+}
+
+static void test_create_binds_confirmation_policy_and_fails_closed(void) {
+    fake_send_backend_t fake = {0};
+    fake.submit_result = APP_ERROR_NONE;
+    fake.require_confirmation = true;
+    web_send_ops_t ops = fake_ops(&fake);
+    size_t body_capacity = 0U;
+    char *body =
+        dup_body("{\"source\":\"first\",\"keyPressMs\":8,\"interKeyMs\":15}", &body_capacity);
+    web_send_create_outcome_t outcome = web_send_create_handle(body, body_capacity, &ops);
+    free(body);
+    TEST_CHECK_EQ_INT(WEB_SEND_CREATE_OK, outcome.result);
+    TEST_CHECK(fake.submit_called);
+    TEST_CHECK(fake.last_request.require_confirmation);
+
+    fake = (fake_send_backend_t){0};
+    fake.confirmation_policy_result = APP_ERROR_STORAGE_UNAVAILABLE;
+    ops = fake_ops(&fake);
+    body = dup_body("{\"source\":\"first\",\"keyPressMs\":8,\"interKeyMs\":15}", &body_capacity);
+    outcome = web_send_create_handle(body, body_capacity, &ops);
+    free(body);
+    TEST_CHECK_EQ_INT(WEB_SEND_CREATE_BACKEND_UNAVAILABLE, outcome.result);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, outcome.detail);
+    TEST_CHECK(!fake.submit_called);
 }
 
 static void test_create_rejects_malformed_bodies(void) {
@@ -353,6 +391,7 @@ static void test_status_json_exact_shape(void) {
 
 int main(void) {
     test_create_success();
+    test_create_binds_confirmation_policy_and_fails_closed();
     test_create_rejects_malformed_bodies();
     test_create_parse_error_reports_location();
     test_create_busy();

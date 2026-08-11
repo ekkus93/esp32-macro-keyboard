@@ -76,4 +76,19 @@ for required in (
     if required not in server_send:
         fail(f"real send adapter no longer reads/clears authoritative confirmation settings: {required}")
 
+test_assert = read("tests/host/support/test_assert.c")
+test_assert_h = read("tests/host/support/test_assert.h")
+for forbidden in (
+    'expected=\"%s\"',
+    'actual=\"%s\"',
+    'expected=%" PRIu64',
+    'actual=%" PRIu64',
+    'expected=%p',
+    'actual=%p',
+):
+    if forbidden in test_assert:
+        fail(f"host test assertion failures can print compared values: {forbidden}")
+if '#actual_value " == " #expected_value' in test_assert_h:
+    fail("host string/buffer assertions can stringify secret-bearing macro arguments")
+
 print("H9 architecture guard passed")

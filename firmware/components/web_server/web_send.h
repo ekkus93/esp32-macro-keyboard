@@ -23,6 +23,8 @@ typedef struct {
      * any other return, the caller (web_send_create_handle) still owns it
      * and frees it with macro_plan_v2_free(). */
     app_error_code_t (*submit)(void *context, macro_execution_request_t *request);
+    /* Reads the authoritative device-wide confirmation policy at send-accept time. */
+    app_error_code_t (*get_require_confirmation)(void *context, bool *out_required);
     macro_execution_status_t (*get_status)(void *context);
     /* Bridges to macro_executor_cancel(). */
     app_error_code_t (*cancel)(void *context);

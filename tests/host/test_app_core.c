@@ -271,7 +271,10 @@ static void fake_log(void *context, const app_core_log_event_t *event) {
         ++fixture->cleanup_failure_logs;
     } else if (event->type == APP_CORE_LOG_SETUP_CODE) {
         ++fixture->setup_code_logs;
-        TEST_CHECK_EQ_STRING(fixture->setup_code, event->setup_code);
+        /* H9: startup may emit a generic setup-readiness event, but the
+         * manufacturing-label setup secret must never be carried into the
+         * logging boundary. */
+        TEST_CHECK(event->setup_code == NULL);
     }
 }
 

@@ -22,7 +22,8 @@ static void secure_zero_local(void *memory, size_t length) {
 }
 
 static bool ops_valid(const web_send_ops_t *ops) {
-    return ops != NULL && ops->submit != NULL && ops->get_status != NULL && ops->cancel != NULL;
+    return ops != NULL && ops->submit != NULL && ops->get_require_confirmation != NULL &&
+           ops->get_status != NULL && ops->cancel != NULL;
 }
 
 static bool bounded_body_length(const char *body, size_t capacity, size_t *out_length) {
@@ -190,6 +191,14 @@ web_send_create_outcome_t web_send_create_handle(char *body, size_t body_length,
         return outcome;
     }
 
+    bool require_confirmation = false;
+    const app_error_code_t policy_result =
+        ops->get_require_confirmation(ops->context, &require_confirmation);
+    if (policy_result != APP_ERROR_NONE) {
+        macro_plan_v2_free(&plan);
+        return outcome_with_detail(WEB_SEND_CREATE_BACKEND_UNAVAILABLE, policy_result);
+    }
+
     app_uuid_t send_id = {0};
     if (app_uuid_generate(&send_id) != APP_ERROR_NONE) {
         macro_plan_v2_free(&plan);
@@ -204,6 +213,7 @@ web_send_create_outcome_t web_send_create_handle(char *body, size_t body_length,
         .key_press_ms = request.key_press_ms,
         .inter_key_ms = request.inter_key_ms,
         .plan = plan,
+        .require_confirmation = require_confirmation,
     };
     const uint32_t action_count = (uint32_t)plan.action_count;
     const uint32_t estimated_duration_ms = plan.estimated_duration_ms;

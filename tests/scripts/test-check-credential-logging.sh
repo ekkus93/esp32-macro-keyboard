@@ -14,8 +14,8 @@ write_valid_fixture() {
 	rm -rf -- "${temporary_dir}/firmware"
 	mkdir -p -- "${temporary_dir}/firmware/components/app_core"
 	cat >"${temporary_dir}/firmware/components/app_core/app_core.c" <<'SOURCE'
-void log_setup_code(const char *setup_code) {
-    ESP_LOGW(TAG, "setup code: %s", setup_code);
+void report_setup_ready(void) {
+    ESP_LOGI(TAG, "setup credentials are available from the manufacturing label");
 }
 SOURCE
 }
@@ -46,43 +46,25 @@ expect_fail() {
 }
 
 write_valid_fixture
-expect_pass 'single V2 serial setup code'
+expect_pass 'non-secret setup readiness log'
 
-write_valid_fixture
-cat >"${temporary_dir}/firmware/components/ordinary.c" <<'SOURCE'
-void leak(const char *password) {
-    ESP_LOGI(TAG, "administrator password: %s", password);
+for credential in password passphrase setup_code session_token salt verifier; do
+	write_valid_fixture
+	cat >"${temporary_dir}/firmware/components/leak.c" <<SOURCE
+void leak(const char *value) {
+    ESP_LOGW(TAG, "${credential}: %s", value);
 }
 SOURCE
-expect_fail 'ordinary credential log' 'credential-bearing output is forbidden'
+	expect_fail "${credential} output" 'credential-bearing output is forbidden'
+done
 
 write_valid_fixture
-cat >"${temporary_dir}/firmware/components/ordinary.c" <<'SOURCE'
-void leak(const char *setup_code) {
-    printf("setup code: %s", setup_code);
+cat >"${temporary_dir}/firmware/components/generic_leak.c" <<'SOURCE'
+void leak_setup(const char *setup_code) {
+    ESP_LOGW(TAG, "%s", setup_code);
 }
 SOURCE
-expect_fail 'setup code outside approved source' 'credential-bearing output is forbidden'
-
-write_valid_fixture
-cat >>"${temporary_dir}/firmware/components/app_core/app_core.c" <<'SOURCE'
-void leak_ap(const char *passphrase) {
-    ESP_LOGW(TAG, "AP passphrase: %s", passphrase);
-}
-SOURCE
-expect_fail 'AP passphrase in approved source' 'unapproved credential-bearing output'
-
-write_valid_fixture
-cat >>"${temporary_dir}/firmware/components/app_core/app_core.c" <<'SOURCE'
-void duplicate(const char *setup_code) {
-    ESP_LOGW(TAG, "setup code: %s", setup_code);
-}
-SOURCE
-expect_fail 'duplicate setup code output' 'expected exactly one serial setup-code output'
-
-write_valid_fixture
-sed -i '/ESP_LOGW/d' "${temporary_dir}/firmware/components/app_core/app_core.c"
-expect_fail 'missing setup code output' 'expected exactly one serial setup-code output'
+expect_fail 'generic format sensitive identifier' 'credential-bearing output is forbidden'
 
 write_valid_fixture
 printf '%s\n' 'CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG' \

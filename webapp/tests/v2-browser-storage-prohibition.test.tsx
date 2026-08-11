@@ -44,20 +44,16 @@ const canonical = canonicalRepository as Repository;
  * and a runtime behavioral check (exercising the Phase 7 client leaves
  * browser storage untouched).
  *
- * The scan also covers `src/features/auth/v2/` (the Phase 8 V2-080/V2-081
- * setup and sign-in pages): they hold a device setup code, a Wi-Fi
- * passphrase, and an administrator password in React state, so the same
- * "never touches browser storage" invariant applies to them, not just the
- * Phase 7 `src/v2/` data layer.
- *
- * It also covers `src/features/startup/v2/` (the Phase 8 V2-082/V2-083/
- * V2-084 repository startup state machine): its first-package form holds a
- * package name and its recovered `RepositoryWorkingCopyStore` holds the
- * entire loaded (or freshly created) repository, all in React state.
+ * The static scan covers `src/AppV2.tsx`, the complete `src/v2/` data layer,
+ * and every production V2 feature directory under `src/features/`. This includes
+ * authentication/setup secrets, loaded repository state, macros, snapshots,
+ * settings, shell state, and future V2 feature families added under that
+ * directory convention.
  */
 
 const forbiddenApiPattern =
   /\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b|\bcaches\.\w|\bserviceWorker\b|\bopenDatabase\b/;
+const browserConsolePattern = /\bconsole\.(?:log|info|warn|error|debug)\s*\(/;
 
 // Reads every scanned source file's raw text through Vite's glob import
 // rather than Node's `fs` module: browser app code (this project's
@@ -66,9 +62,9 @@ const forbiddenApiPattern =
 // the idiomatic alternative that stays consistent with that boundary.
 const v2SourceModules = import.meta.glob<string>(
   [
+    "../src/AppV2.tsx",
     "../src/v2/**/*.{ts,tsx}",
-    "../src/features/auth/v2/**/*.{ts,tsx}",
-    "../src/features/startup/v2/**/*.{ts,tsx}",
+    "../src/features/**/v2/**/*.{ts,tsx}",
   ],
   {
     eager: true,
@@ -88,12 +84,19 @@ function stripComments(source: string): string {
 }
 
 describe("v2 browser-storage prohibition: static scan", () => {
-  test("no file under src/v2 or src/features/auth/v2 references localStorage, sessionStorage, IndexedDB, Cache Storage, or service workers", () => {
+  test("no production V2 source references browser persistence APIs", () => {
     const entries = Object.entries(v2SourceModules);
     expect(entries.length).toBeGreaterThan(0);
     const offenders = entries
       .map(([path, source]) => ({ path, code: stripComments(source) }))
       .filter(({ code }) => forbiddenApiPattern.test(code));
+    expect(offenders.map((offender) => offender.path)).toEqual([]);
+  });
+
+  test("no production V2 source writes application or secret state to the browser console", () => {
+    const offenders = Object.entries(v2SourceModules)
+      .map(([path, source]) => ({ path, code: stripComments(source) }))
+      .filter(({ code }) => browserConsolePattern.test(code));
     expect(offenders.map((offender) => offender.path)).toEqual([]);
   });
 });

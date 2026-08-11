@@ -8,6 +8,7 @@
 #include "app_error.h"
 #include "app_limits_v2.h"
 #include "auth.h"
+#include "device_settings.h"
 #include "macro_executor.h"
 #include "macro_parser.h"
 #include "web_api_core.h"
@@ -30,6 +31,20 @@ static app_error_code_t executor_submit_adapter(void *context, macro_execution_r
     return macro_executor_submit(request);
 }
 
+static app_error_code_t confirmation_policy_adapter(void *context, bool *out_required) {
+    (void)context;
+    if (out_required == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    app_v2_device_settings_t settings = {0};
+    const app_error_code_t result = device_settings_read(&settings);
+    if (result == APP_ERROR_NONE) {
+        *out_required = settings.require_serial_confirmation;
+    }
+    memset(&settings, 0, sizeof(settings));
+    return result;
+}
+
 static macro_execution_status_t executor_status_adapter(void *context) {
     (void)context;
     return macro_executor_get_status();
@@ -44,6 +59,7 @@ static web_send_ops_t send_ops(void) {
     return (web_send_ops_t){
         .context = NULL,
         .submit = executor_submit_adapter,
+        .get_require_confirmation = confirmation_policy_adapter,
         .get_status = executor_status_adapter,
         .cancel = executor_cancel_adapter,
     };

@@ -27,6 +27,7 @@
 #include "app_uuid.h"
 #include "auth.h"
 #include "cJSON.h"
+#include "device_settings.h"
 #include "fake_httpd.h"
 #include "macro_executor.h"
 #include "test_assert.h"
@@ -51,6 +52,22 @@ static app_error_code_t g_auth_result;
 app_error_code_t auth_session_validate(const char *session_token) {
     (void)session_token;
     return g_auth_result;
+}
+
+static app_error_code_t g_settings_read_result;
+static bool g_require_serial_confirmation;
+
+app_error_code_t device_settings_read(app_v2_device_settings_t *out_settings) {
+    if (out_settings == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (g_settings_read_result != APP_ERROR_NONE) {
+        return g_settings_read_result;
+    }
+    *out_settings = (app_v2_device_settings_t){
+        .require_serial_confirmation = g_require_serial_confirmation,
+    };
+    return APP_ERROR_NONE;
 }
 
 static app_error_code_t g_submit_result;
@@ -92,6 +109,8 @@ app_error_code_t macro_executor_confirm(void) {
 
 static void reset_fakes(void) {
     g_auth_result = APP_ERROR_NONE;
+    g_settings_read_result = APP_ERROR_NONE;
+    g_require_serial_confirmation = false;
     g_submit_result = APP_ERROR_NONE;
     g_submit_called = false;
     g_last_submitted_request = (macro_execution_request_t){0};
@@ -166,6 +185,7 @@ static void test_send_create_valid(void) {
     TEST_CHECK(g_submit_called);
     TEST_CHECK_EQ_U64(8U, g_last_submitted_request.key_press_ms);
     TEST_CHECK_EQ_U64(15U, g_last_submitted_request.inter_key_ms);
+    TEST_CHECK(!g_last_submitted_request.require_confirmation);
 
     cJSON *root = parse_response(&fake);
     TEST_CHECK(app_uuid_is_valid_string(cJSON_GetObjectItemCaseSensitive(root, "id")->valuestring));
@@ -182,6 +202,42 @@ static void test_send_create_valid(void) {
  * proves the real macro_parser_v2 compile path for "make -j8{ENTER}" (8
  * US-ASCII key actions + one {ENTER} directive) produces exactly the
  * actionCount/estimatedDurationMs the checked-in example claims. */
+static void test_send_create_binds_authoritative_confirmation_setting(void) {
+    reset_fakes();
+    g_require_serial_confirmation = true;
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    bind_json_body(&request, &fake, "{\"source\":\"first\",\"keyPressMs\":8,\"interKeyMs\":15}");
+
+    TEST_CHECK_EQ_INT(ESP_OK, send_create_handler(&request));
+    TEST_CHECK_EQ_STRING("202 Accepted", fake.response_status);
+    TEST_CHECK(g_submit_called);
+    TEST_CHECK(g_last_submitted_request.require_confirmation);
+}
+
+static void test_send_create_confirmation_policy_read_failure_fails_closed(void) {
+    reset_fakes();
+    g_settings_read_result = APP_ERROR_STORAGE_UNAVAILABLE;
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    bind_json_body(&request, &fake, "{\"source\":\"first\",\"keyPressMs\":8,\"interKeyMs\":15}");
+
+    TEST_CHECK_EQ_INT(ESP_OK, send_create_handler(&request));
+    TEST_CHECK_EQ_STRING("503 Service Unavailable", fake.response_status);
+    TEST_CHECK(!g_submit_called);
+    cJSON *root = parse_response(&fake);
+    const cJSON *error = cJSON_GetObjectItemCaseSensitive(root, "error");
+    TEST_CHECK_EQ_STRING("storage_unavailable",
+                         cJSON_GetObjectItemCaseSensitive(error, "code")->valuestring);
+    TEST_CHECK_EQ_STRING("send backend unavailable",
+                         cJSON_GetObjectItemCaseSensitive(error, "message")->valuestring);
+    cJSON_Delete(root);
+}
+
 static void test_send_create_valid_matches_example(void) {
     reset_fakes();
     fake_httpd_request_t fake;
@@ -625,6 +681,8 @@ static void test_send_cancel_never_sent(void) {
 
 int main(void) {
     test_send_create_valid();
+    test_send_create_binds_authoritative_confirmation_setting();
+    test_send_create_confirmation_policy_read_failure_fails_closed();
     test_send_create_valid_matches_example();
     test_send_create_unauthorized_without_cookie();
     test_send_create_unauthorized_expired_session();
