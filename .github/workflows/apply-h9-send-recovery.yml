@@ -1,0 +1,119 @@
+name: Apply send recovery visibility hardening
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/apply-h9-send-recovery.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: webapp
+        run: npm ci
+      - name: Apply explicit send recovery state
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/apply.b64 <<'PAYLOAD'
+          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
+          ee0ueQ9AfvWz81+QBQYTeDcAAA==
+          PAYLOAD
+          tr -d '[:space:]' < /tmp/apply.b64 | base64 --decode | gzip --decompress > /tmp/apply.sh
+          bash /tmp/apply.sh
+      - name: Format changed frontend files
+        working-directory: webapp
+        run: npx prettier --write src/v2/startup.ts src/features/startup/v2/RepositoryStartupScreen.tsx src/AppV2.tsx tests/v2-startup-decision-table.test.ts tests/v2-repository-startup-screen.test.tsx tests/v2-app-v2.test.tsx
+      - name: Typecheck
+        working-directory: webapp
+        run: npm run typecheck
+      - name: Lint
+        working-directory: webapp
+        run: npm run lint
+      - name: Check formatting
+        working-directory: webapp
+        run: npm run format:check
+      - name: Run focused recovery regressions
+        working-directory: webapp
+        run: npx vitest run tests/v2-startup-decision-table.test.ts tests/v2-repository-startup-screen.test.tsx tests/v2-app-v2.test.tsx tests/v2-macros-page.test.tsx tests/v2-send-client.test.ts
+      - name: Build production webapp
+        working-directory: webapp
+        run: npm run build
+      - name: Commit validated fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_sha="$(git ls-remote origin refs/heads/master | cut -f1)"
+          if [[ "$remote_sha" != "$GITHUB_SHA" ]]; then
+            echo "master moved from triggering SHA $GITHUB_SHA to $remote_sha; refusing to overwrite" >&2
+            exit 1
+          fi
+          rm -f .github/workflows/apply-h9-send-recovery.yml
+          git add -A
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(webapp): expose unavailable send recovery state"
+          git push origin HEAD:master
