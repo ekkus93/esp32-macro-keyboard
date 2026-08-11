@@ -9,7 +9,7 @@ import type { Repository } from "../src/v2/repository";
 import { createRepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";
 import type { SendStatusResponse } from "../src/v2/apiTypes";
 import { V2ApiError } from "../src/v2/apiClient";
-import type { SendMacroHandle } from "../src/v2/sendClient";
+import type { SendMacroCallbacks, SendMacroHandle } from "../src/v2/sendClient";
 import {
   getFetchCalls,
   jsonResponse,
@@ -721,14 +721,16 @@ describe("MacrosPage — V2-132 landscape active-send summary", () => {
 describe("MacrosPage — send tracker lifetime", () => {
   function baseDependencies(): MacrosPageDependencies {
     return {
-      sendMacro: vi.fn(async () => ({
-        accepted,
-        cancel: vi.fn(async () => undefined),
-        stop: vi.fn(),
-      })),
+      sendMacro: vi.fn(() =>
+        Promise.resolve({
+          accepted,
+          cancel: vi.fn(() => Promise.resolve(undefined)),
+          stop: vi.fn(),
+        }),
+      ),
       trackSend: vi.fn(() => ({ stop: vi.fn() })),
-      cancelSend: vi.fn(async () => undefined),
-      recoverSendState: vi.fn(async () => null),
+      cancelSend: vi.fn(() => Promise.resolve(undefined)),
+      recoverSendState: vi.fn(() => Promise.resolve(null)),
     };
   }
 
@@ -750,13 +752,15 @@ describe("MacrosPage — send tracker lifetime", () => {
   test("stops the 409-recovery tracker on unmount", async () => {
     const stop = vi.fn();
     const dependencies = baseDependencies();
-    dependencies.sendMacro = vi.fn(async () => {
+    dependencies.sendMacro = vi.fn(() => {
       throw new V2ApiError(409, {
         code: "already_sending",
         message: "A send is already in progress.",
       });
     });
-    dependencies.recoverSendState = vi.fn(async () => statusAt("running", 1));
+    dependencies.recoverSendState = vi.fn(() =>
+      Promise.resolve(statusAt("running", 1)),
+    );
     dependencies.trackSend = vi.fn(() => ({ stop }));
 
     const { unmount } = await renderMacrosPage({ dependencies });
@@ -772,11 +776,13 @@ describe("MacrosPage — send tracker lifetime", () => {
   test("stops a newly-started send tracker on unmount", async () => {
     const stop = vi.fn();
     const dependencies = baseDependencies();
-    dependencies.sendMacro = vi.fn(async () => ({
-      accepted,
-      cancel: vi.fn(async () => undefined),
-      stop,
-    }));
+    dependencies.sendMacro = vi.fn(() =>
+      Promise.resolve({
+        accepted,
+        cancel: vi.fn(() => Promise.resolve(undefined)),
+        stop,
+      }),
+    );
 
     const { unmount } = await renderMacrosPage({ dependencies });
     await click(buttonWithText("Send"));
@@ -789,13 +795,13 @@ describe("MacrosPage — send tracker lifetime", () => {
 
   test("surfaces a tracker failure without hiding the active send", async () => {
     const dependencies = baseDependencies();
-    let trackerCallbacks:
-      | Parameters<MacrosPageDependencies["trackSend"]>[1]
-      | undefined;
-    dependencies.trackSend = vi.fn((_seed, callbacks) => {
-      trackerCallbacks = callbacks;
-      return { stop: vi.fn() };
-    });
+    let trackerCallbacks: SendMacroCallbacks | undefined;
+    dependencies.trackSend = vi.fn(
+      (_seed: SendStatusResponse, callbacks?: SendMacroCallbacks) => {
+        trackerCallbacks = callbacks;
+        return { stop: vi.fn() };
+      },
+    );
 
     const { unmount } = await renderMacrosPage({
       dependencies,
@@ -829,7 +835,7 @@ describe("MacrosPage — send tracker lifetime", () => {
 
     resolveSend?.({
       accepted,
-      cancel: vi.fn(async () => undefined),
+      cancel: vi.fn(() => Promise.resolve(undefined)),
       stop,
     });
     await flushReact();
