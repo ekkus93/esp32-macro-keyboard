@@ -487,9 +487,10 @@ Search and classify at least:
 
 ### H7-071 — Fault latch unsafe HID state
 
-- [ ] If defensive release-all fails and key release cannot be proven, mark executor/HID unavailable.
-- [ ] Reject new sends until a defined recovery/reinitialization path re-establishes ready state.
-- [ ] Ensure status/diagnostics exposes sanitized release failure.
+- [x] If defensive release-all fails and key release cannot be proven, mark executor/HID unavailable.
+- [x] Reject new sends until a defined recovery/reinitialization path re-establishes ready state.
+- [x] Ensure status/diagnostics exposes sanitized release failure.
+- Evidence: core latch/recovery behavior is implemented by `48d7714d9f48621e1876c4ef3d434826542c6710`; `5d5f042a3567476fe54e4e623462037819ea25da` closes the visibility gap by allowing an unavailable executor status with a retained release fault to use the existing sanitized `releaseError` wire field while unrelated unavailable states still fail closed. Live diagnostics regression also proves a recorded release cleanup fault degrades the existing `executor` subsystem without changing the frozen schema. Executor 2/2 and web 29/29 passed in normal and ASan+UBSan runs in targeted workflow `31537774806`. Full evidence: `docs/implementation-v2/H7_071_HID_RELEASE_FAULT_LATCH_2026-08-11.md`.
 
 ### H7-072 — Correct error classification
 
