@@ -21,7 +21,7 @@ This SHA changes only that classification boundary: an unavailable status with a
 
 ## Validation
 
-Targeted workflow run **31537774806**, job **validate-and-record** ran:
+Targeted workflow run **31537774806**, job **93932913299** ran:
 
 - `./scripts/run-tests.sh executor` — **2/2 passed**.
 - `./scripts/run-tests.sh web` — **29/29 passed**.
