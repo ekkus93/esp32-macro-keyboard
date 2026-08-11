@@ -469,6 +469,7 @@ export function MacrosPage({
   // recovery, and a 409-triggered recovery).
   const completedSendIdsRef = useRef<Set<string>>(new Set());
   const activeHandleRef = useRef<{ stop: () => void } | null>(null);
+  const mountedRef = useRef(true);
 
   // Stable across renders (only closes over refs and React's stable setState
   // functions), so a `useEffect` can list them as dependencies without
@@ -479,6 +480,18 @@ export function MacrosPage({
     activeHandleRef.current?.stop();
     activeHandleRef.current = null;
   }, []);
+
+  // Every send-tracking path stores its handle in `activeHandleRef`. Stop that
+  // handle when this page unmounts so polling cannot outlive the component.
+  // `mountedRef` also closes the async race where `sendMacro()` or recovery
+  // resolves after this cleanup has already run.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      stopActiveTracking();
+    };
+  }, [stopActiveTracking]);
 
   const handleStatus = useCallback(
     (macro: MacroIdentity | null, status: SendStatusResponse): void => {
@@ -528,8 +541,13 @@ export function MacrosPage({
     try {
       current = await depsRef.current.recoverSendState();
     } catch (error: unknown) {
-      setLifecycle({ kind: "idle" });
-      setStartError(v2ErrorText(error));
+      if (mountedRef.current) {
+        setLifecycle({ kind: "idle" });
+        setStartError(v2ErrorText(error));
+      }
+      return;
+    }
+    if (!mountedRef.current) {
       return;
     }
     if (current === null || isTerminalSendState(current.state)) {
@@ -622,6 +640,10 @@ export function MacrosPage({
           },
         },
       );
+      if (!mountedRef.current) {
+        handle.stop();
+        return;
+      }
       activeHandleRef.current = handle;
       setLifecycle({
         kind: "active",
@@ -638,6 +660,9 @@ export function MacrosPage({
         },
       });
     } catch (error: unknown) {
+      if (!mountedRef.current) {
+        return;
+      }
       if (error instanceof V2ApiError && error.status === 409) {
         await recoverActiveSend();
       } else {

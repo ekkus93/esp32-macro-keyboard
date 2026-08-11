@@ -1,17 +1,28 @@
 import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
 import type { ActiveSendSummary } from "../src/features/shell/v2/activeSendSummary";
-import { MacrosPage } from "../src/features/macros/v2/MacrosPage";
+import {
+  MacrosPage,
+  type MacrosPageDependencies,
+} from "../src/features/macros/v2/MacrosPage";
 import type { Repository } from "../src/v2/repository";
 import { createRepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";
 import type { SendStatusResponse } from "../src/v2/apiTypes";
+import { V2ApiError } from "../src/v2/apiClient";
+import type { SendMacroHandle } from "../src/v2/sendClient";
 import {
   getFetchCalls,
   jsonResponse,
   planFetch,
   planJsonResponse,
 } from "./fakeFetch";
-import { buttonWithText, click, render, requiredElement } from "./render";
+import {
+  buttonWithText,
+  click,
+  flushReact,
+  render,
+  requiredElement,
+} from "./render";
 
 /** Timer-driven React updates (poll callbacks, the completion-ack timeout)
  * must be flushed inside `act` or React warns and the state update can be
@@ -87,6 +98,7 @@ interface RenderOptions {
   showMacroSourcePreviews?: boolean;
   sendMode?: "quick" | "preview";
   onActiveSendChange?: (summary: ActiveSendSummary | null) => void;
+  dependencies?: MacrosPageDependencies;
 }
 
 async function renderMacrosPage(options: RenderOptions = {}) {
@@ -99,6 +111,7 @@ async function renderMacrosPage(options: RenderOptions = {}) {
   };
   const result = await render(
     <MacrosPage
+      dependencies={options.dependencies}
       initialSend={options.initialSend ?? null}
       onActiveSendChange={options.onActiveSendChange ?? (() => undefined)}
       onChangePackage={callbacks.onChangePackage}
@@ -700,6 +713,99 @@ describe("MacrosPage — V2-132 landscape active-send summary", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("MacrosPage — send tracker lifetime", () => {
+  function baseDependencies(): MacrosPageDependencies {
+    return {
+      sendMacro: vi.fn(async () => ({
+        accepted,
+        cancel: vi.fn(async () => undefined),
+        stop: vi.fn(),
+      })),
+      trackSend: vi.fn(() => ({ stop: vi.fn() })),
+      cancelSend: vi.fn(async () => undefined),
+      recoverSendState: vi.fn(async () => null),
+    };
+  }
+
+  test("stops the reload-recovery tracker on unmount", async () => {
+    const stop = vi.fn();
+    const dependencies = baseDependencies();
+    dependencies.trackSend = vi.fn(() => ({ stop }));
+
+    const { unmount } = await renderMacrosPage({
+      dependencies,
+      initialSend: statusAt("running", 1),
+    });
+    expect(dependencies.trackSend).toHaveBeenCalledOnce();
+
+    await unmount();
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  test("stops the 409-recovery tracker on unmount", async () => {
+    const stop = vi.fn();
+    const dependencies = baseDependencies();
+    dependencies.sendMacro = vi.fn(async () => {
+      throw new V2ApiError(409, {
+        code: "already_sending",
+        message: "A send is already in progress.",
+      });
+    });
+    dependencies.recoverSendState = vi.fn(async () => statusAt("running", 1));
+    dependencies.trackSend = vi.fn(() => ({ stop }));
+
+    const { unmount } = await renderMacrosPage({ dependencies });
+    await click(buttonWithText("Send"));
+    await flushReact();
+    expect(dependencies.recoverSendState).toHaveBeenCalledOnce();
+    expect(dependencies.trackSend).toHaveBeenCalledOnce();
+
+    await unmount();
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  test("stops a newly-started send tracker on unmount", async () => {
+    const stop = vi.fn();
+    const dependencies = baseDependencies();
+    dependencies.sendMacro = vi.fn(async () => ({
+      accepted,
+      cancel: vi.fn(async () => undefined),
+      stop,
+    }));
+
+    const { unmount } = await renderMacrosPage({ dependencies });
+    await click(buttonWithText("Send"));
+    await flushReact();
+    expect(dependencies.sendMacro).toHaveBeenCalledOnce();
+
+    await unmount();
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  test("stops a send handle that resolves after unmount", async () => {
+    const stop = vi.fn();
+    let resolveSend: ((handle: SendMacroHandle) => void) | undefined;
+    const pendingSend = new Promise<SendMacroHandle>((resolve) => {
+      resolveSend = resolve;
+    });
+    const dependencies = baseDependencies();
+    dependencies.sendMacro = vi.fn(() => pendingSend);
+
+    const { unmount } = await renderMacrosPage({ dependencies });
+    await click(buttonWithText("Send"));
+    expect(dependencies.sendMacro).toHaveBeenCalledOnce();
+    await unmount();
+
+    resolveSend?.({
+      accepted,
+      cancel: vi.fn(async () => undefined),
+      stop,
+    });
+    await flushReact();
+    expect(stop).toHaveBeenCalledOnce();
   });
 });
 
