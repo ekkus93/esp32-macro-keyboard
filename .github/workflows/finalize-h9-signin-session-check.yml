@@ -86,7 +86,7 @@ jobs:
                   401,
                 );
               });
-              act(() => {
+              await act(() => {
                 forceSessionEnded();
               });'''
 
