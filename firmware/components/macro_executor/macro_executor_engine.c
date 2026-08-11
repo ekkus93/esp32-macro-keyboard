@@ -228,9 +228,9 @@ static bool publish_step(macro_executor_engine_t *engine, macro_execution_reques
  * required by SPEC_V2 §7.3. Preserve the submit failure as the primary error
  * while publishing the release result separately so status consumers can tell
  * whether HID cleanup also failed (post-v2 F-009 / Round 2 F-025). */
-static app_error_code_t finish_submission_failure(
-    macro_executor_engine_t *engine, const macro_execution_request_t *request,
-    app_error_code_t primary_error) {
+static app_error_code_t finish_submission_failure(macro_executor_engine_t *engine,
+                                                  const macro_execution_request_t *request,
+                                                  app_error_code_t primary_error) {
     macro_execution_status_t status = {
         .state = EXECUTION_FAILED,
         .error = primary_error,
