@@ -111,7 +111,9 @@ async function renderMacrosPage(options: RenderOptions = {}) {
   };
   const result = await render(
     <MacrosPage
-      dependencies={options.dependencies}
+      {...(options.dependencies === undefined
+        ? {}
+        : { dependencies: options.dependencies })}
       initialSend={options.initialSend ?? null}
       onActiveSendChange={options.onActiveSendChange ?? (() => undefined)}
       onChangePackage={callbacks.onChangePackage}
