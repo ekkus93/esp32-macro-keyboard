@@ -41,17 +41,22 @@ jobs:
           bash /tmp/usb-patch.sh
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path("webapp/src/features/shell/v2/useDeviceStatus.ts")
           text = path.read_text()
-          old = """                if (active) {
-                    schedulePoll();
-                  }"""
-          new = "                schedulePoll();"
-          count = text.count(old)
+          pattern = re.compile(
+              r"(?m)^(?P<indent>[ \t]*)if \(active\) \{\n"
+              r"[ \t]+schedulePoll\(\);\n(?P=indent)\}"
+          )
+          text, count = pattern.subn(
+              lambda match: f"{match.group('indent')}schedulePoll();",
+              text,
+              count=1,
+          )
           if count != 1:
               raise SystemExit(f"expected one redundant active check, found {count}")
-          path.write_text(text.replace(old, new, 1))
+          path.write_text(text)
           PY
           git diff --check
 
