@@ -415,7 +415,6 @@ export function AuthenticatedShell({
             retentionTarget={settings.snapshotRetentionTarget}
             saveError={saveError}
             saving={saving}
-            selectedPackageId={packageId}
             store={store}
           />
         );

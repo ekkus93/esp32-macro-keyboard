@@ -413,6 +413,9 @@ describe("AppV2 — wiring RepositoryStartupScreen into the running app shell", 
   test("Sign In -> repository startup -> the Macros page, with no dedicated progress route", async () => {
     const view = await signIn();
     expect(bodyIncludes("Macros")).toBe(true);
+    expect(bodyIncludes("This selection may not survive a reload.")).toBe(
+      false,
+    );
     expect(bodyIncludes("0 macros")).toBe(true);
     // The bottom navigation is the real one; a standalone send-progress
     // route is not part of it (Phase 9 exit gate).

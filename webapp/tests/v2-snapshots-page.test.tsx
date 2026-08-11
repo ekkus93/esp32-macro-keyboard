@@ -61,7 +61,6 @@ function defaultList(): SnapshotListResult {
 
 interface Overrides {
   store?: RepositoryWorkingCopyStore;
-  selectedPackageId?: string;
   persistedPackageId?: string | null;
   retentionTarget?: number;
   loadedBlobId?: string | null;
@@ -99,10 +98,9 @@ async function renderPage(overrides: Overrides = {}) {
   const onOpenPackages = vi.fn();
   const onWorkingCopyOriginChanged = vi.fn();
   const onSaveSnapshot = vi.fn().mockResolvedValue(undefined);
-  const selectedPackageId = overrides.selectedPackageId ?? packageId;
   const persistedPackageId =
     overrides.persistedPackageId === undefined
-      ? selectedPackageId
+      ? packageId
       : overrides.persistedPackageId;
 
   const view = await render(
@@ -120,7 +118,6 @@ async function renderPage(overrides: Overrides = {}) {
       retentionTarget={overrides.retentionTarget ?? 5}
       saveError={overrides.saveError ?? null}
       saving={overrides.saving ?? false}
-      selectedPackageId={selectedPackageId}
       store={store}
     />,
   );
@@ -373,7 +370,6 @@ describe("SnapshotsPage — V2-110/V2-111 manual load", () => {
     } = await renderPage({
       deps: { loadSnapshotIntoWorkingCopy, persistSelectedPackageId },
       persistedPackageId: packageId,
-      selectedPackageId: packageId,
     });
     await waitUntil(
       () => document.querySelector('[aria-label="Load snapshot 1"]') !== null,
@@ -410,7 +406,7 @@ describe("SnapshotsPage — V2-110/V2-111 manual load", () => {
       .mockResolvedValue({ ok: true, repository: loaded, created: false });
     const { onOpenPackages, onOpenMacros, unmount } = await renderPage({
       deps: { loadSnapshotIntoWorkingCopy },
-      selectedPackageId: "does-not-exist",
+      persistedPackageId: "does-not-exist",
     });
     await waitUntil(
       () => document.querySelector('[aria-label="Load snapshot 1"]') !== null,
@@ -541,7 +537,6 @@ describe("SnapshotsPage — V2-113 dirty-work protection during load", () => {
         retentionTarget={5}
         saveError={null}
         saving={false}
-        selectedPackageId={packageId}
         store={store}
       />,
     );
@@ -1210,7 +1205,7 @@ describe("SnapshotsPage — V2-115 import", () => {
       unmount,
     } = await renderPage({
       deps: { readFileBytes, importRepository },
-      selectedPackageId: "does-not-exist",
+      persistedPackageId: "does-not-exist",
     });
     await chooseFile(fakeFile());
     await waitUntil(
@@ -1259,7 +1254,6 @@ describe("SnapshotsPage — V2-115 import", () => {
         readFileBytes,
       },
       persistedPackageId: packageId,
-      selectedPackageId: packageId,
     });
 
     await chooseFile(fakeFile());
@@ -1396,6 +1390,113 @@ describe("SnapshotsPage — V2-115 import", () => {
     await flushReact();
     expect(store.getRepository()).toBe(before);
     expect(container.textContent).not.toContain("2 packages");
+    await unmount();
+  });
+});
+
+describe("SnapshotsPage — H8 durable package-selection resolution", () => {
+  test("snapshot load resolves from the persisted device preference rather than the previous local package", async () => {
+    const loaded = twoPackageRepository();
+    const loadSnapshotIntoWorkingCopy = vi
+      .fn<
+        (
+          id: string,
+          store: RepositoryWorkingCopyStore,
+        ) => Promise<LoadSnapshotResult>
+      >()
+      .mockImplementation((_id, store) => {
+        store.replaceWorkingCopy(loaded);
+        return Promise.resolve({
+          ok: true,
+          repository: loaded,
+          created: false,
+        });
+      });
+    const persistSelectedPackageId = vi.fn().mockResolvedValue(null);
+    const {
+      onOpenMacros,
+      onSelectionChange,
+      onSelectionPersistenceFailure,
+      onSelectionPersistenceSuccess,
+      store,
+      unmount,
+    } = await renderPage({
+      deps: { loadSnapshotIntoWorkingCopy, persistSelectedPackageId },
+      persistedPackageId: otherPackageId,
+    });
+
+    await waitUntil(
+      () => document.querySelector('[aria-label="Load snapshot 1"]') !== null,
+      "snapshot row to render",
+    );
+    await click(
+      requiredElement('[aria-label="Load snapshot 1"]', HTMLButtonElement),
+    );
+    await waitUntil(
+      () => onOpenMacros.mock.calls.length > 0,
+      "open macros after durable selection resolution",
+    );
+
+    expect(onSelectionChange).toHaveBeenCalledWith(otherPackageId);
+    expect(persistSelectedPackageId).not.toHaveBeenCalled();
+    expect(onSelectionPersistenceSuccess).toHaveBeenCalledWith(otherPackageId);
+    expect(onSelectionPersistenceFailure).not.toHaveBeenCalled();
+    expect(store.getIsDirty()).toBe(false);
+    await unmount();
+  });
+
+  test("repository import also resolves from the persisted device preference", async () => {
+    const imported = twoPackageRepository();
+    const readFileBytes = vi.fn().mockResolvedValue(new Uint8Array([1]));
+    const importRepository = vi.fn().mockResolvedValue({
+      ok: true,
+      repository: imported,
+      packageCount: 2,
+      macroCount: 0,
+    } satisfies ImportResult);
+    const persistSelectedPackageId = vi.fn().mockResolvedValue(null);
+    const {
+      onOpenMacros,
+      onSelectionChange,
+      onSelectionPersistenceFailure,
+      onSelectionPersistenceSuccess,
+      unmount,
+    } = await renderPage({
+      deps: {
+        importRepository,
+        persistSelectedPackageId,
+        readFileBytes,
+      },
+      persistedPackageId: otherPackageId,
+    });
+
+    const input = requiredElement('input[type="file"]', HTMLInputElement);
+    Object.defineProperty(input, "files", {
+      configurable: true,
+      value: [
+        new File([new Uint8Array([1, 2, 3])], "repository.json.gz", {
+          type: "application/gzip",
+        }),
+      ],
+    });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+    });
+    await waitUntil(
+      () => document.body.textContent?.includes("2 packages") === true,
+      "import confirmation",
+    );
+    await click(buttonWithText("Replace working copy with this import"));
+    await waitUntil(
+      () => onOpenMacros.mock.calls.length > 0,
+      "open macros after imported durable selection resolution",
+    );
+
+    expect(onSelectionChange).toHaveBeenCalledWith(otherPackageId);
+    expect(persistSelectedPackageId).not.toHaveBeenCalled();
+    expect(onSelectionPersistenceSuccess).toHaveBeenCalledWith(otherPackageId);
+    expect(onSelectionPersistenceFailure).not.toHaveBeenCalled();
     await unmount();
   });
 });

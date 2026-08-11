@@ -76,8 +76,6 @@ function defaultDependencies(): SnapshotsPageDependencies {
 
 export interface SnapshotsPageProps {
   store: RepositoryWorkingCopyStore;
-  /** The currently resolved/open package (device-wide `lastSelectedPackageId`). */
-  selectedPackageId: string;
   /** Updates the caller's local selection state; never touches the repository. */
   onSelectionChange: (packageId: string) => void;
   /** Last package ID known to have persisted successfully on the device. */
@@ -355,7 +353,6 @@ interface PendingReplace {
 
 export function SnapshotsPage({
   store,
-  selectedPackageId,
   persistedPackageId,
   onSelectionChange,
   onSelectionPersistenceFailure,
@@ -457,7 +454,7 @@ export function SnapshotsPage({
   const afterWorkingCopyReplaced = async (
     repository: Repository,
   ): Promise<void> => {
-    const resolution = resolveSelectedPackage(repository, selectedPackageId);
+    const resolution = resolveSelectedPackage(repository, persistedPackageId);
     if (resolution.kind === "chooser") {
       onOpenPackages();
       return;
