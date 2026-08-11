@@ -86,8 +86,9 @@ jobs:
                   401,
                 );
               });
-              await act(() => {
+              await act(async () => {
                 forceSessionEnded();
+                await Promise.resolve();
               });'''
 
           section = section[:plan_start] + replacement + section[tick_end:]
