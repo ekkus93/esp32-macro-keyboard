@@ -19,7 +19,7 @@ elseif(HOST_TEST_MODE STREQUAL "coverage")
     message(FATAL_ERROR
       "Coverage mode requires GCC/gcov; found ${CMAKE_C_COMPILER_ID}")
   endif()
-  add_compile_options(--coverage -fprofile-abs-path -O0 -g)
+  add_compile_options(--coverage -fprofile-abs-path -fprofile-update=atomic -O0 -g)
   add_link_options(--coverage)
 else()
   message(FATAL_ERROR "Unknown HOST_TEST_MODE: ${HOST_TEST_MODE}")
