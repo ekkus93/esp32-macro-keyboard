@@ -248,7 +248,12 @@ web_send_get_outcome_t web_send_get_handle(const web_send_ops_t *ops,
     if (status.state == EXECUTION_IDLE) {
         return (web_send_get_outcome_t){.result = WEB_SEND_GET_NEVER_SENT};
     }
-    if (!status.available) {
+    /* An unavailable executor caused by an HID release fault still has useful,
+     * already-sanitized status to report through the existing releaseError field.
+     * Suppressing that status behind a generic 500 would hide the safety fault from
+     * the caller. Other unavailable states (for example status publication/locking
+     * failure) remain fail-closed because their status cannot be trusted. */
+    if (!status.available && status.release_error == APP_ERROR_NONE) {
         return (web_send_get_outcome_t){.result = WEB_SEND_GET_INTERNAL};
     }
     web_send_get_outcome_t outcome = {.result = WEB_SEND_GET_OK};

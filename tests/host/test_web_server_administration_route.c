@@ -79,6 +79,7 @@
 #include "esp_heap_caps.h"
 #include "esp_system.h"
 #include "esp_timer.h"
+#include "executor_health.h"
 #include "fake_httpd.h"
 #include "http_health.h"
 #include "macro_executor.h"
@@ -428,6 +429,7 @@ static void reset_fakes(void) {
     g_free_heap_bytes = 200000U;
     g_minimum_free_heap_bytes = 180000U;
     g_largest_free_block_bytes = 120000U;
+    executor_health_reset();
     http_health_reset();
 
     server_configuration = (web_server_config_t){0};
@@ -938,6 +940,35 @@ static void test_diagnostics_get_valid(void) {
     cJSON_Delete(root);
 }
 
+static void test_diagnostics_release_fault_degrades_executor_subsystem(void) {
+    reset_fakes();
+    executor_health_record_cleanup(APP_ERROR_USB_NOT_READY, true);
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    bind_bodyless(&request, &fake, "/api/v1/diagnostics", HTTP_GET);
+
+    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+    TEST_CHECK_EQ_STRING("200 OK", fake.response_status);
+    cJSON *root = parse_response(&fake);
+    const cJSON *subsystems = cJSON_GetObjectItemCaseSensitive(root, "subsystems");
+    TEST_CHECK_EQ_INT(8, cJSON_GetArraySize(subsystems));
+
+    const cJSON *executor_entry = NULL;
+    cJSON *entry = NULL;
+    cJSON_ArrayForEach(entry, subsystems) {
+        const cJSON *name = cJSON_GetObjectItemCaseSensitive(entry, "name");
+        if (cJSON_IsString(name) && strcmp(name->valuestring, "executor") == 0) {
+            executor_entry = entry;
+        }
+    }
+    TEST_CHECK(executor_entry != NULL);
+    TEST_CHECK_EQ_STRING("failed",
+                         cJSON_GetObjectItemCaseSensitive(executor_entry, "state")->valuestring);
+    cJSON_Delete(root);
+}
+
 static void test_diagnostics_async_failure_degrades_existing_http_subsystem(void) {
     reset_fakes();
     http_health_record_async_failure(HTTP_ASYNC_FAILURE_COMPLETION, APP_ERROR_IO);
@@ -1031,6 +1062,7 @@ int main(void) {
     test_setup_post_conflict_when_provisioned();
 
     test_diagnostics_get_valid();
+    test_diagnostics_release_fault_degrades_executor_subsystem();
     test_diagnostics_async_failure_degrades_existing_http_subsystem();
     test_diagnostics_get_unauthorized_without_cookie();
     test_diagnostics_get_unauthorized_expired_session();

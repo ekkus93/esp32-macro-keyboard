@@ -242,6 +242,23 @@ static void test_get_unavailable_backend(void) {
     TEST_CHECK_EQ_INT(WEB_SEND_GET_INTERNAL, web_send_get_handle(&ops, 0U).result);
 }
 
+static void test_get_unavailable_release_fault_remains_visible(void) {
+    fake_send_backend_t fake = {0};
+    fake.status_to_return = (macro_execution_status_t){
+        .state = EXECUTION_FAILED,
+        .available = false,
+        .error = APP_ERROR_IO,
+        .release_error = APP_ERROR_USB_NOT_READY,
+    };
+    const web_send_ops_t ops = fake_ops(&fake);
+    const web_send_get_outcome_t outcome = web_send_get_handle(&ops, 0U);
+    TEST_CHECK_EQ_INT(WEB_SEND_GET_OK, outcome.result);
+    TEST_CHECK_EQ_STRING("failed", outcome.status.state);
+    TEST_CHECK_EQ_STRING(app_error_code_string(APP_ERROR_IO), outcome.status.error);
+    TEST_CHECK_EQ_STRING(app_error_code_string(APP_ERROR_USB_NOT_READY),
+                         outcome.status.release_error);
+}
+
 static void test_cancel_never_sent(void) {
     fake_send_backend_t fake = {0};
     fake.status_to_return = (macro_execution_status_t){.state = EXECUTION_IDLE};
@@ -332,6 +349,7 @@ int main(void) {
     test_get_running_reports_cached_duration();
     test_get_reports_terminal_errors();
     test_get_unavailable_backend();
+    test_get_unavailable_release_fault_remains_visible();
     test_cancel_never_sent();
     test_cancel_accepted_and_idempotent();
     test_cancel_internal_error();

@@ -477,6 +477,36 @@ static void test_send_get_unauthorized_expired_session(void) {
     TEST_CHECK_EQ_STRING("401 Unauthorized", fake.response_status);
 }
 
+static void test_send_get_release_fault_visible_when_executor_unavailable(void) {
+    reset_fakes();
+    app_uuid_t id = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_generate(&id));
+    g_execution_status = (macro_execution_status_t){
+        .state = EXECUTION_FAILED,
+        .available = false,
+        .execution_id = id,
+        .action_index = 1U,
+        .action_count = 1U,
+        .error = APP_ERROR_IO,
+        .release_error = APP_ERROR_USB_NOT_READY,
+    };
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    fake_httpd_bind(&request, &fake, "/api/v1/send", 0U);
+
+    TEST_CHECK_EQ_INT(ESP_OK, send_get_handler(&request));
+    TEST_CHECK_EQ_STRING("200 OK", fake.response_status);
+    cJSON *root = parse_response(&fake);
+    TEST_CHECK_EQ_STRING("failed", cJSON_GetObjectItemCaseSensitive(root, "state")->valuestring);
+    TEST_CHECK_EQ_STRING(app_error_code_string(APP_ERROR_IO),
+                         cJSON_GetObjectItemCaseSensitive(root, "error")->valuestring);
+    TEST_CHECK_EQ_STRING(app_error_code_string(APP_ERROR_USB_NOT_READY),
+                         cJSON_GetObjectItemCaseSensitive(root, "releaseError")->valuestring);
+    cJSON_Delete(root);
+}
+
 static void test_send_get_never_sent(void) {
     reset_fakes();
     g_execution_status = (macro_execution_status_t){.state = EXECUTION_IDLE, .available = true};
@@ -554,6 +584,7 @@ int main(void) {
     test_send_get_valid_matches_example();
     test_send_get_unauthorized_without_cookie();
     test_send_get_unauthorized_expired_session();
+    test_send_get_release_fault_visible_when_executor_unavailable();
     test_send_get_never_sent();
 
     test_send_cancel_valid();
