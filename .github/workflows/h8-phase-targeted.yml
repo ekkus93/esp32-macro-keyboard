@@ -1,0 +1,273 @@
+name: H8 Phase Targeted
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/h8-phase-targeted.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install dependencies
+        run: npm --prefix webapp ci --ignore-scripts --no-audit --no-fund
+
+      - name: Apply H8 snapshot-selection correction and regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          snapshots = Path("webapp/src/features/snapshots/v2/SnapshotsPage.tsx")
+          text = snapshots.read_text()
+          old = '''  /** The currently resolved/open package (device-wide `lastSelectedPackageId`). */
+            selectedPackageId: string;
+          '''
+          if old not in text:
+              raise SystemExit("SnapshotsPage selectedPackageId prop anchor missing")
+          text = text.replace(old, "", 1)
+          old = '''  store,
+            selectedPackageId,
+            persistedPackageId,
+          '''
+          new = '''  store,
+            persistedPackageId,
+          '''
+          if old not in text:
+              raise SystemExit("SnapshotsPage destructuring anchor missing")
+          text = text.replace(old, new, 1)
+          old = "const resolution = resolveSelectedPackage(repository, selectedPackageId);"
+          new = "const resolution = resolveSelectedPackage(repository, persistedPackageId);"
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one transient-selection resolution, found {text.count(old)}")
+          text = text.replace(old, new, 1)
+          snapshots.write_text(text)
+
+          app = Path("webapp/src/AppV2.tsx")
+          text = app.read_text()
+          old = '''            saveError={saveError}
+            saving={saving}
+            selectedPackageId={packageId}
+            store={store}
+          />
+          '''
+          new = '''            saveError={saveError}
+            saving={saving}
+            store={store}
+          />
+          '''
+          if text.count(old) != 1:
+              raise SystemExit("AppV2 SnapshotsPage prop anchor missing or ambiguous")
+          app.write_text(text.replace(old, new, 1))
+
+          tests = Path("webapp/tests/v2-snapshots-page.test.tsx")
+          text = tests.read_text()
+          text = text.replace("  selectedPackageId?: string;\n", "", 1)
+          old = '''  const selectedPackageId = overrides.selectedPackageId ?? packageId;
+            const persistedPackageId =
+              overrides.persistedPackageId === undefined
+                ? selectedPackageId
+                : overrides.persistedPackageId;
+          '''
+          new = '''  const persistedPackageId =
+              overrides.persistedPackageId === undefined
+                ? packageId
+                : overrides.persistedPackageId;
+          '''
+          if old not in text:
+              raise SystemExit("snapshot test helper selection anchor missing")
+          text = text.replace(old, new, 1)
+          if text.count("      selectedPackageId={selectedPackageId}\n") != 1:
+              raise SystemExit("snapshot test JSX selected prop anchor missing")
+          text = text.replace("      selectedPackageId={selectedPackageId}\n", "", 1)
+          # Direct render used by the focus-trap test.
+          if text.count("        selectedPackageId={packageId}\n") != 1:
+              raise SystemExit("snapshot direct JSX selected prop anchor missing")
+          text = text.replace("        selectedPackageId={packageId}\n", "", 1)
+          # Existing cases that meant "no durable selection resolves" must now
+          # state that fact explicitly through the durable preference.
+          text = text.replace(
+              '      selectedPackageId: "does-not-exist",\n',
+              '      persistedPackageId: "does-not-exist",\n',
+          )
+          # Redundant old local-selection fixtures: durable preference is already explicit.
+          text = text.replace("      selectedPackageId: packageId,\n", "")
+
+          regression = r'''
+
+          describe("SnapshotsPage — H8 durable package-selection resolution", () => {
+            test("snapshot load resolves from the persisted device preference rather than the previous local package", async () => {
+              const loaded = twoPackageRepository();
+              const loadSnapshotIntoWorkingCopy = vi
+                .fn<
+                  (
+                    id: string,
+                    store: RepositoryWorkingCopyStore,
+                  ) => Promise<LoadSnapshotResult>
+                >()
+                .mockImplementation((_id, store) => {
+                  store.replaceWorkingCopy(loaded);
+                  return Promise.resolve({
+                    ok: true,
+                    repository: loaded,
+                    created: false,
+                  });
+                });
+              const persistSelectedPackageId = vi.fn().mockResolvedValue(null);
+              const {
+                onOpenMacros,
+                onSelectionChange,
+                onSelectionPersistenceFailure,
+                onSelectionPersistenceSuccess,
+                store,
+                unmount,
+              } = await renderPage({
+                deps: { loadSnapshotIntoWorkingCopy, persistSelectedPackageId },
+                persistedPackageId: otherPackageId,
+              });
+
+              await waitUntil(
+                () => document.querySelector('[aria-label="Load snapshot 1"]') !== null,
+                "snapshot row to render",
+              );
+              await click(
+                requiredElement('[aria-label="Load snapshot 1"]', HTMLButtonElement),
+              );
+              await waitUntil(
+                () => onOpenMacros.mock.calls.length > 0,
+                "open macros after durable selection resolution",
+              );
+
+              expect(onSelectionChange).toHaveBeenCalledWith(otherPackageId);
+              expect(persistSelectedPackageId).not.toHaveBeenCalled();
+              expect(onSelectionPersistenceSuccess).toHaveBeenCalledWith(otherPackageId);
+              expect(onSelectionPersistenceFailure).not.toHaveBeenCalled();
+              expect(store.getIsDirty()).toBe(false);
+              await unmount();
+            });
+
+            test("repository import also resolves from the persisted device preference", async () => {
+              const imported = twoPackageRepository();
+              const readFileBytes = vi.fn().mockResolvedValue(new Uint8Array([1]));
+              const importRepository = vi.fn().mockResolvedValue({
+                ok: true,
+                repository: imported,
+                packageCount: 2,
+                macroCount: 0,
+              } satisfies ImportResult);
+              const persistSelectedPackageId = vi.fn().mockResolvedValue(null);
+              const {
+                onOpenMacros,
+                onSelectionChange,
+                onSelectionPersistenceFailure,
+                onSelectionPersistenceSuccess,
+                unmount,
+              } = await renderPage({
+                deps: {
+                  importRepository,
+                  persistSelectedPackageId,
+                  readFileBytes,
+                },
+                persistedPackageId: otherPackageId,
+              });
+
+              const input = requiredElement('input[type="file"]', HTMLInputElement);
+              Object.defineProperty(input, "files", {
+                configurable: true,
+                value: [
+                  new File([new Uint8Array([1, 2, 3])], "repository.json.gz", {
+                    type: "application/gzip",
+                  }),
+                ],
+              });
+              await act(async () => {
+                input.dispatchEvent(new Event("change", { bubbles: true }));
+                await Promise.resolve();
+              });
+              await waitUntil(
+                () => document.body.textContent?.includes("2 packages") === true,
+                "import confirmation",
+              );
+              await click(buttonWithText("Replace working copy with this import"));
+              await waitUntil(
+                () => onOpenMacros.mock.calls.length > 0,
+                "open macros after imported durable selection resolution",
+              );
+
+              expect(onSelectionChange).toHaveBeenCalledWith(otherPackageId);
+              expect(persistSelectedPackageId).not.toHaveBeenCalled();
+              expect(onSelectionPersistenceSuccess).toHaveBeenCalledWith(otherPackageId);
+              expect(onSelectionPersistenceFailure).not.toHaveBeenCalled();
+              await unmount();
+            });
+          });
+          '''
+          if "SnapshotsPage — H8 durable package-selection resolution" in text:
+              raise SystemExit("H8 snapshot regressions already present")
+          tests.write_text(text.rstrip() + regression + "\n")
+
+          app_tests = Path("webapp/tests/v2-app-v2.test.tsx")
+          text = app_tests.read_text()
+          old = '''    const view = await signIn();
+            expect(bodyIncludes("Macros")).toBe(true);
+          '''
+          new = '''    const view = await signIn();
+            expect(bodyIncludes("Macros")).toBe(true);
+            expect(bodyIncludes("This selection may not survive a reload.")).toBe(false);
+          '''
+          if text.count(old) != 1:
+              raise SystemExit("AppV2 successful selection test anchor missing or ambiguous")
+          app_tests.write_text(text.replace(old, new, 1))
+          PY
+
+          (cd webapp && npx prettier --write \
+            src/AppV2.tsx \
+            src/features/snapshots/v2/SnapshotsPage.tsx \
+            tests/v2-app-v2.test.tsx \
+            tests/v2-snapshots-page.test.tsx)
+          git diff --check
+
+      - name: Run H8 frontend gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix webapp run format:check
+          npm --prefix webapp run typecheck
+          npm --prefix webapp run lint
+          npm --prefix webapp run stylelint
+          npm --prefix webapp run test
+          npm --prefix webapp run test:coverage
+          npm --prefix webapp run build
+          git diff --check
+
+      - name: Commit H8 correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            webapp/src/AppV2.tsx \
+            webapp/src/features/snapshots/v2/SnapshotsPage.tsx \
+            webapp/tests/v2-app-v2.test.tsx \
+            webapp/tests/v2-snapshots-page.test.tsx
+          git diff --cached --check
+          git commit -m "fix(webapp): preserve durable package selection on snapshot replace"
+          git push origin HEAD:master
