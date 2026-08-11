@@ -32,6 +32,23 @@ jobs:
           tar -tzf /tmp/h8-files.tgz
           tar -xzf /tmp/h8-files.tgz
           sed -i '${/^$/d;}' webapp/src/v2/packageSelection.ts
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("webapp/src/AppV2.tsx")
+          text = path.read_text()
+          old = '''  const [persistedPackageId, setPersistedPackageId] = useState<string | null>(
+            ready.selectionPersistenceFailure?.previousPackageId ?? ready.packageId,
+          );'''
+          new = '''  const [persistedPackageId, setPersistedPackageId] = useState<string | null>(
+            ready.selectionPersistenceFailure !== undefined
+              ? ready.selectionPersistenceFailure.previousPackageId
+              : ready.packageId,
+          );'''
+          if text.count(old) != 1:
+              raise SystemExit("expected exactly one persistedPackageId initializer")
+          path.write_text(text.replace(old, new, 1))
+          PY
           git diff --check
 
       - name: Set up pinned Node
