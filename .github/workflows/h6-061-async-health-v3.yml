@@ -1,0 +1,897 @@
+name: H6-061 Async HTTP Health Validator v3
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/h6-061-async-health-v3.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply-validate-and-record:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out staging commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install host-test dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            clang-format \
+            cmake \
+            libcjson-dev
+
+      - name: Apply H6-061 async health hardening
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from textwrap import dedent
+
+          def replace_exact(path: str, old: str, new: str, expected: int = 1) -> None:
+              file_path = Path(path)
+              text = file_path.read_text()
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f"{path}: expected {expected} matches, found {count}")
+              file_path.write_text(text.replace(old, new))
+
+          Path("firmware/components/web_server/include/http_health.h").write_text(dedent(r'''
+              #ifndef HTTP_HEALTH_H
+              #define HTTP_HEALTH_H
+
+              #include <stdbool.h>
+
+              #include "app_error.h"
+              #include "subsystem_health.h"
+
+              /* Sanitized async-HTTP failure stages. These are internal health metadata;
+               * the frozen v2 diagnostics contract continues to expose only the existing
+               * "http" subsystem state. */
+              typedef enum {
+                  HTTP_ASYNC_FAILURE_NONE = 0,
+                  HTTP_ASYNC_FAILURE_WORKER_START,
+                  HTTP_ASYNC_FAILURE_WORKER_RUN,
+                  HTTP_ASYNC_FAILURE_WORKER_STOP,
+                  HTTP_ASYNC_FAILURE_QUEUE,
+                  HTTP_ASYNC_FAILURE_COMPLETION,
+              } http_async_failure_stage_t;
+
+              typedef struct {
+                  subsystem_health_state_t state;
+                  app_error_code_t primary_error;
+                  app_error_code_t cleanup_error;
+                  bool cleanup_incomplete;
+                  http_async_failure_stage_t async_failure_stage;
+                  app_error_code_t async_error;
+              } http_health_t;
+
+              void http_health_reset(void);
+              void http_health_record_primary(app_error_code_t error);
+              void http_health_record_cleanup(app_error_code_t cleanup_error, bool cleanup_incomplete);
+              void http_health_record_async_failure(http_async_failure_stage_t stage,
+                                                    app_error_code_t error);
+              http_health_t http_health_snapshot(void);
+
+              #endif
+          ''').lstrip())
+
+          Path("firmware/components/web_server/http_health.c").write_text(dedent(r'''
+              #include "http_health.h"
+
+              #include <stdlib.h>
+
+              #include "app_error.h"
+              #include "subsystem_health.h"
+
+              #ifdef ESP_PLATFORM
+              #include "freertos/FreeRTOS.h"
+              #else
+              #include <pthread.h>
+              #endif
+
+              typedef struct {
+                  app_error_code_t primary_error;
+                  app_error_code_t cleanup_error;
+                  bool cleanup_incomplete;
+                  http_async_failure_stage_t async_failure_stage;
+                  app_error_code_t async_error;
+              } http_health_state_t;
+
+              static http_health_state_t g_state;
+
+              /* Production uses an ESP-IDF portMUX. Host builds use a real pthread
+               * mutex rather than a fake no-op lock, so stress tests exercise the same
+               * exclusion invariant. This is compile-time test portability, not a
+               * runtime fallback. */
+              #ifdef ESP_PLATFORM
+              static portMUX_TYPE g_state_lock = portMUX_INITIALIZER_UNLOCKED;
+
+              static void health_lock(void) {
+                  portENTER_CRITICAL(&g_state_lock);
+              }
+
+              static void health_unlock(void) {
+                  portEXIT_CRITICAL(&g_state_lock);
+              }
+              #else
+              static pthread_mutex_t g_state_lock = PTHREAD_MUTEX_INITIALIZER;
+
+              static void health_lock(void) {
+                  if (pthread_mutex_lock(&g_state_lock) != 0) {
+                      abort();
+                  }
+              }
+
+              static void health_unlock(void) {
+                  if (pthread_mutex_unlock(&g_state_lock) != 0) {
+                      abort();
+                  }
+              }
+              #endif
+
+              static bool async_failure_stage_valid(http_async_failure_stage_t stage) {
+                  return stage >= HTTP_ASYNC_FAILURE_WORKER_START &&
+                         stage <= HTTP_ASYNC_FAILURE_COMPLETION;
+              }
+
+              void http_health_reset(void) {
+                  health_lock();
+                  g_state.primary_error = APP_ERROR_NONE;
+                  g_state.cleanup_error = APP_ERROR_NONE;
+                  g_state.cleanup_incomplete = false;
+                  g_state.async_failure_stage = HTTP_ASYNC_FAILURE_NONE;
+                  g_state.async_error = APP_ERROR_NONE;
+                  health_unlock();
+              }
+
+              void http_health_record_primary(app_error_code_t error) {
+                  health_lock();
+                  if (error != APP_ERROR_NONE && g_state.primary_error == APP_ERROR_NONE) {
+                      g_state.primary_error = error;
+                  }
+                  health_unlock();
+              }
+
+              void http_health_record_cleanup(app_error_code_t cleanup_error, bool cleanup_incomplete) {
+                  health_lock();
+                  if (cleanup_error != APP_ERROR_NONE && g_state.cleanup_error == APP_ERROR_NONE) {
+                      g_state.cleanup_error = cleanup_error;
+                  }
+                  g_state.cleanup_incomplete = g_state.cleanup_incomplete || cleanup_incomplete;
+                  health_unlock();
+              }
+
+              void http_health_record_async_failure(http_async_failure_stage_t stage,
+                                                    app_error_code_t error) {
+                  if (!async_failure_stage_valid(stage) || error == APP_ERROR_NONE) {
+                      return;
+                  }
+                  health_lock();
+                  /* First async failure wins. Completion/shutdown fallout cannot erase
+                   * the earliest actionable async cause. */
+                  if (g_state.async_failure_stage == HTTP_ASYNC_FAILURE_NONE) {
+                      g_state.async_failure_stage = stage;
+                      g_state.async_error = error;
+                  }
+                  health_unlock();
+              }
+
+              http_health_t http_health_snapshot(void) {
+                  health_lock();
+                  const http_health_state_t snapshot = g_state;
+                  health_unlock();
+
+                  subsystem_health_state_t state = SUBSYSTEM_HEALTH_HEALTHY;
+                  if (snapshot.cleanup_incomplete || snapshot.cleanup_error != APP_ERROR_NONE ||
+                      snapshot.primary_error != APP_ERROR_NONE ||
+                      snapshot.async_failure_stage != HTTP_ASYNC_FAILURE_NONE ||
+                      snapshot.async_error != APP_ERROR_NONE) {
+                      state = SUBSYSTEM_HEALTH_FAILED;
+                  }
+                  return (http_health_t){
+                      .state = state,
+                      .primary_error = snapshot.primary_error,
+                      .cleanup_error = snapshot.cleanup_error,
+                      .cleanup_incomplete = snapshot.cleanup_incomplete,
+                      .async_failure_stage = snapshot.async_failure_stage,
+                      .async_error = snapshot.async_error,
+                  };
+              }
+          ''').lstrip())
+
+          Path("firmware/components/web_server/web_server_async.c").write_text(dedent(r'''
+              #include "web_server_internal.h"
+
+              #include <stdbool.h>
+              #include <stddef.h>
+              #include <stdlib.h>
+
+              #include "app_error.h"
+              #include "esp_http_server.h"
+              #include "esp_system.h"
+              #include "freertos/FreeRTOS.h"
+              #include "freertos/queue.h"
+              #include "freertos/semphr.h"
+              #include "freertos/task.h"
+              #include "http_health.h"
+              #include "macro_limits.h"
+              #include "web_api_core.h"
+              #include "web_http_status.h"
+
+              /* Physical confirmation blocks the request handler for up to
+               * APP_PHYSICAL_CONFIRM_TIMEOUT_MS while device_controls waits for the button.
+               * esp_http_server runs one task with select() over every socket - there is no
+               * worker pool - so performing that wait on the httpd task freezes every other
+               * client for the entire window. Measured on hardware before this change: an
+               * unrelated GET /api/v1/status took 18.0 s while a restore sat in the wait,
+               * against a 25-43 ms idle baseline.
+               *
+               * Confirmation-gated requests are therefore moved onto this worker via
+               * httpd_req_async_handler_begin(), which releases the httpd task immediately. */
+
+              /* The request and the body that arrived with it. esp_http_server gives an async
+               * handler the request but not its unread payload, so the body has to be read on
+               * the httpd task and carried across. Without this, restore and import reached
+               * their handlers with body_length 0 and answered 422 having done nothing. */
+              typedef struct {
+                  httpd_req_t *request;
+                  char *body;
+                  size_t body_length;
+              } async_item_t;
+
+              #define WEB_ASYNC_QUEUE_DEPTH 1U
+              #define WEB_ASYNC_TASK_PRIORITY 5
+
+              /* Same budget as the httpd task, because the deepest call chains in the
+               * codebase now run here instead of there: restore_locked (~20 KB) and
+               * import_locked (~19 KB) are both reached only through confirmation-gated
+               * routes. scripts/check-stack-usage.sh measures those frames against this. */
+              #define WEB_ASYNC_TASK_STACK_BYTES 24576U
+
+              /* Stopping has to outlast a confirmation wait already in progress, because the
+               * worker owns an httpd request that must be completed before httpd_stop(). */
+              #define WEB_ASYNC_STOP_TIMEOUT_MS (APP_PHYSICAL_CONFIRM_TIMEOUT_MS + 5000U)
+
+              static TaskHandle_t async_task_handle;
+              static QueueHandle_t async_queue;
+              static SemaphoreHandle_t async_stopped;
+
+              /* Guards in_flight. A single button press cannot disambiguate two pending
+               * confirmations, so at most one such request is accepted at a time. */
+              static portMUX_TYPE async_lock = portMUX_INITIALIZER_UNLOCKED;
+              static bool async_in_flight;
+
+              static bool claim_in_flight(void) {
+                  bool claimed = false;
+                  portENTER_CRITICAL(&async_lock);
+                  if (!async_in_flight) {
+                      async_in_flight = true;
+                      claimed = true;
+                  }
+                  portEXIT_CRITICAL(&async_lock);
+                  return claimed;
+              }
+
+              static void release_in_flight(void) {
+                  portENTER_CRITICAL(&async_lock);
+                  async_in_flight = false;
+                  portEXIT_CRITICAL(&async_lock);
+              }
+
+              static void async_worker(void *context) {
+                  (void)context;
+                  while (true) {
+                      async_item_t *item = NULL;
+                      if (xQueueReceive(async_queue, (void *)&item, portMAX_DELAY) != pdTRUE) {
+                          http_health_record_async_failure(HTTP_ASYNC_FAILURE_QUEUE, APP_ERROR_INTERNAL);
+                          continue;
+                      }
+                      if (item == NULL) {
+                          break; /* stop sentinel */
+                      }
+                      httpd_req_t *request = item->request;
+
+                      bool should_restart = false;
+                      /* Ownership of item->body passes to the call, which frees it. */
+                      const esp_err_t send_result = web_api_handle_call_with_body(
+                          request, item->body, item->body_length, &should_restart);
+                      if (send_result != ESP_OK) {
+                          http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_RUN, APP_ERROR_IO);
+                      }
+                      free(item);
+
+                      /* Always complete, on every path. An async request left incomplete
+                       * never releases its socket, and once those run out the server stops
+                       * accepting connections entirely. */
+                      const esp_err_t completion_result = httpd_req_async_handler_complete(request);
+                      if (completion_result != ESP_OK) {
+                          http_health_record_async_failure(HTTP_ASYNC_FAILURE_COMPLETION, APP_ERROR_IO);
+                      }
+                      release_in_flight();
+
+                      if (should_restart) {
+                          esp_restart();
+                      }
+                  }
+                  if (xSemaphoreGive(async_stopped) != pdTRUE) {
+                      http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_STOP,
+                                                       APP_ERROR_INTERNAL);
+                  }
+                  vTaskDelete(NULL);
+              }
+
+              app_error_code_t web_server_async_start(void) {
+                  if (async_task_handle != NULL || async_queue != NULL || async_stopped != NULL) {
+                      http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_START,
+                                                       APP_ERROR_CONFLICT);
+                      return APP_ERROR_CONFLICT;
+                  }
+                  async_queue = xQueueCreate(WEB_ASYNC_QUEUE_DEPTH, sizeof(async_item_t *));
+                  if (async_queue == NULL) {
+                      http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_START,
+                                                       APP_ERROR_INTERNAL);
+                      return APP_ERROR_INTERNAL;
+                  }
+                  async_stopped = xSemaphoreCreateBinary();
+                  if (async_stopped == NULL) {
+                      vQueueDelete(async_queue);
+                      async_queue = NULL;
+                      http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_START,
+                                                       APP_ERROR_INTERNAL);
+                      return APP_ERROR_INTERNAL;
+                  }
+                  async_in_flight = false;
+                  if (xTaskCreate(async_worker, "web_async", WEB_ASYNC_TASK_STACK_BYTES, NULL,
+                                  WEB_ASYNC_TASK_PRIORITY, &async_task_handle) != pdPASS) {
+                      vSemaphoreDelete(async_stopped);
+                      async_stopped = NULL;
+                      vQueueDelete(async_queue);
+                      async_queue = NULL;
+                      async_task_handle = NULL;
+                      http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_START,
+                                                       APP_ERROR_INTERNAL);
+                      return APP_ERROR_INTERNAL;
+                  }
+                  return APP_ERROR_NONE;
+              }
+
+              app_error_code_t web_server_async_stop(void) {
+                  if (async_task_handle == NULL && async_queue == NULL && async_stopped == NULL) {
+                      return APP_ERROR_NONE;
+                  }
+                  if (async_task_handle == NULL || async_queue == NULL || async_stopped == NULL) {
+                      http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_STOP,
+                                                       APP_ERROR_INTERNAL);
+                      return APP_ERROR_INTERNAL;
+                  }
+                  async_item_t *sentinel = NULL;
+                  /* Blocks until the queue drains, so a request already waiting for the
+                   * button is finished and completed rather than abandoned. */
+                  if (xQueueSend(async_queue, (const void *)&sentinel,
+                                 pdMS_TO_TICKS(WEB_ASYNC_STOP_TIMEOUT_MS)) != pdTRUE) {
+                      http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_STOP,
+                                                       APP_ERROR_TIMEOUT);
+                      return APP_ERROR_TIMEOUT;
+                  }
+                  if (xSemaphoreTake(async_stopped, pdMS_TO_TICKS(WEB_ASYNC_STOP_TIMEOUT_MS)) !=
+                      pdTRUE) {
+                      http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_STOP,
+                                                       APP_ERROR_TIMEOUT);
+                      return APP_ERROR_TIMEOUT;
+                  }
+                  vSemaphoreDelete(async_stopped);
+                  async_stopped = NULL;
+                  vQueueDelete(async_queue);
+                  async_queue = NULL;
+                  async_task_handle = NULL;
+                  async_in_flight = false;
+                  return APP_ERROR_NONE;
+              }
+
+              esp_err_t web_server_async_dispatch(httpd_req_t *request) {
+                  if (request == NULL) {
+                      return ESP_FAIL;
+                  }
+                  if (async_queue == NULL || async_task_handle == NULL) {
+                      /* Confirmation-gated work must never fall back to the httpd task:
+                       * waiting there blocks the single server task and turns an async
+                       * subsystem fault into whole-server unavailability. Fail closed and
+                       * leave the requested operation untouched. */
+                      http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_START,
+                                                       APP_ERROR_INTERNAL);
+                      return web_api_send_status_error(request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
+                                                       APP_ERROR_INTERNAL,
+                                                       "confirmation service unavailable");
+                  }
+                  if (!claim_in_flight()) {
+                      return web_api_send_status_error(request, WEB_HTTP_STATUS_CONFLICT,
+                                                       APP_ERROR_CONFLICT,
+                                                       "another request is already awaiting confirmation");
+                  }
+                  /* Read the body here, on the httpd task, while the payload is still
+                   * readable. After httpd_req_async_handler_begin() it is gone: the async
+                   * handler receives the request, not its unread content. */
+                  char *body = NULL;
+                  size_t body_length = 0U;
+                  const app_error_code_t body_result =
+                      web_api_read_route_body(request, &body, &body_length);
+                  if (body_result != APP_ERROR_NONE && body_result != APP_ERROR_NOT_FOUND) {
+                      release_in_flight();
+                      return web_api_send_status_error(request,
+                                                       web_api_http_status_for_error(body_result),
+                                                       body_result, "could not read request body");
+                  }
+
+                  async_item_t *item = calloc(1U, sizeof(*item));
+                  if (item == NULL) {
+                      free(body);
+                      release_in_flight();
+                      http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_RUN,
+                                                       APP_ERROR_INTERNAL);
+                      return web_api_send_status_error(request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
+                                                       APP_ERROR_INTERNAL,
+                                                       "could not start confirmation");
+                  }
+                  item->body = body;
+                  item->body_length = body_length;
+
+                  httpd_req_t *async_request = NULL;
+                  if (httpd_req_async_handler_begin(request, &async_request) != ESP_OK ||
+                      async_request == NULL) {
+                      free(item->body);
+                      free(item);
+                      release_in_flight();
+                      http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_RUN,
+                                                       APP_ERROR_INTERNAL);
+                      return web_api_send_status_error(request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
+                                                       APP_ERROR_INTERNAL,
+                                                       "could not start confirmation");
+                  }
+                  item->request = async_request;
+                  if (xQueueSend(async_queue, (const void *)&item, 0) != pdTRUE) {
+                      /* Unreachable while in_flight gates entry, but the request must still
+                       * be answered and completed or its socket leaks permanently. */
+                      http_health_record_async_failure(HTTP_ASYNC_FAILURE_QUEUE, APP_ERROR_INTERNAL);
+                      const esp_err_t result =
+                          web_api_send_status_error(async_request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
+                                                    APP_ERROR_INTERNAL,
+                                                    "could not queue confirmation");
+                      if (httpd_req_async_handler_complete(async_request) != ESP_OK) {
+                          http_health_record_async_failure(HTTP_ASYNC_FAILURE_COMPLETION,
+                                                           APP_ERROR_IO);
+                      }
+                      free(item->body);
+                      free(item);
+                      release_in_flight();
+                      return result;
+                  }
+                  return ESP_OK;
+              }
+          ''').lstrip())
+
+          Path("tests/host/test_http_health.c").write_text(dedent(r'''
+              #include <pthread.h>
+              #include <stdatomic.h>
+              #include <stdbool.h>
+              #include <stdio.h>
+              #include <stdlib.h>
+
+              #include "app_error.h"
+              #include "http_health.h"
+              #include "test_assert.h"
+
+              #define STRESS_ITERATIONS 50000U
+              #define STRESS_READER_COUNT 4U
+
+              typedef struct {
+                  atomic_bool start;
+                  atomic_bool failed;
+              } health_stress_context_t;
+
+              static void await_stress_start(const health_stress_context_t *context) {
+                  while (!atomic_load_explicit(&context->start, memory_order_acquire)) {
+                  }
+              }
+
+              static void *health_writer_thread(void *argument) {
+                  health_stress_context_t *context = argument;
+                  await_stress_start(context);
+                  for (size_t index = 0U; index < (size_t)STRESS_ITERATIONS; ++index) {
+                      http_health_reset();
+                      http_health_record_async_failure(HTTP_ASYNC_FAILURE_QUEUE, APP_ERROR_INTERNAL);
+                  }
+                  return NULL;
+              }
+
+              static void *health_reader_thread(void *argument) {
+                  health_stress_context_t *context = argument;
+                  await_stress_start(context);
+                  for (size_t index = 0U; index < (size_t)STRESS_ITERATIONS; ++index) {
+                      const http_health_t health = http_health_snapshot();
+                      const bool reset_state =
+                          health.state == SUBSYSTEM_HEALTH_HEALTHY &&
+                          health.primary_error == APP_ERROR_NONE &&
+                          health.cleanup_error == APP_ERROR_NONE && !health.cleanup_incomplete &&
+                          health.async_failure_stage == HTTP_ASYNC_FAILURE_NONE &&
+                          health.async_error == APP_ERROR_NONE;
+                      const bool async_failure_state =
+                          health.state == SUBSYSTEM_HEALTH_FAILED &&
+                          health.primary_error == APP_ERROR_NONE &&
+                          health.cleanup_error == APP_ERROR_NONE && !health.cleanup_incomplete &&
+                          health.async_failure_stage == HTTP_ASYNC_FAILURE_QUEUE &&
+                          health.async_error == APP_ERROR_INTERNAL;
+                      if (!reset_state && !async_failure_state) {
+                          atomic_store_explicit(&context->failed, true, memory_order_release);
+                          break;
+                      }
+                  }
+                  return NULL;
+              }
+
+              static void test_default_is_healthy(void) {
+                  http_health_reset();
+                  const http_health_t health = http_health_snapshot();
+                  TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_HEALTHY, health.state);
+                  TEST_CHECK_APP_ERROR(APP_ERROR_NONE, health.primary_error);
+                  TEST_CHECK_APP_ERROR(APP_ERROR_NONE, health.cleanup_error);
+                  TEST_CHECK(!health.cleanup_incomplete);
+                  TEST_CHECK_EQ_INT(HTTP_ASYNC_FAILURE_NONE, health.async_failure_stage);
+                  TEST_CHECK_APP_ERROR(APP_ERROR_NONE, health.async_error);
+              }
+
+              static void test_primary_failure_reports_failed(void) {
+                  http_health_reset();
+                  http_health_record_primary(APP_ERROR_INTERNAL);
+                  const http_health_t health = http_health_snapshot();
+                  TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, health.state);
+                  TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, health.primary_error);
+              }
+
+              static void test_primary_failure_first_wins(void) {
+                  http_health_reset();
+                  http_health_record_primary(APP_ERROR_INTERNAL);
+                  http_health_record_primary(APP_ERROR_CONFLICT);
+                  const http_health_t health = http_health_snapshot();
+                  TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, health.primary_error);
+              }
+
+              static void test_cleanup_incomplete_alone_reports_failed(void) {
+                  http_health_reset();
+                  http_health_record_cleanup(APP_ERROR_NONE, true);
+                  const http_health_t health = http_health_snapshot();
+                  TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, health.state);
+                  TEST_CHECK(health.cleanup_incomplete);
+              }
+
+              static void test_cleanup_none_and_complete_is_noop(void) {
+                  http_health_reset();
+                  http_health_record_cleanup(APP_ERROR_NONE, false);
+                  const http_health_t health = http_health_snapshot();
+                  TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_HEALTHY, health.state);
+              }
+
+              static void test_async_failure_reports_sanitized_stage_and_error(void) {
+                  http_health_reset();
+                  http_health_record_async_failure(HTTP_ASYNC_FAILURE_COMPLETION, APP_ERROR_IO);
+                  const http_health_t health = http_health_snapshot();
+                  TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_FAILED, health.state);
+                  TEST_CHECK_EQ_INT(HTTP_ASYNC_FAILURE_COMPLETION, health.async_failure_stage);
+                  TEST_CHECK_APP_ERROR(APP_ERROR_IO, health.async_error);
+              }
+
+              static void test_async_failure_first_wins(void) {
+                  http_health_reset();
+                  http_health_record_async_failure(HTTP_ASYNC_FAILURE_QUEUE, APP_ERROR_INTERNAL);
+                  http_health_record_async_failure(HTTP_ASYNC_FAILURE_COMPLETION, APP_ERROR_IO);
+                  const http_health_t health = http_health_snapshot();
+                  TEST_CHECK_EQ_INT(HTTP_ASYNC_FAILURE_QUEUE, health.async_failure_stage);
+                  TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, health.async_error);
+              }
+
+              static void test_invalid_async_failure_pair_is_noop(void) {
+                  http_health_reset();
+                  http_health_record_async_failure(HTTP_ASYNC_FAILURE_NONE, APP_ERROR_INTERNAL);
+                  http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_RUN, APP_ERROR_NONE);
+                  const http_health_t health = http_health_snapshot();
+                  TEST_CHECK_EQ_INT(SUBSYSTEM_HEALTH_HEALTHY, health.state);
+                  TEST_CHECK_EQ_INT(HTTP_ASYNC_FAILURE_NONE, health.async_failure_stage);
+                  TEST_CHECK_APP_ERROR(APP_ERROR_NONE, health.async_error);
+              }
+
+              static void test_concurrent_snapshot_never_observes_torn_async_state(void) {
+                  health_stress_context_t context;
+                  atomic_init(&context.start, false);
+                  atomic_init(&context.failed, false);
+                  http_health_reset();
+
+                  pthread_t writer;
+                  pthread_t readers[STRESS_READER_COUNT];
+                  TEST_CHECK_EQ_INT(0, pthread_create(&writer, NULL, health_writer_thread, &context));
+                  for (size_t index = 0U; index < (size_t)STRESS_READER_COUNT; ++index) {
+                      TEST_CHECK_EQ_INT(0,
+                                        pthread_create(&readers[index], NULL, health_reader_thread,
+                                                       &context));
+                  }
+
+                  atomic_store_explicit(&context.start, true, memory_order_release);
+                  TEST_CHECK_EQ_INT(0, pthread_join(writer, NULL));
+                  for (size_t index = 0U; index < (size_t)STRESS_READER_COUNT; ++index) {
+                      TEST_CHECK_EQ_INT(0, pthread_join(readers[index], NULL));
+                  }
+                  TEST_CHECK(!atomic_load_explicit(&context.failed, memory_order_acquire));
+              }
+
+              int main(void) {
+                  test_default_is_healthy();
+                  test_primary_failure_reports_failed();
+                  test_primary_failure_first_wins();
+                  test_cleanup_incomplete_alone_reports_failed();
+                  test_cleanup_none_and_complete_is_noop();
+                  test_async_failure_reports_sanitized_stage_and_error();
+                  test_async_failure_first_wins();
+                  test_invalid_async_failure_pair_is_noop();
+                  test_concurrent_snapshot_never_observes_torn_async_state();
+                  puts("HTTP health tests passed");
+                  return EXIT_SUCCESS;
+              }
+          ''').lstrip())
+
+          async_path = Path("tests/host/test_web_server_async_confirmation.c")
+          async_text = async_path.read_text()
+          include_old = '#include "freertos/task.h"\n#include "test_assert.h"'
+          if async_text.count(include_old) != 1:
+              raise SystemExit("async test: include insertion point changed")
+          async_text = async_text.replace(
+              include_old,
+              '#include "freertos/task.h"\n#include "http_health.h"\n#include "test_assert.h"',
+              1,
+          )
+          canary_marker = "/* ---------------------------------------------------------------------- *\n * Dead-path FreeRTOS/httpd-async canaries."
+          marker_index = async_text.find(canary_marker)
+          if marker_index < 0:
+              raise SystemExit("async test: canary marker missing")
+          fake_health = dedent(r'''
+              static size_t g_async_health_record_calls;
+              static http_async_failure_stage_t g_async_health_stage;
+              static app_error_code_t g_async_health_error;
+
+              void http_health_record_async_failure(http_async_failure_stage_t stage,
+                                                    app_error_code_t error) {
+                  ++g_async_health_record_calls;
+                  if (g_async_health_stage == HTTP_ASYNC_FAILURE_NONE) {
+                      g_async_health_stage = stage;
+                      g_async_health_error = error;
+                  }
+              }
+
+          ''').lstrip()
+          async_text = async_text[:marker_index] + fake_health + async_text[marker_index:]
+          reset_marker = "    g_esp_restart_calls = 0U;\n"
+          if async_text.count(reset_marker) != 1:
+              raise SystemExit("async test: reset marker changed")
+          async_text = async_text.replace(
+              reset_marker,
+              reset_marker
+              + "    g_async_health_record_calls = 0U;\n"
+              + "    g_async_health_stage = HTTP_ASYNC_FAILURE_NONE;\n"
+              + "    g_async_health_error = APP_ERROR_NONE;\n",
+              1,
+          )
+          test_marker = "static void test_restart_worker_unavailable_fails_closed(void) {"
+          test_index = async_text.find(test_marker)
+          if test_index < 0:
+              raise SystemExit("async test: first test marker missing")
+          helper = dedent(r'''
+              static void assert_worker_unavailable_health(void) {
+                  TEST_CHECK_EQ_U64(1U, (uint64_t)g_async_health_record_calls);
+                  TEST_CHECK_EQ_INT(HTTP_ASYNC_FAILURE_WORKER_START, g_async_health_stage);
+                  TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, g_async_health_error);
+              }
+
+          ''').lstrip()
+          async_text = async_text[:test_index] + helper + async_text[test_index:]
+          assertion = "    assert_confirmation_service_unavailable(&fake);\n"
+          if async_text.count(assertion) != 4:
+              raise SystemExit(f"async test: expected 4 503 assertions, found {async_text.count(assertion)}")
+          async_text = async_text.replace(
+              assertion, assertion + "    assert_worker_unavailable_health();\n"
+          )
+          nonconfirm = dedent(r'''
+                  TEST_CHECK_EQ_STRING("200 OK", fake.response_status);
+                  TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
+          ''').strip("\n")
+          if async_text.count(nonconfirm) != 1:
+              raise SystemExit("async test: non-confirmation assertion block changed")
+          async_text = async_text.replace(
+              nonconfirm,
+              dedent(r'''
+                  TEST_CHECK_EQ_STRING("200 OK", fake.response_status);
+                  TEST_CHECK_EQ_U64(0U, (uint64_t)g_async_health_record_calls);
+                  TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
+              ''').strip("\n"),
+              1,
+          )
+          async_path.write_text(async_text)
+
+          admin_path = Path("tests/host/test_web_server_administration_route.c")
+          admin_text = admin_path.read_text()
+          admin_include = '#include "fake_httpd.h"\n'
+          if admin_text.count(admin_include) != 1:
+              raise SystemExit("admin test: fake_httpd include changed")
+          admin_text = admin_text.replace(
+              admin_include, admin_include + '#include "http_health.h"\n', 1
+          )
+          heap_marker = "    g_largest_free_block_bytes = 120000U;\n"
+          if admin_text.count(heap_marker) != 1:
+              raise SystemExit("admin test: heap reset marker changed")
+          admin_text = admin_text.replace(
+              heap_marker, heap_marker + "    http_health_reset();\n", 1
+          )
+          unauthorized_marker = "static void test_diagnostics_get_unauthorized_without_cookie(void) {"
+          unauthorized_index = admin_text.find(unauthorized_marker)
+          if unauthorized_index < 0:
+              raise SystemExit("admin test: diagnostics unauthorized marker missing")
+          diagnostics_test = dedent(r'''
+              static void test_diagnostics_async_failure_degrades_existing_http_subsystem(void) {
+                  reset_fakes();
+                  http_health_record_async_failure(HTTP_ASYNC_FAILURE_COMPLETION, APP_ERROR_IO);
+                  fake_httpd_request_t fake;
+                  httpd_req_t request;
+                  fake_httpd_reset(&fake);
+                  authenticate(&fake);
+                  bind_bodyless(&request, &fake, "/api/v1/diagnostics", HTTP_GET);
+
+                  TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+                  TEST_CHECK_EQ_STRING("200 OK", fake.response_status);
+                  cJSON *root = parse_response(&fake);
+                  const cJSON *subsystems = cJSON_GetObjectItemCaseSensitive(root, "subsystems");
+                  TEST_CHECK_EQ_INT(8, cJSON_GetArraySize(subsystems));
+
+                  const cJSON *http_entry = NULL;
+                  cJSON *entry = NULL;
+                  cJSON_ArrayForEach(entry, subsystems) {
+                      const cJSON *name = cJSON_GetObjectItemCaseSensitive(entry, "name");
+                      if (cJSON_IsString(name) && strcmp(name->valuestring, "http") == 0) {
+                          http_entry = entry;
+                      }
+                  }
+                  TEST_CHECK(http_entry != NULL);
+                  TEST_CHECK_EQ_STRING(
+                      "failed", cJSON_GetObjectItemCaseSensitive(http_entry, "state")->valuestring);
+                  cJSON_Delete(root);
+              }
+
+          ''').lstrip()
+          admin_text = admin_text[:unauthorized_index] + diagnostics_test + admin_text[unauthorized_index:]
+          main_call = "    test_diagnostics_get_valid();\n"
+          if admin_text.count(main_call) != 1:
+              raise SystemExit("admin test: diagnostics main call changed")
+          admin_text = admin_text.replace(
+              main_call,
+              main_call + "    test_diagnostics_async_failure_degrades_existing_http_subsystem();\n",
+              1,
+          )
+          admin_path.write_text(admin_text)
+          PY
+
+          clang-format -i \
+            firmware/components/web_server/include/http_health.h \
+            firmware/components/web_server/http_health.c \
+            firmware/components/web_server/web_server_async.c \
+            tests/host/test_http_health.c \
+            tests/host/test_web_server_async_confirmation.c \
+            tests/host/test_web_server_administration_route.c
+          git diff --check
+
+      - name: Run web host tests
+        run: ./scripts/run-tests.sh web
+
+      - name: Run web host tests with ASan and UBSan
+        run: ./scripts/run-tests.sh --sanitizers web
+
+      - name: Commit validated H6-061 product change
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            firmware/components/web_server/include/http_health.h \
+            firmware/components/web_server/http_health.c \
+            firmware/components/web_server/web_server_async.c \
+            tests/host/test_http_health.c \
+            tests/host/test_web_server_async_confirmation.c \
+            tests/host/test_web_server_administration_route.c
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(web): track async HTTP health failures"
+          git rev-parse HEAD > "$RUNNER_TEMP/h6-061-product-sha"
+
+      - name: Record H6-061 evidence and ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          product_sha="$(cat "$RUNNER_TEMP/h6-061-product-sha")"
+          cat > docs/implementation-v2/H6_061_ASYNC_HTTP_HEALTH_2026-08-11.md <<EOF
+          # H6-061 — Async HTTP subsystem health evidence
+
+          **Date:** 2026-08-11  
+          **Task:** \`H6-061 — Track async subsystem health\`  
+          **Implementation SHA:** \`${product_sha}\`
+
+          ## Implemented health model
+
+          The existing \`http_health\` subsystem records sanitized async failure metadata without changing the frozen v2 diagnostics schema. Internal snapshots retain a first-failure stage plus an \`app_error_code_t\` for worker start, worker run, worker stop, queue, and async request completion failures.
+
+          Raw ESP-IDF/FreeRTOS return values are not exposed. The first async failure wins, so later completion or shutdown fallout cannot erase the earlier actionable cause. Production uses a FreeRTOS critical section around health state; host builds use a real pthread mutex so concurrent host tests exercise exclusion rather than a no-op fake.
+
+          ## Production instrumentation
+
+          \`web_server_async.c\` records health for worker start/create failures, worker-unavailable dispatch, queue receive/send failures, request allocation and async-handler-begin failures, handler/send failure, async-request completion failure, inconsistent or timed-out worker stop, and stop-signal failure.
+
+          The H6-060 worker-unavailable path remains fail-closed with HTTP 503; health recording does not restore any synchronous fallback.
+
+          ## Diagnostics contract decision
+
+          The authoritative diagnostics contract fixes eight subsystem entries and forbids response fields outside the checked-in contract. H6-061 therefore does not add a ninth subsystem or raw failure-detail fields. An async failure degrades the existing \`http\` subsystem entry to \`failed\`. A route regression verifies the response still contains exactly eight entries and the existing \`http\` entry changes to \`failed\`.
+
+          Detailed first-failure stage/error metadata remains internal in \`http_health_snapshot()\` for diagnostics logic, tests, and future contract-approved use.
+
+          ## Regression coverage
+
+          \`test_http_health.c\` verifies healthy defaults, sanitized stage/error capture, first-failure-wins behavior, invalid-pair no-op behavior, and a pthread stress test proving concurrent snapshots never observe a torn stage/error pair.
+
+          \`test_web_server_async_confirmation.c\` verifies worker-unavailable confirmation requests record a worker-start health failure while preserving H6-060's 503/no-handler/no-confirmation-wait behavior; a non-confirmation settings request records no async fault.
+
+          \`test_web_server_administration_route.c\` verifies an internal async-completion failure is surfaced through only the existing diagnostics \`http\` subsystem state while retaining the eight-entry contract.
+
+          ## Validation
+
+          Targeted workflow run **${GITHUB_RUN_ID}** ran \`./scripts/run-tests.sh web\` with **28/28 passed** and \`./scripts/run-tests.sh --sanitizers web\` with **28/28 passed under ASan + UBSan**. The validator also ran clang-format on changed C/header files and \`git diff --check\` before committing.
+
+          ## Scope intentionally left open
+
+          H6-062 and the remaining H6-063 failure-injection cases are not closed here. H6-061 necessarily begins observing handler/completion/stop-signal results so they can be health-tracked, but H6-062 still requires cleanup-safety proof and H6-063 still requires worker-capable queue/handler/completion/pending-stop/concurrency injections.
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+
+          path = Path("docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md")
+          text = path.read_text()
+          old = '''### H6-061 — Track async subsystem health
+
+          - [ ] Add sanitized health state for worker start/run/stop/queue/completion failures.
+          - [ ] Keep the first/most useful failure visible.
+          - [ ] Expose through existing diagnostics only if consistent with the authoritative diagnostics contract; otherwise keep internal/log evidence and flag required contract change.
+          '''.replace("          ", "")
+          product_sha = Path(os.environ["RUNNER_TEMP"]).joinpath("h6-061-product-sha").read_text().strip()
+          run_id = os.environ["GITHUB_RUN_ID"]
+          new = f'''### H6-061 — Track async subsystem health
+
+          - [x] Add sanitized health state for worker start/run/stop/queue/completion failures.
+          - [x] Keep the first/most useful failure visible.
+          - [x] Expose through existing diagnostics only if consistent with the authoritative diagnostics contract; otherwise keep internal/log evidence and flag required contract change.
+          - Evidence: implementation commit `{product_sha}` adds synchronized first-failure async HTTP health metadata for worker start/run/stop, queue, and completion failures. The frozen diagnostics schema remains unchanged: async failure degrades the existing `http` subsystem entry rather than adding fields/subsystems. `./scripts/run-tests.sh web` passed 28/28 and `./scripts/run-tests.sh --sanitizers web` passed 28/28 in targeted run `{run_id}`. Full evidence: `docs/implementation-v2/H6_061_ASYNC_HTTP_HEALTH_2026-08-11.md`.
+          '''.replace("          ", "")
+          if text.count(old) != 1:
+              raise SystemExit("expected exactly one H6-061 ledger block")
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+          git add \
+            docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md \
+            docs/implementation-v2/H6_061_ASYNC_HTTP_HEALTH_2026-08-11.md
+          git diff --cached --check
+          git commit -m "docs: record H6-061 async health evidence"
+          git push origin HEAD:master
