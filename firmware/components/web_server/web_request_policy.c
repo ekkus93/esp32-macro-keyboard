@@ -51,6 +51,9 @@ static app_error_code_t establish_request_id(const web_request_policy_ops_t *ope
         memcpy(out_result->request_id, supplied, strlen(supplied) + 1U);
         return APP_ERROR_NONE;
     }
+    if (header_result != APP_ERROR_AUTH_REQUIRED) {
+        return fail(out_result, out_failure, WEB_REQUEST_POLICY_FAILURE_REQUEST_ID, header_result);
+    }
     const app_error_code_t generate_result = operations->generate_request_id(
         operations->context, out_result->request_id, sizeof(out_result->request_id));
     if (generate_result != APP_ERROR_NONE || !web_api_request_id_is_valid(out_result->request_id)) {

@@ -7,6 +7,7 @@ import {
   resolveSelectedPackage,
 } from "../../../v2/packageSelection";
 import type { Repository } from "../../../v2/repository";
+import { saveBytesAsFile } from "../../../v2/saveFile";
 import { evaluateSnapshotRetention } from "../../../v2/snapshotRetention";
 import { useFocusTrap } from "../../shell/v2/useFocusTrap";
 import {
@@ -37,22 +38,6 @@ import type { RepositoryWorkingCopyStore } from "../../../v2/repositoryWorkingCo
  * (TODO_V2 V2-110 "never autosave"). Deletion is likewise always a typed,
  * exact-blob-ID confirmation (V2-111) and never automatic (V2-111/V2-112).
  */
-
-function saveBytesAsFile(
-  bytes: Uint8Array,
-  filename: string,
-  mimeType: string,
-): void {
-  const blob = new Blob([bytes], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-}
 
 async function readFileBytes(file: File): Promise<Uint8Array> {
   const buffer = await file.arrayBuffer();

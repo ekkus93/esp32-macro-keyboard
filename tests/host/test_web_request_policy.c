@@ -12,8 +12,10 @@
 typedef struct {
     const char *missing;
     const char *content_type;
+    app_error_code_t request_id_result;
     app_error_code_t validation_result;
     app_error_code_t confirmation_result;
+    size_t request_id_generation_calls;
     size_t validation_calls;
     size_t confirmation_calls;
 } fixture_t;
@@ -32,7 +34,8 @@ static app_error_code_t get_header(void *context, const char *name, char *output
         value = "MKSESSION=" TOKEN;
     } else if (strcmp(name, "X-Request-ID") == 0) {
         output[0] = '\0';
-        return APP_ERROR_AUTH_REQUIRED;
+        return fixture->request_id_result == APP_ERROR_NONE ? APP_ERROR_AUTH_REQUIRED
+                                                             : fixture->request_id_result;
     }
     if (value == NULL) {
         output[0] = '\0';
@@ -51,7 +54,8 @@ static app_error_code_t validate(void *context, const char *session_token) {
 }
 
 static app_error_code_t generate(void *context, char *output, size_t output_size) {
-    (void)context;
+    fixture_t *fixture = context;
+    ++fixture->request_id_generation_calls;
     static const char value[] = "generated-request-id";
     TEST_CHECK(sizeof(value) <= output_size);
     memcpy(output, value, sizeof(value));
@@ -170,6 +174,25 @@ static void test_fail_closed_ordering(void) {
     TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_PHYSICAL_CONFIRMATION, failure);
 }
 
+static void test_request_id_header_failure_is_not_silently_replaced(void) {
+    fixture_t fixture = {
+        .content_type = "application/json",
+        .request_id_result = APP_ERROR_INVALID_ARGUMENT,
+        .validation_result = APP_ERROR_NONE,
+    };
+    const web_request_policy_ops_t ops = operations(&fixture);
+    const web_request_policy_input_t policy = input(WEB_API_ROUTE_SETTINGS, WEB_API_METHOD_GET);
+    web_request_policy_result_t result = {0};
+    web_request_policy_failure_t failure = WEB_REQUEST_POLICY_FAILURE_NONE;
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_request_policy_evaluate(&policy, &ops, &result, &failure));
+    TEST_CHECK_EQ_INT(WEB_REQUEST_POLICY_FAILURE_REQUEST_ID, failure);
+    TEST_CHECK_EQ_U64(1U, fixture.validation_calls);
+    TEST_CHECK_EQ_U64(0U, fixture.request_id_generation_calls);
+    TEST_CHECK_EQ_STRING("", result.request_id);
+}
+
 /* GET /api/v1/diagnostics (WEB_API_ROUTE_DIAGNOSTICS_FULL) reaches
  * web_diagnostics_handle() only through this exact same generic-pipeline gate
  * (web_server_api.c's apply_request_policy(), called from
@@ -235,6 +258,7 @@ static void test_setup_route_requires_no_session(void) {
 int main(void) {
     test_success_matrix();
     test_fail_closed_ordering();
+    test_request_id_header_failure_is_not_silently_replaced();
     test_diagnostics_route_unauthorized_and_expired_session();
     test_setup_route_requires_no_session();
     return 0;

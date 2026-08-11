@@ -23,9 +23,8 @@
  *
  * server_configuration.require_physical_confirmation is left false for
  * every test below. With it false, web_api_request_requires_worker()
- * (web_server_api.c) returns false for every route in this group (none of
- * them sets web_api_route_requires_worker() true either -- see
- * web_api_core.c), so api_handler() always takes the synchronous
+ * (web_server_api.c) returns false for every route in this group, so
+ * api_handler() always takes the synchronous
  * web_api_handle_call() path under test rather than
  * web_server_async_dispatch()'s FreeRTOS worker queue, which is not
  * host-linkable. The confirmation-required=true path (which would route
@@ -87,6 +86,7 @@
 #include "test_assert.h"
 #include "test_examples_fixture.h"
 #include "usb_keyboard.h"
+#include "web_api_core.h"
 #include "web_api_response.h"
 #include "web_diagnostics.h"
 #include "web_server.h"
@@ -358,9 +358,7 @@ size_t heap_caps_get_largest_free_block(uint32_t caps) {
 esp_err_t web_server_async_dispatch(httpd_req_t *request) {
     (void)request;
     /* Never reached: web_api_request_requires_worker() (web_server_api.c)
-     * only returns true when a route requires the FreeRTOS async worker
-     * (none currently do -- web_api_route_requires_worker() is
-     * unconditionally false) or physical confirmation is required, which
+     * only returns true when physical confirmation is required, which
      * server_configuration.require_physical_confirmation=false disables for
      * every test below -- see the file header comment. Present only so the
      * linker resolves api_handler()'s reference to it. */
@@ -597,6 +595,23 @@ static void test_settings_get_valid(void) {
     const cJSON *example = test_examples_fixture_get("settings");
     TEST_CHECK(cJSON_Compare(root, example, true) != 0);
     cJSON_Delete(root);
+}
+
+static void test_settings_get_rejects_oversized_request_id(void) {
+    reset_fakes();
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    char request_id[WEB_API_REQUEST_ID_MAX_BYTES + 2U];
+    memset(request_id, 'a', sizeof(request_id) - 1U);
+    request_id[sizeof(request_id) - 1U] = '\0';
+    fake_httpd_add_request_header(&fake, "X-Request-ID", request_id);
+    bind_bodyless(&request, &fake, "/api/v1/settings", HTTP_GET);
+
+    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+    TEST_CHECK_EQ_STRING("400 Bad Request", fake.response_status);
+    TEST_CHECK(fake_httpd_response_header(&fake, "X-Request-ID") == NULL);
 }
 
 static void test_settings_put_valid(void) {
@@ -967,6 +982,7 @@ int main(void) {
     test_restart_post_unauthorized_without_cookie();
 
     test_settings_get_valid();
+    test_settings_get_rejects_oversized_request_id();
     test_settings_put_valid();
     test_settings_put_valid_matches_example();
     test_settings_put_unauthorized_expired_session();

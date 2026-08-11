@@ -239,6 +239,10 @@ static app_error_code_t read_call_body(httpd_req_t *request, size_t body_limit, 
     return APP_ERROR_NONE;
 }
 
+/* All three device-control actions schedule a delayed restart internally.
+ * This post-response fast path intentionally preserves the existing immediate
+ * restart behavior for restart/factory-reset only; reset-settings relies on
+ * its already-scheduled delayed restart so its accepted response can drain. */
 static bool restart_after_response(const web_api_call_t *call, const web_api_response_t *response) {
     return response->status == WEB_HTTP_STATUS_ACCEPTED &&
            (call->path.route == WEB_API_ROUTE_DEVICE_RESTART ||
@@ -351,9 +355,8 @@ bool web_api_request_requires_worker(httpd_req_t *request) {
         !web_api_route_allows_method(path.route, method)) {
         return false;
     }
-    return web_api_route_requires_worker(path.route) ||
-           web_api_physical_confirmation_required(
-               path.route, server_configuration.require_physical_confirmation);
+    return web_api_physical_confirmation_required(
+        path.route, server_configuration.require_physical_confirmation);
 }
 
 esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body,

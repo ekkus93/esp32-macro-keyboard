@@ -242,11 +242,6 @@ bool web_api_route_requires_physical_confirmation(web_api_route_t route) {
     return web_api_physical_confirmation_required(route, true);
 }
 
-bool web_api_route_requires_worker(web_api_route_t route) {
-    (void)route;
-    return false;
-}
-
 unsigned int web_api_http_status_for_error(app_error_code_t error) {
     switch (error) {
     case APP_ERROR_NONE:

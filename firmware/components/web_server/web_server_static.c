@@ -67,9 +67,7 @@ esp_err_t static_handler(httpd_req_t *request) {
     if (httpd_resp_set_type(request, file.content_type) != ESP_OK ||
         httpd_resp_set_hdr(request, "Cache-Control", file.cache_control) != ESP_OK ||
         (file.compressed && httpd_resp_set_hdr(request, "Content-Encoding", "gzip") != ESP_OK)) {
-        if (fclose(file.handle) != 0) {
-            return ESP_FAIL;
-        }
+        (void)fclose(file.handle);
         return ESP_FAIL;
     }
     const web_adapter_stream_ops_t stream_ops = {

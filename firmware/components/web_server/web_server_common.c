@@ -125,8 +125,11 @@ app_error_code_t web_server_get_header(httpd_req_t *request, const char *name, c
         return APP_ERROR_INVALID_ARGUMENT;
     }
     const size_t length = httpd_req_get_hdr_value_len(request, name);
-    if (length == 0U || length >= buffer_size) {
+    if (length == 0U) {
         return APP_ERROR_AUTH_REQUIRED;
+    }
+    if (length >= buffer_size) {
+        return APP_ERROR_INVALID_ARGUMENT;
     }
     return httpd_req_get_hdr_value_str(request, name, buffer, buffer_size) == ESP_OK
                ? APP_ERROR_NONE

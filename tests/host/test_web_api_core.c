@@ -173,9 +173,6 @@ static void test_session_confirmation_and_worker_policy(void) {
     TEST_CHECK(!web_api_route_requires_physical_confirmation(WEB_API_ROUTE_SETUP));
     TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_DEVICE_FACTORY_RESET, false));
     TEST_CHECK(!web_api_physical_confirmation_required(WEB_API_ROUTE_SETTINGS, true));
-    TEST_CHECK(!web_api_route_requires_worker(WEB_API_ROUTE_BLOB_COLLECTION));
-    TEST_CHECK(!web_api_route_requires_worker(WEB_API_ROUTE_SETTINGS));
-    TEST_CHECK(!web_api_route_requires_worker(WEB_API_ROUTE_UNKNOWN));
 }
 
 static void test_blob_id_policy(void) {

@@ -49,7 +49,6 @@ bool web_api_route_requires_body(web_api_route_t route, web_api_method_t method)
 bool web_api_route_requires_session(web_api_route_t route);
 bool web_api_route_requires_physical_confirmation(web_api_route_t route);
 bool web_api_physical_confirmation_required(web_api_route_t route, bool confirmation_enabled);
-bool web_api_route_requires_worker(web_api_route_t route);
 bool web_api_content_type_is_json(const char *content_type);
 bool web_api_content_type_is_gzip(const char *content_type);
 bool web_api_request_id_is_valid(const char *request_id);

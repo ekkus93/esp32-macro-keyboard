@@ -4,6 +4,7 @@ import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import { getDiagnostics as defaultGetDiagnostics } from "../../../v2/diagnosticsClient";
 import { buildDiagnosticsExportText } from "../../../v2/diagnosticsExport";
 import type { DiagnosticsResponse } from "../../../v2/apiTypes";
+import { saveBytesAsFile } from "../../../v2/saveFile";
 
 /**
  * Diagnostics, per SPEC_V2 §13.13/§16.3 and UI_UX_SPEC_V2 §4 screen 15
@@ -29,27 +30,11 @@ function defaultCopyToClipboard(text: string): Promise<void> {
   return navigator.clipboard.writeText(text);
 }
 
-function saveTextAsFile(
-  bytes: Uint8Array,
-  filename: string,
-  mimeType: string,
-): void {
-  const blob = new Blob([bytes], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-}
-
 function defaultDependencies(): DiagnosticsPageDependencies {
   return {
     getDiagnostics: defaultGetDiagnostics,
     copyToClipboard: defaultCopyToClipboard,
-    saveAsFile: saveTextAsFile,
+    saveAsFile: saveBytesAsFile,
   };
 }
 

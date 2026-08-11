@@ -393,11 +393,9 @@ app_error_code_t device_controls_engine_deinit(device_controls_engine_t *engine,
         }
     }
 
-    if (!engine->task_stop_confirmed && device_controls_engine_owns_resources(engine)) {
-        const device_controls_health_t failed_health = device_controls_engine_get_health(engine);
-        return failed_health.cleanup_error != APP_ERROR_NONE ? failed_health.cleanup_error
-                                                             : APP_ERROR_INTERNAL;
-    }
-
+    /* Reaching cleanup proves the task stop is confirmed: wait failure returns
+     * above, and the successful path sets task_stop_confirmed before any later
+     * operation that can fail. A second defensive resource check here was
+     * therefore unreachable and only obscured the deinit invariant. */
     return finalize_deinit(engine, cleanup_resources(engine));
 }

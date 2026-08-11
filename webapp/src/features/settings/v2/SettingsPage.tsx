@@ -12,6 +12,7 @@ import {
   signOut as defaultSignOut,
 } from "../../../v2/deviceActionsClient";
 import { v2Limits } from "../../../v2/limits";
+import { saveBytesAsFile } from "../../../v2/saveFile";
 import { utf8ByteLength } from "../../../v2/repository";
 import { useFocusTrap } from "../../shell/v2/useFocusTrap";
 import {
@@ -57,22 +58,6 @@ export interface SettingsPageDependencies {
   signOut: typeof defaultSignOut;
   exportRepository: typeof defaultExportRepository;
   saveAsFile: (bytes: Uint8Array, filename: string, mimeType: string) => void;
-}
-
-function saveBytesAsFile(
-  bytes: Uint8Array,
-  filename: string,
-  mimeType: string,
-): void {
-  const blob = new Blob([bytes], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
 }
 
 function defaultDependencies(): SettingsPageDependencies {
