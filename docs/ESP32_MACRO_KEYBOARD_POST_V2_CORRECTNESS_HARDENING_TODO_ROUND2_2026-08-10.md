@@ -110,17 +110,20 @@ No other task in this document touches frozen-spec content. Every other phase ma
 **Goal:** fix F-018 (send-tracker leak), F-019 (settings form data loss), F-020 (unbounded poll-failure retry).
 
 - [ ] **R4-040** (F-018) Ensure every code path in `webapp/src/features/macros/v2/MacrosPage.tsx` that starts a send tracker (the `initialSend` recovery effect, `recoverActiveSend()`, and `startSend()`) has a corresponding stop triggered at minimum on unmount.
-  - [ ] R4-040a Implement.
-  - [ ] R4-040b Add a Vitest test in `webapp/tests/v2-macros-page.test.tsx` that starts a send via each of the three paths, unmounts the component, and asserts the underlying tracker's `.stop()` was called (or equivalently, that no further poll `fetch` calls occur after unmount) — not just that no console warning was emitted.
+  - [x] R4-040a Implement.
+  - [x] R4-040b Add a Vitest test in `webapp/tests/v2-macros-page.test.tsx` that starts a send via each of the three paths, unmounts the component, and asserts the underlying tracker's `.stop()` was called (or equivalently, that no further poll `fetch` calls occur after unmount) — not just that no console warning was emitted.
   - [ ] R4-040c Run `npm --prefix webapp run test`; must pass.
+  - Evidence: commit `425e4a135580b43fcecad2799f36d94db8555fb3` centralizes tracker ownership in `activeHandleRef`, stops the active tracker on unmount, and stops a `sendMacro()` handle that resolves after unmount. `webapp/tests/v2-macros-page.test.tsx` covers the `initialSend`, 409 recovery, ordinary `startSend()`, and late-resolution race paths. Local npm execution remains open because the sandbox has Node 22, while this repository pins Node 24.18.0 with `engine-strict=true`, and the uploaded snapshot contains no `webapp/node_modules`; no test pass is claimed for R4-040c.
 - [ ] **R4-041** (F-019) Fix `SettingsPage.tsx`'s `IdentityForm` so submitting a sibling form (AP or Station) cannot silently discard unsaved edits in the Identity form.
-  - [ ] R4-041a Implement (scope each form's resync to only the fields it owns, or detect-and-preserve/warn on a pending local edit — either is acceptable per the spec).
-  - [ ] R4-041b Add a Vitest test in `webapp/tests/v2-settings-page.test.tsx`: start editing the Identity form's fields, submit the AP or Station form, assert the Identity form's unsaved edits are still present (not silently reverted to the server's response).
+  - [x] R4-041a Implement (scope each form's resync to only the fields it owns, or detect-and-preserve/warn on a pending local edit — either is acceptable per the spec).
+  - [x] R4-041b Add a Vitest test in `webapp/tests/v2-settings-page.test.tsx`: start editing the Identity form's fields, submit the AP or Station form, assert the Identity form's unsaved edits are still present (not silently reverted to the server's response).
   - [ ] R4-041c Run `npm --prefix webapp run test`; must pass.
+  - Evidence: commit `7054e42fffb168a869a4bd1aa556437339b6adae` scopes `IdentityForm` resynchronization to identity-owned settings fields instead of the whole settings object. The added regression edits the device name, submits an access-point update, reproduces the parent settings rerender, and asserts the unsaved Identity edit survives. Local npm execution is blocked by the same sandbox Node/dependency limitation recorded under R4-040; no test pass is claimed for R4-041c.
 - [ ] **R4-042** (F-020) Check whether Round 1's H4-042 (stale/degraded polling-state UI) has been implemented and, if so, whether it already resolves this finding as a side effect. Record that check explicitly before doing further work.
-  - [ ] R4-042a If H4-042 is not implemented, or is implemented but does not give the poll loop any internal bounded-retry/give-up concept: modify `webapp/src/v2/sendClient.ts`'s poll-loop catch block so it distinguishes bounded transient retry (network blips) from a failure worth surfacing, following the pattern already established in `useDeviceReconnect.ts`'s `isTransientFailure()`.
-  - [ ] R4-042b Add a Vitest test in the existing send-client test file asserting the poll loop eventually surfaces/stops on persistent failure rather than retrying forever with no signal.
+  - [x] R4-042a If H4-042 is not implemented, or is implemented but does not give the poll loop any internal bounded-retry/give-up concept: modify `webapp/src/v2/sendClient.ts`'s poll-loop catch block so it distinguishes bounded transient retry (network blips) from a failure worth surfacing, following the pattern already established in `useDeviceReconnect.ts`'s `isTransientFailure()`.
+  - [x] R4-042b Add a Vitest test in the existing send-client test file asserting the poll loop eventually surfaces/stops on persistent failure rather than retrying forever with no signal.
   - [ ] R4-042c Run `npm --prefix webapp run test`; must pass.
+  - Evidence: Round 1 H4-042 remains entirely unchecked on master at `e5ed9349e9277b42c1a91e8e7773cc080a108c48`, so F-020 required its own implementation. Commit `c1ed265e2af3e3ba33b5bc2db822cf5eb79a73f5` bounds consecutive transient polling failures at three, stops immediately on non-transient failures, surfaces `onError`, and keeps the last active-send state/Cancel affordance visible in `MacrosPage`. Regressions cover three consecutive 503 failures, immediate 400 failure, and visible tracker failure without hiding Cancel. Local npm execution is blocked by the same sandbox Node/dependency limitation; no test pass is claimed for R4-042c.
 
 **Phase exit:** `./scripts/check-webapp.sh` passes; all tasks checked with evidence.
 
@@ -131,9 +134,10 @@ No other task in this document touches frozen-spec content. Every other phase ma
 **Goal:** fix F-024 (unsynchronized `executor_health.c`/`storage_health.c` globals).
 
 - [ ] **R5-050** (F-024) Bring `executor_health.c` and `storage_health.c` under the same synchronization discipline `macro_executor_engine_t.status` already uses (`lock_engine`/`unlock_engine`), or document explicitly why it's safe to omit (e.g. writes provably confined to a non-overlapping single-threaded boot/shutdown window).
-  - [ ] R5-050a Implement or document.
-  - [ ] R5-050b If implemented: add a regression test if the host fake environment can exercise the relevant concurrency; otherwise document the limitation per §0.1's rule.
-  - [ ] R5-050c Run `./scripts/run-tests.sh executor` and `./scripts/run-tests.sh storage`; must pass.
+  - [x] R5-050a Implement or document.
+  - [x] R5-050b If implemented: add a regression test if the host fake environment can exercise the relevant concurrency; otherwise document the limitation per §0.1's rule.
+  - [x] R5-050c Run `./scripts/run-tests.sh executor` and `./scripts/run-tests.sh storage`; must pass.
+  - Evidence: commit `5773f9fb1e1f6768b80bc820831749c744ccc7be` protects executor/storage health updates and snapshots with FreeRTOS `portMUX_TYPE` critical sections, maps that primitive to a real pthread mutex in the focused host stub, and adds 50,000-iteration writer/four-reader stress regressions for each subsystem. The exact R5 files and CMake deltas were reconstructed in the uploaded sandbox without changing repository source; literal `./scripts/run-tests.sh executor` passed 2/2 and literal `./scripts/run-tests.sh storage` passed 13/13. The same reconstructed host tree passed the full 59/59 host suite. The parent task remains open until its required resulting-tree `./scripts/check-all.sh` evidence exists.
 
 **Phase exit:** `./scripts/check-all.sh` passes; task checked with evidence.
 
@@ -144,13 +148,15 @@ No other task in this document touches frozen-spec content. Every other phase ma
 **Goal:** fix F-022 (dead code with misleading coverage) and F-023 (duplicated routing pipelines).
 
 - [ ] **R6-060** (F-022) Decide: delete `web_setup_core.c`/`web_setup_json.c` and their host tests, or add a prominent top-of-file comment marking them intentionally retained-but-unused and why.
-  - [ ] R6-060a Before deleting anything, confirm via `./scripts/check-all.sh` (full run, not a subset) that nothing else in the tree references these files — grep is not sufficient on its own for a deletion this size; the full gate must pass afterward too.
-  - [ ] R6-060b Implement the chosen option.
+  - [x] R6-060a Before deleting anything, confirm via `./scripts/check-all.sh` (full run, not a subset) that nothing else in the tree references these files — grep is not sufficient on its own for a deletion this size; the full gate must pass afterward too.
+  - [x] R6-060b Implement the chosen option.
   - [ ] R6-060c Run `./scripts/check-all.sh`; must pass.
+  - Evidence: commit `7292ba3af20b74c034ea09eb578febb4f7806570` selected the allowed retention path and adds prominent `LEGACY / NOT SHIPPED` documentation to the setup core/JSON source and headers, explicitly naming `web_server_setup_submit.c` as the shipped replacement and warning that the legacy tests are not production-route coverage. R6-060a is not applicable to deletion because no deletion was attempted; it is checked as a satisfied conditional precondition. R6-060c remains open pending resulting-tree `check-all.sh`.
 - [ ] **R6-061** (F-023) Add a build-time or test-time check that `web_server_lifecycle.c`'s exact-match `normal_routes[]` table and `web_api_administration.c`'s wildcard dispatch switch cannot silently diverge (e.g. a test asserting every route in the exact-match table is either dispatched by name there, or has no corresponding case in `web_api_handle_administration()` — so an accidental future removal from the exact-match table doesn't silently 404 a route in production).
-  - [ ] R6-061a Implement the check.
-  - [ ] R6-061b Optional (recommended, per the spec): reconcile the `X-Request-ID`-vs-session-auth validation ordering inconsistency between `web_server_blob.c`'s `establish_request_id()` and the generic `web_request_policy.c` pipeline, so both pipelines validate in the same order. If this is done, update any test that currently asserts the old inconsistent ordering as correct.
+  - [x] R6-061a Implement the check.
+  - [x] R6-061b Optional (recommended, per the spec): reconcile the `X-Request-ID`-vs-session-auth validation ordering inconsistency between `web_server_blob.c`'s `establish_request_id()` and the generic `web_request_policy.c` pipeline, so both pipelines validate in the same order. If this is done, update any test that currently asserts the old inconsistent ordering as correct.
   - [ ] R6-061c Run `./scripts/run-tests.sh web`; must pass.
+  - Evidence: commit `46beba4b4db0ffb216fc06250a71109c8ddbe1ff` adds `scripts/check-web-route-dispatch-sync.py`, wires it into repository checks, adds a fail-closed shell regression, and reconciles blob request-ID validation ordering with the generic policy path. The exact guard/test was reconstructed locally and passed all four cases: current partition accepted; dedicated-route removal rejected; duplicate wildcard dispatch rejected; unclassified future route rejected. R6-061c remains open because the sandbox cannot reproduce the complete current source tree from the uploaded pre-R6 snapshot with enough fidelity to claim the literal current-tree web target.
 
 **Phase exit:** `./scripts/check-all.sh` passes; both tasks checked with evidence.
 
@@ -161,14 +167,15 @@ No other task in this document touches frozen-spec content. Every other phase ma
 **Goal:** fix or document the six items in the Round 2 spec's §4, batched as the spec explicitly allows.
 
 - [ ] **R7-070** Fix or document each of:
-  - [ ] R7-070a `web_server_static.c`'s dead conditional in `static_handler`'s `fclose` error path.
-  - [ ] R7-070b `device_controls_logic.c`'s unreachable defensive branch (current lines 396-399) — confirm still unreachable via the current coverage report before touching it; either simplify it away with a comment explaining why, or leave it with an explicit "defensive, provably unreachable as of `<sha>`" comment.
-  - [ ] R7-070c `web_api_core.c`'s permanent no-op `web_api_route_requires_worker()` — implement it for real or remove the vacuous `X || false` call site along with it.
-  - [ ] R7-070d `web_request_policy.c`'s `establish_request_id()` — decide consistent treatment for an oversized-but-otherwise-valid `X-Request-ID` header (currently silently replaced, inconsistent with how a malformed one is rejected); implement the decision.
-  - [ ] R7-070e `web_server_api.c`'s `restart_after_response()` — add a comment explaining the `DEVICE_RESET_SETTINGS` vs. `DEVICE_RESTART`/`DEVICE_FACTORY_RESET` immediate-restart asymmetry (not a behavior change unless investigation finds it actually is a bug, in which case treat it as a new finding and update this document).
-  - [ ] R7-070f Consolidate the three duplicated file-save helper implementations across `SettingsPage.tsx`, `SnapshotsPage.tsx`, and `DiagnosticsPage.tsx` into one shared utility.
-  - [ ] R7-070g Add or update tests for any of the above where behavior actually changed (not needed for pure comment/documentation-only sub-items).
+  - [x] R7-070a `web_server_static.c`'s dead conditional in `static_handler`'s `fclose` error path.
+  - [x] R7-070b `device_controls_logic.c`'s unreachable defensive branch (current lines 396-399) — confirm still unreachable via the current coverage report before touching it; either simplify it away with a comment explaining why, or leave it with an explicit "defensive, provably unreachable as of `<sha>`" comment.
+  - [x] R7-070c `web_api_core.c`'s permanent no-op `web_api_route_requires_worker()` — implement it for real or remove the vacuous `X || false` call site along with it.
+  - [x] R7-070d `web_request_policy.c`'s `establish_request_id()` — decide consistent treatment for an oversized-but-otherwise-valid `X-Request-ID` header (currently silently replaced, inconsistent with how a malformed one is rejected); implement the decision.
+  - [x] R7-070e `web_server_api.c`'s `restart_after_response()` — add a comment explaining the `DEVICE_RESET_SETTINGS` vs. `DEVICE_RESTART`/`DEVICE_FACTORY_RESET` immediate-restart asymmetry (not a behavior change unless investigation finds it actually is a bug, in which case treat it as a new finding and update this document).
+  - [x] R7-070f Consolidate the three duplicated file-save helper implementations across `SettingsPage.tsx`, `SnapshotsPage.tsx`, and `DiagnosticsPage.tsx` into one shared utility.
+  - [x] R7-070g Add or update tests for any of the above where behavior actually changed (not needed for pure comment/documentation-only sub-items).
   - [ ] R7-070h Run `./scripts/check-all.sh`; must pass.
+  - Evidence: commit `e5ed9349e9277b42c1a91e8e7773cc080a108c48` removes the dead static close conditional and vacuous worker predicate, replaces the unreachable device-controls branch with its proved deinit invariant, rejects oversized request-ID headers consistently instead of silently replacing them, documents the reset-settings restart asymmetry, and consolidates browser file downloads in `webapp/src/v2/saveFile.ts`. Host/request-policy tests changed with the behavioral items; pure comments require no regression. R7-070h remains open pending a complete resulting-tree `check-all.sh`.
 
 **Phase exit:** all sub-items checked with evidence; single commit (or small number of related commits) covering the batch, per the spec's explicit allowance.
 
@@ -180,8 +187,11 @@ No other task in this document touches frozen-spec content. Every other phase ma
 
 - [ ] **R8-080** Re-run `./scripts/check-all.sh` at the final commit of this round; must pass clean.
 - [ ] **R8-081** Walk the Round 2 spec's §10 acceptance-criteria list item by item and confirm each is met, citing the specific task(s) in this document that satisfied it.
-- [ ] **R8-082** Confirm no task in this round weakened any CI gate, added a suppression, or skipped a test to get to green (per Round 2 spec §6/§8) — spot-check by diffing `.clang-tidy`, `docs/STATIC_ANALYSIS_EXCEPTIONS.md`, and any `eslint-disable`/`NOLINT`/`// eslint-disable-next-line` occurrences introduced this round.
+  - Acceptance mapping prepared: F-014 -> R1-010; F-015 -> R1-011; F-016 -> R2-021 interim path; F-017 -> R3-030b fail-safe latch; F-018 -> R4-040; F-019 -> R4-041; F-020 -> R4-042; F-021 -> R2-022; F-022 -> R6-060 retention/documentation path; F-023 -> R6-061; F-024 -> R5-050; F-025 -> R3-031/H7-070; §4 minor cluster -> R7-070. The final two §10 criteria (all required regressions wired/passing and exact final SHA passing the complete quality gate) remain open, so R8-081 is intentionally not checked yet.
+- [x] **R8-082** Confirm no task in this round weakened any CI gate, added a suppression, or skipped a test to get to green (per Round 2 spec §6/§8) — spot-check by diffing `.clang-tidy`, `docs/STATIC_ANALYSIS_EXCEPTIONS.md`, and any `eslint-disable`/`NOLINT`/`// eslint-disable-next-line` occurrences introduced this round.
+  - Evidence: comparison from Round 2 baseline-ledger SHA `e0a6672776ef00844e5e2628abe413211ddeac28` through implementation head `e5ed9349e9277b42c1a91e8e7773cc080a108c48` shows neither `.clang-tidy` nor `docs/STATIC_ANALYSIS_EXCEPTIONS.md` changed. Repository search found no production `eslint-disable-next-line` addition; existing `NOLINT` policy references are outside this round's changed files. `scripts/check-all.sh`/`scripts/check-scripts.sh` only gained the R6 route-synchronization guard/test; no analyzer exclusion, ignored exit code, test skip, or lowered threshold was introduced.
 - [ ] **R8-083** Update this document's own checkboxes to their final state and record the closing SHA.
-- [ ] **R8-084** If any task in this round changed behavior that Round 1's H0 baseline/failure-matrix document referenced, note the discrepancy for a future H0 reconciliation pass — do not silently let the two documents drift without a cross-reference.
+- [x] **R8-084** If any task in this round changed behavior that Round 1's H0 baseline/failure-matrix document referenced, note the discrepancy for a future H0 reconciliation pass — do not silently let the two documents drift without a cross-reference.
+  - Reconciliation note: Round 1 H0-003 is still unchecked and its formal failure matrix has not yet been closed. When that future H0 pass is completed, its `rename success + parent sync failure` row must cite R2-021, its `storage primary failure + cleanup failure` row must cite R2-022, and its `executor submit failure + release-all failure` row must cite R3-031/H7-070 rather than describing the pre-Round-2 behavior.
 
 **Phase exit:** this document fully checked; `docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_SPEC_ROUND2_2026-08-10.md` §10 fully satisfied with cited evidence.
