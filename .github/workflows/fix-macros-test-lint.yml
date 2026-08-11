@@ -1,0 +1,170 @@
+name: Fix Macros test lint regressions
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/fix-macros-test-lint.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: webapp
+        run: npm ci
+
+      - name: Apply narrow lint fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("webapp/tests/v2-macros-page.test.tsx")
+          text = path.read_text()
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"expected exactly one match, found {count}: {old[:80]!r}")
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              'import type { SendMacroHandle } from "../src/v2/sendClient";',
+              '''import type {
+            SendMacroCallbacks,
+            SendMacroHandle,
+          } from "../src/v2/sendClient";''',
+          )
+
+          replace_once(
+              '''    return {
+              sendMacro: vi.fn(async () => ({
+                accepted,
+                cancel: vi.fn(async () => undefined),
+                stop: vi.fn(),
+              })),
+              trackSend: vi.fn(() => ({ stop: vi.fn() })),
+              cancelSend: vi.fn(async () => undefined),
+              recoverSendState: vi.fn(async () => null),
+            };''',
+              '''    return {
+              sendMacro: vi.fn(() =>
+                Promise.resolve({
+                  accepted,
+                  cancel: vi.fn(() => Promise.resolve(undefined)),
+                  stop: vi.fn(),
+                }),
+              ),
+              trackSend: vi.fn(() => ({ stop: vi.fn() })),
+              cancelSend: vi.fn(() => Promise.resolve(undefined)),
+              recoverSendState: vi.fn(() => Promise.resolve(null)),
+            };''',
+          )
+
+          replace_once(
+              '''    dependencies.sendMacro = vi.fn(async () => {
+              throw new V2ApiError(409, {
+                code: "already_sending",
+                message: "A send is already in progress.",
+              });
+            });
+            dependencies.recoverSendState = vi.fn(async () => statusAt("running", 1));''',
+              '''    dependencies.sendMacro = vi.fn(() =>
+              Promise.reject(
+                new V2ApiError(409, {
+                  code: "already_sending",
+                  message: "A send is already in progress.",
+                }),
+              ),
+            );
+            dependencies.recoverSendState = vi.fn(() =>
+              Promise.resolve(statusAt("running", 1)),
+            );''',
+          )
+
+          replace_once(
+              '''    dependencies.sendMacro = vi.fn(async () => ({
+              accepted,
+              cancel: vi.fn(async () => undefined),
+              stop,
+            }));''',
+              '''    dependencies.sendMacro = vi.fn(() =>
+              Promise.resolve({
+                accepted,
+                cancel: vi.fn(() => Promise.resolve(undefined)),
+                stop,
+              }),
+            );''',
+          )
+
+          replace_once(
+              '''    let trackerCallbacks:
+              | Parameters<MacrosPageDependencies["trackSend"]>[1]
+              | undefined;
+            dependencies.trackSend = vi.fn((_seed, callbacks) => {
+              trackerCallbacks = callbacks;
+              return { stop: vi.fn() };
+            });''',
+              '''    let trackerCallbacks: SendMacroCallbacks | undefined;
+            dependencies.trackSend = vi.fn(
+              (_seed: SendStatusResponse, callbacks: SendMacroCallbacks) => {
+                trackerCallbacks = callbacks;
+                return { stop: vi.fn() };
+              },
+            );''',
+          )
+
+          replace_once(
+              '''      cancel: vi.fn(async () => undefined),''',
+              '''      cancel: vi.fn(() => Promise.resolve(undefined)),''',
+          )
+
+          path.write_text(text)
+          PY
+
+      - name: Format patched test
+        working-directory: webapp
+        run: npx prettier --write tests/v2-macros-page.test.tsx
+
+      - name: Lint
+        run: npm --prefix webapp run lint
+
+      - name: Typecheck
+        run: npm --prefix webapp run typecheck
+
+      - name: Run Macros regression test
+        working-directory: webapp
+        run: npx vitest run tests/v2-macros-page.test.tsx
+
+      - name: Commit validated fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_sha="$(git ls-remote origin refs/heads/master | cut -f1)"
+          if [[ "$remote_sha" != "$GITHUB_SHA" ]]; then
+            echo "master moved from triggering SHA $GITHUB_SHA to $remote_sha; refusing to overwrite" >&2
+            exit 1
+          fi
+          rm -f .github/workflows/fix-macros-test-lint.yml
+          git add webapp/tests/v2-macros-page.test.tsx .github/workflows/fix-macros-test-lint.yml
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "test(webapp): satisfy strict lint in tracker regressions"
+          git push origin HEAD:master
