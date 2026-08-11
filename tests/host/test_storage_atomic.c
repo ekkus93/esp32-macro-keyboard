@@ -266,6 +266,63 @@ static void test_activation_failure_leaves_destination_untouched(void) {
     test_temp_dir_remove(&directory);
 }
 
+static void test_stage_failure_preserves_primary_when_cleanup_fails(void) {
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char path[APP_PATH_MAX_BYTES];
+    make_path(path, sizeof(path), &directory, "object.json");
+    char temporary[APP_PATH_MAX_BYTES];
+    const int temporary_length = snprintf(temporary, sizeof(temporary), "%s.tmp", path);
+    TEST_CHECK(temporary_length > 0);
+    TEST_CHECK((size_t)temporary_length < sizeof(temporary));
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    fake_fs_backend_fail_on(&filesystem, FAKE_FS_WRITE, 1U, ENOSPC);
+    fake_fs_backend_add_failure(&filesystem, FAKE_FS_UNLINK, 1U, EIO);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    static const char data[] = "new";
+
+    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_FULL,
+                      storage_atomic_write_with_ops(path, data, sizeof(data) - 1U, true,
+                                                    &operations));
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_WRITE]);
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_UNLINK]);
+    TEST_CHECK(access(path, F_OK) != 0);
+    TEST_CHECK_EQ_INT(0, access(temporary, F_OK));
+    test_temp_dir_remove(&directory);
+}
+
+static void test_rename_failure_preserves_primary_when_cleanup_fails(void) {
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char path[APP_PATH_MAX_BYTES];
+    make_path(path, sizeof(path), &directory, "object.json");
+    write_file(path, "old");
+    char temporary[APP_PATH_MAX_BYTES];
+    const int temporary_length = snprintf(temporary, sizeof(temporary), "%s.tmp", path);
+    TEST_CHECK(temporary_length > 0);
+    TEST_CHECK((size_t)temporary_length < sizeof(temporary));
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    fake_fs_backend_fail_on(&filesystem, FAKE_FS_RENAME, 1U, ENOSPC);
+    fake_fs_backend_add_failure(&filesystem, FAKE_FS_UNLINK, 1U, EIO);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    static const char data[] = "new";
+
+    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_FULL,
+                      storage_atomic_write_with_ops(path, data, sizeof(data) - 1U, true,
+                                                    &operations));
+    char output[16U];
+    read_file(path, output, sizeof(output));
+    TEST_CHECK_EQ_STRING("old", output);
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_RENAME]);
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_UNLINK]);
+    TEST_CHECK_EQ_INT(0, access(temporary, F_OK));
+    test_temp_dir_remove(&directory);
+}
+
 static void test_create_enforces_operation_sequence(void) {
     test_temp_dir_t directory = {0};
     test_temp_dir_create(&directory);
@@ -310,6 +367,8 @@ int main(void) {
     test_impossible_io_counts_are_rejected();
     test_failures_preserve_destination();
     test_activation_failure_leaves_destination_untouched();
+    test_stage_failure_preserves_primary_when_cleanup_fails();
+    test_rename_failure_preserves_primary_when_cleanup_fails();
     puts("storage atomic tests passed");
     return EXIT_SUCCESS;
 }

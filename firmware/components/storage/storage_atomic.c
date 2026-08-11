@@ -161,7 +161,11 @@ static app_error_code_t stage_temporary_file(const char *temporary, const void *
     }
     if (result != APP_ERROR_NONE) {
         const app_error_code_t cleanup_result = cleanup_path(operations, temporary);
-        return cleanup_result == APP_ERROR_NONE ? result : cleanup_result;
+        /* R2-022 interim until Round 1 H5 publishes structured storage results:
+         * never replace the initiating error with a later cleanup failure. The
+         * cleanup result remains intentionally visible here for that H5 handoff. */
+        (void)cleanup_result;
+        return result;
     }
     return APP_ERROR_NONE;
 }
@@ -189,7 +193,10 @@ app_error_code_t storage_atomic_write_with_ops_and_parent_sync(
         const int activate_error = errno;
         const app_error_code_t activate_result = map_error_number(activate_error);
         const app_error_code_t cleanup_result = cleanup_path(operations, temporary);
-        return cleanup_result == APP_ERROR_NONE ? activate_result : cleanup_result;
+        /* Preserve the failed rename as the public result. Round 1 H5 owns
+         * publishing cleanup_result separately rather than masking the primary. */
+        (void)cleanup_result;
+        return activate_result;
     }
     return sync_parent(sync_parent_path, parent_sync_context, path);
 }
