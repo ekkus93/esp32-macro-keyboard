@@ -785,6 +785,32 @@ describe("MacrosPage — send tracker lifetime", () => {
     expect(stop).toHaveBeenCalledOnce();
   });
 
+  test("surfaces a tracker failure without hiding the active send", async () => {
+    const dependencies = baseDependencies();
+    let trackerCallbacks:
+      | Parameters<MacrosPageDependencies["trackSend"]>[1]
+      | undefined;
+    dependencies.trackSend = vi.fn((_seed, callbacks) => {
+      trackerCallbacks = callbacks;
+      return { stop: vi.fn() };
+    });
+
+    const { unmount } = await renderMacrosPage({
+      dependencies,
+      initialSend: statusAt("running", 1),
+    });
+    await act(async () => {
+      trackerCallbacks?.onError?.(new TypeError("network unavailable"));
+      await Promise.resolve();
+    });
+
+    expect(document.body.textContent).toContain(
+      "Send status tracking failed: network unavailable",
+    );
+    expect(() => buttonWithText("Cancel and release all keys")).not.toThrow();
+    await unmount();
+  });
+
   test("stops a send handle that resolves after unmount", async () => {
     const stop = vi.fn();
     let resolveSend: ((handle: SendMacroHandle) => void) | undefined;

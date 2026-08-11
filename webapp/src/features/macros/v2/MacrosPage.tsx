@@ -503,6 +503,14 @@ export function MacrosPage({
     [],
   );
 
+  const handleTrackingError = useCallback((error: unknown): void => {
+    if (!mountedRef.current) {
+      return;
+    }
+    activeHandleRef.current = null;
+    setStartError(`Send status tracking failed: ${v2ErrorText(error)}`);
+  }, []);
+
   const handleComplete = useCallback(
     (macro: MacroIdentity | null, status: SendStatusResponse): void => {
       if (completedSendIdsRef.current.has(status.id)) {
@@ -565,8 +573,9 @@ export function MacrosPage({
       onComplete: (status) => {
         handleComplete(null, status);
       },
+      onError: handleTrackingError,
     });
-  }, [handleComplete, handleStatus]);
+  }, [handleComplete, handleStatus, handleTrackingError]);
 
   // Reload recovery (V2-095, UI_UX_SPEC_V2 §5.6): resume tracking a
   // non-terminal recovered send, or restore an undismissed terminal-issue
@@ -606,9 +615,16 @@ export function MacrosPage({
       onComplete: (status) => {
         handleComplete(null, status);
       },
+      onError: handleTrackingError,
     });
     return stopActiveTracking;
-  }, [handleComplete, handleStatus, initialSend, stopActiveTracking]);
+  }, [
+    handleComplete,
+    handleStatus,
+    handleTrackingError,
+    initialSend,
+    stopActiveTracking,
+  ]);
 
   const startSend = async (macro: RepositoryMacro): Promise<void> => {
     // A persistent cancelled/failed/timed-out banner does not block a new
@@ -638,6 +654,7 @@ export function MacrosPage({
           onComplete: (status) => {
             handleComplete(identity, status);
           },
+          onError: handleTrackingError,
         },
       );
       if (!mountedRef.current) {

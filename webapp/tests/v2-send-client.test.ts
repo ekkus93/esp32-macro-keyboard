@@ -224,6 +224,70 @@ describe("v2 send helper", () => {
     }
   });
 
+  test("persistent transient poll failures surface and stop tracking", async () => {
+    vi.useFakeTimers();
+    try {
+      const seed = statusAt("running", 0);
+      const onError = vi.fn();
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        planJsonResponse(
+          {
+            error: {
+              code: "temporarily_unavailable",
+              message: "Send status is temporarily unavailable.",
+            },
+          },
+          503,
+        );
+      }
+
+      trackSend(seed as unknown as SendStatusResponse, { onError });
+      await vi.advanceTimersByTimeAsync(3000);
+
+      expect(onError).toHaveBeenCalledOnce();
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 503 }),
+      );
+      expect(
+        getFetchCalls().filter((call) => call.method === "GET"),
+      ).toHaveLength(3);
+
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(onError).toHaveBeenCalledOnce();
+      expect(
+        getFetchCalls().filter((call) => call.method === "GET"),
+      ).toHaveLength(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("non-transient poll failure surfaces without retrying", async () => {
+    vi.useFakeTimers();
+    try {
+      const seed = statusAt("running", 0);
+      const onError = vi.fn();
+      planJsonResponse(
+        { error: { code: "bad_request", message: "Invalid send status." } },
+        400,
+      );
+
+      trackSend(seed as unknown as SendStatusResponse, { onError });
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(onError).toHaveBeenCalledOnce();
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 400 }),
+      );
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(
+        getFetchCalls().filter((call) => call.method === "GET"),
+      ).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test("trackSend.stop() halts polling", async () => {
     vi.useFakeTimers();
     try {

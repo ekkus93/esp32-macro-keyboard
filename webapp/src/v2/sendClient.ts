@@ -23,11 +23,14 @@ import type {
  * effect). What this module guarantees on its own:
  *  - exactly one `POST /api/v1/send` per {@link sendMacro} call;
  *  - polling at a bounded interval no slower than once per second;
+ *  - transient poll failures are retried only up to a fixed consecutive bound;
  *  - `onStatus` fires only for a meaningful state or progress change;
- *  - `onComplete` fires at most once, only after a terminal state.
+ *  - `onComplete` fires at most once, only after a terminal state;
+ *  - `onError` fires when status tracking gives up or sees a non-transient failure.
  */
 
 const pollIntervalMs = 1000;
+const maxConsecutiveTransientPollFailures = 3;
 const sendPath = "/api/v1/send";
 
 const terminalStates: ReadonlySet<SendState> = new Set([
@@ -44,6 +47,8 @@ export function isTerminalSendState(state: SendState): boolean {
 export interface SendMacroCallbacks {
   onStatus?: (status: SendStatusResponse) => void;
   onComplete?: (status: SendStatusResponse) => void;
+  /** Called once when polling stops because status can no longer be trusted. */
+  onError?: (error: unknown) => void;
 }
 
 export interface SendMacroHandle {
@@ -53,6 +58,16 @@ export interface SendMacroHandle {
   cancel: () => Promise<void>;
   /** Stops client-side polling only. Does not cancel the send on the device. */
   stop: () => void;
+}
+
+function isTransientPollFailure(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return true;
+  }
+  if (error instanceof TypeError) {
+    return true;
+  }
+  return error instanceof V2ApiError && error.status >= 500;
 }
 
 function isMeaningfulChange(
@@ -101,6 +116,7 @@ function createSendTracker(
     return flags.completed;
   }
   let previous: SendStatusResponse | null = seed;
+  let consecutiveTransientFailures = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   function schedulePoll(): void {
@@ -119,10 +135,24 @@ function createSendTracker(
     let status: SendStatusResponse;
     try {
       status = await v2GetJson(sendPath, isSendStatusResponse);
-    } catch {
-      schedulePoll();
+    } catch (error: unknown) {
+      if (isStopped()) {
+        return;
+      }
+      if (isTransientPollFailure(error)) {
+        consecutiveTransientFailures += 1;
+        if (
+          consecutiveTransientFailures < maxConsecutiveTransientPollFailures
+        ) {
+          schedulePoll();
+          return;
+        }
+      }
+      flags.stopped = true;
+      callbacks.onError?.(error);
       return;
     }
+    consecutiveTransientFailures = 0;
     if (isStopped() || status.id !== id) {
       return;
     }
