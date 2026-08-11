@@ -475,9 +475,10 @@ Search and classify at least:
 
 ### H7-070 — Eliminate ignored release-all results
 
-- [ ] Find every `usb_release_all()`/`ops.usb_release_all()` call.
-- [ ] Remove `(void)` discards where the result is safety-relevant.
-- [ ] Preserve primary submit/execution error separately from release error.
+- [x] Find every `usb_release_all()`/`ops.usb_release_all()` call.
+- [x] Remove `(void)` discards where the result is safety-relevant.
+- [x] Preserve primary submit/execution error separately from release error.
+- Evidence: implementation commit `e60e9d73c8ea9494957228c3a734f48aeec8566a` observes both submission-cleanup `usb_hid_release_all()` results, preserves the primary execution failure separately from `macro_execution_status_t.release_error`, and adds deterministic layer-release and press-cleanup regressions; formatter follow-up `44fc3f3be622ff49185419cd1de3b7b091a33740` is code-equivalent. Literal `./scripts/run-tests.sh executor` passed 2/2 (`macro_executor`, `executor_health`) against the uploaded matching master snapshot using only a sandbox-local cJSON 1.7.18 development-header/pkg-config shim; no repository file was changed by that shim. Exact-SHA Host run `31464144676`, Browser run `31464144657`, Device Test Build run `31464144658`, and `./scripts/check-all.sh` Quality run `31464144673`, job `93693418731`, passed on validation SHA `576fad519616844fb1d8ef6aa162e5ea6ac80d56`.
 
 ### H7-071 — Fault latch unsafe HID state
 
