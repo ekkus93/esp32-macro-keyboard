@@ -30,6 +30,7 @@
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "http_health.h"
 #include "test_assert.h"
 #include "web_api_response.h"
 #include "web_diagnostics.h"
@@ -180,6 +181,18 @@ app_error_code_t web_diagnostics_handle(web_api_response_t *response) {
     return web_api_response_success(response, 200U, "{\"stub\":true}");
 }
 
+static size_t g_async_health_record_calls;
+static http_async_failure_stage_t g_async_health_stage;
+static app_error_code_t g_async_health_error;
+
+void http_health_record_async_failure(http_async_failure_stage_t stage, app_error_code_t error) {
+    ++g_async_health_record_calls;
+    if (g_async_health_stage == HTTP_ASYNC_FAILURE_NONE) {
+        g_async_health_stage = stage;
+        g_async_health_error = error;
+    }
+}
+
 /* ---------------------------------------------------------------------- *
  * Dead-path FreeRTOS/httpd-async canaries. The worker is intentionally
  * unavailable in this host regression, and H6-060 requires dispatch to
@@ -308,6 +321,9 @@ static void reset_fakes(void) {
     g_wait_for_confirmation_calls = 0U;
     g_wait_for_confirmation_last_timeout_ms = 0U;
     g_esp_restart_calls = 0U;
+    g_async_health_record_calls = 0U;
+    g_async_health_stage = HTTP_ASYNC_FAILURE_NONE;
+    g_async_health_error = APP_ERROR_NONE;
 
     /* Confirmation is required globally, while the FreeRTOS worker is
      * intentionally never started. Confirmation-gated routes must fail closed
@@ -359,6 +375,12 @@ static void assert_confirmation_service_unavailable(const fake_httpd_request_t *
     cJSON_Delete(root);
 }
 
+static void assert_worker_unavailable_health(void) {
+    TEST_CHECK_EQ_U64(1U, (uint64_t)g_async_health_record_calls);
+    TEST_CHECK_EQ_INT(HTTP_ASYNC_FAILURE_WORKER_START, g_async_health_stage);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, g_async_health_error);
+}
+
 static void test_restart_worker_unavailable_fails_closed(void) {
     reset_fakes();
     fake_httpd_request_t fake;
@@ -369,6 +391,7 @@ static void test_restart_worker_unavailable_fails_closed(void) {
 
     TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
     assert_confirmation_service_unavailable(&fake);
+    assert_worker_unavailable_health();
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_restart_calls);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
@@ -386,6 +409,7 @@ static void test_change_password_worker_unavailable_fails_closed(void) {
 
     TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
     assert_confirmation_service_unavailable(&fake);
+    assert_worker_unavailable_health();
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_logout_all_calls);
     TEST_CHECK(fake_httpd_response_header(&fake, "Set-Cookie") == NULL);
@@ -402,6 +426,7 @@ static void test_reset_settings_worker_unavailable_fails_closed(void) {
 
     TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
     assert_confirmation_service_unavailable(&fake);
+    assert_worker_unavailable_health();
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_reset_settings_calls);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
@@ -418,6 +443,7 @@ static void test_factory_reset_worker_unavailable_fails_closed(void) {
 
     TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
     assert_confirmation_service_unavailable(&fake);
+    assert_worker_unavailable_health();
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_factory_reset_calls);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
@@ -433,6 +459,7 @@ static void test_settings_get_unaffected_by_worker_unavailability(void) {
 
     TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
     TEST_CHECK_EQ_STRING("200 OK", fake.response_status);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_async_health_record_calls);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_wait_for_confirmation_calls);
 }
 

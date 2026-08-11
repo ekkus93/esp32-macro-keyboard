@@ -11,6 +11,7 @@
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "http_health.h"
 #include "macro_limits.h"
 #include "web_api_core.h"
 #include "web_http_status.h"
@@ -80,6 +81,7 @@ static void async_worker(void *context) {
     while (true) {
         async_item_t *item = NULL;
         if (xQueueReceive(async_queue, (void *)&item, portMAX_DELAY) != pdTRUE) {
+            http_health_record_async_failure(HTTP_ASYNC_FAILURE_QUEUE, APP_ERROR_INTERNAL);
             continue;
         }
         if (item == NULL) {
@@ -91,35 +93,45 @@ static void async_worker(void *context) {
         /* Ownership of item->body passes to the call, which frees it. */
         const esp_err_t send_result =
             web_api_handle_call_with_body(request, item->body, item->body_length, &should_restart);
-        (void)send_result;
+        if (send_result != ESP_OK) {
+            http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_RUN, APP_ERROR_IO);
+        }
         free(item);
 
         /* Always complete, on every path. An async request left incomplete
          * never releases its socket, and once those run out the server stops
          * accepting connections entirely. */
-        (void)httpd_req_async_handler_complete(request);
+        const esp_err_t completion_result = httpd_req_async_handler_complete(request);
+        if (completion_result != ESP_OK) {
+            http_health_record_async_failure(HTTP_ASYNC_FAILURE_COMPLETION, APP_ERROR_IO);
+        }
         release_in_flight();
 
         if (should_restart) {
             esp_restart();
         }
     }
-    (void)xSemaphoreGive(async_stopped);
+    if (xSemaphoreGive(async_stopped) != pdTRUE) {
+        http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_STOP, APP_ERROR_INTERNAL);
+    }
     vTaskDelete(NULL);
 }
 
 app_error_code_t web_server_async_start(void) {
     if (async_task_handle != NULL || async_queue != NULL || async_stopped != NULL) {
+        http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_START, APP_ERROR_CONFLICT);
         return APP_ERROR_CONFLICT;
     }
     async_queue = xQueueCreate(WEB_ASYNC_QUEUE_DEPTH, sizeof(async_item_t *));
     if (async_queue == NULL) {
+        http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_START, APP_ERROR_INTERNAL);
         return APP_ERROR_INTERNAL;
     }
     async_stopped = xSemaphoreCreateBinary();
     if (async_stopped == NULL) {
         vQueueDelete(async_queue);
         async_queue = NULL;
+        http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_START, APP_ERROR_INTERNAL);
         return APP_ERROR_INTERNAL;
     }
     async_in_flight = false;
@@ -130,23 +142,30 @@ app_error_code_t web_server_async_start(void) {
         vQueueDelete(async_queue);
         async_queue = NULL;
         async_task_handle = NULL;
+        http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_START, APP_ERROR_INTERNAL);
         return APP_ERROR_INTERNAL;
     }
     return APP_ERROR_NONE;
 }
 
 app_error_code_t web_server_async_stop(void) {
-    if (async_task_handle == NULL || async_queue == NULL || async_stopped == NULL) {
+    if (async_task_handle == NULL && async_queue == NULL && async_stopped == NULL) {
         return APP_ERROR_NONE;
+    }
+    if (async_task_handle == NULL || async_queue == NULL || async_stopped == NULL) {
+        http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_STOP, APP_ERROR_INTERNAL);
+        return APP_ERROR_INTERNAL;
     }
     async_item_t *sentinel = NULL;
     /* Blocks until the queue drains, so a request already waiting for the
      * button is finished and completed rather than abandoned. */
     if (xQueueSend(async_queue, (const void *)&sentinel,
                    pdMS_TO_TICKS(WEB_ASYNC_STOP_TIMEOUT_MS)) != pdTRUE) {
+        http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_STOP, APP_ERROR_TIMEOUT);
         return APP_ERROR_TIMEOUT;
     }
     if (xSemaphoreTake(async_stopped, pdMS_TO_TICKS(WEB_ASYNC_STOP_TIMEOUT_MS)) != pdTRUE) {
+        http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_STOP, APP_ERROR_TIMEOUT);
         return APP_ERROR_TIMEOUT;
     }
     vSemaphoreDelete(async_stopped);
@@ -167,6 +186,7 @@ esp_err_t web_server_async_dispatch(httpd_req_t *request) {
          * waiting there blocks the single server task and turns an async
          * subsystem fault into whole-server unavailability. Fail closed and
          * leave the requested operation untouched. */
+        http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_START, APP_ERROR_INTERNAL);
         return web_api_send_status_error(request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
                                          APP_ERROR_INTERNAL, "confirmation service unavailable");
     }
@@ -190,6 +210,7 @@ esp_err_t web_server_async_dispatch(httpd_req_t *request) {
     if (item == NULL) {
         free(body);
         release_in_flight();
+        http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_RUN, APP_ERROR_INTERNAL);
         return web_api_send_status_error(request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
                                          APP_ERROR_INTERNAL, "could not start confirmation");
     }
@@ -201,6 +222,7 @@ esp_err_t web_server_async_dispatch(httpd_req_t *request) {
         free(item->body);
         free(item);
         release_in_flight();
+        http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_RUN, APP_ERROR_INTERNAL);
         return web_api_send_status_error(request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
                                          APP_ERROR_INTERNAL, "could not start confirmation");
     }
@@ -208,10 +230,13 @@ esp_err_t web_server_async_dispatch(httpd_req_t *request) {
     if (xQueueSend(async_queue, (const void *)&item, 0) != pdTRUE) {
         /* Unreachable while in_flight gates entry, but the request must still
          * be answered and completed or its socket leaks permanently. */
+        http_health_record_async_failure(HTTP_ASYNC_FAILURE_QUEUE, APP_ERROR_INTERNAL);
         const esp_err_t result =
             web_api_send_status_error(async_request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
                                       APP_ERROR_INTERNAL, "could not queue confirmation");
-        (void)httpd_req_async_handler_complete(async_request);
+        if (httpd_req_async_handler_complete(async_request) != ESP_OK) {
+            http_health_record_async_failure(HTTP_ASYNC_FAILURE_COMPLETION, APP_ERROR_IO);
+        }
         free(item->body);
         free(item);
         release_in_flight();
