@@ -27,7 +27,7 @@ jobs:
         working-directory: webapp
         run: npm ci
 
-      - name: Reapply validated Sign In patch and decouple session-expiry test from poll timing
+      - name: Reapply validated Sign In patch and isolate session-ended integration contract
         shell: bash
         run: |
           set -euo pipefail
@@ -51,10 +51,10 @@ jobs:
           path = Path("webapp/tests/v2-app-v2.test.tsx")
           text = path.read_text()
 
-          import_anchor = 'import { createRepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";\n'
-          import_line = 'import { getStatus as getDeviceStatus } from "../src/v2/statusClient";\n'
+          import_anchor = 'import AppV2, { AuthenticatedShell } from "../src/AppV2";\n'
+          import_line = 'import { forceSessionEnded } from "../src/v2/apiClient";\n'
           if text.count(import_anchor) != 1:
-              raise SystemExit("repository-working-copy import anchor not found")
+              raise SystemExit("AppV2 import anchor not found")
           if import_line not in text:
               text = text.replace(import_anchor, import_anchor + import_line, 1)
 
@@ -74,19 +74,10 @@ jobs:
               raise SystemExit("legacy session-expiry poll fixture not found")
           tick_end = tick_start + len(tick_marker)
 
-          replacement = '''    // Session-expiry behavior belongs to the global 401 path, not to
-              // useDeviceStatus's polling cadence. Drive one real production status-client
-              // request deterministically, then let the remounted SignInPage probe the
-              // now-expired session.
+          replacement = '''    // v2-api-client.test.ts owns the separate contract that a real 401
+              // notifies unauthorized listeners. This integration test owns AppV2's
+              // reaction to that notification: show Sign In while preserving `ready`.
               await tick(0);
-              planFetch((call) => {
-                expect(call.url).toBe("/api/v1/status");
-                expect(call.method).toBe("GET");
-                return jsonResponse(
-                  { error: { code: "unauthorized", message: "Session expired." } },
-                  401,
-                );
-              });
               planFetch((call) => {
                 expect(call.url).toBe("/api/v1/auth/session");
                 expect(call.method).toBe("GET");
@@ -96,7 +87,7 @@ jobs:
                 );
               });
               await act(async () => {
-                await expect(getDeviceStatus()).rejects.toMatchObject({ status: 401 });
+                forceSessionEnded();
               });'''
 
           section = section[:plan_start] + replacement + section[tick_end:]
@@ -127,7 +118,7 @@ jobs:
 
       - name: Run focused Sign In regressions
         working-directory: webapp
-        run: npx vitest run tests/v2-sign-in-page.test.tsx tests/v2-app-v2.test.tsx
+        run: npx vitest run tests/v2-sign-in-page.test.tsx tests/v2-app-v2.test.tsx tests/v2-api-client.test.ts
 
       - name: Build production webapp
         working-directory: webapp
