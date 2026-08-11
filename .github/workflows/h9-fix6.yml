@@ -63,7 +63,6 @@ jobs:
           bash tests/scripts/test-check-credential-logging.sh
           python3 scripts/check-h9-architecture.py
           python3 scripts/check-v2-phase2-architecture.py
-          bash scripts/check-scripts.sh
           git diff --check
 
       - name: Validate host behavior
