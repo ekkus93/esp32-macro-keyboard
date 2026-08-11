@@ -113,7 +113,7 @@ jobs:
               raise SystemExit("signIn helper already plans auth/session")
           app_text = app_text[:render_index] + session_plan + app_text[render_index:]
 
-          def insert_before_in_test(source: str, title: str, marker: str, insertion: str) -> str:
+          def test_bounds(source: str, title: str) -> tuple[int, int]:
               test_anchor = f'  test("{title}"'
               test_start = source.find(test_anchor)
               if test_start < 0:
@@ -121,22 +121,58 @@ jobs:
               test_end = source.find('\n  test("', test_start + len(test_anchor))
               if test_end < 0:
                   test_end = len(source)
+              return test_start, test_end
+
+          def insert_before_in_test(source: str, title: str, marker: str, insertion: str) -> str:
+              test_start, test_end = test_bounds(source, title)
               marker_index = source.find(marker, test_start, test_end)
               if marker_index < 0:
                   raise SystemExit(f"marker not found in test: {title}")
               return source[:marker_index] + insertion + source[marker_index:]
+
+          def replace_in_test(source: str, title: str, old: str, new: str) -> str:
+              test_start, test_end = test_bounds(source, title)
+              section = source[test_start:test_end]
+              if section.count(old) != 1:
+                  raise SystemExit(
+                      f"expected one replacement target in {title}, found {section.count(old)}"
+                  )
+              return source[:test_start] + section.replace(old, new, 1) + source[test_end:]
 
           nested_session_plan = "\n".join(
               ("  " + line) if line else line
               for line in session_plan.rstrip("\n").split("\n")
           ) + "\n"
 
-          app_text = insert_before_in_test(
-              app_text,
-              "session expiry drops back to Sign In without discarding the working copy",
-              "    await tick(5_000);",
-              nested_session_plan,
-          )
+          expiry_title = "session expiry drops back to Sign In without discarding the working copy"
+          expiry_old = "\n".join([
+              '    planFetch((call) => {',
+              '      expect(call.url).toBe("/api/v1/status");',
+              '      return jsonResponse(',
+              '        { error: { code: "unauthorized", message: "Session expired." } },',
+              '        401,',
+              '      );',
+              '    });',
+          ])
+          expiry_new = "\n".join([
+              '    planFetch((call) => {',
+              '      expect(call.url).toBe("/api/v1/status");',
+              '      planFetch((sessionCall) => {',
+              '        expect(sessionCall.url).toBe("/api/v1/auth/session");',
+              '        expect(sessionCall.method).toBe("GET");',
+              '        return jsonResponse(',
+              '          { error: { code: "unauthorized", message: "Sign in required." } },',
+              '          401,',
+              '        );',
+              '      });',
+              '      return jsonResponse(',
+              '        { error: { code: "unauthorized", message: "Session expired." } },',
+              '        401,',
+              '      );',
+              '    });',
+          ])
+          app_text = replace_in_test(app_text, expiry_title, expiry_old, expiry_new)
+
           app_text = insert_before_in_test(
               app_text,
               "Sign out (V2-103's fifth warning trigger) warns first because signIn() leaves the working copy dirty; Discard changes proceeds, ends the session, and a fresh sign-in recovers cleanly",
