@@ -217,7 +217,7 @@ app_operation_result_t storage_atomic_write_with_ops_and_parent_sync_result(
 
     primary_error = sync_parent(sync_parent_path, parent_sync_context, path);
     return primary_error == APP_ERROR_NONE ? app_operation_success()
-                                            : operation_primary_error(primary_error);
+                                           : operation_primary_error(primary_error);
 }
 
 app_error_code_t storage_atomic_write_with_ops_and_parent_sync(
@@ -225,8 +225,7 @@ app_error_code_t storage_atomic_write_with_ops_and_parent_sync(
     const storage_fs_ops_t *operations, storage_parent_sync_fn sync_parent_path,
     void *parent_sync_context) {
     return operation_public_error(storage_atomic_write_with_ops_and_parent_sync_result(
-        path, data, data_length, sync_required, operations, sync_parent_path,
-        parent_sync_context));
+        path, data, data_length, sync_required, operations, sync_parent_path, parent_sync_context));
 }
 
 app_error_code_t storage_atomic_write_with_ops(const char *path, const void *data,

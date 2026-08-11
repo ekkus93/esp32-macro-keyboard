@@ -300,8 +300,9 @@ static void test_stage_failure_retains_primary_and_cleanup_errors(void) {
 
     configure_primary_and_cleanup_failures(&filesystem, FAKE_FS_WRITE);
     operations = make_operations(&filesystem);
-    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_FULL, storage_atomic_write_with_ops(
-                                                  path, data, sizeof(data) - 1U, true, &operations));
+    TEST_CHECK_EQ_INT(
+        APP_ERROR_STORAGE_FULL,
+        storage_atomic_write_with_ops(path, data, sizeof(data) - 1U, true, &operations));
     TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_UNLINK]);
     test_temp_dir_remove(&directory);
 }
@@ -336,8 +337,9 @@ static void test_rename_failure_retains_primary_and_cleanup_errors(void) {
 
     configure_primary_and_cleanup_failures(&filesystem, FAKE_FS_RENAME);
     operations = make_operations(&filesystem);
-    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_FULL, storage_atomic_write_with_ops(
-                                                  path, data, sizeof(data) - 1U, true, &operations));
+    TEST_CHECK_EQ_INT(
+        APP_ERROR_STORAGE_FULL,
+        storage_atomic_write_with_ops(path, data, sizeof(data) - 1U, true, &operations));
     TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_UNLINK]);
     read_file(path, output, sizeof(output));
     TEST_CHECK_EQ_STRING("old", output);

@@ -4,9 +4,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "../support/include/app_operation_result.h"
 #include "app_error.h"
 #include "storage_fs_ops.h"
-#include "../support/include/app_operation_result.h"
 
 typedef int (*storage_parent_sync_fn)(void *context, const char *path);
 
