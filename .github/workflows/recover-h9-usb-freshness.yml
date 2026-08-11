@@ -57,6 +57,15 @@ jobs:
           if count != 1:
               raise SystemExit(f"expected one redundant active check, found {count}")
           path.write_text(text)
+
+          test_path = Path("webapp/tests/v2-use-device-status.test.tsx")
+          test_text = test_path.read_text()
+          test_text = test_text.replace(
+              "degraded:false;failures:", "degraded:false; failures:"
+          ).replace(
+              "degraded:true;failures:", "degraded:true; failures:"
+          )
+          test_path.write_text(test_text)
           PY
           git diff --check
 
