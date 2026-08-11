@@ -77,15 +77,10 @@ esp_err_t httpd_resp_send_err(httpd_req_t *request, httpd_err_code_t error, cons
 
 /* Only web_server_async.c calls these two (httpd_req_async_handler_begin()'s
  * "hand the request to a worker task" branch of web_server_async_dispatch());
- * signatures match the real ESP-IDF esp_http_server.h exactly. Declared here
- * (alongside the httpd_start()/httpd_register_uri_handler() route-registration
- * subset below, which follows the same "declared for every target, defined
- * only where actually exercised" pattern) but never given a working
- * definition anywhere: every target that links web_server_async.c
- * deliberately never reaches the branch that calls these -- see
- * fakes/freertos_stub/freertos/FreeRTOS.h's header comment and
- * test_web_server_async_confirmation.c for why, and what each one's
- * dead-path canary definition looks like there. */
+ * signatures match the real ESP-IDF esp_http_server.h exactly. The H6-060
+ * web_server_async_confirmation target defines hard-failure canaries because its worker
+ * must remain unavailable; the H6-062 web_server_async_results target defines a focused
+ * working clone/complete seam so the real worker cleanup path can be fault-injected. */
 esp_err_t httpd_req_async_handler_begin(httpd_req_t *request, httpd_req_t **out_request);
 esp_err_t httpd_req_async_handler_complete(httpd_req_t *request);
 
@@ -106,11 +101,7 @@ typedef struct {
 } httpd_config_t;
 
 #define HTTPD_DEFAULT_CONFIG()                                                                     \
-    {                                                                                              \
-        .max_uri_handlers = 8,                                                                     \
-        .stack_size = 4096,                                                                        \
-        .uri_match_fn = NULL,                                                                      \
-    }
+    { .max_uri_handlers = 8, .stack_size = 4096, .uri_match_fn = NULL, }
 
 typedef struct httpd_uri {
     const char *uri;

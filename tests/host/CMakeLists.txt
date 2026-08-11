@@ -1068,3 +1068,35 @@ register_host_test(web_api_administration_tests web_api_administration web)
 add_executable(app_crc32_tests test_app_crc32.c ../../firmware/components/support/app_crc32.c)
 target_include_directories(app_crc32_tests PRIVATE ../../firmware/components/support/include)
 register_host_test(app_crc32_tests app_crc32 support)
+# Worker-capable focused regression for H6-062. Unlike
+# web_server_async_confirmation_tests' dead-path canaries, this target supplies a
+# pthread-backed one-slot queue/binary semaphore/task model directly in the test so the
+# real async worker executes and its handler/completion/stop results can be fault-injected.
+add_executable(
+    web_server_async_results_tests
+    test_web_server_async_results.c
+    ../../firmware/components/web_server/web_server_async.c
+    ../../firmware/components/web_server/http_health.c
+    ../../firmware/components/support/subsystem_health.c
+)
+target_include_directories(
+    web_server_async_results_tests
+    PRIVATE fakes/esp_http_server_stub
+            fakes/esp_idf_misc_stub
+            fakes/freertos_stub
+            fakes
+            ../../firmware/components/web_server
+            ../../firmware/components/web_server/include
+            ../../firmware/components/macro_model/include
+            ../../firmware/components/macro_parser/include
+            ../../firmware/components/macro_executor/include
+            ../../firmware/components/app_contracts_v2/include
+            ../../firmware/components/auth/include
+            ../../firmware/components/device_controls/include
+            ../../firmware/components/storage/include
+            ../../firmware/components/wifi_ap/include
+            ../../firmware/components/usb_keyboard/include
+            ../../firmware/components/support/include
+)
+target_link_libraries(web_server_async_results_tests PRIVATE Threads::Threads)
+register_host_test(web_server_async_results_tests web_server_async_results web)
