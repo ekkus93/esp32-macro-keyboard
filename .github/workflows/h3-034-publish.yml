@@ -6,6 +6,7 @@ on:
       - h3-034-transport
     paths:
       - .github/h3-034-apply.py
+      - .github/h3-034-followup.py
       - .github/h3-034-evidence.md
       - .github/workflows/h3-034-publish.yml
 
@@ -34,14 +35,16 @@ jobs:
           readonly EXPECTED_MASTER='be727d666347990abc097a9a23e202f85d02c988'
 
           cp .github/h3-034-apply.py /tmp/h3-034-apply.py
+          cp .github/h3-034-followup.py /tmp/h3-034-followup.py
           cp .github/h3-034-evidence.md /tmp/h3-034-evidence.md
-          python3 -m py_compile /tmp/h3-034-apply.py
+          python3 -m py_compile /tmp/h3-034-apply.py /tmp/h3-034-followup.py
 
           git fetch origin master
           test "$(git rev-parse origin/master)" = "${EXPECTED_MASTER}"
           git checkout -B h3-034-product origin/master
 
           python3 /tmp/h3-034-apply.py
+          python3 /tmp/h3-034-followup.py
           cp /tmp/h3-034-evidence.md \
             docs/implementation-v2/H3_034_RESET_SETTINGS_SEMANTICS_2026-08-12.md
 
@@ -63,7 +66,6 @@ jobs:
           assert 'device_controls_reset_settings_outcome_t device_controls_reset_settings(void);' in controls_h
           assert 'device_controls_reset_settings_restart_required(void);' in controls_h
 
-          # No stale production/test public definitions with the pre-H3-034 return type.
           stale = []
           for path in Path('.').rglob('*'):
               if not path.is_file() or '.git' in path.parts or path.suffix not in {'.c', '.h'}:
