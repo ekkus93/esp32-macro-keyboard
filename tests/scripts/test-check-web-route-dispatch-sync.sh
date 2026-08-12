@@ -53,6 +53,18 @@ sed -i '/\.uri = "\/api\/v1\/status"/d' "${temporary_dir}/lifecycle.c"
 expect_fail 'dedicated route removed' 'dedicated route table mismatch'
 
 copy_fixtures
+sed -i \
+	's/DEFINE_RESET_GUARDED_HANDLER(reset_guarded_status_handler, status_handler)/DEFINE_RESET_GUARDED_HANDLER(reset_guarded_status_handler, limits_handler)/' \
+	"${temporary_dir}/lifecycle.c"
+expect_fail 'reset guard delegates to wrong handler' 'dedicated route table mismatch'
+
+copy_fixtures
+sed -i '/DEFINE_RESET_GUARDED_HANDLER(reset_guarded_status_handler, status_handler)/d' \
+	"${temporary_dir}/lifecycle.c"
+expect_fail 'registered reset guard has no mapping' \
+	'registered reset-guard wrapper has no delegate mapping'
+
+copy_fixtures
 sed -i '/case WEB_API_ROUTE_UNKNOWN:/i\    case WEB_API_ROUTE_STATUS:\n        return APP_ERROR_NOT_FOUND;' \
 	"${temporary_dir}/administration.c"
 expect_fail 'dedicated route duplicated in wildcard dispatch' \
