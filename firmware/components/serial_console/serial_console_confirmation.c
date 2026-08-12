@@ -2,6 +2,8 @@
 
 #include <stddef.h>
 
+#include "app_error.h"
+
 app_error_code_t serial_console_route_confirmation(const serial_console_confirmation_ops_t *ops) {
     if (ops == NULL || ops->confirm_send == NULL || ops->confirm_device_action == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
