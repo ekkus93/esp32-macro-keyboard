@@ -16,7 +16,6 @@ import os
 import platform
 import sys
 import time
-from pathlib import Path
 
 import hil_state
 from device_client import Device
@@ -94,12 +93,18 @@ def test_confirm_then_type(device: Device, console: str) -> None:
         post_send(device, source)
         time.sleep(0.75)
         waiting = get_send(device)
-        require(waiting.get("state") == "awaiting_confirmation", "GET remains awaiting before confirm")
+        require(
+            waiting.get("state") == "awaiting_confirmation",
+            "GET remains awaiting before confirm",
+        )
         require(len(key_down_reports(capture)) == 0, "zero HID key-down reports before confirm")
 
         write_serial_confirm(console)
         terminal = wait_for_state(device, TERMINAL, 10.0)
-        require(terminal.get("state") == "completed", "serial confirm transitions send to completed")
+        require(
+            terminal.get("state") == "completed",
+            "serial confirm transitions send to completed",
+        )
         time.sleep(0.25)
 
     require(capture.typed_text() == source, "confirmed send typed the exact expected text")
@@ -111,14 +116,23 @@ def test_cancel_before_confirm(device: Device) -> None:
     with Capture() as capture:
         post_send(device, "h1-cancel-must-not-type")
         time.sleep(0.5)
-        require(len(key_down_reports(capture)) == 0, "zero HID key-down reports before cancellation")
+        require(
+            len(key_down_reports(capture)) == 0,
+            "zero HID key-down reports before cancellation",
+        )
         status, payload = device.delete("/api/v1/send")
         require(status == 202, f"DELETE /api/v1/send accepted ({status})")
         terminal = wait_for_state(device, {"cancelled", "failed"}, 10.0)
-        require(terminal.get("state") == "cancelled", "cancel-before-confirmation reaches cancelled")
+        require(
+            terminal.get("state") == "cancelled",
+            "cancel-before-confirmation reaches cancelled",
+        )
         time.sleep(0.25)
 
-    require(len(key_down_reports(capture)) == 0, "cancel-before-confirmation produced zero HID key-down reports")
+    require(
+        len(key_down_reports(capture)) == 0,
+        "cancel-before-confirmation produced zero HID key-down reports",
+    )
     require(capture.typed_text() == "", "cancel-before-confirmation typed nothing")
 
 
@@ -130,17 +144,28 @@ def test_real_timeout(device: Device) -> None:
         terminal = wait_for_state(device, {"timed_out", "failed"}, 70.0)
         elapsed = time.monotonic() - start
         require(terminal.get("state") == "timed_out", "unconfirmed send reaches timed_out")
-        require(elapsed >= 59.0, f"hardware timeout was not shortened ({elapsed:.1f}s observed)")
-        require(elapsed <= 70.0, f"hardware timeout remained bounded ({elapsed:.1f}s observed)")
+        require(
+            elapsed >= 59.0,
+            f"hardware timeout was not shortened ({elapsed:.1f}s observed)",
+        )
+        require(
+            elapsed <= 70.0,
+            f"hardware timeout remained bounded ({elapsed:.1f}s observed)",
+        )
         time.sleep(0.25)
 
-    require(len(key_down_reports(capture)) == 0, "timeout path produced zero HID key-down reports")
+    require(
+        len(key_down_reports(capture)) == 0,
+        "timeout path produced zero HID key-down reports",
+    )
     require(capture.typed_text() == "", "timeout path typed nothing")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--console", default=os.environ.get("HIL_CONSOLE", hil_state.DEFAULT_CONSOLE))
+    parser.add_argument(
+        "--console", default=os.environ.get("HIL_CONSOLE", hil_state.DEFAULT_CONSOLE)
+    )
     parser.add_argument(
         "--firmware-sha",
         default=os.environ.get("HIL_FIRMWARE_SHA"),
@@ -167,15 +192,17 @@ def main() -> int:
 
     status, payload = device.put(
         "/api/v1/settings",
-        {
-            "expectedRevision": original["revision"],
-            "requireSerialConfirmation": True,
-        },
+        {"requireSerialConfirmation": True},
     )
     if status != 200:
         raise SystemExit(f"error: enabling requireSerialConfirmation -> HTTP {status} {payload}")
-    configured = response_data(payload)
-    require(configured.get("requireSerialConfirmation") is True, "requireSerialConfirmation enabled")
+    updated = response_data(payload)
+    configured = updated.get("settings") if isinstance(updated, dict) else None
+    require(isinstance(configured, dict), "settings update response contains settings")
+    require(
+        configured.get("requireSerialConfirmation") is True,
+        "requireSerialConfirmation enabled",
+    )
 
     try:
         test_confirm_then_type(device, args.console)
@@ -185,14 +212,12 @@ def main() -> int:
         # Restore the owner setting even if one acceptance step fails.
         status, restore_payload = device.put(
             "/api/v1/settings",
-            {
-                "expectedRevision": configured["revision"],
-                "requireSerialConfirmation": original_required,
-            },
+            {"requireSerialConfirmation": original_required},
         )
         if status != 200:
             print(
-                f"WARNING: could not restore requireSerialConfirmation: HTTP {status} {restore_payload}",
+                "WARNING: could not restore requireSerialConfirmation: "
+                f"HTTP {status} {restore_payload}",
                 file=sys.stderr,
             )
         device.logout()
