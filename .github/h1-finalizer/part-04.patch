@@ -1,0 +1,138 @@
++    require(capture.typed_text() == source, "confirmed send typed the exact expected text")
++    require(capture.ended_released(), "confirmed send ended with an all-zero release report")
++
++
++def test_cancel_before_confirm(device: Device) -> None:
++    print("\n[2/3] cancel before confirmation types nothing")
++    with Capture() as capture:
++        post_send(device, "h1-cancel-must-not-type")
++        time.sleep(0.5)
++        require(len(key_down_reports(capture)) == 0, "zero HID key-down reports before cancellation")
++        status, payload = device.delete("/api/v1/send")
++        require(status == 202, f"DELETE /api/v1/send accepted ({status})")
++        terminal = wait_for_state(device, {"cancelled", "failed"}, 10.0)
++        require(terminal.get("state") == "cancelled", "cancel-before-confirmation reaches cancelled")
++        time.sleep(0.25)
++
++    require(len(key_down_reports(capture)) == 0, "cancel-before-confirmation produced zero HID key-down reports")
++    require(capture.typed_text() == "", "cancel-before-confirmation typed nothing")
++
++
++def test_real_timeout(device: Device) -> None:
++    print("\n[3/3] real 60-second confirmation expiry types nothing")
++    start = time.monotonic()
++    with Capture() as capture:
++        post_send(device, "h1-timeout-must-not-type")
++        terminal = wait_for_state(device, {"timed_out", "failed"}, 70.0)
++        elapsed = time.monotonic() - start
++        require(terminal.get("state") == "timed_out", "unconfirmed send reaches timed_out")
++        require(elapsed >= 59.0, f"hardware timeout was not shortened ({elapsed:.1f}s observed)")
++        require(elapsed <= 70.0, f"hardware timeout remained bounded ({elapsed:.1f}s observed)")
++        time.sleep(0.25)
++
++    require(len(key_down_reports(capture)) == 0, "timeout path produced zero HID key-down reports")
++    require(capture.typed_text() == "", "timeout path typed nothing")
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--console", default=os.environ.get("HIL_CONSOLE", hil_state.DEFAULT_CONSOLE))
++    parser.add_argument(
++        "--firmware-sha",
++        default=os.environ.get("HIL_FIRMWARE_SHA"),
++        help="Exact firmware Git SHA flashed to the board; required for auditable evidence.",
++    )
++    args = parser.parse_args()
++    if not args.firmware_sha:
++        raise SystemExit("error: pass --firmware-sha or set HIL_FIRMWARE_SHA")
++
++    print("H1 real-send confirmation hardware acceptance")
++    print(f"firmware_sha={args.firmware_sha}")
++    print("board=ESP32-S3R8")
++    print(f"host={platform.platform()}")
++    print(f"console={args.console}")
++    print(f"device_ip={hil_state.device_ip()}")
++
++    device = Device()
++    device.login()
++    status, payload = device.get("/api/v1/settings")
++    if status != 200:
++        raise SystemExit(f"error: GET settings -> HTTP {status} {payload}")
++    original = response_data(payload)
++    original_required = bool(original["requireSerialConfirmation"])
++
++    status, payload = device.put(
++        "/api/v1/settings",
++        {
++            "expectedRevision": original["revision"],
++            "requireSerialConfirmation": True,
++        },
++    )
++    if status != 200:
++        raise SystemExit(f"error: enabling requireSerialConfirmation -> HTTP {status} {payload}")
++    configured = response_data(payload)
++    require(configured.get("requireSerialConfirmation") is True, "requireSerialConfirmation enabled")
++
++    try:
++        test_confirm_then_type(device, args.console)
++        test_cancel_before_confirm(device)
++        test_real_timeout(device)
++    finally:
++        # Restore the owner setting even if one acceptance step fails.
++        status, restore_payload = device.put(
++            "/api/v1/settings",
++            {
++                "expectedRevision": configured["revision"],
++                "requireSerialConfirmation": original_required,
++            },
++        )
++        if status != 200:
++            print(
++                f"WARNING: could not restore requireSerialConfirmation: HTTP {status} {restore_payload}",
++                file=sys.stderr,
++            )
++        device.logout()
++
++    print("\nH1 hardware acceptance: PASS")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+--- a/tests/hardware/README.md
++++ b/tests/hardware/README.md
+@@ -36,6 +36,19 @@
+ second waiter is refused, and checks that the server releases the request
+ socket. The script restores the prior setting afterward.
+ 
++### End-to-end send confirmation (H1)
++
++```bash
++python3 tests/hardware/test_send_confirmation.py --firmware-sha <exact-git-sha>
++```
++
++This enables `requireSerialConfirmation`, captures the native USB HID stream,
++proves zero key-down reports before the UART `confirm` command, proves the
++confirmed send types exactly once, then verifies cancel-before-confirmation and
++the real 60-second expiry path both type nothing. The prior setting is restored
++on exit. This is intentionally a real 60-second timeout test rather than a
++test-only shortened substitute.
++
+ ### Restart and reset acceptance
+ 
+ ```bash
+@@ -49,10 +62,10 @@
+ 
+ ## Deferred device checks
+ 
+-Direct macro text submission, HID typing capture, and in-flight cancellation
+-return with the V2 `/api/v1/send` endpoint in a later phase. Package CRUD,
+-package ordering, package backup/restore, and stored-macro execution tests were
+-deleted in Phase 2 because those firmware-owned resources no longer exist.
++H1 now has a dedicated real-send confirmation/HID acceptance harness above.
++Other hardware checks remain task-specific; package CRUD, package ordering,
++package backup/restore, and stored-macro execution tests were deleted in Phase 2
++because those firmware-owned resources no longer exist.
+ 
+ ## Bench state and dependencies
+ 
