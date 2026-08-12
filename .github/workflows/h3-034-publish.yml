@@ -6,6 +6,7 @@ on:
       - h3-034-transport
     paths:
       - .github/h3-034-apply.py
+      - .github/h3-034-preprocess.py
       - .github/h3-034-followup.py
       - .github/h3-034-evidence.md
       - .github/workflows/h3-034-publish.yml
@@ -35,8 +36,10 @@ jobs:
           readonly EXPECTED_MASTER='be727d666347990abc097a9a23e202f85d02c988'
 
           cp .github/h3-034-apply.py /tmp/h3-034-apply.py
+          cp .github/h3-034-preprocess.py /tmp/h3-034-preprocess.py
           cp .github/h3-034-followup.py /tmp/h3-034-followup.py
           cp .github/h3-034-evidence.md /tmp/h3-034-evidence.md
+          python3 /tmp/h3-034-preprocess.py
           python3 -m py_compile /tmp/h3-034-apply.py /tmp/h3-034-followup.py
 
           git fetch origin master
