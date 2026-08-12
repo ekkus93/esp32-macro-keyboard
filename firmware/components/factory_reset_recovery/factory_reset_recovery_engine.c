@@ -2,6 +2,9 @@
 
 #include <stddef.h>
 
+#include "app_error.h"
+#include "factory_reset_state.h"
+
 static void record_first_error(app_error_code_t candidate, app_error_code_t *first_error) {
     if (candidate != APP_ERROR_NONE && *first_error == APP_ERROR_NONE) {
         *first_error = candidate;
