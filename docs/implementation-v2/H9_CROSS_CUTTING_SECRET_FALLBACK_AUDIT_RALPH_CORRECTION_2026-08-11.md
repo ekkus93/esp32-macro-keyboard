@@ -60,3 +60,62 @@ The runtime `libcjson.so.1` 1.7.18 library is installed but its development pack
 The original production fallback/ignored-result classifications remain valid. The Ralph correction closes the two newly identified regression-control gaps. No new production secret leak was found, and no known critical silent failure from H9 remains after the stricter guards and executable redaction regression.
 
 This correction does not claim completion of work explicitly assigned elsewhere, including H5 storage provenance, H1 remaining browser/hardware confirmation evidence, or H10 final real-browser/device release-candidate gates.
+
+## Second Ralph pass — post-H3 regression-control audit (2026-08-12)
+
+A second Ralph-loop pass re-audited H9 after subsequent hardening work had landed on `master`. The user-provided local archive corresponded to `d11089e141490356ce93c369c73e1c07fc9820e8`. During local validation, `master` advanced to `dd8030e7c2f9dbbdf5098f06eab1ebf0433d5803` (`fix: clarify reset-settings partial completion`). That delta did not overlap the H9 guard/test files, but it did change production reset behavior, so its new immediate-reboot fallback was explicitly reviewed before publishing the second H9 correction at `48fe586f1c384d45fca65feb89f54bd41509ca13` (`fix: harden H9 regression audit guards`).
+
+### Credential-output laundering bypasses
+
+The existing credential-output scanner rejected direct/dynamic/aliased secret output but could still be bypassed by copying or formatting a secret into a neutral-named buffer before sending that buffer to a log sink. Two concrete probes passed the old checker: `snprintf(message, ..., password)` followed by `ESP_LOGI(..., message)`, and `memcpy(message, session_token, ...)` followed by the same sink. No corresponding production leak was found.
+
+`48fe586f1c384d45fca65feb89f54bd41509ca13` propagates secret taint through `memcpy`, `memmove`, `strcpy`, `strncpy`, `strlcpy`, `strcat`, `strncat`, `snprintf`, and `sprintf`. The committed credential-output regression suite grows from 16 to **18 cases**, adding formatted-buffer and copied-buffer laundering probes. `scripts/check-scripts.sh` also now applies the credential checker directly to `tests/host` and `firmware/test_app` so test-output surfaces cannot quietly escape the same policy.
+
+### Browser-console guard bypasses
+
+The earlier browser-console prohibition only recognized bare `console.log/info/warn/error/debug(...)` shapes. It could miss qualified, bracket, or aliased access such as `window.console.error(...)`, `globalThis["console"]["warn"](...)`, and `const logger = console; logger.info(...)`. A broad text regex was intentionally rejected during this pass because it would falsely classify legitimate user-visible strings such as “serial console.”
+
+The new `webapp/tests/v2-browser-console-prohibition.test.ts` uses the TypeScript AST instead. It scans `AppV2.tsx`, all `src/v2/**/*.{ts,tsx}`, and every `src/features/**/v2/**/*.{ts,tsx}`, rejects direct/qualified/bracket/aliased `console` references, and contains a positive regression proving ordinary string content containing the word `console` is allowed. A sandbox-side AST scan of **51 production V2 TS/TSX sources** found no offender. The actual Vitest suite could not be executed locally because the archive has no frontend dependencies and the sandbox Node version is 22.16.0 rather than the pinned 24.18.0.
+
+### Permanent production classification guard
+
+The earlier H9 mechanical audit was a point-in-time classification rather than a complete fail-closed regression gate. `48fe586f1c384d45fca65feb89f54bd41509ca13` adds `scripts/check-h9-production-audit.py` and wires it into `scripts/check-scripts.sh`. The guard rejects new or changed:
+
+- empty `catch {}` blocks;
+- empty Promise rejection handlers;
+- `best-effort` markers;
+- fallback variants including `fallback`, `fallbacks`, `fall back`, `falls back`, `fell back`, and `falling back`;
+- explicit C `(void)callee(...);` result discards.
+
+Every currently reviewed occurrence is an exact, count-bounded allowlist entry, so copy/paste duplication or wording changes force a new H9 classification. The guard’s own negative regression suite passes **7/7**.
+
+The current reviewed inventory is **1 best-effort occurrence, 13 fallback occurrences, and 18 explicit discarded C calls**, with zero empty catches and zero empty Promise catches. Newly surfaced wording was classified rather than hidden:
+
+- provisioning station failure intentionally leaves AP service available; the failure path is warning-logged and the bounded station engine retains `WIFI_STATION_FAILED`, so this is not silent success;
+- two snapshot-client fallback references explicitly state that unsafe persistence fallbacks are forbidden;
+- the reset scheduler fallback introduced by `dd8030e7c2f9dbbdf5098f06eab1ebf0433d5803` immediately reboots when delayed restart ownership cannot be established after durable state may already have changed, then returns an internal error if `esp_restart()` unexpectedly returns; this is fail-safe behavior, not a swallowed failure;
+- the single `best-effort` wording is likewise a negative statement that login must not re-read NVS as an unsafe cache refresh.
+
+### Local validation for the second pass
+
+On the user-provided `d11089e141490356ce93c369c73e1c07fc9820e8` archive plus the H9 patch:
+
+- complete native host suite — **66/66 passed**;
+- complete native host suite under ASan+UBSan — **66/66 passed**;
+- `python3 scripts/check-h9-architecture.py` — passed;
+- `python3 scripts/check-v2-phase2-architecture.py` — passed;
+- `python3 scripts/check-h2-architecture.py` — passed;
+- `python3 scripts/check-h3-architecture.py` — passed;
+- `python3 scripts/check-h9-production-audit.py` — passed on the archive with its 12 then-present fallback occurrences;
+- `bash tests/scripts/test-check-h9-production-audit.sh` — **7/7 passed**;
+- firmware, host-test, and device-test credential-output checks — passed;
+- `bash tests/scripts/test-check-credential-logging.sh` — **18/18 passed**;
+- `bash tests/scripts/test-test-assert-redaction.sh` — **3/3 passed**;
+- browser-console TypeScript AST scan — **51 production sources clean**;
+- `bash -n` on changed shell scripts, Python byte-compilation, and diff whitespace checks — passed.
+
+The exact final `48fe586f1c384d45fca65feb89f54bd41509ca13` product tree was not rebuilt in the sandbox because `master` advanced after the native validation run. The intervening H3 delta was reviewed for H9 scope and did not overlap the six H9 code/test files. Frontend npm/Vitest/build checks were not locally runnable for the Node/dependency reasons above. `actionlint`, `shellcheck`, and `shfmt` remain unavailable in the sandbox. GitHub Actions was intentionally not monitored, per the user’s Ralph-loop workflow.
+
+### Disposition
+
+No new production credential disclosure or critical silent failure was found. The second pass did find real weaknesses in the **regression controls**, and those are now fail-closed: secret laundering through common copy/format operations, browser-console alias forms, and newly introduced fallback/discard patterns all have committed negative tests. H9 remains complete on the reviewed scope; H10 and the remaining hardware/release gates remain separate and are not claimed here.
