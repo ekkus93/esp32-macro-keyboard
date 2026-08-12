@@ -36,14 +36,14 @@ new_start = text.find(new_anchor, old_start + 1)
 if old_start < 0 or new_start < 0:
     raise SystemExit('web-actions reset failure modifier anchors are missing')
 
-replacement = r'''reset_failure_start = text.index("static void test_reset_settings_backend_failure(void) {")
+replacement = '''reset_failure_start = text.index("static void test_reset_settings_backend_failure(void) {")
 reset_failure_end = text.index(
-    "\n/* ---------------------------------------------------------------------- */\n"
+    "\\n/* ---------------------------------------------------------------------- */\\n"
     "/* POST /api/v1/device/factory-reset",
     reset_failure_start,
 )
 old = text[reset_failure_start:reset_failure_end]
-'''.replace('\\"', '"')
+'''
 text = text[:old_start] + replacement + text[new_start:]
 
 path.write_text(text)
