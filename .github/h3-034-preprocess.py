@@ -23,14 +23,14 @@ for old, new in replacements:
         raise SystemExit(f'expected one macro-literal anchor for {old!r}, found {count}')
     text = text.replace(old, new, 1)
 
-# The reset-settings backend test is edited after earlier transformations have
-# already changed the fake reset-settings field/callback. Do not require a
-# byte-for-byte copy of the original whole test function here. Extract the
-# actual current section from the target file at modifier runtime, bounded by
-# stable function/section markers, then replace that exact section with the
-# H3-034 tests.
+# The reset-settings backend test contains C JSON string escapes. The original
+# exact whole-function matcher was brittle, and its ordinary Python string
+# literal also consumed the C backslashes. Extract the actual current section
+# from the target file at modifier runtime and make the replacement C block a
+# raw Python literal so \" survives into the generated C source.
 old_anchor = 'old = """static void test_reset_settings_backend_failure(void) {'
 new_anchor = 'new = """static void test_reset_settings_backend_failure(void) {'
+raw_new_anchor = 'new = r"""static void test_reset_settings_backend_failure(void) {'
 old_start = text.find(old_anchor)
 new_start = text.find(new_anchor, old_start + 1)
 if old_start < 0 or new_start < 0:
@@ -45,5 +45,8 @@ reset_failure_end = text.index(
 old = text[reset_failure_start:reset_failure_end]
 '''
 text = text[:old_start] + replacement + text[new_start:]
+if text.count(new_anchor) != 1:
+    raise SystemExit('expected one web-actions replacement literal after section rewrite')
+text = text.replace(new_anchor, raw_new_anchor, 1)
 
 path.write_text(text)
