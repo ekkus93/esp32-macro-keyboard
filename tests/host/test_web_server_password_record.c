@@ -123,9 +123,43 @@ static void test_concurrent_snapshot_and_replace_never_observe_torn_record(void)
     TEST_CHECK(!atomic_load_explicit(&context.failed, memory_order_acquire));
 }
 
+static void test_login_snapshot_fails_closed_during_password_transition(void) {
+    const auth_password_record_t old_record = make_record(0x12U, 0x34U, 5500U);
+    const auth_password_record_t new_record = make_record(0x56U, 0x78U, 9001U);
+    web_server_config_t configuration = {
+        .mode = WEB_SERVER_MODE_NORMAL,
+        .login_enabled = true,
+        .password_record = old_record,
+    };
+    web_server_configuration_store(&configuration);
+
+    auth_password_record_t snapshot = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_server_password_record_snapshot_for_login(&snapshot));
+    TEST_CHECK(record_equal(&snapshot, &old_record));
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_server_password_transition_begin());
+    TEST_CHECK_APP_ERROR(APP_ERROR_CONFLICT, web_server_password_transition_begin());
+    memset(&snapshot, 0xA5, sizeof(snapshot));
+    TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_STATE_INCOMPLETE,
+                         web_server_password_record_snapshot_for_login(&snapshot));
+
+    web_server_password_record_replace(&new_record);
+    TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_STATE_INCOMPLETE,
+                         web_server_password_record_snapshot_for_login(&snapshot));
+
+    web_server_password_transition_end();
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         web_server_password_record_snapshot_for_login(&snapshot));
+    TEST_CHECK(record_equal(&snapshot, &new_record));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         web_server_password_record_snapshot_for_login(NULL));
+}
+
 int main(void) {
     test_configuration_store_and_clear_use_same_lock_domain();
     test_concurrent_snapshot_and_replace_never_observe_torn_record();
+    test_login_snapshot_fails_closed_during_password_transition();
     puts("web password-record synchronization tests passed");
     return EXIT_SUCCESS;
 }

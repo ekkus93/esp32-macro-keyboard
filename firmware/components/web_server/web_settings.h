@@ -26,6 +26,16 @@ typedef struct {
                                         bool *out_matches);
     app_error_code_t (*password_create)(void *context, const char *password, size_t password_length,
                                         app_v2_setup_password_material_t *out_material);
+    /* A short-lived transaction gate acquired before settings read/password
+     * verification. It serializes password changes and makes login fail closed
+     * until durable credential, RAM verifier, and session state are coherent.
+     * begin/end only flip a bounded flag; the password-record copy lock is never
+     * held across storage I/O, PBKDF2, or session invalidation. */
+    app_error_code_t (*password_transition_begin)(void *context);
+    /* Infallible RAM activation from the exact candidate that settings_replace()
+     * durably committed. No storage re-read is permitted here. */
+    void (*password_activate)(void *context, const app_v2_device_settings_t *settings);
+    void (*password_transition_end)(void *context);
     app_error_code_t (*invalidate_all_sessions)(void *context);
 } web_settings_ops_t;
 
@@ -84,20 +94,26 @@ typedef enum {
     WEB_CHANGE_PASSWORD_INVALID_BODY,
     WEB_CHANGE_PASSWORD_INVALID_NEW_PASSWORD,
     WEB_CHANGE_PASSWORD_INCORRECT_CURRENT_PASSWORD,
+    WEB_CHANGE_PASSWORD_COMMITTED_SESSION_INVALIDATION_INCOMPLETE,
     WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
     WEB_CHANGE_PASSWORD_INTERNAL,
 } web_change_password_result_t;
 
 typedef struct {
     web_change_password_result_t result;
-    /* Underlying backend error for BACKEND_UNAVAILABLE; APP_ERROR_NONE
-     * otherwise. */
+    /* Underlying backend error for BACKEND_UNAVAILABLE or
+     * COMMITTED_SESSION_INVALIDATION_INCOMPLETE; APP_ERROR_NONE otherwise. */
     app_error_code_t detail;
 } web_change_password_outcome_t;
 
 /* POST /api/v1/settings/change-password. Verifies `currentPassword` against
  * the stored credential, derives new material for `newPassword`, replaces
- * the settings record, and invalidates every session (SPEC_V2 13.9:
+ * the settings record, activates that exact committed credential in RAM, and
+ * invalidates every session. The transaction gate is acquired before reading
+ * credential authority, so concurrent password changes cannot both verify a
+ * stale old password. If session invalidation fails after commit, the explicit
+ * COMMITTED_SESSION_INVALIDATION_INCOMPLETE result means the new password is
+ * already authoritative (SPEC_V2 13.9:
  * "invalidates all sessions including the current one"). Clearing the
  * session cookie on the wire is the httpd adapter's job -- this module has
  * no concept of a cookie. `body` is wiped before this function returns on

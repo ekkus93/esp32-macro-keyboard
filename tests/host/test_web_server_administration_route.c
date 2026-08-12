@@ -93,6 +93,7 @@
 #include "web_diagnostics.h"
 #include "web_server.h"
 #include "web_server_internal.h"
+#include "web_server_password_record.h"
 #include "wifi_ap.h"
 
 #define ADMIN_TEST_SESSION_TOKEN                                                                   \
@@ -730,7 +731,69 @@ static void test_change_password_post_valid(void) {
     TEST_CHECK_EQ_STRING("MKSESSION=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0",
                          fake_httpd_response_header(&fake, "Set-Cookie"));
     TEST_CHECK_EQ_U64(1U, (uint64_t)g_logout_all_calls);
+    TEST_CHECK_EQ_U64(AUTH_PBKDF2_ITERATIONS,
+                      (uint64_t)server_configuration.password_record.iterations);
+    TEST_CHECK_EQ_U64(0x77U, (uint64_t)server_configuration.password_record.salt[0]);
+    TEST_CHECK_EQ_U64(0x88U, (uint64_t)server_configuration.password_record.hash[0]);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
+}
+
+static void test_change_password_post_committed_invalidation_failure_is_explicit(void) {
+    reset_fakes();
+    g_logout_all_result = APP_ERROR_INTERNAL;
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    bind_json_body(&request, &fake, "/api/v1/settings/change-password", HTTP_POST,
+                   "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
+                   "password\"}");
+
+    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+    TEST_CHECK_EQ_STRING("409 Conflict", fake.response_status);
+    TEST_CHECK_EQ_STRING("MKSESSION=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0",
+                         fake_httpd_response_header(&fake, "Set-Cookie"));
+    TEST_CHECK_EQ_U64(1U, (uint64_t)g_logout_all_calls);
+    TEST_CHECK_EQ_U64(AUTH_PBKDF2_ITERATIONS,
+                      (uint64_t)g_device_settings_record.password_iterations);
+    TEST_CHECK_EQ_U64(AUTH_PBKDF2_ITERATIONS,
+                      (uint64_t)server_configuration.password_record.iterations);
+    TEST_CHECK_EQ_U64(0x77U, (uint64_t)g_device_settings_record.password_salt[0]);
+    TEST_CHECK_EQ_U64(0x77U, (uint64_t)server_configuration.password_record.salt[0]);
+
+    cJSON *root = parse_response(&fake);
+    const cJSON *error = cJSON_GetObjectItemCaseSensitive(root, "error");
+    TEST_CHECK(error != NULL);
+    TEST_CHECK_EQ_STRING("auth_state_incomplete",
+                         cJSON_GetObjectItemCaseSensitive(error, "code")->valuestring);
+    TEST_CHECK_EQ_STRING(
+        "password changed; session invalidation incomplete; sign in with the new password",
+        cJSON_GetObjectItemCaseSensitive(error, "message")->valuestring);
+    cJSON_Delete(root);
+}
+
+static void test_change_password_post_busy_before_commit_keeps_cookie(void) {
+    reset_fakes();
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_server_password_transition_begin());
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    bind_json_body(&request, &fake, "/api/v1/settings/change-password", HTTP_POST,
+                   "{\"currentPassword\":\"old-example-password\",\"newPassword\":\"new-example-"
+                   "password\"}");
+
+    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+    TEST_CHECK_EQ_STRING("503 Service Unavailable", fake.response_status);
+    TEST_CHECK(fake_httpd_response_header(&fake, "Set-Cookie") == NULL);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_logout_all_calls);
+    TEST_CHECK_EQ_U64(120000U, (uint64_t)g_device_settings_record.password_iterations);
+    cJSON *root = parse_response(&fake);
+    const cJSON *error = cJSON_GetObjectItemCaseSensitive(root, "error");
+    TEST_CHECK_EQ_STRING("conflict",
+                         cJSON_GetObjectItemCaseSensitive(error, "code")->valuestring);
+    cJSON_Delete(root);
+    web_server_password_transition_end();
 }
 
 static void test_change_password_post_incorrect_current_password(void) {
@@ -1050,6 +1113,8 @@ int main(void) {
     test_settings_put_unauthorized_expired_session();
 
     test_change_password_post_valid();
+    test_change_password_post_committed_invalidation_failure_is_explicit();
+    test_change_password_post_busy_before_commit_keeps_cookie();
     test_change_password_post_incorrect_current_password();
 
     test_reset_settings_post_valid();

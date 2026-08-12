@@ -260,8 +260,14 @@ static bool restart_after_response(const web_api_call_t *call, const web_api_res
  * web_api_core.c. */
 static bool should_clear_session_cookie(const web_api_call_t *call,
                                         const web_api_response_t *response) {
-    return response->status == WEB_HTTP_STATUS_NO_CONTENT &&
-           call->path.route == WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD;
+    if (call->path.route != WEB_API_ROUTE_SETTINGS_CHANGE_PASSWORD) {
+        return false;
+    }
+    /* 204: every session was invalidated. 409 is reserved on this route for
+     * H2's committed-password/session-invalidation-incomplete outcome. In both
+     * cases the browser must stop presenting its current cookie as usable. */
+    return response->status == WEB_HTTP_STATUS_NO_CONTENT ||
+           response->status == WEB_HTTP_STATUS_CONFLICT;
 }
 
 static app_error_code_t prepare_api_call(httpd_req_t *request, web_api_call_t *call,

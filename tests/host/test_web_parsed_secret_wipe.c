@@ -128,6 +128,20 @@ static app_error_code_t unused_password_create(void *context, const char *passwo
     return APP_ERROR_INTERNAL;
 }
 
+static app_error_code_t unused_password_transition_begin(void *context) {
+    (void)context;
+    return APP_ERROR_NONE;
+}
+
+static void unused_password_activate(void *context, const app_v2_device_settings_t *settings) {
+    (void)context;
+    (void)settings;
+}
+
+static void unused_password_transition_end(void *context) {
+    (void)context;
+}
+
 static app_error_code_t unused_invalidate_sessions(void *context) {
     (void)context;
     return APP_ERROR_INTERNAL;
@@ -145,6 +159,9 @@ static web_settings_ops_t settings_operations(void) {
         .settings_replace = unused_settings_replace,
         .password_verify = unused_password_verify,
         .password_create = unused_password_create,
+        .password_transition_begin = unused_password_transition_begin,
+        .password_activate = unused_password_activate,
+        .password_transition_end = unused_password_transition_end,
         .invalidate_all_sessions = unused_invalidate_sessions,
     };
 }

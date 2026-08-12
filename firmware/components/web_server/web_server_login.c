@@ -174,7 +174,13 @@ esp_err_t login_handler(httpd_req_t *request) {
      * record here, and the expensive verifier never blocks the writer while
      * holding the critical section. */
     auth_password_record_t password_record = {0};
-    web_server_password_record_snapshot(&password_record);
+    const app_error_code_t snapshot_result =
+        web_server_password_record_snapshot_for_login(&password_record);
+    if (snapshot_result != APP_ERROR_NONE) {
+        memset(password, 0, sizeof(password));
+        return send_error(request, "503 Service Unavailable", snapshot_result,
+                          "credential transition in progress");
+    }
     bool password_matches = false;
     const app_error_code_t verify_result =
         auth_password_verify(password, password_length, &password_record, &password_matches);

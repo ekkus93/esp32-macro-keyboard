@@ -242,6 +242,7 @@ static void test_error_status_mapping(void) {
     TEST_CHECK_EQ_U64(422U, web_api_http_status_for_error(APP_ERROR_MACRO_LIMIT));
     TEST_CHECK_EQ_U64(404U, web_api_http_status_for_error(APP_ERROR_NOT_FOUND));
     TEST_CHECK_EQ_U64(409U, web_api_http_status_for_error(APP_ERROR_CONFLICT));
+    TEST_CHECK_EQ_U64(409U, web_api_http_status_for_error(APP_ERROR_AUTH_STATE_INCOMPLETE));
     TEST_CHECK_EQ_U64(409U, web_api_http_status_for_error(APP_ERROR_EXECUTOR_BUSY));
     TEST_CHECK_EQ_U64(409U, web_api_http_status_for_error(APP_ERROR_EXECUTION_CANCELLED));
     TEST_CHECK_EQ_U64(507U, web_api_http_status_for_error(APP_ERROR_STORAGE_FULL));

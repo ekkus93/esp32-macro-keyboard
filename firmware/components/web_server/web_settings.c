@@ -613,7 +613,8 @@ change_password_outcome_with_detail(web_change_password_result_t result, app_err
 
 static bool ops_valid_change_password(const web_settings_ops_t *ops) {
     return ops_valid_common(ops) && ops->password_verify != NULL && ops->password_create != NULL &&
-           ops->invalidate_all_sessions != NULL;
+           ops->password_transition_begin != NULL && ops->password_activate != NULL &&
+           ops->password_transition_end != NULL && ops->invalidate_all_sessions != NULL;
 }
 
 web_change_password_outcome_t web_change_password_handle(char *body, size_t body_capacity,
@@ -625,10 +626,17 @@ web_change_password_outcome_t web_change_password_handle(char *body, size_t body
         return change_password_outcome(WEB_CHANGE_PASSWORD_INTERNAL);
     }
 
+    web_change_password_outcome_t outcome =
+        change_password_outcome(WEB_CHANGE_PASSWORD_INTERNAL);
     cJSON *root = parse_exact_body(body, body_capacity);
+    app_v2_device_settings_t current = {0};
+    app_v2_setup_password_material_t material = {0};
+    app_v2_device_settings_t candidate = {0};
+    bool transition_active = false;
+
     if (root == NULL || !exact_change_password_fields(root)) {
-        wipe_and_delete_json_tree(root);
-        return change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_BODY);
+        outcome = change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_BODY);
+        goto cleanup;
     }
 
     app_v2_string_view_t current_password_view = {0};
@@ -637,21 +645,33 @@ web_change_password_outcome_t web_change_password_handle(char *body, size_t body
                                &current_password_view) ||
         !string_view_from_item(cJSON_GetObjectItemCaseSensitive(root, "newPassword"),
                                &new_password_view)) {
-        wipe_and_delete_json_tree(root);
-        return change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_BODY);
+        outcome = change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_BODY);
+        goto cleanup;
     }
 
-    app_v2_device_settings_t current = {0};
+    /* Serialize the entire credential transaction, not only the durable write.
+     * Otherwise two concurrent requests could both verify the same old password
+     * and the later request could commit a stale candidate after the first one
+     * already established a new authority. The transition flag is a bounded
+     * gate only; no PBKDF2/NVS/session work runs while its portMUX is held. */
+    const app_error_code_t transition_result = ops->password_transition_begin(ops->context);
+    if (transition_result != APP_ERROR_NONE) {
+        outcome = change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
+                                                      transition_result);
+        goto cleanup;
+    }
+    transition_active = true;
+
     const app_error_code_t read_result = ops->settings_read(ops->context, &current);
     if (read_result != APP_ERROR_NONE) {
-        wipe_and_delete_json_tree(root);
-        return change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
-                                                   read_result);
+        outcome = change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
+                                                      read_result);
+        goto cleanup;
     }
 
     if (app_v2_password_change_validate(&current, new_password_view) != APP_V2_PASSWORD_CHANGE_OK) {
-        wipe_and_delete_json_tree(root);
-        return change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_NEW_PASSWORD);
+        outcome = change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_NEW_PASSWORD);
+        goto cleanup;
     }
 
     bool current_matches = false;
@@ -659,45 +679,64 @@ web_change_password_outcome_t web_change_password_handle(char *body, size_t body
         ops->password_verify(ops->context, current_password_view.data, current_password_view.length,
                              &current, &current_matches);
     if (verify_result != APP_ERROR_NONE) {
-        wipe_and_delete_json_tree(root);
-        return change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
-                                                   verify_result);
+        outcome = change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
+                                                      verify_result);
+        goto cleanup;
     }
     if (!current_matches) {
-        wipe_and_delete_json_tree(root);
-        return change_password_outcome(WEB_CHANGE_PASSWORD_INCORRECT_CURRENT_PASSWORD);
+        outcome = change_password_outcome(WEB_CHANGE_PASSWORD_INCORRECT_CURRENT_PASSWORD);
+        goto cleanup;
     }
 
-    app_v2_setup_password_material_t material = {0};
     const app_error_code_t create_result = ops->password_create(
         ops->context, new_password_view.data, new_password_view.length, &material);
+    /* The parsed tree contains both plaintext passwords. It is no longer needed
+     * after password_create(), so wipe it before any durable operation starts. */
     wipe_and_delete_json_tree(root);
+    root = NULL;
     if (create_result != APP_ERROR_NONE) {
-        secure_zero_local(&material, sizeof(material));
-        return change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
-                                                   create_result);
+        outcome = change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
+                                                      create_result);
+        goto cleanup;
     }
 
-    app_v2_device_settings_t candidate = {0};
-    const bool prepared = app_v2_password_change_prepare_candidate(&current, &material, &candidate);
-    secure_zero_local(&material, sizeof(material));
-    if (!prepared) {
-        return change_password_outcome(WEB_CHANGE_PASSWORD_INTERNAL);
+    if (!app_v2_password_change_prepare_candidate(&current, &material, &candidate)) {
+        outcome = change_password_outcome(WEB_CHANGE_PASSWORD_INTERNAL);
+        goto cleanup;
     }
+    secure_zero_local(&material, sizeof(material));
 
     bool changed = false;
     const app_error_code_t replace_result =
         ops->settings_replace(ops->context, &candidate, &changed);
     if (replace_result != APP_ERROR_NONE) {
-        return change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
-                                                   replace_result);
+        outcome = change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
+                                                      replace_result);
+        goto cleanup;
     }
+
+    /* From this point the new password is authoritative. Activate RAM directly
+     * from the exact candidate that was durably committed; never re-read NVS as
+     * a best-effort cache refresh. Login remains fail-closed behind the
+     * transition gate until session invalidation has also finished. */
+    ops->password_activate(ops->context, &candidate);
 
     const app_error_code_t invalidate_result = ops->invalidate_all_sessions(ops->context);
     if (invalidate_result != APP_ERROR_NONE) {
-        return change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
-                                                   invalidate_result);
+        outcome = change_password_outcome_with_detail(
+            WEB_CHANGE_PASSWORD_COMMITTED_SESSION_INVALIDATION_INCOMPLETE, invalidate_result);
+        goto cleanup;
     }
 
-    return change_password_outcome(WEB_CHANGE_PASSWORD_OK);
+    outcome = change_password_outcome(WEB_CHANGE_PASSWORD_OK);
+
+cleanup:
+    if (transition_active) {
+        ops->password_transition_end(ops->context);
+    }
+    wipe_and_delete_json_tree(root);
+    secure_zero_local(&material, sizeof(material));
+    secure_zero_local(&candidate, sizeof(candidate));
+    secure_zero_local(&current, sizeof(current));
+    return outcome;
 }

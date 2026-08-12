@@ -38,8 +38,11 @@ export async function updateSettings(
 /**
  * `POST /api/v1/settings/change-password` — SPEC_V2 §13.9: a successful
  * change returns `204`, invalidates every session including the current one,
- * and clears the current cookie. The caller is responsible for taking the UI
- * back to Sign In afterward; this function only performs the request.
+ * and clears the current cookie. If the durable credential changes but session
+ * invalidation cannot complete, the server returns `409 auth_state_incomplete`;
+ * the new password is authoritative and the current cookie is still cleared.
+ * This function preserves that typed API error so the caller can tell the owner
+ * which password to use rather than reporting an ordinary failed change.
  */
 export async function changePassword(
   request: PasswordChangeRequest,

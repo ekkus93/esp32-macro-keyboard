@@ -1,6 +1,6 @@
 import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
-import { subscribeUnauthorized } from "../src/v2/apiClient";
+import { subscribeUnauthorized, V2ApiError } from "../src/v2/apiClient";
 import { SettingsPage } from "../src/features/settings/v2/SettingsPage";
 import type { SettingsPageDependencies } from "../src/features/settings/v2/SettingsPage";
 import type { Repository } from "../src/v2/repository";
@@ -330,6 +330,46 @@ describe("SettingsPage (TODO_V2 V2-120)", () => {
       newPassword: "new-example-password",
     });
     expect(notified).toBe(1);
+  });
+
+  test("password partial commit tells the owner the new password is authoritative without pretending full success", async () => {
+    const changePassword = vi.fn().mockRejectedValue(
+      new V2ApiError(409, {
+        code: "auth_state_incomplete",
+        message:
+          "password changed; session invalidation incomplete; sign in with the new password",
+      }),
+    );
+    await renderPage({ deps: { changePassword } });
+
+    await setInputValue(
+      requiredElement("#settings-current-password", HTMLInputElement),
+      "old-example-password",
+    );
+    await setInputValue(
+      requiredElement("#settings-new-password", HTMLInputElement),
+      "new-example-password",
+    );
+    await setInputValue(
+      requiredElement("#settings-confirm-password", HTMLInputElement),
+      "new-example-password",
+    );
+
+    let notified = 0;
+    const unsubscribe = subscribeUnauthorized(() => {
+      notified += 1;
+    });
+    await click(buttonWithText("Change password"));
+    await flushReact();
+    unsubscribe();
+
+    expect(document.body.textContent).toContain(
+      "auth_state_incomplete: password changed; session invalidation incomplete; sign in with the new password",
+    );
+    // The error remains visible long enough for the owner to know which
+    // credential is authoritative. The server already cleared the cookie; a
+    // subsequent request will drive the normal unauthorized transition.
+    expect(notified).toBe(0);
   });
 
   test("View diagnostics calls onOpenDiagnostics", async () => {

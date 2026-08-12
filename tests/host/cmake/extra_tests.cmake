@@ -132,3 +132,32 @@ target_link_libraries(web_parsed_secret_wipe_tests PRIVATE PkgConfig::CJSON test
 target_compile_options(web_parsed_secret_wipe_tests PRIVATE ${STRICT_WARNINGS})
 add_test(NAME web_parsed_secret_wipe COMMAND web_parsed_secret_wipe_tests)
 set_tests_properties(web_parsed_secret_wipe PROPERTIES LABELS "web")
+
+# H2-022/H2-023: compose the host-testable password-change transaction with
+# the real auth-core password/session implementation. This proves immediate
+# old/new password authority, all-session invalidation, normal new-session
+# lifetime, partial-commit semantics, and retry behavior.
+add_executable(
+    web_change_password_transaction_tests
+    "${CMAKE_SOURCE_DIR}/test_web_change_password_transaction.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/web_settings.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/auth/auth_core_common.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/auth/auth_core_password.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/auth/auth_core_session.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/auth/auth_core_rate_limit.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/app_contracts_v2/settings_contract_v2.c"
+    "${CMAKE_SOURCE_DIR}/../../firmware/components/app_contracts_v2/device_settings_v2.c"
+)
+target_include_directories(
+    web_change_password_transaction_tests
+    PRIVATE "${CMAKE_SOURCE_DIR}"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/auth/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/auth"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/app_contracts_v2/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server"
+)
+target_link_libraries(web_change_password_transaction_tests PRIVATE PkgConfig::CJSON test_support)
+target_compile_options(web_change_password_transaction_tests PRIVATE ${STRICT_WARNINGS})
+add_test(NAME web_change_password_transaction COMMAND web_change_password_transaction_tests)
+set_tests_properties(web_change_password_transaction PROPERTIES LABELS "auth;web")

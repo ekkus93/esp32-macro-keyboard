@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { V2ApiError } from "../src/v2/apiClient";
 import {
   changePassword,
   getSettings,
@@ -84,6 +85,37 @@ describe("v2 settings client", () => {
         newPassword: "new-example-password",
       }),
     ).resolves.toBeUndefined();
+  });
+
+  test("changePassword preserves committed-partial auth_state_incomplete semantics", async () => {
+    planFetch(() =>
+      jsonResponse(
+        {
+          error: {
+            code: "auth_state_incomplete",
+            message:
+              "password changed; session invalidation incomplete; sign in with the new password",
+          },
+        },
+        409,
+      ),
+    );
+
+    try {
+      await changePassword({
+        currentPassword: "old-example-password",
+        newPassword: "new-example-password",
+      });
+      throw new Error("expected changePassword to reject");
+    } catch (error: unknown) {
+      expect(error).toBeInstanceOf(V2ApiError);
+      const apiError = error as V2ApiError;
+      expect(apiError.status).toBe(409);
+      expect(apiError.code).toBe("auth_state_incomplete");
+      expect(apiError.message).toBe(
+        "password changed; session invalidation incomplete; sign in with the new password",
+      );
+    }
   });
 
   test("changePassword rejects a non-204 success as invalid", async () => {

@@ -114,6 +114,26 @@ settings_ops_password_create(void *context, const char *password, size_t passwor
     return APP_ERROR_NONE;
 }
 
+static app_error_code_t settings_ops_password_transition_begin(void *context) {
+    (void)context;
+    return web_server_password_transition_begin();
+}
+
+static void settings_ops_password_activate(void *context,
+                                           const app_v2_device_settings_t *settings) {
+    (void)context;
+    auth_password_record_t record = {.iterations = settings->password_iterations};
+    memcpy(record.salt, settings->password_salt, sizeof(record.salt));
+    memcpy(record.hash, settings->password_verifier, sizeof(record.hash));
+    web_server_password_record_replace(&record);
+    secure_zero_local(&record, sizeof(record));
+}
+
+static void settings_ops_password_transition_end(void *context) {
+    (void)context;
+    web_server_password_transition_end();
+}
+
 static app_error_code_t settings_ops_invalidate_all_sessions(void *context) {
     (void)context;
     return auth_session_logout_all();
@@ -126,6 +146,9 @@ static web_settings_ops_t settings_ops(void) {
         .settings_replace = settings_ops_replace,
         .password_verify = settings_ops_password_verify,
         .password_create = settings_ops_password_create,
+        .password_transition_begin = settings_ops_password_transition_begin,
+        .password_activate = settings_ops_password_activate,
+        .password_transition_end = settings_ops_password_transition_end,
         .invalidate_all_sessions = settings_ops_invalidate_all_sessions,
     };
 }
@@ -282,34 +305,37 @@ static app_error_code_t change_password_error(web_api_response_t *response,
                                                     .code = APP_ERROR_AUTH_FAILED,
                                                     .message = "incorrect current password",
                                                 });
+    case WEB_CHANGE_PASSWORD_COMMITTED_SESSION_INVALIDATION_INCOMPLETE:
+        /* The durable credential and RAM verifier are already the new password.
+         * This must be programmatically distinguishable from a pre-commit
+         * failure so a caller never tells the owner to keep using the old
+         * password. */
+        return web_api_response_error(response, &(web_api_error_spec_t){
+                                                    .status = WEB_HTTP_STATUS_CONFLICT,
+                                                    .code = APP_ERROR_AUTH_STATE_INCOMPLETE,
+                                                    .message =
+                                                        "password changed; session invalidation incomplete; sign in with the new password",
+                                                });
     case WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE:
+        if (outcome.detail == APP_ERROR_CONFLICT) {
+            /* A credential transition is already active, but this request has
+             * not committed anything. Keep this status distinct from H2's 409
+             * committed-partial result so the cookie-clearing layer cannot
+             * confuse "nothing changed" with "new password authoritative". */
+            return web_api_response_error(response, &(web_api_error_spec_t){
+                                                        .status =
+                                                            WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
+                                                        .code = APP_ERROR_CONFLICT,
+                                                        .message =
+                                                            "password change already in progress",
+                                                    });
+        }
         return web_api_handler_error(response, outcome.detail, "settings unavailable", NULL);
     case WEB_CHANGE_PASSWORD_OK:
     case WEB_CHANGE_PASSWORD_INTERNAL:
     default:
         return web_api_handler_error(response, APP_ERROR_INTERNAL, "password change failed", NULL);
     }
-}
-
-/* Refresh the in-RAM login cache after a successful durable password change.
- * Device-settings I/O happens before taking the credential lock; the lock is
- * held only while the complete record is copied into the running server
- * configuration. Login takes the same lock only long enough to snapshot the
- * record, so neither PBKDF2 nor an async physical-confirmation wait can occur
- * while the credential lock is held. */
-static void refresh_password_record_cache(void) {
-    app_v2_device_settings_t updated = {0};
-    if (device_settings_read(&updated) != APP_ERROR_NONE) {
-        secure_zero_local(&updated, sizeof(updated));
-        return;
-    }
-
-    auth_password_record_t record = {.iterations = updated.password_iterations};
-    memcpy(record.salt, updated.password_salt, sizeof(record.salt));
-    memcpy(record.hash, updated.password_verifier, sizeof(record.hash));
-    web_server_password_record_replace(&record);
-    secure_zero_local(&record, sizeof(record));
-    secure_zero_local(&updated, sizeof(updated));
 }
 
 static app_error_code_t handle_change_password(const web_api_call_t *call,
@@ -324,7 +350,6 @@ static app_error_code_t handle_change_password(const web_api_call_t *call,
     if (outcome.result != WEB_CHANGE_PASSWORD_OK) {
         return change_password_error(response, outcome);
     }
-    refresh_password_record_cache();
     return web_api_handler_no_content(response, WEB_HTTP_STATUS_NO_CONTENT);
 }
 

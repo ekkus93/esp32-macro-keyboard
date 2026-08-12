@@ -25,7 +25,11 @@ typedef enum {
     APP_ERROR_RATE_LIMITED,
     APP_ERROR_TIMEOUT,
     APP_ERROR_IO,
-    APP_ERROR_INTERNAL
+    APP_ERROR_INTERNAL,
+    /* The authoritative credential changed, but authentication/session cleanup
+     * is not yet fully coherent. Appended to preserve all pre-existing numeric
+     * error values. */
+    APP_ERROR_AUTH_STATE_INCOMPLETE
 } app_error_code_t;
 
 const char *app_error_code_string(app_error_code_t code);
