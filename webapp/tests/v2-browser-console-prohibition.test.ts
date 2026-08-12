@@ -3,7 +3,9 @@ import ts from "typescript";
 import { describe, expect, test } from "vitest";
 
 function referencesBrowserConsole(path: string, source: string): boolean {
-  const scriptKind = path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const scriptKind = path.endsWith(".tsx")
+    ? ts.ScriptKind.TSX
+    : ts.ScriptKind.TS;
   const sourceFile = ts.createSourceFile(
     path,
     source,
