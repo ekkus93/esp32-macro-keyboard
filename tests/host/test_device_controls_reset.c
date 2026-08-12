@@ -13,12 +13,14 @@ typedef struct {
     app_error_code_t erase_all_settings_result;
     app_error_code_t invalidate_sessions_result;
     app_error_code_t delete_blobs_result;
+    app_error_code_t cleanup_temporary_result;
     app_error_code_t clear_pending_result;
     unsigned int reset_settings_calls;
     unsigned int mark_pending_calls;
     unsigned int erase_all_settings_calls;
     unsigned int invalidate_sessions_calls;
     unsigned int delete_blobs_calls;
+    unsigned int cleanup_temporary_calls;
     unsigned int clear_pending_calls;
     unsigned int schedule_restart_calls;
     unsigned int sequence;
@@ -26,6 +28,7 @@ typedef struct {
     unsigned int erase_all_settings_sequence;
     unsigned int invalidate_sessions_sequence;
     unsigned int delete_blobs_sequence;
+    unsigned int cleanup_temporary_sequence;
     unsigned int clear_pending_sequence;
     unsigned int restart_sequence;
     uint32_t last_delay_ms;
@@ -69,6 +72,13 @@ static app_error_code_t fake_delete_blobs(void *context) {
     return fake->delete_blobs_result;
 }
 
+static app_error_code_t fake_cleanup_temporary(void *context) {
+    fake_reset_t *fake = context;
+    ++fake->cleanup_temporary_calls;
+    fake->cleanup_temporary_sequence = ++fake->sequence;
+    return fake->cleanup_temporary_result;
+}
+
 static app_error_code_t fake_clear_pending(void *context) {
     fake_reset_t *fake = context;
     ++fake->clear_pending_calls;
@@ -91,6 +101,7 @@ static device_controls_reset_ops_t fake_ops(fake_reset_t *fake) {
         .erase_all_settings = fake_erase_all_settings,
         .invalidate_all_sessions = fake_invalidate_sessions,
         .delete_all_blobs = fake_delete_blobs,
+        .cleanup_temporary_files = fake_cleanup_temporary,
         .clear_factory_reset_pending = fake_clear_pending,
         .schedule_restart = fake_schedule_restart,
     };
@@ -121,6 +132,7 @@ static void test_ops_validation(void) {
     CHECK_MISSING(erase_all_settings);
     CHECK_MISSING(invalidate_all_sessions);
     CHECK_MISSING(delete_all_blobs);
+    CHECK_MISSING(cleanup_temporary_files);
     CHECK_MISSING(clear_factory_reset_pending);
     CHECK_MISSING(schedule_restart);
 #undef CHECK_MISSING
@@ -138,6 +150,7 @@ static void test_restart_only_schedules_reboot(void) {
     TEST_CHECK_EQ_U64(0U, fake.erase_all_settings_calls);
     TEST_CHECK_EQ_U64(0U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(0U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(0U, fake.cleanup_temporary_calls);
     TEST_CHECK_EQ_U64(0U, fake.clear_pending_calls);
 }
 
@@ -154,6 +167,7 @@ static void test_reset_settings_happy_path(void) {
     TEST_CHECK_EQ_U64(0U, fake.mark_pending_calls);
     TEST_CHECK_EQ_U64(0U, fake.erase_all_settings_calls);
     TEST_CHECK_EQ_U64(0U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(0U, fake.cleanup_temporary_calls);
     TEST_CHECK_EQ_U64(0U, fake.clear_pending_calls);
 }
 
@@ -191,12 +205,14 @@ static void test_factory_reset_happy_path_orders_durable_boundary_first(void) {
     TEST_CHECK_EQ_U64(1U, fake.erase_all_settings_calls);
     TEST_CHECK_EQ_U64(1U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(1U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(1U, fake.cleanup_temporary_calls);
     TEST_CHECK_EQ_U64(1U, fake.clear_pending_calls);
     TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
     TEST_CHECK(fake.mark_pending_sequence < fake.erase_all_settings_sequence);
     TEST_CHECK(fake.erase_all_settings_sequence < fake.invalidate_sessions_sequence);
     TEST_CHECK(fake.invalidate_sessions_sequence < fake.delete_blobs_sequence);
-    TEST_CHECK(fake.delete_blobs_sequence < fake.clear_pending_sequence);
+    TEST_CHECK(fake.delete_blobs_sequence < fake.cleanup_temporary_sequence);
+    TEST_CHECK(fake.cleanup_temporary_sequence < fake.clear_pending_sequence);
     TEST_CHECK(fake.clear_pending_sequence < fake.restart_sequence);
     TEST_CHECK_EQ_U64(0U, fake.reset_settings_calls);
 }
@@ -212,6 +228,7 @@ static void test_factory_reset_marker_failure_is_nondestructive(void) {
     TEST_CHECK_EQ_U64(0U, fake.erase_all_settings_calls);
     TEST_CHECK_EQ_U64(0U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(0U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(0U, fake.cleanup_temporary_calls);
     TEST_CHECK_EQ_U64(0U, fake.clear_pending_calls);
     TEST_CHECK_EQ_U64(0U, fake.schedule_restart_calls);
 }
@@ -227,6 +244,7 @@ static void test_factory_reset_settings_failure_keeps_marker_and_restarts(void) 
     TEST_CHECK_EQ_U64(1U, fake.erase_all_settings_calls);
     TEST_CHECK_EQ_U64(0U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(0U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(0U, fake.cleanup_temporary_calls);
     TEST_CHECK_EQ_U64(0U, fake.clear_pending_calls);
     TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
 }
@@ -240,6 +258,7 @@ static void test_factory_reset_cleanup_failure_keeps_marker_and_restarts(void) {
                          device_controls_reset_engine_factory_reset(&operations, 500U));
     TEST_CHECK_EQ_U64(1U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(1U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(1U, fake.cleanup_temporary_calls);
     TEST_CHECK_EQ_U64(0U, fake.clear_pending_calls);
     TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
 }
@@ -254,8 +273,39 @@ static void test_factory_reset_blob_failure_keeps_marker_and_first_error_wins(vo
                          device_controls_reset_engine_factory_reset(&operations, 500U));
     TEST_CHECK_EQ_U64(1U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(1U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(1U, fake.cleanup_temporary_calls);
     TEST_CHECK_EQ_U64(0U, fake.clear_pending_calls);
     TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
+}
+
+static void test_factory_reset_temporary_cleanup_failure_keeps_marker_and_restarts(void) {
+    fake_reset_t fake;
+    fake_init(&fake);
+    fake.cleanup_temporary_result = APP_ERROR_IO;
+    const device_controls_reset_ops_t operations = fake_ops(&fake);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO,
+                         device_controls_reset_engine_factory_reset(&operations, 500U));
+    TEST_CHECK_EQ_U64(1U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(1U, fake.cleanup_temporary_calls);
+    TEST_CHECK_EQ_U64(0U, fake.clear_pending_calls);
+    TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
+}
+
+static void test_factory_reset_replay_is_safe(void) {
+    fake_reset_t fake;
+    fake_init(&fake);
+    const device_controls_reset_ops_t operations = fake_ops(&fake);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         device_controls_reset_engine_factory_reset(&operations, 500U));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         device_controls_reset_engine_factory_reset(&operations, 500U));
+    TEST_CHECK_EQ_U64(2U, fake.mark_pending_calls);
+    TEST_CHECK_EQ_U64(2U, fake.erase_all_settings_calls);
+    TEST_CHECK_EQ_U64(2U, fake.invalidate_sessions_calls);
+    TEST_CHECK_EQ_U64(2U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(2U, fake.cleanup_temporary_calls);
+    TEST_CHECK_EQ_U64(2U, fake.clear_pending_calls);
+    TEST_CHECK_EQ_U64(2U, fake.schedule_restart_calls);
 }
 
 static void test_factory_reset_marker_clear_failure_reboots_into_recovery(void) {
@@ -281,6 +331,8 @@ int main(void) {
     test_factory_reset_settings_failure_keeps_marker_and_restarts();
     test_factory_reset_cleanup_failure_keeps_marker_and_restarts();
     test_factory_reset_blob_failure_keeps_marker_and_first_error_wins();
+    test_factory_reset_temporary_cleanup_failure_keeps_marker_and_restarts();
+    test_factory_reset_replay_is_safe();
     test_factory_reset_marker_clear_failure_reboots_into_recovery();
     puts("device controls reset engine tests passed");
     return EXIT_SUCCESS;

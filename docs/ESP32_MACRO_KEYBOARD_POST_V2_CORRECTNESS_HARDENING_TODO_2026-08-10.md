@@ -308,12 +308,14 @@ After a returned `204` assert without reboot:
 
 Stages must safely tolerate repetition:
 
-- [ ] credential/settings erase,
-- [ ] session invalidation,
-- [ ] blob deletion,
-- [ ] temporary upload/debris cleanup where applicable,
-- [ ] reset-marker clear,
-- [ ] restart/re-entry.
+- [x] credential/settings erase,
+- [x] session invalidation,
+- [x] blob deletion,
+- [x] temporary upload/debris cleanup where applicable,
+- [x] reset-marker clear,
+- [x] restart/re-entry.
+
+- Evidence (2026-08-12): every destructive/reset-reentry stage now converges under replay; pending boot recovery repeats settings erase and storage cleanup before setup, canonical upload debris is included, bulk blob unlink is parent-synced, and restart scheduling is latched. See `docs/implementation-v2/H3_031_IDEMPOTENT_FACTORY_RESET_STAGES_2026-08-12.md`.
 
 ### H3-032 — Change accepted/error semantics
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed on H3 factory-reset recovery-boundary regressions."""
+"""Fail closed on H3 factory-reset journal/recovery regressions."""
 
 from pathlib import Path
 import sys
@@ -60,6 +60,7 @@ ordered = (
     "operations->erase_all_settings(operations->context)",
     "operations->invalidate_all_sessions(operations->context)",
     "operations->delete_all_blobs(operations->context)",
+    "operations->cleanup_temporary_files(operations->context)",
     "operations->clear_factory_reset_pending(operations->context)",
     "operations->schedule_restart(operations->context, delay_ms)",
 )
@@ -70,7 +71,7 @@ for required in ordered:
         fail(f"factory-reset H3 step is missing: {required}")
     positions.append(position)
 if positions != sorted(positions):
-    fail("factory-reset H3 order changed: mark -> settings -> sessions -> blobs -> clear -> reboot")
+    fail("factory-reset H3 order changed: mark -> settings -> sessions -> blobs -> temp -> clear -> reboot")
 if "if (marker_result != APP_ERROR_NONE)" not in reset_source:
     fail("factory reset no longer aborts before destruction when marker commit fails")
 
@@ -78,44 +79,109 @@ controls = read("firmware/components/device_controls/device_controls.c")
 for required in (
     "factory_reset_state_mark_pending()",
     "factory_reset_state_clear()",
+    "storage_blob_recover_startup()",
     ".mark_factory_reset_pending = adapter_reset_mark_pending",
+    ".cleanup_temporary_files = adapter_reset_cleanup_temporary_files",
     ".clear_factory_reset_pending = adapter_reset_clear_pending",
+    "static bool restart_scheduled",
 ):
     if required not in controls:
-        fail(f"device-controls reset journal binding is missing: {required}")
+        fail(f"device-controls H3 binding is missing: {required}")
+
+recovery = read("firmware/components/factory_reset_recovery/factory_reset_recovery.c")
+for required in (
+    "factory_reset_state_read(out_state)",
+    "device_settings_factory_reset(&settings, &changed)",
+    "storage_blob_delete_all(&deleted_count)",
+    "storage_blob_recover_startup()",
+    "factory_reset_state_clear()",
+):
+    if required not in recovery:
+        fail(f"boot reset recovery binding is missing: {required}")
+
+recovery_engine = read("firmware/components/factory_reset_recovery/factory_reset_recovery_engine.c")
+ordered_recovery = (
+    "operations->settings_init(operations->context)",
+    "operations->erase_settings(operations->context)",
+    "operations->settings_deinit(operations->context)",
+    "operations->storage_mount(operations->context)",
+    "operations->delete_blobs(operations->context)",
+    "operations->cleanup_temporary_files(operations->context)",
+    "operations->storage_unmount(operations->context)",
+    "operations->clear_pending(operations->context)",
+)
+positions = []
+for required in ordered_recovery:
+    position = recovery_engine.find(required)
+    if position < 0:
+        fail(f"boot reset recovery stage is missing: {required}")
+    positions.append(position)
+if positions != sorted(positions):
+    fail("boot reset recovery order changed")
+
+recovery_cmake = read("firmware/components/factory_reset_recovery/CMakeLists.txt")
+for required in ("factory_reset_state", "device_settings", "storage"):
+    if required not in recovery_cmake:
+        fail(f"factory-reset recovery dependency is missing: {required}")
+for forbidden in ("auth", "web_server", "usb_keyboard", "device_controls"):
+    if forbidden in recovery_cmake:
+        fail(f"boot reset recovery gained an unsafe runtime dependency: {forbidden}")
 
 app_core = read("firmware/components/app_core/app_core.c")
 settings_init_start = app_core.find("static app_error_code_t adapter_settings_init")
 if settings_init_start < 0:
     fail("app-core settings initialization adapter is missing")
-state_read = app_core.find("factory_reset_state_read(&reset_state)", settings_init_start)
+recovery_call = app_core.find("factory_reset_recovery_run_if_pending(&recovered)", settings_init_start)
 settings_init = app_core.find("device_settings_init()", settings_init_start)
-if state_read < 0 or settings_init < 0 or state_read >= settings_init:
-    fail("boot does not check durable factory-reset state before settings initialization")
-for required in (
-    "FACTORY_RESET_STATE_PENDING",
-    "APP_ERROR_RESET_RECOVERY_REQUIRED",
-    "factory reset recovery is pending",
-):
-    if required not in app_core[settings_init_start:settings_init]:
-        fail(f"factory-reset boot gate is missing: {required}")
+if recovery_call < 0 or settings_init < 0 or recovery_call >= settings_init:
+    fail("boot does not finish pending factory-reset recovery before ordinary settings initialization")
+if "factory_reset_state_read" in app_core[settings_init_start:settings_init]:
+    fail("app-core bypasses the dedicated reset recovery component")
 
-for cmake_path in (
-    "firmware/components/app_core/CMakeLists.txt",
-    "firmware/components/device_controls/CMakeLists.txt",
-):
-    if "factory_reset_state" not in read(cmake_path):
-        fail(f"production dependency is missing from {cmake_path}")
+if "factory_reset_recovery" not in read("firmware/components/app_core/CMakeLists.txt"):
+    fail("app-core factory-reset recovery dependency is missing")
+if "factory_reset_state" not in read("firmware/components/device_controls/CMakeLists.txt"):
+    fail("device-controls reset journal dependency is missing")
+
+storage_blob = read("firmware/components/storage/storage_blob.c")
+delete_all_start = storage_blob.find("app_error_code_t storage_blob_delete_all(size_t *out_deleted_count)")
+if delete_all_start < 0:
+    fail("production bulk blob deletion is missing")
+if "storage_fs_sync_parent_path(NULL, STORAGE_BLOB_DIRECTORY \"/.\")" not in storage_blob[delete_all_start:]:
+    fail("bulk blob deletion does not durably sync the repository parent")
 
 reset_test = read("tests/host/test_device_controls_reset.c")
 for required in (
     "test_factory_reset_marker_failure_is_nondestructive",
     "test_factory_reset_settings_failure_keeps_marker_and_restarts",
     "test_factory_reset_cleanup_failure_keeps_marker_and_restarts",
+    "test_factory_reset_temporary_cleanup_failure_keeps_marker_and_restarts",
     "test_factory_reset_marker_clear_failure_reboots_into_recovery",
+    "test_factory_reset_replay_is_safe",
 ):
     if required not in reset_test:
-        fail(f"H3 reset boundary regression coverage is missing: {required}")
+        fail(f"H3 reset regression coverage is missing: {required}")
+
+recovery_test = read("tests/host/test_factory_reset_recovery.c")
+for required in (
+    "test_pending_completes_and_reentry_is_noop",
+    "test_every_interrupted_stage_is_retryable",
+    "test_blob_and_temporary_cleanup_both_attempted",
+):
+    if required not in recovery_test:
+        fail(f"H3 boot recovery regression coverage is missing: {required}")
+
+settings_test = read("tests/host/test_device_settings_core.c")
+if "test_factory_reset_is_idempotent" not in settings_test:
+    fail("H3 repeated settings/credential erase regression is missing")
+
+auth_test = read("tests/host/auth_additional_session_tests.inc")
+if "H3 repeated invalidation remains a successful no-op" not in auth_test:
+    fail("H3 repeated session invalidation regression is missing")
+
+storage_test = read("tests/host/test_storage_blob.c")
+if "H3 repeated temporary cleanup remains a successful no-op" not in storage_test:
+    fail("H3 repeated temporary-debris cleanup regression is missing")
 
 state_test = read("tests/host/test_factory_reset_state_core.c")
 for required in (
@@ -134,9 +200,5 @@ for required in (
 ):
     if required not in adapter_test:
         fail(f"H3 production journal adapter coverage is missing: {required}")
-
-app_core_test = read("tests/host/test_app_core.c")
-if "test_factory_reset_pending_blocks_all_runtime_startup" not in app_core_test:
-    fail("H3 boot recovery gate regression coverage is missing")
 
 print("H3 factory-reset recovery architecture guard passed")

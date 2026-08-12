@@ -32,6 +32,7 @@ static SemaphoreHandle_t controls_stopped;
 static TaskHandle_t controls_task_handle;
 static portMUX_TYPE controls_lock = portMUX_INITIALIZER_UNLOCKED;
 static volatile bool controls_stop_requested;
+static bool restart_scheduled;
 static device_indicator_state_t requested_indicator_state = DEVICE_INDICATOR_BOOTING;
 static device_controls_engine_t engine;
 
@@ -373,6 +374,14 @@ static void restart_timer_callback(void *argument) {
 
 static void adapter_reset_schedule_restart(void *context, uint32_t delay_ms) {
     (void)context;
+    portENTER_CRITICAL(&controls_lock);
+    if (restart_scheduled) {
+        portEXIT_CRITICAL(&controls_lock);
+        return;
+    }
+    restart_scheduled = true;
+    portEXIT_CRITICAL(&controls_lock);
+
     const esp_timer_create_args_t timer_args = {
         .callback = restart_timer_callback,
         .arg = NULL,
@@ -426,6 +435,11 @@ static app_error_code_t adapter_reset_delete_all_blobs(void *context) {
     return storage_blob_delete_all(&deleted_count);
 }
 
+static app_error_code_t adapter_reset_cleanup_temporary_files(void *context) {
+    (void)context;
+    return storage_blob_recover_startup();
+}
+
 static device_controls_reset_ops_t reset_operations(void) {
     return (device_controls_reset_ops_t){
         .context = NULL,
@@ -434,6 +448,7 @@ static device_controls_reset_ops_t reset_operations(void) {
         .erase_all_settings = adapter_reset_erase_all_settings,
         .invalidate_all_sessions = adapter_reset_invalidate_all_sessions,
         .delete_all_blobs = adapter_reset_delete_all_blobs,
+        .cleanup_temporary_files = adapter_reset_cleanup_temporary_files,
         .clear_factory_reset_pending = adapter_reset_clear_pending,
         .schedule_restart = adapter_reset_schedule_restart,
     };

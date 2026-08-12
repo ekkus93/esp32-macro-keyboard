@@ -172,10 +172,14 @@ app_error_code_t storage_blob_delete_all_with_ops(const storage_fs_ops_t *operat
 
 app_error_code_t storage_blob_delete_all(size_t *out_deleted_count) {
     size_t deleted_count = 0U;
-    const app_error_code_t result = storage_blob_delete_all_with_ops(
+    app_error_code_t result = storage_blob_delete_all_with_ops(
         storage_fs_ops_posix(), STORAGE_BLOB_DIRECTORY, &deleted_count);
     for (size_t index = 0U; index < deleted_count; ++index) {
         storage_blob_record_deleted_entry();
+    }
+    if (deleted_count > 0U && storage_fs_sync_parent_path(NULL, STORAGE_BLOB_DIRECTORY "/.") != 0 &&
+        result == APP_ERROR_NONE) {
+        result = APP_ERROR_IO;
     }
     if (out_deleted_count != NULL) {
         *out_deleted_count = deleted_count;

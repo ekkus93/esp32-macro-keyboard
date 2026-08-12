@@ -284,6 +284,29 @@ static void test_duplicate_write_suppressed_after_prior_value(void) {
     TEST_CHECK_EQ_U64(2U, fake.replace_calls);
 }
 
+static void test_factory_reset_is_idempotent(void) {
+    fake_settings_store_t fake;
+    device_settings_core_t core;
+    init_core(&core, &fake);
+    const app_v2_device_settings_t original = configured_settings();
+    seed_durable(&fake, &original);
+
+    app_v2_device_settings_t reset = {0};
+    bool changed = false;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         device_settings_core_factory_reset(&core, &reset, &changed));
+    TEST_CHECK(changed);
+    TEST_CHECK(!reset.provisioned);
+    TEST_CHECK_EQ_U64(1U, fake.replace_calls);
+
+    changed = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         device_settings_core_factory_reset(&core, &reset, &changed));
+    TEST_CHECK(!changed);
+    TEST_CHECK(!reset.provisioned);
+    TEST_CHECK_EQ_U64(1U, fake.replace_calls);
+}
+
 static void test_last_selected_package_id_is_opaque(void) {
     fake_settings_store_t fake;
     device_settings_core_t core;
@@ -401,6 +424,7 @@ int main(void) {
     test_duplicate_write_suppressed_after_prior_value();
     test_last_selected_package_id_is_opaque();
     test_factory_reset_erases_everything();
+    test_factory_reset_is_idempotent();
     puts("V2 device settings store tests passed");
     return EXIT_SUCCESS;
 }

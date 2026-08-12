@@ -788,6 +788,22 @@ register_host_test(
 )
 
 add_executable(
+    factory_reset_recovery_tests
+    test_factory_reset_recovery.c
+    ../../firmware/components/factory_reset_recovery/factory_reset_recovery_engine.c
+)
+target_include_directories(
+    factory_reset_recovery_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/factory_reset_state/include
+            ../../firmware/components/factory_reset_recovery/include
+            ../../firmware/components/factory_reset_recovery
+)
+register_host_test(
+    factory_reset_recovery_tests factory_reset_recovery "startup;controls;storage"
+)
+
+add_executable(
     device_controls_tests test_device_controls.c
                           ../../firmware/components/device_controls/device_controls_logic.c
 )

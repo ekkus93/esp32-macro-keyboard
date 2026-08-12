@@ -15,7 +15,7 @@ bool device_controls_reset_ops_is_valid(const device_controls_reset_ops_t *opera
     return operations != NULL && operations->reset_settings_noncredential != NULL &&
            operations->mark_factory_reset_pending != NULL &&
            operations->erase_all_settings != NULL && operations->invalidate_all_sessions != NULL &&
-           operations->delete_all_blobs != NULL &&
+           operations->delete_all_blobs != NULL && operations->cleanup_temporary_files != NULL &&
            operations->clear_factory_reset_pending != NULL && operations->schedule_restart != NULL;
 }
 
@@ -65,6 +65,7 @@ device_controls_reset_engine_factory_reset(const device_controls_reset_ops_t *op
     if (first_error == APP_ERROR_NONE) {
         record_first_error(operations->invalidate_all_sessions(operations->context), &first_error);
         record_first_error(operations->delete_all_blobs(operations->context), &first_error);
+        record_first_error(operations->cleanup_temporary_files(operations->context), &first_error);
     }
     if (first_error == APP_ERROR_NONE) {
         record_first_error(operations->clear_factory_reset_pending(operations->context),

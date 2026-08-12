@@ -23,6 +23,7 @@ typedef struct {
     app_error_code_t (*erase_all_settings)(void *context);
     app_error_code_t (*invalidate_all_sessions)(void *context);
     app_error_code_t (*delete_all_blobs)(void *context);
+    app_error_code_t (*cleanup_temporary_files)(void *context);
     app_error_code_t (*clear_factory_reset_pending)(void *context);
     void (*schedule_restart)(void *context, uint32_t delay_ms);
 } device_controls_reset_ops_t;
@@ -44,7 +45,7 @@ device_controls_reset_engine_reset_settings(const device_controls_reset_ops_t *o
 /* H3 factory-reset transaction boundary:
  *   1. durably mark PENDING,
  *   2. erase settings,
- *   3. invalidate sessions and delete repository blobs,
+ *   3. invalidate sessions, delete repository blobs, and remove upload debris,
  *   4. clear PENDING only if every required destructive effect succeeded,
  *   5. reboot after every post-marker outcome.
  *

@@ -113,6 +113,8 @@ static void test_session_logout_all(void) {
 
     /* An empty table is a harmless no-op. */
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_session_logout_all(&core));
+    /* H3 repeated invalidation remains a successful no-op. */
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_session_logout_all(&core));
 
     auth_session_view_t sessions[APP_SESSION_TABLE_MAX];
     for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
@@ -127,6 +129,7 @@ static void test_session_logout_all(void) {
     for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
         TEST_CHECK(!core.sessions[index].active);
     }
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_session_logout_all(&core));
     for (size_t index = 0U; index < APP_SESSION_TABLE_MAX; ++index) {
         TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
                              auth_core_session_validate(&core, sessions[index].session_token));

@@ -231,6 +231,11 @@ static void test_boot_recovery_removes_only_canonical_regular_temporaries(void) 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_recover_with_ops(storage_fs_ops_posix(),
                                                                        repository, &recovery));
     TEST_CHECK_EQ_U64(1U, recovery.removed_temporary_file_count);
+    /* H3 repeated temporary cleanup remains a successful no-op. */
+    recovery = (storage_blob_recovery_summary_t){0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_recover_with_ops(storage_fs_ops_posix(),
+                                                                       repository, &recovery));
+    TEST_CHECK_EQ_U64(0U, recovery.removed_temporary_file_count);
     TEST_CHECK(access(temporary_path, F_OK) != 0);
     TEST_CHECK(access(final_path, F_OK) == 0);
     TEST_CHECK(access(arbitrary_tmp, F_OK) == 0);
