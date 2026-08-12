@@ -52,10 +52,10 @@ Do not batch unrelated safety fixes into one opaque commit.
 
 ### H0-001 — Record exact starting state
 
-- [ ] Record current `master` SHA after these two planning documents land.
-- [ ] Record working-tree cleanliness.
-- [ ] Record ESP-IDF, Node, Python, compiler/static-analysis, browser, and board versions used for this hardening pass.
-- [ ] Run and record the current baseline result of:
+- [x] Record current `master` SHA after these two planning documents land.
+- [x] Record working-tree cleanliness.
+- [x] Record ESP-IDF, Node, Python, compiler/static-analysis, browser, and board versions used for this hardening pass.
+- [x] Run and record the current baseline result of:
 
   ```text
   ./scripts/check-all.sh
@@ -63,54 +63,71 @@ Do not batch unrelated safety fixes into one opaque commit.
   ./scripts/generate-native-coverage.sh
   ```
 
-- [ ] If any baseline gate fails before product changes, diagnose it separately and do not conflate it with a hardening task.
+- [x] If any baseline gate fails before product changes, diagnose it separately and do not conflate it with a hardening task.
+
+- Evidence: historical baseline/failure matrix plus current-master command attempts and local 60/60 normal + 60/60 ASan/UBSan results are recorded in `docs/implementation-v2/H0_POST_V2_HARDENING_RECONCILIATION_2026-08-11.md`.
 
 ### H0-002 — Correct known `TODO_V2.md` overclaims before new acceptance work
 
-- [ ] Re-read V2-154's compound checkbox for login/logout/idle expiry/absolute expiry/lockout.
-- [ ] Uncheck or split it because the current committed evidence explicitly says idle and absolute expiry were not independently hardware-verified.
-- [ ] Re-read V2-154's “no secret appears” checkbox.
-- [ ] Uncheck or narrow it because the current evidence describes a spot-check rather than a complete audit.
-- [ ] Add an explicit note to V2-061/Phase 6 evidence that executor confirmation exists but real HTTP sends do not yet wire the setting end-to-end.
-- [ ] Re-evaluate V2-055/V2-154 password-change completion against the stale-RAM-verifier and partial-session-invalidation failure modes.
-- [ ] Preserve historical evidence; do not rewrite old reports to pretend they proved more than they did.
+**Reconciliation note (2026-08-11):** two planning assumptions in this task were
+superseded by later completed work before H0 itself was formally closed. H9 now
+provides a complete no-secret audit, so V2-154's no-secret item is retained as
+checked with H9 evidence rather than being mechanically unchecked. H9 also
+wired authoritative `requireSerialConfirmation` into real send construction, so
+V2-061/Phase-6 wording is updated to current truth while H1 remains open for the
+full end-to-end acceptance matrix. See
+`docs/implementation-v2/H0_POST_V2_HARDENING_RECONCILIATION_2026-08-11.md`.
+
+- [x] Re-read V2-154's compound checkbox for login/logout/idle expiry/absolute expiry/lockout.
+- [x] Uncheck or split it because the current committed evidence explicitly says idle and absolute expiry were not independently hardware-verified.
+- [x] Re-read V2-154's “no secret appears” checkbox.
+- [x] Reconcile the spot-check-only no-secret evidence. H9 later completed the full audit, so retain the item as checked only with the stronger H9 evidence rather than the original spot-check alone.
+- [x] Reconcile V2-061/Phase 6 confirmation evidence. The original H0 plan identified missing real-send wiring; H9 later added that wiring, so record the current implementation while leaving H1 end-to-end acceptance open.
+- [x] Re-evaluate V2-055/V2-154 password-change completion against the stale-RAM-verifier and partial-session-invalidation failure modes.
+- [x] Preserve historical evidence; do not rewrite old reports to pretend they proved more than they did.
+
+- Evidence: `docs/TODO_V2.md` now contains the literal H0 reconciliation changes; historical evidence remains unmodified. Details are recorded in the H0 reconciliation report above.
 
 ### H0-003 — Create a hardening failure matrix
 
 For each reviewed failure, record:
 
-- [ ] initiating operation,
-- [ ] primary failure point,
-- [ ] durable state already changed or not changed,
-- [ ] RAM/runtime state already changed or not changed,
-- [ ] cleanup attempted,
-- [ ] cleanup failure behavior,
-- [ ] externally visible HTTP/UI result,
-- [ ] retry semantics,
-- [ ] reboot semantics,
-- [ ] required regression test.
+- [x] initiating operation,
+- [x] primary failure point,
+- [x] durable state already changed or not changed,
+- [x] RAM/runtime state already changed or not changed,
+- [x] cleanup attempted,
+- [x] cleanup failure behavior,
+- [x] externally visible HTTP/UI result,
+- [x] retry semantics,
+- [x] reboot semantics,
+- [x] required regression test.
 
 Include at least:
 
-- [ ] physical-confirmation setting ignored by real send,
-- [ ] password durable commit + RAM verifier refresh failure,
-- [ ] password durable commit + session invalidation failure,
-- [ ] factory reset + session invalidation failure,
-- [ ] factory reset + blob deletion failure,
-- [ ] factory reset + reboot/power loss between stages,
-- [ ] active-send recovery request failure,
-- [ ] storage primary failure + cleanup failure,
-- [ ] rename success + parent sync failure,
-- [ ] async worker unavailable,
-- [ ] executor submit failure + release-all failure,
-- [ ] package-selection persistence failure,
-- [ ] snapshot export failure.
+- [x] physical-confirmation setting ignored by real send,
+- [x] password durable commit + RAM verifier refresh failure,
+- [x] password durable commit + session invalidation failure,
+- [x] factory reset + session invalidation failure,
+- [x] factory reset + blob deletion failure,
+- [x] factory reset + reboot/power loss between stages,
+- [x] active-send recovery request failure,
+- [x] storage primary failure + cleanup failure,
+- [x] rename success + parent sync failure,
+- [x] async worker unavailable,
+- [x] executor submit failure + release-all failure,
+- [x] package-selection persistence failure,
+- [x] snapshot export failure.
+
+- Evidence: the original 13-row failure matrix remains in the historical H0 report; the reconciliation report adds a current disposition table mapping each row to H1-H8 status without erasing the original finding.
 
 ### Phase H0 exit gate
 
-- [ ] `TODO_V2.md` contains no known checkbox/evidence contradiction identified by the review.
-- [ ] Baseline gates and exact SHA are committed.
-- [ ] Failure matrix is committed and becomes test-planning input for the following phases.
+- [x] `TODO_V2.md` contains no known checkbox/evidence contradiction identified by the review.
+- [x] Baseline gates and exact SHA are committed.
+- [x] Failure matrix is committed and becomes test-planning input for the following phases.
+
+- Evidence: H0 closeout report: `docs/implementation-v2/H0_POST_V2_HARDENING_RECONCILIATION_2026-08-11.md`. Baseline command failures caused solely by unavailable sandbox tooling are recorded explicitly; no CI job was monitored for this closeout.
 
 ---
 
@@ -587,7 +604,7 @@ For every hit:
 - [x] document why it is intentionally acceptable with tests.
 
 Do not ban best-effort globally; the criterion is whether the ignored failure changes user-visible correctness, safety, security, persistence, or recoverability.
-- Evidence: initial mechanical audit `31544238722` / `93953189964`, H9 correction `f36b48eef170b84085f1a978b25fb8c14de99574`, and final audit `31546340375` / `93959559165`. Final inventory has zero empty catches, zero empty Promise catches, zero best-effort markers; every actual fallible discard/fallback/retry/cleanup class is fixed or explicitly classified in `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`. H5 remains open for generalized storage primary/cleanup provenance where failures are visible but exact provenance can still be compressed.
+- Evidence: initial mechanical audit `31544238722` / `93953189964`, H9 correction `f36b48eef170b84085f1a978b25fb8c14de99574`, final audit `31546340375` / `93959559165`, and subsequent Ralph regression-hardening correction `1cc8553229e5cccfe23474b56b0fde9ec98d8a7d`. Final inventory remains zero empty catches, zero empty Promise catches, and zero best-effort markers; every actual fallible discard/fallback/retry/cleanup class is fixed or explicitly classified in `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`. The additive regression-control correction is recorded in `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_RALPH_CORRECTION_2026-08-11.md`. H5 remains open for generalized storage primary/cleanup provenance where failures are visible but exact provenance can still be compressed.
 
 ### H9-091 — Complete no-secret audit
 
@@ -609,7 +626,7 @@ Secret sentinels must cover:
 - [x] setup code,
 - [x] session token,
 - [x] password salt/verifier bytes.
-- Evidence: H9 removes setup-code value logging, strengthens the firmware credential-output checker and its 9-case regression suite, prohibits production-V2 browser-console output, and redacts compared values from shared host-test failure helpers. Existing exact diagnostics/HTTP allowlists and typed repository/snapshot boundaries complete the surface audit. Session tokens remain intentionally confined to cookie transport and are not reflected into JSON/log/diagnostic/export output. Full surface×sentinel matrix: `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`.
+- Evidence: H9 removes setup-code value logging, strengthens the firmware credential-output checker, prohibits production-V2 browser-console output, and redacts compared values from shared host-test failure helpers. Ralph correction `1cc8553229e5cccfe23474b56b0fde9ec98d8a7d` closes dynamic-format, alias, stdio, and generic-assertion disclosure gaps; follow-up `ccedef8965cd249a03e212d1ed02ffed0860ff12` adds lower-level ESP-IDF/ROM logging sinks. The credential checker regression suite now covers **16 cases**, and the executable assertion-redaction regression passes **3/3**. Existing exact diagnostics/HTTP allowlists and typed repository/snapshot boundaries complete the surface audit. Session tokens remain intentionally confined to cookie transport and are not reflected into JSON/log/diagnostic/export output. Historical surface×sentinel matrix: `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`; additive correction: `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_RALPH_CORRECTION_2026-08-11.md`.
 
 ### H9-092 — Strengthen architectural guards
 
@@ -617,14 +634,14 @@ Secret sentinels must cover:
 - [x] Extend browser-storage prohibition scan to every production v2 frontend directory.
 - [x] Add a guard against reintroducing synchronous confirmation wait fallback if practical.
 - [x] Add a guard/test ensuring real send construction considers the confirmation setting.
-- Evidence: Phase-2 ownership guard remains exhaustive over firmware components/main; the frontend scan now covers `AppV2.tsx`, all `src/v2`, and every `src/features/**/v2`; `scripts/check-h9-architecture.py` rejects synchronous worker-unavailable confirmation fallback; and real send construction now reads authoritative device settings, binds `require_serial_confirmation`, and fails closed if policy read fails. Host regressions passed in `31546096618` / `93958810321`.
+- Evidence: Phase-2 ownership guard remains exhaustive over firmware components/main; the frontend scan now covers `AppV2.tsx`, all `src/v2`, and every `src/features/**/v2`; `scripts/check-h9-architecture.py` rejects synchronous worker-unavailable confirmation fallback and reintroduction of generic host assertion expression stringification; and real send construction reads authoritative device settings, binds `require_serial_confirmation`, and fails closed if policy read fails. Original host regressions passed in `31546096618` / `93958810321`; Ralph correction `1cc8553229e5cccfe23474b56b0fde9ec98d8a7d` adds the stricter committed regression controls documented in `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_RALPH_CORRECTION_2026-08-11.md`.
 
 ### Phase H9 exit gate
 
 - [x] Every production “best-effort”/ignored-error site has been classified.
 - [x] No known critical silent failure from the review remains.
 - [x] Complete secret audit passes with committed evidence.
-- Evidence: `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`; validated H9 product SHA `f36b48eef170b84085f1a978b25fb8c14de99574`; final mechanical audit `31546340375` / `93959559165`.
+- Evidence: historical closeout `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`; original validated H9 product SHA `f36b48eef170b84085f1a978b25fb8c14de99574`; final mechanical audit `31546340375` / `93959559165`; regression-hardening SHA `1cc8553229e5cccfe23474b56b0fde9ec98d8a7d`, lower-level sink-hardening SHA `ccedef8965cd249a03e212d1ed02ffed0860ff12`, and additive evidence `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_RALPH_CORRECTION_2026-08-11.md`. Local revalidation from the user-provided master archive passed H9 architecture/secret guards, credential regressions **16/16**, assertion-redaction regressions **3/3**, web **29/29**, startup **2/2**, and both web/startup labels under ASan+UBSan.
 
 ---
 
