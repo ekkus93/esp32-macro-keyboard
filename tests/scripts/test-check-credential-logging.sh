@@ -131,4 +131,25 @@ void leak_rom_printf(const char *setup_code) {
 SOURCE
 expect_fail 'ROM printf sensitive identifier' 'credential-bearing output is forbidden'
 
+write_valid_fixture
+cat >"${temporary_dir}/firmware/components/formatted_buffer_leak.c" <<'SOURCE'
+void leak_formatted_buffer(const char *password) {
+    char message[128];
+    snprintf(message, sizeof(message), "credential=%s", password);
+    ESP_LOGI(TAG, "%s", message);
+}
+SOURCE
+expect_fail 'formatted-buffer secret laundering' 'credential-bearing output is forbidden'
+
+write_valid_fixture
+cat >"${temporary_dir}/firmware/components/copied_buffer_leak.c" <<'SOURCE'
+void leak_copied_buffer(const char *session_token) {
+    char message[128];
+    memcpy(message, session_token, 16U);
+    message[16] = '\0';
+    ESP_LOGI(TAG, "%s", message);
+}
+SOURCE
+expect_fail 'copied-buffer secret laundering' 'credential-bearing output is forbidden'
+
 printf 'check-credential-logging regression tests passed: %d\n' "${pass_count}"

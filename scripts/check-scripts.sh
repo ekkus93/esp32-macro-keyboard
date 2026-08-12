@@ -25,6 +25,7 @@ python3 scripts/check-v2-setup-route-policy.py
 python3 scripts/check-v2-api-routes.py
 python3 scripts/check-web-route-dispatch-sync.py
 python3 scripts/check-h9-architecture.py
+python3 scripts/check-h9-production-audit.py
 python3 scripts/check-h2-architecture.py
 python3 scripts/check-h3-architecture.py
 python3 scripts/check-v2-auth-policy.py
@@ -47,7 +48,10 @@ bash tests/scripts/test-static-analysis-policy.sh
 bash tests/scripts/test-check-partitions.sh
 bash tests/scripts/test-check-production-config.sh
 bash tests/scripts/test-check-credential-logging.sh
+bash scripts/check-credential-logging.sh tests/host
+bash scripts/check-credential-logging.sh firmware/test_app
 bash tests/scripts/test-test-assert-redaction.sh
+bash tests/scripts/test-check-h9-production-audit.sh
 bash tests/scripts/test-generate-setup-label.sh
 bash tests/scripts/test-check-setup-route-isolation.sh
 bash tests/scripts/test-check-web-route-dispatch-sync.sh

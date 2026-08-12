@@ -37,6 +37,12 @@ ASSIGNMENT = re.compile(r"\b([A-Za-z_]\w*)\s*=\s*([^;]+);")
 SIMPLE_ALIAS = re.compile(
     r"^\s*(?:\([^)]+\)\s*)?([A-Za-z_]\w*(?:\s*(?:->|\.)\s*[A-Za-z_]\w*)*)\s*$"
 )
+TAINT_TRANSFER = re.compile(
+    r"\b(?:memcpy|memmove|strcpy|strncpy|strlcpy|strcat|strncat|snprintf|sprintf)\s*\("
+    r"\s*(?P<target>[A-Za-z_]\w*(?:\s*(?:->|\.)\s*[A-Za-z_]\w*)*)\s*,"
+    r"(?P<rest>[^;]*)\)\s*;",
+    re.DOTALL,
+)
 COMMENT_OR_LITERAL = re.compile(
     r"//[^\n]*|/\*.*?\*/|" + STRING_LITERAL_SOURCE + r"|'(?:\\.|[^'\\])*'",
     re.DOTALL,
@@ -95,6 +101,16 @@ def tainted_aliases(scope_prefix: str) -> set[str]:
             if alias is None:
                 continue
             sources = set(IDENTIFIER.findall(alias.group(1)))
+            if sources & tainted and target not in tainted:
+                tainted.add(target)
+                changed = True
+        for transfer in TAINT_TRANSFER.finditer(scope_code):
+            target_identifiers = IDENTIFIER.findall(transfer.group("target"))
+            if not target_identifiers:
+                continue
+            target = target_identifiers[-1]
+            sources = set(IDENTIFIER.findall(transfer.group("rest")))
+            sources.discard(target)
             if sources & tainted and target not in tainted:
                 tainted.add(target)
                 changed = True
