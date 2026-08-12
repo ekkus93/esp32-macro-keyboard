@@ -1,0 +1,142 @@
+--- a/docs/TODO_V2.md
++++ b/docs/TODO_V2.md
+@@ -568,12 +568,17 @@
+       V2-041's two remaining hardware-only items (real-device timing
+       percentiles, watchdog/starvation confirmation) are now closed — see
+       `docs/implementation-v2/V2_041_HARDWARE_LOGIN_FIX_2026-08-09.md`.
+-- [ ] No secret appears in logs, APIs, diagnostics, or test artifacts.
+-      Partial, automated evidence exists (`check-credential-logging.sh`'s
+-      firmware log-call source scan, plus secret-sentinel tests for
+-      diagnostics/status/session/login), but that doesn't add up to a
+-      blanket guarantee across every API, webapp artifact, and test log —
+-      left open rather than claimed from partial coverage.
++- [x] No secret appears in logs, APIs, diagnostics, or test artifacts.
++      The earlier Phase-4 evidence was deliberately partial and is preserved as
++      such. Post-v2 H9 later completed the cross-cutting audit across serial and
++      firmware logs, HTTP success/error bodies, diagnostics, browser console,
++      repository/snapshot export, and test-failure output, with sentinels for
++      admin password, AP passphrase, setup code, session token, and password
++      salt/verifier material. The permanent credential-output negative suite is
++      now 16 cases and generic host assertion output is redacted. See
++      `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`
++      and
++      `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_RALPH_CORRECTION_2026-08-11.md`.
+ 
+ ---
+ 
+@@ -713,6 +718,14 @@
+ - [x] Implement `POST /api/v1/device/reset-settings`.
+ - [x] Implement `POST /api/v1/device/factory-reset`.
+ - [x] Return exact accepted/reconnect/reprovision/preservation fields.
++
++Post-v2 H0 reconciliation (2026-08-11): the checked change-password and
++destructive-action items above mean the routes and their documented happy-path
++contracts exist. They do **not** claim transactional coherence after a durable
++password write followed by verifier/session failure, nor resumable factory-reset
++semantics across partial destructive work. Those failure semantics remain owned
++by post-v2 phases H2 and H3 respectively; historical happy-path evidence is
++preserved rather than rewritten.
+ 
+ ## V2-056 — Diagnostics route
+ 
+@@ -973,9 +986,16 @@
+ per-request watchdog margin. `./scripts/run-tests.sh --sanitizers executor`
+ (ASan+UBSan, 2/2) and `./scripts/run-tests.sh` (all 45 suites) pass; new
+ `tests/host/executor_confirmation_tests.inc` covers confirm/cancel/expiry.
+-`POST /api/v1/send` does not yet gate on physical confirmation — that HTTP-layer
+-wiring is a documented, deliberate gap (owned by whichever stream next touches
+-`web_server`, not this task).
++Post-v2 H0 reconciliation (2026-08-11): the historical HTTP-layer gap above has
++since been narrowed by H9. Real send construction now reads the authoritative
++`device_settings_t.require_serial_confirmation` value, binds it into
++`macro_execution_request_t.require_confirmation`, and fails closed when that
++settings read fails. This does **not** close post-v2 H1 by itself: H1 still owns
++the complete API/browser/hardware acceptance proof for required confirmation,
++including zero HID before confirmation, cancel-before-confirmation, timeout, and
++no duplicate send submission. See
++`docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`
++and its Ralph correction evidence.
+ 
+ ## V2-062 — Release-all invariant
+ 
+@@ -1068,6 +1088,12 @@
+       V2-064 items and V2-063's cancellation-latency item verified on real
+       ESP32-S3R8 hardware 2026-08-10. See V2-063/V2-064 above and
+       `docs/implementation-v2/V2_063_064_USB_HID_HARDWARE_EVIDENCE_2026-08-10.md`.
++
++Post-v2 H0 reconciliation (2026-08-11): this historical Phase-6 exit gate proves
++executor/HID mechanics but does not by itself prove the later product-level
++`requireSerialConfirmation` path. H9 has since wired authoritative device
++settings into real send construction; post-v2 H1 remains the owner of the full
++real-API/browser/device confirmation acceptance matrix.
+ 
+ ---
+ 
+@@ -2371,7 +2397,10 @@
+       (`{"usedBytes":0,"blobs":[]}` afterward). This test also found and
+       fixed a real, separate bug: first-run setup submission never restarted
+       the device (see the standalone writeup and firmware fix, commit
+-      `0c51b76`).
++      `0c51b76`). Post-v2 H0 reconciliation: this is valid happy-path hardware
++      evidence, not proof of interruption safety between destructive reset
++      stages; restart-safe/idempotent partial-reset recovery remains open under
++      H3.
+ 
+ ## V2-154 — Network and authentication matrix
+ 
+@@ -2384,33 +2413,37 @@
+ - [x] Validate unauthenticated setup-state GET before provisioning, its
+       minimal response, and its `404` behavior after provisioning. Confirmed
+       throughout the factory-reset/reprovisioning cycle.
+-- [x] Validate login, logout, idle expiry, absolute expiry, and lockout.
+-      Login/logout/lockout fully verified on hardware, including the
+-      lockout's complete real lifecycle (5 failures → 401 each, 6th → 429
+-      with `Retry-After: 300`, a *correct* password also correctly blocked
+-      during the window, and a real 300-second wait confirmed it clears).
+-      Idle (24h) and absolute (7d) expiry are **not** independently
+-      hardware-verified — real multi-hour/day wall-clock waits are not
+-      something to fake by shortening production timers; covered
+-      deterministically by `tests/host/auth_existing_tests.inc`.
++- [x] Validate login, logout, and lockout. Hardware evidence covers the
++      complete lockout lifecycle (5 failures → 401 each, 6th → 429 with
++      `Retry-After: 300`, a *correct* password also blocked during the window,
++      and a real 300-second wait confirming it clears), plus login/logout.
++- [ ] Validate idle expiry and absolute expiry on hardware. The 24-hour idle and
++      seven-day absolute expiry behaviors are covered deterministically by
++      `tests/host/auth_existing_tests.inc`, but have **not** been independently
++      hardware-verified with real wall-clock expiry. This item is intentionally
++      open rather than treating host time simulation as device evidence.
+ - [x] Validate AP availability after station failure. A deliberately wrong
+       station password produced three bounded connection attempts (~9s, not
+       an unbounded retry loop) and a clean failure; `wifi-status` confirmed
+       `AP state: ready` throughout, unaffected.
+ - [x] Validate bounded reconnect behavior. A subsequent `wifi-connect` with
+       correct credentials succeeded cleanly right after the failure above.
+-- [x] Validate password change and PBKDF2 timing. PBKDF2 timing already
++- [x] Validate successful password change and PBKDF2 timing. PBKDF2 timing is
+       covered in
+       `docs/implementation-v2/V2_041_HARDWARE_LOGIN_FIX_2026-08-09.md`.
+-      Password change verified fresh: `204`, immediate invalidation of the
+-      session active at change time, old password rejected afterward, new
+-      password accepted.
++      Happy-path password change was verified fresh: `204`, immediate
++      invalidation of the session active at change time, old password rejected
++      afterward, new password accepted. Post-v2 H0 reconciliation: this checked
++      happy-path item does **not** prove the H2 fault cases where a durable
++      credential update is followed by verifier/session-invalidation failure;
++      those transactional semantics remain open under H2.
+ - [x] Validate no secret appears in serial, HTTP, logs, diagnostics, or
+-      exports. Spot-checked (grepped every serial/HTTP log captured this
+-      session for the live admin password; no match) — not a full audit,
+-      which remains the open, partial item already tracked at the Phase 4
+-      exit gate alongside the existing automated
+-      `check-credential-logging.sh`/secret-sentinel coverage.
++      exports. The 2026-08-10 hardware session itself was only a spot-check and
++      is still described that way in its historical evidence. Post-v2 H9 later
++      completed the required cross-cutting no-secret audit and permanent guards,
++      including test-failure output; see
++      `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`
++      and the Ralph correction evidence for the 16-case credential-output suite.
+ 
+ ## V2-155 — Android UI workflow matrix
+ 
