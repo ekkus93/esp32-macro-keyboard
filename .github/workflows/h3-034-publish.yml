@@ -77,6 +77,12 @@ jobs:
               if 'app_error_code_t device_controls_reset_settings(void)' in text:
                   stale.append(str(path))
           assert not stale, stale
+
+          # H3-034 extends the architecture guard by appending a generated
+          # section. Keep the file's EOF canonical so git diff --check cannot
+          # reject an otherwise valid candidate for an extra blank line.
+          guard = Path('scripts/check-h3-architecture.py')
+          guard.write_text(guard.read_text().rstrip('\n') + '\n')
           PY
 
       - name: Install frontend formatting dependencies
