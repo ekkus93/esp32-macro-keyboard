@@ -9,6 +9,7 @@
 #include "device_controls.h"
 #include "factory_reset_state.h"
 #include "setup_contract_v2.h"
+#include "web_http_status.h"
 #include "web_server.h"
 #include "web_server_adapter.h"
 #include "web_server_password_record.h"
@@ -22,18 +23,20 @@ static esp_err_t reset_guarded_request(httpd_req_t *request, esp_err_t (*handler
     }
 
     if (device_controls_reset_settings_restart_required()) {
-        return web_api_send_status_error(request, 503U, APP_ERROR_RESET_SETTINGS_INCOMPLETE,
+        return web_api_send_status_error(request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
+                                         APP_ERROR_RESET_SETTINGS_INCOMPLETE,
                                          "reset-settings restart required");
     }
 
     factory_reset_state_t reset_state = FACTORY_RESET_STATE_NONE;
     const app_error_code_t reset_result = factory_reset_state_read(&reset_state);
     if (reset_result != APP_ERROR_NONE) {
-        return web_api_send_status_error(request, 503U, reset_result,
+        return web_api_send_status_error(request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE, reset_result,
                                          "factory reset state unavailable");
     }
     if (reset_state == FACTORY_RESET_STATE_PENDING) {
-        return web_api_send_status_error(request, 503U, APP_ERROR_RESET_RECOVERY_REQUIRED,
+        return web_api_send_status_error(request, WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
+                                         APP_ERROR_RESET_RECOVERY_REQUIRED,
                                          "factory reset recovery in progress");
     }
     return handler(request);

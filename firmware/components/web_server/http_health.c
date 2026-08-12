@@ -1,7 +1,5 @@
 #include "http_health.h"
 
-#include <stdlib.h>
-
 #include "app_error.h"
 #include "subsystem_health.h"
 
@@ -9,6 +7,7 @@
 #include "freertos/FreeRTOS.h"
 #else
 #include <pthread.h>
+#include <stdlib.h>
 #endif
 
 typedef struct {

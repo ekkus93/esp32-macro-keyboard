@@ -602,6 +602,18 @@ static bool exact_change_password_fields(const cJSON *root) {
     return field_count == CHANGE_PASSWORD_FIELD_COUNT;
 }
 
+static bool change_password_views_from_root(const cJSON *root,
+                                            app_v2_string_view_t *out_current_password,
+                                            app_v2_string_view_t *out_new_password) {
+    if (root == NULL || !exact_change_password_fields(root)) {
+        return false;
+    }
+    return string_view_from_item(cJSON_GetObjectItemCaseSensitive(root, "currentPassword"),
+                                 out_current_password) &&
+           string_view_from_item(cJSON_GetObjectItemCaseSensitive(root, "newPassword"),
+                                 out_new_password);
+}
+
 static web_change_password_outcome_t change_password_outcome(web_change_password_result_t result) {
     return (web_change_password_outcome_t){.result = result, .detail = APP_ERROR_NONE};
 }
@@ -626,24 +638,16 @@ web_change_password_outcome_t web_change_password_handle(char *body, size_t body
         return change_password_outcome(WEB_CHANGE_PASSWORD_INTERNAL);
     }
 
-    web_change_password_outcome_t outcome = change_password_outcome(WEB_CHANGE_PASSWORD_INTERNAL);
+    web_change_password_outcome_t outcome;
     cJSON *root = parse_exact_body(body, body_capacity);
     app_v2_device_settings_t current = {0};
     app_v2_setup_password_material_t material = {0};
     app_v2_device_settings_t candidate = {0};
     bool transition_active = false;
 
-    if (root == NULL || !exact_change_password_fields(root)) {
-        outcome = change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_BODY);
-        goto cleanup;
-    }
-
     app_v2_string_view_t current_password_view = {0};
     app_v2_string_view_t new_password_view = {0};
-    if (!string_view_from_item(cJSON_GetObjectItemCaseSensitive(root, "currentPassword"),
-                               &current_password_view) ||
-        !string_view_from_item(cJSON_GetObjectItemCaseSensitive(root, "newPassword"),
-                               &new_password_view)) {
+    if (!change_password_views_from_root(root, &current_password_view, &new_password_view)) {
         outcome = change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_BODY);
         goto cleanup;
     }

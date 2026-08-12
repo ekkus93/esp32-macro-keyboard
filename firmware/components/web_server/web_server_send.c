@@ -9,6 +9,7 @@
 #include "app_limits_v2.h"
 #include "auth.h"
 #include "device_settings.h"
+#include "device_settings_v2.h"
 #include "macro_executor.h"
 #include "macro_parser.h"
 #include "web_api_core.h"

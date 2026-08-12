@@ -6,6 +6,7 @@
 
 #include "app_error.h"
 #include "cJSON.h"
+#include "device_controls.h"
 #include "device_settings_v2.h"
 
 #define DEVICE_ACTIONS_NUL_ESCAPE "\\u0000"
@@ -152,13 +153,7 @@ static bool exact_reset_settings_fields(const cJSON *root) {
 web_device_reset_settings_outcome_t
 web_device_reset_settings_handle(char *body, size_t body_capacity,
                                  const web_device_actions_ops_t *ops) {
-    if (ops == NULL || ops->reset_settings == NULL) {
-        if (body != NULL && body_capacity > 0U) {
-            secure_zero_local(body, body_capacity);
-        }
-        return (web_device_reset_settings_outcome_t){.result = WEB_DEVICE_RESET_SETTINGS_INTERNAL};
-    }
-    if (body == NULL || body_capacity == 0U) {
+    if (ops == NULL || ops->reset_settings == NULL || body == NULL || body_capacity == 0U) {
         if (body != NULL && body_capacity > 0U) {
             secure_zero_local(body, body_capacity);
         }
@@ -279,13 +274,7 @@ web_device_factory_reset_outcome_t
 web_device_factory_reset_handle(char *body, size_t body_capacity,
                                 const web_device_actions_ops_t *ops) {
     if (ops == NULL || ops->settings_read == NULL || ops->password_verify == NULL ||
-        ops->factory_reset == NULL) {
-        if (body != NULL && body_capacity > 0U) {
-            secure_zero_local(body, body_capacity);
-        }
-        return (web_device_factory_reset_outcome_t){.result = WEB_DEVICE_FACTORY_RESET_INTERNAL};
-    }
-    if (body == NULL || body_capacity == 0U) {
+        ops->factory_reset == NULL || body == NULL || body_capacity == 0U) {
         if (body != NULL && body_capacity > 0U) {
             secure_zero_local(body, body_capacity);
         }

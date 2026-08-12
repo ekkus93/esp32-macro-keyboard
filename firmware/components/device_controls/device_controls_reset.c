@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "app_error.h"
+#include "device_controls.h"
 
 static void record_first_error(app_error_code_t candidate, app_error_code_t *first_error) {
     if (candidate != APP_ERROR_NONE && *first_error == APP_ERROR_NONE) {

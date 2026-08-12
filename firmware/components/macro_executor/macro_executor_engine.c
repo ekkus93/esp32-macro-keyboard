@@ -1,5 +1,6 @@
 #include "macro_executor_engine.h"
 
+#include <stdatomic.h>
 #include <stdint.h>
 #include <string.h>
 

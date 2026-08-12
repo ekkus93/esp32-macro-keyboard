@@ -3,6 +3,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "app_error.h"
+#include "factory_reset_state.h"
+
 bool factory_reset_state_core_ops_is_valid(const factory_reset_state_core_ops_t *operations) {
     return operations != NULL && operations->read_value != NULL &&
            operations->write_value != NULL && operations->erase_value != NULL;
