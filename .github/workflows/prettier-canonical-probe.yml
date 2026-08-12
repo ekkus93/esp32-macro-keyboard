@@ -1,0 +1,37 @@
+name: Prettier canonical probe
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/prettier-canonical-probe.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: webapp
+        run: npm ci
+
+      - name: Print canonical Prettier diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./webapp/node_modules/.bin/prettier --write webapp/tests/v2-browser-console-prohibition.test.ts
+          git diff --no-ext-diff --unified=100 -- webapp/tests/v2-browser-console-prohibition.test.ts
