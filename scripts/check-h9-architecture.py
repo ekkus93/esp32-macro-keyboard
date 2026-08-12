@@ -35,6 +35,15 @@ for required in (
     if required not in adapter:
         fail(f"web lifecycle lost failed-start ownership guard: {required}")
 
+serial_console = read("firmware/components/serial_console/serial_console.c")
+for required in (
+    '#include "serial_console_confirmation.h"',
+    "return macro_executor_confirm();",
+    "serial_console_route_confirmation(&operations)",
+):
+    if required not in serial_console:
+        fail(f"serial confirm no longer routes into pending send confirmation: {required}")
+
 async_source = read("firmware/components/web_server/web_server_async.c")
 worker_unavailable = "if (async_queue == NULL || async_task_handle == NULL)"
 if worker_unavailable not in async_source:
@@ -79,8 +88,8 @@ for required in (
 test_assert = read("tests/host/support/test_assert.c")
 test_assert_h = read("tests/host/support/test_assert.h")
 for forbidden in (
-    'expected=\"%s\"',
-    'actual=\"%s\"',
+    'expected="%s"',
+    'actual="%s"',
     'expected=%" PRIu64',
     'actual=%" PRIu64',
     'expected=%p',
