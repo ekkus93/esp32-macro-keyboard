@@ -3,7 +3,8 @@
 **Date:** 2026-08-11  
 **Phase:** `H9 — Cross-cutting secret, fallback, and regression audit`  
 **Historical H9 evidence:** `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`  
-**Correction SHA:** `1cc8553229e5cccfe23474b56b0fde9ec98d8a7d` (`fix: harden H9 secret regression guards`)
+**Primary correction SHA:** `1cc8553229e5cccfe23474b56b0fde9ec98d8a7d` (`fix: harden H9 secret regression guards`)  
+**Follow-up sink-hardening SHA:** `ccedef8965cd249a03e212d1ed02ffed0860ff12` (`fix: cover low-level H9 logging sinks`)
 
 ## Purpose
 
@@ -18,9 +19,10 @@ Production did not contain a corresponding secret leak at the post-close baselin
 - a secret passed to an ESP log call through a dynamic format string;
 - a simple local alias of a secret passed to a log call;
 - a secret passed to `puts`/related stdio output functions outside the original sink pattern;
-- secret verifier/salt material passed to an ESP buffer-log macro.
+- secret verifier/salt material passed to an ESP buffer-log macro;
+- secret material passed through lower-level ESP-IDF/ROM logging functions (`esp_log_write`, `esp_log_buffer_*`, `esp_rom_printf`/`ets_printf`).
 
-Correction `1cc8553229e5cccfe23474b56b0fde9ec98d8a7d` expands the guarded sink family, checks direct sensitive identifiers independent of the format literal, and propagates simple secret aliases within the enclosing C/C++ scope. The committed negative regression suite increases from 9 to **13 cases** and explicitly covers the four bypass classes above.
+Primary correction `1cc8553229e5cccfe23474b56b0fde9ec98d8a7d` expands the guarded macro/stdio sink family, checks direct sensitive identifiers independent of the format literal, and propagates simple secret aliases within the enclosing C/C++ scope. Follow-up `ccedef8965cd249a03e212d1ed02ffed0860ff12` adds the lower-level ESP-IDF/ROM sinks (`esp_log_write*`, `esp_log_buffer_*`, `esp_rom_printf`, `ets_printf`). The committed negative regression suite increases from 9 to **16 cases** and covers all of these bypass classes.
 
 ### 2. Generic `TEST_CHECK(...)` still disclosed caller expressions
 
@@ -35,7 +37,7 @@ The correction was validated from the user-provided `master` archive without mon
 - `python3 scripts/check-h9-architecture.py` — passed;
 - `python3 scripts/check-v2-phase2-architecture.py` — passed;
 - `bash scripts/check-credential-logging.sh firmware` — passed;
-- `bash tests/scripts/test-check-credential-logging.sh` — **13/13 passed**;
+- `bash tests/scripts/test-check-credential-logging.sh` — **16/16 passed**;
 - `bash tests/scripts/test-test-assert-redaction.sh` — **3/3 passed**;
 - `./scripts/run-tests.sh web` — **29/29 passed**;
 - `./scripts/run-tests.sh startup` — **2/2 passed** for the current local startup CTest label;
