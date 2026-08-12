@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#include "app_error.h"
 #include "auth.h"
 #include "freertos/FreeRTOS.h"
 #include "web_server.h"
