@@ -80,6 +80,7 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "executor_health.h"
+#include "factory_reset_state.h"
 #include "fake_httpd.h"
 #include "http_health.h"
 #include "macro_executor.h"
@@ -215,12 +216,23 @@ app_error_code_t device_controls_reset_settings(void) {
     return g_reset_settings_result;
 }
 
-static app_error_code_t g_factory_reset_result;
+static device_controls_factory_reset_outcome_t g_factory_reset_outcome;
 static size_t g_factory_reset_calls;
 
-app_error_code_t device_controls_factory_reset(void) {
+device_controls_factory_reset_outcome_t device_controls_factory_reset(void) {
     ++g_factory_reset_calls;
-    return g_factory_reset_result;
+    return g_factory_reset_outcome;
+}
+
+static app_error_code_t g_factory_reset_state_read_result;
+static factory_reset_state_t g_factory_reset_state;
+
+app_error_code_t factory_reset_state_read(factory_reset_state_t *out_state) {
+    if (g_factory_reset_state_read_result != APP_ERROR_NONE) {
+        return g_factory_reset_state_read_result;
+    }
+    *out_state = g_factory_reset_state;
+    return APP_ERROR_NONE;
 }
 
 app_error_code_t device_controls_wait_for_confirmation(unsigned int timeout_ms) {
@@ -404,8 +416,14 @@ static void reset_fakes(void) {
     g_restart_calls = 0U;
     g_reset_settings_result = APP_ERROR_NONE;
     g_reset_settings_calls = 0U;
-    g_factory_reset_result = APP_ERROR_NONE;
+    g_factory_reset_outcome = (device_controls_factory_reset_outcome_t){
+        .durably_accepted = true,
+        .recovery_required = false,
+        .primary_error = APP_ERROR_NONE,
+    };
     g_factory_reset_calls = 0U;
+    g_factory_reset_state_read_result = APP_ERROR_NONE;
+    g_factory_reset_state = FACTORY_RESET_STATE_NONE;
     g_esp_restart_calls = 0U;
 
     g_wifi_status = (wifi_ap_status_t){.state = WIFI_AP_READY, .client_count = 1U};
@@ -891,6 +909,51 @@ static void test_factory_reset_post_valid(void) {
     cJSON_Delete(root);
 }
 
+static void test_factory_reset_post_precommit_failure_is_not_accepted(void) {
+    reset_fakes();
+    g_factory_reset_outcome = (device_controls_factory_reset_outcome_t){
+        .durably_accepted = false,
+        .recovery_required = false,
+        .primary_error = APP_ERROR_STORAGE_UNAVAILABLE,
+    };
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    bind_json_body(&request, &fake, "/api/v1/device/factory-reset", HTTP_POST,
+                   "{\"confirmation\":\"FACTORY RESET\",\"adminPassword\":\"example-password\"}");
+
+    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+    TEST_CHECK_EQ_STRING("503 Service Unavailable", fake.response_status);
+    TEST_CHECK_EQ_U64(1U, (uint64_t)g_factory_reset_calls);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
+}
+
+static void test_factory_reset_post_cleanup_failure_stays_accepted_for_recovery(void) {
+    reset_fakes();
+    g_factory_reset_outcome = (device_controls_factory_reset_outcome_t){
+        .durably_accepted = true,
+        .recovery_required = true,
+        .primary_error = APP_ERROR_IO,
+    };
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    bind_json_body(&request, &fake, "/api/v1/device/factory-reset", HTTP_POST,
+                   "{\"confirmation\":\"FACTORY RESET\",\"adminPassword\":\"example-password\"}");
+
+    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+    TEST_CHECK_EQ_STRING("202 Accepted", fake.response_status);
+    TEST_CHECK_EQ_U64(1U, (uint64_t)g_factory_reset_calls);
+    TEST_CHECK_EQ_U64(1U, (uint64_t)g_esp_restart_calls);
+
+    cJSON *root = parse_response(&fake);
+    const cJSON *example = test_examples_fixture_get("factoryResetAccepted");
+    TEST_CHECK(cJSON_Compare(root, example, true) != 0);
+    cJSON_Delete(root);
+}
+
 static void test_factory_reset_post_incorrect_password(void) {
     reset_fakes();
     g_password_matches = false;
@@ -1084,6 +1147,26 @@ static void test_diagnostics_get_unauthorized_expired_session(void) {
     TEST_CHECK_EQ_STRING("401 Unauthorized", fake.response_status);
 }
 
+static void test_diagnostics_get_pending_reset_reports_recovery(void) {
+    reset_fakes();
+    g_factory_reset_state = FACTORY_RESET_STATE_PENDING;
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    bind_bodyless(&request, &fake, "/api/v1/diagnostics", HTTP_GET);
+
+    TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
+    TEST_CHECK_EQ_STRING("503 Service Unavailable", fake.response_status);
+    cJSON *root = parse_response(&fake);
+    const cJSON *error = cJSON_GetObjectItemCaseSensitive(root, "error");
+    TEST_CHECK_EQ_STRING("reset_recovery_required",
+                         cJSON_GetObjectItemCaseSensitive(error, "code")->valuestring);
+    TEST_CHECK_EQ_STRING("factory reset recovery in progress",
+                         cJSON_GetObjectItemCaseSensitive(error, "message")->valuestring);
+    cJSON_Delete(root);
+}
+
 static void test_diagnostics_get_blob_scan_failure_maps_to_503(void) {
     reset_fakes();
     g_blob_diagnostics_result = APP_ERROR_STORAGE_UNAVAILABLE;
@@ -1120,12 +1203,15 @@ int main(void) {
     test_reset_settings_post_wrong_confirmation();
 
     test_factory_reset_post_valid();
+    test_factory_reset_post_precommit_failure_is_not_accepted();
+    test_factory_reset_post_cleanup_failure_stays_accepted_for_recovery();
     test_factory_reset_post_incorrect_password();
 
     test_setup_get_not_found_when_provisioned();
     test_setup_post_conflict_when_provisioned();
 
     test_diagnostics_get_valid();
+    test_diagnostics_get_pending_reset_reports_recovery();
     test_diagnostics_release_fault_degrades_executor_subsystem();
     test_diagnostics_async_failure_degrades_existing_http_subsystem();
     test_diagnostics_get_unauthorized_without_cookie();

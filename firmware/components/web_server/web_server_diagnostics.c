@@ -17,6 +17,7 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "executor_health.h"
+#include "factory_reset_state.h"
 #include "http_health.h"
 #include "macro_executor.h"
 #include "storage.h"
@@ -224,6 +225,15 @@ static app_error_code_t collect_diagnostics(web_diagnostics_snapshot_t *out_snap
 }
 
 app_error_code_t web_diagnostics_handle(web_api_response_t *response) {
+    factory_reset_state_t reset_state = FACTORY_RESET_STATE_NONE;
+    const app_error_code_t reset_result = factory_reset_state_read(&reset_state);
+    if (reset_result != APP_ERROR_NONE || reset_state == FACTORY_RESET_STATE_PENDING) {
+        return web_api_handler_error(
+            response,
+            reset_result == APP_ERROR_NONE ? APP_ERROR_RESET_RECOVERY_REQUIRED : reset_result,
+            "factory reset recovery in progress", NULL);
+    }
+
     web_diagnostics_snapshot_t *snapshot = malloc(sizeof(*snapshot));
     if (snapshot == NULL) {
         return web_api_handler_error(response, APP_ERROR_INTERNAL, "diagnostics unavailable", NULL);

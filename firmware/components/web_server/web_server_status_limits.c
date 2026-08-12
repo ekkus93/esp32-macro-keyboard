@@ -11,6 +11,7 @@
 #include "device_settings_v2.h"
 #include "esp_app_desc.h"
 #include "esp_timer.h"
+#include "factory_reset_state.h"
 #include "macro_executor.h"
 #include "storage.h"
 #include "storage_blob.h"
@@ -68,6 +69,15 @@ esp_err_t status_handler(httpd_req_t *request) {
     memset(session_token, 0, sizeof(session_token));
     if (auth_result != APP_ERROR_NONE) {
         return send_error(request, "401 Unauthorized", auth_result, "authentication required");
+    }
+
+    factory_reset_state_t reset_state = FACTORY_RESET_STATE_NONE;
+    const app_error_code_t reset_result = factory_reset_state_read(&reset_state);
+    if (reset_result != APP_ERROR_NONE || reset_state == FACTORY_RESET_STATE_PENDING) {
+        return send_error(request, "503 Service Unavailable",
+                          reset_result == APP_ERROR_NONE ? APP_ERROR_RESET_RECOVERY_REQUIRED
+                                                         : reset_result,
+                          "factory reset recovery in progress");
     }
 
     app_v2_device_settings_t settings = {0};

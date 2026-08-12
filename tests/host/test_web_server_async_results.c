@@ -30,6 +30,7 @@
 #include "esp_http_server.h"
 #include "esp_system.h"
 #include "esp_timer.h"
+#include "factory_reset_state.h"
 #include "fake_httpd.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -44,6 +45,14 @@
 #include "web_api_core.h"
 #include "web_http_status.h"
 #include "web_server_internal.h"
+app_error_code_t factory_reset_state_read(factory_reset_state_t *out_state) {
+    if (out_state == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    *out_state = FACTORY_RESET_STATE_NONE;
+    return APP_ERROR_NONE;
+}
+
 #include "wifi_ap.h"
 
 /* ------------------------------------------------------------------

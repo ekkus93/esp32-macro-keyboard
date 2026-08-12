@@ -465,7 +465,7 @@ app_error_code_t device_controls_reset_settings(void) {
                                                        DEVICE_CONTROLS_RESTART_DELAY_MS);
 }
 
-app_error_code_t device_controls_factory_reset(void) {
+device_controls_factory_reset_outcome_t device_controls_factory_reset(void) {
     const device_controls_reset_ops_t operations = reset_operations();
     return device_controls_reset_engine_factory_reset(&operations,
                                                       DEVICE_CONTROLS_RESTART_DELAY_MS);

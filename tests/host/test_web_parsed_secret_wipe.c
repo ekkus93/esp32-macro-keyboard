@@ -147,9 +147,13 @@ static app_error_code_t unused_invalidate_sessions(void *context) {
     return APP_ERROR_INTERNAL;
 }
 
-static app_error_code_t unused_factory_reset(void *context) {
+static device_controls_factory_reset_outcome_t unused_factory_reset(void *context) {
     (void)context;
-    return APP_ERROR_INTERNAL;
+    return (device_controls_factory_reset_outcome_t){
+        .durably_accepted = true,
+        .recovery_required = false,
+        .primary_error = APP_ERROR_NONE,
+    };
 }
 
 static web_settings_ops_t settings_operations(void) {

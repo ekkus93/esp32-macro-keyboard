@@ -319,10 +319,12 @@ Stages must safely tolerate repetition:
 
 ### H3-032 — Change accepted/error semantics
 
-- [ ] Do not return `202` unless the durable reset state has been established.
-- [ ] Once reset is durably accepted, later cleanup trouble must be represented as reset recovery, not ordinary failed normal operation.
-- [ ] Do not clear the reset marker until every required destructive effect succeeds.
-- [ ] Make setup/recovery state visible enough for the UI/diagnostics to avoid lying about readiness.
+- [x] Do not return `202` unless the durable reset state has been established.
+- [x] Once reset is durably accepted, later cleanup trouble must be represented as reset recovery, not ordinary failed normal operation.
+- [x] Do not clear the reset marker until every required destructive effect succeeds.
+- [x] Make setup/recovery state visible enough for the UI/diagnostics to avoid lying about readiness.
+
+- Evidence (2026-08-12): factory reset now distinguishes pre-marker rejection from post-marker recovery ownership with a structured device-controls outcome. Only pre-commit failure is mapped as an ordinary error; every post-commit cleanup failure remains `202 Accepted` with the unchanged authoritative v2 response while retaining the exact primary failure internally and leaving `PENDING` for reboot recovery. The complete `202` response is allocated/serialized before the destructive backend call, and status/diagnostics fail visibly with reset-recovery-required while `PENDING` is durable so reconnect logic cannot mistake the brief pre-reboot window for readiness. See `docs/implementation-v2/H3_032_FACTORY_RESET_ACCEPTED_ERROR_SEMANTICS_2026-08-12.md`.
 
 ### H3-033 — Failure injection matrix
 

@@ -297,11 +297,35 @@ web_device_factory_reset_handle(char *body, size_t body_capacity,
             .result = WEB_DEVICE_FACTORY_RESET_INCORRECT_PASSWORD};
     }
 
-    const app_error_code_t result = ops->factory_reset(ops->context);
-    if (result != APP_ERROR_NONE) {
+    const device_controls_factory_reset_outcome_t reset = ops->factory_reset(ops->context);
+    if (!reset.durably_accepted) {
+        if (reset.recovery_required || reset.primary_error == APP_ERROR_NONE) {
+            return (web_device_factory_reset_outcome_t){
+                .result = WEB_DEVICE_FACTORY_RESET_INTERNAL,
+                .detail = APP_ERROR_INTERNAL,
+            };
+        }
         return (web_device_factory_reset_outcome_t){
             .result = WEB_DEVICE_FACTORY_RESET_BACKEND_UNAVAILABLE,
-            .detail = result,
+            .detail = reset.primary_error,
+        };
+    }
+    if (reset.recovery_required) {
+        if (reset.primary_error == APP_ERROR_NONE) {
+            return (web_device_factory_reset_outcome_t){
+                .result = WEB_DEVICE_FACTORY_RESET_INTERNAL,
+                .detail = APP_ERROR_INTERNAL,
+            };
+        }
+        return (web_device_factory_reset_outcome_t){
+            .result = WEB_DEVICE_FACTORY_RESET_RECOVERY_REQUIRED,
+            .detail = reset.primary_error,
+        };
+    }
+    if (reset.primary_error != APP_ERROR_NONE) {
+        return (web_device_factory_reset_outcome_t){
+            .result = WEB_DEVICE_FACTORY_RESET_INTERNAL,
+            .detail = APP_ERROR_INTERNAL,
         };
     }
     return (web_device_factory_reset_outcome_t){.result = WEB_DEVICE_FACTORY_RESET_OK};

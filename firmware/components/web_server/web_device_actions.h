@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "app_error.h"
+#include "device_controls.h"
 #include "device_settings_v2.h"
 
 /* Business logic for the SPEC_V2 13.12 device actions
@@ -25,7 +26,7 @@ typedef struct {
                                         bool *out_matches);
     app_error_code_t (*restart)(void *context);
     app_error_code_t (*reset_settings)(void *context);
-    app_error_code_t (*factory_reset)(void *context);
+    device_controls_factory_reset_outcome_t (*factory_reset)(void *context);
 } web_device_actions_ops_t;
 
 typedef enum {
@@ -71,6 +72,7 @@ typedef enum {
     WEB_DEVICE_FACTORY_RESET_INVALID_CONFIRMATION,
     WEB_DEVICE_FACTORY_RESET_INCORRECT_PASSWORD,
     WEB_DEVICE_FACTORY_RESET_BACKEND_UNAVAILABLE,
+    WEB_DEVICE_FACTORY_RESET_RECOVERY_REQUIRED,
     WEB_DEVICE_FACTORY_RESET_INTERNAL,
 } web_device_factory_reset_result_t;
 

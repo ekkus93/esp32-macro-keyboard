@@ -49,6 +49,7 @@ idf_component_register(
     provisioning
     device_controls
     device_settings
+    factory_reset_state
     support
     app_contracts_v2
     json

@@ -105,7 +105,7 @@ app_error_code_t auth_session_logout_all(void) {
 typedef struct {
     app_error_code_t restart_result;
     app_error_code_t reset_settings_result;
-    app_error_code_t factory_reset_result;
+    device_controls_factory_reset_outcome_t factory_reset_outcome;
     size_t restart_calls;
     size_t reset_settings_calls;
     size_t factory_reset_calls;
@@ -123,9 +123,9 @@ app_error_code_t device_controls_reset_settings(void) {
     return fake_device_controls.reset_settings_result;
 }
 
-app_error_code_t device_controls_factory_reset(void) {
+device_controls_factory_reset_outcome_t device_controls_factory_reset(void) {
     ++fake_device_controls.factory_reset_calls;
-    return fake_device_controls.factory_reset_result;
+    return fake_device_controls.factory_reset_outcome;
 }
 
 /* ---------------------------------------------------------------------- *
@@ -180,7 +180,14 @@ web_server_config_t server_configuration;
 
 static void reset_fakes(void) {
     fake_auth = (fake_auth_t){0};
-    fake_device_controls = (fake_device_controls_t){0};
+    fake_device_controls = (fake_device_controls_t){
+        .factory_reset_outcome =
+            {
+                .durably_accepted = true,
+                .recovery_required = false,
+                .primary_error = APP_ERROR_NONE,
+            },
+    };
     fake_device_settings = (fake_device_settings_t){0};
 }
 
@@ -336,6 +343,74 @@ static void test_handle_device_restart_backend_unavailable(void) {
 }
 
 /* -------------------------------------------------------------------------
+ * POST /api/v1/device/factory-reset — H3-032 accepted/recovery semantics.
+ * ---------------------------------------------------------------------- */
+
+static void prepare_factory_reset_call(web_api_call_t *call, char *body, size_t body_size) {
+    TEST_CHECK(call != NULL);
+    TEST_CHECK(body != NULL);
+    const int written =
+        snprintf(body, body_size,
+                 "{\"confirmation\":\"FACTORY RESET\",\"adminPassword\":\"example-password\"}");
+    TEST_CHECK(written > 0 && (size_t)written < body_size);
+    *call = (web_api_call_t){
+        .method = WEB_API_METHOD_POST,
+        .path = {.route = WEB_API_ROUTE_DEVICE_FACTORY_RESET},
+        .body = body,
+        .body_length = (size_t)written,
+    };
+}
+
+static void test_factory_reset_precommit_failure_is_not_202(void) {
+    reset_fakes();
+    fake_auth.password_matches = true;
+    fake_device_controls.factory_reset_outcome = (device_controls_factory_reset_outcome_t){
+        .durably_accepted = false,
+        .recovery_required = false,
+        .primary_error = APP_ERROR_STORAGE_UNAVAILABLE,
+    };
+    char body[256];
+    web_api_call_t call;
+    prepare_factory_reset_call(&call, body, sizeof(body));
+    web_api_response_t response = {0};
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_handle_administration(&call, &response));
+    TEST_CHECK_EQ_U64(503U, response.status);
+    TEST_CHECK_EQ_U64(1U, fake_device_controls.factory_reset_calls);
+    cJSON *root = parse_response_body(&response);
+    const cJSON *error = cJSON_GetObjectItemCaseSensitive(root, "error");
+    TEST_CHECK_EQ_STRING("storage_unavailable",
+                         cJSON_GetObjectItemCaseSensitive(error, "code")->valuestring);
+    cJSON_Delete(root);
+    web_api_response_free(&response);
+}
+
+static void test_factory_reset_postcommit_failure_is_202_recovery(void) {
+    reset_fakes();
+    fake_auth.password_matches = true;
+    fake_device_controls.factory_reset_outcome = (device_controls_factory_reset_outcome_t){
+        .durably_accepted = true,
+        .recovery_required = true,
+        .primary_error = APP_ERROR_IO,
+    };
+    char body[256];
+    web_api_call_t call;
+    prepare_factory_reset_call(&call, body, sizeof(body));
+    web_api_response_t response = {0};
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_api_handle_administration(&call, &response));
+    TEST_CHECK_EQ_U64(202U, response.status);
+    TEST_CHECK_EQ_U64(1U, fake_device_controls.factory_reset_calls);
+    cJSON *root = parse_response_body(&response);
+    TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "accepted")));
+    TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "connectionWillClose")));
+    TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "reprovisioningRequired")));
+    TEST_CHECK(cJSON_IsFalse(cJSON_GetObjectItemCaseSensitive(root, "repositoryBlobsPreserved")));
+    cJSON_Delete(root);
+    web_api_response_free(&response);
+}
+
+/* -------------------------------------------------------------------------
  * The provisioned-mode WEB_API_ROUTE_SETUP fallback (setup_route_response):
  * GET -> 404, POST -> 409 (SPEC_V2 13.4). This is the live routing path a
  * real provisioned-device request answers through -- distinct from
@@ -428,6 +503,8 @@ int main(void) {
     test_session_and_cookie_outputs_carry_no_password_sentinel();
     test_handle_device_restart_success();
     test_handle_device_restart_backend_unavailable();
+    test_factory_reset_precommit_failure_is_not_202();
+    test_factory_reset_postcommit_failure_is_202_recovery();
     test_setup_route_get_returns_not_found();
     test_setup_route_post_returns_conflict();
     test_diagnostics_route_dispatches_to_handler();

@@ -128,9 +128,8 @@ add_executable(
     ../../firmware/components/serial_console/serial_console_confirmation.c
 )
 target_include_directories(
-    serial_console_confirmation_tests
-    PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/serial_console
+    serial_console_confirmation_tests PRIVATE ../../firmware/components/macro_model/include
+                                              ../../firmware/components/serial_console
 )
 register_host_test(serial_console_confirmation_tests serial_console_confirmation "executor;web")
 
@@ -257,6 +256,7 @@ target_include_directories(
             ../../firmware/components/wifi_ap/include
             ../../firmware/components/usb_keyboard/include
             ../../firmware/components/device_settings/include
+            ../../firmware/components/factory_reset_state/include
             ../../firmware/components/support/include
 )
 target_compile_definitions(
@@ -297,7 +297,8 @@ add_executable(
 target_include_directories(
     web_device_actions_tests
     PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/app_contracts_v2/include ../../firmware/components/web_server
+            ../../firmware/components/app_contracts_v2/include
+            ../../firmware/components/device_controls/include ../../firmware/components/web_server
 )
 target_link_libraries(web_device_actions_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_device_actions_tests web_device_actions web)
@@ -446,12 +447,11 @@ register_host_test(web_server_setup_route_tests web_server_setup_route web)
 # auth_health_snapshot(), usb_health_snapshot(), executor_health_snapshot(), http_health_snapshot())
 # link in real, unfaked. storage/executor health use FreeRTOS portMUX critical sections in
 # production, mapped to pthread mutexes by the focused host stub. The other two
-# (device_controls_get_health(), wifi_ap_get_status()) live in
-# ESP-IDF/FreeRTOS-bound files and stay faked, alongside this target's other
-# device_controls.h/wifi_ap.h fakes; the pure logic that turns their results into a
-# subsystem_health_state_t (device_controls_health_derive_state(), wifi_ap_health_derive_state())
-# links in real from device_controls_logic.c/wifi_ap_state.c, the same two files
-# device_controls_tests/wifi_ap_tests already prove are host-linkable.
+# (device_controls_get_health(), wifi_ap_get_status()) live in ESP-IDF/FreeRTOS-bound files and stay
+# faked, alongside this target's other device_controls.h/wifi_ap.h fakes; the pure logic that turns
+# their results into a subsystem_health_state_t (device_controls_health_derive_state(),
+# wifi_ap_health_derive_state()) links in real from device_controls_logic.c/wifi_ap_state.c, the
+# same two files device_controls_tests/wifi_ap_tests already prove are host-linkable.
 add_executable(
     web_server_administration_route_tests
     test_web_server_administration_route.c
@@ -505,6 +505,7 @@ target_include_directories(
             ../../firmware/components/device_controls
             ../../firmware/components/device_controls/include
             ../../firmware/components/device_settings/include
+            ../../firmware/components/factory_reset_state/include
             ../../firmware/components/provisioning/include
             ../../firmware/components/storage/include
             ../../firmware/components/wifi_ap
@@ -766,9 +767,7 @@ target_include_directories(
             ../../firmware/components/factory_reset_state/include
             ../../firmware/components/factory_reset_state
 )
-register_host_test(
-    factory_reset_state_core_tests factory_reset_state_core "startup;controls"
-)
+register_host_test(factory_reset_state_core_tests factory_reset_state_core "startup;controls")
 
 add_executable(
     factory_reset_state_adapter_tests
@@ -778,14 +777,11 @@ add_executable(
 )
 target_include_directories(
     factory_reset_state_adapter_tests
-    PRIVATE fakes/nvs_stub
-            ../../firmware/components/macro_model/include
+    PRIVATE fakes/nvs_stub ../../firmware/components/macro_model/include
             ../../firmware/components/factory_reset_state/include
             ../../firmware/components/factory_reset_state
 )
-register_host_test(
-    factory_reset_state_adapter_tests factory_reset_state_adapter "startup;controls"
-)
+register_host_test(factory_reset_state_adapter_tests factory_reset_state_adapter "startup;controls")
 
 add_executable(
     factory_reset_recovery_tests
@@ -799,9 +795,7 @@ target_include_directories(
             ../../firmware/components/factory_reset_recovery/include
             ../../firmware/components/factory_reset_recovery
 )
-register_host_test(
-    factory_reset_recovery_tests factory_reset_recovery "startup;controls;storage"
-)
+register_host_test(factory_reset_recovery_tests factory_reset_recovery "startup;controls;storage")
 
 add_executable(
     device_controls_tests test_device_controls.c
@@ -1129,12 +1123,12 @@ register_host_test(web_api_administration_tests web_api_administration web)
 add_executable(app_crc32_tests test_app_crc32.c ../../firmware/components/support/app_crc32.c)
 target_include_directories(app_crc32_tests PRIVATE ../../firmware/components/support/include)
 register_host_test(app_crc32_tests app_crc32 support)
-# Worker-capable focused regressions for H6-062/H6-063. Unlike
-# web_server_async_confirmation_tests' dead-path canaries, this target supplies a
-# pthread-backed one-slot queue/binary semaphore/task model directly in the test so the
-# real async worker executes and its handler/completion/stop results can be fault-injected.
-# H6-063 also links the real status handler so responsiveness is tested across actual
-# production status composition/serialization while the confirmation worker is blocked.
+# Worker-capable focused regressions for H6-062/H6-063. Unlike web_server_async_confirmation_tests'
+# dead-path canaries, this target supplies a pthread-backed one-slot queue/binary semaphore/task
+# model directly in the test so the real async worker executes and its handler/completion/stop
+# results can be fault-injected. H6-063 also links the real status handler so responsiveness is
+# tested across actual production status composition/serialization while the confirmation worker is
+# blocked.
 add_executable(
     web_server_async_results_tests
     test_web_server_async_results.c
@@ -1166,6 +1160,7 @@ target_include_directories(
             ../../firmware/components/auth/include
             ../../firmware/components/device_controls/include
             ../../firmware/components/device_settings/include
+            ../../firmware/components/factory_reset_state/include
             ../../firmware/components/storage/include
             ../../firmware/components/wifi_ap/include
             ../../firmware/components/usb_keyboard/include

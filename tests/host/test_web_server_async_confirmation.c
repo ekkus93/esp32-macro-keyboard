@@ -141,9 +141,13 @@ app_error_code_t device_controls_reset_settings(void) {
 
 static size_t g_factory_reset_calls;
 
-app_error_code_t device_controls_factory_reset(void) {
+device_controls_factory_reset_outcome_t device_controls_factory_reset(void) {
     ++g_factory_reset_calls;
-    return APP_ERROR_NONE;
+    return (device_controls_factory_reset_outcome_t){
+        .durably_accepted = true,
+        .recovery_required = false,
+        .primary_error = APP_ERROR_NONE,
+    };
 }
 
 /* The one fake this file adds that test_web_server_administration_route.c

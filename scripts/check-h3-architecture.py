@@ -202,3 +202,127 @@ for required in (
         fail(f"H3 production journal adapter coverage is missing: {required}")
 
 print("H3 factory-reset recovery architecture guard passed")
+
+# H3-032 accepted/error semantics.
+controls_public = read("firmware/components/device_controls/include/device_controls.h")
+for required in (
+    "device_controls_factory_reset_outcome_t",
+    "bool durably_accepted;",
+    "bool recovery_required;",
+    "app_error_code_t primary_error;",
+):
+    if required not in controls_public:
+        fail(f"H3-032 structured factory-reset outcome is missing: {required}")
+
+reset_header = read("firmware/components/device_controls/device_controls_reset.h")
+if "device_controls_factory_reset_outcome_t" not in reset_header:
+    fail("factory-reset engine no longer returns accepted/recovery semantics")
+for required in (
+    ".durably_accepted = false",
+    ".recovery_required = false",
+    ".primary_error = marker_result",
+    ".durably_accepted = true",
+    ".recovery_required = first_error != APP_ERROR_NONE",
+    ".primary_error = first_error",
+):
+    if required not in reset_source:
+        fail(f"H3-032 reset-engine semantic binding is missing: {required}")
+
+web_actions_h = read("firmware/components/web_server/web_device_actions.h")
+if "WEB_DEVICE_FACTORY_RESET_RECOVERY_REQUIRED" not in web_actions_h:
+    fail("web factory-reset outcome lost explicit recovery-required classification")
+web_actions_c = read("firmware/components/web_server/web_device_actions.c")
+for required in (
+    "reset.durably_accepted",
+    "reset.recovery_required",
+    "reset.primary_error",
+    "WEB_DEVICE_FACTORY_RESET_RECOVERY_REQUIRED",
+):
+    if required not in web_actions_c:
+        fail(f"web factory-reset accepted/recovery mapping is missing: {required}")
+
+administration = read("firmware/components/web_server/web_api_administration.c")
+factory_handler = administration.find("static app_error_code_t handle_device_factory_reset")
+if factory_handler < 0:
+    fail("factory-reset HTTP handler is missing")
+factory_end = administration.find("static app_error_code_t setup_route_response", factory_handler)
+factory_block = administration[factory_handler:factory_end]
+prepare_pos = factory_block.find("web_api_handler_success_json(&accepted_response")
+backend_pos = factory_block.find("web_device_factory_reset_handle")
+if prepare_pos < 0 or backend_pos < 0 or prepare_pos >= backend_pos:
+    fail("factory-reset 202 response is not fully prepared before the destructive backend call")
+for required in (
+    "WEB_DEVICE_FACTORY_RESET_RECOVERY_REQUIRED",
+    "*response = accepted_response",
+    "web_api_response_free(&accepted_response)",
+):
+    if required not in factory_block:
+        fail(f"factory-reset HTTP accepted/recovery handling is missing: {required}")
+
+status_source = read("firmware/components/web_server/web_server_status_limits.c")
+diagnostics_source = read("firmware/components/web_server/web_server_diagnostics.c")
+for source_name, source in (("status", status_source), ("diagnostics", diagnostics_source)):
+    for required in (
+        "factory_reset_state_read(&reset_state)",
+        "FACTORY_RESET_STATE_PENDING",
+        "APP_ERROR_RESET_RECOVERY_REQUIRED",
+        "factory reset recovery in progress",
+    ):
+        if required not in source:
+            fail(f"{source_name} can falsely report readiness during reset recovery: {required}")
+
+web_cmake = read("firmware/components/web_server/CMakeLists.txt")
+if "factory_reset_state" not in web_cmake:
+    fail("web server lacks reset-journal dependency for recovery visibility")
+
+web_api_core = read("firmware/components/web_server/web_api_core.c")
+service_block = web_api_core.split("case APP_ERROR_STORAGE_UNAVAILABLE:", 1)[1].split(
+    "return WEB_HTTP_STATUS_SERVICE_UNAVAILABLE;", 1
+)[0]
+if "APP_ERROR_RESET_RECOVERY_REQUIRED" not in service_block:
+    fail("reset-recovery app error no longer maps to HTTP 503")
+
+for test_path, required_tests in (
+    (
+        "tests/host/test_web_device_actions.c",
+        (
+            "test_factory_reset_precommit_failure_is_not_accepted",
+            "test_factory_reset_postcommit_failure_requires_recovery",
+        ),
+    ),
+    (
+        "tests/host/test_web_api_administration.c",
+        (
+            "test_factory_reset_precommit_failure_is_not_202",
+            "test_factory_reset_postcommit_failure_is_202_recovery",
+        ),
+    ),
+    (
+        "tests/host/test_web_server_administration_route.c",
+        (
+            "test_factory_reset_post_precommit_failure_is_not_accepted",
+            "test_factory_reset_post_cleanup_failure_stays_accepted_for_recovery",
+            "test_diagnostics_get_pending_reset_reports_recovery",
+        ),
+    ),
+    (
+        "tests/host/test_web_server_status_limits_route.c",
+        ("test_status_pending_factory_reset_reports_recovery",),
+    ),
+):
+    source = read(test_path)
+    for required in required_tests:
+        if required not in source:
+            fail(f"H3-032 regression coverage is missing from {test_path}: {required}")
+
+todo = read("docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md")
+h3_032 = todo.split("### H3-032 — Change accepted/error semantics", 1)[1].split(
+    "### H3-033 — Failure injection matrix", 1
+)[0]
+if "- [ ]" in h3_032:
+    fail("H3-032 TODO still contains unchecked implementation items")
+h3_033 = todo.split("### H3-033 — Failure injection matrix", 1)[1].split(
+    "### H3-034 — Reset-settings semantics", 1
+)[0]
+if "- [ ]" not in h3_033:
+    fail("H3-033 was incorrectly closed by H3-032 work")

@@ -32,6 +32,7 @@
 #include "device_settings_v2.h"
 #include "esp_app_desc.h"
 #include "esp_timer.h"
+#include "factory_reset_state.h"
 #include "fake_httpd.h"
 #include "macro_executor.h"
 #include "storage.h"
@@ -63,6 +64,17 @@ static app_error_code_t g_auth_result;
 app_error_code_t auth_session_validate(const char *session_token) {
     (void)session_token;
     return g_auth_result;
+}
+
+static app_error_code_t g_factory_reset_state_read_result;
+static factory_reset_state_t g_factory_reset_state;
+
+app_error_code_t factory_reset_state_read(factory_reset_state_t *out_state) {
+    if (g_factory_reset_state_read_result != APP_ERROR_NONE) {
+        return g_factory_reset_state_read_result;
+    }
+    *out_state = g_factory_reset_state;
+    return APP_ERROR_NONE;
 }
 
 static app_error_code_t g_settings_read_result;
@@ -161,6 +173,8 @@ int64_t esp_timer_get_time(void) {
  * app_limits_v2.h constants with no backend dependency at all. */
 static void reset_fakes(void) {
     g_auth_result = APP_ERROR_NONE;
+    g_factory_reset_state_read_result = APP_ERROR_NONE;
+    g_factory_reset_state = FACTORY_RESET_STATE_NONE;
 
     g_settings_read_result = APP_ERROR_NONE;
     g_settings_record = (app_v2_device_settings_t){0};
@@ -197,6 +211,26 @@ static cJSON *parse_response(const fake_httpd_request_t *fake) {
 /* -------------------------------------------------------------------------
  * GET /api/v1/status
  * ---------------------------------------------------------------------- */
+
+static void test_status_pending_factory_reset_reports_recovery(void) {
+    reset_fakes();
+    g_factory_reset_state = FACTORY_RESET_STATE_PENDING;
+    fake_httpd_request_t fake;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    httpd_req_t request;
+    fake_httpd_bind(&request, &fake, "/api/v1/status", 0U);
+
+    TEST_CHECK_EQ_INT(ESP_OK, status_handler(&request));
+    TEST_CHECK_EQ_STRING("503 Service Unavailable", fake.response_status);
+    cJSON *root = parse_response(&fake);
+    const cJSON *error = cJSON_GetObjectItemCaseSensitive(root, "error");
+    TEST_CHECK_EQ_STRING("reset_recovery_required",
+                         cJSON_GetObjectItemCaseSensitive(error, "code")->valuestring);
+    TEST_CHECK_EQ_STRING("factory reset recovery in progress",
+                         cJSON_GetObjectItemCaseSensitive(error, "message")->valuestring);
+    cJSON_Delete(root);
+}
 
 static void test_status_valid_schema(void) {
     reset_fakes();
@@ -396,6 +430,7 @@ static void test_limits_unauthorized_with_expired_session(void) {
 }
 
 int main(void) {
+    test_status_pending_factory_reset_reports_recovery();
     test_status_valid_schema();
     test_status_send_present_reflects_executor_state();
     test_status_unauthorized_without_cookie();

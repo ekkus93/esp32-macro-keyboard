@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "app_error.h"
+#include "device_controls.h"
 
 /* Host-testable orchestration behind the SPEC_V2.md §13.12 device actions
  * (restart, reset-settings, factory-reset). Each op is a single side effect;
@@ -52,7 +53,7 @@ device_controls_reset_engine_reset_settings(const device_controls_reset_ops_t *o
  * A marker-write failure aborts before any destructive effect. Any later
  * failure deliberately leaves PENDING durable so the next boot fails closed
  * into reset recovery rather than pretending reset completed. */
-app_error_code_t
+device_controls_factory_reset_outcome_t
 device_controls_reset_engine_factory_reset(const device_controls_reset_ops_t *operations,
                                            uint32_t delay_ms);
 

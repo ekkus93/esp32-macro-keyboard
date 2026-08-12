@@ -17,7 +17,7 @@ typedef struct {
     app_error_code_t password_verify_error;
     app_error_code_t restart_error;
     app_error_code_t reset_settings_error;
-    app_error_code_t factory_reset_error;
+    device_controls_factory_reset_outcome_t factory_reset_outcome;
     bool password_matches;
     unsigned int settings_read_calls;
     unsigned int password_verify_calls;
@@ -66,10 +66,10 @@ static app_error_code_t fake_reset_settings(void *context) {
     return fake->reset_settings_error;
 }
 
-static app_error_code_t fake_factory_reset(void *context) {
+static device_controls_factory_reset_outcome_t fake_factory_reset(void *context) {
     fake_t *fake = context;
     ++fake->factory_reset_calls;
-    return fake->factory_reset_error;
+    return fake->factory_reset_outcome;
 }
 
 static web_device_actions_ops_t operations(fake_t *fake) {
@@ -300,7 +300,15 @@ static void test_reset_settings_backend_failure(void) {
 /* ---------------------------------------------------------------------- */
 
 static void test_factory_reset_success(void) {
-    fake_t fake = {.password_matches = true};
+    fake_t fake = {
+        .password_matches = true,
+        .factory_reset_outcome =
+            {
+                .durably_accepted = true,
+                .recovery_required = false,
+                .primary_error = APP_ERROR_NONE,
+            },
+    };
     const web_device_actions_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
@@ -454,8 +462,16 @@ static void test_factory_reset_verify_backend_unavailable(void) {
     TEST_CHECK_EQ_U64(0U, fake.factory_reset_calls);
 }
 
-static void test_factory_reset_backend_failure(void) {
-    fake_t fake = {.password_matches = true, .factory_reset_error = APP_ERROR_INTERNAL};
+static void test_factory_reset_precommit_failure_is_not_accepted(void) {
+    fake_t fake = {
+        .password_matches = true,
+        .factory_reset_outcome =
+            {
+                .durably_accepted = false,
+                .recovery_required = false,
+                .primary_error = APP_ERROR_STORAGE_UNAVAILABLE,
+            },
+    };
     const web_device_actions_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body),
@@ -465,7 +481,29 @@ static void test_factory_reset_backend_failure(void) {
         web_device_factory_reset_handle(body, sizeof(body), &ops);
 
     TEST_CHECK_EQ_INT(WEB_DEVICE_FACTORY_RESET_BACKEND_UNAVAILABLE, outcome.result);
-    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, outcome.detail);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, outcome.detail);
+}
+
+static void test_factory_reset_postcommit_failure_requires_recovery(void) {
+    fake_t fake = {
+        .password_matches = true,
+        .factory_reset_outcome =
+            {
+                .durably_accepted = true,
+                .recovery_required = true,
+                .primary_error = APP_ERROR_IO,
+            },
+    };
+    const web_device_actions_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body),
+               "{\"adminPassword\":\"example-admin-password\",\"confirmation\":\"FACTORY RESET\"}");
+
+    const web_device_factory_reset_outcome_t outcome =
+        web_device_factory_reset_handle(body, sizeof(body), &ops);
+
+    TEST_CHECK_EQ_INT(WEB_DEVICE_FACTORY_RESET_RECOVERY_REQUIRED, outcome.result);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, outcome.detail);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -536,7 +574,8 @@ int main(void) {
     test_factory_reset_zero_capacity_body_rejected();
     test_factory_reset_verify_backend_unavailable();
     test_factory_reset_settings_read_backend_unavailable();
-    test_factory_reset_backend_failure();
+    test_factory_reset_precommit_failure_is_not_accepted();
+    test_factory_reset_postcommit_failure_requires_recovery();
     test_restart_accepted_json_null_out_json_rejected();
     test_reset_accepted_json_null_out_json_rejected();
     test_restart_accepted_json();

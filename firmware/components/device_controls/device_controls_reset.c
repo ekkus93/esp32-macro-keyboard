@@ -47,17 +47,25 @@ device_controls_reset_engine_reset_settings(const device_controls_reset_ops_t *o
     return first_error;
 }
 
-app_error_code_t
+device_controls_factory_reset_outcome_t
 device_controls_reset_engine_factory_reset(const device_controls_reset_ops_t *operations,
                                            uint32_t delay_ms) {
     if (!device_controls_reset_ops_is_valid(operations)) {
-        return APP_ERROR_INVALID_ARGUMENT;
+        return (device_controls_factory_reset_outcome_t){
+            .durably_accepted = false,
+            .recovery_required = false,
+            .primary_error = APP_ERROR_INVALID_ARGUMENT,
+        };
     }
 
     const app_error_code_t marker_result =
         operations->mark_factory_reset_pending(operations->context);
     if (marker_result != APP_ERROR_NONE) {
-        return marker_result;
+        return (device_controls_factory_reset_outcome_t){
+            .durably_accepted = false,
+            .recovery_required = false,
+            .primary_error = marker_result,
+        };
     }
 
     app_error_code_t first_error = APP_ERROR_NONE;
@@ -72,9 +80,10 @@ device_controls_reset_engine_factory_reset(const device_controls_reset_ops_t *op
                            &first_error);
     }
 
-    /* Once PENDING committed, every failure path reboots. If cleanup or marker
-     * clear failed, the durable marker makes the next boot stop before settings,
-     * storage, USB, Wi-Fi, or HTTP startup. */
     operations->schedule_restart(operations->context, delay_ms);
-    return first_error;
+    return (device_controls_factory_reset_outcome_t){
+        .durably_accepted = true,
+        .recovery_required = first_error != APP_ERROR_NONE,
+        .primary_error = first_error,
+    };
 }

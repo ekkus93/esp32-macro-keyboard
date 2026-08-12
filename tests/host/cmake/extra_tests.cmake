@@ -126,6 +126,7 @@ target_include_directories(
     web_parsed_secret_wipe_tests
     PRIVATE "${CMAKE_SOURCE_DIR}/../../firmware/components/macro_model/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/app_contracts_v2/include"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/device_controls/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server"
 )
 target_link_libraries(web_parsed_secret_wipe_tests PRIVATE PkgConfig::CJSON test_support)

@@ -163,7 +163,7 @@ static app_error_code_t device_actions_ops_reset_settings(void *context) {
     return device_controls_reset_settings();
 }
 
-static app_error_code_t device_actions_ops_factory_reset(void *context) {
+static device_controls_factory_reset_outcome_t device_actions_ops_factory_reset(void *context) {
     (void)context;
     return device_controls_factory_reset();
 }
@@ -431,22 +431,40 @@ static app_error_code_t handle_device_factory_reset(const web_api_call_t *call,
         return web_api_handler_error(response, APP_ERROR_INVALID_ARGUMENT,
                                      "invalid factory-reset request", NULL);
     }
+
+    char *json = NULL;
+    web_api_response_t accepted_response = {0};
+    if (web_device_reset_accepted_json(true, false, &json) != APP_ERROR_NONE) {
+        return web_api_handler_error(response, APP_ERROR_INTERNAL, "response encoding failed",
+                                     NULL);
+    }
+    const app_error_code_t prepare_result =
+        web_api_handler_success_json(&accepted_response, WEB_HTTP_STATUS_ACCEPTED, json);
+    web_api_handler_json_free(json);
+    if (prepare_result != APP_ERROR_NONE) {
+        web_api_response_free(&accepted_response);
+        return web_api_handler_error(response, APP_ERROR_INTERNAL, "response encoding failed",
+                                     NULL);
+    }
+
     const web_device_actions_ops_t ops = device_actions_ops();
     const web_device_factory_reset_outcome_t outcome =
         web_device_factory_reset_handle((char *)call->body, call->body_length + 1U, &ops);
     switch (outcome.result) {
     case WEB_DEVICE_FACTORY_RESET_OK:
-        break;
+    case WEB_DEVICE_FACTORY_RESET_RECOVERY_REQUIRED:
+        *response = accepted_response;
+        return APP_ERROR_NONE;
     case WEB_DEVICE_FACTORY_RESET_INVALID_BODY:
+        web_api_response_free(&accepted_response);
         return web_api_handler_error(response, APP_ERROR_INVALID_ARGUMENT,
                                      "invalid factory-reset request", NULL);
     case WEB_DEVICE_FACTORY_RESET_INVALID_CONFIRMATION:
+        web_api_response_free(&accepted_response);
         return web_api_handler_error(response, APP_ERROR_INVALID_ARGUMENT,
                                      "incorrect confirmation phrase", "confirmation");
     case WEB_DEVICE_FACTORY_RESET_INCORRECT_PASSWORD:
-        /* SPEC_V2 13.14: "403 credential or policy failure" -- see the
-         * identical rationale on change-password's incorrect-password
-         * branch above for why this bypasses web_api_handler_error(). */
+        web_api_response_free(&accepted_response);
         return web_api_response_error(response, &(web_api_error_spec_t){
                                                     .status = WEB_HTTP_STATUS_FORBIDDEN,
                                                     .code = APP_ERROR_AUTH_FAILED,
@@ -454,20 +472,13 @@ static app_error_code_t handle_device_factory_reset(const web_api_call_t *call,
                                                     .field = "adminPassword",
                                                 });
     case WEB_DEVICE_FACTORY_RESET_BACKEND_UNAVAILABLE:
+        web_api_response_free(&accepted_response);
         return web_api_handler_error(response, outcome.detail, "factory-reset unavailable", NULL);
     case WEB_DEVICE_FACTORY_RESET_INTERNAL:
     default:
+        web_api_response_free(&accepted_response);
         return web_api_handler_error(response, APP_ERROR_INTERNAL, "factory-reset failed", NULL);
     }
-    char *json = NULL;
-    if (web_device_reset_accepted_json(true, false, &json) != APP_ERROR_NONE) {
-        return web_api_handler_error(response, APP_ERROR_INTERNAL, "response encoding failed",
-                                     NULL);
-    }
-    const app_error_code_t result =
-        web_api_handler_success_json(response, WEB_HTTP_STATUS_ACCEPTED, json);
-    web_api_handler_json_free(json);
-    return result;
 }
 
 /* Reached only once provisioned (the setup route table itself has no

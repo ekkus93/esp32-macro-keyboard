@@ -27,6 +27,12 @@ typedef struct {
     bool task_stop_failed;
 } device_controls_health_t;
 
+typedef struct {
+    bool durably_accepted;
+    bool recovery_required;
+    app_error_code_t primary_error;
+} device_controls_factory_reset_outcome_t;
+
 app_error_code_t device_controls_init(void);
 app_error_code_t device_controls_deinit(void);
 void device_controls_set_indicator(device_indicator_state_t state);
@@ -61,7 +67,7 @@ app_error_code_t device_controls_reset_settings(void);
  * credentials, and provisioning state; invalidates every session; deletes
  * every repository blob; and schedules a reboot into the unprovisioned
  * state. */
-app_error_code_t device_controls_factory_reset(void);
+device_controls_factory_reset_outcome_t device_controls_factory_reset(void);
 
 /* Derives a stable subsystem_health_state_t for Phase 19 diagnostics (FIX1
  * handoff §7.1) from the existing device_controls_health_t fields: FAILED if
