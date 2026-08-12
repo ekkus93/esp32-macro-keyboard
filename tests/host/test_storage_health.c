@@ -36,14 +36,12 @@ static void *health_reader_thread(void *argument) {
     await_stress_start(context);
     for (size_t index = 0U; index < (size_t)STRESS_ITERATIONS; ++index) {
         const storage_health_t health = storage_health_snapshot();
-        const bool reset_state = health.state == SUBSYSTEM_HEALTH_HEALTHY &&
-                                 health.primary_error == APP_ERROR_NONE &&
-                                 health.cleanup_error == APP_ERROR_NONE &&
-                                 !health.cleanup_incomplete;
-        const bool cleanup_state = health.state == SUBSYSTEM_HEALTH_FAILED &&
-                                   health.primary_error == APP_ERROR_NONE &&
-                                   health.cleanup_error == APP_ERROR_IO &&
-                                   health.cleanup_incomplete;
+        const bool reset_state =
+            health.state == SUBSYSTEM_HEALTH_HEALTHY && health.primary_error == APP_ERROR_NONE &&
+            health.cleanup_error == APP_ERROR_NONE && !health.cleanup_incomplete;
+        const bool cleanup_state =
+            health.state == SUBSYSTEM_HEALTH_FAILED && health.primary_error == APP_ERROR_NONE &&
+            health.cleanup_error == APP_ERROR_IO && health.cleanup_incomplete;
         if (!reset_state && !cleanup_state) {
             atomic_store_explicit(&context->failed, true, memory_order_release);
             break;

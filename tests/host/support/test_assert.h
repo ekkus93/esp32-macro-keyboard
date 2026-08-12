@@ -17,7 +17,7 @@ void test_fail_buffer(const char *file, int line, const char *expression, const 
 #define TEST_CHECK(expression)                                                                     \
     do {                                                                                           \
         if (!(expression)) {                                                                       \
-            test_fail(__FILE__, __LINE__, "condition", "condition is false");                     \
+            test_fail(__FILE__, __LINE__, "condition", "condition is false");                      \
         }                                                                                          \
     } while (0)
 

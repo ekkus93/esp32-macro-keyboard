@@ -1,8 +1,8 @@
 #ifndef MACRO_EXECUTOR_ENGINE_H
 #define MACRO_EXECUTOR_ENGINE_H
 
-#include <stdbool.h>
 #include <stdatomic.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "macro_executor.h"

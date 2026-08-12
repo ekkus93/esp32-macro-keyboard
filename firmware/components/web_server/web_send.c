@@ -317,8 +317,7 @@ app_error_code_t web_send_accepted_json(const web_send_accepted_t *accepted, cha
         return APP_ERROR_INVALID_ARGUMENT;
     }
     cJSON *root = cJSON_CreateObject();
-    const char *const state =
-        accepted->require_confirmation ? "awaiting_confirmation" : "running";
+    const char *const state = accepted->require_confirmation ? "awaiting_confirmation" : "running";
     if (root == NULL || !cJSON_AddStringToObject(root, "id", accepted->id) ||
         !cJSON_AddStringToObject(root, "state", state) ||
         !cJSON_AddNumberToObject(root, "actionCount", (double)accepted->action_count) ||

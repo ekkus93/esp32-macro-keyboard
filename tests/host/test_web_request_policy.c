@@ -35,7 +35,7 @@ static app_error_code_t get_header(void *context, const char *name, char *output
     } else if (strcmp(name, "X-Request-ID") == 0) {
         output[0] = '\0';
         return fixture->request_id_result == APP_ERROR_NONE ? APP_ERROR_AUTH_REQUIRED
-                                                             : fixture->request_id_result;
+                                                            : fixture->request_id_result;
     }
     if (value == NULL) {
         output[0] = '\0';

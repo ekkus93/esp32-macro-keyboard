@@ -58,9 +58,8 @@ static void init_h2_fixture(h2_fixture_t *fixture, const char *password) {
     init_core(&fixture->auth_core, &fixture->auth_fake);
 
     auth_password_record_t record = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         auth_core_password_create(&fixture->auth_core, password, strlen(password),
-                                                   &record));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_password_create(&fixture->auth_core, password,
+                                                                   strlen(password), &record));
     fixture->active_record = record;
     app_v2_device_settings_init_unprovisioned(&fixture->durable);
     fixture->durable.provisioned = true;
@@ -77,8 +76,7 @@ static app_error_code_t h2_settings_read(void *context, app_v2_device_settings_t
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t h2_settings_replace(void *context,
-                                            const app_v2_device_settings_t *settings,
+static app_error_code_t h2_settings_replace(void *context, const app_v2_device_settings_t *settings,
                                             bool *out_changed) {
     h2_fixture_t *fixture = context;
     ++fixture->replace_calls;
@@ -176,9 +174,8 @@ static web_settings_ops_t h2_operations(h2_fixture_t *fixture) {
 }
 
 static void password_body(char *body, size_t capacity, const char *current, const char *next) {
-    const int written = snprintf(body, capacity,
-                                 "{\"currentPassword\":\"%s\",\"newPassword\":\"%s\"}",
-                                 current, next);
+    const int written = snprintf(
+        body, capacity, "{\"currentPassword\":\"%s\",\"newPassword\":\"%s\"}", current, next);
     TEST_CHECK(written > 0 && (size_t)written < capacity);
 }
 
@@ -242,6 +239,20 @@ static void test_success_is_immediately_coherent(void) {
                       fresh.absolute_expires_at_us);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          auth_core_session_validate(&fixture.auth_core, fresh.session_token));
+    const uint32_t source = UINT32_C(0x0A000001);
+    uint32_t retry_after_seconds = UINT32_MAX;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_login_attempt_allowed(&fixture.auth_core, source,
+                                                                         &retry_after_seconds));
+    TEST_CHECK_EQ_U64(0U, retry_after_seconds);
+    for (size_t index = 0U; index < AUTH_RATE_LIMIT_FAILURE_MAX; ++index) {
+        TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                             auth_core_login_record_failure(&fixture.auth_core, source));
+    }
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_RATE_LIMITED,
+        auth_core_login_attempt_allowed(&fixture.auth_core, source, &retry_after_seconds));
+    TEST_CHECK_EQ_U64(300U, retry_after_seconds);
+
     TEST_CHECK(fixture.auth_fake.zero_count > zero_before);
 }
 
@@ -258,9 +269,9 @@ static void test_precommit_failures_leave_old_authority_and_retry_cleanly(void) 
     TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE, outcome.result);
     TEST_CHECK(active_password_matches(&create_failure, old_password));
     TEST_CHECK(!active_password_matches(&create_failure, new_password));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_session_validate(
-                                              &create_failure.auth_core,
-                                              create_session_before.session_token));
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        auth_core_session_validate(&create_failure.auth_core, create_session_before.session_token));
     create_failure.create_error = APP_ERROR_NONE;
     TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_OK,
                       change_password(&create_failure, old_password, new_password).result);
@@ -274,9 +285,9 @@ static void test_precommit_failures_leave_old_authority_and_retry_cleanly(void) 
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL, outcome.detail);
     TEST_CHECK(active_password_matches(&replace_failure, old_password));
     TEST_CHECK(!active_password_matches(&replace_failure, new_password));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_session_validate(
-                                              &replace_failure.auth_core,
-                                              replace_session_before.session_token));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         auth_core_session_validate(&replace_failure.auth_core,
+                                                    replace_session_before.session_token));
     TEST_CHECK(!replace_failure.transition_active);
     replace_failure.replace_error = APP_ERROR_NONE;
     TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_OK,

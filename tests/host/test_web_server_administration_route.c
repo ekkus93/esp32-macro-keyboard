@@ -790,8 +790,7 @@ static void test_change_password_post_busy_before_commit_keeps_cookie(void) {
     TEST_CHECK_EQ_U64(120000U, (uint64_t)g_device_settings_record.password_iterations);
     cJSON *root = parse_response(&fake);
     const cJSON *error = cJSON_GetObjectItemCaseSensitive(root, "error");
-    TEST_CHECK_EQ_STRING("conflict",
-                         cJSON_GetObjectItemCaseSensitive(error, "code")->valuestring);
+    TEST_CHECK_EQ_STRING("conflict", cJSON_GetObjectItemCaseSensitive(error, "code")->valuestring);
     cJSON_Delete(root);
     web_server_password_transition_end();
 }

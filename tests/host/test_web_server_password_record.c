@@ -134,8 +134,7 @@ static void test_login_snapshot_fails_closed_during_password_transition(void) {
     web_server_configuration_store(&configuration);
 
     auth_password_record_t snapshot = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_server_password_record_snapshot_for_login(&snapshot));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_server_password_record_snapshot_for_login(&snapshot));
     TEST_CHECK(record_equal(&snapshot, &old_record));
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_server_password_transition_begin());
@@ -149,8 +148,7 @@ static void test_login_snapshot_fails_closed_during_password_transition(void) {
                          web_server_password_record_snapshot_for_login(&snapshot));
 
     web_server_password_transition_end();
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         web_server_password_record_snapshot_for_login(&snapshot));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_server_password_record_snapshot_for_login(&snapshot));
     TEST_CHECK(record_equal(&snapshot, &new_record));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          web_server_password_record_snapshot_for_login(NULL));

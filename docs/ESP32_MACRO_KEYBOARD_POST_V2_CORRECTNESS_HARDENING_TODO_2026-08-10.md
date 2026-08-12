@@ -210,12 +210,14 @@ Include at least:
 
 ### H2-020 — Remove best-effort verifier-cache refresh
 
-- [ ] Delete the correctness dependency on `refresh_password_record_cache()` re-reading NVS after success.
-- [ ] Update RAM login verifier directly from the exact credential candidate/material that is durably committed, or centralize auth credential ownership equivalently.
-- [ ] Ensure no code path can return `204` while login still authenticates with the old verifier.
-- [ ] Securely zero all transient credential material on every return path.
+- [x] Delete the correctness dependency on `refresh_password_record_cache()` re-reading NVS after success.
+- [x] Update RAM login verifier directly from the exact credential candidate/material that is durably committed, or centralize auth credential ownership equivalently.
+- [x] Ensure no code path can return `204` while login still authenticates with the old verifier.
+- [x] Securely zero all transient credential material on every return path.
 
 ### H2-021 — Define password/session transaction semantics
+
+- Evidence (2026-08-11): `c9351d3ba2c862d50dd46c0b6f1827a3b3f40d92` establishes gate -> read/verify/create -> durable commit -> direct RAM activation -> session invalidation. Login fails closed while the gate is active; no separate auth fault latch is needed because durable and RAM credential authority cannot diverge. Post-commit invalidation failure is `409 auth_state_incomplete`, which explicitly names the new password as authoritative. Full evidence: `docs/implementation-v2/H2_PASSWORD_CHANGE_ATOMICITY_2026-08-11.md`.
 
 **Correction (2026-08-10, verified against `web_settings.c:653-665`,
 `web_change_password_handle()`):** the code does *not* silently return `204`
@@ -231,43 +233,49 @@ cannot tell these apart from the response alone, so retrying, telling the
 user "password change failed," or assuming the old password still works are
 all wrong reactions to this specific failure.
 
-- [ ] Specify the order/invariant for durable password commit, RAM verifier activation, and all-session invalidation.
-- [ ] When session invalidation fails after the durable password commit already succeeded, do not represent the outcome as an ordinary/generic failure — the response must let the caller distinguish "nothing changed" from "password changed, invalidation incomplete."
-- [ ] Ensure an error after durable password commit cannot leave the caller unable to determine which password is authoritative.
-- [ ] Prefer a coherent transaction/fault state over rollback theater.
-- [ ] If an explicit auth fault latch is needed, reject all login attempts until coherent recovery rather than guessing old/new credential state.
-- [ ] Ensure reboot recovery has one deterministic authoritative password.
+- [x] Specify the order/invariant for durable password commit, RAM verifier activation, and all-session invalidation.
+- [x] When session invalidation fails after the durable password commit already succeeded, do not represent the outcome as an ordinary/generic failure — the response must let the caller distinguish "nothing changed" from "password changed, invalidation incomplete."
+- [x] Ensure an error after durable password commit cannot leave the caller unable to determine which password is authoritative.
+- [x] Prefer a coherent transaction/fault state over rollback theater.
+- [x] If an explicit auth fault latch is needed, reject all login attempts until coherent recovery rather than guessing old/new credential state.
+- [x] Ensure reboot recovery has one deterministic authoritative password.
 
 ### H2-022 — Failure injection tests
 
+- Evidence (2026-08-11): permanent host tests inject password-material creation, durable replace, transition-busy, and post-commit session-invalidation faults, plus cleanup/zeroization and retry semantics. RAM activation is deliberately an infallible bounded copy from the exact committed candidate, so no fallible activation step remains to inject. Focused local web/auth suites passed 30/30 and 5/5 normally and under ASan+UBSan.
+
 Add tests for at least:
 
-- [ ] password creation failure,
-- [ ] settings replace failure,
-- [ ] RAM verifier activation failure if any fallible step remains,
-- [ ] session invalidation failure **after the durable password write already succeeded** (this is the verified current behavior, not a hypothetical — see H2-021's correction note),
-- [ ] cleanup/zeroization paths,
-- [ ] retry after each failure.
+- [x] password creation failure,
+- [x] settings replace failure,
+- [x] RAM verifier activation failure if any fallible step remains,
+- [x] session invalidation failure **after the durable password write already succeeded** (this is the verified current behavior, not a hypothetical — see H2-021's correction note),
+- [x] cleanup/zeroization paths,
+- [x] retry after each failure.
 
 For every case assert:
 
-- [ ] whether the old password succeeds,
-- [ ] whether the new password succeeds,
-- [ ] whether old sessions remain valid,
-- [ ] exact API outcome, **and that the outcome is distinguishable from a "nothing changed" failure whenever the password durably changed**,
-- [ ] no secret appears in diagnostics/log captures.
+- [x] whether the old password succeeds,
+- [x] whether the new password succeeds,
+- [x] whether old sessions remain valid,
+- [x] exact API outcome, **and that the outcome is distinguishable from a "nothing changed" failure whenever the password durably changed**,
+- [x] no secret appears in diagnostics/log captures.
 
 ### H2-023 — Success invariant tests
 
+- Evidence (2026-08-11): the real-auth-core integration test proves old password rejection, immediate new-password acceptance, invalidation of both pre-existing sessions, normal idle/absolute TTL, and the normal five-failure/300-second login lockout after the success path.
+
 After a returned `204` assert without reboot:
 
-- [ ] old password fails immediately,
-- [ ] new password succeeds immediately,
-- [ ] the session used to change the password fails immediately,
-- [ ] all other sessions fail immediately,
-- [ ] a newly created session uses normal TTL/lockout semantics.
+- [x] old password fails immediately,
+- [x] new password succeeds immediately,
+- [x] the session used to change the password fails immediately,
+- [x] all other sessions fail immediately,
+- [x] a newly created session uses normal TTL/lockout semantics.
 
 ### H2-024 — Hardware validation
+
+- Evidence status: still open. Reference-board immediate auth/session behavior, power-cycle persistence, and PBKDF2 timing sanity require the physical ESP32-S3R8 and are not inferred from host tests.
 
 - [ ] Repeat successful password change on the reference board.
 - [ ] Verify old/new/session behavior immediately without reboot.
@@ -276,13 +284,14 @@ After a returned `204` assert without reboot:
 
 ### Phase H2 exit gate
 
-- [ ] No best-effort credential cache refresh remains.
-- [ ] Returned success always means durable credential, RAM verifier, and session state agree.
-- [ ] Injected failures have deterministic semantics.
+- Evidence status: software transaction semantics, failure injection, and sanitizer evidence are complete; the final hardware-dependent evidence item remains open until H2-024 is executed.
+
+- [x] No best-effort credential cache refresh remains.
+- [x] Returned success always means durable credential, RAM verifier, and session state agree.
+- [x] Injected failures have deterministic semantics.
 - [ ] Host/sanitizer/hardware evidence is committed.
 
 ---
-
 ## Phase H3 — Crash-safe, resumable factory reset
 
 ### H3-030 — Design durable reset state

@@ -114,7 +114,8 @@ The success path uses real host auth-core password/session logic and proves imme
 - old password fails;
 - new password succeeds;
 - both pre-existing sessions fail validation;
-- a newly created session works and retains the normal idle and absolute expiry values.
+- a newly created session works and retains the normal idle and absolute expiry values;
+- immediately afterward the normal five-failure login threshold produces the expected 300-second lockout.
 
 Real HTTP-handler regressions additionally prove the `409 auth_state_incomplete` envelope and cookie clearing for post-commit partial failure, and `503 conflict` with no cookie clearing for the pre-commit busy case.
 

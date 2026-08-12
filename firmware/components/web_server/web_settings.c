@@ -626,8 +626,7 @@ web_change_password_outcome_t web_change_password_handle(char *body, size_t body
         return change_password_outcome(WEB_CHANGE_PASSWORD_INTERNAL);
     }
 
-    web_change_password_outcome_t outcome =
-        change_password_outcome(WEB_CHANGE_PASSWORD_INTERNAL);
+    web_change_password_outcome_t outcome = change_password_outcome(WEB_CHANGE_PASSWORD_INTERNAL);
     cJSON *root = parse_exact_body(body, body_capacity);
     app_v2_device_settings_t current = {0};
     app_v2_setup_password_material_t material = {0};

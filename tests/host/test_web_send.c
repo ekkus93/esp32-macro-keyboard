@@ -360,8 +360,7 @@ static void test_cancel_accepted_and_idempotent(void) {
 
 static void test_cancel_accepted_while_awaiting_confirmation(void) {
     fake_send_backend_t fake = {0};
-    fake.status_to_return =
-        (macro_execution_status_t){.state = EXECUTION_AWAITING_CONFIRMATION};
+    fake.status_to_return = (macro_execution_status_t){.state = EXECUTION_AWAITING_CONFIRMATION};
     fake.cancel_result = APP_ERROR_NONE;
     const web_send_ops_t operations = fake_ops(&fake);
     TEST_CHECK_EQ_INT(WEB_SEND_CANCEL_ACCEPTED, web_send_cancel_handle(&operations));

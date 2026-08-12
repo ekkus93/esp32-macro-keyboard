@@ -310,25 +310,25 @@ static app_error_code_t change_password_error(web_api_response_t *response,
          * This must be programmatically distinguishable from a pre-commit
          * failure so a caller never tells the owner to keep using the old
          * password. */
-        return web_api_response_error(response, &(web_api_error_spec_t){
-                                                    .status = WEB_HTTP_STATUS_CONFLICT,
-                                                    .code = APP_ERROR_AUTH_STATE_INCOMPLETE,
-                                                    .message =
-                                                        "password changed; session invalidation incomplete; sign in with the new password",
-                                                });
+        return web_api_response_error(response,
+                                      &(web_api_error_spec_t){
+                                          .status = WEB_HTTP_STATUS_CONFLICT,
+                                          .code = APP_ERROR_AUTH_STATE_INCOMPLETE,
+                                          .message = "password changed; session invalidation "
+                                                     "incomplete; sign in with the new password",
+                                      });
     case WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE:
         if (outcome.detail == APP_ERROR_CONFLICT) {
             /* A credential transition is already active, but this request has
              * not committed anything. Keep this status distinct from H2's 409
              * committed-partial result so the cookie-clearing layer cannot
              * confuse "nothing changed" with "new password authoritative". */
-            return web_api_response_error(response, &(web_api_error_spec_t){
-                                                        .status =
-                                                            WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
-                                                        .code = APP_ERROR_CONFLICT,
-                                                        .message =
-                                                            "password change already in progress",
-                                                    });
+            return web_api_response_error(response,
+                                          &(web_api_error_spec_t){
+                                              .status = WEB_HTTP_STATUS_SERVICE_UNAVAILABLE,
+                                              .code = APP_ERROR_CONFLICT,
+                                              .message = "password change already in progress",
+                                          });
         }
         return web_api_handler_error(response, outcome.detail, "settings unavailable", NULL);
     case WEB_CHANGE_PASSWORD_OK:
