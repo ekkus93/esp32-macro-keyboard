@@ -62,13 +62,16 @@ describe("v2 browser-console prohibition", () => {
     "window.console.error(secret)",
     'globalThis["console"]["warn"](secret)',
     "const logger = console; logger.info(secret)",
-  ])("console prohibition cannot be bypassed by alias form: %s", (source) => {
-    expect(referencesBrowserConsole("fixture.ts", source)).toBe(true);
-  });
+  ])(
+    "console prohibition cannot be bypassed by alias form: %s",
+    (source) => {
+      expect(referencesBrowserConsole("fixture.ts", source)).toBe(true);
+    },
+  );
 
   test("user-visible text containing the word console is not a logging sink", () => {
-    expect(referencesBrowserConsole("fixture.ts", 'const text = "Use the serial console.";')).toBe(
-      false,
-    );
+    expect(
+      referencesBrowserConsole("fixture.ts", 'const text = "Use the serial console.";'),
+    ).toBe(false);
   });
 });
