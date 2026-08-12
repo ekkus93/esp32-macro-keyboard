@@ -2,6 +2,7 @@
 """Fail closed on H2 password-transaction architecture regressions."""
 
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +18,16 @@ def read(relative: str) -> str:
     if not path.is_file():
         fail(f"required source is missing: {relative}")
     return path.read_text(encoding="utf-8", errors="replace")
+
+
+def join_adjacent_c_string_literals(source: str) -> str:
+    """Normalize clang-format line-splitting of adjacent C string literals.
+
+    clang-format may turn one long literal into adjacent literals such as
+    ``"... new " "password"``. Architecture checks should validate the
+    semantic message, not a particular source layout.
+    """
+    return re.sub(r'"\s*"', "", source)
 
 
 app_error_h = read("firmware/components/macro_model/include/app_error.h")
@@ -37,11 +48,16 @@ for required in (
     ".password_transition_end = settings_ops_password_transition_end",
     "WEB_CHANGE_PASSWORD_COMMITTED_SESSION_INVALIDATION_INCOMPLETE",
     "APP_ERROR_AUTH_STATE_INCOMPLETE",
-    "password changed; session invalidation incomplete; sign in with the new password",
     "password change already in progress",
 ):
     if required not in administration:
         fail(f"H2 production change-password binding is missing: {required}")
+
+partial_commit_message = (
+    "password changed; session invalidation incomplete; sign in with the new password"
+)
+if partial_commit_message not in join_adjacent_c_string_literals(administration):
+    fail(f"H2 production change-password binding is missing: {partial_commit_message}")
 
 settings = read("firmware/components/web_server/web_settings.c")
 ordered = (
