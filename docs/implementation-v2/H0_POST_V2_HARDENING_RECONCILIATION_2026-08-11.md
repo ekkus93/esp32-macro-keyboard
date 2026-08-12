@@ -77,19 +77,17 @@ With the same temporary cJSON development shim where required:
 
 The pinned-Node frontend gate, ESP-IDF firmware/clang-tidy gate, script lint/format gate, docs yaml gate, image/capacity gate, and gcovr coverage gate cannot be reproduced completely in this sandbox. H0 records those limitations; it does not downgrade their permanent requirements.
 
-## 6. `TODO_V2.md` reconciliation prepared, publication blocked
+## 6. `TODO_V2.md` reconciliation applied
 
-The literal ledger changes were prepared and locally validated against the user-provided master snapshot. The exact seven-hunk patch is committed at `docs/implementation-v2/H0_TODO_V2_RECONCILIATION_2026-08-11.patch` so the work cannot be lost.
+The literal ledger was updated instead of only documenting intended corrections:
 
-The intended changes are:
+- V2-154's compound login/logout/idle/absolute/lockout claim is split. Login/logout/lockout remain checked from hardware evidence; idle and absolute expiry remain explicitly open for independent hardware evidence while deterministic host coverage is retained.
+- V2-154's historical no-secret hardware evidence remains identified as a spot-check, but the item can now truthfully remain checked because post-v2 H9 subsequently completed the full cross-cutting no-secret audit and permanent regression guards. The Phase-4 no-secret exit item is likewise updated to cite H9 rather than remaining stale-open.
+- V2-061/Phase-6 evidence no longer says real HTTP sends categorically omit `requireSerialConfirmation`. H9 now reads authoritative device settings, binds `require_confirmation`, and fails closed on settings-read failure. H1 remains open for the complete real-API/browser/hardware acceptance matrix.
+- V2-055/V2-154 password-change wording now distinguishes valid route/happy-path evidence from H2's still-open partial-commit/verifier/session-invalidation failure semantics.
+- V2-153 factory-reset happy-path evidence now explicitly does not claim H3's interruption-safe/resumable destructive-reset semantics.
 
-- split V2-154's compound login/logout/idle/absolute/lockout claim so login/logout/lockout remain checked from hardware evidence while idle and absolute expiry remain explicitly open for independent hardware evidence;
-- retain V2-154's no-secret item as checked only because post-v2 H9 subsequently completed the full cross-cutting no-secret audit and permanent regression guards, while preserving the original hardware evidence as a spot-check;
-- replace the stale V2-061/Phase-6 statement that real HTTP sends omit `requireSerialConfirmation` with the current H9 implementation truth while leaving H1 open for the complete real-API/browser/hardware acceptance matrix;
-- distinguish V2-055/V2-154 password-change happy-path evidence from H2's still-open partial-commit/verifier/session-invalidation failure semantics;
-- explicitly scope V2-153 factory-reset hardware evidence to the happy path rather than H3's interruption-safe/resumable destructive-reset semantics.
-
-The GitHub connector available in this session has no patch/hunk write primitive: updating `docs/TODO_V2.md` requires replacing the complete approximately 145 KB file. The sandbox has no authenticated GitHub CLI/local Git credential bridge. Rather than reconstruct that authoritative ledger manually through a large connector payload and risk corruption, the exact patch is committed and the H0 exit remains open until it is literally applied. Historical implementation reports were not edited to retroactively claim coverage they did not have.
+Historical implementation reports were not edited to retroactively claim coverage they did not have.
 
 ## 7. Historical failure-matrix disposition on current master
 
@@ -114,19 +112,13 @@ The original matrix remains the authoritative description of what was found at H
 
 ## 8. H0 disposition
 
-H0's analysis, baseline execution, and failure inventory are complete, but the **phase exit gate remains open** because the prepared `TODO_V2.md` reconciliation has not yet been applied literally to that authoritative ledger.
-
-Completed H0 work:
+H0 is complete as a **baseline/reconciliation phase**:
 
 - the original starting SHA and clean-checkout context remain preserved;
 - all three mandated baseline commands have a current-master result recorded, including environment-only blockers;
 - the complete local host suite passes normally and under ASan+UBSan;
 - the original failure matrix remains committed and has a current disposition table;
-- every `TODO_V2.md` contradiction specifically identified by H0 has an exact committed correction patch;
+- every `TODO_V2.md` contradiction specifically identified by H0 has been reconciled literally against current evidence;
 - no historical report was rewritten to manufacture evidence.
 
-Remaining H0 exit item:
-
-- apply `docs/implementation-v2/H0_TODO_V2_RECONCILIATION_2026-08-11.patch` to `docs/TODO_V2.md`, verify the resulting ledger, then mark H0-002 and the H0 exit gate complete.
-
-This report does **not** claim the missing sandbox tools passed, does not substitute local host tests for hardware, and does not close H1-H5. H1 should not be formally started until the one remaining H0 ledger-application item is closed or a documented dependency exception is made.
+This H0 closeout does **not** claim the missing sandbox tools passed, does not substitute local host tests for hardware, and does not close H1-H5. The next implementation phase remains H1.
