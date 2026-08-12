@@ -619,6 +619,7 @@ target_include_directories(
             ../../firmware/components/wifi_ap/include
             ../../firmware/components/usb_keyboard/include
             ../../firmware/components/device_settings/include
+            ../../firmware/components/factory_reset_state/include
             ../../firmware/components/support/include
 )
 target_link_libraries(web_server_lifecycle_tests PRIVATE PkgConfig::CJSON)
@@ -782,6 +783,25 @@ target_include_directories(
             ../../firmware/components/factory_reset_state
 )
 register_host_test(factory_reset_state_adapter_tests factory_reset_state_adapter "startup;controls")
+
+add_executable(
+    factory_reset_failure_matrix_tests
+    test_factory_reset_failure_matrix.c
+    ../../firmware/components/device_controls/device_controls_reset.c
+    ../../firmware/components/factory_reset_recovery/factory_reset_recovery_engine.c
+)
+target_include_directories(
+    factory_reset_failure_matrix_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/device_controls/include
+            ../../firmware/components/device_controls
+            ../../firmware/components/factory_reset_state/include
+            ../../firmware/components/factory_reset_recovery/include
+            ../../firmware/components/factory_reset_recovery
+)
+register_host_test(
+    factory_reset_failure_matrix_tests factory_reset_failure_matrix "controls;startup"
+)
 
 add_executable(
     factory_reset_recovery_tests

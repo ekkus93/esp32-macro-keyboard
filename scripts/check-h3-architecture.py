@@ -324,5 +324,88 @@ if "- [ ]" in h3_032:
 h3_033 = todo.split("### H3-033 — Failure injection matrix", 1)[1].split(
     "### H3-034 — Reset-settings semantics", 1
 )[0]
-if "- [ ]" not in h3_033:
-    fail("H3-033 was incorrectly closed by H3-032 work")
+
+
+# H3-033 failure-injection matrix and authority gate.
+lifecycle = read("firmware/components/web_server/web_server_lifecycle.c")
+for required in (
+    "reset_guarded_request",
+    "factory_reset_state_read(&reset_state)",
+    "APP_ERROR_RESET_RECOVERY_REQUIRED",
+    "factory reset recovery in progress",
+    "factory reset state unavailable",
+):
+    if required not in lifecycle:
+        fail(f"H3-033 normal-API reset gate is missing: {required}")
+
+for wrapper, delegate in (
+    ("reset_guarded_status_handler", "status_handler"),
+    ("reset_guarded_limits_handler", "limits_handler"),
+    ("reset_guarded_login_handler", "login_handler"),
+    ("reset_guarded_logout_handler", "logout_handler"),
+    ("reset_guarded_blob_list_handler", "blob_list_handler"),
+    ("reset_guarded_blob_create_handler", "blob_create_handler"),
+    ("reset_guarded_blob_load_handler", "blob_load_handler"),
+    ("reset_guarded_blob_delete_handler", "blob_delete_handler"),
+    ("reset_guarded_send_create_handler", "send_create_handler"),
+    ("reset_guarded_send_get_handler", "send_get_handler"),
+    ("reset_guarded_send_cancel_handler", "send_cancel_handler"),
+    ("reset_guarded_api_handler", "api_handler"),
+):
+    binding = f"DEFINE_RESET_GUARDED_HANDLER({wrapper}, {delegate})"
+    if binding not in lifecycle:
+        fail(f"H3-033 route guard lost delegate binding: {binding}")
+
+normal_routes = lifecycle.split("static const httpd_uri_t normal_routes[] = {", 1)[1].split(
+    "static const httpd_uri_t setup_routes[] = {", 1
+)[0]
+for line in normal_routes.splitlines():
+    if '.uri = "/api/v1' in line and ".handler = reset_guarded_" not in line:
+        fail(f"normal API route bypasses factory-reset PENDING gate: {line.strip()}")
+
+schedule_start = controls.find("static void adapter_reset_schedule_restart")
+schedule_end = controls.find("static app_error_code_t adapter_reset_settings_noncredential",
+                             schedule_start)
+if schedule_start < 0 or schedule_end < 0:
+    fail("factory-reset restart adapter is missing")
+schedule_block = controls[schedule_start:schedule_end]
+for required in ("esp_timer_create", "esp_timer_start_once", "esp_restart();"):
+    if required not in schedule_block:
+        fail(f"restart scheduling lost immediate reboot fail-safe: {required}")
+
+lifecycle_test = read("tests/host/test_web_server_lifecycle.c")
+for required in (
+    "test_pending_factory_reset_denies_every_normal_api_route",
+    "test_reset_journal_read_failure_denies_normal_api",
+):
+    if required not in lifecycle_test:
+        fail(f"H3-033 route-authority regression coverage is missing: {required}")
+
+matrix_test = read("tests/host/test_factory_reset_failure_matrix.c")
+for required in (
+    "test_precommit_failure_is_not_accepted_or_destructive",
+    "test_live_failure_matrix_recovers_after_reboot",
+    "test_restart_timer_arm_failure_uses_immediate_reboot_fail_safe",
+    "test_simulated_reboot_between_every_destructive_stage",
+    "test_recovery_stage_failure_matrix_retries_safely",
+    "assert_pending_blocks_old_authority",
+    "assert_fully_unprovisioned",
+):
+    if required not in matrix_test:
+        fail(f"H3-033 integrated failure matrix coverage is missing: {required}")
+
+storage_test = read("tests/host/test_storage_blob.c")
+if "test_delete_all_recovers_from_first_middle_final_unlink_failures" not in storage_test:
+    fail("H3-033 first/middle/final blob deletion failure coverage is missing")
+
+todo = read("docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md")
+h3_033 = todo.split("### H3-033 — Failure injection matrix", 1)[1].split(
+    "### H3-034 — Reset-settings semantics", 1
+)[0]
+if "- [ ]" in h3_033:
+    fail("H3-033 TODO still contains unchecked implementation/evidence items")
+h3_034 = todo.split("### H3-034 — Reset-settings semantics", 1)[1].split(
+    "### H3-035 — Hardware interruption evidence", 1
+)[0]
+if "- [ ]" not in h3_034:
+    fail("H3-034 was incorrectly closed by H3-033 work")

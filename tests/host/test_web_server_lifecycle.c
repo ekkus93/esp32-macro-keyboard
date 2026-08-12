@@ -49,10 +49,39 @@
 #include <string.h>
 
 #include "app_error.h"
+#include "factory_reset_state.h"
 #include "fake_httpd_router.h"
 #include "test_assert.h"
 #include "web_server.h"
 #include "web_server_internal.h"
+
+static factory_reset_state_t g_factory_reset_state = FACTORY_RESET_STATE_NONE;
+static app_error_code_t g_factory_reset_state_read_result = APP_ERROR_NONE;
+static unsigned int g_reset_gate_error_calls;
+static unsigned int g_reset_gate_status;
+static app_error_code_t g_reset_gate_code;
+static const char *g_reset_gate_message;
+
+app_error_code_t factory_reset_state_read(factory_reset_state_t *out_state) {
+    if (out_state == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (g_factory_reset_state_read_result != APP_ERROR_NONE) {
+        return g_factory_reset_state_read_result;
+    }
+    *out_state = g_factory_reset_state;
+    return APP_ERROR_NONE;
+}
+
+esp_err_t web_api_send_status_error(httpd_req_t *request, unsigned int status,
+                                    app_error_code_t code, const char *message) {
+    TEST_CHECK(request != NULL);
+    ++g_reset_gate_error_calls;
+    g_reset_gate_status = status;
+    g_reset_gate_code = code;
+    g_reset_gate_message = message;
+    return ESP_OK;
+}
 
 /* ---------------------------------------------------------------------- *
  * Handler stand-ins. web_server_lifecycle.c's route tables reference these
@@ -189,6 +218,12 @@ static void reset_all(void) {
     server_configuration = (web_server_config_t){0};
     server_lifecycle = (web_adapter_lifecycle_t){0};
     setup_session = (app_v2_setup_session_t){0};
+    g_factory_reset_state = FACTORY_RESET_STATE_NONE;
+    g_factory_reset_state_read_result = APP_ERROR_NONE;
+    g_reset_gate_error_calls = 0U;
+    g_reset_gate_status = 0U;
+    g_reset_gate_code = APP_ERROR_NONE;
+    g_reset_gate_message = NULL;
 }
 
 static web_server_config_t make_setup_config(void) {
@@ -215,7 +250,8 @@ static void assert_route_matrix(const route_expectation_t *expectations, size_t 
         const fake_httpd_route_result_t result =
             fake_httpd_router_resolve(expectation->uri, expectation->method, &resolved_handler);
         TEST_CHECK_EQ_INT(expectation->expected_result, result);
-        if (expectation->expected_result == FAKE_HTTPD_ROUTE_FOUND) {
+        if (expectation->expected_result == FAKE_HTTPD_ROUTE_FOUND &&
+            expectation->expected_handler != NULL) {
             TEST_CHECK(resolved_handler == expectation->expected_handler);
         }
     }
@@ -316,33 +352,33 @@ static void test_provisioned_route_surface(void) {
     TEST_CHECK_EQ_INT(16, fake_httpd_router_registered_count());
 
     static const route_expectation_t expectations[] = {
-        {"/api/v1/status", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, status_handler},
-        {"/api/v1/limits", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, limits_handler},
-        {"/api/v1/auth/login", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, login_handler},
-        {"/api/v1/auth/logout", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, logout_handler},
-        {"/api/v1/blob", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, blob_list_handler},
-        {"/api/v1/blob", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, blob_create_handler},
-        {"/api/v1/blob/abc123", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, blob_load_handler},
-        {"/api/v1/blob/abc123", HTTP_DELETE, FAKE_HTTPD_ROUTE_FOUND, blob_delete_handler},
-        {"/api/v1/send", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, send_create_handler},
-        {"/api/v1/send", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, send_get_handler},
-        {"/api/v1/send", HTTP_DELETE, FAKE_HTTPD_ROUTE_FOUND, send_cancel_handler},
+        {"/api/v1/status", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/limits", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/auth/login", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/auth/logout", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/blob", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/blob", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/blob/abc123", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/blob/abc123", HTTP_DELETE, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/send", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/send", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/send", HTTP_DELETE, FAKE_HTTPD_ROUTE_FOUND, NULL},
         /* Deliberately absent from normal_routes[] (see
          * web_server_lifecycle.c's comment) -- falls through to the generic
          * "/api/v1/" wildcard, answered by api_handler()'s WEB_API_ROUTE_SETUP
          * case rather than by setup_state_handler()/setup_submit_handler(). */
-        {"/api/v1/setup", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, api_handler},
-        {"/api/v1/setup", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, api_handler},
+        {"/api/v1/setup", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/setup", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, NULL},
         /* Every other /api/v1 route not given its own dedicated registration
          * falls through to the same generic wildcard. */
-        {"/api/v1/settings", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, api_handler},
-        {"/api/v1/settings", HTTP_PUT, FAKE_HTTPD_ROUTE_FOUND, api_handler},
-        {"/api/v1/auth/session", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, api_handler},
-        {"/api/v1/device/restart", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, api_handler},
-        {"/api/v1/device/reset-settings", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, api_handler},
-        {"/api/v1/device/factory-reset", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, api_handler},
-        {"/api/v1/settings/change-password", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, api_handler},
-        {"/api/v1/diagnostics", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, api_handler},
+        {"/api/v1/settings", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/settings", HTTP_PUT, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/auth/session", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/device/restart", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/device/reset-settings", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/device/factory-reset", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/settings/change-password", HTTP_POST, FAKE_HTTPD_ROUTE_FOUND, NULL},
+        {"/api/v1/diagnostics", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, NULL},
         {"/", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, static_handler},
         {"/index.html", HTTP_GET, FAKE_HTTPD_ROUTE_FOUND, static_handler},
         /* No dedicated wildcard exists outside the "/api/v1/" prefix for
@@ -405,12 +441,94 @@ static void test_route_surface_swaps_across_provisioning_transition(void) {
     resolved_handler = NULL;
     TEST_CHECK_EQ_INT(FAKE_HTTPD_ROUTE_FOUND,
                       fake_httpd_router_resolve("/api/v1/status", HTTP_GET, &resolved_handler));
-    TEST_CHECK(resolved_handler == status_handler);
+    esp_err_t (*normal_status_handler)(httpd_req_t *) = resolved_handler;
+    TEST_CHECK(normal_status_handler != NULL);
+    TEST_CHECK(normal_status_handler != static_handler);
     /* Setup mode's dedicated registration is gone -- provisioned mode
-     * answers the same path through the generic wildcard instead. */
+     * answers the same path through the reset-guarded generic API wildcard.
+     * The guard wrapper is intentionally translation-unit private, so prove
+     * the route moved off both setup/static handlers and onto a distinct
+     * normal-API handler rather than coupling this test to a private symbol. */
     TEST_CHECK_EQ_INT(FAKE_HTTPD_ROUTE_FOUND,
                       fake_httpd_router_resolve("/api/v1/setup", HTTP_GET, &resolved_handler));
-    TEST_CHECK(resolved_handler == api_handler);
+    TEST_CHECK(resolved_handler != NULL);
+    TEST_CHECK(resolved_handler != setup_state_handler);
+    TEST_CHECK(resolved_handler != static_handler);
+    TEST_CHECK(resolved_handler != normal_status_handler);
+
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, web_server_stop());
+}
+
+typedef struct {
+    const char *uri;
+    httpd_method_t method;
+} guarded_route_t;
+
+static void assert_pending_route_is_denied(const guarded_route_t *route) {
+    esp_err_t (*resolved_handler)(httpd_req_t *) = NULL;
+    TEST_CHECK_EQ_INT(FAKE_HTTPD_ROUTE_FOUND,
+                      fake_httpd_router_resolve(route->uri, route->method, &resolved_handler));
+    TEST_CHECK(resolved_handler != NULL);
+
+    httpd_req_t request = {0};
+    const unsigned int before = g_reset_gate_error_calls;
+    TEST_CHECK_EQ_INT(ESP_OK, resolved_handler(&request));
+    TEST_CHECK_EQ_U64((uint64_t)before + 1U, g_reset_gate_error_calls);
+    TEST_CHECK_EQ_U64(503U, g_reset_gate_status);
+    TEST_CHECK_APP_ERROR(APP_ERROR_RESET_RECOVERY_REQUIRED, g_reset_gate_code);
+    TEST_CHECK_EQ_STRING("factory reset recovery in progress", g_reset_gate_message);
+}
+
+static void test_pending_factory_reset_denies_every_normal_api_route(void) {
+    reset_all();
+    g_factory_reset_state = FACTORY_RESET_STATE_PENDING;
+    web_server_config_t configuration = make_normal_config();
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, web_server_start(&configuration));
+
+    static const guarded_route_t routes[] = {
+        {"/api/v1/status", HTTP_GET},
+        {"/api/v1/limits", HTTP_GET},
+        {"/api/v1/auth/login", HTTP_POST},
+        {"/api/v1/auth/logout", HTTP_POST},
+        {"/api/v1/blob", HTTP_GET},
+        {"/api/v1/blob", HTTP_POST},
+        {"/api/v1/blob/00000000000000000001", HTTP_GET},
+        {"/api/v1/blob/00000000000000000001", HTTP_DELETE},
+        {"/api/v1/send", HTTP_POST},
+        {"/api/v1/send", HTTP_GET},
+        {"/api/v1/send", HTTP_DELETE},
+        {"/api/v1/diagnostics", HTTP_GET},
+        {"/api/v1/settings/change-password", HTTP_POST},
+        {"/api/v1/settings", HTTP_PUT},
+        {"/api/v1/unknown", HTTP_DELETE},
+    };
+    for (size_t index = 0U; index < sizeof(routes) / sizeof(routes[0]); ++index) {
+        assert_pending_route_is_denied(&routes[index]);
+    }
+
+    esp_err_t (*static_route)(httpd_req_t *) = NULL;
+    TEST_CHECK_EQ_INT(FAKE_HTTPD_ROUTE_FOUND,
+                      fake_httpd_router_resolve("/", HTTP_GET, &static_route));
+    TEST_CHECK(static_route == static_handler);
+
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, web_server_stop());
+}
+
+static void test_reset_journal_read_failure_denies_normal_api(void) {
+    reset_all();
+    g_factory_reset_state_read_result = APP_ERROR_IO;
+    web_server_config_t configuration = make_normal_config();
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, web_server_start(&configuration));
+
+    esp_err_t (*resolved_handler)(httpd_req_t *) = NULL;
+    TEST_CHECK_EQ_INT(
+        FAKE_HTTPD_ROUTE_FOUND,
+        fake_httpd_router_resolve("/api/v1/auth/login", HTTP_POST, &resolved_handler));
+    httpd_req_t request = {0};
+    TEST_CHECK_EQ_INT(ESP_OK, resolved_handler(&request));
+    TEST_CHECK_EQ_U64(503U, g_reset_gate_status);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, g_reset_gate_code);
+    TEST_CHECK_EQ_STRING("factory reset state unavailable", g_reset_gate_message);
 
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, web_server_stop());
 }
@@ -418,6 +536,8 @@ static void test_route_surface_swaps_across_provisioning_transition(void) {
 int main(void) {
     test_unprovisioned_route_surface();
     test_provisioned_route_surface();
+    test_pending_factory_reset_denies_every_normal_api_route();
+    test_reset_journal_read_failure_denies_normal_api();
     test_route_surface_swaps_across_provisioning_transition();
 
     puts("web server lifecycle route matrix tests passed");

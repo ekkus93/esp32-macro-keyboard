@@ -6,6 +6,7 @@
 
 #include "api_contracts_v2.h"
 #include "app_error.h"
+#include "factory_reset_state.h"
 #include "setup_contract_v2.h"
 #include "web_server.h"
 #include "web_server_adapter.h"
@@ -14,6 +15,44 @@
 #define WEB_MAX_URI_HANDLERS 28U
 #define WEB_HTTPD_TASK_STACK_BYTES 24576U
 
+static esp_err_t reset_guarded_request(httpd_req_t *request, esp_err_t (*handler)(httpd_req_t *)) {
+    if (request == NULL || handler == NULL) {
+        return ESP_FAIL;
+    }
+
+    factory_reset_state_t reset_state = FACTORY_RESET_STATE_NONE;
+    const app_error_code_t reset_result = factory_reset_state_read(&reset_state);
+    if (reset_result != APP_ERROR_NONE) {
+        return web_api_send_status_error(request, 503U, reset_result,
+                                         "factory reset state unavailable");
+    }
+    if (reset_state == FACTORY_RESET_STATE_PENDING) {
+        return web_api_send_status_error(request, 503U, APP_ERROR_RESET_RECOVERY_REQUIRED,
+                                         "factory reset recovery in progress");
+    }
+    return handler(request);
+}
+
+#define DEFINE_RESET_GUARDED_HANDLER(wrapper, delegate)                                            \
+    static esp_err_t wrapper(httpd_req_t *request) {                                               \
+        return reset_guarded_request(request, delegate);                                           \
+    }
+
+DEFINE_RESET_GUARDED_HANDLER(reset_guarded_status_handler, status_handler)
+DEFINE_RESET_GUARDED_HANDLER(reset_guarded_limits_handler, limits_handler)
+DEFINE_RESET_GUARDED_HANDLER(reset_guarded_login_handler, login_handler)
+DEFINE_RESET_GUARDED_HANDLER(reset_guarded_logout_handler, logout_handler)
+DEFINE_RESET_GUARDED_HANDLER(reset_guarded_blob_list_handler, blob_list_handler)
+DEFINE_RESET_GUARDED_HANDLER(reset_guarded_blob_create_handler, blob_create_handler)
+DEFINE_RESET_GUARDED_HANDLER(reset_guarded_blob_load_handler, blob_load_handler)
+DEFINE_RESET_GUARDED_HANDLER(reset_guarded_blob_delete_handler, blob_delete_handler)
+DEFINE_RESET_GUARDED_HANDLER(reset_guarded_send_create_handler, send_create_handler)
+DEFINE_RESET_GUARDED_HANDLER(reset_guarded_send_get_handler, send_get_handler)
+DEFINE_RESET_GUARDED_HANDLER(reset_guarded_send_cancel_handler, send_cancel_handler)
+DEFINE_RESET_GUARDED_HANDLER(reset_guarded_api_handler, api_handler)
+
+#undef DEFINE_RESET_GUARDED_HANDLER
+
 static const httpd_uri_t normal_routes[] = {
     /* /api/v1/setup is deliberately absent here (scripts/check-setup-route-
      * isolation.sh enforces that): once provisioned, GET/POST /api/v1/setup
@@ -21,21 +60,21 @@ static const httpd_uri_t normal_routes[] = {
      * api_handler through the WEB_API_ROUTE_SETUP case in
      * web_api_handle_administration(), which returns 404 / 409 per SPEC 13.4
      * without requiring a session. */
-    {.uri = "/api/v1/status", .method = HTTP_GET, .handler = status_handler},
-    {.uri = "/api/v1/limits", .method = HTTP_GET, .handler = limits_handler},
-    {.uri = "/api/v1/auth/login", .method = HTTP_POST, .handler = login_handler},
-    {.uri = "/api/v1/auth/logout", .method = HTTP_POST, .handler = logout_handler},
-    {.uri = "/api/v1/blob", .method = HTTP_GET, .handler = blob_list_handler},
-    {.uri = "/api/v1/blob", .method = HTTP_POST, .handler = blob_create_handler},
-    {.uri = "/api/v1/blob/*", .method = HTTP_GET, .handler = blob_load_handler},
-    {.uri = "/api/v1/blob/*", .method = HTTP_DELETE, .handler = blob_delete_handler},
-    {.uri = "/api/v1/send", .method = HTTP_POST, .handler = send_create_handler},
-    {.uri = "/api/v1/send", .method = HTTP_GET, .handler = send_get_handler},
-    {.uri = "/api/v1/send", .method = HTTP_DELETE, .handler = send_cancel_handler},
-    {.uri = "/api/v1/*", .method = HTTP_GET, .handler = api_handler},
-    {.uri = "/api/v1/*", .method = HTTP_POST, .handler = api_handler},
-    {.uri = "/api/v1/*", .method = HTTP_PUT, .handler = api_handler},
-    {.uri = "/api/v1/*", .method = HTTP_DELETE, .handler = api_handler},
+    {.uri = "/api/v1/status", .method = HTTP_GET, .handler = reset_guarded_status_handler},
+    {.uri = "/api/v1/limits", .method = HTTP_GET, .handler = reset_guarded_limits_handler},
+    {.uri = "/api/v1/auth/login", .method = HTTP_POST, .handler = reset_guarded_login_handler},
+    {.uri = "/api/v1/auth/logout", .method = HTTP_POST, .handler = reset_guarded_logout_handler},
+    {.uri = "/api/v1/blob", .method = HTTP_GET, .handler = reset_guarded_blob_list_handler},
+    {.uri = "/api/v1/blob", .method = HTTP_POST, .handler = reset_guarded_blob_create_handler},
+    {.uri = "/api/v1/blob/*", .method = HTTP_GET, .handler = reset_guarded_blob_load_handler},
+    {.uri = "/api/v1/blob/*", .method = HTTP_DELETE, .handler = reset_guarded_blob_delete_handler},
+    {.uri = "/api/v1/send", .method = HTTP_POST, .handler = reset_guarded_send_create_handler},
+    {.uri = "/api/v1/send", .method = HTTP_GET, .handler = reset_guarded_send_get_handler},
+    {.uri = "/api/v1/send", .method = HTTP_DELETE, .handler = reset_guarded_send_cancel_handler},
+    {.uri = "/api/v1/*", .method = HTTP_GET, .handler = reset_guarded_api_handler},
+    {.uri = "/api/v1/*", .method = HTTP_POST, .handler = reset_guarded_api_handler},
+    {.uri = "/api/v1/*", .method = HTTP_PUT, .handler = reset_guarded_api_handler},
+    {.uri = "/api/v1/*", .method = HTTP_DELETE, .handler = reset_guarded_api_handler},
     {.uri = "/*", .method = HTTP_GET, .handler = static_handler},
 };
 

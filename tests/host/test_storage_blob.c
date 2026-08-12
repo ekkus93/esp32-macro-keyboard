@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -375,6 +376,91 @@ static void test_delete_all_continues_past_one_failure(void) {
     test_temp_dir_remove(&directory);
 }
 
+static const storage_fs_ops_t *g_fault_base_ops;
+static const char *g_fault_unlink_suffix;
+static bool g_fault_unlink_consumed;
+
+static int fail_selected_blob_unlink(void *context, const char *path) {
+    (void)context;
+    TEST_CHECK(g_fault_base_ops != NULL);
+    TEST_CHECK(path != NULL);
+    if (!g_fault_unlink_consumed && g_fault_unlink_suffix != NULL &&
+        strstr(path, g_fault_unlink_suffix) != NULL) {
+        g_fault_unlink_consumed = true;
+        errno = EIO;
+        return -1;
+    }
+    return g_fault_base_ops->unlink_path(g_fault_base_ops->context, path);
+}
+
+static void assert_delete_all_recovers_from_selected_failure(const char *fail_name) {
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char repository[TEST_TEMP_DIR_PATH_MAX];
+    path_join(repository, sizeof(repository), directory.path, "repository");
+    TEST_CHECK(mkdir(repository, (mode_t)0700) == 0);
+
+    static const char *const names[] = {
+        "00000000000000000001.gz",
+        "00000000000000000002.gz",
+        "00000000000000000003.gz",
+    };
+    for (size_t index = 0U; index < sizeof(names) / sizeof(names[0]); ++index) {
+        char path[TEST_TEMP_DIR_PATH_MAX];
+        path_join(path, sizeof(path), repository, names[index]);
+        create_file_with_size(path, index + 1U);
+    }
+
+    g_fault_base_ops = storage_fs_ops_posix();
+    g_fault_unlink_suffix = fail_name;
+    g_fault_unlink_consumed = false;
+    storage_fs_ops_t fault_ops = *g_fault_base_ops;
+    fault_ops.unlink_path = fail_selected_blob_unlink;
+
+    size_t deleted_count = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO,
+                         storage_blob_delete_all_with_ops(&fault_ops, repository, &deleted_count));
+    TEST_CHECK(g_fault_unlink_consumed);
+    TEST_CHECK_EQ_U64(2U, deleted_count);
+
+    for (size_t index = 0U; index < sizeof(names) / sizeof(names[0]); ++index) {
+        char path[TEST_TEMP_DIR_PATH_MAX];
+        path_join(path, sizeof(path), repository, names[index]);
+        if (strcmp(names[index], fail_name) == 0) {
+            TEST_CHECK(access(path, F_OK) == 0);
+        } else {
+            TEST_CHECK(access(path, F_OK) != 0);
+        }
+    }
+
+    deleted_count = 0U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_delete_all_with_ops(
+                                             g_fault_base_ops, repository, &deleted_count));
+    TEST_CHECK_EQ_U64(1U, deleted_count);
+
+    storage_blob_scan_summary_t summary = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_scan_with_ops(g_fault_base_ops, repository,
+                                                                    0U, NULL, &summary));
+    TEST_CHECK_EQ_U64(0U, summary.valid_count);
+
+    deleted_count = 99U;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_delete_all_with_ops(
+                                             g_fault_base_ops, repository, &deleted_count));
+    TEST_CHECK_EQ_U64(0U, deleted_count);
+
+    g_fault_base_ops = NULL;
+    g_fault_unlink_suffix = NULL;
+    g_fault_unlink_consumed = false;
+    test_temp_dir_remove(&directory);
+}
+
+static void test_delete_all_recovers_from_first_middle_final_unlink_failures(void) {
+    /* Valid blob callbacks are newest-first: IDs 3, 2, 1. */
+    assert_delete_all_recovers_from_selected_failure("00000000000000000003.gz");
+    assert_delete_all_recovers_from_selected_failure("00000000000000000002.gz");
+    assert_delete_all_recovers_from_selected_failure("00000000000000000001.gz");
+}
+
 int main(void) {
     test_filename_contract();
     test_next_id_derivation();
@@ -385,6 +471,7 @@ int main(void) {
     test_prepare_rejects_non_directory();
     test_delete_all_removes_every_blob();
     test_delete_all_continues_past_one_failure();
+    test_delete_all_recovers_from_first_middle_final_unlink_failures();
     puts("storage blob tests passed");
     return EXIT_SUCCESS;
 }

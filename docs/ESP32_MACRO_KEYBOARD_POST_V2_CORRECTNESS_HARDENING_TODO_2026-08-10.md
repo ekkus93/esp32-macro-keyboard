@@ -330,23 +330,25 @@ Stages must safely tolerate repetition:
 
 Inject failure:
 
-- [ ] before marker commit,
-- [ ] after marker commit/before settings erase,
-- [ ] after settings erase,
-- [ ] during session invalidation,
-- [ ] during first/middle/final blob deletion,
-- [ ] before marker clear,
-- [ ] during restart scheduling,
-- [ ] across simulated reboot between each stage.
+- [x] before marker commit,
+- [x] after marker commit/before settings erase,
+- [x] after settings erase,
+- [x] during session invalidation,
+- [x] during first/middle/final blob deletion,
+- [x] before marker clear,
+- [x] during restart scheduling,
+- [x] across simulated reboot between each stage.
 
 Assert:
 
-- [ ] reset resumes safely,
-- [ ] old credentials never become usable again once accepted,
-- [ ] old sessions cannot regain authority,
-- [ ] surviving blobs are not exposed to a newly provisioned owner before cleanup completes,
-- [ ] repeated cleanup is safe,
-- [ ] final state is fully unprovisioned with zero repository blobs.
+- [x] reset resumes safely,
+- [x] old credentials never become usable again once accepted,
+- [x] old sessions cannot regain authority,
+- [x] surviving blobs are not exposed to a newly provisioned owner before cleanup completes,
+- [x] repeated cleanup is safe,
+- [x] final state is fully unprovisioned with zero repository blobs.
+
+- Evidence (2026-08-12): deterministic host fault injection covers the durable marker boundary, every destructive/recovery stage, first/middle/final blob unlink failure, restart-timer fallback, and reboot cuts between stages. H3-033 also closes the pre-reboot authority gap found during audit: every provisioned `/api/v1` route fails closed while the reset journal is `PENDING`, so stale credentials, sessions, and surviving blobs cannot regain authority before cleanup completes. See `docs/implementation-v2/H3_033_FACTORY_RESET_FAILURE_INJECTION_MATRIX_2026-08-12.md`.
 
 ### H3-034 — Reset-settings semantics
 
