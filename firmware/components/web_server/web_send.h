@@ -43,6 +43,7 @@ typedef struct {
     char id[APP_UUID_BUFFER_LENGTH];
     uint32_t action_count;
     uint32_t estimated_duration_ms;
+    bool require_confirmation;
 } web_send_accepted_t;
 
 typedef struct {
@@ -104,8 +105,9 @@ typedef enum {
 
 web_send_cancel_result_t web_send_cancel_handle(const web_send_ops_t *ops);
 
-/* Builds the exact SPEC_V2 13.10 accepted-response JSON:
- * {"id","state":"running","actionCount","estimatedDurationMs"}. *out_json is
+/* Builds the exact SPEC_V2 13.10 accepted-response JSON. `state` is
+ * `awaiting_confirmation` when the captured send policy requires confirmation,
+ * otherwise `running`. *out_json is
  * heap-allocated (cJSON_free()/web_api_handler_json_free()). */
 app_error_code_t web_send_accepted_json(const web_send_accepted_t *accepted, char **out_json);
 /* Builds the exact SPEC_V2 13.10 status-response JSON. */

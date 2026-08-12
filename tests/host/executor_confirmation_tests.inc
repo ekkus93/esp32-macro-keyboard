@@ -135,6 +135,7 @@ static void test_confirmation_read_confirmation_lock_failure_ends_the_send(void)
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, executor_execute_queued(&engine, &fake));
 
     executor_assert_terminal(&engine, EXECUTION_FAILED, APP_ERROR_INTERNAL, false);
+    TEST_CHECK_EQ_U64(1U, fake.release_index);
     for (size_t index = 0U; index < fake.calls.call_count; ++index) {
         TEST_CHECK(strcmp(fake_call_log_at(&fake.calls, index)->name, "press") != 0);
     }
@@ -155,6 +156,7 @@ static void test_confirmation_wait_failure_ends_the_send(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_IO, executor_execute_queued(&engine, &fake));
 
     executor_assert_terminal(&engine, EXECUTION_FAILED, APP_ERROR_IO, false);
+    TEST_CHECK_EQ_U64(1U, fake.release_index);
     TEST_CHECK_EQ_U64(1U, fake.wait_count);
     for (size_t index = 0U; index < fake.calls.call_count; ++index) {
         TEST_CHECK(strcmp(fake_call_log_at(&fake.calls, index)->name, "press") != 0);
@@ -191,6 +193,7 @@ static void test_confirm_lock_failure_leaves_send_awaiting_and_it_times_out(void
 
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, fake.confirm_on_wait_result);
     executor_assert_terminal(&engine, EXECUTION_TIMED_OUT, APP_ERROR_TIMEOUT, false);
+    TEST_CHECK_EQ_U64(1U, fake.release_index);
     for (size_t index = 0U; index < fake.calls.call_count; ++index) {
         TEST_CHECK(strcmp(fake_call_log_at(&fake.calls, index)->name, "press") != 0);
     }

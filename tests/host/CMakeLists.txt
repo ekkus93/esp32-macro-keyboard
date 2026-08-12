@@ -123,6 +123,18 @@ target_include_directories(
 register_host_test(macro_executor_tests macro_executor executor)
 
 add_executable(
+    serial_console_confirmation_tests
+    test_serial_console_confirmation.c
+    ../../firmware/components/serial_console/serial_console_confirmation.c
+)
+target_include_directories(
+    serial_console_confirmation_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/serial_console
+)
+register_host_test(serial_console_confirmation_tests serial_console_confirmation "executor;web")
+
+add_executable(
     auth_tests
     test_auth.c
     ../../firmware/components/auth/auth_core_common.c

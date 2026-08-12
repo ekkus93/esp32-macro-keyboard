@@ -122,7 +122,7 @@ function activeStatusText(
 ): string {
   const label = macro !== null ? ` ${macro.name}` : "";
   if (status.state === "awaiting_confirmation") {
-    return `Waiting for physical confirmation on the device to send${label}…`;
+    return `Waiting for confirmation on the device to send${label}… Run confirm in the device serial console to continue.`;
   }
   return `Sending${label}… action ${String(status.actionIndex)} of ${String(status.actionCount)}`;
 }

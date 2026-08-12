@@ -1,6 +1,7 @@
 idf_component_register(
     SRCS
     "serial_console.c"
+    "serial_console_confirmation.c"
     INCLUDE_DIRS
     "include"
     REQUIRES

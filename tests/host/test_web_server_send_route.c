@@ -215,6 +215,10 @@ static void test_send_create_binds_authoritative_confirmation_setting(void) {
     TEST_CHECK_EQ_STRING("202 Accepted", fake.response_status);
     TEST_CHECK(g_submit_called);
     TEST_CHECK(g_last_submitted_request.require_confirmation);
+    cJSON *root = parse_response(&fake);
+    TEST_CHECK_EQ_STRING("awaiting_confirmation",
+                         cJSON_GetObjectItemCaseSensitive(root, "state")->valuestring);
+    cJSON_Delete(root);
 }
 
 static void test_send_create_confirmation_policy_read_failure_fails_closed(void) {
@@ -498,6 +502,31 @@ static void test_send_get_valid(void) {
  * simulates that same send having finished (completed, every action run) and
  * diffs the live GET response against "sendStatus" wholesale (id
  * normalized). */
+static void test_send_get_awaiting_confirmation(void) {
+    reset_fakes();
+    app_uuid_t id = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_generate(&id));
+    g_execution_status = (macro_execution_status_t){
+        .state = EXECUTION_AWAITING_CONFIRMATION,
+        .available = true,
+        .execution_id = id,
+        .action_index = 0U,
+        .action_count = 1U,
+    };
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    fake_httpd_bind(&request, &fake, "/api/v1/send", 0U);
+
+    TEST_CHECK_EQ_INT(ESP_OK, send_get_handler(&request));
+    TEST_CHECK_EQ_STRING("200 OK", fake.response_status);
+    cJSON *root = parse_response(&fake);
+    TEST_CHECK_EQ_STRING("awaiting_confirmation",
+                         cJSON_GetObjectItemCaseSensitive(root, "state")->valuestring);
+    cJSON_Delete(root);
+}
+
 static void test_send_get_valid_matches_example(void) {
     reset_fakes();
     fake_httpd_request_t create_fake;
@@ -639,6 +668,22 @@ static void test_send_cancel_valid(void) {
     TEST_CHECK(strstr(fake.response_body, "\"accepted\":true") != NULL);
 }
 
+static void test_send_cancel_while_awaiting_confirmation(void) {
+    reset_fakes();
+    g_execution_status =
+        (macro_execution_status_t){.state = EXECUTION_AWAITING_CONFIRMATION, .available = true};
+    g_cancel_result = APP_ERROR_NONE;
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    fake_httpd_reset(&fake);
+    authenticate(&fake);
+    fake_httpd_bind(&request, &fake, "/api/v1/send", 0U);
+
+    TEST_CHECK_EQ_INT(ESP_OK, send_cancel_handler(&request));
+    TEST_CHECK_EQ_STRING("202 Accepted", fake.response_status);
+    TEST_CHECK(g_cancel_called);
+}
+
 static void test_send_cancel_unauthorized_without_cookie(void) {
     reset_fakes();
     fake_httpd_request_t fake;
@@ -699,6 +744,7 @@ int main(void) {
     test_send_create_executor_unavailable_is_internal();
 
     test_send_get_valid();
+    test_send_get_awaiting_confirmation();
     test_send_get_valid_matches_example();
     test_send_get_unauthorized_without_cookie();
     test_send_get_unauthorized_expired_session();
@@ -707,6 +753,7 @@ int main(void) {
     test_send_get_never_sent();
 
     test_send_cancel_valid();
+    test_send_cancel_while_awaiting_confirmation();
     test_send_cancel_unauthorized_without_cookie();
     test_send_cancel_executor_unavailable_is_internal();
     test_send_cancel_never_sent();

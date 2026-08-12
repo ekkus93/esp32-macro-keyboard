@@ -11,6 +11,7 @@
 #include "freertos/task.h"
 #include "macro_executor.h"
 #include "provisioning.h"
+#include "serial_console_confirmation.h"
 #include "wifi_ap.h"
 
 #define WIFI_CONNECT_TIMEOUT_MS 15000U
@@ -56,10 +57,25 @@ static int command_wifi_status(int argc, char **argv) {
 /* The device deliberately requires no buttons and no added hardware. These two
  * commands provide, over the UART console, the only two things the physical
  * confirm and cancel buttons ever did. */
+static app_error_code_t confirm_send_adapter(void *context) {
+    (void)context;
+    return macro_executor_confirm();
+}
+
+static app_error_code_t confirm_device_action_adapter(void *context) {
+    (void)context;
+    return device_controls_signal_confirmation();
+}
+
 static int command_confirm(int argc, char **argv) {
     (void)argc;
     (void)argv;
-    const app_error_code_t result = device_controls_signal_confirmation();
+    const serial_console_confirmation_ops_t operations = {
+        .context = NULL,
+        .confirm_send = confirm_send_adapter,
+        .confirm_device_action = confirm_device_action_adapter,
+    };
+    const app_error_code_t result = serial_console_route_confirmation(&operations);
     if (result == APP_ERROR_NONE) {
         printf("confirmation sent\n");
         return 0;

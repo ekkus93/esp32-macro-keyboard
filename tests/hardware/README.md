@@ -36,6 +36,19 @@ times out, verifies unrelated status requests remain responsive, confirms a
 second waiter is refused, and checks that the server releases the request
 socket. The script restores the prior setting afterward.
 
+### End-to-end send confirmation (H1)
+
+```bash
+python3 tests/hardware/test_send_confirmation.py --firmware-sha <exact-git-sha>
+```
+
+This enables `requireSerialConfirmation`, captures the native USB HID stream,
+proves zero key-down reports before the UART `confirm` command, proves the
+confirmed send types exactly once, then verifies cancel-before-confirmation and
+the real 60-second expiry path both type nothing. The prior setting is restored
+on exit. This is intentionally a real 60-second timeout test rather than a
+test-only shortened substitute.
+
 ### Restart and reset acceptance
 
 ```bash
@@ -49,10 +62,10 @@ claim a true power-removal cycle; unplug/replug testing remains manual.
 
 ## Deferred device checks
 
-Direct macro text submission, HID typing capture, and in-flight cancellation
-return with the V2 `/api/v1/send` endpoint in a later phase. Package CRUD,
-package ordering, package backup/restore, and stored-macro execution tests were
-deleted in Phase 2 because those firmware-owned resources no longer exist.
+H1 now has a dedicated real-send confirmation/HID acceptance harness above.
+Other hardware checks remain task-specific; package CRUD, package ordering,
+package backup/restore, and stored-macro execution tests were deleted in Phase 2
+because those firmware-owned resources no longer exist.
 
 ## Bench state and dependencies
 

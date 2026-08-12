@@ -469,8 +469,37 @@ describe("MacrosPage — V2-093 Quick Send", () => {
       await click(buttonWithText("Send"));
       await tick(0);
       expect(container.textContent).toContain(
-        "Waiting for physical confirmation on the device to send Start the build…",
+        "Waiting for confirmation on the device to send Start the build… Run confirm in the device serial console to continue.",
       );
+
+      planJsonResponse(statusAt("completed", 2));
+      await tick(1000);
+      await unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("awaiting confirmation stays cancellable and confirmation polling never reposts", async () => {
+    vi.useFakeTimers();
+    try {
+      const { container, unmount } = await renderMacrosPage();
+      planJsonResponse({ ...accepted, state: "awaiting_confirmation" }, 202);
+      await click(buttonWithText("Send"));
+      await tick(0);
+
+      expect(container.textContent).toContain("Run confirm in the device serial console");
+      expect(buttonWithText("Cancel and release all keys")).toBeDefined();
+
+      planJsonResponse(statusAt("awaiting_confirmation", 0));
+      await tick(1000);
+      planJsonResponse(statusAt("running", 0));
+      await tick(1000);
+
+      const postCalls = getFetchCalls().filter(
+        (call) => call.method === "POST" && call.url === "/api/v1/send",
+      );
+      expect(postCalls).toHaveLength(1);
 
       planJsonResponse(statusAt("completed", 2));
       await tick(1000);

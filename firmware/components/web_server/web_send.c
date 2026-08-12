@@ -228,11 +228,14 @@ web_send_create_outcome_t web_send_create_handle(char *body, size_t body_length,
     memcpy(outcome.accepted.id, send_id.value, sizeof(outcome.accepted.id));
     outcome.accepted.action_count = action_count;
     outcome.accepted.estimated_duration_ms = estimated_duration_ms;
+    outcome.accepted.require_confirmation = require_confirmation;
     return outcome;
 }
 
 static const char *send_state_string(execution_state_t state) {
     switch (state) {
+    case EXECUTION_AWAITING_CONFIRMATION:
+        return "awaiting_confirmation";
     case EXECUTION_RUNNING:
         return "running";
     case EXECUTION_COMPLETED:
@@ -314,8 +317,10 @@ app_error_code_t web_send_accepted_json(const web_send_accepted_t *accepted, cha
         return APP_ERROR_INVALID_ARGUMENT;
     }
     cJSON *root = cJSON_CreateObject();
+    const char *const state =
+        accepted->require_confirmation ? "awaiting_confirmation" : "running";
     if (root == NULL || !cJSON_AddStringToObject(root, "id", accepted->id) ||
-        !cJSON_AddStringToObject(root, "state", "running") ||
+        !cJSON_AddStringToObject(root, "state", state) ||
         !cJSON_AddNumberToObject(root, "actionCount", (double)accepted->action_count) ||
         !cJSON_AddNumberToObject(root, "estimatedDurationMs",
                                  (double)accepted->estimated_duration_ms)) {

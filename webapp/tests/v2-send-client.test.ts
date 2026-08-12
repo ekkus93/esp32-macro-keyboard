@@ -93,6 +93,35 @@ describe("v2 send helper", () => {
     }
   });
 
+  test("awaiting confirmation transitions to running by polling without a second POST", async () => {
+    vi.useFakeTimers();
+    try {
+      const awaitingAccepted = {
+        ...accepted,
+        state: "awaiting_confirmation" as const,
+      };
+      planJsonResponse(awaitingAccepted, 202);
+      const onStatus = vi.fn();
+      const handle = await sendMacro(request, { onStatus });
+      expect(handle.accepted).toEqual(awaitingAccepted);
+
+      planJsonResponse(statusAt("awaiting_confirmation", 0));
+      await vi.advanceTimersByTimeAsync(1000);
+      planJsonResponse(statusAt("running", 0));
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(onStatus).toHaveBeenLastCalledWith(statusAt("running", 0));
+      expect(
+        getFetchCalls().filter(
+          (call) => call.method === "POST" && call.url === "/api/v1/send",
+        ),
+      ).toHaveLength(1);
+      handle.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test("stop() halts polling without cancelling the send on the device", async () => {
     vi.useFakeTimers();
     try {

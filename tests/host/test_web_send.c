@@ -115,6 +115,11 @@ static void test_create_binds_confirmation_policy_and_fails_closed(void) {
     TEST_CHECK_EQ_INT(WEB_SEND_CREATE_OK, outcome.result);
     TEST_CHECK(fake.submit_called);
     TEST_CHECK(fake.last_request.require_confirmation);
+    TEST_CHECK(outcome.accepted.require_confirmation);
+
+    fake.require_confirmation = false;
+    TEST_CHECK(fake.last_request.require_confirmation);
+    TEST_CHECK(outcome.accepted.require_confirmation);
 
     fake = (fake_send_backend_t){0};
     fake.confirmation_policy_result = APP_ERROR_STORAGE_UNAVAILABLE;
@@ -270,6 +275,23 @@ static void test_get_running_reports_cached_duration(void) {
     TEST_CHECK_EQ_STRING("", outcome.status.release_error);
 }
 
+static void test_get_awaiting_confirmation_has_explicit_state(void) {
+    fake_send_backend_t fake = {0};
+    app_uuid_t id = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_uuid_generate(&id));
+    fake.status_to_return = (macro_execution_status_t){
+        .state = EXECUTION_AWAITING_CONFIRMATION,
+        .available = true,
+        .execution_id = id,
+        .action_index = 0U,
+        .action_count = 9U,
+    };
+    const web_send_ops_t operations = fake_ops(&fake);
+    const web_send_get_outcome_t outcome = web_send_get_handle(&operations, 214U);
+    TEST_CHECK_EQ_INT(WEB_SEND_GET_OK, outcome.result);
+    TEST_CHECK_EQ_STRING("awaiting_confirmation", outcome.status.state);
+}
+
 static void test_get_reports_terminal_errors(void) {
     fake_send_backend_t fake = {0};
     fake.status_to_return = (macro_execution_status_t){
@@ -336,6 +358,16 @@ static void test_cancel_accepted_and_idempotent(void) {
     }
 }
 
+static void test_cancel_accepted_while_awaiting_confirmation(void) {
+    fake_send_backend_t fake = {0};
+    fake.status_to_return =
+        (macro_execution_status_t){.state = EXECUTION_AWAITING_CONFIRMATION};
+    fake.cancel_result = APP_ERROR_NONE;
+    const web_send_ops_t operations = fake_ops(&fake);
+    TEST_CHECK_EQ_INT(WEB_SEND_CANCEL_ACCEPTED, web_send_cancel_handle(&operations));
+    TEST_CHECK(fake.cancel_called);
+}
+
 static void test_cancel_internal_error(void) {
     fake_send_backend_t fake = {0};
     fake.status_to_return = (macro_execution_status_t){.state = EXECUTION_RUNNING};
@@ -349,6 +381,7 @@ static void test_accepted_json_exact_shape(void) {
         .id = "550e8400-e29b-41d4-a716-446655440000",
         .action_count = 9U,
         .estimated_duration_ms = 214U,
+        .require_confirmation = false,
     };
     char *json = NULL;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_send_accepted_json(&accepted, &json));
@@ -363,6 +396,17 @@ static void test_accepted_json_exact_shape(void) {
         214U, (uint64_t)cJSON_GetObjectItemCaseSensitive(root, "estimatedDurationMs")->valuedouble);
     cJSON_Delete(root);
     free(json);
+
+    web_send_accepted_t awaiting = accepted;
+    awaiting.require_confirmation = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, web_send_accepted_json(&awaiting, &json));
+    root = cJSON_Parse(json);
+    TEST_CHECK(root != NULL);
+    TEST_CHECK_EQ_STRING("awaiting_confirmation",
+                         cJSON_GetObjectItemCaseSensitive(root, "state")->valuestring);
+    cJSON_Delete(root);
+    free(json);
+
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, web_send_accepted_json(NULL, &json));
 }
 
@@ -401,11 +445,13 @@ int main(void) {
     test_create_invalid_ops_or_null_body();
     test_get_never_sent();
     test_get_running_reports_cached_duration();
+    test_get_awaiting_confirmation_has_explicit_state();
     test_get_reports_terminal_errors();
     test_get_unavailable_backend();
     test_get_unavailable_release_fault_remains_visible();
     test_cancel_never_sent();
     test_cancel_accepted_and_idempotent();
+    test_cancel_accepted_while_awaiting_confirmation();
     test_cancel_internal_error();
     test_accepted_json_exact_shape();
     test_status_json_exact_shape();

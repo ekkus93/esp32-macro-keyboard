@@ -1245,11 +1245,23 @@ async function runBrowserWorkflows(page, serverState) {
   );
 
   // Serial-confirmation waiting state, inline (UI_UX_SPEC_V2 §5.5).
+  const sendPostCountBeforeConfirmation = serverState.sendPostCount;
   await clickButtonByAriaLabel(page, "Send Confirm before typing");
   await waitFor(
     page,
-    () => document.body.innerText.includes("Waiting for physical confirmation"),
-    "The confirmation-wait state was not shown inline.",
+    () =>
+      document.body.innerText.includes("Waiting for confirmation on the device") &&
+      document.body.innerText.includes("Run confirm in the device serial console"),
+    "The confirmation-wait state or serial-confirm instruction was not shown inline.",
+  );
+  assert(
+    (await page
+      .getByRole("button", {
+        name: "Cancel and release all keys",
+        exact: true,
+      })
+      .count()) >= 1,
+    "Cancel was not reachable while awaiting confirmation.",
   );
   await waitFor(
     page,
@@ -1261,6 +1273,10 @@ async function runBrowserWorkflows(page, serverState) {
     () => !document.body.innerText.includes("Sent Confirm before typing."),
     "The confirmation completion acknowledgement did not clear itself.",
     8_000,
+  );
+  assert(
+    serverState.sendPostCount === sendPostCountBeforeConfirmation + 1,
+    `Confirmation transition produced ${String(serverState.sendPostCount - sendPostCountBeforeConfirmation)} POST /api/v1/send calls instead of exactly one.`,
   );
 
   // Cancel and release all keys.
