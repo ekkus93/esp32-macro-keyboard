@@ -1,0 +1,98 @@
+--- a/docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md
++++ b/docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md
+@@ -135,38 +135,46 @@
+ 
+ ### H1-010 — Wire authoritative setting into send acceptance
+ 
+-- [ ] Identify the single authoritative runtime source for `requireSerialConfirmation`.
+-- [ ] Extend the send adapter/core dependency seam so the accepted request receives the setting without creating a second global source of truth.
+-- [ ] Set `macro_execution_request_t.require_confirmation` before `macro_executor_submit()`.
+-- [ ] Capture the setting at acceptance so a later settings change cannot mutate an already accepted send's semantics.
+-- [ ] Do not weaken behavior when settings read fails; reject the send with a visible backend-unavailable/internal error rather than defaulting confirmation off.
++- [x] Identify the single authoritative runtime source for `requireSerialConfirmation`.
++- [x] Extend the send adapter/core dependency seam so the accepted request receives the setting without creating a second global source of truth.
++- [x] Set `macro_execution_request_t.require_confirmation` before `macro_executor_submit()`.
++- [x] Capture the setting at acceptance so a later settings change cannot mutate an already accepted send's semantics.
++- [x] Do not weaken behavior when settings read fails; reject the send with a visible backend-unavailable/internal error rather than defaulting confirmation off.
++
++- Evidence: H9 supplied the authoritative device-settings read/fail-closed seam; H1 adds explicit capture-by-value regression coverage. See `docs/implementation-v2/H1_END_TO_END_PHYSICAL_CONFIRMATION_2026-08-11.md`.
+ 
+ ### H1-011 — Expose `awaiting_confirmation` through the v2 send API
+ 
+-- [ ] Ensure `EXECUTION_AWAITING_CONFIRMATION` maps to an explicit API state string.
+-- [ ] Update frozen/checked-in contract examples only if the authoritative spec already requires the state and the fixture is stale; otherwise flag a spec conflict before changing the contract.
+-- [ ] Ensure status serialization remains source/key-content redacted.
+-- [ ] Ensure cancellation is accepted while awaiting confirmation.
++- [x] Ensure `EXECUTION_AWAITING_CONFIRMATION` maps to an explicit API state string.
++- [x] Update frozen/checked-in contract examples only if the authoritative spec already requires the state and the fixture is stale; otherwise flag a spec conflict before changing the contract.
++- [x] Ensure status serialization remains source/key-content redacted.
++- [x] Ensure cancellation is accepted while awaiting confirmation.
++
++- Evidence: H1 fixes POST/GET serialization to `awaiting_confirmation`, preserves the valid confirmation-disabled canonical fixture, and adds host handler regressions for POST/GET/DELETE while awaiting. See the H1 evidence report.
+ 
+ ### H1-012 — React awaiting-confirmation UX
+ 
+-- [ ] Render a clear “awaiting confirmation” state for active sends.
+-- [ ] Explain the required physical/serial confirmation action without exposing secrets.
+-- [ ] Keep Cancel visible and operable.
+-- [ ] Do not issue a second send POST because of rerender, orientation change, retry, or confirmation-state polling.
+-- [ ] Preserve active-send state through the landscape blocker.
++- [x] Render a clear “awaiting confirmation” state for active sends.
++- [x] Explain the required physical/serial confirmation action without exposing secrets.
++- [x] Keep Cancel visible and operable.
++- [x] Do not issue a second send POST because of rerender, orientation change, retry, or confirmation-state polling.
++- [x] Preserve active-send state through the landscape blocker.
++
++- Evidence: the existing inline send-state design is retained; H1 makes the serial `confirm` action explicit and adds no-repost/cancel assertions. Actual pinned-Node/real-Chrome execution remains separately open under H1-014 rather than being inferred from source inspection.
+ 
+ ### H1-013 — Host regression tests
+ 
+-- [ ] Test settings=false -> request enters normal running path.
+-- [ ] Test settings=true -> request has `require_confirmation=true`.
+-- [ ] Test settings read failure -> no send accepted.
+-- [ ] Test no HID press occurs before confirmation.
+-- [ ] Test confirmation transitions to running exactly once.
+-- [ ] Test cancel-before-confirmation -> cancelled, types nothing.
+-- [ ] Test confirmation timeout -> timed_out, types nothing.
+-- [ ] Test release-all behavior on confirmation-phase terminal paths.
+-- [ ] Run executor/web host targets under ASan + UBSan.
++- [x] Test settings=false -> request enters normal running path.
++- [x] Test settings=true -> request has `require_confirmation=true`.
++- [x] Test settings read failure -> no send accepted.
++- [x] Test no HID press occurs before confirmation.
++- [x] Test confirmation transitions to running exactly once.
++- [x] Test cancel-before-confirmation -> cancelled, types nothing.
++- [x] Test confirmation timeout -> timed_out, types nothing.
++- [x] Test release-all behavior on confirmation-phase terminal paths.
++- [x] Run executor/web host targets under ASan + UBSan.
++
++- Evidence: local H1 validation passed executor **3/3**, web **30/30**, full host **61/61**, and the same full **61/61** under ASan+UBSan. Confirmation terminal-path release assertions were strengthened. See the H1 evidence report.
+ 
+ ### H1-014 — Browser regression tests
+ 
+@@ -174,6 +182,8 @@
+ - [ ] Cancel remains reachable.
+ - [ ] Confirmed transition does not duplicate POST.
+ - [ ] Timeout is displayed distinctly from ordinary failure.
++
++- Evidence status: source-level Vitest and real-browser assertions are added and `run-browser-tests.mjs` passes `node --check`, but this sandbox lacks the pinned Node 24.18.0 frontend environment and dependencies. Do not check these until executable browser evidence exists for the H1 candidate.
+ 
+ ### H1-015 — Hardware evidence
+ 
+@@ -184,11 +194,15 @@
+ - [ ] Run expiry/timeout path and prove zero typed reports.
+ - [ ] Record exact firmware SHA, board, host, settings, commands, and captured output.
+ 
++- Evidence status: `tests/hardware/test_send_confirmation.py` now provides the exact-SHA acceptance procedure, including the real 60-second timeout and setting restoration, but it has not been run on the reference board in this sandbox.
++
+ ### Phase H1 exit gate
+ 
+ - [ ] Real `POST /api/v1/send` honors physical/serial confirmation end-to-end.
+-- [ ] No tested path bypasses required confirmation when its support subsystem fails.
++- [x] No tested path bypasses required confirmation when its support subsystem fails.
+ - [ ] Host, sanitizer, browser, and hardware evidence are committed.
++
++- Evidence status: software/native fail-closed behavior is proven locally; final end-to-end/browser/hardware claims remain open until H1-014/H1-015 evidence is supplied on an exact candidate SHA.
+ 
+ ---
+ 
