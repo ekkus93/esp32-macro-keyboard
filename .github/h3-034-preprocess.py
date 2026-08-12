@@ -43,7 +43,7 @@ reset_failure_end = text.index(
     reset_failure_start,
 )
 old = text[reset_failure_start:reset_failure_end]
-'''
+'''.replace('\\"', '"')
 text = text[:old_start] + replacement + text[new_start:]
 
 path.write_text(text)
