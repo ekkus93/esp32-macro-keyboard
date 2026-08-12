@@ -60,6 +60,11 @@ ENTRY = re.compile(
     r"\.method\s*=\s*(?P<method>HTTP_[A-Z]+)\s*,\s*"
     r"\.handler\s*=\s*(?P<handler>[A-Za-z0-9_]+)\s*\}",
 )
+RESET_GUARDED_HANDLER = re.compile(
+    r"\bDEFINE_RESET_GUARDED_HANDLER\(\s*"
+    r"(?P<wrapper>[A-Za-z_][A-Za-z0-9_]*)\s*,\s*"
+    r"(?P<delegate>[A-Za-z_][A-Za-z0-9_]*)\s*\)"
+)
 ENUM = re.compile(
     r"typedef\s+enum\s*\{(?P<body>.*?)\}\s*web_api_route_t\s*;",
     re.DOTALL,
@@ -102,12 +107,35 @@ def main() -> None:
     match = ARRAY.search(lifecycle)
     if match is None or ARRAY.search(lifecycle, match.end()) is not None:
         fail("normal_routes must appear exactly once")
-    entries = [
+    raw_entries = [
         (entry.group("uri"), entry.group("method"), entry.group("handler"))
         for entry in ENTRY.finditer(match.group("body"))
     ]
-    if len(entries) != len(set(entries)):
+    if len(raw_entries) != len(set(raw_entries)):
         fail("normal_routes contains a duplicate URI/method/handler entry")
+
+    wrapper_map: dict[str, str] = {}
+    for entry in RESET_GUARDED_HANDLER.finditer(lifecycle):
+        wrapper = entry.group("wrapper")
+        delegate = entry.group("delegate")
+        previous = wrapper_map.setdefault(wrapper, delegate)
+        if previous != delegate:
+            fail(f"reset-guard wrapper has conflicting delegates: {wrapper}")
+
+    unresolved_wrappers = sorted(
+        handler
+        for _, _, handler in raw_entries
+        if handler.startswith("reset_guarded_") and handler not in wrapper_map
+    )
+    if unresolved_wrappers:
+        fail(f"registered reset-guard wrapper has no delegate mapping: {unresolved_wrappers}")
+
+    entries = [
+        (uri, method, wrapper_map.get(handler, handler))
+        for uri, method, handler in raw_entries
+    ]
+    if len(entries) != len(set(entries)):
+        fail("normal_routes resolves to a duplicate URI/method/handler entry")
 
     direct_by_registration = {
         entry for entry in entries if entry[2] not in {"api_handler", "static_handler"}
