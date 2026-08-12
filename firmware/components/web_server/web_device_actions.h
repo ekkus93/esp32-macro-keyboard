@@ -25,7 +25,7 @@ typedef struct {
                                         const app_v2_device_settings_t *settings,
                                         bool *out_matches);
     app_error_code_t (*restart)(void *context);
-    app_error_code_t (*reset_settings)(void *context);
+    device_controls_reset_settings_outcome_t (*reset_settings)(void *context);
     device_controls_factory_reset_outcome_t (*factory_reset)(void *context);
 } web_device_actions_ops_t;
 
@@ -50,12 +50,17 @@ typedef enum {
     WEB_DEVICE_RESET_SETTINGS_INVALID_BODY,
     WEB_DEVICE_RESET_SETTINGS_INVALID_CONFIRMATION,
     WEB_DEVICE_RESET_SETTINGS_BACKEND_UNAVAILABLE,
+    WEB_DEVICE_RESET_SETTINGS_REBOOT_RECOVERY_REQUIRED,
+    WEB_DEVICE_RESET_SETTINGS_COMMITTED_RESTART_INCOMPLETE,
     WEB_DEVICE_RESET_SETTINGS_INTERNAL,
 } web_device_reset_settings_result_t;
 
 typedef struct {
     web_device_reset_settings_result_t result;
+    /* Primary settings/session error. */
     app_error_code_t detail;
+    /* Restart-ownership error, kept separate from the primary failure. */
+    app_error_code_t restart_detail;
 } web_device_reset_settings_outcome_t;
 
 /* POST /api/v1/device/reset-settings. Requires the exact confirmation

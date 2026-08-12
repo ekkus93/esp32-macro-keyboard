@@ -34,6 +34,8 @@ const char *app_error_code_string(app_error_code_t code) {
         return "auth_state_incomplete";
     case APP_ERROR_RESET_RECOVERY_REQUIRED:
         return "reset_recovery_required";
+    case APP_ERROR_RESET_SETTINGS_INCOMPLETE:
+        return "reset_settings_incomplete";
     case APP_ERROR_RATE_LIMITED:
         return "rate_limited";
     case APP_ERROR_TIMEOUT:

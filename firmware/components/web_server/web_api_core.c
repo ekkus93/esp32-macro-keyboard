@@ -254,6 +254,7 @@ unsigned int web_api_http_status_for_error(app_error_code_t error) {
         return WEB_HTTP_STATUS_NOT_FOUND;
     case APP_ERROR_CONFLICT:
     case APP_ERROR_AUTH_STATE_INCOMPLETE:
+    case APP_ERROR_RESET_SETTINGS_INCOMPLETE:
     case APP_ERROR_EXECUTOR_BUSY:
     case APP_ERROR_EXECUTION_CANCELLED:
         return WEB_HTTP_STATUS_CONFLICT;

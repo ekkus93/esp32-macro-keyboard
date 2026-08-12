@@ -158,7 +158,7 @@ static app_error_code_t device_actions_ops_restart(void *context) {
     return device_controls_restart();
 }
 
-static app_error_code_t device_actions_ops_reset_settings(void *context) {
+static device_controls_reset_settings_outcome_t device_actions_ops_reset_settings(void *context) {
     (void)context;
     return device_controls_reset_settings();
 }
@@ -392,33 +392,55 @@ static app_error_code_t handle_device_reset_settings(const web_api_call_t *call,
         return web_api_handler_error(response, APP_ERROR_INVALID_ARGUMENT,
                                      "invalid reset-settings request", NULL);
     }
+
+    char *json = NULL;
+    web_api_response_t accepted_response = {0};
+    if (web_device_reset_accepted_json(false, true, &json) != APP_ERROR_NONE) {
+        return web_api_handler_error(response, APP_ERROR_INTERNAL, "response encoding failed",
+                                     NULL);
+    }
+    const app_error_code_t prepare_result =
+        web_api_handler_success_json(&accepted_response, WEB_HTTP_STATUS_ACCEPTED, json);
+    web_api_handler_json_free(json);
+    if (prepare_result != APP_ERROR_NONE) {
+        web_api_response_free(&accepted_response);
+        return web_api_handler_error(response, APP_ERROR_INTERNAL, "response encoding failed",
+                                     NULL);
+    }
+
     const web_device_actions_ops_t ops = device_actions_ops();
     const web_device_reset_settings_outcome_t outcome =
         web_device_reset_settings_handle((char *)call->body, call->body_length + 1U, &ops);
     switch (outcome.result) {
     case WEB_DEVICE_RESET_SETTINGS_OK:
-        break;
+    case WEB_DEVICE_RESET_SETTINGS_REBOOT_RECOVERY_REQUIRED:
+        *response = accepted_response;
+        return APP_ERROR_NONE;
     case WEB_DEVICE_RESET_SETTINGS_INVALID_BODY:
+        web_api_response_free(&accepted_response);
         return web_api_handler_error(response, APP_ERROR_INVALID_ARGUMENT,
                                      "invalid reset-settings request", NULL);
     case WEB_DEVICE_RESET_SETTINGS_INVALID_CONFIRMATION:
+        web_api_response_free(&accepted_response);
         return web_api_handler_error(response, APP_ERROR_INVALID_ARGUMENT,
                                      "incorrect confirmation phrase", "confirmation");
     case WEB_DEVICE_RESET_SETTINGS_BACKEND_UNAVAILABLE:
+        web_api_response_free(&accepted_response);
         return web_api_handler_error(response, outcome.detail, "reset-settings unavailable", NULL);
+    case WEB_DEVICE_RESET_SETTINGS_COMMITTED_RESTART_INCOMPLETE:
+        web_api_response_free(&accepted_response);
+        return web_api_response_error(
+            response,
+            &(web_api_error_spec_t){
+                .status = WEB_HTTP_STATUS_CONFLICT,
+                .code = APP_ERROR_RESET_SETTINGS_INCOMPLETE,
+                .message = "settings reset; automatic restart incomplete; restart the device",
+            });
     case WEB_DEVICE_RESET_SETTINGS_INTERNAL:
     default:
+        web_api_response_free(&accepted_response);
         return web_api_handler_error(response, APP_ERROR_INTERNAL, "reset-settings failed", NULL);
     }
-    char *json = NULL;
-    if (web_device_reset_accepted_json(false, true, &json) != APP_ERROR_NONE) {
-        return web_api_handler_error(response, APP_ERROR_INTERNAL, "response encoding failed",
-                                     NULL);
-    }
-    const app_error_code_t result =
-        web_api_handler_success_json(response, WEB_HTTP_STATUS_ACCEPTED, json);
-    web_api_handler_json_free(json);
-    return result;
 }
 
 /* -------------------------------------------------------------------------

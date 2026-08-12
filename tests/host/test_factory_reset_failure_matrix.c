@@ -143,7 +143,7 @@ static app_error_code_t unused_reset_settings(void *context) {
     return APP_ERROR_INTERNAL;
 }
 
-static void live_schedule_restart(void *context, uint32_t delay_ms) {
+static app_error_code_t live_schedule_restart(void *context, uint32_t delay_ms) {
     fixture_t *fixture = context;
     TEST_CHECK(delay_ms > 0U);
     if (fixture->delayed_restart_arm_fails) {
@@ -151,6 +151,7 @@ static void live_schedule_restart(void *context, uint32_t delay_ms) {
     } else {
         fixture->delayed_restart_requested = true;
     }
+    return APP_ERROR_NONE;
 }
 
 static device_controls_reset_ops_t live_ops(fixture_t *fixture) {

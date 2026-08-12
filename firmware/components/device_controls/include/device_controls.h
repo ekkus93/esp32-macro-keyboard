@@ -33,6 +33,18 @@ typedef struct {
     app_error_code_t primary_error;
 } device_controls_factory_reset_outcome_t;
 
+/* H3-034 reset-settings transaction result. `settings_applied` is the durable
+ * boundary. A failed session invalidation is recoverable by an owned reboot
+ * because sessions are RAM-only; restart ownership failure is kept separate
+ * so callers never represent a committed reset as if nothing changed. */
+typedef struct {
+    bool settings_applied;
+    bool sessions_invalidated;
+    bool restart_owned;
+    app_error_code_t primary_error;
+    app_error_code_t restart_error;
+} device_controls_reset_settings_outcome_t;
+
 app_error_code_t device_controls_init(void);
 app_error_code_t device_controls_deinit(void);
 void device_controls_set_indicator(device_indicator_state_t state);
@@ -61,7 +73,12 @@ app_error_code_t device_controls_restart(void);
 /* Applies SPEC_V2.md §11.4 "reset settings", invalidates every session, and
  * schedules a reboot. Repository blobs and the AP/admin credentials are
  * untouched. */
-app_error_code_t device_controls_reset_settings(void);
+device_controls_reset_settings_outcome_t device_controls_reset_settings(void);
+
+/* True after a reset-settings durable commit until reboot. The web route
+ * gate uses this RAM-only latch to prevent old sessions from exercising
+ * normal API authority during the pre-reboot interval. */
+bool device_controls_reset_settings_restart_required(void);
 
 /* Applies SPEC_V2.md §11.4 "factory reset": erases device configuration,
  * credentials, and provisioning state; invalidates every session; deletes

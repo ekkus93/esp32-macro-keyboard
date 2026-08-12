@@ -32,7 +32,11 @@ typedef enum {
     APP_ERROR_AUTH_STATE_INCOMPLETE,
     /* A durable factory-reset journal says destructive cleanup is incomplete.
      * Appended to preserve every existing numeric app-error value. */
-    APP_ERROR_RESET_RECOVERY_REQUIRED
+    APP_ERROR_RESET_RECOVERY_REQUIRED,
+    /* Reset-settings durably changed noncredential configuration but the
+     * operation could not establish the required restart boundary.
+     * Appended to preserve every existing numeric app-error value. */
+    APP_ERROR_RESET_SETTINGS_INCOMPLETE
 } app_error_code_t;
 
 const char *app_error_code_string(app_error_code_t code);

@@ -191,11 +191,59 @@ web_device_reset_settings_handle(char *body, size_t body_capacity,
             .result = WEB_DEVICE_RESET_SETTINGS_INVALID_CONFIRMATION};
     }
 
-    const app_error_code_t result = ops->reset_settings(ops->context);
-    if (result != APP_ERROR_NONE) {
+    const device_controls_reset_settings_outcome_t reset = ops->reset_settings(ops->context);
+    if (!reset.settings_applied) {
+        if (reset.sessions_invalidated || reset.restart_owned ||
+            reset.primary_error == APP_ERROR_NONE || reset.restart_error != APP_ERROR_NONE) {
+            return (web_device_reset_settings_outcome_t){
+                .result = WEB_DEVICE_RESET_SETTINGS_INTERNAL,
+                .detail = APP_ERROR_INTERNAL,
+            };
+        }
         return (web_device_reset_settings_outcome_t){
             .result = WEB_DEVICE_RESET_SETTINGS_BACKEND_UNAVAILABLE,
-            .detail = result,
+            .detail = reset.primary_error,
+        };
+    }
+
+    if (!reset.restart_owned) {
+        if (reset.restart_error == APP_ERROR_NONE ||
+            (reset.sessions_invalidated && reset.primary_error != APP_ERROR_NONE) ||
+            (!reset.sessions_invalidated && reset.primary_error == APP_ERROR_NONE)) {
+            return (web_device_reset_settings_outcome_t){
+                .result = WEB_DEVICE_RESET_SETTINGS_INTERNAL,
+                .detail = APP_ERROR_INTERNAL,
+            };
+        }
+        return (web_device_reset_settings_outcome_t){
+            .result = WEB_DEVICE_RESET_SETTINGS_COMMITTED_RESTART_INCOMPLETE,
+            .detail = reset.primary_error,
+            .restart_detail = reset.restart_error,
+        };
+    }
+    if (reset.restart_error != APP_ERROR_NONE) {
+        return (web_device_reset_settings_outcome_t){
+            .result = WEB_DEVICE_RESET_SETTINGS_INTERNAL,
+            .detail = APP_ERROR_INTERNAL,
+        };
+    }
+
+    if (!reset.sessions_invalidated) {
+        if (reset.primary_error == APP_ERROR_NONE) {
+            return (web_device_reset_settings_outcome_t){
+                .result = WEB_DEVICE_RESET_SETTINGS_INTERNAL,
+                .detail = APP_ERROR_INTERNAL,
+            };
+        }
+        return (web_device_reset_settings_outcome_t){
+            .result = WEB_DEVICE_RESET_SETTINGS_REBOOT_RECOVERY_REQUIRED,
+            .detail = reset.primary_error,
+        };
+    }
+    if (reset.primary_error != APP_ERROR_NONE) {
+        return (web_device_reset_settings_outcome_t){
+            .result = WEB_DEVICE_RESET_SETTINGS_INTERNAL,
+            .detail = APP_ERROR_INTERNAL,
         };
     }
     return (web_device_reset_settings_outcome_t){.result = WEB_DEVICE_RESET_SETTINGS_OK};

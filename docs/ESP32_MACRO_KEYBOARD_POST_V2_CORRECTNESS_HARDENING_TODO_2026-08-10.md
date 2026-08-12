@@ -352,9 +352,10 @@ Assert:
 
 ### H3-034 — Reset-settings semantics
 
-- [ ] Re-audit reset-settings for the same partial-session-invalidation pattern.
-- [ ] Preserve noncredential settings-reset intent while making session/restart semantics explicit.
-- [ ] Add failure tests where invalidation/restart scheduling fails.
+- [x] Re-audit reset-settings for the same partial-session-invalidation pattern.
+- [x] Preserve noncredential settings-reset intent while making session/restart semantics explicit.
+- [x] Add failure tests where invalidation/restart scheduling fails.
+- Evidence (2026-08-12): reset-settings now distinguishes precommit failure from durably-applied partial completion, retains session and restart failures separately, prebuilds the exact SPEC 202 response before mutation, and fails normal API authority closed until reboot. A session-invalidation failure remains accepted only when reboot ownership is established; restart-ownership failure is an explicit 409 `reset_settings_incomplete`. AP/admin credentials, provisioning state, and repository blobs remain preserved. See `docs/implementation-v2/H3_034_RESET_SETTINGS_SEMANTICS_2026-08-12.md`.
 
 ### H3-035 — Hardware interruption evidence
 

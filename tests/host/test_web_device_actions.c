@@ -16,7 +16,7 @@ typedef struct {
     app_error_code_t settings_read_error;
     app_error_code_t password_verify_error;
     app_error_code_t restart_error;
-    app_error_code_t reset_settings_error;
+    device_controls_reset_settings_outcome_t reset_settings_outcome;
     device_controls_factory_reset_outcome_t factory_reset_outcome;
     bool password_matches;
     unsigned int settings_read_calls;
@@ -60,10 +60,10 @@ static app_error_code_t fake_restart(void *context) {
     return fake->restart_error;
 }
 
-static app_error_code_t fake_reset_settings(void *context) {
+static device_controls_reset_settings_outcome_t fake_reset_settings(void *context) {
     fake_t *fake = context;
     ++fake->reset_settings_calls;
-    return fake->reset_settings_error;
+    return fake->reset_settings_outcome;
 }
 
 static device_controls_factory_reset_outcome_t fake_factory_reset(void *context) {
@@ -130,7 +130,11 @@ static void test_restart_null_ops(void) {
 /* ---------------------------------------------------------------------- */
 
 static void test_reset_settings_success(void) {
-    fake_t fake = {0};
+    fake_t fake = {.reset_settings_outcome = {.settings_applied = true,
+                                              .sessions_invalidated = true,
+                                              .restart_owned = true,
+                                              .primary_error = APP_ERROR_NONE,
+                                              .restart_error = APP_ERROR_NONE}};
     const web_device_actions_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body), "{\"confirmation\":\"RESET SETTINGS\"}");
@@ -283,7 +287,11 @@ static void test_reset_settings_zero_capacity_body_wiped(void) {
 }
 
 static void test_reset_settings_backend_failure(void) {
-    fake_t fake = {.reset_settings_error = APP_ERROR_STORAGE_UNAVAILABLE};
+    fake_t fake = {.reset_settings_outcome = {.settings_applied = false,
+                                              .sessions_invalidated = false,
+                                              .restart_owned = false,
+                                              .primary_error = APP_ERROR_STORAGE_UNAVAILABLE,
+                                              .restart_error = APP_ERROR_NONE}};
     const web_device_actions_ops_t ops = operations(&fake);
     char body[TEST_BODY_CAPACITY];
     build_body(body, sizeof(body), "{\"confirmation\":\"RESET SETTINGS\"}");
@@ -293,6 +301,38 @@ static void test_reset_settings_backend_failure(void) {
 
     TEST_CHECK_EQ_INT(WEB_DEVICE_RESET_SETTINGS_BACKEND_UNAVAILABLE, outcome.result);
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, outcome.detail);
+}
+
+static void test_reset_settings_session_failure_is_owned_by_reboot(void) {
+    fake_t fake = {.reset_settings_outcome = {.settings_applied = true,
+                                              .sessions_invalidated = false,
+                                              .restart_owned = true,
+                                              .primary_error = APP_ERROR_IO,
+                                              .restart_error = APP_ERROR_NONE}};
+    const web_device_actions_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"confirmation\":\"RESET SETTINGS\"}");
+    const web_device_reset_settings_outcome_t outcome =
+        web_device_reset_settings_handle(body, sizeof(body), &ops);
+    TEST_CHECK_EQ_INT(WEB_DEVICE_RESET_SETTINGS_REBOOT_RECOVERY_REQUIRED, outcome.result);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, outcome.detail);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, outcome.restart_detail);
+}
+
+static void test_reset_settings_restart_failure_is_committed_partial(void) {
+    fake_t fake = {.reset_settings_outcome = {.settings_applied = true,
+                                              .sessions_invalidated = false,
+                                              .restart_owned = false,
+                                              .primary_error = APP_ERROR_INTERNAL,
+                                              .restart_error = APP_ERROR_IO}};
+    const web_device_actions_ops_t ops = operations(&fake);
+    char body[TEST_BODY_CAPACITY];
+    build_body(body, sizeof(body), "{\"confirmation\":\"RESET SETTINGS\"}");
+    const web_device_reset_settings_outcome_t outcome =
+        web_device_reset_settings_handle(body, sizeof(body), &ops);
+    TEST_CHECK_EQ_INT(WEB_DEVICE_RESET_SETTINGS_COMMITTED_RESTART_INCOMPLETE, outcome.result);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, outcome.detail);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, outcome.restart_detail);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -563,6 +603,8 @@ int main(void) {
     test_reset_settings_null_ops_wipes_body();
     test_reset_settings_zero_capacity_body_wiped();
     test_reset_settings_backend_failure();
+    test_reset_settings_session_failure_is_owned_by_reboot();
+    test_reset_settings_restart_failure_is_committed_partial();
     test_factory_reset_success();
     test_factory_reset_wrong_confirmation_rejected_before_password_check();
     test_factory_reset_wrong_password_rejected();

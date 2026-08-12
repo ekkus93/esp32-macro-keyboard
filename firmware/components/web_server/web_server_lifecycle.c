@@ -6,6 +6,7 @@
 
 #include "api_contracts_v2.h"
 #include "app_error.h"
+#include "device_controls.h"
 #include "factory_reset_state.h"
 #include "setup_contract_v2.h"
 #include "web_server.h"
@@ -18,6 +19,11 @@
 static esp_err_t reset_guarded_request(httpd_req_t *request, esp_err_t (*handler)(httpd_req_t *)) {
     if (request == NULL || handler == NULL) {
         return ESP_FAIL;
+    }
+
+    if (device_controls_reset_settings_restart_required()) {
+        return web_api_send_status_error(request, 503U, APP_ERROR_RESET_SETTINGS_INCOMPLETE,
+                                         "reset-settings restart required");
     }
 
     factory_reset_state_t reset_state = FACTORY_RESET_STATE_NONE;

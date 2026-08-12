@@ -134,9 +134,15 @@ app_error_code_t device_controls_restart(void) {
 
 static size_t g_reset_settings_calls;
 
-app_error_code_t device_controls_reset_settings(void) {
+device_controls_reset_settings_outcome_t device_controls_reset_settings(void) {
     ++g_reset_settings_calls;
-    return APP_ERROR_NONE;
+    return (device_controls_reset_settings_outcome_t){
+        .settings_applied = true,
+        .sessions_invalidated = true,
+        .restart_owned = true,
+        .primary_error = APP_ERROR_NONE,
+        .restart_error = APP_ERROR_NONE,
+    };
 }
 
 static size_t g_factory_reset_calls;

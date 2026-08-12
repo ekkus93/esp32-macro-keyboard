@@ -33,6 +33,8 @@ static TaskHandle_t controls_task_handle;
 static portMUX_TYPE controls_lock = portMUX_INITIALIZER_UNLOCKED;
 static volatile bool controls_stop_requested;
 static bool restart_scheduled;
+static bool restart_schedule_in_progress;
+static bool reset_settings_restart_required;
 static device_indicator_state_t requested_indicator_state = DEVICE_INDICATOR_BOOTING;
 static device_controls_engine_t engine;
 
@@ -372,14 +374,18 @@ static void restart_timer_callback(void *argument) {
     esp_restart();
 }
 
-static void adapter_reset_schedule_restart(void *context, uint32_t delay_ms) {
+static app_error_code_t adapter_reset_schedule_restart(void *context, uint32_t delay_ms) {
     (void)context;
     portENTER_CRITICAL(&controls_lock);
     if (restart_scheduled) {
         portEXIT_CRITICAL(&controls_lock);
-        return;
+        return APP_ERROR_NONE;
     }
-    restart_scheduled = true;
+    if (restart_schedule_in_progress) {
+        portEXIT_CRITICAL(&controls_lock);
+        return APP_ERROR_CONFLICT;
+    }
+    restart_schedule_in_progress = true;
     portEXIT_CRITICAL(&controls_lock);
 
     const esp_timer_create_args_t timer_args = {
@@ -390,13 +396,51 @@ static void adapter_reset_schedule_restart(void *context, uint32_t delay_ms) {
         .skip_unhandled_events = false,
     };
     esp_timer_handle_t timer = NULL;
-    /* A caller (e.g. the HTTP layer) that scheduled this already committed to
-     * returning its "accepted" response; if the timer cannot even be created,
-     * restarting immediately is safer than silently never rebooting into the
-     * state that was just written to NVS. */
-    if (esp_timer_create(&timer_args, &timer) != ESP_OK ||
-        esp_timer_start_once(timer, (uint64_t)delay_ms * UINT64_C(1000)) != ESP_OK) {
+    const esp_err_t create_result = esp_timer_create(&timer_args, &timer);
+    const esp_err_t start_result =
+        create_result == ESP_OK ? esp_timer_start_once(timer, (uint64_t)delay_ms * UINT64_C(1000))
+                                : create_result;
+
+    if (create_result != ESP_OK || start_result != ESP_OK) {
+        if (create_result == ESP_OK && timer != NULL && esp_timer_delete(timer) != ESP_OK) {
+            ESP_LOGE(TAG, "restart timer cleanup failed");
+        }
+        portENTER_CRITICAL(&controls_lock);
+        restart_schedule_in_progress = false;
+        portEXIT_CRITICAL(&controls_lock);
+
+        /* A caller may already have committed durable state. Delayed timer
+         * failure therefore falls back to immediate reboot. If esp_restart()
+         * unexpectedly returns, the in-progress flag is already cleared and
+         * no false `restart_scheduled` ownership is left behind. */
         esp_restart();
+        return APP_ERROR_INTERNAL;
+    }
+
+    portENTER_CRITICAL(&controls_lock);
+    restart_scheduled = true;
+    restart_schedule_in_progress = false;
+    portEXIT_CRITICAL(&controls_lock);
+    return APP_ERROR_NONE;
+}
+
+static void mark_reset_settings_restart_required(void) {
+    portENTER_CRITICAL(&controls_lock);
+    reset_settings_restart_required = true;
+    portEXIT_CRITICAL(&controls_lock);
+}
+
+bool device_controls_reset_settings_restart_required(void) {
+    portENTER_CRITICAL(&controls_lock);
+    const bool required = reset_settings_restart_required;
+    portEXIT_CRITICAL(&controls_lock);
+    return required;
+}
+
+static void secure_zero_reset_settings(app_v2_device_settings_t *settings) {
+    volatile uint8_t *bytes = (volatile uint8_t *)settings;
+    for (size_t index = 0U; index < sizeof(*settings); ++index) {
+        bytes[index] = 0U;
     }
 }
 
@@ -404,7 +448,15 @@ static app_error_code_t adapter_reset_settings_noncredential(void *context) {
     (void)context;
     app_v2_device_settings_t settings = {0};
     bool changed = false;
-    return device_settings_reset_noncredential(&settings, &changed);
+    const app_error_code_t result = device_settings_reset_noncredential(&settings, &changed);
+    secure_zero_reset_settings(&settings);
+    if (result == APP_ERROR_NONE) {
+        /* This latch is deliberately RAM-only. The durable settings record is
+         * already coherent; its purpose is solely to fail normal API authority
+         * closed until the required reboot discards every RAM-only session. */
+        mark_reset_settings_restart_required();
+    }
+    return result;
 }
 
 static app_error_code_t adapter_reset_mark_pending(void *context) {
@@ -459,7 +511,7 @@ app_error_code_t device_controls_restart(void) {
     return device_controls_reset_engine_restart(&operations, DEVICE_CONTROLS_RESTART_DELAY_MS);
 }
 
-app_error_code_t device_controls_reset_settings(void) {
+device_controls_reset_settings_outcome_t device_controls_reset_settings(void) {
     const device_controls_reset_ops_t operations = reset_operations();
     return device_controls_reset_engine_reset_settings(&operations,
                                                        DEVICE_CONTROLS_RESTART_DELAY_MS);

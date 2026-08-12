@@ -15,6 +15,7 @@ typedef struct {
     app_error_code_t delete_blobs_result;
     app_error_code_t cleanup_temporary_result;
     app_error_code_t clear_pending_result;
+    app_error_code_t schedule_restart_result;
     unsigned int reset_settings_calls;
     unsigned int mark_pending_calls;
     unsigned int erase_all_settings_calls;
@@ -86,11 +87,12 @@ static app_error_code_t fake_clear_pending(void *context) {
     return fake->clear_pending_result;
 }
 
-static void fake_schedule_restart(void *context, uint32_t delay_ms) {
+static app_error_code_t fake_schedule_restart(void *context, uint32_t delay_ms) {
     fake_reset_t *fake = context;
     ++fake->schedule_restart_calls;
     fake->restart_sequence = ++fake->sequence;
     fake->last_delay_ms = delay_ms;
+    return fake->schedule_restart_result;
 }
 
 static device_controls_reset_ops_t fake_ops(fake_reset_t *fake) {
@@ -121,8 +123,13 @@ static void test_ops_validation(void) {
         TEST_CHECK(!device_controls_reset_ops_is_valid(&operations));                              \
         TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,                                           \
                              device_controls_reset_engine_restart(&operations, 500U));             \
-        TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,                                           \
-                             device_controls_reset_engine_reset_settings(&operations, 500U));      \
+        const device_controls_reset_settings_outcome_t reset_outcome =                             \
+            device_controls_reset_engine_reset_settings(&operations, 500U);                        \
+        TEST_CHECK(!reset_outcome.settings_applied);                                               \
+        TEST_CHECK(!reset_outcome.sessions_invalidated);                                           \
+        TEST_CHECK(!reset_outcome.restart_owned);                                                  \
+        TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, reset_outcome.primary_error);             \
+        TEST_CHECK_APP_ERROR(APP_ERROR_NONE, reset_outcome.restart_error);                         \
         const device_controls_factory_reset_outcome_t factory_outcome =                            \
             device_controls_reset_engine_factory_reset(&operations, 500U);                         \
         TEST_CHECK(!factory_outcome.durably_accepted);                                             \
@@ -161,8 +168,13 @@ static void test_reset_settings_happy_path(void) {
     fake_reset_t fake;
     fake_init(&fake);
     const device_controls_reset_ops_t operations = fake_ops(&fake);
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         device_controls_reset_engine_reset_settings(&operations, 500U));
+    const device_controls_reset_settings_outcome_t outcome =
+        device_controls_reset_engine_reset_settings(&operations, 500U);
+    TEST_CHECK(outcome.settings_applied);
+    TEST_CHECK(outcome.sessions_invalidated);
+    TEST_CHECK(outcome.restart_owned);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, outcome.primary_error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, outcome.restart_error);
     TEST_CHECK_EQ_U64(1U, fake.reset_settings_calls);
     TEST_CHECK_EQ_U64(1U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
@@ -179,8 +191,13 @@ static void test_reset_settings_aborts_on_settings_failure(void) {
     fake_init(&fake);
     fake.reset_settings_result = APP_ERROR_STORAGE_UNAVAILABLE;
     const device_controls_reset_ops_t operations = fake_ops(&fake);
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE,
-                         device_controls_reset_engine_reset_settings(&operations, 500U));
+    const device_controls_reset_settings_outcome_t outcome =
+        device_controls_reset_engine_reset_settings(&operations, 500U);
+    TEST_CHECK(!outcome.settings_applied);
+    TEST_CHECK(!outcome.sessions_invalidated);
+    TEST_CHECK(!outcome.restart_owned);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, outcome.primary_error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, outcome.restart_error);
     TEST_CHECK_EQ_U64(1U, fake.reset_settings_calls);
     TEST_CHECK_EQ_U64(0U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(0U, fake.schedule_restart_calls);
@@ -191,11 +208,46 @@ static void test_reset_settings_reports_session_failure_but_still_restarts(void)
     fake_init(&fake);
     fake.invalidate_sessions_result = APP_ERROR_INTERNAL;
     const device_controls_reset_ops_t operations = fake_ops(&fake);
-    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL,
-                         device_controls_reset_engine_reset_settings(&operations, 500U));
+    const device_controls_reset_settings_outcome_t outcome =
+        device_controls_reset_engine_reset_settings(&operations, 500U);
+    TEST_CHECK(outcome.settings_applied);
+    TEST_CHECK(!outcome.sessions_invalidated);
+    TEST_CHECK(outcome.restart_owned);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, outcome.primary_error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, outcome.restart_error);
     TEST_CHECK_EQ_U64(1U, fake.reset_settings_calls);
     TEST_CHECK_EQ_U64(1U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
+}
+
+static void test_reset_settings_reports_restart_failure_after_commit(void) {
+    fake_reset_t fake;
+    fake_init(&fake);
+    fake.schedule_restart_result = APP_ERROR_IO;
+    const device_controls_reset_ops_t operations = fake_ops(&fake);
+    const device_controls_reset_settings_outcome_t outcome =
+        device_controls_reset_engine_reset_settings(&operations, 500U);
+    TEST_CHECK(outcome.settings_applied);
+    TEST_CHECK(outcome.sessions_invalidated);
+    TEST_CHECK(!outcome.restart_owned);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, outcome.primary_error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, outcome.restart_error);
+    TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
+}
+
+static void test_reset_settings_preserves_session_and_restart_errors_separately(void) {
+    fake_reset_t fake;
+    fake_init(&fake);
+    fake.invalidate_sessions_result = APP_ERROR_INTERNAL;
+    fake.schedule_restart_result = APP_ERROR_IO;
+    const device_controls_reset_ops_t operations = fake_ops(&fake);
+    const device_controls_reset_settings_outcome_t outcome =
+        device_controls_reset_engine_reset_settings(&operations, 500U);
+    TEST_CHECK(outcome.settings_applied);
+    TEST_CHECK(!outcome.sessions_invalidated);
+    TEST_CHECK(!outcome.restart_owned);
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, outcome.primary_error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, outcome.restart_error);
 }
 
 static void test_factory_reset_happy_path_orders_durable_boundary_first(void) {
@@ -218,8 +270,8 @@ static void test_factory_reset_happy_path_orders_durable_boundary_first(void) {
     TEST_CHECK(fake.erase_all_settings_sequence < fake.invalidate_sessions_sequence);
     TEST_CHECK(fake.invalidate_sessions_sequence < fake.delete_blobs_sequence);
     TEST_CHECK(fake.delete_blobs_sequence < fake.cleanup_temporary_sequence);
-    TEST_CHECK(fake.cleanup_temporary_sequence < fake.clear_pending_sequence);
-    TEST_CHECK(fake.clear_pending_sequence < fake.restart_sequence);
+    TEST_CHECK(fake.cleanup_temporary_sequence < fake.restart_sequence);
+    TEST_CHECK(fake.restart_sequence < fake.clear_pending_sequence);
     TEST_CHECK_EQ_U64(0U, fake.reset_settings_calls);
 }
 
@@ -335,6 +387,20 @@ static void test_factory_reset_replay_is_safe(void) {
     TEST_CHECK_EQ_U64(2U, fake.schedule_restart_calls);
 }
 
+static void test_factory_reset_restart_ownership_failure_keeps_pending(void) {
+    fake_reset_t fake;
+    fake_init(&fake);
+    fake.schedule_restart_result = APP_ERROR_IO;
+    const device_controls_reset_ops_t operations = fake_ops(&fake);
+    const device_controls_factory_reset_outcome_t outcome =
+        device_controls_reset_engine_factory_reset(&operations, 500U);
+    TEST_CHECK(outcome.durably_accepted);
+    TEST_CHECK(outcome.recovery_required);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, outcome.primary_error);
+    TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
+    TEST_CHECK_EQ_U64(0U, fake.clear_pending_calls);
+}
+
 static void test_factory_reset_marker_clear_failure_reboots_into_recovery(void) {
     fake_reset_t fake;
     fake_init(&fake);
@@ -347,7 +413,7 @@ static void test_factory_reset_marker_clear_failure_reboots_into_recovery(void) 
     TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, outcome.primary_error);
     TEST_CHECK_EQ_U64(1U, fake.clear_pending_calls);
     TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
-    TEST_CHECK(fake.clear_pending_sequence < fake.restart_sequence);
+    TEST_CHECK(fake.restart_sequence < fake.clear_pending_sequence);
 }
 
 int main(void) {
@@ -356,6 +422,8 @@ int main(void) {
     test_reset_settings_happy_path();
     test_reset_settings_aborts_on_settings_failure();
     test_reset_settings_reports_session_failure_but_still_restarts();
+    test_reset_settings_reports_restart_failure_after_commit();
+    test_reset_settings_preserves_session_and_restart_errors_separately();
     test_factory_reset_happy_path_orders_durable_boundary_first();
     test_factory_reset_marker_failure_is_nondestructive();
     test_factory_reset_settings_failure_keeps_marker_and_restarts();
@@ -363,6 +431,7 @@ int main(void) {
     test_factory_reset_blob_failure_keeps_marker_and_first_error_wins();
     test_factory_reset_temporary_cleanup_failure_keeps_marker_and_restarts();
     test_factory_reset_replay_is_safe();
+    test_factory_reset_restart_ownership_failure_keeps_pending();
     test_factory_reset_marker_clear_failure_reboots_into_recovery();
     puts("device controls reset engine tests passed");
     return EXIT_SUCCESS;

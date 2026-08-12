@@ -208,12 +208,12 @@ app_error_code_t device_controls_restart(void) {
     return g_restart_result;
 }
 
-static app_error_code_t g_reset_settings_result;
+static device_controls_reset_settings_outcome_t g_reset_settings_outcome;
 static size_t g_reset_settings_calls;
 
-app_error_code_t device_controls_reset_settings(void) {
+device_controls_reset_settings_outcome_t device_controls_reset_settings(void) {
     ++g_reset_settings_calls;
-    return g_reset_settings_result;
+    return g_reset_settings_outcome;
 }
 
 static device_controls_factory_reset_outcome_t g_factory_reset_outcome;
@@ -414,7 +414,13 @@ static void reset_fakes(void) {
     g_device_settings_replace_changed = true;
     g_restart_result = APP_ERROR_NONE;
     g_restart_calls = 0U;
-    g_reset_settings_result = APP_ERROR_NONE;
+    g_reset_settings_outcome = (device_controls_reset_settings_outcome_t){
+        .settings_applied = true,
+        .sessions_invalidated = true,
+        .restart_owned = true,
+        .primary_error = APP_ERROR_NONE,
+        .restart_error = APP_ERROR_NONE,
+    };
     g_reset_settings_calls = 0U;
     g_factory_reset_outcome = (device_controls_factory_reset_outcome_t){
         .durably_accepted = true,

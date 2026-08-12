@@ -61,8 +61,8 @@ ordered = (
     "operations->invalidate_all_sessions(operations->context)",
     "operations->delete_all_blobs(operations->context)",
     "operations->cleanup_temporary_files(operations->context)",
-    "operations->clear_factory_reset_pending(operations->context)",
     "operations->schedule_restart(operations->context, delay_ms)",
+    "operations->clear_factory_reset_pending(operations->context)",
 )
 positions = []
 for required in ordered:
@@ -71,7 +71,7 @@ for required in ordered:
         fail(f"factory-reset H3 step is missing: {required}")
     positions.append(position)
 if positions != sorted(positions):
-    fail("factory-reset H3 order changed: mark -> settings -> sessions -> blobs -> temp -> clear -> reboot")
+    fail("factory-reset H3 order changed: mark -> settings -> sessions -> blobs -> temp -> restart ownership -> clear")
 if "if (marker_result != APP_ERROR_NONE)" not in reset_source:
     fail("factory reset no longer aborts before destruction when marker commit fails")
 
@@ -363,7 +363,7 @@ for line in normal_routes.splitlines():
     if '.uri = "/api/v1' in line and ".handler = reset_guarded_" not in line:
         fail(f"normal API route bypasses factory-reset PENDING gate: {line.strip()}")
 
-schedule_start = controls.find("static void adapter_reset_schedule_restart")
+schedule_start = controls.find("static app_error_code_t adapter_reset_schedule_restart")
 schedule_end = controls.find("static app_error_code_t adapter_reset_settings_noncredential",
                              schedule_start)
 if schedule_start < 0 or schedule_end < 0:
@@ -404,8 +404,163 @@ h3_033 = todo.split("### H3-033 — Failure injection matrix", 1)[1].split(
 )[0]
 if "- [ ]" in h3_033:
     fail("H3-033 TODO still contains unchecked implementation/evidence items")
+
+# H3-034 reset-settings partial-completion semantics.
+app_error_h = read("firmware/components/macro_model/include/app_error.h")
+if "APP_ERROR_RESET_SETTINGS_INCOMPLETE" not in app_error_h:
+    fail("H3-034 stable committed-partial reset-settings error is missing")
+if app_error_h.index("APP_ERROR_RESET_SETTINGS_INCOMPLETE") < app_error_h.index(
+    "APP_ERROR_RESET_RECOVERY_REQUIRED"
+):
+    fail("H3-034 app error must remain appended to preserve existing numeric values")
+
+controls_public = read("firmware/components/device_controls/include/device_controls.h")
+for required in (
+    "device_controls_reset_settings_outcome_t",
+    "bool settings_applied;",
+    "bool sessions_invalidated;",
+    "bool restart_owned;",
+    "app_error_code_t primary_error;",
+    "app_error_code_t restart_error;",
+    "device_controls_reset_settings_restart_required",
+):
+    if required not in controls_public:
+        fail(f"H3-034 structured reset-settings contract is missing: {required}")
+
+reset_header = read("firmware/components/device_controls/device_controls_reset.h")
+if "app_error_code_t (*schedule_restart)" not in reset_header:
+    fail("H3-034 restart ownership is not observable through the reset-engine seam")
+reset_source = read("firmware/components/device_controls/device_controls_reset.c")
+reset_start = reset_source.find("device_controls_reset_engine_reset_settings")
+factory_start = reset_source.find("device_controls_reset_engine_factory_reset")
+if reset_start < 0 or factory_start < 0:
+    fail("H3-034 reset engine functions are missing")
+reset_block = reset_source[reset_start:factory_start]
+for required in (
+    "settings_applied = true",
+    "sessions_invalidated = session_result == APP_ERROR_NONE",
+    "restart_owned = restart_result == APP_ERROR_NONE",
+    "primary_error = session_result",
+    "restart_error = restart_result",
+):
+    if required not in reset_block:
+        fail(f"H3-034 reset-settings outcome lost semantic field: {required}")
+factory_block = reset_source[factory_start:]
+restart_pos = factory_block.find("operations->schedule_restart(operations->context, delay_ms)")
+clear_pos = factory_block.find("operations->clear_factory_reset_pending(operations->context)")
+if restart_pos < 0 or clear_pos < 0 or restart_pos >= clear_pos:
+    fail("factory reset must retain PENDING until restart ownership is established")
+
+controls = read("firmware/components/device_controls/device_controls.c")
+for required in (
+    "static bool restart_schedule_in_progress",
+    "static bool reset_settings_restart_required",
+    "mark_reset_settings_restart_required()",
+    "device_controls_reset_settings_restart_required(void)",
+    "secure_zero_reset_settings(&settings)",
+    "esp_restart();",
+    "return APP_ERROR_INTERNAL;",
+):
+    if required not in controls:
+        fail(f"H3-034 production reset-settings/restart binding is missing: {required}")
+
+web_actions_h = read("firmware/components/web_server/web_device_actions.h")
+for required in (
+    "WEB_DEVICE_RESET_SETTINGS_REBOOT_RECOVERY_REQUIRED",
+    "WEB_DEVICE_RESET_SETTINGS_COMMITTED_RESTART_INCOMPLETE",
+    "app_error_code_t restart_detail;",
+):
+    if required not in web_actions_h:
+        fail(f"H3-034 web outcome classification is missing: {required}")
+web_actions_c = read("firmware/components/web_server/web_device_actions.c")
+for required in (
+    "reset.settings_applied",
+    "reset.sessions_invalidated",
+    "reset.restart_owned",
+    "reset.primary_error",
+    "reset.restart_error",
+    "WEB_DEVICE_RESET_SETTINGS_REBOOT_RECOVERY_REQUIRED",
+    "WEB_DEVICE_RESET_SETTINGS_COMMITTED_RESTART_INCOMPLETE",
+):
+    if required not in web_actions_c:
+        fail(f"H3-034 web reset-settings mapping is missing: {required}")
+
+administration = read("firmware/components/web_server/web_api_administration.c")
+handler_start = administration.find("static app_error_code_t handle_device_reset_settings")
+handler_end = administration.find("static app_error_code_t handle_device_factory_reset", handler_start)
+if handler_start < 0 or handler_end < 0:
+    fail("H3-034 reset-settings HTTP handler is missing")
+handler = administration[handler_start:handler_end]
+prepare_pos = handler.find("web_api_handler_success_json(&accepted_response")
+backend_pos = handler.find("web_device_reset_settings_handle")
+if prepare_pos < 0 or backend_pos < 0 or prepare_pos >= backend_pos:
+    fail("reset-settings 202 response is not fully prepared before durable mutation")
+for required in (
+    "WEB_DEVICE_RESET_SETTINGS_REBOOT_RECOVERY_REQUIRED",
+    "WEB_DEVICE_RESET_SETTINGS_COMMITTED_RESTART_INCOMPLETE",
+    "APP_ERROR_RESET_SETTINGS_INCOMPLETE",
+    "settings reset; automatic restart incomplete; restart the device",
+):
+    if required not in handler:
+        fail(f"H3-034 HTTP partial-completion handling is missing: {required}")
+
+lifecycle = read("firmware/components/web_server/web_server_lifecycle.c")
+for required in (
+    "device_controls_reset_settings_restart_required()",
+    "APP_ERROR_RESET_SETTINGS_INCOMPLETE",
+    "reset-settings restart required",
+):
+    if required not in lifecycle:
+        fail(f"H3-034 pre-reboot authority gate is missing: {required}")
+
+settings_test = read("tests/host/test_device_settings_core.c")
+if "test_reset_preserves_credentials_and_blob_counter" not in settings_test:
+    fail("H3-034 lost proof that noncredential reset preserves credentials/blob counter")
+reset_test = read("tests/host/test_device_controls_reset.c")
+for required in (
+    "test_reset_settings_reports_session_failure_but_still_restarts",
+    "test_reset_settings_reports_restart_failure_after_commit",
+    "test_reset_settings_preserves_session_and_restart_errors_separately",
+    "test_factory_reset_restart_ownership_failure_keeps_pending",
+):
+    if required not in reset_test:
+        fail(f"H3-034 controls failure injection is missing: {required}")
+web_test = read("tests/host/test_web_device_actions.c")
+for required in (
+    "test_reset_settings_session_failure_is_owned_by_reboot",
+    "test_reset_settings_restart_failure_is_committed_partial",
+):
+    if required not in web_test:
+        fail(f"H3-034 web business regression is missing: {required}")
+admin_test = read("tests/host/test_web_api_administration.c")
+for required in (
+    "test_reset_settings_precommit_failure_is_not_202",
+    "test_reset_settings_session_failure_stays_202_when_reboot_owned",
+    "test_reset_settings_restart_failure_is_explicit_409",
+):
+    if required not in admin_test:
+        fail(f"H3-034 HTTP regression is missing: {required}")
+lifecycle_test = read("tests/host/test_web_server_lifecycle.c")
+if "test_reset_settings_restart_required_denies_normal_api" not in lifecycle_test:
+    fail("H3-034 pre-reboot normal-authority regression is missing")
+
+web_api_core = read("firmware/components/web_server/web_api_core.c")
+conflict_block = web_api_core.split("case APP_ERROR_CONFLICT:", 1)[1].split(
+    "return WEB_HTTP_STATUS_CONFLICT;", 1
+)[0]
+if "APP_ERROR_RESET_SETTINGS_INCOMPLETE" not in conflict_block:
+    fail("reset-settings committed-partial error no longer maps to HTTP 409")
+
+todo = read("docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md")
 h3_034 = todo.split("### H3-034 — Reset-settings semantics", 1)[1].split(
     "### H3-035 — Hardware interruption evidence", 1
 )[0]
-if "- [ ]" not in h3_034:
-    fail("H3-034 was incorrectly closed by H3-033 work")
+if "- [ ]" in h3_034:
+    fail("H3-034 TODO still contains unchecked implementation/evidence items")
+h3_035 = todo.split("### H3-035 — Hardware interruption evidence", 1)[1].split(
+    "### Phase H3 exit gate", 1
+)[0]
+if "- [ ]" not in h3_035:
+    fail("H3-035 was incorrectly closed by H3-034 work")
+
+print("H3-034 reset-settings semantics guard passed")

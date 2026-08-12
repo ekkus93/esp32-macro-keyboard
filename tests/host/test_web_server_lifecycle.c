@@ -57,6 +57,7 @@
 
 static factory_reset_state_t g_factory_reset_state = FACTORY_RESET_STATE_NONE;
 static app_error_code_t g_factory_reset_state_read_result = APP_ERROR_NONE;
+static bool g_reset_settings_restart_required;
 static unsigned int g_reset_gate_error_calls;
 static unsigned int g_reset_gate_status;
 static app_error_code_t g_reset_gate_code;
@@ -71,6 +72,12 @@ app_error_code_t factory_reset_state_read(factory_reset_state_t *out_state) {
     }
     *out_state = g_factory_reset_state;
     return APP_ERROR_NONE;
+}
+
+bool device_controls_reset_settings_restart_required(void);
+
+bool device_controls_reset_settings_restart_required(void) {
+    return g_reset_settings_restart_required;
 }
 
 esp_err_t web_api_send_status_error(httpd_req_t *request, unsigned int status,
@@ -220,6 +227,7 @@ static void reset_all(void) {
     setup_session = (app_v2_setup_session_t){0};
     g_factory_reset_state = FACTORY_RESET_STATE_NONE;
     g_factory_reset_state_read_result = APP_ERROR_NONE;
+    g_reset_settings_restart_required = false;
     g_reset_gate_error_calls = 0U;
     g_reset_gate_status = 0U;
     g_reset_gate_code = APP_ERROR_NONE;
@@ -514,6 +522,25 @@ static void test_pending_factory_reset_denies_every_normal_api_route(void) {
     TEST_CHECK_EQ_INT(APP_ERROR_NONE, web_server_stop());
 }
 
+static void test_reset_settings_restart_required_denies_normal_api(void) {
+    reset_all();
+    g_reset_settings_restart_required = true;
+    web_server_config_t configuration = make_normal_config();
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, web_server_start(&configuration));
+
+    esp_err_t (*resolved_handler)(httpd_req_t *) = NULL;
+    TEST_CHECK_EQ_INT(
+        FAKE_HTTPD_ROUTE_FOUND,
+        fake_httpd_router_resolve("/api/v1/auth/login", HTTP_POST, &resolved_handler));
+    httpd_req_t request = {0};
+    TEST_CHECK_EQ_INT(ESP_OK, resolved_handler(&request));
+    TEST_CHECK_EQ_U64(503U, g_reset_gate_status);
+    TEST_CHECK_APP_ERROR(APP_ERROR_RESET_SETTINGS_INCOMPLETE, g_reset_gate_code);
+    TEST_CHECK_EQ_STRING("reset-settings restart required", g_reset_gate_message);
+
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, web_server_stop());
+}
+
 static void test_reset_journal_read_failure_denies_normal_api(void) {
     reset_all();
     g_factory_reset_state_read_result = APP_ERROR_IO;
@@ -537,6 +564,7 @@ int main(void) {
     test_unprovisioned_route_surface();
     test_provisioned_route_surface();
     test_pending_factory_reset_denies_every_normal_api_route();
+    test_reset_settings_restart_required_denies_normal_api();
     test_reset_journal_read_failure_denies_normal_api();
     test_route_surface_swaps_across_provisioning_transition();
 

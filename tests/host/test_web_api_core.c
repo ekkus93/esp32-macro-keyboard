@@ -250,6 +250,7 @@ static void test_error_status_mapping(void) {
     TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_STORAGE_CORRUPT));
     TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_USB_NOT_READY));
     TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_RESET_RECOVERY_REQUIRED));
+    TEST_CHECK_EQ_U64(409U, web_api_http_status_for_error(APP_ERROR_RESET_SETTINGS_INCOMPLETE));
     TEST_CHECK_EQ_U64(503U, web_api_http_status_for_error(APP_ERROR_TIMEOUT));
     TEST_CHECK_EQ_U64(401U, web_api_http_status_for_error(APP_ERROR_AUTH_REQUIRED));
     TEST_CHECK_EQ_U64(401U, web_api_http_status_for_error(APP_ERROR_AUTH_FAILED));
