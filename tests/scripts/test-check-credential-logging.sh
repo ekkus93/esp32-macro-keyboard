@@ -106,4 +106,29 @@ void leak_buffer(const unsigned char *verifier, unsigned length) {
 SOURCE
 expect_fail 'ESP log buffer sensitive identifier' 'credential-bearing output is forbidden'
 
+
+write_valid_fixture
+cat >"${temporary_dir}/firmware/components/direct_log_write_leak.c" <<'SOURCE'
+void leak_direct_log_write(const char *session_token) {
+    esp_log_write(ESP_LOG_WARN, TAG, "%s", session_token);
+}
+SOURCE
+expect_fail 'direct esp_log_write sensitive identifier' 'credential-bearing output is forbidden'
+
+write_valid_fixture
+cat >"${temporary_dir}/firmware/components/direct_log_buffer_leak.c" <<'SOURCE'
+void leak_direct_log_buffer(const unsigned char *verifier, unsigned length) {
+    esp_log_buffer_hex(TAG, verifier, length);
+}
+SOURCE
+expect_fail 'direct esp_log_buffer sensitive identifier' 'credential-bearing output is forbidden'
+
+write_valid_fixture
+cat >"${temporary_dir}/firmware/components/rom_printf_leak.c" <<'SOURCE'
+void leak_rom_printf(const char *setup_code) {
+    esp_rom_printf("%s", setup_code);
+}
+SOURCE
+expect_fail 'ROM printf sensitive identifier' 'credential-bearing output is forbidden'
+
 printf 'check-credential-logging regression tests passed: %d\n' "${pass_count}"

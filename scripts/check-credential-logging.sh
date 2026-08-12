@@ -14,7 +14,11 @@ from pathlib import Path
 LEGACY_OPTIONS = {"CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG"}
 STRING_LITERAL_SOURCE = r'"(?:\\.|[^"\\])*"'
 STRING_LITERAL = re.compile(STRING_LITERAL_SOURCE)
-OUTPUT_SINK = r"(?:ESP_(?:EARLY_|DRAM_)?LOG[A-Z_]*|printf|fprintf|puts|fputs|vprintf|vfprintf)"
+OUTPUT_SINK = (
+    r"(?:ESP_(?:EARLY_|DRAM_)?LOG[A-Z_]*|"
+    r"esp_log_(?:writev?|buffer_(?:hex|char|hexdump))|"
+    r"esp_rom_printf|ets_printf|printf|fprintf|puts|fputs|vprintf|vfprintf)"
+)
 OUTPUT_CALL = re.compile(
     rf"(?<![A-Za-z0-9_]){OUTPUT_SINK}\s*\((?:{STRING_LITERAL_SOURCE}|[^\";])*\);",
     re.DOTALL,
