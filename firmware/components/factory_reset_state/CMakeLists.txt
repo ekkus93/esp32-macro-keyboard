@@ -1,27 +1,14 @@
 idf_component_register(
     SRCS
-    "app_core.c"
-    "app_core_sequence.c"
+    "factory_reset_state.c"
+    "factory_reset_state_core.c"
     INCLUDE_DIRS
     "include"
     PRIV_INCLUDE_DIRS
     "."
     REQUIRES
     macro_model
-    support
-    app_contracts_v2
-    device_settings
-    factory_reset_state
-    provisioning
-    storage
-    usb_keyboard
-    macro_executor
-    device_controls
-    wifi_ap
-    auth
-    web_server
     nvs_flash
-    esp_hw_support
 )
 
 target_compile_options(

@@ -756,6 +756,38 @@ target_include_directories(
 register_host_test(usb_keyboard_tests usb_keyboard usb)
 
 add_executable(
+    factory_reset_state_core_tests
+    test_factory_reset_state_core.c
+    ../../firmware/components/factory_reset_state/factory_reset_state_core.c
+)
+target_include_directories(
+    factory_reset_state_core_tests
+    PRIVATE ../../firmware/components/macro_model/include
+            ../../firmware/components/factory_reset_state/include
+            ../../firmware/components/factory_reset_state
+)
+register_host_test(
+    factory_reset_state_core_tests factory_reset_state_core "startup;controls"
+)
+
+add_executable(
+    factory_reset_state_adapter_tests
+    test_factory_reset_state_adapter.c
+    ../../firmware/components/factory_reset_state/factory_reset_state.c
+    ../../firmware/components/factory_reset_state/factory_reset_state_core.c
+)
+target_include_directories(
+    factory_reset_state_adapter_tests
+    PRIVATE fakes/nvs_stub
+            ../../firmware/components/macro_model/include
+            ../../firmware/components/factory_reset_state/include
+            ../../firmware/components/factory_reset_state
+)
+register_host_test(
+    factory_reset_state_adapter_tests factory_reset_state_adapter "startup;controls"
+)
+
+add_executable(
     device_controls_tests test_device_controls.c
                           ../../firmware/components/device_controls/device_controls_logic.c
 )

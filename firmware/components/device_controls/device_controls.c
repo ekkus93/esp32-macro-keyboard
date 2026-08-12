@@ -14,6 +14,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_timer.h"
+#include "factory_reset_state.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -397,6 +398,16 @@ static app_error_code_t adapter_reset_settings_noncredential(void *context) {
     return device_settings_reset_noncredential(&settings, &changed);
 }
 
+static app_error_code_t adapter_reset_mark_pending(void *context) {
+    (void)context;
+    return factory_reset_state_mark_pending();
+}
+
+static app_error_code_t adapter_reset_clear_pending(void *context) {
+    (void)context;
+    return factory_reset_state_clear();
+}
+
 static app_error_code_t adapter_reset_erase_all_settings(void *context) {
     (void)context;
     app_v2_device_settings_t settings = {0};
@@ -419,9 +430,11 @@ static device_controls_reset_ops_t reset_operations(void) {
     return (device_controls_reset_ops_t){
         .context = NULL,
         .reset_settings_noncredential = adapter_reset_settings_noncredential,
+        .mark_factory_reset_pending = adapter_reset_mark_pending,
         .erase_all_settings = adapter_reset_erase_all_settings,
         .invalidate_all_sessions = adapter_reset_invalidate_all_sessions,
         .delete_all_blobs = adapter_reset_delete_all_blobs,
+        .clear_factory_reset_pending = adapter_reset_clear_pending,
         .schedule_restart = adapter_reset_schedule_restart,
     };
 }

@@ -17,6 +17,7 @@
 #include "esp_log.h"
 #include "esp_random.h"
 #include "executor_health.h"
+#include "factory_reset_state.h"
 #include "http_health.h"
 #include "macro_executor.h"
 #include "nvs_flash.h"
@@ -55,6 +56,15 @@ static app_core_nvs_result_t adapter_nvs_init(void *context) {
 
 static app_error_code_t adapter_settings_init(void *context) {
     (void)context;
+    factory_reset_state_t reset_state = FACTORY_RESET_STATE_NONE;
+    const app_error_code_t reset_result = factory_reset_state_read(&reset_state);
+    if (reset_result != APP_ERROR_NONE) {
+        return reset_result;
+    }
+    if (reset_state == FACTORY_RESET_STATE_PENDING) {
+        ESP_LOGE(TAG, "factory reset recovery is pending; normal/setup services are blocked");
+        return APP_ERROR_RESET_RECOVERY_REQUIRED;
+    }
     return device_settings_init();
 }
 

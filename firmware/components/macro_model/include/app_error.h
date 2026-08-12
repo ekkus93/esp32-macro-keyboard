@@ -29,7 +29,10 @@ typedef enum {
     /* The authoritative credential changed, but authentication/session cleanup
      * is not yet fully coherent. Appended to preserve all pre-existing numeric
      * error values. */
-    APP_ERROR_AUTH_STATE_INCOMPLETE
+    APP_ERROR_AUTH_STATE_INCOMPLETE,
+    /* A durable factory-reset journal says destructive cleanup is incomplete.
+     * Appended to preserve every existing numeric app-error value. */
+    APP_ERROR_RESET_RECOVERY_REQUIRED
 } app_error_code_t;
 
 const char *app_error_code_string(app_error_code_t code);

@@ -13,6 +13,7 @@ idf_component_register(
     support
     app_contracts_v2
     device_settings
+    factory_reset_state
     auth
     storage
     esp_system

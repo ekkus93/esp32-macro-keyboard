@@ -296,11 +296,13 @@ After a returned `204` assert without reboot:
 
 ### H3-030 — Design durable reset state
 
-- [ ] Choose and document a minimal durable reset marker/state machine.
-- [ ] Ensure the marker is committed before returning an accepted reset response.
-- [ ] Define boot behavior for reset-pending/reset-cleanup-required state.
-- [ ] Ensure reset mode cannot expose ordinary normal operation with ambiguous state.
-- [ ] Keep the mechanism independent from repository semantics; blobs remain opaque firmware storage.
+- Evidence (2026-08-11): H3-030 uses a dedicated two-state NVS journal (`NONE`/`PENDING`) in namespace `reset_journal`, key `factory_reset`. `PENDING` is committed before any destructive factory-reset effect; marker commit failure is nondestructive. Pending/corrupt/unreadable journal state blocks boot before device settings, storage, auth, USB, executor, controls, Wi-Fi, or HTTP startup. The journal component has no repository/storage dependency. See `docs/implementation-v2/H3_030_DURABLE_FACTORY_RESET_STATE_2026-08-11.md`.
+
+- [x] Choose and document a minimal durable reset marker/state machine.
+- [x] Ensure the marker is committed before returning an accepted reset response.
+- [x] Define boot behavior for reset-pending/reset-cleanup-required state.
+- [x] Ensure reset mode cannot expose ordinary normal operation with ambiguous state.
+- [x] Keep the mechanism independent from repository semantics; blobs remain opaque firmware storage.
 
 ### H3-031 — Make reset stages idempotent
 

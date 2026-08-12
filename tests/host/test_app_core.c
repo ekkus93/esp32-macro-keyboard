@@ -35,6 +35,7 @@ typedef struct {
     provisioning_bootstrap_t bootstrap;
     char setup_code[APP_V2_SETUP_CODE_BUFFER_BYTES];
     app_core_nvs_result_t nvs_result;
+    app_error_code_t settings_init_result;
     failure_stage_t failure_stage;
     bool storage_owned;
     bool fail_wifi_stop;
@@ -106,6 +107,9 @@ static app_core_nvs_result_t fake_nvs_init(void *context) {
 static app_error_code_t fake_settings_init(void *context) {
     fixture_t *fixture = context;
     record(fixture, "settings_init");
+    if (fixture->settings_init_result != APP_ERROR_NONE) {
+        return fixture->settings_init_result;
+    }
     return stage_result(fixture, FAIL_SETTINGS_INIT);
 }
 
@@ -389,6 +393,25 @@ static void test_startup_failure_matrix(void) {
     expect_stage_failure(false, FAIL_HTTP_START);
 }
 
+static void test_factory_reset_pending_blocks_all_runtime_startup(void) {
+    fixture_t fixture;
+    reset_fixture(&fixture, true);
+    fixture.settings_init_result = APP_ERROR_RESET_RECOVERY_REQUIRED;
+    app_core_ops_t ops = operations(&fixture);
+    TEST_CHECK_APP_ERROR(APP_ERROR_RESET_RECOVERY_REQUIRED, app_core_sequence_start(&ops));
+    TEST_CHECK_EQ_U64(1U, count_call(&fixture, "settings_init"));
+    TEST_CHECK_EQ_U64(0U, count_call(&fixture, "settings_read"));
+    TEST_CHECK_EQ_U64(0U, count_call(&fixture, "storage_mount"));
+    TEST_CHECK_EQ_U64(0U, count_call(&fixture, "auth_init"));
+    TEST_CHECK_EQ_U64(0U, count_call(&fixture, "usb_init"));
+    TEST_CHECK_EQ_U64(0U, count_call(&fixture, "executor_init"));
+    TEST_CHECK_EQ_U64(0U, count_call(&fixture, "controls_init"));
+    TEST_CHECK_EQ_U64(0U, count_call(&fixture, "wifi_start"));
+    TEST_CHECK_EQ_U64(0U, count_call(&fixture, "http_start"));
+    TEST_CHECK_EQ_U64(1U, count_call(&fixture, "nvs_deinit"));
+    TEST_CHECK_EQ_U64(1U, count_call(&fixture, "indicator_fatal"));
+}
+
 static void test_nvs_failure_cleanup(void) {
     fixture_t fixture;
     reset_fixture(&fixture, true);
@@ -452,6 +475,7 @@ int main(void) {
     test_normal_start_uses_v2_settings();
     test_setup_start_uses_bootstrap_ap_and_random_code();
     test_startup_failure_matrix();
+    test_factory_reset_pending_blocks_all_runtime_startup();
     test_nvs_failure_cleanup();
     test_cleanup_failure_is_reported();
     puts("app core tests passed");

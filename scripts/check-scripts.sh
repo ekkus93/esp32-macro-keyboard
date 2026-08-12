@@ -26,6 +26,7 @@ python3 scripts/check-v2-api-routes.py
 python3 scripts/check-web-route-dispatch-sync.py
 python3 scripts/check-h9-architecture.py
 python3 scripts/check-h2-architecture.py
+python3 scripts/check-h3-architecture.py
 python3 scripts/check-v2-auth-policy.py
 python3 tests/scripts/test-generate-v2-macro-corpus.py
 python3 tests/scripts/test-v2-035-hardware.py

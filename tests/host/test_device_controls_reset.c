@@ -9,14 +9,25 @@
 
 typedef struct {
     app_error_code_t reset_settings_result;
+    app_error_code_t mark_pending_result;
     app_error_code_t erase_all_settings_result;
     app_error_code_t invalidate_sessions_result;
     app_error_code_t delete_blobs_result;
+    app_error_code_t clear_pending_result;
     unsigned int reset_settings_calls;
+    unsigned int mark_pending_calls;
     unsigned int erase_all_settings_calls;
     unsigned int invalidate_sessions_calls;
     unsigned int delete_blobs_calls;
+    unsigned int clear_pending_calls;
     unsigned int schedule_restart_calls;
+    unsigned int sequence;
+    unsigned int mark_pending_sequence;
+    unsigned int erase_all_settings_sequence;
+    unsigned int invalidate_sessions_sequence;
+    unsigned int delete_blobs_sequence;
+    unsigned int clear_pending_sequence;
+    unsigned int restart_sequence;
     uint32_t last_delay_ms;
 } fake_reset_t;
 
@@ -30,27 +41,45 @@ static app_error_code_t fake_reset_settings(void *context) {
     return fake->reset_settings_result;
 }
 
+static app_error_code_t fake_mark_pending(void *context) {
+    fake_reset_t *fake = context;
+    ++fake->mark_pending_calls;
+    fake->mark_pending_sequence = ++fake->sequence;
+    return fake->mark_pending_result;
+}
+
 static app_error_code_t fake_erase_all_settings(void *context) {
     fake_reset_t *fake = context;
     ++fake->erase_all_settings_calls;
+    fake->erase_all_settings_sequence = ++fake->sequence;
     return fake->erase_all_settings_result;
 }
 
 static app_error_code_t fake_invalidate_sessions(void *context) {
     fake_reset_t *fake = context;
     ++fake->invalidate_sessions_calls;
+    fake->invalidate_sessions_sequence = ++fake->sequence;
     return fake->invalidate_sessions_result;
 }
 
 static app_error_code_t fake_delete_blobs(void *context) {
     fake_reset_t *fake = context;
     ++fake->delete_blobs_calls;
+    fake->delete_blobs_sequence = ++fake->sequence;
     return fake->delete_blobs_result;
+}
+
+static app_error_code_t fake_clear_pending(void *context) {
+    fake_reset_t *fake = context;
+    ++fake->clear_pending_calls;
+    fake->clear_pending_sequence = ++fake->sequence;
+    return fake->clear_pending_result;
 }
 
 static void fake_schedule_restart(void *context, uint32_t delay_ms) {
     fake_reset_t *fake = context;
     ++fake->schedule_restart_calls;
+    fake->restart_sequence = ++fake->sequence;
     fake->last_delay_ms = delay_ms;
 }
 
@@ -58,9 +87,11 @@ static device_controls_reset_ops_t fake_ops(fake_reset_t *fake) {
     return (device_controls_reset_ops_t){
         .context = fake,
         .reset_settings_noncredential = fake_reset_settings,
+        .mark_factory_reset_pending = fake_mark_pending,
         .erase_all_settings = fake_erase_all_settings,
         .invalidate_all_sessions = fake_invalidate_sessions,
         .delete_all_blobs = fake_delete_blobs,
+        .clear_factory_reset_pending = fake_clear_pending,
         .schedule_restart = fake_schedule_restart,
     };
 }
@@ -86,15 +117,15 @@ static void test_ops_validation(void) {
     } while (0)
 
     CHECK_MISSING(reset_settings_noncredential);
+    CHECK_MISSING(mark_factory_reset_pending);
     CHECK_MISSING(erase_all_settings);
     CHECK_MISSING(invalidate_all_sessions);
     CHECK_MISSING(delete_all_blobs);
+    CHECK_MISSING(clear_factory_reset_pending);
     CHECK_MISSING(schedule_restart);
 #undef CHECK_MISSING
 }
 
-/* SPEC_V2.md §13.12 "restart": no settings, credential, or repository change,
- * only a scheduled reboot. */
 static void test_restart_only_schedules_reboot(void) {
     fake_reset_t fake;
     fake_init(&fake);
@@ -103,13 +134,13 @@ static void test_restart_only_schedules_reboot(void) {
     TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
     TEST_CHECK_EQ_U64(750U, fake.last_delay_ms);
     TEST_CHECK_EQ_U64(0U, fake.reset_settings_calls);
+    TEST_CHECK_EQ_U64(0U, fake.mark_pending_calls);
     TEST_CHECK_EQ_U64(0U, fake.erase_all_settings_calls);
     TEST_CHECK_EQ_U64(0U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(0U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(0U, fake.clear_pending_calls);
 }
 
-/* SPEC_V2.md §11.4/§13.12 "reset-settings": settings reset, then invalidate
- * sessions, then schedule a reboot. Blobs are never touched. */
 static void test_reset_settings_happy_path(void) {
     fake_reset_t fake;
     fake_init(&fake);
@@ -120,12 +151,12 @@ static void test_reset_settings_happy_path(void) {
     TEST_CHECK_EQ_U64(1U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
     TEST_CHECK_EQ_U64(500U, fake.last_delay_ms);
+    TEST_CHECK_EQ_U64(0U, fake.mark_pending_calls);
     TEST_CHECK_EQ_U64(0U, fake.erase_all_settings_calls);
     TEST_CHECK_EQ_U64(0U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(0U, fake.clear_pending_calls);
 }
 
-/* A settings-write failure must abort before sessions are touched or a reboot
- * is scheduled -- nothing destructive begins from a failed first step. */
 static void test_reset_settings_aborts_on_settings_failure(void) {
     fake_reset_t fake;
     fake_init(&fake);
@@ -138,9 +169,6 @@ static void test_reset_settings_aborts_on_settings_failure(void) {
     TEST_CHECK_EQ_U64(0U, fake.schedule_restart_calls);
 }
 
-/* A session-invalidation failure is reported but still lets the reboot
- * happen, because the settings write already succeeded and must take
- * effect. */
 static void test_reset_settings_reports_session_failure_but_still_restarts(void) {
     fake_reset_t fake;
     fake_init(&fake);
@@ -153,57 +181,70 @@ static void test_reset_settings_reports_session_failure_but_still_restarts(void)
     TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
 }
 
-/* SPEC_V2.md §11.4/§13.12 "factory-reset": erase settings, then invalidate
- * sessions and delete every blob, then schedule a reboot. */
-static void test_factory_reset_happy_path(void) {
+static void test_factory_reset_happy_path_orders_durable_boundary_first(void) {
     fake_reset_t fake;
     fake_init(&fake);
     const device_controls_reset_ops_t operations = fake_ops(&fake);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          device_controls_reset_engine_factory_reset(&operations, 500U));
+    TEST_CHECK_EQ_U64(1U, fake.mark_pending_calls);
     TEST_CHECK_EQ_U64(1U, fake.erase_all_settings_calls);
     TEST_CHECK_EQ_U64(1U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(1U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(1U, fake.clear_pending_calls);
     TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
+    TEST_CHECK(fake.mark_pending_sequence < fake.erase_all_settings_sequence);
+    TEST_CHECK(fake.erase_all_settings_sequence < fake.invalidate_sessions_sequence);
+    TEST_CHECK(fake.invalidate_sessions_sequence < fake.delete_blobs_sequence);
+    TEST_CHECK(fake.delete_blobs_sequence < fake.clear_pending_sequence);
+    TEST_CHECK(fake.clear_pending_sequence < fake.restart_sequence);
     TEST_CHECK_EQ_U64(0U, fake.reset_settings_calls);
 }
 
-/* If erasing settings itself fails, nothing else runs: no sessions
- * invalidated, no blobs deleted, no reboot scheduled. A failed factory reset
- * must not destroy the repository while leaving old credentials in place. */
-static void test_factory_reset_aborts_on_settings_failure(void) {
+static void test_factory_reset_marker_failure_is_nondestructive(void) {
+    fake_reset_t fake;
+    fake_init(&fake);
+    fake.mark_pending_result = APP_ERROR_STORAGE_UNAVAILABLE;
+    const device_controls_reset_ops_t operations = fake_ops(&fake);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE,
+                         device_controls_reset_engine_factory_reset(&operations, 500U));
+    TEST_CHECK_EQ_U64(1U, fake.mark_pending_calls);
+    TEST_CHECK_EQ_U64(0U, fake.erase_all_settings_calls);
+    TEST_CHECK_EQ_U64(0U, fake.invalidate_sessions_calls);
+    TEST_CHECK_EQ_U64(0U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(0U, fake.clear_pending_calls);
+    TEST_CHECK_EQ_U64(0U, fake.schedule_restart_calls);
+}
+
+static void test_factory_reset_settings_failure_keeps_marker_and_restarts(void) {
     fake_reset_t fake;
     fake_init(&fake);
     fake.erase_all_settings_result = APP_ERROR_IO;
     const device_controls_reset_ops_t operations = fake_ops(&fake);
     TEST_CHECK_APP_ERROR(APP_ERROR_IO,
                          device_controls_reset_engine_factory_reset(&operations, 500U));
+    TEST_CHECK_EQ_U64(1U, fake.mark_pending_calls);
     TEST_CHECK_EQ_U64(1U, fake.erase_all_settings_calls);
     TEST_CHECK_EQ_U64(0U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(0U, fake.delete_blobs_calls);
-    TEST_CHECK_EQ_U64(0U, fake.schedule_restart_calls);
+    TEST_CHECK_EQ_U64(0U, fake.clear_pending_calls);
+    TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
 }
 
-/* Once settings are erased, a session-invalidation failure must not stop
- * blob deletion or the reboot -- every remaining destructive step is still
- * attempted, and the first error is reported. */
-static void test_factory_reset_continues_past_session_failure(void) {
+static void test_factory_reset_cleanup_failure_keeps_marker_and_restarts(void) {
     fake_reset_t fake;
     fake_init(&fake);
     fake.invalidate_sessions_result = APP_ERROR_INTERNAL;
     const device_controls_reset_ops_t operations = fake_ops(&fake);
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL,
                          device_controls_reset_engine_factory_reset(&operations, 500U));
-    TEST_CHECK_EQ_U64(1U, fake.erase_all_settings_calls);
     TEST_CHECK_EQ_U64(1U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(1U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(0U, fake.clear_pending_calls);
     TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
 }
 
-/* Symmetric case: a blob-deletion failure must not stop session invalidation
- * or the reboot, and the first error observed (session invalidation, which
- * runs first) wins over the later blob-deletion error. */
-static void test_factory_reset_continues_past_blob_failure_first_error_wins(void) {
+static void test_factory_reset_blob_failure_keeps_marker_and_first_error_wins(void) {
     fake_reset_t fake;
     fake_init(&fake);
     fake.invalidate_sessions_result = APP_ERROR_INTERNAL;
@@ -213,7 +254,20 @@ static void test_factory_reset_continues_past_blob_failure_first_error_wins(void
                          device_controls_reset_engine_factory_reset(&operations, 500U));
     TEST_CHECK_EQ_U64(1U, fake.invalidate_sessions_calls);
     TEST_CHECK_EQ_U64(1U, fake.delete_blobs_calls);
+    TEST_CHECK_EQ_U64(0U, fake.clear_pending_calls);
     TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
+}
+
+static void test_factory_reset_marker_clear_failure_reboots_into_recovery(void) {
+    fake_reset_t fake;
+    fake_init(&fake);
+    fake.clear_pending_result = APP_ERROR_STORAGE_UNAVAILABLE;
+    const device_controls_reset_ops_t operations = fake_ops(&fake);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE,
+                         device_controls_reset_engine_factory_reset(&operations, 500U));
+    TEST_CHECK_EQ_U64(1U, fake.clear_pending_calls);
+    TEST_CHECK_EQ_U64(1U, fake.schedule_restart_calls);
+    TEST_CHECK(fake.clear_pending_sequence < fake.restart_sequence);
 }
 
 int main(void) {
@@ -222,10 +276,12 @@ int main(void) {
     test_reset_settings_happy_path();
     test_reset_settings_aborts_on_settings_failure();
     test_reset_settings_reports_session_failure_but_still_restarts();
-    test_factory_reset_happy_path();
-    test_factory_reset_aborts_on_settings_failure();
-    test_factory_reset_continues_past_session_failure();
-    test_factory_reset_continues_past_blob_failure_first_error_wins();
+    test_factory_reset_happy_path_orders_durable_boundary_first();
+    test_factory_reset_marker_failure_is_nondestructive();
+    test_factory_reset_settings_failure_keeps_marker_and_restarts();
+    test_factory_reset_cleanup_failure_keeps_marker_and_restarts();
+    test_factory_reset_blob_failure_keeps_marker_and_first_error_wins();
+    test_factory_reset_marker_clear_failure_reboots_into_recovery();
     puts("device controls reset engine tests passed");
     return EXIT_SUCCESS;
 }
