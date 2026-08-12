@@ -488,7 +488,9 @@ describe("MacrosPage — V2-093 Quick Send", () => {
       await click(buttonWithText("Send"));
       await tick(0);
 
-      expect(container.textContent).toContain("Run confirm in the device serial console");
+      expect(container.textContent).toContain(
+        "Run confirm in the device serial console",
+      );
       expect(buttonWithText("Cancel and release all keys")).toBeDefined();
 
       planJsonResponse(statusAt("awaiting_confirmation", 0));

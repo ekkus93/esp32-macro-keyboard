@@ -1250,8 +1250,12 @@ async function runBrowserWorkflows(page, serverState) {
   await waitFor(
     page,
     () =>
-      document.body.innerText.includes("Waiting for confirmation on the device") &&
-      document.body.innerText.includes("Run confirm in the device serial console"),
+      document.body.innerText.includes(
+        "Waiting for confirmation on the device",
+      ) &&
+      document.body.innerText.includes(
+        "Run confirm in the device serial console",
+      ),
     "The confirmation-wait state or serial-confirm instruction was not shown inline.",
   );
   assert(
