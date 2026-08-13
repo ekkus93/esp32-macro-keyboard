@@ -60,26 +60,79 @@ if partial_commit_message not in join_adjacent_c_string_literals(administration)
     fail(f"H2 production change-password binding is missing: {partial_commit_message}")
 
 settings = read("firmware/components/web_server/web_settings.c")
-ordered = (
-    "ops->password_transition_begin(ops->context)",
-    "ops->settings_read(ops->context, &current)",
-    "ops->password_verify(ops->context, current_password_view.data",
-    "ops->password_create(",
-    "ops->settings_replace(ops->context, &candidate, &changed)",
-    "ops->password_activate(ops->context, &candidate)",
-    "ops->invalidate_all_sessions(ops->context)",
+
+
+def function_body(source: str, signature: str) -> str:
+    """Return one C function definition, including its outer braces.
+
+    The H2 handler intentionally delegates credential transaction stages to
+    small helpers. Architecture checks must follow those helpers instead of
+    assuming every operation remains textually in the top-level handler.
+    """
+    start = source.find(signature)
+    if start < 0:
+        fail(f"H2 change-password function is missing: {signature}")
+    brace_start = source.find("{", start)
+    if brace_start < 0:
+        fail(f"H2 change-password function has no body: {signature}")
+    depth = 0
+    for index in range(brace_start, len(source)):
+        if source[index] == "{":
+            depth += 1
+        elif source[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return source[start : index + 1]
+    fail(f"H2 change-password function body is unterminated: {signature}")
+    raise AssertionError("unreachable")
+
+
+def require_ordered(source: str, required_steps: tuple[str, ...], label: str) -> None:
+    positions = []
+    for required in required_steps:
+        position = source.find(required)
+        if position < 0:
+            fail(f"H2 {label} step is missing: {required}")
+        positions.append(position)
+    if positions != sorted(positions):
+        fail(f"H2 {label} order changed")
+
+
+handler = function_body(settings, "web_change_password_outcome_t web_change_password_handle")
+require_ordered(
+    handler,
+    (
+        "ops->password_transition_begin(ops->context)",
+        "change_password_verify_current(",
+        "change_password_create_candidate(",
+        "change_password_commit_candidate(",
+    ),
+    "transaction",
 )
-handler_start = settings.find("web_change_password_outcome_t web_change_password_handle")
-if handler_start < 0:
-    fail("H2 change-password handler is missing")
-positions = []
-for required in ordered:
-    position = settings.find(required, handler_start)
-    if position < 0:
-        fail(f"H2 transaction step is missing: {required}")
-    positions.append(position)
-if positions != sorted(positions):
-    fail("H2 transaction order changed: gate -> read/verify/create -> durable commit -> RAM activate -> sessions")
+
+verify_helper = function_body(settings, "change_password_verify_current(")
+require_ordered(
+    verify_helper,
+    (
+        "ops->settings_read(ops->context, current)",
+        "ops->password_verify(ops->context, current_password_view.data",
+    ),
+    "read/verify",
+)
+
+create_helper = function_body(settings, "change_password_create_candidate(")
+require_ordered(create_helper, ("ops->password_create(",), "credential creation")
+
+commit_helper = function_body(settings, "change_password_commit_candidate(")
+require_ordered(
+    commit_helper,
+    (
+        "ops->settings_replace(ops->context, candidate, &changed)",
+        "ops->password_activate(ops->context, candidate)",
+        "ops->invalidate_all_sessions(ops->context)",
+    ),
+    "commit/activation/session invalidation",
+)
 for required in (
     "secure_zero_local(&material, sizeof(material))",
     "secure_zero_local(&candidate, sizeof(candidate))",
