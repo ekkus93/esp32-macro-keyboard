@@ -38,16 +38,22 @@ jobs:
           expected = sorted([
               ".github/workflows/apply-h11-110-reconciliation.yml",
               ".github/h11-110-edit/part00.pyfrag",
+              ".github/h11-110-edit/postprocess.py",
           ])
           if changed != expected:
               raise SystemExit(f"unexpected pre-apply changes since audit SHA: {changed}")
           PY
           python3 .github/h11-110-edit/part00.pyfrag
+          python3 .github/h11-110-edit/postprocess.py
           git diff --check
-          bash scripts/check-docs.sh
+          ./webapp/node_modules/.bin/markdownlint-cli2 \
+            docs/TODO_V2.md \
+            docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md \
+            docs/implementation-v2/H11_110_V2_CHECKBOX_REAUDIT_2026-08-13.md
           git rm \
             .github/workflows/apply-h11-110-reconciliation.yml \
-            .github/h11-110-edit/part00.pyfrag
+            .github/h11-110-edit/part00.pyfrag \
+            .github/h11-110-edit/postprocess.py
           git add \
             docs/TODO_V2.md \
             docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md \
@@ -60,6 +66,7 @@ jobs:
           expected = sorted([
               ".github/workflows/apply-h11-110-reconciliation.yml",
               ".github/h11-110-edit/part00.pyfrag",
+              ".github/h11-110-edit/postprocess.py",
               "docs/TODO_V2.md",
               "docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md",
               "docs/implementation-v2/H11_110_V2_CHECKBOX_REAUDIT_2026-08-13.md",
