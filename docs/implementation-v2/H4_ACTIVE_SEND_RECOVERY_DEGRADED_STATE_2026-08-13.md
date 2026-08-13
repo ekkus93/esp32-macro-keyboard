@@ -2,106 +2,123 @@
 
 ## Scope
 
-This implementation candidate addresses Phase H4 of
+This candidate addresses Phase H4 of
 `docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md`.
-The earlier H1-H3 unchecked items are physical-device evidence gates, so H4 is
-the next locally actionable software phase. This document does not claim those
-hardware gates are satisfied.
+Earlier unchecked H1/H3 items are physical-device evidence gates and are not
+claimed by this software work.
 
 ## Audit result
 
-The current `master` snapshot already distinguished startup send recovery as
-`none`, `known`, or `unavailable`; a failed startup recovery no longer became a
-false `null`/"no send" result. USB polling also already retained the last known
-value, degraded after a bounded failure count, and cleared the degraded state
-on recovery.
+The pre-H4 tree already distinguished startup send recovery as `none`, `known`,
+or `unavailable`; a failed startup recovery no longer became a false
+`null`/"no send" result. USB status polling also retained the last known state,
+degraded only after a bounded consecutive-failure threshold, and cleared that
+degraded state after a successful refresh.
 
-Two gaps remained in the in-tab send lifecycle. After an active send tracker
-exhausted its status retries, `MacrosPage` surfaced an error string but stopped
-tracking permanently. The last send remained visible, but there was no
-status-only recovery action. In addition, if `POST /api/v1/send` returned `409`
-(already sending) and the follow-up status recovery failed, the page collapsed
-back to `idle`. That re-enabled Send even though the backend had just confirmed
-that an execution existed. Both cases violated H4's unknown-execution and
-no-duplicate-send requirements.
+Two active-send gaps remained:
 
-## Changes
+1. after `sendClient` exhausted its bounded status-poll retries, the owning page
+   retained its last active state but had no status-only recovery action; and
+2. when `POST /api/v1/send` returned `409` and its follow-up status recovery
+   also failed, the page could return to an idle presentation even though the
+   backend had just reported an unresolved execution.
 
-### Explicit degraded active-send state
+The second case could permit another send attempt before execution state had
+been reconciled.
 
-`webapp/src/features/macros/v2/MacrosPage.tsx` now has an explicit `degraded`
-send lifecycle state. When tracking fails it:
+## Implementation
 
-- retains the last known send status and macro identity,
-- states that execution status is unavailable and the device may still be
-  running the send,
-- disables new send starts while execution is unknown,
-- keeps **Cancel and release all keys** available,
-- exposes cancellation delivery failure explicitly, and
-- provides **Retry execution status**.
+### Send-client recovery latch
 
-Retry performs only `GET /api/v1/send` recovery. It never reposts the macro. A
-confirmed 404/no-send result returns to idle; a known nonterminal send restarts
-tracking; and a known terminal send uses the existing terminal-state path.
-Repeated recovery failure leaves the degraded state visible. A `409` send
-conflict whose follow-up status GET fails now enters the same degraded state
-without inventing a last-known status; Send remains disabled, Retry performs
-GET-only reconciliation, and Cancel remains available. If the reconciliation
-returns a terminal send, the existing terminal rendering is used rather than
-misrepresenting that result as "no send."
+`webapp/src/v2/sendClient.ts` now owns a single fail-closed execution-recovery
+state shared by every send route. It records `unavailable` only after the
+existing bounded retry policy is exhausted or when a `409` establishes that an
+execution exists but its status cannot be recovered.
 
-### Startup-level cancellation affordance
+While recovery is unresolved:
 
-`webapp/src/AppV2.tsx` now keeps **Cancel and release all keys** next to the
-startup-level execution-state-unavailable warning. Successful cancellation
-states that status must still be reconciled before treating the send as
-terminal. Failed cancellation states explicitly that the request could not be
-delivered.
+- `sendMacro()` rejects locally before issuing another POST;
+- the last trusted `SendStatusResponse`, when one exists, is retained;
+- `retryExecutionRecovery()` performs only `GET /api/v1/send`;
+- a true `404` clears the latch as confirmed no-send;
+- a terminal recovered result clears the latch and completes through the
+  original callbacks when they are available; and
+- a nonterminal recovered result immediately restores the original status
+  callback before polling resumes, so the owning page cannot remain idle while
+  the recovery surface disappears.
 
-### Regression coverage added
+For startup recovery, where no page callbacks exist yet, a recovered
+nonterminal send stays fail-closed until the existing page-level recovery path
+consumes it. This prevents a successful global GET from silently re-enabling
+POST before the authenticated shell has adopted the recovered send.
 
-`webapp/tests/v2-macros-page.test.tsx` now covers:
+### Cross-route recovery surface
 
-- tracker failure becoming a visible degraded state,
-- status-only retry recovering without another send POST,
-- repeated recovery failure remaining degraded,
-- cancellation remaining reachable, and
-- explicit cancellation-delivery failure,
-- `409` conflict plus failed status recovery remaining degraded and blocking a
-  second POST, and
-- terminal state recovered from a `409` conflict rendering as terminal rather
-  than as no execution.
+`webapp/src/features/shell/v2/ExecutionRecoveryOverlay.tsx` is mounted beside
+`AppV2` from `main.tsx`, so it survives route changes and page-local tracking
+failure. It provides:
 
-`webapp/tests/v2-app-v2.test.tsx` now covers cancellation from startup-level
-unknown execution state without discarding the loaded package/working copy.
+- a prominent **Execution state unavailable** warning;
+- the last known state/progress when available;
+- **Retry execution status**;
+- **Cancel and release all keys**; and
+- explicit success/failure text for cancellation delivery.
 
-`webapp/tests/browser/run-browser-tests.mjs` now makes the first status recovery
-request fail during an active-send reload, asserts the unknown-execution
-warning, retries recovery, and verifies the send POST count does not increase.
-The existing package/working-copy assertion remains in that reload workflow.
+The overlay never starts a send. Retry is GET-only and cancellation is DELETE
+only.
+
+### Test isolation
+
+The recovery latch is module state by design because send authority is global
+to the browser tab. `webapp/tests/h4ExecutionRecoverySetup.ts` resets that state
+before each Vitest case, and `vite.config.ts` registers that setup alongside the
+existing global test setup.
+
+## Permanent regression coverage
+
+`webapp/tests/v2-execution-recovery.test.tsx` proves:
+
+- three consecutive transient status failures become explicit degraded state;
+- last-known execution state is retained;
+- Retry reconciles with GET only and restarts polling without a POST;
+- `409` plus failed recovery prevents a second POST until reconciliation;
+- Retry and Cancel remain visible; and
+- cancellation delivery failure is explicit.
+
+`webapp/tests/browser/run-h4-recovery-tests.mjs` is a focused real-Chrome
+scenario using the production build. It starts a real send, injects three
+consecutive `503` status responses, requires the global degraded surface,
+requires Cancel visibility, retries status, requires the warning to clear, and
+asserts the server observed exactly one send POST. `package.json` runs this
+scenario after the existing browser suite.
 
 ## Local validation actually run
 
-Passed in the sandbox after the resumed H4 audit:
+The following checks passed in the sandbox on the final small-diff candidate:
 
-- `git diff --check`
-- `node --check webapp/tests/browser/run-browser-tests.mjs`
-- TypeScript parse/transpile of `AppV2.tsx`, `MacrosPage.tsx`, and the two
-  changed Vitest files using TypeScript 5.8.3 with diagnostics enabled
-- `python3 scripts/check-h9-architecture.py`
-- `python3 scripts/check-h9-production-audit.py`
-- `bash tests/scripts/test-check-frontend-persisted-state.sh` — 6 cases
-- `bash tests/scripts/test-check-credential-logging.sh` — 18 cases
-- `bash tests/scripts/test-test-assert-redaction.sh` — 3 cases
-- `python3 scripts/generate-spec-traceability.py --check`
+- `git diff --check`;
+- Node syntax check for `tests/browser/run-h4-recovery-tests.mjs`;
+- TypeScript 5.8.3 `transpileModule(..., reportDiagnostics: true)` for all
+  changed `.ts`/`.tsx` source and Vitest files;
+- Node 22 experimental type-strip syntax check for `sendClient.ts`;
+- `python3 scripts/check-h9-architecture.py`;
+- `python3 scripts/check-h9-production-audit.py`;
+- `bash tests/scripts/test-check-frontend-persisted-state.sh` — 6 cases;
+- `bash tests/scripts/test-check-credential-logging.sh` — 18 cases;
+- `bash tests/scripts/test-test-assert-redaction.sh` — 3 cases; and
+- `python3 scripts/generate-spec-traceability.py --check` using the current
+  generated traceability document already present on remote `master`.
 
-The literal frontend gate is not runnable in this sandbox. The repository
-enforces Node.js 24.18.0 through `.npmrc`/`package.json`, while this environment
-only provides Node.js 22.16.0. `npm ci` therefore fails closed with
-`EBADENGINE`; attempting a non-authoritative engine override cannot resolve the
-packages in this container. Chromium is installed, but the Playwright/frontend
-dependencies are not, so the real-browser runner cannot execute locally.
+The literal pinned frontend suite is not runnable in this sandbox because the
+repository requires Node.js 24.18.0 while the available runtime is Node.js
+22.16.0. The repository's `engine-strict` policy correctly prevents treating
+that environment as authoritative. The permanent Vitest/build/browser changes
+are therefore committed for the normal pinned validation layer rather than
+being falsely reported as locally executed.
 
-Accordingly, H4 TODO checkboxes and the H4 exit gate remain unchecked until the
-normal pinned frontend/browser validation layer executes successfully. No
-hardware claim is made by this evidence.
+## Disposition
+
+The H4 runtime and permanent regression implementation is ready for pinned
+frontend/browser validation. H4 TODO checkboxes and the phase exit gate remain
+unchecked until that exact candidate passes the repository's Node 24.18.0
+frontend and real-Chrome gates. No hardware claim is made by this evidence.
