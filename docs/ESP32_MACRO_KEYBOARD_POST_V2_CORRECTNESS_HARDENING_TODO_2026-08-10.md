@@ -178,12 +178,19 @@ Include at least:
 
 ### H1-014 — Browser regression tests
 
-- [ ] Real/Vitest browser workflow displays awaiting-confirmation.
-- [ ] Cancel remains reachable.
-- [ ] Confirmed transition does not duplicate POST.
-- [ ] Timeout is displayed distinctly from ordinary failure.
+- [x] Real/Vitest browser workflow displays awaiting-confirmation.
+- [x] Cancel remains reachable.
+- [x] Confirmed transition does not duplicate POST.
+- [x] Timeout is displayed distinctly from ordinary failure.
 
-- Evidence status: source-level Vitest and real-browser assertions are added and `run-browser-tests.mjs` passes `node --check`, but this sandbox lacks the pinned Node 24.18.0 frontend environment and dependencies. Do not check these until executable browser evidence exists for the H1 candidate.
+- Evidence (2026-08-13): H10-101 executed the current frontend under pinned
+  Node.js 24.18.0 and the permanent real-Chrome suite. The Macros/Quick Send
+  scenarios exercise `awaiting_confirmation`, keep Cancel available, verify the
+  confirmation transition without a duplicate send POST, and render timeout
+  separately from ordinary failure. Exact frontend-validation candidate:
+  `d440be6c26174a26b5b62748161f59d8aa5c18c1`; Quality run `31675479517`,
+  job `94369022215`; full mapping:
+  `docs/implementation-v2/H10_101_FRONTEND_VALIDATION_2026-08-13.md`.
 
 ### H1-015 — Hardware evidence
 
@@ -292,6 +299,7 @@ After a returned `204` assert without reboot:
 - [ ] Host/sanitizer/hardware evidence is committed.
 
 ---
+
 ## Phase H3 — Crash-safe, resumable factory reset
 
 ### H3-030 — Design durable reset state
@@ -636,6 +644,7 @@ For every hit:
 - [x] document why it is intentionally acceptable with tests.
 
 Do not ban best-effort globally; the criterion is whether the ignored failure changes user-visible correctness, safety, security, persistence, or recoverability.
+
 - Evidence: initial mechanical audit `31544238722` / `93953189964`, H9 correction `f36b48eef170b84085f1a978b25fb8c14de99574`, final audit `31546340375` / `93959559165`, and subsequent Ralph regression-hardening correction `1cc8553229e5cccfe23474b56b0fde9ec98d8a7d`. Final inventory remains zero empty catches, zero empty Promise catches, and zero best-effort markers; every actual fallible discard/fallback/retry/cleanup class is fixed or explicitly classified in `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`. The additive regression-control correction is recorded in `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_RALPH_CORRECTION_2026-08-11.md`. H5 remains open for generalized storage primary/cleanup provenance where failures are visible but exact provenance can still be compressed.
 
 ### H9-091 — Complete no-secret audit
@@ -746,17 +755,30 @@ Optional unavailable hosts remain honestly recorded:
 
 At minimum re-audit:
 
-- [ ] V2-055 settings/password/device actions,
-- [ ] V2-061 confirmation,
-- [ ] V2-062 release-all,
-- [ ] V2-074 selection persistence semantics,
-- [ ] V2-075 send recovery/helper semantics,
-- [ ] V2-082 startup send recovery,
-- [ ] V2-116 export/import,
-- [ ] V2-153 reset/power matrix,
-- [ ] V2-154 auth/network/no-secret matrix,
-- [ ] Phase 4/5/6/7/8/11/15 exit gates affected by these behaviors,
-- [ ] final sign-off checklist.
+- [x] V2-055 settings/password/device actions,
+- [x] V2-061 confirmation,
+- [x] V2-062 release-all,
+- [x] V2-074 selection persistence semantics,
+- [x] V2-075 send recovery/helper semantics,
+- [x] V2-082 startup send recovery,
+- [x] V2-116 export/import,
+- [x] V2-153 reset/power matrix,
+- [x] V2-154 auth/network/no-secret matrix,
+- [x] Phase 4/5/6/7/8/11/15 exit gates affected by these behaviors,
+- [x] final sign-off checklist.
+
+- Evidence (2026-08-13): `docs/TODO_V2.md` was re-audited against current
+  implementation/evidence at product audit basis
+  `cc9e05727a2767f070dc79e9e699146e10509b34`. The audit preserves valid core
+  V2 checkmarks, adds scope notes where later H1-H9 hardening narrows their
+  meaning, and reopens stale final-release/current-hardware claims: V2-150's
+  aggregate `check-all.sh`, all current V2-151 Unity execution items, V2-153's
+  post-H3 factory-reset/reprovisioning evidence, V2-154's post-H2
+  password-change/PBKDF2 compound item, and the final clean-checkout
+  `check-all.sh` sign-off. H1-014 is also closed from exact H10-101 executable
+  browser evidence. Hardware-required reruns remain explicitly open/deferred.
+  Full disposition:
+  `docs/implementation-v2/H11_110_V2_CHECKBOX_REAUDIT_2026-08-13.md`.
 
 ### H11-111 — Literal evidence audit
 

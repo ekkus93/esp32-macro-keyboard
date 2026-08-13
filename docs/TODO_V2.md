@@ -727,6 +727,12 @@ semantics across partial destructive work. Those failure semantics remain owned
 by post-v2 phases H2 and H3 respectively; historical happy-path evidence is
 preserved rather than rewritten.
 
+Post-v2 H11-110 re-audit (2026-08-13) — V2-055: the route and exact-contract checkboxes remain checked. H2 and H3
+subsequently hardened password-change, reset-settings, and factory-reset failure
+semantics with deterministic host/sanitizer evidence. Those software corrections
+do not manufacture current physical-board evidence: H2-024, H3-035, H10-102,
+and H10-103 remain open/deferred where they require the reference ESP32-S3R8.
+
 ## V2-056 — Diagnostics route
 
 - [x] Implement `GET /api/v1/diagnostics` using a fixed schema.
@@ -997,6 +1003,13 @@ no duplicate send submission. See
 `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`
 and its Ralph correction evidence.
 
+Post-v2 H11-110 re-audit (2026-08-13) — V2-061: keep the executor/state-machine checkboxes checked. Current production
+send construction binds the authoritative `requireSerialConfirmation` setting
+fail-closed, and H10-101 executed the awaiting-confirmation/Cancel/no-duplicate-
+POST/timeout browser scenarios under pinned Node and real Chrome. This still does
+not substitute for the post-hardening HID/device confirmation matrix; H1-015 and
+H10-103 remain open for the reference board.
+
 ## V2-062 — Release-all invariant
 
 - [x] Emit release-all after every key or chord action.
@@ -1015,6 +1028,12 @@ error" and "queue failure" explicitly) — fixed, with new
 increments on exactly those two paths. `./scripts/run-tests.sh` (all 45 suites)
 and `./scripts/check-firmware.sh` (GCC + clang-tidy clean for `firmware/` and
 `firmware/test_app/`) pass.
+
+Post-v2 H11-110 re-audit (2026-08-13) — V2-062: retain all four checkboxes. H7 later made every safety-relevant release
+result observable, preserved release failure separately from the primary error,
+and fail-closed the executor after an unproven release. Current host and sanitizer
+evidence therefore strengthens rather than invalidates V2-062. Physical
+post-hardening HID revalidation is still owned by H10-103.
 
 ## V2-063 — Cancellation responsiveness
 
@@ -1146,6 +1165,12 @@ real-API/browser/device confirmation acceptance matrix.
 - [x] Update NVS only when the selected ID changes.
 - [x] Never serialize selection into repository JSON.
 
+Post-v2 H11-110 re-audit (2026-08-13) — V2-074: retain the selection-preference checkboxes. H8 closed the later failure
+semantics: a failed NVS persistence attempt is visible, local selection does not
+dirty repository content, Retry is available, and snapshot load/import resolve
+against the last successfully persisted package ID rather than transient local
+state. H10-101 executed the current frontend suite.
+
 ## V2-075 — React send helper
 
 - [x] Implement `sendMacro(request, { onStatus, onComplete })`.
@@ -1154,6 +1179,13 @@ real-API/browser/device confirmation acceptance matrix.
 - [x] Invoke completion exactly once per send.
 - [x] Recover state after reload using `GET /api/v1/send`.
 - [x] Avoid duplicate POSTs and callbacks across orientation changes and rerenders.
+
+Post-v2 H11-110 re-audit (2026-08-13) — V2-075: retain V2-075's checked normal send-helper requirements. Current
+sendClient.ts distinguishes a real 404/no-send result from other recovery
+failures, and startup carries explicit `none`/`known`/`unavailable` recovery
+state. However the broader post-v2 H4 degraded-execution task remains open: its
+complete cancellation-availability/freshness matrix and intentionally failed
+real-Chrome recovery scenario are not being inferred from these V2 checkboxes.
 
 ## Phase 7 exit gate
 
@@ -1196,6 +1228,12 @@ real-API/browser/device confirmation acceptance matrix.
 - [x] Recover active or recent send status.
 - [x] Restore the exact current route and draft when the tab still has a live
       working copy.
+
+Post-v2 H11-110 re-audit (2026-08-13) — V2-082: retain V2-082. The current startup core explicitly returns send recovery
+as `none`, `known`, or `unavailable`; the authenticated shell keeps the working
+copy mounted, shows an execution-state-unavailable warning, and offers Retry.
+That is stronger than the original normal-recovery wording, but it still does not
+close H4's full degraded cancellation/freshness/browser acceptance matrix.
 
 ## V2-083 — First repository and first package
 
@@ -1582,6 +1620,12 @@ Evidence: `webapp/src/v2/snapshotClient.ts` (`replaceSnapshotWithWorkingCopy`),
 `webapp/tests/v2-snapshot-client.test.ts` and
 `webapp/tests/v2-snapshots-page.test.tsx`. See
 `docs/implementation-v2/V2_110_116_SNAPSHOTS_IMPORT_EXPORT_2026-08-09.md`.
+
+Post-v2 H11-110 re-audit (2026-08-13) — V2-116: retain V2-116's explicit advanced delete-then-add semantics and its
+delete-success/add-failure warning. This does **not** claim H5's lower-level
+storage commit certainty: primary-versus-cleanup provenance and
+rename-success/parent-sync-failure reconciliation remain open under H5 and must
+be resolved before final release sign-off.
 
 ## Phase 11 exit gate
 
@@ -2320,6 +2364,14 @@ exact commands, and one real bug found and fixed along the way (a vitest
 timeout under `--coverage`, not a logic bug) in
 `docs/implementation-v2/V2_150_151_FULL_GATE_AND_ON_DEVICE_UNITY_2026-08-10.md`.
 
+Post-v2 H11-110 re-audit (2026-08-13) — V2-150: the 2026-08-10 `de47eee` results remain historical evidence.
+Current H10-100/H10-101 exact-SHA evidence re-proves the native, sanitizer,
+coverage, analyzer, firmware-build, frontend, production-build, and real-Chrome
+segments after hardening. The aggregate `check-all.sh` item is reopened because
+the latest post-hardening Quality run completed those segments and then failed
+later in `check-scripts.sh` on two `shfmt` diffs. H12-121 owns the next clean
+aggregate release-gate proof.
+
 - [x] Run native host tests. 56/56 passed.
 - [x] Run ASan and UBSan. 56/56 passed, no findings.
 - [x] Run native coverage and meet committed policy thresholds. Policy files:
@@ -2334,22 +2386,30 @@ timeout under `--coverage`, not a logic bug) in
 - [x] Run real-browser tests. 7/7 real-Chrome scenario groups passed.
 - [x] Build production web assets and webfs image. Clean.
 - [x] Run the firmware build for `esp32s3`. Clean.
-- [x] Run `./scripts/check-all.sh`. `EXIT=0`.
+- [ ] Run `./scripts/check-all.sh`. Historical `EXIT=0` evidence exists at `de47eee`,
+      but the current post-hardening aggregate gate has not exited 0.
 - [x] Record exact commands, versions, counts, sizes, and results. See the
       evidence doc above.
 
 ## V2-151 — On-device Unity validation
 
-- [x] Build and flash the on-device test application. Built and flashed
+Post-v2 H11-110 re-audit (2026-08-13): **V2-151 is reopened for the
+current product.** The historical `de47eee` physical run remains valid evidence
+for the then-complete 10-case suite, but H10-102 has since added two
+`[device][executor][hardening]` Unity cases, making the current suite 12 cases.
+No 12/12 physical run exists yet. Build-only CI is not substituted for execution;
+the current board run is explicitly deferred/open under H10-102.
+
+- [ ] Build and flash the current on-device test application. Built and flashed
       `firmware/test_app` at commit `de47eee` to the reference ESP32-S3R8,
       native USB bootloader mode, 2026-08-10.
-- [x] Run the complete Unity menu on the reference board. Sent `*` over the
+- [ ] Run the complete current Unity menu on the reference board. Sent `*` over the
       UART console after a real boot (not build-only).
-- [x] Record every test name and result. All 10 `TEST_CASE`s (the complete
+- [ ] Record every current test name and result. All 10 `TEST_CASE`s (the complete
       set in `firmware/test_app/main/`): 10 passed, 0 failed, 0 ignored. See
       `docs/implementation-v2/V2_150_151_FULL_GATE_AND_ON_DEVICE_UNITY_2026-08-10.md`
       for every test name and the raw Unity summary.
-- [x] Do not substitute a device-test build for execution. Ran on real
+- [ ] Do not substitute a device-test build for execution. Ran on real
       hardware, not claimed from the build alone.
 
 ## V2-152 — USB HID hardware matrix
@@ -2390,7 +2450,8 @@ Full evidence and commands:
 - [x] Validate interrupted upload recovery. Same as above.
 - [x] Validate full-partition behavior. Same as above.
 - [x] Validate mount failure without formatting. Same as above.
-- [x] Validate factory reset and reprovisioning. New evidence 2026-08-10: real
+- [ ] Revalidate factory reset and reprovisioning after the H3 reset-state hardening.
+      Historical evidence 2026-08-10: real
       `POST /api/v1/device/factory-reset`, real software restart
       (`RTC_SW_CPU_RST`) captured in the boot log, reprovisioned with fresh
       credentials, confirmed the test blob was genuinely erased
@@ -2401,6 +2462,14 @@ Full evidence and commands:
       evidence, not proof of interruption safety between destructive reset
       stages; restart-safe/idempotent partial-reset recovery remains open under
       H3.
+
+Post-v2 H11-110 re-audit (2026-08-13) — V2-153: the storage add/list/load/delete, byte-identity, interrupted-upload,
+full-partition, and mount-failure evidence remains historical evidence for code
+that was not replaced by H3. The factory-reset checkbox is reopened because H3
+materially changed factory-reset ownership with a durable reset journal,
+idempotent replay, reset-recovery gating, and new reset-settings semantics.
+The old happy-path reset run cannot validate that new state machine. H3-035 and
+H10-103 own the current physical rerun and are intentionally deferred/open.
 
 ## V2-154 — Network and authentication matrix
 
@@ -2428,7 +2497,8 @@ Full evidence and commands:
       `AP state: ready` throughout, unaffected.
 - [x] Validate bounded reconnect behavior. A subsequent `wifi-connect` with
       correct credentials succeeded cleanly right after the failure above.
-- [x] Validate successful password change and PBKDF2 timing. PBKDF2 timing is
+- [ ] Revalidate successful password change after H2 hardening; retain the historical
+      PBKDF2 timing evidence. PBKDF2 timing is
       covered in
       `docs/implementation-v2/V2_041_HARDWARE_LOGIN_FIX_2026-08-09.md`.
       Happy-path password change was verified fresh: `204`, immediate
@@ -2444,6 +2514,14 @@ Full evidence and commands:
       including test-failure output; see
       `docs/implementation-v2/H9_CROSS_CUTTING_SECRET_FALLBACK_AUDIT_2026-08-11.md`
       and the Ralph correction evidence for the 16-case credential-output suite.
+
+Post-v2 H11-110 re-audit (2026-08-13) — V2-154: first-run setup, setup-state, login/logout/lockout, AP survival,
+bounded reconnect, and the H9 no-secret audit remain checked with their existing
+evidence; idle/absolute expiry correctly remains open. The compound
+password-change/PBKDF2 item is reopened because H2 materially changed
+password-change transaction semantics after the historical board run. The
+PBKDF2 benchmark itself remains valid/frozen, but the current hardened
+password/session path still requires H2-024/H10-103 physical validation.
 
 ## V2-155 — Android UI workflow matrix
 
@@ -2487,25 +2565,22 @@ Full evidence and commands:
 
 ## Final sign-off checklist
 
-This checklist is Phase 15's release gate, not a running progress meter — most
-items below can only be honestly checked once Phases 9–14 (the entire Macros/
-editing/snapshots/settings/accessibility UI and the migration-cleanup phase) are
-built and V2-156's acceptance audit has actually been walked, neither of which
-has happened yet. Phases 9–11 (Macros/Quick Send, macro editing/package
-management, snapshots/import-export) landed since the 2026-08-09 pass that
-first populated this checklist; Phases 12–14 have not. The items below reflect
-only what is independently, currently, and reproducibly true as of commit
-`50ada5bd0ea75ac0e2f76b9b804b7949831f34cf` (re-audited 2026-08-09) — not a claim
-that the project is close to final sign-off.
+This checklist is Phase 15's release gate, not a running progress meter.
+Post-v2 H11-110 re-audited the affected entries against current code and evidence
+at `cc9e05727a2767f070dc79e9e699146e10509b34`. Historical evidence remains
+useful, but it is not allowed to stand in for behavior materially changed by the
+hardening pass. H4 degraded execution recovery, H5 storage commit certainty,
+current physical-device revalidation, H11 literal/document synchronization, and
+the H12 clean-checkout release gate remain open.
 
-- [ ] `docs/SPEC_V2.md` matches production behavior. Cannot be true yet: Phases
-      12–14 (settings/diagnostics UI, portrait/responsive/accessibility,
-      migration cleanup) remain unstarted or incomplete, so a meaningful slice
-      of SPEC_V2's UI-facing requirements still has no implementation to match
-      against. (Phases 9–11 — Macros page, macro editing, package management,
-      snapshots, import/export — are now built; this is narrower than the
-      "Phases 9–14 unstarted" this line said as of commit `9bb47bb`.)
-- [ ] `docs/UI_UX_SPEC_V2.md` matches production behavior. Same reason.
+- [ ] `docs/SPEC_V2.md` matches production behavior. H11-110 found no basis
+      to close final specification sign-off yet: H4/H5 remain open, current
+      affected hardware evidence is deferred, and H11-111/H11-112 have not
+      completed the literal evidence/documentation audit.
+- [ ] `docs/UI_UX_SPEC_V2.md` matches production behavior. The current
+      frontend gates are green (H10-101), but final UI/UX sign-off still
+      depends on unresolved degraded-recovery semantics and the deferred
+      device/manual acceptance evidence.
 - [ ] `docs/TODO_V2.md` contains no falsely completed task. Partially
       addressed, not closed: this 2026-08-09 audit pass (see
       `docs/implementation-v2/V2_AUDIT_PHASE_13_14_15_2026-08-09.md`) walked
@@ -2525,7 +2600,7 @@ that the project is close to final sign-off.
       covers `docs/mockups/v2/`, `webapp/README.md`, and status-vs-intent
       labeling — those remain open (see V2-143 above; `webapp/README.md` in
       particular was found stale by this pass).
-- [x] `./scripts/check-all.sh` passes from a clean checkout. Audit Track G
+- [ ] `./scripts/check-all.sh` passes from a clean checkout. Audit Track G
       correctly unchecked this pending re-verification (the prior claim
       covered commit `9bb47bb`, 16 commits stale, predating Phases 9–11).
       Re-verified 2026-08-09 against commit `575dae5`: an actual fresh
@@ -2538,11 +2613,18 @@ that the project is close to final sign-off.
       `575dae5`. Second attempt at `575dae5`: exit `0`, 54/54 host tests, all
       steps clean. Same caveat as before — this is a snapshot fact about this
       commit, not a permanent one.
+      Post-v2 H11-110 correction: this checkbox is reopened. H10-100 and
+      H10-101 prove their respective current software segments, but the
+      latest aggregate Quality run still exits nonzero later in
+      `check-scripts.sh`; H12-120/H12-121 own the next clean-checkout
+      aggregate proof.
+
 - [ ] Required ESP32-S3R8, USB HID, storage, Wi-Fi, authentication, and Android
-      evidence is committed. Multiple hardware-only items remain open
-      throughout this file (V2-035, part of V2-041, part of V2-044, V2-064,
-      and all of Phase 15's V2-151 through V2-155 matrices) — none of that
-      evidence exists yet.
+      evidence is committed. Substantial historical ESP32-S3R8/HID/storage/
+      Wi-Fi/authentication evidence exists and remains cited above, but H2/H3/H7
+      changed affected behavior afterward, the current Unity suite is 12 rather
+      than the historically executed 10 cases, H10-102/H10-103 are deferred for
+      current-board revalidation, and the Android workflow matrix remains open.
 - [x] No v1 compatibility architecture remains in production code. Re-verified
       2026-08-09 with fresh runs, not just re-read: `python3
       ./scripts/check-v2-phase2-architecture.py` → "phase 2 architecture: no
@@ -2555,15 +2637,11 @@ that the project is close to final sign-off.
       React code, see the Phase 14 exit gate above) or the rest of this
       checklist.
 - [ ] No known silent failure, dangerous fallback, secret leak, automatic
-      snapshot deletion, or inaccessible cancellation path remains.
-      Re-assessed 2026-08-09: still cannot be claimed, but the specific
-      blocker has moved. Phase 11 is now built and its exit gate confirms "No
-      automatic snapshot creation or deletion exists" (`V2-114`: "Never
-      silently fall back"; unreadable snapshots are kept, shown, and offer
-      download/delete rather than silent substitution). What remains open:
-      Phase 12's destructive-operations UI (restart/reset-settings/factory-
-      reset confirmation flows, V2-121) is unstarted, so its silent-failure/
-      dangerous-fallback/secret-leak properties are unverified, and V2-156's
-      audit still hasn't walked the rest of the system.
+      snapshot deletion, or inaccessible cancellation path remains. H8 makes
+      reviewed selection/export failures visible, H9's cross-cutting fallback
+      and secret audits are complete, and H7 fail-closes unsafe HID release.
+      Final sign-off remains open because H4's complete degraded execution/
+      cancellation matrix and H5's storage commit-uncertainty semantics are
+      still open, in addition to deferred current hardware acceptance.
 - [ ] Final implementation report records the accepted release commit SHA. No
       such report exists; it is V2-156's own deliverable.
