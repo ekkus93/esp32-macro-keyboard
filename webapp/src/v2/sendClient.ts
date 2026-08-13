@@ -16,17 +16,14 @@ import type {
  * The React send helper from SPEC_V2 §13.10-13.11 and TODO_V2 V2-075:
  * `sendMacro(request, { onStatus, onComplete })`.
  *
- * This module is framework-agnostic — it does not itself guard against a
- * React component calling {@link sendMacro} twice for the same user action
- * (for example on a StrictMode double-invoke or an orientation-change
- * remount). That is the caller's responsibility (typically a ref-guarded
- * effect). What this module guarantees on its own:
- *  - exactly one `POST /api/v1/send` per {@link sendMacro} call;
+ * This module is framework-agnostic. What it guarantees on its own:
+ *  - exactly one `POST /api/v1/send` per accepted send attempt;
+ *  - no new POST while a previous execution is known to have unresolved status;
  *  - polling at a bounded interval no slower than once per second;
  *  - transient poll failures are retried only up to a fixed consecutive bound;
  *  - `onStatus` fires only for a meaningful state or progress change;
  *  - `onComplete` fires at most once, only after a terminal state;
- *  - `onError` fires when status tracking gives up or sees a non-transient failure.
+ *  - degraded tracking is retained for explicit GET-only reconciliation.
  */
 
 const pollIntervalMs = 1000;
@@ -60,6 +57,68 @@ export interface SendMacroHandle {
   stop: () => void;
 }
 
+export type ExecutionRecoveryState =
+  | { kind: "clear" }
+  | {
+      kind: "unavailable";
+      message: string;
+      lastKnown: SendStatusResponse | null;
+    };
+
+type ExecutionRecoveryListener = () => void;
+
+let recoveryState: ExecutionRecoveryState = { kind: "clear" };
+let recoveryCallbacks: SendMacroCallbacks | null = null;
+const recoveryListeners = new Set<ExecutionRecoveryListener>();
+
+function publishRecoveryState(next: ExecutionRecoveryState): void {
+  recoveryState = next;
+  for (const listener of recoveryListeners) {
+    listener();
+  }
+}
+
+export function getExecutionRecoveryState(): ExecutionRecoveryState {
+  return recoveryState;
+}
+
+export function subscribeExecutionRecovery(
+  listener: ExecutionRecoveryListener,
+): () => void {
+  recoveryListeners.add(listener);
+  return () => {
+    recoveryListeners.delete(listener);
+  };
+}
+
+/** Test-only reset for module state shared across test cases. */
+export function resetExecutionRecoveryForTest(): void {
+  recoveryCallbacks = null;
+  publishRecoveryState({ kind: "clear" });
+}
+
+function markRecoveryUnavailable(
+  error: unknown,
+  lastKnown: SendStatusResponse | null,
+  callbacks: SendMacroCallbacks | null,
+): void {
+  if (callbacks !== null) {
+    recoveryCallbacks = callbacks;
+  }
+  const message =
+    error instanceof V2ApiError
+      ? `${error.code}: ${error.message}`
+      : error instanceof Error
+        ? error.message
+        : "Execution status could not be refreshed.";
+  publishRecoveryState({ kind: "unavailable", message, lastKnown });
+}
+
+function clearRecoveryState(): void {
+  recoveryCallbacks = null;
+  publishRecoveryState({ kind: "clear" });
+}
+
 function isTransientPollFailure(error: unknown): boolean {
   if (error instanceof DOMException && error.name === "AbortError") {
     return true;
@@ -86,16 +145,6 @@ interface SendTracker {
   stop: () => void;
 }
 
-/**
- * The shared poll loop behind both {@link sendMacro} (which seeds it with no
- * prior status, right after a fresh `202`) and {@link trackSend} (which seeds
- * it with an already-known status recovered from `GET /api/v1/send`, without
- * ever issuing a `POST`). Factored out so a reload-recovered or
- * race-recovered send (TODO_V2 V2-095) polls with the exact same cadence,
- * meaningful-change filtering, and at-most-once `onComplete` guarantee as a
- * send this module itself initiated — no second implementation of the
- * protocol.
- */
 function createSendTracker(
   id: string,
   seed: SendStatusResponse | null,
@@ -105,10 +154,6 @@ function createSendTracker(
     stopped: false,
     completed: seed !== null && isTerminalSendState(seed.state),
   };
-  // Reading these through functions (rather than the bare property) keeps
-  // TypeScript from narrowing `flags.stopped`/`flags.completed` to a stale
-  // literal across an `await`, during which `stop()` can genuinely run and
-  // change them.
   function isStopped(): boolean {
     return flags.stopped;
   }
@@ -149,6 +194,7 @@ function createSendTracker(
         }
       }
       flags.stopped = true;
+      markRecoveryUnavailable(error, previous, callbacks);
       callbacks.onError?.(error);
       return;
     }
@@ -165,6 +211,7 @@ function createSendTracker(
     if (isTerminalSendState(status.state)) {
       if (!isCompleted()) {
         flags.completed = true;
+        clearRecoveryState();
         callbacks.onComplete?.(status);
       }
       return;
@@ -186,28 +233,29 @@ function createSendTracker(
 }
 
 /**
- * Sends a macro and tracks it to completion.
- *
- * 1. Calls `POST /api/v1/send`; the returned promise rejects if this fails
- *    (invalid source, `409` already sending, network failure, etc.) and no
- *    polling ever starts.
- * 2. On acceptance, polls `GET /api/v1/send` no slower than once per second.
- * 3. Calls `onStatus` only when state or `actionIndex` changes.
- * 4. Calls `onComplete` exactly once, after a terminal state is observed.
- *
- * If the page closes, delivery of these callbacks is not guaranteed —
- * firmware continues the send independently. Use {@link recoverSendState}
- * after a reload to resume tracking.
+ * Sends a macro and tracks it to completion. A local fail-closed recovery
+ * latch prevents a second POST while the client cannot prove whether a prior
+ * execution is still active.
  */
 export async function sendMacro(
   request: SendRequest,
   callbacks: SendMacroCallbacks = {},
 ): Promise<SendMacroHandle> {
-  const accepted: SendAcceptedResponse = await v2PostJson(
-    sendPath,
-    request,
-    isSendAcceptedResponse,
-  );
+  if (recoveryState.kind === "unavailable") {
+    throw new Error(
+      "Execution state is unavailable. Retry execution status before sending another macro.",
+    );
+  }
+
+  let accepted: SendAcceptedResponse;
+  try {
+    accepted = await v2PostJson(sendPath, request, isSendAcceptedResponse);
+  } catch (error: unknown) {
+    if (error instanceof V2ApiError && error.status === 409) {
+      markRecoveryUnavailable(error, null, callbacks);
+    }
+    throw error;
+  }
 
   const tracker = createSendTracker(accepted.id, null, callbacks);
 
@@ -218,43 +266,92 @@ export async function sendMacro(
   return { accepted, cancel, stop: tracker.stop };
 }
 
-/**
- * Resumes polling an already-known, not-yet-dismissed send without issuing a
- * new `POST` — the reload-recovery and `409`-recovery case from TODO_V2
- * V2-095 ("recover inline send state after reload", "handle `409` by showing
- * the actual current send"). `seed` is normally the result of
- * {@link recoverSendState}. Polling starts immediately at the same bounded
- * cadence as {@link sendMacro}; if `seed` is already terminal, no request is
- * made and `stop()` is a no-op.
- */
+/** Resumes polling an already-known send without issuing a POST. */
 export function trackSend(
   seed: SendStatusResponse,
   callbacks: SendMacroCallbacks = {},
 ): SendTracker {
+  clearRecoveryState();
   return createSendTracker(seed.id, seed, callbacks);
 }
 
-/**
- * `DELETE /api/v1/send`: requests cancellation of the current non-terminal
- * send. Idempotent while the same send remains non-terminal. The exact
- * response body shape is not yet defined by the frozen v2 contract layer, so
- * the resolved value is intentionally unvalidated.
- */
+/** `DELETE /api/v1/send`: requests cancellation of the current send. */
 export async function cancelSend(): Promise<unknown> {
   return v2DeleteWithUnvalidatedJson(sendPath);
 }
 
-/**
- * Recovers send state after a reload, per SPEC_V2 §13.11. Returns `null`
- * when no send exists since boot (`404`).
- */
-export async function recoverSendState(): Promise<SendStatusResponse | null> {
+async function fetchRecoveredSend(): Promise<SendStatusResponse | null> {
   try {
     return await v2GetJson(sendPath, isSendStatusResponse);
   } catch (error: unknown) {
     if (error instanceof V2ApiError && error.status === 404) {
       return null;
     }
+    throw error;
+  }
+}
+
+/**
+ * Recovers send state after a reload, per SPEC_V2 §13.11. A failed recovery
+ * remains explicitly unavailable rather than collapsing to "no send".
+ */
+export async function recoverSendState(): Promise<SendStatusResponse | null> {
+  try {
+    const status = await fetchRecoveredSend();
+    if (status === null || isTerminalSendState(status.state)) {
+      clearRecoveryState();
+    } else if (recoveryState.kind === "unavailable") {
+      clearRecoveryState();
+    }
+    return status;
+  } catch (error: unknown) {
+    markRecoveryUnavailable(
+      error,
+      recoveryState.kind === "unavailable" ? recoveryState.lastKnown : null,
+      recoveryCallbacks,
+    );
+    throw error;
+  }
+}
+
+/**
+ * GET-only reconciliation for a degraded execution. It never posts. When a
+ * prior send callback set is available (tracking failure or a 409 conflict),
+ * a recovered nonterminal send resumes the original tracker callbacks.
+ */
+export async function retryExecutionRecovery(): Promise<SendStatusResponse | null> {
+  const callbacks = recoveryCallbacks;
+  try {
+    const status = await fetchRecoveredSend();
+    if (status === null) {
+      clearRecoveryState();
+      return null;
+    }
+    if (callbacks !== null) {
+      clearRecoveryState();
+      callbacks.onStatus?.(status);
+      if (isTerminalSendState(status.state)) {
+        callbacks.onComplete?.(status);
+      } else {
+        createSendTracker(status.id, status, callbacks);
+      }
+    } else if (isTerminalSendState(status.state)) {
+      clearRecoveryState();
+    } else {
+      publishRecoveryState({
+        kind: "unavailable",
+        message:
+          "An active send was recovered. Use the page recovery control to resume tracking.",
+        lastKnown: status,
+      });
+    }
+    return status;
+  } catch (error: unknown) {
+    markRecoveryUnavailable(
+      error,
+      recoveryState.kind === "unavailable" ? recoveryState.lastKnown : null,
+      callbacks,
+    );
     throw error;
   }
 }
