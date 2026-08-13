@@ -692,16 +692,18 @@ Secret sentinels must cover:
 
 ### H10-101 — Frontend gates
 
-- [ ] `npm ci` from the pinned Node version.
-- [ ] format check.
-- [ ] typecheck.
-- [ ] ESLint with zero warnings.
-- [ ] stylelint with zero warnings.
-- [ ] Vitest full suite.
-- [ ] frontend coverage gate.
-- [ ] production build.
-- [ ] local-only/static asset checks.
-- [ ] real-Chrome full scenario suite including new hardening scenarios.
+- [x] `npm ci` from the pinned Node version.
+- [x] format check.
+- [x] typecheck.
+- [x] ESLint with zero warnings.
+- [x] stylelint with zero warnings.
+- [x] Vitest full suite.
+- [x] frontend coverage gate.
+- [x] production build.
+- [x] local-only/static asset checks.
+- [x] real-Chrome full scenario suite including new hardening scenarios.
+
+- Evidence: exact frontend-validation candidate `d440be6c26174a26b5b62748161f59d8aa5c18c1`; permanent Quality run `31675479517`, job `94369022215`, executed `scripts/check-webapp.sh` under pinned Node.js **24.18.0** and completed every H10-101 gate before the aggregate workflow later failed in the separate `check-scripts.sh` stage on pre-existing `shfmt` diffs. Vitest passed **47/47 files and 528/528 tests**; coverage measured **87.47% statements / 83.35% branches / 91.43% functions / 87.55% lines**; the production build and all seven reported real-Chrome scenario groups passed. Full evidence: `docs/implementation-v2/H10_101_FRONTEND_VALIDATION_2026-08-13.md`. The Phase H10 exit gate remains open because H10-102/H10-103 require physical-device evidence and the complete aggregate software gate has not yet exited 0 on this candidate.
 
 ### H10-102 — Device Unity tests
 
