@@ -168,7 +168,6 @@ Still open:
 H10-100 is therefore **not complete** and the H10 phase exit gate is not claimed.
 No unchecked H10 task is being represented as complete.
 
-
 ## Authoritative closure — 2026-08-12
 
 H10-100 is complete on exact validation checkpoint
