@@ -1,0 +1,182 @@
+name: Close H10-100 evidence
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/close-h10-100.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  close:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 2
+
+      - name: Record authoritative H10-100 closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          validated_sha="910a8fd461fc8f9079cc99ffa450c1c4f76589eb"
+          test "$(git rev-parse HEAD^)" = "${validated_sha}"
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          todo_path = Path("docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md")
+          todo = todo_path.read_text()
+          old = '''### H10-100 — Native/contract gates
+
+- [ ] Run complete host suite.
+- [ ] Run complete host suite under ASan + UBSan.
+- [ ] Run v2 contract corpus/native checks.
+- [ ] Run route-manifest and setup isolation checks.
+- [ ] Run static-analysis/clang-tidy with warnings fatal.
+- [ ] Run native coverage policy and record exact values.
+'''
+          new = '''### H10-100 — Native/contract gates
+
+- [x] Run complete host suite.
+- [x] Run complete host suite under ASan + UBSan.
+- [x] Run v2 contract corpus/native checks.
+- [x] Run route-manifest and setup isolation checks.
+- [x] Run static-analysis/clang-tidy with warnings fatal.
+- [x] Run native coverage policy and record exact values.
+
+- Evidence: exact validation checkpoint `910a8fd461fc8f9079cc99ffa450c1c4f76589eb`; Host Tests run `31671332886` passed normal host, ASan+UBSan, and pinned `gcovr==8.6` Native Coverage. Coverage-instrumented host tests passed **66/66**; the policy-enforced set measured **96.2% lines (2566/2668)**, **100.0% functions (227/227)**, and **82.8% branches (1870/2259)**. Quality run `31671332867` passed H10-100's static-analysis policy, setup/route synchronization, native contracts (**6/6**), production/test-app firmware build and fatal first-party clang-tidy segment, then continued through stack/release/frontend/browser gates before failing later on `shfmt` diffs in two test scripts. That later script-format failure is outside H10-100 and does not claim the H10 phase exit gate. See `docs/implementation-v2/H10_100_NATIVE_CONTRACT_VALIDATION_2026-08-12.md` and `docs/implementation-v2/H10_100_AUTHORITATIVE_REVALIDATION_2026-08-12.md`.
+'''
+          if todo.count(old) != 1:
+              raise SystemExit("expected exactly one unchecked H10-100 block")
+          todo_path.write_text(todo.replace(old, new))
+
+          primary_path = Path("docs/implementation-v2/H10_100_NATIVE_CONTRACT_VALIDATION_2026-08-12.md")
+          primary = primary_path.read_text()
+          marker = "## Authoritative closure — 2026-08-12"
+          if marker in primary:
+              raise SystemExit("primary H10-100 closure already recorded")
+          primary += '''
+
+## Authoritative closure — 2026-08-12
+
+H10-100 is complete on exact validation checkpoint
+`910a8fd461fc8f9079cc99ffa450c1c4f76589eb`, directly above product/code repair
+`c6ac972badbbea0ac673ef0373b6fd9ef5c5d07f`.
+
+### Exact-SHA host and sanitizer gates
+
+Permanent Host Tests workflow run `31671332886` passed the complete normal host
+suite and the complete ASan+UBSan host suite on the exact checkpoint. The same
+workflow's pinned `gcovr==8.6` Native Coverage job passed all **66/66**
+coverage-instrumented host tests.
+
+The policy-enforced coverage set measured:
+
+- lines: **96.2% (2566/2668)**;
+- functions: **100.0% (227/227)**;
+- branches: **82.8% (1870/2259)**.
+
+This clears the repository's required 90% line / 80% branch thresholds. The
+all-component report remained informational, as defined by
+`scripts/generate-native-coverage.sh`.
+
+### Exact-SHA native contracts, synchronization, and static analysis
+
+Permanent Quality workflow run `31671332867` executed `./scripts/check-all.sh`
+on the same checkpoint and recorded:
+
+- static-analysis policy: PASS;
+- V2 setup-route isolation policy: PASS;
+- web route/dispatch synchronization policy: PASS;
+- native V2 contract corpus: **6/6 PASS**;
+- production firmware GCC build: PASS;
+- production/test-app clang build and fatal first-party clang-tidy segment: PASS;
+- stack-usage policy: PASS (**652 first-party frames**, largest **1536 bytes**,
+  **0 allowlisted**);
+- release budgets: PASS.
+
+The preceding Quality candidate had reached the same complete **97/97** firmware
+translation-unit clang-tidy scan and exposed one remaining
+`bugprone-easily-swappable-parameters` diagnostic in
+`change_password_verify_current()`. Commit
+`c6ac972badbbea0ac673ef0373b6fd9ef5c5d07f` removed that finding without a
+suppression by separating the adjacent same-typed parameters. On the final
+checkpoint, `check-firmware.sh` completed and `check-all.sh` proceeded into
+stack, release, frontend, and real-Chrome gates; no first-party clang-tidy
+warning escaped the fatal gate.
+
+### Quality tail failure is outside H10-100
+
+Quality run `31671332867` ultimately exited nonzero **after** all H10-100 gates.
+It continued through the frontend build/tests and real-Chrome scenario suite,
+then `shfmt` reported formatting diffs in:
+
+- `tests/scripts/test-check-credential-logging.sh`;
+- `tests/scripts/test-test-assert-redaction.sh`.
+
+That downstream script-format defect is intentionally not hidden and is not
+represented as a successful full `check-all.sh` run. It does not invalidate the
+six H10-100 native/contract acceptance items, all of which completed before the
+later failure. H10-101/H10-102/H10-103 and the Phase H10 exit gate remain
+separate and are not closed by this evidence.
+
+## H10-100 final disposition
+
+**COMPLETE.** The six H10-100 native/contract gates have authoritative exact-SHA
+evidence. No analyzer suppression, exclusion, warning downgrade, threshold
+reduction, or fake-success path was introduced.
+'''
+          primary_path.write_text(primary)
+
+          supplemental_path = Path("docs/implementation-v2/H10_100_AUTHORITATIVE_REVALIDATION_2026-08-12.md")
+          supplemental = supplemental_path.read_text()
+          old_status = '''## Status
+
+Authoritative revalidation is **PENDING** on this exact evidence candidate. No H10-100 checkbox is claimed complete by this file until the corresponding permanent workflow/jobs complete successfully and the exact final results are recorded here and in the primary H10-100 evidence report.
+'''
+          new_status = '''## Final authoritative result
+
+**H10-100 PASS / COMPLETE** on exact validation checkpoint
+`910a8fd461fc8f9079cc99ffa450c1c4f76589eb`.
+
+Permanent Host Tests run `31671332886` passed normal host, ASan+UBSan, and pinned
+`gcovr==8.6` Native Coverage. Coverage-instrumented tests passed **66/66** and
+the policy-enforced set measured **96.2% lines (2566/2668)**, **100.0%
+functions (227/227)**, and **82.8% branches (1870/2259)**.
+
+Permanent Quality run `31671332867` passed the H10-100 segment: static-analysis
+policy, setup isolation, route synchronization, native contracts (**6/6**),
+firmware production/test-app builds, and the fatal first-party clang-tidy stage.
+`check-all.sh` then progressed through stack usage, release budgets, frontend
+checks, and real-Chrome scenarios before failing later on `shfmt` diffs in
+`tests/scripts/test-check-credential-logging.sh` and
+`tests/scripts/test-test-assert-redaction.sh`.
+
+That later script-format failure is recorded explicitly rather than hidden. It
+is outside H10-100's six native/contract acceptance items, so H10-100 is closed
+while the broader Phase H10 exit gate remains open.
+'''
+          if supplemental.count(old_status) != 1:
+              raise SystemExit("expected exactly one pending supplemental status block")
+          supplemental_path.write_text(supplemental.replace(old_status, new_status))
+          PY
+
+          git diff --check
+          grep -A12 '^### H10-100' docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md
+          grep -q '^## H10-100 final disposition' docs/implementation-v2/H10_100_NATIVE_CONTRACT_VALIDATION_2026-08-12.md
+          grep -q '^## Final authoritative result' docs/implementation-v2/H10_100_AUTHORITATIVE_REVALIDATION_2026-08-12.md
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md \
+            docs/implementation-v2/H10_100_NATIVE_CONTRACT_VALIDATION_2026-08-12.md \
+            docs/implementation-v2/H10_100_AUTHORITATIVE_REVALIDATION_2026-08-12.md
+          git rm .github/workflows/close-h10-100.yml
+          git commit -m "docs: close H10-100 native validation"
+          git push origin HEAD:master
