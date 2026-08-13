@@ -1,0 +1,553 @@
+from pathlib import Path
+import re
+
+ROOT = Path(".")
+TODO = ROOT / "docs/TODO_V2.md"
+HARD = ROOT / "docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md"
+EVID = ROOT / "docs/implementation-v2/H11_110_V2_CHECKBOX_REAUDIT_2026-08-13.md"
+
+AUDIT_SHA = "cc9e05727a2767f070dc79e9e699146e10509b34"
+
+def require_once(text: str, needle: str, label: str) -> None:
+    count = text.count(needle)
+    if count != 1:
+        raise SystemExit(f"{label}: expected exactly one occurrence, found {count}")
+
+def replace_once(text: str, old: str, new: str, label: str) -> str:
+    require_once(text, old, label)
+    return text.replace(old, new, 1)
+
+def section_bounds(text: str, start_heading: str, end_heading: str) -> tuple[int, int]:
+    start = text.find(start_heading)
+    if start < 0:
+        raise SystemExit(f"missing section start: {start_heading}")
+    end = text.find(end_heading, start + len(start_heading))
+    if end < 0:
+        raise SystemExit(f"missing section end: {end_heading}")
+    return start, end
+
+def insert_before_section(text: str, end_heading: str, marker: str, note: str) -> str:
+    if marker in text:
+        raise SystemExit(f"marker already present: {marker}")
+    idx = text.find(end_heading)
+    if idx < 0:
+        raise SystemExit(f"missing insertion heading: {end_heading}")
+    return text[:idx] + note.rstrip() + "\n\n" + text[idx:]
+
+todo = TODO.read_text(encoding="utf-8")
+hard = HARD.read_text(encoding="utf-8")
+
+# V2-055: route existence remains checked, but post-hardening semantics and hardware scope
+# must be explicit.
+marker = "Post-v2 H11-110 re-audit (2026-08-13) — V2-055:"
+s, e = section_bounds(todo, "## V2-055 — Settings and device-action routes", "## V2-056 — Diagnostics route")
+sec = todo[s:e]
+if marker in sec:
+    raise SystemExit("V2-055 H11 marker already present")
+sec = sec.rstrip() + f"""
+
+{marker} the route and exact-contract checkboxes remain checked. H2 and H3
+subsequently hardened password-change, reset-settings, and factory-reset failure
+semantics with deterministic host/sanitizer evidence. Those software corrections
+do not manufacture current physical-board evidence: H2-024, H3-035, H10-102,
+and H10-103 remain open/deferred where they require the reference ESP32-S3R8.
+"""
+todo = todo[:s] + sec + "\n\n" + todo[e:]
+
+# V2-061: software confirmation is current, hardware confirmation remains deferred.
+marker = "Post-v2 H11-110 re-audit (2026-08-13) — V2-061:"
+s, e = section_bounds(todo, "## V2-061 — Single executor and state machine", "## V2-062 — Release-all invariant")
+sec = todo[s:e]
+if marker in sec:
+    raise SystemExit("V2-061 H11 marker already present")
+sec = sec.rstrip() + f"""
+
+{marker} keep the executor/state-machine checkboxes checked. Current production
+send construction binds the authoritative `requireSerialConfirmation` setting
+fail-closed, and H10-101 executed the awaiting-confirmation/Cancel/no-duplicate-
+POST/timeout browser scenarios under pinned Node and real Chrome. This still does
+not substitute for the post-hardening HID/device confirmation matrix; H1-015 and
+H10-103 remain open for the reference board.
+"""
+todo = todo[:s] + sec + "\n\n" + todo[e:]
+
+# V2-062: H7 strengthened the same invariant; keep the original core requirement checked.
+marker = "Post-v2 H11-110 re-audit (2026-08-13) — V2-062:"
+s, e = section_bounds(todo, "## V2-062 — Release-all invariant", "## V2-063 — Cancellation responsiveness")
+sec = todo[s:e]
+if marker in sec:
+    raise SystemExit("V2-062 H11 marker already present")
+sec = sec.rstrip() + f"""
+
+{marker} retain all four checkboxes. H7 later made every safety-relevant release
+result observable, preserved release failure separately from the primary error,
+and fail-closed the executor after an unproven release. Current host and sanitizer
+evidence therefore strengthens rather than invalidates V2-062. Physical
+post-hardening HID revalidation is still owned by H10-103.
+"""
+todo = todo[:s] + sec + "\n\n" + todo[e:]
+
+# V2-074: H8 repaired persistence-failure semantics without invalidating selection rules.
+marker = "Post-v2 H11-110 re-audit (2026-08-13) — V2-074:"
+s, e = section_bounds(todo, "## V2-074 — Package selection preference", "## V2-075 — React send helper")
+sec = todo[s:e]
+if marker in sec:
+    raise SystemExit("V2-074 H11 marker already present")
+sec = sec.rstrip() + f"""
+
+{marker} retain the selection-preference checkboxes. H8 closed the later failure
+semantics: a failed NVS persistence attempt is visible, local selection does not
+dirty repository content, Retry is available, and snapshot load/import resolve
+against the last successfully persisted package ID rather than transient local
+state. H10-101 executed the current frontend suite.
+"""
+todo = todo[:s] + sec + "\n\n" + todo[e:]
+
+# V2-075: happy-path helper remains correct, but H4's degraded-state matrix remains broader.
+marker = "Post-v2 H11-110 re-audit (2026-08-13) — V2-075:"
+s, e = section_bounds(todo, "## V2-075 — React send helper", "## Phase 7 exit gate")
+sec = todo[s:e]
+if marker in sec:
+    raise SystemExit("V2-075 H11 marker already present")
+sec = sec.rstrip() + f"""
+
+{marker} retain V2-075's checked normal send-helper requirements. Current
+sendClient.ts distinguishes a real 404/no-send result from other recovery
+failures, and startup carries explicit `none`/`known`/`unavailable` recovery
+state. However the broader post-v2 H4 degraded-execution task remains open: its
+complete cancellation-availability/freshness matrix and intentionally failed
+real-Chrome recovery scenario are not being inferred from these V2 checkboxes.
+"""
+todo = todo[:s] + sec + "\n\n" + todo[e:]
+
+# V2-082: normal startup recovery remains checked; degraded-state H4 is separate.
+marker = "Post-v2 H11-110 re-audit (2026-08-13) — V2-082:"
+s, e = section_bounds(todo, "## V2-082 — Authenticated startup state machine", "## V2-083 — First repository and first package")
+sec = todo[s:e]
+if marker in sec:
+    raise SystemExit("V2-082 H11 marker already present")
+sec = sec.rstrip() + f"""
+
+{marker} retain V2-082. The current startup core explicitly returns send recovery
+as `none`, `known`, or `unavailable`; the authenticated shell keeps the working
+copy mounted, shows an execution-state-unavailable warning, and offers Retry.
+That is stronger than the original normal-recovery wording, but it still does not
+close H4's full degraded cancellation/freshness/browser acceptance matrix.
+"""
+todo = todo[:s] + sec + "\n\n" + todo[e:]
+
+# V2-116: explicit delete-then-add semantics remain true; H5 durability uncertainty is distinct.
+marker = "Post-v2 H11-110 re-audit (2026-08-13) — V2-116:"
+s, e = section_bounds(todo, "## V2-116 — Advanced non-atomic replace", "## Phase 11 exit gate")
+sec = todo[s:e]
+if marker in sec:
+    raise SystemExit("V2-116 H11 marker already present")
+sec = sec.rstrip() + f"""
+
+{marker} retain V2-116's explicit advanced delete-then-add semantics and its
+delete-success/add-failure warning. This does **not** claim H5's lower-level
+storage commit certainty: primary-versus-cleanup provenance and
+rename-success/parent-sync-failure reconciliation remain open under H5 and must
+be resolved before final release sign-off.
+"""
+todo = todo[:s] + sec + "\n\n" + todo[e:]
+
+# Phase 15 V2-150: current individual software gates have H10 evidence, but aggregate
+# check-all is currently red after those gates due shfmt, so reopen only the aggregate item.
+todo = replace_once(
+    todo,
+    "- [x] Run `./scripts/check-all.sh`. `EXIT=0`.",
+    "- [ ] Run `./scripts/check-all.sh`. Historical `EXIT=0` evidence exists at `de47eee`,\n"
+    "      but the current post-hardening aggregate gate has not exited 0.",
+    "V2-150 aggregate check-all checkbox",
+)
+v150_marker = "Post-v2 H11-110 re-audit (2026-08-13) — V2-150:"
+s, e = section_bounds(todo, "## V2-150 — Native and frontend quality gates", "## V2-151 — On-device Unity validation")
+sec = todo[s:e]
+if v150_marker in sec:
+    raise SystemExit("V2-150 H11 marker already present")
+intro_anchor = "docs/implementation-v2/V2_150_151_FULL_GATE_AND_ON_DEVICE_UNITY_2026-08-10.md`.\n"
+require_once(sec, intro_anchor, "V2-150 evidence intro")
+sec = sec.replace(
+    intro_anchor,
+    intro_anchor
+    + f"\n{v150_marker} the 2026-08-10 `de47eee` results remain historical evidence.\n"
+      "Current H10-100/H10-101 exact-SHA evidence re-proves the native, sanitizer,\n"
+      "coverage, analyzer, firmware-build, frontend, production-build, and real-Chrome\n"
+      "segments after hardening. The aggregate `check-all.sh` item is reopened because\n"
+      "the latest post-hardening Quality run completed those segments and then failed\n"
+      "later in `check-scripts.sh` on two `shfmt` diffs. H12-121 owns the next clean\n"
+      "aggregate release-gate proof.\n",
+    1,
+)
+todo = todo[:s] + sec + todo[e:]
+
+# V2-151: the device suite changed from 10 to 12 after the historical board run.
+s, e = section_bounds(todo, "## V2-151 — On-device Unity validation", "## V2-152 — USB HID hardware matrix")
+sec = todo[s:e]
+changed = 0
+for old, new in [
+    ("- [x] Build and flash the on-device test application.", "- [ ] Build and flash the current on-device test application."),
+    ("- [x] Run the complete Unity menu on the reference board.", "- [ ] Run the complete current Unity menu on the reference board."),
+    ("- [x] Record every test name and result.", "- [ ] Record every current test name and result."),
+    ("- [x] Do not substitute a device-test build for execution.", "- [ ] Do not substitute a device-test build for execution."),
+]:
+    if old not in sec:
+        raise SystemExit(f"V2-151 missing checkbox: {old}")
+    sec = sec.replace(old, new, 1)
+    changed += 1
+note = f"""Post-v2 H11-110 re-audit (2026-08-13): **V2-151 is reopened for the
+current product.** The historical `de47eee` physical run remains valid evidence
+for the then-complete 10-case suite, but H10-102 has since added two
+`[device][executor][hardening]` Unity cases, making the current suite 12 cases.
+No 12/12 physical run exists yet. Build-only CI is not substituted for execution;
+the current board run is explicitly deferred/open under H10-102."""
+# Insert note immediately after heading before old historical prose.
+heading = "## V2-151 — On-device Unity validation\n\n"
+require_once(sec, heading, "V2-151 heading")
+sec = sec.replace(heading, heading + note + "\n\n", 1)
+todo = todo[:s] + sec + todo[e:]
+
+# V2-153: only the reset/reprovision board claim is stale because H3 materially changed it.
+todo = replace_once(
+    todo,
+    "- [x] Validate factory reset and reprovisioning. New evidence 2026-08-10:",
+    "- [ ] Revalidate factory reset and reprovisioning after the H3 reset-state hardening.\n"
+    "      Historical evidence 2026-08-10:",
+    "V2-153 factory reset checkbox",
+)
+v153_marker = "Post-v2 H11-110 re-audit (2026-08-13) — V2-153:"
+s, e = section_bounds(todo, "## V2-153 — Storage and power-failure matrix", "## V2-154 — Network and authentication matrix")
+sec = todo[s:e]
+if v153_marker in sec:
+    raise SystemExit("V2-153 H11 marker already present")
+sec = sec.rstrip() + f"""
+
+{v153_marker} the storage add/list/load/delete, byte-identity, interrupted-upload,
+full-partition, and mount-failure evidence remains historical evidence for code
+that was not replaced by H3. The factory-reset checkbox is reopened because H3
+materially changed factory-reset ownership with a durable reset journal,
+idempotent replay, reset-recovery gating, and new reset-settings semantics.
+The old happy-path reset run cannot validate that new state machine. H3-035 and
+H10-103 own the current physical rerun and are intentionally deferred/open.
+"""
+todo = todo[:s] + sec + "\n\n" + todo[e:]
+
+# V2-154: PBKDF2 history remains valid, but the compound password-change item must
+# be reopened because H2 materially changed the current transaction path.
+todo = replace_once(
+    todo,
+    "- [x] Validate successful password change and PBKDF2 timing. PBKDF2 timing is",
+    "- [ ] Revalidate successful password change after H2 hardening; retain the historical\n"
+    "      PBKDF2 timing evidence. PBKDF2 timing is",
+    "V2-154 password/PBKDF2 checkbox",
+)
+v154_marker = "Post-v2 H11-110 re-audit (2026-08-13) — V2-154:"
+s, e = section_bounds(todo, "## V2-154 — Network and authentication matrix", "## V2-155 — Android UI workflow matrix")
+sec = todo[s:e]
+if v154_marker in sec:
+    raise SystemExit("V2-154 H11 marker already present")
+sec = sec.rstrip() + f"""
+
+{v154_marker} first-run setup, setup-state, login/logout/lockout, AP survival,
+bounded reconnect, and the H9 no-secret audit remain checked with their existing
+evidence; idle/absolute expiry correctly remains open. The compound
+password-change/PBKDF2 item is reopened because H2 materially changed
+password-change transaction semantics after the historical board run. The
+PBKDF2 benchmark itself remains valid/frozen, but the current hardened
+password/session path still requires H2-024/H10-103 physical validation.
+"""
+todo = todo[:s] + sec + "\n\n" + todo[e:]
+
+# Final sign-off: current aggregate clean-checkout claim is stale after hardening.
+todo = replace_once(
+    todo,
+    "- [x] `./scripts/check-all.sh` passes from a clean checkout.",
+    "- [ ] `./scripts/check-all.sh` passes from a clean checkout.",
+    "final sign-off check-all checkbox",
+)
+
+# Replace stale final-signoff intro with current audit status while preserving the bullet history.
+s, e = section_bounds(todo, "## Final sign-off checklist", "- [ ] `docs/SPEC_V2.md` matches production behavior.")
+intro = todo[s:e]
+new_intro = """## Final sign-off checklist
+
+This checklist is Phase 15's release gate, not a running progress meter.
+Post-v2 H11-110 re-audited the affected entries against current code and evidence
+at `cc9e05727a2767f070dc79e9e699146e10509b34`. Historical evidence remains
+useful, but it is not allowed to stand in for behavior materially changed by the
+hardening pass. H4 degraded execution recovery, H5 storage commit certainty,
+current physical-device revalidation, H11 literal/document synchronization, and
+the H12 clean-checkout release gate remain open.
+
+"""
+todo = todo[:s] + new_intro + todo[e:]
+
+# Rewrite the first two stale explanatory bullets only.
+pattern = re.compile(
+    r"- \[ \] `docs/SPEC_V2\.md` matches production behavior\..*?"
+    r"(?=- \[ \] `docs/UI_UX_SPEC_V2\.md` matches production behavior\.)",
+    re.S,
+)
+m = pattern.search(todo)
+if not m:
+    raise SystemExit("missing final SPEC_V2 sign-off bullet block")
+todo = todo[:m.start()] + (
+    "- [ ] `docs/SPEC_V2.md` matches production behavior. H11-110 found no basis\n"
+    "      to close final specification sign-off yet: H4/H5 remain open, current\n"
+    "      affected hardware evidence is deferred, and H11-111/H11-112 have not\n"
+    "      completed the literal evidence/documentation audit.\n"
+) + todo[m.end():]
+
+pattern = re.compile(
+    r"- \[ \] `docs/UI_UX_SPEC_V2\.md` matches production behavior\..*?"
+    r"(?=- \[ \] `docs/TODO_V2\.md` contains no falsely completed task\.)",
+    re.S,
+)
+m = pattern.search(todo)
+if not m:
+    raise SystemExit("missing final UI_UX_SPEC_V2 sign-off bullet block")
+todo = todo[:m.start()] + (
+    "- [ ] `docs/UI_UX_SPEC_V2.md` matches production behavior. The current\n"
+    "      frontend gates are green (H10-101), but final UI/UX sign-off still\n"
+    "      depends on unresolved degraded-recovery semantics and the deferred\n"
+    "      device/manual acceptance evidence.\n"
+) + todo[m.end():]
+
+# Add current correction to the check-all bullet before the next hardware bullet.
+checkall_anchor = "- [ ] Required ESP32-S3R8, USB HID, storage, Wi-Fi, authentication, and Android\n"
+idx = todo.find(checkall_anchor)
+if idx < 0:
+    raise SystemExit("missing final hardware sign-off bullet")
+pre = todo[:idx]
+if "Post-v2 H11-110 correction: this checkbox is reopened" not in pre[-3000:]:
+    pre = pre.rstrip() + (
+        "\n      Post-v2 H11-110 correction: this checkbox is reopened. H10-100 and\n"
+        "      H10-101 prove their respective current software segments, but the\n"
+        "      latest aggregate Quality run still exits nonzero later in\n"
+        "      `check-scripts.sh`; H12-120/H12-121 own the next clean-checkout\n"
+        "      aggregate proof.\n"
+    )
+todo = pre + "\n" + todo[idx:]
+
+# Replace the stale hardware sign-off explanation through the next bullet.
+pattern = re.compile(
+    r"- \[ \] Required ESP32-S3R8, USB HID, storage, Wi-Fi, authentication, and Android\n"
+    r"      evidence is committed\..*?"
+    r"(?=- \[x\] No v1 compatibility architecture remains in production code\.)",
+    re.S,
+)
+m = pattern.search(todo)
+if not m:
+    raise SystemExit("missing final hardware sign-off block")
+todo = todo[:m.start()] + (
+    "- [ ] Required ESP32-S3R8, USB HID, storage, Wi-Fi, authentication, and Android\n"
+    "      evidence is committed. Substantial historical ESP32-S3R8/HID/storage/\n"
+    "      Wi-Fi/authentication evidence exists and remains cited above, but H2/H3/H7\n"
+    "      changed affected behavior afterward, the current Unity suite is 12 rather\n"
+    "      than the historically executed 10 cases, H10-102/H10-103 are deferred for\n"
+    "      current-board revalidation, and the Android workflow matrix remains open.\n"
+) + todo[m.end():]
+
+# Replace stale silent-failure rationale through final report bullet.
+pattern = re.compile(
+    r"- \[ \] No known silent failure, dangerous fallback, secret leak, automatic\n"
+    r"      snapshot deletion, or inaccessible cancellation path remains\..*?"
+    r"(?=- \[ \] Final implementation report records the accepted release commit SHA\.)",
+    re.S,
+)
+m = pattern.search(todo)
+if not m:
+    raise SystemExit("missing final silent-failure sign-off block")
+todo = todo[:m.start()] + (
+    "- [ ] No known silent failure, dangerous fallback, secret leak, automatic\n"
+    "      snapshot deletion, or inaccessible cancellation path remains. H8 makes\n"
+    "      reviewed selection/export failures visible, H9's cross-cutting fallback\n"
+    "      and secret audits are complete, and H7 fail-closes unsafe HID release.\n"
+    "      Final sign-off remains open because H4's complete degraded execution/\n"
+    "      cancellation matrix and H5's storage commit-uncertainty semantics are\n"
+    "      still open, in addition to deferred current hardware acceptance.\n"
+) + todo[m.end():]
+
+# H1-014 is now supported by the exact H10-101 real-browser execution.
+s, e = section_bounds(hard, "### H1-014 — Browser regression tests", "### H1-015 — Hardware evidence")
+new_h1014 = """### H1-014 — Browser regression tests
+
+- [x] Real/Vitest browser workflow displays awaiting-confirmation.
+- [x] Cancel remains reachable.
+- [x] Confirmed transition does not duplicate POST.
+- [x] Timeout is displayed distinctly from ordinary failure.
+
+- Evidence (2026-08-13): H10-101 executed the current frontend under pinned
+  Node.js 24.18.0 and the permanent real-Chrome suite. The Macros/Quick Send
+  scenarios exercise `awaiting_confirmation`, keep Cancel available, verify the
+  confirmation transition without a duplicate send POST, and render timeout
+  separately from ordinary failure. Exact frontend-validation candidate:
+  `d440be6c26174a26b5b62748161f59d8aa5c18c1`; Quality run `31675479517`,
+  job `94369022215`; full mapping:
+  `docs/implementation-v2/H10_101_FRONTEND_VALIDATION_2026-08-13.md`.
+
+"""
+hard = hard[:s] + new_h1014 + hard[e:]
+
+# Close H11-110's audit checklist only.
+s, e = section_bounds(hard, "### H11-110 — Re-audit every affected v2 checkbox", "### H11-111 — Literal evidence audit")
+sec = hard[s:e]
+unchecked = len(re.findall(r"^- \[ \] ", sec, flags=re.M))
+if unchecked != 11:
+    raise SystemExit(f"H11-110 expected 11 unchecked items, found {unchecked}")
+sec = re.sub(r"^- \[ \] ", "- [x] ", sec, flags=re.M)
+sec = sec.rstrip() + """
+
+- Evidence (2026-08-13): `docs/TODO_V2.md` was re-audited against current
+  implementation/evidence at product audit basis
+  `cc9e05727a2767f070dc79e9e699146e10509b34`. The audit preserves valid core
+  V2 checkmarks, adds scope notes where later H1-H9 hardening narrows their
+  meaning, and reopens stale final-release/current-hardware claims: V2-150's
+  aggregate `check-all.sh`, all current V2-151 Unity execution items, V2-153's
+  post-H3 factory-reset/reprovisioning evidence, V2-154's post-H2
+  password-change/PBKDF2 compound item, and the final clean-checkout
+  `check-all.sh` sign-off. H1-014 is also closed from exact H10-101 executable
+  browser evidence. Hardware-required reruns remain explicitly open/deferred.
+  Full disposition:
+  `docs/implementation-v2/H11_110_V2_CHECKBOX_REAUDIT_2026-08-13.md`.
+"""
+hard = hard[:s] + sec + "\n\n" + hard[e:]
+
+evidence = f"""# H11-110 V2 Checkbox Re-audit — 2026-08-13
+
+## Scope and audit basis
+
+This report closes only **H11-110 — Re-audit every affected v2 checkbox** from
+`docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md`.
+
+The exact product/document state inspected before this docs-only reconciliation
+was:
+
+`{AUDIT_SHA}`
+
+H11-111 (literal evidence audit), H11-112 (documentation synchronization), the
+Phase H11 exit gate, H10 physical-device work, and H12 release validation remain
+separate and are **not** claimed complete here.
+
+The product owner explicitly deferred current physical ESP32-S3R8 work to a
+later Claude Code session. This audit therefore reopens stale hardware claims
+where behavior materially changed after the historical run, rather than
+substituting host/browser/build evidence.
+
+## Re-audit disposition
+
+| Item | Disposition | Reason |
+| --- | --- | --- |
+| V2-055 settings/password/device actions | Keep core route/contract checks checked | Routes remain implemented; H2/H3 now own hardened password/reset failure semantics. Current board validation remains open. |
+| V2-061 confirmation | Keep executor/state-machine checks checked | Authoritative confirmation setting is wired fail-closed; H10-101 supplies executable browser confirmation evidence. Physical post-hardening HID confirmation remains open. |
+| V2-062 release-all | Keep checked | H7 strengthened the invariant by observing release errors, preserving provenance, and latching unsafe release fail-closed. |
+| V2-074 selection persistence | Keep checked | H8 adds visible persistence failure, Retry, non-dirty local continuation, and last-successfully-persisted selection semantics. |
+| V2-075 send helper | Keep named V2 requirements checked | Normal/reload send helper behavior remains valid. Current code now also models `none`/`known`/`unavailable`, but H4's full degraded cancellation/freshness/browser matrix remains open. |
+| V2-082 startup send recovery | Keep checked | Normal startup recovery remains implemented; unavailable recovery is visible and retryable without discarding the working copy. H4 remains broader than this checkbox. |
+| V2-116 advanced replace/import-export | Keep checked | The explicit advanced flow is still intentionally delete-then-add. H5 storage commit/durability uncertainty is a distinct lower-level open requirement and is not claimed by V2-116. |
+| V2-153 reset/power matrix | Reopen current factory-reset/reprovisioning item | H3 materially changed reset ownership with a durable journal, replayable cleanup, and fail-closed recovery. The old happy-path board run does not validate the new state machine. Other unchanged historical storage evidence remains recorded. |
+| V2-154 auth/network/no-secret matrix | Reopen current password-change/PBKDF2 compound item; retain other supported items | H2 materially changed password transaction semantics after the old board run. PBKDF2 timing remains valid/frozen, but the current password/session path needs board revalidation. Idle/absolute expiry remains open; H9 supports the no-secret checkbox. |
+| Phase 4/5/6/7/8/11/15 affected exit gates | Preserve literal truth; do not over-close | Phase 5 already keeps incomplete contract/security coverage open. Phase 4/6/7/8/11 named historical/core evidence remains supported by newer H7-H10 software evidence, but none is promoted into current hardware proof. Phase 15 remains open. |
+| Final sign-off checklist | Reopen stale aggregate clean-checkout claim; update stale rationale | Current H10 software segments are proven, but the aggregate Quality gate is still red later in `check-scripts.sh`; H4/H5, current hardware, H11-111/112, and H12 remain open. |
+
+## Specific stale-completion corrections
+
+### V2-150 aggregate gate
+
+The historical `de47eee` `./scripts/check-all.sh` exit-0 result is retained as
+history. It is no longer a current release-gate result after post-v2 hardening.
+
+H10-100/H10-101 re-prove the current native, sanitizer, coverage, analyzer,
+firmware-build, frontend, production-build, and real-Chrome segments on exact
+post-hardening candidates. The latest aggregate Quality run, however, proceeds
+through those segments and then fails in `check-scripts.sh` on `shfmt`
+differences. Therefore only the aggregate V2-150 `check-all.sh` checkbox is
+reopened here; H12-121 owns the next clean aggregate proof.
+
+### V2-151 device Unity execution
+
+The old physical run executed the then-complete **10-case** device suite. H10-102
+subsequently added two `[device][executor][hardening]` cases, so the current suite
+contains **12 cases**. Build-only CI is not execution. All current V2-151 device
+execution items are therefore reopened until a real board produces the complete
+12-case result.
+
+### V2-153 factory-reset hardware evidence
+
+The 2026-08-10 board run remains useful historical happy-path evidence, but H3
+later introduced a durable factory-reset journal, idempotent/replayable cleanup,
+reset-pending authority gating, and changed reset-settings failure semantics.
+The historical run predates those changes, so the current factory-reset/
+reprovisioning checkbox is reopened. H3-035/H10-103 own the board rerun.
+
+### V2-154 password-change hardware evidence
+
+H2 later changed password change into the hardened durable-commit -> direct RAM
+activation -> session-invalidation transaction and made post-commit incomplete
+session invalidation explicit. The old happy-path password test predates that
+path. Because the V2-154 checkbox combines successful password change with
+PBKDF2 timing, the compound item is reopened: the PBKDF2 benchmark remains
+valid/frozen, while the current password/session path requires H2-024/H10-103.
+
+## H1 browser reconciliation
+
+H1-014 had remained open only for executable browser evidence. H10-101 now
+provides that evidence on exact frontend candidate
+`d440be6c26174a26b5b62748161f59d8aa5c18c1` (Quality run `31675479517`, job
+`94369022215`): the current real-Chrome suite exercises awaiting confirmation,
+keeps Cancel reachable, verifies confirmation does not duplicate send POSTs,
+and distinguishes timeout from ordinary failure. H1-014 is therefore closed.
+H1-015 and the hardware-dependent H1 exit items remain open.
+
+## H4 tracker finding
+
+The H11 re-audit found that the H4 tracker is conservative relative to current
+source: `startup.ts` already models send recovery as `none`, `known`, or
+`unavailable`; non-404 recovery errors are not collapsed to `null`; `AppV2.tsx`
+renders an explicit execution-state-unavailable warning and Retry while retaining
+the working copy; and permanent Vitest covers that recovery path plus stale USB
+status.
+
+This does **not** justify closing H4 wholesale. The full H4 acceptance language
+also requires complete cancellation-availability/freshness behavior and a real
+Chrome scenario that intentionally fails recovery. Those remain open and should
+be handled as their own software task rather than being silently inferred here.
+
+## H5 boundary
+
+V2-116's user-visible advanced delete-then-add operation remains deliberately
+non-atomic and correctly warns about delete-success/add-failure. H5 asks a
+different question: whether lower-level storage errors preserve initiating and
+cleanup provenance, represent post-rename parent-sync uncertainty explicitly,
+and reconcile before retry so an uncertain commit cannot silently duplicate a
+snapshot. H5 remains open.
+
+## Hardware deferral boundary
+
+No current board-only requirement is checked by this audit. In particular the
+following remain open/deferred:
+
+- H1-015 physical confirmation/HID evidence;
+- H2-024 hardened password-change board validation;
+- H3-035 reset interruption/recovery board validation;
+- H10-102 current 12-case Unity execution;
+- H10-103 affected hardware matrix refresh;
+- H12-122 final exact-release-SHA hardware confirmation;
+- Android/manual/optional-host items that still lack their required real-device
+  evidence.
+
+## Disposition
+
+**H11-110 COMPLETE** as a checkbox/evidence reconciliation task on audit basis
+`{AUDIT_SHA}`.
+
+H11-111 and H11-112 remain open. No Phase H11 or final release completion is
+claimed.
+"""
+
+TODO.write_text(todo, encoding="utf-8")
+HARD.write_text(hard, encoding="utf-8")
+EVID.write_text(evidence, encoding="utf-8")
+
+print("H11-110 reconciliation prepared")
