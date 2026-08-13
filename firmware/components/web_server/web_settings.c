@@ -631,7 +631,7 @@ static bool ops_valid_change_password(const web_settings_ops_t *ops) {
 
 static web_change_password_outcome_t change_password_verify_current(
     const web_settings_ops_t *ops, app_v2_string_view_t current_password_view,
-    app_v2_string_view_t new_password_view, app_v2_device_settings_t *current) {
+    app_v2_device_settings_t *current, app_v2_string_view_t new_password_view) {
     const app_error_code_t read_result = ops->settings_read(ops->context, current);
     if (read_result != APP_ERROR_NONE) {
         return change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
@@ -740,7 +740,7 @@ web_change_password_outcome_t web_change_password_handle(char *body, size_t body
     transition_active = true;
 
     outcome =
-        change_password_verify_current(ops, current_password_view, new_password_view, &current);
+        change_password_verify_current(ops, current_password_view, &current, new_password_view);
     if (outcome.result != WEB_CHANGE_PASSWORD_OK) {
         goto cleanup;
     }
