@@ -150,8 +150,8 @@ static bool exact_reset_settings_fields(const cJSON *root) {
     return field_count == RESET_SETTINGS_FIELD_COUNT;
 }
 
-static web_device_reset_settings_outcome_t reset_settings_backend_outcome(
-    device_controls_reset_settings_outcome_t reset) {
+static web_device_reset_settings_outcome_t
+reset_settings_backend_outcome(device_controls_reset_settings_outcome_t reset) {
     if (!reset.settings_applied) {
         if (reset.sessions_invalidated || reset.restart_owned ||
             reset.primary_error == APP_ERROR_NONE || reset.restart_error != APP_ERROR_NONE) {
@@ -275,8 +275,8 @@ static bool exact_factory_reset_fields(const cJSON *root) {
     return field_count == FACTORY_RESET_FIELD_COUNT && seen_password && seen_confirmation;
 }
 
-static web_device_factory_reset_outcome_t factory_reset_backend_outcome(
-    device_controls_factory_reset_outcome_t reset) {
+static web_device_factory_reset_outcome_t
+factory_reset_backend_outcome(device_controls_factory_reset_outcome_t reset) {
     if (!reset.durably_accepted) {
         if (reset.recovery_required || reset.primary_error == APP_ERROR_NONE) {
             return (web_device_factory_reset_outcome_t){
