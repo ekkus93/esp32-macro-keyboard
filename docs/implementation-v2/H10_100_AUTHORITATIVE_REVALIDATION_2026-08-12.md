@@ -32,6 +32,24 @@ This evidence-only checkpoint sits directly on top of product/code commit:
 
 It changes no firmware, host test, build, contract, coverage, analyzer, or permanent workflow implementation. The permanent Quality and Host Tests workflows must succeed on this exact checkpoint before H10-100 is closed.
 
-## Status
+## Final authoritative result
 
-Authoritative revalidation is **PENDING** on this exact evidence candidate. No H10-100 checkbox is claimed complete by this file until the corresponding permanent workflow/jobs complete successfully and the exact final results are recorded here and in the primary H10-100 evidence report.
+**H10-100 PASS / COMPLETE** on exact validation checkpoint
+`910a8fd461fc8f9079cc99ffa450c1c4f76589eb`.
+
+Permanent Host Tests run `31671332886` passed normal host, ASan+UBSan, and pinned
+`gcovr==8.6` Native Coverage. Coverage-instrumented tests passed **66/66** and
+the policy-enforced set measured **96.2% lines (2566/2668)**, **100.0%
+functions (227/227)**, and **82.8% branches (1870/2259)**.
+
+Permanent Quality run `31671332867` passed the H10-100 segment: static-analysis
+policy, setup isolation, route synchronization, native contracts (**6/6**),
+production and device-test firmware builds, and both fatal first-party
+clang-tidy gates. `check-all.sh` then progressed through stack usage, release
+budgets, frontend checks, and real-Chrome scenarios before failing later on
+`shfmt` diffs in `tests/scripts/test-check-credential-logging.sh` and
+`tests/scripts/test-test-assert-redaction.sh`.
+
+That later script-format failure is recorded explicitly rather than hidden. It
+is outside H10-100's six native/contract acceptance items, so H10-100 is closed
+while the broader Phase H10 exit gate remains open.

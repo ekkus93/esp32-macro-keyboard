@@ -167,3 +167,74 @@ Still open:
 
 H10-100 is therefore **not complete** and the H10 phase exit gate is not claimed.
 No unchecked H10 task is being represented as complete.
+
+
+## Authoritative closure — 2026-08-12
+
+H10-100 is complete on exact validation checkpoint
+`910a8fd461fc8f9079cc99ffa450c1c4f76589eb`, directly above product/code repair
+`c6ac972badbbea0ac673ef0373b6fd9ef5c5d07f`.
+
+### Exact-SHA host and sanitizer gates
+
+Permanent Host Tests workflow run `31671332886` passed the complete normal host
+suite and the complete ASan+UBSan host suite on the exact checkpoint. The same
+workflow's pinned `gcovr==8.6` Native Coverage job passed all **66/66**
+coverage-instrumented host tests.
+
+The policy-enforced coverage set measured:
+
+- lines: **96.2% (2566/2668)**;
+- functions: **100.0% (227/227)**;
+- branches: **82.8% (1870/2259)**.
+
+This clears the repository's required 90% line / 80% branch thresholds. The
+all-component report remained informational, as defined by
+`scripts/generate-native-coverage.sh`.
+
+### Exact-SHA native contracts, synchronization, and static analysis
+
+Permanent Quality workflow run `31671332867` executed `./scripts/check-all.sh`
+on the same checkpoint and recorded:
+
+- static-analysis policy: PASS;
+- V2 setup-route isolation policy: PASS;
+- web route/dispatch synchronization policy: PASS;
+- native V2 contract corpus: **6/6 PASS**;
+- production firmware GCC build and fatal first-party clang-tidy gate: PASS;
+- device-test firmware GCC build and fatal first-party clang-tidy gate: PASS;
+- stack-usage policy: PASS (**652 first-party frames**, largest **1536 bytes**,
+  **0 allowlisted**);
+- release budgets: PASS.
+
+The immediately preceding Quality candidate reached the complete first-party
+firmware clang-tidy scan and exposed one remaining
+`bugprone-easily-swappable-parameters` diagnostic in
+`change_password_verify_current()`. Commit
+`c6ac972badbbea0ac673ef0373b6fd9ef5c5d07f` removed that finding without a
+suppression by separating the adjacent same-typed parameters. On the final
+checkpoint, `scripts/check-firmware.sh` completed both `firmware` and
+`firmware/test_app`; because that script fails closed on any nonzero
+`run-clang-tidy` status or first-party finding, reaching the subsequent
+stack-usage gate is authoritative evidence that both clang-tidy gates passed.
+
+### Quality tail failure is outside H10-100
+
+Quality run `31671332867` ultimately exited nonzero **after** all H10-100 gates.
+It continued through frontend build/tests and real-Chrome scenarios, then
+`shfmt` reported formatting diffs in:
+
+- `tests/scripts/test-check-credential-logging.sh`;
+- `tests/scripts/test-test-assert-redaction.sh`.
+
+That downstream script-format defect is intentionally not hidden and is not
+represented as a successful full `check-all.sh` run. It does not invalidate the
+six H10-100 native/contract acceptance items, all of which completed before the
+later failure. H10-101/H10-102/H10-103 and the Phase H10 exit gate remain
+separate and are not closed by this evidence.
+
+## H10-100 final disposition
+
+**COMPLETE.** The six H10-100 native/contract gates have authoritative exact-SHA
+evidence. No analyzer suppression, exclusion, warning downgrade, threshold
+reduction, or fake-success path was introduced.

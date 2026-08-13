@@ -681,12 +681,14 @@ Secret sentinels must cover:
 
 ### H10-100 — Native/contract gates
 
-- [ ] Run complete host suite.
-- [ ] Run complete host suite under ASan + UBSan.
-- [ ] Run v2 contract corpus/native checks.
-- [ ] Run route-manifest and setup isolation checks.
-- [ ] Run static-analysis/clang-tidy with warnings fatal.
-- [ ] Run native coverage policy and record exact values.
+- [x] Run complete host suite.
+- [x] Run complete host suite under ASan + UBSan.
+- [x] Run v2 contract corpus/native checks.
+- [x] Run route-manifest and setup isolation checks.
+- [x] Run static-analysis/clang-tidy with warnings fatal.
+- [x] Run native coverage policy and record exact values.
+
+- Evidence: exact validation checkpoint `910a8fd461fc8f9079cc99ffa450c1c4f76589eb`; Host Tests run `31671332886` passed normal host, ASan+UBSan, and pinned `gcovr==8.6` Native Coverage. Coverage-instrumented host tests passed **66/66**; the policy-enforced set measured **96.2% lines (2566/2668)**, **100.0% functions (227/227)**, and **82.8% branches (1870/2259)**. Quality run `31671332867` passed H10-100's static-analysis policy, setup/route synchronization, native contracts (**6/6**), production and device-test firmware build plus fatal first-party clang-tidy gates, then continued through stack/release/frontend/browser gates before failing later on `shfmt` diffs in two script regression tests. That later script-format failure is outside H10-100 and does not claim the H10 phase exit gate. See `docs/implementation-v2/H10_100_NATIVE_CONTRACT_VALIDATION_2026-08-12.md` and `docs/implementation-v2/H10_100_AUTHORITATIVE_REVALIDATION_2026-08-12.md`.
 
 ### H10-101 — Frontend gates
 
