@@ -784,12 +784,21 @@ At minimum re-audit:
 
 For every checked affected item:
 
-- [ ] every named behavior is independently proven,
-- [ ] hardware wording has hardware evidence,
-- [ ] spot-check wording is not called a full audit,
-- [ ] host fake behavior is not called real-httpd/device behavior,
-- [ ] exact evidence SHA is present,
-- [ ] evidence file exists at the referenced path.
+- [x] every named behavior is independently proven,
+- [x] hardware wording has hardware evidence,
+- [x] spot-check wording is not called a full audit,
+- [x] host fake behavior is not called real-httpd/device behavior,
+- [x] exact evidence SHA is present,
+- [x] evidence file exists at the referenced path.
+
+- Evidence (2026-08-13): literal proof map completed at product/code basis
+  `cc9e05727a2767f070dc79e9e699146e10509b34` and documentation basis
+  `83c3c5a0cf13e7ad37e7a55436d2ea689db954ee`. Exact H10 software candidates,
+  historical physical-board SHAs, fake-httpd scope, and spot-check/full-audit
+  distinctions are recorded in
+  `docs/implementation-v2/H11_111_LITERAL_EVIDENCE_AUDIT_2026-08-13.md`.
+  No additional falsely checked affected V2 item was found; current H1/H2/H3
+  hardware reruns, H4, H5, H11-112, the H11 exit gate, and H12 remain open.
 
 ### H11-112 — Documentation synchronization
 
