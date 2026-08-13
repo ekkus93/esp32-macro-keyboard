@@ -71,7 +71,6 @@ printf '%s\n' 'CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG' \
 	>"${temporary_dir}/firmware/components/legacy.h"
 expect_fail 'legacy development option' 'legacy credential logging option is forbidden'
 
-
 write_valid_fixture
 cat >"${temporary_dir}/firmware/components/dynamic_format_leak.c" <<'SOURCE'
 void leak_dynamic_format(const char *setup_code) {
@@ -105,7 +104,6 @@ void leak_buffer(const unsigned char *verifier, unsigned length) {
 }
 SOURCE
 expect_fail 'ESP log buffer sensitive identifier' 'credential-bearing output is forbidden'
-
 
 write_valid_fixture
 cat >"${temporary_dir}/firmware/components/direct_log_write_leak.c" <<'SOURCE'
