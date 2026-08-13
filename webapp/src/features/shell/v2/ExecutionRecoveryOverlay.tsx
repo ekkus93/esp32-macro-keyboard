@@ -76,9 +76,9 @@ export function ExecutionRecoveryOverlay(): React.JSX.Element | null {
       />
       {recovery.lastKnown !== null ? (
         <p>
-          Last known state: {recovery.lastKnown.state}, action {
-            String(recovery.lastKnown.actionIndex)
-          } of {String(recovery.lastKnown.actionCount)}.
+          Last known state: {recovery.lastKnown.state}, action{" "}
+          {String(recovery.lastKnown.actionIndex)} of{" "}
+          {String(recovery.lastKnown.actionCount)}.
         </p>
       ) : null}
       {message !== null ? <p role="status">{message}</p> : null}

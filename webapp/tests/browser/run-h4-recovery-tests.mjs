@@ -161,7 +161,7 @@ async function startFixture() {
         }
         if (method === "GET" && url.pathname === `/api/v1/blob/${blobId}`) {
           response.writeHead(200, {
-            "Content-Type": "application/octet-stream",
+            "Content-Type": "application/gzip",
             "Content-Length": repositoryGzip.byteLength,
             "Cache-Control": "no-store",
           });
@@ -309,7 +309,9 @@ try {
   await waitFor(
     page,
     () =>
-      !(document.body?.innerText.includes("Execution state unavailable") ?? true),
+      !(
+        document.body?.innerText.includes("Execution state unavailable") ?? true
+      ),
     "Successful status reconciliation did not clear the degraded warning.",
   );
   assert(
