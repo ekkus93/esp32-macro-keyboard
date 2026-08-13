@@ -1,0 +1,45 @@
+name: Apply H10 web settings formatting
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/apply-h10-web-settings-format.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply authoritative clang-format
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="firmware/components/web_server/web_settings.c"
+          expected_before="ba7b8a0bcf614c09352b79d8fc2beed9232f5a12"
+
+          test "$(git hash-object "${target}")" = "${expected_before}"
+          sudo apt-get update
+          sudo apt-get install --yes clang-format
+          clang-format -i "${target}"
+          clang-format --dry-run --Werror "${target}"
+          git diff --check
+          if git diff --quiet -- "${target}"; then
+            echo "error: clang-format made no change" >&2
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${target}"
+          git rm .github/workflows/apply-h10-web-settings-format.yml
+          git commit -m "fix: clang-format password change helpers"
+          git push origin HEAD:master
