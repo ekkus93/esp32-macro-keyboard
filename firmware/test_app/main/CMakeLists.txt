@@ -5,6 +5,7 @@ idf_component_register(
     "test_macro_parser.c"
     "test_limits.c"
     "test_macro_executor.c"
+    "test_executor_health.c"
     "test_auth.c"
     "test_usb_state.c"
     INCLUDE_DIRS
