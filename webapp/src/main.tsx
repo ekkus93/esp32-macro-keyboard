@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import AppV2 from "./AppV2";
+import { ExecutionRecoveryOverlay } from "./features/shell/v2/ExecutionRecoveryOverlay";
 import "./styles.css";
 import "./management.css";
 
@@ -12,5 +13,6 @@ if (root === null) {
 createRoot(root).render(
   <StrictMode>
     <AppV2 />
+    <ExecutionRecoveryOverlay />
   </StrictMode>,
 );
