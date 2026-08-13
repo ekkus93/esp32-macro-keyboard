@@ -4,8 +4,10 @@ This ESP-IDF Unity application runs deterministic single-device tests on a physi
 ESP32-S3. It currently covers hardware-RNG UUID generation, UUID validation, macro
 parsing and compilation, parser failure atomicity, authoritative firmware limits,
 authentication adapters (`[device][auth]`), PBKDF2 timing calibration
-(`[device][auth][benchmark]`), the macro executor's idle/USB-not-ready behavior
-(`[device][executor]`), and USB keyboard state initialization (`[device][usb]`).
+(`[device][auth][benchmark]`), the macro executor's idle/USB-not-ready behavior plus
+hardened shutdown/release-health latches (`[device][executor]` /
+`[device][executor][hardening]`), and USB keyboard state initialization
+(`[device][usb]`).
 
 This application is **device-build-tested** only: it compiles for the ESP32-S3 with
 ESP-IDF v5.5.5 in CI. It is **not device-executed** here — no serial output from a
@@ -28,7 +30,7 @@ idf.py -B build -p /dev/ttyUSB0 flash monitor
 
 Press Enter to display the Unity menu. Enter `*` to run every test, or select one
 of the tags `[device]`, `[uuid]`, `[macro_parser]`, `[limits]`, `[auth]`,
-`[benchmark]`, `[executor]`, or `[usb]`.
+`[benchmark]`, `[executor]`, `[hardening]`, or `[usb]`.
 
 For Phase 1 PBKDF2 calibration, run `[benchmark]` on the reference ESP32-S3R8 and
 capture every line beginning with `PBKDF2_BENCH`. Each line reports the candidate
