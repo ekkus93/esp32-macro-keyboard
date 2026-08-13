@@ -38,16 +38,14 @@ jobs:
           new_signature = '''static web_change_password_outcome_t change_password_verify_current(
               const web_settings_ops_t *ops, app_v2_string_view_t current_password_view,
               app_v2_device_settings_t *current, app_v2_string_view_t new_password_view) {'''
-          old_call = '''    outcome =
-              change_password_verify_current(ops, current_password_view, new_password_view, &current);'''
-          new_call = '''    outcome =
-              change_password_verify_current(ops, current_password_view, &current, new_password_view);'''
+          old_args = "change_password_verify_current(ops, current_password_view, new_password_view, &current)"
+          new_args = "change_password_verify_current(ops, current_password_view, &current, new_password_view)"
 
           if text.count(old_signature) != 1:
               raise SystemExit("expected exactly one helper signature")
-          if text.count(old_call) != 1:
-              raise SystemExit("expected exactly one helper call")
-          text = text.replace(old_signature, new_signature).replace(old_call, new_call)
+          if text.count(old_args) != 1:
+              raise SystemExit("expected exactly one helper argument sequence")
+          text = text.replace(old_signature, new_signature).replace(old_args, new_args)
           path.write_text(text)
           PY
 
