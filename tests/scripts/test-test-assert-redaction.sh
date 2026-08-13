@@ -32,33 +32,33 @@ int main(int argc, char **argv) {
 SOURCE
 
 cc -std=c11 -Wall -Wextra -Werror \
-    -I"${repo_root}/tests/host/support" \
-    "${repo_root}/tests/host/support/test_assert.c" \
-    "${temporary_dir}/redaction_probe.c" \
-    -o "${temporary_dir}/redaction_probe"
+	-I"${repo_root}/tests/host/support" \
+	"${repo_root}/tests/host/support/test_assert.c" \
+	"${temporary_dir}/redaction_probe.c" \
+	-o "${temporary_dir}/redaction_probe"
 
 pass_count=0
 for probe in condition string integer; do
-    output="${temporary_dir}/${probe}.out"
-    if "${temporary_dir}/redaction_probe" "${probe}" >"${output}" 2>&1; then
-        printf 'FAIL: %s assertion probe unexpectedly succeeded\n' "${probe}" >&2
-        exit 1
-    fi
-    if grep -F -- "${secret_sentinel}" "${output}" >/dev/null; then
-        printf 'FAIL: %s assertion output disclosed the secret sentinel\n' "${probe}" >&2
-        cat -- "${output}" >&2
-        exit 1
-    fi
-    if grep -F -- '9876543210123456789' "${output}" >/dev/null; then
-        printf 'FAIL: %s assertion output disclosed the compared integer\n' "${probe}" >&2
-        cat -- "${output}" >&2
-        exit 1
-    fi
-    if ! grep -F -- 'test failure at ' "${output}" >/dev/null; then
-        printf 'FAIL: %s assertion output lost the generic failure diagnostic\n' "${probe}" >&2
-        exit 1
-    fi
-    pass_count=$((pass_count + 1))
+	output="${temporary_dir}/${probe}.out"
+	if "${temporary_dir}/redaction_probe" "${probe}" >"${output}" 2>&1; then
+		printf 'FAIL: %s assertion probe unexpectedly succeeded\n' "${probe}" >&2
+		exit 1
+	fi
+	if grep -F -- "${secret_sentinel}" "${output}" >/dev/null; then
+		printf 'FAIL: %s assertion output disclosed the secret sentinel\n' "${probe}" >&2
+		cat -- "${output}" >&2
+		exit 1
+	fi
+	if grep -F -- '9876543210123456789' "${output}" >/dev/null; then
+		printf 'FAIL: %s assertion output disclosed the compared integer\n' "${probe}" >&2
+		cat -- "${output}" >&2
+		exit 1
+	fi
+	if ! grep -F -- 'test failure at ' "${output}" >/dev/null; then
+		printf 'FAIL: %s assertion output lost the generic failure diagnostic\n' "${probe}" >&2
+		exit 1
+	fi
+	pass_count=$((pass_count + 1))
 done
 
 printf 'test assertion redaction regression tests passed: %d\n' "${pass_count}"
