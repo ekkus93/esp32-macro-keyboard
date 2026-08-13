@@ -150,43 +150,8 @@ static bool exact_reset_settings_fields(const cJSON *root) {
     return field_count == RESET_SETTINGS_FIELD_COUNT;
 }
 
-web_device_reset_settings_outcome_t
-web_device_reset_settings_handle(char *body, size_t body_capacity,
-                                 const web_device_actions_ops_t *ops) {
-    if (ops == NULL || ops->reset_settings == NULL || body == NULL || body_capacity == 0U) {
-        if (body != NULL && body_capacity > 0U) {
-            secure_zero_local(body, body_capacity);
-        }
-        return (web_device_reset_settings_outcome_t){.result = WEB_DEVICE_RESET_SETTINGS_INTERNAL};
-    }
-
-    cJSON *root = parse_exact_body(body, body_capacity);
-    if (root == NULL) {
-        return (web_device_reset_settings_outcome_t){.result =
-                                                         WEB_DEVICE_RESET_SETTINGS_INVALID_BODY};
-    }
-    if (!exact_reset_settings_fields(root)) {
-        cJSON_Delete(root);
-        return (web_device_reset_settings_outcome_t){.result =
-                                                         WEB_DEVICE_RESET_SETTINGS_INVALID_BODY};
-    }
-
-    const char *confirmation = NULL;
-    size_t confirmation_length = 0U;
-    if (!string_field(root, "confirmation", &confirmation, &confirmation_length)) {
-        cJSON_Delete(root);
-        return (web_device_reset_settings_outcome_t){.result =
-                                                         WEB_DEVICE_RESET_SETTINGS_INVALID_BODY};
-    }
-    const bool matches =
-        confirmation_matches(confirmation, confirmation_length, RESET_SETTINGS_CONFIRMATION);
-    cJSON_Delete(root);
-    if (!matches) {
-        return (web_device_reset_settings_outcome_t){
-            .result = WEB_DEVICE_RESET_SETTINGS_INVALID_CONFIRMATION};
-    }
-
-    const device_controls_reset_settings_outcome_t reset = ops->reset_settings(ops->context);
+static web_device_reset_settings_outcome_t reset_settings_backend_outcome(
+    device_controls_reset_settings_outcome_t reset) {
     if (!reset.settings_applied) {
         if (reset.sessions_invalidated || reset.restart_owned ||
             reset.primary_error == APP_ERROR_NONE || reset.restart_error != APP_ERROR_NONE) {
@@ -244,6 +209,46 @@ web_device_reset_settings_handle(char *body, size_t body_capacity,
     return (web_device_reset_settings_outcome_t){.result = WEB_DEVICE_RESET_SETTINGS_OK};
 }
 
+web_device_reset_settings_outcome_t
+web_device_reset_settings_handle(char *body, size_t body_capacity,
+                                 const web_device_actions_ops_t *ops) {
+    if (ops == NULL || ops->reset_settings == NULL || body == NULL || body_capacity == 0U) {
+        if (body != NULL && body_capacity > 0U) {
+            secure_zero_local(body, body_capacity);
+        }
+        return (web_device_reset_settings_outcome_t){.result = WEB_DEVICE_RESET_SETTINGS_INTERNAL};
+    }
+
+    cJSON *root = parse_exact_body(body, body_capacity);
+    if (root == NULL) {
+        return (web_device_reset_settings_outcome_t){.result =
+                                                         WEB_DEVICE_RESET_SETTINGS_INVALID_BODY};
+    }
+    if (!exact_reset_settings_fields(root)) {
+        cJSON_Delete(root);
+        return (web_device_reset_settings_outcome_t){.result =
+                                                         WEB_DEVICE_RESET_SETTINGS_INVALID_BODY};
+    }
+
+    const char *confirmation = NULL;
+    size_t confirmation_length = 0U;
+    if (!string_field(root, "confirmation", &confirmation, &confirmation_length)) {
+        cJSON_Delete(root);
+        return (web_device_reset_settings_outcome_t){.result =
+                                                         WEB_DEVICE_RESET_SETTINGS_INVALID_BODY};
+    }
+    const bool matches =
+        confirmation_matches(confirmation, confirmation_length, RESET_SETTINGS_CONFIRMATION);
+    cJSON_Delete(root);
+    if (!matches) {
+        return (web_device_reset_settings_outcome_t){
+            .result = WEB_DEVICE_RESET_SETTINGS_INVALID_CONFIRMATION};
+    }
+
+    const device_controls_reset_settings_outcome_t reset = ops->reset_settings(ops->context);
+    return reset_settings_backend_outcome(reset);
+}
+
 /* -------------------------------------------------------------------------
  * POST /api/v1/device/factory-reset
  * ---------------------------------------------------------------------- */
@@ -268,6 +273,41 @@ static bool exact_factory_reset_fields(const cJSON *root) {
         ++field_count;
     }
     return field_count == FACTORY_RESET_FIELD_COUNT && seen_password && seen_confirmation;
+}
+
+static web_device_factory_reset_outcome_t factory_reset_backend_outcome(
+    device_controls_factory_reset_outcome_t reset) {
+    if (!reset.durably_accepted) {
+        if (reset.recovery_required || reset.primary_error == APP_ERROR_NONE) {
+            return (web_device_factory_reset_outcome_t){
+                .result = WEB_DEVICE_FACTORY_RESET_INTERNAL,
+                .detail = APP_ERROR_INTERNAL,
+            };
+        }
+        return (web_device_factory_reset_outcome_t){
+            .result = WEB_DEVICE_FACTORY_RESET_BACKEND_UNAVAILABLE,
+            .detail = reset.primary_error,
+        };
+    }
+    if (reset.recovery_required) {
+        if (reset.primary_error == APP_ERROR_NONE) {
+            return (web_device_factory_reset_outcome_t){
+                .result = WEB_DEVICE_FACTORY_RESET_INTERNAL,
+                .detail = APP_ERROR_INTERNAL,
+            };
+        }
+        return (web_device_factory_reset_outcome_t){
+            .result = WEB_DEVICE_FACTORY_RESET_RECOVERY_REQUIRED,
+            .detail = reset.primary_error,
+        };
+    }
+    if (reset.primary_error != APP_ERROR_NONE) {
+        return (web_device_factory_reset_outcome_t){
+            .result = WEB_DEVICE_FACTORY_RESET_INTERNAL,
+            .detail = APP_ERROR_INTERNAL,
+        };
+    }
+    return (web_device_factory_reset_outcome_t){.result = WEB_DEVICE_FACTORY_RESET_OK};
 }
 
 web_device_factory_reset_outcome_t
@@ -335,37 +375,7 @@ web_device_factory_reset_handle(char *body, size_t body_capacity,
     }
 
     const device_controls_factory_reset_outcome_t reset = ops->factory_reset(ops->context);
-    if (!reset.durably_accepted) {
-        if (reset.recovery_required || reset.primary_error == APP_ERROR_NONE) {
-            return (web_device_factory_reset_outcome_t){
-                .result = WEB_DEVICE_FACTORY_RESET_INTERNAL,
-                .detail = APP_ERROR_INTERNAL,
-            };
-        }
-        return (web_device_factory_reset_outcome_t){
-            .result = WEB_DEVICE_FACTORY_RESET_BACKEND_UNAVAILABLE,
-            .detail = reset.primary_error,
-        };
-    }
-    if (reset.recovery_required) {
-        if (reset.primary_error == APP_ERROR_NONE) {
-            return (web_device_factory_reset_outcome_t){
-                .result = WEB_DEVICE_FACTORY_RESET_INTERNAL,
-                .detail = APP_ERROR_INTERNAL,
-            };
-        }
-        return (web_device_factory_reset_outcome_t){
-            .result = WEB_DEVICE_FACTORY_RESET_RECOVERY_REQUIRED,
-            .detail = reset.primary_error,
-        };
-    }
-    if (reset.primary_error != APP_ERROR_NONE) {
-        return (web_device_factory_reset_outcome_t){
-            .result = WEB_DEVICE_FACTORY_RESET_INTERNAL,
-            .detail = APP_ERROR_INTERNAL,
-        };
-    }
-    return (web_device_factory_reset_outcome_t){.result = WEB_DEVICE_FACTORY_RESET_OK};
+    return factory_reset_backend_outcome(reset);
 }
 
 /* -------------------------------------------------------------------------
