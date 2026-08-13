@@ -17,154 +17,19 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          fetch-depth: 2
+          fetch-depth: 3
 
       - name: Record authoritative H10-100 closure
         shell: bash
+        env:
+          VALIDATED_SHA: 910a8fd461fc8f9079cc99ffa450c1c4f76589eb
+          EDIT_SCRIPT_B64: "ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgp2YWxpZGF0ZWRfc2hhID0gIjkxMGE4ZmQ0NjFmYzhmOTA3OWNjOTlmZmE0NTBjMWM0Zjc2NTg5ZWIiCgp0b2RvX3BhdGggPSBQYXRoKCJkb2NzL0VTUDMyX01BQ1JPX0tFWUJPQVJEX1BPU1RfVjJfQ09SUkVDVE5FU1NfSEFSREVOSU5HX1RPRE9fMjAyNi0wOC0xMC5tZCIpCnRvZG8gPSB0b2RvX3BhdGgucmVhZF90ZXh0KCkKb2xkID0gIiIiIyMjIEgxMC0xMDAg4oCUIE5hdGl2ZS9jb250cmFjdCBnYXRlcwoKLSBbIF0gUnVuIGNvbXBsZXRlIGhvc3Qgc3VpdGUuCi0gWyBdIFJ1biBjb21wbGV0ZSBob3N0IHN1aXRlIHVuZGVyIEFTYW4gKyBVQlNhbi4KLSBbIF0gUnVuIHYyIGNvbnRyYWN0IGNvcnB1cy9uYXRpdmUgY2hlY2tzLgotIFsgXSBSdW4gcm91dGUtbWFuaWZlc3QgYW5kIHNldHVwIGlzb2xhdGlvbiBjaGVja3MuCi0gWyBdIFJ1biBzdGF0aWMtYW5hbHlzaXMvY2xhbmctdGlkeSB3aXRoIHdhcm5pbmdzIGZhdGFsLgotIFsgXSBSdW4gbmF0aXZlIGNvdmVyYWdlIHBvbGljeSBhbmQgcmVjb3JkIGV4YWN0IHZhbHVlcy4KIiIiCm5ldyA9ICIiIiMjIyBIMTAtMTAwIOKAlCBOYXRpdmUvY29udHJhY3QgZ2F0ZXMKCi0gW3hdIFJ1biBjb21wbGV0ZSBob3N0IHN1aXRlLgotIFt4XSBSdW4gY29tcGxldGUgaG9zdCBzdWl0ZSB1bmRlciBBU2FuICsgVUJTYW4uCi0gW3hdIFJ1biB2MiBjb250cmFjdCBjb3JwdXMvbmF0aXZlIGNoZWNrcy4KLSBbeF0gUnVuIHJvdXRlLW1hbmlmZXN0IGFuZCBzZXR1cCBpc29sYXRpb24gY2hlY2tzLgotIFt4XSBSdW4gc3RhdGljLWFuYWx5c2lzL2NsYW5nLXRpZHkgd2l0aCB3YXJuaW5ncyBmYXRhbC4KLSBbeF0gUnVuIG5hdGl2ZSBjb3ZlcmFnZSBwb2xpY3kgYW5kIHJlY29yZCBleGFjdCB2YWx1ZXMuCgotIEV2aWRlbmNlOiBleGFjdCB2YWxpZGF0aW9uIGNoZWNrcG9pbnQgYDkxMGE4ZmQ0NjFmYzhmOTA3OWNjOTlmZmE0NTBjMWM0Zjc2NTg5ZWJgOyBIb3N0IFRlc3RzIHJ1biBgMzE2NzEzMzI4ODZgIHBhc3NlZCBub3JtYWwgaG9zdCwgQVNhbitVQlNhbiwgYW5kIHBpbm5lZCBgZ2NvdnI9PTguNmAgTmF0aXZlIENvdmVyYWdlLiBDb3ZlcmFnZS1pbnN0cnVtZW50ZWQgaG9zdCB0ZXN0cyBwYXNzZWQgKio2Ni82NioqOyB0aGUgcG9saWN5LWVuZm9yY2VkIHNldCBtZWFzdXJlZCAqKjk2LjIlIGxpbmVzICgyNTY2LzI2NjgpKiosICoqMTAwLjAlIGZ1bmN0aW9ucyAoMjI3LzIyNykqKiwgYW5kICoqODIuOCUgYnJhbmNoZXMgKDE4NzAvMjI1OSkqKi4gUXVhbGl0eSBydW4gYDMxNjcxMzMyODY3YCBwYXNzZWQgSDEwLTEwMCdzIHN0YXRpYy1hbmFseXNpcyBwb2xpY3ksIHNldHVwL3JvdXRlIHN5bmNocm9uaXphdGlvbiwgbmF0aXZlIGNvbnRyYWN0cyAoKio2LzYqKiksIHByb2R1Y3Rpb24gYW5kIGRldmljZS10ZXN0IGZpcm13YXJlIGJ1aWxkIHBsdXMgZmF0YWwgZmlyc3QtcGFydHkgY2xhbmctdGlkeSBnYXRlcywgdGhlbiBjb250aW51ZWQgdGhyb3VnaCBzdGFjay9yZWxlYXNlL2Zyb250ZW5kL2Jyb3dzZXIgZ2F0ZXMgYmVmb3JlIGZhaWxpbmcgbGF0ZXIgb24gYHNoZm10YCBkaWZmcyBpbiB0d28gc2NyaXB0IHJlZ3Jlc3Npb24gdGVzdHMuIFRoYXQgbGF0ZXIgc2NyaXB0LWZvcm1hdCBmYWlsdXJlIGlzIG91dHNpZGUgSDEwLTEwMCBhbmQgZG9lcyBub3QgY2xhaW0gdGhlIEgxMCBwaGFzZSBleGl0IGdhdGUuIFNlZSBgZG9jcy9pbXBsZW1lbnRhdGlvbi12Mi9IMTBfMTAwX05BVElWRV9DT05UUkFDVF9WQUxJREFUSU9OXzIwMjYtMDgtMTIubWRgIGFuZCBgZG9jcy9pbXBsZW1lbnRhdGlvbi12Mi9IMTBfMTAwX0FVVEhPUklUQVRJVkVfUkVWQUxJREFUSU9OXzIwMjYtMDgtMTIubWRgLgoiIiIKaWYgdG9kby5jb3VudChvbGQpICE9IDE6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCJleHBlY3RlZCBleGFjdGx5IG9uZSB1bmNoZWNrZWQgSDEwLTEwMCBibG9jayIpCnRvZG9fcGF0aC53cml0ZV90ZXh0KHRvZG8ucmVwbGFjZShvbGQsIG5ldykpCgpwcmltYXJ5X3BhdGggPSBQYXRoKCJkb2NzL2ltcGxlbWVudGF0aW9uLXYyL0gxMF8xMDBfTkFUSVZFX0NPTlRSQUNUX1ZBTElEQVRJT05fMjAyNi0wOC0xMi5tZCIpCnByaW1hcnkgPSBwcmltYXJ5X3BhdGgucmVhZF90ZXh0KCkKbWFya2VyID0gIiMjIEF1dGhvcml0YXRpdmUgY2xvc3VyZSDigJQgMjAyNi0wOC0xMiIKaWYgbWFya2VyIGluIHByaW1hcnk6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCJwcmltYXJ5IEgxMC0xMDAgY2xvc3VyZSBhbHJlYWR5IHJlY29yZGVkIikKcHJpbWFyeSArPSAiIiIKCiMjIEF1dGhvcml0YXRpdmUgY2xvc3VyZSDigJQgMjAyNi0wOC0xMgoKSDEwLTEwMCBpcyBjb21wbGV0ZSBvbiBleGFjdCB2YWxpZGF0aW9uIGNoZWNrcG9pbnQKYDkxMGE4ZmQ0NjFmYzhmOTA3OWNjOTlmZmE0NTBjMWM0Zjc2NTg5ZWJgLCBkaXJlY3RseSBhYm92ZSBwcm9kdWN0L2NvZGUgcmVwYWlyCmBjNmFjOTcyYmFkYmJlYTBhYzY3M2VmMDM3M2I2ZmQ5ZWY1YzVkMDdmYC4KCiMjIyBFeGFjdC1TSEEgaG9zdCBhbmQgc2FuaXRpemVyIGdhdGVzCgpQZXJtYW5lbnQgSG9zdCBUZXN0cyB3b3JrZmxvdyBydW4gYDMxNjcxMzMyODg2YCBwYXNzZWQgdGhlIGNvbXBsZXRlIG5vcm1hbCBob3N0CnN1aXRlIGFuZCB0aGUgY29tcGxldGUgQVNhbitVQlNhbiBob3N0IHN1aXRlIG9uIHRoZSBleGFjdCBjaGVja3BvaW50LiBUaGUgc2FtZQp3b3JrZmxvdydzIHBpbm5lZCBgZ2NvdnI9PTguNmAgTmF0aXZlIENvdmVyYWdlIGpvYiBwYXNzZWQgYWxsICoqNjYvNjYqKgpjb3ZlcmFnZS1pbnN0cnVtZW50ZWQgaG9zdCB0ZXN0cy4KClRoZSBwb2xpY3ktZW5mb3JjZWQgY292ZXJhZ2Ugc2V0IG1lYXN1cmVkOgoKLSBsaW5lczogKio5Ni4yJSAoMjU2Ni8yNjY4KSoqOwotIGZ1bmN0aW9uczogKioxMDAuMCUgKDIyNy8yMjcpKio7Ci0gYnJhbmNoZXM6ICoqODIuOCUgKDE4NzAvMjI1OSkqKi4KClRoaXMgY2xlYXJzIHRoZSByZXBvc2l0b3J5J3MgcmVxdWlyZWQgOTAlIGxpbmUgLyA4MCUgYnJhbmNoIHRocmVzaG9sZHMuIFRoZQphbGwtY29tcG9uZW50IHJlcG9ydCByZW1haW5lZCBpbmZvcm1hdGlvbmFsLCBhcyBkZWZpbmVkIGJ5CmBzY3JpcHRzL2dlbmVyYXRlLW5hdGl2ZS1jb3ZlcmFnZS5zaGAuCgojIyMgRXhhY3QtU0hBIG5hdGl2ZSBjb250cmFjdHMsIHN5bmNocm9uaXphdGlvbiwgYW5kIHN0YXRpYyBhbmFseXNpcwoKUGVybWFuZW50IFF1YWxpdHkgd29ya2Zsb3cgcnVuIGAzMTY3MTMzMjg2N2AgZXhlY3V0ZWQgYC4vc2NyaXB0cy9jaGVjay1hbGwuc2hgCm9uIHRoZSBzYW1lIGNoZWNrcG9pbnQgYW5kIHJlY29yZGVkOgoKLSBzdGF0aWMtYW5hbHlzaXMgcG9saWN5OiBQQVNTOwotIFYyIHNldHVwLXJvdXRlIGlzb2xhdGlvbiBwb2xpY3k6IFBBU1M7Ci0gd2ViIHJvdXRlL2Rpc3BhdGNoIHN5bmNocm9uaXphdGlvbiBwb2xpY3k6IFBBU1M7Ci0gbmF0aXZlIFYyIGNvbnRyYWN0IGNvcnB1czogKio2LzYgUEFTUyoqOwotIHByb2R1Y3Rpb24gZmlybXdhcmUgR0NDIGJ1aWxkIGFuZCBmYXRhbCBmaXJzdC1wYXJ0eSBjbGFuZy10aWR5IGdhdGU6IFBBU1M7Ci0gZGV2aWNlLXRlc3QgZmlybXdhcmUgR0NDIGJ1aWxkIGFuZCBmYXRhbCBmaXJzdC1wYXJ0eSBjbGFuZy10aWR5IGdhdGU6IFBBU1M7Ci0gc3RhY2stdXNhZ2UgcG9saWN5OiBQQVNTICgqKjY1MiBmaXJzdC1wYXJ0eSBmcmFtZXMqKiwgbGFyZ2VzdCAqKjE1MzYgYnl0ZXMqKiwKICAqKjAgYWxsb3dsaXN0ZWQqKik7Ci0gcmVsZWFzZSBidWRnZXRzOiBQQVNTLgoKVGhlIGltbWVkaWF0ZWx5IHByZWNlZGluZyBRdWFsaXR5IGNhbmRpZGF0ZSByZWFjaGVkIHRoZSBjb21wbGV0ZSBmaXJzdC1wYXJ0eQpmaXJtd2FyZSBjbGFuZy10aWR5IHNjYW4gYW5kIGV4cG9zZWQgb25lIHJlbWFpbmluZwpgYnVncHJvbmUtZWFzaWx5LXN3YXBwYWJsZS1wYXJhbWV0ZXJzYCBkaWFnbm9zdGljIGluCmBjaGFuZ2VfcGFzc3dvcmRfdmVyaWZ5X2N1cnJlbnQoKWAuIENvbW1pdApgYzZhYzk3MmJhZGJiZWEwYWM2NzNlZjAzNzNiNmZkOWVmNWM1ZDA3ZmAgcmVtb3ZlZCB0aGF0IGZpbmRpbmcgd2l0aG91dCBhCnN1cHByZXNzaW9uIGJ5IHNlcGFyYXRpbmcgdGhlIGFkamFjZW50IHNhbWUtdHlwZWQgcGFyYW1ldGVycy4gT24gdGhlIGZpbmFsCmNoZWNrcG9pbnQsIGBzY3JpcHRzL2NoZWNrLWZpcm13YXJlLnNoYCBjb21wbGV0ZWQgYm90aCBgZmlybXdhcmVgIGFuZApgZmlybXdhcmUvdGVzdF9hcHBgOyBiZWNhdXNlIHRoYXQgc2NyaXB0IGZhaWxzIGNsb3NlZCBvbiBhbnkgbm9uemVybwpgcnVuLWNsYW5nLXRpZHlgIHN0YXR1cyBvciBmaXJzdC1wYXJ0eSBmaW5kaW5nLCByZWFjaGluZyB0aGUgc3Vic2VxdWVudApzdGFjay11c2FnZSBnYXRlIGlzIGF1dGhvcml0YXRpdmUgZXZpZGVuY2UgdGhhdCBib3RoIGNsYW5nLXRpZHkgZ2F0ZXMgcGFzc2VkLgoKIyMjIFF1YWxpdHkgdGFpbCBmYWlsdXJlIGlzIG91dHNpZGUgSDEwLTEwMAoKUXVhbGl0eSBydW4gYDMxNjcxMzMyODY3YCB1bHRpbWF0ZWx5IGV4aXRlZCBub256ZXJvICoqYWZ0ZXIqKiBhbGwgSDEwLTEwMCBnYXRlcy4KSXQgY29udGludWVkIHRocm91Z2ggZnJvbnRlbmQgYnVpbGQvdGVzdHMgYW5kIHJlYWwtQ2hyb21lIHNjZW5hcmlvcywgdGhlbgpgc2hmbXRgIHJlcG9ydGVkIGZvcm1hdHRpbmcgZGlmZnMgaW46CgotIGB0ZXN0cy9zY3JpcHRzL3Rlc3QtY2hlY2stY3JlZGVudGlhbC1sb2dnaW5nLnNoYDsKLSBgdGVzdHMvc2NyaXB0cy90ZXN0LXRlc3QtYXNzZXJ0LXJlZGFjdGlvbi5zaGAuCgpUaGF0IGRvd25zdHJlYW0gc2NyaXB0LWZvcm1hdCBkZWZlY3QgaXMgaW50ZW50aW9uYWxseSBub3QgaGlkZGVuIGFuZCBpcyBub3QKcmVwcmVzZW50ZWQgYXMgYSBzdWNjZXNzZnVsIGZ1bGwgYGNoZWNrLWFsbC5zaGAgcnVuLiBJdCBkb2VzIG5vdCBpbnZhbGlkYXRlIHRoZQpzaXggSDEwLTEwMCBuYXRpdmUvY29udHJhY3QgYWNjZXB0YW5jZSBpdGVtcywgYWxsIG9mIHdoaWNoIGNvbXBsZXRlZCBiZWZvcmUgdGhlCmxhdGVyIGZhaWx1cmUuIEgxMC0xMDEvSDEwLTEwMi9IMTAtMTAzIGFuZCB0aGUgUGhhc2UgSDEwIGV4aXQgZ2F0ZSByZW1haW4Kc2VwYXJhdGUgYW5kIGFyZSBub3QgY2xvc2VkIGJ5IHRoaXMgZXZpZGVuY2UuCgojIyBIMTAtMTAwIGZpbmFsIGRpc3Bvc2l0aW9uCgoqKkNPTVBMRVRFLioqIFRoZSBzaXggSDEwLTEwMCBuYXRpdmUvY29udHJhY3QgZ2F0ZXMgaGF2ZSBhdXRob3JpdGF0aXZlIGV4YWN0LVNIQQpldmlkZW5jZS4gTm8gYW5hbHl6ZXIgc3VwcHJlc3Npb24sIGV4Y2x1c2lvbiwgd2FybmluZyBkb3duZ3JhZGUsIHRocmVzaG9sZApyZWR1Y3Rpb24sIG9yIGZha2Utc3VjY2VzcyBwYXRoIHdhcyBpbnRyb2R1Y2VkLgoiIiIKcHJpbWFyeV9wYXRoLndyaXRlX3RleHQocHJpbWFyeSkKCnN1cHBsZW1lbnRhbF9wYXRoID0gUGF0aCgiZG9jcy9pbXBsZW1lbnRhdGlvbi12Mi9IMTBfMTAwX0FVVEhPUklUQVRJVkVfUkVWQUxJREFUSU9OXzIwMjYtMDgtMTIubWQiKQpzdXBwbGVtZW50YWwgPSBzdXBwbGVtZW50YWxfcGF0aC5yZWFkX3RleHQoKQpvbGRfc3RhdHVzID0gIiIiIyMgU3RhdHVzCgpBdXRob3JpdGF0aXZlIHJldmFsaWRhdGlvbiBpcyAqKlBFTkRJTkcqKiBvbiB0aGlzIGV4YWN0IGV2aWRlbmNlIGNhbmRpZGF0ZS4gTm8gSDEwLTEwMCBjaGVja2JveCBpcyBjbGFpbWVkIGNvbXBsZXRlIGJ5IHRoaXMgZmlsZSB1bnRpbCB0aGUgY29ycmVzcG9uZGluZyBwZXJtYW5lbnQgd29ya2Zsb3cvam9icyBjb21wbGV0ZSBzdWNjZXNzZnVsbHkgYW5kIHRoZSBleGFjdCBmaW5hbCByZXN1bHRzIGFyZSByZWNvcmRlZCBoZXJlIGFuZCBpbiB0aGUgcHJpbWFyeSBIMTAtMTAwIGV2aWRlbmNlIHJlcG9ydC4KIiIiCm5ld19zdGF0dXMgPSAiIiIjIyBGaW5hbCBhdXRob3JpdGF0aXZlIHJlc3VsdAoKKipIMTAtMTAwIFBBU1MgLyBDT01QTEVURSoqIG9uIGV4YWN0IHZhbGlkYXRpb24gY2hlY2twb2ludApgOTEwYThmZDQ2MWZjOGY5MDc5Y2M5OWZmYTQ1MGMxYzRmNzY1ODllYmAuCgpQZXJtYW5lbnQgSG9zdCBUZXN0cyBydW4gYDMxNjcxMzMyODg2YCBwYXNzZWQgbm9ybWFsIGhvc3QsIEFTYW4rVUJTYW4sIGFuZCBwaW5uZWQKYGdjb3ZyPT04LjZgIE5hdGl2ZSBDb3ZlcmFnZS4gQ292ZXJhZ2UtaW5zdHJ1bWVudGVkIHRlc3RzIHBhc3NlZCAqKjY2LzY2KiogYW5kCnRoZSBwb2xpY3ktZW5mb3JjZWQgc2V0IG1lYXN1cmVkICoqOTYuMiUgbGluZXMgKDI1NjYvMjY2OCkqKiwgKioxMDAuMCUKZnVuY3Rpb25zICgyMjcvMjI3KSoqLCBhbmQgKio4Mi44JSBicmFuY2hlcyAoMTg3MC8yMjU5KSoqLgoKUGVybWFuZW50IFF1YWxpdHkgcnVuIGAzMTY3MTMzMjg2N2AgcGFzc2VkIHRoZSBIMTAtMTAwIHNlZ21lbnQ6IHN0YXRpYy1hbmFseXNpcwpwb2xpY3ksIHNldHVwIGlzb2xhdGlvbiwgcm91dGUgc3luY2hyb25pemF0aW9uLCBuYXRpdmUgY29udHJhY3RzICgqKjYvNioqKSwKcHJvZHVjdGlvbiBhbmQgZGV2aWNlLXRlc3QgZmlybXdhcmUgYnVpbGRzLCBhbmQgYm90aCBmYXRhbCBmaXJzdC1wYXJ0eQpjbGFuZy10aWR5IGdhdGVzLiBgY2hlY2stYWxsLnNoYCB0aGVuIHByb2dyZXNzZWQgdGhyb3VnaCBzdGFjayB1c2FnZSwgcmVsZWFzZQpidWRnZXRzLCBmcm9udGVuZCBjaGVja3MsIGFuZCByZWFsLUNocm9tZSBzY2VuYXJpb3MgYmVmb3JlIGZhaWxpbmcgbGF0ZXIgb24KYHNoZm10YCBkaWZmcyBpbiBgdGVzdHMvc2NyaXB0cy90ZXN0LWNoZWNrLWNyZWRlbnRpYWwtbG9nZ2luZy5zaGAgYW5kCmB0ZXN0cy9zY3JpcHRzL3Rlc3QtdGVzdC1hc3NlcnQtcmVkYWN0aW9uLnNoYC4KClRoYXQgbGF0ZXIgc2NyaXB0LWZvcm1hdCBmYWlsdXJlIGlzIHJlY29yZGVkIGV4cGxpY2l0bHkgcmF0aGVyIHRoYW4gaGlkZGVuLiBJdAppcyBvdXRzaWRlIEgxMC0xMDAncyBzaXggbmF0aXZlL2NvbnRyYWN0IGFjY2VwdGFuY2UgaXRlbXMsIHNvIEgxMC0xMDAgaXMgY2xvc2VkCndoaWxlIHRoZSBicm9hZGVyIFBoYXNlIEgxMCBleGl0IGdhdGUgcmVtYWlucyBvcGVuLgoiIiIKaWYgc3VwcGxlbWVudGFsLmNvdW50KG9sZF9zdGF0dXMpICE9IDE6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCJleHBlY3RlZCBleGFjdGx5IG9uZSBwZW5kaW5nIHN1cHBsZW1lbnRhbCBzdGF0dXMgYmxvY2siKQpzdXBwbGVtZW50YWxfcGF0aC53cml0ZV90ZXh0KHN1cHBsZW1lbnRhbC5yZXBsYWNlKG9sZF9zdGF0dXMsIG5ld19zdGF0dXMpKQo="
         run: |
           set -euo pipefail
-          validated_sha="910a8fd461fc8f9079cc99ffa450c1c4f76589eb"
-          test "$(git rev-parse HEAD^)" = "${validated_sha}"
+          test "$(git rev-parse HEAD^^)" = "${VALIDATED_SHA}"
+          git diff --quiet "${VALIDATED_SHA}" HEAD -- . ':(exclude).github/workflows/close-h10-100.yml'
 
-          python3 - <<'PY'
-          from pathlib import Path
-
-          todo_path = Path("docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md")
-          todo = todo_path.read_text()
-          old = '''### H10-100 — Native/contract gates
-
-- [ ] Run complete host suite.
-- [ ] Run complete host suite under ASan + UBSan.
-- [ ] Run v2 contract corpus/native checks.
-- [ ] Run route-manifest and setup isolation checks.
-- [ ] Run static-analysis/clang-tidy with warnings fatal.
-- [ ] Run native coverage policy and record exact values.
-'''
-          new = '''### H10-100 — Native/contract gates
-
-- [x] Run complete host suite.
-- [x] Run complete host suite under ASan + UBSan.
-- [x] Run v2 contract corpus/native checks.
-- [x] Run route-manifest and setup isolation checks.
-- [x] Run static-analysis/clang-tidy with warnings fatal.
-- [x] Run native coverage policy and record exact values.
-
-- Evidence: exact validation checkpoint `910a8fd461fc8f9079cc99ffa450c1c4f76589eb`; Host Tests run `31671332886` passed normal host, ASan+UBSan, and pinned `gcovr==8.6` Native Coverage. Coverage-instrumented host tests passed **66/66**; the policy-enforced set measured **96.2% lines (2566/2668)**, **100.0% functions (227/227)**, and **82.8% branches (1870/2259)**. Quality run `31671332867` passed H10-100's static-analysis policy, setup/route synchronization, native contracts (**6/6**), production/test-app firmware build and fatal first-party clang-tidy segment, then continued through stack/release/frontend/browser gates before failing later on `shfmt` diffs in two test scripts. That later script-format failure is outside H10-100 and does not claim the H10 phase exit gate. See `docs/implementation-v2/H10_100_NATIVE_CONTRACT_VALIDATION_2026-08-12.md` and `docs/implementation-v2/H10_100_AUTHORITATIVE_REVALIDATION_2026-08-12.md`.
-'''
-          if todo.count(old) != 1:
-              raise SystemExit("expected exactly one unchecked H10-100 block")
-          todo_path.write_text(todo.replace(old, new))
-
-          primary_path = Path("docs/implementation-v2/H10_100_NATIVE_CONTRACT_VALIDATION_2026-08-12.md")
-          primary = primary_path.read_text()
-          marker = "## Authoritative closure — 2026-08-12"
-          if marker in primary:
-              raise SystemExit("primary H10-100 closure already recorded")
-          primary += '''
-
-## Authoritative closure — 2026-08-12
-
-H10-100 is complete on exact validation checkpoint
-`910a8fd461fc8f9079cc99ffa450c1c4f76589eb`, directly above product/code repair
-`c6ac972badbbea0ac673ef0373b6fd9ef5c5d07f`.
-
-### Exact-SHA host and sanitizer gates
-
-Permanent Host Tests workflow run `31671332886` passed the complete normal host
-suite and the complete ASan+UBSan host suite on the exact checkpoint. The same
-workflow's pinned `gcovr==8.6` Native Coverage job passed all **66/66**
-coverage-instrumented host tests.
-
-The policy-enforced coverage set measured:
-
-- lines: **96.2% (2566/2668)**;
-- functions: **100.0% (227/227)**;
-- branches: **82.8% (1870/2259)**.
-
-This clears the repository's required 90% line / 80% branch thresholds. The
-all-component report remained informational, as defined by
-`scripts/generate-native-coverage.sh`.
-
-### Exact-SHA native contracts, synchronization, and static analysis
-
-Permanent Quality workflow run `31671332867` executed `./scripts/check-all.sh`
-on the same checkpoint and recorded:
-
-- static-analysis policy: PASS;
-- V2 setup-route isolation policy: PASS;
-- web route/dispatch synchronization policy: PASS;
-- native V2 contract corpus: **6/6 PASS**;
-- production firmware GCC build: PASS;
-- production/test-app clang build and fatal first-party clang-tidy segment: PASS;
-- stack-usage policy: PASS (**652 first-party frames**, largest **1536 bytes**,
-  **0 allowlisted**);
-- release budgets: PASS.
-
-The preceding Quality candidate had reached the same complete **97/97** firmware
-translation-unit clang-tidy scan and exposed one remaining
-`bugprone-easily-swappable-parameters` diagnostic in
-`change_password_verify_current()`. Commit
-`c6ac972badbbea0ac673ef0373b6fd9ef5c5d07f` removed that finding without a
-suppression by separating the adjacent same-typed parameters. On the final
-checkpoint, `check-firmware.sh` completed and `check-all.sh` proceeded into
-stack, release, frontend, and real-Chrome gates; no first-party clang-tidy
-warning escaped the fatal gate.
-
-### Quality tail failure is outside H10-100
-
-Quality run `31671332867` ultimately exited nonzero **after** all H10-100 gates.
-It continued through the frontend build/tests and real-Chrome scenario suite,
-then `shfmt` reported formatting diffs in:
-
-- `tests/scripts/test-check-credential-logging.sh`;
-- `tests/scripts/test-test-assert-redaction.sh`.
-
-That downstream script-format defect is intentionally not hidden and is not
-represented as a successful full `check-all.sh` run. It does not invalidate the
-six H10-100 native/contract acceptance items, all of which completed before the
-later failure. H10-101/H10-102/H10-103 and the Phase H10 exit gate remain
-separate and are not closed by this evidence.
-
-## H10-100 final disposition
-
-**COMPLETE.** The six H10-100 native/contract gates have authoritative exact-SHA
-evidence. No analyzer suppression, exclusion, warning downgrade, threshold
-reduction, or fake-success path was introduced.
-'''
-          primary_path.write_text(primary)
-
-          supplemental_path = Path("docs/implementation-v2/H10_100_AUTHORITATIVE_REVALIDATION_2026-08-12.md")
-          supplemental = supplemental_path.read_text()
-          old_status = '''## Status
-
-Authoritative revalidation is **PENDING** on this exact evidence candidate. No H10-100 checkbox is claimed complete by this file until the corresponding permanent workflow/jobs complete successfully and the exact final results are recorded here and in the primary H10-100 evidence report.
-'''
-          new_status = '''## Final authoritative result
-
-**H10-100 PASS / COMPLETE** on exact validation checkpoint
-`910a8fd461fc8f9079cc99ffa450c1c4f76589eb`.
-
-Permanent Host Tests run `31671332886` passed normal host, ASan+UBSan, and pinned
-`gcovr==8.6` Native Coverage. Coverage-instrumented tests passed **66/66** and
-the policy-enforced set measured **96.2% lines (2566/2668)**, **100.0%
-functions (227/227)**, and **82.8% branches (1870/2259)**.
-
-Permanent Quality run `31671332867` passed the H10-100 segment: static-analysis
-policy, setup isolation, route synchronization, native contracts (**6/6**),
-firmware production/test-app builds, and the fatal first-party clang-tidy stage.
-`check-all.sh` then progressed through stack usage, release budgets, frontend
-checks, and real-Chrome scenarios before failing later on `shfmt` diffs in
-`tests/scripts/test-check-credential-logging.sh` and
-`tests/scripts/test-test-assert-redaction.sh`.
-
-That later script-format failure is recorded explicitly rather than hidden. It
-is outside H10-100's six native/contract acceptance items, so H10-100 is closed
-while the broader Phase H10 exit gate remains open.
-'''
-          if supplemental.count(old_status) != 1:
-              raise SystemExit("expected exactly one pending supplemental status block")
-          supplemental_path.write_text(supplemental.replace(old_status, new_status))
-          PY
+          printf '%s' "${EDIT_SCRIPT_B64}" | base64 -d | python3
 
           git diff --check
           grep -A12 '^### H10-100' docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md
@@ -173,10 +38,12 @@ while the broader Phase H10 exit gate remains open.
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md \
-            docs/implementation-v2/H10_100_NATIVE_CONTRACT_VALIDATION_2026-08-12.md \
-            docs/implementation-v2/H10_100_AUTHORITATIVE_REVALIDATION_2026-08-12.md
+          git add docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md docs/implementation-v2/H10_100_NATIVE_CONTRACT_VALIDATION_2026-08-12.md docs/implementation-v2/H10_100_AUTHORITATIVE_REVALIDATION_2026-08-12.md
           git rm .github/workflows/close-h10-100.yml
+
+          printf '%s\n' '.github/workflows/close-h10-100.yml' 'docs/ESP32_MACRO_KEYBOARD_POST_V2_CORRECTNESS_HARDENING_TODO_2026-08-10.md' 'docs/implementation-v2/H10_100_AUTHORITATIVE_REVALIDATION_2026-08-12.md' 'docs/implementation-v2/H10_100_NATIVE_CONTRACT_VALIDATION_2026-08-12.md' | sort > "${RUNNER_TEMP}/expected-files"
+          git diff --cached --name-only | sort > "${RUNNER_TEMP}/actual-files"
+          cmp "${RUNNER_TEMP}/expected-files" "${RUNNER_TEMP}/actual-files"
+
           git commit -m "docs: close H10-100 native validation"
           git push origin HEAD:master
