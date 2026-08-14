@@ -22,7 +22,7 @@ static app_error_code_t map_error_number(int error_number) {
 
 static app_operation_result_t operation_primary_error(app_error_code_t error) {
     app_operation_result_t result = app_operation_success();
-    result.primary_error = error;
+    app_operation_record_primary(&result, error);
     return result;
 }
 
@@ -31,14 +31,6 @@ static app_operation_result_t operation_primary_error_with_commit(
     app_operation_result_t result = operation_primary_error(error);
     result.commit_state = commit_state;
     return result;
-}
-
-static void operation_record_cleanup(app_operation_result_t *result,
-                                     app_error_code_t cleanup_error) {
-    if (cleanup_error != APP_ERROR_NONE) {
-        result->cleanup_error = cleanup_error;
-        result->cleanup_incomplete = true;
-    }
 }
 
 static app_error_code_t write_all(const storage_fs_ops_t *operations, int descriptor,
@@ -185,7 +177,7 @@ static app_operation_result_t stage_temporary_file(const char *temporary, const 
     }
     if (primary_error != APP_ERROR_NONE) {
         app_operation_result_t result = operation_primary_error(primary_error);
-        operation_record_cleanup(&result, cleanup_path(operations, temporary));
+        app_operation_record_cleanup(&result, cleanup_path(operations, temporary));
         return result;
     }
     return app_operation_success();
@@ -217,7 +209,7 @@ app_operation_result_t storage_atomic_write_with_ops_and_parent_sync_result(
     if (operations->rename_path(operations->context, temporary, path) != 0) {
         const int activate_error = errno;
         result = operation_primary_error(map_error_number(activate_error));
-        operation_record_cleanup(&result, cleanup_path(operations, temporary));
+        app_operation_record_cleanup(&result, cleanup_path(operations, temporary));
         result.commit_state = APP_OPERATION_NOT_COMMITTED;
         return result;
     }
