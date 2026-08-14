@@ -343,7 +343,8 @@ async function main() {
     await page.goto(fixture.baseUrl);
     await waitFor(
       page,
-      () => document.body?.innerText.includes("H5 reconciliation bench") ?? false,
+      () =>
+        document.body?.innerText.includes("H5 reconciliation bench") ?? false,
       "H5 fixture did not reach the Macros page.",
     );
 
@@ -384,7 +385,10 @@ async function main() {
     );
 
     const activated = fixture.state.blobs.find((blob) => blob.id === "2");
-    assert(activated !== undefined, "The uncertain activation did not retain blob 2.");
+    assert(
+      activated !== undefined,
+      "The uncertain activation did not retain blob 2.",
+    );
     const activatedRepository = JSON.parse(
       gunzipSync(activated.bytes).toString("utf8"),
     );
