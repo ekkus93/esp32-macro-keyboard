@@ -41,7 +41,7 @@ static inline app_operation_result_t app_operation_success(void) {
 
 static inline bool app_operation_result_ok(app_operation_result_t result) {
     return result.primary_error == APP_ERROR_NONE && result.cleanup_error == APP_ERROR_NONE &&
-           !result.cleanup_incomplete &&
+           !result.cleanup_incomplete && result.commit_state != APP_OPERATION_NOT_COMMITTED &&
            result.commit_state != APP_OPERATION_COMMIT_UNCERTAIN;
 }
 
