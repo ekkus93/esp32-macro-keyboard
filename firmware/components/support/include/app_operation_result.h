@@ -2,6 +2,7 @@
 #define APP_OPERATION_RESULT_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "app_error.h"
 
@@ -45,12 +46,28 @@ static inline bool app_operation_result_ok(app_operation_result_t result) {
            result.commit_state != APP_OPERATION_COMMIT_UNCERTAIN;
 }
 
-void app_operation_record_primary(app_operation_result_t *result, app_error_code_t error);
-void app_operation_record_cleanup(app_operation_result_t *result, app_error_code_t error);
+static inline void app_operation_record_primary(app_operation_result_t *result,
+                                                app_error_code_t error) {
+    if (result != NULL && error != APP_ERROR_NONE && result->primary_error == APP_ERROR_NONE) {
+        result->primary_error = error;
+    }
+}
+
+static inline void app_operation_record_cleanup(app_operation_result_t *result,
+                                                app_error_code_t error) {
+    if (result != NULL && error != APP_ERROR_NONE) {
+        if (result->cleanup_error == APP_ERROR_NONE) {
+            result->cleanup_error = error;
+        }
+        result->cleanup_incomplete = true;
+    }
+}
 
 /* Stable single-error compatibility mapping for public APIs that cannot yet
  * return the structured result. The initiating error remains authoritative;
  * cleanup/release/durability error is returned only when no primary error exists. */
-app_error_code_t app_operation_result_error(app_operation_result_t result);
+static inline app_error_code_t app_operation_result_error(app_operation_result_t result) {
+    return result.primary_error != APP_ERROR_NONE ? result.primary_error : result.cleanup_error;
+}
 
 #endif
