@@ -83,9 +83,9 @@ describe("v2 snapshot commit reconciliation edges", () => {
       },
     });
     expect(store.getIsDirty()).toBe(true);
-    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
-      1,
-    );
+    expect(
+      getFetchCalls().filter((call) => call.method === "POST"),
+    ).toHaveLength(1);
 
     planJsonResponse({
       blobs: [
@@ -115,9 +115,9 @@ describe("v2 snapshot commit reconciliation edges", () => {
         matchingBlobIds: ["5", "4"],
       },
     });
-    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
-      1,
-    );
+    expect(
+      getFetchCalls().filter((call) => call.method === "POST"),
+    ).toHaveLength(1);
     expect(store.getIsDirty()).toBe(true);
   });
 
@@ -160,11 +160,11 @@ describe("v2 snapshot commit reconciliation edges", () => {
     expect(result).toBeInstanceOf(SnapshotCommitUncertainError);
     expect(result).toMatchObject({ reconciliation: { state: "not_found" } });
     expect(store.getIsDirty()).toBe(true);
-    expect(getFetchCalls().some((call) => call.url === "/api/v1/blob/3")).toBe(
-      false,
-    );
-    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
-      1,
-    );
+    expect(
+      getFetchCalls().some((call) => call.url === "/api/v1/blob/3"),
+    ).toBe(false);
+    expect(
+      getFetchCalls().filter((call) => call.method === "POST"),
+    ).toHaveLength(1);
   });
 });
