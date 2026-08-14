@@ -1,0 +1,96 @@
+name: H5-055 Hardware Start
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/h5-055-hardware-start.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: h5-055-hardware-start
+  cancel-in-progress: false
+
+jobs:
+  start-h5-055:
+    name: Start H5-055 hardware evidence
+    runs-on: self-hosted
+    timeout-minutes: 45
+    env:
+      H5_055_DEVICE_URL: ${{ vars.H5_055_DEVICE_URL }}
+      V2_035_PASSWORD: ${{ secrets.V2_035_PASSWORD }}
+
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Validate runner configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${V2_035_PASSWORD}"
+          if [ -z "${H5_055_DEVICE_URL}" ]; then
+            H5_055_DEVICE_URL='http://100.64.64.61'
+          fi
+          printf 'DEVICE_URL=%s\n' "${H5_055_DEVICE_URL}" >> "${GITHUB_ENV}"
+          printf 'Candidate: %s\n' "${GITHUB_SHA}"
+          printf 'Device: %s\n' "${H5_055_DEVICE_URL}"
+
+      - name: Prepare ESP-IDF v5.5.5
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "$HOME/esp/esp-idf-v5.5.5/export.sh" ]; then
+            ./scripts/install-esp-idf.sh
+          fi
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh" >/dev/null
+          idf.py --version
+
+      - name: Build exact candidate and flash manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          . "$HOME/esp/esp-idf-v5.5.5/export.sh" >/dev/null
+          idf.py -C firmware build
+          bash ./scripts/generate-flash-manifest.sh
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("firmware/build/flash-manifest.json").read_text())
+          assert manifest["gitCommit"] == "${{ github.sha }}"
+          assert manifest["gitDirty"] is False
+          assert manifest["buildType"] == "production"
+          print(f"Manifest build ID: {manifest['diagnosticsBuildId']}")
+          PY
+
+      - name: Run H5-055 start
+        shell: bash
+        run: |
+          set -euo pipefail
+          state_dir="${HOME}/.local/state/esp32-macro-keyboard"
+          state_path="${state_dir}/h5-055-${GITHUB_SHA}.json"
+          mkdir -p "${state_dir}"
+          test ! -e "${state_path}"
+          python3 scripts/run-h5-055-hardware.py start \
+            --base-url "${DEVICE_URL}" \
+            --flash-manifest firmware/build/flash-manifest.json \
+            --state "${state_path}" \
+            --password-env V2_035_PASSWORD
+          printf 'H5-055 state: `%s`\n' "${state_path}" >> "${GITHUB_STEP_SUMMARY}"
+          printf 'Candidate: `%s`\n' "${GITHUB_SHA}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Preserve start-state artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: h5-055-start-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ~/.local/state/esp32-macro-keyboard/h5-055-${{ github.sha }}.json
+          if-no-files-found: warn
+          retention-days: 14
