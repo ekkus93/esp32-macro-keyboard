@@ -136,7 +136,11 @@ app_operation_result_t storage_blob_upload_commit_result(storage_blob_upload_t *
 
 app_error_code_t storage_blob_upload_commit(storage_blob_upload_t *upload,
                                             storage_blob_entry_t *out_entry) {
-    return app_operation_result_error(storage_blob_upload_commit_result(upload, out_entry));
+    const app_operation_result_t detailed = storage_blob_upload_commit_result(upload, out_entry);
+    if (detailed.commit_state == APP_OPERATION_COMMIT_UNCERTAIN) {
+        return APP_ERROR_COMMIT_UNCERTAIN;
+    }
+    return app_operation_result_error(detailed);
 }
 
 app_error_code_t storage_blob_upload_abort(storage_blob_upload_t *upload) {
