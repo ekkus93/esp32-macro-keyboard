@@ -96,6 +96,7 @@ repository as one opaque blob per snapshot
 | GET | `/api/v1/settings` |
 | PUT | `/api/v1/settings` |
 | POST | `/api/v1/settings/change-password` |
+
 **Device actions** (SPEC_V2 §13.12) — all report `connectionWillClose: true`;
 reset-settings and factory-reset additionally require a typed `confirmation`
 phrase in the request body, and factory-reset also requires `adminPassword`
