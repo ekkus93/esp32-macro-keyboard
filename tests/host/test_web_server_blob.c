@@ -64,6 +64,7 @@ int main(void) {
     test_blob_create_maps_storage_full_at_commit_to_507();
     test_blob_create_maps_write_failure_and_aborts_upload();
     test_blob_create_maps_begin_failure_to_service_unavailable();
+    test_blob_create_commit_uncertain_returns_503_and_retains_blob();
 
     test_blob_load_success_streams_exact_bytes_across_chunks();
     test_blob_load_not_found();
