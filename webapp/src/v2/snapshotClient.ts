@@ -1,4 +1,5 @@
 import {
+  V2ApiError,
   v2DeleteNoContent,
   v2GetBinary,
   v2GetJson,
@@ -47,6 +48,98 @@ export async function listSnapshots(): Promise<SnapshotListResult> {
   return response;
 }
 
+export type SnapshotCommitReconciliation =
+  | { state: "matched"; blobId: string }
+  | { state: "not_found" }
+  | { state: "unavailable" }
+  | { state: "ambiguous"; matchingBlobIds: readonly string[] };
+
+interface PendingSnapshotCommit {
+  readonly beforeIds: ReadonlySet<string>;
+  readonly bytes: Uint8Array;
+}
+
+const pendingSnapshotCommits = new WeakMap<
+  RepositoryWorkingCopyStore,
+  PendingSnapshotCommit
+>();
+
+function byteArraysEqual(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.byteLength !== right.byteLength) {
+    return false;
+  }
+  for (let index = 0; index < left.byteLength; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+async function reconcilePendingSnapshotCommit(
+  pending: PendingSnapshotCommit,
+): Promise<SnapshotCommitReconciliation> {
+  let current: SnapshotListResult;
+  try {
+    current = await listSnapshots();
+  } catch {
+    return { state: "unavailable" };
+  }
+
+  const newBlobs = current.blobs.filter(
+    (blob) => !pending.beforeIds.has(blob.id),
+  );
+  if (newBlobs.length === 0) {
+    return { state: "not_found" };
+  }
+
+  const matchingBlobIds: string[] = [];
+  for (const blob of newBlobs) {
+    let storedBytes: Uint8Array;
+    try {
+      storedBytes = await downloadSnapshotBytes(blob.id);
+    } catch {
+      return { state: "unavailable" };
+    }
+    if (byteArraysEqual(storedBytes, pending.bytes)) {
+      matchingBlobIds.push(blob.id);
+    }
+  }
+
+  if (matchingBlobIds.length === 0) {
+    return { state: "not_found" };
+  }
+  if (matchingBlobIds.length === 1) {
+    return { state: "matched", blobId: matchingBlobIds[0] ?? "" };
+  }
+  return { state: "ambiguous", matchingBlobIds };
+}
+
+function reconciliationMessage(
+  reconciliation: SnapshotCommitReconciliation,
+): string {
+  switch (reconciliation.state) {
+    case "matched":
+      return `The device activated snapshot ${reconciliation.blobId}, but final durability acknowledgement was lost. No duplicate upload was sent. The working copy remains dirty; load the recovered snapshot to accept it.`;
+    case "not_found":
+      return "The device reported an uncertain snapshot commit, but reconciliation found no matching new blob. No automatic retry was sent; choose Save again to retry explicitly.";
+    case "ambiguous":
+      return "The device reported an uncertain snapshot commit and more than one new blob matches the exact uploaded bytes. Saving is blocked until the stored snapshots are reconciled.";
+    case "unavailable":
+      return "The device reported an uncertain snapshot commit, but canonical blob state could not be reconciled. Saving is blocked until reconciliation succeeds.";
+  }
+}
+
+export class SnapshotCommitUncertainError extends Error {
+  public readonly reconciliation: SnapshotCommitReconciliation;
+
+  public constructor(reconciliation: SnapshotCommitReconciliation) {
+    super(reconciliationMessage(reconciliation));
+    this.name = "SnapshotCommitUncertainError";
+    this.reconciliation = reconciliation;
+  }
+}
+
 export class SnapshotTooLargeError extends Error {
   public constructor(sizeBytes: number) {
     super(
@@ -78,13 +171,12 @@ export class SnapshotValidationError extends Error {
 
 /**
  * Serializes and gzip-compresses the current working copy and uploads it as
- * a new blob (`POST /api/v1/blob`, per SPEC_V2 §10.3). On success (`201`),
- * the working copy's dirty flag is cleared via
- * {@link RepositoryWorkingCopyStore.markSaved}. On any failure — a full
- * validation failure, a pre-flight size check against
- * `v2Limits.blobMaxBytes`, network failure, or a server error such as
- * `413`/`507` — the working copy is left untouched and dirty, per TODO_V2
- * V2-073/V2-110 "Keep dirty work after failed save."
+ * a new blob (`POST /api/v1/blob`, per SPEC_V2 §10.3). A pre-create list is
+ * recorded so a `503 commit_uncertain` response can be reconciled using only
+ * canonical GETs and exact raw-gzip byte comparison. The client never retries
+ * that POST automatically. Unavailable or ambiguous reconciliation remains
+ * latched per working-copy store and blocks later POSTs until GET reconciliation
+ * succeeds. Only an actual `201 Created` clears dirty state automatically.
  */
 export async function saveWorkingCopyAsSnapshot(
   store: RepositoryWorkingCopyStore,
@@ -98,12 +190,43 @@ export async function saveWorkingCopyAsSnapshot(
   if (bytes.byteLength > v2Limits.blobMaxBytes) {
     throw new SnapshotTooLargeError(bytes.byteLength);
   }
-  const created: BlobCreatedResponse = await v2PostBinary(
-    blobBasePath,
-    bytes,
-    gzipContentType,
-    isBlobCreatedResponse,
-  );
+
+  const pending = pendingSnapshotCommits.get(store);
+  if (pending !== undefined) {
+    const reconciliation = await reconcilePendingSnapshotCommit(pending);
+    if (reconciliation.state === "not_found") {
+      pendingSnapshotCommits.delete(store);
+    }
+    throw new SnapshotCommitUncertainError(reconciliation);
+  }
+
+  const before = await listSnapshots();
+  const pendingCommit: PendingSnapshotCommit = {
+    beforeIds: new Set(before.blobs.map((blob) => blob.id)),
+    bytes: new Uint8Array(bytes),
+  };
+
+  let created: BlobCreatedResponse;
+  try {
+    created = await v2PostBinary(
+      blobBasePath,
+      bytes,
+      gzipContentType,
+      isBlobCreatedResponse,
+    );
+  } catch (error: unknown) {
+    if (error instanceof V2ApiError && error.code === "commit_uncertain") {
+      pendingSnapshotCommits.set(store, pendingCommit);
+      const reconciliation = await reconcilePendingSnapshotCommit(pendingCommit);
+      if (reconciliation.state === "not_found") {
+        pendingSnapshotCommits.delete(store);
+      }
+      throw new SnapshotCommitUncertainError(reconciliation);
+    }
+    throw error;
+  }
+
+  pendingSnapshotCommits.delete(store);
   store.markSaved(validated.value);
   return created;
 }
@@ -151,6 +274,7 @@ export async function loadSnapshotIntoWorkingCopy(
   }
 
   store.replaceWorkingCopy(validated.value);
+  pendingSnapshotCommits.delete(store);
   return { ok: true, repository: validated.value, created: false };
 }
 
