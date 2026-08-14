@@ -26,8 +26,9 @@ static app_operation_result_t operation_primary_error(app_error_code_t error) {
     return result;
 }
 
-static app_operation_result_t operation_primary_error_with_commit(
-    app_error_code_t error, app_operation_commit_state_t commit_state) {
+static app_operation_result_t
+operation_primary_error_with_commit(app_error_code_t error,
+                                    app_operation_commit_state_t commit_state) {
     app_operation_result_t result = operation_primary_error(error);
     result.commit_state = commit_state;
     return result;
