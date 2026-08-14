@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 #include "app_error.h"
+#include "app_operation_result.h"
 #include "storage.h"
 
 static bool mount_ops_valid(const storage_mount_ops_t *ops) {
@@ -12,25 +13,34 @@ static bool mount_ops_valid(const storage_mount_ops_t *ops) {
            ops->prepare_directories != NULL;
 }
 
-app_error_code_t storage_mount_core_unmount(const storage_mount_ops_t *ops,
-                                            storage_mount_state_t *state) {
+static app_operation_result_t primary_error(app_error_code_t error) {
+    app_operation_result_t result = app_operation_success();
+    app_operation_record_primary(&result, error);
+    return result;
+}
+
+app_operation_result_t storage_mount_core_unmount_result(const storage_mount_ops_t *ops,
+                                                         storage_mount_state_t *state) {
     if (!mount_ops_valid(ops) || state == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
+        return primary_error(APP_ERROR_INVALID_ARGUMENT);
     }
-    app_error_code_t result = APP_ERROR_NONE;
+
+    app_operation_result_t result = app_operation_success();
     if (state->data_mounted) {
-        const app_error_code_t cleanup = ops->unmount_data(ops->context);
-        if (cleanup != APP_ERROR_NONE) {
-            result = cleanup;
+        const app_error_code_t unmount_error = ops->unmount_data(ops->context);
+        if (unmount_error != APP_ERROR_NONE) {
+            app_operation_record_primary(&result, unmount_error);
         } else {
             state->data_mounted = false;
         }
     }
     if (state->web_mounted) {
-        const app_error_code_t cleanup = ops->unmount_web(ops->context);
-        if (cleanup != APP_ERROR_NONE) {
-            if (result == APP_ERROR_NONE) {
-                result = cleanup;
+        const app_error_code_t unmount_error = ops->unmount_web(ops->context);
+        if (unmount_error != APP_ERROR_NONE) {
+            if (result.primary_error == APP_ERROR_NONE) {
+                app_operation_record_primary(&result, unmount_error);
+            } else {
+                app_operation_record_cleanup(&result, unmount_error);
             }
         } else {
             state->web_mounted = false;
@@ -39,35 +49,51 @@ app_error_code_t storage_mount_core_unmount(const storage_mount_ops_t *ops,
     return result;
 }
 
-app_error_code_t storage_mount_core_mount(const storage_mount_ops_t *ops,
-                                          storage_mount_state_t *state) {
+app_error_code_t storage_mount_core_unmount(const storage_mount_ops_t *ops,
+                                            storage_mount_state_t *state) {
+    return app_operation_result_error(storage_mount_core_unmount_result(ops, state));
+}
+
+app_operation_result_t storage_mount_core_mount_result(const storage_mount_ops_t *ops,
+                                                       storage_mount_state_t *state) {
     if (!mount_ops_valid(ops) || state == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
+        return primary_error(APP_ERROR_INVALID_ARGUMENT);
     }
 
-    app_error_code_t result = ops->mount_web(ops->context);
-    if (result != APP_ERROR_NONE) {
-        return result;
+    app_error_code_t operation_error = ops->mount_web(ops->context);
+    if (operation_error != APP_ERROR_NONE) {
+        return primary_error(operation_error);
     }
     state->web_mounted = true;
 
-    result = ops->mount_data(ops->context);
-    if (result != APP_ERROR_NONE) {
-        const app_error_code_t cleanup = ops->unmount_web(ops->context);
-        if (cleanup != APP_ERROR_NONE) {
-            /* The web partition is still mounted; report the cleanup failure and
-             * keep web_mounted set so the residual mount stays visible. */
-            return cleanup;
+    operation_error = ops->mount_data(ops->context);
+    if (operation_error != APP_ERROR_NONE) {
+        app_operation_result_t result = primary_error(operation_error);
+        const app_error_code_t cleanup_error = ops->unmount_web(ops->context);
+        if (cleanup_error == APP_ERROR_NONE) {
+            state->web_mounted = false;
+        } else {
+            app_operation_record_cleanup(&result, cleanup_error);
         }
-        state->web_mounted = false;
         return result;
     }
     state->data_mounted = true;
 
-    result = ops->prepare_directories(ops->context);
-    if (result != APP_ERROR_NONE) {
-        const app_error_code_t cleanup = storage_mount_core_unmount(ops, state);
-        return cleanup == APP_ERROR_NONE ? result : cleanup;
+    operation_error = ops->prepare_directories(ops->context);
+    if (operation_error != APP_ERROR_NONE) {
+        app_operation_result_t result = primary_error(operation_error);
+        const app_operation_result_t rollback = storage_mount_core_unmount_result(ops, state);
+        app_operation_record_cleanup(&result, rollback.primary_error);
+        app_operation_record_cleanup(&result, rollback.cleanup_error);
+        if (rollback.cleanup_incomplete) {
+            result.cleanup_incomplete = true;
+        }
+        return result;
     }
-    return APP_ERROR_NONE;
+    return app_operation_success();
+}
+
+app_error_code_t storage_mount_core_mount(const storage_mount_ops_t *ops,
+                                          storage_mount_state_t *state) {
+    return app_operation_result_error(storage_mount_core_mount_result(ops, state));
 }
