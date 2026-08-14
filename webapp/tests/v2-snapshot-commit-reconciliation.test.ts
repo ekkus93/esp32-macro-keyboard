@@ -160,9 +160,9 @@ describe("v2 snapshot commit reconciliation edges", () => {
     expect(result).toBeInstanceOf(SnapshotCommitUncertainError);
     expect(result).toMatchObject({ reconciliation: { state: "not_found" } });
     expect(store.getIsDirty()).toBe(true);
-    expect(
-      getFetchCalls().some((call) => call.url === "/api/v1/blob/3"),
-    ).toBe(false);
+    expect(getFetchCalls().some((call) => call.url === "/api/v1/blob/3")).toBe(
+      false,
+    );
     expect(
       getFetchCalls().filter((call) => call.method === "POST"),
     ).toHaveLength(1);
