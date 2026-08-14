@@ -1180,12 +1180,12 @@ state. H10-101 executed the current frontend suite.
 - [x] Recover state after reload using `GET /api/v1/send`.
 - [x] Avoid duplicate POSTs and callbacks across orientation changes and rerenders.
 
-Post-v2 H11-110 re-audit (2026-08-13) — V2-075: retain V2-075's checked normal send-helper requirements. Current
-sendClient.ts distinguishes a real 404/no-send result from other recovery
-failures, and startup carries explicit `none`/`known`/`unavailable` recovery
-state. However the broader post-v2 H4 degraded-execution task remains open: its
-complete cancellation-availability/freshness matrix and intentionally failed
-real-Chrome recovery scenario are not being inferred from these V2 checkboxes.
+Post-v2 H11 reconciliation (2026-08-14) — V2-075: retain V2-075's checked
+normal send-helper requirements. H4 now implements explicit `none` / `known` /
+`unavailable` recovery, last-known-state retention, visible Retry/Cancel
+recovery, and the no-new-POST degraded-state latch. Formal H4 acceptance remains
+open for its repository-pinned Node.js / real-Chromium recovery validation; that
+result is not inferred from these V2 checkboxes.
 
 ## Phase 7 exit gate
 
@@ -1229,11 +1229,12 @@ real-Chrome recovery scenario are not being inferred from these V2 checkboxes.
 - [x] Restore the exact current route and draft when the tab still has a live
       working copy.
 
-Post-v2 H11-110 re-audit (2026-08-13) — V2-082: retain V2-082. The current startup core explicitly returns send recovery
-as `none`, `known`, or `unavailable`; the authenticated shell keeps the working
-copy mounted, shows an execution-state-unavailable warning, and offers Retry.
-That is stronger than the original normal-recovery wording, but it still does not
-close H4's full degraded cancellation/freshness/browser acceptance matrix.
+Post-v2 H11 reconciliation (2026-08-14) — V2-082: retain V2-082. The current
+startup core explicitly returns send recovery as `none`, `known`, or
+`unavailable`; the authenticated shell keeps the working copy mounted, preserves
+last-known send state, shows the execution-state-unavailable surface, and offers
+recovery actions. H4's implementation is therefore no longer missing; formal H4
+acceptance remains open for the pinned-runtime real-browser/persistence proof.
 
 ## V2-083 — First repository and first package
 
@@ -1621,11 +1622,12 @@ Evidence: `webapp/src/v2/snapshotClient.ts` (`replaceSnapshotWithWorkingCopy`),
 `webapp/tests/v2-snapshots-page.test.tsx`. See
 `docs/implementation-v2/V2_110_116_SNAPSHOTS_IMPORT_EXPORT_2026-08-09.md`.
 
-Post-v2 H11-110 re-audit (2026-08-13) — V2-116: retain V2-116's explicit advanced delete-then-add semantics and its
-delete-success/add-failure warning. This does **not** claim H5's lower-level
-storage commit certainty: primary-versus-cleanup provenance and
-rename-success/parent-sync-failure reconciliation remain open under H5 and must
-be resolved before final release sign-off.
+Post-v2 H11 reconciliation (2026-08-14) — V2-116: retain V2-116's explicit
+advanced delete-then-add semantics and its delete-success/add-failure warning.
+The later H5 hardening now implements structured primary-versus-cleanup error
+provenance and explicit `commit_uncertain` reconcile-before-retry semantics.
+Formal H5 acceptance remains open for H5-054's authoritative storage validation
+and H5-055's physical durability evidence; V2-116 does not infer either result.
 
 ## Phase 11 exit gate
 
@@ -2569,18 +2571,20 @@ This checklist is Phase 15's release gate, not a running progress meter.
 Post-v2 H11-110 re-audited the affected entries against current code and evidence
 at `cc9e05727a2767f070dc79e9e699146e10509b34`. Historical evidence remains
 useful, but it is not allowed to stand in for behavior materially changed by the
-hardening pass. H4 degraded execution recovery, H5 storage commit certainty,
-current physical-device revalidation, H11 literal/document synchronization, and
-the H12 clean-checkout release gate remain open.
+hardening pass. H11-111's literal audit is complete and H11-112's current
+product-document content is synchronized; the post-v2 hardening tracker carries
+their executable closure state. Formal H4/H5 acceptance, current physical-device
+revalidation, and the H12 clean-checkout release gate remain open.
 
-- [ ] `docs/SPEC_V2.md` matches production behavior. H11-110 found no basis
-      to close final specification sign-off yet: H4/H5 remain open, current
-      affected hardware evidence is deferred, and H11-111/H11-112 have not
-      completed the literal evidence/documentation audit.
-- [ ] `docs/UI_UX_SPEC_V2.md` matches production behavior. The current
-      frontend gates are green (H10-101), but final UI/UX sign-off still
-      depends on unresolved degraded-recovery semantics and the deferred
-      device/manual acceptance evidence.
+- [ ] `docs/SPEC_V2.md` matches production behavior. Final specification
+      sign-off remains open because H4/H5 formal acceptance, current affected
+      hardware evidence, H12, and the final release audit are still open.
+      H11-111's literal audit and H11-112's current-document synchronization no
+      longer represent missing implementation work.
+- [ ] `docs/UI_UX_SPEC_V2.md` matches production behavior. H4/H5 now contain
+      the strengthened degraded-recovery and storage-uncertainty semantics, but
+      final UI/UX sign-off still depends on their formal acceptance boundaries
+      plus the deferred device/manual evidence.
 - [ ] `docs/TODO_V2.md` contains no falsely completed task. Partially
       addressed, not closed: this 2026-08-09 audit pass (see
       `docs/implementation-v2/V2_AUDIT_PHASE_13_14_15_2026-08-09.md`) walked
@@ -2596,10 +2600,11 @@ the H12 clean-checkout release gate remain open.
       `docs/SPEC_V2.md`, `docs/UI_UX_SPEC_V2.md`, and `docs/TODO_V2.md`;
       `CLAUDE.md`'s Project layout and Active development constraints
       sections still do the same; `docs/TODO.md` is still a clean pointer to
-      `TODO_V2.md`. This is narrower than V2-143 as a whole, which also
-      covers `docs/mockups/v2/`, `webapp/README.md`, and status-vs-intent
-      labeling — those remain open (see V2-143 above; `webapp/README.md` in
-      particular was found stale by this pass).
+      `TODO_V2.md`. This checked authority-pointer claim remains narrower
+      than Phase 14 as a whole. V2-143 subsequently corrected the stale
+      `webapp/README.md` status wording and related current-document guidance;
+      the still-open Phase 14 rows above track the genuinely uncompleted
+      repository-wide cleanup/audit boundaries.
 - [ ] `./scripts/check-all.sh` passes from a clean checkout. Audit Track G
       correctly unchecked this pending re-verification (the prior claim
       covered commit `9bb47bb`, 16 commits stale, predating Phases 9–11).
@@ -2632,16 +2637,16 @@ the H12 clean-checkout release gate remain open.
       ./scripts/check-removed-features.sh` → "removed features: none of the
       SPEC 1.1 rejections have reappeared" (exit 0). Phase 2's exit gate
       remains complete and this is continuously enforced by `check-all.sh` on
-      every invocation. This covers production firmware code specifically; it
-      does not by itself certify the webapp (which still contains dead v1
-      React code, see the Phase 14 exit gate above) or the rest of this
-      checklist.
+      every invocation. V2-140 subsequently removed the dead v1 React
+      production tree from the webapp as well. This checked architecture claim
+      still does not certify the remaining repository-wide Phase 14 cleanup or
+      the rest of this final checklist.
 - [ ] No known silent failure, dangerous fallback, secret leak, automatic
       snapshot deletion, or inaccessible cancellation path remains. H8 makes
       reviewed selection/export failures visible, H9's cross-cutting fallback
       and secret audits are complete, and H7 fail-closes unsafe HID release.
-      Final sign-off remains open because H4's complete degraded execution/
-      cancellation matrix and H5's storage commit-uncertainty semantics are
-      still open, in addition to deferred current hardware acceptance.
+      The H4/H5 software semantics are now implemented, but final sign-off
+      remains open for their formal validation boundaries, deferred current
+      hardware acceptance, and the remaining H12/release evidence.
 - [ ] Final implementation report records the accepted release commit SHA. No
       such report exists; it is V2-156's own deliverable.
