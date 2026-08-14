@@ -31,6 +31,7 @@ python3 scripts/check-h3-architecture.py
 python3 scripts/check-v2-auth-policy.py
 python3 tests/scripts/test-generate-v2-macro-corpus.py
 python3 tests/scripts/test-v2-035-hardware.py
+python3 tests/scripts/test-h5-055-hardware.py
 python3 tests/scripts/test-h5-055-storage-evidence.py
 
 # Regression tests for the fail-closed clang-tidy gate (FIX1 Phase 2.2), the
