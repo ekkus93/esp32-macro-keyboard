@@ -214,6 +214,42 @@ static void test_replace_and_failure_preservation(void) {
     TEST_CHECK_EQ_U64(writes_before, fake.replace_calls);
 }
 
+static void test_uncertain_replace_invalidates_cached_settings(void) {
+    fake_settings_store_t fake;
+    device_settings_core_t core;
+    init_core(&core, &fake);
+    const app_v2_device_settings_t original = configured_settings();
+    seed_durable(&fake, &original);
+
+    app_v2_device_settings_t loaded;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_load(&core, &loaded));
+    TEST_CHECK(core.loaded);
+    const unsigned int reads_before_replace = fake.read_calls;
+
+    app_v2_device_settings_t candidate = original;
+    TEST_CHECK(snprintf(candidate.device_name, sizeof(candidate.device_name), "%s",
+                        "Canonical After Uncertainty") > 0);
+    fake.replace_error = APP_ERROR_COMMIT_UNCERTAIN;
+    bool changed = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_COMMIT_UNCERTAIN,
+                         device_settings_core_replace(&core, &candidate, &changed));
+    TEST_CHECK(!changed);
+    TEST_CHECK(!core.loaded);
+    TEST_CHECK(!core.record_present);
+    TEST_CHECK_EQ_U64(reads_before_replace, fake.read_calls);
+
+    /* Simulate the adapter later proving that the candidate is canonical. The
+     * next load must hit persistence instead of serving the old cached value. */
+    seed_durable(&fake, &candidate);
+    fake.replace_error = APP_ERROR_NONE;
+    app_v2_device_settings_t reconciled;
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_load(&core, &reconciled));
+    TEST_CHECK_EQ_U64(reads_before_replace + 1U, fake.read_calls);
+    TEST_CHECK(strcmp(reconciled.device_name, candidate.device_name) == 0);
+    TEST_CHECK(core.loaded);
+    TEST_CHECK(core.record_present);
+}
+
 static void test_reset_preserves_credentials_and_blob_counter(void) {
     fake_settings_store_t fake;
     device_settings_core_t core;
@@ -420,6 +456,7 @@ int main(void) {
     test_missing_record_uses_defaults_without_write();
     test_load_valid_and_reject_corruption();
     test_replace_and_failure_preservation();
+    test_uncertain_replace_invalidates_cached_settings();
     test_reset_preserves_credentials_and_blob_counter();
     test_duplicate_write_suppressed_after_prior_value();
     test_last_selected_package_id_is_opaque();
