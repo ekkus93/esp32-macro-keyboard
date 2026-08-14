@@ -98,6 +98,7 @@ async function startFixture() {
     send: null,
     sendPostCount: 0,
     failedPollsRemaining: 0,
+    failFirstSendGetAfterNextDocument: false,
     completed: false,
   };
 
@@ -231,6 +232,13 @@ async function startFixture() {
       }
 
       const rawPath = url.pathname === "/" ? "/index.html" : url.pathname;
+      if (
+        rawPath === "/index.html" &&
+        state.failFirstSendGetAfterNextDocument
+      ) {
+        state.failFirstSendGetAfterNextDocument = false;
+        state.failedPollsRemaining = 1;
+      }
       const safePath = normalize(rawPath).replace(/^([.][.][/\\])+/, "");
       const file = new URL(`.${safePath}`, dist);
       try {
@@ -355,7 +363,7 @@ try {
   // copy from the canonical device snapshot, while execution recovery must stay
   // explicit and must never create another send POST.
   fixture.state.completed = false;
-  fixture.state.failedPollsRemaining = 1;
+  fixture.state.failFirstSendGetAfterNextDocument = true;
   await page.reload({ waitUntil: "domcontentloaded" });
   await waitFor(
     page,
