@@ -31,7 +31,11 @@ tracked for the pre-rebuild codebase in
 v1→v2 rebuild (started 2026-08-03) and are retired v1-era snapshots. Current v2
 phase-by-phase status and evidence live in
 [`docs/TODO_V2.md`](docs/TODO_V2.md) and the reports under
-[`docs/implementation-v2/`](docs/implementation-v2/).
+[`docs/implementation-v2/`](docs/implementation-v2/). The current hardened
+password/reset/send-recovery/storage semantics are summarized separately in
+[`docs/CURRENT_V2_HARDENED_BEHAVIOR.md`](docs/CURRENT_V2_HARDENED_BEHAVIOR.md)
+so historical implementation reports do not have to be rewritten as behavior
+changes.
 
 **Verified on real hardware (2026-08-02),** by the scripts in `tests/hardware/`
 against an attached ESP32-S3, **before the v1→v2 rebuild began (2026-08-03).**

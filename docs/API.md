@@ -92,11 +92,10 @@ repository as one opaque blob per snapshot
 **Settings** (SPEC_V2 §13.9)
 
 | Method | Route |
-| --- | --- |
+| --- | ---- |
 | GET | `/api/v1/settings` |
 | PUT | `/api/v1/settings` |
 | POST | `/api/v1/settings/change-password` |
-
 **Device actions** (SPEC_V2 §13.12) — all report `connectionWillClose: true`;
 reset-settings and factory-reset additionally require a typed `confirmation`
 phrase in the request body, and factory-reset also requires `adminPassword`
@@ -116,6 +115,41 @@ phrase in the request body, and factory-reset also requires `adminPassword`
 That is the complete v2 route surface — 21 routes. There is no package,
 macro, set, plural-execution, backup, or restore route family, and no
 `/api/v1/diagnostics/storage` sub-route.
+
+### Hardened mutation and recovery semantics
+
+Several mutating routes have outcomes where treating every non-success response as
+"nothing changed" would be unsafe. The authoritative wire contract remains
+`docs/SPEC_V2.md`; the following is the current operational interpretation.
+
+- **Password change:** `204` means the new password is durably stored, active in
+  RAM, and all previous sessions were invalidated. `409 auth_state_incomplete`
+  means the password **did change** and the new password is authoritative, but
+  all old sessions could not be invalidated. A pre-commit concurrent password
+  change is instead `503 conflict` and makes no credential change.
+- **Factory reset:** `202` is returned only after reset ownership is durably
+  established. Once accepted, later cleanup failure remains owned by the durable
+  reset journal and resumes on reboot; while that journal is pending, status and
+  diagnostics return `503 reset_recovery_required` rather than ordinary ready
+  state.
+- **Reset settings:** after the noncredential settings reset is durable, normal
+  API authority is blocked until reboot. If reboot ownership cannot be
+  established, the route returns `409 reset_settings_incomplete` instead of
+  implying that no settings changed.
+- **Confirmation-required send:** an accepted send starts in
+  `awaiting_confirmation`; a settings-read failure rejects the send rather than
+  defaulting confirmation off. Cancellation remains valid while confirmation is
+  pending.
+- **Execution recovery:** failure to establish current send state is represented
+  as unavailable/unknown, never as confirmed no-send. Retry is status-only and
+  must not issue another send POST; cancellation remains separately available.
+- **Blob add:** `503 commit_uncertain` means the final blob may already exist
+  because canonical rename succeeded but the final durability acknowledgement
+  failed. The client must refresh/list/load and reconcile exact bytes before any
+  new POST; it must not automatically retry the create.
+
+See `docs/CURRENT_V2_HARDENED_BEHAVIOR.md` for the current cross-subsystem
+behavior summary and proof boundaries.
 
 ### Static files
 
