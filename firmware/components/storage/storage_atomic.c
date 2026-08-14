@@ -26,16 +26,19 @@ static app_operation_result_t operation_primary_error(app_error_code_t error) {
     return result;
 }
 
+static app_operation_result_t operation_primary_error_with_commit(
+    app_error_code_t error, app_operation_commit_state_t commit_state) {
+    app_operation_result_t result = operation_primary_error(error);
+    result.commit_state = commit_state;
+    return result;
+}
+
 static void operation_record_cleanup(app_operation_result_t *result,
                                      app_error_code_t cleanup_error) {
     if (cleanup_error != APP_ERROR_NONE) {
         result->cleanup_error = cleanup_error;
         result->cleanup_incomplete = true;
     }
-}
-
-static app_error_code_t operation_public_error(app_operation_result_t result) {
-    return result.primary_error != APP_ERROR_NONE ? result.primary_error : result.cleanup_error;
 }
 
 static app_error_code_t write_all(const storage_fs_ops_t *operations, int descriptor,
@@ -194,18 +197,20 @@ app_operation_result_t storage_atomic_write_with_ops_and_parent_sync_result(
     void *parent_sync_context) {
     if (path == NULL || (data == NULL && data_length != 0U) || strlen(path) >= APP_PATH_MAX_BYTES ||
         !storage_fs_ops_is_valid(operations) || sync_parent_path == NULL) {
-        return operation_primary_error(APP_ERROR_INVALID_ARGUMENT);
+        return operation_primary_error_with_commit(APP_ERROR_INVALID_ARGUMENT,
+                                                   APP_OPERATION_NOT_COMMITTED);
     }
 
     char temporary[APP_PATH_MAX_BYTES];
     app_error_code_t primary_error = temporary_path_for(path, temporary, sizeof(temporary));
     if (primary_error != APP_ERROR_NONE) {
-        return operation_primary_error(primary_error);
+        return operation_primary_error_with_commit(primary_error, APP_OPERATION_NOT_COMMITTED);
     }
 
     app_operation_result_t result =
         stage_temporary_file(temporary, data, data_length, sync_required, operations);
     if (!app_operation_result_ok(result)) {
+        result.commit_state = APP_OPERATION_NOT_COMMITTED;
         return result;
     }
 
@@ -213,19 +218,25 @@ app_operation_result_t storage_atomic_write_with_ops_and_parent_sync_result(
         const int activate_error = errno;
         result = operation_primary_error(map_error_number(activate_error));
         operation_record_cleanup(&result, cleanup_path(operations, temporary));
+        result.commit_state = APP_OPERATION_NOT_COMMITTED;
         return result;
     }
 
     primary_error = sync_parent(sync_parent_path, parent_sync_context, path);
-    return primary_error == APP_ERROR_NONE ? app_operation_success()
-                                           : operation_primary_error(primary_error);
+    if (primary_error != APP_ERROR_NONE) {
+        return operation_primary_error_with_commit(primary_error, APP_OPERATION_COMMIT_UNCERTAIN);
+    }
+
+    result = app_operation_success();
+    result.commit_state = APP_OPERATION_COMMITTED;
+    return result;
 }
 
 app_error_code_t storage_atomic_write_with_ops_and_parent_sync(
     const char *path, const void *data, size_t data_length, bool sync_required,
     const storage_fs_ops_t *operations, storage_parent_sync_fn sync_parent_path,
     void *parent_sync_context) {
-    return operation_public_error(storage_atomic_write_with_ops_and_parent_sync_result(
+    return app_operation_result_error(storage_atomic_write_with_ops_and_parent_sync_result(
         path, data, data_length, sync_required, operations, sync_parent_path, parent_sync_context));
 }
 
