@@ -217,7 +217,8 @@ export async function saveWorkingCopyAsSnapshot(
   } catch (error: unknown) {
     if (error instanceof V2ApiError && error.code === "commit_uncertain") {
       pendingSnapshotCommits.set(store, pendingCommit);
-      const reconciliation = await reconcilePendingSnapshotCommit(pendingCommit);
+      const reconciliation =
+        await reconcilePendingSnapshotCommit(pendingCommit);
       if (reconciliation.state === "not_found") {
         pendingSnapshotCommits.delete(store);
       }
