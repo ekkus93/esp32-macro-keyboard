@@ -46,6 +46,12 @@ static void clear_record(device_settings_core_t *core, uint8_t *record) {
     core->ops.secure_zero(core->ops.context, record, APP_V2_SETTINGS_RECORD_BYTES);
 }
 
+static void invalidate_loaded_state(device_settings_core_t *core) {
+    core->ops.secure_zero(core->ops.context, &core->current, sizeof(core->current));
+    core->loaded = false;
+    core->record_present = false;
+}
+
 static app_error_code_t encode_settings(const app_v2_device_settings_t *settings, uint8_t *record) {
     const app_v2_settings_result_t result =
         app_v2_device_settings_encode(settings, record, APP_V2_SETTINGS_RECORD_BYTES);
@@ -148,6 +154,9 @@ app_error_code_t device_settings_core_replace(device_settings_core_t *core,
     clear_record(core, current_record);
     clear_record(core, candidate_record);
     if (result != APP_ERROR_NONE) {
+        if (result == APP_ERROR_COMMIT_UNCERTAIN) {
+            invalidate_loaded_state(core);
+        }
         return result;
     }
 
