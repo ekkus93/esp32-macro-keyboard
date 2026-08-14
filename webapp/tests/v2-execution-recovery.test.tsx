@@ -42,6 +42,37 @@ function unavailableResponse(): Record<string, unknown> {
 }
 
 describe("H4 execution recovery", () => {
+  test("one transient poll failure stays quiet and clears on the next successful refresh", async () => {
+    vi.useFakeTimers();
+    try {
+      const onError = vi.fn();
+      const onStatus = vi.fn();
+      const seed = statusAt("running", 1);
+
+      planJsonResponse(unavailableResponse(), 503);
+      planJsonResponse(statusAt("running", 2));
+
+      trackSend(seed, { onError, onStatus });
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(getExecutionRecoveryState()).toEqual({ kind: "clear" });
+      expect(onError).not.toHaveBeenCalled();
+      expect(onStatus).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(getExecutionRecoveryState()).toEqual({ kind: "clear" });
+      expect(onError).not.toHaveBeenCalled();
+      expect(onStatus).toHaveBeenCalledOnce();
+      expect(onStatus).toHaveBeenCalledWith(statusAt("running", 2));
+      expect(
+        getFetchCalls().filter((call) => call.method === "POST"),
+      ).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test("persistent tracking failure becomes explicit and GET-only retry resumes tracking", async () => {
     vi.useFakeTimers();
     try {
@@ -106,6 +137,33 @@ describe("H4 execution recovery", () => {
     planJsonResponse(statusAt("running", 4));
     await retryExecutionRecovery();
     expect(getExecutionRecoveryState()).toEqual({ kind: "clear" });
+    expect(
+      getFetchCalls().filter((call) => call.method === "POST"),
+    ).toHaveLength(1);
+  });
+
+  test("terminal reconciliation completes through the original callbacks and clears recovery", async () => {
+    const onComplete = vi.fn();
+    planJsonResponse(
+      {
+        error: {
+          code: "already_sending",
+          message: "A send is already in progress.",
+        },
+      },
+      409,
+    );
+    await expect(sendMacro(request, { onComplete })).rejects.toMatchObject({
+      status: 409,
+    });
+
+    const terminal = statusAt("cancelled", 2);
+    planJsonResponse(terminal);
+    await retryExecutionRecovery();
+
+    expect(getExecutionRecoveryState()).toEqual({ kind: "clear" });
+    expect(onComplete).toHaveBeenCalledOnce();
+    expect(onComplete).toHaveBeenCalledWith(terminal);
     expect(
       getFetchCalls().filter((call) => call.method === "POST"),
     ).toHaveLength(1);
