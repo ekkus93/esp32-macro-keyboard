@@ -164,9 +164,8 @@ static app_error_code_t close_staged_stream(storage_blob_upload_t *upload) {
     return result;
 }
 
-app_operation_result_t
-storage_blob_upload_commit_with_ops_result(storage_blob_upload_t *upload,
-                                           storage_blob_entry_t *out_entry) {
+app_operation_result_t storage_blob_upload_commit_with_ops_result(
+    storage_blob_upload_t *upload, storage_blob_entry_t *out_entry) {
     if (out_entry != NULL) {
         *out_entry = (storage_blob_entry_t){0};
     }
