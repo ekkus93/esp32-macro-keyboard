@@ -423,7 +423,7 @@ static void test_precommit_failures_leave_final_absent(void) {
     run_precommit_failure(UPLOAD_OPERATION_RENAME, 1U, EIO, APP_ERROR_NONE, APP_ERROR_IO);
 }
 
-static void test_directory_sync_failure_remains_uncommitted_and_reclaimable(void) {
+static void test_directory_sync_failure_is_uncertain_and_retained(void) {
     upload_fake_t fake;
     fake_reset(&fake);
     fake.fail_operation = UPLOAD_OPERATION_SYNC_PARENT;
@@ -433,7 +433,12 @@ static void test_directory_sync_failure_remains_uncommitted_and_reclaimable(void
     storage_blob_upload_t upload = begin_upload(&fake, &operations);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_write_with_ops(&upload, "abcdef", 6U));
     storage_blob_entry_t entry = {.id = 99U, .stored_bytes = 99U};
-    TEST_CHECK_APP_ERROR(APP_ERROR_IO, storage_blob_upload_commit_with_ops(&upload, &entry));
+    const app_operation_result_t result =
+        storage_blob_upload_commit_with_ops_result(&upload, &entry);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, result.primary_error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, result.cleanup_error);
+    TEST_CHECK(!result.cleanup_incomplete);
+    TEST_CHECK_EQ_INT(APP_OPERATION_COMMIT_UNCERTAIN, result.commit_state);
     TEST_CHECK(!upload.committed);
     TEST_CHECK(upload.final_path_owned);
     TEST_CHECK(fake.final_exists);
@@ -441,10 +446,10 @@ static void test_directory_sync_failure_remains_uncommitted_and_reclaimable(void
     TEST_CHECK_EQ_U64(8U, fake.persisted_next_id);
     TEST_CHECK_EQ_U64(0U, entry.id);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_abort_with_ops(&upload));
-    TEST_CHECK(!upload.final_path_owned);
-    TEST_CHECK(!fake.final_exists);
-    TEST_CHECK_EQ_U64(1U, fake.operation_counts[UPLOAD_OPERATION_UNLINK]);
-    TEST_CHECK_EQ_U64(2U, fake.operation_counts[UPLOAD_OPERATION_SYNC_PARENT]);
+    TEST_CHECK(upload.final_path_owned);
+    TEST_CHECK(fake.final_exists);
+    TEST_CHECK_EQ_U64(0U, fake.operation_counts[UPLOAD_OPERATION_UNLINK]);
+    TEST_CHECK_EQ_U64(1U, fake.operation_counts[UPLOAD_OPERATION_SYNC_PARENT]);
 }
 
 static void test_public_wrapper_records_only_durable_commit(void) {
@@ -468,7 +473,8 @@ static void test_public_wrapper_records_only_durable_commit(void) {
     upload = begin_upload(&fake, &operations);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_write(&upload, "abcdef", 6U));
     entry = (storage_blob_entry_t){.id = 99U, .stored_bytes = 99U};
-    TEST_CHECK_APP_ERROR(APP_ERROR_IO, storage_blob_upload_commit(&upload, &entry));
+    TEST_CHECK_APP_ERROR(APP_ERROR_COMMIT_UNCERTAIN,
+                         storage_blob_upload_commit(&upload, &entry));
     TEST_CHECK_EQ_U64(0U, entry.id);
     TEST_CHECK_EQ_U64(0U, storage_blob_scan_state().valid_count);
     TEST_CHECK_EQ_U64(0U, fake_inventory_used_bytes);
@@ -476,8 +482,8 @@ static void test_public_wrapper_records_only_durable_commit(void) {
     TEST_CHECK(upload.final_path_owned);
     TEST_CHECK(fake.final_exists);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_abort(&upload));
-    TEST_CHECK(!fake.final_exists);
-    TEST_CHECK(!upload.final_path_owned);
+    TEST_CHECK(fake.final_exists);
+    TEST_CHECK(upload.final_path_owned);
 }
 
 static void test_cleanup_failure_preserves_primary_and_cleanup(void) {
@@ -508,7 +514,7 @@ int main(void) {
     test_existing_paths_are_not_replaced();
     test_write_failures_abort_cleanly();
     test_precommit_failures_leave_final_absent();
-    test_directory_sync_failure_remains_uncommitted_and_reclaimable();
+    test_directory_sync_failure_is_uncertain_and_retained();
     test_public_wrapper_records_only_durable_commit();
     test_cleanup_failure_preserves_primary_and_cleanup();
     puts("storage blob upload tests passed");
