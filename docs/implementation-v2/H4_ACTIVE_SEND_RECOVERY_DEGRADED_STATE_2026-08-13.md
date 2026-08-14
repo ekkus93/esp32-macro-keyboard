@@ -122,3 +122,68 @@ The H4 runtime and permanent regression implementation is ready for pinned
 frontend/browser validation. H4 TODO checkboxes and the phase exit gate remain
 unchecked until that exact candidate passes the repository's Node 24.18.0
 frontend and real-Chrome gates. No hardware claim is made by this evidence.
+
+## 2026-08-14 literal-checklist re-audit
+
+A later H4 closure review compared the permanent tests against every unchecked
+H4-043/H4-044 sentence rather than treating the earlier green H4 browser runner
+as broader proof than it actually supplied. That review found two proof gaps:
+
+1. the browser runner exercised degraded tracking in-place, but did not perform a
+   real reload while an active send existed and force the first startup recovery
+   request to fail; and
+2. the runner did not dirty the working copy before execution degradation, so it
+   did not literally prove that recovery failure/Retry leaves current in-memory
+   edits intact.
+
+The runtime state machine itself did not need another implementation change.
+Commit `1ab7993cf460917ae89320628f16df6c08db2770` strengthens only permanent H4
+coverage:
+
+- `webapp/tests/v2-execution-recovery.test.tsx` now proves one transient poll
+  failure remains quiet and clears on the next successful refresh, and proves a
+  terminal reconciliation completes through the original callback path while
+  clearing the fail-closed recovery latch;
+- `webapp/tests/browser/run-h4-recovery-tests.mjs` now dirties the working copy
+  before starting the send, proves both degradation and GET-only Retry preserve
+  that dirty state, then performs a real browser reload with an active send and
+  forces the first startup send-status recovery to return `503`;
+- the reloaded UI must represent that state as **Execution state unavailable**,
+  keep **Cancel and release all keys** visible, and recover through the
+  authenticated shell's GET-only Retry without issuing a second send POST.
+
+The reload assertion does not claim that unsaved in-memory edits survive a full
+browser reload. A reload naturally reconstructs the working copy from the
+canonical device snapshot; the dirty-state preservation assertion applies to the
+in-place degraded/reconciled execution path, exactly where H4 requires recovery
+UI not to discard current tab state.
+
+### Local validation of the strengthened coverage
+
+The sandbox still has Node.js 22.16.0 rather than the repository-pinned Node.js
+24.18.0. The following non-authoritative checks passed on the strengthened test
+files:
+
+- `node --check webapp/tests/browser/run-h4-recovery-tests.mjs`;
+- TypeScript 5.8.3 `transpileModule(..., reportDiagnostics: true)` for
+  `webapp/tests/v2-execution-recovery.test.tsx`;
+- `bash tests/scripts/test-check-frontend-persisted-state.sh` — 6/6; and
+- byte/line-ending checks proving both changed test files end in one LF and do
+  not contain CRLF line endings.
+
+An offline `npm ci` attempt was also made with engine enforcement relaxed only
+for dependency installation diagnostics. It failed because the local npm cache
+is missing `yocto-queue-0.1.0`; no dependency tree was fabricated and no result
+from Node 22 is being called authoritative.
+
+### Current disposition
+
+The earlier descendant validation supplied by the product owner proved the
+pre-re-audit H4 runner reached **Real Chrome H4 degraded-send recovery workflow
+passed** through the fail-fast frontend gate. That evidence remains useful, but
+it predates the new literal reload/dirty-state assertions above.
+
+Therefore H4 remains open pending one pinned Node.js 24.18.0 frontend/real-Chrome
+pass on an exact descendant containing
+`1ab7993cf460917ae89320628f16df6c08db2770`. No H4 TODO checkbox is closed from
+source inspection or the older narrower browser result.
