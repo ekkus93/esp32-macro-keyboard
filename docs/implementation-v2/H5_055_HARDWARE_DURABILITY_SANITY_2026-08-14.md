@@ -101,21 +101,23 @@ idf.py build
 bash ../scripts/generate-flash-manifest.sh
 cd ..
 
-python3 - <<'PY'
+MANIFEST_COMMIT="$(python3 - <<'PY'
 import json
 from pathlib import Path
+
 manifest = json.loads(Path("firmware/build/flash-manifest.json").read_text())
 assert manifest["gitDirty"] is False
 assert manifest["buildType"] == "production"
 print(manifest["gitCommit"])
 PY
-
-test "$(python3 -c 'import json; print(json.load(open("firmware/build/flash-manifest.json"))["gitCommit"])')" \
-  = "${H5_055_CANDIDATE}"
+)"
+test "${MANIFEST_COMMIT}" = "${H5_055_CANDIDATE}"
 
 # Flash the production candidate while the board is in USB-Serial-JTAG
 # bootloader mode. Adjust the port only to the actual bootloader device.
-idf.py -C firmware -p /dev/ttyACM1 flash
+cd firmware
+idf.py -p /dev/ttyACM1 flash
+cd ..
 
 export DEVICE_URL='http://DEVICE_IP'
 export FLASH_MANIFEST="${PWD}/firmware/build/flash-manifest.json"
