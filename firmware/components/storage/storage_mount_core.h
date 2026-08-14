@@ -1,8 +1,8 @@
 #ifndef STORAGE_MOUNT_CORE_H
 #define STORAGE_MOUNT_CORE_H
 
+#include "../support/include/app_operation_result.h"
 #include "app_error.h"
-#include "app_operation_result.h"
 #include "storage.h"
 
 /* Backend seam for the mount orchestration. The production wrapper supplies
