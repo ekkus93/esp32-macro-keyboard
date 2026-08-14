@@ -9,10 +9,19 @@
 #include <sys/stat.h>
 
 #include "app_error.h"
+#include "app_operation_result.h"
 #include "storage_blob.h"
 
 static app_error_code_t map_io_error(int error_number) {
     return error_number == ENOSPC ? APP_ERROR_STORAGE_FULL : APP_ERROR_IO;
+}
+
+static app_operation_result_t primary_error(app_error_code_t error,
+                                            app_operation_commit_state_t commit_state) {
+    app_operation_result_t result = app_operation_success();
+    app_operation_record_primary(&result, error);
+    result.commit_state = commit_state;
+    return result;
 }
 
 static bool upload_ops_valid(const storage_blob_upload_ops_t *operations) {
@@ -62,11 +71,12 @@ static app_error_code_t unlink_path_if_present(const storage_blob_upload_ops_t *
     return unlink_error == ENOENT ? APP_ERROR_NONE : map_io_error(unlink_error);
 }
 
-static app_error_code_t cleanup_failure(const storage_blob_upload_ops_t *operations,
-                                        const char *temporary_path,
-                                        app_error_code_t primary_error) {
-    const app_error_code_t cleanup_error = unlink_path_if_present(operations, temporary_path);
-    return cleanup_error == APP_ERROR_NONE ? primary_error : cleanup_error;
+static app_operation_result_t cleanup_failure(const storage_blob_upload_ops_t *operations,
+                                              const char *temporary_path,
+                                              app_error_code_t primary) {
+    app_operation_result_t result = primary_error(primary, APP_OPERATION_NOT_COMMITTED);
+    app_operation_record_cleanup(&result, unlink_path_if_present(operations, temporary_path));
+    return result;
 }
 
 app_error_code_t storage_blob_upload_begin_with_ops(const char *directory_path, uint64_t blob_id,
@@ -154,18 +164,18 @@ static app_error_code_t close_staged_stream(storage_blob_upload_t *upload) {
     return result;
 }
 
-app_error_code_t storage_blob_upload_commit_with_ops(storage_blob_upload_t *upload,
-                                                     storage_blob_entry_t *out_entry) {
+app_operation_result_t storage_blob_upload_commit_with_ops_result(
+    storage_blob_upload_t *upload, storage_blob_entry_t *out_entry) {
     if (out_entry != NULL) {
         *out_entry = (storage_blob_entry_t){0};
     }
     if (upload == NULL || out_entry == NULL || !upload->active || upload->committed ||
         upload->operations == NULL || upload->stream == NULL ||
         upload->stored_bytes != upload->expected_bytes) {
-        return APP_ERROR_INVALID_ARGUMENT;
+        return primary_error(APP_ERROR_INVALID_ARGUMENT, APP_OPERATION_NOT_COMMITTED);
     }
     if (upload->id == UINT64_MAX) {
-        return APP_ERROR_STORAGE_FULL;
+        return primary_error(APP_ERROR_STORAGE_FULL, APP_OPERATION_NOT_COMMITTED);
     }
 
     const storage_blob_upload_ops_t *operations = upload->operations;
@@ -190,29 +200,36 @@ app_error_code_t storage_blob_upload_commit_with_ops(storage_blob_upload_t *uplo
 
     upload->final_path_owned = true;
     if (operations->sync_parent(operations->context, upload->final_path) != 0) {
-        return map_io_error(errno);
+        return primary_error(map_io_error(errno), APP_OPERATION_COMMIT_UNCERTAIN);
     }
     upload->committed = true;
     *out_entry = (storage_blob_entry_t){
         .id = upload->id,
         .stored_bytes = upload->stored_bytes,
     };
-    return APP_ERROR_NONE;
+    app_operation_result_t committed = app_operation_success();
+    committed.commit_state = APP_OPERATION_COMMITTED;
+    return committed;
 }
 
-app_error_code_t storage_blob_upload_abort_with_ops(storage_blob_upload_t *upload) {
+app_error_code_t storage_blob_upload_commit_with_ops(storage_blob_upload_t *upload,
+                                                     storage_blob_entry_t *out_entry) {
+    return app_operation_result_error(storage_blob_upload_commit_with_ops_result(upload, out_entry));
+}
+
+app_operation_result_t storage_blob_upload_abort_with_ops_result(storage_blob_upload_t *upload) {
     if (upload == NULL || upload->operations == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
+        return primary_error(APP_ERROR_INVALID_ARGUMENT, APP_OPERATION_COMMIT_NOT_APPLICABLE);
     }
     if (upload->committed) {
-        return APP_ERROR_NONE;
+        return app_operation_success();
     }
 
     const storage_blob_upload_ops_t *operations = upload->operations;
-    app_error_code_t result = APP_ERROR_NONE;
+    app_operation_result_t result = app_operation_success();
     if (upload->active && upload->stream != NULL) {
         if (operations->close_stream(operations->context, upload->stream) != 0) {
-            result = map_io_error(errno);
+            app_operation_record_primary(&result, map_io_error(errno));
         }
         upload->stream = NULL;
         upload->active = false;
@@ -221,14 +238,28 @@ app_error_code_t storage_blob_upload_abort_with_ops(storage_blob_upload_t *uploa
     const char *cleanup_path = cleanup_final ? upload->final_path : upload->temporary_path;
     const app_error_code_t cleanup = unlink_path_if_present(operations, cleanup_path);
     if (cleanup != APP_ERROR_NONE) {
-        return result == APP_ERROR_NONE ? cleanup : result;
+        if (result.primary_error == APP_ERROR_NONE) {
+            app_operation_record_primary(&result, cleanup);
+        } else {
+            app_operation_record_cleanup(&result, cleanup);
+        }
+        return result;
     }
     if (cleanup_final) {
         if (operations->sync_parent(operations->context, upload->final_path) != 0) {
             const app_error_code_t sync_error = map_io_error(errno);
-            return result == APP_ERROR_NONE ? sync_error : result;
+            if (result.primary_error == APP_ERROR_NONE) {
+                app_operation_record_primary(&result, sync_error);
+            } else {
+                app_operation_record_cleanup(&result, sync_error);
+            }
+            return result;
         }
         upload->final_path_owned = false;
     }
     return result;
+}
+
+app_error_code_t storage_blob_upload_abort_with_ops(storage_blob_upload_t *upload) {
+    return app_operation_result_error(storage_blob_upload_abort_with_ops_result(upload));
 }
