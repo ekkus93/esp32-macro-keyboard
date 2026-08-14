@@ -119,8 +119,8 @@ app_error_code_t storage_blob_upload_write(storage_blob_upload_t *upload, const 
     return storage_blob_upload_write_with_ops(upload, data, data_length);
 }
 
-app_error_code_t storage_blob_upload_commit(storage_blob_upload_t *upload,
-                                            storage_blob_entry_t *out_entry) {
+app_operation_result_t storage_blob_upload_commit_result(storage_blob_upload_t *upload,
+                                                         storage_blob_entry_t *out_entry) {
     const bool was_committed = upload != NULL && upload->committed;
     const app_operation_result_t detailed =
         storage_blob_upload_commit_with_ops_result(upload, out_entry);
@@ -131,7 +131,12 @@ app_error_code_t storage_blob_upload_commit(storage_blob_upload_t *upload,
         };
         storage_blob_record_committed_entry(&committed);
     }
-    return app_operation_result_error(detailed);
+    return detailed;
+}
+
+app_error_code_t storage_blob_upload_commit(storage_blob_upload_t *upload,
+                                            storage_blob_entry_t *out_entry) {
+    return app_operation_result_error(storage_blob_upload_commit_result(upload, out_entry));
 }
 
 app_error_code_t storage_blob_upload_abort(storage_blob_upload_t *upload) {
