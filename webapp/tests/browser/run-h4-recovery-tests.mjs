@@ -298,14 +298,17 @@ try {
     fixture.state.sendPostCount === 1,
     "The initial send must POST exactly once.",
   );
+  const recovery = page.getByLabel("Execution recovery");
   assert(
-    await page
+    await recovery
       .getByRole("button", { name: "Cancel and release all keys" })
       .isVisible(),
     "Cancel was not visible while execution status was unavailable.",
   );
 
-  await page.getByRole("button", { name: "Retry execution status" }).click();
+  await recovery
+    .getByRole("button", { name: "Retry execution status" })
+    .click();
   await waitFor(
     page,
     () =>
