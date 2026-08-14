@@ -132,18 +132,8 @@ app_error_code_t storage_blob_upload_write(storage_blob_upload_t *upload, const 
     return APP_ERROR_NONE;
 }
 
-app_error_code_t storage_blob_upload_commit(storage_blob_upload_t *upload,
-                                            storage_blob_entry_t *out_entry) {
-    if (out_entry != NULL) {
-        *out_entry = (storage_blob_entry_t){0};
-    }
-    if (upload == NULL || out_entry == NULL || !upload->active || upload->committed ||
-        upload->stored_bytes != upload->expected_bytes) {
-        return APP_ERROR_INVALID_ARGUMENT;
-    }
-    if (g_fake_storage_blob.force_upload_commit_error != APP_ERROR_NONE) {
-        return g_fake_storage_blob.force_upload_commit_error;
-    }
+static app_error_code_t activate_fake_upload(storage_blob_upload_t *upload,
+                                             storage_blob_entry_t *out_entry, bool committed) {
     fake_storage_blob_record_t *slot = find_free_slot();
     if (slot == NULL) {
         return APP_ERROR_STORAGE_FULL;
@@ -153,18 +143,68 @@ app_error_code_t storage_blob_upload_commit(storage_blob_upload_t *upload,
     slot->data = upload->stream;
     slot->size = upload->stored_bytes;
     upload->stream = NULL;
-    upload->committed = true;
     upload->active = false;
-    out_entry->id = upload->id;
-    out_entry->stored_bytes = upload->stored_bytes;
+    upload->final_path_owned = true;
+    upload->committed = committed;
+    if (committed) {
+        out_entry->id = upload->id;
+        out_entry->stored_bytes = upload->stored_bytes;
+    }
     return APP_ERROR_NONE;
+}
+
+app_operation_result_t storage_blob_upload_commit_result(storage_blob_upload_t *upload,
+                                                         storage_blob_entry_t *out_entry) {
+    if (out_entry != NULL) {
+        *out_entry = (storage_blob_entry_t){0};
+    }
+    app_operation_result_t result = app_operation_success();
+    if (upload == NULL || out_entry == NULL || !upload->active || upload->committed ||
+        upload->stored_bytes != upload->expected_bytes) {
+        app_operation_record_primary(&result, APP_ERROR_INVALID_ARGUMENT);
+        result.commit_state = APP_OPERATION_NOT_COMMITTED;
+        return result;
+    }
+    if (g_fake_storage_blob.force_upload_commit_error == APP_ERROR_COMMIT_UNCERTAIN) {
+        const app_error_code_t activation = activate_fake_upload(upload, out_entry, false);
+        if (activation != APP_ERROR_NONE) {
+            app_operation_record_primary(&result, activation);
+            result.commit_state = APP_OPERATION_NOT_COMMITTED;
+            return result;
+        }
+        app_operation_record_primary(&result, APP_ERROR_IO);
+        result.commit_state = APP_OPERATION_COMMIT_UNCERTAIN;
+        return result;
+    }
+    if (g_fake_storage_blob.force_upload_commit_error != APP_ERROR_NONE) {
+        app_operation_record_primary(&result, g_fake_storage_blob.force_upload_commit_error);
+        result.commit_state = APP_OPERATION_NOT_COMMITTED;
+        return result;
+    }
+    const app_error_code_t activation = activate_fake_upload(upload, out_entry, true);
+    if (activation != APP_ERROR_NONE) {
+        app_operation_record_primary(&result, activation);
+        result.commit_state = APP_OPERATION_NOT_COMMITTED;
+        return result;
+    }
+    result.commit_state = APP_OPERATION_COMMITTED;
+    return result;
+}
+
+app_error_code_t storage_blob_upload_commit(storage_blob_upload_t *upload,
+                                            storage_blob_entry_t *out_entry) {
+    const app_operation_result_t result = storage_blob_upload_commit_result(upload, out_entry);
+    if (result.commit_state == APP_OPERATION_COMMIT_UNCERTAIN) {
+        return APP_ERROR_COMMIT_UNCERTAIN;
+    }
+    return app_operation_result_error(result);
 }
 
 app_error_code_t storage_blob_upload_abort(storage_blob_upload_t *upload) {
     if (upload == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    if (upload->committed) {
+    if (upload->committed || upload->final_path_owned) {
         return APP_ERROR_NONE;
     }
     if (upload->stream != NULL) {
