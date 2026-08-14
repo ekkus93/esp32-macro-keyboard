@@ -48,4 +48,9 @@ static inline bool app_operation_result_ok(app_operation_result_t result) {
 void app_operation_record_primary(app_operation_result_t *result, app_error_code_t error);
 void app_operation_record_cleanup(app_operation_result_t *result, app_error_code_t error);
 
+/* Stable single-error compatibility mapping for public APIs that cannot yet
+ * return the structured result. The initiating error remains authoritative;
+ * cleanup/release/durability error is returned only when no primary error exists. */
+app_error_code_t app_operation_result_error(app_operation_result_t result);
+
 #endif
