@@ -802,19 +802,32 @@ For every checked affected item:
 
 ### H11-112 — Documentation synchronization
 
-- [ ] Update current implementation/status documentation to describe the hardened semantics.
-- [ ] Document factory-reset recovery behavior.
-- [ ] Document password-change guarantees.
-- [ ] Document confirmation-required send behavior.
-- [ ] Document active-send degraded recovery behavior.
-- [ ] Document storage commit-uncertain behavior if externally relevant.
-- [ ] Remove stale “best-effort” comments that no longer describe implementation.
+- [x] Update current implementation/status documentation to describe the hardened semantics.
+- [x] Document factory-reset recovery behavior.
+- [x] Document password-change guarantees.
+- [x] Document confirmation-required send behavior.
+- [x] Document active-send degraded recovery behavior.
+- [x] Document storage commit-uncertain behavior if externally relevant.
+- [x] Remove stale “best-effort” comments that no longer describe implementation.
+
+- Evidence (2026-08-14): current product-document synchronization is recorded in
+  `docs/implementation-v2/H11_112_DOCUMENTATION_SYNCHRONIZATION_2026-08-14.md`
+  and the literal phase reconciliation is recorded in
+  `docs/implementation-v2/H11_PHASE_EXIT_RECONCILIATION_2026-08-14.md`.
+  Narrative reconciliation commit `a5474028044f056c92b8e43808be0ad62d1b72a9`
+  passed the exact-SHA `Quality` workflow in run `31822644005`, job
+  `94839308592`; no runtime behavior was changed by that reconciliation.
 
 ### Phase H11 exit gate
 
-- [ ] `docs/TODO_V2.md` and implementation evidence agree literally.
-- [ ] No affected requirement is checked solely because its implementation exists in isolation.
-- [ ] Product documentation describes actual current behavior.
+- [x] `docs/TODO_V2.md` and implementation evidence agree literally.
+- [x] No affected requirement is checked solely because its implementation exists in isolation.
+- [x] Product documentation describes actual current behavior.
+
+- Closure evidence (2026-08-14): the H11 documentation/evidence reconciliation
+  at `a5474028044f056c92b8e43808be0ad62d1b72a9` passed exact-SHA `Quality`
+  run `31822644005`, job `94839308592`. H11 closes without inferring H4, H5,
+  physical-device, or H12 acceptance from implementation alone.
 
 ---
 
@@ -822,9 +835,17 @@ For every checked affected item:
 
 ### H12-120 — Clean checkout
 
-- [ ] Create a fresh checkout of the exact final candidate SHA.
-- [ ] Install dependencies only through documented reproducible commands.
-- [ ] Confirm no generated/untracked source artifact is required for success.
+- [x] Create a fresh checkout of the exact final candidate SHA.
+- [x] Install dependencies only through documented reproducible commands.
+- [x] Confirm no generated/untracked source artifact is required for success.
+
+- Evidence (2026-08-14):
+  `docs/implementation-v2/H12_120_CLEAN_CHECKOUT_2026-08-14.md` records the
+  exact source-tree reconstruction and independent generated-artifact audit plus
+  successful Ubuntu 24.04 `Quality` run `31822644005`, job `94839308592`, on
+  candidate SHA `a5474028044f056c92b8e43808be0ad62d1b72a9`. The report/tracker
+  closure is documentation-only; H12-121 must validate the resulting descendant
+  separately and remains open.
 
 ### H12-121 — Run complete authoritative gate
 
