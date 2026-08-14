@@ -222,7 +222,11 @@ app_operation_result_t storage_blob_upload_abort_with_ops_result(storage_blob_up
     if (upload == NULL || upload->operations == NULL) {
         return primary_error(APP_ERROR_INVALID_ARGUMENT, APP_OPERATION_COMMIT_NOT_APPLICABLE);
     }
-    if (upload->committed) {
+    if (upload->committed || upload->final_path_owned) {
+        /* final_path_owned means rename() already activated the canonical blob.
+         * A post-rename durability failure is commit-uncertain, not an
+         * uncommitted temporary that abort may delete. Reconciliation owns the
+         * decision from here; abort must retain the activated bytes. */
         return app_operation_success();
     }
 
@@ -235,28 +239,14 @@ app_operation_result_t storage_blob_upload_abort_with_ops_result(storage_blob_up
         upload->stream = NULL;
         upload->active = false;
     }
-    const bool cleanup_final = upload->final_path_owned;
-    const char *cleanup_path = cleanup_final ? upload->final_path : upload->temporary_path;
-    const app_error_code_t cleanup = unlink_path_if_present(operations, cleanup_path);
+    const app_error_code_t cleanup =
+        unlink_path_if_present(operations, upload->temporary_path);
     if (cleanup != APP_ERROR_NONE) {
         if (result.primary_error == APP_ERROR_NONE) {
             app_operation_record_primary(&result, cleanup);
         } else {
             app_operation_record_cleanup(&result, cleanup);
         }
-        return result;
-    }
-    if (cleanup_final) {
-        if (operations->sync_parent(operations->context, upload->final_path) != 0) {
-            const app_error_code_t sync_error = map_io_error(errno);
-            if (result.primary_error == APP_ERROR_NONE) {
-                app_operation_record_primary(&result, sync_error);
-            } else {
-                app_operation_record_cleanup(&result, sync_error);
-            }
-            return result;
-        }
-        upload->final_path_owned = false;
     }
     return result;
 }
