@@ -164,8 +164,8 @@ static app_error_code_t close_staged_stream(storage_blob_upload_t *upload) {
     return result;
 }
 
-app_operation_result_t storage_blob_upload_commit_with_ops_result(
-    storage_blob_upload_t *upload, storage_blob_entry_t *out_entry) {
+app_operation_result_t storage_blob_upload_commit_with_ops_result(storage_blob_upload_t *upload,
+                                                                 storage_blob_entry_t *out_entry) {
     if (out_entry != NULL) {
         *out_entry = (storage_blob_entry_t){0};
     }
@@ -214,7 +214,8 @@ app_operation_result_t storage_blob_upload_commit_with_ops_result(
 
 app_error_code_t storage_blob_upload_commit_with_ops(storage_blob_upload_t *upload,
                                                      storage_blob_entry_t *out_entry) {
-    return app_operation_result_error(storage_blob_upload_commit_with_ops_result(upload, out_entry));
+    return app_operation_result_error(
+        storage_blob_upload_commit_with_ops_result(upload, out_entry));
 }
 
 app_operation_result_t storage_blob_upload_abort_with_ops_result(storage_blob_upload_t *upload) {
