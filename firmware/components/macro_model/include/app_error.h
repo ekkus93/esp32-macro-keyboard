@@ -36,7 +36,11 @@ typedef enum {
     /* Reset-settings durably changed noncredential configuration but the
      * operation could not establish the required restart boundary.
      * Appended to preserve every existing numeric app-error value. */
-    APP_ERROR_RESET_SETTINGS_INCOMPLETE
+    APP_ERROR_RESET_SETTINGS_INCOMPLETE,
+    /* Canonical activation occurred, but the final durability acknowledgement
+     * failed. Callers must reconcile canonical state before retrying. Appended
+     * to preserve every existing numeric app-error value. */
+    APP_ERROR_COMMIT_UNCERTAIN
 } app_error_code_t;
 
 const char *app_error_code_string(app_error_code_t code);
