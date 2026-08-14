@@ -59,6 +59,9 @@ def main() -> None:
     cookie = read("firmware/components/web_server/web_cookie.c")
     session_tests = read("tests/host/auth_additional_session_tests.inc")
     rate_tests = read("tests/host/auth_additional_rate_tests.inc")
+    spec = read("docs/SPEC_V2.md")
+    api_current = read("docs/API.md").split("## Archived: retired v1 API", maxsplit=1)[0]
+    web_server_readme = read("firmware/components/web_server/README.md")
 
     active_sessions = uint32_macro(limits, "APP_V2_ACTIVE_SESSIONS_MAX")
     idle_seconds = uint32_macro(limits, "APP_V2_SESSION_IDLE_LIFETIME_SECONDS")
@@ -175,6 +178,28 @@ def main() -> None:
     require(
         "HttpOnly; SameSite=Strict; Path=/" in cookie,
         "login cookie attributes drifted from V2 policy",
+    )
+    require(
+        "There is no separate CSRF token. There is no Host/Origin check" in spec,
+        "normative development-appliance CSRF/Host/Origin policy is missing",
+    )
+    require(
+        re.search(r"no\s+separate CSRF token", api_current) is not None
+        and "no `Host`/`Origin` check" in api_current,
+        "current API documentation contradicts the V2 development-appliance auth policy",
+    )
+    require(
+        "matching CSRF token" not in api_current and "same-origin security checks" not in api_current,
+        "current API documentation still describes the retired CSRF/origin policy",
+    )
+    require(
+        re.search(r"no\s+separate CSRF", web_server_readme) is not None
+        and "no `Host`/`Origin` check" in web_server_readme,
+        "web-server documentation contradicts the V2 development-appliance auth policy",
+    )
+    require(
+        "same-origin security checks" not in web_server_readme,
+        "web-server documentation still claims an origin check that production code does not perform",
     )
     require(
         "Secure" not in login and "Secure" not in cookie,

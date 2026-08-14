@@ -59,6 +59,7 @@ bash tests/scripts/test-check-setup-route-isolation.sh
 bash tests/scripts/test-check-web-route-dispatch-sync.sh
 bash tests/scripts/test-check-frontend-persisted-state.sh
 bash tests/scripts/test-check-release-budgets.sh
+bash tests/scripts/test-native-coverage-policy.sh
 bash tests/scripts/test-build-webfs-image.sh
 bash tests/scripts/test-generate-flash-manifest.sh
 bash tests/scripts/test-check-stack-usage.sh

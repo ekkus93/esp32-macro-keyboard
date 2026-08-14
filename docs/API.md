@@ -18,9 +18,12 @@ against it.
 
 ## Current v2 API
 
-All routes are under `/api/v1`, same-origin, and JSON unless noted. Read
-routes require a valid RAM-only session; mutating routes additionally require
-the matching CSRF token and accepted `Host`/`Origin` headers (SPEC_V2 §13.1).
+All routes are under `/api/v1` and are JSON unless noted. Except for the
+first-run setup and login routes, current v2 routes require the valid RAM-only
+session described by SPEC_V2 §12.2. CORS is disabled, the session cookie is
+`HttpOnly` and `SameSite=Strict`, and the development appliance profile uses no
+separate CSRF token and performs no `Host`/`Origin` check. A product distributed
+to third parties must revisit DNS-rebinding protection before release.
 The maximum JSON request body is 8192 bytes; blob uploads accept only
 `application/gzip` up to the blob size limit. There is no revision field,
 `If-Match`, or checksum round trip anywhere in the v2 API — unlike the
