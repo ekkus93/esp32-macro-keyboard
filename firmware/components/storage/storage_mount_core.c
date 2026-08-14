@@ -4,7 +4,6 @@
 #include <stddef.h>
 
 #include "app_error.h"
-#include "app_operation_result.h"
 #include "storage.h"
 
 static bool mount_ops_valid(const storage_mount_ops_t *ops) {
