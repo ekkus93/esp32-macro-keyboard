@@ -98,23 +98,57 @@ static app_error_code_t read_record(void *context, uint8_t *record, size_t capac
     return APP_ERROR_NONE;
 }
 
+static app_error_code_t reconcile_failed_commit(const uint8_t *candidate,
+                                                app_error_code_t commit_error) {
+    if (reopen_settings_handle() != APP_ERROR_NONE) {
+        return APP_ERROR_COMMIT_UNCERTAIN;
+    }
+
+    uint8_t persisted[APP_V2_SETTINGS_RECORD_BYTES] = {0};
+    size_t persisted_length = 0U;
+    const app_error_code_t read_result =
+        read_record(NULL, persisted, sizeof(persisted), &persisted_length);
+    if (read_result == APP_ERROR_NONE) {
+        const bool candidate_is_canonical =
+            persisted_length == APP_V2_SETTINGS_RECORD_BYTES &&
+            memcmp(persisted, candidate, APP_V2_SETTINGS_RECORD_BYTES) == 0;
+        secure_zero(NULL, persisted, sizeof(persisted));
+        return candidate_is_canonical ? APP_ERROR_NONE : commit_error;
+    }
+
+    secure_zero(NULL, persisted, sizeof(persisted));
+    if (read_result == APP_ERROR_NOT_FOUND) {
+        return commit_error;
+    }
+    return APP_ERROR_COMMIT_UNCERTAIN;
+}
+
 static app_error_code_t replace_record_atomic(void *context, const uint8_t *record, size_t length) {
     (void)context;
     if (!settings_handle_open || record == NULL || length != APP_V2_SETTINGS_RECORD_BYTES) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
 
-    app_error_code_t result =
+    const app_error_code_t set_result =
         map_nvs_error(nvs_set_blob(settings_handle, DEVICE_SETTINGS_RECORD_KEY, record, length));
-    if (result == APP_ERROR_NONE) {
-        result = map_nvs_error(nvs_commit(settings_handle));
+    if (set_result != APP_ERROR_NONE) {
+        /* Reopen clears any incomplete NVS transaction, but cleanup failure must
+         * not replace the initiating set error. No commit was attempted here. */
+        (void)reopen_settings_handle();
+        return set_result;
     }
-    if (result == APP_ERROR_NONE) {
+
+    const app_error_code_t commit_result = map_nvs_error(nvs_commit(settings_handle));
+    if (commit_result == APP_ERROR_NONE) {
         return APP_ERROR_NONE;
     }
 
-    const app_error_code_t reopen_result = reopen_settings_handle();
-    return reopen_result == APP_ERROR_NONE ? result : reopen_result;
+    /* nvs_commit() is the activation/durability boundary. A failure cannot be
+     * treated as ordinary "not committed" until canonical NVS state is read
+     * back after reopening the handle. Exact candidate bytes prove success;
+     * a different valid record or absence proves this candidate is not current;
+     * inability to read authoritative state is commit-uncertain. */
+    return reconcile_failed_commit(record, commit_result);
 }
 
 static device_settings_core_ops_t settings_operations(void) {
