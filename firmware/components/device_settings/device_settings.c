@@ -183,7 +183,7 @@ static app_error_code_t lock_settings(void) {
 }
 
 static app_error_code_t finish_locked(app_error_code_t result) {
-    if (xSemaphoreGive(settings_mutex) != pdTRUE) {
+    if (xSemaphoreGive(settings_mutex) != pdTRUE && result == APP_ERROR_NONE) {
         return APP_ERROR_INTERNAL;
     }
     return result;
