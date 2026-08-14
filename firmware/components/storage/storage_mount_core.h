@@ -2,6 +2,7 @@
 #define STORAGE_MOUNT_CORE_H
 
 #include "app_error.h"
+#include "app_operation_result.h"
 #include "storage.h"
 
 /* Backend seam for the mount orchestration. The production wrapper supplies
@@ -16,6 +17,14 @@ typedef struct {
     app_error_code_t (*unmount_data)(void *context);
     app_error_code_t (*prepare_directories)(void *context);
 } storage_mount_ops_t;
+
+/* Detailed variants preserve the initiating failure and any rollback/unmount
+ * failure independently. Compatibility wrappers below keep the existing
+ * app_error_code_t API and map the primary error first. */
+app_operation_result_t storage_mount_core_mount_result(const storage_mount_ops_t *ops,
+                                                       storage_mount_state_t *state);
+app_operation_result_t storage_mount_core_unmount_result(const storage_mount_ops_t *ops,
+                                                         storage_mount_state_t *state);
 
 /* Mount the web partition, then the data partition, then prepare the directory
  * topology, rolling back exactly what was mounted on any failure. The state
