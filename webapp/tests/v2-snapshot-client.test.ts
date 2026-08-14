@@ -143,9 +143,9 @@ describe("v2 snapshot client", () => {
       reconciliation: { state: "matched", blobId: "4" },
     });
     expect(store.getIsDirty()).toBe(true);
-    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
-      1,
-    );
+    expect(
+      getFetchCalls().filter((call) => call.method === "POST"),
+    ).toHaveLength(1);
 
     planJsonResponse({
       blobs: [
@@ -168,9 +168,9 @@ describe("v2 snapshot client", () => {
     expect(second).toMatchObject({
       reconciliation: { state: "matched", blobId: "4" },
     });
-    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
-      1,
-    );
+    expect(
+      getFetchCalls().filter((call) => call.method === "POST"),
+    ).toHaveLength(1);
     expect(store.getIsDirty()).toBe(true);
   });
 
@@ -195,9 +195,9 @@ describe("v2 snapshot client", () => {
     );
     expect(uncertain).toBeInstanceOf(SnapshotCommitUncertainError);
     expect(uncertain).toMatchObject({ reconciliation: { state: "not_found" } });
-    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
-      1,
-    );
+    expect(
+      getFetchCalls().filter((call) => call.method === "POST"),
+    ).toHaveLength(1);
     expect(store.getIsDirty()).toBe(true);
 
     planEmptySnapshotList();
@@ -206,9 +206,9 @@ describe("v2 snapshot client", () => {
       id: "5",
       sizeBytes: 42,
     });
-    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
-      2,
-    );
+    expect(
+      getFetchCalls().filter((call) => call.method === "POST"),
+    ).toHaveLength(2);
     expect(store.getIsDirty()).toBe(false);
   });
 
@@ -235,9 +235,9 @@ describe("v2 snapshot client", () => {
     );
     expect(first).toBeInstanceOf(SnapshotCommitUncertainError);
     expect(first).toMatchObject({ reconciliation: { state: "unavailable" } });
-    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
-      1,
-    );
+    expect(
+      getFetchCalls().filter((call) => call.method === "POST"),
+    ).toHaveLength(1);
 
     planFetch(() => {
       throw new TypeError("device unavailable");
@@ -247,9 +247,9 @@ describe("v2 snapshot client", () => {
     );
     expect(second).toBeInstanceOf(SnapshotCommitUncertainError);
     expect(second).toMatchObject({ reconciliation: { state: "unavailable" } });
-    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
-      1,
-    );
+    expect(
+      getFetchCalls().filter((call) => call.method === "POST"),
+    ).toHaveLength(1);
     expect(store.getIsDirty()).toBe(true);
   });
 
