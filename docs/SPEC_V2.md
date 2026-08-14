@@ -4,7 +4,7 @@
 **Product version:** 0.2 rebuild  
 **Target hardware:** ESP32-S3R8, native USB wiring, octal PSRAM  
 **Firmware framework:** ESP-IDF v5.5.5, exact release tag  
-**Last updated:** 2026-08-03
+**Last updated:** 2026-08-13
 
 ## 0. Authority and scope
 
@@ -677,7 +677,7 @@ diagnostics and MUST NOT appear as valid blobs.
 
 ### 10.3 Adding a blob
 
-Adding a blob is atomic:
+Adding a blob is atomic up to the canonical activation boundary:
 
 1. allocate the next blob ID;
 2. stream the request body to `<id>.gz.tmp` in bounded chunks;
@@ -685,10 +685,20 @@ Adding a blob is atomic:
 4. synchronize the temporary file;
 5. rename it to `<id>.gz`;
 6. synchronize the directory when supported;
-7. return `201` with the assigned ID and stored size.
+7. return `201` with the assigned ID and stored size after the required
+   durability acknowledgement succeeds.
 
-The rename is the commit point. An interrupted add leaves existing blobs intact.
-A `.tmp` file is not a blob and is removed during boot recovery.
+The rename is the canonical activation point. Successful synchronization of the
+parent directory is the final durability acknowledgement. An interruption before
+rename leaves existing blobs intact and may leave only a `.tmp` file, which is
+not a blob and is removed during boot recovery.
+
+If rename succeeds but the subsequent required parent-directory synchronization
+fails, the final `<id>.gz` path MUST be retained and the operation MUST be
+reported as durability-uncertain rather than uncommitted. Firmware MUST NOT delete
+that activated final blob as cleanup. The response is `503` with machine code
+`commit_uncertain`; the caller MUST reconcile canonical blob state before any
+retry and MUST NOT assume that no blob was created.
 
 Firmware checks only byte count and available space. It does not inspect the
 payload.
@@ -981,6 +991,12 @@ Every JSON error response uses:
 `code` is a stable machine-readable identifier. `message` is human-readable.
 `field` is omitted when no single request field caused the error.
 
+`commit_uncertain` is the stable machine code for a mutation whose canonical
+activation point was crossed but whose final durability acknowledgement failed.
+The value may already be visible and may survive restart. A caller receiving
+`commit_uncertain` MUST reconcile the canonical resource state before retrying
+and MUST NOT assume that the mutation did not occur.
+
 Parser errors additionally include:
 
 ```json
@@ -1208,6 +1224,31 @@ The body is the raw compressed repository bytes.
   "sizeBytes": 1350
 }
 ```
+
+A successful add returns `201 Created`. If the final blob was renamed into its
+canonical path but the post-rename parent-directory durability acknowledgement
+fails, firmware instead returns `503` with error code `commit_uncertain` and MUST
+retain the activated final blob.
+
+Before starting a blob add, React MUST record the set of blob IDs returned by the
+canonical list and retain the exact gzip bytes it is about to upload. After a
+`commit_uncertain` response, React MUST NOT retry the POST in that invocation. It
+MUST refresh `GET /api/v1/blob`, consider only IDs that were absent from the
+pre-create list, download those candidates as raw gzip bytes, and compare them
+byte-for-byte with the exact attempted upload.
+
+Reconciliation outcomes are deterministic:
+
+- exactly one new byte-identical blob: React MUST NOT issue another POST; the
+  working copy remains dirty because no `201 Created` was received, and the user
+  may deliberately load the recovered snapshot to accept it;
+- no byte-identical new blob after an authoritative refresh: the current save
+  attempt ends without a retry; a later explicit **Save snapshot** action MAY
+  start a new POST;
+- canonical list or candidate bytes unavailable, or more than one new blob is
+  byte-identical: the working copy remains dirty and further snapshot POSTs MUST
+  be blocked until reconciliation succeeds or the user deliberately replaces the
+  working copy.
 
 #### Load
 
@@ -1519,7 +1560,7 @@ session values, repository bytes, package or macro metadata, or macro source.
 422  invalid field or macro source
 429  rate limited
 500  internal error
-503  subsystem unavailable
+503  subsystem unavailable or storage commit durability uncertain
 507  insufficient blob storage
 ```
 
