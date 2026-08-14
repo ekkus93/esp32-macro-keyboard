@@ -473,8 +473,7 @@ static void test_public_wrapper_records_only_durable_commit(void) {
     upload = begin_upload(&fake, &operations);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_write(&upload, "abcdef", 6U));
     entry = (storage_blob_entry_t){.id = 99U, .stored_bytes = 99U};
-    TEST_CHECK_APP_ERROR(APP_ERROR_COMMIT_UNCERTAIN,
-                         storage_blob_upload_commit(&upload, &entry));
+    TEST_CHECK_APP_ERROR(APP_ERROR_COMMIT_UNCERTAIN, storage_blob_upload_commit(&upload, &entry));
     TEST_CHECK_EQ_U64(0U, entry.id);
     TEST_CHECK_EQ_U64(0U, storage_blob_scan_state().valid_count);
     TEST_CHECK_EQ_U64(0U, fake_inventory_used_bytes);
