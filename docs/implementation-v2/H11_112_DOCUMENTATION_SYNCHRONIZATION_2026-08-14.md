@@ -13,35 +13,58 @@ behavior, authoritative v2 contracts, or any hardware claim. Historical reports
 remain historical evidence at their recorded SHAs and are intentionally not
 rewritten to make old behavior appear current.
 
-## Current behavior document
+## Documentation changes
 
-This pass adds `docs/CURRENT_V2_HARDENED_BEHAVIOR.md` as the concise current-state
-reference for post-v2 semantics that span multiple historical implementation
-reports.
+The synchronization is implemented by two documentation commits:
 
-The page is explicitly subordinate to `docs/SPEC_V2.md` and
-`docs/UI_UX_SPEC_V2.md`. It separates implemented software semantics from
-hardware/release evidence that remains open.
+- `7a6acc9c5bbfd60b3ca94293b2a1486f318f00cf` — adds the current hardened
+  behavior reference and this H11-112 evidence report; and
+- `5ee90282266b2b652ab1387011b4d71e8ae1e260` — exposes the hardened recovery
+  semantics from the current README and human-readable API reference.
+
+The resulting current documentation surface is:
+
+- `docs/CURRENT_V2_HARDENED_BEHAVIOR.md` — cross-subsystem current behavior and
+  proof boundaries;
+- `docs/API.md` — current HTTP route index plus externally observable
+  partial-commit/recovery meanings;
+- `README.md` — current repository-status entry point linking the hardened
+  behavior reference; and
+- this report — the literal H11-112 mapping and validation boundary.
+
+The current-behavior page is explicitly subordinate to `docs/SPEC_V2.md` and
+`docs/UI_UX_SPEC_V2.md`. No authoritative v2 requirement was silently changed by
+this documentation pass.
 
 ## H11-112 checklist mapping
 
 ### Current implementation/status documentation
 
-The new current-state page consolidates the hardened semantics that were
-previously distributed across H1-H5 and H9 evidence. It identifies the relevant
+`docs/CURRENT_V2_HARDENED_BEHAVIOR.md` consolidates hardened semantics that were
+previously distributed across H1-H5 and H9 evidence. It identifies relevant
 machine codes, retry boundaries, authority boundaries, and still-open proof
 boundaries without promoting implementation history into product authority.
 
+`README.md` now links that current-state reference directly from Repository
+status so readers are not forced to infer present behavior from chronological
+implementation reports.
+
+`docs/API.md`, which identifies itself as the current human-readable v2 API
+reference, now has a **Hardened mutation and recovery semantics** section. It
+warns explicitly that several non-2xx outcomes cannot safely be interpreted as
+"nothing changed."
+
 ### Factory-reset recovery behavior
 
-The page documents the durable `PENDING` journal boundary, `202 Accepted`
-semantics after durable acceptance, fail-closed `reset_recovery_required`
-status/diagnostics behavior, idempotent replay, marker-clear ordering, and the
-fact that post-H3 interruption/reprovisioning hardware evidence remains open.
+The current behavior page and API reference document the durable `PENDING`
+journal boundary, `202 Accepted` semantics after durable acceptance, fail-closed
+`reset_recovery_required` status/diagnostics behavior, idempotent replay,
+marker-clear ordering, and the fact that post-H3 interruption/reprovisioning
+hardware evidence remains open.
 
-It separately documents reset-settings because that path intentionally does not
-use the factory-reset journal and has different `202` / `409
-reset_settings_incomplete` semantics.
+They separately document reset settings because that path intentionally does not
+use the factory-reset journal and has different `202` and
+`409 reset_settings_incomplete` semantics.
 
 Source evidence:
 
@@ -53,8 +76,8 @@ Source evidence:
 
 ### Password-change guarantees
 
-The page documents the transaction order and exact externally meaningful
-outcomes:
+The current behavior page and API reference document the transaction order and
+exact externally meaningful outcomes:
 
 - `204` means the new credential is durable, active in RAM, all previous
   sessions were invalidated, and the current cookie is cleared;
@@ -63,7 +86,7 @@ outcomes:
 - pre-commit concurrent change is `503 conflict`, with no durable credential
   change.
 
-It also records that login is fail-closed during the transition and that the old
+They also record that login is fail-closed during the transition and that the old
 best-effort NVS verifier reread was removed.
 
 Source evidence:
@@ -71,10 +94,11 @@ Source evidence:
 
 ### Confirmation-required send behavior
 
-The page documents authoritative setting capture, fail-closed settings-read
-failure, `awaiting_confirmation`, UART `confirm` routing, no HID key-down before
-confirmation, cancellation/timeout behavior, and the distinction between
-software/browser evidence and still-open exact-SHA physical HID/UART evidence.
+The current behavior page and API reference document authoritative setting
+capture, fail-closed settings-read failure, `awaiting_confirmation`, UART
+`confirm` routing, no HID key-down before confirmation, cancellation/timeout
+behavior, and the distinction between software/browser evidence and still-open
+exact-SHA physical HID/UART evidence.
 
 Source evidence:
 `H1_END_TO_END_PHYSICAL_CONFIRMATION_2026-08-11.md` and
@@ -82,12 +106,14 @@ Source evidence:
 
 ### Active-send degraded recovery
 
-The page documents `none` / `known` / `unavailable` recovery meanings,
-last-known-state retention, the global Retry/Cancel surface, GET-only Retry,
-DELETE-only Cancel, the no-new-POST latch, transient-versus-persistent degradation,
-and reload behavior when startup recovery fails.
+The current behavior page and API reference document `none` / `known` /
+`unavailable` recovery meanings, last-known-state retention, the global
+Retry/Cancel surface, GET-only Retry, DELETE-only Cancel, the no-new-POST latch,
+transient-versus-persistent degradation, and reload behavior when startup
+recovery fails.
 
-It explicitly states that the strengthened H4 reload/dirty-state assertions at
+The current behavior page explicitly states that the strengthened H4
+reload/dirty-state assertions at
 `1ab7993cf460917ae89320628f16df6c08db2770` and
 `e840624dfe5b0c101cdfe338cd78db2405789bbc` still require the pinned Node.js
 24.18.0 / real-Chrome pass. The documentation therefore does not silently close
@@ -98,13 +124,14 @@ Source evidence:
 
 ### Storage commit-uncertain behavior
 
-Because `commit_uncertain` is externally observable, the page documents the
-rename activation point, parent-sync durability acknowledgement, HTTP `503
-commit_uncertain`, retention of the activated final blob, and React's mandatory
-reconcile-before-retry algorithm.
+Because `commit_uncertain` is externally observable, both current references
+document the rename activation point, parent-sync durability acknowledgement,
+HTTP `503 commit_uncertain`, retention of the activated final blob, and React's
+mandatory reconcile-before-retry algorithm.
 
-The document also records the distinct server-side settings reconciliation path,
-where secret-bearing canonical state cannot be delegated to the browser.
+The current behavior page also records the distinct server-side settings
+reconciliation path, where secret-bearing canonical state cannot be delegated to
+the browser.
 
 Source evidence:
 
@@ -135,25 +162,31 @@ Source evidence:
 
 ## Validation performed
 
-Before publication, the documentation content was checked for:
+The documentation was checked for:
 
-- one trailing LF at EOF;
+- one trailing LF at EOF on the changed current documents;
 - no CRLF line endings;
-- balanced fenced-code delimiters;
-- referenced current evidence paths found on `master` through the GitHub
-  connector; and
+- balanced fenced-code delimiters where applicable;
+- referenced current evidence paths present on `master` through the GitHub
+  connector;
+- `README.md` and `docs/API.md` edited from source blobs that exactly matched the
+  pre-edit `master` blobs, preventing stale-copy overwrite; and
 - no modification to `docs/SPEC_V2.md` or `docs/UI_UX_SPEC_V2.md`.
 
-The sandbox does not have the repository-pinned `markdownlint-cli2` dependency
-available independently of the frontend install, so the authoritative Markdown
-lint result remains the normal `./scripts/check-all.sh` / Quality gate.
+The sandbox has Node.js 22.16.0 and no installed `markdownlint-cli2` or frontend
+`node_modules`; the repository requires pinned Node.js 24.18.0 for its frontend
+chain. The authoritative Markdown lint result therefore remains the normal
+`./scripts/check-all.sh` / Quality gate rather than being simulated with a
+different toolchain.
 
 ## Disposition
 
-The H11-112 content work is implemented by the documentation commit containing
-this report and `docs/CURRENT_V2_HARDENED_BEHAVIOR.md`.
+The H11-112 documentation content is implemented through
+`5ee90282266b2b652ab1387011b4d71e8ae1e260`, with this evidence update following
+that implementation commit. No runtime or authoritative-spec file changed.
 
-The H11-112 tracker checkboxes should be closed only after that exact descendant
-passes the repository Markdown/Quality gate. H11's phase exit gate remains a
-separate reconciliation step because H4 strengthened browser validation and the
-remaining hardware/release gates are still open.
+The H11-112 tracker checkboxes remain open until an exact descendant containing
+these documentation changes passes the repository Markdown/Quality gate. The
+Phase H11 exit gate remains a separate reconciliation step because H4's
+strengthened browser validation and the remaining hardware/release gates are
+still open.
