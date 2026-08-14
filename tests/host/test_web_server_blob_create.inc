@@ -242,3 +242,24 @@ static void test_blob_create_maps_begin_failure_to_service_unavailable(void) {
 
     TEST_CHECK_EQ_STRING("503 Service Unavailable", fake.response_status);
 }
+
+static void test_blob_create_commit_uncertain_returns_503_and_retains_blob(void) {
+    fake_httpd_request_t fake;
+    httpd_req_t request;
+    blob_test_reset(&fake);
+    blob_test_authenticate(&fake);
+    g_fake_storage_blob.force_upload_commit_error = APP_ERROR_COMMIT_UNCERTAIN;
+    fake_httpd_add_request_header(&fake, "Content-Type", "application/gzip");
+    const uint8_t body[4] = {1U, 2U, 3U, 4U};
+    fake_httpd_set_body(&fake, body, sizeof(body), 0U);
+    fake_httpd_bind(&request, &fake, "/api/v1/blob", sizeof(body));
+
+    TEST_CHECK(blob_create_handler(&request) == ESP_OK);
+
+    TEST_CHECK_EQ_STRING("503 Service Unavailable", fake.response_status);
+    TEST_CHECK(strstr(fake.response_body, "\"code\":\"commit_uncertain\"") != NULL);
+    const fake_storage_blob_record_t *stored = fake_storage_blob_find(1U);
+    TEST_CHECK(stored != NULL);
+    TEST_CHECK_EQ_U64(sizeof(body), stored->size);
+    TEST_CHECK_EQ_BUFFER(body, stored->data, sizeof(body));
+}
