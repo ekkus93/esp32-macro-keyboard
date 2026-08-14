@@ -265,6 +265,7 @@ unsigned int web_api_http_status_for_error(app_error_code_t error) {
     case APP_ERROR_USB_NOT_READY:
     case APP_ERROR_TIMEOUT:
     case APP_ERROR_RESET_RECOVERY_REQUIRED:
+    case APP_ERROR_COMMIT_UNCERTAIN:
         return WEB_HTTP_STATUS_SERVICE_UNAVAILABLE;
     case APP_ERROR_AUTH_REQUIRED:
     case APP_ERROR_AUTH_FAILED:
