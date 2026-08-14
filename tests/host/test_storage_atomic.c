@@ -46,6 +46,10 @@ static int adapter_sync(void *context, int descriptor) {
     return fake_fs_sync(context, descriptor);
 }
 
+static int adapter_sync_parent(void *context, const char *path) {
+    return fake_fs_sync_parent(context, path);
+}
+
 static int adapter_close(void *context, int descriptor) {
     return fake_fs_close(context, descriptor);
 }
@@ -293,12 +297,48 @@ static void test_stage_failure_retains_primary_and_cleanup_errors(void) {
     TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_FULL, detailed.primary_error);
     TEST_CHECK_EQ_INT(APP_ERROR_IO, detailed.cleanup_error);
     TEST_CHECK(detailed.cleanup_incomplete);
+    TEST_CHECK_EQ_INT(APP_OPERATION_NOT_COMMITTED, detailed.commit_state);
     TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_WRITE]);
     TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_UNLINK]);
     TEST_CHECK(access(path, F_OK) != 0);
     TEST_CHECK_EQ_INT(0, access(temporary, F_OK));
 
     configure_primary_and_cleanup_failures(&filesystem, FAKE_FS_WRITE);
+    operations = make_operations(&filesystem);
+    TEST_CHECK_EQ_INT(
+        APP_ERROR_STORAGE_FULL,
+        storage_atomic_write_with_ops(path, data, sizeof(data) - 1U, true, &operations));
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_UNLINK]);
+    test_temp_dir_remove(&directory);
+}
+
+static void test_verify_failure_retains_primary_and_cleanup_errors(void) {
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char path[APP_PATH_MAX_BYTES];
+    make_path(path, sizeof(path), &directory, "object.json");
+    char temporary[APP_PATH_MAX_BYTES];
+    const int temporary_length = snprintf(temporary, sizeof(temporary), "%s.tmp", path);
+    TEST_CHECK(temporary_length > 0);
+    TEST_CHECK((size_t)temporary_length < sizeof(temporary));
+
+    fake_fs_backend_t filesystem;
+    configure_primary_and_cleanup_failures(&filesystem, FAKE_FS_READ);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    static const char data[] = "new";
+
+    const app_operation_result_t detailed = storage_atomic_write_with_ops_and_parent_sync_result(
+        path, data, sizeof(data) - 1U, true, &operations, storage_fs_sync_parent_path, NULL);
+    TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_FULL, detailed.primary_error);
+    TEST_CHECK_EQ_INT(APP_ERROR_IO, detailed.cleanup_error);
+    TEST_CHECK(detailed.cleanup_incomplete);
+    TEST_CHECK_EQ_INT(APP_OPERATION_NOT_COMMITTED, detailed.commit_state);
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_READ]);
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_UNLINK]);
+    TEST_CHECK(access(path, F_OK) != 0);
+    TEST_CHECK_EQ_INT(0, access(temporary, F_OK));
+
+    configure_primary_and_cleanup_failures(&filesystem, FAKE_FS_READ);
     operations = make_operations(&filesystem);
     TEST_CHECK_EQ_INT(
         APP_ERROR_STORAGE_FULL,
@@ -328,6 +368,7 @@ static void test_rename_failure_retains_primary_and_cleanup_errors(void) {
     TEST_CHECK_EQ_INT(APP_ERROR_STORAGE_FULL, detailed.primary_error);
     TEST_CHECK_EQ_INT(APP_ERROR_IO, detailed.cleanup_error);
     TEST_CHECK(detailed.cleanup_incomplete);
+    TEST_CHECK_EQ_INT(APP_OPERATION_NOT_COMMITTED, detailed.commit_state);
     char output[16U];
     read_file(path, output, sizeof(output));
     TEST_CHECK_EQ_STRING("old", output);
@@ -343,6 +384,34 @@ static void test_rename_failure_retains_primary_and_cleanup_errors(void) {
     TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_UNLINK]);
     read_file(path, output, sizeof(output));
     TEST_CHECK_EQ_STRING("old", output);
+    test_temp_dir_remove(&directory);
+}
+
+static void test_parent_sync_failure_is_commit_uncertain(void) {
+    test_temp_dir_t directory = {0};
+    test_temp_dir_create(&directory);
+    char path[APP_PATH_MAX_BYTES];
+    make_path(path, sizeof(path), &directory, "object.json");
+    write_file(path, "old");
+
+    fake_fs_backend_t filesystem;
+    fake_fs_backend_reset(&filesystem);
+    fake_fs_backend_fail_on(&filesystem, FAKE_FS_SYNC_PARENT, 1U, EIO);
+    storage_fs_ops_t operations = make_operations(&filesystem);
+    static const char data[] = "new";
+
+    const app_operation_result_t detailed = storage_atomic_write_with_ops_and_parent_sync_result(
+        path, data, sizeof(data) - 1U, true, &operations, adapter_sync_parent, &filesystem);
+    TEST_CHECK_EQ_INT(APP_ERROR_IO, detailed.primary_error);
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, detailed.cleanup_error);
+    TEST_CHECK(!detailed.cleanup_incomplete);
+    TEST_CHECK_EQ_INT(APP_OPERATION_COMMIT_UNCERTAIN, detailed.commit_state);
+    char output[16U];
+    read_file(path, output, sizeof(output));
+    TEST_CHECK_EQ_STRING("new", output);
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_RENAME]);
+    TEST_CHECK_EQ_U64(1U, filesystem.operation_counts[FAKE_FS_SYNC_PARENT]);
+    assert_no_temporary_files(&directory);
     test_temp_dir_remove(&directory);
 }
 
@@ -391,7 +460,9 @@ int main(void) {
     test_failures_preserve_destination();
     test_activation_failure_leaves_destination_untouched();
     test_stage_failure_retains_primary_and_cleanup_errors();
+    test_verify_failure_retains_primary_and_cleanup_errors();
     test_rename_failure_retains_primary_and_cleanup_errors();
+    test_parent_sync_failure_is_commit_uncertain();
     puts("storage atomic tests passed");
     return EXIT_SUCCESS;
 }
