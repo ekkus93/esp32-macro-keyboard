@@ -5,8 +5,8 @@
 #include <stdint.h>
 #include <sys/stat.h>
 
+#include "../support/include/app_operation_result.h"
 #include "app_error.h"
-#include "app_operation_result.h"
 #include "storage_blob.h"
 
 typedef struct {
