@@ -91,7 +91,7 @@ app_error_code_t storage_blob_upload_begin_with_ops(const char *directory_path, 
         !upload_ops_valid(operations) || out_upload == NULL) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    if (blob_id == UINT64_MAX) {
+    if (upload->id == UINT64_MAX) {
         return APP_ERROR_STORAGE_FULL;
     }
 
@@ -239,8 +239,7 @@ app_operation_result_t storage_blob_upload_abort_with_ops_result(storage_blob_up
         upload->stream = NULL;
         upload->active = false;
     }
-    const app_error_code_t cleanup =
-        unlink_path_if_present(operations, upload->temporary_path);
+    const app_error_code_t cleanup = unlink_path_if_present(operations, upload->temporary_path);
     if (cleanup != APP_ERROR_NONE) {
         if (result.primary_error == APP_ERROR_NONE) {
             app_operation_record_primary(&result, cleanup);
