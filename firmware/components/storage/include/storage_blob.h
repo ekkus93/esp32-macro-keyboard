@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "app_error.h"
+#include "app_operation_result.h"
 #include "storage.h"
 
 #define STORAGE_BLOB_DIRECTORY STORAGE_DATA_MOUNT "/repository"
@@ -101,6 +102,8 @@ app_error_code_t storage_blob_upload_begin(size_t expected_bytes,
                                            storage_blob_upload_t *out_upload);
 app_error_code_t storage_blob_upload_write(storage_blob_upload_t *upload, const void *data,
                                            size_t data_length);
+app_operation_result_t storage_blob_upload_commit_result(storage_blob_upload_t *upload,
+                                                         storage_blob_entry_t *out_entry);
 app_error_code_t storage_blob_upload_commit(storage_blob_upload_t *upload,
                                             storage_blob_entry_t *out_entry);
 app_error_code_t storage_blob_upload_abort(storage_blob_upload_t *upload);
