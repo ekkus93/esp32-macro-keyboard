@@ -8,6 +8,7 @@
 
 #include "app_error.h"
 #include "app_limits_v2.h"
+#include "app_operation_result.h"
 #include "storage_blob_internal.h"
 #include "storage_blob_upload_internal.h"
 #include "storage_fs_ops.h"
@@ -121,7 +122,8 @@ app_error_code_t storage_blob_upload_write(storage_blob_upload_t *upload, const 
 app_error_code_t storage_blob_upload_commit(storage_blob_upload_t *upload,
                                             storage_blob_entry_t *out_entry) {
     const bool was_committed = upload != NULL && upload->committed;
-    const app_error_code_t result = storage_blob_upload_commit_with_ops(upload, out_entry);
+    const app_operation_result_t detailed =
+        storage_blob_upload_commit_with_ops_result(upload, out_entry);
     if (upload != NULL && !was_committed && upload->committed) {
         const storage_blob_entry_t committed = {
             .id = upload->id,
@@ -129,9 +131,9 @@ app_error_code_t storage_blob_upload_commit(storage_blob_upload_t *upload,
         };
         storage_blob_record_committed_entry(&committed);
     }
-    return result;
+    return app_operation_result_error(detailed);
 }
 
 app_error_code_t storage_blob_upload_abort(storage_blob_upload_t *upload) {
-    return storage_blob_upload_abort_with_ops(upload);
+    return app_operation_result_error(storage_blob_upload_abort_with_ops_result(upload));
 }
