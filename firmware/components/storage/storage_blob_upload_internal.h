@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 
 #include "app_error.h"
+#include "app_operation_result.h"
 #include "storage_blob.h"
 
 typedef struct {
@@ -28,8 +29,13 @@ app_error_code_t storage_blob_upload_begin_with_ops(const char *directory_path, 
                                                     storage_blob_upload_t *out_upload);
 app_error_code_t storage_blob_upload_write_with_ops(storage_blob_upload_t *upload, const void *data,
                                                     size_t data_length);
+
+app_operation_result_t storage_blob_upload_commit_with_ops_result(
+    storage_blob_upload_t *upload, storage_blob_entry_t *out_entry);
 app_error_code_t storage_blob_upload_commit_with_ops(storage_blob_upload_t *upload,
                                                      storage_blob_entry_t *out_entry);
+
+app_operation_result_t storage_blob_upload_abort_with_ops_result(storage_blob_upload_t *upload);
 app_error_code_t storage_blob_upload_abort_with_ops(storage_blob_upload_t *upload);
 
 #endif
