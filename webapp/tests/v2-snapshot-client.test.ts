@@ -7,6 +7,7 @@ import { serializeRepository } from "../src/v2/repository";
 import { createEmptyRepository } from "../src/v2/repositoryValidation";
 import { createRepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";
 import {
+  SnapshotCommitUncertainError,
   SnapshotTooLargeError,
   SnapshotValidationError,
   deleteSnapshot,
@@ -31,6 +32,17 @@ async function canonicalGzipBytes(): Promise<Uint8Array> {
   return gzipCompress(new TextEncoder().encode(serializeRepository(canonical)));
 }
 
+function planEmptySnapshotList(): void {
+  planJsonResponse({ blobs: [], usedBytes: 0, remainingBytes: 1_000_000 });
+}
+
+function binaryResponse(bytes: Uint8Array): Response {
+  return new Response(bytes, {
+    status: 200,
+    headers: { "Content-Type": "application/gzip" },
+  });
+}
+
 describe("v2 snapshot client", () => {
   test("listSnapshots returns the validated blob list", async () => {
     planJsonResponse({
@@ -53,6 +65,7 @@ describe("v2 snapshot client", () => {
     store.applyContentChange(canonical);
     expect(store.getIsDirty()).toBe(true);
 
+    planEmptySnapshotList();
     planFetch((call) => {
       expect(call.method).toBe("POST");
       expect(call.headers.get("Content-Type")).toBe("application/gzip");
@@ -64,12 +77,14 @@ describe("v2 snapshot client", () => {
     expect(created).toEqual({ id: "4", sizeBytes: 42 });
     expect(store.getIsDirty()).toBe(false);
     expect(store.getBaseline()).toEqual(canonical);
+    expect(getFetchCalls().map((call) => call.method)).toEqual(["GET", "POST"]);
   });
 
   test("saveWorkingCopyAsSnapshot leaves the working copy dirty when the upload fails", async () => {
     const store = createRepositoryWorkingCopyStore(createEmptyRepository());
     store.applyContentChange(canonical);
 
+    planEmptySnapshotList();
     planJsonResponse(
       { error: { code: "storage_full", message: "No space remains." } },
       507,
@@ -80,6 +95,162 @@ describe("v2 snapshot client", () => {
     });
     expect(store.getIsDirty()).toBe(true);
     expect(store.getRepository()).toEqual(canonical);
+  });
+
+  test("commit uncertainty reconciles an exact new blob with GETs only and never duplicates POST", async () => {
+    const store = createRepositoryWorkingCopyStore(createEmptyRepository());
+    store.applyContentChange(canonical);
+    let postedBytes = new Uint8Array();
+
+    planJsonResponse({
+      blobs: [{ id: "3", sizeBytes: 10 }],
+      usedBytes: 10,
+      remainingBytes: 1_000_000,
+    });
+    planFetch((call) => {
+      expect(call.method).toBe("POST");
+      expect(call.body).toBeInstanceOf(Uint8Array);
+      postedBytes = new Uint8Array(call.body as Uint8Array);
+      return jsonResponse(
+        {
+          error: {
+            code: "commit_uncertain",
+            message: "Blob activation succeeded but durability is uncertain.",
+          },
+        },
+        503,
+      );
+    });
+    planJsonResponse({
+      blobs: [
+        { id: "4", sizeBytes: 42 },
+        { id: "3", sizeBytes: 10 },
+      ],
+      usedBytes: 52,
+      remainingBytes: 999_958,
+    });
+    planFetch((call) => {
+      expect(call.method).toBe("GET");
+      expect(call.url).toBe("/api/v1/blob/4");
+      return binaryResponse(postedBytes);
+    });
+
+    const first = await saveWorkingCopyAsSnapshot(store).catch(
+      (error: unknown) => error,
+    );
+    expect(first).toBeInstanceOf(SnapshotCommitUncertainError);
+    expect(first).toMatchObject({
+      reconciliation: { state: "matched", blobId: "4" },
+    });
+    expect(store.getIsDirty()).toBe(true);
+    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
+      1,
+    );
+
+    planJsonResponse({
+      blobs: [
+        { id: "4", sizeBytes: 42 },
+        { id: "3", sizeBytes: 10 },
+      ],
+      usedBytes: 52,
+      remainingBytes: 999_958,
+    });
+    planFetch((call) => {
+      expect(call.method).toBe("GET");
+      expect(call.url).toBe("/api/v1/blob/4");
+      return binaryResponse(postedBytes);
+    });
+
+    const second = await saveWorkingCopyAsSnapshot(store).catch(
+      (error: unknown) => error,
+    );
+    expect(second).toBeInstanceOf(SnapshotCommitUncertainError);
+    expect(second).toMatchObject({
+      reconciliation: { state: "matched", blobId: "4" },
+    });
+    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
+      1,
+    );
+    expect(store.getIsDirty()).toBe(true);
+  });
+
+  test("authoritative no-match requires a later explicit Save before another POST", async () => {
+    const store = createRepositoryWorkingCopyStore(createEmptyRepository());
+    store.applyContentChange(canonical);
+
+    planEmptySnapshotList();
+    planJsonResponse(
+      {
+        error: {
+          code: "commit_uncertain",
+          message: "Blob activation succeeded but durability is uncertain.",
+        },
+      },
+      503,
+    );
+    planEmptySnapshotList();
+
+    const uncertain = await saveWorkingCopyAsSnapshot(store).catch(
+      (error: unknown) => error,
+    );
+    expect(uncertain).toBeInstanceOf(SnapshotCommitUncertainError);
+    expect(uncertain).toMatchObject({ reconciliation: { state: "not_found" } });
+    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
+      1,
+    );
+    expect(store.getIsDirty()).toBe(true);
+
+    planEmptySnapshotList();
+    planJsonResponse({ id: "5", sizeBytes: 42 }, 201);
+    await expect(saveWorkingCopyAsSnapshot(store)).resolves.toEqual({
+      id: "5",
+      sizeBytes: 42,
+    });
+    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
+      2,
+    );
+    expect(store.getIsDirty()).toBe(false);
+  });
+
+  test("unavailable reconciliation blocks later POST attempts until GET recovery succeeds", async () => {
+    const store = createRepositoryWorkingCopyStore(createEmptyRepository());
+    store.applyContentChange(canonical);
+
+    planEmptySnapshotList();
+    planJsonResponse(
+      {
+        error: {
+          code: "commit_uncertain",
+          message: "Blob activation succeeded but durability is uncertain.",
+        },
+      },
+      503,
+    );
+    planFetch(() => {
+      throw new TypeError("device unavailable");
+    });
+
+    const first = await saveWorkingCopyAsSnapshot(store).catch(
+      (error: unknown) => error,
+    );
+    expect(first).toBeInstanceOf(SnapshotCommitUncertainError);
+    expect(first).toMatchObject({ reconciliation: { state: "unavailable" } });
+    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
+      1,
+    );
+
+    planFetch(() => {
+      throw new TypeError("device unavailable");
+    });
+    const second = await saveWorkingCopyAsSnapshot(store).catch(
+      (error: unknown) => error,
+    );
+    expect(second).toBeInstanceOf(SnapshotCommitUncertainError);
+    expect(second).toMatchObject({ reconciliation: { state: "unavailable" } });
+    expect(getFetchCalls().filter((call) => call.method === "POST")).toHaveLength(
+      1,
+    );
+    expect(store.getIsDirty()).toBe(true);
   });
 
   function randomSource(length: number): string {
@@ -129,6 +300,7 @@ describe("v2 snapshot client", () => {
   test("saveWorkingCopyAsSnapshot never issues a DELETE — normal saves are additive only (V2-116)", async () => {
     const store = createRepositoryWorkingCopyStore(createEmptyRepository());
     store.applyContentChange(canonical);
+    planEmptySnapshotList();
     planFetch((call) => {
       expect(call.method).toBe("POST");
       return jsonResponse({ id: "6", sizeBytes: 42 }, 201);
@@ -180,10 +352,7 @@ describe("v2 snapshot client", () => {
     const bytes = await canonicalGzipBytes();
     planFetch((call) => {
       expect(call.url).toBe("/api/v1/blob/3");
-      return new Response(bytes, {
-        status: 200,
-        headers: { "Content-Type": "application/gzip" },
-      });
+      return binaryResponse(bytes);
     });
 
     const result = await loadSnapshotIntoWorkingCopy("3", store);
@@ -219,13 +388,7 @@ describe("v2 snapshot client", () => {
     const bytes = await gzipCompress(
       new TextEncoder().encode(JSON.stringify(invalid)),
     );
-    planFetch(
-      () =>
-        new Response(bytes, {
-          status: 200,
-          headers: { "Content-Type": "application/gzip" },
-        }),
-    );
+    planFetch(() => binaryResponse(bytes));
 
     const result = await loadSnapshotIntoWorkingCopy("9", store);
     expect(result.ok).toBe(false);
@@ -237,13 +400,7 @@ describe("v2 snapshot client", () => {
 
   test("downloadSnapshotBytes returns the raw stored bytes without decompressing", async () => {
     const bytes = await canonicalGzipBytes();
-    planFetch(
-      () =>
-        new Response(bytes, {
-          status: 200,
-          headers: { "Content-Type": "application/gzip" },
-        }),
-    );
+    planFetch(() => binaryResponse(bytes));
     const downloaded = await downloadSnapshotBytes("1");
     expect(Array.from(downloaded)).toEqual(Array.from(bytes));
   });
@@ -297,13 +454,23 @@ describe("v2 snapshot client", () => {
         return new Response(null, { status: 204 });
       });
       planFetch((call) => {
+        expect(call.method).toBe("GET");
+        expect(call.url).toBe("/api/v1/blob");
+        order.push("list");
+        return jsonResponse({
+          blobs: [],
+          usedBytes: 0,
+          remainingBytes: 1_000_000,
+        });
+      });
+      planFetch((call) => {
         expect(call.method).toBe("POST");
         order.push("add");
         return jsonResponse({ id: "9", sizeBytes: 42 }, 201);
       });
 
       const result = await replaceSnapshotWithWorkingCopy("1", store);
-      expect(order).toEqual(["delete", "add"]);
+      expect(order).toEqual(["delete", "list", "add"]);
       expect(result).toEqual({
         ok: true,
         deletedId: "1",
@@ -334,6 +501,7 @@ describe("v2 snapshot client", () => {
       const store = createRepositoryWorkingCopyStore(createEmptyRepository());
       store.applyContentChange(canonical);
       planFetch(() => new Response(null, { status: 204 }));
+      planEmptySnapshotList();
       planJsonResponse(
         { error: { code: "storage_full", message: "No space remains." } },
         507,
