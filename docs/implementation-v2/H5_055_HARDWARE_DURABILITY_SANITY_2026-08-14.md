@@ -9,12 +9,19 @@ cannot access the reference board, its USB bootloader, its UART log, or its
 
 The permanent H5-055 validation layer is:
 
-- `scripts/run-v2-035-hardware.py` — the already-proven physical collector;
+- `scripts/run-v2-035-hardware.py` — the already-proven physical collector and
+  evidence state machine;
+- `scripts/run-h5-055-hardware.py` — the H5 entry point, which delegates to that
+  collector but reconciles `503 commit_uncertain` by canonical list + exact-byte
+  hash inspection and never automatically repeats the blob POST;
 - `scripts/validate-h5-055-storage-evidence.py` — H5-specific fail-closed
-  validator added for this task;
-- `tests/scripts/test-h5-055-storage-evidence.py` — validator regressions;
-- `scripts/check-scripts.sh` — runs the H5-055 validator regression suite on
-  every full quality pass.
+  evidence validator;
+- `tests/scripts/test-h5-055-hardware.py` — uncertain-commit collector wrapper
+  regressions;
+- `tests/scripts/test-h5-055-storage-evidence.py` — evidence-validator
+  regressions;
+- `scripts/check-scripts.sh` — runs both H5-055 regression suites on every full
+  quality pass.
 
 The historical August 10 V2-035 hardware evidence is useful precedent, but it
 **cannot close H5-055** because its firmware SHA predates H5-051 through H5-054.
@@ -44,10 +51,20 @@ The existing V2-035 collector already obtains stronger evidence for all three:
 - restores the backup and proves the restored image matches the original;
 - self-hashes the finalized evidence and cleans up every collector-created blob.
 
-Reusing that mature collector avoids a second hardware implementation with
-slightly different power-cut, partition-backup, or byte-identity semantics.
-The extra storage-exhaustion stage exercised by V2-035 is acceptable additional
-coverage; H5-055 simply does not rely on it for closure.
+H5 changed one assumption the older collector legitimately made: before H5-053,
+a non-201 blob-create response meant the create had not committed. That is no
+longer true for `503 commit_uncertain`. The H5 wrapper replaces only the
+collector's journaled-create seam. It sends one POST, and on `commit_uncertain`
+it invokes the collector's existing pending-creation reconciliation logic. One
+new exact-hash canonical blob is adopted; no match returns the uncertainty to
+the stage without a repost; ambiguous or mismatched canonical state fails
+closed while retaining the pending journal. Other non-201 failures still require
+storage to be unchanged.
+
+Reusing the mature collector plus this narrow H5 seam avoids a second hardware
+implementation with different power-cut, partition-backup, or byte-identity
+semantics. The extra storage-exhaustion stage exercised by V2-035 remains useful
+additional coverage; H5-055 simply does not rely on it for closure.
 
 ## H5-specific validator
 
@@ -124,26 +141,28 @@ export FLASH_MANIFEST="${PWD}/firmware/build/flash-manifest.json"
 export H5_055_STATE="${PWD}/h5-055-v2-035-state.json"
 export V2_035_PASSWORD='<disposable admin password>'
 
-# Stage 1: create byte-identity/list sentinels.
-python3 scripts/run-v2-035-hardware.py start \
+# Stage 1: create byte-identity/list sentinels. Use the H5 wrapper for every
+# collector command so any real commit_uncertain response is reconciled
+# without an automatic second POST.
+python3 scripts/run-h5-055-hardware.py start \
   --base-url "${DEVICE_URL}" \
   --flash-manifest "${FLASH_MANIFEST}" \
   --state "${H5_055_STATE}" \
   --password-env V2_035_PASSWORD
 
 # PHYSICAL ACTION: fully remove board power, restore it, and wait for Wi-Fi.
-python3 scripts/run-v2-035-hardware.py verify-power-cycle \
+python3 scripts/run-h5-055-hardware.py verify-power-cycle \
   --state "${H5_055_STATE}" \
   --password-env V2_035_PASSWORD
 
 # Stage 2: interrupted upload. The collector prints CUT POWER NOW after at
 # least 16 KiB has been sent. Remove board power at that banner and restore it.
-python3 scripts/run-v2-035-hardware.py arm-interrupted-upload \
+python3 scripts/run-h5-055-hardware.py arm-interrupted-upload \
   --state "${H5_055_STATE}" \
   --password-env V2_035_PASSWORD \
   --chunk-delay 3.0
 
-python3 scripts/run-v2-035-hardware.py verify-interrupted-upload \
+python3 scripts/run-h5-055-hardware.py verify-interrupted-upload \
   --state "${H5_055_STATE}" \
   --password-env V2_035_PASSWORD
 
@@ -151,7 +170,7 @@ python3 scripts/run-v2-035-hardware.py verify-interrupted-upload \
 # before the mount-failure stage. H5-055 does not depend on this result, but
 # running it keeps the proven collector path intact instead of mutating state
 # manually.
-python3 scripts/run-v2-035-hardware.py fill-storage \
+python3 scripts/run-h5-055-hardware.py fill-storage \
   --state "${H5_055_STATE}" \
   --password-env V2_035_PASSWORD
 ```
@@ -201,7 +220,7 @@ parttool.py --port "${PORT}" read_partition \
   --partition-name=userdata --output "${WORK}/restored.bin"
 cmp "${WORK}/backup.bin" "${WORK}/restored.bin"
 
-python3 scripts/run-v2-035-hardware.py record-mount-failure \
+python3 scripts/run-h5-055-hardware.py record-mount-failure \
   --state "${H5_055_STATE}" \
   --backup-image "${WORK}/backup.bin" \
   --corrupt-image "${WORK}/corrupt.bin" \
@@ -217,12 +236,12 @@ After the restored production board is reachable again:
 ```bash
 mkdir -p docs/hardware-evidence
 
-python3 scripts/run-v2-035-hardware.py finalize \
+python3 scripts/run-h5-055-hardware.py finalize \
   --state "${H5_055_STATE}" \
   --password-env V2_035_PASSWORD \
   --output docs/hardware-evidence/H5_055_V2_035_SOURCE_ESP32S3R8.json
 
-python3 scripts/run-v2-035-hardware.py validate \
+python3 scripts/run-h5-055-hardware.py validate \
   --evidence docs/hardware-evidence/H5_055_V2_035_SOURCE_ESP32S3R8.json
 
 python3 scripts/validate-h5-055-storage-evidence.py \
@@ -237,13 +256,14 @@ and the H5 phase exit gate be evaluated for closure.
 
 ## Software validation for this preparation
 
-The H5 validator regression is permanently wired into:
+Both H5 regressions are permanently wired into:
 
 ```text
-./scripts/check-scripts.sh
+python3 tests/scripts/test-h5-055-hardware.py
+python3 tests/scripts/test-h5-055-storage-evidence.py
 ```
 
-and therefore into:
+through `./scripts/check-scripts.sh`, and therefore through:
 
 ```text
 ./scripts/check-all.sh
