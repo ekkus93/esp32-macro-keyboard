@@ -5,8 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "../../support/include/app_operation_result.h"
 #include "app_error.h"
-#include "app_operation_result.h"
 #include "storage.h"
 
 #define STORAGE_BLOB_DIRECTORY STORAGE_DATA_MOUNT "/repository"
