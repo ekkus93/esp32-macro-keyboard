@@ -385,9 +385,7 @@ async function main() {
 
     const activated = fixture.state.blobs.find((blob) => blob.id === "2");
     assert(activated !== undefined, "The uncertain activation did not retain blob 2.");
-    const activatedRepository = JSON.parse(
-      gunzipSync(activated.bytes).toString("utf8"),
-    );
+    const activatedRepository = JSON.parse(gunzipSync(activated.bytes).toString("utf8"));
     assert(
       activatedRepository.packages?.[0]?.macros?.[0]?.name ===
         "Confirm before typing",
