@@ -8,8 +8,8 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "../support/include/app_operation_result.h"
 #include "app_error.h"
-#include "app_operation_result.h"
 #include "storage_blob.h"
 
 static app_error_code_t map_io_error(int error_number) {
