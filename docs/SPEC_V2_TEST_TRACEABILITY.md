@@ -30,7 +30,7 @@ normative requirement lines.
 
 | Source | Git blob SHA | Normative requirements | Status | Explicit section citations |
 | --- | --- | --- | --- | --- |
-| docs/SPEC_V2.md | `2a4f9bd3b929306428f7a56c425aa47be1a4dc1e` | present | referenced, not proven | §7.3, §7.4, §7.11, §7.12, §8.6, §8.7, §9, §9.6, §10.2, §10.3, §10.6, §11.1, §13.13 |
+| docs/SPEC_V2.md | `b74385bdb8aa46aec0f14cf667162fe63505fa64` | present | referenced, not proven | §7.3, §7.4, §7.11, §7.12, §8.6, §8.7, §9, §9.6, §10.2, §10.3, §10.6, §11.1, §13.13 |
 | docs/UI_UX_SPEC_V2.md | `929e50afa8ea86dcbb98ab48d9236d7b5da7eab2` | present | referenced, not proven | §3.3, §3.4, §3.6, §4, §5.5, §5.6, §8, §9.5, §12, §12.2, §12.3, §12.4, §14 |
 
 ## Next refinement
