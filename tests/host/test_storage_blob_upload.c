@@ -480,7 +480,7 @@ static void test_public_wrapper_records_only_durable_commit(void) {
     TEST_CHECK(!upload.final_path_owned);
 }
 
-static void test_cleanup_failure_is_reported(void) {
+static void test_cleanup_failure_preserves_primary_and_cleanup(void) {
     upload_fake_t fake;
     fake_reset(&fake);
     fake.fail_operation = UPLOAD_OPERATION_UNLINK;
@@ -491,8 +491,13 @@ static void test_cleanup_failure_is_reported(void) {
     storage_blob_upload_t upload = begin_upload(&fake, &operations);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, storage_blob_upload_write_with_ops(&upload, "abcdef", 6U));
     storage_blob_entry_t entry = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL,
-                         storage_blob_upload_commit_with_ops(&upload, &entry));
+    const app_operation_result_t result =
+        storage_blob_upload_commit_with_ops_result(&upload, &entry);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, result.primary_error);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_FULL, result.cleanup_error);
+    TEST_CHECK(result.cleanup_incomplete);
+    TEST_CHECK_EQ_INT(APP_OPERATION_NOT_COMMITTED, result.commit_state);
+    TEST_CHECK_APP_ERROR(APP_ERROR_STORAGE_UNAVAILABLE, app_operation_result_error(result));
     TEST_CHECK(fake.temporary_exists);
     TEST_CHECK(!fake.final_exists);
 }
@@ -505,7 +510,7 @@ int main(void) {
     test_precommit_failures_leave_final_absent();
     test_directory_sync_failure_remains_uncommitted_and_reclaimable();
     test_public_wrapper_records_only_durable_commit();
-    test_cleanup_failure_is_reported();
+    test_cleanup_failure_preserves_primary_and_cleanup();
     puts("storage blob upload tests passed");
     return EXIT_SUCCESS;
 }
