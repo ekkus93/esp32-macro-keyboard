@@ -83,8 +83,8 @@ jobs:
             --flash-manifest firmware/build/flash-manifest.json \
             --state "${state_path}" \
             --password-env V2_035_PASSWORD
-          printf 'H5-055 state: `%s`\n' "${state_path}" >> "${GITHUB_STEP_SUMMARY}"
-          printf 'Candidate: `%s`\n' "${GITHUB_SHA}" >> "${GITHUB_STEP_SUMMARY}"
+          printf "H5-055 state: \`%s\`\n" "${state_path}" >> "${GITHUB_STEP_SUMMARY}"
+          printf "Candidate: \`%s\`\n" "${GITHUB_SHA}" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Preserve start-state artifact
         if: always()
