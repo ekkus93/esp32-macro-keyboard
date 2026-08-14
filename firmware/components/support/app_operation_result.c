@@ -18,3 +18,7 @@ void app_operation_record_cleanup(app_operation_result_t *result, app_error_code
         result->cleanup_incomplete = true;
     }
 }
+
+app_error_code_t app_operation_result_error(app_operation_result_t result) {
+    return result.primary_error != APP_ERROR_NONE ? result.primary_error : result.cleanup_error;
+}
