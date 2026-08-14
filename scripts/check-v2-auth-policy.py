@@ -62,6 +62,8 @@ def main() -> None:
     spec = read("docs/SPEC_V2.md")
     api_current = read("docs/API.md").split("## Archived: retired v1 API", maxsplit=1)[0]
     web_server_readme = read("firmware/components/web_server/README.md")
+    developer_guide = read("CLAUDE.md")
+    provisioning_security = read("docs/PROVISIONING_SECURITY.md")
 
     active_sessions = uint32_macro(limits, "APP_V2_ACTIVE_SESSIONS_MAX")
     idle_seconds = uint32_macro(limits, "APP_V2_SESSION_IDLE_LIFETIME_SECONDS")
@@ -234,6 +236,24 @@ def main() -> None:
     require(
         "AUTH_RATE_LIMIT_SOURCE_MAX" in rate_tests,
         "host coverage must exercise bounded throttle-table capacity",
+    )
+
+    require(
+        "same-origin checks" not in developer_guide,
+        "live developer guide must not claim retired same-origin enforcement",
+    )
+    require(
+        "session/request-policy enforcement" in developer_guide,
+        "live developer guide must describe current request-policy ownership",
+    )
+    require(
+        "a matching Host and Origin" not in provisioning_security,
+        "provisioning guide must not claim retired Host/Origin enforcement",
+    )
+    require(
+        "no separate CSRF token" in provisioning_security
+        and "no `Host`/`Origin`" in provisioning_security,
+        "provisioning guide must describe the current v2 development-appliance policy",
     )
 
     print("V2 authentication policy checks passed")

@@ -104,19 +104,27 @@ command; these raw-GCC numbers are diagnostic evidence only.
 
 The normative `docs/SPEC_V2.md` development-appliance authentication model disables CORS, uses an
 `HttpOnly` / `SameSite=Strict` session cookie, has no separate CSRF token, and performs no
-Host/Origin check. Two current-product documents still described the retired security model:
+Host/Origin check. Four current-product documents still described some part of the retired
+security model:
 
 - `docs/API.md` said mutating v2 routes required a matching CSRF token and accepted Host/Origin;
 - `firmware/components/web_server/README.md` claimed same-origin checks and also listed many current
-  v2 routes as unimplemented.
+  v2 routes as unimplemented;
+- `CLAUDE.md`, the live developer guide, still summarized `web_server` as owning same-origin checks;
+  and
+- `docs/PROVISIONING_SECURITY.md` said setup submission required matching Host and Origin values.
 
-Both documents are synchronized by this candidate. `scripts/check-v2-auth-policy.py` now asserts
-that the current (non-archived) API documentation and the web-server README remain aligned with the
-normative v2 development-appliance policy. Historical text in the explicitly archived v1 API section
-is left intact.
+All four current-facing documents are synchronized by the H12-121 candidate.
+`scripts/check-v2-auth-policy.py` now asserts that the API documentation, web-server README, live
+developer guide, and provisioning-security guide remain aligned with the normative v2
+development-appliance policy. The same live-guide audit also corrected stale `CLAUDE.md` status
+wording ("mid v1→v2 rebuild" despite final release hardening) and refreshed its host-test/vitest
+file counts to the current **64** `test_*.c` files / **26** `.inc` fragments and **49** frontend
+Vitest files. Historical v1/FIX1 snapshots that explicitly identify themselves as retired are left
+intact rather than rewriting their historical record.
 
 This is also a correction to the breadth of the prior H11 documentation closure: H11's narrative
-reconciliation was valid for the documents it inspected, but these two stale current-product
+reconciliation was valid for the documents it inspected, but these four stale current-product
 statements survived that pass. They are corrected before final release rather than being silently
 ignored.
 

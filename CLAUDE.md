@@ -52,9 +52,9 @@ The two suites are in different places and neither sits beside the code it tests
 
 | Suite | Location | Run just this |
 | --- | --- | --- |
-| Host C (60 `test_*.c` + 26 `.inc` fragments) | `tests/host/` | `./scripts/run-tests.sh [label]` |
+| Host C (64 `test_*.c` + 26 `.inc` fragments) | `tests/host/` | `./scripts/run-tests.sh [label]` |
 | v2 contract tests (API routes, device settings, setup contract, macro tokens/conformance) | `tests/v2_contracts/` — separate from `tests/host/` | `./scripts/check-v2-contracts.sh` |
-| Frontend vitest (46 files) | `webapp/tests/` — **not** under `webapp/src/` | `npm --prefix webapp run test` |
+| Frontend vitest (49 files) | `webapp/tests/` — **not** under `webapp/src/` | `npm --prefix webapp run test` |
 | Browser (Playwright) | `webapp/tests/browser/` | `npm --prefix webapp run test:browser` |
 | On-device Unity | `firmware/test_app/` | flash it; see the port table above |
 | Hardware-in-the-loop (Python) | `tests/hardware/` | needs the board attached |
@@ -92,15 +92,18 @@ failure rather than partial-booting. Components, each first-party and lint-scope
 | `device_controls` | Status indication, physical confirmation signal, restart/reset-settings/factory-reset |
 | `device_settings` | Device-level settings storage separate from Wi-Fi/auth provisioning |
 | `storage` | LittleFS mount (no auto-format on failure), bounded fs ops, atomic `<id>.gz.tmp`→`<id>.gz` blob commit, opaque byte-blob repository under `/data/repository/` |
-| `web_server` | Bounded ESP-IDF HTTP server, same-origin checks, JSON responses, static frontend delivery |
+| `web_server` | Bounded ESP-IDF HTTP server, session/request-policy enforcement, JSON responses, static frontend delivery |
 | `support` | Cross-cutting: operation results, health reporting, CRC, clocks, random, bounded helpers |
 
-The project is mid v1→v2 rebuild (see `docs/implementation-v2/V2_MIGRATION_MAP.md`):
-firmware no longer owns package/repository semantics — it stores and serves
-opaque blobs; the webapp owns package/macro modeling and talks to the firmware
-through the fixed `/api/v1/*` contracts in `app_contracts_v2` and
-`docs/schemas/*.schema.json`. Don't reintroduce package/revision/index logic
-into firmware storage or `macro_model` without checking the migration map first.
+The v1→v2 implementation has largely landed and the project is in final
+hardening/release closure (see the post-v2 hardening tracker and
+`docs/implementation-v2/V2_MIGRATION_MAP.md`). Firmware no longer owns
+package/repository semantics — it stores and serves opaque blobs; the webapp
+owns package/macro modeling and talks to the firmware through the fixed
+`/api/v1/*` contracts in `app_contracts_v2` and `docs/schemas/*.schema.json`.
+Do not reintroduce package/revision/index logic into firmware storage or
+`macro_model`; some legacy migration cleanup and hardware acceptance items remain
+explicitly open until their evidence gates close.
 
 ### Webapp (`webapp/src/`)
 
@@ -153,12 +156,13 @@ fresh one is written each session and older ones are superseded (they say so
 at the top when they are).
 Currently in force:
 
-- The project is mid a v1→v2 rebuild (package/repository data-model rewrite,
-  started 2026-08-03). `docs/SPEC.md` and `docs/TODO.md` are retired v1
-  compatibility pointers. `docs/SPEC_V2.md` and `docs/UI_UX_SPEC_V2.md` are the
-  authoritative synchronized requirements; `docs/TODO_V2.md` is the
-  authoritative implementation sequence. Phase-by-phase status lives in
-  `docs/implementation-v2/` (start at `V2_MIGRATION_MAP.md`).
+- The v1→v2 rebuild began 2026-08-03 and its main implementation has landed;
+  current work is final correctness hardening, validation, and release closure.
+  `docs/SPEC.md` and `docs/TODO.md` are retired v1 compatibility pointers.
+  `docs/SPEC_V2.md` and `docs/UI_UX_SPEC_V2.md` are the authoritative
+  synchronized requirements; `docs/TODO_V2.md` remains the implementation
+  ledger, and the post-v2 correctness-hardening TODO carries the current H-phase
+  release-closure gates. Phase evidence lives in `docs/implementation-v2/`.
 - **`docs/SPEC.md` is frozen. Never modify it — not a section, not a sentence, not a
   typo — without explicit per-change permission.** Propose; do not apply. Set
   2026-08-02, after an acceptance criterion turned out to have been invented by the

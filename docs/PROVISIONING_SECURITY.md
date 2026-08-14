@@ -141,11 +141,13 @@ false` and the current device name) and `404` once provisioning is complete.
 not use separate credentials/complete/restart steps (`docs/SPEC_V2.md` §13.4;
 `firmware/components/web_server/web_server_lifecycle.c`).
 
-Setup credential submission requires exact bounded JSON, a matching Host and Origin,
-the setup code, and physical confirmation unless manufacturing bypass is explicitly
-compiled. The administrator plaintext password is converted to a PBKDF2 record before
-persistence and all request, JSON, bootstrap, and temporary configuration buffers are
-cleared after use.
+Setup credential submission requires exact bounded JSON, the setup code, and physical
+confirmation unless manufacturing bypass is explicitly compiled. Under the current v2
+development-appliance profile there is no separate CSRF token and no `Host`/`Origin`
+check; a product distributed to third parties must revisit DNS-rebinding protection
+before release. The administrator plaintext password is converted to a PBKDF2 record
+before persistence and all request, JSON, bootstrap, and temporary configuration
+buffers are cleared after use.
 
 Normal mode uses the persisted AP credentials and password record and does not register
 any setup route.
