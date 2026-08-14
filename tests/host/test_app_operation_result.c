@@ -10,6 +10,7 @@ static void test_success_is_ok(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, result.primary_error);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, result.cleanup_error);
     TEST_CHECK(!result.cleanup_incomplete);
+    TEST_CHECK_EQ_INT(APP_OPERATION_COMMIT_NOT_APPLICABLE, result.commit_state);
     TEST_CHECK(app_operation_result_ok(result));
 }
 
@@ -80,6 +81,30 @@ static void test_cleanup_incomplete_alone_is_not_ok(void) {
     TEST_CHECK(!app_operation_result_ok(result));
 }
 
+static void test_commit_state_is_fail_closed(void) {
+    app_operation_result_t result = app_operation_success();
+
+    result.commit_state = APP_OPERATION_COMMITTED;
+    TEST_CHECK(app_operation_result_ok(result));
+
+    result.commit_state = APP_OPERATION_NOT_COMMITTED;
+    TEST_CHECK(!app_operation_result_ok(result));
+
+    result.commit_state = APP_OPERATION_COMMIT_UNCERTAIN;
+    TEST_CHECK(!app_operation_result_ok(result));
+}
+
+static void test_public_error_mapping_preserves_primary(void) {
+    app_operation_result_t result = app_operation_success();
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_operation_result_error(result));
+
+    app_operation_record_cleanup(&result, APP_ERROR_IO);
+    TEST_CHECK_APP_ERROR(APP_ERROR_IO, app_operation_result_error(result));
+
+    app_operation_record_primary(&result, APP_ERROR_TIMEOUT);
+    TEST_CHECK_APP_ERROR(APP_ERROR_TIMEOUT, app_operation_result_error(result));
+}
+
 static void test_null_result_is_safe(void) {
     /* Must not crash on a NULL result pointer. */
     app_operation_record_primary(NULL, APP_ERROR_IO);
@@ -94,6 +119,8 @@ int main(void) {
     test_record_cleanup_none_is_noop();
     test_primary_and_cleanup_errors_coexist();
     test_cleanup_incomplete_alone_is_not_ok();
+    test_commit_state_is_fail_closed();
+    test_public_error_mapping_preserves_primary();
     test_null_result_is_safe();
     puts("app operation result tests passed");
     return EXIT_SUCCESS;
