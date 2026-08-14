@@ -89,6 +89,8 @@ ALLOWED_DISCARDED_C_CALLS = Counter(
         ("firmware/components/wifi_ap/wifi_ap.c",
          "(void)xSemaphoreTake(sta_outcome_semaphore, 0);"): 1,
         ("firmware/components/storage/storage_fs_ops.c", "(void)close(descriptor);"): 1,
+        ("firmware/components/device_settings/device_settings.c",
+         "(void)reopen_settings_handle();"): 1,
         ("firmware/components/app_contracts_v2/device_settings_v2.c",
          "(void)bounded_length(text, destination_length, &length);"): 1,
         ("firmware/components/app_contracts_v2/device_settings_v2.c",

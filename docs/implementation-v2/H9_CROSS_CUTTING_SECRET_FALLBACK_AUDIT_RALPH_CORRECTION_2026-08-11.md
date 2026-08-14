@@ -89,12 +89,13 @@ The earlier H9 mechanical audit was a point-in-time classification rather than a
 
 Every currently reviewed occurrence is an exact, count-bounded allowlist entry, so copy/paste duplication or wording changes force a new H9 classification. The guard’s own negative regression suite passes **7/7**.
 
-The current reviewed inventory is **1 best-effort occurrence, 13 fallback occurrences, and 18 explicit discarded C calls**, with zero empty catches and zero empty Promise catches. Newly surfaced wording was classified rather than hidden:
+The current reviewed inventory is **1 best-effort occurrence, 13 fallback occurrences, and 19 explicit discarded C calls**, with zero empty catches and zero empty Promise catches. Newly surfaced wording was classified rather than hidden:
 
 - provisioning station failure intentionally leaves AP service available; the failure path is warning-logged and the bounded station engine retains `WIFI_STATION_FAILED`, so this is not silent success;
 - two snapshot-client fallback references explicitly state that unsafe persistence fallbacks are forbidden;
 - the reset scheduler fallback introduced by `dd8030e7c2f9dbbdf5098f06eab1ebf0433d5803` immediately reboots when delayed restart ownership cannot be established after durable state may already have changed, then returns an internal error if `esp_restart()` unexpectedly returns; this is fail-safe behavior, not a swallowed failure;
-- the single `best-effort` wording is likewise a negative statement that login must not re-read NVS as an unsafe cache refresh.
+- the single `best-effort` wording is likewise a negative statement that login must not re-read NVS as an unsafe cache refresh;
+- `device_settings.c` deliberately discards the result of reopening the NVS settings handle after an `nvs_set_blob()` failure. The initiating set error remains authoritative because no commit was attempted; reopening is cleanup that clears any incomplete transaction, and replacing the primary error with a cleanup/open error would hide the operation that actually failed. The source comment documents this precedence explicitly.
 
 ### Local validation for the second pass
 
