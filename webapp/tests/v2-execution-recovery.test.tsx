@@ -19,10 +19,7 @@ import { buttonWithText, click, flushReact, render } from "./render";
 const request = { source: "a", keyPressMs: 8, interKeyMs: 15 };
 const sendId = "123e4567-e89b-42d3-a456-426614174000";
 
-function statusAt(
-  state: string,
-  actionIndex: number,
-): SendStatusResponse {
+function statusAt(state: string, actionIndex: number): SendStatusResponse {
   return {
     id: sendId,
     state: state as SendStatusResponse["state"],
@@ -139,12 +136,16 @@ describe("H4 execution recovery", () => {
     );
     await click(buttonWithText("Cancel and release all keys"));
     await flushReact();
-    expect(view.container.textContent).toContain("Cancel could not be delivered");
+    expect(view.container.textContent).toContain(
+      "Cancel could not be delivered",
+    );
 
     planJsonResponse(statusAt("cancelled", 2));
     await click(buttonWithText("Retry execution status"));
     await flushReact();
-    expect(view.container.textContent).not.toContain("Execution state unavailable");
+    expect(view.container.textContent).not.toContain(
+      "Execution state unavailable",
+    );
     expect(
       getFetchCalls().filter((call) => call.method === "POST"),
     ).toHaveLength(1);
