@@ -36,6 +36,8 @@ const char *app_error_code_string(app_error_code_t code) {
         return "reset_recovery_required";
     case APP_ERROR_RESET_SETTINGS_INCOMPLETE:
         return "reset_settings_incomplete";
+    case APP_ERROR_COMMIT_UNCERTAIN:
+        return "commit_uncertain";
     case APP_ERROR_RATE_LIMITED:
         return "rate_limited";
     case APP_ERROR_TIMEOUT:
@@ -59,7 +61,7 @@ bool app_error_is_object_fault(app_error_code_t error) {
         return true;
     default:
         /* APP_ERROR_INTERNAL (allocation), APP_ERROR_IO, storage unavailable,
-         * timeouts: the device is failing, not one object. */
+         * timeouts, commit uncertainty: the device is failing, not one object. */
         return false;
     }
 }
