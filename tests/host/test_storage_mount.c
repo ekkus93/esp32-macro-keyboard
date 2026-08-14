@@ -3,7 +3,6 @@
 #include <stdlib.h>
 
 #include "app_error.h"
-#include "app_operation_result.h"
 #include "storage.h"
 #include "storage_mount_core.h"
 #include "test_assert.h"
