@@ -118,6 +118,9 @@ describe("v2 browser-storage prohibition: runtime behavior", () => {
     planJsonResponse({ blobs: [], usedBytes: 0, remainingBytes: 500_000 });
     await listSnapshots();
 
+    // H5-053 requires a canonical pre-create list so an uncertain commit can
+    // distinguish newly activated IDs from snapshots that already existed.
+    planJsonResponse({ blobs: [], usedBytes: 0, remainingBytes: 500_000 });
     planFetch(() => jsonResponse({ id: "1", sizeBytes: 100 }, 201));
     await saveWorkingCopyAsSnapshot(store);
 
