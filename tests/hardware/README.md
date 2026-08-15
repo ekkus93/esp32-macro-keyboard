@@ -75,7 +75,13 @@ The bounded smoke then verifies manifest/diagnostics provenance, login, active
 HID send, confirmation-gated HID send, cancellation, snapshot save/load,
 password change and session invalidation, software restart, factory reset, fresh
 UART `setup-code` reprovisioning, snapshot erasure, and that the same production
-build remains on the board at sign-off. The emitted JSON contains non-secret
+build remains on the board at sign-off. Restart must be proven by diagnostics
+reset reason plus an uptime discontinuity; the runner deliberately refuses UART
+Wi-Fi recovery on restart or on the post-setup reboot because that would hide a
+station-persistence failure. Factory reset must visibly enter unprovisioned mode
+on the trusted UART before reprovisioning, and the pre-reset administrator
+password must be rejected afterward. Evidence output paths are immutable: choose
+a new filename for every physical attempt. The emitted JSON contains non-secret
 evidence only.
 
 For a non-writing provenance preflight, `scripts/flash-release-manifest.py` also
