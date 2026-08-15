@@ -155,8 +155,8 @@ static app_error_code_t fake_show_setup_code(void *context, const char *setup_co
     const app_error_code_t result = stage_result(fixture, FAIL_SETUP_CODE_DISPLAY);
     if (result == APP_ERROR_NONE) {
         ++fixture->setup_code_displays;
-        TEST_CHECK(snprintf(fixture->displayed_setup_code,
-                            sizeof(fixture->displayed_setup_code), "%s", setup_code) >= 0);
+        TEST_CHECK(snprintf(fixture->displayed_setup_code, sizeof(fixture->displayed_setup_code),
+                            "%s", setup_code) >= 0);
     }
     return result;
 }

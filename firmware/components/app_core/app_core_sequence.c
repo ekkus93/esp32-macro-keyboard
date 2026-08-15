@@ -17,18 +17,18 @@ static bool operations_valid(const app_core_ops_t *operations) {
     return operations != NULL && operations->nvs_init != NULL &&
            operations->settings_init != NULL && operations->settings_read != NULL &&
            operations->bootstrap_derive != NULL && operations->setup_code_generate != NULL &&
-           operations->show_setup_code != NULL &&
-           operations->storage_mount != NULL && operations->auth_init != NULL &&
-           operations->usb_init != NULL && operations->executor_init != NULL &&
-           operations->controls_init != NULL && operations->wifi_start != NULL &&
-           operations->http_start != NULL && operations->http_stop != NULL &&
-           operations->wifi_stop != NULL && operations->storage_unmount != NULL &&
-           operations->auth_deinit != NULL && operations->usb_deinit != NULL &&
-           operations->executor_deinit != NULL && operations->controls_deinit != NULL &&
-           operations->settings_deinit != NULL && operations->nvs_deinit != NULL &&
-           operations->http_owns_resources != NULL && operations->wifi_owns_resources != NULL &&
-           operations->storage_owns_mount != NULL && operations->set_indicator != NULL &&
-           operations->secure_zero != NULL && operations->log_event != NULL;
+           operations->show_setup_code != NULL && operations->storage_mount != NULL &&
+           operations->auth_init != NULL && operations->usb_init != NULL &&
+           operations->executor_init != NULL && operations->controls_init != NULL &&
+           operations->wifi_start != NULL && operations->http_start != NULL &&
+           operations->http_stop != NULL && operations->wifi_stop != NULL &&
+           operations->storage_unmount != NULL && operations->auth_deinit != NULL &&
+           operations->usb_deinit != NULL && operations->executor_deinit != NULL &&
+           operations->controls_deinit != NULL && operations->settings_deinit != NULL &&
+           operations->nvs_deinit != NULL && operations->http_owns_resources != NULL &&
+           operations->wifi_owns_resources != NULL && operations->storage_owns_mount != NULL &&
+           operations->set_indicator != NULL && operations->secure_zero != NULL &&
+           operations->log_event != NULL;
 }
 
 static void log_stage(const app_core_ops_t *operations, const char *stage,
