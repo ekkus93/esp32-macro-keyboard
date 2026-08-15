@@ -44,15 +44,16 @@ Run scripts from the repo root. All frontend commands go through `npm --prefix w
 - Firmware build + clang-tidy: `./scripts/check-firmware.sh` (or `cd firmware && idf.py set-target esp32s3 && idf.py build`)
 - Format check (no auto-fix): `./scripts/check-format.sh`. Auto-fix frontend only: `npm --prefix webapp run format:write`
 - Native coverage gate (line ≥90 / branch ≥80 on policy files): `./scripts/generate-native-coverage.sh`
-- The `check-v2-*.py`/`check-v2-*.sh` script family (invoked from `check-all.sh`) enforces v1→v2 migration policy — API routes, auth policy, device-settings policy, limits, setup contract/route policy, phase-2 architecture. Treat these as first-party lint, not optional checks.
+- The `check-v2-*.py`/`check-v2-*.sh` family enforces v1→v2 migration policy — API routes, auth policy, device-settings policy, limits, setup contract/route policy, phase-2 architecture. `check-h2/h3/h9-architecture.py` and `check-h9-production-audit.py` do the same for the post-v2 hardening phases. Both are first-party lint, not optional; `check-all.sh` runs some directly and reaches the rest through `check-scripts.sh`.
 
 ### Where the tests are, and the fast loops
 
-The two suites are in different places and neither sits beside the code it tests.
+The suites are spread across six trees and none sits beside the code it tests.
 
 | Suite | Location | Run just this |
 | --- | --- | --- |
-| Host C (64 `test_*.c` + 26 `.inc` fragments) | `tests/host/` | `./scripts/run-tests.sh [label]` |
+| Host C (69 `test_*.c` + 26 `.inc` fragments) | `tests/host/` | `./scripts/run-tests.sh [label]` |
+| Check-script self-tests (26 files) | `tests/scripts/` — tests *of* the gate scripts | `./scripts/check-scripts.sh` |
 | v2 contract tests (API routes, device settings, setup contract, macro tokens/conformance) | `tests/v2_contracts/` — separate from `tests/host/` | `./scripts/check-v2-contracts.sh` |
 | Frontend vitest (49 files) | `webapp/tests/` — **not** under `webapp/src/` | `npm --prefix webapp run test` |
 | Browser (Playwright) | `webapp/tests/browser/` | `npm --prefix webapp run test:browser` |
@@ -91,6 +92,8 @@ failure rather than partial-booting. Components, each first-party and lint-scope
 | `serial_console` | The trusted UART0 dev console (`confirm`, `cancel`, `wifi-connect`, …) — see the hardware table below |
 | `device_controls` | Status indication, physical confirmation signal, restart/reset-settings/factory-reset |
 | `device_settings` | Device-level settings storage separate from Wi-Fi/auth provisioning |
+| `factory_reset_state` | H3 durable factory-reset journal in its own NVS namespace (`none`/`pending`), one bounded transaction per call |
+| `factory_reset_recovery` | Completes a committed factory reset at boot before ordinary startup; clears the journal only after every cleanup stage succeeds |
 | `storage` | LittleFS mount (no auto-format on failure), bounded fs ops, atomic `<id>.gz.tmp`→`<id>.gz` blob commit, opaque byte-blob repository under `/data/repository/` |
 | `web_server` | Bounded ESP-IDF HTTP server, session/request-policy enforcement, JSON responses, static frontend delivery |
 | `support` | Cross-cutting: operation results, health reporting, CRC, clocks, random, bounded helpers |
@@ -107,14 +110,9 @@ explicitly open until their evidence gates close.
 
 ### Webapp (`webapp/src/`)
 
-`main.tsx` boots `AppV2.tsx` — the only application tree in the codebase. The
-retired v1 shell (`App.tsx`), its hash router (`routing.ts`), its HTTP client
-(`api/`), its legacy model types (`types/models.ts`), its route-level pages
-(`features/execution/`, `features/package/`, `features/macros/MacroEditorPage.tsx`
-and `MacroLibraryPage.tsx`, the non-`v2/` parts of `features/auth/` and
-`features/settings/`), and its v1-only shared components (`AppShell`,
-`ConnectivityBanner`, `AccessibleDialog`) were deleted in V2-140 — nothing in the
-tree references them anymore.
+`main.tsx` boots `AppV2.tsx` — the only application tree in the codebase. The v1
+shell, hash router, HTTP client, model types and route-level pages were deleted
+in V2-140; nothing imports them (verified: zero references).
 
 - `v2/` — the current v2 contract layer: `apiContracts.ts`/`apiGuards.ts`/`apiRequestGuards.ts` (runtime type guards for every `/api/v1/*` payload), `apiTypes.ts`, `apiRouteManifest.ts`, `limits.ts` (mirrors firmware `app_limits_v2.h`), `macroCompiler.ts` (shares the parser conformance corpus with `macro_parser`), `repository.ts`/`repositoryValidation.ts` (client-owned package/macro modeling, since firmware doesn't do this anymore).
 - `types/limits.ts` — the one surviving file in `types/`; still used across `v2/` alongside `v2/limits.ts`.
@@ -161,8 +159,11 @@ Currently in force:
   `docs/SPEC.md` and `docs/TODO.md` are retired v1 compatibility pointers.
   `docs/SPEC_V2.md` and `docs/UI_UX_SPEC_V2.md` are the authoritative
   synchronized requirements; `docs/TODO_V2.md` remains the implementation
-  ledger, and the post-v2 correctness-hardening TODO carries the current H-phase
-  release-closure gates. Phase evidence lives in `docs/implementation-v2/`.
+  ledger. Two post-v2 hardening trackers run in parallel, both dated 2026-08-10:
+  `…_HARDENING_TODO_2026-08-10.md` (Round 1, phases H0–H12) and
+  `…_HARDENING_TODO_ROUND2_2026-08-10.md` (Round 2, phases R1–R8, 10 items still
+  open). Each has its own governing spec — check which round a task belongs to
+  before citing a requirement. Phase evidence lives in `docs/implementation-v2/`.
 - **`docs/SPEC.md` is frozen. Never modify it — not a section, not a sentence, not a
   typo — without explicit per-change permission.** Propose; do not apply. Set
   2026-08-02, after an acceptance criterion turned out to have been invented by the
@@ -175,6 +176,11 @@ Currently in force:
   The current replacement is `docs/SPEC_V2.md`, with `docs/UI_UX_SPEC_V2.md` as
   its synchronized companion per `docs/TODO_V2.md` §0 — the freeze applies to
   both.
+- `docs/` holds 58 markdown files; most are retired v1 or round-specific
+  historical artifacts, not requirements. Only `SPEC_V2.md`, `UI_UX_SPEC_V2.md`,
+  `TODO_V2.md` and the two hardening trackers are live. Never implement from a
+  `FIX*`/`PHASE_*`/`PROPOSAL_*`/`*_OUTSTANDING_*` document without reading its
+  status header — the retired ones say so at the top.
 - Work directly on `master`; don't create a branch or PR unless explicitly requested.
 - Never force-push, reset `master`, or rewrite history — use normal forward commits.
 - Don't mark a TODO checkbox complete without exact implementation and reproducible evidence (commit, commands, results).
