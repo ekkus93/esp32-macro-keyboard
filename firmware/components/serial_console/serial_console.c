@@ -12,10 +12,34 @@
 #include "macro_executor.h"
 #include "provisioning.h"
 #include "serial_console_confirmation.h"
+#include "setup_contract_v2.h"
 #include "wifi_ap.h"
 
 #define WIFI_CONNECT_TIMEOUT_MS 15000U
 #define MILLISECONDS_PER_SECOND 1000U
+
+static bool setup_code_valid(const char *setup_code) {
+    if (setup_code == NULL || strlen(setup_code) != (size_t)APP_V2_SETUP_CODE_DIGITS) {
+        return false;
+    }
+    for (size_t index = 0U; index < (size_t)APP_V2_SETUP_CODE_DIGITS; ++index) {
+        if (setup_code[index] < '0' || setup_code[index] > '9') {
+            return false;
+        }
+    }
+    return true;
+}
+
+app_error_code_t serial_console_show_setup_code(const char *setup_code) {
+    if (!setup_code_valid(setup_code)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+
+    /* SPEC_V2 requires this ephemeral code on the trusted serial console.
+     * Do not move this to ESP_LOG*, diagnostics, HTTP, or persistent state. */
+    printf("setup code: %s\n", setup_code);
+    return fflush(stdout) == 0 ? APP_ERROR_NONE : APP_ERROR_IO;
+}
 
 static int command_wifi_connect(int argc, char **argv) {
     if (argc != 3) {

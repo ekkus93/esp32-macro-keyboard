@@ -48,6 +48,32 @@ expect_fail() {
 write_valid_fixture
 expect_pass 'non-secret setup readiness log'
 
+write_valid_fixture
+mkdir -p -- "${temporary_dir}/firmware/components/serial_console"
+cat >"${temporary_dir}/firmware/components/serial_console/serial_console.c" <<'SOURCE'
+void show_setup_code(const char *setup_code) {
+    printf("setup code: %s\n", setup_code);
+}
+SOURCE
+expect_pass 'trusted UART setup-code disclosure'
+
+write_valid_fixture
+cat >"${temporary_dir}/firmware/components/not_serial_console.c" <<'SOURCE'
+void show_setup_code(const char *setup_code) {
+    printf("setup code: %s\n", setup_code);
+}
+SOURCE
+expect_fail 'same setup-code print outside trusted UART boundary' 'credential-bearing output is forbidden'
+
+write_valid_fixture
+mkdir -p -- "${temporary_dir}/firmware/components/serial_console"
+cat >"${temporary_dir}/firmware/components/serial_console/serial_console.c" <<'SOURCE'
+void leak_password(const char *password) {
+    printf("password: %s\n", password);
+}
+SOURCE
+expect_fail 'other secret on serial console' 'credential-bearing output is forbidden'
+
 for credential in password passphrase setup_code session_token salt verifier; do
 	write_valid_fixture
 	cat >"${temporary_dir}/firmware/components/leak.c" <<SOURCE

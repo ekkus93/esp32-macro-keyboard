@@ -6,6 +6,7 @@ idf_component_register(
     "include"
     REQUIRES
     macro_model
+    app_contracts_v2
     device_controls
     macro_executor
     wifi_ap

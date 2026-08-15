@@ -21,7 +21,6 @@ typedef enum {
 
 typedef enum {
     APP_CORE_LOG_STAGE = 0,
-    APP_CORE_LOG_SETUP_CODE,
     APP_CORE_LOG_PROVISIONING_REQUIRED,
     APP_CORE_LOG_CLEANUP_FAILED
 } app_core_log_type_t;
@@ -33,7 +32,6 @@ typedef struct {
     app_error_code_t cleanup_error;
     bool cleanup_incomplete;
     uint32_t operation_id;
-    const char *setup_code;
 } app_core_log_event_t;
 
 typedef struct {
@@ -52,6 +50,7 @@ typedef struct {
     app_error_code_t (*bootstrap_derive)(void *context, provisioning_bootstrap_t *out_bootstrap);
     app_error_code_t (*setup_code_generate)(void *context,
                                             char out_code[APP_V2_SETUP_CODE_BUFFER_BYTES]);
+    app_error_code_t (*show_setup_code)(void *context, const char *setup_code);
     app_error_code_t (*storage_mount)(void *context);
     app_error_code_t (*auth_init)(void *context);
     app_error_code_t (*usb_init)(void *context);

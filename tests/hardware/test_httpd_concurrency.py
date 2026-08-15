@@ -62,19 +62,21 @@ def main():
     if status != 200:
         raise SystemExit(f"error: could not read settings: HTTP {status} {payload}")
     original = response_data(payload)
+    original_required = bool(original["requireSerialConfirmation"])
     status, payload = device.put(
         "/api/v1/settings",
-        {
-            "expectedRevision": original["revision"],
-            "requirePhysicalConfirmation": True,
-            "alwaysSelectPackage": original["alwaysSelectPackage"],
-        },
+        {"requireSerialConfirmation": True},
     )
     if status != 200:
         raise SystemExit(
-            f"error: could not enable physical confirmation: HTTP {status} {payload}"
+            f"error: could not enable serial confirmation: HTTP {status} {payload}"
         )
     configured = response_data(payload)
+    configured_settings = configured.get("settings") if isinstance(configured, dict) else None
+    if not isinstance(configured_settings, dict) or configured_settings.get(
+        "requireSerialConfirmation"
+    ) is not True:
+        raise SystemExit(f"error: confirmation setting did not become active: {payload}")
 
     try:
         print(f"device {ip}\n")
@@ -143,21 +145,23 @@ def main():
             )
         )
     finally:
+        cleanup_failures = []
         status, payload = device.put(
             "/api/v1/settings",
-            {
-                "expectedRevision": configured["revision"],
-                "requirePhysicalConfirmation": original["requirePhysicalConfirmation"],
-                "alwaysSelectPackage": original["alwaysSelectPackage"],
-            },
+            {"requireSerialConfirmation": original_required},
         )
         if status != 200:
-            print(
-                "warning: could not restore physical-confirmation setting: "
-                f"HTTP {status} {payload}",
-                file=sys.stderr,
+            cleanup_failures.append(
+                "could not restore requireSerialConfirmation: "
+                f"HTTP {status} {payload}"
             )
-        device.logout()
+        try:
+            device.logout()
+        except BaseException as error:  # cleanup must not become a false PASS
+            cleanup_failures.append(f"could not close test session: {error}")
+
+    if cleanup_failures:
+        raise SystemExit("error: concurrency acceptance cleanup failed: " + "; ".join(cleanup_failures))
 
     print("\n" + "=" * 58)
     print(f"  {sum(1 for result in results if result)}/{len(results)} checks passed")

@@ -15,10 +15,15 @@ PY
 
 actual="$(python3 "${generator}" "${temporary_dir}/key.bin" '10:20:30:A0:B0:C0')"
 readonly actual
-readonly expected='{"ap_passphrase": "0665630870D7FE643BA4B540", "ap_ssid": "ESP32-Macro-A0B0C0", "device_id": "102030A0B0C0", "setup_code": "45175C9BB39D8BE5FC7EF773"}'
+readonly expected='{"ap_passphrase": "0665630870D7FE643BA4B540", "ap_ssid": "ESP32-Macro-A0B0C0", "device_id": "102030A0B0C0"}'
 if [[ "${actual}" != "${expected}" ]]; then
 	printf 'FAIL: label vector mismatch\nexpected: %s\nactual:   %s\n' \
 		"${expected}" "${actual}" >&2
+	exit 1
+fi
+
+if [[ "${actual}" == *'setup_code'* ]]; then
+	printf 'FAIL: label output must not contain the per-boot setup code\n' >&2
 	exit 1
 fi
 

@@ -15,8 +15,8 @@ typedef struct {
     app_error_code_t device_error;
     app_error_code_t hmac_error;
     unsigned int hmac_calls;
-    uint8_t messages[2][BOOTSTRAP_MESSAGE_BYTES];
-    size_t message_sizes[2];
+    uint8_t messages[1][BOOTSTRAP_MESSAGE_BYTES];
+    size_t message_sizes[1];
     unsigned int zero_calls;
     size_t zero_bytes;
 } fake_bootstrap_t;
@@ -35,7 +35,7 @@ static app_error_code_t fake_calculate_hmac(void *context, const uint8_t *messag
                                             size_t message_size,
                                             uint8_t output[PROVISIONING_HMAC_BYTES]) {
     fake_bootstrap_t *fake = context;
-    if (fake->hmac_calls < 2U) {
+    if (fake->hmac_calls < 1U) {
         memcpy(fake->messages[fake->hmac_calls], message, message_size);
         fake->message_sizes[fake->hmac_calls] = message_size;
     }
@@ -65,7 +65,7 @@ static provisioning_bootstrap_ops_t operations(fake_bootstrap_t *fake) {
     };
 }
 
-static void test_success_and_domain_separation(void) {
+static void test_success_derives_only_stable_ap_credentials(void) {
     fake_bootstrap_t fake = {
         .device_id = {0x10U, 0x20U, 0x30U, 0xa0U, 0xb0U, 0xc0U},
     };
@@ -75,17 +75,12 @@ static void test_success_and_domain_separation(void) {
     TEST_CHECK_EQ_STRING("102030A0B0C0", bootstrap.device_id);
     TEST_CHECK_EQ_STRING("ESP32-Macro-A0B0C0", bootstrap.ap_ssid);
     TEST_CHECK_EQ_STRING("0102030405060708090A0B0C", bootstrap.ap_passphrase);
-    TEST_CHECK_EQ_STRING("02030405060708090A0B0C0D", bootstrap.setup_code);
-    TEST_CHECK_EQ_U64(2U, fake.hmac_calls);
+    TEST_CHECK_EQ_U64(1U, fake.hmac_calls);
     TEST_CHECK_EQ_U64(BOOTSTRAP_MESSAGE_BYTES, fake.message_sizes[0]);
-    TEST_CHECK_EQ_U64(BOOTSTRAP_MESSAGE_BYTES, fake.message_sizes[1]);
-    TEST_CHECK(memcmp(fake.messages[0], fake.messages[1], BOOTSTRAP_DOMAIN_BYTES) != 0);
     TEST_CHECK_EQ_BUFFER(fake.device_id, fake.messages[0] + BOOTSTRAP_DOMAIN_BYTES,
                          sizeof(fake.device_id));
-    TEST_CHECK_EQ_BUFFER(fake.device_id, fake.messages[1] + BOOTSTRAP_DOMAIN_BYTES,
-                         sizeof(fake.device_id));
-    TEST_CHECK(fake.zero_calls >= 5U);
-    TEST_CHECK(fake.zero_bytes >= 122U);
+    TEST_CHECK_EQ_U64(3U, fake.zero_calls);
+    TEST_CHECK_EQ_U64(64U, fake.zero_bytes);
 }
 
 static void test_argument_validation(void) {
@@ -138,7 +133,7 @@ static void test_hmac_failure_clears_output(void) {
 }
 
 int main(void) {
-    test_success_and_domain_separation();
+    test_success_derives_only_stable_ap_credentials();
     test_argument_validation();
     test_device_failure_clears_output();
     test_hmac_failure_clears_output();

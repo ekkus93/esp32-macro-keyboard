@@ -22,6 +22,7 @@
 #include "macro_executor.h"
 #include "nvs_flash.h"
 #include "provisioning_bootstrap.h"
+#include "serial_console.h"
 #include "setup_contract_v2.h"
 #include "storage.h"
 #include "storage_health.h"
@@ -107,6 +108,11 @@ static app_error_code_t adapter_setup_code_generate(void *context,
     }
     secure_zero_bytes(&session, sizeof(session));
     return result == APP_V2_SETUP_OK ? APP_ERROR_NONE : APP_ERROR_INTERNAL;
+}
+
+static app_error_code_t adapter_show_setup_code(void *context, const char *setup_code) {
+    (void)context;
+    return serial_console_show_setup_code(setup_code);
 }
 
 static app_error_code_t adapter_storage_mount(void *context) {
@@ -283,9 +289,6 @@ static void adapter_log_event(void *context, const app_core_log_event_t *event) 
             app_lifecycle_health_record_stage_failure(event->primary_error);
         }
         break;
-    case APP_CORE_LOG_SETUP_CODE:
-        ESP_LOGI(TAG, "setup credentials are available from the manufacturing label");
-        break;
     case APP_CORE_LOG_PROVISIONING_REQUIRED:
         ESP_LOGW(TAG, "device is unprovisioned; starting protected V2 setup-only service");
         break;
@@ -317,6 +320,7 @@ app_error_code_t app_core_start(void) {
         .settings_read = adapter_settings_read,
         .bootstrap_derive = adapter_bootstrap_derive,
         .setup_code_generate = adapter_setup_code_generate,
+        .show_setup_code = adapter_show_setup_code,
         .storage_mount = adapter_storage_mount,
         .auth_init = adapter_auth_init,
         .usb_init = adapter_usb_init,

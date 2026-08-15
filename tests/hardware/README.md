@@ -12,8 +12,10 @@ Wi-Fi network, and in some cases a USB host capture setup.
 python3 tests/hardware/provision_device.py
 ```
 
-The helper performs first-run setup, stores disposable bench credentials outside
-the repository, and waits for the normal authenticated service to return.
+The helper resets an unprovisioned board while capturing the fresh eight-digit
+setup code from UART0, keeps that code in memory only, submits the current one-shot
+`POST /api/v1/setup`, stores disposable normal-mode bench credentials outside the
+repository, and verifies the authenticated service after restart.
 
 ### Network authentication and retired-route boundary
 
@@ -49,16 +51,27 @@ the real 60-second expiry path both type nothing. The prior setting is restored
 on exit. This is intentionally a real 60-second timeout test rather than a
 test-only shortened substitute.
 
-### Restart and reset acceptance
+### H12 final release smoke
+
+After building/flashing a clean production image and generating
+`firmware/build/flash-manifest.json`, run:
 
 ```bash
-python3 tests/hardware/test_acceptance_reset.py
+python3 tests/hardware/test_h12_release_smoke.py \
+  --firmware-sha "$(git rev-parse HEAD)" \
+  --flash-manifest firmware/build/flash-manifest.json \
+  --allow-destructive
 ```
 
-This verifies retained settings across a software restart, factory-reset record
-erasure, re-provisioning, saved station-network behavior, confirmation-gated
-credential reset, and provisioning revision continuity. The script does not
-claim a true power-removal cycle; unplug/replug testing remains manual.
+This fail-closed destructive smoke binds the live board to the exact clean
+production manifest and exercises login, ordinary send, snapshot save/load/delete,
+password change, software restart, factory reset, random UART setup-code
+reprovisioning, and final production-image continuity. The separate
+`test_send_confirmation.py` remains required for confirmation-required send,
+cancel, timeout, and native USB HID capture.
+
+`test_acceptance_reset.py` is intentionally retired because its old v1-shaped
+setup and revisioned-settings calls no longer describe the current v2 API.
 
 ## Deferred device checks
 

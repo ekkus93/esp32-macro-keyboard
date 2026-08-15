@@ -204,23 +204,30 @@ def main() -> int:
         "requireSerialConfirmation enabled",
     )
 
+    cleanup_failures: list[str] = []
     try:
         test_confirm_then_type(device, args.console)
         test_cancel_before_confirm(device)
         test_real_timeout(device)
     finally:
-        # Restore the owner setting even if one acceptance step fails.
+        # A release-acceptance PASS is invalid if the device cannot be restored
+        # to the owner's original setting or the test session cannot be closed.
         status, restore_payload = device.put(
             "/api/v1/settings",
             {"requireSerialConfirmation": original_required},
         )
         if status != 200:
-            print(
-                "WARNING: could not restore requireSerialConfirmation: "
-                f"HTTP {status} {restore_payload}",
-                file=sys.stderr,
+            cleanup_failures.append(
+                "could not restore requireSerialConfirmation: "
+                f"HTTP {status} {restore_payload}"
             )
-        device.logout()
+        try:
+            device.logout()
+        except BaseException as error:  # cleanup must not become a false PASS
+            cleanup_failures.append(f"could not close test session: {error}")
+
+    if cleanup_failures:
+        raise SystemExit("error: hardware acceptance cleanup failed: " + "; ".join(cleanup_failures))
 
     print("\nH1 hardware acceptance: PASS")
     return 0

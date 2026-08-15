@@ -64,13 +64,12 @@ class Device:
         return self._request("DELETE", path, body, **kw)
 
     def logout(self):
-        """Release the bounded, RAM-only session."""
+        """Release the bounded, RAM-only session and fail if cleanup is unknown."""
         if self.cookie is None:
             return
-        try:
-            self.post("/api/v1/auth/logout")
-        except Exception:
-            pass
+        status, payload = self.post("/api/v1/auth/logout")
+        if status != 204:
+            raise SystemExit(f"logout failed: HTTP {status} {payload}")
         self.cookie = None
 
     def __enter__(self):
@@ -81,8 +80,8 @@ class Device:
         self.logout()
         return False
 
-    def login(self):
-        password = hil_state.admin_password()
+    def login(self, password=None):
+        password = password if password is not None else hil_state.admin_password()
         status, payload = self.post("/api/v1/auth/login", {"adminPassword": password})
         if status != 200:
             raise SystemExit(f"login failed: HTTP {status} {payload}")

@@ -92,6 +92,7 @@ class Capture:
         self._stop = threading.Event()
         self._thread = None
         self._handle = None
+        self._reader_error = None
 
     def __enter__(self):
         try:
@@ -110,17 +111,37 @@ class Capture:
         while not self._stop.is_set():
             try:
                 data = self._handle.read(8)
-            except Exception:
+            except OSError as error:
+                if not self._stop.is_set():
+                    self._reader_error = error
                 break
             if data:
+                if len(data) != 8:
+                    self._reader_error = RuntimeError(
+                        f"short HID report from {self.path}: {len(data)} bytes"
+                    )
+                    break
                 self.reports.append((time.monotonic(), data))
 
-    def __exit__(self, *exc):
+    def __exit__(self, exc_type, exc_value, traceback):
         self._stop.set()
+        cleanup_errors = []
         try:
             self._handle.close()
-        except Exception:
-            pass
+        except OSError as error:
+            cleanup_errors.append(f"could not close {self.path}: {error}")
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)
+            if self._thread.is_alive():
+                cleanup_errors.append(f"HID reader for {self.path} did not stop")
+        if self._reader_error is not None:
+            cleanup_errors.append(f"HID capture failed: {self._reader_error}")
+        if cleanup_errors:
+            detail = "; ".join(cleanup_errors)
+            if exc_value is not None and hasattr(exc_value, "add_note"):
+                exc_value.add_note(detail)
+            elif exc_value is None:
+                raise RuntimeError(detail)
         return False
 
     # --- analysis helpers -------------------------------------------------

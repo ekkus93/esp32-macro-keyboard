@@ -17,6 +17,7 @@ static bool operations_valid(const app_core_ops_t *operations) {
     return operations != NULL && operations->nvs_init != NULL &&
            operations->settings_init != NULL && operations->settings_read != NULL &&
            operations->bootstrap_derive != NULL && operations->setup_code_generate != NULL &&
+           operations->show_setup_code != NULL &&
            operations->storage_mount != NULL && operations->auth_init != NULL &&
            operations->usb_init != NULL && operations->executor_init != NULL &&
            operations->controls_init != NULL && operations->wifi_start != NULL &&
@@ -39,7 +40,6 @@ static void log_stage(const app_core_ops_t *operations, const char *stage,
         .cleanup_error = APP_ERROR_NONE,
         .cleanup_incomplete = false,
         .operation_id = 0U,
-        .setup_code = NULL,
     };
     operations->log_event(operations->context, &event);
 }
@@ -54,21 +54,6 @@ static void log_simple(const app_core_ops_t *operations, app_core_log_type_t typ
         .cleanup_error = cleanup,
         .cleanup_incomplete = cleanup_incomplete,
         .operation_id = 0U,
-        .setup_code = NULL,
-    };
-    operations->log_event(operations->context, &event);
-}
-
-static void log_setup_code(const app_core_ops_t *operations, const char *setup_code) {
-    (void)setup_code;
-    const app_core_log_event_t event = {
-        .type = APP_CORE_LOG_SETUP_CODE,
-        .stage = NULL,
-        .primary_error = APP_ERROR_NONE,
-        .cleanup_error = APP_ERROR_NONE,
-        .cleanup_incomplete = false,
-        .operation_id = 0U,
-        .setup_code = NULL,
     };
     operations->log_event(operations->context, &event);
 }
@@ -281,7 +266,11 @@ static app_error_code_t start_setup_mode(const app_core_ops_t *operations, app_c
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    log_setup_code(operations, secrets->setup_code);
+    result = operations->show_setup_code(operations->context, secrets->setup_code);
+    log_stage(operations, "setup_code_display", result);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
 
     configure_setup_server(&secrets->settings, secrets->setup_code, &secrets->web);
     const app_core_wifi_configuration_t wifi = {

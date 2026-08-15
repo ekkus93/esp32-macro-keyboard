@@ -20,6 +20,7 @@ idf_component_register(
     wifi_ap
     auth
     web_server
+    serial_console
     nvs_flash
     esp_hw_support
 )

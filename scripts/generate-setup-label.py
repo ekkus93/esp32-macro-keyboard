@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Derive one device's first-run label credentials from its HMAC eFuse key."""
+"""Derive one device's stable bootstrap AP label from its HMAC eFuse key."""
 
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ KEY_BYTES = 32
 DEVICE_ID_BYTES = 6
 SECRET_HEX_BYTES = 24
 AP_DOMAIN = b"macro-setup-ap-v1\0\0\0"
-CODE_DOMAIN = b"macro-setup-code-v1\0"
 MAC_PATTERN = re.compile(r"^[0-9A-Fa-f]{12}$")
 
 
@@ -46,15 +45,14 @@ def derive_label(key: bytes, device_id: bytes) -> dict[str, str]:
         "device_id": device_hex,
         "ap_ssid": f"ESP32-Macro-{device_hex[-6:]}",
         "ap_passphrase": derive_secret(key, AP_DOMAIN, device_id),
-        "setup_code": derive_secret(key, CODE_DOMAIN, device_id),
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Derive the bootstrap AP passphrase and one-time setup code that firmware "
-            "will derive from HMAC_KEY0 for a specific ESP32-S3."
+            "Derive the stable bootstrap AP label that firmware will derive "
+            "from HMAC_KEY0 for a specific ESP32-S3. The per-boot setup code is not a label value."
         )
     )
     parser.add_argument("key_file", type=Path, help="32-byte HMAC_UP key file")

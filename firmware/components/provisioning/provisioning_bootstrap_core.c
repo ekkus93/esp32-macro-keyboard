@@ -19,10 +19,6 @@
 static const uint8_t AP_DOMAIN[DOMAIN_BYTES] = {
     'm', 'a', 'c', 'r', 'o', '-', 's', 'e', 't', 'u', 'p', '-', 'a', 'p', '-', 'v', '1', 0, 0, 0,
 };
-static const uint8_t CODE_DOMAIN[DOMAIN_BYTES] = {
-    'm', 'a', 'c', 'r', 'o', '-', 's', 'e', 't', 'u',
-    'p', '-', 'c', 'o', 'd', 'e', '-', 'v', '1', 0,
-};
 static const char HEX[] = "0123456789ABCDEF";
 
 static bool operations_valid(const provisioning_bootstrap_ops_t *operations) {
@@ -79,9 +75,6 @@ provisioning_bootstrap_derive_with_ops(const provisioning_bootstrap_ops_t *opera
                SSID_SUFFIX_BYTES);
         out_bootstrap->ap_ssid[SSID_PREFIX_BYTES + SSID_SUFFIX_BYTES] = '\0';
         result = derive_secret(operations, AP_DOMAIN, device_id, out_bootstrap->ap_passphrase);
-    }
-    if (result == APP_ERROR_NONE) {
-        result = derive_secret(operations, CODE_DOMAIN, device_id, out_bootstrap->setup_code);
     }
     operations->secure_zero(operations->context, device_id, sizeof(device_id));
     if (result != APP_ERROR_NONE) {

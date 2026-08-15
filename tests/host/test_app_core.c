@@ -18,6 +18,7 @@ typedef enum {
     FAIL_SETTINGS_READ,
     FAIL_BOOTSTRAP,
     FAIL_SETUP_CODE,
+    FAIL_SETUP_CODE_DISPLAY,
     FAIL_STORAGE_MOUNT,
     FAIL_AUTH_INIT,
     FAIL_USB_INIT,
@@ -40,7 +41,8 @@ typedef struct {
     bool storage_owned;
     bool fail_wifi_stop;
     size_t cleanup_failure_logs;
-    size_t setup_code_logs;
+    size_t setup_code_displays;
+    char displayed_setup_code[APP_V2_SETUP_CODE_BUFFER_BYTES];
     web_server_config_t observed_web;
     bool observed_station_configured;
     char observed_ap_ssid[APP_V2_WIFI_SSID_MAX_BYTES + 1U];
@@ -140,6 +142,21 @@ static app_error_code_t fake_setup_code(void *context,
     const app_error_code_t result = stage_result(fixture, FAIL_SETUP_CODE);
     if (result == APP_ERROR_NONE) {
         memcpy(out_code, fixture->setup_code, sizeof(fixture->setup_code));
+    }
+    return result;
+}
+
+static app_error_code_t fake_show_setup_code(void *context, const char *setup_code) {
+    fixture_t *fixture = context;
+    record(fixture, "show_setup_code");
+    if (setup_code == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    const app_error_code_t result = stage_result(fixture, FAIL_SETUP_CODE_DISPLAY);
+    if (result == APP_ERROR_NONE) {
+        ++fixture->setup_code_displays;
+        TEST_CHECK(snprintf(fixture->displayed_setup_code,
+                            sizeof(fixture->displayed_setup_code), "%s", setup_code) >= 0);
     }
     return result;
 }
@@ -273,12 +290,6 @@ static void fake_log(void *context, const app_core_log_event_t *event) {
     TEST_CHECK(event != NULL);
     if (event->type == APP_CORE_LOG_CLEANUP_FAILED) {
         ++fixture->cleanup_failure_logs;
-    } else if (event->type == APP_CORE_LOG_SETUP_CODE) {
-        ++fixture->setup_code_logs;
-        /* H9: startup may emit a generic setup-readiness event, but the
-         * manufacturing-label setup secret must never be carried into the
-         * logging boundary. */
-        TEST_CHECK(event->setup_code == NULL);
     }
 }
 
@@ -290,6 +301,7 @@ static app_core_ops_t operations(fixture_t *fixture) {
         .settings_read = fake_settings_read,
         .bootstrap_derive = fake_bootstrap,
         .setup_code_generate = fake_setup_code,
+        .show_setup_code = fake_show_setup_code,
         .storage_mount = fake_storage_mount,
         .auth_init = fake_auth_init,
         .usb_init = fake_usb_init,
@@ -355,7 +367,8 @@ static void test_setup_start_uses_bootstrap_ap_and_random_code(void) {
     TEST_CHECK_EQ_U64(0U, count_call(&fixture, "controls_init"));
     TEST_CHECK_EQ_U64(1U, count_call(&fixture, "bootstrap"));
     TEST_CHECK_EQ_U64(1U, count_call(&fixture, "setup_code"));
-    TEST_CHECK_EQ_U64(1U, fixture.setup_code_logs);
+    TEST_CHECK_EQ_U64(1U, fixture.setup_code_displays);
+    TEST_CHECK_EQ_STRING("12345678", fixture.displayed_setup_code);
     TEST_CHECK_EQ_INT(WEB_SERVER_MODE_SETUP, fixture.observed_web.mode);
     TEST_CHECK(!fixture.observed_web.login_enabled);
     TEST_CHECK_EQ_STRING("ESP32 Macro Keyboard", fixture.observed_web.setup_device_name);
@@ -388,6 +401,7 @@ static void test_startup_failure_matrix(void) {
     expect_stage_failure(true, FAIL_READY_INDICATOR);
     expect_stage_failure(false, FAIL_BOOTSTRAP);
     expect_stage_failure(false, FAIL_SETUP_CODE);
+    expect_stage_failure(false, FAIL_SETUP_CODE_DISPLAY);
     expect_stage_failure(false, FAIL_AUTH_INIT);
     expect_stage_failure(false, FAIL_WIFI_START);
     expect_stage_failure(false, FAIL_HTTP_START);

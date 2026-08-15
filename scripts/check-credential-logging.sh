@@ -48,6 +48,8 @@ COMMENT_OR_LITERAL = re.compile(
     re.DOTALL,
 )
 SOURCE_SUFFIXES = {".c", ".h", ".cc", ".cpp", ".hpp"}
+TRUSTED_SETUP_CONSOLE_SUFFIX = "components/serial_console/serial_console.c"
+TRUSTED_SETUP_CONSOLE_CALL = 'printf("setup code: %s\\n", setup_code);'
 
 
 def fail(message: str) -> None:
@@ -117,6 +119,14 @@ def tainted_aliases(scope_prefix: str) -> set[str]:
     return tainted
 
 
+def trusted_setup_console_output(path: Path, call: str) -> bool:
+    """Allow only the exact SPEC_V2 per-boot setup-code UART disclosure."""
+    return (
+        path.as_posix().endswith(TRUSTED_SETUP_CONSOLE_SUFFIX)
+        and call.strip() == TRUSTED_SETUP_CONSOLE_CALL
+    )
+
+
 def validate(root: Path) -> None:
     if not root.is_dir():
         fail(f"source root not found: {root}")
@@ -134,11 +144,12 @@ def validate(root: Path) -> None:
             scope_start = enclosing_scope_start(text, match.start())
             aliases = tainted_aliases(text[scope_start : match.start()])
             call_identifiers = set(IDENTIFIER.findall(call_without_literals))
-            if (
+            sensitive = (
                 SENSITIVE_IDENTIFIER.search(call_without_literals)
                 or call_identifiers & aliases
                 or (FORMAT_VALUE.search(message) and SENSITIVE_WORD.search(message))
-            ):
+            )
+            if sensitive and not trusted_setup_console_output(path, call):
                 fail(f"{path}: credential-bearing output is forbidden")
 
 

@@ -67,11 +67,7 @@ def main():
         results.append(check(f"{method} {path}", status == 404, f"HTTP {status}"))
 
     print("\nmutations require the session cookie:")
-    invalid_settings = {
-        "expectedRevision": 0,
-        "requirePhysicalConfirmation": False,
-        "alwaysSelectPackage": True,
-    }
+    invalid_settings = {"requireSerialConfirmation": "not-a-boolean"}
     status, _ = raw_request(
         ip,
         "PUT",

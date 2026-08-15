@@ -3,14 +3,17 @@
 
 #include "app_error.h"
 
-/* Starts an interactive command console over the USB-Serial-JTAG debug
- * port - the same port used for flashing and `idf.py monitor`. This is a
- * debug/development feature added at the repository owner's explicit
- * request: it is deliberately outside SPEC.md's reviewed production
- * security model. Unlike the HTTP API, commands issued here require no
- * session or physical confirmation - physical/USB access to
- * this port is implicitly trusted. Registers every serial-console command
- * and starts the REPL task; returns once the REPL task is running. */
+/* The v2 setup code is an ephemeral, per-unprovisioned-boot secret. This is
+ * the only production plaintext disclosure boundary: trusted UART0 console
+ * output required by SPEC_V2. It validates the 8-digit wire format and fails
+ * if the console stream cannot be flushed. */
+app_error_code_t serial_console_show_setup_code(const char *setup_code);
+
+/* Starts the interactive command console on UART0, exposed by the devkit
+ * USB-to-UART bridge. Physical access to this console is the trusted boundary
+ * for setup-code disclosure plus confirmation/cancellation commands. Registers
+ * every serial-console command and starts the REPL task; returns once the REPL
+ * task is running. */
 app_error_code_t serial_console_start(void);
 
 #endif
