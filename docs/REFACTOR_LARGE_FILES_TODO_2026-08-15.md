@@ -451,19 +451,27 @@ Structure: fixture 1–188, tests 189–1157 (59 tests: 5 `get`, 39 `put`, 15
 | 15 `test_change_*` (≈865–1157) | `web_settings_change_password_tests.inc` | 293 |
 | includes, `#include` lines, `main` | `test_web_settings.c` | 120 |
 
-- [ ] **T7-001** Extract the fixture fragment.
-- [ ] **T7-002** Extract the `get` fragment.
-- [ ] **T7-003** Split the 39 `put` tests into two fragments **at a topical
-      boundary**, not at test 20. Determine the boundary from the section
-      comments (185/187/261/263/863/865) when starting the task; if no topical
-      boundary exists, one 600-line `put` fragment is an acceptable outcome —
-      record that decision rather than cutting arbitrarily.
-- [ ] **T7-004** Extract the `change_password` fragment.
-- [ ] **T7-005** Confirm the `main` runner still registers all 59 tests and the
-      CTest suite count is unchanged.
+- [x] **T7-001** Extract the fixture fragment. — 170 lines.
+- [x] **T7-002** Extract the `get` fragment. — 75 lines.
+- [x] **T7-003** Split the 39 `put` tests into two fragments **at a topical
+      boundary**, not at test 20. — **Kept as one fragment (601 lines).** There
+      is no topical boundary inside the PUT section: the only section comments
+      in the file are the three GET / PUT / change-password headers. 601 is
+      already under the 800 target, so an arbitrary cut would buy nothing. This
+      task explicitly allowed the outcome.
+- [x] **T7-004** Extract the `change_password` fragment. — 294 lines.
+- [x] **T7-005** Confirm the `main` runner still registers all 59 tests and the
+      CTest suite count is unchanged. — `main()` byte-identical, 59 tests
+      registered, web suite 31/31.
 
 **Verify:** `./scripts/run-tests.sh web`, then `./scripts/check-format.sh` (now
 covering `.inc` thanks to T0), then `./scripts/check-all.sh`.
+
+**Evidence:** commit `373b0e8`. 1220 → 85 + 601 + 294 + 170 + 75.
+`./scripts/check-all.sh` → `EXIT=0`, 66/66 host tests.
+**T0 paid off immediately:** `check-format.sh` rejected all four new fragments
+for trailing blank lines. Before T0 it would not have looked at them, and the
+drift would have entered the tree exactly as it had for the two auth fragments.
 
 ---
 
@@ -483,12 +491,26 @@ Structure: fixture 1–492, tests 493–1188 (29 tests), `main` 1189–1229.
 | 4 `factory`, 2 `reset` | `admin_route_reset_tests.inc` | 150 |
 | includes, `#include` lines, `main` | `test_web_server_administration_route.c` | 90 |
 
-- [ ] **T8-001** Extract the fixture fragment (the single biggest win here).
-- [ ] **T8-002** Extract the four topic fragments above.
-- [ ] **T8-003** Confirm `main` registers all 29 tests, CTest count unchanged.
+- [x] **T8-001** Extract the fixture fragment (the single biggest win here). —
+      388 lines.
+- [x] **T8-002** Extract the four topic fragments above. — settings 239,
+      reset 176, diagnostics 173, session 108. **Grouping changed from the
+      table:** suites are grouped by *contiguous* source range —
+      session+restart, settings+change-password,
+      reset-settings+factory-reset+setup, diagnostics — so each fragment stays a
+      pure move. The table put `setup` with `session`, but `setup`'s tests sit
+      at 979–1014, between factory-reset and diagnostics; honouring the table
+      would have made that fragment a non-contiguous gather for no benefit.
+- [x] **T8-003** Confirm `main` registers all 29 tests, CTest count unchanged. —
+      `main()` byte-identical, 29 registered, web suite 31/31.
 
 **Verify:** `./scripts/run-tests.sh web`, then `./scripts/check-format.sh`, then
 `./scripts/check-all.sh`.
+
+**Evidence:** commit `6f6f52d`. 1229 → 149 + 388 + 239 + 176 + 173 + 108.
+`./scripts/check-all.sh` → `EXIT=0`, 66/66 host tests. The `.c` lands at 149
+rather than the estimated ~90 because it keeps a 65-line file doc comment and
+33 includes.
 
 ---
 
