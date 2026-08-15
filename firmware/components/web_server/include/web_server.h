@@ -17,6 +17,8 @@ typedef struct {
     bool require_physical_confirmation;
     char setup_device_name[APP_V2_DEVICE_NAME_MAX_BYTES + 1U];
     char setup_code[APP_V2_SETUP_CODE_BUFFER_BYTES];
+    void *setup_code_clear_context;
+    void (*setup_code_clear)(void *context);
 } web_server_config_t;
 
 app_error_code_t web_server_start(const web_server_config_t *configuration);

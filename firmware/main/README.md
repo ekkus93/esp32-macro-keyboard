@@ -1,7 +1,10 @@
 # Firmware Main Component
 
-`app_main.c` is the production ESP-IDF entry point. It calls `app_core_start()` and
-logs the stable application error when startup fails.
+`app_main.c` is the production ESP-IDF entry point. It starts the trusted physical
+UART console first and fails closed if that prerequisite is unavailable; only then
+does it call `app_core_start()`. If application startup fails, the already-running
+console remains available for local diagnostics while the stable application error
+is logged.
 
 Subsystem initialization, rollback, and runtime ownership do not belong in this
 directory. They are implemented in the first-party components under

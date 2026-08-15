@@ -44,13 +44,18 @@ write_fixtures() {
     }
 }
 JSON
+	mkdir -p -- "${build_dir}/bootloader"
+	printf 'fixture bootloader\n' >"${build_dir}/bootloader/bootloader.bin"
 	: >"${build_dir}/partition_table/partition-table.bin"
+	printf 'fixture ota data\n' >"${build_dir}/ota_data_initial.bin"
 	printf 'fixture application image\n' >"${build_dir}/esp32_macro_keyboard.bin"
 	if [ "${production}" = "production" ]; then
 		printf '# CONFIG_APP_DEVELOPMENT_PROVISIONING_LOG is not set\n' >"${sdkconfig}"
 		printf '# CONFIG_APP_MANUFACTURING_PROVISIONING_LOG is not set\n' >>"${sdkconfig}"
+		printf 'CONFIG_APP_RETRIEVE_LEN_ELF_SHA=39\n' >>"${sdkconfig}"
 	else
 		printf 'CONFIG_APP_MANUFACTURING_PROVISIONING_LOG=y\n' >"${sdkconfig}"
+		printf 'CONFIG_APP_RETRIEVE_LEN_ELF_SHA=39\n' >>"${sdkconfig}"
 	fi
 	printf 'fixture component lock\n' >"${component_lock}"
 	printf 'fixture frontend lock\n' >"${frontend_lock}"
@@ -131,6 +136,14 @@ expect_pass 'happy path, no webfs image'
 	printf 'FAIL: webfs.bin listed without a webfs image present\n' >&2
 	exit 1
 }
+[ "$(python3 -c "import json; print(len(json.load(open('${output_file}'))['flashFileSha256']))")" = "4" ] || {
+	printf 'FAIL: expected SHA-256 entries for all four flash files\n' >&2
+	exit 1
+}
+[ "$(python3 -c "import json; print(json.load(open('${output_file}'))['flashFileSha256']['0x20000'])")" = "$(field appImageSha256)" ] || {
+	printf 'FAIL: application flash hash did not match appImageSha256\n' >&2
+	exit 1
+}
 
 # A manufacturing-provisioning-log build must be recorded as "development",
 # not silently reported as production.
@@ -148,6 +161,10 @@ write_fixtures production
 FAKE_WEBFS_OFFSET=0x520000 expect_pass 'webfs image present'
 [ "$(python3 -c "import json; print(json.load(open('${output_file}'))['flashFiles'].get('0x520000'))")" = "webfs.bin" ] || {
 	printf 'FAIL: webfs.bin not recorded at the resolved offset\n' >&2
+	exit 1
+}
+[ "$(python3 -c "import json; print(json.load(open('${output_file}'))['flashFileSha256'].get('0x520000'))")" = "$(sha256sum "${build_dir}/webfs.bin" | awk '{print $1}')" ] || {
+	printf 'FAIL: webfs.bin hash not recorded at the resolved offset\n' >&2
 	exit 1
 }
 
@@ -173,8 +190,16 @@ FAKE_ELF_SHA256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 }
 
 write_fixtures production
+sed -i 's/CONFIG_APP_RETRIEVE_LEN_ELF_SHA=39/CONFIG_APP_RETRIEVE_LEN_ELF_SHA=9/' "${sdkconfig}"
+expect_fail 'short resolved diagnostics build ID' 'CONFIG_APP_RETRIEVE_LEN_ELF_SHA=39'
+
+write_fixtures production
 rm -f -- "${build_dir}/esp32_macro_keyboard.bin"
 expect_fail 'missing application image' 'application image not found'
+
+write_fixtures production
+rm -f -- "${build_dir}/bootloader/bootloader.bin"
+expect_fail 'missing flash file' 'flash file not found'
 
 write_fixtures production
 FAKE_ELF_SHA256=not-a-sha expect_fail 'invalid ELF SHA' 'did not report a full ELF file SHA256'

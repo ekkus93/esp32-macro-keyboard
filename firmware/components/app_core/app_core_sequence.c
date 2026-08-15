@@ -17,18 +17,18 @@ static bool operations_valid(const app_core_ops_t *operations) {
     return operations != NULL && operations->nvs_init != NULL &&
            operations->settings_init != NULL && operations->settings_read != NULL &&
            operations->bootstrap_derive != NULL && operations->setup_code_generate != NULL &&
-           operations->show_setup_code != NULL && operations->storage_mount != NULL &&
-           operations->auth_init != NULL && operations->usb_init != NULL &&
-           operations->executor_init != NULL && operations->controls_init != NULL &&
-           operations->wifi_start != NULL && operations->http_start != NULL &&
-           operations->http_stop != NULL && operations->wifi_stop != NULL &&
-           operations->storage_unmount != NULL && operations->auth_deinit != NULL &&
-           operations->usb_deinit != NULL && operations->executor_deinit != NULL &&
-           operations->controls_deinit != NULL && operations->settings_deinit != NULL &&
-           operations->nvs_deinit != NULL && operations->http_owns_resources != NULL &&
-           operations->wifi_owns_resources != NULL && operations->storage_owns_mount != NULL &&
-           operations->set_indicator != NULL && operations->secure_zero != NULL &&
-           operations->log_event != NULL;
+           operations->setup_code_publish != NULL && operations->setup_code_clear != NULL &&
+           operations->storage_mount != NULL && operations->auth_init != NULL &&
+           operations->usb_init != NULL && operations->executor_init != NULL &&
+           operations->controls_init != NULL && operations->wifi_start != NULL &&
+           operations->http_start != NULL && operations->http_stop != NULL &&
+           operations->wifi_stop != NULL && operations->storage_unmount != NULL &&
+           operations->auth_deinit != NULL && operations->usb_deinit != NULL &&
+           operations->executor_deinit != NULL && operations->controls_deinit != NULL &&
+           operations->settings_deinit != NULL && operations->nvs_deinit != NULL &&
+           operations->http_owns_resources != NULL && operations->wifi_owns_resources != NULL &&
+           operations->storage_owns_mount != NULL && operations->set_indicator != NULL &&
+           operations->secure_zero != NULL && operations->log_event != NULL;
 }
 
 static void log_stage(const app_core_ops_t *operations, const char *stage,
@@ -40,6 +40,7 @@ static void log_stage(const app_core_ops_t *operations, const char *stage,
         .cleanup_error = APP_ERROR_NONE,
         .cleanup_incomplete = false,
         .operation_id = 0U,
+        .setup_code = NULL,
     };
     operations->log_event(operations->context, &event);
 }
@@ -54,6 +55,21 @@ static void log_simple(const app_core_ops_t *operations, app_core_log_type_t typ
         .cleanup_error = cleanup,
         .cleanup_incomplete = cleanup_incomplete,
         .operation_id = 0U,
+        .setup_code = NULL,
+    };
+    operations->log_event(operations->context, &event);
+}
+
+static void log_setup_code(const app_core_ops_t *operations, const char *setup_code) {
+    (void)setup_code;
+    const app_core_log_event_t event = {
+        .type = APP_CORE_LOG_SETUP_CODE,
+        .stage = NULL,
+        .primary_error = APP_ERROR_NONE,
+        .cleanup_error = APP_ERROR_NONE,
+        .cleanup_incomplete = false,
+        .operation_id = 0U,
+        .setup_code = NULL,
     };
     operations->log_event(operations->context, &event);
 }
@@ -81,6 +97,7 @@ typedef struct {
     bool controls_initialized;
     bool wifi_started;
     bool http_started;
+    bool setup_code_published;
 } app_core_owned_t;
 
 typedef struct {
@@ -108,6 +125,11 @@ static app_operation_result_t cleanup_after_failure(const app_core_ops_t *operat
                                                     app_error_code_t primary_error) {
     app_operation_result_t result = app_operation_success();
     app_operation_record_primary(&result, primary_error);
+
+    if (owned->setup_code_published) {
+        operations->setup_code_clear(operations->context);
+        owned->setup_code_published = false;
+    }
 
     teardown_stage(operations, &result,
                    owned->http_started || operations->http_owns_resources(operations->context),
@@ -159,11 +181,14 @@ static app_error_code_t fail_with_secrets(const app_core_ops_t *operations, app_
     return finish_failure(operations, owned, primary_error);
 }
 
-static void configure_setup_server(const app_v2_device_settings_t *settings, const char *setup_code,
+static void configure_setup_server(const app_core_ops_t *operations,
+                                   const app_v2_device_settings_t *settings, const char *setup_code,
                                    web_server_config_t *configuration) {
     *configuration = (web_server_config_t){
         .mode = WEB_SERVER_MODE_SETUP,
         .login_enabled = false,
+        .setup_code_clear_context = operations->context,
+        .setup_code_clear = operations->setup_code_clear,
     };
     memcpy(configuration->setup_device_name, settings->device_name,
            sizeof(configuration->setup_device_name));
@@ -266,19 +291,21 @@ static app_error_code_t start_setup_mode(const app_core_ops_t *operations, app_c
     if (result != APP_ERROR_NONE) {
         return result;
     }
-    result = operations->show_setup_code(operations->context, secrets->setup_code);
-    log_stage(operations, "setup_code_display", result);
+    result = operations->setup_code_publish(operations->context, secrets->setup_code);
+    log_stage(operations, "setup_code_console", result);
     if (result != APP_ERROR_NONE) {
         return result;
     }
+    owned->setup_code_published = true;
+    log_setup_code(operations, secrets->setup_code);
 
-    configure_setup_server(&secrets->settings, secrets->setup_code, &secrets->web);
+    configure_setup_server(operations, &secrets->settings, secrets->setup_code, &secrets->web);
     const app_core_wifi_configuration_t wifi = {
         .ap_ssid = secrets->bootstrap.ap_ssid,
         .ap_passphrase = secrets->bootstrap.ap_passphrase,
-        .station_configured = false,
-        .station_ssid = NULL,
-        .station_passphrase = NULL,
+        .station_configured = secrets->settings.station_configured,
+        .station_ssid = secrets->settings.station_ssid,
+        .station_passphrase = secrets->settings.station_passphrase,
     };
     return start_network(operations, owned, &wifi, &secrets->web);
 }

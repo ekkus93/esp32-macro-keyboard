@@ -208,7 +208,7 @@ bool wifi_ap_owns_resources(void) {
     return engine_initialized && wifi_ap_engine_owns_resources(&engine);
 }
 
-/* --- Station mode (debug console feature; see wifi_ap.h) --- */
+/* --- Station mode (trusted physical-console workflow; see wifi_ap.h) --- */
 
 static esp_netif_t *sta_netif;
 static bool sta_netif_created;

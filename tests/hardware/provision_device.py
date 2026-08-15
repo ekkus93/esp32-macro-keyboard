@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
-"""Provision an unprovisioned device through the current v2 one-shot setup API.
+"""Take a current-v2 unprovisioned device through first-run setup.
 
-The stable bootstrap SoftAP credential comes from the manufacturing label. The
-one-time setup code does not: SPEC_V2 requires a fresh eight-digit decimal code
-on every unprovisioned boot, disclosed only on the trusted UART0 console.
+The helper obtains the fresh eight-digit one-time code only by explicitly
+running ``setup-code`` on the physical UART console. It never prints or persists
+that code. Disposable AP/admin credentials are stored outside the repository by
+``hil_state`` so a successful setup cannot strand the bench without its new
+administrator password.
 
-This helper captures that code in memory, joins the bench station network over
-UART, submits exactly one ``POST /api/v1/setup``, and verifies the restarted
-normal service with the newly generated administrator password. The setup code
-is never written to disk or printed.
+Usage:
+    python3 tests/hardware/provision_device.py [--ip ADDRESS] [--console PORT]
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import secrets
 import string
@@ -24,20 +25,21 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+import hil_state
 
-import hil_state  # noqa: E402
-from device_client import Device  # noqa: E402
-
-CONSOLE = hil_state.DEFAULT_CONSOLE
-BOOT_CAPTURE_TIMEOUT_S = 30
-RESTART_TIMEOUT_S = 90
+RESTART_TIMEOUT_S = 75
+SERIAL_TIMEOUT_S = 6
 ALPHABET = string.ascii_letters + string.digits
-SETUP_CODE_PATTERN = re.compile(rb"setup code:\s*([0-9]{8})")
+SETUP_CODE_RE = re.compile(rb"setup code:\s*([0-9]{8})(?:\r?\n|$)")
 
 
 def generated_secret(length: int = 24) -> str:
     return "".join(secrets.choice(ALPHABET) for _ in range(length))
+
+
+def generated_ap_ssid() -> str:
+    suffix = "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+    return f"Macro-HIL-{suffix}"
 
 
 def store(name: str, value: str) -> None:
@@ -46,174 +48,183 @@ def store(name: str, value: str) -> None:
     path.chmod(0o600)
 
 
-def capture_setup_code(console: str) -> str:
-    """Reset an unprovisioned board and capture its current UART-only code."""
-    import serial  # noqa: PLC0415
-
-    port = serial.Serial(console, 115200, timeout=1)
-    try:
-        while port.in_waiting:
-            port.read(port.in_waiting)
-        # EN/reset through the devkit UART bridge. Keep DTR deasserted so the
-        # boot mode strap is not intentionally driven into the ROM downloader.
-        port.setDTR(False)
-        port.setRTS(True)
-        time.sleep(0.2)
-        port.setRTS(False)
-
-        deadline = time.time() + BOOT_CAPTURE_TIMEOUT_S
-        buffer = b""
-        while time.time() < deadline:
-            chunk = port.read(4096)
-            if chunk:
-                buffer += chunk
-                match = SETUP_CODE_PATTERN.search(buffer)
-                if match is not None:
-                    return match.group(1).decode("ascii")
-    finally:
-        port.close()
-
-    raise SystemExit(
-        "error: current eight-digit setup code was not observed on the UART console; "
-        "confirm the device is unprovisioned and the production firmware is flashed"
-    )
-
-
 def request_json(
-    ip: str,
-    method: str,
-    path: str,
-    body: dict | None = None,
-    timeout: int = 30,
-) -> tuple[int, dict | str]:
+    ip: str, method: str, path: str, body: dict | None = None, timeout: int = 30
+) -> tuple[int, object]:
     data = None if body is None else json.dumps(body, separators=(",", ":")).encode()
     headers = {} if data is None else {"Content-Type": "application/json"}
-    request = urllib.request.Request(
+    call = urllib.request.Request(
         f"http://{ip}{path}", data=data, headers=headers, method=method
     )
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
-            raw = response.read().decode()
+        with urllib.request.urlopen(call, timeout=timeout) as response:  # noqa: S310
+            raw = response.read()
             status = response.status
     except urllib.error.HTTPError as error:
+        raw = error.read()
         status = error.code
-        raw = error.read().decode()
     try:
-        return status, json.loads(raw)
-    except json.JSONDecodeError:
-        return status, raw
+        return status, json.loads(raw.decode())
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return status, raw.decode("utf-8", "replace")
 
 
-def wait_for_normal_service(console: str, timeout_s: int = RESTART_TIMEOUT_S) -> str:
-    deadline = time.time() + timeout_s
-    last_error: BaseException | None = None
-    while time.time() < deadline:
-        time.sleep(3)
+def console_command(command: str, console: str, seconds: int = SERIAL_TIMEOUT_S) -> bytes:
+    import serial  # noqa: PLC0415 - optional hardware dependency
+
+    with serial.Serial(console, 115200, timeout=0.25) as port:
+        time.sleep(0.25)
+        while port.in_waiting:
+            port.read(port.in_waiting)
+        port.write((command + "\n").encode())
+        port.flush()
+        deadline = time.monotonic() + seconds
+        data = bytearray()
+        while time.monotonic() < deadline:
+            chunk = port.read(4096)
+            if chunk:
+                data.extend(chunk)
+                if b"keyboard>" in data[-64:]:
+                    break
+    return bytes(data)
+
+
+def read_setup_code(console: str) -> str:
+    output = console_command("setup-code", console)
+    match = SETUP_CODE_RE.search(output)
+    if match is None:
+        raise SystemExit(
+            "error: physical UART did not return a current eight-digit setup code; "
+            "confirm the device is unprovisioned and the production image is running"
+        )
+    return match.group(1).decode("ascii")
+
+
+def require_setup_code_unavailable(console: str) -> None:
+    output = console_command("setup-code", console)
+    if SETUP_CODE_RE.search(output) is not None:
+        raise SystemExit("error: setup-code remained available after provisioning")
+    if b"setup code unavailable" not in output:
+        raise SystemExit(
+            "error: could not prove setup-code retirement after provisioning"
+        )
+
+
+def setup_state(ip: str) -> tuple[int, object]:
+    return request_json(ip, "GET", "/api/v1/setup", timeout=8)
+
+
+def resolve_unprovisioned_address(requested_ip: str | None, console: str) -> str:
+    candidates: list[str] = []
+    if requested_ip:
+        candidates.append(requested_ip)
+    else:
         try:
-            address = hil_state.connect_wifi(console)
-            device = Device(address)
-            device.login()
-            status, payload = device.get("/api/v1/status")
-            device.logout()
-            if status == 200 and isinstance(payload, dict) and payload.get("provisioned") is True:
-                return address
-        except (SystemExit, urllib.error.URLError, TimeoutError, OSError) as error:
-            last_error = error
-    raise SystemExit(
-        f"error: normal authenticated service did not return within {timeout_s}s"
-        + (f" ({last_error})" if last_error is not None else "")
-    )
+            candidates.append(hil_state.device_ip())
+        except SystemExit:
+            pass
+
+    for candidate in candidates:
+        try:
+            status, _ = setup_state(candidate)
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError):
+            continue
+        if status in (200, 404):
+            return candidate
+
+    return hil_state.connect_wifi(console)
 
 
-def provision(
-    *,
-    console: str = CONSOLE,
-    device_name: str = "ESP32 Macro Keyboard",
-    ap_ssid: str = "ESP32 Macro Keyboard",
-    require_serial_confirmation: bool = False,
-) -> str:
-    """Provision the currently unprovisioned board and return its normal-mode IP."""
-    setup_code = capture_setup_code(console)
-    address = hil_state.connect_wifi(console)
+def wait_for_provisioned(ip: str, console: str) -> str:
+    deadline = time.monotonic() + RESTART_TIMEOUT_S
+    while time.monotonic() < deadline:
+        time.sleep(2)
+        try:
+            status, _ = setup_state(ip)
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError):
+            continue
+        if status == 404:
+            return ip
 
-    status, state = request_json(address, "GET", "/api/v1/setup")
-    if status != 200 or not isinstance(state, dict):
-        raise SystemExit(f"error: GET /api/v1/setup -> HTTP {status} {state}")
-    if state.get("provisioned") is not False or not isinstance(state.get("deviceName"), str):
-        raise SystemExit(f"error: invalid unprovisioned setup state: {state}")
+    # DHCP may have changed after restart. A trusted UART reconnect is safe and
+    # proves the current v2 settings store still accepts and durably persists
+    # station credentials after setup.
+    refreshed = hil_state.connect_wifi(console)
+    status, payload = setup_state(refreshed)
+    if status != 404:
+        raise SystemExit(
+            "error: device did not return in provisioned mode after setup "
+            f"(HTTP {status}: {payload})"
+        )
+    return refreshed
 
+
+def provision(ip: str | None = None, console: str | None = None) -> str:
+    console = console or os.environ.get("HIL_CONSOLE", hil_state.DEFAULT_CONSOLE)
+    address = resolve_unprovisioned_address(ip, console)
+    status, state = setup_state(address)
+    if status == 404:
+        print(f"device at {address} is already provisioned; nothing to do")
+        return address
+    if status != 200 or not isinstance(state, dict) or state.get("provisioned") is not False:
+        raise SystemExit(f"error: unexpected GET /api/v1/setup response: HTTP {status} {state}")
+    device_name = state.get("deviceName")
+    if not isinstance(device_name, str) or not device_name:
+        raise SystemExit("error: setup state did not contain a non-empty deviceName")
+
+    setup_code = read_setup_code(console)
     ap_passphrase = generated_secret()
     administrator_password = generated_secret()
+    ap_ssid = generated_ap_ssid()
+
+    # Persist the replacement credentials before the transactional submit. If
+    # the HTTP response is lost after durable commit, the operator still owns
+    # the password needed after the automatic restart.
+    store("ap_ssid.txt", ap_ssid)
+    store("ap_passphrase.txt", ap_passphrase)
+    store("admin_password.txt", administrator_password)
+
     submission = {
         "setupCode": setup_code,
         "deviceName": device_name,
         "apSsid": ap_ssid,
         "apPassphrase": ap_passphrase,
         "adminPassword": administrator_password,
-        "requireSerialConfirmation": require_serial_confirmation,
+        "requireSerialConfirmation": False,
     }
-
-    # Persist only credentials needed after reboot, outside the repository. The
-    # ephemeral setup code intentionally remains memory-only.
-    store("ap_passphrase.txt", ap_passphrase)
-    store("admin_password.txt", administrator_password)
-    store("ap_ssid.txt", ap_ssid)
-
-    accepted = False
     try:
-        status, result = request_json(address, "POST", "/api/v1/setup", submission, timeout=35)
-        if status == 202 and isinstance(result, dict) and result.get("accepted") is True:
-            accepted = True
-        elif status not in (200, 202):
-            raise SystemExit(f"error: POST /api/v1/setup -> HTTP {status} {result}")
-    except (urllib.error.URLError, TimeoutError, ConnectionError, OSError):
-        # The accepted contract says connectionWillClose=true. Do not call this
-        # success yet; the authenticated post-restart verification below is the
-        # fail-closed authority.
-        pass
-
-    address = wait_for_normal_service(console)
-    setup_status, _ = request_json(address, "GET", "/api/v1/setup")
-    if setup_status != 404:
-        raise SystemExit(
-            f"error: setup route remained available after provisioning (HTTP {setup_status})"
+        status, result = request_json(
+            address, "POST", "/api/v1/setup", submission, timeout=35
         )
+    finally:
+        # Do not retain another Python reference after the request is serialized.
+        submission["setupCode"] = ""
+        setup_code = ""
 
-    print("v2 setup verified after restart")
-    print(f"device_ip={address}")
-    if accepted:
-        print("setup response was received before restart")
-    else:
-        print("setup response connection closed; post-restart verification proved commit")
-    print(f"credentials stored in {hil_state.state_dir()}")
+    if status != 202 or not isinstance(result, dict) or result.get("accepted") is not True:
+        raise SystemExit(f"error: setup rejected: HTTP {status} {result}")
+    if result.get("restartRequired") is not True or result.get("connectionWillClose") is not True:
+        raise SystemExit(f"error: malformed setup acceptance response: {result}")
+
+    print("setup accepted; waiting for automatic restart")
+    address = wait_for_provisioned(address, console)
+    require_setup_code_unavailable(console)
+    print(f"device provisioned and back up at {address}")
+    print("credentials stored in", hil_state.state_dir())
     return address
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--ip", default=None, help="device address (default: stored/UART-discovered)")
     parser.add_argument(
-        "--console", default=CONSOLE, help=f"UART console (default: {CONSOLE})"
-    )
-    parser.add_argument(
-        "--device-name", default="ESP32 Macro Keyboard", help="configured device name"
-    )
-    parser.add_argument(
-        "--ap-ssid", default="ESP32 Macro Keyboard", help="normal-mode access-point SSID"
-    )
-    parser.add_argument(
-        "--require-serial-confirmation",
-        action="store_true",
-        help="require UART confirm for later macro sends",
+        "--console", default=os.environ.get("HIL_CONSOLE", hil_state.DEFAULT_CONSOLE)
     )
     arguments = parser.parse_args()
-    provision(
-        console=arguments.console,
-        device_name=arguments.device_name,
-        ap_ssid=arguments.ap_ssid,
-        require_serial_confirmation=arguments.require_serial_confirmation,
-    )
+    provision(arguments.ip, arguments.console)
     return 0
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
     raise SystemExit(main())

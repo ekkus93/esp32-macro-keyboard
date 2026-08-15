@@ -63,6 +63,8 @@ bash tests/scripts/test-check-release-budgets.sh
 bash tests/scripts/test-native-coverage-policy.sh
 bash tests/scripts/test-build-webfs-image.sh
 bash tests/scripts/test-generate-flash-manifest.sh
+python3 tests/scripts/test-flash-release-manifest.py
+python3 tests/scripts/test-h12-122-hardware.py
 bash tests/scripts/test-check-stack-usage.sh
 python3 tests/scripts/test-check-npm-audit.py
 python3 tests/scripts/test-secret-sentinel.py

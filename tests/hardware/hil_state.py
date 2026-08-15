@@ -66,6 +66,14 @@ def fixture() -> dict:
     return json.loads(_read("fixture.json"))
 
 
+def console_argument(value: str) -> str:
+    """Quote one argument for ESP-IDF esp_console_split_argv()."""
+    if any(character in value for character in ("\x00", "\r", "\n")):
+        raise ValueError("console argument contains a forbidden control character")
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
 def save_fixture(data: dict) -> None:
     (state_dir() / "fixture.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
 
@@ -87,7 +95,8 @@ def connect_wifi(console: str = DEFAULT_CONSOLE) -> str:
         time.sleep(0.3)
         while port.in_waiting:
             port.read(port.in_waiting)
-        port.write(f"wifi-connect {ssid} {password}\n".encode())
+        command = f"wifi-connect {console_argument(ssid)} {console_argument(password)}\n"
+        port.write(command.encode())
         deadline, buffer = time.time() + CONNECT_TIMEOUT_S, b""
         while time.time() < deadline:
             chunk = port.read(4096)
@@ -99,10 +108,18 @@ def connect_wifi(console: str = DEFAULT_CONSOLE) -> str:
         port.close()
 
     match = re.search(rb"IP address:\s*(\d+\.\d+\.\d+\.\d+)", buffer)
-    if match is None:
-        redacted = (buffer.decode("utf-8", errors="replace")
-                    .replace(password, "***").replace(ssid, "***"))
-        raise SystemExit(f"error: device did not report an IP address.\n{redacted[-400:]}")
+    persisted = b"will reconnect at boot" in buffer
+    if match is None or not persisted:
+        redacted = (
+            buffer.decode("utf-8", errors="replace")
+            .replace(password, "***")
+            .replace(ssid, "***")
+        )
+        if match is None:
+            reason = "device did not report an IP address"
+        else:
+            reason = "device joined Wi-Fi but did not confirm durable station persistence"
+        raise SystemExit(f"error: {reason}.\n{redacted[-500:]}")
     address = match.group(1).decode()
     (state_dir() / "device_ip.txt").write_text(address, encoding="utf-8")
     return address

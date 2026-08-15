@@ -182,6 +182,18 @@ static bool credential_bytes_absent(const app_v2_device_settings_t *settings) {
            bytes_are_zero(settings->password_verifier, APP_V2_PASSWORD_VERIFIER_BYTES);
 }
 
+static bool station_fields_valid(const app_v2_device_settings_t *settings) {
+    if (settings->station_configured) {
+        return valid_text(settings->station_ssid, sizeof(settings->station_ssid), 1U,
+                          APP_V2_WIFI_SSID_MAX_BYTES) &&
+               valid_text(settings->station_passphrase, sizeof(settings->station_passphrase),
+                          APP_V2_WIFI_PASSPHRASE_MIN_BYTES,
+                          APP_V2_WIFI_PASSPHRASE_MAX_BYTES);
+    }
+    return valid_text(settings->station_ssid, sizeof(settings->station_ssid), 0U, 0U) &&
+           valid_text(settings->station_passphrase, sizeof(settings->station_passphrase), 0U, 0U);
+}
+
 static bool copy_record_text(const uint8_t *source, size_t source_length, char *destination,
                              size_t destination_length) {
     size_t terminator = source_length;
@@ -235,12 +247,10 @@ app_v2_settings_result_t app_v2_device_settings_validate(const app_v2_device_set
     }
 
     if (!settings->provisioned) {
-        if (!credential_bytes_absent(settings) || settings->station_configured ||
+        if (!credential_bytes_absent(settings) ||
             !valid_text(settings->ap_ssid, sizeof(settings->ap_ssid), 0U, 0U) ||
             !valid_text(settings->ap_passphrase, sizeof(settings->ap_passphrase), 0U, 0U) ||
-            !valid_text(settings->station_ssid, sizeof(settings->station_ssid), 0U, 0U) ||
-            !valid_text(settings->station_passphrase, sizeof(settings->station_passphrase), 0U,
-                        0U)) {
+            !station_fields_valid(settings)) {
             return APP_V2_SETTINGS_CORRUPT;
         }
         return APP_V2_SETTINGS_OK;
@@ -253,16 +263,7 @@ app_v2_settings_result_t app_v2_device_settings_validate(const app_v2_device_set
         return APP_V2_SETTINGS_CORRUPT;
     }
 
-    if (settings->station_configured) {
-        if (!valid_text(settings->station_ssid, sizeof(settings->station_ssid), 1U,
-                        APP_V2_WIFI_SSID_MAX_BYTES) ||
-            !valid_text(settings->station_passphrase, sizeof(settings->station_passphrase),
-                        APP_V2_WIFI_PASSPHRASE_MIN_BYTES, APP_V2_WIFI_PASSPHRASE_MAX_BYTES)) {
-            return APP_V2_SETTINGS_CORRUPT;
-        }
-    } else if (!valid_text(settings->station_ssid, sizeof(settings->station_ssid), 0U, 0U) ||
-               !valid_text(settings->station_passphrase, sizeof(settings->station_passphrase), 0U,
-                           0U)) {
+    if (!station_fields_valid(settings)) {
         return APP_V2_SETTINGS_CORRUPT;
     }
     return APP_V2_SETTINGS_OK;

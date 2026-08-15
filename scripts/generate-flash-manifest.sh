@@ -156,6 +156,10 @@ build_type="production"
 if grep -qE '^CONFIG_APP_(DEVELOPMENT|MANUFACTURING)_PROVISIONING_LOG=y$' "${sdkconfig}"; then
 	build_type="development"
 fi
+if ! grep -qx 'CONFIG_APP_RETRIEVE_LEN_ELF_SHA=39' "${sdkconfig}"; then
+	printf 'error: resolved build must set CONFIG_APP_RETRIEVE_LEN_ELF_SHA=39 for diagnostics provenance\n' >&2
+	exit 2
+fi
 
 build_timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
@@ -179,7 +183,9 @@ python3 - "${output_file}" "${flasher_args}" "${git_commit}" "${git_dirty}" \
 	"${idf_version}" "${component_lock_sha256}" "${frontend_lock_sha256}" \
 	"${build_type}" "${build_timestamp}" "${webfs_relative}" "${webfs_offset}" \
 	"${app_relative}" "${app_image_sha256}" "${app_elf_sha256}" "${diagnostics_build_id}" <<'PY'
+import hashlib
 import json
+import os
 import sys
 
 (output_path, flasher_args_path, git_commit, git_dirty, idf_version,
@@ -193,6 +199,18 @@ with open(flasher_args_path, encoding="utf-8") as handle:
 flash_files = dict(flasher_args["flash_files"])
 if webfs_relative:
     flash_files[webfs_offset] = webfs_relative
+
+build_dir = os.path.dirname(flasher_args_path)
+flash_file_sha256 = {}
+for offset, relative_path in flash_files.items():
+    full_path = os.path.join(build_dir, relative_path)
+    if not os.path.isfile(full_path):
+        raise SystemExit(f"flash file not found: {full_path}")
+    digest = hashlib.sha256()
+    with open(full_path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    flash_file_sha256[offset] = digest.hexdigest()
 
 manifest = {
     "gitCommit": git_commit,
@@ -208,6 +226,9 @@ manifest = {
     "diagnosticsBuildId": diagnostics_build_id,
     "flashSettings": flasher_args["flash_settings"],
     "flashFiles": dict(sorted(flash_files.items(), key=lambda item: int(item[0], 16))),
+    "flashFileSha256": dict(
+        sorted(flash_file_sha256.items(), key=lambda item: int(item[0], 16))
+    ),
 }
 
 with open(output_path, "w", encoding="utf-8") as handle:

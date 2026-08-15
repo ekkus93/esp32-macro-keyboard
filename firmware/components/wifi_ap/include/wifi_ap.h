@@ -61,13 +61,11 @@ typedef struct {
     uint32_t attempt_count;
 } wifi_station_status_t;
 
-/* Connects to an existing Wi-Fi network in station mode - SPEC.md's
- * previously deferred "station mode" feature, implemented at the repository
- * owner's explicit request to support serial-console-driven Wi-Fi
- * debugging (see firmware/components/serial_console). Deliberately not
- * part of the reviewed production security model: this is a debug/dev
- * command surface, not gated by session or physical confirmation the way
- * the HTTP API is.
+/* Connects to an existing Wi-Fi network in station mode for the trusted
+ * physical-UART network-configuration workflow defined by SPEC_V2.md §12.4
+ * (see firmware/components/serial_console). This is a local maintenance
+ * surface, not an unauthenticated network API; third-party distribution must
+ * remove it or replace it with an appropriately authenticated/gated workflow.
  *
  * Runs alongside the existing AP (switches to WIFI_MODE_APSTA), so the
  * device's own SoftAP keeps serving setup clients. Blocks the calling task
