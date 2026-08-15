@@ -159,6 +159,36 @@ bounded run:
 The emitted JSON evidence deliberately excludes passwords, passphrases, setup
 codes, session cookies, Wi-Fi credentials, and macro source text.
 
+## Follow-up fail-closed acceptance audit
+
+A second pre-device audit found several ways the unified runner could still
+overclaim a destructive acceptance result even though the production behavior
+was wrong. Those acceptance-path defects are now closed before a real board run:
+
+- restart acceptance no longer treats simple HTTP reachability as proof that a
+  reboot occurred; diagnostics must report a software reset and an uptime
+  discontinuity large enough to rule out continuous execution;
+- the restart path may not recover a missing station connection by issuing
+  UART `wifi-connect`, because doing so would mask a station-persistence or
+  bounded-reconnect regression;
+- H12 reprovisioning disables the general provisioning helper's post-setup UART
+  Wi-Fi recovery, so the station configuration written before setup must survive
+  setup's mandatory restart;
+- factory-reset acceptance must observe a fresh setup code on the trusted UART
+  before any reprovisioning attempt, and the provisioning helper is told to
+  reject an already-provisioned device instead of returning "nothing to do";
+- after reprovisioning, the administrator password that existed before factory
+  reset must be rejected;
+- the flash/native-USB and UART-console device arguments must be distinct, an
+  existing evidence output file is never overwritten, and the release manifest
+  must remain byte-identical through the flash operation; and
+- the JSON restart step records the pre/post uptime values, elapsed observation
+  time, and reset reason so the reboot proof is independently reviewable without
+  recording any secret.
+
+These are harness/evidence integrity changes only. They do not constitute a
+physical H12-122 pass, and they intentionally keep every H12-122 checkbox open.
+
 ## Permanent regression coverage
 
 The preparation adds or extends permanent coverage for the affected boundaries,
@@ -193,7 +223,7 @@ The following checks passed in the local sandbox after the H12-122 repairs:
 - coverage-instrumented host suite: **66/66 passed, 0 failed**;
 - `test-flash-release-manifest.py`: **14 cases passed**;
 - `test-h12-hardware-harness.py`: published/interim H12 contract guard passed after reconciliation;
-- `test-h12-122-hardware.py`: **16 policy/unit assertions passed**;
+- `test-h12-122-hardware.py`: **33 policy/unit assertions passed**;
 - flash-manifest regression: **15 cases passed**;
 - credential-output regression: **22 cases passed**;
 - firmware-check regression: **9 cases passed**;
