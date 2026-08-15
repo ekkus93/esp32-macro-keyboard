@@ -224,22 +224,38 @@ references and makes the fix harder to review. Phil's call.
 | 172–188, 326–433 | `MacroRowProps`, `MacroRow` | `MacroRow.tsx` (~125) |
 | rest | deps, props, `MacrosPage` | stays (~620) |
 
-- [ ] **T2-001** Extract `macroSendStatus.ts` (types + pure status text helpers).
+- [x] **T2-001** Extract `macroSendStatus.ts` (types + pure status text helpers).
       This is the highest-value piece: it is the send-lifecycle vocabulary and
-      is currently buried in a page component.
-- [ ] **T2-002** Extract `DismissibleBanner.tsx`.
-- [ ] **T2-003** Extract `MacroOverflowMenu.tsx`. Note `MoveAction` (line 189)
-      goes to `macroSendStatus.ts`, **not** here — measured: it is used by
-      `MacroRowProps` (183) and by `MacrosPage` (756), so it is shared, not
-      menu-local. The original version of this table had it in the wrong file.
-- [ ] **T2-004** Extract `MacroRow.tsx` (imports `MacroOverflowMenu`).
-- [ ] **T2-005** Confirm under 800 and no behaviour change.
+      is currently buried in a page component. — 75 lines.
+- [x] **T2-002** Extract `DismissibleBanner.tsx`. — 23 lines.
+- [x] **T2-003** Extract `MacroOverflowMenu.tsx`. — 139 lines. Note `MoveAction`
+      (line 189) goes to `macroSendStatus.ts`, **not** here — measured: it is
+      used by `MacroRowProps` (183) and by `MacrosPage` (756), so it is shared,
+      not menu-local. The original version of this table had it in the wrong
+      file.
+- [x] **T2-004** Extract `MacroRow.tsx` (imports `MacroOverflowMenu`). — 127 lines.
+- [x] **T2-005** Confirm under 800 and no behaviour change. — **619 lines**.
+      Three imports became unused in the page and were dropped
+      (`useDismissibleOverlay`, `useFocusTrap`, `SendState`); each moved with
+      the component that used it.
 
 **Risk:** medium — `MacroRow` and `MacroOverflowMenu` are coupled, and the
 overflow menu has dismissal behaviour covered by its own `describe` block.
 **Verify:** `npm --prefix webapp run test -- v2-macros-page`, then
 `./scripts/check-webapp.sh`, then `./scripts/check-all.sh`.
-**Test count must be unchanged: 41.**
+**Test count must be unchanged: 44** (corrected from 41 — see §7).
+
+**Evidence:** commit `79e2fd9`. 966 → 619 + 75 + 139 + 127 + 23.
+`npm --prefix webapp run test -- v2-macros-page` → **44 passed (44)**.
+`./scripts/check-all.sh` → `EXIT=0`. Each extracted range diffs byte-identical
+against the pre-edit file apart from the added `export` keywords.
+
+**Sequencing note:** this split ran **before** the R4-040 fix, contrary to the
+recommendation above. R4-040's line references in the Round 2 tracker now point
+into the pre-split file and must be re-derived — the send-tracker call sites
+(`initialSend` recovery effect, `recoverActiveSend()`, `startSend()`) are all
+still in `MacrosPage.tsx`, none moved to `MacroRow.tsx`. The split neither fixes
+nor closes R4-040.
 
 ---
 
@@ -332,7 +348,8 @@ Nine `describe` blocks, 132-line prelude. Grouped by concern:
 **Note:** the "send tracker lifetime" describe is the coverage for R4-040. If T2
 runs after this, its regression test lands in `v2-macros-page-send.test.tsx`.
 **Verify:** `npm --prefix webapp run test`.
-**Test count must be unchanged: 41.**
+**Test count must be unchanged: 44** (see §7 — one `test.each` block at line 542
+expands to four cases, so the file has 44 tests from 41 declarations).
 
 ---
 
@@ -541,6 +558,22 @@ skip it and record why rather than blocking the queue.
    the ones to merge back.
 3. **T0-004** proposes a new regression test for `check-format.sh`. That adds a
    gate. Say if you would rather just extend the glob without the test.
+
+## 7. Corrections to this document, found while executing it
+
+Recorded rather than silently edited, because a plan that quietly rewrites
+itself is not evidence of anything.
+
+1. **Test counts were measured wrong.** The per-file counts in T4–T6 came from
+   `grep -cE '^\s*(it|test)\('`, which misses `test.each` blocks. Authoritative
+   counts from vitest: `v2-macros-page` **44** (not 41), `v2-app-v2` **14** ✓,
+   `v2-snapshots-page` **41** ✓. Use vitest's own count as the before/after
+   check, never a grep.
+2. **T0-002's formatter instruction was wrong** — see §3.1a. It named apt
+   clang-format 18 on the stated grounds that CI uses it. CI uses esp-clang 19.
+3. **T2's table put `MoveAction` in the wrong destination file.** It is shared
+   between `MacroRowProps` and `MacrosPage`, so it belongs in
+   `macroSendStatus.ts`, not `MacroOverflowMenu.tsx`.
 
 ## 6. Out of scope
 
