@@ -672,11 +672,9 @@ target_link_libraries(web_server_blob_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_server_blob_tests web_server_blob web)
 
 add_executable(
-    app_core_tests
-    test_app_core.c
-    ../../firmware/components/app_core/app_core_sequence.c
-    ../../firmware/components/app_contracts_v2/device_settings_v2.c
-    ../../firmware/components/support/app_operation_result.c
+    app_core_tests test_app_core.c ../../firmware/components/app_core/app_core_sequence.c
+                   ../../firmware/components/app_contracts_v2/device_settings_v2.c
+                   ../../firmware/components/support/app_operation_result.c
 )
 target_include_directories(
     app_core_tests
