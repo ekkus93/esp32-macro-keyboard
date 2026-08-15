@@ -135,7 +135,9 @@ def resolve_unprovisioned_address(requested_ip: str | None, console: str) -> str
     return hil_state.connect_wifi(console)
 
 
-def wait_for_provisioned(ip: str, console: str) -> str:
+def wait_for_provisioned(
+    ip: str, console: str, *, allow_uart_reconnect: bool
+) -> str:
     deadline = time.monotonic() + RESTART_TIMEOUT_S
     while time.monotonic() < deadline:
         time.sleep(2)
@@ -146,9 +148,16 @@ def wait_for_provisioned(ip: str, console: str) -> str:
         if status == 404:
             return ip
 
-    # DHCP may have changed after restart. A trusted UART reconnect is safe and
-    # proves the current v2 settings store still accepts and durably persists
-    # station credentials after setup.
+    if not allow_uart_reconnect:
+        raise SystemExit(
+            "error: device did not return on the persisted station connection after setup; "
+            "UART Wi-Fi recovery is forbidden for this acceptance path"
+        )
+
+    # General bench provisioning may recover a changed DHCP address or an
+    # intentionally replaced network through the trusted UART. Exact H12
+    # acceptance disables this fallback so setup must preserve the station
+    # configuration that was written before provisioning.
     refreshed = hil_state.connect_wifi(console)
     status, payload = setup_state(refreshed)
     if status != 404:
@@ -159,11 +168,21 @@ def wait_for_provisioned(ip: str, console: str) -> str:
     return refreshed
 
 
-def provision(ip: str | None = None, console: str | None = None) -> str:
+def provision(
+    ip: str | None = None,
+    console: str | None = None,
+    *,
+    require_unprovisioned: bool = False,
+    allow_post_setup_uart_reconnect: bool = True,
+) -> str:
     console = console or os.environ.get("HIL_CONSOLE", hil_state.DEFAULT_CONSOLE)
     address = resolve_unprovisioned_address(ip, console)
     status, state = setup_state(address)
     if status == 404:
+        if require_unprovisioned:
+            raise SystemExit(
+                "error: expected an unprovisioned device, but setup is already retired"
+            )
         print(f"device at {address} is already provisioned; nothing to do")
         return address
     if status != 200 or not isinstance(state, dict) or state.get("provisioned") is not False:
@@ -207,7 +226,9 @@ def provision(ip: str | None = None, console: str | None = None) -> str:
         raise SystemExit(f"error: malformed setup acceptance response: {result}")
 
     print("setup accepted; waiting for automatic restart")
-    address = wait_for_provisioned(address, console)
+    address = wait_for_provisioned(
+        address, console, allow_uart_reconnect=allow_post_setup_uart_reconnect
+    )
     require_setup_code_unavailable(console)
     print(f"device provisioned and back up at {address}")
     print("credentials stored in", hil_state.state_dir())
