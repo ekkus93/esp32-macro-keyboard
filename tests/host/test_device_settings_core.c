@@ -145,6 +145,47 @@ static void test_missing_record_uses_defaults_without_write(void) {
     TEST_CHECK_EQ_U64(1U, fake.read_calls);
 }
 
+static void test_station_update_is_atomic_and_allowed_before_setup(void) {
+    fake_settings_store_t fake;
+    device_settings_core_t core;
+    init_core(&core, &fake);
+
+    bool changed = false;
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        device_settings_core_set_station(&core, "BenchWiFi", "bench-passphrase", &changed));
+    TEST_CHECK(changed);
+    TEST_CHECK_EQ_U64(1U, fake.replace_calls);
+
+    app_v2_device_settings_t loaded = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_load(&core, &loaded));
+    TEST_CHECK(!loaded.provisioned);
+    TEST_CHECK(loaded.station_configured);
+    TEST_CHECK_EQ_STRING("BenchWiFi", loaded.station_ssid);
+    TEST_CHECK_EQ_STRING("bench-passphrase", loaded.station_passphrase);
+    TEST_CHECK_EQ_INT(APP_V2_SETTINGS_OK, app_v2_device_settings_validate(&loaded));
+
+    changed = true;
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_NONE,
+        device_settings_core_set_station(&core, "BenchWiFi", "bench-passphrase", &changed));
+    TEST_CHECK(!changed);
+    TEST_CHECK_EQ_U64(1U, fake.replace_calls);
+
+    changed = true;
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        device_settings_core_set_station(&core, "BenchWiFi", "short", &changed));
+    TEST_CHECK(!changed);
+    TEST_CHECK_EQ_U64(1U, fake.replace_calls);
+
+    app_v2_device_settings_t after_rejected_update = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         device_settings_core_load(&core, &after_rejected_update));
+    TEST_CHECK_EQ_STRING("BenchWiFi", after_rejected_update.station_ssid);
+    TEST_CHECK_EQ_STRING("bench-passphrase", after_rejected_update.station_passphrase);
+}
+
 static void test_load_valid_and_reject_corruption(void) {
     fake_settings_store_t fake;
     device_settings_core_t core;
@@ -454,6 +495,7 @@ static void test_factory_reset_erases_everything(void) {
 int main(void) {
     test_init_validation();
     test_missing_record_uses_defaults_without_write();
+    test_station_update_is_atomic_and_allowed_before_setup();
     test_load_valid_and_reject_corruption();
     test_replace_and_failure_preservation();
     test_uncertain_replace_invalidates_cached_settings();
