@@ -187,8 +187,7 @@ static bool station_fields_valid(const app_v2_device_settings_t *settings) {
         return valid_text(settings->station_ssid, sizeof(settings->station_ssid), 1U,
                           APP_V2_WIFI_SSID_MAX_BYTES) &&
                valid_text(settings->station_passphrase, sizeof(settings->station_passphrase),
-                          APP_V2_WIFI_PASSPHRASE_MIN_BYTES,
-                          APP_V2_WIFI_PASSPHRASE_MAX_BYTES);
+                          APP_V2_WIFI_PASSPHRASE_MIN_BYTES, APP_V2_WIFI_PASSPHRASE_MAX_BYTES);
     }
     return valid_text(settings->station_ssid, sizeof(settings->station_ssid), 0U, 0U) &&
            valid_text(settings->station_passphrase, sizeof(settings->station_passphrase), 0U, 0U);

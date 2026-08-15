@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -217,11 +218,13 @@ require(
     "TEST_CHECK_EQ_U64(0U, fake.replace_calls);",
     "no-op settings writes must be covered",
 )
-require(
+if re.search(
+    r'device_settings_core_set_station\(\s*&core,\s*"BenchWiFi",\s*"bench-passphrase",\s*&changed\s*\)',
     host_test,
-    'device_settings_core_set_station(&core, "BenchWiFi", "bench-passphrase", &changed)',
-    "serial-station mutation must have a direct core regression",
-)
+) is None:
+    raise SystemExit(
+        "V2 settings policy violation: serial-station mutation must have a direct core regression"
+    )
 require(
     serial_console_cmake,
     "    device_settings\n",

@@ -570,8 +570,7 @@ static void test_setup_preserves_uart_configured_station_before_provisioning(voi
     TEST_CHECK_EQ_INT(APP_V2_SETTINGS_OK, app_v2_device_settings_validate(&current));
 
     app_v2_setup_session_t session = {0};
-    TEST_CHECK_EQ_INT(APP_V2_SETUP_OK,
-                      app_v2_setup_session_init(&session, view("12345678")));
+    TEST_CHECK_EQ_INT(APP_V2_SETUP_OK, app_v2_setup_session_init(&session, view("12345678")));
     const app_v2_setup_request_t request = {
         .setup_code = view("12345678"),
         .device_name = view("Desk Macro Keyboard"),
@@ -589,9 +588,9 @@ static void test_setup_preserves_uart_configured_station_before_provisioning(voi
     memset(material.password_verifier, 0x66, sizeof(material.password_verifier));
 
     app_v2_device_settings_t candidate = {0};
-    TEST_CHECK_EQ_INT(
-        APP_V2_SETUP_OK,
-        app_v2_setup_prepare_candidate(&session, &request, &current, &material, &candidate));
+    TEST_CHECK_EQ_INT(APP_V2_SETUP_OK,
+                      app_v2_setup_prepare_candidate(&session, &request, &current, &material,
+                                                     &candidate));
     TEST_CHECK(candidate.provisioned);
     TEST_CHECK(candidate.station_configured);
     TEST_CHECK_EQ_STRING("BenchWiFi", candidate.station_ssid);

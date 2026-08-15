@@ -47,8 +47,7 @@ app_error_code_t serial_console_publish_setup_code(const char *setup_code) {
     if (!setup_code_valid(setup_code)) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    if (setup_code_mutex == NULL ||
-        xSemaphoreTake(setup_code_mutex, portMAX_DELAY) != pdTRUE) {
+    if (setup_code_mutex == NULL || xSemaphoreTake(setup_code_mutex, portMAX_DELAY) != pdTRUE) {
         return APP_ERROR_INTERNAL;
     }
     memcpy(current_setup_code, setup_code, sizeof(current_setup_code));
@@ -85,8 +84,7 @@ static int command_setup_code(int argc, char **argv) {
     }
 
     char setup_code[APP_V2_SETUP_CODE_BUFFER_BYTES] = {0};
-    if (setup_code_mutex == NULL ||
-        xSemaphoreTake(setup_code_mutex, portMAX_DELAY) != pdTRUE) {
+    if (setup_code_mutex == NULL || xSemaphoreTake(setup_code_mutex, portMAX_DELAY) != pdTRUE) {
         printf("setup code unavailable; device is not in setup mode\n");
         return 1;
     }

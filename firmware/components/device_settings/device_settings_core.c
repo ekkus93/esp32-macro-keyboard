@@ -182,9 +182,8 @@ app_error_code_t device_settings_core_replace(device_settings_core_t *core,
     return APP_ERROR_NONE;
 }
 
-app_error_code_t device_settings_core_set_station(device_settings_core_t *core,
-                                                  const char *ssid, const char *passphrase,
-                                                  bool *out_changed) {
+app_error_code_t device_settings_core_set_station(device_settings_core_t *core, const char *ssid,
+                                                  const char *passphrase, bool *out_changed) {
     if (core == NULL || ssid == NULL || passphrase == NULL || out_changed == NULL ||
         !operations_valid(&core->ops)) {
         return APP_ERROR_INVALID_ARGUMENT;
