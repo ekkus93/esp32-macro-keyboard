@@ -372,15 +372,27 @@ Nine `describe` blocks, 132-line prelude. Grouped by concern:
 | V2-093 Quick Send, V2-132 landscape summary, send-tracker lifetime (408–876) | `v2-macros-page-send.test.tsx` | 470 |
 | V2-095 reload/race, V2-101 overflow menu, V2-094 Always Preview (877–1098) | `v2-macros-page-actions.test.tsx` | 222 |
 
-- [ ] **T5-001** Extract `helpers/macrosPageHarness.tsx`.
-- [ ] **T5-002** Split into the three test files above.
-- [ ] **T5-003** Confirm count unchanged and all files under 800.
+- [x] **T5-001** Extract `macrosPageHarness.tsx` (flat in `tests/`, per T4-001).
+      — 117 lines.
+- [x] **T5-002** Split into the three test files above. — list 279, send 502,
+      actions 235.
+- [x] **T5-003** Confirm count unchanged and all files under 800. —
+      **44 passed (44)**; largest new file 502.
 
 **Note:** the "send tracker lifetime" describe is the coverage for R4-040. If T2
 runs after this, its regression test lands in `v2-macros-page-send.test.tsx`.
 **Verify:** `npm --prefix webapp run test`.
 **Test count must be unchanged: 44** (see §7 — one `test.each` block at line 542
 expands to four cases, so the file has 44 tests from 41 declarations).
+
+**Evidence:** commit `052f679`. 1098 → 117 + 279 + 502 + 235.
+`npm --prefix webapp run test -- v2-macros-page` → **3 files, 44 passed (44)**.
+`./scripts/check-all.sh` → `EXIT=0`; frontend test files 51 → 53.
+Method note: the per-file import lists were derived by giving every split file
+the full original import block and letting `eslint --max-warnings=0` name the
+unused ones, rather than by reasoning about which symbol each `describe` needs.
+Two rounds were required — the first `eslint` output was truncated by a `head`
+and hid three findings in the `send` suite.
 
 ---
 
@@ -396,15 +408,27 @@ Largest test file; ten `describe` blocks, 151-line prelude.
 | V2-111 download/delete, V2-116 non-atomic replace (707–1001) | `v2-snapshots-page-replace.test.tsx` | 295 |
 | V2-115 export, V2-115 import, H8 selection resolution (1002–1502) | `v2-snapshots-page-transfer.test.tsx` | 500 |
 
-- [ ] **T6-001** Extract `helpers/snapshotsPageHarness.tsx`.
-- [ ] **T6-002** Split into the four test files above.
-- [ ] **T6-003** Confirm count unchanged and all files under 800.
+- [x] **T6-001** Extract `snapshotsPageHarness.tsx`. — 137 lines.
+- [x] **T6-002** Split into the four test files above. — management 289,
+      protection 301, replace 308, transfer 526.
+- [x] **T6-003** Confirm count unchanged and all files under 800. —
+      **41 passed (41)**; largest new file 526.
 
 **Risk:** the V2-115 import block alone is ~296 lines (1101–1396). If
 `transfer` lands over 800 once imports are added, split import out to
 `v2-snapshots-page-import.test.tsx` rather than trimming tests.
+**Outcome:** not needed — `transfer` landed at 526, so export, import and the
+H8 selection tests stay together.
 **Verify:** `npm --prefix webapp run test`.
 **Test count must be unchanged: 41.**
+
+**Evidence:** commit `0f20761`. 1502 → 137 + 289 + 301 + 308 + 526.
+`npm --prefix webapp run test -- v2-snapshots-page` → **4 files, 41 passed (41)**.
+`./scripts/check-all.sh` → `EXIT=0`; frontend test files 53 → 56.
+
+**Webapp milestone:** with T1–T6 done, no file under `webapp/src` or
+`webapp/tests` exceeds 800 lines. The largest remaining is
+`webapp/src/v2/apiGuards.ts` at 760, which was never in the top ten.
 
 ---
 
