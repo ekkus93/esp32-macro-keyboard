@@ -542,22 +542,40 @@ Proposed package `scripts/v2_035_support/`, entry point unchanged:
 | pending-creation and reconciliation logic (502–660) | `reconciliation.py` | 160 |
 | `command_*` handlers, `argparse` wiring, `main` | `run-v2-035-hardware.py` | 150 |
 
-- [ ] **T9-001** **Before moving anything**, confirm exactly which names
+- [x] **T9-001** **Before moving anything**, confirm exactly which names
       `run-h5-055-hardware.py` and `tests/scripts/test-v2-035-hardware.py`
       reach into. Write the list into this task. Those names must remain
       accessible from the entry-point module after the split — re-export if
-      needed.
-- [ ] **T9-002** Create the package and move `payloads.py` **only**. Run both
+      needed. — **30 names**, re-exported from the entry point.
+      `run-h5-055-hardware.py` uses 8 (`begin_pending_creation`,
+      `clear_pending_creation_if_unchanged`, `create_journaled_blob`,
+      `finish_pending_creation`, `main`, `reconcile_pending_creation`,
+      `require`, `sha256_bytes`); the regression test uses 33, of which three —
+      `MODULE.http`, `MODULE.shutil`, `MODULE.subprocess` — turned out **not**
+      to be a hazard: it patches attributes *on the stdlib module objects*
+      (`MODULE.shutil.which = ...`), not this module's globals, so the patch
+      still reaches the moved code through the same shared object. The imports
+      must nevertheless stay in the entry point or `MODULE.shutil` raises
+      `AttributeError`; that is now commented in place.
+- [x] **T9-002** Create the package and move `payloads.py` **only**. Run both
       dependents. This proves the `sys.path` approach on the smallest possible
       move; if it fails, nothing else has been disturbed.
-- [ ] **T9-003** Move `evidence.py`, then `device_api.py`, then
+- [x] **T9-003** Move `evidence.py`, then `device_api.py`, then
       `provenance.py`, then `reconciliation.py` — re-running
-      `python3 tests/scripts/test-v2-035-hardware.py` after each.
-- [ ] **T9-004** Confirm the entry point is under 800 and that
-      `scripts/run-h5-055-hardware.py` still runs.
-- [ ] **T9-005** Confirm **no evidence document's cited path is invalidated**.
+      `python3 tests/scripts/test-v2-035-hardware.py` after each. — Landed as
+      `evidence.py` (198), `device_api.py` (176) and `blob_journal.py` (184);
+      provenance folded into `evidence.py` rather than becoming its own module,
+      and `reconciliation` is `blob_journal`. `open_upload_connection` stayed in
+      the entry point — moving it would have made `device_api.py` a
+      non-contiguous gather for no benefit.
+- [x] **T9-004** Confirm the entry point is under 800 and that
+      `scripts/run-h5-055-hardware.py` still runs. — **585 lines**; both
+      dependents load and run.
+- [x] **T9-005** Confirm **no evidence document's cited path is invalidated**.
       Grep `docs/implementation-v2/` for `run-v2-035-hardware` and check each
-      citation still resolves.
+      citation still resolves. — Every citation is the bare path
+      `scripts/run-v2-035-hardware.py`, which is unchanged and still exists. No
+      document cites a line number or an internal function.
 
 **Cannot be verified on hardware as part of this task.** This is a hardware
 harness; `check-scripts.sh` runs its *regression tests*, not the harness against
@@ -566,6 +584,13 @@ record hardware validation from a green `check-all.sh`** — say explicitly that
 the harness was not re-run against the device, or re-run it against the board
 and cite that separately.
 **Verify:** `./scripts/check-scripts.sh`, then `./scripts/check-all.sh`.
+
+**Evidence:** commit `dde416e`. 1081 → 585, plus `scripts/v2_035_support/`
+(evidence 198, blob_journal 184, device_api 176, payloads 52, core 42).
+`./scripts/check-all.sh` → `EXIT=0`, including
+`PASS: V2-035 hardware evidence collector regression tests`.
+**Not hardware-validated:** the collector was not re-run against a board as part
+of this change, and a green `check-all.sh` is not evidence that it was.
 
 ---
 
@@ -591,13 +616,22 @@ biggest single move, not because it is dangerous.
 | `runMacroEditingWorkflows` (2029–2297) | `workflows/macroEditing.mjs` | 270 |
 | `main` and wiring | `run-browser-tests.mjs` | 80 |
 
-- [ ] **T10-001** Extract `lib/` first (`http`, `sendModel`, `page`, `layout`,
+- [x] **T10-001** Extract `lib/` first (`http`, `sendModel`, `page`, `layout`,
       `accessibility`) — the fixtures and workflows depend on them, so leaf-first
       avoids circular imports.
-- [ ] **T10-002** Extract `fixtures/` (both servers).
-- [ ] **T10-003** Extract `workflows/` (six modules).
-- [ ] **T10-004** Reduce `run-browser-tests.mjs` to `main` plus wiring; confirm
-      every new file is under 800.
+- [x] **T10-002** Extract `fixtures/` (both servers). — applicationServer 333,
+      startupFixtureServer 336, data 113, **sendModel 72**. The last is an
+      addition to the plan and the one non-contiguous gather in T10:
+      `advanceSend` (defined in the application-server range) and `isTerminal`
+      (defined in the startup-fixture range) are each needed by *both* servers,
+      so leaving them in place would have made the two fixtures import each
+      other.
+- [x] **T10-003** Extract `workflows/` (six modules). — five modules: startup
+      335, browser 281, macroEditing 279, snapshots 204, settings 118.
+      `runUsbUnavailableWorkflow` ships inside `settings.mjs` rather than its own
+      file; at 61 lines it did not warrant one.
+- [x] **T10-004** Reduce `run-browser-tests.mjs` to `main` plus wiring; confirm
+      every new file is under 800. — **101 lines**; largest new module 336.
 
 **Optional follow-up, not required:** `run-h4-recovery-tests.mjs` (435) and
 `run-h5-storage-reconciliation-tests.mjs` (453) likely duplicate some of the
@@ -607,6 +641,19 @@ a separate deduplication task with its own risk, and it is **out of scope here**
 
 **Verify:** `npm --prefix webapp run test:browser` (runs all three drivers),
 then `./scripts/check-all.sh`. Browser tests need Playwright Chromium installed.
+
+**Evidence:** commit `2780918`. 2401 → 101 + 11 modules (largest 336).
+`npm --prefix webapp run test:browser` → all nine Real Chrome workflows pass.
+`./scripts/check-all.sh` → `EXIT=0`.
+
+**The one real defect a text-only move produced.** Both fixture servers resolve
+the built app with `new URL("../../dist/", import.meta.url)`. Moving them one
+directory deeper silently repointed that at `webapp/tests/dist/`, and the suite
+failed with `ENOENT ... index.html`. Fixed to `../../../dist/` with a comment
+naming the depth. Nothing static — not the type checker, not ESLint, not a
+line-count review — would have caught this; only running the suite did.
+`import.meta.url`-relative paths are the thing to grep for before moving any
+module between directories.
 
 ---
 
@@ -636,6 +683,35 @@ skip it and record why rather than blocking the queue.
 3. **T0-004** proposes a new regression test for `check-format.sh`. That adds a
    gate. Say if you would rather just extend the glob without the test.
 
+## 6a. Outcome
+
+All eleven tasks complete, 45/45 checkboxes, one commit each, `check-all.sh`
+exit 0 at every one.
+
+| Task | File | Before | After | Commit |
+| --- | --- | ---: | ---: | --- |
+| T0 | `check-format.sh` `.inc` coverage | — | — | `75a2c66` |
+| T1 | `SnapshotsPage.tsx` | 836 | 598 | `6e0f55a` |
+| T2 | `MacrosPage.tsx` | 966 | 619 | `79e2fd9` |
+| T3 | `SettingsPage.tsx` | 1048 | 499 | `abd93ff` |
+| T4 | `v2-app-v2.test.tsx` | 956 | 320 | `a549dd9` |
+| T5 | `v2-macros-page.test.tsx` | 1098 | 502 | `052f679` |
+| T6 | `v2-snapshots-page.test.tsx` | 1502 | 526 | `0f20761` |
+| T7 | `test_web_settings.c` | 1220 | 601 | `373b0e8` |
+| T8 | `test_web_server_administration_route.c` | 1229 | 388 | `6f6f52d` |
+| T9 | `run-v2-035-hardware.py` | 1081 | 585 | `dde416e` |
+| T10 | `run-browser-tests.mjs` | 2401 | 336 | `2780918` |
+
+"After" is the largest resulting file, not the entry point, so it is the number
+the 800-line target is measured against.
+
+**Repo-wide result:** no tracked source file — including the new `.inc`
+fragments — exceeds 800 lines. The largest is now
+`tests/host/test_provisioning.c` at 774, which was never in scope.
+
+Test counts, all unchanged: 41 snapshots, 44 macros, 14 app-v2, 66/66 host,
+6/6 v2-contract, 9/9 Real Chrome browser workflows. Frontend test files 49 → 56.
+
 ## 7. Corrections to this document, found while executing it
 
 Recorded rather than silently edited, because a plan that quietly rewrites
@@ -651,6 +727,19 @@ itself is not evidence of anything.
 3. **T2's table put `MoveAction` in the wrong destination file.** It is shared
    between `MacroRowProps` and `MacrosPage`, so it belongs in
    `macroSendStatus.ts`, not `MacroOverflowMenu.tsx`.
+4. **T4's harness path was wrong.** `tests/helpers/` does not exist; helpers sit
+   flat in `tests/`.
+5. **T8's suite grouping was wrong.** It grouped `setup` with `session`, but
+   `setup`'s tests sit between factory-reset and diagnostics; honouring it would
+   have made a non-contiguous gather.
+6. **T10 needed a module the plan did not list** (`fixtures/sendModel.mjs`) to
+   break a cycle between the two fixture servers.
+7. **T9's module list was approximate.** `provenance` folded into `evidence.py`
+   and `reconciliation` became `blob_journal.py`.
+
+None of these were caught by reading the plan. Every one surfaced from measuring
+the actual file — which is the argument for deriving seams from the code at the
+moment of the move rather than trusting a table written days earlier.
 
 ## 6. Out of scope
 
