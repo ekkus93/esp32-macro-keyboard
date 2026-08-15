@@ -183,16 +183,26 @@ proves the pattern for T2 and T3 at the lowest risk.
 | 136–347 | `SnapshotRowProps` + `SnapshotRow` | `SnapshotRow.tsx` (~212) |
 | rest | deps, props, `PendingReplace`, `SnapshotsPage` | stays (~600) |
 
-- [ ] **T1-001** Extract `snapshotMessages.ts`. Pure functions, no React import.
-- [ ] **T1-002** Extract `SnapshotRow.tsx` with its props interface.
-- [ ] **T1-003** Confirm `SnapshotsPage.tsx` is under 800 and that no export
-      outside the module changed (`git diff` should show imports added, code
-      removed — nothing renamed).
+- [x] **T1-001** Extract `snapshotMessages.ts`. Pure functions, no React import.
+      — 34 lines. `formatBytes` had to come here rather than travel with the
+      row: it is used by `SnapshotRow` *and* by the page body (former lines
+      637–638).
+- [x] **T1-002** Extract `SnapshotRow.tsx` with its props interface. — 217 lines.
+- [x] **T1-003** Confirm `SnapshotsPage.tsx` is under 800 and that no export
+      outside the module changed. — **598 lines**. Only `SnapshotsPage` and
+      `SnapshotsPageDependencies` are imported externally (`AppV2.tsx`,
+      `v2-snapshots-page.test.tsx`); both unchanged.
 
 **Risk:** low. `SnapshotRow` is referenced only by this page.
 **Verify:** `npm --prefix webapp run test -- v2-snapshots-page` then
 `./scripts/check-webapp.sh`, then `./scripts/check-all.sh`.
 **Test count must be unchanged: 41.**
+
+**Evidence:** commit `6e0f55a`. 836 → 598 + 217 + 34.
+`npm --prefix webapp run test -- v2-snapshots-page` → **41 passed (41)**.
+`./scripts/check-all.sh` → `EXIT=0` (49 frontend test files, 66/66 host tests).
+Move verified byte-exact by diffing the extracted ranges against the pre-edit
+file: only the 4 added `export` keywords and one collapsed blank line.
 
 ---
 
