@@ -28,11 +28,13 @@ The lint/test scripts assume the exact versions CI installs (see `.github/workfl
 - go: `go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0 github.com/rhysd/actionlint/cmd/actionlint@v1.7.12` (`actionlint` lints `.github/workflows/*.yml` as part of `check-scripts.sh`)
 - `markdownlint-cli2` 0.23.2 comes from `npm --prefix webapp ci` (it's a pinned devDependency); `check-docs.sh` runs the local `webapp/node_modules/.bin` copy, not a global one.
 
-`clang-format`/`shellcheck` are distro apt packages, so their versions track the runner's Ubuntu release; build on 24.04 to match CI.
+`shellcheck` is a distro apt package, so its version tracks the runner's Ubuntu release; build on 24.04 to match CI. The apt `clang-format` is **not** what formats this repo — see below.
 
 `check-firmware.sh` runs **clang-tidy from the ESP-IDF clang toolchain** (esp-clang, LLVM 19), installed by `scripts/install-esp-idf.sh` and put on `PATH` by sourcing `export.sh` — not the apt `clang-tidy`. It must parse xtensa targets, which needs a clang-built compile database (`build-clang`); the apt clang-tidy and the GCC build database cannot (`clang: error: unsupported option '-mcpu='`).
 
-Sourcing `export.sh` also puts esp-clang's `clang-format` (LLVM 19.1.2) ahead of apt's pinned 18.1.3 on `PATH`, which produces false-positive diffs from `check-format.sh`/`check-all.sh`. If format checks disagree with a clean apt-only shell, check which `clang-format` is first on `PATH`.
+**The format authority is esp-clang's `clang-format` (LLVM 19.1.2), not apt's 18.1.3.** `check-format.sh` does a bare `PATH` lookup, and `.github/workflows/quality.yml` sources `export.sh` immediately before `./scripts/check-all.sh` — so esp-clang wins in CI, and the apt `clang-format` installed alongside it is shadowed for this purpose. Measured at `a68f6dc` across the 314 first-party `.c`/`.h` files: **0 dirty under esp-clang 19, 2 dirty under apt 18**. The tree is 19-formatted.
+
+Consequence: run `check-format.sh` from a shell that has sourced `export.sh`. A plain apt-only shell reports false failures on files CI accepts (currently `tests/host/fakes/esp_http_server_stub/esp_http_server.h` and `tests/host/fakes/freertos_stub/freertos/FreeRTOS.h`). `.claude/hooks/format-on-edit.sh` resolves esp-clang explicitly for the same reason.
 
 ## Commands
 
