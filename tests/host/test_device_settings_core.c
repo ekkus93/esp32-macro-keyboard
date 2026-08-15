@@ -151,9 +151,9 @@ static void test_station_update_is_atomic_and_allowed_before_setup(void) {
     init_core(&core, &fake);
 
     bool changed = false;
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE, device_settings_core_set_station(&core, "BenchWiFi", "bench-passphrase",
-                                                         &changed));
+    const app_error_code_t first_update =
+        device_settings_core_set_station(&core, "BenchWiFi", "bench-passphrase", &changed);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, first_update);
     TEST_CHECK(changed);
     TEST_CHECK_EQ_U64(1U, fake.replace_calls);
 
@@ -166,9 +166,9 @@ static void test_station_update_is_atomic_and_allowed_before_setup(void) {
     TEST_CHECK_EQ_INT(APP_V2_SETTINGS_OK, app_v2_device_settings_validate(&loaded));
 
     changed = true;
-    TEST_CHECK_APP_ERROR(
-        APP_ERROR_NONE, device_settings_core_set_station(&core, "BenchWiFi", "bench-passphrase",
-                                                         &changed));
+    const app_error_code_t repeated_update =
+        device_settings_core_set_station(&core, "BenchWiFi", "bench-passphrase", &changed);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, repeated_update);
     TEST_CHECK(!changed);
     TEST_CHECK_EQ_U64(1U, fake.replace_calls);
 
