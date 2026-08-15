@@ -199,7 +199,8 @@ static bool server_configuration_valid(const web_server_config_t *configuration)
         return configuration->login_enabled;
     case WEB_SERVER_MODE_SETUP:
         return !configuration->login_enabled && configuration->setup_device_name[0] != '\0' &&
-               setup_code_valid(configuration->setup_code);
+               setup_code_valid(configuration->setup_code) &&
+               configuration->setup_code_clear != NULL;
     default:
         return false;
     }

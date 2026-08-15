@@ -13,6 +13,7 @@ idf_component_register(
     device_settings
     factory_reset_recovery
     provisioning
+    serial_console
     storage
     usb_keyboard
     macro_executor
@@ -20,7 +21,6 @@ idf_component_register(
     wifi_ap
     auth
     web_server
-    serial_console
     nvs_flash
     esp_hw_support
 )

@@ -58,10 +58,9 @@ work tracked in [`docs/TODO_V2.md`](docs/TODO_V2.md) Phase 15
 - **cancellation over both paths the specification requires** — the HTTP API and
   the console `cancel` command — during a delay and mid-typing, each reaching
   `cancelled` with the last keystroke 92–127 ms after the request;
-- **power-cycle persistence, factory reset, credential reset, and
-  re-provisioning**, including that a saved Wi-Fi network survives setup and a
-  credential reset but not a factory reset, and that the device rejoins it
-  unaided about 12 s after a reboot;
+- **power-cycle persistence, factory reset, and re-provisioning**, including
+  that a station network explicitly configured after reset is preserved by
+  first-run setup, while factory reset erases the prior station configuration;
 - **all three ways a package is applied** — whole-repository restore reporting
   per-package outcomes, import as a new package, and replacing an existing package's
   contents — against a real repository, on the device.
@@ -75,9 +74,9 @@ scope and status live in [`docs/TODO_V2.md`](docs/TODO_V2.md) Phase 15.
 ## Known product limitation: unauthenticated serial console
 
 Every build currently includes an interactive command console on UART0
-(`wifi-connect`, `wifi-status`). It accepts commands with **no session or
-physical-button confirmation** — possession of the board and access
-to its UART port is the authorization.
+(`setup-code`, `wifi-connect`, `wifi-status`, `confirm`, `cancel`). It accepts
+commands with **no session or physical-button confirmation** — possession of
+the board and access to its UART port is the authorization.
 
 This is deliberate. Reaching that port means holding the hardware, which
 already allows reflashing the device outright, so authenticating it would add
@@ -196,9 +195,12 @@ lsusb | grep -E '303a|1a86|10c4'
 | USB-UART bridge (a separate CH340/CP210x chip) | `1a86:55d3` or `10c4:ea60` | **the interactive serial console** |
 
 The production firmware packages `CONFIG_ESP_CONSOLE_UART_DEFAULT=y`, so the
-interactive console (`wifi-connect`, `wifi-status`, `confirm`, `cancel`) reads
-from UART0 on the bridge. USB-Serial-JTAG is the secondary console: it mirrors
-log output but accepts no input, and commands sent to it are silently discarded.
+interactive console (`setup-code`, `wifi-connect`, `wifi-status`, `confirm`,
+`cancel`) reads from UART0 on the bridge. USB-Serial-JTAG is the secondary
+console: it mirrors ordinary standard/log output but accepts no input, and
+commands sent to it are silently discarded. The secret-bearing `setup-code`
+response deliberately bypasses standard output and writes directly to UART0, so
+that one response is not mirrored onto USB-Serial-JTAG.
 
 When the Unity test application is idle, press Enter to display the test menu.
 Then enter one of these selectors:

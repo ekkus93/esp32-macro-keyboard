@@ -3,17 +3,16 @@
 
 #include "app_error.h"
 
-/* The v2 setup code is an ephemeral, per-unprovisioned-boot secret. This is
- * the only production plaintext disclosure boundary: trusted UART0 console
- * output required by SPEC_V2. It validates the 8-digit wire format and fails
- * if the console stream cannot be flushed. */
-app_error_code_t serial_console_show_setup_code(const char *setup_code);
-
-/* Starts the interactive command console on UART0, exposed by the devkit
- * USB-to-UART bridge. Physical access to this console is the trusted boundary
- * for setup-code disclosure plus confirmation/cancellation commands. Registers
- * every serial-console command and starts the REPL task; returns once the REPL
- * task is running. */
+/* Starts the trusted physical UART0 command console described by
+ * SPEC_V2.md. Unlike the HTTP API, commands issued here require no session or
+ * additional confirmation because physical/USB possession is the authorization
+ * boundary. Registers every serial-console command and starts the REPL task;
+ * returns once the REPL task is running. */
 app_error_code_t serial_console_start(void);
+/* Make one validated one-time setup code available to the explicit physical
+ * UART `setup-code` command. The value is never emitted automatically. Use
+ * serial_console_clear_setup_code() to retire it after setup or on failure. */
+app_error_code_t serial_console_publish_setup_code(const char *setup_code);
+void serial_console_clear_setup_code(void);
 
 #endif

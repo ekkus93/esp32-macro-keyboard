@@ -10,8 +10,9 @@ idf_component_register(
     device_controls
     macro_executor
     wifi_ap
-    provisioning
+    device_settings
     console
+    esp_driver_uart
 )
 
 target_compile_options(

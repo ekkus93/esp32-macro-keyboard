@@ -12,6 +12,7 @@ REQUIRED_VALUES = {
     "CONFIG_NVS_ENCRYPTION": "y",
     "CONFIG_NVS_SEC_KEY_PROTECT_USING_HMAC": "y",
     "CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID": "0",
+    "CONFIG_APP_RETRIEVE_LEN_ELF_SHA": "39",
 }
 FORBIDDEN_NVS_SCHEMES = {
     "CONFIG_NVS_SEC_KEY_PROTECT_USING_FLASH_ENC",
@@ -80,5 +81,5 @@ def validate(values: dict[str, str]) -> None:
 
 configuration_path = Path(sys.argv[1])
 validate(parse_config(configuration_path))
-print("production NVS configuration uses HMAC encryption with HMAC_KEY0")
+print("production configuration uses HMAC NVS encryption and a 39-character diagnostics ELF SHA")
 PY2

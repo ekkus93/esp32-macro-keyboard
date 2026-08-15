@@ -15,7 +15,7 @@ write_valid_fixture() {
 	mkdir -p -- "${temporary_dir}/firmware/components/app_core"
 	cat >"${temporary_dir}/firmware/components/app_core/app_core.c" <<'SOURCE'
 void report_setup_ready(void) {
-    ESP_LOGI(TAG, "setup credentials are available from the manufacturing label");
+    ESP_LOGI(TAG, "run setup-code on the physical UART console to reveal the one-time setup code");
 }
 SOURCE
 }
@@ -51,28 +51,53 @@ expect_pass 'non-secret setup readiness log'
 write_valid_fixture
 mkdir -p -- "${temporary_dir}/firmware/components/serial_console"
 cat >"${temporary_dir}/firmware/components/serial_console/serial_console.c" <<'SOURCE'
-void show_setup_code(const char *setup_code) {
-    printf("setup code: %s\n", setup_code);
+static int command_setup_code(void) {
+    char setup_code[9] = {0};
+    char output[32] = {0};
+    const int output_length = snprintf(output, sizeof(output), "setup code: %s\n", setup_code);
+    uart_write_bytes(UART_NUM_0, output, (size_t)output_length);
+    return 0;
 }
 SOURCE
-expect_pass 'trusted UART setup-code disclosure'
-
-write_valid_fixture
-cat >"${temporary_dir}/firmware/components/not_serial_console.c" <<'SOURCE'
-void show_setup_code(const char *setup_code) {
-    printf("setup code: %s\n", setup_code);
-}
-SOURCE
-expect_fail 'same setup-code print outside trusted UART boundary' 'credential-bearing output is forbidden'
+expect_pass 'explicit physical UART setup-code command'
 
 write_valid_fixture
 mkdir -p -- "${temporary_dir}/firmware/components/serial_console"
 cat >"${temporary_dir}/firmware/components/serial_console/serial_console.c" <<'SOURCE'
-void leak_password(const char *password) {
-    printf("password: %s\n", password);
+static int command_setup_code(void) {
+    char other_setup_code[9] = {0};
+    char output[32] = {0};
+    const int output_length = snprintf(output, sizeof(output), "setup code: %s\n", other_setup_code);
+    uart_write_bytes(UART_NUM_0, output, (size_t)output_length);
+    return 0;
 }
 SOURCE
-expect_fail 'other secret on serial console' 'credential-bearing output is forbidden'
+expect_fail 'UART setup-code near miss' 'credential-bearing output is forbidden'
+
+write_valid_fixture
+mkdir -p -- "${temporary_dir}/firmware/components/serial_console"
+cat >"${temporary_dir}/firmware/components/serial_console/serial_console.c" <<'SOURCE'
+static int command_setup_code(void) {
+    char setup_code[9] = {0};
+    char output[32] = {0};
+    const int output_length = snprintf(output, sizeof(output), "setup code: %s\n", setup_code);
+    uart_write_bytes(UART_NUM_0, output, (size_t)output_length);
+    uart_write_bytes(UART_NUM_0, output, (size_t)output_length);
+    return 0;
+}
+SOURCE
+expect_fail 'duplicate UART setup-code output' 'multiple physical-UART setup-code outputs are forbidden'
+
+write_valid_fixture
+mkdir -p -- "${temporary_dir}/firmware/components/serial_console"
+cat >"${temporary_dir}/firmware/components/serial_console/serial_console.c" <<'SOURCE'
+static int command_setup_code(void) {
+    char setup_code[9] = {0};
+    printf("setup code: %s\n", setup_code);
+    return 0;
+}
+SOURCE
+expect_fail 'setup code through mirrored stdout' 'credential-bearing output is forbidden'
 
 for credential in password passphrase setup_code session_token salt verifier; do
 	write_valid_fixture

@@ -18,7 +18,7 @@ typedef enum {
     FAIL_SETTINGS_READ,
     FAIL_BOOTSTRAP,
     FAIL_SETUP_CODE,
-    FAIL_SETUP_CODE_DISPLAY,
+    FAIL_SETUP_CODE_PUBLISH,
     FAIL_STORAGE_MOUNT,
     FAIL_AUTH_INIT,
     FAIL_USB_INIT,
@@ -41,8 +41,8 @@ typedef struct {
     bool storage_owned;
     bool fail_wifi_stop;
     size_t cleanup_failure_logs;
-    size_t setup_code_displays;
-    char displayed_setup_code[APP_V2_SETUP_CODE_BUFFER_BYTES];
+    size_t setup_code_logs;
+    char published_setup_code[APP_V2_SETUP_CODE_BUFFER_BYTES];
     web_server_config_t observed_web;
     bool observed_station_configured;
     char observed_ap_ssid[APP_V2_WIFI_SSID_MAX_BYTES + 1U];
@@ -75,17 +75,17 @@ static void expect_call(const fixture_t *fixture, size_t index, const char *expe
 static void reset_fixture(fixture_t *fixture, bool provisioned) {
     memset(fixture, 0, sizeof(*fixture));
     fixture->nvs_result = APP_CORE_NVS_OK;
-    fixture->settings.provisioned = provisioned;
-    fixture->settings.credential_version = provisioned ? APP_V2_CREDENTIAL_VERSION : 0U;
-    fixture->settings.password_algorithm_version =
-        provisioned ? APP_V2_PASSWORD_ALGORITHM_VERSION : 0U;
-    fixture->settings.password_iterations = provisioned ? AUTH_PBKDF2_ITERATIONS : 0U;
+    app_v2_device_settings_init_unprovisioned(&fixture->settings);
     fixture->settings.require_serial_confirmation = true;
-    memcpy(fixture->settings.device_name, "ESP32 Macro Keyboard", sizeof("ESP32 Macro Keyboard"));
-    memcpy(fixture->settings.ap_ssid, "Macro Keyboard", sizeof("Macro Keyboard"));
-    memcpy(fixture->settings.ap_passphrase, "correct-horse-battery",
-           sizeof("correct-horse-battery"));
     if (provisioned) {
+        fixture->settings.provisioned = true;
+        fixture->settings.password_iterations = AUTH_PBKDF2_ITERATIONS;
+        memset(fixture->settings.password_salt, 0x11, sizeof(fixture->settings.password_salt));
+        memset(fixture->settings.password_verifier, 0x22,
+               sizeof(fixture->settings.password_verifier));
+        memcpy(fixture->settings.ap_ssid, "Macro Keyboard", sizeof("Macro Keyboard"));
+        memcpy(fixture->settings.ap_passphrase, "correct-horse-battery",
+               sizeof("correct-horse-battery"));
         fixture->settings.station_configured = true;
         memcpy(fixture->settings.station_ssid, "Office WiFi", sizeof("Office WiFi"));
         memcpy(fixture->settings.station_passphrase, "station-secret", sizeof("station-secret"));
@@ -146,19 +146,22 @@ static app_error_code_t fake_setup_code(void *context,
     return result;
 }
 
-static app_error_code_t fake_show_setup_code(void *context, const char *setup_code) {
+static app_error_code_t fake_setup_code_publish(void *context, const char *setup_code) {
     fixture_t *fixture = context;
-    record(fixture, "show_setup_code");
-    if (setup_code == NULL) {
-        return APP_ERROR_INVALID_ARGUMENT;
+    record(fixture, "setup_code_publish");
+    const app_error_code_t result = stage_result(fixture, FAIL_SETUP_CODE_PUBLISH);
+    if (result != APP_ERROR_NONE) {
+        return result;
     }
-    const app_error_code_t result = stage_result(fixture, FAIL_SETUP_CODE_DISPLAY);
-    if (result == APP_ERROR_NONE) {
-        ++fixture->setup_code_displays;
-        TEST_CHECK(snprintf(fixture->displayed_setup_code, sizeof(fixture->displayed_setup_code),
-                            "%s", setup_code) >= 0);
-    }
-    return result;
+    memset(fixture->published_setup_code, 0, sizeof(fixture->published_setup_code));
+    memcpy(fixture->published_setup_code, setup_code, sizeof(fixture->published_setup_code));
+    return APP_ERROR_NONE;
+}
+
+static void fake_setup_code_clear(void *context) {
+    fixture_t *fixture = context;
+    record(fixture, "setup_code_clear");
+    memset(fixture->published_setup_code, 0, sizeof(fixture->published_setup_code));
 }
 
 static app_error_code_t fake_storage_mount(void *context) {
@@ -290,6 +293,12 @@ static void fake_log(void *context, const app_core_log_event_t *event) {
     TEST_CHECK(event != NULL);
     if (event->type == APP_CORE_LOG_CLEANUP_FAILED) {
         ++fixture->cleanup_failure_logs;
+    } else if (event->type == APP_CORE_LOG_SETUP_CODE) {
+        ++fixture->setup_code_logs;
+        /* H9: startup may emit a generic setup-readiness event, but the
+         * manufacturing-label setup secret must never be carried into the
+         * logging boundary. */
+        TEST_CHECK(event->setup_code == NULL);
     }
 }
 
@@ -301,7 +310,8 @@ static app_core_ops_t operations(fixture_t *fixture) {
         .settings_read = fake_settings_read,
         .bootstrap_derive = fake_bootstrap,
         .setup_code_generate = fake_setup_code,
-        .show_setup_code = fake_show_setup_code,
+        .setup_code_publish = fake_setup_code_publish,
+        .setup_code_clear = fake_setup_code_clear,
         .storage_mount = fake_storage_mount,
         .auth_init = fake_auth_init,
         .usb_init = fake_usb_init,
@@ -360,6 +370,11 @@ static void test_normal_start_uses_v2_settings(void) {
 static void test_setup_start_uses_bootstrap_ap_and_random_code(void) {
     fixture_t fixture;
     reset_fixture(&fixture, false);
+    fixture.settings.station_configured = true;
+    memcpy(fixture.settings.station_ssid, "Setup Station", sizeof("Setup Station"));
+    memcpy(fixture.settings.station_passphrase, "setup-station-secret",
+           sizeof("setup-station-secret"));
+    TEST_CHECK_EQ_INT(APP_V2_SETTINGS_OK, app_v2_device_settings_validate(&fixture.settings));
     app_core_ops_t ops = operations(&fixture);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, app_core_sequence_start(&ops));
     TEST_CHECK_EQ_U64(0U, count_call(&fixture, "usb_init"));
@@ -367,14 +382,28 @@ static void test_setup_start_uses_bootstrap_ap_and_random_code(void) {
     TEST_CHECK_EQ_U64(0U, count_call(&fixture, "controls_init"));
     TEST_CHECK_EQ_U64(1U, count_call(&fixture, "bootstrap"));
     TEST_CHECK_EQ_U64(1U, count_call(&fixture, "setup_code"));
-    TEST_CHECK_EQ_U64(1U, fixture.setup_code_displays);
-    TEST_CHECK_EQ_STRING("12345678", fixture.displayed_setup_code);
+    TEST_CHECK_EQ_U64(1U, fixture.setup_code_logs);
+    TEST_CHECK_EQ_U64(1U, count_call(&fixture, "setup_code_publish"));
+    TEST_CHECK_EQ_STRING("12345678", fixture.published_setup_code);
     TEST_CHECK_EQ_INT(WEB_SERVER_MODE_SETUP, fixture.observed_web.mode);
     TEST_CHECK(!fixture.observed_web.login_enabled);
     TEST_CHECK_EQ_STRING("ESP32 Macro Keyboard", fixture.observed_web.setup_device_name);
     TEST_CHECK_EQ_STRING("12345678", fixture.observed_web.setup_code);
     TEST_CHECK_EQ_STRING("ESP32-Macro-A0B0C0", fixture.observed_ap_ssid);
-    TEST_CHECK(!fixture.observed_station_configured);
+    TEST_CHECK(fixture.observed_station_configured);
+    TEST_CHECK_EQ_STRING("Setup Station", fixture.observed_station_ssid);
+}
+
+static void test_setup_failure_after_publish_clears_console_code(void) {
+    fixture_t fixture;
+    reset_fixture(&fixture, false);
+    fixture.failure_stage = FAIL_HTTP_START;
+    app_core_ops_t ops = operations(&fixture);
+
+    TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, app_core_sequence_start(&ops));
+    TEST_CHECK_EQ_U64(1U, count_call(&fixture, "setup_code_publish"));
+    TEST_CHECK_EQ_U64(1U, count_call(&fixture, "setup_code_clear"));
+    TEST_CHECK_EQ_STRING("", fixture.published_setup_code);
 }
 
 static void expect_stage_failure(bool provisioned, failure_stage_t stage) {
@@ -401,7 +430,7 @@ static void test_startup_failure_matrix(void) {
     expect_stage_failure(true, FAIL_READY_INDICATOR);
     expect_stage_failure(false, FAIL_BOOTSTRAP);
     expect_stage_failure(false, FAIL_SETUP_CODE);
-    expect_stage_failure(false, FAIL_SETUP_CODE_DISPLAY);
+    expect_stage_failure(false, FAIL_SETUP_CODE_PUBLISH);
     expect_stage_failure(false, FAIL_AUTH_INIT);
     expect_stage_failure(false, FAIL_WIFI_START);
     expect_stage_failure(false, FAIL_HTTP_START);
@@ -463,6 +492,12 @@ static void test_invalid_inputs_and_operation_table(void) {
     invalid.setup_code_generate = NULL;
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, app_core_sequence_start(&invalid));
     invalid = ops;
+    invalid.setup_code_publish = NULL;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, app_core_sequence_start(&invalid));
+    invalid = ops;
+    invalid.setup_code_clear = NULL;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, app_core_sequence_start(&invalid));
+    invalid = ops;
     invalid.http_start = NULL;
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, app_core_sequence_start(&invalid));
     invalid = ops;
@@ -488,6 +523,7 @@ int main(void) {
     test_invalid_inputs_and_operation_table();
     test_normal_start_uses_v2_settings();
     test_setup_start_uses_bootstrap_ap_and_random_code();
+    test_setup_failure_after_publish_clears_console_code();
     test_startup_failure_matrix();
     test_factory_reset_pending_blocks_all_runtime_startup();
     test_nvs_failure_cleanup();

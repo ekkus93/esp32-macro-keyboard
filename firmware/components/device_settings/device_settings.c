@@ -286,6 +286,23 @@ app_error_code_t device_settings_replace(const app_v2_device_settings_t *setting
     return finish_locked(result);
 }
 
+app_error_code_t device_settings_set_station(const char *ssid, const char *passphrase,
+                                             bool *out_changed) {
+    if (ssid == NULL || passphrase == NULL || out_changed == NULL) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    *out_changed = false;
+    app_error_code_t result = lock_settings();
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    result = device_settings_core_set_station(&settings_core, ssid, passphrase, out_changed);
+    if (result != APP_ERROR_NONE) {
+        *out_changed = false;
+    }
+    return finish_locked(result);
+}
+
 app_error_code_t device_settings_reset_noncredential(app_v2_device_settings_t *out_settings,
                                                      bool *out_changed) {
     if (out_settings == NULL || out_changed == NULL) {

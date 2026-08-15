@@ -13,55 +13,18 @@ Those two values could never agree. After factory reset a user or hardware harne
 
 ## Product correction
 
-The repair follows the authoritative v2 specification instead of preserving the stale H9 interpretation:
+The first H12 preparation commit removed the stale label-derived setup code and restored a trusted-UART path for the live random setup code. That interim implementation was subsequently tightened by the final H12-122 preparation: disclosure is now explicit via the physical `setup-code` console command rather than automatic startup output, and the code authority is cleared at successful setup.
 
-1. the manufacturing bootstrap derivation now owns only the stable device ID, setup SoftAP SSID, and HMAC-derived AP passphrase;
-2. the label generator emits only those stable values and no `setup_code`;
-3. the existing unbiased v2 random setup-session generator remains the sole setup-code authority;
-4. startup passes that eight-digit code through a dedicated `show_setup_code` operation;
-5. the production adapter exposes the code only with `serial_console_show_setup_code()` on trusted UART0, validates the exact eight-digit format, flushes the stream, and fails startup if disclosure cannot be completed;
-6. the generic app-core log event no longer contains a setup-code field or setup-code event type; and
-7. the credential-output policy permits only the exact UART statement in `serial_console.c`; the same output anywhere else, or any other credential output from that file, remains forbidden.
-
-The setup code is still forbidden from HTTP setup state, diagnostics, persistence, repository/snapshot export, browser console output, ordinary ESP logging, and the manufacturing label.
+The setup code remains forbidden from HTTP setup state, diagnostics, persistence, repository/snapshot export, browser console output, ordinary ESP logging, and the manufacturing label.
 
 ## Hardware-evidence harness hardening
 
-The existing retained hardware helpers had several stale or fail-open behaviors:
-
-- `provision_device.py` called retired v1-shaped `/api/v1/setup-state`, `/api/v1/setup/credentials`, and `/api/v1/setup/restart` routes and expected a persisted `setup_code.txt`;
-- `test_acceptance_reset.py` used removed revisioned settings fields and retired setup routes;
-- `Device.logout()` swallowed every exception;
-- confirmation and HTTP-concurrency helpers could print PASS despite failure to restore the owner's `requireSerialConfirmation` setting; and
-- HID capture swallowed reader/close failures.
-
-The H12 preparation replaces those evidence gaps with fail-closed behavior:
-
-- `provision_device.py` captures the fresh UART code in memory only, uses exactly `GET /api/v1/setup` plus one `POST /api/v1/setup`, and proves the authenticated normal service after restart;
-- `test_acceptance_reset.py` is explicitly retired so it cannot manufacture false v2 evidence;
-- cleanup failures in logout/settings restoration/HID capture make the acceptance run fail;
-- `test_h12_release_smoke.py` requires an explicit destructive flag, exact firmware SHA, and clean production flash manifest; verifies live diagnostics against the flashed image; then exercises login, ordinary send, blob snapshot save/load/delete, password change, restart, factory reset, reprovision, and final production-image continuity; and
-- `test_send_confirmation.py` remains the separate native-USB proof for confirmation-required send, cancel, and the real 60-second timeout path.
+The preparation also found stale/fail-open retained hardware helpers. The final H12 path supersedes them with fail-closed logout, HID-capture and cleanup handling, current one-shot setup semantics, exact release-manifest flashing, and one unified destructive acceptance runner. Legacy reset and interim H12 smoke entry points now fail explicitly and direct the operator to `scripts/run-h12-122-hardware.py`.
 
 ## Local validation
 
-From the network-isolated sandbox, after rebasing the two files that changed after the uploaded source archive:
-
-- H12 hardware-harness contract regression: PASS;
-- setup-label generator regression: PASS;
-- credential-output regression: **21/21 PASS**;
-- v2 authentication policy: PASS;
-- specification traceability: current;
-- Python compilation for all touched hardware helpers: PASS;
-- shell syntax and changed-line whitespace checks: PASS;
-- focused startup host tests: **6/6 PASS**;
-- focused storage/provisioning host tests: **14/14 PASS**;
-- complete normal host suite: **66/66 PASS**;
-- native v2 contracts: **6/6 PASS**; and
-- ASan+UBSan host suite with the previously documented sandbox-only cJSON development shim: **66/66 PASS**.
-
-The sanitizer shim is diagnostic only; the repository-pinned authoritative environment must rerun the release gates on the new runtime candidate. The sandbox still cannot perform the ESP-IDF production build or physical-device run.
+The original preparation recorded passing H12 harness, setup-label, credential-output, authentication-policy, traceability, host, native-contract, and sanitizer checks. The final preparation evidence is recorded separately in `H12_122_FINAL_HARDWARE_CONFIRMATION_2026-08-15.md` and supersedes this document for the exact commands and current acceptance boundary.
 
 ## Acceptance boundary
 
-H12-122 remains open. This preparation does not claim that a production image has been built/flashed or that the hardware smoke passed. Because this repair changes production runtime behavior, the complete H12 software gate must be rerun on the resulting exact candidate before that SHA is used for final physical acceptance.
+H12-122 remains open. Preparation does not claim that a production image has been built/flashed or that the hardware smoke passed. Because H12-122 preparation changes production runtime and release-provenance behavior, H12-120/H12-121 must be re-established on the resulting exact candidate before physical acceptance.

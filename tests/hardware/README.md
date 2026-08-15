@@ -12,10 +12,8 @@ Wi-Fi network, and in some cases a USB host capture setup.
 python3 tests/hardware/provision_device.py
 ```
 
-The helper resets an unprovisioned board while capturing the fresh eight-digit
-setup code from UART0, keeps that code in memory only, submits the current one-shot
-`POST /api/v1/setup`, stores disposable normal-mode bench credentials outside the
-repository, and verifies the authenticated service after restart.
+The helper performs first-run setup, stores disposable bench credentials outside
+the repository, and waits for the normal authenticated service to return.
 
 ### Network authentication and retired-route boundary
 
@@ -51,27 +49,38 @@ the real 60-second expiry path both type nothing. The prior setting is restored
 on exit. This is intentionally a real 60-second timeout test rather than a
 test-only shortened substitute.
 
-### H12 final release smoke
+### H12-122 final exact-release acceptance
 
-After building/flashing a clean production image and generating
-`firmware/build/flash-manifest.json`, run:
+Build the production firmware, web assets/webfs image, and flash manifest from
+the exact clean candidate SHA using the repository's documented release build
+workflow. Then run one fail-closed acceptance command:
 
 ```bash
-python3 tests/hardware/test_h12_release_smoke.py \
-  --firmware-sha "$(git rev-parse HEAD)" \
+python3 scripts/run-h12-122-hardware.py \
   --flash-manifest firmware/build/flash-manifest.json \
-  --allow-destructive
+  --firmware-sha <exact-40-character-git-sha> \
+  --flash-port /dev/ttyACM0 \
+  --console /dev/ttyACM1 \
+  --output docs/implementation-v2/hardware/H12_122_<sha>.json
 ```
 
-This fail-closed destructive smoke binds the live board to the exact clean
-production manifest and exercises login, ordinary send, snapshot save/load/delete,
-password change, software restart, factory reset, random UART setup-code
-reprovisioning, and final production-image continuity. The separate
-`test_send_confirmation.py` remains required for confirmation-required send,
-cancel, timeout, and native USB HID capture.
+The H12 harness invokes `scripts/flash-release-manifest.py` itself *before* any
+HTTP or HID smoke step. Do not separately flash a different image between that
+operation and the acceptance run. The flasher refuses a dirty/development/wrong-
+SHA manifest, a source checkout that is not the same clean SHA, lockfile drift,
+missing or mutated flash artifacts, path traversal, a test-app image, or a
+release set that omits `webfs.bin`. Every flashed file is SHA-256 checked.
 
-`test_acceptance_reset.py` is intentionally retired because its old v1-shaped
-setup and revisioned-settings calls no longer describe the current v2 API.
+The bounded smoke then verifies manifest/diagnostics provenance, login, active
+HID send, confirmation-gated HID send, cancellation, snapshot save/load,
+password change and session invalidation, software restart, factory reset, fresh
+UART `setup-code` reprovisioning, snapshot erasure, and that the same production
+build remains on the board at sign-off. The emitted JSON contains non-secret
+evidence only.
+
+For a non-writing provenance preflight, `scripts/flash-release-manifest.py` also
+supports `--dry-run`; that does **not** count as the H12-122 flash or hardware
+acceptance.
 
 ## Deferred device checks
 

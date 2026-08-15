@@ -22,11 +22,6 @@ if [[ "${actual}" != "${expected}" ]]; then
 	exit 1
 fi
 
-if [[ "${actual}" == *'setup_code'* ]]; then
-	printf 'FAIL: label output must not contain the per-boot setup code\n' >&2
-	exit 1
-fi
-
 if python3 "${generator}" "${temporary_dir}/key.bin" 'not-a-mac' \
 	>"${temporary_dir}/output" 2>&1; then
 	printf 'FAIL: invalid MAC unexpectedly passed\n' >&2

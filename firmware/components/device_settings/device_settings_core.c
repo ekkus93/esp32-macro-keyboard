@@ -58,6 +58,22 @@ static app_error_code_t encode_settings(const app_v2_device_settings_t *settings
     return map_candidate_result(result);
 }
 
+static bool copy_station_text(const char *source, char *destination, size_t capacity) {
+    if (source == NULL || destination == NULL || capacity == 0U) {
+        return false;
+    }
+    size_t length = 0U;
+    while (length < capacity && source[length] != '\0') {
+        ++length;
+    }
+    if (length == capacity) {
+        return false;
+    }
+    memset(destination, 0, capacity);
+    memcpy(destination, source, length);
+    return true;
+}
+
 app_error_code_t device_settings_core_init(device_settings_core_t *core,
                                            const device_settings_core_ops_t *operations) {
     if (core == NULL || !operations_valid(operations)) {
@@ -164,6 +180,31 @@ app_error_code_t device_settings_core_replace(device_settings_core_t *core,
     core->record_present = true;
     *out_changed = true;
     return APP_ERROR_NONE;
+}
+
+app_error_code_t device_settings_core_set_station(device_settings_core_t *core,
+                                                  const char *ssid, const char *passphrase,
+                                                  bool *out_changed) {
+    if (core == NULL || ssid == NULL || passphrase == NULL || out_changed == NULL ||
+        !operations_valid(&core->ops)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    *out_changed = false;
+
+    app_v2_device_settings_t candidate = {0};
+    app_error_code_t result = device_settings_core_load(core, &candidate);
+    if (result == APP_ERROR_NONE &&
+        (!copy_station_text(ssid, candidate.station_ssid, sizeof(candidate.station_ssid)) ||
+         !copy_station_text(passphrase, candidate.station_passphrase,
+                            sizeof(candidate.station_passphrase)))) {
+        result = APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (result == APP_ERROR_NONE) {
+        candidate.station_configured = true;
+        result = device_settings_core_replace(core, &candidate, out_changed);
+    }
+    core->ops.secure_zero(core->ops.context, &candidate, sizeof(candidate));
+    return result;
 }
 
 app_error_code_t device_settings_core_reset_noncredential(device_settings_core_t *core,

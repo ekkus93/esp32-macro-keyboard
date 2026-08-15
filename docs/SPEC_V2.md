@@ -945,8 +945,24 @@ a partial record and silently discard unrelated valid settings.
 ### 12.4 Serial console
 
 The serial console is a trusted development surface. Possession of the board is
-the authorization for `confirm`, `cancel`, and network-configuration commands.
-It MUST NOT disclose credentials or secret material.
+the authorization for `confirm`, `cancel`, network-configuration commands, and
+the explicit `setup-code` command while the device is unprovisioned. The
+`setup-code` command is the sole exception to the general no-secret-output rule:
+it reveals only the current eight-digit one-time setup code, only on the physical
+UART console, and only until that setup session is consumed or the device
+reboots. Because ESP-IDF can mirror ordinary standard output to a secondary
+USB-Serial-JTAG console, this secret-bearing response MUST bypass `stdout` and
+write only to the primary UART command channel. Firmware MUST NOT emit that
+value automatically in startup or ordinary
+logs, and no other console command may disclose credentials or secret material.
+
+A successful `wifi-connect` command MUST persist the explicitly supplied station
+network in the authoritative v2 settings record only after association succeeds.
+This is permitted while the device is unprovisioned: factory reset erases the
+prior station configuration, a physically present operator may configure a new
+station afterward, and first-run setup MUST preserve that newly configured
+station because setup does not modify station fields. Persistence failure MUST
+be reported as command failure rather than as a successful durable connection.
 
 Before distribution to third parties, the interactive development console MUST
 be excluded or redesigned for the shipped product.

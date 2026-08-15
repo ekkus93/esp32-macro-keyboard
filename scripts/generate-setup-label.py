@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Derive one device's stable bootstrap AP label from its HMAC eFuse key."""
+"""Derive one device's bootstrap access-point label credentials."""
 
 from __future__ import annotations
 
@@ -51,8 +51,8 @@ def derive_label(key: bytes, device_id: bytes) -> dict[str, str]:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Derive the stable bootstrap AP label that firmware will derive "
-            "from HMAC_KEY0 for a specific ESP32-S3. The per-boot setup code is not a label value."
+            "Derive the bootstrap AP SSID and passphrase that firmware "
+            "will derive from HMAC_KEY0 for a specific ESP32-S3."
         )
     )
     parser.add_argument("key_file", type=Path, help="32-byte HMAC_UP key file")

@@ -561,6 +561,44 @@ static void test_prepare_update_invalid_arguments(void) {
         app_v2_settings_prepare_update(&current, &request, NULL, &restart, &reconnect));
 }
 
+static void test_setup_preserves_uart_configured_station_before_provisioning(void) {
+    app_v2_device_settings_t current;
+    app_v2_device_settings_init_unprovisioned(&current);
+    current.station_configured = true;
+    memcpy(current.station_ssid, "BenchWiFi", sizeof("BenchWiFi"));
+    memcpy(current.station_passphrase, "bench-passphrase", sizeof("bench-passphrase"));
+    TEST_CHECK_EQ_INT(APP_V2_SETTINGS_OK, app_v2_device_settings_validate(&current));
+
+    app_v2_setup_session_t session = {0};
+    TEST_CHECK_EQ_INT(APP_V2_SETUP_OK,
+                      app_v2_setup_session_init(&session, view("12345678")));
+    const app_v2_setup_request_t request = {
+        .setup_code = view("12345678"),
+        .device_name = view("Desk Macro Keyboard"),
+        .ap_ssid = view("MacroKeyboard"),
+        .ap_passphrase = view("example-passphrase"),
+        .admin_password = view("example-admin-password"),
+        .require_serial_confirmation = false,
+    };
+    app_v2_setup_password_material_t material = {
+        .credential_version = APP_V2_CREDENTIAL_VERSION,
+        .password_algorithm_version = APP_V2_PASSWORD_ALGORITHM_VERSION,
+        .password_iterations = 5500U,
+    };
+    memset(material.password_salt, 0x55, sizeof(material.password_salt));
+    memset(material.password_verifier, 0x66, sizeof(material.password_verifier));
+
+    app_v2_device_settings_t candidate = {0};
+    TEST_CHECK_EQ_INT(
+        APP_V2_SETUP_OK,
+        app_v2_setup_prepare_candidate(&session, &request, &current, &material, &candidate));
+    TEST_CHECK(candidate.provisioned);
+    TEST_CHECK(candidate.station_configured);
+    TEST_CHECK_EQ_STRING("BenchWiFi", candidate.station_ssid);
+    TEST_CHECK_EQ_STRING("bench-passphrase", candidate.station_passphrase);
+    TEST_CHECK_EQ_INT(APP_V2_SETTINGS_OK, app_v2_device_settings_validate(&candidate));
+}
+
 static void test_password_change_validate_ok(void) {
     app_v2_device_settings_t current = provisioned_settings();
     TEST_CHECK_EQ_INT(APP_V2_PASSWORD_CHANGE_OK,
@@ -654,6 +692,7 @@ int main(void) {
     test_prepare_update_rejects_unprovisioned_current();
     test_prepare_update_invalid_arguments();
     test_response_from_settings_invalid_arguments();
+    test_setup_preserves_uart_configured_station_before_provisioning();
     test_prepare_update_require_confirmation_and_send_mode_and_previews();
     test_prepare_update_device_name_multibyte_utf8_accepted();
     test_prepare_update_device_name_invalid_leading_byte_rejected();

@@ -234,10 +234,15 @@ static void reset_all(void) {
     g_reset_gate_message = NULL;
 }
 
+static void no_op_setup_code_clear(void *context) {
+    (void)context;
+}
+
 static web_server_config_t make_setup_config(void) {
     web_server_config_t configuration = {0};
     configuration.mode = WEB_SERVER_MODE_SETUP;
     configuration.login_enabled = false;
+    configuration.setup_code_clear = no_op_setup_code_clear;
     (void)snprintf(configuration.setup_device_name, sizeof(configuration.setup_device_name), "%s",
                    "Matrix Test Keyboard");
     (void)snprintf(configuration.setup_code, sizeof(configuration.setup_code), "%s", "12345678");

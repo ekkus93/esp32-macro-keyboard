@@ -16,9 +16,11 @@ def read(path: str) -> str:
 
 
 provision = read("tests/hardware/provision_device.py")
-release_smoke = read("tests/hardware/test_h12_release_smoke.py")
+runner = read("scripts/run-h12-122-hardware.py")
+flasher = read("scripts/flash-release-manifest.py")
 client = read("tests/hardware/device_client.py")
 retired_reset = read("tests/hardware/test_acceptance_reset.py")
+retired_smoke = read("tests/hardware/test_h12_release_smoke.py")
 label = read("scripts/generate-setup-label.py")
 
 for retired in (
@@ -33,7 +35,8 @@ for retired in (
 
 require('"GET", "/api/v1/setup"' in provision, "provision helper must read current setup state")
 require('"POST", "/api/v1/setup"' in provision, "provision helper must use one-shot v2 setup")
-require("capture_setup_code" in provision, "provision helper must capture the per-boot UART code")
+require('console_command("setup-code"' in provision,
+        "provision helper must explicitly request the per-boot UART code")
 require("setup_code.txt" not in provision, "ephemeral setup code must not be persisted")
 require("setup_code" not in label.split("def derive_label", 1)[1].split("def main", 1)[0],
         "manufacturing label must not contain a setup-code field")
@@ -41,22 +44,34 @@ require("setup_code" not in label.split("def derive_label", 1)[1].split("def mai
 for required in (
     "--firmware-sha",
     "--flash-manifest",
-    "--allow-destructive",
-    '"gitCommit"',
-    "load_flash_manifest",
-    "verify_firmware_provenance",
+    "--flash-port",
+    "--console",
+    "flash-release-manifest.py",
     '"/api/v1/send"',
     '"/api/v1/blob"',
     '"/api/v1/settings/change-password"',
     '"/api/v1/device/restart"',
     '"/api/v1/device/factory-reset"',
     "provision_device.provision",
+    "Capture",
 ):
-    require(required in release_smoke, f"H12 release smoke is missing {required}")
+    require(required in runner, f"H12-122 runner is missing {required}")
+
+for required in (
+    'manifest.get("gitDirty") is not False',
+    'manifest.get("buildType") != "production"',
+    'manifest.get("espIdfVersion") != EXPECTED_IDF',
+    '"webfs.bin"',
+):
+    require(required in flasher, f"release flasher is missing fail-closed check {required}")
 
 require("except Exception:\n            pass" not in client,
         "Device.logout must not silently swallow cleanup failure")
 require("is retired" in retired_reset,
         "retired v1 reset harness must fail explicitly instead of producing false evidence")
+require("is retired" in retired_smoke,
+        "interim H12 smoke must fail explicitly instead of competing with the final runner")
+require("run-h12-122-hardware.py" in retired_reset and "run-h12-122-hardware.py" in retired_smoke,
+        "retired hardware entry points must direct operators to the final H12 runner")
 
 print("H12 hardware harness contract tests passed")

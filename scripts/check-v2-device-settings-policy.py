@@ -13,6 +13,17 @@ app_core_cmake = (ROOT / "firmware/components/app_core/CMakeLists.txt").read_tex
     encoding="utf-8"
 )
 host_test = (ROOT / "tests/host/test_device_settings_core.c").read_text(encoding="utf-8")
+app_core_sequence = (ROOT / "firmware/components/app_core/app_core_sequence.c").read_text(
+    encoding="utf-8"
+)
+app_core_test = (ROOT / "tests/host/test_app_core.c").read_text(encoding="utf-8")
+serial_console = (ROOT / "firmware/components/serial_console/serial_console.c").read_text(
+    encoding="utf-8"
+)
+serial_console_cmake = (ROOT / "firmware/components/serial_console/CMakeLists.txt").read_text(
+    encoding="utf-8"
+)
+hil_state = (ROOT / "tests/hardware/hil_state.py").read_text(encoding="utf-8")
 
 
 def require(source: str, fragment: str, description: str) -> None:
@@ -205,6 +216,60 @@ require(
     host_test,
     "TEST_CHECK_EQ_U64(0U, fake.replace_calls);",
     "no-op settings writes must be covered",
+)
+require(
+    host_test,
+    'device_settings_core_set_station(&core, "BenchWiFi", "bench-passphrase", &changed)',
+    "serial-station mutation must have a direct core regression",
+)
+require(
+    serial_console_cmake,
+    "    device_settings\n",
+    "serial console must depend on the authoritative V2 settings store",
+)
+if "provisioning\n" in serial_console_cmake:
+    raise SystemExit(
+        "V2 settings policy violation: serial console must not depend on retired provisioning storage"
+    )
+require(
+    serial_console,
+    "device_settings_set_station(argv[1], argv[2], &changed)",
+    "wifi-connect must persist through the authoritative V2 settings store",
+)
+for forbidden in ("provisioning_set_station", "provisioning_clear_credentials", "credential-reset"):
+    if forbidden in serial_console:
+        raise SystemExit(
+            f"V2 settings policy violation: serial console contains retired path {forbidden}"
+        )
+require(
+    serial_console,
+    "connection established but credentials were not persisted",
+    "wifi-connect must surface durable-persistence failure explicitly",
+)
+require(
+    serial_console,
+    "return 1;",
+    "wifi-connect persistence failure must be a command failure",
+)
+require(
+    app_core_sequence,
+    ".station_configured = secrets->settings.station_configured",
+    "setup-mode reboot must reuse a UART-configured durable station",
+)
+require(
+    app_core_test,
+    'TEST_CHECK_EQ_STRING("Setup Station", fixture.observed_station_ssid);',
+    "setup-mode durable-station reuse must remain host-tested",
+)
+require(
+    hil_state,
+    'persisted = b"will reconnect at boot" in buffer',
+    "HIL Wi-Fi helper must require an explicit durable-persistence acknowledgement",
+)
+require(
+    hil_state,
+    "device joined Wi-Fi but did not confirm durable station persistence",
+    "HIL Wi-Fi helper must fail visibly on temporary-only association",
 )
 
 print("V2 device settings persistence policy checks passed")

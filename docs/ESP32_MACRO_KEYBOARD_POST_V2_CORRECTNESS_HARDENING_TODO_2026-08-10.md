@@ -835,17 +835,18 @@ For every checked affected item:
 
 ### H12-120 — Clean checkout
 
-- [x] Create a fresh checkout of the exact final candidate SHA.
-- [x] Install dependencies only through documented reproducible commands.
-- [x] Confirm no generated/untracked source artifact is required for success.
+- [ ] Create a fresh checkout of the exact final candidate SHA.
+- [ ] Install dependencies only through documented reproducible commands.
+- [ ] Confirm no generated/untracked source artifact is required for success.
 
-- Evidence (2026-08-14):
+- Historical evidence (2026-08-14):
   `docs/implementation-v2/H12_120_CLEAN_CHECKOUT_2026-08-14.md` records the
   exact source-tree reconstruction and independent generated-artifact audit plus
   successful Ubuntu 24.04 `Quality` run `31822644005`, job `94839308592`, on
-  candidate SHA `a5474028044f056c92b8e43808be0ad62d1b72a9`. The report/tracker
-  closure is documentation-only; H12-121 must validate the resulting descendant
-  separately and remains open.
+  candidate SHA `a5474028044f056c92b8e43808be0ad62d1b72a9`. H12-122 preparation
+  subsequently found production-path and release-provenance defects that require
+  source changes, so this exact-final-candidate gate is reopened for the
+  replacement SHA. The historical result remains evidence for that older tree.
 
 ### H12-121 — Run complete authoritative gate
 
@@ -861,6 +862,20 @@ From the clean checkout:
 - [ ] No warnings are ignored or downgraded.
 - [ ] Record timings and key counts/budget margins.
 
+- Historical evidence (2026-08-14):
+  `docs/implementation-v2/H12_121_AUTHORITATIVE_GATE_2026-08-14.md` records
+  exact-SHA Ubuntu 24.04 release-gate evidence for candidate
+  `dd8bf489dc4f07bcaf3974bea181bd3bd589182e`: Quality run `31849836471`
+  completed `./scripts/check-all.sh` successfully in 7m18s; Host Tests run
+  `31849836512` passed 66/66 sanitizer tests and 66/66 coverage tests; pure-policy
+  coverage was 2930/3065 lines (95.60%, +5.60 points over the 90% gate) and
+  2106/2549 branches (82.62%, +2.62 points over the 80% gate), with all 20/20
+  intended policy sources present and instrumented. No first-party warning was
+  ignored, suppressed, or downgraded. H12-122 preparation subsequently changed
+  production/runtime and release-provenance code, so this gate is reopened and
+  must pass again on the replacement exact SHA before physical H12-122
+  acceptance.
+
 ### H12-122 — Final hardware confirmation on exact release SHA
 
 - [ ] Build production firmware from the same exact SHA.
@@ -868,6 +883,13 @@ From the clean checkout:
 - [ ] Verify version/commit diagnostics identify the exact SHA and clean build.
 - [ ] Perform a bounded final smoke sequence: login, active send, confirmation-required send, cancel, snapshot save/load, password change, restart, factory reset/reprovision.
 - [ ] Confirm no production test image remains flashed at sign-off.
+
+- Preparation status (2026-08-15):
+  `docs/implementation-v2/H12_122_FINAL_HARDWARE_CONFIRMATION_2026-08-15.md`
+  records the pre-hardware audit, release-provenance hardening, current-contract
+  HIL repairs, and local regression results. Physical execution remains open and
+  must use the replacement exact SHA after H12-120/H12-121 revalidation. No
+  H12-122 checkbox is inferred from harness implementation alone.
 
 ### H12-123 — Final post-v2 acceptance statement
 

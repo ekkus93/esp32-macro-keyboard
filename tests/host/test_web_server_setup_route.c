@@ -116,6 +116,12 @@ app_error_code_t auth_password_create(const char *password, size_t password_leng
 }
 
 static size_t g_esp_restart_calls;
+static size_t g_setup_code_clear_calls;
+
+static void fake_setup_code_clear(void *context) {
+    TEST_CHECK(context == &g_setup_code_clear_calls);
+    ++g_setup_code_clear_calls;
+}
 
 /* Deliberately returns normally (unlike the real, noreturn esp_restart()) so
  * the caller's post-restart code -- here, nothing, since setup_submit_
@@ -133,6 +139,7 @@ static void reset_fakes(void) {
     app_v2_device_settings_init_unprovisioned(&fake_device_settings.record);
     g_password_create_result = APP_ERROR_NONE;
     g_esp_restart_calls = 0U;
+    g_setup_code_clear_calls = 0U;
 }
 
 static void bind_json_body(httpd_req_t *request, fake_httpd_request_t *fake, const char *uri,
@@ -249,6 +256,8 @@ static const char *const VALID_SETUP_BODY =
 static void test_setup_submit_success_restarts_device(void) {
     reset_fakes();
     server_configuration.mode = WEB_SERVER_MODE_SETUP;
+    server_configuration.setup_code_clear_context = &g_setup_code_clear_calls;
+    server_configuration.setup_code_clear = fake_setup_code_clear;
     seed_valid_setup_session();
     fake_httpd_request_t fake;
     fake_httpd_reset(&fake);
@@ -262,6 +271,7 @@ static void test_setup_submit_success_restarts_device(void) {
     TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "restartRequired")));
     TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "connectionWillClose")));
     cJSON_Delete(root);
+    TEST_CHECK_EQ_U64(1U, (uint64_t)g_setup_code_clear_calls);
     TEST_CHECK_EQ_U64(1U, (uint64_t)g_esp_restart_calls);
 }
 
@@ -271,6 +281,8 @@ static void test_setup_submit_success_restarts_device(void) {
 static void test_setup_submit_failure_does_not_restart_device(void) {
     reset_fakes();
     server_configuration.mode = WEB_SERVER_MODE_SETUP;
+    server_configuration.setup_code_clear_context = &g_setup_code_clear_calls;
+    server_configuration.setup_code_clear = fake_setup_code_clear;
     seed_valid_setup_session();
     fake_httpd_request_t fake;
     fake_httpd_reset(&fake);
@@ -283,6 +295,7 @@ static void test_setup_submit_failure_does_not_restart_device(void) {
 
     TEST_CHECK_EQ_INT(ESP_OK, setup_submit_handler(&request));
     TEST_CHECK(strcmp(fake.response_status, "202 Accepted") != 0);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_setup_code_clear_calls);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
 }
 

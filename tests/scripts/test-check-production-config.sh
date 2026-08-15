@@ -44,6 +44,7 @@ valid_config='CONFIG_IDF_TARGET="esp32s3"
 CONFIG_NVS_ENCRYPTION=y
 CONFIG_NVS_SEC_KEY_PROTECT_USING_HMAC=y
 CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID=0
+CONFIG_APP_RETRIEVE_LEN_ELF_SHA=39
 # CONFIG_APP_MANUFACTURING_PROVISIONING_LOG is not set'
 
 write_fixture "${valid_config}"
@@ -57,6 +58,13 @@ expect_fail 'disabled NVS encryption' "found 'n'"
 
 write_fixture "${valid_config/CONFIG_NVS_SEC_KEY_PROTECT_USING_HMAC=y/}"
 expect_fail 'missing HMAC scheme' 'CONFIG_NVS_SEC_KEY_PROTECT_USING_HMAC must be'
+
+write_fixture "${valid_config/CONFIG_APP_RETRIEVE_LEN_ELF_SHA=39/}"
+expect_fail 'missing diagnostics build ID length' 'CONFIG_APP_RETRIEVE_LEN_ELF_SHA must be'
+
+invalid_build_id_config="${valid_config/CONFIG_APP_RETRIEVE_LEN_ELF_SHA=39/CONFIG_APP_RETRIEVE_LEN_ELF_SHA=9}"
+write_fixture "${invalid_build_id_config}"
+expect_fail 'short diagnostics build ID length' "CONFIG_APP_RETRIEVE_LEN_ELF_SHA must be '39'"
 
 write_fixture "${valid_config}"$'\nCONFIG_NVS_SEC_KEY_PROTECT_USING_FLASH_ENC=y'
 expect_fail 'conflicting flash scheme' 'conflicts with the required HMAC NVS scheme'

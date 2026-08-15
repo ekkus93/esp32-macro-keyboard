@@ -30,6 +30,9 @@ app_error_code_t device_settings_core_load(device_settings_core_t *core,
 app_error_code_t device_settings_core_replace(device_settings_core_t *core,
                                               const app_v2_device_settings_t *settings,
                                               bool *out_changed);
+app_error_code_t device_settings_core_set_station(device_settings_core_t *core,
+                                                  const char *ssid, const char *passphrase,
+                                                  bool *out_changed);
 app_error_code_t device_settings_core_reset_noncredential(device_settings_core_t *core,
                                                           app_v2_device_settings_t *out_settings,
                                                           bool *out_changed);

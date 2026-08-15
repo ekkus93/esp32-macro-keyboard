@@ -239,6 +239,7 @@ esp_err_t setup_submit_handler(httpd_req_t *request) {
     if (outcome.result != WEB_SETUP_SUBMIT_OK) {
         return send_setup_submit_error(request, outcome);
     }
+    server_configuration.setup_code_clear(server_configuration.setup_code_clear_context);
     const esp_err_t send_result = send_setup_accepted(request, &accepted);
     /* Mirrors web_server_api.c's api_handler(): restart only after the
      * response was actually sent, and only for a route whose contract
