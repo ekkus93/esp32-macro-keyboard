@@ -280,14 +280,18 @@ way it is not for T2; the two orders are both reasonable and the choice is his.
 | 535–640 | `ConfirmPhraseDialog` + props | `ConfirmPhraseDialog.tsx` (~106) |
 | rest | deps, props, `DirtyGuardedAction`, `SettingsPage` | stays (~500) |
 
-- [ ] **T3-001** Extract `settingsFieldLimits.ts` first — the forms share it, so
-      extracting it up front avoids four rounds of import churn.
-- [ ] **T3-002** Extract `IdentityForm.tsx`.
-- [ ] **T3-003** Extract `AccessPointForm.tsx`.
-- [ ] **T3-004** Extract `StationForm.tsx`.
-- [ ] **T3-005** Extract `PasswordForm.tsx`.
-- [ ] **T3-006** Extract `ConfirmPhraseDialog.tsx`.
-- [ ] **T3-007** Confirm under 800 and no behaviour change.
+- [x] **T3-001** Extract `settingsFieldLimits.ts` first — the forms share it, so
+      extracting it up front avoids four rounds of import churn. — 14 lines.
+      Needed one import the region map missed: `byteCountLabel` calls
+      `utf8ByteLength`. Typecheck caught it on the first run.
+- [x] **T3-002** Extract `IdentityForm.tsx`. — 162 lines.
+- [x] **T3-003** Extract `AccessPointForm.tsx`. — 79 lines.
+- [x] **T3-004** Extract `StationForm.tsx`. — 122 lines.
+- [x] **T3-005** Extract `PasswordForm.tsx`. — 98 lines.
+- [x] **T3-006** Extract `ConfirmPhraseDialog.tsx`. — 110 lines.
+- [x] **T3-007** Confirm under 800 and no behaviour change. — **499 lines**.
+      Four imports became unused in the page and were dropped (`useEffect`,
+      `v2Limits`, `utf8ByteLength`, `isSettingsUpdateRequest`).
 
 **Risk:** medium-high — five extractions in one file, and the dirty-state guard
 (`DirtyGuardedAction`) spans page and forms. Extract one form per commit-sized
@@ -295,6 +299,18 @@ step even though the task lands as one commit; if the dirty-state wiring
 resists a clean move, stop and record why rather than reshaping it.
 **Verify:** `./scripts/check-webapp.sh`, then `./scripts/check-all.sh`. Settings
 behaviour is also covered by browser workflows — `npm --prefix webapp run test:browser`.
+
+**Evidence:** commit `abd93ff`. 1048 → 499 + 162 + 122 + 110 + 98 + 79 + 14.
+Settings suites **23 passed (23)**, unchanged. `./scripts/check-all.sh` →
+`EXIT=0` (49 frontend test files, 66/66 host tests, browser workflows green).
+Every extracted range diffs byte-identical against the pre-edit file apart from
+the added `export` keywords and a trailing blank line.
+
+**Sequencing note:** as with T2, this ran **before** the R4-041 fix. The
+Identity/AP/Station forms are now separate modules, which makes the finding's
+shape clearer — each form owns its own state and submits independently — but
+nothing about the dirty-edit-discard behaviour changed. R4-041 remains open and
+its line references need re-deriving.
 
 ---
 
