@@ -26,7 +26,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
@@ -47,6 +47,7 @@ spec.loader.exec_module(flash_manifest)
 TERMINAL_SEND_STATES = {"completed", "cancelled", "failed", "timed_out"}
 POLL_SECONDS = 0.25
 RESTART_TIMEOUT_S = 75
+RESTART_MIN_UPTIME_DROP_MS = 2000
 SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 SECRET_EVIDENCE_KEYS = {
     "password",
@@ -58,6 +59,13 @@ SECRET_EVIDENCE_KEYS = {
     "wifipassword",
 }
 ALPHABET = string.ascii_letters + string.digits
+
+
+class DiagnosticsObservation(TypedDict):
+    buildId: str
+    firmwareVersion: str
+    resetReason: str
+    uptimeMs: int
 
 
 def require(condition: bool, message: str) -> None:
@@ -75,20 +83,54 @@ def manifest_sha256(path: Path) -> str:
     return digest
 
 
-def validate_diagnostics(manifest: dict[str, Any], diagnostics: object) -> dict[str, str]:
+def validate_diagnostics(
+    manifest: dict[str, Any], diagnostics: object
+) -> DiagnosticsObservation:
     value = response_data(diagnostics)
     if not isinstance(value, dict):
         raise ValueError("diagnostics response is not an object")
     build_id = value.get("buildId")
     firmware_version = value.get("firmwareVersion")
+    reset_reason = value.get("resetReason")
+    uptime_ms = value.get("uptimeMs")
     expected = manifest.get("diagnosticsBuildId")
     if not isinstance(build_id, str) or not re.fullmatch(r"[0-9a-f]{39}", build_id):
-        raise ValueError("diagnostics buildId is not the expected 39-character lowercase ELF-SHA prefix")
+        raise ValueError(
+            "diagnostics buildId is not the expected 39-character lowercase ELF-SHA prefix"
+        )
     if not isinstance(expected, str) or build_id != expected:
         raise ValueError("on-device buildId does not exactly match flash-manifest ELF provenance")
     if not isinstance(firmware_version, str) or not firmware_version:
         raise ValueError("diagnostics firmwareVersion is missing")
-    return {"buildId": build_id, "firmwareVersion": firmware_version}
+    if not isinstance(reset_reason, str) or not reset_reason:
+        raise ValueError("diagnostics resetReason is missing")
+    if isinstance(uptime_ms, bool) or not isinstance(uptime_ms, int) or uptime_ms < 0:
+        raise ValueError("diagnostics uptimeMs is not a non-negative integer")
+    return {
+        "buildId": build_id,
+        "firmwareVersion": firmware_version,
+        "resetReason": reset_reason,
+        "uptimeMs": uptime_ms,
+    }
+
+
+def validate_restart_observation(
+    before: DiagnosticsObservation,
+    after: DiagnosticsObservation,
+    elapsed_ms: int,
+) -> None:
+    if elapsed_ms < 0:
+        raise ValueError("restart observation elapsed time is invalid")
+    if after["resetReason"] != "software":
+        raise ValueError(
+            f"restart diagnostics resetReason is {after['resetReason']!r}, not 'software'"
+        )
+    continuous_uptime = before["uptimeMs"] + elapsed_ms
+    uptime_drop = continuous_uptime - after["uptimeMs"]
+    if uptime_drop < RESTART_MIN_UPTIME_DROP_MS:
+        raise ValueError(
+            "restart did not produce a large enough uptime discontinuity to prove a reboot"
+        )
 
 
 def ensure_evidence_has_no_secret_keys(value: object, path: str = "$") -> None:
@@ -313,7 +355,9 @@ def change_password_smoke(device: Device) -> None:
     active_path.chmod(0o600)
 
 
-def wait_for_authenticated_service(address: str, console: str) -> str:
+def wait_for_authenticated_service(
+    address: str, console: str, *, allow_uart_reconnect: bool
+) -> str:
     deadline = time.monotonic() + RESTART_TIMEOUT_S
     while time.monotonic() < deadline:
         time.sleep(2)
@@ -323,18 +367,46 @@ def wait_for_authenticated_service(address: str, console: str) -> str:
             continue
         if status in (200, 401):
             return address
+    if not allow_uart_reconnect:
+        raise SystemExit(
+            "FAIL: authenticated service did not return on the persisted station connection; "
+            "UART Wi-Fi recovery is forbidden for restart acceptance"
+        )
     refreshed = hil_state.connect_wifi(console)
     status, _ = Device(refreshed).get("/api/v1/status")
     require(status in (200, 401), "authenticated service returned after UART Wi-Fi reconnect")
     return refreshed
 
 
-def restart_smoke(device: Device, console: str) -> str:
+def restart_smoke(device: Device) -> tuple[str, float]:
+    requested_at = time.monotonic()
     status, payload = device.post("/api/v1/device/restart")
     require(status == 202, "device restart returned 202")
     value = response_data(payload)
     require(isinstance(value, dict) and value.get("accepted") is True, "restart was accepted")
-    return wait_for_authenticated_service(device.ip, console)
+    address = wait_for_authenticated_service(
+        device.ip, "", allow_uart_reconnect=False
+    )
+    return address, requested_at
+
+
+def wait_for_unprovisioned_uart(console: str) -> None:
+    import serial  # noqa: PLC0415 - hardware-only dependency
+
+    deadline = time.monotonic() + RESTART_TIMEOUT_S
+    while time.monotonic() < deadline:
+        try:
+            output = serial_command("setup-code", console, seconds=2.0)
+        except (serial.SerialException, OSError):
+            time.sleep(0.5)
+            continue
+        if provision_device.SETUP_CODE_RE.search(output) is not None:
+            require(True, "factory reset entered unprovisioned setup mode on UART")
+            return
+        time.sleep(0.5)
+    raise SystemExit(
+        "FAIL: factory reset never exposed a fresh setup code on the trusted UART console"
+    )
 
 
 def factory_reset_and_reprovision(device: Device, console: str) -> str:
@@ -351,11 +423,25 @@ def factory_reset_and_reprovision(device: Device, console: str) -> str:
         and value.get("reprovisioningRequired") is True,
         "factory reset explicitly requires reprovisioning",
     )
-    time.sleep(5)
-    return provision_device.provision(None, console)
+    wait_for_unprovisioned_uart(console)
+    address = hil_state.connect_wifi(console)
+    address = provision_device.provision(
+        address,
+        console,
+        require_unprovisioned=True,
+        allow_post_setup_uart_reconnect=False,
+    )
+    old_client = Device(address)
+    old_status, _ = old_client.post(
+        "/api/v1/auth/login", {"adminPassword": password}
+    )
+    require(old_status == 401, "pre-reset administrator password rejected after reprovision")
+    return address
 
 
-def diagnostics_smoke(device: Device, manifest: dict[str, Any]) -> dict[str, str]:
+def diagnostics_smoke(
+    device: Device, manifest: dict[str, Any]
+) -> DiagnosticsObservation:
     payload = get_json(device, "/api/v1/diagnostics")
     try:
         observed = validate_diagnostics(manifest, payload)
@@ -379,9 +465,18 @@ def main() -> int:
     args = parser.parse_args()
     if not SHA40_RE.fullmatch(args.firmware_sha):
         raise SystemExit("error: --firmware-sha must be an exact 40-character lowercase SHA")
+    if args.flash_baud <= 0:
+        raise SystemExit("error: --flash-baud must be positive")
+    if Path(args.flash_port).resolve() == Path(args.console).resolve():
+        raise SystemExit("error: --flash-port and --console must identify distinct devices")
+    if args.output.exists():
+        raise SystemExit(
+            "error: --output already exists; H12 evidence is immutable, choose a new path"
+        )
 
     manifest, _ = flash_manifest.load_manifest(args.flash_manifest, args.firmware_sha)
     flash_manifest.validate_source_checkout(manifest, REPO_ROOT, args.firmware_sha)
+    manifest_digest = manifest_sha256(args.flash_manifest)
     print("H12-122 final hardware acceptance")
     print(f"firmware_sha={args.firmware_sha}")
     print(f"board={args.board}")
@@ -410,11 +505,18 @@ def main() -> int:
         )
     except subprocess.CalledProcessError as error:
         raise SystemExit(f"FAIL: exact release flashing failed: {error}") from error
+    require(
+        manifest_sha256(args.flash_manifest) == manifest_digest,
+        "release manifest remained byte-identical through flashing",
+    )
     steps.append({"name": "releaseFlash", "result": "passed"})
 
-    address = wait_for_authenticated_service(hil_state.device_ip(), args.console)
+    address = wait_for_authenticated_service(
+        hil_state.device_ip(), args.console, allow_uart_reconnect=True
+    )
     device = Device(address)
     device.login()
+    steps.append({"name": "login", "result": "passed"})
     initial_diag = diagnostics_smoke(device, manifest)
     steps.append({"name": "initialProvenance", "result": "passed"})
 
@@ -433,11 +535,29 @@ def main() -> int:
 
     device = Device(device.ip)
     device.login()
-    address = restart_smoke(device, args.console)
+    pre_restart_diag = diagnostics_smoke(device, manifest)
+    address, restart_requested_at = restart_smoke(device)
     device = Device(address)
     device.login()
     restart_diag = diagnostics_smoke(device, manifest)
-    steps.append({"name": "restart", "result": "passed"})
+    restart_elapsed_ms = int((time.monotonic() - restart_requested_at) * 1000)
+    try:
+        validate_restart_observation(
+            pre_restart_diag, restart_diag, restart_elapsed_ms
+        )
+    except ValueError as error:
+        raise SystemExit(f"FAIL: {error}") from error
+    require(True, "software restart is proven by reset reason and uptime discontinuity")
+    steps.append(
+        {
+            "name": "restart",
+            "result": "passed",
+            "resetReason": restart_diag["resetReason"],
+            "preRestartUptimeMs": pre_restart_diag["uptimeMs"],
+            "postRestartUptimeMs": restart_diag["uptimeMs"],
+            "elapsedMs": restart_elapsed_ms,
+        }
+    )
 
     address = factory_reset_and_reprovision(device, args.console)
     device = Device(address)
@@ -473,7 +593,7 @@ def main() -> int:
         "consoleDevice": args.console,
         "buildType": manifest["buildType"],
         "espIdfVersion": manifest["espIdfVersion"],
-        "manifestSha256": manifest_sha256(args.flash_manifest),
+        "manifestSha256": manifest_digest,
         "manifestBuildId": manifest["diagnosticsBuildId"],
         "observedBuildId": final_diag["buildId"],
         "firmwareVersion": final_diag["firmwareVersion"],
