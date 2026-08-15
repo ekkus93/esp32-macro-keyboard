@@ -330,12 +330,17 @@ Phase 10 (81 lines) and Phase 12 (212 lines) are merged into one wiring file
 rather than split into two — an 81-line test file is a worse outcome than a
 300-line one, and both describe the same concern.
 
-- [ ] **T4-001** Extract the prelude to `webapp/tests/helpers/appV2TestHarness.tsx`.
-      The harness must be **shared, not copied** — duplicating 253 lines of fakes
-      across four files is a worse result than the 956-line file.
-- [ ] **T4-002** Split the four `describe` blocks into the three test files above.
-- [ ] **T4-003** Confirm the total test count is unchanged and every new file is
-      under 800.
+- [x] **T4-001** Extract the prelude to `webapp/tests/appV2Harness.tsx`.
+      The harness must be **shared, not copied** — duplicating 244 lines of fakes
+      across four files is a worse result than the 956-line file. — 235 lines.
+      **Path correction:** flat in `tests/`, not a `tests/helpers/`
+      subdirectory. No such directory exists; `fakeFetch.ts`, `fakeMatchMedia.ts`
+      and `render.tsx` all sit flat, and vitest's `include` only collects
+      `*.test.*`, so a helper beside them is not picked up as a suite.
+- [x] **T4-002** Split the four `describe` blocks into the three test files above.
+      — 303 / 320 / 163 lines.
+- [x] **T4-003** Confirm the total test count is unchanged and every new file is
+      under 800. — **14 passed (14)**, unchanged; largest new file 320.
 
 **Risk:** low-medium. Watch for shared mutable state in the prelude — if any
 fake holds state across `describe` blocks, splitting changes reset timing. If a
@@ -343,6 +348,16 @@ test only passed because of ordering within the old file, this task will expose
 it; that is a real bug, so fix it separately and note it.
 **Verify:** `npm --prefix webapp run test`.
 **Test count must be unchanged: 14.**
+
+**Evidence:** commit `a549dd9`. 956 → 235 + 303 + 320 + 163.
+`npm --prefix webapp run test -- v2-app-v2` → **3 files, 14 passed (14)**.
+`./scripts/check-all.sh` → `EXIT=0`; frontend test files 49 → 51.
+Each `describe` body diffs byte-identical against the pre-split file apart from
+one trailing separator blank line; the harness differs only by added `export`
+keywords. The `beforeEach`/`afterEach` fake-timer hooks are repeated explicitly
+in each suite rather than relying on an imported module registering hooks into
+the importing file's root suite — that works in vitest but is implicit enough to
+mislead.
 
 ---
 
