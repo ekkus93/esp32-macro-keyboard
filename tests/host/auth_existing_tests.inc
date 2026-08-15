@@ -72,8 +72,7 @@ static void test_sessions(void) {
     TEST_CHECK(auth_core_session_create(&core, &session) == APP_ERROR_NONE);
     TEST_CHECK(strlen(session.session_token) == AUTH_TOKEN_HEX_BYTES - 1U);
     TEST_CHECK_EQ_U64(fake.now_us + AUTH_CORE_SESSION_IDLE_US, session.expires_at_us);
-    TEST_CHECK_EQ_U64(fake.now_us + AUTH_CORE_SESSION_ABSOLUTE_US,
-                      session.absolute_expires_at_us);
+    TEST_CHECK_EQ_U64(fake.now_us + AUTH_CORE_SESSION_ABSOLUTE_US, session.absolute_expires_at_us);
     const uint64_t original_expiry = session.expires_at_us;
     TEST_CHECK(auth_core_session_validate(&core, session.session_token) == APP_ERROR_NONE);
 
@@ -121,7 +120,8 @@ static void test_session_expiry_and_capacity(void) {
     init_core(&core, &fake);
     TEST_CHECK(auth_core_session_create(&core, &expiring) == APP_ERROR_NONE);
     fake.now_us = expiring.expires_at_us;
-    TEST_CHECK(auth_core_session_validate(&core, expiring.session_token) == APP_ERROR_AUTH_REQUIRED);
+    TEST_CHECK(auth_core_session_validate(&core, expiring.session_token) ==
+               APP_ERROR_AUTH_REQUIRED);
 
     fake_reset(&fake);
     init_core(&core, &fake);
@@ -134,7 +134,8 @@ static void test_session_expiry_and_capacity(void) {
     TEST_CHECK(auth_core_session_validate(&core, expiring.session_token) == APP_ERROR_NONE);
     TEST_CHECK_EQ_U64(expiring.absolute_expires_at_us, core.sessions[0].view.expires_at_us);
     fake.now_us = expiring.absolute_expires_at_us;
-    TEST_CHECK(auth_core_session_validate(&core, expiring.session_token) == APP_ERROR_AUTH_REQUIRED);
+    TEST_CHECK(auth_core_session_validate(&core, expiring.session_token) ==
+               APP_ERROR_AUTH_REQUIRED);
 }
 
 static void test_rate_limit(void) {

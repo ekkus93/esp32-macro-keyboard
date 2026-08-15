@@ -7,8 +7,7 @@ static void test_complete_rate_limit_matrix(void) {
     init_core(&core, &fake);
     uint32_t retry = UINT32_MAX;
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         auth_core_login_attempt_allowed(&core, source_a, &retry));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_login_attempt_allowed(&core, source_a, &retry));
     for (size_t failure = 1U; failure <= 4U; ++failure) {
         TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_login_record_failure(&core, source_a));
         TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
@@ -20,8 +19,7 @@ static void test_complete_rate_limit_matrix(void) {
                          auth_core_login_attempt_allowed(&core, source_a, &retry));
     TEST_CHECK_EQ_U64(300U, retry);
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         auth_core_login_attempt_allowed(&core, source_b, &retry));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_login_attempt_allowed(&core, source_b, &retry));
     TEST_CHECK_EQ_U64(0U, retry);
 
     fake.now_us = 1000000U;
@@ -29,8 +27,7 @@ static void test_complete_rate_limit_matrix(void) {
                          auth_core_login_attempt_allowed(&core, source_a, &retry));
     TEST_CHECK_EQ_U64(299U, retry);
     fake.now_us = AUTH_CORE_LOCKOUT_US;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         auth_core_login_attempt_allowed(&core, source_a, &retry));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_login_attempt_allowed(&core, source_a, &retry));
 
     fake_reset(&fake);
     init_core(&core, &fake);
@@ -40,8 +37,7 @@ static void test_complete_rate_limit_matrix(void) {
     }
     fake.now_us = UINT64_C(61000000);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_login_record_failure(&core, source_a));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         auth_core_login_attempt_allowed(&core, source_a, &retry));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_login_attempt_allowed(&core, source_a, &retry));
     TEST_CHECK_EQ_U64(0U, retry);
     fake.now_us = UINT64_C(62000000);
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_login_record_failure(&core, source_a));
@@ -49,8 +45,7 @@ static void test_complete_rate_limit_matrix(void) {
                          auth_core_login_attempt_allowed(&core, source_a, &retry));
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_login_record_success(&core, source_a));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
-                         auth_core_login_attempt_allowed(&core, source_a, &retry));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, auth_core_login_attempt_allowed(&core, source_a, &retry));
 
     fake_reset(&fake);
     init_core(&core, &fake);

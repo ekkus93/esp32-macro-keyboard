@@ -47,6 +47,7 @@ python3 tests/scripts/test-h12-hardware-harness.py
 # issue generator.
 bash tests/scripts/test-check-firmware.sh
 bash tests/scripts/test-clang-tidy-include-cycle.sh
+bash tests/scripts/test-check-format-inc-coverage.sh
 bash tests/scripts/test-static-analysis-policy.sh
 bash tests/scripts/test-check-partitions.sh
 bash tests/scripts/test-check-production-config.sh
