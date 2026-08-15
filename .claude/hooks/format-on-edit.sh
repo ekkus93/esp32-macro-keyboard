@@ -18,7 +18,11 @@ esac
 
 case "$rel" in
 firmware/*.c | firmware/*.h | tests/host/*.c | tests/host/*.h)
-	command -v clang-format >/dev/null 2>&1 && clang-format -i "$f"
+	# Absolute path, not PATH lookup: sourcing ESP-IDF's export.sh puts
+	# esp-clang's clang-format (LLVM 19.1.2) ahead of apt's 18.1.3, and CI
+	# checks with 18. Formatting here with 19 would leave the file failing
+	# check-format.sh -- reformatted by the hook, rejected by the gate.
+	[ -x /usr/bin/clang-format ] && /usr/bin/clang-format -i "$f"
 	;;
 scripts/*.sh)
 	command -v shfmt >/dev/null 2>&1 && shfmt -w "$f"
