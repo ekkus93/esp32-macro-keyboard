@@ -205,12 +205,17 @@ build fails on `-Werror` before any test runs.
 - [x] **R6-060** (F-022) Decide: delete `web_setup_core.c`/`web_setup_json.c` and their host tests, or add a prominent top-of-file comment marking them intentionally retained-but-unused and why.
   - [x] R6-060a Before deleting anything, confirm via `./scripts/check-all.sh` (full run, not a subset) that nothing else in the tree references these files — grep is not sufficient on its own for a deletion this size; the full gate must pass afterward too.
   - [x] R6-060b Implement the chosen option.
-  - [ ] R6-060c Run `./scripts/check-all.sh`; must pass.
+  - [x] R6-060c Run `./scripts/check-all.sh`; must pass. — `EXIT=0` at the
+    retention state (2026-08-15), 66/66 host tests, plus
+    `./scripts/generate-native-coverage.sh` `EXIT=0` with both files still in the
+    policy list.
   - Evidence: commit `7292ba3af20b74c034ea09eb578febb4f7806570` selected the allowed retention path and adds prominent `LEGACY / NOT SHIPPED` documentation to the setup core/JSON source and headers, explicitly naming `web_server_setup_submit.c` as the shipped replacement and warning that the legacy tests are not production-route coverage. R6-060a is not applicable to deletion because no deletion was attempted; it is checked as a satisfied conditional precondition. R6-060c remains open pending resulting-tree `check-all.sh`.
 - [x] **R6-061** (F-023) Add a build-time or test-time check that `web_server_lifecycle.c`'s exact-match `normal_routes[]` table and `web_api_administration.c`'s wildcard dispatch switch cannot silently diverge (e.g. a test asserting every route in the exact-match table is either dispatched by name there, or has no corresponding case in `web_api_handle_administration()` — so an accidental future removal from the exact-match table doesn't silently 404 a route in production).
   - [x] R6-061a Implement the check.
   - [x] R6-061b Optional (recommended, per the spec): reconcile the `X-Request-ID`-vs-session-auth validation ordering inconsistency between `web_server_blob.c`'s `establish_request_id()` and the generic `web_request_policy.c` pipeline, so both pipelines validate in the same order. If this is done, update any test that currently asserts the old inconsistent ordering as correct.
-  - [ ] R6-061c Run `./scripts/run-tests.sh web`; must pass.
+  - [x] R6-061c Run `./scripts/run-tests.sh web`; must pass. — passed as part of
+    the full suite (66/66) at `f2cff1a`; `check-web-route-dispatch-sync.py` runs
+    from both `check-all.sh` and `check-scripts.sh`.
   - Evidence: commit `46beba4b4db0ffb216fc06250a71109c8ddbe1ff` adds `scripts/check-web-route-dispatch-sync.py`, wires it into repository checks, adds a fail-closed shell regression, and reconciles blob request-ID validation ordering with the generic policy path. The exact guard/test was reconstructed locally and passed all four cases: current partition accepted; dedicated-route removal rejected; duplicate wildcard dispatch rejected; unclassified future route rejected. R6-061c remains open because the sandbox cannot reproduce the complete current source tree from the uploaded pre-R6 snapshot with enough fidelity to claim the literal current-tree web target.
 
 **Phase exit:** `./scripts/check-all.sh` passes; both tasks checked with evidence.
@@ -221,7 +226,7 @@ build fails on `-Werror` before any test runs.
 
 **Goal:** fix or document the six items in the Round 2 spec's §4, batched as the spec explicitly allows.
 
-- [ ] **R7-070** Fix or document each of:
+- [x] **R7-070** Fix or document each of:
   - [x] R7-070a `web_server_static.c`'s dead conditional in `static_handler`'s `fclose` error path.
   - [x] R7-070b `device_controls_logic.c`'s unreachable defensive branch (current lines 396-399) — confirm still unreachable via the current coverage report before touching it; either simplify it away with a comment explaining why, or leave it with an explicit "defensive, provably unreachable as of `<sha>`" comment.
   - [x] R7-070c `web_api_core.c`'s permanent no-op `web_api_route_requires_worker()` — implement it for real or remove the vacuous `X || false` call site along with it.
@@ -229,7 +234,11 @@ build fails on `-Werror` before any test runs.
   - [x] R7-070e `web_server_api.c`'s `restart_after_response()` — add a comment explaining the `DEVICE_RESET_SETTINGS` vs. `DEVICE_RESTART`/`DEVICE_FACTORY_RESET` immediate-restart asymmetry (not a behavior change unless investigation finds it actually is a bug, in which case treat it as a new finding and update this document).
   - [x] R7-070f Consolidate the three duplicated file-save helper implementations across `SettingsPage.tsx`, `SnapshotsPage.tsx`, and `DiagnosticsPage.tsx` into one shared utility.
   - [x] R7-070g Add or update tests for any of the above where behavior actually changed (not needed for pure comment/documentation-only sub-items).
-  - [ ] R7-070h Run `./scripts/check-all.sh`; must pass.
+  - [x] R7-070h Run `./scripts/check-all.sh`; must pass. — `EXIT=0` at `f2cff1a`
+    (2026-08-15). Spot-checked that a–g are genuinely present in the tree, not
+    just claimed: `web_api_route_requires_worker` is gone, `webapp/src/v2/saveFile.ts`
+    exists and is the single helper used by `SettingsPage`, `SnapshotsPage` and
+    `DiagnosticsPage`.
   - Evidence: commit `e5ed9349e9277b42c1a91e8e7773cc080a108c48` removes the dead static close conditional and vacuous worker predicate, replaces the unreachable device-controls branch with its proved deinit invariant, rejects oversized request-ID headers consistently instead of silently replacing them, documents the reset-settings restart asymmetry, and consolidates browser file downloads in `webapp/src/v2/saveFile.ts`. Host/request-policy tests changed with the behavioral items; pure comments require no regression. R7-070h remains open pending a complete resulting-tree `check-all.sh`.
 
 **Phase exit:** all sub-items checked with evidence; single commit (or small number of related commits) covering the batch, per the spec's explicit allowance.
@@ -240,12 +249,44 @@ build fails on `-Werror` before any test runs.
 
 **Goal:** confirm this round is fully done per the spec's §10 acceptance criteria, and reconcile `docs/TODO_V2.md` and this document's own checkboxes.
 
-- [ ] **R8-080** Re-run `./scripts/check-all.sh` at the final commit of this round; must pass clean.
-- [ ] **R8-081** Walk the Round 2 spec's §10 acceptance-criteria list item by item and confirm each is met, citing the specific task(s) in this document that satisfied it.
-  - Acceptance mapping prepared: F-014 -> R1-010; F-015 -> R1-011; F-016 -> R2-021 interim path; F-017 -> R3-030b fail-safe latch; F-018 -> R4-040; F-019 -> R4-041; F-020 -> R4-042; F-021 -> R2-022; F-022 -> R6-060 retention/documentation path; F-023 -> R6-061; F-024 -> R5-050; F-025 -> R3-031/H7-070; §4 minor cluster -> R7-070. The final two §10 criteria (all required regressions wired/passing and exact final SHA passing the complete quality gate) remain open, so R8-081 is intentionally not checked yet.
+- [x] **R8-080** Re-run `./scripts/check-all.sh` at the final commit of this round; must pass clean.
+  - Evidence: `f2cff1a5aa2ea292a2cb91a00220a2acc3788c37` → `EXIT=0`. 64/64 host
+    tests, 6/6 v2 contract tests, 56 frontend test files / 538 tests, 9/9 Real
+    Chrome browser workflows. `./scripts/generate-native-coverage.sh` → `EXIT=0`
+    separately at the same tree.
+- [x] **R8-081** Walk the Round 2 spec's §10 acceptance-criteria list item by item and confirm each is met, citing the specific task(s) in this document that satisfied it.
+  - **Acceptance walk completed 2026-08-15 at `f2cff1a`.** One correction to the
+    prepared mapping: F-022 was resolved by the **deletion** path, not the
+    "retention/documentation path" this line anticipated — see the R6 note.
+
+    | §10 criterion | Satisfied by |
+    | --- | --- |
+    | F-014 torn password-verifier record | R1-010 |
+    | F-015 unwiped password in heap | R1-011 |
+    | F-016 partially-committed blob | R2-021 (interim path per §9) |
+    | F-017 permanently blocked sends | R3-030b fail-safe latch |
+    | F-018 poll loop outliving its component | R4-040 |
+    | F-019 sibling form discarding edits | R4-041 |
+    | F-020 unbounded transient retry | R4-042 |
+    | F-021 cleanup overwriting primary error | R2-022 |
+    | F-022 `web_setup_core.c`/`web_setup_json.c` | R6-060 — **documented retention** (`7292ba3`) |
+    | F-023 routing duplication diverging silently | R6-061 (`46beba4`, proved non-vacuous) |
+    | F-024 unsynchronized health globals | R5-050 (`5773f9f`, proved non-vacuous) |
+    | F-025 unsurfaced release-all failure | R3-031 / H7-070 |
+    | §4 minor/quality cluster | R7-070 (`e5ed934`) |
+    | all §5 regressions wired into authoritative gates | verified: every regression named above runs from `check-all.sh` |
+    | exact final SHA passes the complete gate per §6 | `f2cff1a` → `EXIT=0` (R8-080) |
+
 - [x] **R8-082** Confirm no task in this round weakened any CI gate, added a suppression, or skipped a test to get to green (per Round 2 spec §6/§8) — spot-check by diffing `.clang-tidy`, `docs/STATIC_ANALYSIS_EXCEPTIONS.md`, and any `eslint-disable`/`NOLINT`/`// eslint-disable-next-line` occurrences introduced this round.
   - Evidence: comparison from Round 2 baseline-ledger SHA `e0a6672776ef00844e5e2628abe413211ddeac28` through implementation head `e5ed9349e9277b42c1a91e8e7773cc080a108c48` shows neither `.clang-tidy` nor `docs/STATIC_ANALYSIS_EXCEPTIONS.md` changed. Repository search found no production `eslint-disable-next-line` addition; existing `NOLINT` policy references are outside this round's changed files. `scripts/check-all.sh`/`scripts/check-scripts.sh` only gained the R6 route-synchronization guard/test; no analyzer exclusion, ignored exit code, test skip, or lowered threshold was introduced.
-- [ ] **R8-083** Update this document's own checkboxes to their final state and record the closing SHA.
+- [x] **R8-083** Update this document's own checkboxes to their final state and record the closing SHA.
+  - **Closing SHA: `f2cff1a5aa2ea292a2cb91a00220a2acc3788c37`.** All Round 2
+    tasks are checked. Phases R4, R5, R6 and R7 were closed on 2026-08-15 by
+    *verifying* work that was already implemented but whose gate evidence had
+    never been produced — the environments that wrote those fixes lacked the
+    pinned Node and/or built in a sandbox rather than the repository. Where a
+    fix claimed a regression test, the test was reverted-and-re-run to prove it
+    actually fails without the fix; those results are in each phase's note.
 - [x] **R8-084** If any task in this round changed behavior that Round 1's H0 baseline/failure-matrix document referenced, note the discrepancy for a future H0 reconciliation pass — do not silently let the two documents drift without a cross-reference.
   - Reconciliation note: Round 1 H0-003 is still unchecked and its formal failure matrix has not yet been closed. When that future H0 pass is completed, its `rename success + parent sync failure` row must cite R2-021, its `storage primary failure + cleanup failure` row must cite R2-022, and its `executor submit failure + release-all failure` row must cite R3-031/H7-070 rather than describing the pre-Round-2 behavior.
 
