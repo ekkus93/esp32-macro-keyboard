@@ -8,6 +8,7 @@ A boot-protocol keyboard report is 8 bytes:
 An all-zero report means "no keys held" - that is what proves release-all.
 """
 
+import select
 import threading
 import time
 
@@ -110,6 +111,15 @@ class Capture:
     def _run(self):
         while not self._stop.is_set():
             try:
+                # Wait with a timeout rather than blocking in read(): a bare
+                # read() on hidraw parks forever when the device sends nothing,
+                # so the thread could never observe _stop and __exit__ timed out
+                # its join. Closing the fd from another thread does not reliably
+                # interrupt a blocked read on Linux, so the wakeup has to come
+                # from here.
+                ready, _, _ = select.select([self._handle], [], [], 0.1)
+                if not ready:
+                    continue
                 data = self._handle.read(8)
             except OSError as error:
                 if not self._stop.is_set():
@@ -126,14 +136,16 @@ class Capture:
     def __exit__(self, exc_type, exc_value, traceback):
         self._stop.set()
         cleanup_errors = []
-        try:
-            self._handle.close()
-        except OSError as error:
-            cleanup_errors.append(f"could not close {self.path}: {error}")
+        # Join before closing: the reader owns the handle, and closing it out
+        # from under a thread that is about to select() on it is a race.
         if self._thread is not None:
             self._thread.join(timeout=2.0)
             if self._thread.is_alive():
                 cleanup_errors.append(f"HID reader for {self.path} did not stop")
+        try:
+            self._handle.close()
+        except OSError as error:
+            cleanup_errors.append(f"could not close {self.path}: {error}")
         if self._reader_error is not None:
             cleanup_errors.append(f"HID capture failed: {self._reader_error}")
         if cleanup_errors:
