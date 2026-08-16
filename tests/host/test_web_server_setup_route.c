@@ -45,6 +45,7 @@
 #include "app_error.h"
 #include "auth.h"
 #include "cJSON.h"
+#include "device_controls.h"
 #include "device_settings.h"
 #include "device_settings_v2.h"
 #include "esp_system.h"
@@ -116,7 +117,20 @@ app_error_code_t auth_password_create(const char *password, size_t password_leng
 }
 
 static size_t g_esp_restart_calls;
+static size_t g_scheduled_restart_calls;
 static size_t g_setup_code_clear_calls;
+
+/* The real device_controls_restart() arms an esp_timer for
+ * DEVICE_CONTROLS_RESTART_DELAY_MS and returns, so the response can drain
+ * before the chip resets. Counting it separately from esp_restart() is what
+ * lets the tests below distinguish "scheduled a reboot" from "reset the chip
+ * out from under the unsent response". */
+static app_error_code_t g_scheduled_restart_result;
+
+app_error_code_t device_controls_restart(void) {
+    ++g_scheduled_restart_calls;
+    return g_scheduled_restart_result;
+}
 
 static void fake_setup_code_clear(void *context) {
     TEST_CHECK(context == &g_setup_code_clear_calls);
@@ -139,6 +153,8 @@ static void reset_fakes(void) {
     app_v2_device_settings_init_unprovisioned(&fake_device_settings.record);
     g_password_create_result = APP_ERROR_NONE;
     g_esp_restart_calls = 0U;
+    g_scheduled_restart_calls = 0U;
+    g_scheduled_restart_result = APP_ERROR_NONE;
     g_setup_code_clear_calls = 0U;
 }
 
@@ -251,8 +267,13 @@ static const char *const VALID_SETUP_BODY =
  * provisioned") but never restarted the device, so it never left setup mode.
  * Root cause: setup_submit_handler() is its own dedicated httpd_uri_t
  * registration (web_server_lifecycle.c's setup_routes[]), bypassing the
- * generic api_handler() dispatch that is the only place esp_restart() was
- * ever called for /api/v1/device/restart and /api/v1/device/factory-reset. */
+ * generic api_handler() dispatch that was then the only place a restart was
+ * ever triggered for /api/v1/device/restart and /api/v1/device/factory-reset.
+ *
+ * The first fix called esp_restart() directly, which introduced a second
+ * hardware bug (2026-08-16): the reset preempted the response flush, so the
+ * 202 never reached the client. Hence the two assertions below -- the reboot
+ * must be scheduled, and must not happen immediately. */
 static void test_setup_submit_success_restarts_device(void) {
     reset_fakes();
     server_configuration.mode = WEB_SERVER_MODE_SETUP;
@@ -272,11 +293,38 @@ static void test_setup_submit_success_restarts_device(void) {
     TEST_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "connectionWillClose")));
     cJSON_Delete(root);
     TEST_CHECK_EQ_U64(1U, (uint64_t)g_setup_code_clear_calls);
+    /* A scheduled reboot, and *no* immediate one: a non-zero esp_restart()
+     * count here means the chip reset before the 202 above could drain, which
+     * on hardware makes POST /api/v1/setup time out instead of answering. */
+    TEST_CHECK_EQ_U64(1U, (uint64_t)g_scheduled_restart_calls);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
+}
+
+/* The device must leave setup mode even when the reboot cannot be scheduled
+ * (controls task not running). Settings are already committed by then, so
+ * setup_submit_handler() falls back to an immediate reboot rather than
+ * stranding the device in setup mode -- losing the response is the lesser
+ * failure, and only in this already-degraded case. */
+static void test_setup_submit_falls_back_to_immediate_restart(void) {
+    reset_fakes();
+    server_configuration.mode = WEB_SERVER_MODE_SETUP;
+    server_configuration.setup_code_clear_context = &g_setup_code_clear_calls;
+    server_configuration.setup_code_clear = fake_setup_code_clear;
+    g_scheduled_restart_result = APP_ERROR_CONFLICT;
+    seed_valid_setup_session();
+    fake_httpd_request_t fake;
+    fake_httpd_reset(&fake);
+    httpd_req_t request;
+    bind_json_body(&request, &fake, "/api/v1/setup", VALID_SETUP_BODY);
+
+    TEST_CHECK_EQ_INT(ESP_OK, setup_submit_handler(&request));
+    TEST_CHECK_EQ_STRING("202 Accepted", fake.response_status);
+    TEST_CHECK_EQ_U64(1U, (uint64_t)g_scheduled_restart_calls);
     TEST_CHECK_EQ_U64(1U, (uint64_t)g_esp_restart_calls);
 }
 
 /* Symmetry check: a rejected submission must never restart the device
- * (esp_restart() gated on WEB_SETUP_SUBMIT_OK, not just "a response was
+ * (the restart is gated on WEB_SETUP_SUBMIT_OK, not just "a response was
  * sent" -- see setup_submit_handler()). */
 static void test_setup_submit_failure_does_not_restart_device(void) {
     reset_fakes();
@@ -296,6 +344,7 @@ static void test_setup_submit_failure_does_not_restart_device(void) {
     TEST_CHECK_EQ_INT(ESP_OK, setup_submit_handler(&request));
     TEST_CHECK(strcmp(fake.response_status, "202 Accepted") != 0);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_setup_code_clear_calls);
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_scheduled_restart_calls);
     TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
 }
 
@@ -304,6 +353,7 @@ int main(void) {
     test_setup_state_reflects_configured_device_name();
     test_setup_state_not_found_after_provisioning();
     test_setup_submit_success_restarts_device();
+    test_setup_submit_falls_back_to_immediate_restart();
     test_setup_submit_failure_does_not_restart_device();
 
     puts("web server setup route tests passed");

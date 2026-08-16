@@ -53,6 +53,13 @@ ALLOWED_FALLBACK_LINES = Counter(
          "/* Confirmation-gated work must never fall back to the httpd task:"): 1,
         ("firmware/components/device_controls/device_controls.c",
          "* failure therefore falls back to immediate reboot. If esp_restart()"): 1,
+        # Classified 2026-08-16. POST /api/v1/setup commits settings before it
+        # reboots, so a device that cannot schedule the reboot must still leave
+        # setup mode -- the same trade device_controls.c makes one entry above.
+        # The fallback loses the 202 response, which is why it is reached only
+        # when the controls task is absent, never on the normal path.
+        ("firmware/components/web_server/web_server_setup.c",
+         "* so staying in setup mode is the worse outcome: fall back to an"): 1,
         ("firmware/components/web_server/http_health.c",
          "* runtime fallback. */"): 1,
         ("webapp/src/v2/deviceActionsClient.ts",

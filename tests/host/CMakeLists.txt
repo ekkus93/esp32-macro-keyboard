@@ -422,6 +422,7 @@ target_include_directories(
             ../../firmware/components/storage/include
             ../../firmware/components/wifi_ap/include
             ../../firmware/components/usb_keyboard/include
+            ../../firmware/components/device_controls/include
             ../../firmware/components/device_settings/include
             ../../firmware/components/support/include
 )

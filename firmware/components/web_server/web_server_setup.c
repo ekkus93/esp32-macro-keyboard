@@ -10,6 +10,7 @@
 #include "app_limits_v2.h"
 #include "auth.h"
 #include "cJSON.h"
+#include "device_controls.h"
 #include "device_settings.h"
 #include "device_settings_v2.h"
 #include "esp_http_server.h"
@@ -241,19 +242,31 @@ esp_err_t setup_submit_handler(httpd_req_t *request) {
     }
     server_configuration.setup_code_clear(server_configuration.setup_code_clear_context);
     const esp_err_t send_result = send_setup_accepted(request, &accepted);
-    /* Mirrors web_server_api.c's api_handler(): restart only after the
-     * response was actually sent, and only for a route whose contract
-     * promises one. accepted.restart_required is unconditionally true on a
-     * successful setup outcome (setup_contract_v2.c), so this always fires
-     * here -- without it, the device commits new settings but never leaves
-     * setup mode, matching a real gap found on physical hardware 2026-08-10:
-     * GET /api/v1/setup kept reporting provisioned:false and login stayed
-     * disabled after a real setup submission, because nothing in this
-     * dedicated setup_routes[] handler ever called esp_restart() the way the
-     * generic API dispatch does for /api/v1/device/restart and
-     * /api/v1/device/factory-reset. */
+    /* The device must leave setup mode after a successful submission -- a real
+     * gap found on physical hardware 2026-08-10: GET /api/v1/setup kept
+     * reporting provisioned:false and login stayed disabled, because nothing
+     * in this dedicated setup_routes[] handler restarted the device at all.
+     * accepted.restart_required is unconditionally true on a successful setup
+     * outcome (setup_contract_v2.c), so this always fires here.
+     *
+     * The reboot is *scheduled* (DEVICE_CONTROLS_RESTART_DELAY_MS), never
+     * immediate. httpd_resp_send() only queues bytes with lwIP, so calling
+     * esp_restart() here -- as this handler previously did -- reset the chip
+     * before the 202 reached the wire and every client saw a socket timeout
+     * instead of the accepted response. Measured on physical hardware
+     * 2026-08-16: the H12-122 acceptance could not reprovision because
+     * POST /api/v1/setup never answered. This is the same defect that was
+     * removed from web_server_api.c's api_handler(); the delayed restart is
+     * now the only restart on every route whose contract promises one. */
     if (send_result == ESP_OK && accepted.restart_required) {
-        esp_restart();
+        /* Scheduling only fails when the controls task is not running
+         * (device_controls.h). Settings are already committed at this point,
+         * so staying in setup mode is the worse outcome: fall back to an
+         * immediate reboot and accept losing the response, exactly as
+         * device_controls does when its own restart timer cannot be armed. */
+        if (device_controls_restart() != APP_ERROR_NONE) {
+            esp_restart();
+        }
     }
     return send_result;
 }
