@@ -355,6 +355,47 @@ def change_password_smoke(device: Device) -> None:
     active_path.chmod(0o600)
 
 
+def start_application_after_flash(console: str) -> None:
+    """Reset the board through the console port so the flashed app actually runs.
+
+    esptool's --after hard_reset drives RTS on whichever port it flashed over.
+    When that port is the ESP32-S3's own USB-Serial/JTAG interface, the chip
+    stays in download mode -- measured on this bench: after flashing over native
+    USB the device remained enumerated as 303a:1001 and never became reachable,
+    so every subsequent check failed with "device did not report an IP address"
+    even though the flash itself verified.
+
+    The console is the UART bridge, whose RTS is wired to EN through the usual
+    auto-reset circuit, so pulsing it here starts the application. Absent or
+    unusable console hardware is not fatal: the caller's own reachability wait
+    reports that far more clearly than an exception here would.
+    """
+    try:
+        import serial  # noqa: PLC0415 - optional dependency, bench-only
+    except ImportError:
+        return
+    try:
+        port = serial.Serial()
+        port.port = console
+        port.baudrate = 115200
+        port.timeout = 0.2
+        port.dsrdtr = False
+        port.rtscts = False
+        port.open()
+    except (OSError, ValueError):
+        return
+    try:
+        port.dtr = False   # IO0 high -> normal boot, not download mode
+        port.rts = True    # EN low
+        time.sleep(0.1)
+        port.rts = False   # EN high -> run the application
+    except OSError:
+        pass
+    finally:
+        port.close()
+    time.sleep(2.0)
+
+
 def wait_for_authenticated_service(
     address: str, console: str, *, allow_uart_reconnect: bool
 ) -> str:
@@ -510,6 +551,8 @@ def main() -> int:
         "release manifest remained byte-identical through flashing",
     )
     steps.append({"name": "releaseFlash", "result": "passed"})
+
+    start_application_after_flash(args.console)
 
     address = wait_for_authenticated_service(
         hil_state.device_ip(), args.console, allow_uart_reconnect=True
