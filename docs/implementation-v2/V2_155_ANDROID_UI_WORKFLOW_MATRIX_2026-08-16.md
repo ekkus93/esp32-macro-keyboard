@@ -85,10 +85,19 @@ page at `scrollY 36.75`, the nav occupied CSS y 519-588 while "Load snapshot 17"
 occupied 542-588 — **entirely covered**, with `elementFromPoint` at the button's
 centre returning the nav.
 
-The checkbox's *substance* still holds: the page scrolls further, so the action
-is reachable by scrolling, and a user sees the nav rather than a half-hidden
-button. But the justification recorded in `TODO_V2.md` is not correct, and an
-automated or hurried tap at the control's location hits the navigation instead.
+**Follow-up measurement settles the severity: this is not a functional defect.**
+Scrolling to the very bottom of the same page (`scrollY == maxScroll == 367`)
+leaves **no** control covered by the nav — `covered: []`. The overlap is
+transient, occurring only at intermediate scroll positions, and no action is ever
+trapped behind the navigation. What is wrong is only the *justification* recorded
+in `TODO_V2.md`: a sticky element does overlap content scrolled under it, so
+"can only sit below `main`'s content box, never overlap it" is not why the
+requirement holds. The requirement holds because the page scrolls far enough to
+clear the nav.
+
+The practical consequence is for automation, not users: a tap computed at a
+control's centre can land on the nav, which is why this harness centres elements
+before tapping.
 Recorded here rather than silently fixed, since V2-130 is a checked item and
 re-deciding it is the product owner's call.
 

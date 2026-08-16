@@ -2610,12 +2610,14 @@ item.
   serves plain HTTP. Every existing test missed both — unit tests returned the
   exact maxima, and browser tests run on `localhost`, which is a secure context.
 
-  One finding is recorded rather than fixed: the sticky bottom navigation **does**
-  overlap content (measured: nav y 519-588 covering "Load snapshot 17" at
-  542-588), contradicting the reasoning under V2-130's checked
-  "bottom navigation does not cover final actions" item. The action stays
-  reachable by scrolling, so the checkbox's substance holds, but its
-  justification does not.
+  One documentation inaccuracy is recorded rather than a defect: the sticky bottom
+  navigation **does** overlap content at intermediate scroll positions (measured:
+  nav y 519-588 covering "Load snapshot 17" at 542-588), which contradicts the
+  reasoning under V2-130's checked "bottom navigation does not cover final
+  actions" item — a sticky element scrolled *under* is exactly how this happens.
+  Follow-up measurement at **maximum scroll** found **no** covered control
+  (`covered: []` at `scrollY == maxScroll`), so no action is ever unreachable and
+  the checkbox's substance holds. Only its stated justification is wrong.
 
 ## V2-156 — Final acceptance audit
 
