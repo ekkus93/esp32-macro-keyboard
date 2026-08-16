@@ -1,0 +1,31 @@
+{
+  "checks": {
+    "byteIdentityAndBlobList": "pass",
+    "interruptedUploadPowerCycle": "pass",
+    "mountFailureNoFormat": "pass"
+  },
+  "espIdfVersion": "ESP-IDF v5.5.5",
+  "firmwareBuildId": "189918701cff8b00df3775cad4c8b773d9e2d5e",
+  "firmwareCommit": "897038f2c3dce3bda142c6ec1968339b3d738dbd",
+  "observations": {
+    "interruptedBytesSentBeforePowerLoss": 57344,
+    "interruptedPreservedHashes": {
+      "1": "101072bf312c2d30ac8195da202bcb917371fdeca93d92de1c640cdc985eab6d",
+      "3": "00c1912a293fb87363d0fdf7c46317f76c70be19094b1665e924747ff50d78cf"
+    },
+    "mountBackupSha256": "597adbbce15f4a07057775d0c126a4aa1bc0ce73f5a462eee445b51cafbac41a",
+    "mountCorruptSha256": "07854d2fef297a06ba81685e660c332de36d5d18d546927d30daad6d7fda1541",
+    "mountPostBootSha256": "07854d2fef297a06ba81685e660c332de36d5d18d546927d30daad6d7fda1541",
+    "mountRestoredSha256": "597adbbce15f4a07057775d0c126a4aa1bc0ce73f5a462eee445b51cafbac41a",
+    "powerCycleVerifiedHashes": {
+      "1": "101072bf312c2d30ac8195da202bcb917371fdeca93d92de1c640cdc985eab6d",
+      "3": "00c1912a293fb87363d0fdf7c46317f76c70be19094b1665e924747ff50d78cf"
+    }
+  },
+  "schemaVersion": 1,
+  "sourceEvidenceSha256": "5847ee1be0e25288f677917557ba0154049490cf13f2a5191f3de2bfd32e6baf",
+  "sourceTask": "V2-035",
+  "targetHardware": "ESP32-S3R8",
+  "task": "H5-055",
+  "validatedAt": "2026-08-16T07:08:33.306519Z"
+}
