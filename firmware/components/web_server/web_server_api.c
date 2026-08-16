@@ -13,7 +13,6 @@
 #include "auth.h"
 #include "device_controls.h"
 #include "esp_http_server.h"
-#include "esp_system.h"
 #include "macro_limits.h"
 #include "web_api_core.h"
 #include "web_api_handlers.h"
@@ -239,16 +238,6 @@ static app_error_code_t read_call_body(httpd_req_t *request, size_t body_limit, 
     return APP_ERROR_NONE;
 }
 
-/* All three device-control actions schedule a delayed restart internally.
- * This post-response fast path intentionally preserves the existing immediate
- * restart behavior for restart/factory-reset only; reset-settings relies on
- * its already-scheduled delayed restart so its accepted response can drain. */
-static bool restart_after_response(const web_api_call_t *call, const web_api_response_t *response) {
-    return response->status == WEB_HTTP_STATUS_ACCEPTED &&
-           (call->path.route == WEB_API_ROUTE_DEVICE_RESTART ||
-            call->path.route == WEB_API_ROUTE_DEVICE_FACTORY_RESET);
-}
-
 /* SPEC_V2 13.9: a successful password change "invalidates all sessions
  * including the current one, and clears the current cookie." The generic
  * JSON pipeline (send_api_response()) has no other notion of a Set-Cookie
@@ -366,15 +355,13 @@ bool web_api_request_requires_worker(httpd_req_t *request) {
 }
 
 esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body,
-                                        size_t preread_length, bool *out_should_restart) {
+                                        size_t preread_length) {
     web_api_response_t response = {0};
     web_request_policy_result_t policy = {0};
     web_api_call_t call = {0};
     char *body = preread_body;
     size_t body_limit = (size_t)APP_V2_JSON_BODY_MAX_BYTES;
     bool response_ready = false;
-
-    *out_should_restart = false;
 
     app_error_code_t result =
         prepare_api_call(request, &call, &response, &body_limit, &response_ready);
@@ -391,7 +378,6 @@ esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body
                                  APP_ERROR_INTERNAL, "response encoding failed");
     }
 
-    const bool should_restart = response.body != NULL && restart_after_response(&call, &response);
     if (should_clear_session_cookie(&call, &response) &&
         httpd_resp_set_hdr(request, "Set-Cookie",
                            SESSION_COOKIE_NAME
@@ -403,12 +389,11 @@ esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body
     const esp_err_t send_result = send_api_response(request, policy.request_id, &response);
     free(body);
     web_api_response_free(&response);
-    *out_should_restart = send_result == ESP_OK && should_restart;
     return send_result;
 }
 
-esp_err_t web_api_handle_call(httpd_req_t *request, bool *out_should_restart) {
-    return web_api_handle_call_with_body(request, NULL, 0U, out_should_restart);
+esp_err_t web_api_handle_call(httpd_req_t *request) {
+    return web_api_handle_call_with_body(request, NULL, 0U);
 }
 
 app_error_code_t web_api_read_route_body(httpd_req_t *request, char **out_body,
@@ -427,10 +412,14 @@ esp_err_t api_handler(httpd_req_t *request) {
         return web_server_async_dispatch(request);
     }
 
-    bool should_restart = false;
-    const esp_err_t send_result = web_api_handle_call(request, &should_restart);
-    if (should_restart) {
-        esp_restart();
-    }
-    return send_result;
+    /* Device restart, factory reset and reset-settings all schedule their own
+     * delayed restart inside device_controls (DEVICE_CONTROLS_RESTART_DELAY_MS).
+     * Restarting here as soon as the response was handed to the HTTP server
+     * preempted that timer and reset the chip before lwIP put the bytes on the
+     * wire, so the client received nothing at all against a contract promising
+     * 202 -- see
+     * docs/implementation-v2/H12_122_RESTART_RESPONSE_FINDING_2026-08-16.md.
+     * The scheduled restart is now the only restart, which lets the accepted
+     * response drain first as the route contracts promise. */
+    return web_api_handle_call(request);
 }

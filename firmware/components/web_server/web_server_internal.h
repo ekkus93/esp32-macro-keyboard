@@ -50,9 +50,9 @@ esp_err_t send_create_handler(httpd_req_t *request);
 esp_err_t send_get_handler(httpd_req_t *request);
 esp_err_t send_cancel_handler(httpd_req_t *request);
 esp_err_t api_handler(httpd_req_t *request);
-esp_err_t web_api_handle_call(httpd_req_t *request, bool *out_should_restart);
+esp_err_t web_api_handle_call(httpd_req_t *request);
 esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body,
-                                        size_t preread_length, bool *out_should_restart);
+                                        size_t preread_length);
 app_error_code_t web_api_read_route_body(httpd_req_t *request, char **out_body, size_t *out_length);
 esp_err_t web_api_send_status_error(httpd_req_t *request, unsigned int status,
                                     app_error_code_t code, const char *message);

@@ -389,7 +389,6 @@ void vPortExitCritical(portMUX_TYPE *mux) {
  * ------------------------------------------------------------------ */
 
 static esp_err_t g_handler_result;
-static bool g_handler_should_restart;
 static size_t g_handler_calls;
 static esp_err_t g_completion_result;
 static size_t g_completion_calls;
@@ -410,7 +409,7 @@ app_error_code_t web_api_read_route_body(httpd_req_t *request, char **out_body,
 }
 
 esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body,
-                                        size_t preread_length, bool *out_should_restart) {
+                                        size_t preread_length) {
     (void)request;
     (void)preread_length;
     ++g_handler_calls;
@@ -426,7 +425,6 @@ esp_err_t web_api_handle_call_with_body(httpd_req_t *request, char *preread_body
     TEST_CHECK_EQ_INT(0, pthread_mutex_unlock(&g_handler_mutex));
 
     free(preread_body);
-    *out_should_restart = g_handler_should_restart;
     return g_handler_result;
 }
 
@@ -563,7 +561,6 @@ static void authenticate_status(fake_httpd_request_t *fake) {
 static void reset_fakes(void) {
     fake_freertos_wait_for_idle();
     g_handler_result = ESP_OK;
-    g_handler_should_restart = false;
     g_handler_calls = 0U;
     g_completion_result = ESP_OK;
     g_completion_calls = 0U;

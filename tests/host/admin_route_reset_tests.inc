@@ -64,7 +64,14 @@ static void test_factory_reset_post_valid(void) {
     TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
     TEST_CHECK_EQ_STRING("202 Accepted", fake.response_status);
     TEST_CHECK_EQ_U64(1U, (uint64_t)g_factory_reset_calls);
-    TEST_CHECK_EQ_U64(1U, (uint64_t)g_esp_restart_calls);
+    /* The response must be the ONLY thing this path emits. device_controls
+     * schedules the real restart (DEVICE_CONTROLS_RESTART_DELAY_MS); restarting
+     * immediately here preempted that timer and reset the chip before lwIP put
+     * the accepted response on the wire, so a real client received zero bytes
+     * against a contract promising 202 -- measured in
+     * docs/implementation-v2/H12_122_RESTART_RESPONSE_FINDING_2026-08-16.md.
+     * A non-zero count here means that fast path came back. */
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
 
     /* TODO_V2 V2-057 "consume the same checked-in examples from C and
      * TypeScript tests": web_device_reset_accepted_json(true, false, ...)'s
@@ -115,7 +122,14 @@ static void test_factory_reset_post_cleanup_failure_stays_accepted_for_recovery(
     TEST_CHECK_EQ_INT(ESP_OK, api_handler(&request));
     TEST_CHECK_EQ_STRING("202 Accepted", fake.response_status);
     TEST_CHECK_EQ_U64(1U, (uint64_t)g_factory_reset_calls);
-    TEST_CHECK_EQ_U64(1U, (uint64_t)g_esp_restart_calls);
+    /* The response must be the ONLY thing this path emits. device_controls
+     * schedules the real restart (DEVICE_CONTROLS_RESTART_DELAY_MS); restarting
+     * immediately here preempted that timer and reset the chip before lwIP put
+     * the accepted response on the wire, so a real client received zero bytes
+     * against a contract promising 202 -- measured in
+     * docs/implementation-v2/H12_122_RESTART_RESPONSE_FINDING_2026-08-16.md.
+     * A non-zero count here means that fast path came back. */
+    TEST_CHECK_EQ_U64(0U, (uint64_t)g_esp_restart_calls);
 
     cJSON *root = parse_response(&fake);
     const cJSON *example = test_examples_fixture_get("factoryResetAccepted");

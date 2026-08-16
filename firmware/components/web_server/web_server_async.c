@@ -6,7 +6,6 @@
 
 #include "app_error.h"
 #include "esp_http_server.h"
-#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
@@ -89,10 +88,9 @@ static void async_worker(void *context) {
         }
         httpd_req_t *request = item->request;
 
-        bool should_restart = false;
         /* Ownership of item->body passes to the call, which frees it. */
         const esp_err_t send_result =
-            web_api_handle_call_with_body(request, item->body, item->body_length, &should_restart);
+            web_api_handle_call_with_body(request, item->body, item->body_length);
         if (send_result != ESP_OK) {
             http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_RUN, APP_ERROR_IO);
         }
@@ -106,10 +104,6 @@ static void async_worker(void *context) {
             http_health_record_async_failure(HTTP_ASYNC_FAILURE_COMPLETION, APP_ERROR_IO);
         }
         release_in_flight();
-
-        if (should_restart) {
-            esp_restart();
-        }
     }
     if (xSemaphoreGive(async_stopped) != pdTRUE) {
         http_health_record_async_failure(HTTP_ASYNC_FAILURE_WORKER_STOP, APP_ERROR_INTERNAL);
