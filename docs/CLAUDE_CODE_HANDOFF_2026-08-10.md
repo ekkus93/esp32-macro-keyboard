@@ -1,7 +1,7 @@
 # Development handoff — esp32-macro-keyboard, 2026-08-10
 
 > **SUPERSEDED — 2026-08-15.** Start from
-> `docs/CLAUDE_CODE_HANDOFF_2026-08-15.md` instead. This document was accurate
+> `docs/CLAUDE_CODE_HANDOFF_2026-08-16.md` instead. This document was accurate
 > when written but is 31 commits stale, and its "hardware-required" section is
 > now largely discharged: post-v2 hardening Round 2 is closed and the V2-035
 > physical hardware evidence is complete and committed.
