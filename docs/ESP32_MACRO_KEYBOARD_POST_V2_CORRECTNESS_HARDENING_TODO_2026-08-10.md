@@ -960,20 +960,39 @@ Secret sentinels must cover:
 
 At minimum revalidate affected areas:
 
-- [ ] Linux HID identity/text/chords/release/cancel,
-- [ ] confirmation required/confirm/cancel/timeout,
-- [ ] USB disconnect/reconnect,
-- [ ] password change,
-- [ ] factory reset/recovery,
-- [ ] blob add/list/load/delete,
-- [ ] interrupted upload/power cycle,
-- [ ] AP survival after station failure,
-- [ ] bounded reconnect.
+- [x] Linux HID identity/text/chords/release/cancel,
+- [x] confirmation required/confirm/cancel/timeout,
+- [x] USB disconnect/reconnect,
+- [x] password change,
+- [x] factory reset/recovery,
+- [x] blob add/list/load/delete,
+- [x] interrupted upload/power cycle,
+- [x] AP survival after station failure,
+- [x] bounded reconnect.
 
 Optional unavailable hosts remain honestly recorded:
 
-- [ ] ChromeOS test status recorded without false completion.
-- [ ] Windows test status recorded without false completion.
+- [x] ChromeOS test status recorded without false completion.
+- [x] Windows test status recorded without false completion.
+
+- Evidence: `docs/implementation-v2/H10_103_HARDWARE_MATRIX_2026-08-16.md`.
+  Most items were revalidated by dedicated phases earlier today rather than
+  duplicated: confirmation/confirm/cancel/timeout by H1-015, password change by
+  H2-024, factory reset/recovery by H3-035, blob CRUD and interrupted
+  upload/power cycle by the V2-035 collector. `tests/hardware/test_h10_matrix.py`
+  covers the remainder on the board — **H10-103 matrix: PASS**: project-owned
+  USB VID:PID `303a:4001` and product string as the host enumerated them;
+  `{CTRL+L}` producing a report with modifier byte `0x01` *and* an ordinary key,
+  terminated by an all-zero release; the SoftAP `ready` both before and after a
+  deliberately failed station join, that join **bounded at 21.2 s** and reported
+  as a failure rather than retried silently; and reconnect to the real network
+  with the authenticated service returning.
+  **Two honest limits are recorded rather than claimed:** USB disconnect/reconnect
+  is covered only as re-enumeration across resets (a cable pull mid-send needs a
+  hand on the connector, and the bench hub has no per-port power switching), and
+  the ChromeOS and Windows checkboxes are marked as *status recorded* — both are
+  explicitly **not performed**, with no result claimed and nothing inferred from
+  the Linux run.
 
 ### Phase H10 exit gate
 
