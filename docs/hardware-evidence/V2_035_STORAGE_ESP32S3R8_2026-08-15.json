@@ -1,0 +1,197 @@
+{
+  "appElfSha256": "189918701cff8b00df3775cad4c8b773d9e2d5eec6a60d8e3c746f5dd26d185e",
+  "appImage": "esp32_macro_keyboard.bin",
+  "appImageSha256": "b85527bf53a9cb089f4a1b6921eacfbbcc98d042479a8e9d54c0cf47dec30dd6",
+  "baseUrl": "http://192.168.88.111",
+  "baseline": {},
+  "completedAt": "2026-08-16T06:35:30.129797Z",
+  "createdAt": "2026-08-16T02:08:55.745234Z",
+  "espIdfVersion": "ESP-IDF v5.5.5",
+  "evidenceSha256": "5847ee1be0e25288f677917557ba0154049490cf13f2a5191f3de2bfd32e6baf",
+  "firmwareBuildId": "189918701cff8b00df3775cad4c8b773d9e2d5e",
+  "firmwareCommit": "897038f2c3dce3bda142c6ec1968339b3d738dbd",
+  "flashManifestSha256": "a908907772d68bb843df1f54b7f1da97b94d32b7b2c967a596cb09b5a560d13d",
+  "initialDiagnostics": {
+    "buildId": "189918701cff8b00df3775cad4c8b773d9e2d5e",
+    "resetReason": "software",
+    "temporaryFileCount": 0,
+    "temporaryFiles": [],
+    "uptimeMs": 3970721
+  },
+  "interruptedUpload": {
+    "attemptedAt": "2026-08-16T06:26:12.273495Z",
+    "beforeDiagnostics": {
+      "buildId": "189918701cff8b00df3775cad4c8b773d9e2d5e",
+      "resetReason": "power_on",
+      "temporaryFileCount": 0,
+      "temporaryFiles": [],
+      "uptimeMs": 225994
+    },
+    "beforeHashes": {
+      "1": "101072bf312c2d30ac8195da202bcb917371fdeca93d92de1c640cdc985eab6d",
+      "3": "00c1912a293fb87363d0fdf7c46317f76c70be19094b1665e924747ff50d78cf"
+    },
+    "bytesSentBeforeDisconnect": 57344,
+    "contentLength": 131072
+  },
+  "ownedBlobs": [],
+  "phase": "complete",
+  "scenarios": {
+    "delete_preservation": {
+      "deletedId": "2",
+      "observedAt": "2026-08-16T02:09:03.841118Z",
+      "preservedHashes": {
+        "1": "101072bf312c2d30ac8195da202bcb917371fdeca93d92de1c640cdc985eab6d",
+        "3": "00c1912a293fb87363d0fdf7c46317f76c70be19094b1665e924747ff50d78cf"
+      },
+      "status": "pass"
+    },
+    "interrupted_upload_no_partial_final": {
+      "bytesSentBeforePowerLoss": 57344,
+      "observedAt": "2026-08-16T06:27:16.332352Z",
+      "postBootDiagnostics": {
+        "buildId": "189918701cff8b00df3775cad4c8b773d9e2d5e",
+        "resetReason": "power_on",
+        "temporaryFileCount": 0,
+        "temporaryFiles": [],
+        "uptimeMs": 71584
+      },
+      "prePowerLossDiagnostics": {
+        "buildId": "189918701cff8b00df3775cad4c8b773d9e2d5e",
+        "resetReason": "power_on",
+        "temporaryFileCount": 0,
+        "temporaryFiles": [],
+        "uptimeMs": 225994
+      },
+      "preservedHashes": {
+        "1": "101072bf312c2d30ac8195da202bcb917371fdeca93d92de1c640cdc985eab6d",
+        "3": "00c1912a293fb87363d0fdf7c46317f76c70be19094b1665e924747ff50d78cf"
+      },
+      "status": "pass"
+    },
+    "mount_failure_no_format": {
+      "backupSha256": "597adbbce15f4a07057775d0c126a4aa1bc0ce73f5a462eee445b51cafbac41a",
+      "corruptSha256": "07854d2fef297a06ba81685e660c332de36d5d18d546927d30daad6d7fda1541",
+      "observedAt": "2026-08-16T06:35:13.916431Z",
+      "partitionBytes": 524288,
+      "postBootSha256": "07854d2fef297a06ba81685e660c332de36d5d18d546927d30daad6d7fda1541",
+      "restoredSha256": "597adbbce15f4a07057775d0c126a4aa1bc0ce73f5a462eee445b51cafbac41a",
+      "serialLogExcerpt": [
+        "I (102) boot:  7 userdata         Unknown data     01 83 00620000 00080000",
+        "E (2055) esp_littlefs: ./managed_components/joltwallet__littlefs/src/littlefs/lfs.c:1383:error: Corrupted dir pair at {0x0, 0x1}",
+        "E (2065) esp_littlefs: mount failed,  (-84)",
+        "E (2065) esp_littlefs: Failed to initialize LittleFS",
+        "E (2065) app_core: stage failed: storage_mount (storage_unavailable)",
+        "E (2085) app_main: startup failed: storage_unavailable"
+      ],
+      "serialLogSha256": "28f4d7038afb8b1f237e4290082dfc67388f68d57ac1e685030543102d2040df",
+      "status": "pass"
+    },
+    "numeric_ordering": {
+      "createdIds": [
+        "1",
+        "2",
+        "3"
+      ],
+      "listedIds": [
+        "3",
+        "2",
+        "1"
+      ],
+      "observedAt": "2026-08-16T02:09:03.841067Z",
+      "status": "pass"
+    },
+    "power_cycle_persistence": {
+      "observedAt": "2026-08-16T05:05:18.178040Z",
+      "postBootDiagnostics": {
+        "buildId": "189918701cff8b00df3775cad4c8b773d9e2d5e",
+        "resetReason": "power_on",
+        "temporaryFileCount": 0,
+        "temporaryFiles": [],
+        "uptimeMs": 18420
+      },
+      "status": "pass",
+      "verifiedHashes": {
+        "1": "101072bf312c2d30ac8195da202bcb917371fdeca93d92de1c640cdc985eab6d",
+        "3": "00c1912a293fb87363d0fdf7c46317f76c70be19094b1665e924747ff50d78cf"
+      }
+    },
+    "reboot_temporary_cleanup": {
+      "bytesSentBeforePowerLoss": 57344,
+      "observedAt": "2026-08-16T06:27:16.332363Z",
+      "postBootDiagnostics": {
+        "buildId": "189918701cff8b00df3775cad4c8b773d9e2d5e",
+        "resetReason": "power_on",
+        "temporaryFileCount": 0,
+        "temporaryFiles": [],
+        "uptimeMs": 71584
+      },
+      "prePowerLossDiagnostics": {
+        "buildId": "189918701cff8b00df3775cad4c8b773d9e2d5e",
+        "resetReason": "power_on",
+        "temporaryFileCount": 0,
+        "temporaryFiles": [],
+        "uptimeMs": 225994
+      },
+      "preservedHashes": {
+        "1": "101072bf312c2d30ac8195da202bcb917371fdeca93d92de1c640cdc985eab6d",
+        "3": "00c1912a293fb87363d0fdf7c46317f76c70be19094b1665e924747ff50d78cf"
+      },
+      "status": "pass"
+    },
+    "storage_full_507_preservation": {
+      "cleanupVerified": true,
+      "committedBefore507": [
+        {
+          "id": "4",
+          "sha256": "8cc75ebec4fc6c9788de3cb75de39c2f39885ea1228979649da34c672252082a"
+        },
+        {
+          "id": "5",
+          "sha256": "0da424efc0c5f25767436825f84fa9d57979e6dcd93934707f91cbd313a1ec8f"
+        },
+        {
+          "id": "6",
+          "sha256": "959733518a272a1a84f5c053f887255a24c097adc9c10065a74cc4763f6131e1"
+        }
+      ],
+      "failure": {
+        "attempt": 4,
+        "httpStatus": 507,
+        "response": {
+          "error": {
+            "code": "storage_full",
+            "message": "blob upload failed"
+          }
+        }
+      },
+      "maximumUploadBytes": 131072,
+      "observedAt": "2026-08-16T06:27:47.127281Z",
+      "preservedHashes": {
+        "1": "101072bf312c2d30ac8195da202bcb917371fdeca93d92de1c640cdc985eab6d",
+        "3": "00c1912a293fb87363d0fdf7c46317f76c70be19094b1665e924747ff50d78cf",
+        "4": "8cc75ebec4fc6c9788de3cb75de39c2f39885ea1228979649da34c672252082a",
+        "5": "0da424efc0c5f25767436825f84fa9d57979e6dcd93934707f91cbd313a1ec8f",
+        "6": "959733518a272a1a84f5c053f887255a24c097adc9c10065a74cc4763f6131e1"
+      },
+      "status": "pass"
+    }
+  },
+  "schemaVersion": 3,
+  "sentinels": [
+    {
+      "id": "1",
+      "sha256": "101072bf312c2d30ac8195da202bcb917371fdeca93d92de1c640cdc985eab6d"
+    },
+    {
+      "id": "3",
+      "sha256": "00c1912a293fb87363d0fdf7c46317f76c70be19094b1665e924747ff50d78cf"
+    }
+  ],
+  "targetHardware": "ESP32-S3R8",
+  "task": "V2-035",
+  "testBlobCleanup": {
+    "status": "pass",
+    "verifiedAt": "2026-08-16T06:35:30.129810Z"
+  }
+}
