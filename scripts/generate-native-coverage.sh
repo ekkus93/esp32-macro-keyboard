@@ -24,6 +24,8 @@ pure_policy_files=(
 	"firmware/components/web_server/web_cookie.c"
 	"firmware/components/web_server/web_static_path.c"
 	"firmware/components/web_server/web_content.c"
+	"firmware/components/web_server/web_setup_core.c"
+	"firmware/components/web_server/web_setup_json.c"
 	"firmware/components/app_core/app_core_sequence.c"
 	"firmware/components/device_controls/device_controls_logic.c"
 	"firmware/components/device_controls/device_controls_reset.c"
