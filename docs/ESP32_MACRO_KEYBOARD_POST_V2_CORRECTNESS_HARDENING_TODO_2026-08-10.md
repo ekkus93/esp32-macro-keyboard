@@ -479,43 +479,80 @@ with an identical status payload and assert the live region is announced once.
 
 Search and classify at least:
 
-- [ ] atomic write staging cleanup,
-- [ ] rename failure cleanup,
-- [ ] blob upload temporary-file cleanup,
-- [ ] mount/unmount rollback,
-- [ ] shutdown/drain cleanup,
-- [ ] any `cleanup == NONE ? primary : cleanup` pattern.
+- [x] atomic write staging cleanup,
+- [x] rename failure cleanup,
+- [x] blob upload temporary-file cleanup,
+- [x] mount/unmount rollback,
+- [x] shutdown/drain cleanup,
+- [x] any `cleanup == NONE ? primary : cleanup` pattern.
 
 ### H5-051 — Standardize structured operation results
 
-- [ ] Reuse `app_operation_result` if sufficient; otherwise extend/create the minimal result type.
-- [ ] Preserve `primary_error`.
-- [ ] Preserve cleanup/release/durability error separately.
-- [ ] Represent commit state where needed.
-- [ ] Avoid invasive abstraction where a simple existing result structure already fits.
+- [x] Reuse `app_operation_result` if sufficient; otherwise extend/create the minimal result type.
+- [x] Preserve `primary_error`.
+- [x] Preserve cleanup/release/durability error separately.
+- [x] Represent commit state where needed.
+- [x] Avoid invasive abstraction where a simple existing result structure already fits.
 
 ### H5-052 — Fix atomic-write error provenance
 
-- [ ] Write failure remains primary if temporary cleanup also fails.
-- [ ] Verify failure remains primary if cleanup also fails.
-- [ ] Rename failure remains primary if temporary cleanup also fails.
-- [ ] Parent sync failure after rename is represented as commit/durability uncertain rather than ordinary uncommitted failure.
+- [x] Write failure remains primary if temporary cleanup also fails.
+- [x] Verify failure remains primary if cleanup also fails.
+- [x] Rename failure remains primary if temporary cleanup also fails.
+- [x] Parent sync failure after rename is represented as commit/durability uncertain rather than ordinary uncommitted failure.
 
 ### H5-053 — Define retry/reconciliation semantics for uncertain commit
 
-- [ ] Determine how callers detect whether the canonical blob/settings value exists after a durability-uncertain result.
-- [ ] Require refresh/reconcile before blind retry where duplicate creation could occur.
-- [ ] Make blob-create retry behavior deterministic.
-- [ ] Ensure UI/client does not create duplicate snapshots simply because the final durability acknowledgement was uncertain.
+- [x] Determine how callers detect whether the canonical blob/settings value exists after a durability-uncertain result.
+- [x] Require refresh/reconcile before blind retry where duplicate creation could occur.
+- [x] Make blob-create retry behavior deterministic.
+- [x] Ensure UI/client does not create duplicate snapshots simply because the final durability acknowledgement was uncertain.
 
 ### H5-054 — Storage tests
 
-- [ ] primary write failure + unlink failure -> both retained, primary preserved,
-- [ ] verify failure + unlink failure -> both retained,
-- [ ] rename failure + unlink failure -> both retained,
-- [ ] rename success + parent sync failure -> uncertain commit state,
-- [ ] retry/reconcile after uncertain commit does not silently duplicate data,
-- [ ] mount rollback preserves initiating mount error and cleanup detail.
+- [x] primary write failure + unlink failure -> both retained, primary preserved,
+- [x] verify failure + unlink failure -> both retained,
+- [x] rename failure + unlink failure -> both retained,
+- [x] rename success + parent sync failure -> uncertain commit state,
+- [x] retry/reconcile after uncertain commit does not silently duplicate data,
+- [x] mount rollback preserves initiating mount error and cleanup detail.
+
+### H5 software verification note (2026-08-15)
+
+**H5-050 through H5-054 were already implemented; only the gate run was
+missing.** H5-055 and the phase exit gate remain open by design —
+`docs/implementation-v2/H5_055_HARDWARE_DURABILITY_SANITY_2026-08-14.md` states
+that *"only after that evidence exists may the three H5-055 checkboxes and the
+H5 phase exit gate be evaluated for closure"*.
+
+What is in the tree:
+
+- `app_operation_result_t` carries `app_operation_commit_state_t` with a
+  distinct `APP_OPERATION_COMMIT_UNCERTAIN` — H5-051 and H5-053's representation.
+- `storage_atomic.c` returns `COMMIT_UNCERTAIN` for a post-rename parent-sync
+  failure and `NOT_COMMITTED` for a rename failure, keeping the two apart —
+  H5-052.
+- `storage_blob_upload.c` and `device_settings.c` map that through to
+  `APP_ERROR_COMMIT_UNCERTAIN` for callers.
+- `H5_050_PRIMARY_CLEANUP_ERROR_AUDIT_2026-08-13.md` records the completed
+  site-by-site audit H5-050 asks for.
+
+Run here: `./scripts/run-tests.sh storage` → **14/14**;
+`npm --prefix webapp run test:browser` → **Real Chrome H5 commit-uncertain
+reconciliation/no-duplicate-POST workflow passed** (H5-053's client half).
+
+**Non-vacuity proved.** Collapsing the post-rename durability failure into an
+ordinary uncommitted error — `COMMIT_UNCERTAIN` → `NOT_COMMITTED`, exactly the
+pre-H5 behaviour H5-052 forbids — fails `storage_atomic`. The distinction is
+therefore tested, not merely present.
+
+Named H5-054 cases confirmed present in `tests/host/`:
+`test_stage_failure_retains_primary_and_cleanup_errors`,
+`test_verify_failure_retains_primary_and_cleanup_errors`,
+`test_rename_failure_retains_primary_and_cleanup_errors`,
+`test_parent_sync_failure_is_commit_uncertain`,
+`test_directory_sync_failure_is_uncertain_and_retained`,
+`test_cleanup_failure_preserves_primary_and_cleanup`.
 
 ### H5-055 — Hardware durability sanity
 
