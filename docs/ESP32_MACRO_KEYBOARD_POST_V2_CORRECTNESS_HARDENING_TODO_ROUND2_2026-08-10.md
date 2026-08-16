@@ -298,7 +298,7 @@ generic pipeline's `enforce_session` → `establish_request_id` order.
 **Goal:** confirm this round is fully done per the spec's §10 acceptance criteria, and reconcile `docs/TODO_V2.md` and this document's own checkboxes.
 
 - [x] **R8-080** Re-run `./scripts/check-all.sh` at the final commit of this round; must pass clean.
-  - Evidence: `f2cff1a5aa2ea292a2cb91a00220a2acc3788c37` → `EXIT=0`. 64/64 host
+  - Evidence: `3eee65192148b391d0daa4e3bcf7a1ce1be0f209` → `EXIT=0`. 66/66 host
     tests, 6/6 v2 contract tests, 56 frontend test files / 538 tests, 9/9 Real
     Chrome browser workflows. `./scripts/generate-native-coverage.sh` → `EXIT=0`
     separately at the same tree.
@@ -323,12 +323,12 @@ generic pipeline's `enforce_session` → `establish_request_id` order.
     | F-025 unsurfaced release-all failure | R3-031 / H7-070 |
     | §4 minor/quality cluster | R7-070 (`e5ed934`) |
     | all §5 regressions wired into authoritative gates | verified: every regression named above runs from `check-all.sh` |
-    | exact final SHA passes the complete gate per §6 | `f2cff1a` → `EXIT=0` (R8-080) |
+    | exact final SHA passes the complete gate per §6 | `3eee651` → `EXIT=0` (R8-080) |
 
 - [x] **R8-082** Confirm no task in this round weakened any CI gate, added a suppression, or skipped a test to get to green (per Round 2 spec §6/§8) — spot-check by diffing `.clang-tidy`, `docs/STATIC_ANALYSIS_EXCEPTIONS.md`, and any `eslint-disable`/`NOLINT`/`// eslint-disable-next-line` occurrences introduced this round.
   - Evidence: comparison from Round 2 baseline-ledger SHA `e0a6672776ef00844e5e2628abe413211ddeac28` through implementation head `e5ed9349e9277b42c1a91e8e7773cc080a108c48` shows neither `.clang-tidy` nor `docs/STATIC_ANALYSIS_EXCEPTIONS.md` changed. Repository search found no production `eslint-disable-next-line` addition; existing `NOLINT` policy references are outside this round's changed files. `scripts/check-all.sh`/`scripts/check-scripts.sh` only gained the R6 route-synchronization guard/test; no analyzer exclusion, ignored exit code, test skip, or lowered threshold was introduced.
 - [x] **R8-083** Update this document's own checkboxes to their final state and record the closing SHA.
-  - **Closing SHA: `f2cff1a5aa2ea292a2cb91a00220a2acc3788c37`.** All Round 2
+  - **Closing SHA: `3eee65192148b391d0daa4e3bcf7a1ce1be0f209`.** All Round 2
     tasks are checked. Phases R4, R5, R6 and R7 were closed on 2026-08-15 by
     *verifying* work that was already implemented but whose gate evidence had
     never been produced — the environments that wrote those fixes lacked the
