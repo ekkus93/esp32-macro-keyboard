@@ -109,23 +109,56 @@ No other task in this document touches frozen-spec content. Every other phase ma
 
 **Goal:** fix F-018 (send-tracker leak), F-019 (settings form data loss), F-020 (unbounded poll-failure retry).
 
-- [ ] **R4-040** (F-018) Ensure every code path in `webapp/src/features/macros/v2/MacrosPage.tsx` that starts a send tracker (the `initialSend` recovery effect, `recoverActiveSend()`, and `startSend()`) has a corresponding stop triggered at minimum on unmount.
+- [x] **R4-040** (F-018) Ensure every code path in `webapp/src/features/macros/v2/MacrosPage.tsx` that starts a send tracker (the `initialSend` recovery effect, `recoverActiveSend()`, and `startSend()`) has a corresponding stop triggered at minimum on unmount.
   - [x] R4-040a Implement.
   - [x] R4-040b Add a Vitest test in `webapp/tests/v2-macros-page.test.tsx` that starts a send via each of the three paths, unmounts the component, and asserts the underlying tracker's `.stop()` was called (or equivalently, that no further poll `fetch` calls occur after unmount) — not just that no console warning was emitted.
-  - [ ] R4-040c Run `npm --prefix webapp run test`; must pass.
+  - [x] R4-040c Run `npm --prefix webapp run test`; must pass. — **56 files, 538 tests, all passed** (2026-08-15, Node v24.18.0). The sandbox limitation recorded below no longer applies: this run used the pinned Node with `webapp/node_modules` installed.
   - Evidence: commit `425e4a135580b43fcecad2799f36d94db8555fb3` centralizes tracker ownership in `activeHandleRef`, stops the active tracker on unmount, and stops a `sendMacro()` handle that resolves after unmount. `webapp/tests/v2-macros-page.test.tsx` covers the `initialSend`, 409 recovery, ordinary `startSend()`, and late-resolution race paths. Local npm execution remains open because the sandbox has Node 22, while this repository pins Node 24.18.0 with `engine-strict=true`, and the uploaded snapshot contains no `webapp/node_modules`; no test pass is claimed for R4-040c.
-- [ ] **R4-041** (F-019) Fix `SettingsPage.tsx`'s `IdentityForm` so submitting a sibling form (AP or Station) cannot silently discard unsaved edits in the Identity form.
+- [x] **R4-041** (F-019) Fix `SettingsPage.tsx`'s `IdentityForm` so submitting a sibling form (AP or Station) cannot silently discard unsaved edits in the Identity form.
   - [x] R4-041a Implement (scope each form's resync to only the fields it owns, or detect-and-preserve/warn on a pending local edit — either is acceptable per the spec).
   - [x] R4-041b Add a Vitest test in `webapp/tests/v2-settings-page.test.tsx`: start editing the Identity form's fields, submit the AP or Station form, assert the Identity form's unsaved edits are still present (not silently reverted to the server's response).
-  - [ ] R4-041c Run `npm --prefix webapp run test`; must pass.
+  - [x] R4-041c Run `npm --prefix webapp run test`; must pass. — **56 files, 538 tests, all passed** (2026-08-15, Node v24.18.0).
   - Evidence: commit `7054e42fffb168a869a4bd1aa556437339b6adae` scopes `IdentityForm` resynchronization to identity-owned settings fields instead of the whole settings object. The added regression edits the device name, submits an access-point update, reproduces the parent settings rerender, and asserts the unsaved Identity edit survives. Local npm execution is blocked by the same sandbox Node/dependency limitation recorded under R4-040; no test pass is claimed for R4-041c.
-- [ ] **R4-042** (F-020) Check whether Round 1's H4-042 (stale/degraded polling-state UI) has been implemented and, if so, whether it already resolves this finding as a side effect. Record that check explicitly before doing further work.
+- [x] **R4-042** (F-020) Check whether Round 1's H4-042 (stale/degraded polling-state UI) has been implemented and, if so, whether it already resolves this finding as a side effect. Record that check explicitly before doing further work.
   - [x] R4-042a If H4-042 is not implemented, or is implemented but does not give the poll loop any internal bounded-retry/give-up concept: modify `webapp/src/v2/sendClient.ts`'s poll-loop catch block so it distinguishes bounded transient retry (network blips) from a failure worth surfacing, following the pattern already established in `useDeviceReconnect.ts`'s `isTransientFailure()`.
   - [x] R4-042b Add a Vitest test in the existing send-client test file asserting the poll loop eventually surfaces/stops on persistent failure rather than retrying forever with no signal.
-  - [ ] R4-042c Run `npm --prefix webapp run test`; must pass.
+  - [x] R4-042c Run `npm --prefix webapp run test`; must pass. — **56 files, 538 tests, all passed** (2026-08-15, Node v24.18.0).
   - Evidence: Round 1 H4-042 remains entirely unchecked on master at `e5ed9349e9277b42c1a91e8e7773cc080a108c48`, so F-020 required its own implementation. Commit `c1ed265e2af3e3ba33b5bc2db822cf5eb79a73f5` bounds consecutive transient polling failures at three, stops immediately on non-transient failures, surfaces `onError`, and keeps the last active-send state/Cancel affordance visible in `MacrosPage`. Regressions cover three consecutive 503 failures, immediate 400 failure, and visible tracker failure without hiding Cancel. Local npm execution is blocked by the same sandbox Node/dependency limitation; no test pass is claimed for R4-042c.
 
 **Phase exit:** `./scripts/check-webapp.sh` passes; all tasks checked with evidence.
+— **Met 2026-08-15.** `./scripts/check-webapp.sh` → `EXIT=0` (ci → typecheck →
+eslint `--max-warnings=0` → stylelint → vitest 538/538 → build → local-assets).
+
+### R4 verification note (2026-08-15)
+
+The implementations for F-018/F-019/F-020 were already on `master`
+(`425e4a1`, `7054e42`, `c1ed265`); only the `c` sub-tasks were open, because the
+environment that wrote them had Node 22 and no `webapp/node_modules` and
+correctly declined to claim a test pass it had not run. Running them was
+therefore the whole of the remaining work.
+
+**A passing test is not evidence that the test would catch the bug**, so each
+fix was reverted in the working tree and the suite re-run to prove the
+regressions are not vacuous. All three failed as intended, and were restored:
+
+| Finding | Revert applied | Result |
+| --- | --- | --- |
+| F-018 | `stopActiveTracking()` removed from the unmount cleanup in `MacrosPage.tsx` | **2 failed** — `stops the 409-recovery tracker on unmount`, `stops a newly-started send tracker on unmount` |
+| F-019 | `IdentityForm.tsx` resync effect keyed back on `[settings]` | **1 failed** — `access-point update preserves unsaved identity edits when settings refresh` |
+| F-020 | `sendClient.ts` poll-failure branch returned to unconditional `schedulePoll()` | **2 failed** — `persistent transient poll failures surface and stop tracking`, `non-transient poll failure surfaces without retrying` |
+
+The F-018 result matches the finding precisely: two paths fail, not three,
+because the `initialSend` effect already registered a cleanup before the fix —
+exactly what F-018 says ("Only the first path's `useEffect` ever registers a
+cleanup function"). A third failure would have meant the test was asserting
+something other than the defect.
+
+The code these fixes live in was relocated by the large-file refactor
+(`docs/REFACTOR_LARGE_FILES_TODO_2026-08-15.md`): F-019's fix is now in
+`webapp/src/features/settings/v2/IdentityForm.tsx`, and F-018's regressions are
+now in `webapp/tests/v2-macros-page-send.test.tsx`. Both moves were
+behaviour-preserving and the revert-checks above were run against the current
+layout, so the fixes demonstrably survived the split.
 
 ---
 
