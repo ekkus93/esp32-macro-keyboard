@@ -6,7 +6,7 @@ found two production defects requiring source changes.
 
 | Field | Value |
 | --- | --- |
-| Final candidate SHA | `28359e884d4fdbc3748853ce880a421ee0644a01` |
+| Final candidate SHA | `9de20b6fde6a5dd2d40d11b2472f24e05a1f4dd0` (see "candidate moved again" below) |
 | Board | ESP32-S3R8 (QFN56 rev v0.2, 8 MB octal PSRAM), MAC `9c:13:9e:a8:77:38` |
 | Host | `Linux-7.0.0-28-generic-x86_64-with-glibc2.39` |
 | Toolchain | ESP-IDF v5.5.5, Node 24.18.0 |
@@ -119,3 +119,40 @@ provides the distinct flash port the guard requires.
 No test image remains flashed: the device is running the production build from
 `28359e8`, confirmed by on-device diagnostics matching the manifest ELF after
 the final reprovision.
+
+---
+
+## The candidate moved again: `28359e8` -> `9de20b6`
+
+Closing the three V2-156 audit findings pinned
+`CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=n` in `firmware/sdkconfig.defaults`,
+which **changes the shipped binary** (DIRAM 49.3% -> 48.5%, application
+47.9% -> 47.8%). The evidence recorded above against `28359e8` therefore no
+longer describes the shipped image, so the whole H12 sequence was re-run rather
+than carried forward. This is the same discipline the two restart-response fixes
+were held to earlier in the day.
+
+### H12-120 / H12-121 on `9de20b6`
+
+Fresh clone, 0 modified/untracked files, 0 build outputs, dependencies only via
+`npm --prefix webapp ci`. All three authoritative commands **exit 0**:
+`./scripts/check-all.sh` in **251 s** with 66/66 host tests;
+`./scripts/run-tests.sh --sanitizers` 66/66; `./scripts/generate-native-coverage.sh`
+with policy coverage **95.6%** lines (2942/3077), **82.7%** branches (2112/2555),
+**100%** functions (264/264) — identical to the previous candidate.
+
+The clean clone independently regenerated `firmware/sdkconfig` containing
+`# CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY is not set`, confirming the pin is
+reproducible from the committed tree and not an artifact of the working copy.
+
+### H12-122 on `9de20b6`
+
+**PASS**, exit 0 —
+`docs/hardware-evidence/H12_122_FINAL_ACCEPTANCE_ESP32S3R8_2026-08-16b.json`.
+The same twelve steps passed on the reference board, including restart returning
+its 202, factory reset, reprovision through `POST /api/v1/setup`, and the same
+production build remaining flashed throughout. Ports were re-identified from
+sysfs before the run (`/dev/ttyACM1` is still an unrelated Samsung device).
+
+The `2026-08-16.json` evidence for `28359e8` is retained as the record for that
+tree; the `-16b.json` file is the one that describes the shipped image.

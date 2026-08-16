@@ -1195,6 +1195,13 @@ From the clean checkout:
   image remains flashed. Every checkbox above is backed by a named check in the
   committed JSON, not by harness implementation.
 
+  **Candidate superseded 2026-08-16:** closing the three V2-156 audit findings
+  pinned `CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=n`, which changes the shipped
+  binary, so H12-120/121/122 were re-run on `9de20b6fde6a5dd2d40d11b2472f24e05a1f4dd0`
+  — all three pass, evidence
+  `docs/hardware-evidence/H12_122_FINAL_ACCEPTANCE_ESP32S3R8_2026-08-16b.json`.
+  `9de20b6` is the SHA that describes the shipped image.
+
   This gate found two production defects that no host test could observe, each
   requiring a source change and a full H12-120/H12-121 re-run on the replacement
   SHA (`07c40a4b` → `6666e79` → `28359e8`): an immediate `esp_restart()`

@@ -2615,7 +2615,19 @@ item.
   §5.3's task-stack rule holds only because every task uses `xTaskCreate` while
   `CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=y` would permit otherwise; and
   §5.4's no-wall-clock rule holds in code with nothing preventing reintroduction.
-  Closing them is implementation, not audit, so it is left as the owner's call.
+
+  **All three were closed on the owner's instruction the same day (`9de20b6`).**
+  `check-production-config.sh` now requires the three PSRAM options and
+  `CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=n` (pinned in `sdkconfig.defaults`,
+  verified at build level), making an external task stack impossible rather than
+  merely unused; and the new `scripts/check-no-wall-clock.py` forbids every
+  calendar-time entry point, SNTP, and non-monotonic `clock_gettime` while
+  allowing the monotonic sources the firmware uses. Self-tests: 12 -> 18 cases
+  for the config gate, 15 new for the wall-clock guard, both wired into
+  `check-all.sh`/`check-scripts.sh`. §5.3 and §5.4 now appear as explicitly cited
+  sections in `docs/SPEC_V2_TEST_TRACEABILITY.md`. Because the pin changes the
+  shipped binary, H12-120/121/122 were re-run on `9de20b6` — see
+  `docs/implementation-v2/H12_FINAL_CANDIDATE_ACCEPTANCE_2026-08-16.md`.
 
 ## Phase 15 exit gate
 
