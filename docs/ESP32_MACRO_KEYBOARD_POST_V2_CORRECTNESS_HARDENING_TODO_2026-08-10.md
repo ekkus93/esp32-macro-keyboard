@@ -315,10 +315,10 @@ After a returned `204` assert without reboot:
 
 - Evidence status: still open. Reference-board immediate auth/session behavior, power-cycle persistence, and PBKDF2 timing sanity require the physical ESP32-S3R8 and are not inferred from host tests.
 
-- [ ] Repeat successful password change on the reference board.
-- [ ] Verify old/new/session behavior immediately without reboot.
-- [ ] Verify a power cycle preserves the new password.
-- [ ] Re-run PBKDF2 timing sanity check to confirm no unintended cost regression.
+- [x] Repeat successful password change on the reference board.
+- [x] Verify old/new/session behavior immediately without reboot.
+- [x] Verify a power cycle preserves the new password.
+- [x] Re-run PBKDF2 timing sanity check to confirm no unintended cost regression.
 
 ### Phase H2 exit gate
 
@@ -327,9 +327,36 @@ After a returned `204` assert without reboot:
 - [x] No best-effort credential cache refresh remains.
 - [x] Returned success always means durable credential, RAM verifier, and session state agree.
 - [x] Injected failures have deterministic semantics.
-- [ ] Host/sanitizer/hardware evidence is committed.
+- [x] Host/sanitizer/hardware evidence is committed.
 
 ---
+
+### H2-024 hardware verification note (2026-08-16)
+
+Evidence: `docs/implementation-v2/H2_024_PASSWORD_CHANGE_HARDWARE_EVIDENCE_2026-08-16.md`.
+
+`python3 tests/hardware/test_password_change.py --firmware-sha 897038f… --port /dev/ttyACM0`
+→ **H2-024 hardware validation: PASS** on the reference ESP32-S3R8 at
+192.168.88.111 running firmware `897038f`.
+
+- password change accepted on the board; new disposable credential stored
+  outside the repository;
+- immediately and without a reboot: old password refused, new password accepted,
+  and the session that performed the change invalidated;
+- across an EN-pin hardware reset (`resetReason: power_on`) the new password
+  still works and the old one is still refused;
+- PBKDF2 timing, 20 real logins, against V2-041's 2026-08-09 baseline on the
+  same board: median **522.9 ms vs 522.5 ms** (+0.4), p90 635.2 vs 757.2, worst
+  807.8 vs 839.1 — no cost regression.
+
+Exit gate: `./scripts/run-tests.sh --sanitizers` 66/66; host and
+failure-injection coverage landed with H2-022/H2-023.
+
+The new harness is `tests/hardware/test_password_change.py`. Two defects in it
+were found and fixed before the passing run, both of which would have produced a
+false result — notably `session_still_valid()` swallowing the status from a
+client that returns rather than raises, which produced a *false accusation*
+against the firmware on the first attempt.
 
 ## Phase H3 — Crash-safe, resumable factory reset
 
