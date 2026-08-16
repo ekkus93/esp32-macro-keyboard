@@ -2369,10 +2369,11 @@ timeout under `--coverage`, not a logic bug) in
 Post-v2 H11-110 re-audit (2026-08-13) — V2-150: the 2026-08-10 `de47eee` results remain historical evidence.
 Current H10-100/H10-101 exact-SHA evidence re-proves the native, sanitizer,
 coverage, analyzer, firmware-build, frontend, production-build, and real-Chrome
-segments after hardening. The aggregate `check-all.sh` item is reopened because
+segments after hardening. The aggregate `check-all.sh` item was reopened because
 the latest post-hardening Quality run completed those segments and then failed
-later in `check-scripts.sh` on two `shfmt` diffs. H12-121 owns the next clean
-aggregate release-gate proof.
+later in `check-scripts.sh` on two `shfmt` diffs. **Resolved 2026-08-16:**
+H12-121 supplied the clean aggregate proof on the final candidate `28359e8`, and
+that item is now checked.
 
 - [x] Run native host tests. 56/56 passed.
 - [x] Run ASan and UBSan. 56/56 passed, no findings.
@@ -2388,31 +2389,44 @@ aggregate release-gate proof.
 - [x] Run real-browser tests. 7/7 real-Chrome scenario groups passed.
 - [x] Build production web assets and webfs image. Clean.
 - [x] Run the firmware build for `esp32s3`. Clean.
-- [ ] Run `./scripts/check-all.sh`. Historical `EXIT=0` evidence exists at `de47eee`,
-      but the current post-hardening aggregate gate has not exited 0.
+- [x] Run `./scripts/check-all.sh`. Closed 2026-08-16 by H12-121, which this
+      section named as its successor. From a fresh clone of the final candidate
+      `28359e884d4fdbc3748853ce880a421ee0644a01` (0 modified/untracked files, 0
+      build outputs), `./scripts/check-all.sh` exits 0 in 268 s with 66/66 host
+      tests — the clean aggregate release-gate proof the `shfmt` failure had
+      blocked. Evidence:
+      `docs/implementation-v2/H12_FINAL_CANDIDATE_ACCEPTANCE_2026-08-16.md`.
 - [x] Record exact commands, versions, counts, sizes, and results. See the
       evidence doc above.
 
 ## V2-151 — On-device Unity validation
 
-Post-v2 H11-110 re-audit (2026-08-13): **V2-151 is reopened for the
-current product.** The historical `de47eee` physical run remains valid evidence
-for the then-complete 10-case suite, but H10-102 has since added two
-`[device][executor][hardening]` Unity cases, making the current suite 12 cases.
-No 12/12 physical run exists yet. Build-only CI is not substituted for execution;
-the current board run is explicitly deferred/open under H10-102.
+Post-v2 H11-110 re-audit (2026-08-13): V2-151 was reopened for the current
+product. The historical `de47eee` physical run remains valid evidence for the
+then-complete 10-case suite, but H10-102 had since added two
+`[device][executor][hardening]` Unity cases, making the current suite 12 cases,
+and no 12/12 physical run existed. **Resolved 2026-08-16:** H10-102 ran the full
+12-case suite on the reference board — 12 Tests, 0 Failures, 0 Ignored — and the
+four items below are now checked against that run, not the 10-case one.
 
-- [ ] Build and flash the current on-device test application. Built and flashed
-      `firmware/test_app` at commit `de47eee` to the reference ESP32-S3R8,
-      native USB bootloader mode, 2026-08-10.
-- [ ] Run the complete current Unity menu on the reference board. Sent `*` over the
-      UART console after a real boot (not build-only).
-- [ ] Record every current test name and result. All 10 `TEST_CASE`s (the complete
-      set in `firmware/test_app/main/`): 10 passed, 0 failed, 0 ignored. See
-      `docs/implementation-v2/V2_150_151_FULL_GATE_AND_ON_DEVICE_UNITY_2026-08-10.md`
-      for every test name and the raw Unity summary.
-- [ ] Do not substitute a device-test build for execution. Ran on real
-      hardware, not claimed from the build alone.
+- [x] Build and flash the current on-device test application. Built by
+      `./scripts/build-device-tests.sh` from clean commit `fd0ddf7` and flashed
+      to the reference ESP32-S3R8 (2026-08-16). `firmware/test_app/` is
+      byte-identical between `fd0ddf7` and the final candidate `28359e8`
+      (`git diff fd0ddf7 28359e8 -- firmware/test_app/` is empty), so this is the
+      current test application.
+- [x] Run the complete current Unity menu on the reference board. `unity_run_menu()`
+      driven non-interactively by sending `*` over the UART console after a real
+      boot — execution, not a build.
+- [x] Record every current test name and result. **12 Tests, 0 Failures, 0
+      Ignored** — matching the 12 `TEST_CASE` macros currently in
+      `firmware/test_app/main/`, closing the 10-vs-12 gap this section was
+      reopened for. All twelve names and their individual `:PASS` lines, plus the
+      raw Unity summary, are in
+      `docs/implementation-v2/H10_102_DEVICE_UNITY_VALIDATION_2026-08-16.md`.
+- [x] Do not substitute a device-test build for execution. Ran on real silicon;
+      production was rebuilt from the same clean SHA and reflashed afterwards,
+      identity confirmed from the boot log, so no test image remains flashed.
 
 ## V2-152 — USB HID hardware matrix
 
@@ -2452,8 +2466,18 @@ Full evidence and commands:
 - [x] Validate interrupted upload recovery. Same as above.
 - [x] Validate full-partition behavior. Same as above.
 - [x] Validate mount failure without formatting. Same as above.
-- [ ] Revalidate factory reset and reprovisioning after the H3 reset-state hardening.
-      Historical evidence 2026-08-10: real
+- [x] Revalidate factory reset and reprovisioning after the H3 reset-state hardening.
+      Closed 2026-08-16 by the two successors this section named. **H3-035**
+      interrupted a factory reset *mid-cleanup* on the board (EN pulse inside the
+      handler window) and proved the next boot resumes the reset from the durable
+      journal rather than presenting an ambiguous state —
+      `docs/implementation-v2/H3_035_FACTORY_RESET_INTERRUPTION_HARDWARE_EVIDENCE_2026-08-16.md`.
+      **H12-122** then re-ran the complete happy path on the final candidate
+      `28359e8`: factory reset `202`, reprovisioning required, unprovisioned setup
+      mode observed on the trusted UART, successful reprovision, pre-reset
+      administrator password rejected afterwards, and the H12 snapshot confirmed
+      erased. Together these validate the new reset state machine, not just the
+      old happy path. Historical evidence 2026-08-10: real
       `POST /api/v1/device/factory-reset`, real software restart
       (`RTC_SW_CPU_RST`) captured in the boot log, reprovisioned with fresh
       credentials, confirmed the test blob was genuinely erased
@@ -2470,8 +2494,10 @@ full-partition, and mount-failure evidence remains historical evidence for code
 that was not replaced by H3. The factory-reset checkbox is reopened because H3
 materially changed factory-reset ownership with a durable reset journal,
 idempotent replay, reset-recovery gating, and new reset-settings semantics.
-The old happy-path reset run cannot validate that new state machine. H3-035 and
-H10-103 own the current physical rerun and are intentionally deferred/open.
+The old happy-path reset run cannot validate that new state machine.
+**Resolved 2026-08-16:** H3-035 proved interruption safety mid-cleanup and
+H12-122 re-ran the full reset/reprovision cycle on the final candidate, so the
+checkbox above is closed against those rather than the 2026-08-10 run.
 
 ## V2-154 — Network and authentication matrix
 
@@ -2499,8 +2525,15 @@ Full evidence and commands:
       `AP state: ready` throughout, unaffected.
 - [x] Validate bounded reconnect behavior. A subsequent `wifi-connect` with
       correct credentials succeeded cleanly right after the failure above.
-- [ ] Revalidate successful password change after H2 hardening; retain the historical
-      PBKDF2 timing evidence. PBKDF2 timing is
+- [x] Revalidate successful password change after H2 hardening; retain the historical
+      PBKDF2 timing evidence. Closed 2026-08-16 by **H2-024**
+      (`docs/implementation-v2/H2_024_PASSWORD_CHANGE_HARDWARE_EVIDENCE_2026-08-16.md`),
+      which validated the hardened password/session path on the board, and by
+      **H12-122** on the final candidate `28359e8`: `204` with an empty body, the
+      session active at change time invalidated, old password rejected, new
+      password accepted. The PBKDF2 benchmark remains frozen and is retained —
+      independently reconfirmed at 436.6 ms median by the on-device Unity suite,
+      matching V2-041 exactly. PBKDF2 timing is
       covered in
       `docs/implementation-v2/V2_041_HARDWARE_LOGIN_FIX_2026-08-09.md`.
       Happy-path password change was verified fresh: `204`, immediate
@@ -2522,8 +2555,10 @@ bounded reconnect, and the H9 no-secret audit remain checked with their existing
 evidence; idle/absolute expiry correctly remains open. The compound
 password-change/PBKDF2 item is reopened because H2 materially changed
 password-change transaction semantics after the historical board run. The
-PBKDF2 benchmark itself remains valid/frozen, but the current hardened
-password/session path still requires H2-024/H10-103 physical validation.
+PBKDF2 benchmark itself remains valid/frozen. **Resolved 2026-08-16:** H2-024
+supplied the physical validation of the hardened password/session path and
+H12-122 re-confirmed the happy path on the final candidate, closing the compound
+item.
 
 ## V2-155 — Android UI workflow matrix
 
