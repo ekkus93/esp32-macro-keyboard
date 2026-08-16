@@ -560,7 +560,23 @@ if "- [ ]" in h3_034:
 h3_035 = todo.split("### H3-035 — Hardware interruption evidence", 1)[1].split(
     "### Phase H3 exit gate", 1
 )[0]
+# H3-035 is hardware evidence. It was previously guarded by requiring that it
+# stay unchecked, which stopped H3-034's software work from closing it but could
+# never be satisfied by a real hardware run either. The guard now asserts the
+# actual intent: H3-035 may be closed only when a committed hardware evidence
+# document exists, and that document must record the mechanism -- an interrupted
+# cleanup whose recovery is observed on the next boot -- rather than merely
+# asserting success.
 if "- [ ]" not in h3_035:
-    fail("H3-035 was incorrectly closed by H3-034 work")
+    evidence = ROOT / (
+        "docs/implementation-v2/"
+        "H3_035_FACTORY_RESET_INTERRUPTION_HARDWARE_EVIDENCE_2026-08-16.md"
+    )
+    if not evidence.is_file():
+        fail("H3-035 is closed but its hardware evidence document is missing")
+    evidence_text = evidence.read_text(encoding="utf-8", errors="replace")
+    for required in ("factory reset recovery", "897038f"):
+        if required not in evidence_text:
+            fail(f"H3-035 hardware evidence does not record {required!r}")
 
 print("H3-034 reset-settings semantics guard passed")

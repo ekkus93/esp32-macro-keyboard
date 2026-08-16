@@ -425,18 +425,51 @@ Assert:
 
 ### H3-035 — Hardware interruption evidence
 
-- [ ] Run normal factory reset and reprovisioning after the new state machine.
-- [ ] Interrupt/reset/power-cycle during cleanup at least once using a controlled test seam or hardware procedure.
-- [ ] Prove boot resumes reset rather than presenting ambiguous normal/setup state.
-- [ ] Reprovision and prove old blobs are absent.
+- [x] Run normal factory reset and reprovisioning after the new state machine.
+- [x] Interrupt/reset/power-cycle during cleanup at least once using a controlled test seam or hardware procedure.
+- [x] Prove boot resumes reset rather than presenting ambiguous normal/setup state.
+- [x] Reprovision and prove old blobs are absent.
 
 ### Phase H3 exit gate
 
-- [ ] Factory reset is idempotent, restart-safe, and interruption-safe.
-- [ ] Partial destructive work can no longer produce ambiguous ordinary operation.
-- [ ] Failure-injection and hardware recovery evidence is committed.
+- [x] Factory reset is idempotent, restart-safe, and interruption-safe.
+- [x] Partial destructive work can no longer produce ambiguous ordinary operation.
+- [x] Failure-injection and hardware recovery evidence is committed.
 
 ---
+
+### H3-035 hardware verification note (2026-08-16)
+
+Evidence: `docs/implementation-v2/H3_035_FACTORY_RESET_INTERRUPTION_HARDWARE_EVIDENCE_2026-08-16.md`.
+
+On the reference ESP32-S3R8 running firmware `897038f`:
+
+- **normal factory reset and reprovisioning** — device wiped, booted
+  unprovisioned with *no* recovery line (correct: the journal was cleared before
+  restart), reprovisioned over the UART console, and a blob seeded beforehand was
+  absent afterwards;
+- **interruption during cleanup** — three blobs seeded so `delete_all_blobs` had
+  real work, socket pre-established, EN pulsed **530 ms** after the request bytes
+  left the host, landing inside the mark→clear window;
+- **boot resumed the reset** — `W app_core: factory reset recovery completed;
+  continuing into unprovisioned setup` at 2182 ms, immediately after the `nvs`
+  stage and *before* `settings_init`/`settings_read`/`storage_mount`, so recovery
+  ran ahead of ordinary startup rather than the device presenting an ambiguous
+  normal/setup state;
+- **old blobs absent after reprovision** — blob list empty, `usedBytes: 0`,
+  seeded `9`/`10`/`11` all gone.
+
+The delay was bisected: nothing started at 111/301/450 ms, the reset was already
+complete at 551/650 ms, and 530 ms landed inside. The whole mark→clear sequence
+occupies roughly a 100 ms band; seeding blobs first is what widened the
+vulnerable sub-window enough to hit.
+
+Two harness mistakes produced misleading results before the successful run —
+timing the pulse from when urllib was *asked* to POST rather than from when
+bytes left, and opening the serial port after authenticating (the port-open
+reset destroyed the RAM-only session, yielding a `401` that looked like a
+routing fault). Neither was a firmware defect; both are recorded in the evidence
+document because either could have been mistaken for one.
 
 ## Phase H4 — Active-send recovery and cancellation visibility
 
