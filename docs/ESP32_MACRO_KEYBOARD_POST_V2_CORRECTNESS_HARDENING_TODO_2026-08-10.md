@@ -1257,7 +1257,7 @@ Only check this when truthful:
 The post-v2 hardening program is complete only when:
 
 - [x] all H0-H12 exit gates are complete,
-- [ ] all P0/P1 findings from the post-v2 review are fixed rather than merely documented,
+- [x] all P0/P1 findings from the post-v2 review are fixed rather than merely documented,
 - [x] all regression tests are permanent and wired into authoritative gates,
 - [x] all affected hardware evidence is committed,
 - [x] `docs/TODO_V2.md` is reconciled honestly,
@@ -1272,12 +1272,18 @@ The post-v2 hardening program is complete only when:
   the final SHA passes both the clean-checkout software gate and physical device
   acceptance.
 
-  **Two items are deliberately left open, not overlooked:**
-  - *P0/P1 findings* — `P0`/`P1` appears nowhere in this tracker or in either
-    hardening spec except in the checkbox above, so there is no enumerable
-    findings list to verify against. Ticking it would assert closure over a set
-    that cannot be identified from committed documents. It needs either the
-    original post-v2 review's severity list or a ruling that the H-phase tasks
-    are that list.
+  **P0/P1 findings.** Resolved by product-owner ruling (Phil, 2026-08-16): the
+  H-phase tasks *are* the P0/P1 list. `P0`/`P1` appears nowhere else in this
+  tracker or in either hardening spec, so the set had no other definition; the
+  ruling supplies it. Under that definition the item is met — every H0-H12 task
+  is complete, and each was closed by an actual code fix rather than by
+  documenting the finding. Audited before ticking: the only ticked items that
+  close on *recording* rather than fixing are the two optional-host coverage
+  items (ChromeOS and Windows "status recorded without false completion"), whose
+  checkbox wording is itself about recording, plus the H10-103 USB
+  disconnect/reconnect limit. Those are validation-coverage limits, honestly
+  recorded and not claimed as passes — not findings left unfixed.
+
+  **One item remains open, not overlooked:**
   - *Product-owner review* — this is the owner's judgement, not a check the
     implementer can perform on their own work.
