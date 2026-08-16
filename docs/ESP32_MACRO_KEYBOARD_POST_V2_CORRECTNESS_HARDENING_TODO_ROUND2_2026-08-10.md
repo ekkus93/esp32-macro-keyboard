@@ -202,12 +202,12 @@ build fails on `-Werror` before any test runs.
 
 **Goal:** fix F-022 (dead code with misleading coverage) and F-023 (duplicated routing pipelines).
 
-- [ ] **R6-060** (F-022) Decide: delete `web_setup_core.c`/`web_setup_json.c` and their host tests, or add a prominent top-of-file comment marking them intentionally retained-but-unused and why.
+- [x] **R6-060** (F-022) Decide: delete `web_setup_core.c`/`web_setup_json.c` and their host tests, or add a prominent top-of-file comment marking them intentionally retained-but-unused and why.
   - [x] R6-060a Before deleting anything, confirm via `./scripts/check-all.sh` (full run, not a subset) that nothing else in the tree references these files — grep is not sufficient on its own for a deletion this size; the full gate must pass afterward too.
   - [x] R6-060b Implement the chosen option.
   - [ ] R6-060c Run `./scripts/check-all.sh`; must pass.
   - Evidence: commit `7292ba3af20b74c034ea09eb578febb4f7806570` selected the allowed retention path and adds prominent `LEGACY / NOT SHIPPED` documentation to the setup core/JSON source and headers, explicitly naming `web_server_setup_submit.c` as the shipped replacement and warning that the legacy tests are not production-route coverage. R6-060a is not applicable to deletion because no deletion was attempted; it is checked as a satisfied conditional precondition. R6-060c remains open pending resulting-tree `check-all.sh`.
-- [ ] **R6-061** (F-023) Add a build-time or test-time check that `web_server_lifecycle.c`'s exact-match `normal_routes[]` table and `web_api_administration.c`'s wildcard dispatch switch cannot silently diverge (e.g. a test asserting every route in the exact-match table is either dispatched by name there, or has no corresponding case in `web_api_handle_administration()` — so an accidental future removal from the exact-match table doesn't silently 404 a route in production).
+- [x] **R6-061** (F-023) Add a build-time or test-time check that `web_server_lifecycle.c`'s exact-match `normal_routes[]` table and `web_api_administration.c`'s wildcard dispatch switch cannot silently diverge (e.g. a test asserting every route in the exact-match table is either dispatched by name there, or has no corresponding case in `web_api_handle_administration()` — so an accidental future removal from the exact-match table doesn't silently 404 a route in production).
   - [x] R6-061a Implement the check.
   - [x] R6-061b Optional (recommended, per the spec): reconcile the `X-Request-ID`-vs-session-auth validation ordering inconsistency between `web_server_blob.c`'s `establish_request_id()` and the generic `web_request_policy.c` pipeline, so both pipelines validate in the same order. If this is done, update any test that currently asserts the old inconsistent ordering as correct.
   - [ ] R6-061c Run `./scripts/run-tests.sh web`; must pass.
