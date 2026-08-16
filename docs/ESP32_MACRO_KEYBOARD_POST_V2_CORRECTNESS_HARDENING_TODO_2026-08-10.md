@@ -996,9 +996,29 @@ Optional unavailable hosts remain honestly recorded:
 
 ### Phase H10 exit gate
 
-- [ ] All full software gates pass on the same exact candidate SHA.
-- [ ] Required affected hardware behaviors are revalidated on the same product line.
-- [ ] No evidence file relies on an older SHA for behavior changed by this hardening pass.
+- [x] All full software gates pass on the same exact candidate SHA.
+- [x] Required affected hardware behaviors are revalidated on the same product line.
+- [x] No evidence file relies on an older SHA for behavior changed by this hardening pass.
+
+- Evidence: closed on the final candidate
+  `28359e884d4fdbc3748853ce880a421ee0644a01`.
+  1. **Software gates on that exact SHA** — `check-all.sh`, `run-tests.sh
+     --sanitizers` and `generate-native-coverage.sh` all exit 0 from a clean
+     clone; see `docs/implementation-v2/H12_FINAL_CANDIDATE_ACCEPTANCE_2026-08-16.md`.
+  2. **Affected hardware behaviour on the same product line** — the H10-103
+     matrix was **re-run on the board at the final SHA** (`H10-103 matrix: PASS`,
+     exit 0), and H12-122 independently re-proved password change, restart,
+     factory reset, reprovision, snapshot round trip, send/cancel/confirmation
+     and blob operations at that same SHA.
+  3. **No stale-SHA reliance for changed behaviour** — the only firmware delta
+     between the H10-102 evidence SHA `fd0ddf7` and the final candidate is four
+     `web_server` files (`git diff --stat fd0ddf7 28359e8 -- firmware/`:
+     `web_server_api.c`, `web_server_async.c`, `web_server_internal.h`,
+     `web_server_setup.c`), all HTTP response/restart sequencing. The device
+     Unity suite exercises `firmware/test_app/` and the executor/USB layers,
+     none of which changed, so its `fd0ddf7` result is not evidence for altered
+     behaviour. Every behaviour that *did* change is covered at the final SHA by
+     H12-122 above.
 
 ---
 
@@ -1129,7 +1149,22 @@ From the clean checkout:
   must pass again on the replacement exact SHA before physical H12-122
   acceptance.
 
-- Evidence: `docs/implementation-v2/H12_120_121_CLEAN_CHECKOUT_2026-08-16.md`.
+- Evidence (final candidate): `docs/implementation-v2/H12_FINAL_CANDIDATE_ACCEPTANCE_2026-08-16.md`.
+  Fresh clone of the final candidate `28359e884d4fdbc3748853ce880a421ee0644a01`
+  with 0 modified/untracked files and 0 build outputs present; dependencies
+  installed only via the documented `npm --prefix webapp ci`. All three
+  authoritative commands exit 0 on that clean checkout: `./scripts/check-all.sh`
+  in **268 s** with 66/66 host tests; `./scripts/run-tests.sh --sanitizers`
+  **66/66** in a separate `build-sanitizers` tree; and
+  `./scripts/generate-native-coverage.sh` with policy coverage **95.6 %** lines
+  (2942/3077, +5.6 over the 90 % gate), **82.7 %** branches (2112/2555, +2.7 over
+  the 80 % gate) and **100 %** functions (264/264). No first-party warning was
+  ignored, suppressed, or downgraded — the H9 production-audit guard rejected the
+  setup fix until its fallback was explicitly classified, and it was classified
+  rather than reworded around.
+
+- Superseded evidence (2026-08-16, candidate `07c40a4b`):
+  `docs/implementation-v2/H12_120_121_CLEAN_CHECKOUT_2026-08-16.md`.
   Fresh clone of candidate `07c40a4b1a5b9c63c494f4f6c8482e14f8222d7e` with 0
   modified/untracked files and 0 build outputs present; dependencies installed
   only via the documented `npm --prefix webapp ci`; `./scripts/check-all.sh`
@@ -1144,32 +1179,76 @@ From the clean checkout:
 
 ### H12-122 — Final hardware confirmation on exact release SHA
 
-- [ ] Build production firmware from the same exact SHA.
-- [ ] Flash reference device.
-- [ ] Verify version/commit diagnostics identify the exact SHA and clean build.
-- [ ] Perform a bounded final smoke sequence: login, active send, confirmation-required send, cancel, snapshot save/load, password change, restart, factory reset/reprovision.
-- [ ] Confirm no production test image remains flashed at sign-off.
+- [x] Build production firmware from the same exact SHA.
+- [x] Flash reference device.
+- [x] Verify version/commit diagnostics identify the exact SHA and clean build.
+- [x] Perform a bounded final smoke sequence: login, active send, confirmation-required send, cancel, snapshot save/load, password change, restart, factory reset/reprovision.
+- [x] Confirm no production test image remains flashed at sign-off.
 
-- Preparation status (2026-08-15):
-  `docs/implementation-v2/H12_122_FINAL_HARDWARE_CONFIRMATION_2026-08-15.md`
-  records the pre-hardware audit, release-provenance hardening, current-contract
-  HIL repairs, and local regression results. Physical execution remains open and
-  must use the replacement exact SHA after H12-120/H12-121 revalidation. No
-  H12-122 checkbox is inferred from harness implementation alone.
+- Evidence: `docs/implementation-v2/H12_FINAL_CANDIDATE_ACCEPTANCE_2026-08-16.md`
+  and `docs/hardware-evidence/H12_122_FINAL_ACCEPTANCE_ESP32S3R8_2026-08-16.json`.
+  Executed on the reference ESP32-S3R8 against final candidate
+  `28359e884d4fdbc3748853ce880a421ee0644a01`: **PASS**, exit 0. The harness
+  flashes from the manifest itself, so flash and observed provenance are one
+  fail-closed sequence; on-device diagnostics matched the manifest ELF at every
+  stage, including after restart, factory reset and reprovision, and no test
+  image remains flashed. Every checkbox above is backed by a named check in the
+  committed JSON, not by harness implementation.
+
+  This gate found two production defects that no host test could observe, each
+  requiring a source change and a full H12-120/H12-121 re-run on the replacement
+  SHA (`07c40a4b` → `6666e79` → `28359e8`): an immediate `esp_restart()`
+  preempting the lwIP flush on the admin routes, then the same defect on
+  `POST /api/v1/setup`. Both are recorded in
+  `docs/implementation-v2/H12_122_RESTART_RESPONSE_FINDING_2026-08-16.md`.
+  Preparation history remains in
+  `docs/implementation-v2/H12_122_FINAL_HARDWARE_CONFIRMATION_2026-08-15.md`.
 
 ### H12-123 — Final post-v2 acceptance statement
 
 Only check this when truthful:
 
-- [ ] No known critical silent failure remains in password, reset, send recovery, HID cleanup, storage commit, or confirmation paths.
-- [ ] No known dangerous fallback remains in the reviewed scope.
-- [ ] No known secret leak remains in the reviewed scope.
-- [ ] No automatic snapshot creation/deletion was introduced.
-- [ ] No firmware package/macro repository ownership was reintroduced.
-- [ ] Cancellation remains accessible while a send is active or execution state is temporarily unknown.
-- [ ] Every required hardware item has real hardware evidence or is explicitly recorded as unavailable/open.
-- [ ] `TODO_V2.md` no longer overclaims the reviewed validation items.
-- [ ] Exact final SHA passes the complete clean-checkout gate.
+- [x] No known critical silent failure remains in password, reset, send recovery, HID cleanup, storage commit, or confirmation paths.
+- [x] No known dangerous fallback remains in the reviewed scope.
+- [x] No known secret leak remains in the reviewed scope.
+- [x] No automatic snapshot creation/deletion was introduced.
+- [x] No firmware package/macro repository ownership was reintroduced.
+- [x] Cancellation remains accessible while a send is active or execution state is temporarily unknown.
+- [x] Every required hardware item has real hardware evidence or is explicitly recorded as unavailable/open.
+- [x] `TODO_V2.md` no longer overclaims the reviewed validation items.
+- [x] Exact final SHA passes the complete clean-checkout gate.
+
+- Evidence, item by item, on final candidate
+  `28359e884d4fdbc3748853ce880a421ee0644a01`:
+  1. **Silent failures** — each named path was hardened and evidenced under its
+     own phase: confirmation H1, password H2, reset H3, send recovery H4,
+     storage commit H5, HID cleanup H7. The last two critical silent failures
+     found in this program were the H12-122 restart-response defects, both fixed
+     (`6666e79`, `28359e8`) with hardware verification.
+  2. **Dangerous fallbacks** — `check-h9-production-audit.py` passes in
+     `check-all.sh`; every fallback in production scope is explicitly classified.
+     The one fallback added by the setup fix was registered there rather than
+     reworded to evade the guard.
+  3. **Secret leaks** — `check-credential-logging.sh` and the secret-sentinel
+     scanner tests pass in the gate; the committed H12-122 evidence JSON was
+     checked to contain no password, passphrase, setup code, cookie or Wi-Fi
+     credential (`passwordChange` appears only as a step name).
+  4. **Automatic snapshot lifecycle** — snapshot create/delete remain explicit
+     user actions (`webapp/src/v2/snapshotClient.ts`, SPEC_V2 §10.5), covered by
+     `webapp/tests/v2-snapshots-page-protection.test.tsx` in the gate. H12-122
+     observed deletion only as a consequence of an explicit factory reset.
+  5. **Repository ownership** — `check-v2-phase2-architecture.py` fails closed on
+     the retired firmware-owned repository files and passes in `check-all.sh`.
+  6. **Cancellation** — proved on hardware in H12-122: `DELETE /api/v1/send`
+     accepted during an active delayed send, the send reached `cancelled`, **no**
+     key-down report was produced and all keys were released. Temporarily-unknown
+     execution state is covered by H4-040/H4-041.
+  7. **Hardware items** — `docs/implementation-v2/H10_103_HARDWARE_MATRIX_2026-08-16.md`
+     records real evidence for each matrix item and keeps two limits explicitly
+     open rather than claimed: USB disconnect/reconnect is covered only as
+     re-enumeration across resets, and ChromeOS and Windows were **not performed**.
+  8. **`TODO_V2.md`** — reconciled under H11-110.
+  9. **Clean-checkout gate** — `docs/implementation-v2/H12_FINAL_CANDIDATE_ACCEPTANCE_2026-08-16.md`.
 
 ---
 
@@ -1177,10 +1256,28 @@ Only check this when truthful:
 
 The post-v2 hardening program is complete only when:
 
-- [ ] all H0-H12 exit gates are complete,
+- [x] all H0-H12 exit gates are complete,
 - [ ] all P0/P1 findings from the post-v2 review are fixed rather than merely documented,
-- [ ] all regression tests are permanent and wired into authoritative gates,
-- [ ] all affected hardware evidence is committed,
-- [ ] `docs/TODO_V2.md` is reconciled honestly,
-- [ ] the exact final product SHA passes clean software and device validation,
+- [x] all regression tests are permanent and wired into authoritative gates,
+- [x] all affected hardware evidence is committed,
+- [x] `docs/TODO_V2.md` is reconciled honestly,
+- [x] the exact final product SHA passes clean software and device validation,
 - [ ] and the product owner can review the final evidence without relying on silent fallback assumptions.
+
+- Status (2026-08-16), final candidate `28359e884d4fdbc3748853ce880a421ee0644a01`:
+  every phase exit gate H0-H12 is closed, the regression tests added by this
+  program live in `tests/host/` and `tests/v2_contracts/` and run inside
+  `./scripts/check-all.sh`, all hardware evidence produced by this program is
+  committed under `docs/hardware-evidence/` and `docs/implementation-v2/`, and
+  the final SHA passes both the clean-checkout software gate and physical device
+  acceptance.
+
+  **Two items are deliberately left open, not overlooked:**
+  - *P0/P1 findings* — `P0`/`P1` appears nowhere in this tracker or in either
+    hardening spec except in the checkbox above, so there is no enumerable
+    findings list to verify against. Ticking it would assert closure over a set
+    that cannot be identified from committed documents. It needs either the
+    original post-v2 review's severity list or a ruling that the H-phase tasks
+    are that list.
+  - *Product-owner review* — this is the owner's judgement, not a check the
+    implementer can perform on their own work.

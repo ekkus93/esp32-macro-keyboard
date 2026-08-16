@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "task": "H12-122",
+  "firmwareSha": "28359e884d4fdbc3748853ce880a421ee0644a01",
+  "board": "ESP32-S3R8",
+  "host": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+  "flashDevice": "/dev/ttyACM2",
+  "flashBaud": 460800,
+  "consoleDevice": "/dev/ttyACM0",
+  "buildType": "production",
+  "espIdfVersion": "ESP-IDF v5.5.5",
+  "manifestSha256": "59ca00f676c98625c87b14a4db2ff0233f4d515cb3925268f5fb031ae600ff88",
+  "manifestBuildId": "fc66ad7e5712732cfa6841b9c2517761c20c653",
+  "observedBuildId": "fc66ad7e5712732cfa6841b9c2517761c20c653",
+  "firmwareVersion": "0.1.0",
+  "startedUtc": "2026-08-16T10:42:07Z",
+  "completedUtc": "2026-08-16T10:43:22Z",
+  "steps": [
+    {
+      "name": "releaseFlash",
+      "result": "passed"
+    },
+    {
+      "name": "login",
+      "result": "passed"
+    },
+    {
+      "name": "initialProvenance",
+      "result": "passed"
+    },
+    {
+      "name": "activeSend",
+      "result": "passed"
+    },
+    {
+      "name": "confirmationSend",
+      "result": "passed"
+    },
+    {
+      "name": "cancel",
+      "result": "passed"
+    },
+    {
+      "name": "snapshotSaveLoad",
+      "result": "passed",
+      "bytes": 85
+    },
+    {
+      "name": "passwordChange",
+      "result": "passed"
+    },
+    {
+      "name": "restart",
+      "result": "passed",
+      "resetReason": "software",
+      "preRestartUptimeMs": 18830,
+      "postRestartUptimeMs": 7769,
+      "elapsedMs": 9934
+    },
+    {
+      "name": "factoryResetReprovision",
+      "result": "passed"
+    },
+    {
+      "name": "factoryResetErasedSnapshot",
+      "result": "passed"
+    },
+    {
+      "name": "productionImageAtSignoff",
+      "result": "passed"
+    }
+  ],
+  "result": "passed"
+}

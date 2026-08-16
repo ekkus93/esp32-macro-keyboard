@@ -165,5 +165,57 @@ path fails `web_server_administration_route`, verified.
 `POST /api/v1/device/factory-reset` shared the same fast path and is fixed by
 the same change. `POST /api/v1/setup` is a separate handler
 (`setup_submit_handler`), was never routed through `restart_after_response()`,
-and is unchanged here; its own timeout-instead-of-202 behaviour is still
-unexamined and should be checked against its contract separately.
+and was unchanged by the fix above; its own timeout-instead-of-202 behaviour was
+left explicitly unexamined here — see the second instance below.
+
+## Second instance — `POST /api/v1/setup` (found 2026-08-16, fixed `28359e8`)
+
+The scope note was right to flag it. With the restart defect fixed, the H12-122
+acceptance ran 34 further checks and then failed at reprovisioning: after the
+factory reset entered setup mode, `POST /api/v1/setup` never answered and the
+client timed out in `provision_device.request_json`.
+
+Same defect, different route. `setup_submit_handler()` ended with:
+
+```c
+if (send_result == ESP_OK && accepted.restart_required) {
+    esp_restart();
+}
+```
+
+and its comment said it was *"Mirrors web_server_api.c's api_handler()"* — it
+was faithfully mirroring the code deleted as wrong in `6666e79`. The reset again
+preempted the lwIP flush, so the 202 never reached the wire.
+
+The fix routes the reboot through `device_controls_restart()`, the same
+`DEVICE_CONTROLS_RESTART_DELAY_MS` timer every other device action uses. Unlike
+the admin routes there was no already-scheduled restart to fall back on, so this
+route needed the scheduled restart *added* rather than the fast path merely
+removed — the original 2026-08-10 bug that comment records (setup committing
+settings but never leaving setup mode) must not come back.
+
+Because settings are already committed when the reboot is requested, a failure
+to schedule one must not strand the device in setup mode: scheduling failure
+falls back to an immediate reboot, losing the response but leaving setup mode.
+That trade is classified in `scripts/check-h9-production-audit.py`, which
+correctly refused the change until it was registered.
+
+`test_web_server_setup_route.c` asserted `g_esp_restart_calls == 1` — the same
+bug-encoding assertion as the admin routes. It now requires a scheduled restart
+and **no** immediate one, plus a new case covering the fallback branch.
+Reintroducing `esp_restart()` fails `web_server_setup_route` at
+`test_web_server_setup_route.c:296`, verified.
+
+Verified on hardware: the H12-122 acceptance at `28359e8` reprovisions
+successfully (`setup accepted; waiting for automatic restart`, device back at
+`192.168.88.108`) and passes end to end.
+
+## Why the pattern survived two routes
+
+Both sites were written to the same wrong model — that `httpd_resp_send()`
+delivers bytes, so restarting immediately after it is safe. Both had host tests
+that *asserted* the immediate restart, because the host fake captures responses
+in memory where lwIP is not involved and therefore cannot observe the loss. The
+tests did not miss the bug; they encoded it. Only hardware could distinguish the
+two behaviours, which is why both instances surfaced in H12-122 and not in the
+66-test host suite.

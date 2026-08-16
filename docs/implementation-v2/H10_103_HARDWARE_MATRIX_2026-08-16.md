@@ -125,3 +125,26 @@ Both mine, both would have produced a false failure against the firmware:
    appears while `app_core` is still wiring subsystems, so the reply was lost
    in boot output and `wifi-status` looked like a failure. It now waits for
    `Returned from app_main()` — the same trap recorded in H3's evidence.
+
+## Re-run at the final release candidate (2026-08-16)
+
+The matrix was re-executed unchanged against final candidate
+`28359e884d4fdbc3748853ce880a421ee0644a01` after the two H12-122 restart
+defects were fixed, so no matrix item rests on a pre-fix SHA:
+
+```text
+python3 tests/hardware/test_h10_matrix.py \
+  --firmware-sha 28359e884d4fdbc3748853ce880a421ee0644a01 --console /dev/ttyACM0
+```
+
+**H10-103 matrix: PASS**, exit 0, device at `192.168.88.108`. All four groups
+passed again: project-owned USB VID:PID `303a:4001` with its product string as
+the host enumerated it; `{CTRL+L}` producing a report with modifier byte `0x01`
+alongside an ordinary key and an all-zero release; the SoftAP `ready` both
+before and after a deliberately failed station join, that join **bounded at
+20.6 s** and reported as a failure; and reconnect to the real network with the
+authenticated service returning.
+
+The two honest limits recorded above are unchanged and are **not** re-claimed
+here: USB disconnect/reconnect remains covered only as re-enumeration across
+resets, and ChromeOS and Windows remain explicitly not performed.
