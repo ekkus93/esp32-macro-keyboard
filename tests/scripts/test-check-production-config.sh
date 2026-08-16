@@ -45,6 +45,10 @@ CONFIG_NVS_ENCRYPTION=y
 CONFIG_NVS_SEC_KEY_PROTECT_USING_HMAC=y
 CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID=0
 CONFIG_APP_RETRIEVE_LEN_ELF_SHA=39
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_USE_MALLOC=y
+CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=n
 # CONFIG_APP_MANUFACTURING_PROVISIONING_LOG is not set'
 
 write_fixture "${valid_config}"
@@ -85,5 +89,28 @@ expect_fail 'manufacturing credential logging' 'is forbidden in production confi
 
 write_fixture "${valid_config}"$'\nCONFIG_APP_DEVELOPMENT_PROVISIONING_LOG=y'
 expect_fail 'legacy credential logging' 'is forbidden in production configuration'
+
+# SPEC_V2 §5.3 -- the reference module is ESP32-S3R8 with octal PSRAM, and task
+# stacks must stay in internal SRAM. Added by the V2-156 audit (2026-08-16),
+# which found these set in sdkconfig.defaults but verified by nothing.
+write_fixture "${valid_config/CONFIG_SPIRAM=y/}"
+expect_fail 'missing PSRAM' 'CONFIG_SPIRAM must be'
+
+write_fixture "${valid_config/CONFIG_SPIRAM=y/# CONFIG_SPIRAM is not set}"
+expect_fail 'PSRAM disabled' "CONFIG_SPIRAM must be 'y'"
+
+write_fixture "${valid_config/CONFIG_SPIRAM_MODE_OCT=y/CONFIG_SPIRAM_MODE_QUAD=y}"
+expect_fail 'quad PSRAM build' 'CONFIG_SPIRAM_MODE_OCT must be'
+
+write_fixture "${valid_config/CONFIG_SPIRAM_USE_MALLOC=y/}"
+expect_fail 'PSRAM not in the heap' 'CONFIG_SPIRAM_USE_MALLOC must be'
+
+write_fixture "${valid_config/CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=n/CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=y}"
+expect_fail 'task stacks allowed in PSRAM' "CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY must be 'n'"
+
+# Absent is a failure too: ESP-IDF defaults this to y once SPIRAM is on, so a
+# silent deletion would otherwise restore the forbidden default.
+write_fixture "${valid_config/CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=n/}"
+expect_fail 'external-stack key removed' 'CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY must be'
 
 printf 'check-production-config regression tests passed: %d\n' "${pass_count}"

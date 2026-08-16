@@ -12,6 +12,7 @@ cd "${repo_root}"
 python3 ./scripts/check-v2-034-capacity.py
 python3 ./scripts/check-v2-device-settings-policy.py
 bash ./scripts/check-production-config.sh
+python3 ./scripts/check-no-wall-clock.py
 bash ./scripts/check-credential-logging.sh
 bash ./scripts/check-mount-policy.sh
 bash ./scripts/check-layer-boundaries.sh

@@ -66,9 +66,11 @@ asserted things like "no 12/12 physical run exists yet" were corrected. Both
 specifications match implemented behaviour as mapped in the matrix below; no
 requirement was found that the implementation contradicts.
 
-## Findings — three unguarded requirements
+## Findings — three unguarded requirements (all CLOSED 2026-08-16)
 
-None is a violation. Each holds today and each could regress silently.
+None was a violation. Each held at audit time and each could have regressed
+silently. All three were closed on the product owner's instruction after the
+audit; the closures are described under each finding.
 
 **Finding 1 — §5.3 PSRAM configuration is set but not gated.**
 `firmware/sdkconfig.defaults` sets all three required options
@@ -91,10 +93,50 @@ would violate §5.3 with nothing to catch it.
 anywhere in `firmware/`, and repository schema v1 carries no dates. Nothing
 prevents one being added.
 
-All three are cheap to close with small additions to
-`scripts/check-production-config.sh` and a grep-style guard. They are recorded
-rather than fixed here because V2-156 is an audit task; adding guards is
-implementation and is the product owner's call.
+### Closure
+
+**Findings 1 and 2 — `scripts/check-production-config.sh`.** The gate now
+requires `CONFIG_SPIRAM=y`, `CONFIG_SPIRAM_MODE_OCT=y` and
+`CONFIG_SPIRAM_USE_MALLOC=y`, so a SPIRAM-off or quad-PSRAM build fails. It also
+requires `CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=n`, and
+`firmware/sdkconfig.defaults` now pins that value. This converts §5.3's
+task-stack rule from *true by construction* to *impossible to violate*: with the
+option off, even a future `xTaskCreateStatic` cannot place a stack in PSRAM.
+The key must be **present**, not merely non-`y` — ESP-IDF defaults it to `y`
+once SPIRAM is enabled, so a silent deletion would restore the forbidden
+default.
+
+Verified at the build level, not just in the tracked file: the generated
+`firmware/sdkconfig` read `CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=y` before
+the change and `# CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY is not set` after
+`idf.py reconfigure`. `tests/scripts/test-check-production-config.sh` grew from
+12 to **18** cases covering each new rule, including the removed-key case.
+
+**Finding 3 — `scripts/check-no-wall-clock.py`** (new), wired into
+`check-all.sh`, with `tests/scripts/test-check-no-wall-clock.sh` (**15** cases)
+wired into `check-scripts.sh`. It forbids every calendar-time entry point
+(`time`, `gettimeofday`, `settimeofday`, `localtime`, `gmtime`, `mktime`,
+`strftime`, `ctime`, `asctime`, `difftime`, `adjtime`), SNTP in any spelling,
+and `clock_gettime` against a non-monotonic clock — while allowing
+`esp_timer_get_time()`, `xTaskGetTickCount()` and `CLOCK_MONOTONIC`, which is
+what the firmware actually uses.
+
+The guard strips comments and string literals before scanning. This is not
+incidental: the tree contains the prose comment *"attached one at a time (rather
+than ...)"*, which a naive `\btime\s*\(` pattern matches. A guard that fires on
+English gets disabled, so both directions are tested — seven cases assert it
+stays silent on prose, literals, monotonic clocks and identifiers merely ending
+in `time`, and eight assert it catches real violations.
+
+**Side effect on traceability.** Because both guards cite their requirements
+explicitly, `docs/SPEC_V2_TEST_TRACEABILITY.md` now lists **§5.3 and §5.4** as
+explicitly cited sections; they previously appeared nowhere in it.
+
+**Consequence for the release candidate.** Pinning
+`CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=n` changes the shipped binary
+(DIRAM 49.3% -> 48.5%, application 47.9% -> 47.8%), so the H12 release evidence
+recorded against `28359e8` no longer describes the shipped image and H12-120 /
+H12-121 / H12-122 were re-run on the replacement candidate.
 
 ## Full criterion matrix
 

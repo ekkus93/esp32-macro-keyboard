@@ -13,6 +13,21 @@ REQUIRED_VALUES = {
     "CONFIG_NVS_SEC_KEY_PROTECT_USING_HMAC": "y",
     "CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID": "0",
     "CONFIG_APP_RETRIEVE_LEN_ELF_SHA": "39",
+    # SPEC_V2 §5.3: the reference module is the ESP32-S3R8 with 8 MB embedded
+    # octal PSRAM, and "a quad-PSRAM build is not interchangeable with the
+    # reference hardware". These were set in sdkconfig.defaults but unverified
+    # until the V2-156 audit (2026-08-16) -- a SPIRAM-off or quad build passed
+    # every gate.
+    "CONFIG_SPIRAM": "y",
+    "CONFIG_SPIRAM_MODE_OCT": "y",
+    "CONFIG_SPIRAM_USE_MALLOC": "y",
+    # SPEC_V2 §5.3: "FreeRTOS task stacks MUST remain in internal SRAM."
+    # ESP-IDF defaults this to y when SPIRAM is enabled, which only *permits*
+    # external stacks via xTaskCreateStatic -- the firmware never does that, so
+    # the requirement held by construction alone. Pinning it to n makes an
+    # external task stack impossible rather than merely unused, and requiring
+    # the key to be present stops a silent revert to the IDF default.
+    "CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY": "n",
 }
 FORBIDDEN_NVS_SCHEMES = {
     "CONFIG_NVS_SEC_KEY_PROTECT_USING_FLASH_ENC",

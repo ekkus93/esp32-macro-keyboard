@@ -51,6 +51,7 @@ bash tests/scripts/test-check-format-inc-coverage.sh
 bash tests/scripts/test-static-analysis-policy.sh
 bash tests/scripts/test-check-partitions.sh
 bash tests/scripts/test-check-production-config.sh
+bash tests/scripts/test-check-no-wall-clock.sh
 bash tests/scripts/test-check-credential-logging.sh
 bash scripts/check-credential-logging.sh tests/host
 bash scripts/check-credential-logging.sh firmware/test_app

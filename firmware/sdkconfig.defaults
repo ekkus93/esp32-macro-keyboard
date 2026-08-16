@@ -63,6 +63,13 @@ CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_SPIRAM_SPEED_80M=y
 CONFIG_SPIRAM_USE_MALLOC=y
+# SPEC_V2 §5.3: "FreeRTOS task stacks MUST remain in internal SRAM." ESP-IDF
+# defaults this to y once SPIRAM is on, which permits an external task stack via
+# xTaskCreateStatic. No task does that today (all three use xTaskCreate), so the
+# requirement held by construction only -- the V2-156 audit flagged that a single
+# future xTaskCreateStatic would violate §5.3 silently. Pinning it to n makes an
+# external stack impossible; check-production-config.sh enforces the value.
+CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=n
 # Allocations below this stay in internal SRAM, so small hot allocations keep
 # internal-RAM latency and only large buffers go to PSRAM.
 CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=4096
