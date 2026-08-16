@@ -219,6 +219,22 @@ lsusb | grep -E '303a|1a86|10c4'          # identify before choosing a path
 cd firmware/test_app && idf.py -B build -p /dev/ttyACM0 flash monitor   # exit: Ctrl+]
 ```
 
+### Resets are not interchangeable when collecting hardware evidence
+
+Three kinds, and `scripts/run-v2-035-hardware.py` distinguishes them:
+
+- `esp_restart()` (the `/api/v1/restart` route) → `resetReason: software`.
+- `esptool --after hard_reset` drives RTS into the **EN pin** — a real hardware
+  reset. The device reports `resetReason: power_on`, so it satisfies any gate
+  requiring `ESP_RST_POWERON`, including the collector's Stage 2.
+- Removing power (**both** USB cables — each one powers the board).
+
+Only the third drops the flash chip's supply, so only it can prove a partial
+write leaves nothing behind. That is the collector's Stage 3 and it is the one
+step no software can perform; the bench hub has no per-port power switching.
+Stages 1, 2, 4 and 5 need no physical action. Verified end to end 2026-08-15 —
+`docs/hardware-evidence/V2_035_STORAGE_ESP32S3R8_2026-08-15.json`.
+
 `sdkconfig` is gitignored; only `sdkconfig.defaults` is tracked. Enabling
 `CONFIG_APP_MANUFACTURING_PROVISIONING_LOG=y` there is how a device gets
 re-provisioned after an NVS erase — it prints one-time credentials to the
