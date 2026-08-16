@@ -1920,21 +1920,22 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
       `DELETE /api/v1/send` call and the "Send Open terminal was cancelled."
       acknowledgement.
 - [ ] Ensure tablets, foldables classified as tablets, laptops, and desktops are
-      not incorrectly blocked. By construction of the compound media query
-      (`(orientation: landscape) and (pointer: coarse) and (max-height:
-      600px)`): laptops/desktops fail `pointer: coarse` (fine pointer input),
-      and typical tablets in landscape exceed the 600px height ceiling this
-      project's target devices use — matching UI_UX_SPEC_V2 §12.4's own
-      wording that this is "the initial implementation target" pending
-      "implementation tests" refining exact thresholds against real
-      hardware. No real device (tablet, foldable, laptop, or desktop) has
-      verified this, per the hard rule against claiming device validation
-      from source review alone — left unchecked on that basis, matching the
-      Phase 13 exit gate's own still-open "Tablet and desktop landscape
-      tests pass".
-
-## V2-133 — Accessibility
-
+      not incorrectly blocked. **Substantially verified 2026-08-16 in real
+      Chromium 151 against the device**, replacing the previous "by construction"
+      argument: desktop 1920x1080 and 1280x800 (`pointer: fine`) are not blocked;
+      tablet-dimension viewports 1024x768 and 1280x800 with a **coarse** pointer
+      are not blocked, because they exceed the 600px height ceiling; and the
+      discriminating case — a short 1000x500 desktop viewport, which satisfies
+      `max-height: 600px` but has `pointer: fine` — correctly does not block.
+      Phone-sized coarse landscape (800x400, 640x360) does block, so the query is
+      shown to be discriminating rather than simply never matching. Evidence:
+      `docs/implementation-v2/V2_DESKTOP_TABLET_MATRIX_2026-08-16.md`.
+      **Left unchecked deliberately.** This is a compound item and one behaviour
+      it names remains unverified: no **foldable** has been tested, and the
+      tablet cases used Playwright coarse-pointer emulation at tablet dimensions
+      rather than a physical tablet. Per §0.1, a compound validation item is not
+      checked while any behaviour it names is unverified. Closing it needs a
+      foldable — the class §12.4 singles out as hard — and ideally a real tablet.
 - [x] Make all controls keyboard accessible. No `<div>`/`<span>` has a bare
       `onClick` anywhere in `webapp/src` (grep confirmed, 2026-08-09) and no
       custom control uses `role="button"`, so every click handler is on a
@@ -2037,12 +2038,19 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
       future transition/animation added without its own explicit
       reduced-motion opt-out is disabled by this rule by construction, not by
       remembering to guard it individually.
-- [ ] Prevent hidden source from leaking through accessible names. Moot for
-      now rather than satisfied: source-hiding is a Phase 12 (`V2-120`
-      "source-preview preference") feature that does not exist yet —
-      `features/macros/v2/MacroPreviewPage.tsx` renders `macro.source`
-      unconditionally in a `<code>` element, so there is no hide/reveal
-      toggle for an accessible name to leak past. Left unchecked.
+- [x] Prevent hidden source from leaking through accessible names. The note that
+      stood here — that source-hiding "does not exist yet" — is stale: the
+      feature shipped with V2-120, and the macro list now renders "Source hidden"
+      with a per-macro Reveal control. **Verified on a real Android phone against
+      real firmware 2026-08-16** using a macro whose source (`zqxjvw`) cannot
+      collide with its name, because an earlier attempt using source `hello` on a
+      macro named "Bench Hello" produced a false positive against the *name*.
+      With the source hidden it is absent from the visible text, from every
+      `aria-label` (which read "Reveal source for …", "Send …", naming the macro,
+      not its source), from every `title` attribute, **and from the DOM entirely**
+      — `page.content()` does not contain it. After Reveal it appears. Not merely
+      visually hidden, therefore nothing for an accessible name to leak. Evidence:
+      `docs/implementation-v2/V2_155_ANDROID_UI_WORKFLOW_MATRIX_2026-08-16.md`.
 
 ## Phase 13 exit gate
 
@@ -2253,20 +2261,29 @@ just confirms it and closes the checkboxes.
       full webapp chain, script linting, docs, and host tests — every
       documented command in `CLAUDE.md`/`README.md` routes through it or one
       of its constituents.
-- [ ] Add guards against old routes, firmware repositories, `activePackageId`,
+- [x] Add guards against old routes, firmware repositories, `activePackageId`,
       automatic snapshot deletion, mandatory send navigation, remote assets, and
-      browser repository persistence. 5 of 7 already have a dedicated CI-run
-      guard: old routes/firmware repositories/`activePackageId`
-      (`scripts/check-v2-phase2-architecture.py`'s `FORBIDDEN_PATHS`/
-      `FORBIDDEN_SOURCE` regex, which explicitly matches `activePackageId`),
-      remote assets (`scripts/verify-no-remote-assets.sh`), and browser
-      repository persistence (`scripts/check-frontend-persisted-state.sh`'s
-      localStorage/sessionStorage/indexedDB allowlist). No dedicated
-      architectural guard exists for automatic snapshot deletion or mandatory
-      send navigation — only ordinary feature tests
-      (`webapp/tests/v2-snapshots-page.test.tsx`) cover the snapshot-deletion
-      behavior, which is easier to regress unnoticed than a checked-in guard
-      script. Left unchecked: the bullet names 7 things and 2 have no guard.
+      browser repository persistence. Five already had a dedicated CI-run guard:
+      old routes / firmware repositories / `activePackageId`
+      (`scripts/check-v2-phase2-architecture.py`), remote assets
+      (`scripts/verify-no-remote-assets.sh`), and browser repository persistence
+      (`scripts/check-frontend-persisted-state.sh`). The remaining two —
+      automatic snapshot deletion and mandatory send navigation — were covered
+      only by ordinary feature tests, which is easier to regress unnoticed than a
+      checked-in guard. **Closed 2026-08-16** by the new
+      `scripts/check-v2-snapshot-send-policy.py`, wired into `check-all.sh`, with
+      `tests/scripts/test-check-v2-snapshot-send-policy.sh` (11 cases) wired into
+      `check-scripts.sh`.
+      It guards the specific shape each regression would take rather than the
+      feature generally: a snapshot mutation (`saveWorkingCopyAsSnapshot`,
+      `deleteSnapshot`, `replaceSnapshotWithWorkingCopy`) moving *inside a
+      `useEffect`*, where it would run on render instead of on a click; and a
+      standalone send or confirmation screen reappearing in the `screensV2`
+      union. The self-test covers both directions — it must stay silent on an
+      explicit click handler, on an effect that does not mutate, and on the
+      mutation name appearing as a string — and it also fails if its own subject
+      disappears (the `screensV2` union renamed or the routing file removed), so
+      the guard cannot silently become a no-op.
 - [x] Keep all first-party warnings fatal. `.clang-tidy`: `WarningsAsErrors:
       '*'`; `webapp/package.json`: `"lint": "eslint . --max-warnings=0"`,
       `"stylelint": "stylelint 'src/**/*.css' --max-warnings=0"`; host tests

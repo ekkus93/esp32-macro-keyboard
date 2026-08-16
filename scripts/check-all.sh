@@ -18,6 +18,7 @@ bash ./scripts/check-mount-policy.sh
 bash ./scripts/check-layer-boundaries.sh
 bash ./scripts/check-removed-features.sh
 python3 ./scripts/check-v2-phase2-architecture.py
+python3 ./scripts/check-v2-snapshot-send-policy.py
 bash ./scripts/check-usb-identity.sh
 bash ./scripts/check-frontend-persisted-state.sh
 bash ./scripts/check-setup-route-isolation.sh
