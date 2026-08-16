@@ -1088,9 +1088,9 @@ For every checked affected item:
 
 ### H12-120 — Clean checkout
 
-- [ ] Create a fresh checkout of the exact final candidate SHA.
-- [ ] Install dependencies only through documented reproducible commands.
-- [ ] Confirm no generated/untracked source artifact is required for success.
+- [x] Create a fresh checkout of the exact final candidate SHA.
+- [x] Install dependencies only through documented reproducible commands.
+- [x] Confirm no generated/untracked source artifact is required for success.
 
 - Historical evidence (2026-08-14):
   `docs/implementation-v2/H12_120_CLEAN_CHECKOUT_2026-08-14.md` records the
@@ -1111,9 +1111,9 @@ From the clean checkout:
 ./scripts/generate-native-coverage.sh
 ```
 
-- [ ] All commands exit 0.
-- [ ] No warnings are ignored or downgraded.
-- [ ] Record timings and key counts/budget margins.
+- [x] All commands exit 0.
+- [x] No warnings are ignored or downgraded.
+- [x] Record timings and key counts/budget margins.
 
 - Historical evidence (2026-08-14):
   `docs/implementation-v2/H12_121_AUTHORITATIVE_GATE_2026-08-14.md` records
@@ -1128,6 +1128,19 @@ From the clean checkout:
   production/runtime and release-provenance code, so this gate is reopened and
   must pass again on the replacement exact SHA before physical H12-122
   acceptance.
+
+- Evidence: `docs/implementation-v2/H12_120_121_CLEAN_CHECKOUT_2026-08-16.md`.
+  Fresh clone of candidate `07c40a4b1a5b9c63c494f4f6c8482e14f8222d7e` with 0
+  modified/untracked files and 0 build outputs present; dependencies installed
+  only via the documented `npm --prefix webapp ci`; `./scripts/check-all.sh`
+  **exit 0 in 247 s** with 66/66 host tests, 6/6 v2 contract tests, 56 frontend
+  test files, all nine Real Chrome workflows, stack-usage ratchet clean (670
+  frames, largest 1536 B, 0 allowlisted) and every release budget inside
+  threshold (app 47.9%, webfs 50.6%, DIRAM 49.3%). No warning ignored or
+  downgraded. One precondition recorded: `check-all.sh` reaches the webapp format
+  check before `check-webapp.sh` installs dependencies, so a genuinely clean tree
+  must run the documented `npm ci` first — the first attempt exited 127 with
+  `prettier: not found`.
 
 ### H12-122 — Final hardware confirmation on exact release SHA
 
