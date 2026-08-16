@@ -75,7 +75,7 @@ context**.
    Repository" died with a blank page. Browser tests run on `localhost`, which
    *is* a secure context.
 
-### One finding recorded, not fixed
+### One finding recorded — a wrong justification, not a defect
 
 **The sticky bottom navigation does overlap content.** V2-130's checked item
 "Ensure bottom navigation does not cover final actions" reasons that a sticky
@@ -98,8 +98,9 @@ clear the nav.
 The practical consequence is for automation, not users: a tap computed at a
 control's centre can land on the nav, which is why this harness centres elements
 before tapping.
-Recorded here rather than silently fixed, since V2-130 is a checked item and
-re-deciding it is the product owner's call.
+
+The V2-130 checkbox is left checked; only its recorded justification needs
+correcting, which is noted in `TODO_V2.md`.
 
 ### One non-defect worth recording
 
