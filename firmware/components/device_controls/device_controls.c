@@ -289,8 +289,8 @@ app_error_code_t device_controls_init(void) {
         return record_init_failure(result, DEVICE_CONTROLS_FAILURE_GENERIC);
     }
 
-    if (xTaskCreate(controls_task, "controls", 2048U, NULL, CONTROLS_TASK_PRIORITY,
-                    &controls_task_handle) != pdPASS) {
+    if (xTaskCreate(controls_task, "controls", DEVICE_CONTROLS_TASK_STACK_BYTES, NULL,
+                    CONTROLS_TASK_PRIORITY, &controls_task_handle) != pdPASS) {
         controls_task_handle = NULL;
         return record_init_failure(APP_ERROR_INTERNAL, DEVICE_CONTROLS_FAILURE_TASK_START);
     }

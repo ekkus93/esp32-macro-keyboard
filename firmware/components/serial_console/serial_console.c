@@ -150,6 +150,31 @@ static int command_wifi_connect(int argc, char **argv) {
     return 1;
 }
 
+/* Stack headroom for the two first-party tasks that own long-running work.
+ *
+ * This is deliberately a console command rather than a diagnostics field:
+ * SPEC_V2 §13.13 fixes the `GET /api/v1/diagnostics` schema and states that the
+ * committed contract definitions "may add fields only through an explicit
+ * specification update", and no `stack` field exists there. The trusted UART
+ * console carries no such contract, so the measurement is available to a
+ * developer at the bench without changing the wire format.
+ *
+ * ESP-IDF's uxTaskGetStackHighWaterMark() reports the minimum free stack in
+ * bytes, and xTaskCreate() takes its depth in bytes too, so both numbers below
+ * are directly comparable. A value of 0 means the task is not running.
+ */
+static int command_stack(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
+    const size_t executor_free = macro_executor_stack_high_water_mark();
+    const size_t controls_free = device_controls_stack_high_water_mark();
+    printf("macro_executor: %u bytes free of %u (minimum observed)\n", (unsigned)executor_free,
+           (unsigned)MACRO_EXECUTOR_TASK_STACK_BYTES);
+    printf("controls:       %u bytes free of %u (minimum observed)\n", (unsigned)controls_free,
+           (unsigned)DEVICE_CONTROLS_TASK_STACK_BYTES);
+    return 0;
+}
+
 static int command_wifi_status(int argc, char **argv) {
     (void)argc;
     (void)argv;
@@ -253,6 +278,15 @@ static void register_commands(void) {
         .func = command_wifi_status,
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&wifi_status_command));
+
+    const esp_console_cmd_t stack_command = {
+        .command = "stack",
+        .help = "Show the minimum observed free stack, in bytes, for the executor "
+                "and controls tasks.",
+        .hint = NULL,
+        .func = command_stack,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&stack_command));
 }
 
 app_error_code_t serial_console_start(void) {

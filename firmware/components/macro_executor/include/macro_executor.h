@@ -97,6 +97,11 @@ macro_execution_status_t macro_executor_get_status(void);
  * handoff §7.1), or 0 when the task isn't running. Not host-testable (reads
  * FreeRTOS state directly); the diagnostics aggregator reaches it through an
  * injected ops seam. */
+/* Depth passed to xTaskCreate() for the execution task. ESP-IDF takes this in
+ * bytes, and uxTaskGetStackHighWaterMark() reports free stack in bytes, so the
+ * two are directly comparable (see the console's `stack` command). */
+#define MACRO_EXECUTOR_TASK_STACK_BYTES 4096U
+
 size_t macro_executor_stack_high_water_mark(void);
 
 #endif

@@ -96,6 +96,10 @@ subsystem_health_state_t device_controls_health_derive_state(device_controls_hea
  * handoff §7.1), or 0 when the task isn't running. Not host-testable (reads
  * FreeRTOS state directly); the diagnostics aggregator reaches it through an
  * injected ops seam. */
+/* Depth passed to xTaskCreate() for the controls task, in bytes -- see
+ * MACRO_EXECUTOR_TASK_STACK_BYTES for why bytes. */
+#define DEVICE_CONTROLS_TASK_STACK_BYTES 2048U
+
 size_t device_controls_stack_high_water_mark(void);
 
 #endif

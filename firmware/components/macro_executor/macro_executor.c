@@ -197,8 +197,8 @@ app_error_code_t macro_executor_init(void) {
         cleanup_partial_init();
         return result;
     }
-    if (xTaskCreate(executor_task, "macro_executor", 4096U, NULL, 8U, &executor_task_handle) !=
-        pdPASS) {
+    if (xTaskCreate(executor_task, "macro_executor", MACRO_EXECUTOR_TASK_STACK_BYTES, NULL, 8U,
+                    &executor_task_handle) != pdPASS) {
         cleanup_partial_init();
         memset(&engine, 0, sizeof(engine));
         return APP_ERROR_INTERNAL;

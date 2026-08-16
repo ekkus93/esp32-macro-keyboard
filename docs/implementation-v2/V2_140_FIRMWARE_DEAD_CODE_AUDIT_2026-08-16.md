@@ -123,10 +123,11 @@ wifi_state_string                      web_api_handler_parser_error
 web_api_handler_settings_json
 ```
 
-The two `*_stack_high_water_mark` functions are worth a second look: stack
+The two `*_stack_high_water_mark` functions were worth a second look: stack
 headroom is exactly the kind of thing diagnostics should report, and
-`check-stack-usage.sh` ratchets *static* frame sizes only. If these were intended
-to feed `/api/v1/diagnostics`, they are unwired rather than unwanted.
+`check-stack-usage.sh` ratchets *static* frame sizes only — so these were unwired
+rather than unwanted. **They are now wired to the trusted UART console's `stack`
+command** (2026-08-16); see the note under "Removal" below.
 
 ## 3. Compatibility and migration code
 
@@ -190,3 +191,36 @@ tests rather than lost with the old entry point:
 **Result:** 24 files changed, **2,731 deletions** against 78 insertions. Host
 test targets 66 → 63 (the three whose subjects no longer exist), all passing.
 `check-all.sh` exit 0; application binary 47.8% of its budget, DIRAM 48.5%.
+
+## Follow-up: the stack accessors are now wired (2026-08-16)
+
+`device_controls_stack_high_water_mark` and
+`macro_executor_stack_high_water_mark` were the one group in §2d that looked
+unwired rather than unwanted. They now back a `stack` command on the trusted UART
+console.
+
+**Why the console and not `/api/v1/diagnostics`.** SPEC_V2 §13.13 fixes the
+diagnostics schema, contains no `stack` field, and states that the committed
+contract definitions "may add fields only through an explicit specification
+update". `SPEC_V2` is frozen, so putting this on the API needs a product-owner
+spec change; the console carries no such contract. This is also exactly the
+tension V2-056's open item flags — the TODO asks for stack data that the spec and
+the committed contract corpus do not define. That item is unchanged and still
+needs a ruling.
+
+Runtime measurement on the reference board:
+
+```text
+keyboard> stack
+macro_executor: 3144 bytes free of 4096 (minimum observed)
+controls:       1308 bytes free of 2048 (minimum observed)
+```
+
+Both tasks have healthy headroom — the executor has used at most ~950 bytes of
+its 4 KiB, controls ~740 of its 2 KiB.
+
+The stack depths are now named constants
+(`MACRO_EXECUTOR_TASK_STACK_BYTES`, `DEVICE_CONTROLS_TASK_STACK_BYTES`) used both
+at `xTaskCreate()` and by the command, so the "of N" figure cannot drift from the
+size actually allocated. ESP-IDF takes the depth in bytes and reports the high
+water mark in bytes, so the two numbers are directly comparable.
