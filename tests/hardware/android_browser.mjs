@@ -22,7 +22,13 @@
  *     every time rather than failing with ECONNREFUSED.
  */
 import { execFileSync } from "node:child_process";
-import { chromium } from "playwright";
+import { createRequire } from "node:module";
+
+// tests/hardware/ has no node_modules of its own; Playwright lives in the
+// webapp install. Resolve it relative to this file so the script runs from any
+// working directory.
+const require = createRequire(new URL("../../webapp/package.json", import.meta.url));
+const { chromium } = require("playwright");
 
 export const DEFAULT_SERIAL = process.env.HIL_ANDROID_SERIAL ?? "LGH87250967ab9";
 export const DEFAULT_ORIGIN = process.env.HIL_DEVICE_ORIGIN ?? "http://192.168.88.108";

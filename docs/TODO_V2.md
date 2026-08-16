@@ -1762,17 +1762,16 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
 
 ## V2-130 — Responsive layout
 
-- [ ] Support a minimum 320 CSS-pixel viewport. `webapp/src/styles.css` still
-      only sets `body { min-width: 320px; }` — an incidental floor, not a
-      verified 320px layout. The real-browser responsive check
-      (`assertResponsiveLayout()` in `webapp/tests/browser/run-browser-tests.mjs`,
-      pre-existing) exercises a 360 CSS-pixel viewport, not 320. Left
-      unchecked: 2026-08-09's V2-131/V2-132 work did not touch this item.
-- [ ] Use single-column phone layouts. `styles.css`'s `@media (width <= 32rem)`
-      block already collapses `.app-header`/`.card`/`.page-heading` to
-      `flex-direction: column`, but this predates Phase 13 and has never been
-      deliberately audited against every screen. Left unchecked (unchanged by
-      2026-08-09's work).
+- [x] Support a minimum 320 CSS-pixel viewport. Verified 2026-08-16 at a real
+      320x568 viewport against the device: `scrollWidth` equals `clientWidth`
+      (320), so there is no horizontal scroll, and no element under `main`
+      extends past the viewport's right edge. This replaces the previous
+      situation, where `body { min-width: 320px; }` was an incidental floor and
+      the only real-browser check ran at 360px. Evidence: `docs/implementation-v2/V2_DESKTOP_TABLET_MATRIX_2026-08-16.md`.
+- [x] Use single-column phone layouts. Verified 2026-08-16 from geometry rather
+      than from the presence of a media query: at 360x640 against the device, no
+      two children of `main` share a horizontal band while being horizontally
+      separated, so nothing sits side by side. Evidence: `docs/implementation-v2/V2_DESKTOP_TABLET_MATRIX_2026-08-16.md`.
 - [x] Support wider tablet and desktop layouts without changing workflow.
       `styles.css` widens `.standalone`/`.app-shell` from a 48rem cap to a
       64rem cap at `@media (width >= 60rem)` (2026-08-09) — a relaxed max
@@ -1955,9 +1954,17 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
       `column-reverse`, or positive `tabIndex` found anywhere in `webapp/src`
       (grep re-confirmed 2026-08-09 after this task's changes, including the
       new "Move first"/"Move last" controls, which render in plain DOM order)
-      — nothing detected that would desync visual from DOM/focus order. Left
-      unchecked: not manually/screen-reader verified, which this specific
-      claim would need to be more than "no known violation."
+      — nothing detected that would desync visual from DOM/focus order.
+      **Upgraded 2026-08-16 from grep to a real-browser keyboard test** against
+      the device, run on the macro editor specifically because it is
+      control-rich (47 focusable elements versus 6 on the default shell): all
+      **47 of 47** were reached by Tab, the sequence follows DOM order without
+      jumping backwards, and there is no positive `tabindex` in the document.
+      Evidence: `docs/implementation-v2/V2_DESKTOP_TABLET_MATRIX_2026-08-16.md`.
+      **Still unchecked on purpose:** that is a keyboard test, not a
+      screen-reader pass, and this checkbox's own wording asks for more than
+      "no known violation". Closing it needs the manual screen-reader check
+      tracked by the Phase 13 exit gate.
 - [x] Trap and restore focus in dialogs. A shared hook,
       `webapp/src/features/shell/v2/useFocusTrap.ts` (the v2-tree equivalent
       of `components/AccessibleDialog.tsx`'s logic: initial focus,
@@ -2074,7 +2081,12 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
       that surface, and cancelling there really stopped the send (one all-zero
       HID release, nothing typed). Evidence:
       `docs/implementation-v2/V2_155_ANDROID_UI_WORKFLOW_MATRIX_2026-08-16.md`.
-- [ ] Tablet and desktop landscape tests pass.
+- [x] Tablet and desktop landscape tests pass. Verified 2026-08-16 in real
+      Chromium 151 against the device: desktop 1920x1080/1280x800 and tablet
+      1024x768/1280x800 (coarse pointer) are **not** blocked, while phone-sized
+      coarse landscape (800x400, 640x360) **is** — and the discriminating case,
+      a short 1000x500 desktop viewport with `pointer: fine`, correctly does not
+      block. Evidence: `docs/implementation-v2/V2_DESKTOP_TABLET_MATRIX_2026-08-16.md`.
 - [x] Active-send cancellation remains available in landscape. V2-132,
       2026-08-09: `webapp/tests/v2-app-v2.test.tsx`'s "an active send's
       macro name, progress, and Cancel remain accessible while
