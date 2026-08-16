@@ -2106,12 +2106,29 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
 
 ## V2-140 — Delete dead v1 code
 
-- [ ] Remove obsolete firmware files and build registrations. Not
-      investigated in this pass (scoped to the webapp per the task that ran
-      it) — `scripts/check-v2-phase2-architecture.py` (CI-enforced, passes)
-      confirms firmware carries no package/macro repository model, but a full
-      audit of firmware source files and CMake/component registrations for
-      other obsolete v1 remnants was not performed. Left unchecked.
+- [ ] Remove obsolete firmware files and build registrations. **The audit that
+      was missing has now been performed** (2026-08-16, evidence `docs/implementation-v2/V2_140_FIRMWARE_DEAD_CODE_AUDIT_2026-08-16.md`); the
+      checkbox stays open only because it asks for *removal* and one removal
+      needs a retention decision.
+      Findings: every `.c` file across all 18 components is registered in its
+      component's `SRCS`, and every registered source exists — **no obsolete
+      file or registration**, apart from the two already-known
+      `LEGACY / NOT SHIPPED` files (`web_setup_core.c`, `web_setup_json.c`)
+      which are on disk but deliberately not compiled.
+      Reachability of the 384 non-static functions in compiled firmware found
+      **33 with no reference from any other compiled source**. Most are
+      framework entry points (`app_main`, TinyUSB callbacks) or intentional
+      host-test seams. The substantive finding is that **`provisioning.c`'s
+      entire public API is unreachable** — the v1 NVS-backed provisioning store,
+      superseded by the v2 device-settings record; its apparent external uses are
+      `web_setup_ops_t` struct field names in the uncompiled legacy file, not
+      calls. `provisioning_core.c` falls with it, while
+      `provisioning_bootstrap_derive` stays live (called by `app_core.c:82`) and
+      is cleanly separable. `macro_compile` (the documented retained v1 parser
+      entry point) and the "revision" validators are smaller candidates.
+      Removal is proposed, not applied: it would delete two sources, two CMake
+      entries and ~900 lines of host tests, which is a retention decision about a
+      well-tested component.
 - [x] Remove obsolete React routes, screens, API clients, guards, models, and
       fixtures. Deleted the entire retired v1 tree — confirmed unreachable
       from `main.tsx` by a full import-graph audit before deletion, and by a
@@ -2138,12 +2155,17 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
       v2 contract source). Fixed the resulting `scripts/check-docs.sh` glob
       failure (`nullglob`) so the now-empty `docs/schemas/` directory doesn't
       break the docs gate.
-- [ ] Remove compatibility types and migrations that have no released v2
+- [x] Remove compatibility types and migrations that have no released v2
       input. No webapp instance found (grepped `webapp/src/v2/` and
       `features/*/v2/` for migration/compatibility-shim code reading v1-shaped
       data; found none — this product never shipped v1 to real users, so
-      there was nothing to migrate from). Left unchecked because firmware
-      (e.g. NVS settings-schema migration code) was not audited in this pass.
+      there was nothing to migrate from). **Firmware audited 2026-08-16 and
+      likewise none exists**: firmware does not migrate v1-shaped data, it
+      *rejects* mismatched versions — `device_settings_v2.c` errors when the
+      stored record, credential or password-algorithm version is not the
+      expected constant, and `provisioning_core.c` rejects a configuration whose
+      `schema_version` is not `APP_SCHEMA_VERSION`. Strict version rejection is
+      not a compatibility shim. Evidence: `docs/implementation-v2/V2_140_FIRMWARE_DEAD_CODE_AUDIT_2026-08-16.md`.
 - [x] Remove dead tests rather than skipping them (webapp scope). Deleted 17
       Vitest files that exclusively exercised deleted v1 code (16 test files
       plus the now-orphaned `appFixtures.ts` fixture helper) — kept every
