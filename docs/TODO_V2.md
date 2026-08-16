@@ -2577,18 +2577,45 @@ item.
 
 ## V2-156 — Final acceptance audit
 
-- [ ] Walk every acceptance criterion in both authoritative specifications.
-- [ ] Link each criterion to code, tests, and evidence.
-- [ ] Confirm firmware contains no repository parser, compressor, decompressor,
+- [x] Walk every acceptance criterion in both authoritative specifications.
+- [x] Link each criterion to code, tests, and evidence.
+- [x] Confirm firmware contains no repository parser, compressor, decompressor,
       package repository, macro repository, or package/macro CRUD route.
-- [ ] Confirm repository schema has no `activePackageId`.
-- [ ] Confirm package selection is device UI state and switching is not dirty.
-- [ ] Confirm snapshots are never created or deleted automatically.
-- [ ] Confirm ordinary sends require no standalone confirmation navigation.
-- [ ] Confirm every terminal send path releases all keys.
-- [ ] Confirm no credentials, repository data, or macro source leak.
-- [ ] Confirm all partitions and images fit with recorded margins.
-- [ ] Confirm this TODO and both specifications match implemented behavior.
+- [x] Confirm repository schema has no `activePackageId`.
+- [x] Confirm package selection is device UI state and switching is not dirty.
+- [x] Confirm snapshots are never created or deleted automatically.
+- [x] Confirm ordinary sends require no standalone confirmation navigation.
+- [x] Confirm every terminal send path releases all keys.
+- [x] Confirm no credentials, repository data, or macro source leak.
+- [x] Confirm all partitions and images fit with recorded margins.
+- [x] Confirm this TODO and both specifications match implemented behavior.
+
+- Evidence: `docs/implementation-v2/V2_156_FINAL_ACCEPTANCE_AUDIT_2026-08-16.md`,
+  audited at final candidate `28359e884d4fdbc3748853ce880a421ee0644a01`.
+  **108 normative requirements** were extracted with the same regex the committed
+  traceability generator uses (105 in `SPEC_V2.md`, 3 in `UI_UX_SPEC_V2.md`) and
+  every one is linked: 63 by an explicit first-party `§` citation, 18 to a
+  specific test by hand, 14 to a named gate script, 3 to committed build
+  configuration, 3 satisfied by construction and verified by inspection, 6
+  specification-meta, and 1 `SHOULD` (§18.5 ChromeOS/Windows) honestly recorded
+  as not performed. **No requirement is unmapped.** The pre-existing
+  `SPEC_V2_TEST_TRACEABILITY.md` could not discharge the first two items on its
+  own: it is deliberately source-level and says so.
+
+  The eight specific confirmations were each checked against the tree rather than
+  assumed — notably that `usb_release_all` is the first, unconditional statement
+  of `finish_execution()` (so every terminal send path releases keys), that all
+  three snapshot mutation entry points are reached only from user handlers, that
+  the `screensV2` union contains no confirmation screen, and that
+  `activePackageId` survives only as a fixture asserting its own rejection.
+  §17's five mandated anti-regression guards were verified present.
+
+  **Three findings are recorded, all unguarded-but-satisfied, none a violation:**
+  §5.3's PSRAM options are set but not checked by `check-production-config.sh`;
+  §5.3's task-stack rule holds only because every task uses `xTaskCreate` while
+  `CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=y` would permit otherwise; and
+  §5.4's no-wall-clock rule holds in code with nothing preventing reintroduction.
+  Closing them is implementation, not audit, so it is left as the owner's call.
 
 ## Phase 15 exit gate
 
