@@ -219,6 +219,54 @@ build fails on `-Werror` before any test runs.
   - Evidence: commit `46beba4b4db0ffb216fc06250a71109c8ddbe1ff` adds `scripts/check-web-route-dispatch-sync.py`, wires it into repository checks, adds a fail-closed shell regression, and reconciles blob request-ID validation ordering with the generic policy path. The exact guard/test was reconstructed locally and passed all four cases: current partition accepted; dedicated-route removal rejected; duplicate wildcard dispatch rejected; unclassified future route rejected. R6-061c remains open because the sandbox cannot reproduce the complete current source tree from the uploaded pre-R6 snapshot with enough fidelity to claim the literal current-tree web target.
 
 **Phase exit:** `./scripts/check-all.sh` passes; both tasks checked with evidence.
+— **Met 2026-08-15.** `./scripts/check-all.sh` → `EXIT=0` (66/66 host tests) and
+`./scripts/generate-native-coverage.sh` → `EXIT=0`.
+
+### R6 verification note (2026-08-15)
+
+**R6-060 — the retention decision stands, and was already made.** F-022 allows
+either deletion or documented retention, and `7292ba3` ("clarify legacy setup
+code is unshipped", 2026-08-11) chose retention, adding a `LEGACY / NOT SHIPPED`
+banner to all six files naming `web_server_setup_submit.c` as the shipped
+replacement. R6-060 was substantively complete; only its gate run was
+outstanding.
+
+**A process note, recorded rather than quietly corrected.** On 2026-08-15 this
+decision was re-litigated and the files deleted (`37527f3`) on the stated grounds
+that "documenting requires a reason to retain, and there isn't one". That was
+wrong: the reason was recorded in a banner at the top of each file, and was
+missed because the files were grepped rather than opened. Reverted in `a7f2209`.
+Compliance never lapsed — F-022 is satisfied by either path and the gate passed
+in both states — but re-deciding a settled question is outside a verification
+pass and is the project owner's call.
+
+The supporting analysis is kept in case deletion is ever revisited: none of the
+six exported functions has a production caller; the files are absent from
+`web_server/CMakeLists.txt` and from the firmware build output; `371c518`
+("Switch startup authority to V2 settings") is where production stopped calling
+`web_setup_core_submit`; and `/api/v1/setup` is served by `web_server_setup.c`
+and `web_server_setup_submit.c` against `setup_contract_v2.h`. They are
+registered for the host suite in `tests/host/cmake/extra_tests.cmake` — not
+`tests/host/CMakeLists.txt` — and run as 2 of the 66 host tests.
+
+**R6-061 — already implemented, never recorded.** The required check exists as
+`scripts/check-web-route-dispatch-sync.py`, added `46beba4` on **2026-08-12**,
+two days *after* this round's spec — which is why F-023 does not mention it and
+names only `check-v2-api-routes.py`. It runs from both `check-all.sh` and
+`check-scripts.sh` and has its own 8-assertion regression test.
+
+Proved non-vacuous against both directions of divergence:
+
+| Injected divergence | Result |
+| --- | --- |
+| Removed `/api/v1/limits` from `normal_routes[]` — F-023's exact "accidental future removal" scenario | `dedicated route table mismatch`, exit 1 |
+| Added `WEB_API_ROUTE_LIMITS` to `web_api_handle_administration()` | `dedicated routes also handled by wildcard administration dispatch`, exit 1 |
+
+**F-023's optional half is also resolved.** It noted `web_server_blob.c`
+validated `X-Request-ID` *before* session authentication while
+`web_request_policy.c` did it after. No longer true: all four blob handlers
+call `authenticate_blob_request()` before `establish_request_id()`, matching the
+generic pipeline's `enforce_session` → `establish_request_id` order.
 
 ---
 
