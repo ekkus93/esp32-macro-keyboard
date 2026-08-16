@@ -73,6 +73,39 @@ describe("H4 execution recovery", () => {
     }
   });
 
+  test("repeated unchanged successful polls announce once, not once per poll", async () => {
+    // H4-042: "avoid live-region announcements on every unchanged successful
+    // poll". onStatus is what drives the aria-live region in MacrosPage, so a
+    // status that has not meaningfully changed must not re-invoke it. Four
+    // identical successful polls therefore have to produce exactly one call.
+    vi.useFakeTimers();
+    try {
+      const onError = vi.fn();
+      const onStatus = vi.fn();
+      const seed = statusAt("running", 1);
+      const unchanged = statusAt("running", 2);
+
+      // First poll differs from the seed and must announce; the next three are
+      // byte-identical to it and must not.
+      planJsonResponse(unchanged);
+      planJsonResponse(unchanged);
+      planJsonResponse(unchanged);
+      planJsonResponse(unchanged);
+
+      trackSend(seed, { onError, onStatus });
+      for (let poll = 0; poll < 4; poll += 1) {
+        await vi.advanceTimersByTimeAsync(1000);
+      }
+
+      expect(onError).not.toHaveBeenCalled();
+      expect(onStatus).toHaveBeenCalledOnce();
+      expect(onStatus).toHaveBeenCalledWith(unchanged);
+      expect(getExecutionRecoveryState()).toEqual({ kind: "clear" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test("persistent tracking failure becomes explicit and GET-only retry resumes tracking", async () => {
     vi.useFakeTimers();
     try {

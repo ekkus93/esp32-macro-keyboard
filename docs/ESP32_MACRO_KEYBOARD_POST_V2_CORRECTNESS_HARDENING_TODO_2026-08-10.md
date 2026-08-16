@@ -496,7 +496,7 @@ For send and USB status polling:
 - [x] track success freshness or bounded consecutive failure state,
 - [x] expose stale/degraded UI after a defined threshold,
 - [x] automatically clear degraded state after successful refresh,
-- [ ] avoid live-region announcements on every unchanged successful poll,
+- [x] avoid live-region announcements on every unchanged successful poll,
 - [x] avoid duplicate send POSTs.
 
 ### H4-043 — Regression tests
@@ -555,14 +555,18 @@ Requirement spot-checks against code, not just test names:
 - the browser scenario performs a real reload with an active send and forces the
   first startup recovery to `503`
 
-**One box is deliberately left open:** *"avoid live-region announcements on every
-unchanged successful poll"*. The nearest coverage
-(`one transient poll failure stays quiet and clears on the next successful
-refresh`) asserts `onStatus` is not called during the failure and
-`toHaveBeenCalledOnce()` on recovery — a failure→success sequence, not several
-*successive unchanged successful* polls. §0 forbids checking a compound item
-while a named behaviour is unverified. Closing it needs one test: poll N times
-with an identical status payload and assert the live region is announced once.
+**The last box was closed on 2026-08-16.** It had been left open because the
+nearest coverage asserted a failure→success sequence rather than several
+*successive unchanged successful* polls, and §0 forbids checking a compound item
+while a named behaviour is unverified.
+
+The behaviour itself was already implemented — `isMeaningfulChange(previous,
+status)` gates the `onStatus` callback in `sendClient.ts`, and `onStatus` is what
+drives the aria-live region — so only the assertion was missing. Added
+`repeated unchanged successful polls announce once, not once per poll` to
+`webapp/tests/v2-execution-recovery.test.tsx`: four identical successful polls,
+exactly one announcement. Proved non-vacuous by removing the dedupe so every
+poll announces, which fails that test and only that test (1 failed, 5 passed).
 
 ## Phase H5 — Storage error provenance and commit certainty
 
