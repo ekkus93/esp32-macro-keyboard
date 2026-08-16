@@ -934,11 +934,27 @@ Secret sentinels must cover:
 
 ### H10-102 — Device Unity tests
 
-- [ ] Build `firmware/test_app` from the exact candidate SHA.
-- [ ] Flash the reference ESP32-S3R8.
-- [ ] Run every Unity test case, not build-only.
-- [ ] Record pass/fail/ignored count.
-- [ ] Add device-test coverage for new low-level hardening behavior where appropriate and practical.
+- [x] Build `firmware/test_app` from the exact candidate SHA.
+- [x] Flash the reference ESP32-S3R8.
+- [x] Run every Unity test case, not build-only.
+- [x] Record pass/fail/ignored count.
+- [x] Add device-test coverage for new low-level hardening behavior where appropriate and practical.
+
+- Evidence: `docs/implementation-v2/H10_102_DEVICE_UNITY_VALIDATION_2026-08-16.md`.
+  Test image built by `./scripts/build-device-tests.sh` from the exact candidate
+  SHA `fd0ddf7` with a clean tree, flashed to the reference ESP32-S3R8, and every
+  case executed by driving `unity_run_menu()` with `*`:
+  **12 Tests 0 Failures 0 Ignored**. The final sub-item is satisfied by coverage
+  already present rather than by adding more for its own sake — two of the twelve
+  cases (`f2ca986`) are exactly the new low-level hardening behaviour: the
+  H3-030b executor shutdown fail-safe latch, and the release-failure visibility
+  F-025/H7-070 preserve. Production was rebuilt from the same clean SHA and
+  reflashed afterwards, identity confirmed from the boot log
+  (`ELF file SHA256: 746aa5cf29d7f28a…` equal to the manifest's `appElfSha256`,
+  `gitDirty: false`); no test image remains flashed. Incidentally the suite's
+  isolated KDF benchmark reports 436.6 ms median at the shipped 5,500 iterations,
+  matching V2-041's recorded figure exactly and independently confirming
+  H2-024's no-cost-regression result.
 
 ### H10-103 — Hardware matrix refresh
 
