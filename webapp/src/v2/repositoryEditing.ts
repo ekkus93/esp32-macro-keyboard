@@ -22,20 +22,60 @@ import { v2Limits } from "./limits";
  * changed, Rename to the same name — never produces a spurious dirty
  * transition.
  *
- * IDs are minted with `crypto.randomUUID()` (SPEC_V2 §8.5 "IDs are generated
- * in the browser with crypto.randomUUID()"), which is itself a canonical
- * lowercase UUID v4, so every ID this module mints is valid by construction
- * and — because `crypto.randomUUID()` never repeats in practice — preserves
- * the global macro-ID/package-ID uniqueness SPEC_V2 §8.5 requires without
- * this module needing its own collision-detection loop.
+ * IDs are canonical lowercase UUID v4 (SPEC_V2 §8.5 "IDs are generated in the
+ * browser with crypto.randomUUID()"), so every ID this module mints is valid by
+ * construction and preserves the global macro-ID/package-ID uniqueness §8.5
+ * requires without this module needing a collision-detection loop.
+ *
+ * `crypto.randomUUID()` alone cannot be used, even though §8.5 names it: it is
+ * restricted to secure contexts, and this application is served by the device
+ * over plain HTTP on a LAN address or its SoftAP, which is never a secure
+ * context. Measured on a real Android phone against real firmware 2026-08-16
+ * (V2-155): at `http://192.168.88.108`, `window.isSecureContext === false`,
+ * `crypto.randomUUID` and `crypto.subtle` are both `undefined`, and the first
+ * screen that mints an ID — "Create Your First Repository" — died with
+ * "crypto.randomUUID is not a function", leaving a blank page. Every browser
+ * test passed because they run on `localhost`, which *is* a secure context.
+ *
+ * {@link randomUuidV4} therefore uses `crypto.randomUUID()` when it exists and
+ * otherwise derives the same canonical v4 shape from `crypto.getRandomValues()`,
+ * which is not secure-context-restricted and is the same CSPRNG. The spec's
+ * intent — browser-generated, cryptographically random, canonical v4 — is
+ * preserved; only the specific API name in §8.5 cannot be honoured literally.
  */
 
+/**
+ * A canonical lowercase UUID v4, usable in a non-secure context.
+ *
+ * Bytes 6 and 8 carry the version (`0100`) and variant (`10`) fields required
+ * by RFC 4122 §4.4; the remaining 122 bits are CSPRNG output.
+ */
+export function randomUuidV4(): string {
+  if (typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
+  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20, 32),
+  ].join("-");
+}
+
 export function createMacroId(): string {
-  return crypto.randomUUID();
+  return randomUuidV4();
 }
 
 export function createPackageId(): string {
-  return crypto.randomUUID();
+  return randomUuidV4();
 }
 
 /** True when two macros have identical field values (id included). */

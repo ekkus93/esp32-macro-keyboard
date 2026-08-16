@@ -8,6 +8,7 @@ import {
   type PackageSelectionPersistenceFailure,
 } from "../../../v2/packageSelection";
 import type { Repository } from "../../../v2/repository";
+import { randomUuidV4 } from "../../../v2/repositoryEditing";
 import {
   createEmptyRepository,
   validateRepositoryForUse,
@@ -166,7 +167,7 @@ function FirstPackageForm({
 }: FirstPackageFormProps): React.JSX.Element {
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const packageIdRef = useRef<string>(crypto.randomUUID());
+  const packageIdRef = useRef<string>(randomUuidV4());
 
   const trimmedName = name.trim();
   const candidateRepository: Repository = {

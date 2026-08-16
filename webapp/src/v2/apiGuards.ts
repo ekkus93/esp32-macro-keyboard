@@ -103,6 +103,15 @@ function isNonNegativeInteger(value: unknown): value is number {
   return all([Number.isSafeInteger(value), Number.isFinite(value), value >= 0]);
 }
 
+/**
+ * A remaining session lifetime: a whole number of seconds that has not yet
+ * exceeded its configured maximum. Deliberately a range and not an equality —
+ * the value counts down for the life of the session (see `isSessionStatus`).
+ */
+function isRemainingLifetime(value: unknown, maximumSeconds: number): boolean {
+  return isNonNegativeInteger(value) && value <= maximumSeconds;
+}
+
 function isString(value: unknown): value is string {
   return typeof value === "string";
 }
@@ -222,8 +231,26 @@ export function isSessionStatus(value: unknown): value is SessionStatus {
       "idleExpiresInSeconds",
     ]),
     value.authenticated === true,
-    value.idleExpiresInSeconds === v2Limits.sessionIdleLifetimeSeconds,
-    value.absoluteExpiresInSeconds === v2Limits.sessionAbsoluteLifetimeSeconds,
+    // These are *remaining* lifetimes, not the configured maxima. Firmware
+    // sends idle_seconds_remaining/absolute_seconds_remaining, and SPEC_V2 §11
+    // shows 86400/604800 only as the example for a session created an instant
+    // ago -- `GET /api/v1/auth/session` "returns the same sanitized object" for
+    // a session that may be hours old.
+    //
+    // Asserting exact equality with the maxima made sign-in impossible against
+    // real firmware: by the time the response is built at least one second has
+    // elapsed, so the device sends 86399/604799 and the guard rejected its own
+    // login response as `invalid_response`. Found on a real Android browser
+    // 2026-08-16 (V2-155); every mocked test returned the exact maxima and so
+    // could not see it.
+    isRemainingLifetime(
+      value.idleExpiresInSeconds,
+      v2Limits.sessionIdleLifetimeSeconds,
+    ),
+    isRemainingLifetime(
+      value.absoluteExpiresInSeconds,
+      v2Limits.sessionAbsoluteLifetimeSeconds,
+    ),
   ]);
 }
 

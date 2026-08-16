@@ -74,6 +74,70 @@ describe("v2 API response contracts", () => {
     expect(isDiagnosticsResponse(examples.diagnostics)).toBe(true);
   });
 
+  // Regression: the guard used to require idleExpiresInSeconds/
+  // absoluteExpiresInSeconds to equal the configured maxima exactly. Real
+  // firmware sends the *remaining* lifetime, so by the time a login response is
+  // built at least a second has elapsed and the device sends 86399/604799 --
+  // which the guard rejected, making sign-in impossible against real hardware
+  // while every mocked test (which returns the exact maxima) passed. Found on a
+  // real Android browser 2026-08-16 under V2-155.
+  test("accepts a session whose remaining lifetime has already ticked down", () => {
+    expect(
+      isSessionStatus({
+        authenticated: true,
+        idleExpiresInSeconds: 86_399,
+        absoluteExpiresInSeconds: 604_799,
+      }),
+    ).toBe(true);
+    // An hours-old session, which GET /api/v1/auth/session must also accept.
+    expect(
+      isSessionStatus({
+        authenticated: true,
+        idleExpiresInSeconds: 3_600,
+        absoluteExpiresInSeconds: 100_000,
+      }),
+    ).toBe(true);
+    expect(
+      isSessionStatus({
+        authenticated: true,
+        idleExpiresInSeconds: 0,
+        absoluteExpiresInSeconds: 0,
+      }),
+    ).toBe(true);
+  });
+
+  test("still rejects a remaining lifetime that exceeds its configured maximum", () => {
+    expect(
+      isSessionStatus({
+        authenticated: true,
+        idleExpiresInSeconds: 86_401,
+        absoluteExpiresInSeconds: 604_800,
+      }),
+    ).toBe(false);
+    expect(
+      isSessionStatus({
+        authenticated: true,
+        idleExpiresInSeconds: 86_400,
+        absoluteExpiresInSeconds: 604_801,
+      }),
+    ).toBe(false);
+    // Non-integers and negatives remain invalid.
+    expect(
+      isSessionStatus({
+        authenticated: true,
+        idleExpiresInSeconds: 1.5,
+        absoluteExpiresInSeconds: 604_799,
+      }),
+    ).toBe(false);
+    expect(
+      isSessionStatus({
+        authenticated: true,
+        idleExpiresInSeconds: -1,
+        absoluteExpiresInSeconds: 604_799,
+      }),
+    ).toBe(false);
+  });
+
   test("rejects unknown fields on every top-level response", () => {
     expect(isErrorEnvelope(withUnknownField(examples.error))).toBe(false);
     expect(isSetupStateResponse(withUnknownField(examples.setupState))).toBe(
@@ -230,14 +294,14 @@ describe("v2 API response contracts", () => {
     expect(isErrorEnvelope(invalid)).toBe(false);
   });
 
-  test("requires exact session lifetimes and every limits field", () => {
-    expect(
-      isSessionStatus({
-        ...examples.session,
-        idleExpiresInSeconds: 60,
-      }),
-    ).toBe(false);
-
+  // The limits endpoint reports the device's *configured* limits, so exact
+  // equality with the client mirror is correct there and is still asserted
+  // below. Session lifetimes are the opposite: they are remaining time and
+  // count down, so this test no longer requires them to equal the maxima --
+  // it used to reject `idleExpiresInSeconds: 60`, which is exactly what a
+  // session idle for nearly 24 hours reports. See the "already ticked down"
+  // regression test above.
+  test("requires every limits field to match the device exactly", () => {
     for (const key of limitKeys) {
       const missing: Partial<typeof examples.limits> = { ...examples.limits };
       expect(Reflect.deleteProperty(missing, key)).toBe(true);

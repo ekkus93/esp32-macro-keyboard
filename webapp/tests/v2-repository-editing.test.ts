@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import type { Repository, RepositoryMacro } from "../src/v2/repository";
 import {
   addMacro,
@@ -10,6 +10,7 @@ import {
   duplicateMacro,
   duplicatePackage,
   findMacro,
+  randomUuidV4,
   findPackage,
   macrosEqual,
   moveMacro,
@@ -77,6 +78,53 @@ describe("repositoryEditing — ID generation", () => {
     expect(createMacroId()).toMatch(uuidPattern);
     expect(createPackageId()).toMatch(uuidPattern);
     expect(createMacroId()).not.toBe(createMacroId());
+  });
+
+  // Regression: the device serves this application over plain HTTP on a LAN
+  // address or its SoftAP, which is never a secure context, so
+  // `crypto.randomUUID` is undefined there. Minting used to call it directly
+  // and "Create Your First Repository" died with "crypto.randomUUID is not a
+  // function", leaving a blank page. Measured on a real Android phone against
+  // real firmware 2026-08-16 (V2-155); localhost-based tests could not see it,
+  // because localhost IS a secure context. `crypto.getRandomValues` is not
+  // secure-context-restricted, which is what the fallback uses.
+  describe("in a non-secure context, where crypto.randomUUID is undefined", () => {
+    // `randomUUID` lives on Crypto.prototype, not on the `crypto` instance, so
+    // deleting an own property is a no-op. Shadow it with an own `undefined`
+    // property, then remove the shadow to restore the prototype method.
+    beforeEach(() => {
+      Object.defineProperty(crypto, "randomUUID", {
+        configurable: true,
+        value: undefined,
+      });
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(crypto, "randomUUID");
+    });
+
+    test("still mints canonical, unique UUID v4 IDs", () => {
+      expect(typeof crypto.randomUUID).toBe("undefined");
+      const macroId = createMacroId();
+      const packageId = createPackageId();
+      expect(macroId).toMatch(uuidPattern);
+      expect(packageId).toMatch(uuidPattern);
+      expect(macroId).not.toBe(packageId);
+
+      const minted = new Set(Array.from({ length: 200 }, () => randomUuidV4()));
+      expect(minted.size).toBe(200);
+      for (const id of minted) {
+        expect(id).toMatch(uuidPattern);
+      }
+    });
+
+    test("sets the RFC 4122 version and variant fields", () => {
+      for (let index = 0; index < 50; index += 1) {
+        const id = randomUuidV4();
+        expect(id[14]).toBe("4");
+        expect(["8", "9", "a", "b"]).toContain(id[19]);
+      }
+    });
   });
 });
 
