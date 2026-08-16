@@ -2067,7 +2067,13 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
       Windows, VoiceOver on macOS, or Orca on Linux) confirming live-region
       announcements, dialog labeling, and that hidden macro source is never
       announced. Left honestly unchecked.
-- [ ] Real Android phone portrait/landscape tests pass.
+- [x] Real Android phone portrait/landscape tests pass. Verified 2026-08-16 on
+      an LG G6: portrait is the operational orientation, landscape shows the
+      portrait-required surface, and SPEC_V2 §14.7's exception holds — an active
+      send's progress and **Cancel and release all keys** remain accessible from
+      that surface, and cancelling there really stopped the send (one all-zero
+      HID release, nothing typed). Evidence:
+      `docs/implementation-v2/V2_155_ANDROID_UI_WORKFLOW_MATRIX_2026-08-16.md`.
 - [ ] Tablet and desktop landscape tests pass.
 - [x] Active-send cancellation remains available in landscape. V2-132,
       2026-08-09: `webapp/tests/v2-app-v2.test.tsx`'s "an active send's
@@ -2562,18 +2568,42 @@ item.
 
 ## V2-155 — Android UI workflow matrix
 
-- [ ] Validate first-ever launch and setup.
-- [ ] Validate configured-device Sign In.
-- [ ] Validate first sign-in from a new Android phone.
-- [ ] Validate already-authenticated refresh.
-- [ ] Validate automatic newest-snapshot loading.
-- [ ] Validate manual loading of an older snapshot.
-- [ ] Validate Quick Send while remaining on the Macros page.
-- [ ] Validate inline acknowledgement and cancellation.
-- [ ] Validate hidden macro source.
-- [ ] Validate dirty-state warnings and manual Save snapshot.
-- [ ] Validate manual snapshot deletion and advisory retention.
-- [ ] Validate portrait enforcement and landscape cancellation.
+- [x] Validate first-ever launch and setup.
+- [x] Validate configured-device Sign In.
+- [x] Validate first sign-in from a new Android phone.
+- [x] Validate already-authenticated refresh.
+- [x] Validate automatic newest-snapshot loading.
+- [x] Validate manual loading of an older snapshot.
+- [x] Validate Quick Send while remaining on the Macros page.
+- [x] Validate inline acknowledgement and cancellation.
+- [x] Validate hidden macro source.
+- [x] Validate dirty-state warnings and manual Save snapshot.
+- [x] Validate manual snapshot deletion and advisory retention.
+- [x] Validate portrait enforcement and landscape cancellation.
+
+- Evidence: `docs/implementation-v2/V2_155_ANDROID_UI_WORKFLOW_MATRIX_2026-08-16.md`.
+  All twelve workflows executed on a real **LG G6 (Android 8.0.0, Chrome 132,
+  360x588 CSS px)** against the real ESP32-S3R8 over the LAN — no SoftAP
+  association, and this host's Wi-Fi untouched. Harness:
+  `tests/hardware/android_browser.mjs` (Playwright over CDP via `adb forward`,
+  with real `adb shell input tap` presses). Quick Send was confirmed by **HID
+  capture on this host receiving exactly `zqxjvw`**, and cancellation by a single
+  all-zero release report with nothing typed.
+
+  **This run found two P0 defects that made the shipped product unusable on a
+  phone, both fixed in `f089d5b` before the matrix was completed:** sign-in was
+  impossible because the session-status guard demanded the configured maxima
+  while firmware sends remaining lifetime, and the first screen that mints an ID
+  crashed because `crypto.randomUUID` is secure-context-only while the device
+  serves plain HTTP. Every existing test missed both — unit tests returned the
+  exact maxima, and browser tests run on `localhost`, which is a secure context.
+
+  One finding is recorded rather than fixed: the sticky bottom navigation **does**
+  overlap content (measured: nav y 519-588 covering "Load snapshot 17" at
+  542-588), contradicting the reasoning under V2-130's checked
+  "bottom navigation does not cover final actions" item. The action stays
+  reachable by scrolling, so the checkbox's substance holds, but its
+  justification does not.
 
 ## V2-156 — Final acceptance audit
 
