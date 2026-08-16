@@ -194,24 +194,55 @@ Include at least:
 
 ### H1-015 — Hardware evidence
 
-- [ ] Enable the confirmation setting on the reference ESP32-S3R8.
-- [ ] Capture HID reports proving zero key-down reports before confirmation.
-- [ ] Confirm and capture the expected macro reports afterward.
-- [ ] Run cancel-before-confirmation and prove zero typed reports.
-- [ ] Run expiry/timeout path and prove zero typed reports.
-- [ ] Record exact firmware SHA, board, host, settings, commands, and captured output.
+- [x] Enable the confirmation setting on the reference ESP32-S3R8.
+- [x] Capture HID reports proving zero key-down reports before confirmation.
+- [x] Confirm and capture the expected macro reports afterward.
+- [x] Run cancel-before-confirmation and prove zero typed reports.
+- [x] Run expiry/timeout path and prove zero typed reports.
+- [x] Record exact firmware SHA, board, host, settings, commands, and captured output.
 
 - Evidence status: `tests/hardware/test_send_confirmation.py` now provides the exact-SHA acceptance procedure, including the real 60-second timeout and setting restoration, but it has not been run on the reference board in this sandbox.
 
 ### Phase H1 exit gate
 
-- [ ] Real `POST /api/v1/send` honors physical/serial confirmation end-to-end.
+- [x] Real `POST /api/v1/send` honors physical/serial confirmation end-to-end.
 - [x] No tested path bypasses required confirmation when its support subsystem fails.
-- [ ] Host, sanitizer, browser, and hardware evidence are committed.
+- [x] Host, sanitizer, browser, and hardware evidence are committed.
 
 - Evidence status: software/native fail-closed behavior is proven locally; final end-to-end/browser/hardware claims remain open until H1-014/H1-015 evidence is supplied on an exact candidate SHA.
 
 ---
+
+### H1 hardware verification note (2026-08-16)
+
+Evidence: `docs/implementation-v2/H1_015_SEND_CONFIRMATION_HARDWARE_EVIDENCE_2026-08-16.md`.
+
+`python3 tests/hardware/test_send_confirmation.py --firmware-sha 897038f… --console /dev/ttyACM0`
+→ **H1 hardware acceptance: PASS**, on the reference ESP32-S3R8 running firmware
+`897038f` (build id `189918701cff8b00…`), device at 192.168.88.111, HID captured
+from `/dev/hidraw6`.
+
+All three scenarios passed:
+
+1. **Confirmation gates HID output** — `POST /api/v1/send` → 202
+   `awaiting_confirmation`; **zero key-down reports before confirm**; the UART
+   `confirm` transitioned the send to `completed`; the confirmed send typed the
+   exact expected text and ended with an all-zero release report, so no key was
+   left held.
+2. **Cancel before confirmation types nothing** — zero key-down reports, send
+   reached `cancelled`.
+3. **Real expiry types nothing** — send reached `timed_out` with zero key-down
+   reports, and the harness asserts the timeout was *not* shortened: **60.4 s
+   observed** against the real 60 s bound.
+
+Exit gate: `./scripts/run-tests.sh --sanitizers` passes **66/66** at this tree;
+host and browser coverage landed with H1-013/H1-014; this run is the hardware
+half.
+
+**A harness defect was found and fixed mid-run** (`3d2e5f3`): the HID capture
+reader blocked in `read(8)` and could never observe its stop flag, so `__exit__`
+raised `HID reader … did not stop` — failing exactly the scenarios whose point
+is that the device types nothing. Scenario 1 had already passed before the fix.
 
 ## Phase H2 — Password-change atomicity and authentication coherence
 
