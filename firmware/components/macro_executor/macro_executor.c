@@ -118,7 +118,7 @@ static void adapter_record_release_failure(void *context, app_error_code_t error
 }
 
 static void adapter_plan_free(macro_plan_t *plan) {
-    macro_plan_free(plan);
+    macro_plan_v2_free(plan);
 }
 
 /* Cooperative worker loop (FIX1 §12.1): run execution requests until a stop
@@ -238,7 +238,7 @@ static void drain_pending_plans(void) {
     macro_executor_message_t message;
     while (xQueueReceive(request_queue, &message, 0U) == pdTRUE) {
         if (message.type == MACRO_EXECUTOR_MESSAGE_EXECUTE) {
-            macro_plan_free(&message.request.plan);
+            macro_plan_v2_free(&message.request.plan);
         }
     }
 }

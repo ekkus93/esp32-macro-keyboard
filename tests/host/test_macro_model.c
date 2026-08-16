@@ -6,12 +6,6 @@
 #include "macro_model.h"
 #include "test_assert.h"
 
-static void test_revision_boundaries(void) {
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_model_validate_revision(0U));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_model_validate_revision(1U));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_model_validate_revision(UINT32_MAX));
-}
-
 static void test_text_policy(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_model_validate_text(NULL, 0U, 0U));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_model_validate_text(NULL, 1U, 1U));
@@ -37,7 +31,6 @@ static void test_text_policy(void) {
 }
 
 int main(void) {
-    test_revision_boundaries();
     test_text_policy();
     puts("macro model tests passed");
     return EXIT_SUCCESS;

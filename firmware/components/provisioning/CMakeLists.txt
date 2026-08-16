@@ -1,9 +1,7 @@
 idf_component_register(
     SRCS
-    "provisioning.c"
     "provisioning_bootstrap.c"
     "provisioning_bootstrap_core.c"
-    "provisioning_core.c"
     INCLUDE_DIRS
     "include"
     PRIV_INCLUDE_DIRS

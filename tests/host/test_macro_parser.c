@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "app_uuid.h"
-#include "macro_keymap_us.h"
 #include "macro_limits.h"
 #include "macro_model.h"
 #include "macro_parser.h"
@@ -19,7 +18,7 @@ static app_error_code_t compile_explicit(const char *source, size_t source_lengt
     if (out_error != NULL) {
         memset(out_error, 0, sizeof(*out_error));
     }
-    return macro_compile(source, source_length, options, out_plan, out_error);
+    return macro_compile_v2(source, source_length, options, out_plan, out_error);
 }
 
 static void expect_success_length(const char *source, size_t source_length,
@@ -36,7 +35,7 @@ static void expect_success_length(const char *source, size_t source_length,
     } else {
         TEST_CHECK(plan.actions != NULL);
     }
-    macro_plan_free(&plan);
+    macro_plan_v2_free(&plan);
     TEST_CHECK(plan.actions == NULL);
     TEST_CHECK_EQ_U64(0U, plan.action_count);
     TEST_CHECK_EQ_U64(0U, plan.estimated_duration_ms);
@@ -66,31 +65,30 @@ static void expect_failure(const char *source, app_error_code_t expected) {
     TEST_CHECK(error.column >= 1U);
 }
 
-static void test_uuid_and_revision_validation(void) {
+static void test_uuid_validation(void) {
     app_uuid_t uuid = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          app_uuid_parse("123e4567-e89b-42d3-a456-426614174000", &uuid));
     TEST_CHECK(app_uuid_is_valid_string(uuid.value));
     TEST_CHECK(!app_uuid_is_valid_string("123e4567-e89b-12d3-a456-426614174000"));
     TEST_CHECK(!app_uuid_is_valid_string("../bad"));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_model_validate_revision(0U));
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_model_validate_revision(1U));
 }
 
 static void test_null_empty_and_output_arguments(void) {
     macro_plan_t plan = {0};
     macro_parse_error_t error = {0};
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_compile(NULL, 0U, NULL, &plan, &error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_compile_v2(NULL, 0U, NULL, &plan, &error));
     TEST_CHECK(plan.actions == NULL);
     TEST_CHECK_EQ_U64(0U, plan.action_count);
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_compile(NULL, 1U, NULL, &plan, &error));
-    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_compile("a", 1U, NULL, NULL, &error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         macro_compile_v2(NULL, 1U, NULL, &plan, &error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_compile_v2("a", 1U, NULL, NULL, &error));
 
     plan.action_count = 99U;
     plan.estimated_duration_ms = 77U;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_compile("", 0U, NULL, &plan, &error));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_compile_v2("", 0U, NULL, &plan, &error));
     TEST_CHECK(plan.actions == NULL);
     TEST_CHECK_EQ_U64(0U, plan.action_count);
     TEST_CHECK_EQ_U64(0U, plan.estimated_duration_ms);
@@ -106,8 +104,11 @@ static void test_source_and_action_limits(void) {
                           (uint32_t)(APP_COMPILED_ACTION_MAX *
                                      (APP_KEY_PRESS_DEFAULT_MS + APP_INTER_KEY_DEFAULT_MS)));
 
-    (void)expect_failure_length(source, APP_MACRO_SOURCE_MAX_BYTES + 1U, NULL,
-                                APP_ERROR_INVALID_ARGUMENT);
+    /* v2 reports the specific limit rather than the generic invalid-argument the
+     * retained v1 entry point used. */
+    const macro_parse_error_t oversize =
+        expect_failure_length(source, APP_MACRO_SOURCE_MAX_BYTES + 1U, NULL, APP_ERROR_MACRO_LIMIT);
+    TEST_CHECK_EQ_STRING("macro source exceeds the byte limit", oversize.message);
     free(source);
 }
 
@@ -125,11 +126,14 @@ static void test_timing_boundaries(void) {
     };
     expect_success_length("ab", 2U, &custom, 2U, 14U);
 
+    /* The v2 compiler accepts the complete specified range, 0 through 10,000 ms,
+     * for both timing values; the retained v1 entry point rejected a zero
+     * key-press time (macro_parser.h). */
     const macro_compile_options_t zero_key = {
         .key_press_ms = 0U,
         .inter_key_ms = 1U,
     };
-    (void)expect_failure_length("a", 1U, &zero_key, APP_ERROR_INVALID_ARGUMENT);
+    expect_success_length("a", 1U, &zero_key, 1U, 1U);
 
     const macro_compile_options_t excessive_key = {
         .key_press_ms = APP_DELAY_MAX_MS + 1U,
@@ -198,7 +202,7 @@ static void test_named_keys_and_modifiers(void) {
         TEST_CHECK_EQ_U64(1U, plan.action_count);
         TEST_CHECK_EQ_U64(MACRO_ACTION_CHORD, plan.actions[0].type);
         TEST_CHECK_EQ_U64(modifier_cases[index].modifiers, plan.actions[0].modifiers);
-        macro_plan_free(&plan);
+        macro_plan_v2_free(&plan);
     }
 
     expect_failure("{CTRL+CTRL+A}", APP_ERROR_MACRO_SYNTAX);
@@ -219,17 +223,17 @@ static void test_case_whitespace_and_line_endings(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, compile_explicit("A\r\nB", 4U, NULL, &plan, NULL));
     TEST_CHECK_EQ_U64(3U, plan.action_count);
     TEST_CHECK_EQ_U64(0x28U, plan.actions[1].usage);
-    macro_plan_free(&plan);
+    macro_plan_v2_free(&plan);
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, compile_explicit("A\nB", 3U, NULL, &plan, NULL));
     TEST_CHECK_EQ_U64(3U, plan.action_count);
     TEST_CHECK_EQ_U64(0x28U, plan.actions[1].usage);
-    macro_plan_free(&plan);
+    macro_plan_v2_free(&plan);
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, compile_explicit("\t", 1U, NULL, &plan, NULL));
     TEST_CHECK_EQ_U64(1U, plan.action_count);
     TEST_CHECK_EQ_U64(0x2bU, plan.actions[0].usage);
-    macro_plan_free(&plan);
+    macro_plan_v2_free(&plan);
 
     const macro_parse_error_t error =
         expect_failure_length("A\rB", 3U, NULL, APP_ERROR_MACRO_SYNTAX);
@@ -295,14 +299,14 @@ static void test_braces_and_character_policy(void) {
 /* SPEC 24.1 item: cancellation-safe compiled plans */
 static void test_output_plan_reuse_contract(void) {
     macro_plan_t plan = {0};
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_compile("first", 5U, NULL, &plan, NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_compile_v2("first", 5U, NULL, &plan, NULL));
     TEST_CHECK_EQ_U64(5U, plan.action_count);
-    macro_plan_free(&plan);
+    macro_plan_v2_free(&plan);
 
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_compile("{ENTER}", 7U, NULL, &plan, NULL));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_compile_v2("{ENTER}", 7U, NULL, &plan, NULL));
     TEST_CHECK_EQ_U64(1U, plan.action_count);
-    macro_plan_free(&plan);
-    macro_plan_free(&plan);
+    macro_plan_v2_free(&plan);
+    macro_plan_v2_free(&plan);
 }
 
 /* SPEC 24.1 item: property/fuzz inputs */
@@ -318,10 +322,10 @@ static void test_fuzz_corpus(void) {
         }
         macro_plan_t plan = {0};
         macro_parse_error_t error = {0};
-        const app_error_code_t result = macro_compile(source, length, NULL, &plan, &error);
+        const app_error_code_t result = macro_compile_v2(source, length, NULL, &plan, &error);
         if (result == APP_ERROR_NONE) {
             TEST_CHECK(plan.action_count <= APP_COMPILED_ACTION_MAX);
-            macro_plan_free(&plan);
+            macro_plan_v2_free(&plan);
         } else {
             TEST_CHECK(plan.actions == NULL);
             TEST_CHECK_EQ_U64(0U, plan.action_count);
@@ -333,12 +337,25 @@ static void test_fuzz_corpus(void) {
  * SPEC 24.1 item: shifted punctuation
  * SPEC 24.3 item: ASCII-to-HID mapping */
 static void test_printable_ascii(void) {
+    /* Every printable ASCII character compiles to one key action carrying a real
+     * HID usage. Asserted through the compiler rather than the keymap table, so
+     * this pins the shipped behaviour instead of an internal lookup. `{` and `}`
+     * are directive delimiters and are covered by
+     * test_braces_and_character_policy instead. */
     for (int value = 0x20; value <= 0x7e; ++value) {
-        macro_hid_key_t key = {0U, 0U};
-        TEST_CHECK(macro_keymap_us_printable((char)value, &key));
-        TEST_CHECK(key.usage != 0U);
+        if (value == '{' || value == '}') {
+            continue;
+        }
+        const char source[2] = {(char)value, '\0'};
+        macro_plan_t plan = {0};
+        macro_parse_error_t error = {0};
+        TEST_CHECK_APP_ERROR(APP_ERROR_NONE, compile_explicit(source, 1U, NULL, &plan, &error));
+        TEST_CHECK_EQ_U64(1U, plan.action_count);
+        TEST_CHECK(plan.actions != NULL);
+        TEST_CHECK_EQ_INT(MACRO_ACTION_KEY, (int)plan.actions[0].type);
+        TEST_CHECK(plan.actions[0].usage != 0U);
+        macro_plan_v2_free(&plan);
     }
-    TEST_CHECK(!macro_keymap_us_printable('a', NULL));
 }
 
 /* SPEC 24.1 item: every named key */
@@ -370,12 +387,12 @@ static void test_named_key_usages(void) {
         TEST_CHECK_EQ_U64(MACRO_ACTION_KEY, plan.actions[0].type);
         TEST_CHECK_EQ_U64(cases[index].usage, plan.actions[0].usage);
         TEST_CHECK_EQ_U64(0U, plan.actions[0].modifiers);
-        macro_plan_free(&plan);
+        macro_plan_v2_free(&plan);
     }
 }
 
 int main(void) {
-    test_uuid_and_revision_validation();
+    test_uuid_validation();
     test_named_key_usages();
     test_null_empty_and_output_arguments();
     test_source_and_action_limits();

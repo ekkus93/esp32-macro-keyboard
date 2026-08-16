@@ -2106,29 +2106,28 @@ tested by `webapp/tests/v2-diagnostics-page.test.tsx`,
 
 ## V2-140 — Delete dead v1 code
 
-- [ ] Remove obsolete firmware files and build registrations. **The audit that
-      was missing has now been performed** (2026-08-16, evidence `docs/implementation-v2/V2_140_FIRMWARE_DEAD_CODE_AUDIT_2026-08-16.md`); the
-      checkbox stays open only because it asks for *removal* and one removal
-      needs a retention decision.
-      Findings: every `.c` file across all 18 components is registered in its
-      component's `SRCS`, and every registered source exists — **no obsolete
-      file or registration**, apart from the two already-known
-      `LEGACY / NOT SHIPPED` files (`web_setup_core.c`, `web_setup_json.c`)
-      which are on disk but deliberately not compiled.
-      Reachability of the 384 non-static functions in compiled firmware found
-      **33 with no reference from any other compiled source**. Most are
-      framework entry points (`app_main`, TinyUSB callbacks) or intentional
-      host-test seams. The substantive finding is that **`provisioning.c`'s
-      entire public API is unreachable** — the v1 NVS-backed provisioning store,
-      superseded by the v2 device-settings record; its apparent external uses are
-      `web_setup_ops_t` struct field names in the uncompiled legacy file, not
-      calls. `provisioning_core.c` falls with it, while
-      `provisioning_bootstrap_derive` stays live (called by `app_core.c:82`) and
-      is cleanly separable. `macro_compile` (the documented retained v1 parser
-      entry point) and the "revision" validators are smaller candidates.
-      Removal is proposed, not applied: it would delete two sources, two CMake
-      entries and ~900 lines of host tests, which is a retention decision about a
-      well-tested component.
+- [x] Remove obsolete firmware files and build registrations. Audit and removal
+      completed 2026-08-16; evidence
+      `docs/implementation-v2/V2_140_FIRMWARE_DEAD_CODE_AUDIT_2026-08-16.md`.
+      The audit found no unregistered or missing build entry across all 18
+      components, and — of 384 non-static functions in compiled firmware — 33
+      with no reference from any other compiled source. **Deleted on the product
+      owner's instruction:** the superseded v1 NVS provisioning store
+      (`provisioning.c`, `provisioning_core.c/.h`, the dead half of
+      `provisioning.h`), the entirely-dead `web_api_json.c/.h`, two unreachable
+      builders in `web_api_handler_common.c`, `macro_model_validate_revision`,
+      and the whole retained v1 parser stack (`macro_compile`, `macro_parser.c`,
+      the legacy `macro_limits.h`, and the duplicate `macro_plan_free`).
+      `macro_keymap_us.c/.h` was deliberately kept: `macro_parser_v2.c` uses its
+      `printable`/`modifier` lookups, so it is shared infrastructure rather than
+      a v1 remnant. The host parser suite was migrated to `macro_compile_v2`
+      rather than deleted, preserving its fuzz corpus, printable-ASCII sweep and
+      named-key coverage; `test_printable_ascii` now asserts through the compiler
+      instead of the keymap table. Two v1-vs-v2 differences surfaced and are
+      recorded in the tests: v2 accepts a zero key-press time, and an over-long
+      source reports the specific `macro source exceeds the byte limit` rather
+      than a generic invalid-argument. Host tests 66 -> 63 targets (three whose
+      subjects no longer exist), all passing; `check-all.sh` exit 0.
 - [x] Remove obsolete React routes, screens, API clients, guards, models, and
       fixtures. Deleted the entire retired v1 tree — confirmed unreachable
       from `main.tsx` by a full import-graph audit before deletion, and by a

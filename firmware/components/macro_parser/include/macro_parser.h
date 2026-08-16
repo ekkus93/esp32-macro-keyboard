@@ -36,19 +36,17 @@ typedef struct {
     char message[MACRO_PARSE_MESSAGE_BYTES];
 } macro_parse_error_t;
 
-app_error_code_t macro_compile(const char *source, size_t source_length,
-                               const macro_compile_options_t *options, macro_plan_t *out_plan,
-                               macro_parse_error_t *out_error);
-
-/* v2 contract compiler. Unlike the retained v1 entry point, both timing values
- * accept the complete specified range 0 through 10,000 ms. This entry point is
- * exercised by the shared C/TypeScript conformance corpus before it replaces
- * macro_compile during the Phase 6 executor migration. */
+/* The v2 contract compiler, and the only one: both timing values accept the
+ * complete specified range 0 through 10,000 ms, and an over-long source reports
+ * the specific limit rather than a generic invalid-argument. It is exercised by
+ * the shared C/TypeScript conformance corpus. The v1 `macro_compile` entry point
+ * it replaced during the Phase 6 executor migration was deleted 2026-08-16 once
+ * that migration was confirmed complete -- production compiles only through
+ * this function (web_send.c). */
 app_error_code_t macro_compile_v2(const char *source, size_t source_length,
                                   const macro_compile_options_t *options, macro_plan_t *out_plan,
                                   macro_parse_error_t *out_error);
 
-void macro_plan_free(macro_plan_t *plan);
 void macro_plan_v2_free(macro_plan_t *plan);
 
 #endif

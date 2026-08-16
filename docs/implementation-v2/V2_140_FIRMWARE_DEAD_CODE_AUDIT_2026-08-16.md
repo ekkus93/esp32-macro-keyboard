@@ -78,13 +78,12 @@ retention banner. The v2 device-settings record (`device_settings` +
 `web_server_setup.c` commits through `device_settings_replace`, not through this
 API.
 
-**Not deleted in this pass.** Removing it means deleting `provisioning.c`,
-`provisioning_core.c`, the dead half of `provisioning.h`, two CMake `SRCS`
-entries, and roughly 900 lines of host tests
-(`test_provisioning.c` 774, `test_provisioning_settings.c` 150). That is a
-retention decision about a well-tested component, and the R6-060 lesson from this
-programme was specifically about re-deciding retention without asking. Proposed,
-not applied.
+**Deleted** on the product owner's instruction, after this audit was reported:
+`provisioning.c`, `provisioning_core.c/.h`, the dead half of `provisioning.h`,
+the CMake `SRCS` entries, and the host suites whose subject no longer exists
+(`test_provisioning.c`, `test_provisioning_settings.c`). `provisioning.h` keeps
+only the two record shapes still named by the retained `LEGACY / NOT SHIPPED`
+setup reference code.
 
 ### 2c. Test-only seams — intentional, not dead
 
@@ -155,3 +154,39 @@ remnants.
   and two smaller v1 remnants (`macro_compile`, the "revision" validators) are
   identified with evidence and proposed for removal, pending a retention
   decision.
+
+## Removal (2026-08-16)
+
+Everything proposed above was removed on the product owner's instruction, plus
+what fell out with it once the compiler had the last word.
+
+| Removed | Why |
+| --- | --- |
+| `provisioning.c`, `provisioning_core.c/.h` | the superseded v1 NVS store; entire API unreachable |
+| `web_api_json.c/.h` | **no live function at all** — `contains_embedded_nul_escape` looked live but is a `static` duplicated across six files |
+| `web_api_handler_parser_error`, `web_api_handler_settings_json` | unreachable builders; `finish_json` and two includes fell with them |
+| `macro_model_validate_revision` | v1 "revision" vocabulary, test-only |
+| `macro_compile`, `macro_parser.c`, `macro_limits.h`, `macro_plan_free` | the retained v1 parser stack; production compiles only through `macro_compile_v2` (`web_send.c`) |
+
+**Kept, against first appearances:** `macro_keymap_us.c/.h`. Deleting it broke
+the build, because `macro_parser_v2.c` uses its `printable` and `modifier`
+lookups — it is shared infrastructure, not a v1 remnant. Restored immediately.
+
+**The host parser suite was migrated, not deleted.** Its fuzz corpus,
+printable-ASCII sweep, named-key usages and error-location coverage are not in
+the 21-case v2 conformance corpus, so deleting it with `macro_compile` would have
+lost real coverage. It now runs against `macro_compile_v2`, and
+`test_printable_ascii` asserts through the compiler rather than poking the keymap
+table — a better test than the one it replaced.
+
+Migrating surfaced two deliberate v1/v2 behaviour differences, now pinned by the
+tests rather than lost with the old entry point:
+
+- v2 accepts a **zero key-press time**; v1 rejected it.
+- an over-long source reports the specific **`macro source exceeds the byte
+  limit`** (`APP_ERROR_MACRO_LIMIT`) where v1 returned a generic
+  `APP_ERROR_INVALID_ARGUMENT`.
+
+**Result:** 24 files changed, **2,731 deletions** against 78 insertions. Host
+test targets 66 → 63 (the three whose subjects no longer exist), all passing.
+`check-all.sh` exit 0; application binary 47.8% of its budget, DIRAM 48.5%.

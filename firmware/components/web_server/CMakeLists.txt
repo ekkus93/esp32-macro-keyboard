@@ -29,7 +29,6 @@ idf_component_register(
     "web_static_path.c"
     "web_api_core.c"
     "web_api_response.c"
-    "web_api_json.c"
     "web_api_handler_common.c"
     "web_api_dispatch.c"
     "web_api_administration.c"

@@ -93,8 +93,10 @@ add_executable(
     ../../firmware/components/macro_model/app_error.c
     ../../firmware/components/macro_model/app_uuid.c
     ../../firmware/components/macro_model/macro_model.c
-    ../../firmware/components/macro_parser/macro_parser.c
+    ../../firmware/components/macro_parser/macro_parser_v2.c
     ../../firmware/components/macro_parser/macro_keymap_us.c
+    ../../firmware/components/macro_parser/macro_plan_v2.c
+    ../../firmware/components/macro_parser/macro_keymap_us_v2.c
 )
 target_include_directories(
     macro_parser_tests PRIVATE ../../firmware/components/macro_model/include
@@ -307,10 +309,10 @@ add_executable(
     web_send_tests
     test_web_send.c
     ../../firmware/components/web_server/web_send.c
-    ../../firmware/components/macro_parser/macro_parser.c
     ../../firmware/components/macro_parser/macro_parser_v2.c
-    ../../firmware/components/macro_parser/macro_plan_v2.c
     ../../firmware/components/macro_parser/macro_keymap_us.c
+    ../../firmware/components/macro_parser/macro_plan_v2.c
+    ../../firmware/components/macro_parser/macro_plan_v2.c
     ../../firmware/components/macro_parser/macro_keymap_us_v2.c
     ../../firmware/components/macro_model/app_uuid.c
     ../../firmware/components/macro_model/app_error.c
@@ -347,10 +349,10 @@ add_executable(
     ../../firmware/components/web_server/web_api_core.c
     ../../firmware/components/web_server/web_api_response.c
     ../../firmware/components/support/subsystem_health.c
-    ../../firmware/components/macro_parser/macro_parser.c
     ../../firmware/components/macro_parser/macro_parser_v2.c
-    ../../firmware/components/macro_parser/macro_plan_v2.c
     ../../firmware/components/macro_parser/macro_keymap_us.c
+    ../../firmware/components/macro_parser/macro_plan_v2.c
+    ../../firmware/components/macro_parser/macro_plan_v2.c
     ../../firmware/components/macro_parser/macro_keymap_us_v2.c
     ../../firmware/components/macro_model/app_uuid.c
     ../../firmware/components/macro_model/app_error.c
@@ -463,7 +465,6 @@ add_executable(
     ../../firmware/components/web_server/web_api_administration.c
     ../../firmware/components/web_server/web_api_response.c
     ../../firmware/components/web_server/web_api_handler_common.c
-    ../../firmware/components/web_server/web_api_json.c
     ../../firmware/components/web_server/web_auth_routes.c
     ../../firmware/components/web_server/web_settings.c
     ../../firmware/components/web_server/web_device_actions.c
@@ -538,7 +539,6 @@ add_executable(
     ../../firmware/components/web_server/web_api_administration.c
     ../../firmware/components/web_server/web_api_response.c
     ../../firmware/components/web_server/web_api_handler_common.c
-    ../../firmware/components/web_server/web_api_json.c
     ../../firmware/components/web_server/web_auth_routes.c
     ../../firmware/components/web_server/web_settings.c
     ../../firmware/components/web_server/web_device_actions.c
@@ -865,21 +865,6 @@ target_include_directories(
 register_host_test(wifi_ap_station_tests wifi_ap_station wifi)
 
 add_executable(
-    provisioning_tests test_provisioning.c ../../firmware/components/macro_model/app_uuid.c
-                       ../../firmware/components/provisioning/provisioning_core.c
-)
-target_include_directories(
-    provisioning_tests
-    PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/auth/include
-            ../../firmware/components/wifi_ap/include
-            ../../firmware/components/provisioning/include
-            ../../firmware/components/provisioning
-            ../../firmware/components/support/include
-)
-register_host_test(provisioning_tests provisioning storage)
-
-add_executable(
     storage_mount_tests
     test_storage_mount.c
     ../../firmware/components/macro_model/app_error.c
@@ -987,22 +972,6 @@ target_include_directories(
 register_host_test(storage_parent_sync_tests storage_parent_sync storage)
 
 add_executable(
-    provisioning_settings_tests
-    test_provisioning_settings.c ../../firmware/components/macro_model/app_uuid.c
-    ../../firmware/components/provisioning/provisioning_core.c
-)
-target_include_directories(
-    provisioning_settings_tests
-    PRIVATE ../../firmware/components/macro_model/include
-            ../../firmware/components/auth/include
-            ../../firmware/components/wifi_ap/include
-            ../../firmware/components/provisioning/include
-            ../../firmware/components/provisioning
-            ../../firmware/components/support/include
-)
-register_host_test(provisioning_settings_tests provisioning_settings storage)
-
-add_executable(
     device_settings_core_tests
     test_device_settings_core.c ../../firmware/components/device_settings/device_settings_core.c
     ../../firmware/components/app_contracts_v2/device_settings_v2.c
@@ -1067,19 +1036,6 @@ target_include_directories(
             ../../firmware/components/support/include
 )
 register_host_test(web_request_policy_tests web_request_policy web)
-
-add_executable(
-    web_api_json_tests test_web_api_json.c ../../firmware/components/macro_model/app_error.c
-                       ../../firmware/components/web_server/web_api_json.c
-)
-target_include_directories(
-    web_api_json_tests
-    PRIVATE ../../firmware/components/macro_model/include ../../firmware/components/auth/include
-            ../../firmware/components/wifi_ap/include
-            ../../firmware/components/provisioning/include ../../firmware/components/web_server
-)
-target_link_libraries(web_api_json_tests PRIVATE PkgConfig::CJSON)
-register_host_test(web_api_json_tests web_api_json web)
 
 add_executable(
     web_api_response_tests

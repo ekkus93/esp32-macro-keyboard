@@ -1,10 +1,18 @@
 #ifndef PROVISIONING_H
 #define PROVISIONING_H
 
+/* Record shapes only.
+ *
+ * The NVS-backed provisioning store this header used to declare
+ * (provisioning.c / provisioning_core.c) was deleted 2026-08-16: the v2 device
+ * settings record supersedes it and the V2-140 firmware audit found its entire
+ * public API unreachable from shipped firmware. What remains here are the two
+ * structs still named by the retained LEGACY / NOT SHIPPED setup reference code
+ * (web_setup_core.*), which is on disk but not compiled. */
+
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "app_error.h"
 #include "app_uuid.h"
 #include "auth.h"
 #include "wifi_ap.h"
@@ -36,30 +44,5 @@ typedef struct {
     bool require_physical_confirmation;
     bool always_select_package;
 } provisioning_settings_t;
-
-app_error_code_t provisioning_init(void);
-app_error_code_t provisioning_load(provisioning_config_t *out_config);
-app_error_code_t provisioning_commit(const provisioning_config_t *replacement,
-                                     uint32_t expected_revision,
-                                     provisioning_config_t *out_committed);
-app_error_code_t provisioning_settings_read(provisioning_settings_t *out_settings);
-app_error_code_t provisioning_settings_update(const provisioning_settings_t *replacement,
-                                              uint32_t expected_revision,
-                                              provisioning_settings_t *out_committed);
-/* Persists station-mode credentials, or clears them when ssid is NULL/empty.
- * Commits to NVS immediately so they survive a power cycle. */
-app_error_code_t provisioning_set_station(const char *ssid, const char *password);
-
-/* Reads ONLY the station credentials. Deliberately not "load the whole config
- * and pick two fields out of it": provisioning_config_t also holds the admin
- * password verifier, its salt, and the AP passphrase, and a caller that wants an
- * SSID has no business with a copy of those on its stack. Returns
- * APP_ERROR_NOT_FOUND when no network has been saved. */
-app_error_code_t provisioning_get_station(char *out_ssid, size_t ssid_size, char *out_password,
-                                          size_t password_size);
-app_error_code_t provisioning_clear_credentials(void);
-app_error_code_t provisioning_factory_reset(void);
-app_error_code_t provisioning_deinit(void);
-bool provisioning_owns_resources(void);
 
 #endif
