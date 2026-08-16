@@ -384,53 +384,94 @@ Assert:
 
 ### H4-040 — Replace nullable recovery with explicit state
 
-- [ ] Change startup/send recovery types to distinguish `none`, `known`, and `unavailable/unknown`.
-- [ ] Do not map network, timeout, malformed response, or 5xx failures to `null`.
-- [ ] Keep a true 404/no-send result distinct from recovery failure.
+- [x] Change startup/send recovery types to distinguish `none`, `known`, and `unavailable/unknown`.
+- [x] Do not map network, timeout, malformed response, or 5xx failures to `null`.
+- [x] Keep a true 404/no-send result distinct from recovery failure.
 
 ### H4-041 — Startup degraded-execution surface
 
-- [ ] Allow repository startup to continue when repository/settings are valid but send recovery fails.
-- [ ] Show a prominent execution-state-unavailable warning.
-- [ ] Provide Retry.
-- [ ] Preserve current working copy, route, dirty state, and selected package.
-- [ ] Keep a cancellation/recovery affordance when safe cancellation can be attempted.
-- [ ] If Cancel cannot be delivered, state that explicitly.
+- [x] Allow repository startup to continue when repository/settings are valid but send recovery fails.
+- [x] Show a prominent execution-state-unavailable warning.
+- [x] Provide Retry.
+- [x] Preserve current working copy, route, dirty state, and selected package.
+- [x] Keep a cancellation/recovery affordance when safe cancellation can be attempted.
+- [x] If Cancel cannot be delivered, state that explicitly.
 
 ### H4-042 — Poll freshness/degradation model
 
 For send and USB status polling:
 
-- [ ] retain last known value,
-- [ ] track success freshness or bounded consecutive failure state,
-- [ ] expose stale/degraded UI after a defined threshold,
-- [ ] automatically clear degraded state after successful refresh,
+- [x] retain last known value,
+- [x] track success freshness or bounded consecutive failure state,
+- [x] expose stale/degraded UI after a defined threshold,
+- [x] automatically clear degraded state after successful refresh,
 - [ ] avoid live-region announcements on every unchanged successful poll,
-- [ ] avoid duplicate send POSTs.
+- [x] avoid duplicate send POSTs.
 
 ### H4-043 — Regression tests
 
-- [ ] reload while a send is active and first recovery request fails,
-- [ ] verify UI does not display “no send” as if confirmed,
-- [ ] verify Retry recovers the active send,
-- [ ] verify Cancel remains reachable or explicitly unavailable,
-- [ ] verify terminal recovery state renders correctly,
-- [ ] verify transient one-poll failure does not produce noisy UI,
-- [ ] verify persistent failure does become visible,
-- [ ] verify recovery clears warning.
+- [x] reload while a send is active and first recovery request fails,
+- [x] verify UI does not display “no send” as if confirmed,
+- [x] verify Retry recovers the active send,
+- [x] verify Cancel remains reachable or explicitly unavailable,
+- [x] verify terminal recovery state renders correctly,
+- [x] verify transient one-poll failure does not produce noisy UI,
+- [x] verify persistent failure does become visible,
+- [x] verify recovery clears warning.
 
 ### H4-044 — Real browser workflow
 
-- [ ] Add a real-Chrome scenario with an active send and intentionally failed status recovery.
-- [ ] Confirm no duplicate POST and no loss of working-copy state.
+- [x] Add a real-Chrome scenario with an active send and intentionally failed status recovery.
+- [x] Confirm no duplicate POST and no loss of working-copy state.
 
 ### Phase H4 exit gate
 
-- [ ] Unknown execution state is never represented as no execution.
-- [ ] Cancellation visibility is preserved through reload/recovery failure.
-- [ ] Browser tests prove degraded and recovered states.
+- [x] Unknown execution state is never represented as no execution.
+- [x] Cancellation visibility is preserved through reload/recovery failure.
+- [x] Browser tests prove degraded and recovered states.
 
 ---
+
+### H4 verification note (2026-08-15)
+
+**The implementation was already on `master`; only the pinned gate run was
+missing.** `docs/implementation-v2/H4_ACTIVE_SEND_RECOVERY_DEGRADED_STATE_2026-08-13.md`
+states its own blocker: *"The literal pinned frontend suite is not runnable in
+this sandbox because the repository requires Node.js 24.18.0 while the available
+runtime is Node.js 22.16.0"*, and closes with H4 remaining open *"pending one
+pinned Node.js 24.18.0 frontend/real-Chrome pass on an exact descendant
+containing `1ab7993c`"*. That commit is an ancestor of the tree tested here.
+
+Run on Node **v24.18.0**:
+
+- `npm --prefix webapp run test -- v2-execution-recovery` → **5 passed (5)**
+- `./scripts/check-webapp.sh` → `EXIT=0`, 56 files / 538 tests
+- `npm --prefix webapp run test:browser` → `EXIT=0`, including
+  **Real Chrome H4 degraded-send recovery workflow passed**
+
+**Non-vacuity proved.** Replacing the fail-closed latch
+(`publishRecoveryState({kind:"unavailable"...})` → `{kind:"none"}`, i.e. the
+pre-H4 behaviour H4-040 forbids) fails **3 of the 5** cases: persistent tracking
+failure becoming explicit, `409`+failed-recovery blocking a second POST, and the
+overlay keeping Retry/Cancel visible. The other two do not depend on that latch,
+which is correct rather than a coverage gap.
+
+Requirement spot-checks against code, not just test names:
+
+- bounded threshold is real — `maxConsecutiveTransientPollFailures = 3` in `sendClient.ts`
+- dirty-state preservation is asserted three times in `run-h4-recovery-tests.mjs`
+  (before send, after degradation, after GET-only Retry)
+- the browser scenario performs a real reload with an active send and forces the
+  first startup recovery to `503`
+
+**One box is deliberately left open:** *"avoid live-region announcements on every
+unchanged successful poll"*. The nearest coverage
+(`one transient poll failure stays quiet and clears on the next successful
+refresh`) asserts `onStatus` is not called during the failure and
+`toHaveBeenCalledOnce()` on recovery — a failure→success sequence, not several
+*successive unchanged successful* polls. §0 forbids checking a compound item
+while a named behaviour is unverified. Closing it needs one test: poll N times
+with an identical status payload and assert the live region is announced once.
 
 ## Phase H5 — Storage error provenance and commit certainty
 
