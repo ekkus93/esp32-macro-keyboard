@@ -166,13 +166,35 @@ layout, so the fixes demonstrably survived the split.
 
 **Goal:** fix F-024 (unsynchronized `executor_health.c`/`storage_health.c` globals).
 
-- [ ] **R5-050** (F-024) Bring `executor_health.c` and `storage_health.c` under the same synchronization discipline `macro_executor_engine_t.status` already uses (`lock_engine`/`unlock_engine`), or document explicitly why it's safe to omit (e.g. writes provably confined to a non-overlapping single-threaded boot/shutdown window).
+- [x] **R5-050** (F-024) Bring `executor_health.c` and `storage_health.c` under the same synchronization discipline `macro_executor_engine_t.status` already uses (`lock_engine`/`unlock_engine`), or document explicitly why it's safe to omit (e.g. writes provably confined to a non-overlapping single-threaded boot/shutdown window).
   - [x] R5-050a Implement or document.
   - [x] R5-050b If implemented: add a regression test if the host fake environment can exercise the relevant concurrency; otherwise document the limitation per §0.1's rule.
   - [x] R5-050c Run `./scripts/run-tests.sh executor` and `./scripts/run-tests.sh storage`; must pass.
   - Evidence: commit `5773f9fb1e1f6768b80bc820831749c744ccc7be` protects executor/storage health updates and snapshots with FreeRTOS `portMUX_TYPE` critical sections, maps that primitive to a real pthread mutex in the focused host stub, and adds 50,000-iteration writer/four-reader stress regressions for each subsystem. The exact R5 files and CMake deltas were reconstructed in the uploaded sandbox without changing repository source; literal `./scripts/run-tests.sh executor` passed 2/2 and literal `./scripts/run-tests.sh storage` passed 13/13. The same reconstructed host tree passed the full 59/59 host suite. The parent task remains open until its required resulting-tree `./scripts/check-all.sh` evidence exists.
 
 **Phase exit:** `./scripts/check-all.sh` passes; task checked with evidence.
+— **Met 2026-08-15.** `./scripts/check-all.sh` → `EXIT=0` (66/66 host tests).
+
+### R5 verification note (2026-08-15)
+
+The implementation was already on `master` (`5773f9f`): both
+`executor_health.c` and `storage_health.c` guard every update and snapshot with
+a `portMUX_TYPE` critical section, with a comment stating why. The host stub
+maps `portMUX_TYPE` onto a real pthread mutex, and each subsystem has a
+50,000-iteration writer plus four-reader stress regression asserting no reader
+ever observes a torn state.
+
+Only the parent task's resulting-tree gate evidence was outstanding, because the
+environment that wrote it reconstructed the files in a sandbox rather than in
+the repository. Ran here: `./scripts/run-tests.sh executor` 3/3,
+`./scripts/run-tests.sh storage` 14/14, `./scripts/check-all.sh` exit 0.
+
+**The stress regression was proved non-vacuous.** Neutralising the mutual
+exclusion in `storage_health.c` — replacing `portENTER_CRITICAL`/
+`portEXIT_CRITICAL` with `(void)&g_state_lock;` so the file still compiles under
+`-Werror` — makes `storage_health` fail, **3 runs out of 3**. Simply deleting the
+calls instead is not a valid check: it leaves `g_state_lock` unused and the
+build fails on `-Werror` before any test runs.
 
 ---
 
