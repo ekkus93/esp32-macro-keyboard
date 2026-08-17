@@ -335,11 +335,17 @@ Lowest blast radius. Establishes the pattern before anything shared moves.
 Highest single-file concentration, and the one page with a documented
 layout-collapse bug. Do it as its own commit.
 
-- [ ] **T2-1** `MacroEditorPage.tsx` — inline `.editor-frame`,
+- [x] **T2-1** `MacroEditorPage.tsx` — inline `.editor-frame`,
       `.editor-scroll`, `.macro-source-pinned`, `.editor-footer`, using the
       `short:` variant from T0-1 for the `height <= 38rem` fallback.
       **Read the existing comment on that media query before touching it.**
-      *Evidence:*
+      *Evidence:* `dcf7e539`. Fresh baselines at 844px and 500px (well under
+      the 608px threshold) via `startStartupFixtureServer` + Add-macro,
+      before and after: byte-identical at both heights including the
+      fallback state itself (`overflow-y: visible`, `flex: 0 0 auto`) —
+      confirms `short:` correctly overrides the unprefixed utilities (§8.6),
+      not merely that it compiles. Rationale comments moved to the TSX, not
+      dropped. `npm run test`: 544/544. `check-webapp.sh`: EXIT=0.
 - [ ] **T2-2** `MacroEditorPage.tsx` — inline `.directive-grid`,
       `.directive-toolbar`, `.timing-grid`, `.toolbar-columns`,
       `.field-label`, `.validation-*`. `.directive-grid button` becomes
