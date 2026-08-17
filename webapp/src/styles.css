@@ -592,12 +592,38 @@ label {
   margin-top: 0.5rem;
 }
 
+/* Named-key directives are a keyboard's own row of keys, so they get a real
+   grid of uniform cells rather than flex-wrap's ragged, label-width-dependent
+   edge — a physical key is the same size regardless of what's printed on it,
+   and "BACKSPACE" sitting flush against "UP" at two different heights read as
+   unfinished, not deliberate. auto-fill keeps it fluid to 320px. */
+.directive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
 /* Directive inserts are the small keys on the board: monospace legends. */
-.directive-toolbar button {
+.directive-grid button {
   min-height: 44px;
   padding: 0.4rem 0.6rem;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.78rem;
+}
+
+/* Insert delay and Insert chord are two independent tool groups, not a
+   sequence, so on tablet/desktop widths (UI_UX_SPEC_V2 13: "tablets and
+   desktops may use wider... layouts") they sit side by side instead of
+   stacking under the full shell width for no reason. Phones keep the
+   single-column stack. */
+@media (width >= 42rem) {
+  .toolbar-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    align-items: start;
+  }
 }
 
 /* The press itself. Declared after every other `button` rule so specificity

@@ -317,7 +317,7 @@ export function MacroEditorPage({
 
         <div>
           <span className="field-label">Insert directive</span>
-          <div aria-label="Named-key directives" className="directive-toolbar">
+          <div aria-label="Named-key directives" className="directive-grid">
             {namedDirectives.map((directive) => (
               <button
                 key={directive.token}
@@ -347,65 +347,67 @@ export function MacroEditorPage({
             </button>
           </div>
 
-          <div aria-label="Insert delay" className="directive-toolbar">
-            <label htmlFor="macro-editor-delay-ms">
-              Delay (ms)
-              <input
-                id="macro-editor-delay-ms"
-                max={v2Limits.delayDirectiveMaxMs}
-                min={1}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                  setDelayMs(event.currentTarget.valueAsNumber);
-                }}
-                type="number"
-                value={Number.isNaN(delayMs) ? "" : delayMs}
-              />
-            </label>
-            <button onClick={insertDelay} type="button">
-              Insert delay
-            </button>
-          </div>
-
-          <div aria-label="Insert chord" className="directive-toolbar">
-            {modifiers.map((modifier) => (
-              <label
-                className="checkbox-row"
-                htmlFor={`macro-editor-chord-${modifier}`}
-                key={modifier}
-              >
+          <div className="toolbar-columns">
+            <div aria-label="Insert delay" className="directive-toolbar">
+              <label htmlFor="macro-editor-delay-ms">
+                Delay (ms)
                 <input
-                  checked={chordModifiers.has(modifier)}
-                  id={`macro-editor-chord-${modifier}`}
+                  id="macro-editor-delay-ms"
+                  max={v2Limits.delayDirectiveMaxMs}
+                  min={1}
                   onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                    const checked = event.currentTarget.checked;
-                    setChordModifiers((current) => {
-                      const next = new Set(current);
-                      if (checked) {
-                        next.add(modifier);
-                      } else {
-                        next.delete(modifier);
-                      }
-                      return next;
-                    });
+                    setDelayMs(event.currentTarget.valueAsNumber);
                   }}
-                  type="checkbox"
+                  type="number"
+                  value={Number.isNaN(delayMs) ? "" : delayMs}
                 />
-                {modifier}
               </label>
-            ))}
-            <label htmlFor="macro-editor-chord-key">
-              Key
-              <input
-                id="macro-editor-chord-key"
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                  setChordKey(event.currentTarget.value);
-                }}
-                value={chordKey}
-              />
-            </label>
-            <button onClick={insertChord} type="button">
-              Insert chord
-            </button>
+              <button onClick={insertDelay} type="button">
+                Insert delay
+              </button>
+            </div>
+
+            <div aria-label="Insert chord" className="directive-toolbar">
+              {modifiers.map((modifier) => (
+                <label
+                  className="checkbox-row"
+                  htmlFor={`macro-editor-chord-${modifier}`}
+                  key={modifier}
+                >
+                  <input
+                    checked={chordModifiers.has(modifier)}
+                    id={`macro-editor-chord-${modifier}`}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                      const checked = event.currentTarget.checked;
+                      setChordModifiers((current) => {
+                        const next = new Set(current);
+                        if (checked) {
+                          next.add(modifier);
+                        } else {
+                          next.delete(modifier);
+                        }
+                        return next;
+                      });
+                    }}
+                    type="checkbox"
+                  />
+                  {modifier}
+                </label>
+              ))}
+              <label htmlFor="macro-editor-chord-key">
+                Key
+                <input
+                  id="macro-editor-chord-key"
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                    setChordKey(event.currentTarget.value);
+                  }}
+                  value={chordKey}
+                />
+              </label>
+              <button onClick={insertChord} type="button">
+                Insert chord
+              </button>
+            </div>
           </div>
         </div>
 
