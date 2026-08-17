@@ -256,12 +256,35 @@ export function MacroEditorPage({
         </button>
       </div>
 
-      {/* Fixed, not merely pinned via scroll tracking: this textarea is the
-          single most important element on this page (everything below
-          inserts at its cursor), so it lives outside .editor-scroll
-          entirely rather than inside a container that scrolls past it. The
-          `form` attribute keeps it associated with #macro-editor-form for
-          submission even though it isn't a DOM descendant of it. */}
+      {/* Fixed, not merely pinned via scroll tracking, and in this order
+          deliberately: name it, then see the (empty, at first) source while
+          building it. Both use the `form` attribute to stay associated with
+          #macro-editor-form for submission despite living outside its DOM
+          subtree -- Macro source because everything below inserts at its
+          cursor and needs to stay visible while that happens; Name because
+          it's cheap (one short line) and naming something before building
+          it is the more natural order. */}
+      <label htmlFor="macro-editor-name">
+        Name
+        <input
+          form="macro-editor-form"
+          id="macro-editor-name"
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+            setName(event.currentTarget.value);
+          }}
+          value={name}
+        />
+        <span
+          className={
+            nameBytes > v2Limits.macroNameMaxBytes
+              ? "field-help limit-exceeded"
+              : "field-help"
+          }
+        >
+          {String(nameBytes)} / {String(v2Limits.macroNameMaxBytes)} UTF-8 bytes
+        </span>
+      </label>
+
       <label className="macro-source-pinned" htmlFor="macro-editor-source">
         Macro source
         <textarea
@@ -294,27 +317,6 @@ export function MacroEditorPage({
           save();
         }}
       >
-        <label htmlFor="macro-editor-name">
-          Name
-          <input
-            id="macro-editor-name"
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-              setName(event.currentTarget.value);
-            }}
-            value={name}
-          />
-          <span
-            className={
-              nameBytes > v2Limits.macroNameMaxBytes
-                ? "field-help limit-exceeded"
-                : "field-help"
-            }
-          >
-            {String(nameBytes)} / {String(v2Limits.macroNameMaxBytes)} UTF-8
-            bytes
-          </span>
-        </label>
-
         <div>
           <span className="field-label">Insert directive</span>
           <div aria-label="Named-key directives" className="directive-grid">
@@ -368,32 +370,39 @@ export function MacroEditorPage({
             </div>
 
             <div aria-label="Insert chord" className="directive-toolbar">
-              {modifiers.map((modifier) => (
-                <label
-                  className="checkbox-row"
-                  htmlFor={`macro-editor-chord-${modifier}`}
-                  key={modifier}
-                >
-                  <input
-                    checked={chordModifiers.has(modifier)}
-                    id={`macro-editor-chord-${modifier}`}
-                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                      const checked = event.currentTarget.checked;
+              {/* Toggle buttons, not checkboxes: a native checkbox is
+                  ~22px, half the 44px touch-target floor, and wrapping it
+                  in a taller label only makes the *row* legal, not the
+                  control itself. A pressable keycap-style toggle is both a
+                  real 44px target and matches the same "physical key"
+                  language as the directive buttons above, rather than
+                  mixing in a different control type. */}
+              {modifiers.map((modifier) => {
+                const pressed = chordModifiers.has(modifier);
+                return (
+                  <button
+                    aria-pressed={pressed}
+                    className={
+                      pressed ? "chord-modifier active" : "chord-modifier"
+                    }
+                    key={modifier}
+                    onClick={() => {
                       setChordModifiers((current) => {
                         const next = new Set(current);
-                        if (checked) {
-                          next.add(modifier);
-                        } else {
+                        if (next.has(modifier)) {
                           next.delete(modifier);
+                        } else {
+                          next.add(modifier);
                         }
                         return next;
                       });
                     }}
-                    type="checkbox"
-                  />
-                  {modifier}
-                </label>
-              ))}
+                    type="button"
+                  >
+                    {modifier}
+                  </button>
+                );
+              })}
               <label htmlFor="macro-editor-chord-key">
                 Key
                 <input
@@ -473,16 +482,26 @@ export function MacroEditorPage({
             </p>
           )}
         </div>
-
-        <div className="form-actions">
-          <button className="primary" disabled={!canSave} type="submit">
-            Save changes
-          </button>
-          <button onClick={onBack} type="button">
-            Cancel
-          </button>
-        </div>
       </form>
+
+      {/* Fixed, in the thumb-reachable bottom of the screen, not the end of
+          a scroll: Save is the primary action on this page, and burying it
+          behind ~30 directive buttons meant reaching it required scrolling
+          past all of them first. `form` keeps Save associated with
+          #macro-editor-form for submission despite living outside it. */}
+      <div className="editor-footer">
+        <button
+          className="primary"
+          disabled={!canSave}
+          form="macro-editor-form"
+          type="submit"
+        >
+          Save changes
+        </button>
+        <button onClick={onBack} type="button">
+          Cancel
+        </button>
+      </div>
     </section>
   );
 }

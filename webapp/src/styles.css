@@ -654,6 +654,49 @@ label {
   border-radius: var(--radius);
 }
 
+/* Save changes is the primary action on this page, so it gets a fixed
+   footer in the thumb-reachable bottom of the screen instead of sitting at
+   the end of .editor-scroll, where reaching it meant scrolling past the
+   entire directive toolbar first. A hairline top border marks where the
+   scrolling content ends, the same device .bottom-nav uses to mark where
+   it begins. */
+.editor-footer {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--cap-edge);
+}
+
+/* Found by testing the "avoid nested scroll views" question, not by
+   guessing: below ~38rem (600px) of viewport *height* -- a landscape
+   phone, or any short window -- the fixed region (heading + Name + Macro
+   source, whose textarea has its own 12rem min-height floor) can be taller
+   than the whole screen. .editor-frame has no overflow: hidden of its own,
+   so that overflow doesn't stay contained -- it pushes past .editor-frame's
+   height: 100% box, and #main-content's own overflow-y: auto (correctly)
+   starts scrolling to compensate. But .editor-scroll's flex-computed
+   height still gets clamped to zero in that state, and a zero-height
+   overflow: auto container doesn't just hide its content, it clips it away
+   with no scroll path back to it -- the entire directive toolbar and the
+   Save footer become permanently unreachable, not merely awkward to
+   reach. Pinning also isn't a good trade at this height regardless: there
+   isn't room left to show even one row of buttons once it's pinned. So
+   below the threshold, give up on the fixed/scroll split entirely and fall
+   back to one ordinary scrolling page through #main-content, the same as
+   every other screen in the app. */
+@media (height <= 38rem) {
+  .editor-frame {
+    height: auto;
+  }
+
+  .editor-scroll {
+    flex: none;
+    overflow-y: visible;
+  }
+}
+
 .directive-toolbar,
 .form-actions {
   display: flex;
@@ -666,11 +709,14 @@ label {
    grid of uniform cells rather than flex-wrap's ragged, label-width-dependent
    edge — a physical key is the same size regardless of what's printed on it,
    and "BACKSPACE" sitting flush against "UP" at two different heights read as
-   unfinished, not deliberate. auto-fill keeps it fluid to 320px. */
+   unfinished, not deliberate. auto-fill keeps it fluid to 320px. 0.5rem (8px)
+   gap, not the tighter 0.4rem used elsewhere: adjacent 44px touch targets
+   need 8-12px of separation to avoid mis-taps, and this grid is the densest
+   cluster of controls on the page. */
 .directive-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
-  gap: 0.4rem;
+  gap: 0.5rem;
   margin-top: 0.5rem;
 }
 
@@ -680,6 +726,25 @@ label {
   padding: 0.4rem 0.6rem;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.78rem;
+}
+
+/* Chord modifiers: pressable keycap toggles, not checkboxes -- a native
+   checkbox is ~22px, half the 44px touch-target floor, and the .active
+   state uses the same colour+inset-highlight pairing as .bottom-nav's
+   active tab (never colour alone) so "pressed" is legible without relying
+   on hue. */
+.chord-modifier {
+  min-width: 3.5rem;
+  padding: 0.4rem 0.6rem;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.chord-modifier.active {
+  color: #fff;
+  background: var(--actuate);
+  border-bottom-color: var(--actuate-edge);
+  box-shadow: inset 0 2px 0 var(--lamp);
 }
 
 /* Insert delay and Insert chord are two independent tool groups, not a

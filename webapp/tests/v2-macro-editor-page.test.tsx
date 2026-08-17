@@ -207,8 +207,13 @@ describe("MacroEditorPage — V2-100 directive insertion controls", () => {
         store={store}
       />,
     );
-    await click(requiredElement("#macro-editor-chord-CTRL", HTMLInputElement));
-    await click(requiredElement("#macro-editor-chord-SHIFT", HTMLInputElement));
+    const ctrlToggle = buttonWithText("CTRL");
+    const shiftToggle = buttonWithText("SHIFT");
+    expect(ctrlToggle.getAttribute("aria-pressed")).toBe("false");
+    await click(ctrlToggle);
+    await click(shiftToggle);
+    expect(ctrlToggle.getAttribute("aria-pressed")).toBe("true");
+    expect(shiftToggle.getAttribute("aria-pressed")).toBe("true");
     await setInputValue(
       requiredElement("#macro-editor-chord-key", HTMLInputElement),
       "t",
