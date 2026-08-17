@@ -237,7 +237,7 @@ export function DiagnosticsPage({
             {state.diagnostics.subsystems.length === 0 ? (
               <p>No subsystem health entries were reported.</p>
             ) : (
-              <ul className="management-list">
+              <ul className="my-4 grid list-none gap-3 p-0">
                 {state.diagnostics.subsystems.map((subsystem) => (
                   <li key={subsystem.name}>
                     {subsystem.name}: {subsystem.state}

@@ -54,8 +54,8 @@ export function SnapshotRow({
   });
 
   return (
-    <article className="card management-card">
-      <div>
+    <article className="card m-0">
+      <div className="min-w-0">
         <h3>
           Snapshot {id}
           {isLoaded ? " (loaded)" : ""}
@@ -68,7 +68,7 @@ export function SnapshotRow({
           </p>
         ) : null}
       </div>
-      <div className="management-actions">
+      <div className="flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial max-[32rem]:w-full">
         <button
           aria-label={`Load snapshot ${id}`}
           className="primary"

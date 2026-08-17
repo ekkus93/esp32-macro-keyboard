@@ -641,43 +641,6 @@
     @apply mt-0;
   }
 
-  /* --- Management lists ---------------------------------------------------- */
-  .management-list {
-    @apply my-4 grid list-none gap-3 p-0;
-  }
-
-  .management-card {
-    @apply m-0;
-  }
-
-  /* `flex: 1 1 16rem` used to grow this block *vertically* once `.card`
-     flipped to a column on narrow viewports, opening a tall empty gap between
-     a snapshot's name and its actions. `.card` is a grid now, so the row only
-     needs to be allowed to shrink. */
-  .management-card > div:first-child {
-    @apply min-w-0;
-  }
-
-  /* A wrapping row, not a single-column grid: four full-width stacked buttons
-     per snapshot made Delete as loud as Load and pushed the list off-screen.
-     .card-actions is the same button-row shape and was previously styled by
-     nothing at all -- it existed in MacroRow and ExecutionRecoveryOverlay but
-     matched no rule in either stylesheet, so those buttons fell back to
-     inline layout with no gap control. */
-  .management-actions,
-  .card-actions {
-    @apply flex flex-wrap content-start gap-[0.4rem];
-  }
-
-  .management-actions button,
-  .card-actions button {
-    @apply flex-initial;
-  }
-
-  .reorder-actions {
-    @apply grid grid-cols-2 gap-2;
-  }
-
   /* Destructive confirmations (role="alertdialog"): the same structural
      treatment as .confirmation-panel -- a left accent rule on a tinted
      panel -- but in the alert palette rather than the lamp one, so "this
@@ -705,22 +668,6 @@
 
     .timing-grid {
       @apply [grid-template-columns:1fr];
-    }
-
-    /* Reorder controls stay a full-width pair: they are positional, so a
-       half-width target is genuinely harder to hit. */
-    .reorder-actions {
-      @apply grid-cols-1;
-    }
-
-    /* The actions row itself spans the card, but its buttons size to their
-       labels. Forcing every button to 100% put Load, Download, Delete and
-       Advanced on four separate full-width lines, which pushed the snapshot
-       list off-screen and gave Delete exactly as much visual weight as
-       Load. */
-    .management-actions,
-    .card-actions {
-      @apply w-full;
     }
   }
 

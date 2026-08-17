@@ -161,8 +161,8 @@ function PackageRow({
   });
 
   return (
-    <article className="card management-card">
-      <div>
+    <article className="card m-0">
+      <div className="min-w-0">
         <h3>
           {pkg.name}
           {isSelected ? " (selected)" : ""}
@@ -207,7 +207,7 @@ function PackageRow({
           </form>
         ) : null}
       </div>
-      <div className="management-actions">
+      <div className="flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial max-[32rem]:w-full">
         <button
           aria-label={`Open ${pkg.name}`}
           className="primary"
@@ -235,7 +235,7 @@ function PackageRow({
         >
           Duplicate
         </button>
-        <div className="reorder-actions">
+        <div className="grid grid-cols-2 gap-2 max-[32rem]:grid-cols-1">
           <button
             aria-label={`Move ${pkg.name} to first`}
             disabled={index === 0}
@@ -476,7 +476,7 @@ export function PackageManagementPage({
       {filtered.length === 0 ? (
         <p role="status">No packages match this search.</p>
       ) : (
-        <ul className="management-list">
+        <ul className="my-4 grid list-none gap-3 p-0">
           {filtered.map((pkg) => {
             const index = repository.packages.findIndex(
               (candidate) => candidate.id === pkg.id,

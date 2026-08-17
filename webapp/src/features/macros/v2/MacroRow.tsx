@@ -56,7 +56,7 @@ export function MacroRow({
           {revealed ? "Hide source" : "Reveal"}
         </button>
       </div>
-      <div className="card-actions">
+      <div className="flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial max-[32rem]:w-full">
         <button
           aria-label={sending ? `Sending ${macro.name}` : `Send ${macro.name}`}
           className="primary"
@@ -73,7 +73,7 @@ export function MacroRow({
         >
           Edit
         </button>
-        <div className="reorder-actions">
+        <div className="grid grid-cols-2 gap-2 max-[32rem]:grid-cols-1">
           <button
             aria-label={`Move ${macro.name} to first`}
             disabled={index === 0}
