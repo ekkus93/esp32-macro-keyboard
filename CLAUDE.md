@@ -25,7 +25,7 @@ The lint/test scripts assume the exact versions CI installs (see `.github/workfl
 
 - apt (`clang-format` 18, `clang-tidy` 18, `shellcheck` 0.9.0, `libcjson-dev`, `jq`): `sudo apt-get install --yes clang-format clang-tidy shellcheck libcjson-dev jq`
 - pip: `python3 -m pip install --user cmakelang==0.6.13 yamllint==1.38.0 gcovr==8.6 littlefs-python==0.15.0` (`cmakelang` provides `cmake-format`/`cmake-lint`; `littlefs-python` is required by `scripts/build-webfs-image.sh`, part of `check-all.sh`, and is pinned to the version `firmware/managed_components/joltwallet__littlefs/image-building-requirements.txt` uses)
-- go: `go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0 github.com/rhysd/actionlint/cmd/actionlint@v1.7.12` (`actionlint` lints `.github/workflows/*.yml` as part of `check-scripts.sh`)
+- go: `go install mvdan.cc/sh/v3/cmd/shfmt@v3.11.0 github.com/rhysd/actionlint/cmd/actionlint@v1.7.12` (`actionlint` lints `.github/workflows/*.yml` as part of `check-scripts.sh`) — put `$(go env GOPATH)/bin` (typically `$HOME/go/bin`) on `PATH` before running `check-all.sh`/`check-scripts.sh`; if it's missing, `check-scripts.sh` fails with a bare **exit 127** that doesn't name `actionlint` as the cause.
 - `markdownlint-cli2` 0.23.2 comes from `npm --prefix webapp ci` (it's a pinned devDependency); `check-docs.sh` runs the local `webapp/node_modules/.bin` copy, not a global one.
 
 `shellcheck` is a distro apt package, so its version tracks the runner's Ubuntu release; build on 24.04 to match CI. The apt `clang-format` is **not** what formats this repo — see below.
@@ -47,6 +47,8 @@ Run scripts from the repo root. All frontend commands go through `npm --prefix w
 - Format check (no auto-fix): `./scripts/check-format.sh`. Auto-fix frontend only: `npm --prefix webapp run format:write`
 - Native coverage gate (line ≥90 / branch ≥80 on policy files): `./scripts/generate-native-coverage.sh`
 - The `check-v2-*.py`/`check-v2-*.sh` family enforces v1→v2 migration policy — API routes, auth policy, device-settings policy, limits, setup contract/route policy, phase-2 architecture. `check-h2/h3/h9-architecture.py` and `check-h9-production-audit.py` do the same for the post-v2 hardening phases. Both are first-party lint, not optional; `check-all.sh` runs some directly and reaches the rest through `check-scripts.sh`.
+- Stack-usage ratchet (`scripts/check-stack-usage.sh`, part of `check-all.sh`, allowlist `scripts/stack-usage-allowlist.txt`): fails on an unlisted frame over 4096 bytes, a listed frame that grew, or a listed frame that no longer exists. Fix growth by heap-allocating the large local — **never bump the recorded number**; delete allowlist entries for frames that no longer exist.
+- `check-all.sh` is slow and prints a lot, including thousands of suppressed third-party clang-tidy warnings on a clean run — that volume is normal, not a failure. Capture output and check the exit code: `./scripts/check-all.sh > /tmp/log 2>&1; echo "EXIT=$?"`.
 
 ### Where the tests are, and the fast loops
 
