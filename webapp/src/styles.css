@@ -744,20 +744,6 @@
     @apply mt-2 grid min-w-[12rem] gap-2 rounded-keycap border border-cap-edge bg-panel p-3 shadow-[0_0.5rem_1.5rem_rgb(33_30_26_/_18%)];
   }
 
-  /* The execution-recovery overlay: shown when the device stops reporting
-     execution state and a send may still be running, so it sits above
-     everything including the dialogs. Its styling used to live inline in
-     ExecutionRecoveryOverlay.tsx against `var(--surface, #fff)` -- a token
-     that was never defined anywhere in the app, so it always fell through to
-     a hardcoded pure white. Bottom-anchored like .bottom-nav, so it takes
-     the same safe-area inset rather than sitting under a phone's home
-     indicator. */
-  .recovery-overlay {
-    @apply fixed bottom-4 left-4 right-4 z-[1000] max-w-[36rem] rounded-keycap border-2 border-legend bg-cap p-4 shadow-[0_0.5rem_1.5rem_rgb(33_30_26_/_18%)];
-
-    bottom: calc(1rem + env(safe-area-inset-bottom));
-  }
-
   /* --- Dialogs -------------------------------------------------------------
      Modal surfaces. These lived in a second stylesheet (src/management.css)
      that predated the design system and never joined it: it hardcoded a cold
