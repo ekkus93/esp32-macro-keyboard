@@ -309,10 +309,13 @@ Lowest blast radius. Establishes the pattern before anything shared moves.
       fixture before and after: identical (position, bottom/left/right,
       z-index, max-width, radius, border, background, padding, box-shadow).
       `npm run test`: 544/544. `check-webapp.sh`: EXIT=0, H4 workflow passed.
-- [ ] **T1-2** `SignInPage.tsx` — inline `.password-field`, `.password-toggle`.
+- [x] **T1-2** `SignInPage.tsx` — inline `.password-field`, `.password-toggle`.
       `.password-field input { @apply pr-12 }` becomes `[&_input]:pr-12` on
       the wrapper, or `pr-12` directly on the input (prefer the latter).
-      *Evidence:*
+      *Evidence:* `abe43d1e`. Computed styles verified identical against a
+      fresh baseline (position, padding-right, every toggle-button property
+      including translate-based centering, and :hover color). `npm run
+      test`: 544/544. `check-webapp.sh`: EXIT=0.
 - [ ] **T1-3** `MacroOverflowMenu.tsx` — inline `.overflow-menu`,
       `.overflow-panel`, `.confirmation-panel`.
       *Evidence:*
