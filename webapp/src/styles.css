@@ -3,9 +3,10 @@
 /* The macro editor's short-viewport fallback. Height-based media queries
    have no built-in Tailwind variant, and this one is load-bearing: below
    ~38rem of viewport height the fixed region can exceed the screen, which
-   clamps .editor-scroll's flex height to zero -- and a zero-height
-   overflow:auto container clips its content away with no scroll path back,
-   making the directive toolbar and Save footer permanently unreachable. */
+   clamps the editor's scrolling form's flex height to zero -- and a
+   zero-height overflow:auto container clips its content away with no scroll
+   path back, making the directive toolbar and Save footer permanently
+   unreachable. Full rationale where it's applied: MacroEditorPage.tsx. */
 @custom-variant short (@media (height <= 38rem));
 
 /*
@@ -567,61 +568,6 @@
 
   .timing-grid {
     @apply grid gap-3 [grid-template-columns:repeat(2,minmax(0,1fr))];
-  }
-
-  /* The macro editor's own two-region split, inside #main-content (already
-     the app's one scrolling region): a fixed top part (page heading + Macro
-     source) and .editor-scroll below it, which is the only part of this page
-     that scrolls. Flat, like .validation-card -- no shadow. A shadow reads
-     as a card hovering *above* the page (that's .overflow-panel's job, an
-     actual popover); this needs to read as anchored, not floating. */
-  .editor-frame {
-    @apply flex h-full flex-col;
-  }
-
-  .editor-scroll {
-    @apply min-h-0 overflow-y-auto overscroll-y-contain [flex:1_1_auto];
-  }
-
-  .macro-source-pinned {
-    @apply rounded-keycap border border-cap-edge bg-panel p-3 [flex:0_0_auto];
-  }
-
-  /* Save changes is the primary action on this page, so it gets a fixed
-     footer in the thumb-reachable bottom of the screen instead of sitting at
-     the end of .editor-scroll, where reaching it meant scrolling past the
-     entire directive toolbar first. A hairline top border marks where the
-     scrolling content ends, the same device .bottom-nav uses to mark where
-     it begins. */
-  .editor-footer {
-    @apply flex flex-wrap gap-2 border-t border-cap-edge pt-3 [flex:0_0_auto];
-  }
-
-  /* Found by testing the "avoid nested scroll views" question, not by
-     guessing: below ~38rem (600px) of viewport *height* -- a landscape
-     phone, or any short window -- the fixed region (heading + Name + Macro
-     source, whose textarea has its own 12rem min-height floor) can be taller
-     than the whole screen. .editor-frame has no overflow: hidden of its own,
-     so that overflow doesn't stay contained -- it pushes past .editor-frame's
-     height: 100% box, and #main-content's own overflow-y: auto (correctly)
-     starts scrolling to compensate. But .editor-scroll's flex-computed
-     height still gets clamped to zero in that state, and a zero-height
-     overflow: auto container doesn't just hide its content, it clips it away
-     with no scroll path back to it -- the entire directive toolbar and the
-     Save footer become permanently unreachable, not merely awkward to
-     reach. Pinning also isn't a good trade at this height regardless: there
-     isn't room left to show even one row of buttons once it's pinned. So
-     below the threshold, give up on the fixed/scroll split entirely and fall
-     back to one ordinary scrolling page through #main-content, the same as
-     every other screen in the app. */
-  @media (height <= 38rem) {
-    .editor-frame {
-      @apply h-auto;
-    }
-
-    .editor-scroll {
-      @apply flex-none overflow-y-visible;
-    }
   }
 
   .directive-toolbar,

@@ -243,7 +243,34 @@ export function MacroEditorPage({
   };
 
   return (
-    <section aria-labelledby="macro-editor-title" className="editor-frame">
+    // The macro editor's own two-region split, inside #main-content (already
+    // the app's one scrolling region): a fixed top part (page heading + Macro
+    // source) and the scrolling form below, which is the only part of this
+    // page that scrolls.
+    //
+    // short: (@media height <= 38rem) is load-bearing, found by testing the
+    // "avoid nested scroll views" question, not by guessing: below ~38rem
+    // (600px) of viewport *height* -- a landscape phone, or any short window
+    // -- the fixed region (heading + Name + Macro source, whose textarea has
+    // its own 12rem min-height floor) can be taller than the whole screen.
+    // This <section> has no overflow:hidden of its own, so that overflow
+    // doesn't stay contained -- it pushes past the section's height:100% box,
+    // and #main-content's own overflow-y:auto (correctly) starts scrolling to
+    // compensate. But the scrolling form's flex-computed height still gets
+    // clamped to zero in that state, and a zero-height overflow:auto
+    // container doesn't just hide its content, it clips it away with no
+    // scroll path back to it -- the entire directive toolbar and the Save
+    // footer become permanently unreachable, not merely awkward to reach.
+    // Pinning also isn't a good trade at this height regardless: there isn't
+    // room left to show even one row of buttons once it's pinned. So below
+    // the threshold, give up on the fixed/scroll split entirely (short:h-auto
+    // here, short:flex-none short:overflow-y-visible on the form below) and
+    // fall back to one ordinary scrolling page through #main-content, the
+    // same as every other screen in the app.
+    <section
+      aria-labelledby="macro-editor-title"
+      className="flex h-full flex-col short:h-auto"
+    >
       <div className="page-heading">
         <div className="page-heading-title">
           <p className="eyebrow dark">{pkg.name}</p>
@@ -258,7 +285,7 @@ export function MacroEditorPage({
 
       {/* Fixed, not merely pinned via scroll tracking: everything below
           inserts at this textarea's cursor and needs to stay visible while
-          that happens. Name moved back into .editor-scroll below --
+          that happens. Name moved back into the scrolling form below --
           measured on the real device that keeping both Name and Macro
           source fixed left as little as 24px for the entire directive
           toolbar in the ordinary "unsaved changes" state (the 3-line app
@@ -267,7 +294,10 @@ export function MacroEditorPage({
           button. Naming before building was a nice-to-have; it isn't worth
           that cost. `form` keeps this associated with #macro-editor-form
           for submission despite living outside its DOM subtree. */}
-      <label className="macro-source-pinned" htmlFor="macro-editor-source">
+      <label
+        className="rounded-keycap border border-cap-edge bg-panel p-3 [flex:0_0_auto]"
+        htmlFor="macro-editor-source"
+      >
         Macro source
         <textarea
           form="macro-editor-form"
@@ -292,7 +322,7 @@ export function MacroEditorPage({
       </label>
 
       <form
-        className="editor-scroll form-stack"
+        className="min-h-0 [flex:1_1_auto] overflow-y-auto overscroll-y-contain short:flex-none short:overflow-y-visible form-stack"
         id="macro-editor-form"
         onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
           event.preventDefault();
@@ -491,8 +521,10 @@ export function MacroEditorPage({
           a scroll: Save is the primary action on this page, and burying it
           behind ~30 directive buttons meant reaching it required scrolling
           past all of them first. `form` keeps Save associated with
-          #macro-editor-form for submission despite living outside it. */}
-      <div className="editor-footer">
+          #macro-editor-form for submission despite living outside it. A
+          hairline top border marks where the scrolling content ends, the
+          same device .bottom-nav uses to mark where it begins. */}
+      <div className="flex flex-wrap gap-2 border-t border-cap-edge pt-3 [flex:0_0_auto]">
         <button
           className="primary"
           disabled={!canSave}
