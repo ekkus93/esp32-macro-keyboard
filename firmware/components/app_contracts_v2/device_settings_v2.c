@@ -182,12 +182,35 @@ static bool credential_bytes_absent(const app_v2_device_settings_t *settings) {
            bytes_are_zero(settings->password_verifier, APP_V2_PASSWORD_VERIFIER_BYTES);
 }
 
+/* An empty passphrase is valid here: it represents a station network that
+ * associated with no password (an open network), which
+ * wifi_ap_connect_station() already permits when actually connecting.
+ * SPEC_V2 12.4 requires persistence to follow any successful association
+ * unconditionally, with no open-network exception, so this field cannot
+ * reuse the AP-passphrase minimum (APP_V2_WIFI_PASSPHRASE_MIN_BYTES) below
+ * that governs the device's own SoftAP, which per project policy must never
+ * be open. A non-empty passphrase still has to meet the ordinary WPA-style
+ * bounds, since a 1-7 byte value could never have produced a real
+ * association. */
+static bool station_passphrase_valid(const app_v2_device_settings_t *settings) {
+    size_t length = 0U;
+    if (!bounded_length(settings->station_passphrase, sizeof(settings->station_passphrase),
+                        &length)) {
+        return false;
+    }
+    if (length == 0U) {
+        return true;
+    }
+    return length >= APP_V2_WIFI_PASSPHRASE_MIN_BYTES &&
+           length <= APP_V2_WIFI_PASSPHRASE_MAX_BYTES &&
+           valid_utf8((const uint8_t *)settings->station_passphrase, length);
+}
+
 static bool station_fields_valid(const app_v2_device_settings_t *settings) {
     if (settings->station_configured) {
         return valid_text(settings->station_ssid, sizeof(settings->station_ssid), 1U,
                           APP_V2_WIFI_SSID_MAX_BYTES) &&
-               valid_text(settings->station_passphrase, sizeof(settings->station_passphrase),
-                          APP_V2_WIFI_PASSPHRASE_MIN_BYTES, APP_V2_WIFI_PASSPHRASE_MAX_BYTES);
+               station_passphrase_valid(settings);
     }
     return valid_text(settings->station_ssid, sizeof(settings->station_ssid), 0U, 0U) &&
            valid_text(settings->station_passphrase, sizeof(settings->station_passphrase), 0U, 0U);

@@ -184,6 +184,33 @@ static void test_station_update_is_atomic_and_allowed_before_setup(void) {
     TEST_CHECK_EQ_STRING("bench-passphrase", after_rejected_update.station_passphrase);
 }
 
+/* SPEC_V2 12.4: a successful `wifi-connect` MUST persist the station network
+ * once association succeeds -- unconditionally, with no open-network
+ * exception. wifi_ap_connect_station() already accepts an empty password
+ * when the target AP is genuinely open, so the persistence layer below it
+ * must not reject that same empty password merely because it reuses the
+ * WPA-style minimum length that (correctly) still applies to the device's
+ * own SoftAP passphrase. */
+static void test_station_update_allows_open_network_empty_passphrase(void) {
+    fake_settings_store_t fake;
+    device_settings_core_t core;
+    init_core(&core, &fake);
+
+    bool changed = false;
+    const app_error_code_t update =
+        device_settings_core_set_station(&core, "Revival Hall", "", &changed);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, update);
+    TEST_CHECK(changed);
+    TEST_CHECK_EQ_U64(1U, fake.replace_calls);
+
+    app_v2_device_settings_t loaded = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_load(&core, &loaded));
+    TEST_CHECK(loaded.station_configured);
+    TEST_CHECK_EQ_STRING("Revival Hall", loaded.station_ssid);
+    TEST_CHECK_EQ_STRING("", loaded.station_passphrase);
+    TEST_CHECK_EQ_INT(APP_V2_SETTINGS_OK, app_v2_device_settings_validate(&loaded));
+}
+
 static void test_load_valid_and_reject_corruption(void) {
     fake_settings_store_t fake;
     device_settings_core_t core;
@@ -494,6 +521,7 @@ int main(void) {
     test_init_validation();
     test_missing_record_uses_defaults_without_write();
     test_station_update_is_atomic_and_allowed_before_setup();
+    test_station_update_allows_open_network_empty_passphrase();
     test_load_valid_and_reject_corruption();
     test_replace_and_failure_preservation();
     test_uncertain_replace_invalidates_cached_settings();
