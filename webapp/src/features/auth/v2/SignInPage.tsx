@@ -180,11 +180,12 @@ export function SignInPage({
           }}
         >
           <label htmlFor="admin-password">Administrator password</label>
-          <div className="password-field">
+          <div className="relative">
             <input
               aria-invalid={error === null ? undefined : true}
               autoComplete="current-password"
               autoFocus
+              className="pr-12"
               disabled={submitting}
               id="admin-password"
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,10 +195,15 @@ export function SignInPage({
               type={passwordVisible ? "text" : "password"}
               value={adminPassword}
             />
+            {/* A plain icon toggle, not a keycap: the bare `button` rule
+                gives every button the pressed-key travel treatment, which
+                reads as too heavy sitting inside a text field. h-11/w-11
+                (44px) still meet the touch-target floor the rest of the app
+                uses (see .checkbox-row). */}
             <button
               aria-label={passwordVisible ? "Hide password" : "Show password"}
               aria-pressed={passwordVisible}
-              className="password-toggle"
+              className="absolute right-[0.3rem] top-1/2 grid h-11 min-h-11 w-11 min-w-11 -translate-y-1/2 place-items-center rounded-keycap border-0 bg-transparent p-0 text-legend-soft hover:text-legend"
               onClick={() => {
                 setPasswordVisible((visible) => !visible);
               }}
