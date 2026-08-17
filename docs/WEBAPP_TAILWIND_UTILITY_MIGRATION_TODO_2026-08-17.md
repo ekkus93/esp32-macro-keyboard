@@ -366,7 +366,14 @@ subtask, even if it looks trivial."
       `.metadata`'s `mt-3` — order the utilities in the className string (or
       use `!` if needed) so the intended one wins now that both are in the
       same layer.
-      *Evidence:*
+      *Evidence:* `88eccbda`. Also removed `.metadata` (T1-6's deferred call
+      site) -- migrated together onto the same `dl` so the margin-top
+      cascade resolves correctly, not by layer-order luck. Verified the
+      `min-[26rem]:`/`max-[26rem]:` boundary matches the source's exact
+      `>=`/`<` semantics before using them. `storage-summary` kept as a
+      class with no CSS rule, per §8.1. Computed styles byte-identical at
+      390px and 1280px, all 4 dt/dd pairs. `npm run test`: 544/544.
+      `check-webapp.sh`: EXIT=0.
 - [ ] **T1-8** The management cluster — `.management-list`,
       `.management-card`, `.management-actions`, `.card-actions`,
       `.reorder-actions` across `PackageManagementPage.tsx`, `SnapshotRow.tsx`,
