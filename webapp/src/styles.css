@@ -70,9 +70,19 @@
   box-sizing: border-box;
 }
 
+/* No min-height here on purpose: both direct children size themselves
+   explicitly (.app-shell to 100dvh, .standalone to 100vh -- see their own
+   rules below), so body just wraps whichever one is mounted. Giving body
+   its own min-height: 100vh used to fight .app-shell's 100dvh: 100vh is the
+   larger, static viewport measurement, dvh is the current one net of the
+   mobile browser's address bar, so body was always at least as tall as the
+   address-bar's height *more* than the locked shell inside it -- a sliver
+   of genuine document-level scroll room outside the "locked to the
+   viewport" shell, which opened and closed as the address bar
+   collapsed/expanded on scroll. That's what read as the page sliding up
+   and down a little. */
 body {
   min-width: 320px;
-  min-height: 100vh;
   margin: 0;
 }
 
@@ -222,6 +232,7 @@ main {
 #main-content {
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 
 .standalone {
@@ -661,6 +672,7 @@ label {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 
 .macro-source-pinned {
