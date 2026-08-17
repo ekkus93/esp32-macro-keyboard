@@ -461,10 +461,27 @@ layout-collapse bug. Do it as its own commit.
       T2-3.
       *Evidence:* Done together with T3-1 — see its evidence. Not a separate
       commit; the coupling made splitting them unsafe.
-- [ ] **T3-3** `LandscapeBlockSurface.tsx` — inline `.landscape-block` and its
+- [x] **T3-3** `LandscapeBlockSurface.tsx` — inline `.landscape-block` and its
       descendants, **keeping the `landscape-block` class as a test hook**
       (§8.1). The class stays on the element; its rule leaves CSS.
-      *Evidence:*
+      *Evidence:* `ef9f7f6a`. No coupling this time — the split held.
+      `.send-status`'s own rule stays in CSS (Phase 4); only this surface's
+      two overrides of it moved, and both are additive (the base rule sets
+      neither colour nor width), so no cascade race. Verified in real Chrome
+      at 844×390 with `hasTouch` (`pointer: coarse`, one of the three
+      conditions in `landscapePhoneMediaQuery`), in **both** the idle and the
+      awaiting-confirmation states: **4736 computed properties across 9
+      elements, zero value differences**, identical bounding boxes, identical
+      overlay `innerText`, and **byte-identical PNG screenshots** of both
+      states (`cmp` on the full-page captures). The four
+      `env(safe-area-inset-*)` `calc()` paddings were checked separately in
+      the compiled CSS — headless Chrome resolves every inset to `0px`, so
+      computed style alone cannot prove they survived; `grep` confirmed all
+      four emitted with correct `calc()` spacing. `landscape-block` now
+      appears **0 times** in the compiled CSS, confirming it is a bare hook.
+      `npm run test`: 544/544. `check-webapp.sh`: EXIT=0.
+
+**Phase 3 complete.**
 
 ### Phase 4 — Shared component extraction (largest phase, split freely)
 
