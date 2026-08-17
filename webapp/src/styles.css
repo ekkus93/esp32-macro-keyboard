@@ -278,29 +278,37 @@
 @layer components {
   /* --- Shell ---------------------------------------------------------------
      A column so `main` takes the slack and the navigation sits on the bottom
-     edge of the viewport instead of floating part-way up a short page. */
-  .standalone,
-  .app-shell {
-    @apply mx-auto flex flex-col bg-shell;
+     edge of the viewport instead of floating part-way up a short page.
+     .app-shell (AppShellV2.tsx) shares this exact width formula but is
+     inlined there directly -- .standalone stays on the old min-height
+     behaviour, it has no header/nav chrome to fix in place, and a
+     single-task screen is fine growing taller than the viewport; .app-shell
+     is locked to the viewport (h-dvh overflow-hidden, inlined alongside it)
+     since it does have fixed chrome. Kept in sync by hand if this formula
+     ever changes.
+
+     dvh, not vh, for the same reason: vh is the static, largest-possible
+     viewport, dvh is the current one net of the mobile browser's address
+     bar. A vh floor on a screen shorter than that static measurement left a
+     phantom gap outside the visible viewport that the address bar opened
+     and closed on scroll -- read as the page sliding a little. Content that
+     genuinely needs more room than the viewport still grows past this floor
+     exactly as before; only the floor itself changed. */
+  .standalone {
+    @apply mx-auto flex min-h-dvh flex-col bg-shell;
 
     width: min(100%, 48rem);
-  }
 
-  /* Locked to the viewport, not merely a min-height floor: header and bottom
-     nav are fixed chrome and #main-content below is the one scrolling
-     region, so a page can genuinely pin something (e.g. the macro editor's
-     Macro source) outside the part that scrolls, instead of faking it with
-     position: sticky against a document that keeps growing. .standalone
-     stays on the old min-height behavior -- it has no header/nav chrome to
-     fix in place, and a single-task screen is fine growing taller than the
-     viewport. */
-  .app-shell {
-    @apply h-dvh overflow-hidden;
+    /* No Tailwind utility composes four independently-calc()'d sides with
+       env(safe-area-inset-*) in one declaration. */
+    padding: calc(max(2rem, 7vh) + env(safe-area-inset-top))
+      calc(1rem + env(safe-area-inset-right))
+      calc(1.25rem + env(safe-area-inset-bottom))
+      calc(1rem + env(safe-area-inset-left));
   }
 
   @media (width >= 60rem) {
-    .standalone,
-    .app-shell {
+    .standalone {
       width: min(100%, 64rem);
     }
   }
@@ -318,24 +326,6 @@
     @apply min-h-0 overflow-y-auto overscroll-y-contain;
   }
 
-  .standalone {
-    /* dvh, not vh: vh is the static, largest-possible viewport, dvh is the
-       current one net of the mobile browser's address bar. A vh floor on a
-       screen shorter than that static measurement left a phantom gap outside
-       the visible viewport that the address bar opened and closed on scroll
-       -- read as the page sliding a little. Content that genuinely needs
-       more room than the viewport still grows past this floor exactly as
-       before; only the floor itself changed. */
-    @apply min-h-dvh;
-
-    /* No Tailwind utility composes four independently-calc()'d sides with
-       env(safe-area-inset-*) in one declaration. */
-    padding: calc(max(2rem, 7vh) + env(safe-area-inset-top))
-      calc(1rem + env(safe-area-inset-right))
-      calc(1.25rem + env(safe-area-inset-bottom))
-      calc(1rem + env(safe-area-inset-left));
-  }
-
   /* Sign In, First-Run Setup and the reconnect screens are single tasks, so
      they get a measured column rather than the full shell width. */
   .standalone > * {
@@ -344,35 +334,9 @@
     width: min(100%, 27rem);
   }
 
-  /* --- Faceplate -------------------------------------------------------------
-     Every piece of status here is required (UI_UX_SPEC_V2 2.1: device name,
-     package name, USB state, repository state, Save snapshot when dirty) --
-     none of it is optional content to cut. What was wrong was density: a
-     tall top/bottom padding written for a single row, applied to a header
-     that then force-stacked into 2-3 rows below 32rem. Kept to one wrapping
-     row instead, with tight padding sized to the 44px Save-snapshot button
-     that already sets the row's real minimum height -- the padding was
-     adding height on top of that floor, not because the content needed it. */
-  .app-header {
-    @apply flex flex-wrap items-center justify-between gap-x-3 gap-y-[0.4rem] border-b-[3px] border-actuate bg-legend px-[0.85rem] pb-[0.4rem] text-panel;
-
-    padding-top: calc(0.4rem + env(safe-area-inset-top));
-  }
-
-  .app-header-title {
-    @apply min-w-0 overflow-hidden;
-  }
-
-  .app-header h1 {
-    @apply m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.05rem] tracking-[-0.01em];
-  }
-
+  /* --- Faceplate ------------------------------------------------------------- */
   .header-actions {
     @apply flex flex-wrap items-center justify-end gap-[0.4rem];
-  }
-
-  .header-button {
-    @apply min-h-[44px] border-header-button-edge bg-header-button px-[0.65rem] py-[0.3rem] text-[0.82rem] text-cap;
   }
 
   /* Keycap legend: small, tight-tracked, uppercase. */
@@ -419,33 +383,6 @@
   }
 
   /* --- The bottom key row -------------------------------------------------- */
-
-  /* No position: sticky here -- .app-shell is a locked-height flex column
-     (#main-content is the one scrolling region within it), so this is simply
-     the last flex child and is always visible without any scroll-tracking. */
-
-  /* grid-cols-4, not a hand-rolled grid-template-columns: Tailwind's default
-     for that utility is already `repeat(4, minmax(0, 1fr))` -- minmax(0, 1fr)
-     over a bare 1fr matters because a bare `1fr` track's implied minimum is
-     its content's min-content width, so it refuses to shrink below that — at
-     narrow viewports the four buttons (bold/uppercase/letter-spaced text
-     such as "Settings") would force this row wider than the viewport
-     itself. */
-  .bottom-nav {
-    @apply grid grid-cols-4 gap-[0.4rem] border-t border-cap-edge bg-shell px-[0.6rem] pt-[0.6rem];
-
-    padding-bottom: calc(0.6rem + env(safe-area-inset-bottom));
-  }
-
-  .bottom-nav button {
-    @apply min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em];
-  }
-
-  /* The active destination is marked by an inset top rule and full ink as
-     well as colour (UI_UX_SPEC_V2 §5: never colour alone). */
-  .bottom-nav button.active {
-    @apply border-actuate-edge bg-actuate text-cap shadow-[inset_0_3px_0_var(--color-lamp)];
-  }
 
   /* --- Status lamps --------------------------------------------------------
      Each state gets its own lamp *shape* as well as its own colour, so the
