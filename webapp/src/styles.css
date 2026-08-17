@@ -540,28 +540,4 @@
       @apply [grid-template-columns:1fr];
     }
   }
-
-  /* V2-131/V2-132 (UI_UX_SPEC_V2 §12): the phone-landscape orientation
-     surface. A fixed full-viewport overlay, not a route — the authenticated
-     shell underneath stays mounted and is only hidden (`display: none`)
-     while this shows, so returning to portrait needs no reload or state
-     recovery. */
-  .landscape-block {
-    @apply fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-legend text-center text-cap;
-
-    padding: calc(1.5rem + env(safe-area-inset-top))
-      calc(1.5rem + env(safe-area-inset-right))
-      calc(1.5rem + env(safe-area-inset-bottom))
-      calc(1.5rem + env(safe-area-inset-left));
-  }
-
-  .landscape-block h1 {
-    @apply m-0 text-[1.5rem];
-  }
-
-  .landscape-block .send-status {
-    @apply text-legend;
-
-    width: min(100%, 24rem);
-  }
 }
