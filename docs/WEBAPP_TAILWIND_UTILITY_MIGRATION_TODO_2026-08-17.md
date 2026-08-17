@@ -415,11 +415,16 @@ layout-collapse bug. Do it as its own commit.
       confirms `short:` correctly overrides the unprefixed utilities (§8.6),
       not merely that it compiles. Rationale comments moved to the TSX, not
       dropped. `npm run test`: 544/544. `check-webapp.sh`: EXIT=0.
-- [ ] **T2-2** `MacroEditorPage.tsx` — inline `.directive-grid`,
+- [x] **T2-2** `MacroEditorPage.tsx` — inline `.directive-grid`,
       `.directive-toolbar`, `.timing-grid`, `.toolbar-columns`,
       `.field-label`, `.validation-*`. `.directive-grid button` becomes
       utilities on the buttons themselves.
-      *Evidence:*
+      *Evidence:* `db1e2162`. `.form-actions` split back out and left in
+      CSS (Phase 4). `.directive-grid button` → `[&_button]:...` (descendant,
+      not `[&>button]:`, per T1-8's fidelity fix). Comprehensive baseline at
+      1280px/390px across all 7 classes, plus both validation states
+      (typed a bad token, then a valid macro, into the real textarea) — all
+      byte-identical. `npm run test`: 544/544. `check-webapp.sh`: EXIT=0.
 - [ ] **T2-3** `.chord-modifier` / `.chord-modifier.active` — currently built
       as `pressed ? "chord-modifier active" : "chord-modifier"`
       (`MacroEditorPage.tsx:389`). Replace with a full literal string per
