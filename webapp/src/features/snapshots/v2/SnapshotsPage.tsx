@@ -394,12 +394,16 @@ export function SnapshotsPage({
         <div>
           <h2 id="snapshots-title">Snapshots</h2>
           {list.kind === "loaded" ? (
-            <p>
-              {String(list.result.blobs.length)} stored snapshots · used{" "}
-              {formatBytes(list.result.usedBytes)} · remaining{" "}
-              {formatBytes(list.result.remainingBytes)} · retention target{" "}
-              {String(retentionTarget)}
-            </p>
+            <dl className="metadata storage-summary">
+              <dt>Stored</dt>
+              <dd>{String(list.result.blobs.length)}</dd>
+              <dt>Used</dt>
+              <dd>{formatBytes(list.result.usedBytes)}</dd>
+              <dt>Free</dt>
+              <dd>{formatBytes(list.result.remainingBytes)}</dd>
+              <dt>Retention target</dt>
+              <dd>{String(retentionTarget)}</dd>
+            </dl>
           ) : null}
         </div>
         <div className="header-actions">

@@ -300,6 +300,28 @@ main {
   gap: 0.85rem;
 }
 
+/* An empty list is an invitation to act, not a statement of absence: it names
+   what is missing, says what the thing is, and offers the action. */
+.empty-state {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  background: var(--panel);
+  border: 1px dashed var(--cap-edge);
+  border-radius: var(--radius);
+}
+
+.empty-state h3 {
+  margin: 0;
+}
+
+.empty-state p {
+  max-width: 34ch;
+  margin: 0;
+  color: var(--legend-soft);
+}
+
 .checkbox-row {
   display: flex;
   gap: 0.65rem;
@@ -427,6 +449,19 @@ dl {
   font-size: 0.85rem;
 }
 
+.storage-summary {
+  grid-template-columns: repeat(2, auto);
+  gap: 0.15rem 1.25rem;
+  justify-content: start;
+  margin-top: 0.5rem;
+}
+
+@media (width >= 26rem) {
+  .storage-summary {
+    grid-template-columns: repeat(4, auto);
+  }
+}
+
 dt {
   color: var(--legend-soft);
   font-size: 0.7rem;
@@ -439,6 +474,29 @@ dd {
   margin: 0;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
+}
+
+/* Label above value, so each pair reads as one unit rather than a grid of
+   alternating columns. Declared after the base dt/dd rules so specificity
+   ascends down the file (stylelint no-descending-specificity). */
+.storage-summary dt {
+  grid-row: 1;
+}
+
+.storage-summary dd {
+  grid-row: 2;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+@media (width < 26rem) {
+  .storage-summary dt:nth-of-type(n + 3) {
+    grid-row: 3;
+  }
+
+  .storage-summary dd:nth-of-type(n + 3) {
+    grid-row: 4;
+  }
 }
 
 code {

@@ -558,7 +558,16 @@ export function MacrosPage({
       <p role="status">{moveAnnouncement}</p>
 
       {activePackage.macros.length === 0 ? (
-        <p role="status">This package has no macros yet.</p>
+        <div className="empty-state" role="status">
+          <h3>No macros in {activePackage.name}</h3>
+          <p>
+            A macro is a sequence of keystrokes the device types for you over
+            USB. Add one to get started.
+          </p>
+          <button className="primary" onClick={onOpenAddMacro} type="button">
+            Add macro
+          </button>
+        </div>
       ) : (
         <div aria-label="Macro list">
           {activePackage.macros.map((macro, index) => (

@@ -20,9 +20,10 @@ export async function runSnapshotsWorkflows(page, application, fixtures) {
     "The Snapshots page did not render the stored blob.",
   );
   assert(
-    await evaluate(page, () =>
-      document.body.innerText.includes("retention target 5"),
-    ),
+    await evaluate(page, () => {
+      const summary = document.querySelector(".storage-summary");
+      return summary?.textContent?.includes("Retention target5") === true;
+    }),
     "The configured advisory retention target was not shown.",
   );
 

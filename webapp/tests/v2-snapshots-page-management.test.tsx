@@ -35,9 +35,21 @@ describe("SnapshotsPage — V2-111 Snapshot management", () => {
     expect(container.textContent).toContain("Snapshot 1");
     expect(container.textContent).not.toContain("Snapshot 1 (loaded)");
     expect(container.textContent).toContain("500 bytes");
-    expect(container.textContent).toContain("used 700 bytes");
-    expect(container.textContent).toContain("remaining 130372 bytes");
-    expect(container.textContent).toContain("retention target 5");
+    const summary = container.querySelector(".storage-summary");
+    expect(summary).not.toBeNull();
+    const pairs = Array.from(summary?.children ?? []).map((node) =>
+      node.textContent?.trim(),
+    );
+    expect(pairs).toEqual([
+      "Stored",
+      "2",
+      "Used",
+      "700 bytes",
+      "Free",
+      "130372 bytes",
+      "Retention target",
+      "5",
+    ]);
     await unmount();
   });
 
@@ -128,7 +140,10 @@ describe("SnapshotsPage — V2-112 advisory retention target", () => {
       retentionTarget: 0,
     });
     await waitUntil(
-      () => container.textContent?.includes("retention target 0") === true,
+      () =>
+        container
+          .querySelector(".storage-summary")
+          ?.textContent?.includes("Retention target0") === true,
       "list to render",
     );
     expect(container.textContent).not.toContain("above the retention target");
