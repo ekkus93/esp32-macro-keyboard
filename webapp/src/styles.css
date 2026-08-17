@@ -500,40 +500,6 @@
     @apply h-[0.45rem] w-[0.45rem] border-[1.5px] border-current bg-transparent;
   }
 
-  .metadata {
-    @apply mt-3 text-[0.85rem];
-  }
-
-  .storage-summary {
-    @apply mt-2 justify-start gap-x-5 gap-y-[0.15rem] [grid-template-columns:repeat(2,auto)];
-  }
-
-  @media (width >= 26rem) {
-    .storage-summary {
-      @apply [grid-template-columns:repeat(4,auto)];
-    }
-  }
-
-  /* Label above value, so each pair reads as one unit rather than a grid of
-     alternating columns. */
-  .storage-summary dt {
-    @apply [grid-row:1];
-  }
-
-  .storage-summary dd {
-    @apply text-base font-bold [grid-row:2];
-  }
-
-  @media (width < 26rem) {
-    .storage-summary dt:nth-of-type(n + 3) {
-      @apply [grid-row:3];
-    }
-
-    .storage-summary dd:nth-of-type(n + 3) {
-      @apply [grid-row:4];
-    }
-  }
-
   /* One wrapping row at every width, like .app-header -- not the
      unconditional 2-row stack this used to force on phones. Measured on a
      real device: on the macro editor specifically, that stacking cost 120px

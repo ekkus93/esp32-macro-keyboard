@@ -394,15 +394,30 @@ export function SnapshotsPage({
         <div>
           <h2 id="snapshots-title">Snapshots</h2>
           {list.kind === "loaded" ? (
-            <dl className="metadata storage-summary">
-              <dt>Stored</dt>
-              <dd>{String(list.result.blobs.length)}</dd>
-              <dt>Used</dt>
-              <dd>{formatBytes(list.result.usedBytes)}</dd>
-              <dt>Free</dt>
-              <dd>{formatBytes(list.result.remainingBytes)}</dd>
-              <dt>Retention target</dt>
-              <dd>{String(retentionTarget)}</dd>
+            <dl
+              // storage-summary carries no CSS rule (styling is inline
+              // below); kept as a test hook only --
+              // webapp/tests/browser/workflows/snapshots.mjs:24.
+              className="storage-summary mt-2 grid justify-start gap-x-5 gap-y-[0.15rem] text-[0.85rem] [grid-template-columns:repeat(2,auto)] min-[26rem]:[grid-template-columns:repeat(4,auto)]"
+            >
+              <dt className="[grid-row:1]">Stored</dt>
+              <dd className="[grid-row:2] text-base font-bold">
+                {String(list.result.blobs.length)}
+              </dd>
+              <dt className="[grid-row:1]">Used</dt>
+              <dd className="[grid-row:2] text-base font-bold">
+                {formatBytes(list.result.usedBytes)}
+              </dd>
+              <dt className="[grid-row:1] max-[26rem]:[grid-row:3]">Free</dt>
+              <dd className="[grid-row:2] text-base font-bold max-[26rem]:[grid-row:4]">
+                {formatBytes(list.result.remainingBytes)}
+              </dd>
+              <dt className="[grid-row:1] max-[26rem]:[grid-row:3]">
+                Retention target
+              </dt>
+              <dd className="[grid-row:2] text-base font-bold max-[26rem]:[grid-row:4]">
+                {String(retentionTarget)}
+              </dd>
             </dl>
           ) : null}
         </div>
