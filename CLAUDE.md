@@ -201,8 +201,26 @@ depends on plug order, and the vendor IDs are the reliable identifier.
 
 | Port | Enumerates as | Typically | Use it for |
 | --- | --- | --- | --- |
-| **Native USB** (D+/D−, the ESP32-S3's own USB peripheral) | `303a:4001` running the app (TinyUSB HID), `303a:1001` (USB-Serial/JTAG) otherwise | `/dev/ttyACM0`, `hidraw*` | Flashing, `esptool`, **HID validation**, boot/log output |
-| **USB-UART bridge** (a separate CH340/CP210x chip on UART0) | `1a86:55d3` (CH340) or `10c4:ea60` (CP210x) | `/dev/ttyACM1` or `/dev/ttyUSB0` | **The interactive serial console** |
+| **Native USB** (D+/D−, the ESP32-S3's own USB peripheral) | `303a:4001` running the app (TinyUSB HID), `303a:1001` (USB-Serial/JTAG) otherwise | `/dev/ttyACM0`, `hidraw*` | **HID validation**, boot/log output |
+| **USB-UART bridge** (a separate CH340/CP210x chip on UART0) | `1a86:55d3` (CH340) or `10c4:ea60` (CP210x) | `/dev/ttyACM1` or `/dev/ttyUSB0` | **The interactive serial console, and flashing** — see below |
+
+**Prefer the UART bridge for flashing (`idf.py -p <bridge port> flash` /
+`esptool --port <bridge port> ...`) — it needs no physical button press at
+all.** Verified 2026-08-17: this chip's DTR/RTS lines are wired to EN/GPIO0
+through the standard auto-reset transistor circuit, so `esptool` toggles the
+board into the ROM bootloader and back entirely in software, the same as most
+ESP32 dev boards.
+
+Native USB has no such circuit — the peripheral is claimed entirely by
+TinyUSB HID while the app runs, so there is no control channel for `esptool`
+to request a reset through. Flashing over native USB needs a **manual**
+BOOT+RESET (hold BOOT, tap RESET, release BOOT) to enter the bootloader, and
+after flashing, a full **physical unplug/replug** of the cable to actually
+boot the app again — a soft reset issued over the native-USB JTAG-serial
+channel reliably leaves the board stuck showing `303a:1001` with the GPIO0
+strap effectively still latched (reproduced twice, `idf.py flash` exit 0
+both times). Only fall back to native USB when the UART bridge is
+unavailable.
 
 **The interactive console is on the UART bridge, not on native USB.**
 `sdkconfig` packages `CONFIG_ESP_CONSOLE_UART_DEFAULT=y` with
