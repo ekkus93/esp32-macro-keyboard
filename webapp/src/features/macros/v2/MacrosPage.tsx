@@ -484,7 +484,7 @@ export function MacrosPage({
   return (
     <section aria-labelledby="macros-title">
       <div className="page-heading">
-        <div className="page-heading-title">
+        <div className="min-w-0 overflow-hidden">
           <p className="eyebrow dark">Selected package</p>
           <h2 id="macros-title">{activePackage.name}</h2>
           <p>{String(activePackage.macros.length)} macros</p>

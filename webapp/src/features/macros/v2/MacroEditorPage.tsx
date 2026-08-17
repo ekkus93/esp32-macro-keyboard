@@ -272,7 +272,7 @@ export function MacroEditorPage({
       className="flex h-full flex-col short:h-auto"
     >
       <div className="page-heading">
-        <div className="page-heading-title">
+        <div className="min-w-0 overflow-hidden">
           <p className="eyebrow dark">{pkg.name}</p>
           <h2 id="macro-editor-title">
             {macroId === null ? "Create macro" : "Edit macro"}

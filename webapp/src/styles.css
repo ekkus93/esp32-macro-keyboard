@@ -546,10 +546,6 @@
     @apply mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-cap-edge pb-3;
   }
 
-  .page-heading-title {
-    @apply min-w-0 overflow-hidden;
-  }
-
   .page-heading h2 {
     @apply m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.35rem] tracking-[-0.01em];
   }
