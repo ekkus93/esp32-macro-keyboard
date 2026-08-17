@@ -516,10 +516,6 @@
     @apply m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.35rem] tracking-[-0.01em];
   }
 
-  .field-label {
-    @apply font-bold;
-  }
-
   .field-help {
     @apply mt-[0.3rem] block text-[0.8rem] font-normal text-legend-soft;
   }
@@ -528,31 +524,8 @@
     @apply font-bold text-alert;
   }
 
-  .timing-grid {
-    @apply grid gap-3 [grid-template-columns:repeat(2,minmax(0,1fr))];
-  }
-
-  .directive-toolbar,
   .form-actions {
     @apply mt-2 flex flex-wrap gap-[0.4rem];
-  }
-
-  /* Named-key directives are a keyboard's own row of keys, so they get a
-     real grid of uniform cells rather than flex-wrap's ragged,
-     label-width-dependent edge — a physical key is the same size regardless
-     of what's printed on it, and "BACKSPACE" sitting flush against "UP" at
-     two different heights read as unfinished, not deliberate. auto-fill
-     keeps it fluid to 320px. 0.5rem (8px) gap, not the tighter 0.4rem used
-     elsewhere: adjacent 44px touch targets need 8-12px of separation to
-     avoid mis-taps, and this grid is the densest cluster of controls on the
-     page. */
-  .directive-grid {
-    @apply mt-2 grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr))];
-  }
-
-  /* Directive inserts are the small keys on the board: monospace legends. */
-  .directive-grid button {
-    @apply min-h-[44px] px-[0.6rem] py-[0.4rem] font-mono text-[0.78rem];
   }
 
   /* Chord modifiers: pressable keycap toggles, not checkboxes -- a native
@@ -566,33 +539,6 @@
 
   .chord-modifier.active {
     @apply border-actuate-edge bg-actuate text-cap shadow-[inset_0_2px_0_var(--color-lamp)];
-  }
-
-  /* Insert delay and Insert chord are two independent tool groups, not a
-     sequence, so on tablet/desktop widths (UI_UX_SPEC_V2 13: "tablets and
-     desktops may use wider... layouts") they sit side by side instead of
-     stacking under the full shell width for no reason. Phones keep the
-     single-column stack. */
-  @media (width >= 42rem) {
-    .toolbar-columns {
-      @apply grid items-start gap-4 [grid-template-columns:repeat(2,minmax(0,1fr))];
-    }
-  }
-
-  .validation-card {
-    @apply rounded-keycap border border-l-[3px] border-cap-edge border-l-actuate bg-panel p-4;
-  }
-
-  .validation-card h3 {
-    @apply mt-0;
-  }
-
-  .validation-good {
-    @apply font-bold text-good;
-  }
-
-  .validation-bad {
-    @apply font-bold text-alert;
   }
 
   /* --- Send status --------------------------------------------------------- */

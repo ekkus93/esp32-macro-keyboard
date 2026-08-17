@@ -351,8 +351,22 @@ export function MacroEditorPage({
         </label>
 
         <div>
-          <span className="field-label">Insert directive</span>
-          <div aria-label="Named-key directives" className="directive-grid">
+          <span className="font-bold">Insert directive</span>
+          {/* Named-key directives are a keyboard's own row of keys, so they
+              get a real grid of uniform cells rather than flex-wrap's
+              ragged, label-width-dependent edge — a physical key is the same
+              size regardless of what's printed on it, and "BACKSPACE"
+              sitting flush against "UP" at two different heights read as
+              unfinished, not deliberate. auto-fill keeps it fluid to 320px.
+              0.5rem (8px) gap, not the tighter 0.4rem used elsewhere:
+              adjacent 44px touch targets need 8-12px of separation to avoid
+              mis-taps, and this grid is the densest cluster of controls on
+              the page. Directive inserts are the small keys on the board:
+              monospace legends. */}
+          <div
+            aria-label="Named-key directives"
+            className="mt-2 grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr))] [&_button]:min-h-[44px] [&_button]:px-[0.6rem] [&_button]:py-[0.4rem] [&_button]:font-mono [&_button]:text-[0.78rem]"
+          >
             {namedDirectives.map((directive) => (
               <button
                 key={directive.token}
@@ -382,8 +396,16 @@ export function MacroEditorPage({
             </button>
           </div>
 
-          <div className="toolbar-columns">
-            <div aria-label="Insert delay" className="directive-toolbar">
+          {/* Insert delay and Insert chord are two independent tool groups,
+              not a sequence, so on tablet/desktop widths (UI_UX_SPEC_V2 13:
+              "tablets and desktops may use wider... layouts") they sit side
+              by side instead of stacking under the full shell width for no
+              reason. Phones keep the single-column stack. */}
+          <div className="min-[42rem]:grid min-[42rem]:grid-cols-2 min-[42rem]:items-start min-[42rem]:gap-4">
+            <div
+              aria-label="Insert delay"
+              className="mt-2 flex flex-wrap gap-[0.4rem]"
+            >
               <label htmlFor="macro-editor-delay-ms">
                 Delay (ms)
                 <input
@@ -402,7 +424,10 @@ export function MacroEditorPage({
               </button>
             </div>
 
-            <div aria-label="Insert chord" className="directive-toolbar">
+            <div
+              aria-label="Insert chord"
+              className="mt-2 flex flex-wrap gap-[0.4rem]"
+            >
               {/* Toggle buttons, not checkboxes: a native checkbox is
                   ~22px, half the 44px touch-target floor, and wrapping it
                   in a taller label only makes the *row* legal, not the
@@ -455,7 +480,7 @@ export function MacroEditorPage({
 
         {/* Set-once metadata, not part of the insert workflow, so it moved
             below the tools that are. */}
-        <div className="timing-grid">
+        <div className="grid gap-3 [grid-template-columns:repeat(2,minmax(0,1fr))] max-[32rem]:[grid-template-columns:1fr]">
           <label htmlFor="macro-editor-key-press">
             Key-press duration (ms)
             <input
@@ -486,16 +511,19 @@ export function MacroEditorPage({
           </label>
         </div>
 
-        <div className="validation-card" aria-live="polite">
-          <h3>Validation</h3>
+        <div
+          aria-live="polite"
+          className="rounded-keycap border border-l-[3px] border-cap-edge border-l-actuate bg-panel p-4"
+        >
+          <h3 className="mt-0">Validation</h3>
           {compiled.ok ? (
             <>
-              <p className="validation-good">Macro is valid.</p>
+              <p className="font-bold text-good">Macro is valid.</p>
               <p>{estimatedDurationText(compiled)}</p>
             </>
           ) : (
             <>
-              <p className="validation-bad" role="alert">
+              <p className="font-bold text-alert" role="alert">
                 {compiled.error.message}
               </p>
               <p>
@@ -509,7 +537,7 @@ export function MacroEditorPage({
             </>
           )}
           {nameValid ? null : (
-            <p className="validation-bad" role="alert">
+            <p className="font-bold text-alert" role="alert">
               Name must be non-empty after trimming and at most{" "}
               {String(v2Limits.macroNameMaxBytes)} UTF-8 bytes.
             </p>
