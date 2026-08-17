@@ -438,14 +438,29 @@ layout-collapse bug. Do it as its own commit.
 
 ### Phase 3 — Shell chrome
 
-- [ ] **T3-1** `AppShellV2.tsx` — inline `.app-shell`, `.app-header`,
+- [x] **T3-1** `AppShellV2.tsx` — inline `.app-shell`, `.app-header`,
       `.app-header-title`, `.header-button`, `.bottom-nav`. Note
       `.app-header h1` and `.bottom-nav button` are descendant rules; move
       those utilities onto the elements.
-      *Evidence:*
-- [ ] **T3-2** `.bottom-nav button.active` — same literal-string treatment as
+      *Evidence:* `32aabe50`. **Forced together with T3-2** — same coupling
+      shape as T1-7: `.bottom-nav button.active` only worked via the
+      ancestor's literal `bottom-nav` class, so inlining one without the
+      other would have silently detached the active-tab styling. `.app-shell`
+      kept as a bare class (no CSS rule) — a third test dependency
+      (`tests/v2-app-v2-orientation.test.tsx:56`) that §8.1's audit missed,
+      caught by the full `npm run test` run, not by re-reading the plan.
+      `.app-shell`'s width formula extracted from its 3-way-combined
+      selector with `.standalone` (Phase 4, untouched). Merging the two
+      leftover `.standalone` rule blocks (now textually identical) was
+      required — stylelint's `no-duplicate-selectors` caught it before it
+      could hide as a false pass. Verified via structural locators at
+      1280px/800px (the `>=60rem` boundary), the dirty-state Save-snapshot
+      button, and the active nav button (clicked live) — all byte-identical.
+      `npm run test`: 544/544. `check-webapp.sh`: EXIT=0.
+- [x] **T3-2** `.bottom-nav button.active` — same literal-string treatment as
       T2-3.
-      *Evidence:*
+      *Evidence:* Done together with T3-1 — see its evidence. Not a separate
+      commit; the coupling made splitting them unsafe.
 - [ ] **T3-3** `LandscapeBlockSurface.tsx` — inline `.landscape-block` and its
       descendants, **keeping the `landscape-block` class as a test hook**
       (§8.1). The class stays on the element; its rule leaves CSS.
@@ -616,19 +631,24 @@ gates it regardless.
 
 ## 8. Risk register
 
-### 8.1 Two tests select on class names — do not remove these classes
+### 8.1 Tests that select on class names — do not remove these classes
 
 | Class | Selector site |
 | --- | --- |
 | `storage-summary` | `webapp/tests/browser/workflows/snapshots.mjs:24` — `document.querySelector(".storage-summary")` |
 | `landscape-block` | `webapp/tests/v2-app-v2-orientation.test.tsx:128` — `requiredElement(".landscape-block", HTMLElement)` |
+| `app-shell` | `webapp/tests/v2-app-v2-orientation.test.tsx:56` — `document.querySelector(".app-shell")`, proving the shell stays mounted (not reloaded) behind the landscape-block overlay |
 
-Keep both class names on their elements as test hooks even after their CSS
+Keep these class names on their elements as test hooks even after their CSS
 rules move to utilities. A class with no rule is free. Changing the tests
 instead is allowed but must be deliberate and called out in the commit — do
 not silently weaken an assertion to make a refactor pass.
 
-This is the complete list; no other test in `tests/` depends on a class name.
+**This list was wrong once already** — `app-shell` was found only by running
+the full `npm run test` suite after T3-1's edit, not by re-reading this
+section. Treat this table as a starting point, not a guarantee: run the full
+suite after every phase (§7.1/§7.3) rather than trusting this list is
+exhaustive. If you find another one, add it here.
 
 ### 8.2 Dynamically-constructed class names will silently break
 
