@@ -528,19 +528,6 @@
     @apply mt-2 flex flex-wrap gap-[0.4rem];
   }
 
-  /* Chord modifiers: pressable keycap toggles, not checkboxes -- a native
-     checkbox is ~22px, half the 44px touch-target floor, and the .active
-     state uses the same colour+inset-highlight pairing as .bottom-nav's
-     active tab (never colour alone) so "pressed" is legible without relying
-     on hue. */
-  .chord-modifier {
-    @apply min-w-[3.5rem] px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem];
-  }
-
-  .chord-modifier.active {
-    @apply border-actuate-edge bg-actuate text-cap shadow-[inset_0_2px_0_var(--color-lamp)];
-  }
-
   /* --- Send status --------------------------------------------------------- */
   .send-status {
     @apply my-3 rounded-keycap border-l-[3px] border-actuate bg-send-tint px-4 py-[0.8rem];

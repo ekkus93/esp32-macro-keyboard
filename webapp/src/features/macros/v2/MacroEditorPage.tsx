@@ -434,14 +434,19 @@ export function MacroEditorPage({
                   control itself. A pressable keycap-style toggle is both a
                   real 44px target and matches the same "physical key"
                   language as the directive buttons above, rather than
-                  mixing in a different control type. */}
+                  mixing in a different control type. The pressed state uses
+                  the same colour+inset-highlight pairing as .bottom-nav's
+                  active tab (never colour alone) so "pressed" is legible
+                  without relying on hue. */}
               {modifiers.map((modifier) => {
                 const pressed = chordModifiers.has(modifier);
                 return (
                   <button
                     aria-pressed={pressed}
                     className={
-                      pressed ? "chord-modifier active" : "chord-modifier"
+                      pressed
+                        ? "min-w-[3.5rem] px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem] border-actuate-edge bg-actuate text-cap shadow-[inset_0_2px_0_var(--color-lamp)]"
+                        : "min-w-[3.5rem] px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem]"
                     }
                     key={modifier}
                     onClick={() => {
