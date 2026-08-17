@@ -32,10 +32,13 @@
  * are kept exactly as they were (.app-header, .card, .status-badge, ...) so
  * every component file's className stays unchanged; what changed is that
  * each class's definition is now Tailwind-driven instead of raw CSS. The few
- * declarations that stay as plain CSS are ones Tailwind has no utility for
- * (pseudo-element `content`, `env(safe-area-inset-*)` calc() paddings) or
- * where preserving an existing hand-tuned cascade order mattered more than
- * uniformity (noted inline where that applies).
+ * declarations that stay as plain CSS are ones Tailwind genuinely has no
+ * utility for (`font-synthesis`, the `font` shorthand, the global
+ * prefers-reduced-motion `!important` reset on `*`), or ones an arbitrary
+ * value could reach (`env(safe-area-inset-*)` calc() paddings, `min()`
+ * widths) but converting would only wrap the same raw expression in bracket
+ * syntax for no real benefit -- no token, no reuse, no variant ever applies
+ * to it (noted inline where that applies).
  */
 
 @theme {
@@ -135,11 +138,7 @@
      the cap down by the same amount, so the control's top face travels but
      the footprint does not move. */
   button {
-    @apply min-h-[48px] rounded-keycap border-0 border-b-[3px] border-cap-edge bg-cap px-4 py-[0.7rem] font-bold tracking-[0.01em] text-legend;
-
-    transition:
-      transform 90ms ease,
-      border-bottom-width 90ms ease;
+    @apply min-h-[48px] rounded-keycap border-0 border-b-[3px] border-cap-edge bg-cap px-4 py-[0.7rem] font-bold tracking-[0.01em] text-legend transition-[translate,border-bottom-width] duration-[90ms] ease-[ease];
   }
 
   .primary {
@@ -179,15 +178,17 @@
     @apply outline outline-[3px] outline-offset-2 outline-lamp;
   }
 
-  /* The press itself. Kept as a plain, explicitly-ordered rule rather than
-     folded into the `button` @apply above: it has to win over both the base
-     keycap rule and the .primary/.danger colour variants regardless of which
-     one a given button also uses, and this ordering (declared last) is what
-     makes that happen -- the same reason it was ordered last before this
-     file used Tailwind (stylelint no-descending-specificity). */
+  /* The press itself. Kept as its own rule rather than folded into the
+     `button` @apply above: it has to win over both the base keycap rule and
+     the .primary/.danger colour variants regardless of which one a given
+     button also uses, and this ordering (declared last) is what makes that
+     happen -- the same reason it was ordered last before this file used
+     Tailwind (stylelint no-descending-specificity). translate-y, not the
+     `transform` property: the transition above lists `translate` so the two
+     stay in sync -- a leftover `transform` here would silently stop
+     animating on press. */
   button:active:not(:disabled) {
-    transform: translateY(2px);
-    border-bottom-width: 1px;
+    @apply translate-y-[2px] border-b;
   }
 
   label {
@@ -195,9 +196,7 @@
   }
 
   code {
-    @apply tabular-nums;
-
-    overflow-wrap: anywhere;
+    @apply tabular-nums wrap-anywhere;
   }
 
   /* --- Machine data -------------------------------------------------------- */
@@ -425,15 +424,17 @@
   /* No position: sticky here -- .app-shell is a locked-height flex column
      (#main-content is the one scrolling region within it), so this is simply
      the last flex child and is always visible without any scroll-tracking. */
-  .bottom-nav {
-    @apply grid gap-[0.4rem] border-t border-cap-edge bg-shell px-[0.6rem] pt-[0.6rem];
 
-    /* minmax(0, 1fr), not a bare 1fr: a bare `1fr` track's implied minimum is
-       its content's min-content width, so it refuses to shrink below that —
-       at narrow viewports the four buttons (bold/uppercase/letter-spaced
-       text such as "Settings") force this row wider than the viewport
-       itself. */
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* grid-cols-4, not a hand-rolled grid-template-columns: Tailwind's default
+     for that utility is already `repeat(4, minmax(0, 1fr))` -- minmax(0, 1fr)
+     over a bare 1fr matters because a bare `1fr` track's implied minimum is
+     its content's min-content width, so it refuses to shrink below that — at
+     narrow viewports the four buttons (bold/uppercase/letter-spaced text
+     such as "Settings") would force this row wider than the viewport
+     itself. */
+  .bottom-nav {
+    @apply grid grid-cols-4 gap-[0.4rem] border-t border-cap-edge bg-shell px-[0.6rem] pt-[0.6rem];
+
     padding-bottom: calc(0.6rem + env(safe-area-inset-bottom));
   }
 
@@ -461,9 +462,7 @@
   }
 
   .status-badge::before {
-    @apply h-[0.6rem] w-[0.6rem] rounded-full bg-current;
-
-    content: "";
+    @apply h-[0.6rem] w-[0.6rem] rounded-full bg-current content-[''];
   }
 
   /* Lit: filled disc with a halo. */
