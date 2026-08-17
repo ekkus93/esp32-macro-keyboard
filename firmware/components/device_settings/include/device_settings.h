@@ -17,6 +17,12 @@ app_error_code_t device_settings_replace(const app_v2_device_settings_t *setting
                                          bool *out_changed);
 app_error_code_t device_settings_set_station(const char *ssid, const char *passphrase,
                                              bool *out_changed);
+/* SPEC_V2.md §12.4: the physical console's set-ap-passphrase command.
+ * Replaces the device's own access-point passphrase directly, without any
+ * other settings field, rejecting a passphrase outside the same 8-63 byte
+ * bound `PUT /api/v1/settings`'s accessPoint.passphrase field enforces. */
+app_error_code_t device_settings_set_access_point_passphrase(const char *passphrase,
+                                                             bool *out_changed);
 app_error_code_t device_settings_reset_noncredential(app_v2_device_settings_t *out_settings,
                                                      bool *out_changed);
 /* SPEC_V2.md §11.4 "Factory reset": replaces the stored record with the

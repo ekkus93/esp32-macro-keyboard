@@ -121,4 +121,16 @@ typedef struct {
 web_change_password_outcome_t web_change_password_handle(char *body, size_t body_capacity,
                                                          const web_settings_ops_t *ops);
 
+/* Physical-console counterpart to web_change_password_handle(): replaces the
+ * administrator password without verifying a current one, through the same
+ * transactional path (durable commit before RAM activation, RAM activation
+ * before session invalidation, session invalidation last). Used by the
+ * serial console's set-admin-password command (SPEC_V2 12.4) -- possession
+ * of the board is its own authorization there, so there is no
+ * current-password step to verify. Never logs or stores `new_password_view`
+ * beyond deriving its PBKDF2 material. */
+web_change_password_outcome_t
+web_change_password_apply_without_verification(app_v2_string_view_t new_password_view,
+                                               const web_settings_ops_t *ops);
+
 #endif

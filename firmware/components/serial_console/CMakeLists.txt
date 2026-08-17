@@ -11,6 +11,7 @@ idf_component_register(
     macro_executor
     wifi_ap
     device_settings
+    web_server
     console
     esp_driver_uart
 )

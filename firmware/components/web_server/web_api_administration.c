@@ -3,14 +3,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 
 #include "app_error.h"
 #include "auth.h"
 #include "device_controls.h"
-#include "device_settings.h"
-#include "device_settings_v2.h"
-#include "setup_contract_v2.h"
 #include "web_api_core.h"
 #include "web_api_handler_common.h"
 #include "web_api_response.h"
@@ -18,8 +14,8 @@
 #include "web_device_actions.h"
 #include "web_diagnostics.h"
 #include "web_http_status.h"
-#include "web_server_password_record.h"
 #include "web_settings.h"
+#include "web_settings_production_ops.h"
 
 /* The request policy layer (web_request_policy.c) has already validated (and
  * thereby refreshed the idle deadline of) call->session_token before
@@ -47,111 +43,10 @@ static app_error_code_t handle_session(const web_api_call_t *call, web_api_respo
 /* -------------------------------------------------------------------------
  * Shared device_settings / auth ops (settings routes and device actions
  * both need to read settings and, for two of them, verify a password
- * against the stored credential).
+ * against the stored credential). The password-record wiring itself now
+ * lives in web_settings_production_ops() (web_settings.c) so the physical
+ * console's set-admin-password command can reuse it without duplicating it.
  * ---------------------------------------------------------------------- */
-
-static void secure_zero_local(void *memory, size_t length) {
-    volatile uint8_t *bytes = memory;
-    for (size_t index = 0U; index < length; ++index) {
-        bytes[index] = 0U;
-    }
-}
-
-static app_error_code_t settings_ops_read(void *context, app_v2_device_settings_t *out_settings) {
-    (void)context;
-    return device_settings_read(out_settings);
-}
-
-static app_error_code_t
-settings_ops_replace(void *context, const app_v2_device_settings_t *settings, bool *out_changed) {
-    (void)context;
-    return device_settings_replace(settings, out_changed);
-}
-
-static app_error_code_t settings_ops_password_verify(void *context, const char *password,
-                                                     size_t password_length,
-                                                     const app_v2_device_settings_t *settings,
-                                                     bool *out_matches) {
-    (void)context;
-    auth_password_record_t record = {.iterations = settings->password_iterations};
-    memcpy(record.salt, settings->password_salt, sizeof(record.salt));
-    memcpy(record.hash, settings->password_verifier, sizeof(record.hash));
-    const app_error_code_t result =
-        auth_password_verify(password, password_length, &record, out_matches);
-    secure_zero_local(&record, sizeof(record));
-    return result;
-}
-
-/* Bridges the V2 password-verifier path in the auth component to the setup
- * contract's material shape, mirroring web_server_setup.c's
- * setup_password_create() -- used here for change-password rather than
- * initial setup. AUTH_PBKDF2_ITERATIONS is the hardware-measured value
- * frozen by V2-041 (see auth.h). */
-static app_error_code_t
-settings_ops_password_create(void *context, const char *password, size_t password_length,
-                             app_v2_setup_password_material_t *out_material) {
-    (void)context;
-    memset(out_material, 0, sizeof(*out_material));
-    auth_password_record_t record = {0};
-    const app_error_code_t result = auth_password_create(password, password_length, &record);
-    if (result != APP_ERROR_NONE) {
-        secure_zero_local(&record, sizeof(record));
-        return result;
-    }
-    if (record.iterations != AUTH_PBKDF2_ITERATIONS) {
-        /* Defensive: the auth component's default iteration count drifted
-         * from what V2 change-password expects. Fail closed rather than
-         * store material the login floor check would reject later. */
-        secure_zero_local(&record, sizeof(record));
-        return APP_ERROR_INTERNAL;
-    }
-    out_material->credential_version = APP_V2_CREDENTIAL_VERSION;
-    out_material->password_algorithm_version = APP_V2_PASSWORD_ALGORITHM_VERSION;
-    out_material->password_iterations = record.iterations;
-    memcpy(out_material->password_salt, record.salt, sizeof(out_material->password_salt));
-    memcpy(out_material->password_verifier, record.hash, sizeof(out_material->password_verifier));
-    secure_zero_local(&record, sizeof(record));
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t settings_ops_password_transition_begin(void *context) {
-    (void)context;
-    return web_server_password_transition_begin();
-}
-
-static void settings_ops_password_activate(void *context,
-                                           const app_v2_device_settings_t *settings) {
-    (void)context;
-    auth_password_record_t record = {.iterations = settings->password_iterations};
-    memcpy(record.salt, settings->password_salt, sizeof(record.salt));
-    memcpy(record.hash, settings->password_verifier, sizeof(record.hash));
-    web_server_password_record_replace(&record);
-    secure_zero_local(&record, sizeof(record));
-}
-
-static void settings_ops_password_transition_end(void *context) {
-    (void)context;
-    web_server_password_transition_end();
-}
-
-static app_error_code_t settings_ops_invalidate_all_sessions(void *context) {
-    (void)context;
-    return auth_session_logout_all();
-}
-
-static web_settings_ops_t settings_ops(void) {
-    return (web_settings_ops_t){
-        .context = NULL,
-        .settings_read = settings_ops_read,
-        .settings_replace = settings_ops_replace,
-        .password_verify = settings_ops_password_verify,
-        .password_create = settings_ops_password_create,
-        .password_transition_begin = settings_ops_password_transition_begin,
-        .password_activate = settings_ops_password_activate,
-        .password_transition_end = settings_ops_password_transition_end,
-        .invalidate_all_sessions = settings_ops_invalidate_all_sessions,
-    };
-}
 
 static app_error_code_t device_actions_ops_restart(void *context) {
     (void)context;
@@ -169,10 +64,11 @@ static device_controls_factory_reset_outcome_t device_actions_ops_factory_reset(
 }
 
 static web_device_actions_ops_t device_actions_ops(void) {
+    const web_settings_ops_t settings = web_settings_production_ops();
     return (web_device_actions_ops_t){
         .context = NULL,
-        .settings_read = settings_ops_read,
-        .password_verify = settings_ops_password_verify,
+        .settings_read = settings.settings_read,
+        .password_verify = settings.password_verify,
         .restart = device_actions_ops_restart,
         .reset_settings = device_actions_ops_reset_settings,
         .factory_reset = device_actions_ops_factory_reset,
@@ -193,7 +89,7 @@ static bool call_has_body(const web_api_call_t *call) {
  * ---------------------------------------------------------------------- */
 
 static app_error_code_t handle_settings_get(web_api_response_t *response) {
-    const web_settings_ops_t ops = settings_ops();
+    const web_settings_ops_t ops = web_settings_production_ops();
     char *json = NULL;
     const web_settings_get_outcome_t outcome = web_settings_get_handle(&ops, &json);
     app_error_code_t result;
@@ -263,7 +159,7 @@ static app_error_code_t handle_settings_put(const web_api_call_t *call,
         return web_api_handler_error(response, APP_ERROR_INVALID_ARGUMENT,
                                      "invalid settings update request", NULL);
     }
-    const web_settings_ops_t ops = settings_ops();
+    const web_settings_ops_t ops = web_settings_production_ops();
     char *json = NULL;
     const web_settings_put_outcome_t outcome =
         web_settings_put_handle((char *)call->body, call->body_length + 1U, &ops, &json);
@@ -344,7 +240,7 @@ static app_error_code_t handle_change_password(const web_api_call_t *call,
         return web_api_handler_error(response, APP_ERROR_INVALID_ARGUMENT,
                                      "invalid change-password request", NULL);
     }
-    const web_settings_ops_t ops = settings_ops();
+    const web_settings_ops_t ops = web_settings_production_ops();
     const web_change_password_outcome_t outcome =
         web_change_password_handle((char *)call->body, call->body_length + 1U, &ops);
     if (outcome.result != WEB_CHANGE_PASSWORD_OK) {

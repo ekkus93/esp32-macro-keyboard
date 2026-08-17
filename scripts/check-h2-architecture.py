@@ -40,17 +40,30 @@ administration = read("firmware/components/web_server/web_api_administration.c")
 if "refresh_password_record_cache" in administration:
     fail("best-effort password-record NVS refresh was reintroduced")
 for required in (
-    "web_server_password_transition_begin()",
-    "web_server_password_record_replace(&record)",
-    "web_server_password_transition_end()",
-    ".password_transition_begin = settings_ops_password_transition_begin",
-    ".password_activate = settings_ops_password_activate",
-    ".password_transition_end = settings_ops_password_transition_end",
     "WEB_CHANGE_PASSWORD_COMMITTED_SESSION_INVALIDATION_INCOMPLETE",
     "APP_ERROR_AUTH_STATE_INCOMPLETE",
     "password change already in progress",
 ):
     if required not in administration:
+        fail(f"H2 production change-password binding is missing: {required}")
+
+# The concrete auth/device_settings/web_server_password_record wiring lives in
+# web_settings_production_ops.c, not web_api_administration.c: both that HTTP
+# route and the physical console's set-admin-password command call
+# web_settings_production_ops() so they drive the exact same hardened
+# transaction rather than each constructing their own copy.
+production_ops = read("firmware/components/web_server/web_settings_production_ops.c")
+if "refresh_password_record_cache" in production_ops:
+    fail("best-effort password-record NVS refresh was reintroduced")
+for required in (
+    "web_server_password_transition_begin()",
+    "web_server_password_record_replace(&record)",
+    "web_server_password_transition_end()",
+    ".password_transition_begin = production_password_transition_begin",
+    ".password_activate = production_password_activate",
+    ".password_transition_end = production_password_transition_end",
+):
+    if required not in production_ops:
         fail(f"H2 production change-password binding is missing: {required}")
 
 partial_commit_message = (
@@ -110,18 +123,49 @@ require_ordered(
     "transaction",
 )
 
+
+# Round 2: change_password_verify_current() and change_password_create_candidate()
+# now delegate their read/validate and material-derivation steps to two
+# helpers shared with the physical console's set-admin-password path
+# (web_change_password_apply_without_verification()), so the settings_read/
+# password_create calls this guard originally found directly in those two
+# functions now live one level down.
+load_helper = function_body(settings, "change_password_load_current_and_validate(")
+require_ordered(
+    load_helper,
+    ("ops->settings_read(ops->context, current)",),
+    "read/validate",
+)
+
 verify_helper = function_body(settings, "change_password_verify_current(")
 require_ordered(
     verify_helper,
     (
-        "ops->settings_read(ops->context, current)",
+        "change_password_load_current_and_validate(",
         "ops->password_verify(ops->context, current_password_view.data",
     ),
     "read/verify",
 )
 
+build_helper = function_body(settings, "change_password_build_candidate(")
+require_ordered(build_helper, ("ops->password_create(",), "credential creation")
+
 create_helper = function_body(settings, "change_password_create_candidate(")
-require_ordered(create_helper, ("ops->password_create(",), "credential creation")
+require_ordered(create_helper, ("change_password_build_candidate(",), "credential creation wrapper")
+
+# The console's counterpart must drive the exact same shared helpers -- not a
+# parallel reimplementation -- and in the same order the HTTP route does.
+console_apply = function_body(settings, "web_change_password_apply_without_verification(")
+require_ordered(
+    console_apply,
+    (
+        "ops->password_transition_begin(ops->context)",
+        "change_password_load_current_and_validate(",
+        "change_password_build_candidate(",
+        "change_password_commit_candidate(",
+    ),
+    "console transaction",
+)
 
 commit_helper = function_body(settings, "change_password_commit_candidate(")
 require_ordered(

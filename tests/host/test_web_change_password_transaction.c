@@ -33,6 +33,7 @@ typedef struct {
     unsigned int replace_calls;
     unsigned int activate_calls;
     unsigned int invalidate_calls;
+    unsigned int verify_calls;
 } h2_fixture_t;
 
 static void copy_record_to_settings(const auth_password_record_t *record,
@@ -94,6 +95,7 @@ static app_error_code_t h2_password_verify(void *context, const char *password,
                                            const app_v2_device_settings_t *settings,
                                            bool *out_matches) {
     h2_fixture_t *fixture = context;
+    ++fixture->verify_calls;
     auth_password_record_t record = record_from_settings(settings);
     const app_error_code_t result = auth_core_password_verify(
         &fixture->auth_core, password, password_length, &record, out_matches);
@@ -350,10 +352,68 @@ static void test_postcommit_invalidation_failure_names_new_authority_and_retry_s
                          auth_core_session_validate(&fixture.auth_core, second.session_token));
 }
 
+/* Round 2 F-014-adjacent: the physical console's set-admin-password path
+ * (SPEC_V2 12.4) drives the exact same transaction as the HTTP route, minus
+ * the current-password verification step. */
+static web_change_password_outcome_t console_change_password(h2_fixture_t *fixture,
+                                                             const char *new_password) {
+    const app_v2_string_view_t new_password_view = {
+        .data = new_password,
+        .length = strlen(new_password),
+    };
+    const web_settings_ops_t ops = h2_operations(fixture);
+    return web_change_password_apply_without_verification(new_password_view, &ops);
+}
+
+static void test_console_apply_without_verification_is_immediately_coherent(void) {
+    static const char old_password[] = "old-example-password";
+    static const char new_password[] = "new-example-password";
+    h2_fixture_t fixture;
+    init_h2_fixture(&fixture, old_password);
+    const auth_session_view_t first = create_session(&fixture);
+    const auth_session_view_t second = create_session(&fixture);
+
+    const web_change_password_outcome_t outcome = console_change_password(&fixture, new_password);
+
+    TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_OK, outcome.result);
+    /* The whole point of this path: no current password is ever checked. */
+    TEST_CHECK_EQ_U64(0U, fixture.verify_calls);
+    TEST_CHECK(!fixture.transition_active);
+    TEST_CHECK_EQ_U64(1U, fixture.replace_calls);
+    TEST_CHECK_EQ_U64(1U, fixture.activate_calls);
+    TEST_CHECK_EQ_U64(1U, fixture.invalidate_calls);
+    TEST_CHECK(!active_password_matches(&fixture, old_password));
+    TEST_CHECK(active_password_matches(&fixture, new_password));
+    TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
+                         auth_core_session_validate(&fixture.auth_core, first.session_token));
+    TEST_CHECK_APP_ERROR(APP_ERROR_AUTH_REQUIRED,
+                         auth_core_session_validate(&fixture.auth_core, second.session_token));
+}
+
+static void test_console_apply_rejects_invalid_new_password_without_verifying(void) {
+    static const char old_password[] = "old-example-password";
+    static const char too_short[] = "short";
+    h2_fixture_t fixture;
+    init_h2_fixture(&fixture, old_password);
+    const auth_session_view_t session = create_session(&fixture);
+
+    const web_change_password_outcome_t outcome = console_change_password(&fixture, too_short);
+
+    TEST_CHECK_EQ_INT(WEB_CHANGE_PASSWORD_INVALID_NEW_PASSWORD, outcome.result);
+    TEST_CHECK_EQ_U64(0U, fixture.verify_calls);
+    TEST_CHECK_EQ_U64(0U, fixture.replace_calls);
+    TEST_CHECK(!fixture.transition_active);
+    TEST_CHECK(active_password_matches(&fixture, old_password));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
+                         auth_core_session_validate(&fixture.auth_core, session.session_token));
+}
+
 int main(void) {
     test_success_is_immediately_coherent();
     test_precommit_failures_leave_old_authority_and_retry_cleanly();
     test_postcommit_invalidation_failure_names_new_authority_and_retry_semantics();
+    test_console_apply_without_verification_is_immediately_coherent();
+    test_console_apply_rejects_invalid_new_password_without_verifying();
     puts("H2 password transaction integration tests passed");
     return EXIT_SUCCESS;
 }

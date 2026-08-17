@@ -211,6 +211,68 @@ static void test_station_update_allows_open_network_empty_passphrase(void) {
     TEST_CHECK_EQ_INT(APP_V2_SETTINGS_OK, app_v2_device_settings_validate(&loaded));
 }
 
+/* SPEC_V2 12.4: the physical console's set-ap-passphrase command. Unlike
+ * station credentials, the device's own access-point passphrase must never
+ * be empty (no open-AP fallback ever), so this asserts the boundary the
+ * station test above deliberately doesn't have to. */
+static void test_ap_passphrase_update_replaces_only_the_passphrase(void) {
+    fake_settings_store_t fake;
+    device_settings_core_t core;
+    init_core(&core, &fake);
+    const app_v2_device_settings_t seeded = configured_settings();
+    seed_durable(&fake, &seeded);
+
+    bool changed = false;
+    const app_error_code_t update = device_settings_core_set_access_point_passphrase(
+        &core, "new-example-ap-passphrase", &changed);
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, update);
+    TEST_CHECK(changed);
+    TEST_CHECK_EQ_U64(1U, fake.replace_calls);
+
+    app_v2_device_settings_t loaded = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_load(&core, &loaded));
+    TEST_CHECK_EQ_STRING("new-example-ap-passphrase", loaded.ap_passphrase);
+    /* Nothing else moved. */
+    TEST_CHECK_EQ_STRING(seeded.ap_ssid, loaded.ap_ssid);
+    TEST_CHECK_EQ_STRING(seeded.device_name, loaded.device_name);
+    TEST_CHECK_EQ_STRING(seeded.station_ssid, loaded.station_ssid);
+    TEST_CHECK_EQ_STRING(seeded.station_passphrase, loaded.station_passphrase);
+    TEST_CHECK_EQ_INT(APP_V2_SETTINGS_OK, app_v2_device_settings_validate(&loaded));
+}
+
+static void test_ap_passphrase_update_rejects_out_of_bounds_length(void) {
+    fake_settings_store_t fake;
+    device_settings_core_t core;
+    init_core(&core, &fake);
+    const app_v2_device_settings_t seeded = configured_settings();
+    seed_durable(&fake, &seeded);
+
+    bool changed = true;
+    /* 7 bytes: one short of APP_V2_WIFI_PASSPHRASE_MIN_BYTES. */
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        device_settings_core_set_access_point_passphrase(&core, "1234567", &changed));
+    TEST_CHECK(!changed);
+    /* Empty is exactly as invalid here as it is valid for a station -- the
+     * device's own AP must never be open. */
+    changed = true;
+    TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
+                         device_settings_core_set_access_point_passphrase(&core, "", &changed));
+    TEST_CHECK(!changed);
+    /* 64 bytes: one past APP_V2_WIFI_PASSPHRASE_MAX_BYTES. */
+    changed = true;
+    TEST_CHECK_APP_ERROR(
+        APP_ERROR_INVALID_ARGUMENT,
+        device_settings_core_set_access_point_passphrase(
+            &core, "0123456789012345678901234567890123456789012345678901234567890123", &changed));
+    TEST_CHECK(!changed);
+    TEST_CHECK_EQ_U64(0U, fake.replace_calls);
+
+    app_v2_device_settings_t loaded = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_load(&core, &loaded));
+    TEST_CHECK_EQ_STRING(seeded.ap_passphrase, loaded.ap_passphrase);
+}
+
 static void test_load_valid_and_reject_corruption(void) {
     fake_settings_store_t fake;
     device_settings_core_t core;
@@ -522,6 +584,8 @@ int main(void) {
     test_missing_record_uses_defaults_without_write();
     test_station_update_is_atomic_and_allowed_before_setup();
     test_station_update_allows_open_network_empty_passphrase();
+    test_ap_passphrase_update_replaces_only_the_passphrase();
+    test_ap_passphrase_update_rejects_out_of_bounds_length();
     test_load_valid_and_reject_corruption();
     test_replace_and_failure_preservation();
     test_uncertain_replace_invalidates_cached_settings();

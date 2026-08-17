@@ -945,9 +945,10 @@ a partial record and silently discard unrelated valid settings.
 ### 12.4 Serial console
 
 The serial console is a trusted development surface. Possession of the board is
-the authorization for `confirm`, `cancel`, network-configuration commands, and
-the explicit `setup-code` command while the device is unprovisioned. The
-`setup-code` command is the sole exception to the general no-secret-output rule:
+the authorization for `confirm`, `cancel`, network-configuration commands,
+`set-admin-password`, `set-ap-passphrase`, and the explicit `setup-code`
+command while the device is unprovisioned. The `setup-code` command is the
+sole exception to the general no-secret-output rule:
 it reveals only the current eight-digit one-time setup code, only on the physical
 UART console, and only until that setup session is consumed or the device
 reboots. Because ESP-IDF can mirror ordinary standard output to a secondary
@@ -963,6 +964,38 @@ prior station configuration, a physically present operator may configure a new
 station afterward, and first-run setup MUST preserve that newly configured
 station because setup does not modify station fields. Persistence failure MUST
 be reported as command failure rather than as a successful durable connection.
+
+`set-admin-password <password>` and `set-ap-passphrase <passphrase>` let a
+physically present operator directly replace the administrator password
+verifier or the device's own access-point passphrase, without requiring the
+current value, on either a provisioned or unprovisioned device. This is a
+deliberate console-trust extension beyond `wifi-connect`'s existing
+unprovisioned-only exception: physical UART possession is treated as
+sufficient authorization on its own, matching the trust level `confirm` and
+`cancel` already carry. Rationale: an operator who already holds the board can
+achieve the same end state today through a full flash erase and
+re-provisioning cycle (destroying all other stored data in the process);
+these commands provide an equivalent, narrower-blast-radius recovery path for
+a lost credential.
+
+- `set-admin-password` validates the new password against the same length
+  bounds `POST /api/v1/settings/change-password` enforces (12-128 bytes),
+  rejects an invalid value without changing anything, and otherwise replaces
+  the administrator password through the same transactional path as that
+  HTTP route (durable commit before RAM activation, RAM activation before
+  session invalidation) and invalidates every active session on success. It
+  requires no current password and no additional confirmation step beyond
+  the command itself.
+- `set-ap-passphrase` validates the new passphrase against the same bounds
+  `PUT /api/v1/settings`'s `accessPoint.passphrase` field enforces (8-63
+  bytes), persists it through the authoritative settings record, and
+  requires a restart to take effect -- identical to a passphrase change made
+  through that HTTP route.
+- Neither command discloses the value it just set, or any other credential,
+  back over the console -- only whether the command succeeded.
+- Both commands are logged at the operational level (command name and
+  success/failure only, per the existing no-secret-output rule) so a change
+  made this way is not silent to anyone later inspecting device logs.
 
 Before distribution to third parties, the interactive development console MUST
 be excluded or redesigned for the shipped product.

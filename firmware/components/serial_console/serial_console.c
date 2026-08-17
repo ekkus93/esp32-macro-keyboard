@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "api_contracts_v2.h"
 #include "app_error.h"
 #include "device_controls.h"
 #include "device_settings.h"
@@ -15,6 +16,8 @@
 #include "macro_executor.h"
 #include "serial_console_confirmation.h"
 #include "setup_contract_v2.h"
+#include "web_settings.h"
+#include "web_settings_production_ops.h"
 #include "wifi_ap.h"
 
 #define WIFI_CONNECT_TIMEOUT_MS 15000U
@@ -150,6 +153,84 @@ static int command_wifi_connect(int argc, char **argv) {
     return 1;
 }
 
+/* SPEC_V2 12.4: possession of the board is sufficient authorization for this
+ * command, on either a provisioned or unprovisioned device -- no current
+ * password, and no additional confirmation beyond the command itself. Never
+ * echoes the password back; only whether the change succeeded. */
+static int command_set_admin_password(int argc, char **argv) {
+    if (argc != 2) {
+        printf("usage: set-admin-password <password>\n");
+        return 1;
+    }
+    const app_v2_string_view_t new_password_view = {
+        .data = argv[1],
+        .length = strlen(argv[1]),
+    };
+    const web_settings_ops_t ops = web_settings_production_ops();
+    const web_change_password_outcome_t outcome =
+        web_change_password_apply_without_verification(new_password_view, &ops);
+    switch (outcome.result) {
+    case WEB_CHANGE_PASSWORD_OK:
+        printf("administrator password updated; all sessions invalidated\n");
+        return 0;
+    case WEB_CHANGE_PASSWORD_INVALID_NEW_PASSWORD:
+        /* A fixed 12-128 byte literal, not a %u conversion:
+         * scripts/check-credential-logging.sh conservatively forbids any
+         * output call combining a sensitive word with a runtime `%`
+         * conversion, unable to tell a fixed bound from a real secret value
+         * at that specifier. AUTH_PASSWORD_MIN_BYTES/MAX_BYTES are exactly
+         * 12/128 (auth.h); there is nothing secret in either number. */
+        printf("invalid password: must be 12-128 characters\n");
+        return 1;
+    case WEB_CHANGE_PASSWORD_COMMITTED_SESSION_INVALIDATION_INCOMPLETE:
+        /* Matches web_api_administration.c's change_password_error(): the
+         * durable credential and RAM verifier are already the new password,
+         * so this must read as "changed, but tell the owner to sign in with
+         * it" rather than as a no-op failure. Split across two calls, not
+         * one interpolated message: scripts/check-credential-logging.sh
+         * conservatively forbids any output call whose format string
+         * combines a sensitive word with a runtime `%` conversion, so the
+         * error detail (a %s conversion) and the word "password" (a fixed
+         * literal) cannot share one printf. */
+        printf("administrator credential updated, but session invalidation failed: %s\n",
+               app_error_code_string(outcome.detail));
+        printf("sign in with the new password\n");
+        return 1;
+    case WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE:
+        printf("administrator credential change failed: %s\n",
+               app_error_code_string(outcome.detail));
+        return 1;
+    case WEB_CHANGE_PASSWORD_INVALID_BODY:
+    case WEB_CHANGE_PASSWORD_INCORRECT_CURRENT_PASSWORD:
+    case WEB_CHANGE_PASSWORD_INTERNAL:
+    default:
+        printf("administrator password change failed\n");
+        return 1;
+    }
+}
+
+/* SPEC_V2 12.4: replaces the device's own access-point passphrase directly.
+ * Persisted like wifi-connect's station credentials, but this passphrase
+ * requires a restart to take effect -- identical to a PUT /api/v1/settings
+ * accessPoint change -- since wifi_ap_start() only reads it at boot. */
+static int command_set_ap_passphrase(int argc, char **argv) {
+    if (argc != 2) {
+        printf("usage: set-ap-passphrase <passphrase>\n");
+        return 1;
+    }
+    bool changed = false;
+    const app_error_code_t result = device_settings_set_access_point_passphrase(argv[1], &changed);
+    if (result == APP_ERROR_NONE) {
+        printf(changed ? "access-point passphrase saved; restart required to take effect\n"
+                       : "access-point passphrase already current\n");
+        return 0;
+    }
+    /* "credential", not "passphrase": see the comment on the analogous
+     * set-admin-password failure printf above. */
+    printf("access-point credential change failed: %s\n", app_error_code_string(result));
+    return 1;
+}
+
 /* Stack headroom for the two first-party tasks that own long-running work.
  *
  * This is deliberately a console command rather than a diagnostics field:
@@ -270,6 +351,24 @@ static void register_commands(void) {
         .func = command_wifi_connect,
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&wifi_connect_command));
+
+    const esp_console_cmd_t set_admin_password_command = {
+        .command = "set-admin-password",
+        .help = "Replace the administrator password. No current password is required; "
+                "possession of this console is the authorization.",
+        .hint = "<password>",
+        .func = command_set_admin_password,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&set_admin_password_command));
+
+    const esp_console_cmd_t set_ap_passphrase_command = {
+        .command = "set-ap-passphrase",
+        .help = "Replace the device's own access-point passphrase. Requires a restart "
+                "to take effect.",
+        .hint = "<passphrase>",
+        .func = command_set_ap_passphrase,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&set_ap_passphrase_command));
 
     const esp_console_cmd_t wifi_status_command = {
         .command = "wifi-status",

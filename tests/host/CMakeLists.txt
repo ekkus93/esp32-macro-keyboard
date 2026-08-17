@@ -288,6 +288,7 @@ target_include_directories(
     web_settings_tests
     PRIVATE ../../firmware/components/macro_model/include
             ../../firmware/components/app_contracts_v2/include ../../firmware/components/web_server
+            ../../firmware/components/web_server/include
 )
 target_link_libraries(web_settings_tests PRIVATE PkgConfig::CJSON)
 register_host_test(web_settings_tests web_settings web)
@@ -467,6 +468,7 @@ add_executable(
     ../../firmware/components/web_server/web_api_handler_common.c
     ../../firmware/components/web_server/web_auth_routes.c
     ../../firmware/components/web_server/web_settings.c
+    ../../firmware/components/web_server/web_settings_production_ops.c
     ../../firmware/components/web_server/web_device_actions.c
     ../../firmware/components/web_server/web_cookie.c
     ../../firmware/components/web_server/web_server_common.c
@@ -541,6 +543,7 @@ add_executable(
     ../../firmware/components/web_server/web_api_handler_common.c
     ../../firmware/components/web_server/web_auth_routes.c
     ../../firmware/components/web_server/web_settings.c
+    ../../firmware/components/web_server/web_settings_production_ops.c
     ../../firmware/components/web_server/web_device_actions.c
     ../../firmware/components/web_server/web_cookie.c
     ../../firmware/components/web_server/web_server_common.c
@@ -1078,6 +1081,7 @@ add_executable(
     ../../firmware/components/web_server/web_api_handler_common.c
     ../../firmware/components/web_server/web_auth_routes.c
     ../../firmware/components/web_server/web_settings.c
+    ../../firmware/components/web_server/web_settings_production_ops.c
     ../../firmware/components/web_server/web_device_actions.c
     ../../firmware/components/web_server/web_cookie.c
     ../../firmware/components/app_contracts_v2/settings_contract_v2.c

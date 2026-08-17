@@ -23,6 +23,7 @@ idf_component_register(
     "web_status_limits.c"
     "web_auth_routes.c"
     "web_settings.c"
+    "web_settings_production_ops.c"
     "web_device_actions.c"
     "web_cookie.c"
     "web_content.c"

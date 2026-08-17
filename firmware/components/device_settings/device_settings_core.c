@@ -58,7 +58,7 @@ static app_error_code_t encode_settings(const app_v2_device_settings_t *settings
     return map_candidate_result(result);
 }
 
-static bool copy_station_text(const char *source, char *destination, size_t capacity) {
+static bool copy_bounded_text(const char *source, char *destination, size_t capacity) {
     if (source == NULL || destination == NULL || capacity == 0U) {
         return false;
     }
@@ -193,13 +193,48 @@ app_error_code_t device_settings_core_set_station(device_settings_core_t *core, 
     app_v2_device_settings_t candidate = {0};
     app_error_code_t result = device_settings_core_load(core, &candidate);
     if (result == APP_ERROR_NONE &&
-        (!copy_station_text(ssid, candidate.station_ssid, sizeof(candidate.station_ssid)) ||
-         !copy_station_text(passphrase, candidate.station_passphrase,
+        (!copy_bounded_text(ssid, candidate.station_ssid, sizeof(candidate.station_ssid)) ||
+         !copy_bounded_text(passphrase, candidate.station_passphrase,
                             sizeof(candidate.station_passphrase)))) {
         result = APP_ERROR_INVALID_ARGUMENT;
     }
     if (result == APP_ERROR_NONE) {
         candidate.station_configured = true;
+        result = device_settings_core_replace(core, &candidate, out_changed);
+    }
+    core->ops.secure_zero(core->ops.context, &candidate, sizeof(candidate));
+    return result;
+}
+
+/* SPEC_V2 12.4: the physical console's set-ap-passphrase command. Unlike
+ * station credentials, the device's own access-point passphrase must never
+ * be empty -- CLAUDE.md: "no open-AP" is a standing invariant, never a
+ * degraded mode -- so this rejects an out-of-bounds value before ever
+ * touching storage rather than relying on app_v2_device_settings_validate()
+ * to reject it deep inside device_settings_core_replace(), giving the
+ * console a specific, pre-storage invalid_argument instead of an opaque
+ * backend failure. */
+app_error_code_t device_settings_core_set_access_point_passphrase(device_settings_core_t *core,
+                                                                  const char *passphrase,
+                                                                  bool *out_changed) {
+    if (core == NULL || passphrase == NULL || out_changed == NULL ||
+        !operations_valid(&core->ops)) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+    *out_changed = false;
+    const size_t passphrase_length = strlen(passphrase);
+    if (passphrase_length < APP_V2_WIFI_PASSPHRASE_MIN_BYTES ||
+        passphrase_length > APP_V2_WIFI_PASSPHRASE_MAX_BYTES) {
+        return APP_ERROR_INVALID_ARGUMENT;
+    }
+
+    app_v2_device_settings_t candidate = {0};
+    app_error_code_t result = device_settings_core_load(core, &candidate);
+    if (result == APP_ERROR_NONE &&
+        !copy_bounded_text(passphrase, candidate.ap_passphrase, sizeof(candidate.ap_passphrase))) {
+        result = APP_ERROR_INVALID_ARGUMENT;
+    }
+    if (result == APP_ERROR_NONE) {
         result = device_settings_core_replace(core, &candidate, out_changed);
     }
     core->ops.secure_zero(core->ops.context, &candidate, sizeof(candidate));

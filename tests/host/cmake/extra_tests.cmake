@@ -128,6 +128,7 @@ target_include_directories(
             "${CMAKE_SOURCE_DIR}/../../firmware/components/app_contracts_v2/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/device_controls/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/include"
 )
 target_link_libraries(web_parsed_secret_wipe_tests PRIVATE PkgConfig::CJSON test_support)
 target_compile_options(web_parsed_secret_wipe_tests PRIVATE ${STRICT_WARNINGS})
@@ -157,6 +158,7 @@ target_include_directories(
             "${CMAKE_SOURCE_DIR}/../../firmware/components/auth"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/app_contracts_v2/include"
             "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server"
+            "${CMAKE_SOURCE_DIR}/../../firmware/components/web_server/include"
 )
 target_link_libraries(web_change_password_transaction_tests PRIVATE PkgConfig::CJSON test_support)
 target_compile_options(web_change_password_transaction_tests PRIVATE ${STRICT_WARNINGS})

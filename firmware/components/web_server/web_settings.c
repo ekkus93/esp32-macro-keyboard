@@ -629,17 +629,32 @@ static bool ops_valid_change_password(const web_settings_ops_t *ops) {
            ops->password_transition_end != NULL && ops->invalidate_all_sessions != NULL;
 }
 
-static web_change_password_outcome_t change_password_verify_current(
-    const web_settings_ops_t *ops, app_v2_string_view_t current_password_view,
-    app_v2_device_settings_t *current, app_v2_string_view_t new_password_view) {
+/* Shared by both the HTTP change-password route and the physical console's
+ * set-admin-password command: read the current record and validate the new
+ * password against it, with no notion of a body or a current-password
+ * value. */
+static web_change_password_outcome_t
+change_password_load_current_and_validate(const web_settings_ops_t *ops,
+                                          app_v2_string_view_t new_password_view,
+                                          app_v2_device_settings_t *current) {
     const app_error_code_t read_result = ops->settings_read(ops->context, current);
     if (read_result != APP_ERROR_NONE) {
         return change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
                                                    read_result);
     }
-
     if (app_v2_password_change_validate(current, new_password_view) != APP_V2_PASSWORD_CHANGE_OK) {
         return change_password_outcome(WEB_CHANGE_PASSWORD_INVALID_NEW_PASSWORD);
+    }
+    return change_password_outcome(WEB_CHANGE_PASSWORD_OK);
+}
+
+static web_change_password_outcome_t change_password_verify_current(
+    const web_settings_ops_t *ops, app_v2_string_view_t current_password_view,
+    app_v2_device_settings_t *current, app_v2_string_view_t new_password_view) {
+    const web_change_password_outcome_t loaded =
+        change_password_load_current_and_validate(ops, new_password_view, current);
+    if (loaded.result != WEB_CHANGE_PASSWORD_OK) {
+        return loaded;
     }
 
     bool current_matches = false;
@@ -656,16 +671,16 @@ static web_change_password_outcome_t change_password_verify_current(
     return change_password_outcome(WEB_CHANGE_PASSWORD_OK);
 }
 
-static web_change_password_outcome_t change_password_create_candidate(
-    const web_settings_ops_t *ops, app_v2_string_view_t new_password_view, cJSON **root,
+/* Shared by both callers: derive material for the new password and prepare
+ * the candidate settings record. No notion of a JSON body -- the HTTP
+ * wrapper (change_password_create_candidate()) owns wiping its own parsed
+ * tree around this call. */
+static web_change_password_outcome_t change_password_build_candidate(
+    const web_settings_ops_t *ops, app_v2_string_view_t new_password_view,
     const app_v2_device_settings_t *current, app_v2_setup_password_material_t *material,
     app_v2_device_settings_t *candidate) {
     const app_error_code_t create_result = ops->password_create(
         ops->context, new_password_view.data, new_password_view.length, material);
-    /* The parsed tree contains both plaintext passwords. It is no longer needed
-     * after password_create(), so wipe it before any durable operation starts. */
-    wipe_and_delete_json_tree(*root);
-    *root = NULL;
     if (create_result != APP_ERROR_NONE) {
         return change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
                                                    create_result);
@@ -676,6 +691,19 @@ static web_change_password_outcome_t change_password_create_candidate(
     }
     secure_zero_local(material, sizeof(*material));
     return change_password_outcome(WEB_CHANGE_PASSWORD_OK);
+}
+
+static web_change_password_outcome_t change_password_create_candidate(
+    const web_settings_ops_t *ops, app_v2_string_view_t new_password_view, cJSON **root,
+    const app_v2_device_settings_t *current, app_v2_setup_password_material_t *material,
+    app_v2_device_settings_t *candidate) {
+    const web_change_password_outcome_t built =
+        change_password_build_candidate(ops, new_password_view, current, material, candidate);
+    /* The parsed tree contains both plaintext passwords. It is no longer needed
+     * after password_create(), so wipe it before any durable operation starts. */
+    wipe_and_delete_json_tree(*root);
+    *root = NULL;
+    return built;
 }
 
 static web_change_password_outcome_t
@@ -758,6 +786,52 @@ cleanup:
         ops->password_transition_end(ops->context);
     }
     wipe_and_delete_json_tree(root);
+    secure_zero_local(&material, sizeof(material));
+    secure_zero_local(&candidate, sizeof(candidate));
+    secure_zero_local(&current, sizeof(current));
+    return outcome;
+}
+
+web_change_password_outcome_t
+web_change_password_apply_without_verification(app_v2_string_view_t new_password_view,
+                                               const web_settings_ops_t *ops) {
+    if (!ops_valid_change_password(ops) || new_password_view.data == NULL) {
+        return change_password_outcome(WEB_CHANGE_PASSWORD_INTERNAL);
+    }
+
+    web_change_password_outcome_t outcome;
+    app_v2_device_settings_t current = {0};
+    app_v2_setup_password_material_t material = {0};
+    app_v2_device_settings_t candidate = {0};
+    bool transition_active = false;
+
+    /* Same serialization rationale as web_change_password_handle(): the gate
+     * covers the whole transaction, not only the durable write. */
+    const app_error_code_t transition_result = ops->password_transition_begin(ops->context);
+    if (transition_result != APP_ERROR_NONE) {
+        outcome = change_password_outcome_with_detail(WEB_CHANGE_PASSWORD_BACKEND_UNAVAILABLE,
+                                                      transition_result);
+        goto cleanup;
+    }
+    transition_active = true;
+
+    outcome = change_password_load_current_and_validate(ops, new_password_view, &current);
+    if (outcome.result != WEB_CHANGE_PASSWORD_OK) {
+        goto cleanup;
+    }
+
+    outcome =
+        change_password_build_candidate(ops, new_password_view, &current, &material, &candidate);
+    if (outcome.result != WEB_CHANGE_PASSWORD_OK) {
+        goto cleanup;
+    }
+
+    outcome = change_password_commit_candidate(ops, &candidate);
+
+cleanup:
+    if (transition_active) {
+        ops->password_transition_end(ops->context);
+    }
     secure_zero_local(&material, sizeof(material));
     secure_zero_local(&candidate, sizeof(candidate));
     secure_zero_local(&current, sizeof(current));
