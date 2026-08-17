@@ -56,7 +56,7 @@ export function MacroOverflowMenu({
   });
 
   return (
-    <div className="overflow-menu" ref={containerRef}>
+    <div className="relative" ref={containerRef}>
       <button
         aria-expanded={open}
         aria-label={`More actions for ${macro.name}`}
@@ -71,7 +71,7 @@ export function MacroOverflowMenu({
       {open ? (
         <div
           aria-label={`Actions for ${macro.name}`}
-          className="overflow-panel"
+          className="mt-2 grid min-w-[12rem] gap-2 rounded-keycap border border-cap-edge bg-panel p-3 shadow-[0_0.5rem_1.5rem_rgb(33_30_26_/_18%)]"
         >
           <button
             aria-label={`Preview and send ${macro.name}`}
@@ -95,7 +95,7 @@ export function MacroOverflowMenu({
           </button>
           {confirmingDelete ? (
             <div
-              className="confirmation-panel"
+              className="my-4 rounded-keycap border border-l-[3px] border-lamp bg-warning-tint p-4"
               ref={confirmRef}
               role="alertdialog"
               tabIndex={-1}

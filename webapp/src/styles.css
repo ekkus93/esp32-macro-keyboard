@@ -699,10 +699,6 @@
     @apply font-bold text-alert;
   }
 
-  .confirmation-panel {
-    @apply my-4 rounded-keycap border border-l-[3px] border-lamp bg-warning-tint p-4;
-  }
-
   /* --- Send status --------------------------------------------------------- */
   .send-status {
     @apply my-3 rounded-keycap border-l-[3px] border-actuate bg-send-tint px-4 py-[0.8rem];
@@ -714,14 +710,6 @@
 
   .send-status[role="alert"] {
     @apply border-alert bg-bad-tint;
-  }
-
-  .overflow-menu {
-    @apply relative;
-  }
-
-  .overflow-panel {
-    @apply mt-2 grid min-w-[12rem] gap-2 rounded-keycap border border-cap-edge bg-panel p-3 shadow-[0_0.5rem_1.5rem_rgb(33_30_26_/_18%)];
   }
 
   /* --- Dialogs -------------------------------------------------------------
