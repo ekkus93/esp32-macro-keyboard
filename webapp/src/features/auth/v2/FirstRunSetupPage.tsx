@@ -162,7 +162,7 @@ export function FirstRunSetupPage({
           Your Wi-Fi passphrase, administrator password, and setup code are
           never shown again after you enter them.
         </p>
-        <dl className="metadata">
+        <dl className="mt-3 text-[0.85rem]">
           <dt>Device name</dt>
           <dd>{deviceName}</dd>
           <dt>Wi-Fi network name</dt>
