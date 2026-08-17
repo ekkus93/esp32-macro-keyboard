@@ -330,6 +330,38 @@ Lowest blast radius. Establishes the pattern before anything shared moves.
       it and capture a real baseline. Computed styles identical. `npm run
       test`: 544/544. `check-webapp.sh`: EXIT=0. **Phase 1 complete.**
 
+**Gap found during execution (after T2-1, before T2-2):** §5.1's disposition-A
+inventory table lists `metadata`, `management-list`, `management-card`,
+`reorder-actions`, `management-actions`, `card-actions`, `page-heading-title`,
+and `storage-summary` but none was ever assigned to a phase task above. Adding
+them here rather than skipping them, per §0.1's "do not skip a task or
+subtask, even if it looks trivial."
+
+- [ ] **T1-5** `.page-heading-title` — `MacroEditorPage.tsx`, `MacrosPage.tsx`.
+      Disposition A.
+      *Evidence:*
+- [ ] **T1-6** `.metadata` — `FirstRunSetupPage.tsx`, `SnapshotsPage.tsx`.
+      Disposition A.
+      *Evidence:*
+- [ ] **T1-7** `.storage-summary` — `SnapshotsPage.tsx`. **Keep the class name
+      on the element** (§8.1 test hook,
+      `webapp/tests/browser/workflows/snapshots.mjs:24`); only the CSS rule
+      moves. Has two `nth-of-type` descendant rules and two width media
+      queries (`>= 26rem`, `< 26rem`) — the most structurally complex
+      "disposition A" class in the inventory.
+      *Evidence:*
+- [ ] **T1-8** The management cluster — `.management-list`,
+      `.management-card`, `.management-actions`, `.card-actions`,
+      `.reorder-actions` across `PackageManagementPage.tsx`, `SnapshotRow.tsx`,
+      `MacroRow.tsx`, and the leftover `.card-actions` div in
+      `ExecutionRecoveryOverlay.tsx` (T1-1 only touched the outer
+      `.recovery-overlay`, not this inner class). `.management-actions,
+      .card-actions` and `.reorder-actions` each have a `@media (width <=
+      32rem)` override that currently shares a block with `.header-actions`
+      (Phase 4, disposition B) and `.timing-grid` (already inlined in T2-2) —
+      split the block, do not inline `.header-actions`' share of it early.
+      *Evidence:*
+
 ### Phase 2 — The macro editor
 
 Highest single-file concentration, and the one page with a documented
