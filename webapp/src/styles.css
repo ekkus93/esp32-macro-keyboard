@@ -409,18 +409,6 @@
 
   /* An empty list is an invitation to act, not a statement of absence: it
      names what is missing, says what the thing is, and offers the action. */
-  .empty-state {
-    @apply grid justify-items-start gap-2 rounded-keycap border border-dashed border-cap-edge bg-panel p-6;
-  }
-
-  .empty-state h3 {
-    @apply m-0;
-  }
-
-  .empty-state p {
-    @apply m-0 max-w-[34ch] text-legend-soft;
-  }
-
   .checkbox-row {
     @apply flex min-h-[44px] items-center gap-[0.65rem];
   }

@@ -558,9 +558,12 @@ export function MacrosPage({
       <p role="status">{moveAnnouncement}</p>
 
       {activePackage.macros.length === 0 ? (
-        <div className="empty-state" role="status">
-          <h3>No macros in {activePackage.name}</h3>
-          <p>
+        <div
+          className="grid justify-items-start gap-2 rounded-keycap border border-dashed border-cap-edge bg-panel p-6"
+          role="status"
+        >
+          <h3 className="m-0">No macros in {activePackage.name}</h3>
+          <p className="m-0 max-w-[34ch] text-legend-soft">
             A macro is a sequence of keystrokes the device types for you over
             USB. Add one to get started.
           </p>
