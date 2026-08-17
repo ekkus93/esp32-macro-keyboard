@@ -473,6 +473,35 @@ used-but-undefined):
 - Unused tokens: for each `--color-*` in `@theme`, search the stylesheet body
   and all markup for `bg-*`/`text-*`/`border-*`/`var(--color-*)`.
 
+### 7.5 Spec clauses this refactor must preserve
+
+**No spec change is required for this work, and needing one is a bug signal.**
+Both specs are outcome-based: they constrain the rendered result, never the CSS
+architecture. `SPEC_V2.md` mentions Tailwind exactly once (§5.2, in the
+technology-stack list) and says nothing about how it is used. `UI_UX_SPEC_V2.md`
+contains no reference to CSS, stylesheets, class names, or `@apply` at all.
+
+So if a task here appears to require editing either spec, the refactor has
+changed user-visible behaviour and the change is wrong. Stop and report it
+rather than reaching for a spec edit.
+
+These are the clauses a CSS refactor can plausibly break. Verify each survives:
+
+| Clause | Mechanism today | How it is checked |
+| --- | --- | --- |
+| UI_UX §13 — touch targets ≥ 44×44 | `min-h-[44px]` / `min-h-[48px]` on buttons, `select`, `.password-toggle` (`h-11 w-11`), checkbox/radio min sizes | **Automated:** `assertTouchTargets()`, `tests/browser/workflows/browser.mjs:22` |
+| UI_UX §13 — single column, fluid to 320px | `min-w-[320px]` on `body`; fluid grids | **Automated:** `assertResponsiveLayout()`, same file line 23 |
+| UI_UX §13 — safe-area insets respected | `env(safe-area-inset-*)` in `.standalone`, `.app-header`, `.bottom-nav`, `.landscape-block`, `.recovery-overlay` | Manual — grep the built CSS for `env(safe-area-inset` and count 5 sites |
+| UI_UX §14 — colour never the only indicator | Four distinct `::before` **shapes** on the status badges; inset top rule on the active nav tab and pressed chord modifier | Manual — §5 T5-1; all four shapes must differ after migration |
+| UI_UX §14 — reduced motion disables animation | The `@media (prefers-reduced-motion: reduce)` block on `*` | Stays in CSS (§2.2); confirm it still exists |
+| UI_UX §14 — focus always visible | `:focus-visible` outline rules on `a`/`button`/`input`/`select`/`textarea`/`[tabindex="-1"]` | **Automated:** axe-core, in `check-webapp.sh` |
+| UI_UX §14 — dialogs trap focus | `useFocusTrap` (JavaScript, untouched by this work) | **Automated:** browser workflows |
+| SPEC_V2 §5.2 — no remote assets | System font stack in `@theme`; no `@import` of a remote sheet | **Automated:** `verify-no-remote-assets.sh` |
+| SPEC_V2 §5.2 — Tailwind is the CSS tool | Unchanged — this refactor uses *more* of Tailwind, not less | n/a |
+
+Contrast is not in the table because no colour value may change (§8.5); axe-core
+gates it regardless.
+
 ---
 
 ## 8. Risk register
