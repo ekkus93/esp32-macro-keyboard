@@ -301,11 +301,14 @@ revertible.
 
 Lowest blast radius. Establishes the pattern before anything shared moves.
 
-- [ ] **T1-1** `ExecutionRecoveryOverlay.tsx` — inline `.recovery-overlay`.
+- [x] **T1-1** `ExecutionRecoveryOverlay.tsx` — inline `.recovery-overlay`.
       Note it carries `bottom: calc(1rem + env(safe-area-inset-bottom))`,
       which overrides the `bottom-4` utility; express as
       `bottom-[calc(1rem+env(safe-area-inset-bottom))]` and drop `bottom-4`.
-      *Evidence:*
+      *Evidence:* `1b186e96`. Computed styles captured via the H4 recovery
+      fixture before and after: identical (position, bottom/left/right,
+      z-index, max-width, radius, border, background, padding, box-shadow).
+      `npm run test`: 544/544. `check-webapp.sh`: EXIT=0, H4 workflow passed.
 - [ ] **T1-2** `SignInPage.tsx` — inline `.password-field`, `.password-toggle`.
       `.password-field input { @apply pr-12 }` becomes `[&_input]:pr-12` on
       the wrapper, or `pr-12` directly on the input (prefer the latter).
